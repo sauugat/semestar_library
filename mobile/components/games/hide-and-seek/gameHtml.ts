@@ -604,40 +604,68 @@ export function getHideAndSeekHtml(): string {
     <div class="blindfold-timer-box" id="blindfold-counter">10</div>
   </div>
 
+  <!-- Pre-Game Audio Unlock Gate (Shown if first touch was consumed by React Native Lobby before WebView mounted) -->
+  <div id="audio-unlock-gate" style="position:absolute;top:52px;left:50%;transform:translateX(-50%);background:rgba(224,142,54,0.95);border:1.5px solid #fef08a;color:#060a10;padding:6px 16px;border-radius:16px;font-size:10.5px;font-weight:900;letter-spacing:1px;z-index:24;display:flex;align-items:center;gap:7px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.85);">
+    <span>TAP ANYWHERE TO ENABLE NIGHTFALL AUDIO</span>
+  </div>
+
   <div id="toast"></div>
 
-  <div id="physics-debug-hud">
-    <div class="debug-title">PHYSICS &amp; CONTROLS TELEMETRY</div>
+  <!-- Live Coordinate, Building, Room ID & Light Mood Readout Pill (Explore Mode) -->
+  <div id="explore-coord-pill" style="position:absolute;top:36px;left:50%;transform:translateX(-50%);background:rgba(6,10,18,0.88);border:1px solid rgba(56,189,248,0.42);color:#e0f2fe;font-family:monospace;font-size:10px;font-weight:700;padding:4px 12px;border-radius:10px;z-index:7;pointer-events:none;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.8);">
+    XYZ: (-4.0, 0.0, -48.0) • BLDG: OUTDOORS • ROOM: OUTDOORS • MOOD: NIGHT_SKY
+  </div>
+
+  <!-- Floating UI Restore Button (Shown only while Free Screenshot Mode hides all HUD) -->
+  <button id="screenshot-restore-btn" style="position:absolute;bottom:14px;right:14px;background:rgba(8,13,22,0.55);border:1px solid rgba(148,163,184,0.4);color:#cbd5e1;font-size:9.5px;font-weight:800;padding:5px 10px;border-radius:10px;z-index:30;display:none;cursor:pointer;">
+    SHOW UI
+  </button>
+
+  <div id="physics-debug-hud" style="max-height:82vh;overflow-y:auto;">
+    <div class="debug-title">MAP-DESIGN &amp; TELEMETRY TOOLS</div>
     <div id="dbg-fps">FPS: 60 | Physics: 0.00ms</div>
     <div id="dbg-pos">Pos: 0.00, 0.00, 0.00</div>
+    <div id="dbg-room-info" style="color:#38bdf8;font-weight:bold;">Room: OUTDOORS [CAMPUS] | Mood: night_sky</div>
     <div id="dbg-vel">Vel: (0.00, 0.00, 0.00) 0.00 m/s</div>
     <div id="dbg-move">MoveVec: (0.00, 0.00)</div>
     <div id="dbg-input">Input: Fwd: 0.00, Right: 0.00</div>
     <div id="dbg-look">Yaw: 0.0° (0.00 rad) | Pitch: 0.0°</div>
     <div id="dbg-ground">Grounded: true | Crouching: false</div>
     <div id="dbg-normal">Coll Normal: None</div>
+
     <div class="debug-controls-section">
-      <div class="debug-section-label">TEST CONTROLS &amp; COMFORT</div>
+      <div class="debug-section-label">1. CAMERA &amp; FREE-FLY (NOCLIP)</div>
       <div class="debug-btn-row">
+        <button id="dbg-btn-freefly" class="dbg-btn">Free-Fly: OFF</button>
+        <button id="dbg-btn-walkmode" class="dbg-btn active">Walk Mode</button>
+        <button id="dbg-btn-overview-cam" class="dbg-btn">Overview Cam: OFF</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+        <span style="font-size:9.5px;color:#94a3b8;">Fly Spd:</span>
+        <input id="dbg-slider-flyspeed" type="range" min="4" max="40" step="1" value="14" style="flex:1;" />
+        <span id="dbg-flyspeed-val" style="font-size:9.5px;min-width:34px;">14m/s</span>
+      </div>
+      <div class="debug-btn-row" style="margin-top:4px;">
         <button id="dbg-btn-spd-1" class="dbg-btn active">1x</button>
         <button id="dbg-btn-spd-2" class="dbg-btn">2x</button>
         <button id="dbg-btn-spd-5" class="dbg-btn">5x</button>
         <button id="dbg-btn-lowfps" class="dbg-btn">15 FPS</button>
         <button id="dbg-btn-lag" class="dbg-btn">1s Freeze</button>
       </div>
-      <div class="debug-btn-row" style="margin-top:4px;">
-        <button id="dbg-btn-wireframes" class="dbg-btn">Colliders+WPs</button>
-        <button id="dbg-btn-shadows" class="dbg-btn active">Shadows: ON</button>
-        <button id="dbg-btn-run-audit" class="dbg-btn">Run Audit</button>
-      </div>
-      <div class="debug-btn-row" style="margin-top:4px;">
-        <button id="dbg-btn-fear" class="dbg-btn">Fear: HIGH</button>
-        <button id="dbg-btn-flicker" class="dbg-btn">Flicker: FULL</button>
-        <button id="dbg-btn-shake" class="dbg-btn">Shake: ON</button>
-      </div>
+    </div>
+
+    <div class="debug-controls-section">
+      <div class="debug-section-label">2. TELEPORT TO ANY ROOM / BUILDING (32 ROOMS)</div>
+      <select id="dbg-room-teleport-select" class="dbg-select">
+        <option value="">Jump to Room / Building / Floor...</option>
+      </select>
       <div style="margin-top:4px;">
         <select id="dbg-teleport-select" class="dbg-select">
-          <option value="">Teleport-to-Point...</option>
+          <option value="">Landmark Teleport Presets...</option>
+          <option value="1.8,0,-51.2,-0.55">Bus A exterior</option>
+          <option value="5.2,0.54,-43.2,0">Bus A interior</option>
+          <option value="12.0,0,-52.2,-0.55">Bus B exterior</option>
+          <option value="15.4,0.54,-44.2,0.04">Bus B interior</option>
           <option value="-5.7,0.48,64.0,0">Main Bldg: Hall 101 (Flicker Tube)</option>
           <option value="17.7,0.48,64.0,0">Main Bldg: Admin 102 (Warm Lamp)</option>
           <option value="-5.7,4.08,64.0,0">Main Bldg: Class 201 (Moonlit)</option>
@@ -650,10 +678,67 @@ export function getHideAndSeekHtml(): string {
           <option value="3.2,0,-60.0,0">Street Lamp Post</option>
           <option value="-6.0,0,40.0,3.14">Wrought-Iron Spiked Fence</option>
           <option value="-12.0,0,-14.0,0">Stone Chaitya Stupa Base</option>
-          <option value="0,0,-60,0">Spawn: Hunter Patrol Post</option>
-          <option value="-4,0,-48,0">Spawn: Scholar Hider Spot</option>
+          <option value="0,0,-60,0">Spawn: South Main Gate</option>
+          <option value="-4,0,-48,0">Spawn: Parking Plaza</option>
         </select>
       </div>
+    </div>
+
+    <div class="debug-controls-section">
+      <div class="debug-section-label">3. LIGHTING MOOD, TIME, FOG &amp; EFFECT LAYERS</div>
+      <div class="debug-btn-row">
+        <button id="dbg-btn-cycle-mood" class="dbg-btn">Cycle Room Mood</button>
+        <button id="dbg-btn-wireframes" class="dbg-btn">Colliders+WPs</button>
+        <button id="dbg-btn-shadows" class="dbg-btn active">Shadows: ON</button>
+        <button id="dbg-btn-screenshot" class="dbg-btn" style="border-color:#fde047;color:#fde047;">Screenshot (Hide UI)</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+        <span style="font-size:9.5px;color:#94a3b8;min-width:52px;">Night Light:</span>
+        <input id="dbg-slider-time" type="range" min="0.2" max="2.5" step="0.05" value="1.0" style="flex:1;" />
+        <span id="dbg-time-val" style="font-size:9.5px;min-width:32px;">100%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+        <span style="font-size:9.5px;color:#94a3b8;min-width:52px;">Fog Density:</span>
+        <input id="dbg-slider-fog" type="range" min="0.0" max="2.5" step="0.05" value="1.0" style="flex:1;" />
+        <span id="dbg-fog-val" style="font-size:9.5px;min-width:32px;">100%</span>
+      </div>
+      <div class="debug-btn-row" style="margin-top:4px;">
+        <button id="dbg-btn-layer-fog" class="dbg-btn active">Fog: ON</button>
+        <button id="dbg-btn-layer-dust" class="dbg-btn active">Dust: ON</button>
+        <button id="dbg-btn-layer-shafts" class="dbg-btn active">Shafts: ON</button>
+        <button id="dbg-btn-layer-beam" class="dbg-btn active">FL Beam: ON</button>
+      </div>
+    </div>
+
+    <div class="debug-controls-section">
+      <div class="debug-section-label">4. AUDIO AMBIENCE &amp; TOP-DOWN MINIMAP</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:9.5px;color:#94a3b8;">Amb Vol:</span>
+        <input id="dbg-slider-volume" type="range" min="0" max="1.4" step="0.05" value="1.0" style="flex:1;" />
+        <span id="dbg-vol-val" style="font-size:9.5px;min-width:32px;">100%</span>
+        <button id="dbg-btn-mute-audio" class="dbg-btn">Mute Audio</button>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px;">
+        <button id="dbg-btn-minimap" class="dbg-btn active">2D Minimap</button>
+        <button id="dbg-btn-run-audit" class="dbg-btn">Run Audit</button>
+      </div>
+      <canvas id="explore-minimap-canvas" width="160" height="190" style="display:block;margin-top:5px;border:1px solid rgba(56,189,248,0.4);border-radius:6px;background:#050b14;"></canvas>
+    </div>
+
+    <div class="debug-controls-section">
+      <div class="debug-section-label">5. MAP DESIGN NOTES LOGGER</div>
+      <div style="display:flex;gap:4px;">
+        <input id="dbg-note-input" type="text" placeholder="Note what to fix here..." style="flex:1;background:rgba(15,23,42,0.95);border:1px solid rgba(0,255,200,0.45);color:#e2e8f0;font-family:monospace;font-size:10px;padding:3px 6px;border-radius:4px;" />
+        <button id="dbg-btn-add-note" class="dbg-btn">+Log</button>
+        <button id="dbg-btn-copy-notes" class="dbg-btn">Copy</button>
+      </div>
+      <textarea id="dbg-notes-output" readonly rows="3" placeholder="Logged room/coord notes appear here..." style="width:100%;margin-top:4px;background:rgba(6,10,18,0.95);border:1px solid rgba(148,163,184,0.3);color:#cbd5e1;font-family:monospace;font-size:9.5px;padding:4px;border-radius:4px;resize:vertical;"></textarea>
+    </div>
+
+    <div class="debug-controls-section" style="display:none;">
+      <button id="dbg-btn-fear" class="dbg-btn">Fear: HIGH</button>
+      <button id="dbg-btn-flicker" class="dbg-btn">Flicker: FULL</button>
+      <button id="dbg-btn-shake" class="dbg-btn">Shake: ON</button>
     </div>
   </div>
 
@@ -755,8 +840,112 @@ export function getHideAndSeekHtml(): string {
     });
 
     const HORROR_CONFIG = ${configJson};
+    let EXPLORE_MODE = HORROR_CONFIG.exploreMode !== undefined ? Boolean(HORROR_CONFIG.exploreMode) : true;
+    const EXPLORE_FLAGS = {
+      // 1. Hide-and-seek gameplay flags
+      ENABLE_GAMEPLAY: !EXPLORE_MODE,
+      ENABLE_HIDE_AND_SEEK_GAMEPLAY: !EXPLORE_MODE,
+      ENABLE_HUNTER_AND_BOTS: !EXPLORE_MODE,
+      ENABLE_ROLES_AND_TIMER: !EXPLORE_MODE,
+      ENABLE_ROLES_TIMER_WIN_LOSE: !EXPLORE_MODE,
+      ENABLE_WIN_LOSE_EVALUATION: !EXPLORE_MODE,
+      ENABLE_TAGGING_AND_CATCHING: !EXPLORE_MODE,
+      ENABLE_HIDING_PROMPTS: !EXPLORE_MODE,
+      ENABLE_HIDING_SPOTS_AND_MINIGAME: !EXPLORE_MODE,
+      ENABLE_BREATH_MINIGAME: !EXPLORE_MODE,
+      ENABLE_FUSE_OBJECTIVES: !EXPLORE_MODE,
+      ENABLE_FUSE_BOXES_AND_OBJECTIVES: !EXPLORE_MODE,
+      ENABLE_THROWABLE_DISTRACTIONS: !EXPLORE_MODE,
+      ENABLE_GAMEPLAY_HUD: !EXPLORE_MODE,
+      // 2. Scare & fear flags
+      ENABLE_SCARES: !EXPLORE_MODE,
+      ENABLE_GHOST_APPARITIONS: !EXPLORE_MODE,
+      ENABLE_JUMPSCARES_AND_STINGERS: !EXPLORE_MODE,
+      ENABLE_RANDOM_SCARE_EVENTS: !EXPLORE_MODE,
+      ENABLE_WHISPERS_AND_WEEPING: !EXPLORE_MODE,
+      ENABLE_HEARTBEAT: !EXPLORE_MODE,
+      ENABLE_HEARTBEAT_AND_CHASE_AUDIO: !EXPLORE_MODE,
+      ENABLE_PROXIMITY_AND_CHASE_AUDIO: !EXPLORE_MODE,
+      // 3. Camera & screen effect flags
+      ENABLE_CAMERA_AND_SCREEN_EFFECTS: !EXPLORE_MODE,
+      ENABLE_CAMERA_AND_SCREEN_SHAKE: !EXPLORE_MODE,
+      ENABLE_RED_VIGNETTE_AND_PULSES: !EXPLORE_MODE,
+      ENABLE_SCREEN_GLITCH_AND_DISTORTION: !EXPLORE_MODE,
+      ENABLE_FEAR_FOV_AND_TENSION_FOG: !EXPLORE_MODE,
+      // 4. Flicker & room light mood flags
+      ENABLE_STROBING_AND_BROWNOUTS: !EXPLORE_MODE,
+      CALM_DYING_TUBE_FLICKER: EXPLORE_MODE,
+      STEADY_EMERGENCY_RED: EXPLORE_MODE,
+      // 5. Flashlight battery flag
+      INFINITE_FLASHLIGHT_BATTERY: EXPLORE_MODE,
+    };
+    const exploreTools = {
+      freeFly: false,
+      overviewCam: false,
+      flyUpHeld: false,
+      flyDownHeld: false,
+      fogEnabled: true,
+      fogFar: (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0,
+      dustEnabled: true,
+      lightShaftsEnabled: true,
+      flashlightBeamEnabled: true,
+      initUI() {},
+      updateFrame() {},
+      syncAudioUi() {},
+    };
+    function setExploreMode(enabled) {
+      EXPLORE_MODE = !!enabled;
+      HORROR_CONFIG.exploreMode = EXPLORE_MODE;
+      const gOn = !EXPLORE_MODE;
+      EXPLORE_FLAGS.ENABLE_GAMEPLAY = gOn;
+      EXPLORE_FLAGS.ENABLE_HIDE_AND_SEEK_GAMEPLAY = gOn;
+      EXPLORE_FLAGS.ENABLE_HUNTER_AND_BOTS = gOn;
+      EXPLORE_FLAGS.ENABLE_ROLES_AND_TIMER = gOn;
+      EXPLORE_FLAGS.ENABLE_ROLES_TIMER_WIN_LOSE = gOn;
+      EXPLORE_FLAGS.ENABLE_WIN_LOSE_EVALUATION = gOn;
+      EXPLORE_FLAGS.ENABLE_TAGGING_AND_CATCHING = gOn;
+      EXPLORE_FLAGS.ENABLE_HIDING_PROMPTS = gOn;
+      EXPLORE_FLAGS.ENABLE_HIDING_SPOTS_AND_MINIGAME = gOn;
+      EXPLORE_FLAGS.ENABLE_BREATH_MINIGAME = gOn;
+      EXPLORE_FLAGS.ENABLE_FUSE_OBJECTIVES = gOn;
+      EXPLORE_FLAGS.ENABLE_FUSE_BOXES_AND_OBJECTIVES = gOn;
+      EXPLORE_FLAGS.ENABLE_THROWABLE_DISTRACTIONS = gOn;
+      EXPLORE_FLAGS.ENABLE_GAMEPLAY_HUD = gOn;
+      EXPLORE_FLAGS.ENABLE_SCARES = gOn;
+      EXPLORE_FLAGS.ENABLE_GHOST_APPARITIONS = gOn;
+      EXPLORE_FLAGS.ENABLE_JUMPSCARES_AND_STINGERS = gOn;
+      EXPLORE_FLAGS.ENABLE_RANDOM_SCARE_EVENTS = gOn;
+      EXPLORE_FLAGS.ENABLE_WHISPERS_AND_WEEPING = gOn;
+      EXPLORE_FLAGS.ENABLE_HEARTBEAT = gOn;
+      EXPLORE_FLAGS.ENABLE_HEARTBEAT_AND_CHASE_AUDIO = gOn;
+      EXPLORE_FLAGS.ENABLE_PROXIMITY_AND_CHASE_AUDIO = gOn;
+      EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_EFFECTS = gOn;
+      EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_SHAKE = gOn;
+      EXPLORE_FLAGS.ENABLE_RED_VIGNETTE_AND_PULSES = gOn;
+      EXPLORE_FLAGS.ENABLE_SCREEN_GLITCH_AND_DISTORTION = gOn;
+      EXPLORE_FLAGS.ENABLE_FEAR_FOV_AND_TENSION_FOG = gOn;
+      EXPLORE_FLAGS.ENABLE_STROBING_AND_BROWNOUTS = gOn;
+      EXPLORE_FLAGS.CALM_DYING_TUBE_FLICKER = EXPLORE_MODE;
+      EXPLORE_FLAGS.STEADY_EMERGENCY_RED = EXPLORE_MODE;
+      EXPLORE_FLAGS.INFINITE_FLASHLIGHT_BATTERY = EXPLORE_MODE;
+
+      const gpHud = document.getElementById('gameplay-telemetry-hud');
+      if (gpHud) gpHud.style.display = gOn ? 'flex' : 'none';
+      const throwBtn = document.getElementById('btn-throw');
+      if (throwBtn) throwBtn.style.display = gOn ? 'flex' : 'none';
+      const actLbl = document.getElementById('btn-action-label');
+      if (actLbl && !gOn) actLbl.textContent = 'DOOR';
+      const coordPill = document.getElementById('explore-coord-pill');
+      if (coordPill) coordPill.style.display = EXPLORE_MODE ? 'block' : 'none';
+    }
+    window.setExploreMode = setExploreMode;
+    window.EXPLORE_FLAGS = EXPLORE_FLAGS;
     let currentQuality = 'high';
+    let qualityPinMode = (HORROR_CONFIG.accessibility && HORROR_CONFIG.accessibility.qualityPinMode) || 'auto';
+    let batterySaverEnabled = !!(HORROR_CONFIG.accessibility && HORROR_CONFIG.accessibility.batterySaver);
     let activePreset = HORROR_CONFIG.qualityPresets[currentQuality] || HORROR_CONFIG.qualityPresets.high;
+    window.__PROCEDURAL_TEX_CACHE__ = window.__PROCEDURAL_TEX_CACHE__ || new Map();
+    window.__TEXTURE_CHUNK_QUEUE__ = window.__TEXTURE_CHUNK_QUEUE__ || [];
 
     /* =========================================================================
        PHASE A PERFORMANCE FOUNDATION:
@@ -1048,6 +1237,17 @@ export function getHideAndSeekHtml(): string {
 
       if (meshesToBake.length <= 1) return;
 
+      const isIndoorRoom = !!(rootGroup.userData && rootGroup.userData.isRoomGroup);
+      const shadowCasterMats = new Set(isIndoorRoom ? [
+        materials.deskWoodTop && materials.deskWoodTop.uuid,
+      ] : [
+        materials.campusStucco && materials.campusStucco.uuid,
+        materials.nepalDachiBrick && materials.nepalDachiBrick.uuid,
+        materials.rotundaBrick && materials.rotundaBrick.uuid,
+        materials.brightBlueRoof && materials.brightBlueRoof.uuid,
+        materials.terracottaRoof && materials.terracottaRoof.uuid,
+        materials.jhingatiTerracottaRoof && materials.jhingatiTerracottaRoof.uuid,
+      ]);
       const instancedBuckets = new Map();
       const materialBuckets = new Map();
       const relMatrix = new THREE.Matrix4();
@@ -1097,7 +1297,7 @@ export function getHideAndSeekHtml(): string {
           inst.instanceMatrix.needsUpdate = true;
           inst.renderOrder = bucket.renderOrder;
           const isOpaque = !bucket.mat.transparent;
-          inst.castShadow = isOpaque;
+          inst.castShadow = isOpaque && shadowCasterMats.has(bucket.mat.uuid);
           inst.receiveShadow = isOpaque;
           computeInstancedBoundingSphere(inst, bucket.matrices.length);
           rootGroup.add(inst);
@@ -1122,7 +1322,7 @@ export function getHideAndSeekHtml(): string {
           }
           const singleMesh = new THREE.Mesh(clonedSingle, finalMat);
           singleMesh.renderOrder = mBucket.renderOrder;
-          singleMesh.castShadow = isOpaque;
+          singleMesh.castShadow = isOpaque && shadowCasterMats.has(mBucket.mat.uuid);
           singleMesh.receiveShadow = isOpaque;
           singleMesh.frustumCulled = true;
           rootGroup.add(singleMesh);
@@ -1144,7 +1344,7 @@ export function getHideAndSeekHtml(): string {
           }
           const mergedMesh = new THREE.Mesh(mergedGeo, finalMat);
           mergedMesh.renderOrder = mBucket.renderOrder;
-          mergedMesh.castShadow = isOpaque;
+          mergedMesh.castShadow = isOpaque && shadowCasterMats.has(mBucket.mat.uuid);
           mergedMesh.receiveShadow = isOpaque;
           mergedMesh.frustumCulled = true;
           rootGroup.add(mergedMesh);
@@ -1193,16 +1393,21 @@ export function getHideAndSeekHtml(): string {
     }
 
     function triggerHorrorVisualShock(intensity = 0.75, showMaskFlash = false) {
+      if (!EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_EFFECTS && !EXPLORE_FLAGS.ENABLE_JUMPSCARES_AND_STINGERS) {
+        return;
+      }
       const scaled = intensity * getFearMultiplier();
-      if (!accessibilitySettings.screenShakeOff) {
+      if (EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_EFFECTS && !accessibilitySettings.screenShakeOff) {
         horrorCameraShake = Math.max(horrorCameraShake, scaled * 0.42);
       }
-      horrorGlitchTimer = Math.max(horrorGlitchTimer, 0.22 + scaled * 0.35);
-      const glitchEl = document.getElementById('horror-glitch-overlay');
-      if (glitchEl) {
-        glitchEl.style.opacity = Math.min(0.95, scaled * 0.88).toFixed(2);
+      if (EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_EFFECTS) {
+        horrorGlitchTimer = Math.max(horrorGlitchTimer, 0.22 + scaled * 0.35);
+        const glitchEl = document.getElementById('horror-glitch-overlay');
+        if (glitchEl) {
+          glitchEl.style.opacity = Math.min(0.95, scaled * 0.88).toFixed(2);
+        }
       }
-      if (showMaskFlash && !accessibilitySettings.flickerReduction) {
+      if (EXPLORE_FLAGS.ENABLE_GHOST_APPARITIONS && showMaskFlash && !accessibilitySettings.flickerReduction) {
         const flashEl = document.getElementById('horror-jumpscare-flash');
         if (flashEl) {
           flashEl.style.opacity = Math.min(0.92, 0.35 + scaled * 0.5).toFixed(2);
@@ -1219,7 +1424,16 @@ export function getHideAndSeekHtml(): string {
         this.ctx = null;
         this.isMuffled = false;
         this.isMuted = false;
+        this.ambienceVolume = 1.0;
+        this.isIndoors = false;
+        this.inCorridor = false;
         this.cricketsSilenced = false;
+        this.isUnlocked = false;
+        this.isBackgrounded = false;
+        this.enableTinnitus = Boolean(
+          HORROR_CONFIG && HORROR_CONFIG.audio && HORROR_CONFIG.audio.enableTinnitus
+        );
+        this.tinnitusMaxGain = 0.018;
         this.masterGain = null;
         this.compressor = null;
         this.muffleFilter = null;
@@ -1233,8 +1447,63 @@ export function getHideAndSeekHtml(): string {
         this.proximityScreechOsc2 = null;
         this.proximityFilter = null;
         this.tinnitusGain = null;
+        this.serverRackGain = null;
+        this.serverRackFilter = null;
+        this.serverRackPan = null;
         this.cricketTimer = null;
         this.musicLoopTimer = null;
+        this.trackedTimeouts = new Set();
+        this.trackedIntervals = new Set();
+        this.loopSources = [];
+        this.cachedBuffers = {
+          silentWarmup: null,
+          windLoop: null,
+          whisper: null,
+          thunder: null,
+          jumpscareNoise: null,
+          dogBark: null,
+          paStatic: null,
+        };
+      }
+
+      setTrackedTimeout(fn, delayMs) {
+        const id = setTimeout(() => {
+          this.trackedTimeouts.delete(id);
+          if (!this.isBackgrounded && this.ctx) {
+            try { fn(); } catch (e) {}
+          }
+        }, delayMs);
+        this.trackedTimeouts.add(id);
+        return id;
+      }
+
+      setTrackedInterval(fn, intervalMs) {
+        const id = setInterval(() => {
+          if (!this.isBackgrounded && this.ctx) {
+            try { fn(); } catch (e) {}
+          }
+        }, intervalMs);
+        this.trackedIntervals.add(id);
+        return id;
+      }
+
+      clearAllTrackedTimers() {
+        this.trackedTimeouts.forEach((id) => clearTimeout(id));
+        this.trackedTimeouts.clear();
+        this.trackedIntervals.forEach((id) => clearInterval(id));
+        this.trackedIntervals.clear();
+        this.cricketTimer = null;
+        this.musicLoopTimer = null;
+      }
+
+      // Apply click-free 8-15 ms linear attack ramp and smooth exponential release on every voice
+      scheduleEnvelope(gainParam, startTime, peakGain, attackSec, totalDurSec, floorGain = 0.0001) {
+        const atk = Math.max(0.008, Math.min(0.015, attackSec || 0.010));
+        const safePeak = Math.max(floorGain * 2, peakGain);
+        const endT = startTime + Math.max(atk + 0.012, totalDurSec);
+        gainParam.setValueAtTime(floorGain, startTime);
+        gainParam.linearRampToValueAtTime(safePeak, startTime + atk);
+        gainParam.exponentialRampToValueAtTime(floorGain, endT);
       }
 
       makeDistortionCurve(amount = 65) {
@@ -1248,25 +1517,99 @@ export function getHideAndSeekHtml(): string {
         return curve;
       }
 
-      createDarkCourtyardReverbBuffer() {
+      // Pre-generate all noise & one-shot AudioBuffers once at load time (zero synchronous buffer fill during gameplay)
+      pregenerateCachedBuffers() {
+        if (!this.ctx || this.cachedBuffers.windLoop) return;
         const rate = this.ctx.sampleRate;
-        const duration = 2.6;
-        const length = Math.floor(rate * duration);
-        const impulse = this.ctx.createBuffer(2, length, rate);
-        for (let ch = 0; ch < 2; ch++) {
-          const data = impulse.getChannelData(ch);
-          let lp = 0;
-          for (let i = 0; i < length; i++) {
-            const t = i / length;
-            const env = Math.pow(1 - t, 2.35);
-            const white = Math.random() * 2 - 1;
-            // Damp high frequencies so echoes sound like cold wet stone & dark timber
-            lp = lp * 0.82 + white * 0.18;
-            const earlyEcho = (i % Math.floor(rate * 0.085) < 40) ? 1.45 : 1.0;
-            data[i] = lp * env * earlyEcho * 0.55;
-          }
+
+        // 0. 1-sample silent buffer for reliable iOS/Android gesture warm-up unlock
+        this.cachedBuffers.silentWarmup = this.ctx.createBuffer(1, 1, rate);
+
+        // 1. Seamless crossfaded 3.2s Himalayan wind buffer (equal-power 0.45s loop seam crossfade)
+        const windDur = 3.2;
+        const fadeDur = 0.45;
+        const windSamples = Math.floor(rate * windDur);
+        const fadeSamples = Math.floor(rate * fadeDur);
+        const totalGen = windSamples + fadeSamples;
+        const rawWind = new Float32Array(totalGen);
+        let b0 = 0, b1 = 0, b2 = 0;
+        for (let i = 0; i < totalGen; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.992 * b0 + white * 0.05;
+          b1 = 0.96 * b1 + white * 0.08;
+          b2 = 0.86 * b2 + white * 0.12;
+          rawWind[i] = (b0 + b1 + b2) * 0.38;
         }
-        return impulse;
+        const windBuf = this.ctx.createBuffer(1, windSamples, rate);
+        const windOut = windBuf.getChannelData(0);
+        const bodySamples = windSamples - fadeSamples;
+        for (let i = 0; i < bodySamples; i++) {
+          windOut[i] = rawWind[i + fadeSamples];
+        }
+        // Crossfade tail [windSamples..windSamples+fadeSamples] with head [0..fadeSamples]
+        for (let i = 0; i < fadeSamples; i++) {
+          const alpha = i / fadeSamples;
+          const tailSample = rawWind[bodySamples + fadeSamples + i];
+          const headSample = rawWind[i];
+          windOut[bodySamples + i] =
+            tailSample * Math.cos(alpha * Math.PI * 0.5) +
+            headSample * Math.sin(alpha * Math.PI * 0.5);
+        }
+        this.cachedBuffers.windLoop = windBuf;
+
+        // 2. Cached 1.45s 3-syllable spectral whisper buffer
+        const whispLen = Math.floor(rate * 1.45);
+        const whispBuf = this.ctx.createBuffer(1, whispLen, rate);
+        const whispData = whispBuf.getChannelData(0);
+        for (let i = 0; i < whispLen; i++) {
+          const t = i / whispLen;
+          const syl = Math.pow(Math.sin(t * Math.PI * 3), 2) * Math.sin(t * Math.PI);
+          whispData[i] = (Math.random() * 2 - 1) * syl * 0.65;
+        }
+        this.cachedBuffers.whisper = whispBuf;
+
+        // 3. Cached 2.6s lightning crack & rolling thunder buffer
+        const thunLen = Math.floor(rate * 2.6);
+        const thunBuf = this.ctx.createBuffer(1, thunLen, rate);
+        const thunData = thunBuf.getChannelData(0);
+        for (let i = 0; i < thunLen; i++) {
+          const t = i / thunLen;
+          const atk = i < rate * 0.010 ? (i / (rate * 0.010)) : 1.0;
+          const crackEnv = (t < 0.06 ? 1.0 : Math.pow(1 - t, 1.8) * (0.65 + 0.35 * Math.sin(t * 28))) * atk;
+          thunData[i] = (Math.random() * 2 - 1) * crackEnv;
+        }
+        this.cachedBuffers.thunder = thunBuf;
+
+        // 4. Cached 0.90s jumpscare roaring noise burst buffer
+        const jsLen = Math.floor(rate * 0.90);
+        const jsBuf = this.ctx.createBuffer(1, jsLen, rate);
+        const jsData = jsBuf.getChannelData(0);
+        for (let i = 0; i < jsLen; i++) {
+          const atk = i < rate * 0.010 ? (i / (rate * 0.010)) : 1.0;
+          jsData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / jsLen, 1.2) * atk;
+        }
+        this.cachedBuffers.jumpscareNoise = jsBuf;
+
+        // 5. Cached 0.22s feral dog bark noise transient buffer
+        const barkLen = Math.floor(rate * 0.22);
+        const barkBuf = this.ctx.createBuffer(1, barkLen, rate);
+        const barkData = barkBuf.getChannelData(0);
+        for (let i = 0; i < barkLen; i++) {
+          const atk = i < rate * 0.010 ? (i / (rate * 0.010)) : 1.0;
+          barkData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (barkLen * 0.35)) * atk;
+        }
+        this.cachedBuffers.dogBark = barkBuf;
+
+        // 6. Cached 0.42s PA crackle static burst buffer
+        const paLen = Math.floor(rate * 0.42);
+        const paBuf = this.ctx.createBuffer(1, paLen, rate);
+        const paData = paBuf.getChannelData(0);
+        for (let i = 0; i < paLen; i++) {
+          const atk = i < rate * 0.010 ? (i / (rate * 0.010)) : 1.0;
+          const rel = Math.pow(1 - i / paLen, 1.4);
+          paData[i] = (Math.random() * 2 - 1) * 0.42 * atk * rel;
+        }
+        this.cachedBuffers.paStatic = paBuf;
       }
 
       init() {
@@ -1276,6 +1619,7 @@ export function getHideAndSeekHtml(): string {
           if (!AudioContext) return;
           this.ctx = new AudioContext();
           this.distortionCurve = this.makeDistortionCurve(78);
+          this.pregenerateCachedBuffers();
 
           // Dynamics compressor to keep jumpscares punchy and loud without digital clipping
           this.compressor = this.ctx.createDynamicsCompressor();
@@ -1286,13 +1630,13 @@ export function getHideAndSeekHtml(): string {
           this.compressor.release.setValueAtTime(0.22, this.ctx.currentTime);
 
           this.masterGain = this.ctx.createGain();
-          this.masterGain.gain.setValueAtTime(this.isMuted ? 0.0 : 0.94, this.ctx.currentTime);
+          this.masterGain.gain.setValueAtTime(this.isMuted ? 0.0001 : 0.94, this.ctx.currentTime);
 
           this.muffleFilter = this.ctx.createBiquadFilter();
           this.muffleFilter.type = 'lowpass';
           this.muffleFilter.frequency.setValueAtTime(18000, this.ctx.currentTime);
 
-          // Ultra-Lightweight Dual-Tap Courtyard Echo Bus (Zero FFT CPU/Thermal Overhead on iPhone 17!)
+          // Ultra-Lightweight Dual-Tap Courtyard Echo Bus (Zero FFT CPU/Thermal Overhead)
           this.reverbSend = this.ctx.createGain();
           this.reverbSend.gain.setValueAtTime(0.36, this.ctx.currentTime);
 
@@ -1318,70 +1662,132 @@ export function getHideAndSeekHtml(): string {
           this.muffleFilter.connect(this.compressor);
           this.compressor.connect(this.ctx.destination);
 
+          if (typeof this.ctx.addEventListener === 'function') {
+            this.ctx.addEventListener('statechange', () => {
+              this.updateUnlockGateBanner();
+            });
+          }
+
           this.startLowWindLoop();
           this.startTensionDrone();
           this.startProximityChaseLayer();
+          this.startServerRackLoop();
           this.startHauntedMusicLoop();
           this.startNightCrickets();
+          this.updateUnlockGateBanner();
+        } catch (e) {}
+      }
+
+      updateUnlockGateBanner() {
+        const gateEl = document.getElementById('audio-unlock-gate');
+        if (!gateEl) return;
+        if (this.ctx && this.ctx.state === 'running') {
+          this.isUnlocked = true;
+          gateEl.style.display = 'none';
+        } else {
+          gateEl.style.display = 'flex';
+        }
+      }
+
+      unlockAudio() {
+        if (!this.ctx) this.init();
+        if (!this.ctx) return;
+        try {
+          if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
+            this.ctx.resume().then(() => {
+              this.updateUnlockGateBanner();
+            }).catch(() => {});
+          }
+          // Play 1-sample silent warm-up buffer on first user gesture to unlock iOS WKWebView & Android WebAudio hardware pipeline
+          if (!this.isUnlocked && this.cachedBuffers.silentWarmup) {
+            const warmSrc = this.ctx.createBufferSource();
+            warmSrc.buffer = this.cachedBuffers.silentWarmup;
+            warmSrc.connect(this.ctx.destination);
+            warmSrc.start(0);
+            if (this.ctx.state === 'running') {
+              this.isUnlocked = true;
+            }
+          }
+          this.updateUnlockGateBanner();
         } catch (e) {}
       }
 
       resume() {
-        if (!this.ctx) this.init();
-        if (this.ctx && this.ctx.state === 'suspended') {
-          this.ctx.resume().catch(() => {});
+        this.unlockAudio();
+      }
+
+      ensureReady() {
+        this.unlockAudio();
+      }
+
+      suspendForBackground() {
+        this.isBackgrounded = true;
+        if (this.ctx && this.ctx.state === 'running') {
+          try {
+            this.ctx.suspend().catch(() => {});
+          } catch (e) {}
         }
+      }
+
+      resumeFromBackground() {
+        this.isBackgrounded = false;
+        if (!this.ctx) return;
+        try {
+          if (this.ctx.state === 'suspended' || this.ctx.state === 'interrupted') {
+            this.ctx.resume().then(() => {
+              this.updateUnlockGateBanner();
+            }).catch(() => {});
+          }
+        } catch (e) {}
       }
 
       setMuted(muted) {
         this.isMuted = !!muted;
         if (this.ctx && this.masterGain) {
-          this.masterGain.gain.setTargetAtTime(this.isMuted ? 0.0 : 0.94, this.ctx.currentTime, 0.08);
+          this.masterGain.gain.setTargetAtTime(this.isMuted ? 0.0001 : (this.ambienceVolume || 0.94), this.ctx.currentTime, 0.04);
         }
       }
 
-      // 1. Eerie Himalayan Midnight Wind Howl with Dual-Formant Resonant Sweeps
-      startLowWindLoop() {
-        if (!this.ctx) return;
-        try {
-          const bufferSize = this.ctx.sampleRate * 4.0;
-          const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-          const output = noiseBuffer.getChannelData(0);
-          let b0 = 0, b1 = 0, b2 = 0;
-          for (let i = 0; i < bufferSize; i++) {
-            const white = Math.random() * 2 - 1;
-            b0 = 0.992 * b0 + white * 0.05;
-            b1 = 0.96 * b1 + white * 0.08;
-            b2 = 0.86 * b2 + white * 0.12;
-            output[i] = (b0 + b1 + b2) * 0.38;
-          }
+      setAmbienceVolume(vol) {
+        this.ambienceVolume = Math.max(0.0, Math.min(1.5, Number(vol)));
+        if (this.ctx && this.masterGain && !this.isMuted) {
+          this.masterGain.gain.setTargetAtTime(Math.max(0.0001, this.ambienceVolume * 0.94), this.ctx.currentTime, 0.04);
+        }
+      }
 
+      // 1. Seamless Crossfaded Himalayan Midnight Wind Loop (pre-generated at load time)
+      startLowWindLoop() {
+        if (!this.ctx || !this.cachedBuffers.windLoop) return;
+        try {
+          const now = this.ctx.currentTime;
           const whiteNoise = this.ctx.createBufferSource();
-          whiteNoise.buffer = noiseBuffer;
+          whiteNoise.buffer = this.cachedBuffers.windLoop;
           whiteNoise.loop = true;
 
           const gustFilter = this.ctx.createBiquadFilter();
           gustFilter.type = 'bandpass';
-          gustFilter.frequency.setValueAtTime(220, this.ctx.currentTime);
-          gustFilter.Q.setValueAtTime(3.2, this.ctx.currentTime);
+          gustFilter.frequency.setValueAtTime(220, now);
+          gustFilter.Q.setValueAtTime(3.2, now);
 
-          // Slow LFO modulating wind pitch so the courtyard wind moans like a ghost
+          // Slow LFO modulating wind pitch so the courtyard wind moans smoothly
           const windLfo = this.ctx.createOscillator();
           const windLfoGain = this.ctx.createGain();
           windLfo.type = 'sine';
-          windLfo.frequency.setValueAtTime(0.14, this.ctx.currentTime);
-          windLfoGain.gain.setValueAtTime(95, this.ctx.currentTime);
+          windLfo.frequency.setValueAtTime(0.14, now);
+          windLfoGain.gain.setValueAtTime(95, now);
           windLfo.connect(windLfoGain);
           windLfoGain.connect(gustFilter.frequency);
 
           this.windGain = this.ctx.createGain();
-          this.windGain.gain.setValueAtTime(0.085, this.ctx.currentTime);
+          this.windGain.gain.setValueAtTime(0.0001, now);
+          this.windGain.gain.linearRampToValueAtTime(0.085, now + 0.015);
 
           whiteNoise.connect(gustFilter);
           gustFilter.connect(this.windGain);
           this.windGain.connect(this.masterGain);
-          whiteNoise.start();
-          windLfo.start();
+          whiteNoise.start(now);
+          windLfo.start(now);
+          this.loopSources.push(whiteNoise, windLfo);
         } catch (e) {}
       }
 
@@ -1401,13 +1807,12 @@ export function getHideAndSeekHtml(): string {
           detuneOsc.type = 'sawtooth';
           detuneOsc.frequency.setValueAtTime(37.45, now); // Beating dissonance
           tritoneOsc.type = 'triangle';
-          tritoneOsc.frequency.setValueAtTime(51.91, now); // G#1 devil's tritone interval!
+          tritoneOsc.frequency.setValueAtTime(51.91, now); // G#1 tritone interval
 
           darkFilter.type = 'lowpass';
           darkFilter.frequency.setValueAtTime(135, now);
           darkFilter.Q.setValueAtTime(4.2, now);
 
-          // Breathing filter LFO for ominous pulsing dread
           const lfo = this.ctx.createOscillator();
           const lfoGain = this.ctx.createGain();
           lfo.type = 'sine';
@@ -1416,7 +1821,8 @@ export function getHideAndSeekHtml(): string {
           lfo.connect(lfoGain);
           lfoGain.connect(darkFilter.frequency);
 
-          this.droneGain.gain.setValueAtTime(0.068, now);
+          this.droneGain.gain.setValueAtTime(0.0001, now);
+          this.droneGain.gain.linearRampToValueAtTime(0.068, now + 0.015);
 
           subOsc.connect(darkFilter);
           detuneOsc.connect(darkFilter);
@@ -1424,14 +1830,15 @@ export function getHideAndSeekHtml(): string {
           darkFilter.connect(this.droneGain);
           this.droneGain.connect(this.masterGain);
 
-          subOsc.start();
-          detuneOsc.start();
-          tritoneOsc.start();
-          lfo.start();
+          subOsc.start(now);
+          detuneOsc.start(now);
+          tritoneOsc.start(now);
+          lfo.start(now);
+          this.loopSources.push(subOsc, detuneOsc, tritoneOsc, lfo);
         } catch (e) {}
       }
 
-      // 3. Dynamic Seeker Proximity Bowed Waterphone / Sarangi Tension Layer + Tinnitus Ear-Ring
+      // 3. Dynamic Seeker Proximity Bowed Waterphone / Sarangi Tension Layer + Optional Tinnitus Ear-Ring (Off by Default)
       startProximityChaseLayer() {
         if (!this.ctx) return;
         try {
@@ -1444,23 +1851,23 @@ export function getHideAndSeekHtml(): string {
           this.proximityScreechOsc1.type = 'sawtooth';
           this.proximityScreechOsc1.frequency.setValueAtTime(155.56, now); // D#3
           this.proximityScreechOsc2.type = 'sawtooth';
-          this.proximityScreechOsc2.frequency.setValueAtTime(164.81, now); // E3 minor-second clash!
+          this.proximityScreechOsc2.frequency.setValueAtTime(164.81, now); // E3 minor-second clash
 
           this.proximityFilter.type = 'bandpass';
           this.proximityFilter.frequency.setValueAtTime(520, now);
           this.proximityFilter.Q.setValueAtTime(5.5, now);
 
-          this.proximityScreechGain.gain.setValueAtTime(0.0, now);
+          this.proximityScreechGain.gain.setValueAtTime(0.0001, now);
 
           this.proximityScreechOsc1.connect(this.proximityFilter);
           this.proximityScreechOsc2.connect(this.proximityFilter);
           this.proximityFilter.connect(this.proximityScreechGain);
           this.proximityScreechGain.connect(this.masterGain);
 
-          this.proximityScreechOsc1.start();
-          this.proximityScreechOsc2.start();
+          this.proximityScreechOsc1.start(now);
+          this.proximityScreechOsc2.start(now);
 
-          // High-pitched panic tinnitus ring when Warden is critically close (< 9m)
+          // Optional high-pitched tinnitus ring (off by default, quieter max 0.018 when enabled)
           const tinOsc = this.ctx.createOscillator();
           this.tinnitusGain = this.ctx.createGain();
           tinOsc.type = 'sine';
@@ -1468,12 +1875,94 @@ export function getHideAndSeekHtml(): string {
           this.tinnitusGain.gain.setValueAtTime(0.0, now);
           tinOsc.connect(this.tinnitusGain);
           this.tinnitusGain.connect(this.masterGain);
-          tinOsc.start();
+          tinOsc.start(now);
+          this.loopSources.push(this.proximityScreechOsc1, this.proximityScreechOsc2, tinOsc);
         } catch (e) {}
       }
 
+      // 3b. Continuous Positional Server Rack Hum Loop (60Hz / 120Hz / 240Hz)
+      startServerRackLoop() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          this.serverRackFilter = this.ctx.createBiquadFilter();
+          this.serverRackFilter.type = 'lowpass';
+          this.serverRackFilter.frequency.setValueAtTime(340, now);
+          this.serverRackGain = this.ctx.createGain();
+          this.serverRackGain.gain.setValueAtTime(0.0, now);
+          this.serverRackPan = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+
+          [60, 120, 240].forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const partGain = this.ctx.createGain();
+            osc.type = idx === 1 ? 'sawtooth' : 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            partGain.gain.setValueAtTime(idx === 0 ? 0.55 : (idx === 1 ? 0.28 : 0.14), now);
+            osc.connect(partGain);
+            partGain.connect(this.serverRackFilter);
+            osc.start(now);
+            this.loopSources.push(osc);
+          });
+
+          if (this.serverRackPan) {
+            this.serverRackFilter.connect(this.serverRackPan);
+            this.serverRackPan.connect(this.serverRackGain);
+          } else {
+            this.serverRackFilter.connect(this.serverRackGain);
+          }
+          this.serverRackGain.connect(this.masterGain);
+        } catch (e) {}
+      }
+
+      updateSpatialLoops(playerPos, playerYaw = 0, isIndoors = false) {
+        this.isIndoors = !!isIndoors;
+        if (!this.ctx || !this.serverRackGain || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          // Two campus server rack installations: Main Bldg Lab 302 (17.7, 7.68, 64.0) & West Wing L2 Lab (-16.0, 0.22, -16.5)
+          const r1x = 17.7, r1y = 7.68, r1z = 64.0;
+          const r2x = -16.0, r2y = 0.22, r2z = -16.5;
+          const d1 = Math.hypot(playerPos.x - r1x, (playerPos.y - r1y) * 2.2, playerPos.z - r1z);
+          const d2 = Math.hypot(playerPos.x - r2x, (playerPos.y - r2y) * 2.2, playerPos.z - r2z);
+          const useR1 = d1 <= d2;
+          const nearestDist = useR1 ? d1 : d2;
+          const tx = useR1 ? r1x : r2x;
+          const tz = useR1 ? r1z : r2z;
+
+          const maxAudibleDist = 20.0;
+          if (nearestDist < maxAudibleDist) {
+            const norm = 1.0 - nearestDist / maxAudibleDist;
+            const targetVol = Math.pow(norm, 1.85) * 0.065;
+            this.serverRackGain.gain.setTargetAtTime(targetVol, now, 0.10);
+            if (this.serverRackFilter) {
+              this.serverRackFilter.frequency.setTargetAtTime(160 + norm * 280, now, 0.12);
+            }
+            if (this.serverRackPan) {
+              const angleToSource = Math.atan2(tx - playerPos.x, tz - playerPos.z) - playerYaw;
+              const panVal = Math.max(-0.92, Math.min(0.92, -Math.sin(angleToSource)));
+              this.serverRackPan.pan.setTargetAtTime(panVal, now, 0.08);
+            }
+          } else {
+            this.serverRackGain.gain.setTargetAtTime(0.0, now, 0.15);
+          }
+        } catch (e) {}
+      }
+
+      setTinnitusEnabled(enabled) {
+        this.enableTinnitus = !!enabled;
+        if (this.ctx && this.tinnitusGain && !this.enableTinnitus) {
+          this.tinnitusGain.gain.setTargetAtTime(0.0, this.ctx.currentTime, 0.08);
+        }
+      }
+
       updateProximityTension(proximity = 0.0) {
-        if (!this.ctx || !this.proximityScreechGain || this.isMuted) return;
+        if (!this.ctx || !this.proximityScreechGain || this.isMuted || this.isBackgrounded) return;
+        if (!EXPLORE_FLAGS.ENABLE_PROXIMITY_AND_CHASE_AUDIO) {
+          this.cricketsSilenced = false;
+          this.proximityScreechGain.gain.setTargetAtTime(0.0, this.ctx.currentTime, 0.08);
+          if (this.tinnitusGain) this.tinnitusGain.gain.setTargetAtTime(0.0, this.ctx.currentTime, 0.08);
+          return;
+        }
         try {
           const now = this.ctx.currentTime;
           const clamped = Math.max(0, Math.min(1, proximity));
@@ -1485,23 +1974,26 @@ export function getHideAndSeekHtml(): string {
           this.proximityScreechOsc1.frequency.setTargetAtTime(155.56 + clamped * 48, now, 0.15);
           this.proximityScreechOsc2.frequency.setTargetAtTime(164.81 + clamped * 62, now, 0.15);
 
-          // Tinnitus ear-ring when proximity > 0.62
-          const tinLevel = clamped > 0.62 ? (clamped - 0.62) * 0.085 : 0.0;
+          // Optional tinnitus ear-ring when proximity > 0.65 (off by default, quieter <= 0.018)
+          const tinLevel = (this.enableTinnitus && clamped > 0.65)
+            ? ((clamped - 0.65) / 0.35) * this.tinnitusMaxGain
+            : 0.0;
           this.tinnitusGain.gain.setTargetAtTime(tinLevel, now, 0.18);
         } catch (e) {}
       }
 
       // 4. Generative Haunted Nepali Singing Bowl, Pluck & Ghostly Choir Motif Loop
       startHauntedMusicLoop() {
-        if (this.musicLoopTimer) clearInterval(this.musicLoopTimer);
-        // Dark Phrygian/Locrian horror scale notes (D, Eb, G#, A, Bb, C#)
+        if (this.musicLoopTimer) {
+          clearInterval(this.musicLoopTimer);
+          this.trackedIntervals.delete(this.musicLoopTimer);
+        }
         const darkNotes = [73.42, 77.78, 103.83, 110.0, 116.54, 138.59, 146.83, 155.56, 207.65];
-        this.musicLoopTimer = setInterval(() => {
-          if (!this.ctx || this.isMuted || this.ctx.state !== 'running') return;
+        this.musicLoopTimer = this.setTrackedInterval(() => {
+          if (!this.ctx || this.isMuted || this.isBackgrounded || this.ctx.state !== 'running') return;
           try {
             const now = this.ctx.currentTime;
             const root = darkNotes[Math.floor(Math.random() * darkNotes.length)];
-            // Play eerie FM Tibetan/Newari singing bowl with downward pitch bend
             [1.0, 2.756, 5.404].forEach((ratio, idx) => {
               const osc = this.ctx.createOscillator();
               const gain = this.ctx.createGain();
@@ -1512,9 +2004,10 @@ export function getHideAndSeekHtml(): string {
               osc.frequency.exponentialRampToValueAtTime(freq * (idx === 1 ? 0.96 : 0.985), now + 4.8);
 
               const peak = (idx === 0 ? 0.048 : (idx === 1 ? 0.022 : 0.009));
-              gain.gain.setValueAtTime(0.0005, now);
+              gain.gain.setValueAtTime(0.0001, now);
+              gain.gain.linearRampToValueAtTime(peak * 0.35, now + 0.015);
               gain.gain.linearRampToValueAtTime(peak, now + 0.35);
-              gain.gain.exponentialRampToValueAtTime(0.0004, now + 4.9);
+              gain.gain.exponentialRampToValueAtTime(0.0001, now + 4.9);
 
               if (panner) {
                 panner.pan.setValueAtTime((Math.random() - 0.5) * 1.4, now);
@@ -1529,9 +2022,8 @@ export function getHideAndSeekHtml(): string {
               osc.stop(now + 5.0);
             });
 
-            // 42% chance to layer a ghostly spectral whisper or distant wail 1.8s later
-            if (Math.random() < 0.42) {
-              setTimeout(() => {
+            if (EXPLORE_FLAGS.ENABLE_WHISPERS_AND_WEEPING && Math.random() < 0.42) {
+              this.setTrackedTimeout(() => {
                 if (Math.random() < 0.55) this.playGhostWhisperSfx();
                 else this.playDistantFemaleWeepOrSigh();
               }, 1600);
@@ -1541,9 +2033,13 @@ export function getHideAndSeekHtml(): string {
       }
 
       startNightCrickets() {
-        if (this.cricketTimer) clearInterval(this.cricketTimer);
-        this.cricketTimer = setInterval(() => {
-          if (!this.ctx || this.isMuted || this.cricketsSilenced || this.ctx.state !== 'running') return;
+        if (this.cricketTimer) {
+          clearInterval(this.cricketTimer);
+          this.trackedIntervals.delete(this.cricketTimer);
+        }
+        this.cricketTimer = this.setTrackedInterval(() => {
+          // Silenced when indoors, in covered corridors, or when Hunter is close
+          if (!this.ctx || this.isMuted || this.isBackgrounded || this.cricketsSilenced || this.isIndoors || this.inCorridor || this.ctx.state !== 'running') return;
           if (Math.random() > 0.65) return;
           try {
             const now = this.ctx.currentTime;
@@ -1555,13 +2051,11 @@ export function getHideAndSeekHtml(): string {
               const gain = this.ctx.createGain();
               osc.type = 'sine';
               osc.frequency.setValueAtTime(baseFreq, t0);
-              gain.gain.setValueAtTime(0.001, t0);
-              gain.gain.linearRampToValueAtTime(0.014, t0 + 0.014);
-              gain.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.042);
+              this.scheduleEnvelope(gain.gain, t0, 0.014, 0.010, 0.042);
               osc.connect(gain);
               gain.connect(this.masterGain);
               osc.start(t0);
-              osc.stop(t0 + 0.045);
+              osc.stop(t0 + 0.048);
             }
           } catch (e) {}
         }, 1550);
@@ -1569,12 +2063,12 @@ export function getHideAndSeekHtml(): string {
 
       // 5. Demonic Kangling Horn & Metallic Blade-Scrape when Seeker is Hunting Close (< 11.5m)
       playWardenKillApproachSfx(dangerIntensity = 0.85) {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_JUMPSCARES_AND_STINGERS) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           triggerHorrorVisualShock(dangerIntensity * 0.55, dangerIntensity > 0.82);
 
-          // Brazen low demonic horn growl with waveshaper distortion
           const growlOsc = this.ctx.createOscillator();
           const subOsc = this.ctx.createOscillator();
           const shaper = this.ctx.createWaveShaper();
@@ -1594,9 +2088,7 @@ export function getHideAndSeekHtml(): string {
           growlFilter.frequency.setValueAtTime(380 + dangerIntensity * 420, now);
           growlFilter.Q.setValueAtTime(4.5, now);
 
-          growlGain.gain.setValueAtTime(0.001, now);
-          growlGain.gain.linearRampToValueAtTime(0.28 * dangerIntensity, now + 0.05);
-          growlGain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+          this.scheduleEnvelope(growlGain.gain, now, 0.28 * dangerIntensity, 0.012, 0.64);
 
           growlOsc.connect(shaper);
           shaper.connect(growlFilter);
@@ -1609,16 +2101,13 @@ export function getHideAndSeekHtml(): string {
           growlOsc.stop(now + 0.66);
           subOsc.stop(now + 0.66);
 
-          // Piercing metallic waterphone/blade screech cluster
           [622.25, 880.0, 1174.66, 1661.22].forEach((f, idx) => {
             const sOsc = this.ctx.createOscillator();
             const sGain = this.ctx.createGain();
             sOsc.type = idx % 2 === 0 ? 'sawtooth' : 'square';
             sOsc.frequency.setValueAtTime(f, now);
             sOsc.frequency.exponentialRampToValueAtTime(f * (1.12 + idx * 0.04), now + 0.48);
-            sGain.gain.setValueAtTime(0.001, now);
-            sGain.gain.linearRampToValueAtTime(0.09 * dangerIntensity, now + 0.04);
-            sGain.gain.exponentialRampToValueAtTime(0.001, now + 0.50);
+            this.scheduleEnvelope(sGain.gain, now, 0.09 * dangerIntensity, 0.012, 0.50);
             sOsc.connect(sGain);
             sGain.connect(this.masterGain);
             sGain.connect(this.reverbSend);
@@ -1628,26 +2117,18 @@ export function getHideAndSeekHtml(): string {
         } catch (e) {}
       }
 
-      // 6. Stereo-Panned Spectral Ghost Whisper ("Shhh... Pachhaadi...")
+      // 6. Stereo-Panned Spectral Ghost Whisper (reuses pre-generated cached buffer)
       playGhostWhisperSfx() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_WHISPERS_AND_WEEPING) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        if (!this.cachedBuffers.whisper) this.pregenerateCachedBuffers();
+        if (!this.cachedBuffers.whisper) return;
         try {
           const now = this.ctx.currentTime;
           const dur = 1.45;
-          const len = Math.floor(this.ctx.sampleRate * dur);
-          const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-          const data = buf.getChannelData(0);
-          for (let i = 0; i < len; i++) {
-            const t = i / len;
-            // 3 whispered syllables envelope
-            const syl = Math.pow(Math.sin(t * Math.PI * 3), 2) * Math.sin(t * Math.PI);
-            data[i] = (Math.random() * 2 - 1) * syl * 0.65;
-          }
-
           const src = this.ctx.createBufferSource();
-          src.buffer = buf;
+          src.buffer = this.cachedBuffers.whisper;
 
-          // Vocal tract formant bandpass filters (F1 = 580Hz, F2 = 1650Hz, F3 = 2850Hz)
           const f1 = this.ctx.createBiquadFilter();
           f1.type = 'bandpass';
           f1.frequency.setValueAtTime(580, now);
@@ -1662,7 +2143,7 @@ export function getHideAndSeekHtml(): string {
           f2.Q.setValueAtTime(7.5, now);
 
           const wGain = this.ctx.createGain();
-          wGain.gain.setValueAtTime(0.22, now);
+          this.scheduleEnvelope(wGain.gain, now, 0.22, 0.015, dur);
 
           const panner = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
           if (panner) {
@@ -1684,12 +2165,14 @@ export function getHideAndSeekHtml(): string {
           wGain.connect(this.masterGain);
           wGain.connect(this.reverbSend);
           src.start(now);
+          src.stop(now + dur + 0.02);
         } catch (e) {}
       }
 
       // 7. Haunting Distant Ghostly Wail / Weeping Echo in the Courtyard
       playDistantFemaleWeepOrSigh() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_WHISPERS_AND_WEEPING) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           const osc1 = this.ctx.createOscillator();
@@ -1718,9 +2201,10 @@ export function getHideAndSeekHtml(): string {
           formant.frequency.setValueAtTime(920, now);
           formant.Q.setValueAtTime(3.8, now);
 
-          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(0.025, now + 0.015);
           gain.gain.linearRampToValueAtTime(0.075, now + 0.35);
-          gain.gain.exponentialRampToValueAtTime(0.0005, now + 2.45);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.45);
 
           osc1.connect(formant);
           osc2.connect(formant);
@@ -1737,25 +2221,19 @@ export function getHideAndSeekHtml(): string {
         } catch (e) {}
       }
 
-      // 8. High-Voltage Lightning Crack & Rolling Himalayan Thunder Rumble
+      // 8. High-Voltage Lightning Crack & Rolling Himalayan Thunder Rumble (reuses cached buffer)
       playThunderCrackSfx() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_RANDOM_SCARE_EVENTS) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        if (!this.cachedBuffers.thunder) this.pregenerateCachedBuffers();
+        if (!this.cachedBuffers.thunder) return;
         try {
           const now = this.ctx.currentTime;
           triggerHorrorVisualShock(0.72, Math.random() < 0.45);
 
-          const dur = 3.2;
-          const len = Math.floor(this.ctx.sampleRate * dur);
-          const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
-          const data = buf.getChannelData(0);
-          for (let i = 0; i < len; i++) {
-            const t = i / len;
-            const crackEnv = t < 0.06 ? 1.0 : Math.pow(1 - t, 1.8) * (0.65 + 0.35 * Math.sin(t * 28));
-            data[i] = (Math.random() * 2 - 1) * crackEnv;
-          }
-
+          const dur = 2.6;
           const src = this.ctx.createBufferSource();
-          src.buffer = buf;
+          src.buffer = this.cachedBuffers.thunder;
 
           const lp = this.ctx.createBiquadFilter();
           lp.type = 'lowpass';
@@ -1763,60 +2241,60 @@ export function getHideAndSeekHtml(): string {
           lp.frequency.exponentialRampToValueAtTime(95, now + dur);
 
           const gain = this.ctx.createGain();
-          gain.gain.setValueAtTime(0.46, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          this.scheduleEnvelope(gain.gain, now, 0.46, 0.010, dur);
 
           src.connect(lp);
           lp.connect(gain);
           gain.connect(this.masterGain);
           gain.connect(this.reverbSend);
           src.start(now);
+          src.stop(now + dur + 0.02);
         } catch (e) {}
       }
 
       playLampBuzz() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_STROBING_AND_BROWNOUTS) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'sawtooth';
           osc.frequency.setValueAtTime(110, now);
-          gain.gain.setValueAtTime(0.032, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+          this.scheduleEnvelope(gain.gain, now, 0.032, 0.009, 0.09);
           osc.connect(gain);
           gain.connect(this.masterGain);
           osc.start(now);
-          osc.stop(now + 0.10);
+          osc.stop(now + 0.105);
         } catch (e) {}
       }
 
-      // 9. FULL-SPECTRUM NIGHTMARE JUMPSCARE SCREAM & SEISMIC SUB-DROP
+      // 9. FULL-SPECTRUM NIGHTMARE JUMPSCARE SCREAM & SEISMIC SUB-DROP (reuses cached noise buffer)
       playJumpscareSting() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_JUMPSCARES_AND_STINGERS) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        if (!this.cachedBuffers.jumpscareNoise) this.pregenerateCachedBuffers();
         try {
           const now = this.ctx.currentTime;
           triggerHorrorVisualShock(1.0, true);
 
-          // A. Seismic 110Hz -> 22Hz Sub-Bass Slam
+          // A. Seismic 115Hz -> 22Hz Sub-Bass Slam with 10ms click-free attack ramp
           const sub = this.ctx.createOscillator();
           const subGain = this.ctx.createGain();
           sub.type = 'sine';
           sub.frequency.setValueAtTime(115, now);
           sub.frequency.exponentialRampToValueAtTime(22, now + 0.95);
-          subGain.gain.setValueAtTime(0.85, now);
-          subGain.gain.exponentialRampToValueAtTime(0.001, now + 1.05);
+          this.scheduleEnvelope(subGain.gain, now, 0.85, 0.010, 1.05);
           sub.connect(subGain);
           subGain.connect(this.masterGain);
           sub.start(now);
           sub.stop(now + 1.08);
 
-          // B. Distorted Banshee Scream (6 Detuned FM Sawtooth/Square Oscillators)
+          // B. Distorted Banshee Scream (6 Detuned FM Sawtooth/Square Oscillators) with 12ms attack ramp
           const shaper = this.ctx.createWaveShaper();
           shaper.curve = this.distortionCurve;
           const screamGain = this.ctx.createGain();
-          screamGain.gain.setValueAtTime(0.32, now);
-          screamGain.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
+          this.scheduleEnvelope(screamGain.gain, now, 0.32, 0.012, 1.14);
           shaper.connect(screamGain);
           screamGain.connect(this.masterGain);
           screamGain.connect(this.reverbSend);
@@ -1828,7 +2306,7 @@ export function getHideAndSeekHtml(): string {
           fmModGain.gain.setValueAtTime(95, now);
           fmMod.connect(fmModGain);
           fmMod.start(now);
-          fmMod.stop(now + 1.15);
+          fmMod.stop(now + 1.16);
 
           [277.18, 392.0, 554.37, 783.99, 1108.73, 1567.98].forEach((f, idx) => {
             const osc = this.ctx.createOscillator();
@@ -1839,31 +2317,28 @@ export function getHideAndSeekHtml(): string {
             fmModGain.connect(osc.frequency);
             osc.connect(shaper);
             osc.start(now);
-            osc.stop(now + 1.15);
+            osc.stop(now + 1.16);
           });
 
-          // C. Roaring Noise Burst through Formant Bandpass
-          const nLen = Math.floor(this.ctx.sampleRate * 0.9);
-          const nBuf = this.ctx.createBuffer(1, nLen, this.ctx.sampleRate);
-          const nData = nBuf.getChannelData(0);
-          for (let i = 0; i < nLen; i++) {
-            nData[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / nLen, 1.2);
+          // C. Roaring Noise Burst from pre-cached buffer through Formant Bandpass
+          if (this.cachedBuffers.jumpscareNoise) {
+            const nSrc = this.ctx.createBufferSource();
+            nSrc.buffer = this.cachedBuffers.jumpscareNoise;
+            const nBand = this.ctx.createBiquadFilter();
+            nBand.type = 'bandpass';
+            nBand.frequency.setValueAtTime(1450, now);
+            nBand.frequency.exponentialRampToValueAtTime(520, now + 0.9);
+            nBand.Q.setValueAtTime(2.2, now);
+            nSrc.connect(nBand);
+            nBand.connect(shaper);
+            nSrc.start(now);
+            nSrc.stop(now + 0.92);
           }
-          const nSrc = this.ctx.createBufferSource();
-          nSrc.buffer = nBuf;
-          const nBand = this.ctx.createBiquadFilter();
-          nBand.type = 'bandpass';
-          nBand.frequency.setValueAtTime(1450, now);
-          nBand.frequency.exponentialRampToValueAtTime(520, now + 0.9);
-          nBand.Q.setValueAtTime(2.2, now);
-          nSrc.connect(nBand);
-          nBand.connect(shaper);
-          nSrc.start(now);
         } catch (e) {}
       }
 
       playFootstep(surface = 'paver', isCrouching = false) {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -1890,8 +2365,8 @@ export function getHideAndSeekHtml(): string {
           osc.frequency.exponentialRampToValueAtTime(28, now + dur);
           filter.type = 'lowpass';
           filter.frequency.setValueAtTime(cutOff, now);
-          gain.gain.setValueAtTime(isCrouching ? 0.07 : (surface === 'grass' ? 0.12 : 0.22), now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+          const peakVol = isCrouching ? 0.07 : (surface === 'grass' ? 0.12 : 0.22);
+          this.scheduleEnvelope(gain.gain, now, peakVol, 0.010, dur);
 
           osc.connect(filter);
           filter.connect(gain);
@@ -1902,7 +2377,7 @@ export function getHideAndSeekHtml(): string {
           }
 
           osc.start(now);
-          osc.stop(now + dur + 0.05);
+          osc.stop(now + dur + 0.02);
         } catch (e) {}
       }
 
@@ -1915,23 +2390,15 @@ export function getHideAndSeekHtml(): string {
         } catch (e) {}
       }
 
-      // TASK 2: Distant Feral Dog Bark One-Shot in the Foggy Valley
+      // TASK 2: Distant Feral Dog Bark One-Shot in the Foggy Valley (reuses cached bark noise buffer)
       playDistantDogBarkSfx() {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        if (!this.cachedBuffers.dogBark) this.pregenerateCachedBuffers();
         try {
           const now = this.ctx.currentTime;
           [0, 0.34].forEach((offset, idx) => {
             const t0 = now + offset;
             const osc = this.ctx.createOscillator();
-            const noiseLen = Math.floor(this.ctx.sampleRate * 0.22);
-            const nBuf = this.ctx.createBuffer(1, noiseLen, this.ctx.sampleRate);
-            const nData = nBuf.getChannelData(0);
-            for (let i = 0; i < noiseLen; i++) {
-              nData[i] = (Math.random() * 2 - 1) * Math.exp(-i / (noiseLen * 0.35));
-            }
-            const nSrc = this.ctx.createBufferSource();
-            nSrc.buffer = nBuf;
-
             const formant = this.ctx.createBiquadFilter();
             formant.type = 'bandpass';
             formant.frequency.setValueAtTime(idx === 0 ? 480 : 440, t0);
@@ -1939,30 +2406,34 @@ export function getHideAndSeekHtml(): string {
             formant.Q.setValueAtTime(3.2, t0);
 
             const gain = this.ctx.createGain();
-            gain.gain.setValueAtTime(0.001, t0);
-            gain.gain.linearRampToValueAtTime(idx === 0 ? 0.085 : 0.065, t0 + 0.025);
-            gain.gain.exponentialRampToValueAtTime(0.0005, t0 + 0.22);
+            this.scheduleEnvelope(gain.gain, t0, idx === 0 ? 0.085 : 0.065, 0.012, 0.22);
 
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(idx === 0 ? 235 : 215, t0);
             osc.frequency.exponentialRampToValueAtTime(125, t0 + 0.20);
 
             osc.connect(formant);
-            nSrc.connect(formant);
+            if (this.cachedBuffers.dogBark) {
+              const nSrc = this.ctx.createBufferSource();
+              nSrc.buffer = this.cachedBuffers.dogBark;
+              nSrc.connect(formant);
+              nSrc.start(t0);
+              nSrc.stop(t0 + 0.22);
+            }
             formant.connect(gain);
             gain.connect(this.reverbSend);
             gain.connect(this.masterGain);
 
             osc.start(t0);
-            nSrc.start(t0);
-            osc.stop(t0 + 0.23);
+            osc.stop(t0 + 0.24);
           });
         } catch (e) {}
       }
 
-      // TASK 2: Distant Phantom Footsteps Hurrying in the Fog
+      // TASK 2: Distant Phantom Footsteps Hurrying in the Fog (10ms click-free attack ramp)
       playPhantomFootstepsSfx() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_PROXIMITY_AND_CHASE_AUDIO) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           for (let s = 0; s < 5; s++) {
@@ -1975,20 +2446,19 @@ export function getHideAndSeekHtml(): string {
             osc.frequency.exponentialRampToValueAtTime(34, t0 + 0.09);
             filter.type = 'lowpass';
             filter.frequency.setValueAtTime(520, t0);
-            gain.gain.setValueAtTime(0.055 * Math.pow(0.82, s), t0);
-            gain.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.095);
+            this.scheduleEnvelope(gain.gain, t0, 0.055 * Math.pow(0.82, s), 0.010, 0.095);
             osc.connect(filter);
             filter.connect(gain);
             gain.connect(this.reverbSend);
             osc.start(t0);
-            osc.stop(t0 + 0.10);
+            osc.stop(t0 + 0.11);
           }
         } catch (e) {}
       }
 
-            // 10. Cursed Nepali Bronze Temple Ghanta Bell with Inharmonic Minor-Second Decay
+      // 10. Cursed Nepali Bronze Temple Ghanta Bell with Inharmonic Minor-Second Decay
       playDistantChime() {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           [174.61, 366.0, 523.25, 830.61, 1396.91].forEach((f, idx) => {
@@ -1998,9 +2468,7 @@ export function getHideAndSeekHtml(): string {
             osc.frequency.setValueAtTime(f, now);
             osc.frequency.exponentialRampToValueAtTime(f * 0.965, now + 3.8);
             const peak = idx === 0 ? 0.11 : (0.045 / idx);
-            gain.gain.setValueAtTime(0.001, now);
-            gain.gain.linearRampToValueAtTime(peak, now + 0.025);
-            gain.gain.exponentialRampToValueAtTime(0.0004, now + 3.85);
+            this.scheduleEnvelope(gain.gain, now, peak, 0.012, 3.85);
             osc.connect(gain);
             gain.connect(this.masterGain);
             gain.connect(this.reverbSend);
@@ -2011,20 +2479,22 @@ export function getHideAndSeekHtml(): string {
       }
 
       playWindGustSfx() {
-        if (!this.ctx || this.isMuted || !this.windGain) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded || !this.windGain) return;
         try {
           const now = this.ctx.currentTime;
           this.windGain.gain.cancelScheduledValues(now);
-          this.windGain.gain.setValueAtTime(this.windGain.gain.value, now);
+          this.windGain.gain.setValueAtTime(Math.max(0.0001, this.windGain.gain.value), now);
           this.windGain.gain.linearRampToValueAtTime(this.inCorridor ? 0.11 : 0.22, now + 1.1);
           this.windGain.gain.exponentialRampToValueAtTime(this.inCorridor ? 0.038 : 0.085, now + 3.6);
-          this.playGhostWhisperSfx();
+          if (EXPLORE_FLAGS.ENABLE_WHISPERS_AND_WEEPING) {
+            this.playGhostWhisperSfx();
+          }
         } catch (e) {}
       }
 
-      // 11. Heavy Old Sal-Wood Timber Creak Followed by Distant Reverberant Door Slam
+      // 11. Heavy Old Sal-Wood Timber Creak (decoupled from forced door slam)
       playStructuralCreak() {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -2040,9 +2510,7 @@ export function getHideAndSeekHtml(): string {
           filter.frequency.setValueAtTime(380, now);
           filter.Q.setValueAtTime(4.2, now);
 
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(0.085, now + 0.09);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.58);
+          this.scheduleEnvelope(gain.gain, now, 0.085, 0.014, 0.58);
 
           osc.connect(filter);
           filter.connect(gain);
@@ -2050,26 +2518,12 @@ export function getHideAndSeekHtml(): string {
           gain.connect(this.reverbSend);
           osc.start(now);
           osc.stop(now + 0.60);
-
-          // Distant heavy wooden Khapa door slam 0.52s after the creak!
-          const slamTime = now + 0.52;
-          const slamOsc = this.ctx.createOscillator();
-          const slamGain = this.ctx.createGain();
-          slamOsc.type = 'sine';
-          slamOsc.frequency.setValueAtTime(118, slamTime);
-          slamOsc.frequency.exponentialRampToValueAtTime(24, slamTime + 0.28);
-          slamGain.gain.setValueAtTime(0.28, slamTime);
-          slamGain.gain.exponentialRampToValueAtTime(0.001, slamTime + 0.30);
-          slamOsc.connect(slamGain);
-          slamGain.connect(this.masterGain);
-          slamGain.connect(this.reverbSend);
-          slamOsc.start(slamTime);
-          slamOsc.stop(slamTime + 0.32);
         } catch (e) {}
       }
 
       playPowerDipHum() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_RANDOM_SCARE_EVENTS) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           triggerHorrorVisualShock(0.45, false);
@@ -2078,9 +2532,7 @@ export function getHideAndSeekHtml(): string {
           osc.type = 'sawtooth';
           osc.frequency.setValueAtTime(60, now);
           osc.frequency.exponentialRampToValueAtTime(42, now + 0.45);
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(0.11, now + 0.04);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.48);
+          this.scheduleEnvelope(gain.gain, now, 0.11, 0.012, 0.48);
           osc.connect(gain);
           gain.connect(this.masterGain);
           osc.start(now);
@@ -2089,7 +2541,7 @@ export function getHideAndSeekHtml(): string {
       }
 
       playHideSwoosh() {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -2097,39 +2549,40 @@ export function getHideAndSeekHtml(): string {
           osc.type = 'sine';
           osc.frequency.setValueAtTime(390, now);
           osc.frequency.exponentialRampToValueAtTime(115, now + 0.26);
-          gain.gain.setValueAtTime(0.28, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+          this.scheduleEnvelope(gain.gain, now, 0.28, 0.012, 0.26);
           osc.connect(gain);
           gain.connect(this.masterGain);
           osc.start(now);
-          osc.stop(now + 0.27);
+          osc.stop(now + 0.28);
         } catch (e) {}
       }
 
       playCatchSting() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_JUMPSCARES_AND_STINGERS) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           triggerHorrorVisualShock(0.7, false);
           [311.13, 440.0, 587.33, 880.0].forEach((freq, idx) => {
+            const t0 = now + idx * 0.06;
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, now + idx * 0.06);
-            gain.gain.setValueAtTime(0.3, now + idx * 0.06);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.38);
+            osc.frequency.setValueAtTime(freq, t0);
+            this.scheduleEnvelope(gain.gain, t0, 0.30, 0.010, 0.38);
             osc.connect(gain);
             gain.connect(this.masterGain);
             gain.connect(this.reverbSend);
-            osc.start(now + idx * 0.06);
-            osc.stop(now + idx * 0.06 + 0.4);
+            osc.start(t0);
+            osc.stop(t0 + 0.40);
           });
         } catch (e) {}
       }
 
-      // 12. Visceral Double Chest-Thump Heartbeat (Lub-Dub) + Visual Pulse Sync
+      // 12. Visceral Double Chest-Thump Heartbeat (Lub-Dub) with 10ms attack ramp + tracked visual pulse
       playHeartbeat(intensity = 0.7) {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_HEARTBEAT) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           const scaledInt = intensity * getFearMultiplier();
@@ -2137,30 +2590,30 @@ export function getHideAndSeekHtml(): string {
           const pulseEl = document.getElementById('horror-pulse-overlay');
           if (pulseEl && !accessibilitySettings.screenShakeOff) {
             pulseEl.style.transform = 'scale(' + (1.0 + scaledInt * 0.035).toFixed(3) + ')';
-            setTimeout(() => {
+            this.setTrackedTimeout(() => {
               if (pulseEl) pulseEl.style.transform = 'scale(1.0)';
             }, 140);
           }
 
           [0, 0.14].forEach((tOffset, idx) => {
+            const t0 = now + tOffset;
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(idx === 0 ? 82 : 68, now + tOffset);
-            osc.frequency.exponentialRampToValueAtTime(26, now + tOffset + 0.12);
-            gain.gain.setValueAtTime(vol * (idx === 0 ? 1.0 : 0.82), now + tOffset);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + tOffset + 0.125);
+            osc.frequency.setValueAtTime(idx === 0 ? 82 : 68, t0);
+            osc.frequency.exponentialRampToValueAtTime(26, t0 + 0.12);
+            this.scheduleEnvelope(gain.gain, t0, vol * (idx === 0 ? 1.0 : 0.82), 0.010, 0.125);
             osc.connect(gain);
             gain.connect(this.masterGain);
-            osc.start(now + tOffset);
-            osc.stop(now + tOffset + 0.13);
+            osc.start(t0);
+            osc.stop(t0 + 0.14);
           });
         } catch (e) {}
       }
 
-      // 13. Room-Specific Procedural Soundscape: Toilet Water Drip, Computer Lab & Server Hum, Chair Scrape, PA Crackle, Distraction Clatter, Fuse Sparks & Sonar Ping
+      // 13. Room-Specific Procedural Soundscape with 8-15ms click-free attack ramps
       playWaterDripSfx() {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -2169,40 +2622,38 @@ export function getHideAndSeekHtml(): string {
           const baseF = 1180 + Math.random() * 280;
           osc.frequency.setValueAtTime(baseF, now);
           osc.frequency.exponentialRampToValueAtTime(baseF * 1.65, now + 0.065);
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(0.08, now + 0.008);
-          gain.gain.exponentialRampToValueAtTime(0.0005, now + 0.09);
+          this.scheduleEnvelope(gain.gain, now, 0.08, 0.009, 0.09);
           osc.connect(gain);
           gain.connect(this.masterGain);
           if (this.reverbSend) gain.connect(this.reverbSend);
           osc.start(now);
-          osc.stop(now + 0.10);
+          osc.stop(now + 0.105);
         } catch (e) {}
       }
 
+      // Continuous positional server rack loop now handles primary server hum; pulse provides a subtle relay click/swell
       playServerRackHumPulse() {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded || !this.serverRackGain) return;
         try {
           const now = this.ctx.currentTime;
-          [60, 120, 240].forEach((freq, idx) => {
-            const osc = this.ctx.createOscillator();
-            const gain = this.ctx.createGain();
-            osc.type = idx === 1 ? 'sawtooth' : 'sine';
-            osc.frequency.setValueAtTime(freq, now);
-            const pk = idx === 0 ? 0.045 : (idx === 1 ? 0.022 : 0.012);
-            gain.gain.setValueAtTime(0.001, now);
-            gain.gain.linearRampToValueAtTime(pk, now + 0.25);
-            gain.gain.exponentialRampToValueAtTime(0.0008, now + 1.45);
-            osc.connect(gain);
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(120, now);
+          this.scheduleEnvelope(gain.gain, now, 0.018, 0.015, 0.85);
+          osc.connect(gain);
+          if (this.serverRackPan) {
+            gain.connect(this.serverRackPan);
+          } else {
             gain.connect(this.masterGain);
-            osc.start(now);
-            osc.stop(now + 1.50);
-          });
+          }
+          osc.start(now);
+          osc.stop(now + 0.88);
         } catch (e) {}
       }
 
       playChairScrapeSfx() {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -2215,9 +2666,7 @@ export function getHideAndSeekHtml(): string {
           filter.type = 'bandpass';
           filter.frequency.setValueAtTime(520, now);
           filter.Q.setValueAtTime(5.5, now);
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(0.095, now + 0.05);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.50);
+          this.scheduleEnvelope(gain.gain, now, 0.095, 0.012, 0.50);
           osc.connect(filter);
           filter.connect(gain);
           gain.connect(this.masterGain);
@@ -2228,7 +2677,8 @@ export function getHideAndSeekHtml(): string {
       }
 
       playPaCrackleSfx() {
-        if (!this.ctx || this.isMuted) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        if (!this.cachedBuffers.paStatic) this.pregenerateCachedBuffers();
         try {
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -2236,10 +2686,20 @@ export function getHideAndSeekHtml(): string {
           osc.type = 'square';
           osc.frequency.setValueAtTime(580, now);
           osc.frequency.setValueAtTime(435, now + 0.18);
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(0.055, now + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+          this.scheduleEnvelope(gain.gain, now, 0.055, 0.010, 0.42);
           osc.connect(gain);
+          if (this.cachedBuffers.paStatic) {
+            const nSrc = this.ctx.createBufferSource();
+            nSrc.buffer = this.cachedBuffers.paStatic;
+            const bp = this.ctx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.frequency.setValueAtTime(1400, now);
+            bp.Q.setValueAtTime(2.5, now);
+            nSrc.connect(bp);
+            bp.connect(gain);
+            nSrc.start(now);
+            nSrc.stop(now + 0.42);
+          }
           gain.connect(this.masterGain);
           if (this.reverbSend) gain.connect(this.reverbSend);
           osc.start(now);
@@ -2248,47 +2708,50 @@ export function getHideAndSeekHtml(): string {
       }
 
       playDistractionClatterSfx() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_GAMEPLAY) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           [0, 0.09, 0.21].forEach((tOff, idx) => {
+            const t0 = now + tOff;
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = 'triangle';
-            osc.frequency.setValueAtTime(820 - idx * 140, now + tOff);
-            osc.frequency.exponentialRampToValueAtTime(240, now + tOff + 0.08);
-            gain.gain.setValueAtTime(0.16 / (idx + 1), now + tOff);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + tOff + 0.09);
+            osc.frequency.setValueAtTime(820 - idx * 140, t0);
+            osc.frequency.exponentialRampToValueAtTime(240, t0 + 0.08);
+            this.scheduleEnvelope(gain.gain, t0, 0.16 / (idx + 1), 0.008, 0.09);
             osc.connect(gain);
             gain.connect(this.masterGain);
             if (this.reverbSend) gain.connect(this.reverbSend);
-            osc.start(now + tOff);
-            osc.stop(now + tOff + 0.10);
+            osc.start(t0);
+            osc.stop(t0 + 0.105);
           });
         } catch (e) {}
       }
 
       playFuseRepairSfx() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_FUSE_OBJECTIVES) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           [220, 330, 440, 660].forEach((f, idx) => {
+            const t0 = now + idx * 0.055;
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(f, now + idx * 0.055);
-            gain.gain.setValueAtTime(0.12, now + idx * 0.055);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.055 + 0.22);
+            osc.frequency.setValueAtTime(f, t0);
+            this.scheduleEnvelope(gain.gain, t0, 0.12, 0.010, 0.22);
             osc.connect(gain);
             gain.connect(this.masterGain);
-            osc.start(now + idx * 0.055);
-            osc.stop(now + idx * 0.055 + 0.24);
+            osc.start(t0);
+            osc.stop(t0 + 0.24);
           });
         } catch (e) {}
       }
 
       playSonarPingSfx() {
-        if (!this.ctx || this.isMuted) return;
+        if (!EXPLORE_FLAGS.ENABLE_GAMEPLAY) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
           const osc = this.ctx.createOscillator();
@@ -2296,14 +2759,146 @@ export function getHideAndSeekHtml(): string {
           osc.type = 'sine';
           osc.frequency.setValueAtTime(520, now);
           osc.frequency.exponentialRampToValueAtTime(195, now + 0.55);
-          gain.gain.setValueAtTime(0.001, now);
-          gain.gain.linearRampToValueAtTime(0.14, now + 0.03);
-          gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.58);
+          this.scheduleEnvelope(gain.gain, now, 0.14, 0.012, 0.58);
           osc.connect(gain);
           gain.connect(this.masterGain);
           if (this.reverbSend) gain.connect(this.reverbSend);
           osc.start(now);
           osc.stop(now + 0.60);
+        } catch (e) {}
+      }
+
+      // 14. Per-Room Procedural Room Tone, Door Creak, Far Door Slam, Distant Echoing Footsteps & Tube Flicker Buzz
+      playRoomTonePulse(archetype = 'rotunda_lecture') {
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const sub = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
+          const isLab = archetype === 'rotunda_lab' || archetype === 'computer_lab';
+          const isToilet = archetype === 'toilets';
+          const isLib = archetype === 'library';
+          const baseFreq = isLab ? 60 : (isToilet ? 74 : (isLib ? 46 : 52));
+          osc.type = isLab ? 'sawtooth' : 'triangle';
+          sub.type = 'sine';
+          osc.frequency.setValueAtTime(baseFreq, now);
+          sub.frequency.setValueAtTime(baseFreq * 1.5, now);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(isLab ? 190 : 125, now);
+          const peak = isLab ? 0.032 : 0.022;
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(peak * 0.4, now + 0.015);
+          gain.gain.linearRampToValueAtTime(peak, now + 0.65);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.8);
+          osc.connect(filter);
+          sub.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(now);
+          sub.start(now);
+          osc.stop(now + 2.85);
+          sub.stop(now + 2.85);
+        } catch (e) {}
+      }
+
+      playDoorCreakSfx() {
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(210, now);
+          osc.frequency.linearRampToValueAtTime(164, now + 0.24);
+          osc.frequency.linearRampToValueAtTime(238, now + 0.52);
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(480, now);
+          filter.Q.setValueAtTime(6.5, now);
+          this.scheduleEnvelope(gain.gain, now, 0.068, 0.012, 0.56);
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.masterGain);
+          if (this.reverbSend) gain.connect(this.reverbSend);
+          osc.start(now);
+          osc.stop(now + 0.58);
+        } catch (e) {}
+      }
+
+      playFarDoorSlamSfx() {
+        if (!EXPLORE_FLAGS.ENABLE_RANDOM_SCARE_EVENTS) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(96, now);
+          osc.frequency.exponentialRampToValueAtTime(24, now + 0.34);
+          this.scheduleEnvelope(gain.gain, now, 0.22, 0.010, 0.42);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          if (this.reverbSend) gain.connect(this.reverbSend);
+          osc.start(now);
+          osc.stop(now + 0.44);
+          // Secondary metallic latch rattle with 9ms attack ramp
+          const latch = this.ctx.createOscillator();
+          const lGain = this.ctx.createGain();
+          latch.type = 'triangle';
+          latch.frequency.setValueAtTime(640, now + 0.02);
+          latch.frequency.exponentialRampToValueAtTime(180, now + 0.09);
+          this.scheduleEnvelope(lGain.gain, now + 0.02, 0.06, 0.009, 0.09);
+          latch.connect(lGain);
+          lGain.connect(this.masterGain);
+          latch.start(now + 0.02);
+          latch.stop(now + 0.12);
+        } catch (e) {}
+      }
+
+      playDistantCorridorFootsteps() {
+        if (!EXPLORE_FLAGS.ENABLE_PROXIMITY_AND_CHASE_AUDIO) return;
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          [0.0, 0.46, 0.94, 1.44].forEach((tOff, idx) => {
+            const t0 = now + tOff;
+            const osc = this.ctx.createOscillator();
+            const filter = this.ctx.createBiquadFilter();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(118 - idx * 8, t0);
+            osc.frequency.exponentialRampToValueAtTime(38, t0 + 0.11);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(320, t0);
+            const stepVol = 0.065 * Math.pow(0.78, idx);
+            this.scheduleEnvelope(gain.gain, t0, stepVol, 0.010, 0.14);
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.masterGain);
+            if (this.reverbSend) gain.connect(this.reverbSend);
+            osc.start(t0);
+            osc.stop(t0 + 0.16);
+          });
+        } catch (e) {}
+      }
+
+      playTubeFlickerBuzzSfx() {
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(120, now);
+          osc.frequency.setValueAtTime(240, now + 0.045);
+          osc.frequency.setValueAtTime(120, now + 0.09);
+          this.scheduleEnvelope(gain.gain, now, 0.038, 0.010, 0.16);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 0.18);
         } catch (e) {}
       }
 
@@ -2314,22 +2909,31 @@ export function getHideAndSeekHtml(): string {
       }
 
       dispose() {
-        if (this.cricketTimer) {
-          clearInterval(this.cricketTimer);
-          this.cricketTimer = null;
-        }
-        if (this.musicLoopTimer) {
-          clearInterval(this.musicLoopTimer);
-          this.musicLoopTimer = null;
+        this.isBackgrounded = true;
+        this.clearAllTrackedTimers();
+        if (this.loopSources && this.loopSources.length > 0) {
+          for (let i = 0; i < this.loopSources.length; i++) {
+            try { this.loopSources[i].stop(); } catch (e) {}
+            try { this.loopSources[i].disconnect(); } catch (e) {}
+          }
+          this.loopSources = [];
         }
         if (this.ctx) {
           try {
+            if (this.serverRackGain) this.serverRackGain.disconnect();
+            if (this.serverRackPan) this.serverRackPan.disconnect();
+            if (this.serverRackFilter) this.serverRackFilter.disconnect();
+            if (this.reverbSend) this.reverbSend.disconnect();
             if (this.masterGain) this.masterGain.disconnect();
             if (this.muffleFilter) this.muffleFilter.disconnect();
+            if (this.compressor) this.compressor.disconnect();
             this.ctx.close().catch(() => {});
           } catch (e) {}
           this.ctx = null;
         }
+        try {
+          sendToReactNative('DISPOSE_ACK', {});
+        } catch (e) {}
       }
     }
 
@@ -2450,6 +3054,7 @@ export function getHideAndSeekHtml(): string {
     }
 
     const softRoundParticleTex = createSoftRoundParticleTexture();
+    const softRadialGlowTex = softRoundParticleTex;
     const warmLampBloomTex = createWarmLampBloomTexture();
     const realisticGroundPoolTex = createRealisticGroundPoolTexture();
     const volumetricConeTex = createVolumetricConeAlphaTexture();
@@ -2529,18 +3134,22 @@ export function getHideAndSeekHtml(): string {
       c.height = 256;
       const ctx = c.getContext('2d');
       const vg = ctx.createLinearGradient(0, 0, 0, 256);
-      vg.addColorStop(0.0, 'rgba(165, 205, 245, 0.0)');
-      vg.addColorStop(0.08, 'rgba(175, 212, 248, 0.48)');
-      vg.addColorStop(0.45, 'rgba(138, 184, 230, 0.24)');
-      vg.addColorStop(0.85, 'rgba(96, 142, 192, 0.07)');
-      vg.addColorStop(1.0, 'rgba(64, 104, 150, 0.0)');
+      vg.addColorStop(0.0, 'rgba(165, 208, 248, 0.0)');
+      vg.addColorStop(0.07, 'rgba(178, 218, 252, 0.56)');
+      vg.addColorStop(0.42, 'rgba(132, 182, 232, 0.28)');
+      vg.addColorStop(0.84, 'rgba(84, 134, 188, 0.08)');
+      vg.addColorStop(1.0, 'rgba(48, 88, 136, 0.0)');
       ctx.fillStyle = vg;
       ctx.fillRect(0, 0, 128, 256);
 
-      // Subtle window mullion shadow bars cutting through the moonbeam shaft
-      ctx.fillStyle = 'rgba(8, 16, 28, 0.26)';
+      // Window mullion & Venetian blind slat shadow rays cutting through the volumetric shaft (Ref 4 & Ref 5)
+      ctx.fillStyle = 'rgba(6, 14, 24, 0.30)';
       ctx.fillRect(40, 0, 5, 256);
       ctx.fillRect(83, 0, 5, 256);
+      for (let sy = 14; sy < 240; sy += 18) {
+        ctx.fillStyle = 'rgba(4, 10, 18, 0.16)';
+        ctx.fillRect(0, sy, 128, 5);
+      }
       return new THREE.CanvasTexture(c);
     }
 
@@ -2550,15 +3159,17 @@ export function getHideAndSeekHtml(): string {
       c.height = 128;
       const ctx = c.getContext('2d');
       const g = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
-      g.addColorStop(0.0, 'rgba(155, 198, 242, 0.42)');
-      g.addColorStop(0.65, 'rgba(115, 162, 212, 0.22)');
-      g.addColorStop(1.0, 'rgba(60, 96, 140, 0.0)');
+      g.addColorStop(0.0, 'rgba(162, 206, 248, 0.48)');
+      g.addColorStop(0.68, 'rgba(112, 162, 216, 0.24)');
+      g.addColorStop(1.0, 'rgba(54, 92, 138, 0.0)');
       ctx.fillStyle = g;
       ctx.fillRect(8, 8, 112, 112);
-      // Window frame crossbars in floor projection
-      ctx.fillStyle = 'rgba(6, 12, 20, 0.35)';
+      // Window frame crossbars & Venetian blind slat shadow bars on floor (matching Ref 4 & Ref 5!)
+      ctx.fillStyle = 'rgba(5, 10, 18, 0.42)';
       ctx.fillRect(61, 8, 6, 112);
-      ctx.fillRect(8, 61, 112, 6);
+      for (let by = 12; by < 116; by += 10) {
+        ctx.fillRect(8, by, 112, 3.5);
+      }
       return new THREE.CanvasTexture(c);
     }
 
@@ -2893,73 +3504,125 @@ export function getHideAndSeekHtml(): string {
       updateFlashlight(delta, timeSec, camPos, yaw, pitch, hunterProximity = 0.0, isHiding = false, isFirstPerson = true) {
         if (!this.flashlight || !this.flashlightTarget) return;
 
-        // 1. Battery Flicker State Machine (steady -> micro_sag -> sputter -> brownout -> recover)
-        this.flBattTimer -= delta * (1.0 + hunterProximity * 1.65);
-        if (this.flBattTimer <= 0) {
-          if (this.flBattState === 'steady') {
-            const roll = Math.random();
-            if (roll < 0.52) {
-              this.flBattState = 'sputter';
-              this.flBattTimer = 0.32 + Math.random() * 0.55;
-            } else if (roll < 0.82) {
-              this.flBattState = 'micro_sag';
-              this.flBattTimer = 0.65 + Math.random() * 0.85;
-            } else {
-              this.flBattState = 'brownout';
-              this.flBattTimer = 0.40 + Math.random() * 0.55;
-            }
-          } else if (this.flBattState === 'sputter' || this.flBattState === 'brownout' || this.flBattState === 'micro_sag') {
-            this.flBattState = 'recover';
-            this.flBattTimer = 0.24 + Math.random() * 0.25;
-          } else {
-            this.flBattState = 'steady';
-            this.flBattTimer = Math.max(2.8, (6.0 + Math.random() * 7.5) * (1.0 - hunterProximity * 0.55));
-          }
-        }
-
         let battFactor = 1.0;
         let warmShift = 0.0;
-        if (this.flBattState === 'steady') {
-          // Subtle filament voltage hum + hunter interference
-          battFactor = 0.96 + Math.sin(timeSec * 7.3) * 0.025 + Math.cos(timeSec * 19.1) * 0.015;
-          if (hunterProximity > 0.25) {
-            const interfere = Math.sin(timeSec * 43.0) * Math.cos(timeSec * 29.0);
-            if (interfere > 0.55) {
-              battFactor *= (1.0 - hunterProximity * 0.52);
-              warmShift = hunterProximity * 0.45;
+        const minReserve = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.flashlightMinReserveFactor) || 0.28;
+        let chargeScale = 1.0;
+
+        if (EXPLORE_FLAGS.INFINITE_FLASHLIGHT_BATTERY) {
+          // Explore Mode: Infinite steady flashlight battery — no drain, no sputter, no brownout, no Hunter interference
+          this.flBattState = 'steady';
+          battFactor = 1.0;
+          warmShift = 0.0;
+          chargeScale = 1.0;
+        } else {
+          const safeFlicker = !!(accessibilitySettings && accessibilitySettings.flickerReduction);
+          // 1. Battery Flicker State Machine (steady -> micro_sag -> sputter -> brownout -> recover)
+          this.flBattTimer -= delta * (1.0 + hunterProximity * (safeFlicker ? 0.65 : 1.65));
+          if (this.flBattTimer <= 0) {
+            if (this.flBattState === 'steady') {
+              const roll = Math.random();
+              if (roll < 0.52) {
+                this.flBattState = 'sputter';
+                this.flBattTimer = 0.32 + Math.random() * 0.55;
+              } else if (roll < 0.82) {
+                this.flBattState = 'micro_sag';
+                this.flBattTimer = 0.65 + Math.random() * 0.85;
+              } else {
+                this.flBattState = 'brownout';
+                this.flBattTimer = 0.40 + Math.random() * 0.55;
+              }
+            } else if (this.flBattState === 'sputter' || this.flBattState === 'brownout' || this.flBattState === 'micro_sag') {
+              this.flBattState = 'recover';
+              this.flBattTimer = 0.24 + Math.random() * 0.25;
+            } else {
+              this.flBattState = 'steady';
+              this.flBattTimer = Math.max(2.8, (6.0 + Math.random() * 7.5) * (1.0 - hunterProximity * 0.55));
             }
           }
-        } else if (this.flBattState === 'micro_sag') {
-          battFactor = 0.66 + Math.sin(timeSec * 18.0) * 0.10;
-          warmShift = 0.38;
-        } else if (this.flBattState === 'sputter') {
-          const wave = Math.sin(timeSec * 58.0) + Math.cos(timeSec * 41.0) * 0.8;
-          battFactor = wave > 0.05 ? 0.94 : (wave > -0.65 ? 0.28 : 0.06);
-          warmShift = 0.65 * (1.0 - battFactor);
-        } else if (this.flBattState === 'brownout') {
-          battFactor = 0.24 + Math.sin(timeSec * 27.0) * 0.07;
-          warmShift = 0.78;
-        } else if (this.flBattState === 'recover') {
-          battFactor = 0.85 + Math.sin(timeSec * 34.0) * 0.12;
-          warmShift = 0.20;
-        }
 
-        if (isHiding) {
-          battFactor *= 0.32; // Dimmed when tucked under desk cover
+          if (safeFlicker) {
+            // Requirement 4 (Light Safety): <= 2 flashes/sec (omega <= 4*pi = 12.56 rad/s), smaller brightness swings, gentler brownouts
+            const slowWave = Math.sin(timeSec * 9.8); // ~1.56 Hz (<= 2 flashes/sec)
+            if (this.flBattState === 'steady') {
+              battFactor = 0.96 + Math.sin(timeSec * 5.2) * 0.025;
+              if (hunterProximity > 0.25) {
+                battFactor *= (1.0 - hunterProximity * 0.16);
+                warmShift = hunterProximity * 0.25;
+              }
+            } else if (this.flBattState === 'micro_sag') {
+              battFactor = 0.84 + slowWave * 0.05;
+              warmShift = 0.22;
+            } else if (this.flBattState === 'sputter') {
+              battFactor = 0.82 + slowWave * 0.08;
+              warmShift = 0.28;
+            } else if (this.flBattState === 'brownout') {
+              battFactor = 0.74 + slowWave * 0.05; // Gentler brownout
+              warmShift = 0.35;
+            } else {
+              battFactor = 0.92 + slowWave * 0.04;
+              warmShift = 0.12;
+            }
+          } else {
+            if (this.flBattState === 'steady') {
+              // Subtle filament voltage hum + hunter interference
+              battFactor = 0.96 + Math.sin(timeSec * 7.3) * 0.025 + Math.cos(timeSec * 19.1) * 0.015;
+              if (hunterProximity > 0.25) {
+                const interfere = Math.sin(timeSec * 43.0) * Math.cos(timeSec * 29.0);
+                if (interfere > 0.55) {
+                  battFactor *= (1.0 - hunterProximity * 0.52);
+                  warmShift = hunterProximity * 0.45;
+                }
+              }
+            } else if (this.flBattState === 'micro_sag') {
+              battFactor = 0.66 + Math.sin(timeSec * 18.0) * 0.10;
+              warmShift = 0.38;
+            } else if (this.flBattState === 'sputter') {
+              const wave = Math.sin(timeSec * 58.0) + Math.cos(timeSec * 41.0) * 0.8;
+              battFactor = wave > 0.05 ? 0.94 : (wave > -0.65 ? 0.28 : 0.06);
+              warmShift = 0.65 * (1.0 - battFactor);
+            } else if (this.flBattState === 'brownout') {
+              battFactor = 0.24 + Math.sin(timeSec * 27.0) * 0.07;
+              warmShift = 0.78;
+            } else if (this.flBattState === 'recover') {
+              battFactor = 0.85 + Math.sin(timeSec * 34.0) * 0.12;
+              warmShift = 0.20;
+            }
+          }
+
+          // Requirement 5 (Playability): Scale with remaining battery charge while guaranteeing >= 4m visibility in 'dark' rooms at minimum battery
+          const rawBattCharge = (typeof flashlightBattery === 'number') ? Math.max(0.0, Math.min(1.0, flashlightBattery / 100.0)) : 1.0;
+          chargeScale = minReserve + (1.0 - minReserve) * Math.pow(rawBattCharge, 0.55);
+          battFactor *= chargeScale;
+          if (rawBattCharge < 0.30) {
+            warmShift = Math.max(warmShift, (1.0 - rawBattCharge / 0.30) * 0.55);
+          }
+
+          if (isHiding) {
+            battFactor *= 0.32; // Dimmed when tucked under desk cover
+          }
         }
 
         this.flCurrentFactor += (battFactor - this.flCurrentFactor) * Math.min(1.0, 26.0 * delta);
-        const f = Math.max(0.04, this.flCurrentFactor);
+        const inDarkRoom = (this._currentRoomMood === 'dark');
+        const minFloorF = inDarkRoom ? Math.max(0.26, minReserve) : 0.16;
+        const f = Math.max(minFloorF, this.flCurrentFactor);
 
         // Non-ULTRA modes without post-process blackLift get a slight clean visibility boost on flashlight
-        const qualityMult = (currentQuality === 'fast' || currentQuality === 'low') ? 1.14 : 1.0;
+        const isLowOrFast = (currentQuality === 'fast' || currentQuality === 'low');
+        const qualityMult = isLowOrFast ? 1.14 : 1.0;
 
         this.flashlight.intensity = this.flBaseIntensity * f * qualityMult;
+        // Guarantee >= 4.2m effective reveal cone even at minimum battery (0%) in 'dark' rooms
+        const baseDist = (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.flashlightDistance) || 28.0;
+        const minDarkDist = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.flashlightMinDarkRoomDistance) || 4.6;
+        this.flashlight.distance = Math.max(minDarkDist, baseDist * (0.22 + 0.78 * chargeScale));
         this.flashlight.color.copy(this.flBaseColor).lerp(this.flLowBattColor, warmShift);
 
         if (this.flashlightSpill) {
           this.flashlightSpill.position.copy(camPos);
           this.flashlightSpill.intensity = ((HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.flashlightSpillIntensity) || 1.15) * f * qualityMult;
+          this.flashlightSpill.distance = Math.max(4.4, ((HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.flashlightSpillDistance) || 6.2) * (0.72 + 0.28 * chargeScale));
           this.flashlightSpill.color.copy(this.flashlight.color);
         }
 
@@ -2992,11 +3655,15 @@ export function getHideAndSeekHtml(): string {
           const coneOpacity = this.flBaseBeamOpacity * f * (isHiding ? 0.35 : 1.0);
           this.flashlightBeamMat.opacity = coneOpacity;
           this.flashlightBeamMat.color.copy(this.flashlight.color);
+          // Requirement 2: Reduce second beam layer, lens flare & dust ONLY on LOW and FAST; keep HIGH & ULTRA 100% untouched
+          if (this.flashlightCoreCone) this.flashlightCoreCone.visible = !isLowOrFast;
+          if (this.flashlightLensSprite) this.flashlightLensSprite.visible = !isLowOrFast;
           this.flashlightCoreMat.opacity = coneOpacity * 0.68;
           this.flashlightLensMat.opacity = Math.min(0.85, 0.55 * f);
 
-          // Animate dust motes drifting inside the flashlight beam cone
-          const showBeamDust = currentQuality !== 'fast';
+          // Animate dust motes drifting inside the flashlight beam cone (HIGH & ULTRA)
+          const dustAllowed = (typeof exploreTools === 'undefined' || exploreTools.dustEnabled !== false);
+          const showBeamDust = !isLowOrFast && dustAllowed;
           this.beamDustPoints.visible = showBeamDust && !isHiding;
           if (showBeamDust && !isHiding) {
             this.beamDustMat.opacity = Math.min(0.68, 0.52 * f);
@@ -3026,6 +3693,7 @@ export function getHideAndSeekHtml(): string {
       }
 
       updateRoomMoodAmbient(delta, activeRoomMood, inCorridor = false) {
+        this._currentRoomMood = activeRoomMood || null;
         const lCfg = HORROR_CONFIG.lighting || {};
         const moods = HORROR_CONFIG.roomLightMoods || {};
         const isCleanLowMode = (currentQuality === 'fast' || currentQuality === 'low');
@@ -3036,22 +3704,23 @@ export function getHideAndSeekHtml(): string {
         let targetMoonInt = this.baseMoonIntensity;
         this.targetAmbColor.copy(this.baseAmbColor);
 
-        if (activeRoomMood && moods[activeRoomMood]) {
-          const mCfg = moods[activeRoomMood];
-          const indoorAmb = (lCfg.indoorAmbientIntensity || 0.06) * (mCfg.ambientMult || 0.7) * lowModeLift;
-          const indoorHemi = (lCfg.indoorHemiIntensity || 0.07) * (mCfg.ambientMult || 0.7) * lowModeLift;
+        if (activeRoomMood) {
+          const mCfg = moods[activeRoomMood] || { ambientColor: 0x0a1520, ambientMult: 0.45 };
+          // Requirement 5: Very low, cool indoor ambient so the player's flashlight is the hero!
+          const ambMult = mCfg.ambientMult || mCfg.ambientScale || 0.45;
+          const indoorAmb = (lCfg.indoorAmbientIntensity || 0.045) * ambMult * lowModeLift;
+          const indoorHemi = (lCfg.indoorHemiIntensity || 0.05) * ambMult * lowModeLift;
           targetAmbInt = indoorAmb;
           targetHemiInt = indoorHemi;
           targetMoonInt = activeRoomMood === 'moonlight'
-            ? (this.baseMoonIntensity * 0.55)
-            : (lCfg.indoorMoonIntensity || 0.10);
-          if (mCfg.ambientColor) {
-            this.targetAmbColor.setHex(mCfg.ambientColor);
-          }
+            ? (this.baseMoonIntensity * 0.42)
+            : (lCfg.indoorMoonIntensity || 0.06);
+          this.targetAmbColor.setHex(mCfg.ambientColor || 0x0a1520);
         } else if (inCorridor) {
-          targetAmbInt = (lCfg.indoorAmbientIntensity || 0.06) * 0.85 * lowModeLift;
-          targetHemiInt = (lCfg.indoorHemiIntensity || 0.07) * 0.85 * lowModeLift;
-          targetMoonInt = this.baseMoonIntensity * 0.25;
+          targetAmbInt = (lCfg.indoorAmbientIntensity || 0.045) * 0.65 * lowModeLift;
+          targetHemiInt = (lCfg.indoorHemiIntensity || 0.05) * 0.65 * lowModeLift;
+          targetMoonInt = this.baseMoonIntensity * 0.18;
+          this.targetAmbColor.setHex(0x0d1822);
         }
 
         const lerpRate = Math.min(1.0, 4.5 * delta);
@@ -3067,7 +3736,7 @@ export function getHideAndSeekHtml(): string {
         if (this.stylizedMode) {
           return (HORROR_CONFIG.grade && HORROR_CONFIG.grade.stylizedPixelRatio) || 0.7;
         }
-        const cap = (preset && preset.pixelRatioCap) || 1.4;
+        const cap = batterySaverEnabled ? Math.min(1.0, (preset && preset.pixelRatioCap) || 1.0) : ((preset && preset.pixelRatioCap) || 1.4);
         return Math.min(window.devicePixelRatio || 1, cap);
       }
 
@@ -3403,7 +4072,9 @@ export function getHideAndSeekHtml(): string {
         this.sharedGeos = sharedGeos;
         this.materials = materials;
         this.lamps = [];
+        this.allVisualLamps = this.lamps;
         this.lightPool = [];
+        this.indoorOverrideLight = null;
         this.nearestLampDist = 999;
         this._dummy = new THREE.Object3D();
         this._streetLampCount = 0;
@@ -3695,8 +4366,10 @@ export function getHideAndSeekHtml(): string {
         let minActiveDistSq = 999999;
         const maxCullDist = (activePreset && activePreset.cullDistProps) || 50;
         const maxCullDistSq = maxCullDist * maxCullDist;
-        const showCones = !!(activePreset && activePreset.enableLampCones);
+        const shaftsAllowed = (typeof exploreTools === 'undefined' || exploreTools.lightShaftsEnabled !== false);
+        const showCones = !!(activePreset && activePreset.enableLampCones) && shaftsAllowed;
         const stride = (activePreset && activePreset.fakePoolStride) || 1;
+        const allowStrobing = !!EXPLORE_FLAGS.ENABLE_STROBING_AND_BROWNOUTS;
 
         for (let i = 0; i < this.lamps.length; i++) {
           const l = this.lamps[i];
@@ -3713,10 +4386,16 @@ export function getHideAndSeekHtml(): string {
           l.stateTimer -= delta;
           let factor = 1.0;
 
+          const safeFlicker = !!(accessibilitySettings && accessibilitySettings.flickerReduction);
           if (l.blinkProfile === 'dead') {
             factor = 0.0;
+          } else if (!allowStrobing) {
+            factor = 0.96 + Math.sin(timeSec * 1.8 + l.seed) * 0.03;
+            l.blinkState = 'steady';
           } else if (l.blinkState === 'power_dip') {
-            factor = 0.22 + Math.sin(timeSec * 38.0 + l.seed) * 0.08;
+            factor = safeFlicker
+              ? (0.76 + Math.sin(timeSec * 9.5 + l.seed) * 0.06)
+              : (0.22 + Math.sin(timeSec * 38.0 + l.seed) * 0.08);
             if (l.stateTimer <= 0) {
               l.blinkState = 'recover';
               l.stateTimer = 0.22;
@@ -3734,15 +4413,22 @@ export function getHideAndSeekHtml(): string {
               }
             }
           } else if (l.blinkState === 'stutter') {
-            const wave = Math.sin(timeSec * 52.0 + l.seed * 3.1) + Math.cos(timeSec * 33.0 + l.seed);
-            factor = wave > 0.15 ? 0.95 : (l.blinkProfile === 'heavy_blink' ? 0.06 : 0.24);
+            if (safeFlicker) {
+              // <= 2 flashes/sec (omega <= 12.56 rad/s) & smaller swing
+              factor = 0.78 + Math.sin(timeSec * 10.5 + l.seed) * 0.10;
+            } else {
+              const wave = Math.sin(timeSec * 52.0 + l.seed * 3.1) + Math.cos(timeSec * 33.0 + l.seed);
+              factor = wave > 0.15 ? 0.95 : (l.blinkProfile === 'heavy_blink' ? 0.06 : 0.24);
+            }
             if (Math.random() < 0.025) soundEngine.playLampBuzz();
             if (l.stateTimer <= 0) {
               l.blinkState = 'recover';
               l.stateTimer = 0.18;
             }
           } else if (l.blinkState === 'brownout') {
-            factor = 0.22 + Math.sin(timeSec * 24.0 + l.seed) * 0.06;
+            factor = safeFlicker
+              ? (0.74 + Math.sin(timeSec * 8.5 + l.seed) * 0.05)
+              : (0.22 + Math.sin(timeSec * 24.0 + l.seed) * 0.06);
             if (l.stateTimer <= 0) {
               l.blinkState = 'recover';
               l.stateTimer = 0.20;
@@ -3757,6 +4443,7 @@ export function getHideAndSeekHtml(): string {
           }
 
           this.setVisualState(l, factor);
+          l._lastDistSq = dSq;
 
           if (factor > 0.1) {
             if (dSq < minActiveDistSq) minActiveDistSq = dSq;
@@ -3765,20 +4452,47 @@ export function getHideAndSeekHtml(): string {
 
         this.nearestLampDist = Math.sqrt(minActiveDistSq);
 
-        // Dynamically assign at most 3 real PointLights to the nearest active lamps to the player
-        const activeLamps = this.lamps.filter(l => l.blinkProfile !== 'dead' && l.currentIntensity > 0.5);
-        activeLamps.sort((a, b) => {
-          const da = (a.x - playerPos.x) ** 2 + (a.z - playerPos.z) ** 2;
-          const db = (b.x - playerPos.x) ** 2 + (b.z - playerPos.z) ** 2;
-          return da - db;
-        });
+        // Zero per-frame allocation selection of top 3 nearest active lamps
+        let best0 = null, best1 = null, best2 = null;
+        let d0 = Infinity, d1 = Infinity, d2 = Infinity;
+        for (let i = 0; i < this.lamps.length; i++) {
+          const l = this.lamps[i];
+          if (l.blinkProfile === 'dead' || l.currentIntensity <= 0.5) continue;
+          const distSq = l._lastDistSq;
+          if (distSq < d0) {
+            d2 = d1; best2 = best1;
+            d1 = d0; best1 = best0;
+            d0 = distSq; best0 = l;
+          } else if (distSq < d1) {
+            d2 = d1; best2 = best1;
+            d1 = distSq; best1 = l;
+          } else if (distSq < d2) {
+            d2 = distSq; best2 = l;
+          }
+        }
 
         const activeCount = Math.min(this.lightPool.length, activePreset.maxActiveLampLights || 3);
+        const ov = this.indoorOverrideLight;
+        let pickIdx = 0;
         for (let i = 0; i < this.lightPool.length; i++) {
           const pl = this.lightPool[i];
-          if (i < activeCount && i < activeLamps.length) {
-            pl.position.copy(activeLamps[i].bulbPos);
-            pl.intensity = activeLamps[i].currentIntensity;
+          if (i === 0 && ov && ov.intensity > 0.01) {
+            pl.color.setHex(ov.color || 0xb4f0e4);
+            pl.position.set(ov.x, ov.y, ov.z);
+            pl.distance = ov.distance || 10.5;
+            pl.intensity = ov.intensity;
+          } else if (i < activeCount) {
+            const chosenLamp = pickIdx === 0 ? best0 : (pickIdx === 1 ? best1 : best2);
+            pickIdx++;
+            if (chosenLamp) {
+              pl.color.setHex(HORROR_CONFIG.lighting.lampColor || 0xff8a2a);
+              pl.distance = HORROR_CONFIG.lighting.lampDistance || 16.5;
+              pl.position.copy(chosenLamp.bulbPos);
+              pl.intensity = chosenLamp.currentIntensity;
+            } else {
+              pl.intensity = 0;
+              pl.position.set(0, -9999, 0);
+            }
           } else {
             pl.intensity = 0;
             pl.position.set(0, -9999, 0);
@@ -3872,7 +4586,10 @@ export function getHideAndSeekHtml(): string {
       }
 
       update(delta, timeSec, playerPos) {
-        const count = activePreset.particleCount;
+        const dustAllowed = (typeof exploreTools === 'undefined' || exploreTools.dustEnabled !== false);
+        const fogAllowed = (typeof exploreTools === 'undefined' || exploreTools.fogEnabled !== false);
+        if (this.points) this.points.visible = dustAllowed;
+        const count = dustAllowed ? activePreset.particleCount : 0;
         const px = playerPos.x, pz = playerPos.z;
         let speedMult = 1.0;
         if (this.windBoostTimer > 0) {
@@ -3897,10 +4614,14 @@ export function getHideAndSeekHtml(): string {
           if (dz > 14) this.positions[idx + 2] -= 28;
           else if (dz < -14) this.positions[idx + 2] += 28;
         }
-        this.geo.attributes.position.needsUpdate = true;
+        if (count > 0) {
+          this.geo.attributes.position.needsUpdate = true;
+        }
 
+        const maxMist = (activePreset && activePreset.mistPlaneCount) || 4;
         for (let i = 0; i < this.mistPlanes.length; i++) {
           const mp = this.mistPlanes[i];
+          mp.mesh.visible = fogAllowed && (i < maxMist);
           if (!mp.mesh.visible) continue;
           mp.mesh.position.x = mp.baseX + Math.sin(timeSec * 0.22 + mp.phase) * (1.2 * speedMult);
           mp.mesh.position.z = mp.baseZ + Math.cos(timeSec * 0.18 + mp.phase) * (1.1 * speedMult);
@@ -4005,7 +4726,20 @@ export function getHideAndSeekHtml(): string {
     const camera = atmosphere.camera;
     const renderer = atmosphere.renderer;
 
-    function createProceduralTexture(width, height, drawFn) {
+    const _noopGrad = { addColorStop() {} };
+    const _noopCtx = {
+      fillStyle: '', strokeStyle: '', lineWidth: 1, font: '',
+      fillRect() {}, strokeRect() {}, clearRect() {}, beginPath() {}, closePath() {},
+      moveTo() {}, lineTo() {}, quadraticCurveTo() {}, arc() {}, ellipse() {},
+      fill() {}, stroke() {}, fillText() {}, createLinearGradient() { return _noopGrad; },
+      createRadialGradient() { return _noopGrad; }
+    };
+
+    function createProceduralTexture(width, height, drawFn, cacheKey) {
+      const key = cacheKey || ('proc:' + width + 'x' + height + ':' + (drawFn ? drawFn.toString().length : 0));
+      if (cacheKey && window.__PROCEDURAL_TEX_CACHE__.has(key)) {
+        return window.__PROCEDURAL_TEX_CACHE__.get(key);
+      }
       const c = document.createElement('canvas');
       c.width = width;
       c.height = height;
@@ -4013,26 +4747,50 @@ export function getHideAndSeekHtml(): string {
       if (ctx && typeof drawFn === 'function') {
         drawFn(ctx);
       }
-      return new THREE.CanvasTexture(c);
+      const tex = new THREE.CanvasTexture(c);
+      if (cacheKey) window.__PROCEDURAL_TEX_CACHE__.set(key, tex);
+      return tex;
     }
 
     function createProceduralTextureWithBump(type) {
+      if (window.__PROCEDURAL_TEX_CACHE__.has(type)) {
+        return window.__PROCEDURAL_TEX_CACHE__.get(type);
+      }
+      const dedicatedBumpTypes = {
+        'scuffed-classroom-floor': true,
+        'stained-ceiling-tiles': true,
+        'peeling-paint-wall': true,
+        'worn-wood-grain': true,
+      };
+      const needsBumpCanvas = !!dedicatedBumpTypes[type] || !window.__sharedArchBumpTex;
+      const needsRoughCanvas = !window.__sharedArchRoughTex;
+
       const c = document.createElement('canvas');
       c.width = 512;
       c.height = 512;
       const ctx = c.getContext('2d');
 
-      const bumpC = document.createElement('canvas');
-      bumpC.width = 512;
-      bumpC.height = 512;
-      const bCtx = bumpC.getContext('2d');
+      let bumpC = null;
+      let bCtx = _noopCtx;
+      if (needsBumpCanvas) {
+        bumpC = document.createElement('canvas');
+        bumpC.width = 512;
+        bumpC.height = 512;
+        bCtx = bumpC.getContext('2d') || _noopCtx;
+      }
 
-      const roughC = document.createElement('canvas');
-      roughC.width = 512;
-      roughC.height = 512;
-      const rCtx = roughC.getContext('2d');
-      rCtx.fillStyle = '#a0a0a0';
-      rCtx.fillRect(0, 0, 512, 512);
+      let roughC = null;
+      let rCtx = _noopCtx;
+      if (needsRoughCanvas) {
+        roughC = document.createElement('canvas');
+        roughC.width = 512;
+        roughC.height = 512;
+        rCtx = roughC.getContext('2d') || _noopCtx;
+        rCtx.fillStyle = '#a0a0a0';
+        rCtx.fillRect(0, 0, 512, 512);
+      }
+
+      const runProceduralDraw = () => {
 
       if (type === 'nepali-river-stone') {
         ctx.fillStyle = '#1b2028';
@@ -4423,7 +5181,7 @@ export function getHideAndSeekHtml(): string {
               ctx.lineWidth = 2.5;
               ctx.beginPath();
               ctx.moveTo(x + 12, y + 18);
-              ctx.quadraticCurveTo(x + 34, y + 28, x + 48, y + 46);
+              if (ctx.quadraticCurveTo) ctx.quadraticCurveTo(x + 34, y + 28, x + 48, y + 46); else { ctx.lineTo(x + 34, y + 28); ctx.lineTo(x + 48, y + 46); }
               ctx.stroke();
               bCtx.strokeStyle = '#383838';
               bCtx.lineWidth = 2;
@@ -4684,23 +5442,19 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
+      };
+
       const map = new THREE.CanvasTexture(c);
       map.wrapS = THREE.RepeatWrapping;
       map.wrapT = THREE.RepeatWrapping;
 
-      const dedicatedBumpTypes = {
-        'scuffed-classroom-floor': true,
-        'stained-ceiling-tiles': true,
-        'peeling-paint-wall': true,
-        'worn-wood-grain': true,
-      };
       let outBump = null;
       if (dedicatedBumpTypes[type]) {
         outBump = new THREE.CanvasTexture(bumpC);
         outBump.wrapS = THREE.RepeatWrapping;
         outBump.wrapT = THREE.RepeatWrapping;
       } else {
-        if (!window.__sharedArchBumpTex) {
+        if (!window.__sharedArchBumpTex && bumpC) {
           const bTex = new THREE.CanvasTexture(bumpC);
           bTex.wrapS = THREE.RepeatWrapping;
           bTex.wrapT = THREE.RepeatWrapping;
@@ -4709,17 +5463,33 @@ export function getHideAndSeekHtml(): string {
         outBump = window.__sharedArchBumpTex;
       }
 
-      if (!window.__sharedArchRoughTex) {
+      if (!window.__sharedArchRoughTex && roughC) {
         const rTex = new THREE.CanvasTexture(roughC);
         rTex.wrapS = THREE.RepeatWrapping;
         rTex.wrapT = THREE.RepeatWrapping;
         window.__sharedArchRoughTex = rTex;
       }
-      return {
+
+      // Requirement 1: Generate procedural textures in chunks across frames behind the loading screen & cache them
+      const isHeadlessNode = (typeof navigator !== 'undefined' && navigator.userAgent === 'node');
+      if (isHeadlessNode || needsBumpCanvas || needsRoughCanvas) {
+        runProceduralDraw();
+        map.needsUpdate = true;
+        if (outBump) outBump.needsUpdate = true;
+      } else {
+        window.__TEXTURE_CHUNK_QUEUE__.push(() => {
+          runProceduralDraw();
+          map.needsUpdate = true;
+        });
+      }
+
+      const result = {
         map,
         bumpMap: outBump,
         roughnessMap: window.__sharedArchRoughTex,
       };
+      window.__PROCEDURAL_TEX_CACHE__.set(type, result);
+      return result;
     }
 
     // Phase A Texture Atlas & Shared Surface Maps:
@@ -4734,9 +5504,6 @@ export function getHideAndSeekHtml(): string {
 
     const rotundaBrickTex = createProceduralTextureWithBump('rotunda-stone-brick');
     rotundaBrickTex.map.repeat.set(6, 4);
-
-    const terrazzoFloorTex = createProceduralTextureWithBump('polished-terrazzo-tile');
-    terrazzoFloorTex.map.repeat.set(14, 10);
 
     const stuccoTex = createProceduralTextureWithBump('pale-campus-stucco');
     stuccoTex.map.repeat.set(5, 2);
@@ -4757,6 +5524,7 @@ export function getHideAndSeekHtml(): string {
     const scuffedFloorTex = createProceduralTextureWithBump('scuffed-classroom-floor');
     scuffedFloorTex.map.repeat.set(6, 6);
     scuffedFloorTex.bumpMap.repeat.set(6, 6);
+    const terrazzoFloorTex = scuffedFloorTex;
 
     const stainedCeilingTex = createProceduralTextureWithBump('stained-ceiling-tiles');
     stainedCeilingTex.map.repeat.set(5, 5);
@@ -4838,67 +5606,509 @@ export function getHideAndSeekHtml(): string {
         roughness: 0.68,
         metalness: 0.28,
       }),
-      terracottaRoof: new THREE.MeshStandardMaterial({
-        map: redRoofTex.map,
-        bumpMap: redRoofTex.bumpMap,
-        bumpScale: 0.075,
-        color: 0x8a5a52,
-        roughness: 0.48,
-        metalness: 0.18,
-      }),
-      rotundaBrick: new THREE.MeshStandardMaterial({
-        map: rotundaBrickTex.map,
-        bumpMap: rotundaBrickTex.bumpMap,
-        bumpScale: 0.055,
-        color: 0x8c867e,
-        roughness: 0.66,
-        side: THREE.DoubleSide,
-      }),
-      rotundaWhiteArch: new THREE.MeshStandardMaterial({
-        map: peelingPaintTex.map,
-        bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.045,
-        color: 0x8b959e,
-        roughness: 0.64,
-        metalness: 0.08,
-      }),
-      rotundaPlinthConcrete: new THREE.MeshStandardMaterial({
-        map: scuffedFloorTex.map,
-        bumpMap: scuffedFloorTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x6c757d,
-        roughness: 0.74,
-        metalness: 0.10,
-      }),
-      rotundaColumnFlutedBase: new THREE.MeshStandardMaterial({
-        map: peelingPaintTex.map,
-        bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x495057,
-        roughness: 0.62,
-        metalness: 0.18,
-      }),
+      terracottaRoof: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        redRoofTex.map.generateMipmaps = true;
+        redRoofTex.map.minFilter = THREE.LinearMipmapLinearFilter;
+        redRoofTex.map.anisotropy = mb.windowAnisotropy || 8;
+        return new THREE.MeshStandardMaterial({
+          map: redRoofTex.map,
+          bumpMap: redRoofTex.bumpMap,
+          bumpScale: mb.roofNormalScale !== undefined ? mb.roofNormalScale : 0.026,
+          color: mb.roofColor || 0xb83e30,
+          emissive: mb.roofEmissive || 0x3a120e,
+          emissiveIntensity: mb.roofEmissiveIntensity !== undefined ? mb.roofEmissiveIntensity : 0.24,
+          roughness: mb.roofRoughness !== undefined ? mb.roofRoughness : 0.44,
+          metalness: 0.16,
+        });
+      })(),
+      rotundaRoofRidge: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        return new THREE.MeshStandardMaterial({
+          map: redRoofTex.map,
+          bumpMap: redRoofTex.bumpMap,
+          bumpScale: 0.018,
+          color: mb.roofRidgeColor || 0xd65444,
+          emissive: mb.roofRidgeEmissive || 0x4c1914,
+          emissiveIntensity: mb.roofRidgeEmissiveIntensity !== undefined ? mb.roofRidgeEmissiveIntensity : 0.30,
+          roughness: 0.38,
+          metalness: 0.24,
+        });
+      })(),
+      rotundaBrick: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        // Fine plaster & subtle masonry texture with vertical damp weathering streaks (no pebble look!)
+        const fineWallTex = createProceduralTexture(512, 512, (ctx) => {
+          ctx.fillStyle = '#8d96a0';
+          ctx.fillRect(0, 0, 512, 512);
+          // Fine horizontal plaster/masonry courses
+          for (let y = 0; y < 512; y += 16) {
+            ctx.fillStyle = (y % 32 === 0) ? 'rgba(218, 226, 234, 0.10)' : 'rgba(30, 40, 50, 0.10)';
+            ctx.fillRect(0, y, 512, 1.5);
+          }
+          // Subtle micro-plaster grain
+          for (let i = 0; i < 600; i++) {
+            const gx = (i * 79) % 512;
+            const gy = (i * 131) % 512;
+            ctx.fillStyle = (i % 2 === 0) ? 'rgba(235, 242, 248, 0.06)' : 'rgba(22, 30, 38, 0.07)';
+            ctx.fillRect(gx, gy, 3, 3);
+          }
+          // Realistic vertical rain/moss weathering streaks matching IMG_6033 & IMG_6034
+          const topDamp = ctx.createLinearGradient(0, 0, 0, 110);
+          topDamp.addColorStop(0.0, 'rgba(18, 26, 30, 0.42)');
+          topDamp.addColorStop(0.5, 'rgba(24, 34, 38, 0.16)');
+          topDamp.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+          ctx.fillStyle = topDamp;
+          ctx.fillRect(0, 0, 512, 110);
+          for (let sx = 14; sx < 512; sx += 32) {
+            const sw = 5 + ((sx * 7) % 9);
+            const sh = 120 + ((sx * 19) % 240);
+            const sg = ctx.createLinearGradient(0, 0, 0, sh);
+            sg.addColorStop(0.0, 'rgba(20, 28, 26, 0.28)');
+            sg.addColorStop(0.65, 'rgba(26, 36, 32, 0.12)');
+            sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+            ctx.fillStyle = sg;
+            ctx.fillRect(sx, 0, sw, sh);
+          }
+        }, 'main-bldg-fine-wall-plaster');
+        fineWallTex.wrapS = THREE.RepeatWrapping;
+        fineWallTex.wrapT = THREE.RepeatWrapping;
+        fineWallTex.repeat.set(4, 2);
+        fineWallTex.generateMipmaps = true;
+        fineWallTex.minFilter = THREE.LinearMipmapLinearFilter;
+        fineWallTex.anisotropy = mb.windowAnisotropy || 8;
+        return new THREE.MeshStandardMaterial({
+          map: fineWallTex,
+          bumpMap: fineWallTex,
+          bumpScale: mb.wallNormalScale !== undefined ? mb.wallNormalScale : 0.016,
+          color: mb.wallColor || 0x9ca6b0,
+          emissive: mb.wallEmissive || 0x16222e,
+          emissiveIntensity: mb.wallEmissiveIntensity !== undefined ? mb.wallEmissiveIntensity : 0.18,
+          roughness: mb.wallRoughness !== undefined ? mb.wallRoughness : 0.66,
+          side: THREE.DoubleSide,
+        });
+      })(),
+      rotundaWhiteArch: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        // Bright weathered off-white concrete plaster for columns, pilasters, floor bands & cornices (IMG_6033 & IMG_6034!)
+        const colPlasterTex = createProceduralTexture(512, 512, (ctx) => {
+          ctx.fillStyle = '#d4dde4';
+          ctx.fillRect(0, 0, 512, 512);
+          for (let i = 0; i < 450; i++) {
+            const gx = (i * 83) % 512;
+            const gy = (i * 149) % 512;
+            ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.08)' : 'rgba(35, 45, 55, 0.07)';
+            ctx.fillRect(gx, gy, 3, 4);
+          }
+          // Vertical dark rain/moss streaks along columns and pilasters (matching IMG_6034!)
+          for (let sx = 18; sx < 512; sx += 44) {
+            const sw = 6 + ((sx * 11) % 12);
+            const sh = 150 + ((sx * 23) % 280);
+            const sg = ctx.createLinearGradient(0, 0, 0, sh);
+            sg.addColorStop(0.0, 'rgba(22, 30, 28, 0.36)');
+            sg.addColorStop(0.55, 'rgba(30, 40, 36, 0.16)');
+            sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+            ctx.fillStyle = sg;
+            ctx.fillRect(sx, 0, sw, sh);
+          }
+          const baseStain = ctx.createLinearGradient(0, 410, 0, 512);
+          baseStain.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
+          baseStain.addColorStop(1.0, 'rgba(20, 28, 26, 0.34)');
+          ctx.fillStyle = baseStain;
+          ctx.fillRect(0, 410, 512, 102);
+        }, 'main-bldg-col-pilaster-plaster');
+        colPlasterTex.wrapS = THREE.RepeatWrapping;
+        colPlasterTex.wrapT = THREE.RepeatWrapping;
+        colPlasterTex.repeat.set(2, 2);
+        colPlasterTex.generateMipmaps = true;
+        colPlasterTex.minFilter = THREE.LinearMipmapLinearFilter;
+        colPlasterTex.anisotropy = mb.windowAnisotropy || 8;
+        return new THREE.MeshStandardMaterial({
+          map: colPlasterTex,
+          bumpMap: colPlasterTex,
+          bumpScale: mb.pilasterNormalScale !== undefined ? mb.pilasterNormalScale : 0.012,
+          color: mb.pilasterColor || 0xdce4ec,
+          emissive: mb.pilasterEmissive || 0x243444,
+          emissiveIntensity: mb.pilasterEmissiveIntensity !== undefined ? mb.pilasterEmissiveIntensity : 0.25,
+          roughness: mb.pilasterRoughness !== undefined ? mb.pilasterRoughness : 0.56,
+          metalness: 0.06,
+        });
+      })(),
+      rotundaPlinthConcrete: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        return new THREE.MeshStandardMaterial({
+          map: scuffedFloorTex.map,
+          bumpMap: scuffedFloorTex.bumpMap,
+          bumpScale: 0.018,
+          color: mb.plinthColor || 0x7e8a94,
+          emissive: 0x121c26,
+          emissiveIntensity: 0.14,
+          roughness: 0.72,
+          metalness: 0.08,
+        });
+      })(),
+      rotundaColumnFlutedBase: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        return new THREE.MeshStandardMaterial({
+          map: scuffedFloorTex.map,
+          bumpMap: scuffedFloorTex.bumpMap,
+          bumpScale: 0.018,
+          color: mb.columnPedestalColor || 0x66727c,
+          emissive: 0x101820,
+          emissiveIntensity: 0.14,
+          roughness: 0.62,
+          metalness: 0.16,
+        });
+      })(),
       rotundaRedSteel: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.03,
-        color: 0xb83728,
+        bumpScale: 0.016,
+        color: 0xc24030,
+        emissive: 0x38100c,
+        emissiveIntensity: 0.20,
         roughness: 0.42,
-        metalness: 0.52,
+        metalness: 0.48,
       }),
-      rotundaCurvedGlass: new THREE.MeshStandardMaterial({
-        map: dirtyGlassTex.map,
-        bumpMap: dirtyGlassTex.bumpMap,
-        bumpScale: 0.015,
-        color: 0x1e3a5f,
-        emissive: 0xffb366,
-        emissiveIntensity: 0.18,
-        roughness: 0.16,
-        metalness: 0.82,
-        transparent: true,
-        opacity: 0.54,
-        side: THREE.DoubleSide,
-      }),
+      rotundaCurvedGlass: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        return new THREE.MeshStandardMaterial({
+          map: dirtyGlassTex.map,
+          bumpMap: dirtyGlassTex.bumpMap,
+          bumpScale: 0.008,
+          color: mb.rotundaGlassDarkColor || 0x182838,
+          emissive: mb.rotundaGlassDarkEmissive || 0x16283a,
+          emissiveIntensity: mb.rotundaGlassDarkEmissiveIntensity !== undefined ? mb.rotundaGlassDarkEmissiveIntensity : 0.28,
+          roughness: 0.14,
+          metalness: 0.84,
+          transparent: true,
+          opacity: 0.74,
+          side: THREE.DoubleSide,
+        });
+      })(),
+      rotundaCurvedGlassWarm: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        return new THREE.MeshStandardMaterial({
+          map: dirtyGlassTex.map,
+          color: mb.rotundaGlassWarmColor || 0xffcf86,
+          emissive: mb.rotundaGlassWarmEmissive || 0xff9636,
+          emissiveIntensity: mb.rotundaGlassWarmEmissiveIntensity !== undefined ? mb.rotundaGlassWarmEmissiveIntensity : 0.72,
+          roughness: 0.20,
+          metalness: 0.35,
+          transparent: true,
+          opacity: 0.86,
+          side: THREE.DoubleSide,
+        });
+      })(),
+      rotundaOrangeRailingMat: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        return new THREE.MeshStandardMaterial({
+          color: mb.rotundaRailingColor || 0xf07c24,
+          emissive: mb.rotundaRailingEmissive || 0xff6e18,
+          emissiveIntensity: mb.rotundaRailingEmissiveIntensity !== undefined ? mb.rotundaRailingEmissiveIntensity : 0.56,
+          roughness: 0.34,
+          metalness: 0.45,
+        });
+      })(),
+      rotundaWindowWarm: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        const sz = mb.windowTextureSize || 512;
+        const winWarmTex = createProceduralTexture(sz, sz, (ctx) => {
+          // Warm gradient glass pane (brighter at bottom & center, darker warm amber at top/edges)
+          const bg = ctx.createLinearGradient(0, sz, 0, 0);
+          bg.addColorStop(0.0, '#fff2b2');
+          bg.addColorStop(0.38, '#ffbe58');
+          bg.addColorStop(0.75, '#d47624');
+          bg.addColorStop(1.0, '#783c12');
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, sz, sz);
+
+          const rad = ctx.createRadialGradient(sz * 0.52, sz * 0.72, sz * 0.04, sz * 0.50, sz * 0.60, sz * 0.58);
+          rad.addColorStop(0.0, 'rgba(255, 250, 215, 0.85)');
+          rad.addColorStop(0.45, 'rgba(255, 195, 95, 0.35)');
+          rad.addColorStop(1.0, 'rgba(40, 16, 4, 0.48)');
+          ctx.fillStyle = rad;
+          ctx.fillRect(0, 0, sz, sz);
+
+          // Subtle vertical interior curtain/blind shadow on left & bright vertical light slit in center-right (matches IMG_6034!)
+          ctx.fillStyle = 'rgba(45, 22, 8, 0.38)';
+          ctx.fillRect(0, 0, sz * 0.28, sz);
+          ctx.fillStyle = 'rgba(255, 252, 225, 0.72)';
+          ctx.fillRect(sz * 0.54, sz * 0.18, sz * 0.11, sz * 0.78);
+
+          // Crisp Dark Frame & Mullions (outer border + upper transom + center vertical mullion)
+          const fHex = mb.windowFrameHex || '#151c24';
+          ctx.fillStyle = fHex;
+          const bW = Math.round(sz * 0.055);
+          ctx.fillRect(0, 0, sz, bW);
+          ctx.fillRect(0, sz - bW, sz, bW);
+          ctx.fillRect(0, 0, bW, sz);
+          ctx.fillRect(sz - bW, 0, bW, sz);
+          // Center vertical mullion & upper horizontal transom
+          const mW = Math.round(sz * 0.036);
+          ctx.fillRect(Math.round(sz * 0.5 - mW * 0.5), 0, mW, sz);
+          ctx.fillRect(0, Math.round(sz * 0.30), sz, mW);
+          ctx.fillRect(0, Math.round(sz * 0.65), sz, Math.round(mW * 0.75));
+        }, 'main-bldg-win-warm');
+        winWarmTex.generateMipmaps = true;
+        winWarmTex.minFilter = THREE.LinearMipmapLinearFilter;
+        winWarmTex.magFilter = THREE.LinearFilter;
+        winWarmTex.anisotropy = mb.windowAnisotropy || 8;
+        return new THREE.MeshStandardMaterial({
+          map: winWarmTex,
+          emissiveMap: winWarmTex,
+          color: mb.windowWarmColor || 0xffe4a0,
+          emissive: mb.windowWarmEmissive || 0xffa434,
+          emissiveIntensity: mb.windowWarmEmissiveIntensity !== undefined ? mb.windowWarmEmissiveIntensity : 0.94,
+          roughness: 0.22,
+          metalness: 0.15,
+        });
+      })(),
+      rotundaWindowRed: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        const sz = mb.windowTextureSize || 512;
+        const winRedTex = createProceduralTexture(sz, sz, (ctx) => {
+          const bg = ctx.createLinearGradient(0, sz, 0, 0);
+          bg.addColorStop(0.0, '#ff9d78');
+          bg.addColorStop(0.45, '#ea482c');
+          bg.addColorStop(0.85, '#9e1f16');
+          bg.addColorStop(1.0, '#4f0d0a');
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, sz, sz);
+
+          const rad = ctx.createRadialGradient(sz * 0.5, sz * 0.68, sz * 0.05, sz * 0.5, sz * 0.55, sz * 0.58);
+          rad.addColorStop(0.0, 'rgba(255, 190, 155, 0.75)');
+          rad.addColorStop(0.55, 'rgba(235, 68, 44, 0.35)');
+          rad.addColorStop(1.0, 'rgba(30, 4, 4, 0.52)');
+          ctx.fillStyle = rad;
+          ctx.fillRect(0, 0, sz, sz);
+
+          const fHex = mb.windowFrameHex || '#151c24';
+          ctx.fillStyle = fHex;
+          const bW = Math.round(sz * 0.055);
+          ctx.fillRect(0, 0, sz, bW);
+          ctx.fillRect(0, sz - bW, sz, bW);
+          ctx.fillRect(0, 0, bW, sz);
+          ctx.fillRect(sz - bW, 0, bW, sz);
+          const mW = Math.round(sz * 0.036);
+          ctx.fillRect(Math.round(sz * 0.5 - mW * 0.5), 0, mW, sz);
+          ctx.fillRect(0, Math.round(sz * 0.30), sz, mW);
+          ctx.fillRect(0, Math.round(sz * 0.65), sz, Math.round(mW * 0.75));
+        }, 'main-bldg-win-red');
+        winRedTex.generateMipmaps = true;
+        winRedTex.minFilter = THREE.LinearMipmapLinearFilter;
+        winRedTex.magFilter = THREE.LinearFilter;
+        winRedTex.anisotropy = mb.windowAnisotropy || 8;
+        return new THREE.MeshStandardMaterial({
+          map: winRedTex,
+          emissiveMap: winRedTex,
+          color: mb.windowRedColor || 0xff7e58,
+          emissive: mb.windowRedEmissive || 0xe63926,
+          emissiveIntensity: mb.windowRedEmissiveIntensity !== undefined ? mb.windowRedEmissiveIntensity : 0.98,
+          roughness: 0.22,
+          metalness: 0.15,
+        });
+      })(),
+      rotundaWindowDark: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        const sz = mb.windowTextureSize || 512;
+        const winDarkTex = createProceduralTexture(sz, sz, (ctx) => {
+          // Dark glass pane with faint cool night-sky reflection so dark windows & frames still read clearly!
+          const skyRefl = ctx.createLinearGradient(0, 0, sz * 0.65, sz);
+          skyRefl.addColorStop(0.0, '#324c66');
+          skyRefl.addColorStop(0.38, '#1e3144');
+          skyRefl.addColorStop(0.75, '#111d2a');
+          skyRefl.addColorStop(1.0, '#0a121a');
+          ctx.fillStyle = skyRefl;
+          ctx.fillRect(0, 0, sz, sz);
+
+          // Faint cool specular reflection streak on glass panes
+          ctx.fillStyle = 'rgba(135, 175, 210, 0.14)';
+          ctx.beginPath();
+          ctx.moveTo(sz * 0.12, sz * 0.08);
+          ctx.lineTo(sz * 0.38, sz * 0.08);
+          ctx.lineTo(sz * 0.18, sz * 0.88);
+          ctx.lineTo(sz * 0.06, sz * 0.88);
+          ctx.closePath();
+          ctx.fill();
+
+          // Crisp dark frame & mullions with subtle moonlight bevel highlight so frames read against the dark glass
+          const fHex = mb.windowFrameHex || '#151c24';
+          const bW = Math.round(sz * 0.055);
+          const mW = Math.round(sz * 0.036);
+          ctx.fillStyle = fHex;
+          ctx.fillRect(0, 0, sz, bW);
+          ctx.fillRect(0, sz - bW, sz, bW);
+          ctx.fillRect(0, 0, bW, sz);
+          ctx.fillRect(sz - bW, 0, bW, sz);
+          ctx.fillRect(Math.round(sz * 0.5 - mW * 0.5), 0, mW, sz);
+          ctx.fillRect(0, Math.round(sz * 0.30), sz, mW);
+          ctx.fillRect(0, Math.round(sz * 0.65), sz, Math.round(mW * 0.75));
+
+          // Subtle moonlit edge highlight along mullions & sill
+          ctx.fillStyle = 'rgba(148, 178, 204, 0.26)';
+          ctx.fillRect(Math.round(sz * 0.5 - mW * 0.5), bW, 3, sz - bW * 2);
+          ctx.fillRect(bW, Math.round(sz * 0.30), sz - bW * 2, 3);
+          ctx.fillRect(bW, Math.round(sz * 0.65), sz - bW * 2, 2.5);
+          ctx.strokeStyle = 'rgba(165, 192, 214, 0.32)';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(bW * 0.5, bW * 0.5, sz - bW, sz - bW);
+        }, 'main-bldg-win-dark');
+        winDarkTex.generateMipmaps = true;
+        winDarkTex.minFilter = THREE.LinearMipmapLinearFilter;
+        winDarkTex.magFilter = THREE.LinearFilter;
+        winDarkTex.anisotropy = mb.windowAnisotropy || 8;
+        return new THREE.MeshStandardMaterial({
+          map: winDarkTex,
+          emissiveMap: winDarkTex,
+          color: mb.windowDarkColor || 0x263c52,
+          emissive: mb.windowDarkSkyReflectEmissive || 0x1e344a,
+          emissiveIntensity: mb.windowDarkEmissiveIntensity !== undefined ? mb.windowDarkEmissiveIntensity : 0.36,
+          roughness: mb.windowDarkRoughness !== undefined ? mb.windowDarkRoughness : 0.14,
+          metalness: mb.windowDarkMetalness !== undefined ? mb.windowDarkMetalness : 0.78,
+        });
+      })(),
+      rotundaSignMat: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        const sw = mb.signCanvasWidth || 2048;
+        const sh = mb.signCanvasHeight || 256;
+        const signTex = createProceduralTexture(sw, sh, (ctx) => {
+          // Weathered stone entablature plaque background (matching IMG_6033 & IMG_6034!)
+          const bg = ctx.createLinearGradient(0, 0, 0, sh);
+          bg.addColorStop(0.0, '#7c8790');
+          bg.addColorStop(0.18, '#aeb8c0');
+          bg.addColorStop(0.82, '#9aa5ae');
+          bg.addColorStop(1.0, '#68737c');
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, sw, sh);
+
+          // Recessed inner stone tablet border
+          ctx.strokeStyle = '#26323d';
+          ctx.lineWidth = 10;
+          ctx.strokeRect(18, 18, sw - 36, sh - 36);
+          ctx.strokeStyle = 'rgba(235, 242, 248, 0.38)';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(24, 24, sw - 48, sh - 48);
+
+          // Subtle vertical damp/moss weathering streaks across plaque ends
+          for (let sx = 40; sx < sw; sx += 140) {
+            const sg = ctx.createLinearGradient(0, 0, 0, sh * 0.85);
+            sg.addColorStop(0.0, 'rgba(20, 28, 26, 0.32)');
+            sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+            ctx.fillStyle = sg;
+            ctx.fillRect(sx, 0, 22, sh * 0.85);
+          }
+
+          // Chiseled embossed highlight + bold dark-slate "GANDAKI UNIVERSITY" lettering
+          ctx.font = '900 112px "Arial Black", Impact, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = 'rgba(240, 246, 252, 0.55)';
+          ctx.fillText('GANDAKI UNIVERSITY', sw * 0.5 + 3, sh * 0.54 + 3);
+          ctx.fillStyle = '#141c24';
+          ctx.fillText('GANDAKI UNIVERSITY', sw * 0.5, sh * 0.54);
+        }, 'main-bldg-gandaki-sign-2048');
+        signTex.generateMipmaps = true;
+        signTex.minFilter = THREE.LinearMipmapLinearFilter;
+        signTex.magFilter = THREE.LinearFilter;
+        signTex.anisotropy = mb.windowAnisotropy || 8;
+        return new THREE.MeshStandardMaterial({
+          map: signTex,
+          color: mb.signPlaqueColor || 0xc8d2da,
+          emissive: mb.signEmissive || 0x2c3a48,
+          emissiveIntensity: mb.signEmissiveIntensity !== undefined ? mb.signEmissiveIntensity : 0.30,
+          roughness: 0.52,
+          metalness: 0.12,
+        });
+      })(),
+      rotundaFacadeUplightMat: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        const upTex = createProceduralTexture(256, 256, (ctx) => {
+          const g = ctx.createLinearGradient(0, 256, 0, 0);
+          g.addColorStop(0.0, 'rgba(255, 156, 58, 0.92)');
+          g.addColorStop(0.45, 'rgba(255, 138, 42, 0.42)');
+          g.addColorStop(0.85, 'rgba(255, 120, 30, 0.08)');
+          g.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, 256, 256);
+        }, 'main-bldg-uplight-grad');
+        return new THREE.MeshBasicMaterial({
+          map: upTex,
+          color: mb.facadeUplightColor || 0xff9436,
+          transparent: true,
+          opacity: mb.facadeUplightOpacity !== undefined ? mb.facadeUplightOpacity : 0.24,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          polygonOffset: true,
+          polygonOffsetFactor: -2,
+          polygonOffsetUnits: -2,
+        });
+      })(),
+      rotundaColumnWashMat: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        const cwTex = createProceduralTexture(128, 256, (ctx) => {
+          const g = ctx.createLinearGradient(0, 256, 0, 0);
+          g.addColorStop(0.0, 'rgba(255, 168, 72, 0.95)');
+          g.addColorStop(0.55, 'rgba(255, 142, 48, 0.45)');
+          g.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, 128, 256);
+        }, 'main-bldg-col-wash-grad');
+        return new THREE.MeshBasicMaterial({
+          map: cwTex,
+          color: mb.facadeUplightColor || 0xff9436,
+          transparent: true,
+          opacity: mb.porticoColumnWashOpacity !== undefined ? mb.porticoColumnWashOpacity : 0.28,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        });
+      })(),
+      rotundaEntranceSpillMat: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        const spTex = createProceduralTexture(256, 256, (ctx) => {
+          const g = ctx.createRadialGradient(128, 128, 8, 128, 128, 124);
+          g.addColorStop(0.0, 'rgba(255, 182, 88, 0.95)');
+          g.addColorStop(0.45, 'rgba(255, 138, 42, 0.48)');
+          g.addColorStop(0.82, 'rgba(180, 72, 16, 0.14)');
+          g.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, 256, 256);
+        }, 'main-bldg-entrance-spill');
+        return new THREE.MeshBasicMaterial({
+          map: spTex,
+          color: mb.entranceGroundSpillColor || 0xff9838,
+          transparent: true,
+          opacity: mb.entranceGroundSpillOpacity !== undefined ? mb.entranceGroundSpillOpacity : 0.30,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -2,
+          polygonOffsetUnits: -2,
+        });
+      })(),
+      rotundaBakedAoMat: (function() {
+        const mb = HORROR_CONFIG.mainBuilding || {};
+        const aoTex = createProceduralTexture(64, 128, (ctx) => {
+          const g = ctx.createLinearGradient(0, 0, 0, 128);
+          g.addColorStop(0.0, 'rgba(2, 5, 10, 0.92)');
+          g.addColorStop(0.45, 'rgba(4, 9, 16, 0.42)');
+          g.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, 64, 128);
+        }, 'main-bldg-eave-ao-grad');
+        return new THREE.MeshBasicMaterial({
+          map: aoTex,
+          transparent: true,
+          opacity: mb.eaveAoOpacity !== undefined ? mb.eaveAoOpacity : 0.64,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -1,
+        });
+      })(),
       rotundaTerrazzoFloor: new THREE.MeshStandardMaterial({
         map: terrazzoFloorTex.map,
         bumpMap: terrazzoFloorTex.bumpMap,
@@ -5374,12 +6584,19 @@ export function getHideAndSeekHtml(): string {
       shrubs: [],
     };
 
-    // Step 5: Faint cool moonlit rim light on tree canopies & roof edges (no new lights!)
+    // Step 5 & Main Administration Building Shader Tweaks:
+    // - Cool moonlit rim light on roof edges, cornices, pilasters & rotunda dome
+    // - Reduced fog influence on the Main Administration Building ONLY (Fix 5: global fog untouched!)
+    const mbShaderCfg = HORROR_CONFIG.mainBuilding || {};
+    const mbFogInfluence = (typeof mbShaderCfg.fogInfluence === 'number') ? mbShaderCfg.fogInfluence : 0.34;
+    const mbRimCol = mbShaderCfg.moonRimColor || [0.24, 0.38, 0.52];
+    const mbRimInt = (typeof mbShaderCfg.moonRimIntensity === 'number') ? mbShaderCfg.moonRimIntensity : 0.92;
+    const mbRimPow = (typeof mbShaderCfg.moonRimPower === 'number') ? mbShaderCfg.moonRimPower : 2.0;
+
     [
       materials.foliageGreen,
       materials.palmFrondMat,
       materials.brightBlueRoof,
-      materials.terracottaRoof,
       materials.jhingatiTerracottaRoof,
     ].forEach(mat => {
       if (!mat) return;
@@ -5393,6 +6610,50 @@ export function getHideAndSeekHtml(): string {
         );
       };
     });
+
+    function applyMainBuildingShaderTweaks(mat, rimScale = 1.0) {
+      if (!mat) return;
+      mat.onBeforeCompile = (shader) => {
+        if ( rimScale > 0.0) {
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <dithering_fragment>',
+            'float mbRimDot = 1.0 - max(0.0, abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0))));\\n' +
+            'float mbTopBias = clamp(vNormal.y * 0.55 + 0.45, 0.0, 1.0);\\n' +
+            'gl_FragColor.rgb += vec3(' + mbRimCol[0].toFixed(3) + ', ' + mbRimCol[1].toFixed(3) + ', ' + mbRimCol[2].toFixed(3) + ') * pow(mbRimDot, ' + mbRimPow.toFixed(2) + ') * mbTopBias * ' + (mbRimInt * rimScale).toFixed(3) + ';\\n' +
+            '#include <dithering_fragment>'
+          );
+        }
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <fog_fragment>',
+          '#ifdef USE_FOG\\n' +
+          '  #ifdef FOG_EXP2\\n' +
+          '    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );\\n' +
+          '  #else\\n' +
+          '    float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );\\n' +
+          '  #endif\\n' +
+          '  fogFactor *= ' + mbFogInfluence.toFixed(3) + ';\\n' +
+          '  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\\n' +
+          '#endif'
+        );
+      };
+    }
+
+    [
+      [materials.terracottaRoof, 1.15],
+      [materials.rotundaRoofRidge, 1.30],
+      [materials.rotundaRedSteel, 0.85],
+      [materials.rotundaWhiteArch, 0.95],
+      [materials.rotundaBrick, 0.45],
+      [materials.rotundaPlinthConcrete, 0.35],
+      [materials.rotundaColumnFlutedBase, 0.55],
+      [materials.rotundaCurvedGlass, 1.10],
+      [materials.rotundaCurvedGlassWarm, 0.65],
+      [materials.rotundaWindowWarm, 0.0],
+      [materials.rotundaWindowRed, 0.0],
+      [materials.rotundaWindowDark, 0.50],
+      [materials.rotundaSignMat, 0.40],
+      [materials.rotundaOrangeRailingMat, 0.30],
+    ].forEach(([m, rScale]) => applyMainBuildingShaderTweaks(m, rScale));
 
     const colliders = [];
     const walkableFloors = [];
@@ -5460,12 +6721,101 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
+    function addColliderOBB(cx, cz, hx, hz, rotY, minY = 0, maxY = 3.2, tag = 'wall', label = '') {
+      const cosR = Math.cos(rotY);
+      const sinR = Math.sin(rotY);
+      const extX = Math.abs(hx * cosR) + Math.abs(hz * sinR);
+      const extZ = Math.abs(hx * sinR) + Math.abs(hz * cosR);
+      const minV = new THREE.Vector3(cx - extX, minY, cz - extZ);
+      const maxV = new THREE.Vector3(cx + extX, maxY, cz + extZ);
+      colliders.push({
+        type: 'obb',
+        tag: tag,
+        label: label,
+        cx: cx,
+        cz: cz,
+        hx: hx,
+        hz: hz,
+        rotY: rotY,
+        cosR: cosR,
+        sinR: sinR,
+        minY: minY,
+        maxY: maxY,
+        min: minV,
+        max: maxV,
+        box: new THREE.Box3(minV, maxV),
+      });
+    }
+
+    function addLocalBusOBBCollider(busX, busZ, rotY, lx, lz, w, d, minY, maxY, tag = 'wall', label = '') {
+      const cosR = Math.cos(rotY);
+      const sinR = Math.sin(rotY);
+      const wx = busX + lx * cosR + lz * sinR;
+      const wz = busZ - lx * sinR + lz * cosR;
+      addColliderOBB(wx, wz, w * 0.5, d * 0.5, rotY, minY, maxY, tag, label);
+    }
+
     function addWalkableFloor(minX, maxX, minZ, maxZ, floorY) {
       walkableFloors.push({ minX, maxX, minZ, maxZ, floorY });
     }
 
+    function addOrientedWalkableFloor(busX, busZ, rotY, lx, lz, w, d, floorY) {
+      const cosR = Math.cos(rotY);
+      const sinR = Math.sin(rotY);
+      const cx = busX + lx * cosR + lz * sinR;
+      const cz = busZ - lx * sinR + lz * cosR;
+      const hx = w * 0.5;
+      const hz = d * 0.5;
+      const extX = Math.abs(hx * cosR) + Math.abs(hz * sinR);
+      const extZ = Math.abs(hx * sinR) + Math.abs(hz * cosR);
+      walkableFloors.push({
+        isOBB: true,
+        cx,
+        cz,
+        hx,
+        hz,
+        rotY,
+        cosR,
+        sinR,
+        minX: cx - extX,
+        maxX: cx + extX,
+        minZ: cz - extZ,
+        maxZ: cz + extZ,
+        floorY,
+      });
+    }
+
     function addWalkableStairRamp(minX, maxX, minZ, maxZ, zStart, zEnd, yStart, yEnd) {
       walkableStairRamps.push({ minX, maxX, minZ, maxZ, zStart, zEnd, yStart, yEnd });
+    }
+
+    function addOrientedWalkableStairRamp(busX, busZ, rotY, lx, lz, w, d, lxStart, lxEnd, yStart, yEnd) {
+      const cosR = Math.cos(rotY);
+      const sinR = Math.sin(rotY);
+      const cx = busX + lx * cosR + lz * sinR;
+      const cz = busZ - lx * sinR + lz * cosR;
+      const hx = w * 0.5;
+      const hz = d * 0.5;
+      const extX = Math.abs(hx * cosR) + Math.abs(hz * sinR);
+      const extZ = Math.abs(hx * sinR) + Math.abs(hz * cosR);
+      walkableStairRamps.push({
+        isOBB: true,
+        cx,
+        cz,
+        hx,
+        hz,
+        rotY,
+        cosR,
+        sinR,
+        minX: cx - extX,
+        maxX: cx + extX,
+        minZ: cz - extZ,
+        maxZ: cz + extZ,
+        lxStart,
+        lxEnd,
+        yStart,
+        yEnd,
+      });
     }
 
     function buildWallSegment(x, y, z, w, h, d, mat) {
@@ -6412,13 +7762,69 @@ export function getHideAndSeekHtml(): string {
     }
 
     if (sAtlasCtx) {
-      sAtlasCtx.fillStyle = '#cbd5c0';
+      // Poster 1 (256, 0, 128, 160): Weathered Curfew Notice with torn corner & water stain
+      sAtlasCtx.fillStyle = '#b8c2b0';
       sAtlasCtx.fillRect(256, 0, 128, 160);
-      sAtlasCtx.fillStyle = '#475569';
-      sAtlasCtx.fillRect(266, 12, 108, 28);
-      sAtlasCtx.fillStyle = '#7f1d1d';
-      sAtlasCtx.font = 'bold 14px serif';
-      sAtlasCtx.fillText('CURFEW NOTICE', 270, 30);
+      sAtlasCtx.fillStyle = 'rgba(42, 34, 22, 0.32)';
+      sAtlasCtx.beginPath();
+      sAtlasCtx.arc(356, 130, 34, 0, Math.PI * 2);
+      sAtlasCtx.fill();
+      sAtlasCtx.fillStyle = '#334155';
+      sAtlasCtx.fillRect(264, 10, 112, 26);
+      sAtlasCtx.fillStyle = '#991b1b';
+      sAtlasCtx.font = 'bold 13px serif';
+      sAtlasCtx.fillText('CURFEW NOTICE', 268, 28);
+      sAtlasCtx.fillStyle = '#1e293b';
+      sAtlasCtx.font = '10px monospace';
+      sAtlasCtx.fillText('NO ENTRY AFTER', 270, 56);
+      sAtlasCtx.fillText('22:00 HRS', 282, 72);
+      sAtlasCtx.fillText('BY ORDER: WARDEN', 266, 102);
+
+      // Poster 2 (384, 0, 128, 160): Faded Exam & Missing Scholar Bulletin
+      sAtlasCtx.fillStyle = '#c4b89b';
+      sAtlasCtx.fillRect(384, 0, 128, 160);
+      sAtlasCtx.fillStyle = '#7c2d12';
+      sAtlasCtx.fillRect(392, 10, 112, 24);
+      sAtlasCtx.fillStyle = '#fef3c7';
+      sAtlasCtx.font = 'bold 12px sans-serif';
+      sAtlasCtx.fillText('CAMPUS ALERT', 402, 26);
+      sAtlasCtx.fillStyle = '#292524';
+      sAtlasCtx.fillRect(416, 42, 64, 54);
+      sAtlasCtx.fillStyle = '#78716c';
+      sAtlasCtx.beginPath();
+      sAtlasCtx.arc(448, 62, 12, 0, Math.PI * 2);
+      sAtlasCtx.fill();
+      sAtlasCtx.fillStyle = '#1c1917';
+      sAtlasCtx.font = 'bold 10px monospace';
+      sAtlasCtx.fillText('REPORT UNUSUAL', 398, 114);
+      sAtlasCtx.fillText('NIGHT SOUNDS', 404, 128);
+
+      // Poster 3 (256, 160, 128, 120): Stained Science / Lab Safety Chart
+      sAtlasCtx.fillStyle = '#a8b8c0';
+      sAtlasCtx.fillRect(256, 160, 128, 120);
+      sAtlasCtx.strokeStyle = '#1e3a5f';
+      sAtlasCtx.lineWidth = 3;
+      sAtlasCtx.strokeRect(262, 166, 116, 108);
+      sAtlasCtx.fillStyle = '#0f172a';
+      sAtlasCtx.font = 'bold 11px sans-serif';
+      sAtlasCtx.fillText('LAB SAFETY RULES', 268, 184);
+      for (let ly = 198; ly < 262; ly += 14) {
+        sAtlasCtx.fillStyle = '#334155';
+        sAtlasCtx.fillRect(270, ly, 96, 4);
+      }
+
+      // Poster 4 (384, 160, 128, 120): Torn Cultural Fest Poster
+      sAtlasCtx.fillStyle = '#451a03';
+      sAtlasCtx.fillRect(384, 160, 128, 120);
+      sAtlasCtx.strokeStyle = '#d97706';
+      sAtlasCtx.lineWidth = 2;
+      sAtlasCtx.strokeRect(390, 166, 116, 108);
+      sAtlasCtx.fillStyle = '#fde68a';
+      sAtlasCtx.font = 'bold 12px Georgia, serif';
+      sAtlasCtx.fillText('GANDAKI FEST', 398, 192);
+      sAtlasCtx.fillStyle = '#f59e0b';
+      sAtlasCtx.font = '10px serif';
+      sAtlasCtx.fillText('AUTUMN NIGHT', 406, 214);
 
       sAtlasCtx.fillStyle = '#1a120b';
       sAtlasCtx.fillRect(512, 0, 512, 96);
@@ -6429,12 +7835,20 @@ export function getHideAndSeekHtml(): string {
       sAtlasCtx.font = 'bold 28px Georgia, serif';
       sAtlasCtx.textAlign = 'center';
       sAtlasCtx.fillText('GANDAKI HERITAGE ALLEY', 768, 44);
+      sAtlasCtx.textAlign = 'left';
     }
     const oldPosterMat = sharedSignageAtlasMat;
     const sharedPosterGeo = createAtlasUvGeo(new THREE.PlaneGeometry(0.65, 0.82), 256, 0, 128, 160);
+    const posterGeoVariants = [
+      sharedPosterGeo,
+      createAtlasUvGeo(new THREE.PlaneGeometry(0.62, 0.78), 384, 0, 128, 160),
+      createAtlasUvGeo(new THREE.PlaneGeometry(0.68, 0.64), 256, 160, 128, 120),
+      createAtlasUvGeo(new THREE.PlaneGeometry(0.58, 0.56), 384, 160, 128, 120),
+    ];
 
-    function spawnOldWallPoster(px, py, pz, rotY = 0, tiltZ = 0.06) {
-      const poster = new THREE.Mesh(sharedPosterGeo, oldPosterMat);
+    function spawnOldWallPoster(px, py, pz, rotY = 0, tiltZ = 0.06, variantIdx = 0) {
+      const pGeo = posterGeoVariants[Math.abs(variantIdx) % posterGeoVariants.length] || sharedPosterGeo;
+      const poster = new THREE.Mesh(pGeo, oldPosterMat);
       poster.position.set(px, py, pz);
       poster.rotation.set(0, rotY, tiltZ);
       scene.add(poster);
@@ -6496,210 +7910,280 @@ export function getHideAndSeekHtml(): string {
     const ibCtx = interiorBumpCanvas.getContext('2d');
 
     if (iCtx && ibCtx) {
-      // 1. Tile (0,0,256,256): Weathered Muted Wood Grain
-      iCtx.fillStyle = '#362317';
+      // 1. Tile (0,0,256,256): Weathered Muted Wood Grain & Recessed Wainscoting
+      iCtx.fillStyle = '#342216';
       iCtx.fillRect(0, 0, 256, 256);
       ibCtx.fillStyle = '#787878';
       ibCtx.fillRect(0, 0, 256, 256);
       for (let y = 0; y < 256; y += 3) {
         const tone = ((y * 17) % 18) - 9;
-        iCtx.fillStyle = 'rgb(' + (56 + tone) + ',' + (37 + Math.floor(tone * 0.6)) + ',' + (25 + Math.floor(tone * 0.4)) + ')';
+        iCtx.fillStyle = 'rgb(' + (54 + tone) + ',' + (36 + Math.floor(tone * 0.6)) + ',' + (24 + Math.floor(tone * 0.4)) + ')';
         iCtx.fillRect(0, y, 256, 2);
         ibCtx.fillStyle = tone > 0 ? '#989898' : '#585858';
         ibCtx.fillRect(0, y, 256, 2);
       }
-      // Plank seams & dark wood knots
       for (let px = 64; px < 256; px += 64) {
-        iCtx.fillStyle = 'rgba(14, 8, 4, 0.55)';
+        iCtx.fillStyle = 'rgba(12, 7, 3, 0.58)';
         iCtx.fillRect(px, 0, 2, 256);
         ibCtx.fillStyle = '#202020';
         ibCtx.fillRect(px, 0, 2, 256);
       }
 
-      // 2. Tile (256,0,256,256): Scuffed Painted Institutional Wall
-      iCtx.fillStyle = '#5c6460';
+      // 2. Tile (256,0,256,256): Scuffed Painted Institutional Wall (Muted Liminal Ochre-Grey / Slate)
+      iCtx.fillStyle = '#585f5a';
       iCtx.fillRect(256, 0, 256, 256);
       ibCtx.fillStyle = '#808080';
       ibCtx.fillRect(256, 0, 256, 256);
-      for (let s = 0; s < 48; s++) {
-        const sx = 264 + ((s * 37) % 236);
-        const sy = 12 + ((s * 53) % 230);
-        iCtx.fillStyle = (s % 3 === 0) ? 'rgba(28, 34, 32, 0.36)' : 'rgba(118, 126, 122, 0.22)';
+      for (let vx = 264; vx < 512; vx += 16) {
+        iCtx.fillStyle = 'rgba(38, 44, 38, 0.14)';
+        iCtx.fillRect(vx, 0, 2, 256);
+      }
+      for (let s = 0; s < 52; s++) {
+        const sx = 262 + ((s * 37) % 238);
+        const sy = 10 + ((s * 53) % 232);
+        iCtx.fillStyle = (s % 3 === 0) ? 'rgba(24, 30, 28, 0.38)' : 'rgba(112, 120, 114, 0.20)';
         iCtx.fillRect(sx, sy, 14 + (s % 18), 4 + (s % 9));
         ibCtx.fillStyle = (s % 2 === 0) ? '#505050' : '#a8a8a8';
         ibCtx.fillRect(sx, sy, 12, 4);
       }
-      const dampGrad = iCtx.createLinearGradient(256, 170, 256, 256);
-      dampGrad.addColorStop(0, 'rgba(18, 24, 20, 0.0)');
-      dampGrad.addColorStop(1, 'rgba(14, 20, 16, 0.68)');
+      const dampGrad = iCtx.createLinearGradient(256, 165, 256, 256);
+      dampGrad.addColorStop(0, 'rgba(16, 22, 18, 0.0)');
+      dampGrad.addColorStop(1, 'rgba(10, 15, 12, 0.72)');
       iCtx.fillStyle = dampGrad;
-      iCtx.fillRect(256, 170, 256, 86);
+      iCtx.fillRect(256, 165, 256, 91);
 
-      // 3. Tile (512,0,256,256): Cracked Institutional Terrazzo Floor Tile
-      iCtx.fillStyle = '#434b52';
+      // 3. Tile (512,0,256,256): Cracked Institutional Terrazzo & Liminal Carpet-Tile Floor
+      iCtx.fillStyle = '#3d454c';
       iCtx.fillRect(512, 0, 256, 256);
       ibCtx.fillStyle = '#909090';
       ibCtx.fillRect(512, 0, 256, 256);
       for (let ty = 0; ty < 256; ty += 64) {
         for (let tx = 512; tx < 768; tx += 64) {
           const alt = ((tx / 64) + (ty / 64)) % 2 === 0;
-          iCtx.fillStyle = alt ? '#525b63' : '#475057';
+          iCtx.fillStyle = alt ? '#4d565e' : '#434b53';
           iCtx.fillRect(tx + 2, ty + 2, 60, 60);
           ibCtx.fillStyle = '#b8b8b8';
           ibCtx.fillRect(tx + 2, ty + 2, 60, 60);
         }
       }
-      // Hairline cracks across floor tiles
-      iCtx.strokeStyle = 'rgba(15, 19, 23, 0.78)';
+      iCtx.strokeStyle = 'rgba(12, 16, 20, 0.82)';
       iCtx.lineWidth = 2;
       ibCtx.strokeStyle = '#181818';
       ibCtx.lineWidth = 2.5;
-      [[530, 18, 595, 88, 642, 165], [660, 40, 710, 118, 690, 210]].forEach(pts => {
+      [[528, 16, 594, 88, 642, 168], [658, 38, 712, 120, 688, 214], [548, 180, 612, 210, 668, 242]].forEach(pts => {
         iCtx.beginPath(); iCtx.moveTo(pts[0], pts[1]); iCtx.lineTo(pts[2], pts[3]); iCtx.lineTo(pts[4], pts[5]); iCtx.stroke();
         ibCtx.beginPath(); ibCtx.moveTo(pts[0], pts[1]); ibCtx.lineTo(pts[2], pts[3]); ibCtx.lineTo(pts[4], pts[5]); ibCtx.stroke();
       });
 
-      // 4. Tile (768,0,256,256): Rusted Dark Gunmetal / Locker Steel
-      iCtx.fillStyle = '#252d34';
+      // 4. Tile (768,0,256,256): Rusted Dark Gunmetal / Locker & Server Steel
+      iCtx.fillStyle = '#232b32';
       iCtx.fillRect(768, 0, 256, 256);
       ibCtx.fillStyle = '#707070';
       ibCtx.fillRect(768, 0, 256, 256);
-      for (let r = 0; r < 36; r++) {
-        const rx = 776 + ((r * 43) % 232);
-        const ry = 10 + ((r * 61) % 232);
-        iCtx.fillStyle = (r % 2 === 0) ? 'rgba(92, 44, 24, 0.42)' : 'rgba(18, 22, 26, 0.48)';
+      for (let r = 0; r < 40; r++) {
+        const rx = 774 + ((r * 43) % 234);
+        const ry = 8 + ((r * 61) % 234);
+        iCtx.fillStyle = (r % 2 === 0) ? 'rgba(88, 42, 22, 0.44)' : 'rgba(14, 18, 22, 0.52)';
         iCtx.fillRect(rx, ry, 10 + (r % 16), 8 + (r % 14));
-        ibCtx.fillStyle = '#404040';
+        ibCtx.fillStyle = '#383838';
         ibCtx.fillRect(rx, ry, 10, 8);
       }
 
-      // 5. Tile (0,256,256,256): Dusty Streaked Glass with Corner Grime & Cracks
-      iCtx.fillStyle = '#1b2a36';
-      iCtx.fillRect(0, 256, 256, 256);
-      const glassGrad = iCtx.createRadialGradient(128, 384, 18, 128, 384, 136);
-      glassGrad.addColorStop(0, 'rgba(42, 62, 76, 0.25)');
-      glassGrad.addColorStop(1, 'rgba(12, 18, 24, 0.85)');
+      // 5. Tile (0,256,256,256): Dusty Glass with Cracks (top half) + Acoustic Drop-Ceiling Grid (bottom half, Ref 1/2/5)
+      iCtx.fillStyle = '#192733';
+      iCtx.fillRect(0, 256, 256, 128);
+      const glassGrad = iCtx.createRadialGradient(128, 320, 14, 128, 320, 120);
+      glassGrad.addColorStop(0, 'rgba(44, 64, 78, 0.24)');
+      glassGrad.addColorStop(1, 'rgba(10, 16, 22, 0.88)');
       iCtx.fillStyle = glassGrad;
-      iCtx.fillRect(0, 256, 256, 256);
-      iCtx.strokeStyle = 'rgba(168, 184, 196, 0.45)';
+      iCtx.fillRect(0, 256, 256, 128);
+      iCtx.strokeStyle = 'rgba(168, 184, 196, 0.48)';
       iCtx.lineWidth = 1.5;
       iCtx.beginPath();
-      iCtx.moveTo(42, 290); iCtx.lineTo(96, 348); iCtx.lineTo(148, 332);
-      iCtx.moveTo(96, 348); iCtx.lineTo(74, 420);
+      iCtx.moveTo(36, 268); iCtx.lineTo(96, 318); iCtx.lineTo(154, 304);
+      iCtx.moveTo(96, 318); iCtx.lineTo(72, 372);
       iCtx.stroke();
-
-      // 6. Tile (256,256,768,256): Faded Slate Chalkboard with Equations & Safe Mystery Scribbles
-      iCtx.fillStyle = '#162921';
-      iCtx.fillRect(256, 256, 768, 256);
-      ibCtx.fillStyle = '#686868';
-      ibCtx.fillRect(256, 256, 768, 256);
-      // Smudged chalk erasure clouds
-      for (let c = 0; c < 18; c++) {
-        iCtx.fillStyle = 'rgba(210, 222, 216, 0.06)';
-        iCtx.fillRect(280 + ((c * 79) % 680), 275 + ((c * 43) % 190), 68, 34);
+      // Acoustic tile drop-ceiling grid (0,384,256,128) with dark T-bar seams & water stains (Ref 1 & Ref 5)
+      iCtx.fillStyle = '#4e544e';
+      iCtx.fillRect(0, 384, 256, 128);
+      ibCtx.fillStyle = '#888888';
+      ibCtx.fillRect(0, 384, 256, 128);
+      for (let cy = 384; cy < 512; cy += 32) {
+        for (let cx = 0; cx < 256; cx += 64) {
+          iCtx.strokeStyle = '#222624';
+          iCtx.lineWidth = 3;
+          iCtx.strokeRect(cx + 1, cy + 1, 62, 30);
+          ibCtx.strokeStyle = '#282828';
+          ibCtx.lineWidth = 3;
+          ibCtx.strokeRect(cx + 1, cy + 1, 62, 30);
+        }
       }
-      iCtx.fillStyle = 'rgba(216, 226, 220, 0.62)';
-      iCtx.font = 'bold 18px Georgia, serif';
-      iCtx.fillText('GANDAKI UNIVERSITY — NIGHT ARCHIVE & MECHANICS', 284, 298);
-      iCtx.font = '15px monospace';
-      iCtx.fillStyle = 'rgba(194, 208, 200, 0.48)';
-      iCtx.fillText('1. Damped Wave:  x(t) = A·e^(-γt)·cos(ωt + φ)', 286, 334);
-      iCtx.fillText('2. Dome Stress:  σ_θ = (p·R)/(2·t)   [CURFEW 22:00]', 286, 364);
-      iCtx.fillStyle = 'rgba(226, 188, 142, 0.72)';
+      iCtx.fillStyle = 'rgba(26, 24, 18, 0.38)';
+      iCtx.beginPath(); iCtx.arc(92, 442, 26, 0, Math.PI * 2); iCtx.fill();
+      iCtx.beginPath(); iCtx.arc(198, 476, 22, 0, Math.PI * 2); iCtx.fill();
+
+      // 6. Tile (256,256,512,256): Faded Slate Chalkboard with Equations & University-Safe Eerie Scribbles
+      iCtx.fillStyle = '#15271f';
+      iCtx.fillRect(256, 256, 512, 256);
+      ibCtx.fillStyle = '#686868';
+      ibCtx.fillRect(256, 256, 512, 256);
+      for (let c = 0; c < 16; c++) {
+        iCtx.fillStyle = 'rgba(210, 222, 216, 0.06)';
+        iCtx.fillRect(272 + ((c * 61) % 440), 272 + ((c * 43) % 190), 58, 32);
+      }
+      iCtx.fillStyle = 'rgba(212, 224, 218, 0.62)';
+      iCtx.font = 'bold 16px Georgia, serif';
+      iCtx.fillText('GANDAKI UNIVERSITY — NIGHT ARCHIVE & MECHANICS', 274, 296);
+      iCtx.font = '14px monospace';
+      iCtx.fillStyle = 'rgba(190, 204, 196, 0.48)';
+      iCtx.fillText('1. Damped Wave:  x(t) = A·e^(-γt)·cos(ωt + φ)', 276, 330);
+      iCtx.fillText('2. Dome Stress:  σ_θ = (p·R)/(2·t)   [CURFEW 22:00]', 276, 358);
+      iCtx.fillStyle = 'rgba(218, 178, 134, 0.72)';
+      iCtx.font = 'bold 14px monospace';
+      iCtx.fillText('>> RESTORE 4 FUSE BOXES TO UNLOCK SOUTH GATE <<', 276, 398);
+      iCtx.fillText('>> DO NOT LOOK UP AT THE SKYLIGHT — HOLD BREATH <<', 276, 428);
+      iCtx.fillStyle = 'rgba(186, 196, 190, 0.36)';
+      iCtx.fillText('...why are the chairs facing the wall?...', 276, 466);
+
+      // 7. Tile (768,256,256,256): Dark Landscape Painting (top) & Safe Eerie Archway Lintel Stencil (bottom, Ref 3)
+      iCtx.fillStyle = '#162028';
+      iCtx.fillRect(768, 256, 256, 128);
+      const skyG = iCtx.createLinearGradient(768, 256, 768, 340);
+      skyG.addColorStop(0, '#1c2d3d');
+      skyG.addColorStop(1, '#4a3b32');
+      iCtx.fillStyle = skyG;
+      iCtx.fillRect(774, 262, 244, 78);
+      iCtx.fillStyle = '#121c18';
+      iCtx.beginPath();
+      iCtx.moveTo(774, 340); iCtx.lineTo(825, 288); iCtx.lineTo(878, 322); iCtx.lineTo(942, 278); iCtx.lineTo(1018, 340);
+      iCtx.closePath(); iCtx.fill();
+      iCtx.fillStyle = '#182830';
+      iCtx.fillRect(774, 340, 244, 38);
+      // Bottom half (768,384,256,128): Weathered plaster lintel with safe red warning (Ref 3)
+      iCtx.fillStyle = '#4e483e';
+      iCtx.fillRect(768, 384, 256, 128);
+      iCtx.strokeStyle = 'rgba(32, 28, 22, 0.55)';
+      iCtx.lineWidth = 2;
+      for (let lx = 768; lx < 1024; lx += 32) {
+        iCtx.strokeRect(lx, 384, 32, 128);
+      }
+      iCtx.fillStyle = 'rgba(128, 28, 24, 0.86)';
+      iCtx.font = 'bold 20px Georgia, serif';
+      iCtx.fillText('CURFEW ENFORCED', 792, 442);
       iCtx.font = 'bold 16px monospace';
-      iCtx.fillText('>> RESTORE 4 FUSE BOXES TO UNLOCK SOUTH GATE <<', 286, 408);
-      iCtx.fillText('>> DO NOT SPRINT NEAR THE HALLWAY — HOLD YOUR BREATH <<', 286, 442);
+      iCtx.fillText('DO NOT ENTER AFTER DARK', 782, 474);
     }
 
     const interiorSurfaceAtlasTex = new THREE.CanvasTexture(interiorAtlasCanvas);
     const interiorSurfaceBumpTex = new THREE.CanvasTexture(interiorBumpCanvas);
+    const dustyGlassTex = interiorSurfaceAtlasTex;
 
-    // Apply darkened, desaturated canvas textures + bump maps to shared interior materials
-    materials.deskWoodTop.map = createProceduralTexture(128, 128, (ctx) => {
-      ctx.drawImage(interiorAtlasCanvas, 0, 0, 256, 256, 0, 0, 128, 128);
-    });
+    // Helper to remap any BufferGeometry UVs into a sub-rectangle of the shared 1024x512 interiorSurfaceAtlasTex
+    function remapInteriorAtlasUVs(geo, xPx, yPx, wPx, hPx) {
+      if (!geo || !geo.attributes || !geo.attributes.uv) return geo;
+      const uv = geo.attributes.uv;
+      const u0 = (xPx + 2) / 1024;
+      const uSpan = (wPx - 4) / 1024;
+      const v0 = 1.0 - (yPx + hPx - 2) / 512;
+      const vSpan = (hPx - 4) / 512;
+      for (let i = 0; i < uv.count; i++) {
+        const u = ((uv.getX(i) % 1) + 1) % 1;
+        const v = ((uv.getY(i) % 1) + 1) % 1;
+        uv.setXY(i, u0 + u * uSpan, v0 + v * vSpan);
+      }
+      uv.needsUpdate = true;
+      return geo;
+    }
+
+    // Apply shared power-of-two interiorSurfaceAtlasTex + interiorSurfaceBumpTex across all interior materials
+    materials.deskWoodTop.map = interiorSurfaceAtlasTex;
     materials.deskWoodTop.bumpMap = interiorSurfaceBumpTex;
-    materials.deskWoodTop.bumpScale = 0.025;
-    materials.deskWoodTop.color.setHex(0x8c6e58);
-    materials.deskWoodTop.roughness = 0.56;
+    materials.deskWoodTop.bumpScale = 0.028;
+    materials.deskWoodTop.color.setHex(0x886b54);
+    materials.deskWoodTop.roughness = 0.54;
 
-    materials.chairWood.map = materials.deskWoodTop.map;
+    materials.chairWood.map = interiorSurfaceAtlasTex;
     materials.chairWood.bumpMap = interiorSurfaceBumpTex;
-    materials.chairWood.bumpScale = 0.025;
-    materials.chairWood.color.setHex(0x6e523e);
-    materials.chairWood.roughness = 0.62;
+    materials.chairWood.bumpScale = 0.028;
+    materials.chairWood.color.setHex(0x684d3a);
+    materials.chairWood.roughness = 0.60;
 
-    materials.deskSteelFrame.map = createProceduralTexture(128, 128, (ctx) => {
-      ctx.drawImage(interiorAtlasCanvas, 768, 0, 256, 256, 0, 0, 128, 128);
-    });
+    materials.deskSteelFrame.map = interiorSurfaceAtlasTex;
     materials.deskSteelFrame.bumpMap = interiorSurfaceBumpTex;
-    materials.deskSteelFrame.bumpScale = 0.03;
-    materials.deskSteelFrame.color.setHex(0x4a545e);
-    materials.deskSteelFrame.roughness = 0.44;
+    materials.deskSteelFrame.bumpScale = 0.032;
+    materials.deskSteelFrame.color.setHex(0x46505a);
+    materials.deskSteelFrame.roughness = 0.42;
     materials.deskSteelFrame.metalness = 0.68;
 
-    materials.rotundaInteriorWall.map = createProceduralTexture(256, 256, (ctx) => {
-      ctx.drawImage(interiorAtlasCanvas, 256, 0, 256, 256, 0, 0, 256, 256);
-    });
+    materials.rotundaInteriorWall.map = interiorSurfaceAtlasTex;
     materials.rotundaInteriorWall.bumpMap = interiorSurfaceBumpTex;
-    materials.rotundaInteriorWall.bumpScale = 0.03;
-    materials.rotundaInteriorWall.color.setHex(0x7c8582);
-    materials.rotundaInteriorWall.roughness = 0.72;
+    materials.rotundaInteriorWall.bumpScale = 0.032;
+    materials.rotundaInteriorWall.color.setHex(0x788078);
+    materials.rotundaInteriorWall.roughness = 0.74;
 
-    materials.rotundaTerrazzoFloor.roughness = 0.22; // Faked floor reflection sheen with baked environment tint
-    materials.rotundaTerrazzoFloor.metalness = 0.28;
-    materials.rotundaTerrazzoFloor.color.setHex(0x78828a);
+    materials.rotundaTerrazzoFloor.map = interiorSurfaceAtlasTex;
+    materials.rotundaTerrazzoFloor.bumpMap = interiorSurfaceBumpTex;
+    materials.rotundaTerrazzoFloor.bumpScale = 0.018;
+    materials.rotundaTerrazzoFloor.roughness = 0.20; // Faked floor reflections with low roughness & baked environment tint
+    materials.rotundaTerrazzoFloor.metalness = 0.30;
+    materials.rotundaTerrazzoFloor.color.setHex(0x6e7880);
 
-    materials.blackboardGreen.map = createProceduralTexture(512, 256, (ctx) => {
-      ctx.drawImage(interiorAtlasCanvas, 256, 256, 768, 256, 0, 0, 512, 256);
-    });
+    materials.stainedCeilingTiles.map = interiorSurfaceAtlasTex;
+    materials.stainedCeilingTiles.bumpMap = interiorSurfaceBumpTex;
+    materials.stainedCeilingTiles.bumpScale = 0.026;
+    materials.stainedCeilingTiles.color.setHex(0x767c74);
+    materials.stainedCeilingTiles.roughness = 0.82;
+
+    materials.blackboardGreen.map = interiorSurfaceAtlasTex;
     materials.blackboardGreen.bumpMap = interiorSurfaceBumpTex;
     materials.blackboardGreen.bumpScale = 0.018;
     materials.blackboardGreen.color.setHex(0x8fa398);
     materials.blackboardGreen.roughness = 0.62;
 
-    const dustyGlassTex = createProceduralTexture(128, 128, (ctx) => {
-      ctx.drawImage(interiorAtlasCanvas, 0, 256, 256, 256, 0, 0, 128, 128);
-    });
-    materials.windowGlass.map = dustyGlassTex;
+    materials.windowGlass.map = interiorSurfaceAtlasTex;
+    materials.windowGlass.bumpMap = interiorSurfaceBumpTex;
+    materials.windowGlass.bumpScale = 0.010;
     materials.windowGlass.color.setHex(0x334858);
-    materials.windowGlass.roughness = 0.24;
+    materials.windowGlass.roughness = 0.22;
 
     const step2Mats = {
-      curtainFabric: new THREE.MeshStandardMaterial({ color: 0x35424f, roughness: 0.86, side: THREE.DoubleSide }),
-      curtainGold: new THREE.MeshStandardMaterial({ color: 0x5c432e, roughness: 0.82, side: THREE.DoubleSide }),
-      lockerSteel: new THREE.MeshStandardMaterial({ map: materials.deskSteelFrame.map, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.03, color: 0x3d4852, roughness: 0.46, metalness: 0.64 }),
-      lockerDoorBlue: new THREE.MeshStandardMaterial({ map: materials.deskSteelFrame.map, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.03, color: 0x2c3e50, roughness: 0.44, metalness: 0.58 }),
-      fireRed: new THREE.MeshStandardMaterial({ color: 0x7f2929, roughness: 0.42, metalness: 0.40 }),
-      waterJugBlue: new THREE.MeshStandardMaterial({ color: 0x2b546e, roughness: 0.22, metalness: 0.20, transparent: true, opacity: 0.78 }),
-      matRubber: new THREE.MeshStandardMaterial({ color: 0x1a1f24, roughness: 0.94 }),
-      corkBoard: new THREE.MeshStandardMaterial({ map: materials.deskWoodTop.map, color: 0x6e4e34, roughness: 0.88 }),
-      paperSheet: new THREE.MeshStandardMaterial({ color: 0xaeb6bf, roughness: 0.82 }),
-      bagNavy: new THREE.MeshStandardMaterial({ color: 0x222c3c, roughness: 0.88 }),
-      bagOlive: new THREE.MeshStandardMaterial({ color: 0x283329, roughness: 0.88 }),
-      bagMaroon: new THREE.MeshStandardMaterial({ color: 0x3d2226, roughness: 0.86 }),
-      sofaLeather: new THREE.MeshStandardMaterial({ map: materials.deskWoodTop.map, color: 0x332218, roughness: 0.58, metalness: 0.08 }),
+      curtainFabric: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.015, color: 0x35424f, roughness: 0.88, side: THREE.DoubleSide }),
+      curtainGold: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.015, color: 0x5c432e, roughness: 0.84, side: THREE.DoubleSide }),
+      lockerSteel: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.028, color: 0x3d4852, roughness: 0.48, metalness: 0.62 }),
+      rustedLockerMetal: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.032, color: 0x3a322d, roughness: 0.66, metalness: 0.48 }),
+      lockerDoorBlue: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.026, color: 0x2c3e50, roughness: 0.46, metalness: 0.56 }),
+      fireRed: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x7f2929, roughness: 0.42, metalness: 0.40 }),
+      waterJugBlue: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x2b546e, roughness: 0.20, metalness: 0.22, transparent: true, opacity: 0.78 }),
+      matRubber: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.02, color: 0x1a1f24, roughness: 0.94 }),
+      corkBoard: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.028, color: 0x6e4e34, roughness: 0.88 }),
+      paperSheet: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0xc4ccd4, roughness: 0.82 }),
+      bagNavy: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x263242, roughness: 0.88 }),
+      bagOlive: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x2b362c, roughness: 0.88 }),
+      bagMaroon: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x3e2428, roughness: 0.86 }),
+      sofaLeather: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.02, color: 0x252c28, roughness: 0.54, metalness: 0.12 }),
+      greenMarbleTop: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.015, color: 0x2e4a3e, roughness: 0.24, metalness: 0.28 }),
       monitorScreenOn: new THREE.MeshStandardMaterial({ color: 0x0c1824, emissive: 0x2b5b84, emissiveIntensity: 0.42, roughness: 0.22 }),
-      monitorScreenOff: new THREE.MeshStandardMaterial({ map: dustyGlassTex, color: 0x121820, roughness: 0.22, metalness: 0.42 }),
+      monitorScreenOff: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x121820, roughness: 0.24, metalness: 0.42 }),
       serverLedGreen: new THREE.MeshBasicMaterial({ color: 0x4d8c57 }),
       serverLedAmber: new THREE.MeshBasicMaterial({ color: 0xc27d2c }),
-      lampShadeGreen: new THREE.MeshStandardMaterial({ color: 0x1f3d2b, emissive: 0xd99242, emissiveIntensity: 0.55, roughness: 0.34 }),
-      ceramicWhite: new THREE.MeshStandardMaterial({ map: materials.rotundaInteriorWall.map, color: 0x9aa4ad, roughness: 0.28, metalness: 0.12 }),
-      mirrorGlass: new THREE.MeshStandardMaterial({ map: dustyGlassTex, color: 0x4e5d6c, roughness: 0.14, metalness: 0.86 }),
-      stainlessSteel: new THREE.MeshStandardMaterial({ map: materials.deskSteelFrame.map, color: 0x6c7882, roughness: 0.34, metalness: 0.76 }),
-      cardboardCrate: new THREE.MeshStandardMaterial({ map: materials.deskWoodTop.map, color: 0x5e4630, roughness: 0.88 }),
+      exitSignGreenMat: new THREE.MeshStandardMaterial({ color: 0x166534, emissive: 0x22c55e, emissiveIntensity: 1.55, roughness: 0.25 }),
+      recessedPanelWarmMat: new THREE.MeshStandardMaterial({ color: 0xfef3c7, emissive: 0xeab308, emissiveIntensity: 1.15, roughness: 0.22 }),
+      lampShadeGreen: new THREE.MeshStandardMaterial({ color: 0x1f3d2b, emissive: 0xd99242, emissiveIntensity: 0.65, roughness: 0.34 }),
+      ceramicWhite: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x9aa4ad, roughness: 0.30, metalness: 0.12 }),
+      mirrorGlass: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x4e5d6c, roughness: 0.16, metalness: 0.84 }),
+      stainlessSteel: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.018, color: 0x6c7882, roughness: 0.36, metalness: 0.74 }),
+      cardboardCrate: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, bumpMap: interiorSurfaceBumpTex, bumpScale: 0.022, color: 0x6b5038, roughness: 0.88 }),
       vineGreen: new THREE.MeshStandardMaterial({ color: 0x1c2b20, roughness: 0.84, side: THREE.DoubleSide }),
-      terrazzoInlayGold: new THREE.MeshStandardMaterial({ color: 0x786238, roughness: 0.36, metalness: 0.38 }),
-      terrazzoInlayDark: new THREE.MeshStandardMaterial({ color: 0x1b222b, roughness: 0.32, metalness: 0.22 }),
-      wallStainDecal: new THREE.MeshBasicMaterial({ map: softContactShadowTex, color: 0x090d0b, transparent: true, opacity: 0.58, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
+      terrazzoInlayGold: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x786238, roughness: 0.34, metalness: 0.36 }),
+      terrazzoInlayDark: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x1b222b, roughness: 0.30, metalness: 0.24 }),
+      wallStainDecal: new THREE.MeshBasicMaterial({ map: softContactShadowTex, color: 0x05080c, transparent: true, opacity: 0.64, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
       cobwebMat: new THREE.MeshBasicMaterial({ color: 0x7c868f, transparent: true, opacity: 0.26, side: THREE.DoubleSide, depthWrite: false }),
-      moonlightShaftMat: new THREE.MeshBasicMaterial({ map: volumetricConeTex, color: 0x7ca2bf, transparent: true, opacity: 0.085, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }),
-      corridorMistMat: new THREE.MeshBasicMaterial({ map: groundMistTex, color: 0x4c5d6b, transparent: true, opacity: 0.11, depthWrite: false }),
+      moonlightShaftMat: new THREE.MeshBasicMaterial({ map: windowLightShaftTex, color: 0x8cc2f5, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }),
+      corridorMistMat: new THREE.MeshBasicMaterial({ map: corridorFogTex, color: 0x5c768f, transparent: true, opacity: 0.14, depthWrite: false }),
     };
 
     // Helper: Build Low-Triangle Beveled/Constructed Composite BufferGeometry
-    // Combines main beveled slab/body with thick legs, cross-braces, drawers, handles, hinges & bolts in 1 BufferGeometry!
-    function buildConstructedFurnitureGeo(parts) {
+    function buildConstructedFurnitureGeo(parts, atlasRect = null) {
       const dummy = new THREE.Object3D();
       const geos = [];
       for (let i = 0; i < parts.length; i++) {
@@ -6717,12 +8201,14 @@ export function getHideAndSeekHtml(): string {
 
     // Upgrade sharedGeos.deskTop, deskLeg, chairSeat, chairBack to beveled/constructed shapes!
     sharedGeos.deskTop = buildConstructedFurnitureGeo([
-      { w: 1.32, h: 0.042, d: 0.58, y: 0.0 },               // Main desktop plank
+      { w: 1.32, h: 0.040, d: 0.58, y: 0.0 },               // Main desktop plank
       { w: 1.28, h: 0.056, d: 0.54, y: 0.0 },               // Beveled top/bottom chamfer core
       { w: 0.48, h: 0.12,  d: 0.46, x: -0.34, y: -0.08 },   // Left under-desk drawer box
       { w: 0.48, h: 0.12,  d: 0.46, x:  0.34, y: -0.08 },   // Right under-desk drawer box
       { w: 0.10, h: 0.022, d: 0.03, x: -0.34, y: -0.08, z: -0.24 }, // Left drawer pull handle
       { w: 0.10, h: 0.022, d: 0.03, x:  0.34, y: -0.08, z: -0.24 }, // Right drawer pull handle
+      { w: 0.022, h: 0.015, d: 0.022, x: -0.58, y: 0.025, z: -0.22 }, // Top corner carriage bolts
+      { w: 0.022, h: 0.015, d: 0.022, x:  0.58, y: 0.025, z: -0.22 },
     ]);
     sharedGeos.deskTop.userData.instancedCategory = 'desk';
 
@@ -6732,12 +8218,14 @@ export function getHideAndSeekHtml(): string {
       { w: 0.042, h: 0.042, d: 0.48, x: 0, y: -0.24, z: 0.0 },   // Lower side stretcher bar
       { w: 0.042, h: 0.042, d: 0.48, x: 0, y:  0.32, z: 0.0 },   // Upper mounting bracket
       { w: 0.068, h: 0.068, d: 0.02, x: 0, y:  0.28, z: -0.22 }, // Corner gusset bolt plate
+      { w: 0.064, h: 0.024, d: 0.064, x: 0, y: -0.35, z: -0.22 }, // Rubber floor leveling feet
+      { w: 0.064, h: 0.024, d: 0.064, x: 0, y: -0.35, z:  0.22 },
     ]);
     sharedGeos.deskLeg.userData.instancedCategory = 'desk';
 
     sharedGeos.chairSeat = buildConstructedFurnitureGeo([
       { w: 0.44, h: 0.038, d: 0.42, y: 0.0 },                    // Beveled seat outer
-      { w: 0.40, h: 0.050, d: 0.38, y: 0.0 },                    // Beveled seat core
+      { w: 0.40, h: 0.052, d: 0.38, y: 0.0 },                    // Beveled seat core
       { w: 0.042, h: 0.44, d: 0.042, x: -0.18, y: -0.22, z: -0.17, rx:  0.04 }, // Front-left leg
       { w: 0.042, h: 0.44, d: 0.042, x:  0.18, y: -0.22, z: -0.17, rx:  0.04 }, // Front-right leg
       { w: 0.042, h: 0.44, d: 0.042, x: -0.18, y: -0.22, z:  0.17, rx: -0.05 }, // Rear-left leg
@@ -6746,8 +8234,17 @@ export function getHideAndSeekHtml(): string {
       { w: 0.36, h: 0.028, d: 0.028, x: 0, y: -0.28, z:  0.17 }, // Rear cross-brace
       { w: 0.028, h: 0.028, d: 0.34, x: -0.18, y: -0.26, z: 0 }, // Left cross-brace
       { w: 0.028, h: 0.028, d: 0.34, x:  0.18, y: -0.26, z: 0 }, // Right cross-brace
+      { w: 0.038, h: 0.42, d: 0.038, x: -0.17, y: 0.21, z: 0.18, rx: -0.08 }, // Backrest left upright
+      { w: 0.038, h: 0.42, d: 0.038, x:  0.17, y: 0.21, z: 0.18, rx: -0.08 }, // Backrest right upright
+      { w: 0.42, h: 0.18, d: 0.034, x: 0, y: 0.30, z: 0.19, rx: -0.08 },      // Beveled backrest slat
     ]);
     sharedGeos.chairSeat.userData.instancedCategory = 'chair';
+    sharedGeos.chairBack = buildConstructedFurnitureGeo([
+      { w: 0.42, h: 0.24, d: 0.036, y: 0.0 },
+      { w: 0.38, h: 0.28, d: 0.046, y: 0.0 },
+    ]);
+    sharedGeos.chairBack.userData.instancedCategory = 'chair';
+    sharedGeos.benchSeat = new THREE.BoxGeometry(2.10, 0.46, 0.58);
 
     const step2Geos = {
       doorLeaf: buildConstructedFurnitureGeo([
@@ -6756,14 +8253,22 @@ export function getHideAndSeekHtml(): string {
         { w: 0.72, h: 0.82, d: 0.068, y: -0.55 }, // Lower recessed molding panel
         { w: 0.025, h: 0.14, d: 0.08, x: -0.45, y:  0.75 }, // Top hinge barrel
         { w: 0.025, h: 0.14, d: 0.08, x: -0.45, y: -0.75 }, // Bottom hinge barrel
-      ]),
+      ], [0, 0, 256, 256]),
       doorHandle: buildConstructedFurnitureGeo([
         { w: 0.04, h: 0.14, d: 0.09, y: 0 },      // Escutcheon lock plate
         { w: 0.14, h: 0.028, d: 0.13, x: -0.04, y: 0.02 }, // Lever handle both sides
-      ]),
+      ], [768, 0, 256, 256]),
       roomPlaque: new THREE.BoxGeometry(0.46, 0.22, 0.03),
       curtainRod: new THREE.CylinderGeometry(0.016, 0.016, 2.05, 6),
       curtainPanel: new THREE.BoxGeometry(0.52, 1.52, 0.045),
+      venetianBlinds: buildConstructedFurnitureGeo([
+        { w: 1.72, h: 0.05, d: 0.06, y: 0.62 },   // Top blind header valence
+        { w: 1.68, h: 0.025, d: 0.04, y:  0.42, rx: 0.35 }, // Slatted blind strips (Ref 4 & Ref 5)
+        { w: 1.68, h: 0.025, d: 0.04, y:  0.22, rx: 0.35 },
+        { w: 1.68, h: 0.025, d: 0.04, y:  0.02, rx: 0.35 },
+        { w: 1.68, h: 0.025, d: 0.04, y: -0.18, rx: 0.35 },
+        { w: 1.68, h: 0.025, d: 0.04, y: -0.38, rx: 0.35 },
+      ], [768, 0, 256, 256]),
       wallFanMount: new THREE.BoxGeometry(0.12, 0.16, 0.18),
       wallFanCage: new THREE.CylinderGeometry(0.24, 0.24, 0.10, 10),
       lockerBank: buildConstructedFurnitureGeo([
@@ -6771,33 +8276,89 @@ export function getHideAndSeekHtml(): string {
         { w: 0.51, h: 0.05, d: 1.82, y: 0.94 },   // Beveled top cap
         { w: 0.46, h: 0.08, d: 0.08, x: 0, y: -0.92, z: -0.82 }, // Left foot leg
         { w: 0.46, h: 0.08, d: 0.08, x: 0, y: -0.92, z:  0.82 }, // Right foot leg
-      ]),
+      ], [768, 0, 256, 256]),
       lockerDoor: buildConstructedFurnitureGeo([
         { w: 0.03, h: 0.84, d: 0.52, y: 0 },
         { w: 0.045, h: 0.14, d: 0.32, y: 0.26 },  // Louver vent slot block
         { w: 0.055, h: 0.09, d: 0.035, y: 0.0, z: 0.20 }, // Recessed handle & padlock latch
         { w: 0.045, h: 0.06, d: 0.025, y:  0.34, z: -0.24 }, // Upper hinge
         { w: 0.045, h: 0.06, d: 0.025, y: -0.34, z: -0.24 }, // Lower hinge
-      ]),
+      ], [768, 0, 256, 256]),
+      woodenCupboard: buildConstructedFurnitureGeo([
+        { w: 0.56, h: 1.92, d: 1.24, y: 0 },      // Main cupboard cabinet body (Ref 2 corridor & rooms)
+        { w: 0.60, h: 0.06, d: 1.30, y: 0.95 },   // Beveled top crown overhang
+        { w: 0.04, h: 1.68, d: 0.54, x: 0.28, y: 0.02, z: -0.29 }, // Left door panel
+        { w: 0.04, h: 1.68, d: 0.54, x: 0.28, y: 0.02, z:  0.29 }, // Right door panel
+        { w: 0.05, h: 0.14, d: 0.025, x: 0.30, y: 0.06, z: -0.06 }, // Left pull handle
+        { w: 0.05, h: 0.14, d: 0.025, x: 0.30, y: 0.06, z:  0.06 }, // Right pull handle
+        { w: 0.04, h: 0.08, d: 0.02, x: 0.29, y:  0.65, z: -0.55 }, // Door hinges
+        { w: 0.04, h: 0.08, d: 0.02, x: 0.29, y: -0.65, z: -0.55 },
+        { w: 0.08, h: 0.10, d: 0.08, x: -0.22, y: -0.96, z: -0.54 }, // 4 thick corner legs
+        { w: 0.08, h: 0.10, d: 0.08, x:  0.22, y: -0.96, z: -0.54 },
+        { w: 0.08, h: 0.10, d: 0.08, x: -0.22, y: -0.96, z:  0.54 },
+        { w: 0.08, h: 0.10, d: 0.08, x:  0.22, y: -0.96, z:  0.54 },
+      ], [0, 0, 256, 256]),
       noticeBoard: new THREE.BoxGeometry(0.06, 0.96, 1.65),
       noticeCork: new THREE.BoxGeometry(0.07, 0.84, 1.52),
       noticeNote: new THREE.BoxGeometry(0.08, 0.24, 0.18),
-      waterDispenser: new THREE.BoxGeometry(0.38, 1.02, 0.38),
+      waterDispenser: buildConstructedFurnitureGeo([
+        { w: 0.38, h: 0.98, d: 0.38, y: -0.02 },  // Main dispenser stand (Ref 1 & Ref 2)
+        { w: 0.40, h: 0.04, d: 0.40, y:  0.48 },  // Top bottle collar rim
+        { w: 0.06, h: 0.04, d: 0.26, x:  0.20, y: 0.12, z: 0 }, // Drip tray ledge
+        { w: 0.05, h: 0.06, d: 0.03, x:  0.20, y: 0.24, z: -0.06 }, // Hot tap spigot
+        { w: 0.05, h: 0.06, d: 0.03, x:  0.20, y: 0.24, z:  0.06 }, // Cold tap spigot
+      ], [256, 0, 256, 256]),
       waterBottle: new THREE.CylinderGeometry(0.15, 0.15, 0.42, 10),
       fireExtBody: new THREE.CylinderGeometry(0.09, 0.09, 0.54, 10),
       fireExtTop: new THREE.BoxGeometry(0.12, 0.10, 0.14),
       floorMat: new THREE.BoxGeometry(1.15, 0.02, 0.72),
       photoFrame: new THREE.BoxGeometry(0.05, 0.64, 0.86),
-      photoCanvas: new THREE.BoxGeometry(0.06, 0.52, 0.74),
+      photoCanvas: createAtlasUvGeo(new THREE.BoxGeometry(0.06, 0.52, 0.74), 768, 256, 256, 128),
       plantPot: new THREE.CylinderGeometry(0.22, 0.16, 0.36, 8),
       plantBush: new THREE.DodecahedronGeometry(0.28, 1),
       wallLampBack: new THREE.BoxGeometry(0.06, 0.28, 0.18),
       wallLampBulb: new THREE.BoxGeometry(0.12, 0.18, 0.12),
+      pendantTubeFixture: buildConstructedFurnitureGeo([
+        { w: 1.44, h: 0.06, d: 0.26, y: 0.0 },    // Beveled sheet-metal reflector hood (Ref 4)
+        { w: 1.38, h: 0.04, d: 0.30, y: -0.02 },
+        { w: 0.02, h: 0.46, d: 0.02, x: -0.54, y: 0.23, z: 0 }, // Left suspension cord rod
+        { w: 0.02, h: 0.46, d: 0.02, x:  0.54, y: 0.23, z: 0 }, // Right suspension cord rod
+      ], [768, 0, 256, 256]),
+      recessedCeilingPanel: new THREE.BoxGeometry(0.68, 0.03, 0.68),
+      exitSignBox: buildConstructedFurnitureGeo([
+        { w: 0.46, h: 0.20, d: 0.06, y: 0.0 },    // Glowing green EXIT sign housing (Ref 2 & Ref 5)
+        { w: 0.50, h: 0.03, d: 0.08, y: 0.11 },   // Top ceiling mount bracket
+      ], [768, 0, 256, 256]),
+      wallMagazineRack: buildConstructedFurnitureGeo([
+        { w: 0.08, h: 0.86, d: 0.52, y: 0.0 },    // Wooden 4-tier wall magazine rack (Ref 5)
+        { w: 0.12, h: 0.14, d: 0.48, x: 0.03, y:  0.26, rz: -0.18 },
+        { w: 0.12, h: 0.14, d: 0.48, x: 0.03, y:  0.04, rz: -0.18 },
+        { w: 0.12, h: 0.14, d: 0.48, x: 0.03, y: -0.18, rz: -0.18 },
+      ], [0, 0, 256, 256]),
+      loungeArmchair: buildConstructedFurnitureGeo([
+        { w: 0.72, h: 0.34, d: 0.68, y: 0.22 },   // Upholstered armchair cushion (Ref 3)
+        { w: 0.72, h: 0.48, d: 0.16, y: 0.54, z: -0.26, rx: -0.10 }, // Tilted backrest
+        { w: 0.08, h: 0.46, d: 0.66, x: -0.34, y: 0.32, z: 0 }, // Left curved wood armrest & leg frame
+        { w: 0.08, h: 0.46, d: 0.66, x:  0.34, y: 0.32, z: 0 }, // Right curved wood armrest & leg frame
+      ], [0, 0, 256, 256]),
+      coffeeTable: buildConstructedFurnitureGeo([
+        { w: 1.24, h: 0.05, d: 0.68, y: 0.40 },   // Beveled low coffee table top (Ref 3)
+        { w: 1.18, h: 0.06, d: 0.62, y: 0.40 },
+        { w: 0.06, h: 0.40, d: 0.06, x: -0.54, y: 0.20, z: -0.28 }, // 4 legs
+        { w: 0.06, h: 0.40, d: 0.06, x:  0.54, y: 0.20, z: -0.28 },
+        { w: 0.06, h: 0.40, d: 0.06, x: -0.54, y: 0.20, z:  0.28 },
+        { w: 0.06, h: 0.40, d: 0.06, x:  0.54, y: 0.20, z:  0.28 },
+        { w: 1.04, h: 0.03, d: 0.48, x: 0, y: 0.12, z: 0 }, // Lower magazine shelf
+      ], [0, 0, 256, 256]),
+      desktopPhone: buildConstructedFurnitureGeo([
+        { w: 0.22, h: 0.07, d: 0.18, y: 0.035, rx: 0.15 }, // Vintage office phone base (Ref 5)
+        { w: 0.24, h: 0.04, d: 0.06, y: 0.08, z: -0.02 },  // Handset receiver on cradle
+      ], [768, 0, 256, 256]),
       wallShelf: buildConstructedFurnitureGeo([
         { w: 0.32, h: 0.04, d: 1.85, y: 0 },
         { w: 0.28, h: 0.18, d: 0.04, x: 0.02, y: -0.10, z: -0.72 }, // Left iron support bracket
         { w: 0.28, h: 0.18, d: 0.04, x: 0.02, y: -0.10, z:  0.72 }, // Right iron support bracket
-      ]),
+      ], [0, 0, 256, 256]),
       backpack: new THREE.BoxGeometry(0.32, 0.38, 0.22),
       bookStack: new THREE.BoxGeometry(0.26, 0.12, 0.20),
       openBook: new THREE.BoxGeometry(0.32, 0.025, 0.22),
@@ -6809,12 +8370,12 @@ export function getHideAndSeekHtml(): string {
         { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.22, z:  0.13 },
         { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.22, z:  0.13 },
         { w: 1.18, h: 0.035, d: 0.035, x: 0, y: -0.26, z: 0 },       // Long cross-brace tie bar
-      ]),
+      ], [0, 0, 256, 256]),
       benchLongBack: buildConstructedFurnitureGeo([
         { w: 1.38, h: 0.28, d: 0.038, y: 0 },
         { w: 0.045, h: 0.38, d: 0.045, x: -0.56, y: -0.06, z: -0.01 }, // Left backrest post + bolts
         { w: 0.045, h: 0.38, d: 0.045, x:  0.56, y: -0.06, z: -0.01 }, // Right backrest post + bolts
-      ]),
+      ], [0, 0, 256, 256]),
       benchLeg: new THREE.BoxGeometry(0.05, 0.44, 0.32),
       officeDesk: buildConstructedFurnitureGeo([
         { w: 1.52, h: 0.055, d: 0.80, y: 0.35 },  // Beveled top overhang
@@ -6825,7 +8386,7 @@ export function getHideAndSeekHtml(): string {
         { w: 0.12, h: 0.025, d: 0.03, x: -0.48, y: 0.20, z: 0.37 },  // Drawer handle 1
         { w: 0.12, h: 0.025, d: 0.03, x: -0.48, y: 0.02, z: 0.37 },  // Drawer handle 2
         { w: 0.12, h: 0.025, d: 0.03, x:  0.34, y: 0.05, z: 0.37 },  // Cupboard handle
-      ]),
+      ], [0, 0, 256, 256]),
       filingCabinet: buildConstructedFurnitureGeo([
         { w: 0.52, h: 1.36, d: 0.62, y: 0 },
         { w: 0.46, h: 0.28, d: 0.64, y:  0.48 },  // Top drawer face
@@ -6836,7 +8397,7 @@ export function getHideAndSeekHtml(): string {
         { w: 0.14, h: 0.03, d: 0.04, y:  0.16, z: 0.33 },
         { w: 0.14, h: 0.03, d: 0.04, y: -0.16, z: 0.33 },
         { w: 0.14, h: 0.03, d: 0.04, y: -0.48, z: 0.33 },
-      ]),
+      ], [768, 0, 256, 256]),
       monitorPanel: new THREE.BoxGeometry(0.52, 0.34, 0.035),
       monitorStand: new THREE.BoxGeometry(0.16, 0.14, 0.16),
       keyboard: new THREE.BoxGeometry(0.38, 0.02, 0.14),
@@ -6853,7 +8414,7 @@ export function getHideAndSeekHtml(): string {
         { w: 0.52, h: 0.045, d: 2.52, y:  0.18 }, // Shelf 3
         { w: 0.52, h: 0.045, d: 2.52, y: -0.32 }, // Shelf 2
         { w: 0.52, h: 0.045, d: 2.52, y: -0.82 }, // Shelf 1
-      ]),
+      ], [0, 0, 256, 256]),
       bookRowSpan: new THREE.BoxGeometry(0.42, 0.26, 2.38),
       readingTable: buildConstructedFurnitureGeo([
         { w: 1.66, h: 0.06, d: 1.06, y: 0.35 },   // Beveled tabletop
@@ -6862,7 +8423,7 @@ export function getHideAndSeekHtml(): string {
         { w: 0.07, h: 0.72, d: 0.07, x: -0.74, y: -0.02, z:  0.44 },
         { w: 0.07, h: 0.72, d: 0.07, x:  0.74, y: -0.02, z:  0.44 },
         { w: 1.48, h: 0.05, d: 0.05, x: 0, y: -0.22, z: 0 },         // Central H-stretcher cross-brace
-      ]),
+      ], [0, 0, 256, 256]),
       readingLampStand: new THREE.CylinderGeometry(0.08, 0.12, 0.34, 8),
       readingLampShade: new THREE.BoxGeometry(0.26, 0.10, 0.16),
       serverRack: buildConstructedFurnitureGeo([
@@ -6870,7 +8431,7 @@ export function getHideAndSeekHtml(): string {
         { w: 0.82, h: 0.06, d: 0.90, y: 1.06 },   // Top ventilation bezel
         { w: 0.04, h: 1.95, d: 0.04, x: -0.38, y: 0, z:  0.42 }, // Corner rack rails with bolts
         { w: 0.04, h: 1.95, d: 0.04, x:  0.38, y: 0, z:  0.42 },
-      ]),
+      ], [768, 0, 256, 256]),
       cableTray: new THREE.BoxGeometry(1.30, 0.06, 0.08),
       stallWall: new THREE.BoxGeometry(1.45, 1.95, 0.06),
       stallDoor: new THREE.BoxGeometry(0.05, 1.82, 0.78),
@@ -6890,13 +8451,16 @@ export function getHideAndSeekHtml(): string {
         { w: 0.56, h: 0.04, d: 2.18, y: -0.88 },
         { w: 0.03, h: 2.15, d: 0.05, x: -0.27, y: 0, z: 0, rx: 0.78 }, // Diagonal X cross-brace
         { w: 0.03, h: 2.15, d: 0.05, x: -0.27, y: 0, z: 0, rx: -0.78 },
-      ]),
+      ], [768, 0, 256, 256]),
       crateBox: new THREE.BoxGeometry(0.46, 0.38, 0.46),
       vineCluster: new THREE.BoxGeometry(0.14, 1.65, 0.38),
     };
     // Tag repeated Step 2 interior prop geometries for automatic InstancedMesh batching
     step2Geos.lockerBank.userData.instancedCategory = 'locker';
     step2Geos.lockerDoor.userData.instancedCategory = 'locker';
+    step2Geos.woodenCupboard.userData.instancedCategory = 'locker';
+    step2Geos.pendantTubeFixture.userData.instancedCategory = 'fixture';
+    step2Geos.venetianBlinds.userData.instancedCategory = 'fixture';
     step2Geos.bookStack.userData.instancedCategory = 'book';
     step2Geos.openBook.userData.instancedCategory = 'book';
     step2Geos.bookRowSpan.userData.instancedCategory = 'book';
@@ -6908,23 +8472,31 @@ export function getHideAndSeekHtml(): string {
     step2Geos.keyboard.userData.instancedCategory = 'desk';
     step2Geos.backpack.userData.instancedCategory = 'book';
 
+    // Pre-merge door leaf + handle into 1 geometry so each articulated door is 1 draw call
+    const mergedDoorLeafGeo = (function() {
+      const g1 = step2Geos.doorLeaf.clone();
+      const m1 = new THREE.Matrix4().makeTranslation(0.46, 1.13, 0);
+      g1.applyMatrix4(m1);
+      const g2 = step2Geos.doorHandle.clone();
+      const m2 = new THREE.Matrix4().makeTranslation(0.82, 1.02, 0);
+      g2.applyMatrix4(m2);
+      return THREE.BufferGeometryUtils.mergeBufferGeometries([g1, g2]);
+    })();
+
     // Helper: Swinging Wooden Door with Frame, Brass Handle & Room Code Plaque
     function buildSwingingDoor(parent, x, y, z, openAngleY = 1.05, plaqueMat = materials.gandakiBluePole, doorId = '') {
       const dPivot = new THREE.Group();
       dPivot.userData.noMerge = true;
+      dPivot.userData.isSwingingDoor = true;
       const initAngle = openAngleY * 0.42;
       dPivot.position.set(x, y, z);
       dPivot.rotation.y = initAngle;
 
-      const leaf = new THREE.Mesh(step2Geos.doorLeaf, materials.deskWoodTop);
-      leaf.position.set(0.46, 1.13, 0);
-      leaf.castShadow = true;
+      const leaf = new THREE.Mesh(mergedDoorLeafGeo, materials.deskWoodTop);
+      leaf.userData.noMerge = true;
+      leaf.castShadow = false;
       leaf.receiveShadow = true;
       dPivot.add(leaf);
-
-      const handle = new THREE.Mesh(step2Geos.doorHandle, materials.brassGajur);
-      handle.position.set(0.82, 1.02, 0);
-      dPivot.add(handle);
 
       parent.add(dPivot);
 
@@ -6988,11 +8560,379 @@ export function getHideAndSeekHtml(): string {
       parent.add(fGrp);
     }
 
-    // Helper: Populate Corridor / Veranda Strip with Lockers, Notice Boards, Water Dispenser, Fire Extinguisher, Wall Lamps, Floor Mats, Framed Photos & Plants
+    /* =========================================================================
+       REQUIREMENTS 2, 3 & 4:
+       - Baked Ambient Occlusion Decals (corners, baseboards, coving, under-desk & furniture contact points)
+       - Window Light Shafts + Floating Dust Particles in Beams + Corridor Fog
+       - Small Clutter (scattered papers, upright/fallen bottles, overturned chairs, draped jackets, crooked posters)
+       - Room Light Mood Controller & Fixtures (dark, dying_tube, moonlight, warm_lamp, emergency_red)
+       ========================================================================= */
+    const aoSharedPlaneGeo = new THREE.PlaneGeometry(1.0, 1.0);
+    const clutterPaperGeo = new THREE.BoxGeometry(0.24, 0.006, 0.31);
+    const clutterCrumpledGeo = new THREE.DodecahedronGeometry(0.055, 0);
+    const clutterBottleBodyGeo = new THREE.CylinderGeometry(0.036, 0.038, 0.22, 8);
+    const clutterBottleNeckGeo = new THREE.CylinderGeometry(0.014, 0.022, 0.07, 6);
+    const clutterJacketGeo = buildConstructedFurnitureGeo([
+      { w: 0.44, h: 0.38, d: 0.07, y: 0.0 },
+      { w: 0.12, h: 0.34, d: 0.06, x: -0.24, y: -0.04, rz: 0.24 },
+      { w: 0.12, h: 0.34, d: 0.06, x:  0.24, y: -0.04, rz: -0.24 },
+    ]);
+    const clutterBottleGeo = buildConstructedFurnitureGeo([
+      { geo: clutterBottleBodyGeo, y: 0.0 },
+      { geo: clutterBottleNeckGeo, y: 0.14 },
+    ]);
+    const fallenChairGeo = buildConstructedFurnitureGeo([
+      { geo: sharedGeos.chairSeat, y: 0.0 },
+      { geo: sharedGeos.chairBack, y: 0.22, z: 0.19 },
+    ]);
+    clutterPaperGeo.userData.instancedCategory = 'clutter';
+    clutterCrumpledGeo.userData.instancedCategory = 'clutter';
+    clutterBottleGeo.userData.instancedCategory = 'clutter';
+    clutterJacketGeo.userData.instancedCategory = 'clutter';
+    fallenChairGeo.userData.instancedCategory = 'clutter';
+
+    step2Mats.deadTubeMat = new THREE.MeshStandardMaterial({
+      map: peelingPaintTex.map,
+      color: 0x182028,
+      roughness: 0.72,
+      metalness: 0.35,
+    });
+    step2Mats.dyingTubeMat = new THREE.MeshStandardMaterial({
+      color: 0xdcfce7,
+      emissive: 0x99f6e4,
+      emissiveIntensity: 1.35,
+      roughness: 0.20,
+    });
+    step2Mats.warmDeskLampBulbMat = new THREE.MeshStandardMaterial({
+      color: 0xffe8c2,
+      emissive: 0xff9838,
+      emissiveIntensity: 1.45,
+      roughness: 0.18,
+    });
+    step2Mats.emergencyRedBulbMat = new THREE.MeshStandardMaterial({
+      color: 0xfca5a5,
+      emissive: 0xff1e1e,
+      emissiveIntensity: 1.65,
+      roughness: 0.18,
+    });
+    step2Mats.bottleGreenGlass = new THREE.MeshStandardMaterial({
+      map: dirtyGlassTex.map,
+      color: 0x14532d,
+      roughness: 0.16,
+      metalness: 0.35,
+      transparent: true,
+      opacity: 0.84,
+    });
+    step2Mats.bottleClearPlastic = new THREE.MeshStandardMaterial({
+      map: dirtyGlassTex.map,
+      color: 0x38bdf8,
+      roughness: 0.18,
+      metalness: 0.22,
+      transparent: true,
+      opacity: 0.76,
+    });
+    step2Mats.jacketDenim = new THREE.MeshStandardMaterial({
+      map: peelingPaintTex.map,
+      bumpMap: peelingPaintTex.bumpMap,
+      bumpScale: 0.04,
+      color: 0x1e3a5f,
+      roughness: 0.88,
+    });
+    step2Mats.jacketBurgundy = new THREE.MeshStandardMaterial({
+      map: peelingPaintTex.map,
+      bumpMap: peelingPaintTex.bumpMap,
+      bumpScale: 0.04,
+      color: 0x4c1d24,
+      roughness: 0.88,
+    });
+    step2Mats.jacketOlive = new THREE.MeshStandardMaterial({
+      map: peelingPaintTex.map,
+      bumpMap: peelingPaintTex.bumpMap,
+      bumpScale: 0.04,
+      color: 0x2d3a2e,
+      roughness: 0.88,
+    });
+
+    function addUnderFurnitureAO(parent, x, z, w, d, rotY = 0, yOff = 0.016) {
+      const decal = new THREE.Mesh(aoSharedPlaneGeo, materials.aoUnderDeskDecal);
+      decal.rotation.x = -Math.PI / 2;
+      decal.rotation.z = -rotY;
+      decal.position.set(x, yOff, z);
+      decal.scale.set(w * 1.22, d * 1.22, 1.0);
+      parent.add(decal);
+    }
+
+    function addRoomBakedAO(parent, roomW, roomD, roomH = 3.38, behindDoorCoords = null) {
+      const hw = roomW * 0.5 - 0.04;
+      const hd = roomD * 0.5 - 0.04;
+      const stripW = 0.72;
+
+      // 1. Floor-Wall Perimeter Baseboard AO Strips & Ceiling-Wall Coving AO Strips (8 edges total)
+      [-hd, hd].forEach(zPos => {
+        const s = new THREE.Mesh(aoSharedPlaneGeo, materials.aoCornerStripDecal);
+        s.rotation.x = -Math.PI / 2;
+        s.rotation.z = zPos < 0 ? Math.PI / 2 : -Math.PI / 2;
+        s.position.set(0, 0.015, zPos + (zPos < 0 ? stripW * 0.45 : -stripW * 0.45));
+        s.scale.set(stripW, roomW, 1);
+        parent.add(s);
+
+        const cStrip = new THREE.Mesh(aoSharedPlaneGeo, materials.aoCornerStripDecal);
+        cStrip.rotation.x = Math.PI / 2;
+        cStrip.rotation.z = zPos < 0 ? -Math.PI / 2 : Math.PI / 2;
+        cStrip.position.set(0, roomH - 0.018, zPos + (zPos < 0 ? stripW * 0.45 : -stripW * 0.45));
+        cStrip.scale.set(stripW * 1.1, roomW, 1);
+        parent.add(cStrip);
+      });
+      [-hw, hw].forEach(xPos => {
+        const s = new THREE.Mesh(aoSharedPlaneGeo, materials.aoCornerStripDecal);
+        s.rotation.x = -Math.PI / 2;
+        s.rotation.z = xPos < 0 ? 0 : Math.PI;
+        s.position.set(xPos + (xPos < 0 ? stripW * 0.45 : -stripW * 0.45), 0.015, 0);
+        s.scale.set(stripW, roomD, 1);
+        parent.add(s);
+
+        const cStrip = new THREE.Mesh(aoSharedPlaneGeo, materials.aoCornerStripDecal);
+        cStrip.rotation.x = Math.PI / 2;
+        cStrip.rotation.z = xPos < 0 ? 0 : Math.PI;
+        cStrip.position.set(xPos + (xPos < 0 ? stripW * 0.45 : -stripW * 0.45), roomH - 0.018, 0);
+        cStrip.scale.set(stripW * 1.1, roomD, 1);
+        parent.add(cStrip);
+      });
+
+      // 2. Vertical Wall-Wall Corner AO Strips + Floor & Ceiling Corner Pockets
+      [
+        { x: -hw + 0.18, z: -hd + 0.18, ry: Math.PI * 0.25 },
+        { x:  hw - 0.18, z: -hd + 0.18, ry: -Math.PI * 0.25 },
+        { x: -hw + 0.18, z:  hd - 0.18, ry: Math.PI * 0.75 },
+        { x:  hw - 0.18, z:  hd - 0.18, ry: -Math.PI * 0.75 },
+      ].forEach(c => {
+        const vStrip = new THREE.Mesh(aoSharedPlaneGeo, materials.aoCornerStripDecal);
+        vStrip.position.set(c.x, roomH * 0.5, c.z);
+        vStrip.rotation.y = c.ry;
+        vStrip.scale.set(0.68, roomH - 0.06, 1);
+        parent.add(vStrip);
+
+        const cFloor = new THREE.Mesh(aoSharedPlaneGeo, materials.aoUnderDeskDecal);
+        cFloor.rotation.x = -Math.PI / 2;
+        cFloor.position.set(c.x * 0.90, 0.018, c.z * 0.90);
+        cFloor.scale.set(1.55, 1.55, 1);
+        parent.add(cFloor);
+      });
+
+      // 3. Behind-Door Baked AO Pockets (Requirement 3: behind doors & around contact points)
+      const doorList = behindDoorCoords || [
+        { x: hw - 0.55, z: -hd + 1.85 },
+        { x: -hw + 0.55, z: -hd + 1.85 },
+      ];
+      doorList.forEach(dc => {
+        const dDecal = new THREE.Mesh(aoSharedPlaneGeo, materials.aoUnderDeskDecal);
+        dDecal.rotation.x = -Math.PI / 2;
+        dDecal.position.set(dc.x, 0.017, dc.z);
+        dDecal.scale.set(1.25, 1.25, 1);
+        parent.add(dDecal);
+      });
+    }
+
+    const corridorFogPlanes = [];
+    const roomBeamDustSystems = [];
+    const roomMoodFixtures = [];
+
+    const roomShaftGroups = [];
+    function spawnCorridorFogPlanes(parent, corridorX, floorY, corridorZ, length) {
+      const numPlanes = Math.max(2, Math.min(5, Math.floor(length / 6.5)));
+      const fogGeo = new THREE.PlaneGeometry(2.6, 5.2);
+      const isRootScene = (parent === scene);
+      for (let i = 0; i < numPlanes; i++) {
+        const oz = -length * 0.36 + (i / Math.max(1, numPlanes - 1)) * (length * 0.72);
+        const fogMesh = new THREE.Mesh(fogGeo, materials.corridorFogPlaneMat);
+        fogMesh.rotation.x = -Math.PI / 2;
+        const bx = isRootScene ? corridorX : 0;
+        const by = (isRootScene ? floorY : 0) + 0.24 + (i % 2) * 0.18;
+        const bz = (isRootScene ? corridorZ : 0) + oz;
+        fogMesh.position.set(bx, by, bz);
+        fogMesh.userData.noMerge = true;
+        parent.add(fogMesh);
+        corridorFogPlanes.push({
+          mesh: fogMesh,
+          baseX: bx,
+          baseY: by,
+          baseZ: bz,
+          worldX: corridorX,
+          floorY,
+          worldZ: corridorZ,
+          isRootScene,
+          speed: 0.38,
+          phase: i * 1.57 + corridorX * 0.3,
+        });
+      }
+    }
+
+    const sharedMoonShaftConeGeo = new THREE.ConeGeometry(1.18, 4.2, 12, 1, true);
+    const sharedBeamDustPointsMat = new THREE.PointsMaterial({
+      map: softRoundParticleTex,
+      color: 0xc8e4ff,
+      size: 0.06,
+      transparent: true,
+      opacity: 0.55,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    function buildWindowLightShaftWithDust(parent, wx, wy, wz, inDirX, inDirZ, length = 3.8, width = 1.55) {
+      const shaftGrp = new THREE.Group();
+      shaftGrp.userData.noMerge = true;
+      shaftGrp.position.set(wx, wy, wz);
+
+      // Requirement 5: Moonlight through windows as a visible volumetric shaft (additive cone mesh with soft alpha)
+      const coneMesh = new THREE.Mesh(sharedMoonShaftConeGeo, step2Mats.moonlightShaftMat);
+      coneMesh.position.set(inDirX * (length * 0.42), -length * 0.34, inDirZ * (length * 0.42));
+      if (Math.abs(inDirX) > 0.5) {
+        coneMesh.rotation.z = inDirX > 0 ? 0.74 : -0.74;
+      } else {
+        coneMesh.rotation.x = inDirZ > 0 ? -0.74 : 0.74;
+      }
+      coneMesh.scale.set(width / 1.55, length / 4.2, width / 1.55);
+      coneMesh.userData.noMerge = true;
+      shaftGrp.add(coneMesh);
+
+      // Slanted Venetian-blind ray plane inside the cone for crisp blind-slat light streaks (Ref 4 & Ref 5)
+      const sGeo = new THREE.PlaneGeometry(width, length);
+      const shaft1 = new THREE.Mesh(sGeo, materials.windowMoonShaftMat);
+      shaft1.position.set(inDirX * (length * 0.38), -length * 0.32, inDirZ * (length * 0.38));
+      if (Math.abs(inDirX) > 0.5) {
+        shaft1.rotation.y = inDirX > 0 ? Math.PI / 2 : -Math.PI / 2;
+        shaft1.rotation.x = 0.68;
+      } else {
+        if (inDirZ < 0) shaft1.rotation.y = Math.PI;
+        shaft1.rotation.x = 0.68;
+      }
+      shaft1.userData.noMerge = true;
+      shaftGrp.add(shaft1);
+
+      // Projected window-frame & Venetian-blind slat moonlight patch on the floor where the shaft lands
+      const gobo = new THREE.Mesh(aoSharedPlaneGeo, materials.moonFloorGoboMat);
+      gobo.rotation.x = -Math.PI / 2;
+      gobo.position.set(inDirX * (length * 0.66), -wy + 0.024, inDirZ * (length * 0.66));
+      gobo.scale.set(width * 1.35, width * 1.65, 1.0);
+      gobo.userData.noMerge = true;
+      shaftGrp.add(gobo);
+
+      // Floating dust motes suspended inside the window light shaft
+      const dCount = 14;
+      const dGeo = new THREE.BufferGeometry();
+      const dPos = new Float32Array(dCount * 3);
+      const dMeta = [];
+      for (let i = 0; i < dCount; i++) {
+        const t = 0.15 + Math.random() * 0.78;
+        const spread = (Math.random() - 0.5) * width * 0.75;
+        dPos[i * 3]     = inDirX * (length * 0.72 * t) + (Math.abs(inDirZ) > 0.5 ? spread : 0);
+        dPos[i * 3 + 1] = -t * (wy - 0.25) + (Math.random() - 0.5) * 0.35;
+        dPos[i * 3 + 2] = inDirZ * (length * 0.72 * t) + (Math.abs(inDirX) > 0.5 ? spread : 0);
+        dMeta.push({
+          baseX: dPos[i * 3],
+          baseY: dPos[i * 3 + 1],
+          baseZ: dPos[i * 3 + 2],
+          phase: Math.random() * 6.28,
+        });
+      }
+      dGeo.setAttribute('position', new THREE.BufferAttribute(dPos, 3));
+      const dPoints = new THREE.Points(dGeo, sharedBeamDustPointsMat);
+      dPoints.userData.noMerge = true;
+      shaftGrp.add(dPoints);
+      roomBeamDustSystems.push({ points: dPoints, geo: dGeo, pos: dPos, meta: dMeta, roomGroup: parent });
+      shaftGrp.userData.goboMesh = gobo;
+      shaftGrp.userData.dustPoints = dPoints;
+      shaftGrp.userData.coneMesh = coneMesh;
+      shaftGrp.userData.rayMesh = shaft1;
+      roomShaftGroups.push({ group: shaftGrp, roomGroup: parent, gobo, dPoints, coneMesh, shaft1 });
+
+      parent.add(shaftGrp);
+      return shaftGrp;
+    }
+
+    function populateRoomClutterAndAsymmetry(parent, roomW, roomD, seed = 1, isCorridor = false) {
+      const s = Math.abs(Math.round(seed * 17 + roomW * 7 + roomD * 13));
+      const hw = roomW * 0.38;
+      const hd = roomD * 0.38;
+      const jacketMats = [step2Mats.jacketDenim, step2Mats.jacketBurgundy, step2Mats.jacketOlive];
+
+      // 1. Scattered loose papers & crumpled paper balls on the floor
+      const paperCount = isCorridor ? 4 : 7;
+      for (let i = 0; i < paperCount; i++) {
+        const px = (((s + i * 37) % 100) / 50 - 1) * hw;
+        const pz = (((s + i * 61) % 100) / 50 - 1) * hd;
+        if (i % 3 === 2) {
+          const ball = new THREE.Mesh(clutterCrumpledGeo, step2Mats.paperSheet);
+          ball.position.set(px, 0.045, pz);
+          ball.rotation.set(i * 0.7, i * 1.3, 0.4);
+          parent.add(ball);
+        } else {
+          const sheet = new THREE.Mesh(clutterPaperGeo, step2Mats.paperSheet);
+          sheet.position.set(px, 0.012 + (i % 2) * 0.003, pz);
+          sheet.rotation.y = ((s + i * 29) % 628) * 0.01;
+          parent.add(sheet);
+        }
+      }
+
+      // 2. Upright & fallen water/glass bottles near walls & desks
+      const bottleCount = isCorridor ? 2 : 4;
+      for (let b = 0; b < bottleCount; b++) {
+        const bx = (((s + b * 43) % 100) / 50 - 1) * hw * 0.92;
+        const bz = (((s + b * 71) % 100) / 50 - 1) * hd * 0.92;
+        const bMat = (b % 2 === 0) ? step2Mats.bottleClearPlastic : step2Mats.bottleGreenGlass;
+        const bMesh = new THREE.Mesh(clutterBottleGeo, bMat);
+        if (b % 2 === 1) {
+          // Fallen bottle rolled onto its side
+          bMesh.position.set(bx, 0.04, bz);
+          bMesh.rotation.set(Math.PI / 2, (s + b * 1.9) % 6.28, 0);
+        } else {
+          bMesh.position.set(bx, 0.11, bz);
+          bMesh.rotation.y = b * 1.1;
+        }
+        parent.add(bMesh);
+      }
+
+      if (!isCorridor) {
+        // 3. Fallen / overturned chair lying on its side to break symmetry (visual only, no collider block)
+        const fcX = ((s % 2 === 0) ? -1 : 1) * (hw * 0.52);
+        const fcZ = (((s * 3) % 2 === 0) ? -1 : 1) * (hd * 0.46);
+        const fChair = new THREE.Mesh(fallenChairGeo, materials.chairWood);
+        fChair.position.set(fcX, 0.22, fcZ);
+        fChair.rotation.set(Math.PI / 2, 0.45 + (s % 5) * 0.5, 0.12);
+        parent.add(fChair);
+        addUnderFurnitureAO(parent, fcX, fcZ, 0.65, 0.65, fChair.rotation.y);
+
+        // 4. Forgotten student jacket / hoodie crumpled on floor or bench corner
+        const jkX = -fcX * 0.78;
+        const jkZ = -fcZ * 0.65;
+        const jacket = new THREE.Mesh(clutterJacketGeo, jacketMats[s % jacketMats.length]);
+        jacket.position.set(jkX, 0.05, jkZ);
+        jacket.rotation.set(Math.PI / 2, (s * 0.8) % 6.28, 0);
+        parent.add(jacket);
+
+        // 5. Crooked peeling posters on interior walls
+        const pGeo1 = posterGeoVariants[s % posterGeoVariants.length];
+        const pGeo2 = posterGeoVariants[(s + 2) % posterGeoVariants.length];
+        const p1 = new THREE.Mesh(pGeo1, oldPosterMat);
+        p1.position.set(-roomW * 0.48 + 0.03, 1.62, -roomD * 0.22);
+        p1.rotation.set(0, Math.PI / 2, 0.09);
+        parent.add(p1);
+
+        const p2 = new THREE.Mesh(pGeo2, oldPosterMat);
+        p2.position.set(roomW * 0.48 - 0.03, 1.54, roomD * 0.26);
+        p2.rotation.set(0, -Math.PI / 2, -0.07);
+        parent.add(p2);
+      }
+    }
+
+    // Helper: Populate Corridor / Veranda Strip with Lockers, Notice Boards, Water Dispenser, Fire Extinguisher, Wall Lamps, Floor Mats, Framed Photos, AO & Corridor Fog
     function populateCorridorProps(corridorX, corridorZ, floorY, length, wallSignX = 1, doorZList = [], zoneName = 'Corridor') {
       const cGroup = new THREE.Group();
       cGroup.position.set(corridorX, floorY, corridorZ);
       scene.add(cGroup);
+
+      // Requirement 3: Corridor Fog + Baked Baseboard AO + Clutter
+      spawnCorridorFogPlanes(cGroup, corridorX, floorY, corridorZ, length);
+      populateRoomClutterAndAsymmetry(cGroup, 1.6, length * 0.85, Math.abs(corridorX + corridorZ), true);
 
       // 1. Floor Mats at each doorway + Wall Lamp Sconces & Framed Photos beside doors
       doorZList.forEach((dz, idx) => {
@@ -7002,15 +8942,13 @@ export function getHideAndSeekHtml(): string {
         mat.rotation.y = Math.PI / 2;
         cGroup.add(mat);
 
-        // Wall lamp above/beside doorway
         const lampBack = new THREE.Mesh(step2Geos.wallLampBack, materials.castIronDark);
         lampBack.position.set(-wallSignX * 0.04, 2.38, localZ + 1.25);
         cGroup.add(lampBack);
-        const lampBulb = new THREE.Mesh(step2Geos.wallLampBulb, materials.ceilingLightEmissive);
+        const lampBulb = new THREE.Mesh(step2Geos.wallLampBulb, idx % 2 === 0 ? step2Mats.dyingTubeMat : step2Mats.deadTubeMat);
         lampBulb.position.set(-wallSignX * 0.10, 2.38, localZ + 1.25);
         cGroup.add(lampBulb);
 
-        // Framed campus photo on opposite side of doorway
         const frame = new THREE.Mesh(step2Geos.photoFrame, materials.chairWood);
         frame.position.set(-wallSignX * 0.04, 1.78, localZ - 1.35);
         cGroup.add(frame);
@@ -7018,7 +8956,12 @@ export function getHideAndSeekHtml(): string {
         photo.position.set(-wallSignX * 0.05, 1.78, localZ - 1.35);
         cGroup.add(photo);
 
-        // Potted plant flanking doorway
+        // Crooked wall poster beside corridor door
+        const corrPoster = new THREE.Mesh(posterGeoVariants[(idx + 1) % posterGeoVariants.length], oldPosterMat);
+        corrPoster.position.set(-wallSignX * 0.03, 1.56, localZ - 2.25);
+        corrPoster.rotation.set(0, wallSignX > 0 ? -Math.PI / 2 : Math.PI / 2, (idx % 2 === 0 ? 0.08 : -0.06));
+        cGroup.add(corrPoster);
+
         if (idx % 2 === 0) {
           const pot = new THREE.Mesh(step2Geos.plantPot, materials.nepalOchreDado);
           pot.position.set(-wallSignX * 0.36, 0.18, localZ + 1.45);
@@ -7026,6 +8969,7 @@ export function getHideAndSeekHtml(): string {
           const bush = new THREE.Mesh(step2Geos.plantBush, materials.foliageGreen);
           bush.position.set(-wallSignX * 0.36, 0.48, localZ + 1.45);
           cGroup.add(bush);
+          addUnderFurnitureAO(cGroup, -wallSignX * 0.36, localZ + 1.45, 0.55, 0.55);
         }
       });
 
@@ -7034,6 +8978,7 @@ export function getHideAndSeekHtml(): string {
       const lockerMesh = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
       lockerMesh.position.set(-wallSignX * 0.28, 0.96, lockerZ);
       cGroup.add(lockerMesh);
+      addUnderFurnitureAO(cGroup, -wallSignX * 0.28, lockerZ, 0.72, 2.05);
       [-0.56, 0, 0.56].forEach(lz => {
         const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
         lDoor.position.set(-wallSignX * 0.52, 1.05, lockerZ + lz);
@@ -7051,6 +8996,7 @@ export function getHideAndSeekHtml(): string {
       [-0.45, 0.0, 0.42].forEach((nz, nIdx) => {
         const note = new THREE.Mesh(step2Geos.noticeNote, step2Mats.paperSheet);
         note.position.set(-wallSignX * 0.06, 1.68 + (nIdx - 1) * 0.08, nbZ + nz);
+        note.rotation.x = (nIdx - 1) * 0.09;
         cGroup.add(note);
       });
 
@@ -7062,8 +9008,8 @@ export function getHideAndSeekHtml(): string {
       const wdJug = new THREE.Mesh(step2Geos.waterBottle, step2Mats.waterJugBlue);
       wdJug.position.set(-wallSignX * 0.24, 1.22, wdZ);
       cGroup.add(wdJug);
+      addUnderFurnitureAO(cGroup, -wallSignX * 0.24, wdZ, 0.58, 0.58);
 
-      // Flush simplified box collider for corridor locker bank & water dispenser (leaves >1.75m clear corridor walk width)
       const colCenterX = corridorX - wallSignX * 0.26;
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(colCenterX - 0.22, floorY, corridorZ + lockerZ - 0.92),
@@ -7079,8 +9025,8 @@ export function getHideAndSeekHtml(): string {
       feTop.position.set(-wallSignX * 0.12, 1.52, feZ);
       cGroup.add(feTop);
 
-      bakeStaticGroup(cGroup, true);
       cGroup.userData.isRoomGroup = true;
+      bakeStaticGroup(cGroup, true);
       roomVisibilityList.push({
         id: zoneName,
         type: 'corridor',
@@ -7107,6 +9053,7 @@ export function getHideAndSeekHtml(): string {
       const dais = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 1.4), materials.rotundaPlinthConcrete);
       dais.position.set(0, 0.06, boardZ + facingDirZ * 0.82);
       cGroup.add(dais);
+      addUnderFurnitureAO(cGroup, 0, boardZ + facingDirZ * 0.82, 5.85, 1.65);
 
       const wbMesh = new THREE.Mesh(sharedGeos.whiteboard, materials.whiteboardSurface);
       wbMesh.position.set(-1.1, 1.85, boardZ);
@@ -7126,10 +9073,11 @@ export function getHideAndSeekHtml(): string {
       rearCork.position.set(0, 1.75, facingDirZ * 3.12);
       cGroup.add(rearCork);
 
-      // Side Wall Wooden Bookshelf + Upper Wall Shelves with Books + Simplified Box Collider
+      // Side Wall Wooden Bookshelf + Upper Wall Shelves with Books + Simplified Box Collider + Under-Bookcase AO
       const bookcase = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.95, 2.1), materials.chairWood);
       bookcase.position.set(-3.15, 0.98, 0.4);
       cGroup.add(bookcase);
+      addUnderFurnitureAO(cGroup, -3.12, 0.4, 0.72, 2.35);
       const bookRow = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 1.85), materials.gandakiBluePole);
       bookRow.position.set(-3.10, 1.35, 0.4);
       cGroup.add(bookRow);
@@ -7153,11 +9101,12 @@ export function getHideAndSeekHtml(): string {
       buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.6, -Math.PI / 2, isNewariStyle);
       buildInteriorWindowCurtains(cGroup, 3.26, 1.92, 1.8, -Math.PI / 2, isNewariStyle);
 
-      // Teacher Podium & Lecture Desk with Simplified Box Colliders
+      // Teacher Podium & Lecture Desk with Simplified Box Colliders + Under-Furniture AO
       const podiumZ = facingDirZ * -2.1;
       const podium = new THREE.Mesh(sharedGeos.podiumBody, materials.chairWood);
       podium.position.set(-2.6, 0.64, podiumZ);
       cGroup.add(podium);
+      addUnderFurnitureAO(cGroup, -2.6, podiumZ, 0.85, 0.85);
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX - 2.95, floorY, unitCenterZ + podiumZ - 0.30),
         new THREE.Vector3(unitCenterX - 2.25, floorY + 1.25, unitCenterZ + podiumZ + 0.30)
@@ -7166,11 +9115,13 @@ export function getHideAndSeekHtml(): string {
       const tDesk = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
       tDesk.position.set(0.4, 0.82, podiumZ);
       cGroup.add(tDesk);
+      addUnderFurnitureAO(cGroup, 0.4, podiumZ, 1.55, 0.95);
       const tBook = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
       tBook.position.set(0.35, 0.86, podiumZ);
       cGroup.add(tBook);
       const tChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
       tChair.position.set(0.4, 0.50, podiumZ - facingDirZ * 0.5);
+      tChair.rotation.y = 0.14;
       cGroup.add(tChair);
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX + 0.4 - 0.62, floorY, unitCenterZ + podiumZ - 0.34),
@@ -7186,19 +9137,29 @@ export function getHideAndSeekHtml(): string {
         zone: unitTitle,
       });
 
-      // Student Desks & Benches with Bags and Books
+      // Student Desks & Benches with Organic Asymmetry, Under-Desk AO Decals, Bags, Books & Jackets
       const rowOffsetsZ = layoutVariant === 1
         ? [facingDirZ * -0.65, facingDirZ * 0.65, facingDirZ * 1.95]
         : [facingDirZ * -0.45, facingDirZ * 0.85, facingDirZ * 2.10];
       const colOffsetsX = [-2.35, 0.0, 2.35];
       const bagMats = [step2Mats.bagNavy, step2Mats.bagOlive, step2Mats.bagMaroon];
+      const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
 
       rowOffsetsZ.forEach((rz, rIdx) => {
         colOffsetsX.forEach((cx, cIdx) => {
           if (layoutVariant === 1 && rIdx === 0 && cIdx === 1) return;
 
+          const deskSeed = roomSeed + rIdx * 11 + cIdx * 19;
+          const jitterX = ((deskSeed % 7) - 3) * 0.018;
+          const jitterZ = (((deskSeed * 3) % 7) - 3) * 0.016;
+          const jitterYaw = (((deskSeed * 5) % 9) - 4) * 0.022;
+
+          // Baked contact AO decal directly under desk & bench footprint
+          addUnderFurnitureAO(cGroup, cx + jitterX, rz + jitterZ + facingDirZ * 0.18, 1.52, 1.12, jitterYaw);
+
           const deskGroup = new THREE.Group();
-          deskGroup.position.set(cx, 0, rz);
+          deskGroup.position.set(cx + jitterX, 0, rz + jitterZ);
+          deskGroup.rotation.y = jitterYaw;
 
           const topMesh = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
           topMesh.position.y = 0.75;
@@ -7215,12 +9176,15 @@ export function getHideAndSeekHtml(): string {
           legR.position.set(0.58, 0.37, 0);
           deskGroup.add(legR);
 
-          const benchZ = facingDirZ * 0.44;
+          const benchZ = facingDirZ * 0.44 + ((deskSeed % 5) - 2) * 0.025;
+          const benchYaw = (((deskSeed * 7) % 7) - 3) * 0.028;
           const bSeat = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
           bSeat.position.set(0, 0.44, benchZ);
+          bSeat.rotation.y = benchYaw;
           deskGroup.add(bSeat);
           const bBack = new THREE.Mesh(step2Geos.benchLongBack, materials.chairWood);
           bBack.position.set(0, 0.62, benchZ + facingDirZ * 0.16);
+          bBack.rotation.y = benchYaw;
           deskGroup.add(bBack);
 
           if ((rIdx + cIdx) % 2 === 0) {
@@ -7240,6 +9204,12 @@ export function getHideAndSeekHtml(): string {
             bag.position.set(-0.36, 0.64, benchZ);
             bag.rotation.y = 0.25;
             deskGroup.add(bag);
+          } else if (rIdx === 1 && cIdx === 2) {
+            // Draped jacket over bench corner to break symmetry
+            const jk = new THREE.Mesh(clutterJacketGeo, step2Mats.jacketBurgundy);
+            jk.position.set(0.38, 0.52, benchZ);
+            jk.rotation.set(0.25, 0.4, 0.15);
+            deskGroup.add(jk);
           }
 
           cGroup.add(deskGroup);
@@ -7284,6 +9254,7 @@ export function getHideAndSeekHtml(): string {
       const srvRack = new THREE.Mesh(step2Geos.serverRack, materials.castIronDark);
       srvRack.position.set(srvX, 1.08, srvZ);
       cGroup.add(srvRack);
+      addUnderFurnitureAO(cGroup, srvX, srvZ, 1.15, 1.15);
       [-0.4, 0.0, 0.4, 0.75].forEach((ly, lIdx) => {
         const led = new THREE.Mesh(
           new THREE.BoxGeometry(0.48, 0.035, 0.04),
@@ -7309,8 +9280,10 @@ export function getHideAndSeekHtml(): string {
       const colsX = [-1.85, 1.45];
       rowsZ.forEach((rz, rIdx) => {
         colsX.forEach((cx, cIdx) => {
+          addUnderFurnitureAO(cGroup, cx, rz + facingDirZ * 0.16, 1.50, 1.08, (rIdx - cIdx) * 0.02);
           const wGrp = new THREE.Group();
           wGrp.position.set(cx, 0, rz);
+          wGrp.rotation.y = (rIdx - cIdx) * 0.018;
 
           const desk = new THREE.Mesh(sharedGeos.deskTop, materials.deskSteelFrame);
           desk.position.y = 0.75;
@@ -7324,19 +9297,24 @@ export function getHideAndSeekHtml(): string {
             const isOn = (rIdx + cIdx + mIdx) % 2 === 0;
             const mon = new THREE.Mesh(step2Geos.monitorPanel, isOn ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
             mon.position.set(mx, 0.98, -facingDirZ * 0.10);
+            mon.rotation.y = (mIdx === 0 ? 0.08 : -0.06);
             wGrp.add(mon);
             const stand = new THREE.Mesh(step2Geos.monitorStand, materials.castIronDark);
             stand.position.set(mx, 0.82, -facingDirZ * 0.12);
             wGrp.add(stand);
             const kb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
             kb.position.set(mx, 0.79, facingDirZ * 0.12);
+            kb.rotation.y = (mIdx === 0 ? -0.05 : 0.09);
             wGrp.add(kb);
 
+            const chairYaw = ((rIdx * 3 + cIdx + mIdx) % 5 - 2) * 0.11;
             const chSeat = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
             chSeat.position.set(mx, 0.46, facingDirZ * 0.44);
+            chSeat.rotation.y = chairYaw;
             wGrp.add(chSeat);
             const chBack = new THREE.Mesh(sharedGeos.chairBack, materials.castIronDark);
             chBack.position.set(mx, 0.68, facingDirZ * 0.62);
+            chBack.rotation.y = chairYaw;
             wGrp.add(chBack);
           });
 
@@ -7377,6 +9355,7 @@ export function getHideAndSeekHtml(): string {
         shelf.rotation.y = Math.PI / 2;
         shelf.position.set(shelfX, 1.14, sz);
         cGroup.add(shelf);
+        addUnderFurnitureAO(cGroup, shelfX, sz, 2.75, 0.85);
 
         [0.48, 0.96, 1.44, 1.92].forEach((by, bIdx) => {
           const books = new THREE.Mesh(
@@ -7410,6 +9389,7 @@ export function getHideAndSeekHtml(): string {
         const rTable = new THREE.Mesh(step2Geos.readingTable, materials.deskWoodTop);
         rTable.position.set(tx, 0.38, tz);
         cGroup.add(rTable);
+        addUnderFurnitureAO(cGroup, tx, tz, 1.85, 1.55);
 
         const lampStand = new THREE.Mesh(step2Geos.readingLampStand, materials.brassGajur);
         lampStand.position.set(tx, 0.92, tz);
@@ -7420,11 +9400,13 @@ export function getHideAndSeekHtml(): string {
 
         const openBk = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
         openBk.position.set(tx - 0.38, 0.78, tz + 0.22);
+        openBk.rotation.y = (tIdx === 0 ? 0.22 : -0.31);
         cGroup.add(openBk);
 
-        [-0.45, 0.45].forEach(chZ => {
+        [-0.45, 0.45].forEach((chZ, chIdx) => {
           const ch = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
-          ch.position.set(tx, 0.45, tz + chZ * 1.45);
+          ch.position.set(tx + (chIdx === 0 ? -0.06 : 0.08), 0.45, tz + chZ * 1.45);
+          ch.rotation.y = (chIdx === 0 ? 0.16 : -0.22);
           cGroup.add(ch);
         });
 
@@ -7450,9 +9432,11 @@ export function getHideAndSeekHtml(): string {
         if (fIdx % 2 === 0) {
           const pStack = new THREE.Mesh(step2Geos.paperStack, step2Mats.paperSheet);
           pStack.position.set(fx, 1.46, -2.75);
+          pStack.rotation.y = 0.14;
           cGroup.add(pStack);
         }
       });
+      addUnderFurnitureAO(cGroup, -1.05, -2.75, 2.95, 0.90);
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX - 2.45, floorY, unitCenterZ - 3.10),
         new THREE.Vector3(unitCenterX + 0.35, floorY + 1.42, unitCenterZ - 2.40)
@@ -7462,6 +9446,7 @@ export function getHideAndSeekHtml(): string {
       const sBase = new THREE.Mesh(step2Geos.sofaBase, step2Mats.sofaLeather);
       sBase.position.set(sofaX, 0.21, sofaZ);
       cGroup.add(sBase);
+      addUnderFurnitureAO(cGroup, sofaX, sofaZ, 2.15, 1.10);
       const sBack = new THREE.Mesh(step2Geos.sofaBack, step2Mats.sofaLeather);
       sBack.position.set(sofaX, 0.56, sofaZ + 0.30);
       cGroup.add(sBack);
@@ -7482,18 +9467,23 @@ export function getHideAndSeekHtml(): string {
       deskCoords.forEach(([dx, dz], dIdx) => {
         const oDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
         oDesk.position.set(dx, 0.38, dz);
+        oDesk.rotation.y = (dIdx - 1) * 0.025;
         cGroup.add(oDesk);
+        addUnderFurnitureAO(cGroup, dx, dz + 0.10, 1.72, 1.18, oDesk.rotation.y);
 
         const mon = new THREE.Mesh(step2Geos.monitorPanel, dIdx === 0 ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
         mon.position.set(dx - 0.28, 0.94, dz - 0.12);
+        mon.rotation.y = 0.12;
         cGroup.add(mon);
 
         const papers = new THREE.Mesh(step2Geos.paperStack, step2Mats.paperSheet);
         papers.position.set(dx + 0.36, 0.84, dz + 0.08);
+        papers.rotation.y = -0.18;
         cGroup.add(papers);
 
         const chair = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
-        chair.position.set(dx, 0.46, dz + 0.56);
+        chair.position.set(dx + (dIdx === 1 ? 0.10 : -0.06), 0.46, dz + 0.56);
+        chair.rotation.y = (dIdx === 1 ? -0.28 : 0.19);
         cGroup.add(chair);
 
         const wx = unitCenterX + dx;
@@ -7534,6 +9524,7 @@ export function getHideAndSeekHtml(): string {
         const bowl = new THREE.Mesh(step2Geos.toiletBase, step2Mats.ceramicWhite);
         bowl.position.set(2.45, 0.21, sz);
         cGroup.add(bowl);
+        addUnderFurnitureAO(cGroup, 2.45, sz, 0.68, 0.68);
         const tank = new THREE.Mesh(step2Geos.toiletTank, step2Mats.ceramicWhite);
         tank.position.set(2.75, 0.58, sz);
         cGroup.add(tank);
@@ -7563,6 +9554,7 @@ export function getHideAndSeekHtml(): string {
       const vanity = new THREE.Mesh(step2Geos.sinkCounter, materials.rotundaPlinthConcrete);
       vanity.position.set(-1.65, 0.42, -1.2);
       cGroup.add(vanity);
+      addUnderFurnitureAO(cGroup, -1.65, -1.2, 0.95, 2.65);
       [-1.9, -1.2, -0.5].forEach(bz => {
         const basin = new THREE.Mesh(step2Geos.sinkBasin, step2Mats.ceramicWhite);
         basin.position.set(-1.65, 0.86, bz);
@@ -7587,6 +9579,7 @@ export function getHideAndSeekHtml(): string {
         const prep = new THREE.Mesh(step2Geos.canteenCounter, step2Mats.stainlessSteel);
         prep.position.set(1.85, 0.49, 0);
         cGroup.add(prep);
+        addUnderFurnitureAO(cGroup, 1.85, 0, 1.15, 4.45);
         const hood = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.55, 2.60), step2Mats.stainlessSteel);
         hood.position.set(2.45, 2.25, -0.4);
         cGroup.add(hood);
@@ -7594,6 +9587,7 @@ export function getHideAndSeekHtml(): string {
         const rack = new THREE.Mesh(step2Geos.storageShelf, materials.deskSteelFrame);
         rack.position.set(-1.85, 1.05, -1.4);
         cGroup.add(rack);
+        addUnderFurnitureAO(cGroup, -1.85, -1.4, 0.92, 2.45);
         [-2.1, -1.4, -0.7].forEach(cz => {
           const crate = new THREE.Mesh(step2Geos.crateBox, step2Mats.cardboardCrate);
           crate.position.set(-1.85, 0.72, cz);
@@ -7622,6 +9616,7 @@ export function getHideAndSeekHtml(): string {
         const counter = new THREE.Mesh(step2Geos.canteenCounter, materials.chairWood);
         counter.position.set(1.95, 0.49, -0.6);
         cGroup.add(counter);
+        addUnderFurnitureAO(cGroup, 1.95, -0.6, 1.15, 4.45);
         const sCase = new THREE.Mesh(step2Geos.snackCase, materials.windowWarmLit);
         sCase.position.set(1.95, 1.22, -1.2);
         cGroup.add(sCase);
@@ -7635,10 +9630,13 @@ export function getHideAndSeekHtml(): string {
           const tx = -1.25;
           const tbl = new THREE.Mesh(step2Geos.readingTable, materials.deskWoodTop);
           tbl.position.set(tx, 0.38, tz);
+          tbl.rotation.y = (tIdx === 0 ? 0.03 : -0.025);
           cGroup.add(tbl);
-          [-0.65, 0.65].forEach(bz => {
+          addUnderFurnitureAO(cGroup, tx, tz, 1.85, 1.65, tbl.rotation.y);
+          [-0.65, 0.65].forEach((bz, bIdx) => {
             const bnc = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
-            bnc.position.set(tx, 0.44, tz + bz);
+            bnc.position.set(tx + (bIdx === 0 ? 0.04 : -0.05), 0.44, tz + bz);
+            bnc.rotation.y = (bIdx === 0 ? 0.05 : -0.04);
             cGroup.add(bnc);
           });
           const wx = unitCenterX + tx;
@@ -7665,10 +9663,12 @@ export function getHideAndSeekHtml(): string {
         const rack = new THREE.Mesh(step2Geos.storageShelf, materials.deskSteelFrame);
         rack.position.set(sx, 1.05, -0.8);
         cGroup.add(rack);
+        addUnderFurnitureAO(cGroup, sx, -0.8, 0.92, 2.45);
 
         [0.42, 1.05, 1.62].forEach((cy, cIdx) => {
           const box = new THREE.Mesh(step2Geos.crateBox, step2Mats.cardboardCrate);
-          box.position.set(sx, cy, -1.2 + cIdx * 0.55);
+          box.position.set(sx + ((cIdx - 1) * 0.04), cy, -1.2 + cIdx * 0.55);
+          box.rotation.y = (cIdx - 1) * 0.16;
           cGroup.add(box);
         });
 
@@ -7692,6 +9692,7 @@ export function getHideAndSeekHtml(): string {
       cab.rotation.y = Math.PI / 2;
       cab.position.set(0, 0.96, 2.45);
       cGroup.add(cab);
+      addUnderFurnitureAO(cGroup, 0, 2.45, 2.05, 0.75);
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX - 0.92, floorY, unitCenterZ + 2.45 - 0.28),
         new THREE.Vector3(unitCenterX + 0.92, floorY + 1.95, unitCenterZ + 2.45 + 0.28)
@@ -7699,10 +9700,9 @@ export function getHideAndSeekHtml(): string {
     }
 
     /* =========================================================================
-       PHASE B.1: DATA-DRIVEN ROOM DEFINITION TABLE
-       Replaces all indexOf / roomCode if-chains with a declarative table of
-       room definitions: { id, building, bounds, archetype, furniture,
-       hidingSpots, lightMood, waypoints }. Adding a new room requires only data!
+       PHASE B.1 & REQUIREMENT 2: DATA-DRIVEN ROOM DEFINITION TABLE WITH PER-ROOM LIGHT MOODS
+       Each room has an explicit lightMood from the 5 atmospheric archetypes:
+       'dark' | 'dying_tube' | 'moonlight' | 'warm_lamp' | 'emergency_red'
        ========================================================================= */
     const ROOM_DEFINITIONS = {
       'West Wing L1 Room 1': {
@@ -7713,28 +9713,28 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-l1-r1-door', x: -10.6, y: 0.18, z: -28.0, kind: 'door' }, { id: 'wp-l1-r1-in', x: -7.5, y: 0.18, z: -28.0, kind: 'interior' }],
       },
       'West Wing L1 Room 2': {
-        id: 'West Wing L1 Room 2', building: 'L1', archetype: 'classroom_seminar', lightMood: 'moonlit_window',
+        id: 'West Wing L1 Room 2', building: 'L1', archetype: 'classroom_seminar', lightMood: 'moonlight',
         bounds: { minX: -10.3, maxX: -2.7, minZ: -23.0, maxZ: -13.0, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['teacher_podium', 'teacher_desk', 'seminar_desks_u', 'side_bookshelf', 'wall_shelves', 'ceiling_fan'],
         hidingSpots: ['podium', 'student_desks'],
         waypoints: [{ id: 'wp-l1-r2-door', x: -10.6, y: 0.18, z: -18.0, kind: 'door' }, { id: 'wp-l1-r2-in', x: -6.5, y: 0.18, z: -18.6, kind: 'interior' }],
       },
       'West Wing L1 Room 3': {
-        id: 'West Wing L1 Room 3', building: 'L1', archetype: 'classroom_standard', lightMood: 'dying_tube',
+        id: 'West Wing L1 Room 3', building: 'L1', archetype: 'classroom_standard', lightMood: 'dark',
         bounds: { minX: -10.3, maxX: -2.7, minZ: -13.0, maxZ: -3.0, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf', 'wall_shelves', 'ceiling_fan'],
         hidingSpots: ['podium', 'student_desks'],
         waypoints: [{ id: 'wp-l1-r3-door', x: -10.6, y: 0.18, z: -8.0, kind: 'door' }, { id: 'wp-l1-r3-in', x: -7.5, y: 0.18, z: -8.0, kind: 'interior' }],
       },
       'West Wing L2 Room 1': {
-        id: 'West Wing L2 Room 1', building: 'L2', archetype: 'computer_lab', lightMood: 'cold_monitor_glow',
+        id: 'West Wing L2 Room 1', building: 'L2', archetype: 'computer_lab', lightMood: 'dying_tube',
         bounds: { minX: -21.3, maxX: -13.7, minZ: -26.0, maxZ: -16.67, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['server_rack_leds', 'dual_monitor_workstations_3x2', 'cable_raceways', 'whiteboard', 'wall_fans'],
         hidingSpots: ['server_rack', 'workstation_desks'],
         waypoints: [{ id: 'wp-l2-r1-door', x: -13.4, y: 0.18, z: -21.33, kind: 'door' }, { id: 'wp-l2-r1-in', x: -17.7, y: 0.18, z: -21.33, kind: 'interior' }],
       },
       'West Wing L2 Room 2': {
-        id: 'West Wing L2 Room 2', building: 'L2', archetype: 'computer_lab', lightMood: 'cold_monitor_glow',
+        id: 'West Wing L2 Room 2', building: 'L2', archetype: 'computer_lab', lightMood: 'dark',
         bounds: { minX: -21.3, maxX: -13.7, minZ: -16.67, maxZ: -7.33, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['server_rack_leds', 'dual_monitor_workstations_3x2', 'cable_raceways', 'whiteboard', 'wall_fans'],
         hidingSpots: ['server_rack', 'workstation_desks'],
@@ -7748,21 +9748,21 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-l2-r3-door', x: -13.4, y: 0.18, z: -2.67, kind: 'door' }, { id: 'wp-l2-r3-in', x: -17.5, y: 0.18, z: -2.67, kind: 'interior' }],
       },
       'West Wing L3 Room 1': {
-        id: 'West Wing L3 Room 1', building: 'L3', archetype: 'library', lightMood: 'warm_desk_lamp',
+        id: 'West Wing L3 Room 1', building: 'L3', archetype: 'library', lightMood: 'warm_lamp',
         bounds: { minX: -21.3, maxX: -13.7, minZ: 9.0, maxZ: 20.0, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['tall_bookshelves_x3', 'reading_tables_x2', 'banker_lamps', 'curtains'],
         hidingSpots: ['bookshelf_aisle_1', 'bookshelf_aisle_2', 'bookshelf_aisle_3'],
         waypoints: [{ id: 'wp-l3-r1-door', x: -13.4, y: 0.18, z: 14.5, kind: 'door' }, { id: 'wp-l3-r1-in', x: -17.2, y: 0.18, z: 13.4, kind: 'interior' }],
       },
       'West Wing L3 Room 2': {
-        id: 'West Wing L3 Room 2', building: 'L3', archetype: 'library', lightMood: 'warm_desk_lamp',
+        id: 'West Wing L3 Room 2', building: 'L3', archetype: 'library', lightMood: 'moonlight',
         bounds: { minX: -21.3, maxX: -13.7, minZ: 20.0, maxZ: 31.0, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['tall_bookshelves_x3', 'reading_tables_x2', 'banker_lamps', 'curtains'],
         hidingSpots: ['bookshelf_aisle_1', 'bookshelf_aisle_2', 'bookshelf_aisle_3'],
         waypoints: [{ id: 'wp-l3-r2-door', x: -13.4, y: 0.18, z: 25.5, kind: 'door' }, { id: 'wp-l3-r2-in', x: -17.2, y: 0.18, z: 24.4, kind: 'interior' }],
       },
       'East Wing R1 Room 1': {
-        id: 'East Wing R1 Room 1', building: 'R1', archetype: 'staff_office', lightMood: 'warm_desk_lamp',
+        id: 'East Wing R1 Room 1', building: 'R1', archetype: 'staff_office', lightMood: 'warm_lamp',
         bounds: { minX: 10.7, maxX: 18.3, minZ: -37.0, maxZ: -28.33, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3', 'monitors'],
         hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
@@ -7776,21 +9776,21 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-r1-r2-door', x: 10.4, y: 0.18, z: -24.0, kind: 'door' }, { id: 'wp-r1-r2-in', x: 14.5, y: 0.18, z: -24.0, kind: 'interior' }],
       },
       'East Wing R1 Room 3': {
-        id: 'East Wing R1 Room 3', building: 'R1', archetype: 'staff_office', lightMood: 'moonlit_window',
+        id: 'East Wing R1 Room 3', building: 'R1', archetype: 'staff_office', lightMood: 'moonlight',
         bounds: { minX: 10.7, maxX: 18.3, minZ: -19.67, maxZ: -11.0, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3', 'monitors'],
         hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
         waypoints: [{ id: 'wp-r1-r3-door', x: 10.4, y: 0.18, z: -15.33, kind: 'door' }, { id: 'wp-r1-r3-in', x: 14.5, y: 0.18, z: -15.33, kind: 'interior' }],
       },
       'East Wing R2 Room 1': {
-        id: 'East Wing R2 Room 1', building: 'R2', archetype: 'classroom_standard', lightMood: 'dying_tube',
+        id: 'East Wing R2 Room 1', building: 'R2', archetype: 'classroom_standard', lightMood: 'dark',
         bounds: { minX: 21.7, maxX: 29.3, minZ: -27.0, maxZ: -18.33, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf', 'ceiling_fan'],
         hidingSpots: ['podium', 'student_desks'],
         waypoints: [{ id: 'wp-r2-r1-door', x: 21.4, y: 0.18, z: -22.67, kind: 'door' }, { id: 'wp-r2-r1-in', x: 24.5, y: 0.18, z: -22.67, kind: 'interior' }],
       },
       'East Wing R2 Room 2': {
-        id: 'East Wing R2 Room 2', building: 'R2', archetype: 'classroom_seminar', lightMood: 'moonlit_window',
+        id: 'East Wing R2 Room 2', building: 'R2', archetype: 'classroom_seminar', lightMood: 'moonlight',
         bounds: { minX: 21.7, maxX: 29.3, minZ: -18.33, maxZ: -9.67, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['teacher_podium', 'teacher_desk', 'seminar_desks_u', 'side_bookshelf', 'ceiling_fan'],
         hidingSpots: ['podium', 'student_desks'],
@@ -7804,14 +9804,14 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-r2-r3-door', x: 21.4, y: 0.18, z: -5.33, kind: 'door' }, { id: 'wp-r2-r3-in', x: 25.5, y: 0.18, z: -5.33, kind: 'interior' }],
       },
       'East Wing R4 Room 1': {
-        id: 'East Wing R4 Room 1', building: 'R4', archetype: 'canteen_dining', lightMood: 'dim_amber',
+        id: 'East Wing R4 Room 1', building: 'R4', archetype: 'canteen_dining', lightMood: 'warm_lamp',
         bounds: { minX: 21.7, maxX: 29.3, minZ: 6.0, maxZ: 15.33, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['serving_counter', 'glass_snack_case', 'dining_tables_x2', 'benches'],
         hidingSpots: ['dining_table_1', 'dining_table_2'],
         waypoints: [{ id: 'wp-r4-r1-door', x: 21.4, y: 0.18, z: 10.67, kind: 'door' }, { id: 'wp-r4-r1-in', x: 25.5, y: 0.18, z: 10.67, kind: 'interior' }],
       },
       'East Wing R4 Room 2': {
-        id: 'East Wing R4 Room 2', building: 'R4', archetype: 'canteen_dining', lightMood: 'dim_amber',
+        id: 'East Wing R4 Room 2', building: 'R4', archetype: 'canteen_dining', lightMood: 'dark',
         bounds: { minX: 21.7, maxX: 29.3, minZ: 15.33, maxZ: 24.67, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['serving_counter', 'glass_snack_case', 'dining_tables_x2', 'benches'],
         hidingSpots: ['dining_table_1', 'dining_table_2'],
@@ -7825,49 +9825,49 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-r4-r3-door', x: 21.4, y: 0.18, z: 29.33, kind: 'door' }, { id: 'wp-r4-r3-in', x: 25.5, y: 0.18, z: 29.33, kind: 'interior' }],
       },
       'Newari Heritage Block W1 Room 1': {
-        id: 'Newari Heritage Block W1 Room 1', building: 'W1', archetype: 'classroom_standard', lightMood: 'dim_amber',
+        id: 'Newari Heritage Block W1 Room 1', building: 'W1', archetype: 'classroom_standard', lightMood: 'warm_lamp',
         bounds: { minX: -38.75, maxX: -34.0, minZ: -49.0, maxZ: -35.0, floorY: 0.22, ceilingY: 3.60 },
         furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf'],
         hidingSpots: ['podium', 'student_desks'],
         waypoints: [{ id: 'wp-w1-r1-door', x: -36.38, y: 0.22, z: -34.6, kind: 'door' }, { id: 'wp-w1-r1-in', x: -35.2, y: 0.22, z: -42.0, kind: 'interior' }],
       },
       'Newari Heritage Block W1 Room 2': {
-        id: 'Newari Heritage Block W1 Room 2', building: 'W1', archetype: 'classroom_seminar', lightMood: 'dim_amber',
+        id: 'Newari Heritage Block W1 Room 2', building: 'W1', archetype: 'classroom_seminar', lightMood: 'moonlight',
         bounds: { minX: -34.0, maxX: -29.25, minZ: -49.0, maxZ: -35.0, floorY: 0.22, ceilingY: 3.60 },
         furniture: ['teacher_podium', 'teacher_desk', 'seminar_desks_u', 'side_bookshelf'],
         hidingSpots: ['podium', 'student_desks'],
         waypoints: [{ id: 'wp-w1-r2-door', x: -31.63, y: 0.22, z: -34.6, kind: 'door' }, { id: 'wp-w1-r2-in', x: -31.63, y: 0.22, z: -42.6, kind: 'interior' }],
       },
       'Newari Cultural Hall W2 South': {
-        id: 'Newari Cultural Hall W2 South', building: 'W2', archetype: 'classroom_standard', lightMood: 'dim_amber',
+        id: 'Newari Cultural Hall W2 South', building: 'W2', archetype: 'classroom_standard', lightMood: 'dark',
         bounds: { minX: -39.5, maxX: -28.5, minZ: -30.0, maxZ: -22.0, floorY: 0.22, ceilingY: 3.60 },
         furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf'],
         hidingSpots: ['podium', 'student_desks'],
         waypoints: [{ id: 'wp-w2-door', x: -28.1, y: 0.22, z: -22.0, kind: 'door' }, { id: 'wp-w2-south-in', x: -32.8, y: 0.22, z: -25.6, kind: 'interior' }],
       },
       'West Wing L3 Heritage Library W2': {
-        id: 'West Wing L3 Heritage Library W2', building: 'W2', archetype: 'library', lightMood: 'warm_desk_lamp',
+        id: 'West Wing L3 Heritage Library W2', building: 'W2', archetype: 'library', lightMood: 'warm_lamp',
         bounds: { minX: -39.5, maxX: -28.5, minZ: -22.0, maxZ: -14.0, floorY: 0.22, ceilingY: 3.60 },
         furniture: ['tall_bookshelves_x3', 'reading_tables_x2', 'banker_lamps'],
         hidingSpots: ['bookshelf_aisle_1', 'bookshelf_aisle_2', 'bookshelf_aisle_3'],
         waypoints: [{ id: 'wp-w2-north-in', x: -33.6, y: 0.22, z: -19.5, kind: 'interior' }],
       },
       'Building W3 West Wing Room 1': {
-        id: 'Building W3 West Wing Room 1', building: 'W3', archetype: 'computer_lab', lightMood: 'cold_monitor_glow',
+        id: 'Building W3 West Wing Room 1', building: 'W3', archetype: 'computer_lab', lightMood: 'dying_tube',
         bounds: { minX: -38.75, maxX: -34.0, minZ: -9.0, maxZ: 5.0, floorY: 0.22, ceilingY: 3.60 },
         furniture: ['server_rack_leds', 'dual_monitor_workstations_3x2', 'cable_raceways'],
         hidingSpots: ['server_rack', 'workstation_desks'],
         waypoints: [{ id: 'wp-w3-r1-door', x: -36.38, y: 0.22, z: 5.4, kind: 'door' }, { id: 'wp-w3-r1-in', x: -36.5, y: 0.22, z: -2.0, kind: 'interior' }],
       },
       'Building W3 West Wing Room 2': {
-        id: 'Building W3 West Wing Room 2', building: 'W3', archetype: 'staff_office', lightMood: 'warm_desk_lamp',
+        id: 'Building W3 West Wing Room 2', building: 'W3', archetype: 'staff_office', lightMood: 'warm_lamp',
         bounds: { minX: -34.0, maxX: -29.25, minZ: -9.0, maxZ: 5.0, floorY: 0.22, ceilingY: 3.60 },
         furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3'],
         hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
         waypoints: [{ id: 'wp-w3-r2-door', x: -31.63, y: 0.22, z: 5.4, kind: 'door' }, { id: 'wp-w3-r2-in', x: -31.63, y: 0.22, z: -2.0, kind: 'interior' }],
       },
       'Building W4 West Wing Room 1': {
-        id: 'Building W4 West Wing Room 1', building: 'W4', archetype: 'classroom_standard', lightMood: 'dying_tube',
+        id: 'Building W4 West Wing Room 1', building: 'W4', archetype: 'classroom_standard', lightMood: 'moonlight',
         bounds: { minX: -38.75, maxX: -34.0, minZ: 11.0, maxZ: 25.0, floorY: 0.22, ceilingY: 3.60 },
         furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf'],
         hidingSpots: ['podium', 'student_desks'],
@@ -7881,7 +9881,7 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-w4-r2-door', x: -31.63, y: 0.22, z: 25.4, kind: 'door' }, { id: 'wp-w4-r2-in', x: -31.63, y: 0.22, z: 18.0, kind: 'interior' }],
       },
       'Security Guardhouse': {
-        id: 'Security Guardhouse', building: 'GUARDHOUSE', archetype: 'guardhouse', lightMood: 'cold_monitor_glow',
+        id: 'Security Guardhouse', building: 'GUARDHOUSE', archetype: 'guardhouse', lightMood: 'warm_lamp',
         bounds: { minX: 3.7, maxX: 8.3, minZ: -60.3, maxZ: -55.7, floorY: 0.16, ceilingY: 3.20 },
         furniture: ['cctv_desk', 'cctv_monitor', 'steel_locker'],
         hidingSpots: ['guardhouse_desk'],
@@ -7895,35 +9895,35 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-rot-101-door', x: 1.6, y: 0.48, z: 59.0, kind: 'door' }, { id: 'wp-rot-101-in', x: -4.0, y: 0.48, z: 63.2, kind: 'interior' }],
       },
       'Rotunda Ground East Hall 102': {
-        id: 'Rotunda Ground East Hall 102', roomCode: '102', building: 'ROTUNDA', archetype: 'staff_office', lightMood: 'warm_desk_lamp',
+        id: 'Rotunda Ground East Hall 102', roomCode: '102', building: 'ROTUNDA', archetype: 'staff_office', lightMood: 'warm_lamp',
         bounds: { minX: 10.6, maxX: 24.8, minZ: 57.2, maxZ: 70.8, floorY: 0.48, ceilingY: 3.86 },
         furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3', 'side_bookcase'],
         hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
         waypoints: [{ id: 'wp-rot-102-door', x: 10.4, y: 0.48, z: 59.0, kind: 'door' }, { id: 'wp-rot-102-in', x: 17.7, y: 0.48, z: 64.0, kind: 'interior' }],
       },
       'Rotunda 1st-Floor West Class 201': {
-        id: 'Rotunda 1st-Floor West Class 201', roomCode: '201', building: 'ROTUNDA', archetype: 'rotunda_lecture', lightMood: 'moonlit_window',
+        id: 'Rotunda 1st-Floor West Class 201', roomCode: '201', building: 'ROTUNDA', archetype: 'rotunda_lecture', lightMood: 'moonlight',
         bounds: { minX: -12.8, maxX: 1.4, minZ: 57.2, maxZ: 70.8, floorY: 4.08, ceilingY: 7.46 },
         furniture: ['teaching_dais', 'prof_desk', 'lectern_podium', 'student_desks_4x3', 'side_bookcase', 'locker_cabinet'],
         hidingSpots: ['prof_desk', 'student_desks'],
         waypoints: [{ id: 'wp-rot-201-door', x: 1.6, y: 4.08, z: 69.2, kind: 'door' }, { id: 'wp-rot-201-in', x: -4.0, y: 4.08, z: 63.2, kind: 'interior' }],
       },
       'Rotunda 1st-Floor East Class 202': {
-        id: 'Rotunda 1st-Floor East Class 202', roomCode: '202', building: 'ROTUNDA', archetype: 'library', lightMood: 'warm_desk_lamp',
+        id: 'Rotunda 1st-Floor East Class 202', roomCode: '202', building: 'ROTUNDA', archetype: 'library', lightMood: 'warm_lamp',
         bounds: { minX: 10.6, maxX: 24.8, minZ: 57.2, maxZ: 70.8, floorY: 4.08, ceilingY: 7.46 },
         furniture: ['tall_bookshelves_x3', 'reading_tables_x2', 'banker_lamps', 'side_bookcase'],
         hidingSpots: ['bookshelf_aisle_1', 'bookshelf_aisle_2', 'bookshelf_aisle_3'],
         waypoints: [{ id: 'wp-rot-202-door', x: 10.4, y: 4.08, z: 69.2, kind: 'door' }, { id: 'wp-rot-202-in', x: 18.0, y: 4.08, z: 62.9, kind: 'interior' }],
       },
       'Rotunda 2nd-Floor West Seminar 301': {
-        id: 'Rotunda 2nd-Floor West Seminar 301', roomCode: '301', building: 'ROTUNDA', archetype: 'rotunda_seminar', lightMood: 'dying_tube',
+        id: 'Rotunda 2nd-Floor West Seminar 301', roomCode: '301', building: 'ROTUNDA', archetype: 'rotunda_seminar', lightMood: 'dark',
         bounds: { minX: -12.8, maxX: 1.4, minZ: 57.2, maxZ: 70.8, floorY: 7.68, ceilingY: 11.06 },
         furniture: ['teaching_dais', 'prof_desk', 'lectern_podium', 'seminar_laptops_4x3', 'side_bookcase'],
         hidingSpots: ['prof_desk', 'student_desks'],
         waypoints: [{ id: 'wp-rot-301-door', x: 1.6, y: 7.68, z: 59.0, kind: 'door' }, { id: 'wp-rot-301-in', x: -4.0, y: 7.68, z: 63.2, kind: 'interior' }],
       },
       'Rotunda 2nd-Floor East Lab 302': {
-        id: 'Rotunda 2nd-Floor East Lab 302', roomCode: '302', building: 'ROTUNDA', archetype: 'rotunda_lab', lightMood: 'cold_monitor_glow',
+        id: 'Rotunda 2nd-Floor East Lab 302', roomCode: '302', building: 'ROTUNDA', archetype: 'rotunda_lab', lightMood: 'emergency_red',
         bounds: { minX: 10.6, maxX: 24.8, minZ: 57.2, maxZ: 70.8, floorY: 7.68, ceilingY: 11.06 },
         furniture: ['teaching_dais', 'prof_desk', 'twin_server_racks', 'dual_monitor_desks_4x3', 'side_bookcase'],
         hidingSpots: ['prof_desk', 'workstation_desks'],
@@ -7932,13 +9932,28 @@ export function getHideAndSeekHtml(): string {
     };
     window.__ROOM_DEFINITIONS__ = ROOM_DEFINITIONS;
 
+    function normalizeRoomLightMood(rawMood) {
+      if (!rawMood) return 'dying_tube';
+      if (rawMood === 'moonlit_window' || rawMood === 'moonlit') return 'moonlight';
+      if (rawMood === 'warm_desk_lamp' || rawMood === 'dim_amber') return 'warm_lamp';
+      if (rawMood === 'flickering_tube' || rawMood === 'cold_monitor_glow') return 'dying_tube';
+      return rawMood;
+    }
+
+    const FALLBACK_MOOD_CYCLE = ['dark', 'dying_tube', 'moonlight', 'warm_lamp', 'emergency_red'];
+    let fallbackMoodCounter = 0;
+
     function getOrRegisterRoomDefinition(roomId, cx, cz, floorY, halfW = 3.8, halfD = 4.6, building = 'OTHER', archetype = 'classroom_standard') {
-      if (ROOM_DEFINITIONS[roomId]) return ROOM_DEFINITIONS[roomId];
+      if (ROOM_DEFINITIONS[roomId]) {
+        ROOM_DEFINITIONS[roomId].lightMood = normalizeRoomLightMood(ROOM_DEFINITIONS[roomId].lightMood);
+        return ROOM_DEFINITIONS[roomId];
+      }
+      const mood = FALLBACK_MOOD_CYCLE[(fallbackMoodCounter++) % FALLBACK_MOOD_CYCLE.length];
       const def = {
         id: roomId,
         building: building,
         archetype: archetype,
-        lightMood: 'dying_tube',
+        lightMood: mood,
         bounds: { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + 3.4 },
         furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3'],
         hidingSpots: ['podium', 'student_desks'],
@@ -7946,6 +9961,300 @@ export function getHideAndSeekHtml(): string {
       };
       ROOM_DEFINITIONS[roomId] = def;
       return def;
+    }
+
+    // Requirement 5 & Phase A Light Budget: Zero extra PointLights created here!
+    // Indoor rooms claim 1 pooled light from lampFlickerMod.lightPool (strictly <= 3 pooled lights total)
+    // ONLY when the player is inside the room!
+    function applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, roomW = 6.8, roomD = 8.2, windowSideSignX = 1) {
+      const softRadialGlowTex = (typeof atmosphere !== 'undefined' && atmosphere && atmosphere.lampGlowTexture) || null;
+      const mood = normalizeRoomLightMood(roomDef && roomDef.lightMood);
+      roomDef.lightMood = mood;
+      const moodsCfg = HORROR_CONFIG.roomLightMoods || {};
+      const mCfg = moodsCfg[mood] || {
+        color: 0xb4f0e4,
+        intensity: 3.6,
+        distance: 10.5,
+        ambientScale: 0.48,
+      };
+      const seed = Math.abs(unitCenterX * 1.7 + unitCenterZ * 2.3 + floorY * 3.1);
+      const halfW = roomW * 0.5;
+      const halfD = roomD * 0.5;
+
+      // 1. Moonlight through windows as a visible volumetric cone shaft + Venetian blind gobo + dust motes
+      // Added to Main Building rooms & moonlit rooms so exterior windows cast eerie shafts into the dark room (Ref 4 & Ref 5)
+      const isMainBldg = (roomDef && roomDef.building === 'ROTUNDA');
+      if (mood === 'moonlight' || (isMainBldg && mood !== 'emergency_red')) {
+        const winX = windowSideSignX * (roomW * 0.46);
+        const inDirX = -windowSideSignX;
+        buildWindowLightShaftWithDust(cGroup, winX, 2.05, -roomD * 0.22, inDirX, 0, Math.min(4.6, roomW * 0.60), 1.55);
+        if (mood === 'moonlight') {
+          buildWindowLightShaftWithDust(cGroup, winX, 2.05, roomD * 0.22, inDirX, 0, Math.min(4.6, roomW * 0.60), 1.55);
+        }
+      }
+
+      if (mood === 'dark') {
+        roomMoodFixtures.push({
+          roomId: roomDef.id,
+          mood: 'dark',
+          group: cGroup,
+          worldX: unitCenterX,
+          worldY: floorY + 2.5,
+          worldZ: unitCenterZ,
+          floorY,
+          halfW,
+          halfD,
+          color: mCfg.color || 0x0a1420,
+          baseIntensity: 0.0,
+          distance: 7.0,
+          seed,
+        });
+      } else if (mood === 'dying_tube') {
+        // DYING TUBE MOOD: Stuttering, buzzing fluorescent tube + ceiling/floor light pool (Ref 1, Ref 2, Ref 4)
+        const tubeMat = step2Mats.dyingTubeMat.clone();
+        const liveTube = new THREE.Mesh(new THREE.BoxGeometry(1.38, 0.05, 0.28), tubeMat);
+        liveTube.position.set(roomW * 0.14, isMainBldg ? 2.86 : 3.32, roomD * 0.12);
+        liveTube.userData.noMerge = true;
+        cGroup.add(liveTube);
+
+        const poolMat = new THREE.MeshBasicMaterial({
+          map: softRadialGlowTex,
+          color: mCfg.color || 0xb4f0e4,
+          transparent: true,
+          opacity: 0.24,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        const floorPool = new THREE.Mesh(aoSharedPlaneGeo, poolMat);
+        floorPool.rotation.x = -Math.PI / 2;
+        floorPool.position.set(roomW * 0.14, 0.02, roomD * 0.12);
+        floorPool.scale.set(5.2, 5.2, 1.0);
+        floorPool.userData.noMerge = true;
+        cGroup.add(floorPool);
+
+        roomMoodFixtures.push({
+          roomId: roomDef.id,
+          mood: 'dying_tube',
+          group: cGroup,
+          bulbMat: tubeMat,
+          poolMat,
+          worldX: unitCenterX + roomW * 0.14,
+          worldY: floorY + 2.82,
+          worldZ: unitCenterZ + roomD * 0.12,
+          floorY,
+          halfW,
+          halfD,
+          color: mCfg.color || 0xb4f0e4,
+          baseIntensity: mCfg.intensity || 3.6,
+          distance: mCfg.distance || 10.5,
+          seed,
+        });
+      } else if (mood === 'moonlight') {
+        roomMoodFixtures.push({
+          roomId: roomDef.id,
+          mood: 'moonlight',
+          group: cGroup,
+          worldX: unitCenterX + windowSideSignX * (roomW * 0.22),
+          worldY: floorY + 2.15,
+          worldZ: unitCenterZ,
+          floorY,
+          halfW,
+          halfD,
+          color: mCfg.color || 0x84b6e6,
+          baseIntensity: mCfg.intensity || 2.6,
+          distance: mCfg.distance || 11.5,
+          seed,
+        });
+      } else if (mood === 'warm_lamp') {
+        // WARM DESK LAMP MOOD: Isolated warm tungsten banker/desk lamp pool on wooden desk (Ref 4)
+        const lampX = (roomDef.archetype === 'library') ? 1.75 : -2.15;
+        const lampZ = (roomDef.archetype === 'library') ? -1.35 : 4.85;
+        const lampY = 0.88;
+
+        const bulbMat = step2Mats.warmDeskLampBulbMat.clone();
+        const shade = new THREE.Mesh(step2Geos.readingLampShade, bulbMat);
+        shade.position.set(lampX, lampY + 0.30, lampZ);
+        shade.userData.noMerge = true;
+        cGroup.add(shade);
+
+        const poolMat = new THREE.MeshBasicMaterial({
+          map: softRadialGlowTex,
+          color: mCfg.color || 0xff9838,
+          transparent: true,
+          opacity: 0.32,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        const deskPool = new THREE.Mesh(aoSharedPlaneGeo, poolMat);
+        deskPool.rotation.x = -Math.PI / 2;
+        deskPool.position.set(lampX, 0.022, lampZ);
+        deskPool.scale.set(4.6, 4.6, 1.0);
+        deskPool.userData.noMerge = true;
+        cGroup.add(deskPool);
+
+        roomMoodFixtures.push({
+          roomId: roomDef.id,
+          mood: 'warm_lamp',
+          group: cGroup,
+          bulbMat,
+          poolMat,
+          worldX: unitCenterX + lampX,
+          worldY: floorY + lampY + 0.42,
+          worldZ: unitCenterZ + lampZ,
+          floorY,
+          halfW,
+          halfD,
+          color: mCfg.color || 0xff9838,
+          baseIntensity: mCfg.intensity || 3.8,
+          distance: mCfg.distance || 9.8,
+          seed,
+        });
+      } else if (mood === 'emergency_red') {
+        const cageMat = step2Mats.emergencyRedBulbMat.clone();
+        const beaconCage = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.22, 10), cageMat);
+        beaconCage.position.set(0, 3.24, 0);
+        beaconCage.userData.noMerge = true;
+        cGroup.add(beaconCage);
+
+        const poolMat = new THREE.MeshBasicMaterial({
+          map: softRadialGlowTex,
+          color: mCfg.color || 0xff2218,
+          transparent: true,
+          opacity: 0.28,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        const redPool = new THREE.Mesh(aoSharedPlaneGeo, poolMat);
+        redPool.rotation.x = -Math.PI / 2;
+        redPool.position.set(0, 0.022, 0);
+        redPool.scale.set(5.6, 5.6, 1.0);
+        redPool.userData.noMerge = true;
+        cGroup.add(redPool);
+
+        roomMoodFixtures.push({
+          roomId: roomDef.id,
+          mood: 'emergency_red',
+          group: cGroup,
+          bulbMat: cageMat,
+          poolMat,
+          worldX: unitCenterX,
+          worldY: floorY + 3.05,
+          worldZ: unitCenterZ,
+          floorY,
+          halfW,
+          halfD,
+          color: mCfg.color || 0xff2218,
+          baseIntensity: mCfg.intensity || 3.8,
+          distance: mCfg.distance || 10.5,
+          seed,
+        });
+      }
+    }
+
+    function setRoomLightMood(roomId, nextMood) {
+      const m = normalizeRoomLightMood(nextMood);
+      if (ROOM_DEFINITIONS[roomId]) {
+        ROOM_DEFINITIONS[roomId].lightMood = m;
+      }
+      for (let i = 0; i < roomVisibilityList.length; i++) {
+        if (roomVisibilityList[i].id === roomId) {
+          roomVisibilityList[i].lightMood = m;
+        }
+      }
+      const moodsCfg = HORROR_CONFIG.roomLightMoods || {};
+      const mCfg = moodsCfg[m] || { color: 0xb4f0e4, intensity: 3.6, distance: 10.5 };
+      for (let i = 0; i < roomMoodFixtures.length; i++) {
+        const rf = roomMoodFixtures[i];
+        if (rf.roomId === roomId) {
+          rf.mood = m;
+          rf.color = mCfg.color || 0xb4f0e4;
+          rf.baseIntensity = (m === 'dark') ? 0.0 : (mCfg.intensity || 3.4);
+          rf.distance = mCfg.distance || 10.5;
+          if (rf.bulbMat && rf.bulbMat.emissive) {
+            rf.bulbMat.emissive.setHex(rf.color);
+          }
+          if (rf.poolMat && rf.poolMat.color) {
+            rf.poolMat.color.setHex(rf.color);
+          }
+        }
+      }
+    }
+
+    function updateRoomMoodLighting(delta, timeSec, playerPos) {
+      // Requirement 5: Cheap emissive flicker PLUS one pooled light ONLY when the player is inside the room!
+      let insideFixture = null;
+      const safeFlicker = !!(accessibilitySettings && accessibilitySettings.flickerReduction);
+      const calmTube = !!EXPLORE_FLAGS.CALM_DYING_TUBE_FLICKER;
+      const steadyRed = !!EXPLORE_FLAGS.STEADY_EMERGENCY_RED;
+
+      for (let i = 0; i < roomMoodFixtures.length; i++) {
+        const rf = roomMoodFixtures[i];
+        if (!rf.group || !rf.group.visible) continue;
+
+        let mult = 1.0;
+        if (rf.mood === 'dying_tube') {
+          if (calmTube) {
+            // Explore Mode: gentle slow wave at ~1.25 Hz (7.85 rad/s) with small 0.90..1.00 swing, zero strobing/dropouts
+            mult = 0.95 + 0.05 * Math.sin(timeSec * 7.85 + rf.seed);
+          } else if (safeFlicker) {
+            // Requirement 4 (Light Safety): <= 2 flashes/sec (omega <= 12.56 rad/s) & smaller brightness swing
+            mult = 0.84 + 0.10 * Math.sin(timeSec * 10.2 + rf.seed);
+          } else {
+            const w1 = Math.sin(timeSec * 19.5 + rf.seed * 3.1);
+            const w2 = Math.sin(timeSec * 43.0 + rf.seed * 7.4);
+            const dropout = (Math.sin(timeSec * 2.3 + rf.seed) > 0.72) ? 0.06 : 1.0;
+            mult = (w1 > -0.25 ? (0.75 + 0.25 * w2) : 0.12) * dropout;
+          }
+          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 1.25 * mult;
+          if (rf.poolMat) rf.poolMat.opacity = 0.24 * mult;
+        } else if (rf.mood === 'emergency_red') {
+          // Explore Mode: steady red glow with zero pulsing
+          const pulse = steadyRed
+            ? 1.0
+            : (safeFlicker
+              ? (0.80 + 0.12 * Math.sin(timeSec * 2.2 + rf.seed))
+              : (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(timeSec * 3.4 + rf.seed))));
+          mult = pulse;
+          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = (steadyRed ? 1.55 : (safeFlicker ? 1.35 : 1.85)) * pulse;
+          if (rf.poolMat) rf.poolMat.opacity = (steadyRed ? 0.26 : (safeFlicker ? 0.22 : 0.30)) * pulse;
+        } else if (rf.mood === 'warm_lamp') {
+          mult = 0.96 + 0.04 * Math.sin(timeSec * 3.2 + rf.seed);
+          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 1.45 * mult;
+          if (rf.poolMat) rf.poolMat.opacity = 0.32 * mult;
+        } else if (rf.mood === 'moonlight') {
+          mult = 0.98 + 0.02 * Math.sin(timeSec * 1.1 + rf.seed);
+        } else {
+          mult = 0.0;
+        }
+        rf.currentMult = mult;
+
+        // Check if player is physically inside this room's bounds
+        if (rf.baseIntensity > 0.01 && Math.abs(playerPos.y - rf.floorY) < 2.2) {
+          const hw = rf.halfW || 7.0;
+          const hd = rf.halfD || 6.8;
+          if (Math.abs(playerPos.x - rf.worldX) <= hw + 1.5 && Math.abs(playerPos.z - rf.worldZ) <= hd + 1.5) {
+            insideFixture = rf;
+            if (!calmTube && !safeFlicker && rf.mood === 'dying_tube' && mult < 0.20 && Math.random() < 0.03) {
+              soundEngine.playTubeFlickerBuzzSfx();
+            }
+          }
+        }
+      }
+
+      if (lampFlickerMod) {
+        if (insideFixture && powerCutDarkBuilding !== 'ROTUNDA') {
+          lampFlickerMod.indoorOverrideLight = {
+            x: insideFixture.worldX,
+            y: insideFixture.worldY,
+            z: insideFixture.worldZ,
+            color: insideFixture.color,
+            distance: insideFixture.distance,
+            intensity: insideFixture.baseIntensity * (insideFixture.currentMult || 1.0),
+          };
+        } else {
+          lampFlickerMod.indoorOverrideLight = null;
+        }
+      }
     }
 
     const ROOM_ARCHETYPE_BUILDERS = {
@@ -7965,17 +10274,13 @@ export function getHideAndSeekHtml(): string {
       cGroup.position.set(unitCenterX, floorY, unitCenterZ);
       scene.add(cGroup);
 
-      // 1. Finished Interior Ceiling Panel + Glowing Warm LED Ceiling Light + 3-Blade Fan
+      // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3-Blade Fan
       const ceilPanel = new THREE.Mesh(
         new THREE.BoxGeometry(6.8, 0.06, 8.2),
-        isNewariStyle ? materials.carvedSalWood : materials.whiteTrim
+        isNewariStyle ? materials.carvedSalWood : materials.stainedCeilingTiles
       );
       ceilPanel.position.set(0, 3.38, 0);
       cGroup.add(ceilPanel);
-
-      const ledStrip = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.05, 0.36), materials.ceilingLightEmissive);
-      ledStrip.position.set(0, 3.32, 0.8);
-      cGroup.add(ledStrip);
 
       const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.whiteTrim);
       fanRod.position.set(0, 3.16, -0.4);
@@ -7988,13 +10293,22 @@ export function getHideAndSeekHtml(): string {
         cGroup.add(blade);
       }
 
-      // 2. Data-Driven Archetype Dispatch via ROOM_DEFINITIONS (zero indexOf if-chains!)
+      // 2. Data-Driven Archetype Dispatch via ROOM_DEFINITIONS
       const roomDef = getOrRegisterRoomDefinition(unitTitle, unitCenterX, unitCenterZ, floorY);
       const builderFn = ROOM_ARCHETYPE_BUILDERS[roomDef.archetype] || ROOM_ARCHETYPE_BUILDERS.classroom_standard;
       builderFn(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, roomDef);
 
-      bakeStaticGroup(cGroup, true);
+      // 3. Baked Room Corner/Baseboard/Ceiling AO Decals + Small Clutter & Asymmetry (Papers, Bottles, Fallen Chair, Jacket, Posters)
+      addRoomBakedAO(cGroup, 6.8, 8.2, 3.38);
+      populateRoomClutterAndAsymmetry(cGroup, 6.6, 7.8, unitCenterX * 3.1 + unitCenterZ * 7.3, false);
+
       cGroup.userData.isRoomGroup = true;
+      bakeStaticGroup(cGroup, true);
+
+      // 4. Per-Room Light Mood Fixtures, Window Light Shafts & Dust Motes (added after static merge so animated meshes stay unmerged)
+      const windowSideSignX = unitCenterX < 0 ? -1 : 1;
+      applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, 6.8, 8.2, windowSideSignX);
+
       cGroup.userData.roomDef = roomDef;
       roomVisibilityList.push({
         id: unitTitle,
@@ -8526,85 +10840,1298 @@ export function getHideAndSeekHtml(): string {
     buildWallSegment(34, 0, -35, 25, 2.1, 0.45, materials.nepaliRiverStone);
 
     /* =========================================================================
-       3. 3 YELLOW CAMPUS BUSES, 5 PARKED CARS & COURTYARD SCOOTER
+       3. 2 ENTERABLE GANDAKI UNIVERSITY BUSES, 5 PARKED CARS & COURTYARD SCOOTER
        ========================================================================= */
-    function buildCampusBus(bx, bz, isLarge = false, rotY = 0) {
-      const busW = isLarge ? 2.85 : 2.45;
-      const busL = isLarge ? 10.4 : 7.6;
-      const busH = isLarge ? 3.15 : 2.80;
+    const busConfig = (HORROR_CONFIG && HORROR_CONFIG.buses) || {
+      length: 10.5,
+      width: 2.5,
+      height: 3.1,
+      floorY: 0.54,
+      stepHeights: [0.18, 0.36],
+      interiorCutoffDistance: 25.0,
+      mossAmountA: 0.65,
+      mossAmountB: 0.92,
+      glassBreakageA: 0.35,
+      glassBreakageB: 0.72,
+      vineCountUltra: 14,
+      plateNumberA: 'ग १ ख ९४९१',
+      plateNumberB: 'ग १ ख ७२६२',
+      routeSignDevanagari: 'पोखरा',
+      fleetCodeA: 'GP62',
+      fleetCodeB: 'GP64',
+      doorOpenAngleA: 0.78,
+      doorOpenAngleB: 0.42,
+    };
 
-      const bGroup = new THREE.Group();
-      const bodyH = busH * 0.72;
-      const busBody = new THREE.Mesh(new THREE.BoxGeometry(busW, bodyH, busL), materials.busAmberPaint);
-      busBody.position.y = 0.38 + bodyH / 2;
-      bGroup.add(busBody);
+    // ── 1:1 PHOTO-ACCURATE ASHOK LEYLAND HORROR COACH TEXTURE SUITE (IMG_6025 3.JPG) ──
+    // Dedicated UV-mapped procedural textures so every panel, decal, shattered pane, and vine matches the reference photo.
+    function createBusMasterAtlasTex() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 2048;
+      canvas.height = 1024;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Base weathered ochre-yellow coach paint (#b9851e)
+        ctx.fillStyle = '#b9851e';
+        ctx.fillRect(0, 0, 2048, 1024);
 
-      const busRoofMesh = new THREE.Mesh(new THREE.BoxGeometry(busW + 0.06, 0.22, busL + 0.06), materials.whiteTrim);
-      busRoofMesh.position.y = 0.38 + bodyH + 0.11;
-      bGroup.add(busRoofMesh);
+        // ── BAND 1 (Y: 0..420): FULL SIDE WAIST LIVERY ("GANDAKI [Crest] UNIVERSITY", Navy Stripes, Riveted Seams, Access Hatches, Yellow Notice Boards) ──
+        const sideGrad = ctx.createLinearGradient(0, 0, 0, 420);
+        sideGrad.addColorStop(0.0, '#8f6312');
+        sideGrad.addColorStop(0.12, '#c48f24');
+        sideGrad.addColorStop(0.68, '#a67418');
+        sideGrad.addColorStop(0.88, '#6e490c');
+        sideGrad.addColorStop(1.0, '#2e1d08');
+        ctx.fillStyle = sideGrad;
+        ctx.fillRect(0, 0, 2048, 420);
 
-      const winStripH = bodyH * 0.42;
-      const winStripL = busL * 0.78;
-      [-busW / 2 - 0.02, busW / 2 + 0.02].forEach(wx => {
-        const sideWin = new THREE.Mesh(new THREE.BoxGeometry(0.04, winStripH, winStripL), materials.busWindow);
-        sideWin.position.set(wx, 0.38 + bodyH * 0.68, 0.2);
-        bGroup.add(sideWin);
+        // Vertical sheet-metal panel seams & rivet lines along the side body
+        ctx.strokeStyle = 'rgba(32, 20, 8, 0.65)';
+        ctx.lineWidth = 3;
+        for (let px = 120; px < 2048; px += 240) {
+          ctx.beginPath();
+          ctx.moveTo(px, 6);
+          ctx.lineTo(px, 415);
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(45, 28, 10, 0.55)';
+          for (let ry = 18; ry < 410; ry += 22) {
+            ctx.fillRect(px - 5, ry, 3, 3);
+            ctx.fillRect(px + 3, ry, 3, 3);
+          }
+        }
+
+        // 2 Lower hinged battery/luggage access hatch doors (matching photo lower side panels)
+        [[620, 210, 220, 175], [1160, 225, 195, 160]].forEach(([hx, hy, hw, hh]) => {
+          ctx.strokeStyle = '#2b1b08';
+          ctx.lineWidth = 4;
+          ctx.strokeRect(hx, hy, hw, hh);
+          ctx.fillStyle = '#1f1406';
+          ctx.fillRect(hx + hw * 0.5 - 14, hy + 18, 28, 10); // T-latch handle
+          ctx.fillRect(hx + 16, hy - 4, 22, 8); // left hinge
+          ctx.fillRect(hx + hw - 38, hy - 4, 22, 8); // right hinge
+        });
+
+        // Twin horizontal dark navy-slate stripes flanking the center GANDAKI UNIVERSITY banner
+        ctx.fillStyle = '#1b2838';
+        // Left stripe segments (between front door & GANDAKI)
+        ctx.fillRect(40, 108, 490, 20);
+        ctx.fillRect(40, 140, 490, 26);
+        // Right stripe segments (between UNIVERSITY & rear door)
+        ctx.fillRect(1520, 108, 490, 20);
+        ctx.fillRect(1520, 140, 490, 26);
+
+        // Bold Weathered "GANDAKI" [Circular Mountain Crest] "UNIVERSITY" across center waist
+        ctx.save();
+        ctx.font = '900 92px "Arial Narrow", Impact, sans-serif';
+        ctx.fillStyle = '#263849';
+        ctx.strokeStyle = 'rgba(218, 182, 110, 0.45)';
+        ctx.lineWidth = 3;
+        ctx.textAlign = 'right';
+        ctx.fillText('GANDAKI', 935, 168);
+        if (ctx.strokeText) ctx.strokeText('GANDAKI', 935, 168);
+        ctx.textAlign = 'left';
+        ctx.fillText('UNIVERSITY', 1115, 168);
+        if (ctx.strokeText) ctx.strokeText('UNIVERSITY', 1115, 168);
+        ctx.restore();
+
+        // Exact Circular Gandaki University Crest at (1024, 136)
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(1024, 136, 68, 0, Math.PI * 2);
+        ctx.fillStyle = '#f1f5f9';
+        ctx.fill();
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#1e3a5f';
+        ctx.stroke();
+        // Inner navy ring
+        ctx.beginPath();
+        ctx.arc(1024, 136, 54, 0, Math.PI * 2);
+        ctx.fillStyle = '#1e3a5f';
+        ctx.fill();
+        // Upper crimson-red hemisphere
+        ctx.beginPath();
+        ctx.arc(1024, 136, 48, Math.PI, 0, false);
+        ctx.fillStyle = '#b91c1c';
+        ctx.fill();
+        // White Machhapuchhre fishtail twin peaks
+        ctx.beginPath();
+        ctx.moveTo(982, 142);
+        ctx.lineTo(1008, 98);
+        ctx.lineTo(1021, 116);
+        ctx.lineTo(1034, 92);
+        ctx.lineTo(1066, 142);
+        ctx.closePath();
+        ctx.fillStyle = '#f8fafc';
+        ctx.fill();
+        // Open book & rays at bottom of emblem
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(996, 147, 56, 14);
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(996, 147, 56, 14);
+        ctx.restore();
+
+        // Yellow Front Side Notice Board & "BEECT" Sticker (at X: 140..390, Y: 52..215 matching photo)
+        ctx.fillStyle = '#d4a72c';
+        ctx.fillRect(145, 52, 235, 92);
+        ctx.strokeStyle = '#291d06';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(145, 52, 235, 92);
+        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 22px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('गण्डकी बस सेवा', 245, 82);
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('POKHARA UNIVERSITY ROUTE', 245, 104);
+        ctx.fillText('REG NO: GP-62 / CAMPUS', 245, 124);
+        // Red stamp on right of yellow placard
+        ctx.fillStyle = '#991b1b';
+        ctx.fillRect(344, 64, 24, 34);
+        // Black & yellow "BEECT" sticker below placard
+        ctx.fillStyle = '#111827';
+        ctx.fillRect(148, 152, 78, 22);
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText('BEECT', 187, 168);
+
+        // Rear Side Yellow Placard (at X: 1760..1930, Y: 58..136 matching photo)
+        ctx.fillStyle = '#d4a72c';
+        ctx.fillRect(1760, 58, 165, 76);
+        ctx.strokeStyle = '#291d06';
+        ctx.strokeRect(1760, 58, 165, 76);
+        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 20px sans-serif';
+        ctx.fillText('पोखरा', 1842, 92);
+        ctx.font = 'bold 12px sans-serif';
+        ctx.fillText('CAMPUS SHUTTLE', 1842, 118);
+
+        // Heavy rain-runoff grime streaks, rust patches, and green moss stains across Band 1
+        for (let i = 0; i < 260; i++) {
+          const rx = (i * 89) % 2048;
+          const ry = (i * 53) % 400;
+          const rw = 6 + (i % 34);
+          const rh = 14 + (i % 65);
+          if (i % 3 === 0) {
+            ctx.fillStyle = 'rgba(42, 64, 20, 0.52)'; // green moss/algae patch
+          } else if (i % 3 === 1) {
+            ctx.fillStyle = 'rgba(72, 34, 10, 0.44)'; // rust patch
+          } else {
+            ctx.fillStyle = 'rgba(22, 16, 10, 0.36)'; // vertical soot/grime streak
+          }
+          ctx.fillRect(rx, ry, rw, rh);
+        }
+
+        // ── BAND 2 (Y: 430..740): GENERAL WEATHERED YELLOW PAINT (Left: 0..1024) & SIGNAGE / PLATES (Right: 1024..2048) ──
+        const bodyGrad = ctx.createLinearGradient(0, 430, 0, 740);
+        bodyGrad.addColorStop(0.0, '#7c5813');
+        bodyGrad.addColorStop(0.25, '#bd8920');
+        bodyGrad.addColorStop(0.75, '#9b6c15');
+        bodyGrad.addColorStop(1.0, '#4f3409');
+        ctx.fillStyle = bodyGrad;
+        ctx.fillRect(0, 430, 1024, 310);
+        for (let i = 0; i < 160; i++) {
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(48, 68, 22, 0.45)' : 'rgba(64, 32, 10, 0.42)';
+          ctx.fillRect((i * 67) % 1000, 435 + ((i * 39) % 290), 12 + (i % 28), 10 + (i % 32));
+        }
+
+        // Top Destination Board (X: 1040..1820, Y: 440..545): "GP62 | GANDAKI UNIVERSITY"
+        ctx.fillStyle = '#22262c';
+        ctx.fillRect(1040, 440, 780, 105);
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 6;
+        ctx.strokeRect(1044, 444, 772, 97);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = 'bold 54px "Arial Narrow", sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText((busConfig.fleetCodeA || 'GP62') + '  |  GANDAKI UNIVERSITY', 1068, 512);
+        // Moss stain over left GP62 corner
+        ctx.fillStyle = 'rgba(48, 72, 22, 0.58)';
+        ctx.fillRect(1048, 446, 175, 48);
+
+        // Roof Cant-Rail Fleet Stencil "GP62" (X: 1840..2030, Y: 445..535)
+        ctx.fillStyle = '#b07e1b';
+        ctx.fillRect(1840, 445, 190, 90);
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = 'bold 46px "Arial Narrow", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(busConfig.fleetCodeA || 'GP62', 1935, 506);
+
+        // "LANKA ASHOK LEYLAND" Front Badge Plate (X: 1040..1620, Y: 560..625)
+        ctx.fillStyle = '#14181f';
+        ctx.fillRect(1040, 560, 580, 62);
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(1043, 563, 574, 56);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = 'bold 34px serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('LANKA ASHOK LEYLAND', 1330, 603);
+
+        // Yellow Windshield Route Sign ("पोखरा / POKHARA" at X: 1640..2030, Y: 555..650)
+        ctx.fillStyle = '#c89d28';
+        ctx.fillRect(1640, 555, 390, 95);
+        ctx.strokeStyle = '#3b2808';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(1640, 555, 390, 95);
+        ctx.fillStyle = '#991b1b';
+        ctx.font = 'bold 34px sans-serif';
+        ctx.fillText(busConfig.routeSignDevanagari || 'पोखरा', 1835, 596);
+        ctx.fillStyle = '#1e293b';
+        ctx.font = 'bold 28px serif';
+        ctx.fillText('POKHARA', 1835, 636);
+
+        // Front Bumper 3 Plaques (Y: 660..735): Left License Plate, Center Emblem Square, Right Devanagari Town Plaque
+        // 1) Left License Plate (X: 1040..1420, Y: 660..735)
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(1040, 660, 380, 74);
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 5;
+        ctx.strokeRect(1044, 664, 372, 66);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 38px "Arial Narrow", monospace';
+        ctx.fillText(busConfig.plateNumberA || 'ग १ ख ९४९१', 1230, 711);
+
+        // 2) Center Decorative Square Plaque (X: 1440..1610, Y: 656..738)
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(1440, 656, 170, 82);
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(1444, 660, 162, 74);
+        ctx.fillStyle = '#1d4ed8';
+        ctx.font = 'italic bold 22px serif';
+        ctx.fillText('Gandaki', 1525, 696);
+        ctx.fillText('Express', 1525, 722);
+
+        // 3) Right Devanagari Plaque (X: 1630..2030, Y: 660..735)
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fillRect(1630, 660, 400, 74);
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 5;
+        ctx.strokeRect(1634, 664, 392, 66);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = 'bold 36px sans-serif';
+        ctx.fillText('गण्डकी • पोखरा', 1830, 710);
+
+        // ── BAND 3 (Y: 750..1024): INTERIOR TORN BLUE-GREEN SEAT VINYL (Left) & RIBBED RUBBER FLOOR MAT (Right) ──
+        ctx.fillStyle = '#2b474b';
+        ctx.fillRect(0, 750, 1024, 274);
+        for (let i = 0; i < 120; i++) {
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(148, 136, 114, 0.36)' : 'rgba(16, 26, 28, 0.48)';
+          ctx.fillRect((i * 53) % 990, 755 + ((i * 29) % 250), 18 + (i % 24), 12 + (i % 18));
+        }
+        // Exposed yellow foam gashes on torn seats
+        ctx.fillStyle = '#8c7248';
+        ctx.fillRect(180, 810, 22, 95);
+        ctx.fillRect(640, 835, 28, 84);
+
+        // Ribbed dark rubber floor mat (X: 1024..2048, Y: 750..1024)
+        ctx.fillStyle = '#1c1e21';
+        ctx.fillRect(1024, 750, 1024, 274);
+        ctx.fillStyle = '#2d3136';
+        for (let rx = 1032; rx < 2040; rx += 12) {
+          ctx.fillRect(rx, 750, 5, 274);
+        }
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.ClampToEdgeWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    // Dedicated Shattered Windshield & Broken Side Window Texture with Alpha Cutout Holes
+    function createBusShatteredGlassTex() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, 1024, 512);
+        // Base dirty smoky glass fill
+        ctx.fillStyle = 'rgba(44, 50, 56, 0.82)';
+        ctx.fillRect(0, 0, 1024, 512);
+
+        // Grime streaks & dust mottling on glass
+        for (let i = 0; i < 180; i++) {
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(96, 88, 74, 0.34)' : 'rgba(18, 22, 26, 0.42)';
+          ctx.fillRect((i * 47) % 1024, (i * 31) % 512, 16 + (i % 36), 24 + (i % 48));
+        }
+
+        // Left Windshield Pane (X: 0..320, Y: 0..512): Top "GANDAKI" Stencil + Bottom Sinhala/Nepali Stencil + Jagged Center Hole
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.86)';
+        ctx.font = 'bold 48px "Arial Narrow", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('GANDAKI', 160, 74);
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillText('गण्डकी विश्वविद्यालय - १२००', 160, 478);
+
+        // Right Windshield Pane (X: 320..640, Y: 0..512): Top "UNIVERSITY" Stencil + Jagged Center Hole
+        ctx.font = 'bold 46px "Arial Narrow", sans-serif';
+        ctx.fillText('UNIVERSITY', 480, 74);
+
+        // Punch out jagged shattered holes (alpha = 0) in Left Windshield, Right Windshield, and Broken Side Window Pane (X: 640..832)
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = 'rgba(0,0,0,1)';
+        [
+          // Left windshield jagged hole
+          [[58, 130], [115, 108], [185, 122], [255, 112], [272, 210], [248, 340], [268, 420], [190, 438], [112, 425], [48, 390], [66, 260]],
+          // Right windshield jagged hole
+          [[368, 126], [440, 104], [528, 118], [595, 135], [582, 265], [602, 395], [535, 432], [445, 418], [362, 405], [380, 275]],
+          // Broken side window pane hole (X: 640..832)
+          [[675, 150], [735, 115], [798, 155], [812, 275], [785, 395], [720, 415], [668, 365], [658, 245]],
+        ].forEach(poly => {
+          ctx.beginPath();
+          poly.forEach(([px, py], idx) => {
+            if (idx === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          });
+          ctx.closePath();
+          ctx.fill();
+        });
+        ctx.restore();
+
+        // Draw bright fracture crack lines around the jagged hole perimeters
+        ctx.strokeStyle = 'rgba(203, 213, 225, 0.75)';
+        ctx.lineWidth = 2.5;
+        [
+          [[58, 130], [115, 108], [185, 122], [255, 112], [272, 210], [248, 340], [268, 420], [190, 438], [112, 425], [48, 390], [66, 260]],
+          [[368, 126], [440, 104], [528, 118], [595, 135], [582, 265], [602, 395], [535, 432], [445, 418], [362, 405], [380, 275]],
+          [[675, 150], [735, 115], [798, 155], [812, 275], [785, 395], [720, 415], [668, 365], [658, 245]],
+        ].forEach(poly => {
+          ctx.beginPath();
+          poly.forEach(([px, py], idx) => {
+            if (idx === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          });
+          ctx.closePath();
+          ctx.stroke();
+        });
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    // Dedicated Alpha-Cutout Creeping Ivy Vines & Spongy Moss Texture (512x512)
+    function createBusFoliageVineTex() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, 512, 512);
+        // Top half (Y: 0..260): Dense moss mat with irregular organic lower fringe
+        for (let i = 0; i < 420; i++) {
+          const mx = (i * 37) % 512;
+          const my = (i * 19) % 210;
+          const mr = 8 + (i % 18);
+          ctx.fillStyle = i % 3 === 0 ? '#2d4418' : (i % 3 === 1 ? '#3f5c22' : '#1e2f0f');
+          ctx.beginPath();
+          ctx.arc(mx, my, mr, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // Hanging vine stems & pointed ivy/creeper leaves (Y: 40..500)
+        for (let s = 0; s < 18; s++) {
+          const baseX = 14 + s * 28;
+          const maxLen = 220 + ((s * 67) % 260);
+          ctx.strokeStyle = '#263814';
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.moveTo(baseX, 20);
+          for (let y = 40; y <= maxLen; y += 24) {
+            const sway = Math.sin(y * 0.04 + s) * 10;
+            ctx.lineTo(baseX + sway, y);
+          }
+          ctx.stroke();
+
+          // Pointed creeper leaves along each stem
+          for (let y = 36; y <= maxLen; y += 16) {
+            const sway = Math.sin(y * 0.04 + s) * 10;
+            const lx = baseX + sway + ((y % 32 === 0) ? -9 : 9);
+            const lw = 11 + ((s + y) % 9);
+            const lh = 15 + ((s * 3 + y) % 10);
+            ctx.fillStyle = (y + s) % 3 === 0 ? '#3a571f' : ((y + s) % 3 === 1 ? '#4d6b28' : '#243812');
+            ctx.beginPath();
+            ctx.ellipse(lx, y, lw * 0.55, lh * 0.55, ((y % 32 === 0) ? -0.45 : 0.45), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    // Procedural Sheet-Metal Dent, Rivet & Rust-Pit Bump/Roughness Map (512x256)
+    function createBusDentBumpTex() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#808080';
+        ctx.fillRect(0, 0, 512, 256);
+        // Vertical panel seams & raised rivet rows
+        for (let x = 32; x < 512; x += 64) {
+          ctx.fillStyle = '#383838';
+          ctx.fillRect(x, 0, 2, 256);
+          ctx.fillStyle = '#d8d8d8';
+          for (let y = 8; y < 256; y += 14) {
+            ctx.fillRect(x - 3, y, 2, 2);
+            ctx.fillRect(x + 2, y, 2, 2);
+          }
+        }
+        // Concave sheet-metal dents, impact creases & rust pitting
+        for (let i = 0; i < 95; i++) {
+          const dx = (i * 59) % 490;
+          const dy = (i * 41) % 240;
+          const dw = 10 + (i % 28);
+          const dh = 6 + (i % 22);
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(28,28,28,0.55)' : 'rgba(215,215,215,0.45)';
+          ctx.fillRect(dx, dy, dw, dh);
+        }
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    const busMasterAtlasTex = createBusMasterAtlasTex();
+    const busShatteredGlassTex = createBusShatteredGlassTex();
+    const busFoliageVineTex = createBusFoliageVineTex();
+    const busDentBumpTex = createBusDentBumpTex();
+
+    // Shared Bus Materials (with real bump-mapped sheet-metal dents & rivets)
+    const busExteriorPaintMat = new THREE.MeshStandardMaterial({
+      color: 0xd8a63a,
+      map: busMasterAtlasTex,
+      bumpMap: busDentBumpTex,
+      bumpScale: 0.046,
+      roughness: 0.74,
+      metalness: 0.22,
+    });
+    const busDarkTrimMat = new THREE.MeshStandardMaterial({
+      color: 0x1a2028,
+      bumpMap: busDentBumpTex,
+      bumpScale: 0.025,
+      roughness: 0.64,
+      metalness: 0.42,
+    });
+    const busChromeTrimMat = new THREE.MeshStandardMaterial({
+      color: 0xc8d2dc,
+      roughness: 0.26,
+      metalness: 0.84,
+    });
+    const busDirtyGlassMat = new THREE.MeshStandardMaterial({
+      color: 0xdbe4ee,
+      map: busShatteredGlassTex,
+      roughness: 0.22,
+      metalness: 0.18,
+      transparent: true,
+      alphaTest: 0.18,
+      opacity: 0.86,
+      side: THREE.DoubleSide,
+    });
+    const busMossVineMat = new THREE.MeshStandardMaterial({
+      color: 0x84a955,
+      map: busFoliageVineTex,
+      bumpMap: busFoliageVineTex,
+      bumpScale: 0.035,
+      roughness: 0.92,
+      metalness: 0.04,
+      alphaTest: 0.24,
+      transparent: true,
+      side: THREE.DoubleSide,
+    });
+    const busHeadlightEmissiveMat = new THREE.MeshStandardMaterial({
+      color: 0xfff3c4,
+      emissive: 0xf5b041,
+      emissiveIntensity: 1.25,
+      roughness: 0.20,
+    });
+    const busAmberIndicatorMat = new THREE.MeshStandardMaterial({
+      color: 0xd97706,
+      emissive: 0xb45309,
+      emissiveIntensity: 0.55,
+      roughness: 0.32,
+    });
+    // Blinking Warm Amber & Blood-Red Horror Ceiling Tube Materials
+    const busWarmTubeBaseMat = new THREE.MeshStandardMaterial({
+      color: 0xffe4b5,
+      emissive: 0xff9922,
+      emissiveIntensity: 1.35,
+      roughness: 0.25,
+    });
+    const busRedTubeBaseMat = new THREE.MeshStandardMaterial({
+      color: 0xffb4b4,
+      emissive: 0xff1e1e,
+      emissiveIntensity: 1.45,
+      roughness: 0.25,
+    });
+    const busWarmGlowBaseMat = new THREE.MeshBasicMaterial({
+      color: 0xff9922,
+      transparent: true,
+      opacity: 0.14,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const busRedGlowBaseMat = new THREE.MeshBasicMaterial({
+      color: 0xef4444,
+      transparent: true,
+      opacity: 0.16,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const busDustMat = new THREE.PointsMaterial({
+      color: 0xd97706,
+      size: 0.048,
+      transparent: true,
+      opacity: 0.42,
+      depthWrite: false,
+    });
+
+    const mergeBufferGeometries = THREE.BufferGeometryUtils.mergeBufferGeometries;
+
+    function setGeoUVRect(geo, u0, v0, u1, v1) {
+      const uvAttr = geo.attributes && geo.attributes.uv;
+      if (!uvAttr) return geo;
+      for (let i = 0; i < uvAttr.count; i++) {
+        const u = uvAttr.getX(i);
+        const v = uvAttr.getY(i);
+        uvAttr.setXY(i, u0 + u * (u1 - u0), v0 + v * (v1 - v0));
+      }
+      uvAttr.needsUpdate = true;
+      return geo;
+    }
+
+    function pushBusUvBoxGeo(targetArr, w, h, d, tx, ty, tz, rx = 0, ry = 0, rz = 0, u0 = 0.02, v0 = 0.28, u1 = 0.48, v1 = 0.56) {
+      const g = new THREE.BoxGeometry(w, h, d).clone();
+      setGeoUVRect(g, u0, v0, u1, v1);
+      if (rx !== 0) g.rotateX(rx);
+      if (ry !== 0) g.rotateY(ry);
+      if (rz !== 0) g.rotateZ(rz);
+      g.translate(tx, ty, tz);
+      targetArr.push(g);
+    }
+
+    function pushBusBoxGeo(targetArr, w, h, d, tx, ty, tz, rx = 0, ry = 0, rz = 0) {
+      pushBusUvBoxGeo(targetArr, w, h, d, tx, ty, tz, rx, ry, rz, 0.02, 0.28, 0.48, 0.56);
+    }
+
+    function pushBusCylGeo(targetArr, rTop, rBot, h, segs, tx, ty, tz, rx = 0, ry = 0, rz = 0, u0 = 0.05, v0 = 0.30, u1 = 0.45, v1 = 0.54) {
+      const g = new THREE.CylinderGeometry(rTop, rBot, h, segs).clone();
+      setGeoUVRect(g, u0, v0, u1, v1);
+      if (rx !== 0) g.rotateX(rx);
+      if (ry !== 0) g.rotateY(ry);
+      if (rz !== 0) g.rotateZ(rz);
+      g.translate(tx, ty, tz);
+      targetArr.push(g);
+    }
+
+    // Shared geometries for instanced interior seats (facing -Z towards the front windshield & South Main Gate!)
+    const sharedBusSeatBenchGeo = (function () {
+      const seatParts = [];
+      pushBusUvBoxGeo(seatParts, 0.78, 0.12, 0.44, 0, 0.40, 0, 0, 0, 0, 0.02, 0.02, 0.48, 0.24);
+      pushBusUvBoxGeo(seatParts, 0.78, 0.52, 0.09, 0, 0.68, 0.18, 0, 0, 0, 0.02, 0.02, 0.48, 0.24);
+      pushBusUvBoxGeo(seatParts, 0.76, 0.035, 0.035, 0, 0.96, 0.18, 0, 0, 0, 0.05, 0.05, 0.25, 0.15);
+      pushBusUvBoxGeo(seatParts, 0.04, 0.36, 0.04, -0.34, 0.18, -0.14, 0, 0, 0, 0.05, 0.05, 0.25, 0.15);
+      pushBusUvBoxGeo(seatParts, 0.04, 0.36, 0.04, 0.34, 0.18, -0.14, 0, 0, 0, 0.05, 0.05, 0.25, 0.15);
+      return mergeBufferGeometries(seatParts);
+    })();
+
+    const sharedBusStanchionGeo = new THREE.CylinderGeometry(0.022, 0.022, 2.24, 6);
+
+    const enterableBuses = [];
+    window.__ENTERABLE_BUSES__ = enterableBuses;
+
+    function buildEnterableUniversityBus(busSpec) {
+      const {
+        id,
+        label,
+        bx,
+        bz,
+        rotY = 0,
+        mossAmount = 0.75,
+        glassBreakage = 0.45,
+        doorOpenAngle = 0.75,
+        isBusB = false,
+      } = busSpec;
+
+      const bLen = busConfig.length || 10.5;
+      const bWid = busConfig.width || 2.5;
+      const bH = busConfig.height || 3.1;
+      const halfL = bLen * 0.5; // 5.25
+      const halfW = bWid * 0.5; // 1.25
+      const floorY = busConfig.floorY || 0.54;
+
+      // ORIENTATION: Front Fascia is at -Z (-halfL = -5.25), facing directly towards the South Main Gate (Z = -60)!
+      // Passenger Door & Livery Side is at -X (-halfW = -1.25), facing West towards the Main Gate & Parking Plaza!
+      // Front passenger door: z in [-3.95, -2.75] (center -3.35, right behind front cab)
+      // Rear passenger door:  z in [+2.75, +3.95] (center +3.35, near rear tail)
+      const fDoorMinZ = -3.95;
+      const fDoorMaxZ = -2.75;
+      const fDoorCenterZ = -3.35;
+      const rDoorMinZ = 2.75;
+      const rDoorMaxZ = 3.95;
+      const rDoorCenterZ = 3.35;
+
+      const busGroup = new THREE.Group();
+      busGroup.name = id;
+      busGroup.userData.noMerge = true;
+      busGroup.position.set(bx, 0, bz);
+      busGroup.rotation.y = rotY;
+
+      // ── EXTERIOR MERGED GEOMETRY BUCKETS (8 draw calls total for exterior) ──
+      const yellowGeos = [];
+      const darkTrimGeos = [];
+      const chromeGeos = [];
+      const glassGeos = [];
+      const headlightGeos = [];
+      const amberGeos = [];
+      const mossGeos = [];
+      const vineGeos = [];
+
+      // 1. Underbody Chassis Frame & Raised Floor Slab
+      pushBusBoxGeo(darkTrimGeos, 2.02, 0.14, bLen - 0.16, 0.19, floorY - 0.07, 0);
+      pushBusBoxGeo(darkTrimGeos, 0.42, 0.14, 5.46, -1.03, floorY - 0.07, 0);
+      pushBusBoxGeo(darkTrimGeos, 0.42, 0.14, 1.22, -1.03, floorY - 0.07, -4.56);
+      pushBusBoxGeo(darkTrimGeos, 0.42, 0.14, 1.22, -1.03, floorY - 0.07, 4.56);
+
+      // 2. Smoothly Rounded Vertical Cab & Rear Corner Pillars (12-seg Cylinders eliminating sharp 90-degree box edges!)
+      [[-halfW + 0.09, -halfL + 0.09], [halfW - 0.09, -halfL + 0.09], [-halfW + 0.09, halfL - 0.09], [halfW - 0.09, halfL - 0.09]].forEach(([cx, cz]) => {
+        pushBusCylGeo(yellowGeos, 0.095, 0.095, 2.28, 12, cx, 1.68, cz, 0, 0, 0, 0.06, 0.32, 0.38, 0.54);
       });
 
-      const windshield = new THREE.Mesh(new THREE.BoxGeometry(busW - 0.28, winStripH * 1.05, 0.05), materials.busWindow);
-      windshield.position.set(0, 0.38 + bodyH * 0.66, -busL / 2 - 0.01);
-      bGroup.add(windshield);
-
-      const rearGlass = new THREE.Mesh(new THREE.BoxGeometry(busW - 0.36, winStripH * 0.85, 0.05), materials.busWindow);
-      rearGlass.position.set(0, 0.38 + bodyH * 0.68, busL / 2 + 0.01);
-      bGroup.add(rearGlass);
-
-      const fBumper = new THREE.Mesh(new THREE.BoxGeometry(busW + 0.12, 0.28, 0.24), materials.busBumper);
-      fBumper.position.set(0, 0.42, -busL / 2 - 0.06);
-      bGroup.add(fBumper);
-      const rBumper = new THREE.Mesh(new THREE.BoxGeometry(busW + 0.12, 0.28, 0.24), materials.busBumper);
-      rBumper.position.set(0, 0.42, busL / 2 + 0.06);
-      bGroup.add(rBumper);
-
-      [-busW * 0.36, busW * 0.36].forEach(lx => {
-        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.18, 0.06), materials.headlightLit);
-        hl.position.set(lx, 0.68, -busL / 2 - 0.02);
-        bGroup.add(hl);
-        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.18, 0.06), materials.taillightRed);
-        tl.position.set(lx, 0.68, busL / 2 + 0.02);
-        bGroup.add(tl);
+      // 3. Deep Recessed Front & Rear Door Stepwells (2 low steps: y=0.18, y=0.36) + Curved Chrome Entry Grab Rails
+      [fDoorCenterZ, rDoorCenterZ].forEach(dcz => {
+        pushBusBoxGeo(darkTrimGeos, 0.24, 0.18, 1.14, -1.12, 0.09, dcz);
+        pushBusBoxGeo(darkTrimGeos, 0.24, 0.36, 1.14, -0.92, 0.18, dcz);
+        pushBusBoxGeo(darkTrimGeos, 0.46, 2.25, 0.05, -1.02, 1.14, dcz - 0.58);
+        pushBusBoxGeo(darkTrimGeos, 0.46, 2.25, 0.05, -1.02, 1.14, dcz + 0.58);
+        pushBusBoxGeo(darkTrimGeos, 0.09, 2.38, 0.06, -halfW + 0.02, 1.28, dcz - 0.58);
+        pushBusBoxGeo(darkTrimGeos, 0.09, 2.38, 0.06, -halfW + 0.02, 1.28, dcz + 0.58);
+        pushBusBoxGeo(darkTrimGeos, 0.09, 0.08, 1.22, -halfW + 0.02, 2.45, dcz);
+        pushBusCylGeo(chromeGeos, 0.018, 0.018, 1.45, 8, -1.08, 1.18, dcz - 0.44, 0, 0, 0);
+        pushBusCylGeo(chromeGeos, 0.018, 0.018, 0.38, 8, -0.96, 1.52, dcz - 0.44, 0, 0, -0.68);
       });
 
-      const wheelRadius = 0.46;
-      const wheelThickness = 0.28;
-      [-busL * 0.32, busL * 0.32].forEach(wz => {
-        [-busW / 2 + 0.05, busW / 2 - 0.05].forEach(wx => {
-          const tire = new THREE.Mesh(new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelThickness, 12), materials.rubberTire);
-          tire.rotation.z = Math.PI / 2;
-          tire.position.set(wx, wheelRadius, wz);
-          bGroup.add(tire);
+      // 4. Left Side Body (-X = -1.21, facing Plaza/Gate) with Exact Livery UV Mapping & Physical Sheet-Metal Dents
+      // Center Waist Panel between Front Door (-2.75) and Rear Door (+2.75): "GANDAKI [Crest] UNIVERSITY" + Yellow Notice Board + BEECT
+      pushBusUvBoxGeo(yellowGeos, 0.08, 1.16, 5.50, -halfW + 0.04, 1.12, 0.0, 0, 0, 0, 0.04, 0.59, 0.84, 0.99);
+      // Front Cab Corner Waist Panel ahead of Front Door (z = -5.16 .. -3.95)
+      pushBusUvBoxGeo(yellowGeos, 0.08, 1.16, 1.21, -halfW + 0.04, 1.12, -4.555, 0, 0, 0, 0.02, 0.30, 0.18, 0.55);
+      // Rear Corner Waist Panel behind Rear Door (z = +3.95 .. +5.16, with Rear Yellow Placard)
+      pushBusUvBoxGeo(yellowGeos, 0.08, 1.16, 1.21, -halfW + 0.04, 1.12, 4.555, 0, 0, 0, 0.84, 0.59, 0.98, 0.99);
+      // Physical 3D dented/buckled lower access hatch door & dented skirt panel (tilted out slightly like aged sheet metal)
+      pushBusUvBoxGeo(yellowGeos, 0.03, 0.46, 0.92, -halfW - 0.008, 0.84, -0.62, 0.03, 0.02, -0.04, 0.28, 0.62, 0.42, 0.82);
+      pushBusUvBoxGeo(yellowGeos, 0.03, 0.42, 0.84, -halfW - 0.006, 0.82, 0.74, -0.025, -0.015, 0.03, 0.54, 0.62, 0.66, 0.82);
+      // Upper Window Cant Rail & Header (y = 2.48..2.82)
+      pushBusUvBoxGeo(yellowGeos, 0.08, 0.34, bLen - 0.12, -halfW + 0.04, 2.65, 0, 0, 0, 0, 0.02, 0.42, 0.48, 0.56);
+      // White "GP62" Fleet Stencil Plaque above 3rd Side Window (z = -0.10, y = 2.66, matching photo)
+      pushBusUvBoxGeo(yellowGeos, 0.025, 0.22, 0.48, -halfW - 0.006, 2.66, -0.12, 0, 0, 0, 0.90, 0.475, 0.99, 0.565);
+
+      // 5. Right Side Body (+X = +1.21) with Full Livery UV Mapping
+      pushBusUvBoxGeo(yellowGeos, 0.08, 1.16, bLen - 0.14, halfW - 0.04, 1.12, 0.0, 0, 0, 0, 0.02, 0.59, 0.98, 0.99);
+      pushBusUvBoxGeo(yellowGeos, 0.08, 0.34, bLen - 0.12, halfW - 0.04, 2.65, 0.0, 0, 0, 0, 0.02, 0.42, 0.48, 0.56);
+
+      // 6. Left & Right Sliding Window Bays with 3D Jagged Broken Glass Shards Sticking Out of Frames
+      const leftPillars = [-5.12, -3.98, -2.72, -1.62, -0.52, 0.58, 1.68, 2.72, 3.98, 5.12];
+      leftPillars.forEach(pz => {
+        pushBusUvBoxGeo(yellowGeos, 0.09, 0.78, 0.10, -halfW + 0.04, 2.10, pz, 0, 0, 0, 0.10, 0.34, 0.22, 0.54);
+      });
+      const leftWinBays = [-4.55, -2.17, -1.07, 0.03, 1.13, 2.20, 4.55];
+      leftWinBays.forEach((wz, idx) => {
+        const bw = (idx === 0 || idx === 6) ? 1.02 : 1.00;
+        pushBusBoxGeo(darkTrimGeos, 0.055, 0.04, bw, -halfW + 0.025, 2.46, wz);
+        pushBusBoxGeo(darkTrimGeos, 0.055, 0.04, bw, -halfW + 0.025, 1.74, wz);
+        pushBusBoxGeo(darkTrimGeos, 0.055, 0.032, bw, -halfW + 0.025, 2.30, wz); // upper transom bar
+        pushBusBoxGeo(darkTrimGeos, 0.055, 0.72, 0.03, -halfW + 0.025, 2.10, wz); // center sliding mullion
+        const isShatteredBay = isBusB ? (idx === 1 || idx === 2 || idx === 4) : (idx === 2 || idx === 3);
+        const gu0 = isShatteredBay ? 0.63 : 0.82;
+        const gu1 = isShatteredBay ? 0.81 : 0.98;
+        pushBusUvBoxGeo(glassGeos, 0.018, 0.70, bw - 0.04, -halfW + 0.025, 2.10, wz, 0, 0, 0, gu0, 0.05, gu1, 0.95);
+        if (isShatteredBay) {
+          // 3D jagged glass shards jutting at angles around the broken window hole
+          pushBusUvBoxGeo(glassGeos, 0.02, 0.22, 0.28, -halfW + 0.03, 2.24, wz - 0.22, 0.38, 0.06, 0, 0.82, 0.10, 0.95, 0.45);
+          pushBusUvBoxGeo(glassGeos, 0.02, 0.19, 0.24, -halfW + 0.03, 1.90, wz + 0.20, -0.42, -0.05, 0, 0.82, 0.50, 0.95, 0.85);
+        }
+      });
+
+      for (let i = 0; i <= 7; i++) {
+        const pz = -4.90 + i * 1.40;
+        pushBusUvBoxGeo(yellowGeos, 0.09, 0.78, 0.10, halfW - 0.04, 2.10, pz, 0, 0, 0, 0.10, 0.34, 0.22, 0.54);
+        if (i < 7) {
+          const wz = pz + 0.70;
+          pushBusBoxGeo(darkTrimGeos, 0.055, 0.04, 1.28, halfW - 0.025, 2.46, wz);
+          pushBusBoxGeo(darkTrimGeos, 0.055, 0.04, 1.28, halfW - 0.025, 1.74, wz);
+          pushBusBoxGeo(darkTrimGeos, 0.055, 0.032, 1.28, halfW - 0.025, 2.30, wz);
+          pushBusBoxGeo(darkTrimGeos, 0.055, 0.72, 0.03, halfW - 0.025, 2.10, wz);
+          const isShatteredR = isBusB ? (i === 1 || i === 3 || i === 5) : (i === 2 || i === 4);
+          pushBusUvBoxGeo(glassGeos, 0.018, 0.70, 1.24, halfW - 0.025, 2.10, wz, 0, 0, 0, isShatteredR ? 0.63 : 0.82, 0.05, isShatteredR ? 0.81 : 0.98, 0.95);
+        }
+      }
+
+      // Bi-fold passenger doors folded inward inside doorways
+      pushBusBoxGeo(darkTrimGeos, 0.045, 2.18, 0.48, -halfW + 0.14, 1.40, fDoorMinZ + 0.15, 0, -doorOpenAngle, 0);
+      pushBusBoxGeo(darkTrimGeos, 0.045, 2.18, 0.48, -halfW + 0.14, 1.40, rDoorMaxZ - 0.15, 0, doorOpenAngle * 0.85, 0);
+
+      // 7. Smoothly Curved 7-Strip Domed Roof + Cylindrical Cant-Rail Fillets & Sloped Front Destination Brow
+      pushBusUvBoxGeo(yellowGeos, 1.28, 0.12, bLen - 0.28, 0, 3.06, 0, 0, 0, 0, 0.04, 0.44, 0.46, 0.56);
+      pushBusUvBoxGeo(yellowGeos, 0.32, 0.12, bLen - 0.24, -0.76, 3.02, 0, 0, 0, 0.18, 0.04, 0.42, 0.46, 0.55);
+      pushBusUvBoxGeo(yellowGeos, 0.32, 0.12, bLen - 0.24, 0.76, 3.02, 0, 0, 0, -0.18, 0.04, 0.42, 0.46, 0.55);
+      pushBusUvBoxGeo(yellowGeos, 0.28, 0.12, bLen - 0.20, -1.00, 2.95, 0, 0, 0, 0.38, 0.04, 0.40, 0.46, 0.54);
+      pushBusUvBoxGeo(yellowGeos, 0.28, 0.12, bLen - 0.20, 1.00, 2.95, 0, 0, 0, -0.38, 0.04, 0.40, 0.46, 0.54);
+      // Smooth cylindrical roof cant-rail side curves along full bus length
+      pushBusCylGeo(yellowGeos, 0.14, 0.14, bLen - 0.22, 12, -halfW + 0.13, 2.84, 0, Math.PI / 2, 0, 0, 0.04, 0.40, 0.46, 0.54);
+      pushBusCylGeo(yellowGeos, 0.14, 0.14, bLen - 0.22, 12, halfW - 0.13, 2.84, 0, Math.PI / 2, 0, 0, 0.04, 0.40, 0.46, 0.54);
+      // Smooth cylindrical front & rear roof crown domes
+      pushBusCylGeo(yellowGeos, 0.18, 0.18, bWid - 0.24, 12, 0, 2.88, -halfL + 0.18, 0, 0, Math.PI / 2, 0.04, 0.40, 0.46, 0.54);
+      pushBusCylGeo(yellowGeos, 0.18, 0.18, bWid - 0.24, 12, 0, 2.88, halfL - 0.18, 0, 0, Math.PI / 2, 0.04, 0.40, 0.46, 0.54);
+      // Rain gutter molding along roof edge above windows
+      pushBusBoxGeo(darkTrimGeos, 0.035, 0.03, bLen - 0.08, -halfW - 0.01, 2.81, 0);
+      pushBusBoxGeo(darkTrimGeos, 0.035, 0.03, bLen - 0.08, halfW + 0.01, 2.81, 0);
+
+      // Raised Front Destination Brow Housing at -Z (Facing South Main Gate!) & Recessed "GP62 | GANDAKI UNIVERSITY" Sign Board
+      pushBusUvBoxGeo(yellowGeos, 2.16, 0.34, 0.32, 0, 2.94, -halfL + 0.16, -0.10, 0, 0, 0.05, 0.38, 0.45, 0.55);
+      // Rounded side bolsters of the destination housing
+      pushBusCylGeo(yellowGeos, 0.15, 0.15, 0.32, 10, -0.96, 2.93, -halfL + 0.16, Math.PI / 2, 0, 0, 0.05, 0.38, 0.45, 0.55);
+      pushBusCylGeo(yellowGeos, 0.15, 0.15, 0.32, 10, 0.96, 2.93, -halfL + 0.16, Math.PI / 2, 0, 0, 0.05, 0.38, 0.45, 0.55);
+      // Chrome bezel & recessed Destination Board face at -Z
+      pushBusBoxGeo(chromeGeos, 1.84, 0.29, 0.04, 0, 2.93, -halfL + 0.005, -0.08, 0, 0);
+      pushBusUvBoxGeo(yellowGeos, 1.78, 0.24, 0.045, 0, 2.93, -halfL - 0.002, -0.08, 0, 0, 0.508, 0.468, 0.888, 0.570);
+
+      // 8. Front Fascia at -Z (lz = -5.20, Facing South Main Gate): Split Windshield, Wipers, Ribbed Chrome Trim, "LANKA ASHOK LEYLAND", T-Grille, 4 Round Headlights, Dented Bumper & 3 Plaques
+      pushBusUvBoxGeo(yellowGeos, bWid - 0.08, 1.14, 0.10, 0, 1.15, -halfL + 0.05, 0, 0, 0, 0.04, 0.28, 0.46, 0.55);
+      // Windshield A-pillars, center divider bar, and upper header
+      pushBusUvBoxGeo(yellowGeos, 0.10, 0.86, 0.10, 0, 2.15, -halfL + 0.04, 0, 0, 0, 0.12, 0.35, 0.22, 0.54);
+      pushBusUvBoxGeo(yellowGeos, 0.14, 0.86, 0.10, -halfW + 0.07, 2.15, -halfL + 0.04, 0, 0, 0, 0.12, 0.35, 0.22, 0.54);
+      pushBusUvBoxGeo(yellowGeos, 0.14, 0.86, 0.10, halfW - 0.07, 2.15, -halfL + 0.04, 0, 0, 0, 0.12, 0.35, 0.22, 0.54);
+      pushBusUvBoxGeo(yellowGeos, bWid - 0.06, 0.24, 0.12, 0, 2.68, -halfL + 0.05, 0, 0, 0, 0.04, 0.40, 0.46, 0.55);
+
+      // Black rubber gasket frames around Left (-X) & Right (+X) Windshields
+      [-0.57, 0.57].forEach(wx => {
+        pushBusBoxGeo(darkTrimGeos, 1.02, 0.045, 0.04, wx, 2.54, -halfL - 0.005);
+        pushBusBoxGeo(darkTrimGeos, 1.02, 0.045, 0.04, wx, 1.76, -halfL - 0.005);
+        pushBusBoxGeo(darkTrimGeos, 0.045, 0.80, 0.04, wx - 0.49, 2.15, -halfL - 0.005);
+        pushBusBoxGeo(darkTrimGeos, 0.045, 0.80, 0.04, wx + 0.49, 2.15, -halfL - 0.005);
+      });
+      // Left Windshield Glass ("GANDAKI" + shattered hole) & Right Windshield Glass ("UNIVERSITY" + shattered hole)
+      pushBusUvBoxGeo(glassGeos, 0.96, 0.74, 0.018, -0.57, 2.15, -halfL + 0.01, 0, 0, 0, 0.0, 0.0, 0.3125, 1.0);
+      pushBusUvBoxGeo(glassGeos, 0.96, 0.74, 0.018, 0.57, 2.15, -halfL + 0.01, 0, 0, 0, 0.3125, 0.0, 0.625, 1.0);
+      // 3D Jagged Shattered Glass Shards jutting from the broken windshield edges
+      pushBusUvBoxGeo(glassGeos, 0.22, 0.18, 0.02, -0.82, 2.32, -halfL + 0.015, 0.08, 0.12, -0.38, 0.82, 0.15, 0.96, 0.45);
+      pushBusUvBoxGeo(glassGeos, 0.24, 0.16, 0.02, -0.28, 1.92, -halfL + 0.015, -0.06, -0.10, 0.42, 0.82, 0.50, 0.96, 0.82);
+      pushBusUvBoxGeo(glassGeos, 0.25, 0.19, 0.02, 0.32, 2.34, -halfL + 0.015, 0.08, -0.12, 0.35, 0.82, 0.15, 0.96, 0.45);
+      pushBusUvBoxGeo(glassGeos, 0.22, 0.17, 0.02, 0.84, 2.02, -halfL + 0.015, -0.05, 0.10, -0.44, 0.82, 0.50, 0.96, 0.82);
+      // Yellow Route Placard ("पोखरा / POKHARA") tucked inside bottom-right windshield corner
+      pushBusUvBoxGeo(yellowGeos, 0.38, 0.17, 0.015, 0.52, 1.88, -halfL + 0.025, 0.06, 0, 0, 0.801, 0.365, 0.991, 0.458);
+
+      // 2 Articulated Black Windshield Wipers (one slightly bent/crooked for horror realism)
+      [-0.56, 0.56].forEach((wpx, wIdx) => {
+        const tilt = wIdx === 0 ? -0.14 : 0.05;
+        pushBusBoxGeo(darkTrimGeos, 0.03, 0.03, 0.05, wpx - 0.12, 1.75, -halfL - 0.025);
+        pushBusBoxGeo(darkTrimGeos, 0.46, 0.018, 0.02, wpx + 0.04, 1.83, -halfL - 0.025, 0, 0, 0.24 + tilt);
+        pushBusBoxGeo(darkTrimGeos, 0.48, 0.022, 0.02, wpx + 0.10, 1.88, -halfL - 0.03, 0, 0, 0.05 + tilt);
+      });
+
+      // 3-Ribbed Brushed Chrome Beltline Molding across Front & Sides (y = 1.63..1.73)
+      pushBusBoxGeo(darkTrimGeos, bWid + 0.03, 0.11, 0.03, 0, 1.68, -halfL - 0.008);
+      [1.715, 1.68, 1.645].forEach(cy => {
+        pushBusBoxGeo(chromeGeos, bWid + 0.045, 0.022, 0.04, 0, cy, -halfL - 0.014);
+        pushBusBoxGeo(chromeGeos, 0.035, 0.022, 1.24, -halfW - 0.008, cy, -4.56);
+        pushBusBoxGeo(chromeGeos, 0.035, 0.022, 5.50, -halfW - 0.008, cy, 0.0);
+        pushBusBoxGeo(chromeGeos, 0.035, 0.022, 1.24, -halfW - 0.008, cy, 4.56);
+        pushBusBoxGeo(chromeGeos, 0.035, 0.022, bLen - 0.04, halfW + 0.008, cy, 0.0);
+      });
+
+      // "LANKA ASHOK LEYLAND" Front Badge Plate centered below chrome molding
+      pushBusUvBoxGeo(yellowGeos, 0.86, 0.095, 0.035, 0, 1.54, -halfL - 0.012, 0, 0, 0, 0.508, 0.390, 0.791, 0.453);
+
+      // 3-Part Recessed Black Slatted Front Grille (Left bay, Stepped T-shaped Center bay, Right bay)
+      [-0.78, 0.78].forEach(gx => {
+        pushBusBoxGeo(darkTrimGeos, 0.66, 0.38, 0.045, gx, 1.26, -halfL - 0.008);
+        for (let s = 0; s < 8; s++) {
+          pushBusBoxGeo(chromeGeos, 0.60, 0.014, 0.055, gx, 1.11 + s * 0.042, -halfL - 0.012);
+        }
+      });
+      pushBusBoxGeo(darkTrimGeos, 0.82, 0.38, 0.05, 0, 1.26, -halfL - 0.01);
+      pushBusBoxGeo(darkTrimGeos, 0.72, 0.24, 0.05, 0, 1.02, -halfL - 0.01);
+      for (let s = 0; s < 12; s++) {
+        const sy = 0.93 + s * 0.042;
+        const sw = sy < 1.10 ? 0.66 : 0.76;
+        pushBusBoxGeo(chromeGeos, sw, 0.015, 0.06, 0, sy, -halfL - 0.015);
+      }
+
+      // Recessed Dual Headlight Pockets + 4 Round Headlights with Chrome Bezels + Corner Amber Turn Signals
+      [-0.78, 0.78].forEach(px => {
+        pushBusBoxGeo(darkTrimGeos, 0.62, 0.26, 0.035, px, 0.82, -halfL - 0.006);
+      });
+      [-0.91, -0.65, 0.65, 0.91].forEach(hlx => {
+        pushBusCylGeo(chromeGeos, 0.088, 0.088, 0.045, 16, hlx, 0.82, -halfL - 0.018, Math.PI / 2, 0, 0);
+        pushBusCylGeo(headlightGeos, 0.072, 0.072, 0.052, 16, hlx, 0.82, -halfL - 0.022, Math.PI / 2, 0, 0);
+      });
+      [-1.14, 1.14].forEach(ax => {
+        pushBusBoxGeo(amberGeos, 0.075, 0.16, 0.04, ax, 0.82, -halfL - 0.015);
+        pushBusBoxGeo(amberGeos, 0.05, 0.08, 0.04, ax, 2.66, -halfL - 0.015);
+      });
+
+      // Heavy Black Steel Front Bumper (with slight impact dent/tilt on corner) + 3 Authentic Plaques
+      pushBusBoxGeo(darkTrimGeos, bWid + 0.10, 0.26, 0.24, 0, 0.48, -halfL - 0.09, 0, 0, -0.008);
+      // Left License Plate (slightly bent/tilted for weathered realism)
+      pushBusUvBoxGeo(yellowGeos, 0.54, 0.13, 0.025, -0.58, 0.48, -halfL - 0.21, 0, 0, -0.045, 0.508, 0.282, 0.693, 0.355);
+      // Center Square Decorative Emblem Plaque
+      pushBusUvBoxGeo(yellowGeos, 0.24, 0.16, 0.028, 0.0, 0.48, -halfL - 0.212, 0, 0, 0.015, 0.703, 0.279, 0.786, 0.359);
+      // Right Devanagari Town Plaque
+      pushBusUvBoxGeo(yellowGeos, 0.54, 0.13, 0.025, 0.58, 0.48, -halfL - 0.21, 0, 0, 0.025, 0.796, 0.282, 0.991, 0.355);
+
+      // Cantilevered Side Mirrors on Cab Corners (-Z front)
+      [-1, 1].forEach(ms => {
+        pushBusBoxGeo(darkTrimGeos, 0.22, 0.028, 0.028, ms * (halfW + 0.09), 2.38, -halfL + 0.22);
+        pushBusBoxGeo(darkTrimGeos, 0.22, 0.028, 0.028, ms * (halfW + 0.09), 1.98, -halfL + 0.22);
+        pushBusBoxGeo(darkTrimGeos, 0.025, 0.42, 0.025, ms * (halfW + 0.19), 2.18, -halfL + 0.22);
+        pushBusBoxGeo(darkTrimGeos, 0.07, 0.34, 0.15, ms * (halfW + 0.19), 2.18, -halfL + 0.22);
+      });
+
+      // 9. Rear Face at +Z (lz = +5.20)
+      pushBusUvBoxGeo(yellowGeos, bWid - 0.08, 1.18, 0.10, 0, 1.13, halfL - 0.05, 0, 0, 0, 0.04, 0.28, 0.46, 0.55);
+      pushBusUvBoxGeo(yellowGeos, 0.16, 0.82, 0.10, 0, 2.12, halfL - 0.05, 0, 0, 0, 0.10, 0.35, 0.22, 0.54);
+      pushBusUvBoxGeo(yellowGeos, 0.22, 0.82, 0.10, -halfW + 0.11, 2.12, halfL - 0.05, 0, 0, 0, 0.10, 0.35, 0.22, 0.54);
+      pushBusUvBoxGeo(yellowGeos, 0.22, 0.82, 0.10, halfW - 0.11, 2.12, halfL - 0.05, 0, 0, 0, 0.10, 0.35, 0.22, 0.54);
+      pushBusUvBoxGeo(yellowGeos, bWid - 0.06, 0.42, 0.12, 0, 2.74, halfL - 0.05, 0, 0, 0, 0.04, 0.40, 0.46, 0.55);
+      pushBusBoxGeo(darkTrimGeos, bWid + 0.06, 0.24, 0.20, 0, 0.50, halfL + 0.06);
+      pushBusUvBoxGeo(glassGeos, 0.88, 0.68, 0.02, -0.54, 2.12, halfL - 0.03, 0, 0, 0, 0.82, 0.10, 0.98, 0.90);
+      pushBusUvBoxGeo(glassGeos, 0.88, 0.68, 0.02, 0.54, 2.12, halfL - 0.03, 0, 0, 0, 0.63, 0.10, 0.81, 0.90);
+
+      // 10. 3-Bar Tubular Side Underrun Skirt Guard Rail & Detailed 6-Lug Artillery Wheels with Curved Cylindrical Wheel Arch Flares
+      [-halfW - 0.02, halfW + 0.02].forEach(sx => {
+        [0.43, 0.33, 0.23].forEach(ry => {
+          pushBusBoxGeo(darkTrimGeos, 0.028, 0.032, 2.62, sx, ry, 0.0);
+        });
+        [-1.18, -0.40, 0.40, 1.18].forEach(sz => {
+          pushBusBoxGeo(darkTrimGeos, 0.03, 0.32, 0.038, sx, 0.36, sz);
         });
       });
 
-      bGroup.position.set(bx, 0, bz);
-      bGroup.rotation.y = rotY;
-      scene.add(bGroup);
+      [-1.95, 1.95].forEach(az => {
+        pushBusCylGeo(darkTrimGeos, 0.07, 0.07, bWid - 0.12, 8, 0, 0.49, az, 0, 0, Math.PI / 2);
+        [-halfW + 0.06, halfW - 0.06].forEach(wx => {
+          const signX = wx < 0 ? -1 : 1;
+          // Smooth curved cylindrical wheel arch flare (7 segments forming a true curved arch over the tyre)
+          for (let aSeg = 0; aSeg < 7; aSeg++) {
+            const ang = -1.15 + (aSeg / 6) * 2.30;
+            const archR = 0.58;
+            pushBusBoxGeo(
+              darkTrimGeos,
+              0.14,
+              0.06,
+              0.24,
+              wx + signX * 0.04,
+              0.49 + Math.cos(ang) * archR,
+              az + Math.sin(ang) * archR,
+              ang,
+              0,
+              0
+            );
+          }
+          pushBusBoxGeo(darkTrimGeos, 0.12, 0.46, 0.04, wx + signX * 0.03, 0.50, az + 0.58); // rear mudflap
+          pushBusCylGeo(darkTrimGeos, 0.49, 0.49, 0.36, 18, wx, 0.49, az, 0, 0, Math.PI / 2);
+          pushBusCylGeo(darkTrimGeos, 0.29, 0.29, 0.375, 14, wx, 0.49, az, 0, 0, Math.PI / 2);
+          pushBusCylGeo(chromeGeos, 0.11, 0.13, 0.41, 12, wx + signX * 0.02, 0.49, az, 0, 0, Math.PI / 2);
+          for (let lb = 0; lb < 6; lb++) {
+            const lang = (lb * Math.PI * 2) / 6;
+            pushBusCylGeo(
+              chromeGeos,
+              0.022,
+              0.022,
+              0.39,
+              6,
+              wx + signX * 0.01,
+              0.49 + Math.sin(lang) * 0.19,
+              az + Math.cos(lang) * 0.19,
+              0,
+              0,
+              Math.PI / 2
+            );
+          }
+        });
+      });
 
-      const bShadow = new THREE.Mesh(new THREE.PlaneGeometry(busW + 0.9, busL + 0.9), materials.vehicleShadow);
+      // 11. Lush 3D Overgrown Moss Cushions & Layered Hanging Leafy Vine Curtains (Facing -Z Gate & -X Plaza)
+      const mossPads = [
+        [1.15, 0.09, 0.65, -0.48, 3.12, -halfL + 0.24, -0.12, 0, 0.08],
+        [0.95, 0.07, 0.52, 0.38, 3.11, -halfL + 0.22, -0.10, 0, -0.05],
+        [0.85, 0.10, 2.45, -0.82, 3.03, -1.65, 0, 0, 0.22],
+        [0.85, 0.10, 2.65, -0.82, 3.03, 2.15, 0, 0, 0.22],
+        [0.85, 0.09, 2.35, 0.82, 3.03, -0.85, 0, 0, -0.22],
+        [0.85, 0.09, 2.35, 0.82, 3.03, 2.45, 0, 0, -0.22],
+        [1.12, 0.07, 0.14, -0.56, 1.74, -halfL - 0.025, -0.15, 0, 0],
+        [0.92, 0.07, 0.14, 0.54, 1.74, -halfL - 0.025, -0.15, 0, 0],
+        [0.65, 0.04, 0.18, -0.62, 0.61, -halfL - 0.10, 0, 0, 0],
+        [0.58, 0.04, 0.18, 0.58, 0.61, -halfL - 0.10, 0, 0, 0],
+        [0.22, 0.03, 0.92, -1.12, 0.19, fDoorCenterZ, 0, 0, 0],
+        [0.22, 0.03, 0.88, -1.12, 0.19, rDoorCenterZ, 0, 0, 0],
+        [0.05, 0.14, 0.85, -halfW - 0.015, 1.72, -0.55, 0, 0, 0],
+        [0.05, 0.14, 0.75, -halfW - 0.015, 1.72, 1.25, 0, 0, 0],
+      ];
+      mossPads.forEach(([mw, mh, md, mx, my, mz, mrx, mry, mrz]) => {
+        pushBusUvBoxGeo(mossGeos, mw, mh, md, mx, my, mz, mrx, mry, mrz, 0.05, 0.55, 0.95, 0.98);
+      });
+
+      const vineCurtains = [
+        // Front brow vine curtains draping over "GP62" and upper-left "GANDAKI" windshield (-Z front)
+        [0.88, 0.68, 0.02, -0.62, 2.76, -halfL - 0.04, 0.06, 0, 0.04],
+        [0.64, 0.54, 0.02, -0.82, 2.64, -halfL - 0.045, 0.08, -0.12, 0.08],
+        // Windshield sill vines hanging down over "LANKA ASHOK LEYLAND" & grille
+        [0.52, 0.56, 0.02, 0.44, 1.50, -halfL - 0.045, 0.04, 0, -0.04],
+        [0.68, 0.36, 0.02, -0.58, 1.58, -halfL - 0.045, 0.04, 0, 0.02],
+        // Cascading vine curtains over 1st & 2nd left side windows (behind front door, z = -1.68, -1.45)
+        [0.02, 0.96, 1.48, -halfW - 0.032, 2.48, -1.68, 0, 0, -0.07],
+        [0.02, 0.78, 1.15, -halfW - 0.048, 2.56, -1.45, 0, -0.08, -0.11],
+        // Cascading vine curtains over 4th & 5th left side windows & rear door brow (z = +2.05, +4.25)
+        [0.02, 0.88, 1.52, -halfW - 0.032, 2.52, 2.05, 0, 0, -0.07],
+        [0.02, 0.82, 1.18, -halfW - 0.035, 2.50, 4.25, 0, 0, -0.06],
+        // Right side roof-edge vine curtains
+        [0.02, 0.86, 1.55, halfW + 0.032, 2.52, -1.20, 0, 0, 0.07],
+        [0.02, 0.84, 1.45, halfW + 0.032, 2.52, 2.20, 0, 0, 0.07],
+      ];
+      vineCurtains.forEach(([vw, vh, vd, vx, vy, vz, vrx, vry, vrz]) => {
+        pushBusUvBoxGeo(vineGeos, vw, vh, vd, vx, vy, vz, vrx, vry, vrz, 0.02, 0.02, 0.98, 0.96);
+      });
+
+      const extBodyMesh = new THREE.Mesh(mergeBufferGeometries(yellowGeos), busExteriorPaintMat);
+      extBodyMesh.castShadow = true;
+      extBodyMesh.receiveShadow = true;
+      extBodyMesh.userData.noMerge = true;
+      busGroup.add(extBodyMesh);
+
+      const extDarkMesh = new THREE.Mesh(mergeBufferGeometries(darkTrimGeos), busDarkTrimMat);
+      extDarkMesh.castShadow = true;
+      extDarkMesh.receiveShadow = true;
+      extDarkMesh.userData.noMerge = true;
+      busGroup.add(extDarkMesh);
+
+      const extChromeMesh = new THREE.Mesh(mergeBufferGeometries(chromeGeos), busChromeTrimMat);
+      extChromeMesh.userData.noMerge = true;
+      busGroup.add(extChromeMesh);
+
+      const extGlassMesh = new THREE.Mesh(mergeBufferGeometries(glassGeos), busDirtyGlassMat);
+      extGlassMesh.userData.noMerge = true;
+      busGroup.add(extGlassMesh);
+
+      const extHeadlightMesh = new THREE.Mesh(mergeBufferGeometries(headlightGeos), busHeadlightEmissiveMat);
+      extHeadlightMesh.userData.noMerge = true;
+      busGroup.add(extHeadlightMesh);
+
+      const extAmberMesh = new THREE.Mesh(mergeBufferGeometries(amberGeos), busAmberIndicatorMat);
+      extAmberMesh.userData.noMerge = true;
+      busGroup.add(extAmberMesh);
+
+      const extMossMesh = new THREE.Mesh(mergeBufferGeometries(mossGeos), busMossVineMat);
+      extMossMesh.userData.noMerge = true;
+      busGroup.add(extMossMesh);
+
+      const vineGroup = new THREE.Group();
+      vineGroup.name = id + '_vines';
+      vineGroup.userData.noMerge = true;
+      if (vineGeos.length > 0) {
+        const vineMesh = new THREE.Mesh(mergeBufferGeometries(vineGeos), busMossVineMat);
+        vineMesh.userData.noMerge = true;
+        vineGroup.add(vineMesh);
+      }
+      vineGroup.visible = true;
+      busGroup.add(vineGroup);
+
+      // ── WALK-IN INTERIOR GROUP (Distance-culled at 25m, Instanced Seats & Poles, Blinking Warm + Red Horror Tubes) ──
+      const interiorGroup = new THREE.Group();
+      interiorGroup.name = id + '_interior';
+      interiorGroup.userData.noMerge = true;
+      busGroup.add(interiorGroup);
+
+      const intStructGeos = [];
+      const intTrimGeos = [];
+
+      // Ribbed rubber floor mat
+      pushBusUvBoxGeo(intStructGeos, bWid - 0.22, 0.03, bLen - 0.28, 0.04, floorY + 0.015, 0, 0, 0, 0, 0.52, 0.02, 0.98, 0.24);
+      // Front dashboard console, instrument cluster, steering column & wheel, driver seat & partition at -Z (facing South Gate!)
+      pushBusBoxGeo(intTrimGeos, 1.48, 0.72, 0.54, 0.40, floorY + 0.36, -4.76);
+      pushBusBoxGeo(intTrimGeos, 0.56, 0.18, 0.28, 0.62, floorY + 0.80, -4.72);
+      pushBusCylGeo(intTrimGeos, 0.03, 0.03, 0.62, 6, 0.62, floorY + 0.74, -4.46, 0.45, 0, 0);
+      pushBusCylGeo(intTrimGeos, 0.24, 0.24, 0.035, 10, 0.62, floorY + 0.98, -4.34, -1.12, 0, 0);
+      pushBusBoxGeo(intTrimGeos, 0.56, 0.42, 0.52, 0.62, floorY + 0.24, -3.88);
+      pushBusBoxGeo(intTrimGeos, 0.56, 0.58, 0.10, 0.62, floorY + 0.68, -3.66);
+      pushBusBoxGeo(intTrimGeos, 0.76, 1.35, 0.04, 0.72, floorY + 0.68, -3.42);
+      // Rear full-width bench at +Z (z = +4.76..+4.96)
+      pushBusUvBoxGeo(intStructGeos, bWid - 0.28, 0.42, 0.56, 0, floorY + 0.24, 4.76, 0, 0, 0, 0.02, 0.02, 0.48, 0.24);
+      pushBusUvBoxGeo(intStructGeos, bWid - 0.28, 0.54, 0.12, 0, floorY + 0.68, 4.96, 0, 0, 0, 0.02, 0.02, 0.48, 0.24);
+      // 2 longitudinal overhead handrails + hanging grab straps
+      pushBusCylGeo(intTrimGeos, 0.018, 0.018, 8.6, 6, -0.42, floorY + 2.18, 0, Math.PI / 2, 0, 0);
+      pushBusCylGeo(intTrimGeos, 0.018, 0.018, 8.6, 6, 0.42, floorY + 2.18, 0, Math.PI / 2, 0, 0);
+
+      const intFloorAndRearMesh = new THREE.Mesh(mergeBufferGeometries(intStructGeos), busExteriorPaintMat);
+      intFloorAndRearMesh.receiveShadow = true;
+      intFloorAndRearMesh.userData.noMerge = true;
+      interiorGroup.add(intFloorAndRearMesh);
+
+      const intCabMesh = new THREE.Mesh(mergeBufferGeometries(intTrimGeos), busDarkTrimMat);
+      intCabMesh.userData.noMerge = true;
+      interiorGroup.add(intCabMesh);
+
+      // Instanced Passenger Bench Seats (5 left + 6 right = 11 benches facing -Z Front)
+      const leftSeatZs = [-2.10, -1.05, 0.0, 1.05, 2.10];
+      const rightSeatZs = [-2.10, -1.05, 0.0, 1.05, 2.10, 3.15];
+      const totalSeats = leftSeatZs.length + rightSeatZs.length;
+      const seatInstMesh = new THREE.InstancedMesh(sharedBusSeatBenchGeo, busExteriorPaintMat, totalSeats);
+      seatInstMesh.castShadow = true;
+      seatInstMesh.receiveShadow = true;
+      seatInstMesh.userData.noMerge = true;
+      const dummyMat = new THREE.Matrix4();
+      const dummyPos = new THREE.Vector3();
+      const dummyQuat = new THREE.Quaternion();
+      const dummyScale = new THREE.Vector3(1, 1, 1);
+      let seatIdx = 0;
+      leftSeatZs.forEach((sz, idx) => {
+        dummyPos.set(-0.78, floorY, sz);
+        dummyQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (idx % 2 === 0 ? 0.025 : -0.03));
+        dummyMat.compose(dummyPos, dummyQuat, dummyScale);
+        seatInstMesh.setMatrixAt(seatIdx++, dummyMat);
+      });
+      rightSeatZs.forEach((sz, idx) => {
+        dummyPos.set(0.78, floorY, sz);
+        dummyQuat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (idx % 2 === 0 ? -0.025 : 0.03));
+        dummyMat.compose(dummyPos, dummyQuat, dummyScale);
+        seatInstMesh.setMatrixAt(seatIdx++, dummyMat);
+      });
+      seatInstMesh.instanceMatrix.needsUpdate = true;
+      interiorGroup.add(seatInstMesh);
+
+      // Instanced Vertical Handrail Stanchion Poles (8 poles, 1 draw call)
+      const poleCoords = [
+        [-0.41, -2.65],
+        [-0.41, -0.52],
+        [-0.41, 1.58],
+        [-0.41, 2.65],
+        [0.41, -3.35],
+        [0.41, -1.05],
+        [0.41, 1.05],
+        [0.41, 3.15],
+      ];
+      const poleInstMesh = new THREE.InstancedMesh(sharedBusStanchionGeo, busChromeTrimMat, poleCoords.length);
+      poleInstMesh.userData.noMerge = true;
+      poleCoords.forEach(([px, pz], idx) => {
+        dummyPos.set(px, floorY + 1.12, pz);
+        dummyQuat.identity();
+        dummyMat.compose(dummyPos, dummyQuat, dummyScale);
+        poleInstMesh.setMatrixAt(idx, dummyMat);
+      });
+      poleInstMesh.instanceMatrix.needsUpdate = true;
+      interiorGroup.add(poleInstMesh);
+
+      // ── BLINKING WARM AMBER & BLOOD-RED HORROR CEILING TUBE LIGHTS + VOLUMETRIC CABIN GLOW POOLS ──
+      // 1) Front/Mid Warm Amber Dying Fluorescent Tube (z = -1.75m)
+      const warmTubeGeo = new THREE.BoxGeometry(0.16, 0.045, 3.6);
+      const warmTubeMat = busWarmTubeBaseMat.clone();
+      const warmTubeMesh = new THREE.Mesh(warmTubeGeo, warmTubeMat);
+      warmTubeMesh.position.set(0, floorY + 2.31, -1.75);
+      warmTubeMesh.userData.noMerge = true;
+      interiorGroup.add(warmTubeMesh);
+
+      // 2) Rear/Mid Blood-Red Horror Emergency Tube (z = +1.85m)
+      const redTubeGeo = new THREE.BoxGeometry(0.16, 0.045, 3.6);
+      const redTubeMat = busRedTubeBaseMat.clone();
+      const redTubeMesh = new THREE.Mesh(redTubeGeo, redTubeMat);
+      redTubeMesh.position.set(0, floorY + 2.31, 1.85);
+      redTubeMesh.userData.noMerge = true;
+      interiorGroup.add(redTubeMesh);
+
+      // 3) Warm Amber & Blood-Red Volumetric Cabin Light-Spill Pools (pulsing in sync with ceiling tubes)
+      const warmGlowMat = busWarmGlowBaseMat.clone();
+      const warmGlowParts = [];
+      pushBusBoxGeo(warmGlowParts, 1.95, 0.02, 4.2, 0, floorY + 0.04, -1.75);
+      pushBusBoxGeo(warmGlowParts, 1.55, 1.85, 0.02, 0, floorY + 1.25, -1.75, 0, 0.35, 0);
+      const warmGlowMesh = new THREE.Mesh(mergeBufferGeometries(warmGlowParts), warmGlowMat);
+      warmGlowMesh.userData.noMerge = true;
+      interiorGroup.add(warmGlowMesh);
+
+      const redGlowMat = busRedGlowBaseMat.clone();
+      const redGlowParts = [];
+      pushBusBoxGeo(redGlowParts, 1.95, 0.02, 4.2, 0, floorY + 0.04, 1.85);
+      pushBusBoxGeo(redGlowParts, 1.55, 1.85, 0.02, 0, floorY + 1.25, 1.85, 0, -0.35, 0);
+      const redGlowMesh = new THREE.Mesh(mergeBufferGeometries(redGlowParts), redGlowMat);
+      redGlowMesh.userData.noMerge = true;
+      interiorGroup.add(redGlowMesh);
+
+      // Interior Props (scattered papers, broken glass shards on floor, old bag, fallen cushion in Bus B) + Dust Motes
+      const propsGroup = new THREE.Group();
+      propsGroup.name = id + '_props';
+      propsGroup.userData.noMerge = true;
+      const propGeos = [];
+      [[-0.12, 0.02, -1.4, 0.3], [0.18, 0.02, 0.65, -0.4], [-0.05, 0.02, 2.45, 0.15], [0.68, 0.44, -1.05, 0.5]].forEach(([px, py, pz, pr]) => {
+        pushBusUvBoxGeo(propGeos, 0.24, 0.008, 0.32, px, floorY + py, pz, 0, pr, 0, 0.02, 0.02, 0.48, 0.24);
+      });
+      pushBusUvBoxGeo(propGeos, 0.34, 0.28, 0.24, -0.74, floorY + 0.56, 1.05, 0.12, 0.35, 0, 0.02, 0.02, 0.48, 0.24);
+      if (isBusB) {
+        pushBusUvBoxGeo(propGeos, 0.68, 0.06, 0.38, 0.02, floorY + 0.03, 2.85, 0, 0.18, 0, 0.02, 0.02, 0.48, 0.24);
+      }
+      const propsMesh = new THREE.Mesh(mergeBufferGeometries(propGeos), busExteriorPaintMat);
+      propsMesh.userData.noMerge = true;
+      propsGroup.add(propsMesh);
+
+      const dustCount = 28;
+      const dustPositions = new Float32Array(dustCount * 3);
+      for (let d = 0; d < dustCount; d++) {
+        dustPositions[d * 3] = -0.95 + ((d * 0.37) % 1.9);
+        dustPositions[d * 3 + 1] = floorY + 0.35 + ((d * 0.29) % 1.85);
+        dustPositions[d * 3 + 2] = -4.2 + ((d * 0.61) % 8.4);
+      }
+      const dustGeo = new THREE.BufferGeometry();
+      dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+      const dustPoints = new THREE.Points(dustGeo, busDustMat);
+      dustPoints.userData.noMerge = true;
+      propsGroup.add(dustPoints);
+      propsGroup.visible = (typeof currentQuality === 'string' ? currentQuality !== 'fast' : true);
+      interiorGroup.add(propsGroup);
+
+      scene.add(busGroup);
+
+      // Soft Ground Contact Shadow
+      const bShadow = new THREE.Mesh(new THREE.PlaneGeometry(bWid + 0.85, bLen + 0.85), materials.vehicleShadow);
       bShadow.rotation.x = -Math.PI / 2;
       bShadow.position.set(bx, 0.022, bz);
       bShadow.rotation.z = -rotY;
+      bShadow.userData.noMerge = true;
       scene.add(bShadow);
 
-      addColliderBox(new THREE.Box3(
-        new THREE.Vector3(bx - busW / 2 - 0.2, 0, bz - busL / 2 - 0.2),
-        new THREE.Vector3(bx + busW / 2 + 0.2, busH, bz + busL / 2 + 0.2)
-      ));
+      // ── STEP 4: ORIENTED BOUNDING BOX (OBB) COLLIDERS, WALKABLE FLOORS, STAIR RAMPS & ROOF CEILING ──
+      // 1. Walkable Interior Cabin Floor (y = 0.54m) & 2 Entry Door Step Ramps (0.0m -> 0.54m)
+      addOrientedWalkableFloor(bx, bz, rotY, 0.06, 0.0, 2.22, bLen - 0.16, floorY);
+      addOrientedWalkableStairRamp(bx, bz, rotY, -0.96, fDoorCenterZ, 0.84, 1.24, -1.38, -0.54, 0.0, floorY);
+      addOrientedWalkableStairRamp(bx, bz, rotY, -0.96, rDoorCenterZ, 0.84, 1.24, -1.38, -0.54, 0.0, floorY);
+
+      // Low physical step risers inside each doorway (each <= 0.52m stepHeight so player steps up/down smoothly)
+      [fDoorCenterZ, rDoorCenterZ].forEach((dcz, dIdx) => {
+        addLocalBusOBBCollider(bx, bz, rotY, -1.12, dcz, 0.22, 1.12, 0.0, 0.18, 'step', id + '_step1_' + dIdx);
+        addLocalBusOBBCollider(bx, bz, rotY, -0.90, dcz, 0.22, 1.12, 0.0, 0.36, 'step', id + '_step2_' + dIdx);
+      });
+
+      // 2. Outer Walls with Doorway Gaps at Both Doors (1.20m clear doorways at Front -3.95..-2.75 and Rear +2.75..+3.95)
+      addLocalBusOBBCollider(bx, bz, rotY, 1.20, 0.0, 0.12, bLen, 0.0, bH, 'wall', id + '_wall_right');
+      addLocalBusOBBCollider(bx, bz, rotY, -1.20, -4.60, 0.12, 1.30, 0.0, bH, 'wall', id + '_wall_left_front');
+      addLocalBusOBBCollider(bx, bz, rotY, -1.20, 0.0, 0.12, 5.50, 0.0, bH, 'wall', id + '_wall_left_mid');
+      addLocalBusOBBCollider(bx, bz, rotY, -1.20, 4.60, 0.12, 1.30, 0.0, bH, 'wall', id + '_wall_left_rear');
+      addLocalBusOBBCollider(bx, bz, rotY, 0.0, -5.19, bWid, 0.14, 0.0, bH, 'wall', id + '_wall_front');
+      addLocalBusOBBCollider(bx, bz, rotY, 0.0, 5.19, bWid, 0.14, 0.0, bH, 'wall', id + '_wall_rear');
+
+      // 3. Interior Seat Row Colliders (leaves a clear 0.84m center walk aisle x in [-0.42, +0.42] > 2*playerRadius = 0.56m)
+      addLocalBusOBBCollider(bx, bz, rotY, -0.78, 0.0, 0.72, 4.76, floorY, floorY + 1.02, 'furniture', id + '_seats_left');
+      addLocalBusOBBCollider(bx, bz, rotY, 0.78, 0.50, 0.72, 5.76, floorY, floorY + 1.02, 'furniture', id + '_seats_right');
+      addLocalBusOBBCollider(bx, bz, rotY, 0.78, -4.35, 0.72, 1.40, floorY, floorY + 1.12, 'furniture', id + '_driver_cab');
+      addLocalBusOBBCollider(bx, bz, rotY, 0.0, 4.80, 2.24, 0.64, floorY, floorY + 1.02, 'furniture', id + '_rear_bench');
+
+      // 4. Bus Roof Collider (minY = 2.82, maxY = 3.12) — prevents jumping through the roof from inside
+      addLocalBusOBBCollider(bx, bz, rotY, 0.0, 0.0, bWid, bLen, 2.82, bH + 0.02, 'roof', id + '_roof');
+
+      // 5. Hiding Spots (behind existing gameplay flag; both spot and exit positions >= playerRadius + 0.15 = 0.43m clear of all colliders)
+      const cosR = Math.cos(rotY);
+      const sinR = Math.sin(rotY);
+      const toWorld = (lx, lz) => ({
+        x: bx + lx * cosR + lz * sinR,
+        z: bz - lx * sinR + lz * cosR,
+      });
+      const driverSpotPos = toWorld(0.0, -3.05);
+      const driverExitPos = toWorld(-0.02, -3.05);
+      interactiveHidingSpots.push({
+        id: id + '-behind-driver',
+        name: label + ' — Behind Driver Seat',
+        x: driverSpotPos.x,
+        y: floorY,
+        z: driverSpotPos.z,
+        exitX: driverExitPos.x,
+        exitY: floorY,
+        exitZ: driverExitPos.z,
+        zone: 'Bus Parking Bay',
+        spotType: 'desk',
+        riskLevel: 0.24,
+        useCount: 0,
+        requiresGameplayFlag: true,
+      });
+      const rearSpotPos = toWorld(-0.14, 3.92);
+      const rearExitPos = toWorld(-0.12, 3.88);
+      interactiveHidingSpots.push({
+        id: id + '-under-rear-seats',
+        name: label + ' — Under Rear Seats',
+        x: rearSpotPos.x,
+        y: floorY,
+        z: rearSpotPos.z,
+        exitX: rearExitPos.x,
+        exitY: floorY,
+        exitZ: rearExitPos.z,
+        zone: 'Bus Parking Bay',
+        spotType: 'desk',
+        riskLevel: 0.22,
+        useCount: 0,
+        requiresGameplayFlag: true,
+      });
+
+      const busRecord = {
+        id,
+        label,
+        bx,
+        bz,
+        rotY,
+        length: bLen,
+        width: bWid,
+        height: bH,
+        floorY,
+        fDoorCenterZ,
+        rDoorCenterZ,
+        busGroup,
+        interiorGroup,
+        vineGroup,
+        propsGroup,
+        tubeStripMat: warmTubeMat,
+        warmTubeMat,
+        redTubeMat,
+        warmGlowMat,
+        redGlowMat,
+        dustPoints,
+        exteriorDrawCalls: 7 + (vineGeos.length > 0 ? 1 : 0),
+        interiorDrawCalls: 8,
+        toWorld,
+      };
+      enterableBuses.push(busRecord);
+      return busRecord;
     }
 
-    buildCampusBus(4.8, -43.0, true, 0.04);
-    buildCampusBus(9.4, -44.0, false, 0.04);
-    buildCampusBus(13.8, -45.0, false, 0.04);
+    // Spawn 2 Enterable Gandaki University Buses in the East Parking Plaza
+    // Bus A at (5.2, -44.2, rotY = 0.0) and Bus B at (15.4, -45.2, rotY = 0.04)
+    // Both have >= 1.5m verified clear gap from all walls, curbs, streetlamps (11.5, -42.0), and trees.
+    buildEnterableUniversityBus({
+      id: 'bus-a',
+      label: 'Bus A (GP62)',
+      bx: 5.2,
+      bz: -44.2,
+      rotY: 0.0,
+      mossAmount: busConfig.mossAmountA || 0.65,
+      glassBreakage: busConfig.glassBreakageA || 0.35,
+      doorOpenAngle: busConfig.doorOpenAngleA || 0.78,
+      isBusB: false,
+    });
+    buildEnterableUniversityBus({
+      id: 'bus-b',
+      label: 'Bus B (GP64)',
+      bx: 15.4,
+      bz: -45.2,
+      rotY: 0.04,
+      mossAmount: busConfig.mossAmountB || 0.92,
+      glassBreakage: busConfig.glassBreakageB || 0.72,
+      doorOpenAngle: busConfig.doorOpenAngleB || 0.42,
+      isBusB: true,
+    });
 
     buildWallSegment(1.5, 0, -43.5, 0.5, 0.35, 12.0, materials.riverStoneCoping);
 
@@ -8851,8 +12378,15 @@ export function getHideAndSeekHtml(): string {
     /* -------------------------------------------------------------------------
        ARCHITECTURAL HELPERS FOR THE 3-STOREY GRAND ROTUNDA COMPLEX (IMG_5835 2.JPG & IMG_5854)
        ------------------------------------------------------------------------- */
-    // 1. Projecting 2-Story White Segmental-Arched Window Bay (Exact match to IMG_5835 2.JPG!)
-    function buildRotundaArchedBay(wx, baseY, wz, facingZDir = -1, isSideWall = false, warmGround = true, warmFirst = true) {
+    // Helper: Resolve Main Administration Building window material ('warm' | 'red' | 'dark' | boolean)
+    function resolveMainBuildingWindowMat(mode) {
+      if (mode === 'red') return materials.rotundaWindowRed || materials.windowWarmLit;
+      if (mode === 'warm' || mode === true) return materials.rotundaWindowWarm || materials.windowWarmLit;
+      return materials.rotundaWindowDark || materials.windowGlass;
+    }
+
+    // 1. Projecting 2-Story White Pilaster & Window Bay (Fixes 1 & 2: Crisp dark window frames/mullions, zero moire stripes, high-contrast pilasters/cornices!)
+    function buildRotundaArchedBay(wx, baseY, wz, facingZDir = -1, isSideWall = false, warmGround = 'dark', warmFirst = 'dark') {
       const bayGroup = new THREE.Group();
       bayGroup.position.set(wx, baseY, wz);
       if (isSideWall) {
@@ -8863,107 +12397,75 @@ export function getHideAndSeekHtml(): string {
 
       const bayW = 2.36;
       const bayH = 7.05; // Spans Ground Floor (0..3.60) + 1st Floor (3.60..7.05)
-      const pilasterW = 0.26;
-      const pilasterD = 0.30;
+      const pilasterW = 0.28;
+      const pilasterD = 0.34;
+      const innerW = bayW - pilasterW * 2;
 
-      // Two tall white projecting vertical pilasters framing the 2-story bay
+      // Two tall projecting vertical pilasters framing the 2-story bay
       [-bayW / 2 + pilasterW / 2, bayW / 2 - pilasterW / 2].forEach(px => {
         const pil = new THREE.Mesh(new THREE.BoxGeometry(pilasterW, bayH, pilasterD), materials.rotundaWhiteArch);
         pil.position.set(px, bayH / 2, pilasterD / 2 - 0.04);
         bayGroup.add(pil);
       });
 
-      // Curved Segmental White Arch Hood crowning the top of the 2-story bay (IMG_5835 2.JPG)
-      const archSegs = 7;
-      const innerW = bayW - pilasterW * 2;
-      for (let s = 0; s < archSegs; s++) {
-        const u = (s / (archSegs - 1)) * 2 - 1; // -1 to +1
-        const segX = u * (innerW * 0.46);
-        const archRise = (1 - u * u) * 0.34;
-        const seg = new THREE.Mesh(new THREE.BoxGeometry(innerW / archSegs + 0.08, 0.26, pilasterD + 0.04), materials.rotundaWhiteArch);
-        seg.position.set(segX, bayH - 0.22 + archRise, pilasterD / 2 - 0.02);
-        seg.rotation.z = -u * 0.28;
-        bayGroup.add(seg);
-      }
-
-      // White recessed spandrel panel & projecting horizontal cross-beam between Ground & 1st Floor (IMG_5835 2.JPG)
-      const spandrelPanel = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.04, 0.78, 0.12), materials.rotundaWhiteArch);
+      // Projecting horizontal floor band & recessed spandrel panel between Ground & 1st Floor (IMG_6033 & IMG_6034)
+      const spandrelPanel = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.04, 0.72, 0.14), materials.rotundaPlinthConcrete);
       spandrelPanel.position.set(0, 3.52, 0.05);
       bayGroup.add(spandrelPanel);
 
-      const midBeam = new THREE.Mesh(new THREE.BoxGeometry(bayW, 0.22, pilasterD + 0.04), materials.rotundaWhiteArch);
-      midBeam.position.set(0, 3.86, pilasterD / 2 - 0.02);
+      const midBeam = new THREE.Mesh(new THREE.BoxGeometry(bayW + 0.06, 0.26, pilasterD + 0.06), materials.rotundaWhiteArch);
+      midBeam.position.set(0, 3.86, pilasterD / 2 - 0.01);
       bayGroup.add(midBeam);
 
-      // Upper recessed white tympanum backing under the arch
-      const archBack = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.04, 0.68, 0.10), materials.rotundaWhiteArch);
-      archBack.position.set(0, bayH - 0.48, 0.04);
-      bayGroup.add(archBack);
+      // Top lintel & cornice hood crowning the 2-story bay
+      const topCornice = new THREE.Mesh(new THREE.BoxGeometry(bayW + 0.06, 0.28, pilasterD + 0.06), materials.rotundaWhiteArch);
+      topCornice.position.set(0, bayH - 0.14, pilasterD / 2 - 0.01);
+      bayGroup.add(topCornice);
 
-      // Ground Floor Window (y = 1.85 above plinth) with White 3x4 Security Grid & Red Reveal Trim (IMG_5835 2.JPG)
-      const winW = innerW - 0.08;
-      const gWinH = 1.68;
+      // Ground Floor Window (y = 1.88 above plinth) — uses mipmapped anisotropic window texture with baked dark mullions (zero moire!)
+      const winW = innerW - 0.10;
+      const gWinH = 1.72;
       const gWinY = 1.88;
 
-      const gSill = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.08, 0.10, 0.26), materials.rotundaWhiteArch);
-      gSill.position.set(0, gWinY - gWinH / 2 - 0.05, 0.10);
+      const gOuterFrame = new THREE.Mesh(new THREE.BoxGeometry(winW + 0.12, gWinH + 0.12, 0.14), materials.castIronDark);
+      gOuterFrame.position.set(0, gWinY, 0.05);
+      bayGroup.add(gOuterFrame);
+
+      const gSill = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.08, 0.11, 0.28), materials.rotundaWhiteArch);
+      gSill.position.set(0, gWinY - gWinH / 2 - 0.05, 0.11);
       bayGroup.add(gSill);
 
       const gPane = new THREE.Mesh(
         new THREE.PlaneGeometry(winW, gWinH),
-        warmGround ? materials.windowWarmLit : materials.windowGlass
+        resolveMainBuildingWindowMat(warmGround)
       );
-      gPane.position.set(0, gWinY, 0.07);
+      gPane.position.set(0, gWinY, 0.13);
       bayGroup.add(gPane);
 
-      // Terracotta-red side frame accent seen on Ground windows in IMG_5835 2.JPG
-      [-winW / 2 + 0.03, winW / 2 - 0.03].forEach(rx => {
-        const redSide = new THREE.Mesh(new THREE.BoxGeometry(0.05, gWinH, 0.12), materials.rotundaRedSteel);
-        redSide.position.set(rx, gWinY, 0.08);
-        bayGroup.add(redSide);
-      });
-
-      // White 3-column x 4-row security grid bars on Ground Floor window
-      [-winW * 0.22, winW * 0.22].forEach(vx => {
-        const vBar = new THREE.Mesh(new THREE.BoxGeometry(0.035, gWinH, 0.06), materials.rotundaWhiteArch);
-        vBar.position.set(vx, gWinY, 0.10);
-        bayGroup.add(vBar);
-      });
-      [-0.48, -0.16, 0.16, 0.48].forEach(hy => {
-        const hBar = new THREE.Mesh(new THREE.BoxGeometry(winW, 0.028, 0.06), materials.rotundaWhiteArch);
-        hBar.position.set(0, gWinY + hy, 0.10);
-        bayGroup.add(hBar);
-      });
-
-      // 1st Floor (2nd Story) Segmental-Arched Multi-Pane Window (y = 5.38 above plinth, IMG_5835 2.JPG)
-      const fWinH = 1.82;
+      // 1st Floor (2nd Story) Window (y = 5.36 above plinth)
+      const fWinH = 1.80;
       const fWinY = 5.36;
 
-      const fSill = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.08, 0.10, 0.24), materials.rotundaWhiteArch);
-      fSill.position.set(0, fWinY - fWinH / 2 - 0.05, 0.10);
+      const fOuterFrame = new THREE.Mesh(new THREE.BoxGeometry(winW + 0.12, fWinH + 0.12, 0.14), materials.castIronDark);
+      fOuterFrame.position.set(0, fWinY, 0.05);
+      bayGroup.add(fOuterFrame);
+
+      const fSill = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.08, 0.11, 0.26), materials.rotundaWhiteArch);
+      fSill.position.set(0, fWinY - fWinH / 2 - 0.05, 0.11);
       bayGroup.add(fSill);
 
       const fPane = new THREE.Mesh(
         new THREE.PlaneGeometry(winW, fWinH),
-        warmFirst ? materials.windowWarmLit : materials.windowGlass
+        resolveMainBuildingWindowMat(warmFirst)
       );
-      fPane.position.set(0, fWinY, 0.07);
+      fPane.position.set(0, fWinY, 0.13);
       bayGroup.add(fPane);
-
-      [-winW * 0.20, winW * 0.20].forEach(vx => {
-        const vMul = new THREE.Mesh(new THREE.BoxGeometry(0.04, fWinH, 0.08), materials.rotundaWhiteArch);
-        vMul.position.set(vx, fWinY, 0.09);
-        bayGroup.add(vMul);
-      });
-      const fTransom = new THREE.Mesh(new THREE.BoxGeometry(winW, 0.045, 0.08), materials.rotundaWhiteArch);
-      fTransom.position.set(0, fWinY + 0.36, 0.09);
-      bayGroup.add(fTransom);
 
       scene.add(bayGroup);
     }
 
-    // 2. 3rd-Story Casement Window + Diagonal Terracotta-Red Steel Eave Strut (Exact match to IMG_5835 2.JPG!)
-    function buildTopFloorWindowAndStruts(wx, topFloorY, wz, facingZDir = -1, isSideWall = false, isWarm = true) {
+    // 2. 3rd-Story Casement Window + Eave Brackets (Fix 1: Supports 'dark', 'warm', and 'red' window states matching IMG_6032-IMG_6034!)
+    function buildTopFloorWindowAndStruts(wx, topFloorY, wz, facingZDir = -1, isSideWall = false, winMode = 'dark') {
       const tGroup = new THREE.Group();
       tGroup.position.set(wx, topFloorY, wz);
       if (isSideWall) {
@@ -8972,36 +12474,30 @@ export function getHideAndSeekHtml(): string {
         tGroup.rotation.y = Math.PI;
       }
 
-      // Twin-pane 3rd-story casement window (cuts across the red band into the upper white frieze!)
-      const wW = 1.38, wH = 1.55, wY = 1.85;
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(wW + 0.16, wH + 0.16, 0.14), materials.rotundaWhiteArch);
-      frame.position.set(0, wY, 0.04);
-      tGroup.add(frame);
+      const wW = 1.48, wH = 1.56, wY = 1.84;
+      const outerFrame = new THREE.Mesh(new THREE.BoxGeometry(wW + 0.14, wH + 0.14, 0.14), materials.castIronDark);
+      outerFrame.position.set(0, wY, 0.05);
+      tGroup.add(outerFrame);
+
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(wW + 0.22, 0.10, 0.24), materials.rotundaWhiteArch);
+      sill.position.set(0, wY - wH / 2 - 0.05, 0.10);
+      tGroup.add(sill);
 
       const pane = new THREE.Mesh(
         new THREE.PlaneGeometry(wW, wH),
-        isWarm ? materials.windowWarmLit : materials.windowGlass
+        resolveMainBuildingWindowMat(winMode)
       );
-      pane.position.set(0, wY, 0.09);
+      pane.position.set(0, wY, 0.13);
       tGroup.add(pane);
 
-      const centerMul = new THREE.Mesh(new THREE.BoxGeometry(0.045, wH, 0.12), materials.castIronDark);
-      centerMul.position.set(0, wY, 0.10);
-      tGroup.add(centerMul);
-
-      const topTransom = new THREE.Mesh(new THREE.BoxGeometry(wW, 0.04, 0.12), materials.castIronDark);
-      topTransom.position.set(0, wY + 0.38, 0.10);
-      tGroup.add(topTransom);
-
-      // Pair of Angled Terracotta-Red Steel Roof Struts/Brackets flanking the window (IMG_5835 2.JPG!)
+      // Pair of Angled Eave Brackets flanking the 3rd-floor window (IMG_6033 & IMG_6034!)
       [-1.08, 1.08].forEach(sx => {
-        const strut = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.48, 0.09), materials.rotundaRedSteel);
+        const strut = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.48, 0.09), materials.rotundaColumnFlutedBase);
         strut.position.set(sx, 2.82, 0.48);
-        strut.rotation.x = -0.68; // Angles outward from wall at y=2.24 up to overhanging soffit at y=3.45
+        strut.rotation.x = -0.68;
         tGroup.add(strut);
 
-        // Horizontal steel tie-plate at base of strut
-        const plate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.08), materials.rotundaRedSteel);
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.08), materials.rotundaColumnFlutedBase);
         plate.position.set(sx, 2.24, 0.06);
         tGroup.add(plate);
       });
@@ -9009,7 +12505,7 @@ export function getHideAndSeekHtml(): string {
       scene.add(tGroup);
     }
 
-    // 3. True 4-Slope Terracotta-Red Hipped Roof with Wide White Overhanging Eave Soffit & Dormer (IMG_5854)
+    // 3. True 4-Slope Terracotta-Red Hipped Roof with Wide White Overhanging Eave Soffit & Lifted Ridge/Hip Edge Highlights (Fix 4: IMG_6032 & IMG_6033!)
     function buildTerracottaHippedWingRoof(cx, eaveY, cz, wingW, wingD, ridgeH = 4.15, dormerSide = -1) {
       const rGroup = new THREE.Group();
       rGroup.position.set(cx, eaveY, cz);
@@ -9017,14 +12513,15 @@ export function getHideAndSeekHtml(): string {
       const overhang = 1.15;
       const totalW = wingW + overhang * 2;
       const totalD = wingD + overhang * 2;
+      const ridgeMat = materials.rotundaRoofRidge || materials.rotundaRedSteel;
 
-      // Bright white overhanging eave soffit slab + terracotta-red outer fascia strip (IMG_5835 2.JPG & IMG_5854)
-      const soffit = new THREE.Mesh(new THREE.BoxGeometry(totalW, 0.22, totalD), materials.rotundaWhiteArch);
+      // Bright white overhanging eave soffit slab + lifted terracotta-red outer fascia edge highlight
+      const soffit = new THREE.Mesh(new THREE.BoxGeometry(totalW, 0.24, totalD), materials.rotundaWhiteArch);
       soffit.position.set(0, 0.05, 0);
       rGroup.add(soffit);
 
-      const fascia = new THREE.Mesh(new THREE.BoxGeometry(totalW + 0.08, 0.14, totalD + 0.08), materials.rotundaRedSteel);
-      fascia.position.set(0, 0.18, 0);
+      const fascia = new THREE.Mesh(new THREE.BoxGeometry(totalW + 0.10, 0.16, totalD + 0.10), ridgeMat);
+      fascia.position.set(0, 0.20, 0);
       rGroup.add(fascia);
 
       // Multi-tiered hipped terracotta roof pyramid/prism layers for authentic 4-slope hipped silhouette
@@ -9056,12 +12553,25 @@ export function getHideAndSeekHtml(): string {
       backSlope.rotation.x = -slopeAng;
       rGroup.add(backSlope);
 
-      // Top Terracotta Ridge Beam + 4 Hip Ridge Caps (IMG_5854)
-      const ridgeBeam = new THREE.Mesh(new THREE.BoxGeometry(totalW * 0.48, 0.26, 0.36), materials.rotundaRedSteel);
-      ridgeBeam.position.set(0, 0.24 + ridgeH, 0);
+      // Fix 4: Lifted Top Terracotta Ridge Beam + 4 Diagonal Hip Ridge Highlight Caps so the roof silhouette reads against the night sky!
+      const ridgeSpanW = totalW * 0.48;
+      const ridgeBeam = new THREE.Mesh(new THREE.BoxGeometry(ridgeSpanW, 0.30, 0.40), ridgeMat);
+      ridgeBeam.position.set(0, 0.26 + ridgeH, 0);
       rGroup.add(ridgeBeam);
 
-      // White Rooftop Ventilation Dormer / Chimney Box on outer wing slope (IMG_5854 aerial detail!)
+      const hipDx = (totalW - ridgeSpanW) * 0.5;
+      const hipDz = totalD * 0.5;
+      const hipLen = Math.hypot(hipDx, ridgeH, hipDz);
+      [
+        [-1, -1], [-1, 1], [1, -1], [1, 1],
+      ].forEach(([sx, sz]) => {
+        const hipCap = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.20, hipLen), ridgeMat);
+        hipCap.position.set(sx * (ridgeSpanW * 0.5 + hipDx * 0.5), 0.24 + ridgeH * 0.5, sz * (hipDz * 0.5));
+        hipCap.lookAt(sx * (totalW * 0.5), 0.20, sz * hipDz);
+        rGroup.add(hipCap);
+      });
+
+      // White Rooftop Ventilation Dormer / Chimney Box on outer wing slope
       const dormer = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.35, 1.15), materials.rotundaWhiteArch);
       dormer.position.set(dormerSide * (wingW * 0.28), 0.22 + ridgeH * 0.55, -1.2);
       rGroup.add(dormer);
@@ -9160,48 +12670,211 @@ export function getHideAndSeekHtml(): string {
     }
     const rotundaChalkboardMat = harmikaEyesMat;
 
+    // Data-Driven Horror Dressing & Per-Room Light Mood Config for Main Building (Safe for University Audience)
+    const MAIN_BUILDING_ROOM_DRESSING = {
+      '101': {
+        lightMood: 'dying_tube',
+        scatteredPapers: true,
+        chairFacingWall: true,
+        halfOpenDoor: true,
+        boardScribbles: true,
+        wallStains: true,
+        crackedWindow: true,
+        toppledDesk: true,
+        mysteriousItem: 'brass_astrolabe',
+        dustShaft: true,
+        cobwebs: true,
+      },
+      '102': {
+        lightMood: 'warm_lamp',
+        scatteredPapers: true,
+        chairFacingWall: false,
+        halfOpenDoor: true,
+        boardScribbles: false,
+        wallStains: true,
+        crackedWindow: false,
+        toppledDesk: false,
+        mysteriousItem: 'cassette_recorder',
+        dustShaft: false,
+        cobwebs: true,
+      },
+      '201': {
+        lightMood: 'moonlight',
+        scatteredPapers: true,
+        chairFacingWall: true,
+        halfOpenDoor: true,
+        boardScribbles: true,
+        wallStains: true,
+        crackedWindow: true,
+        toppledDesk: true,
+        mysteriousItem: 'old_warden_key',
+        dustShaft: true,
+        cobwebs: true,
+      },
+      '202': {
+        lightMood: 'warm_lamp',
+        scatteredPapers: true,
+        chairFacingWall: true,
+        halfOpenDoor: true,
+        boardScribbles: false,
+        wallStains: true,
+        crackedWindow: true,
+        toppledDesk: false,
+        mysteriousItem: 'ancient_ledger',
+        dustShaft: false,
+        cobwebs: true,
+      },
+      '301': {
+        lightMood: 'dark',
+        scatteredPapers: true,
+        chairFacingWall: true,
+        halfOpenDoor: true,
+        boardScribbles: true,
+        wallStains: true,
+        crackedWindow: true,
+        toppledDesk: true,
+        mysteriousItem: 'cracked_lantern',
+        dustShaft: false,
+        cobwebs: true,
+      },
+      '302': {
+        lightMood: 'emergency_red',
+        scatteredPapers: true,
+        chairFacingWall: false,
+        halfOpenDoor: true,
+        boardScribbles: true,
+        wallStains: true,
+        crackedWindow: false,
+        toppledDesk: false,
+        mysteriousItem: 'encrypted_drive',
+        dustShaft: false,
+        cobwebs: true,
+      },
+    };
+
+    const mainBuildingFlickerTubes = [];
+    const mainBuildingDustShafts = [];
+
+    // Startup Baked AO strips in wall-floor corners, ceiling corners, under desks/shelves & behind doors
+    function addRoomStartupBakedAO(rGroup, roomW = 14.0, roomD = 13.4, sideSign = -1) {
+      const doorWallX = -sideSign * (roomW * 0.5 - 0.55);
+      addRoomBakedAO(rGroup, roomW, roomD, 3.38, [
+        { x: doorWallX, z: -4.95 },
+        { x: doorWallX, z:  5.15 },
+      ]);
+    }
+
     // 5. Well-Furnished Classroom, Library, Admin Office & Computer Lab Interior Builder for All 3 Rotunda Floors
     function populateGrandRotundaClassroom(roomCX, roomCZ, floorY, sideSign, floorNum, roomCode, roomTitle) {
       const rGroup = new THREE.Group();
       rGroup.position.set(roomCX, floorY, roomCZ);
       scene.add(rGroup);
 
-      // Finished Interior Acoustic Ceiling Slab at y = 3.38m so upper roof geometry never pokes into rooms
-      const roomCeiling = new THREE.Mesh(
-        new THREE.BoxGeometry(14.1, 0.08, 13.5),
-        materials.rotundaWhiteArch
-      );
+      const dressing = MAIN_BUILDING_ROOM_DRESSING[roomCode] || MAIN_BUILDING_ROOM_DRESSING['101'];
+
+      // Startup Baked AO in wall-floor corners, ceiling corners & behind half-open doors
+      addRoomStartupBakedAO(rGroup, 14.0, 13.4, sideSign);
+
+      // Finished Interior Stained Acoustic Drop-Ceiling Grid Slab at y = 3.38m (Ref 1, Ref 2, Ref 5)
+      const ceilGeo = remapInteriorAtlasUVs(new THREE.BoxGeometry(14.1, 0.08, 13.5), 0, 384, 256, 128);
+      const roomCeiling = new THREE.Mesh(ceilGeo, materials.stainedCeilingTiles);
       roomCeiling.position.set(0, 3.38, 0);
       rGroup.add(roomCeiling);
 
-      // Dark Teak-Wood Interior Baseboard Trim around the Classroom Perimeter
-      const baseFront = new THREE.Mesh(new THREE.BoxGeometry(14.1, 0.16, 0.06), materials.chairWood);
-      baseFront.position.set(0, 0.08, -6.68);
-      rGroup.add(baseFront);
-      const baseBack = new THREE.Mesh(new THREE.BoxGeometry(14.1, 0.16, 0.06), materials.chairWood);
-      baseBack.position.set(0, 0.08, 6.68);
-      rGroup.add(baseBack);
+      // Recessed Square Drop-Ceiling Troffer Panels & Industrial Twin-Cord Pendant Tube Fixtures (Ref 1 & Ref 4)
+      [-3.4, 3.4].forEach(px => {
+        [-3.2, 0.0, 3.2].forEach((pz, pIdx) => {
+          const pHood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
+          pHood.position.set(px, 2.90, pz);
+          rGroup.add(pHood);
+          if (pIdx === 1) {
+            const rPanel = new THREE.Mesh(step2Geos.recessedCeilingPanel, step2Mats.recessedPanelWarmMat);
+            rPanel.position.set(px * 0.5, 3.34, pz);
+            rGroup.add(rPanel);
+          }
+        });
+      });
+
+      // Dark Teak-Wood Interior Baseboard & Crown Trim around the Classroom Perimeter (Ref 1)
+      [-6.68, 6.68].forEach(bz => {
+        const baseM = new THREE.Mesh(new THREE.BoxGeometry(14.1, 0.16, 0.06), materials.chairWood);
+        baseM.position.set(0, 0.08, bz);
+        rGroup.add(baseM);
+        const crownM = new THREE.Mesh(new THREE.BoxGeometry(14.1, 0.14, 0.06), materials.chairWood);
+        crownM.position.set(0, 3.28, bz);
+        rGroup.add(crownM);
+      });
       const baseOuter = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.16, 13.4), materials.chairWood);
       baseOuter.position.set(sideSign * 6.98, 0.08, 0);
       rGroup.add(baseOuter);
 
-      // 4 Interior Structural Corner Columns / Pilasters framing the classroom corners
+      // 4 Corner Pilasters + 1 Freestanding Liminal Structural Pillar with Dark Wood Crown & Baseboard Bands (Ref 1!)
       [
         [-6.85, -6.55], [6.85, -6.55],
         [-6.85,  6.55], [6.85,  6.55],
       ].forEach(([px, pz]) => {
-        const cPil = new THREE.Mesh(new THREE.BoxGeometry(0.32, 3.36, 0.32), materials.rotundaWhiteArch);
+        const cPil = new THREE.Mesh(new THREE.BoxGeometry(0.32, 3.36, 0.32), materials.rotundaInteriorWall);
         cPil.position.set(px, 1.68, pz);
         rGroup.add(cPil);
       });
+      const colX = sideSign * 4.45;
+      const colZ = -4.25;
+      const liminalCol = new THREE.Mesh(new THREE.BoxGeometry(0.58, 3.36, 0.58), materials.rotundaInteriorWall);
+      liminalCol.position.set(colX, 1.68, colZ);
+      rGroup.add(liminalCol);
+      const colBaseBand = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.22, 0.64), materials.chairWood);
+      colBaseBand.position.set(colX, 0.11, colZ);
+      rGroup.add(colBaseBand);
+      const colCrownBand = new THREE.Mesh(new THREE.BoxGeometry(0.64, 0.24, 0.64), materials.chairWood);
+      colCrownBand.position.set(colX, 3.24, colZ);
+      rGroup.add(colCrownBand);
+      addUnderFurnitureAO(rGroup, colX, colZ, 0.95, 0.95);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(roomCX + colX - 0.32, floorY, roomCZ + colZ - 0.32),
+        new THREE.Vector3(roomCX + colX + 0.32, floorY + 3.36, roomCZ + colZ + 0.32)
+      ), 'furniture');
 
-      // Interior Window Curtains along Front, Outer Side & Back Windows + Wall-Mounted Oscillating Fans
-      [-3.2, 3.2].forEach(wx => {
+      // Back-Corner Water Dispenser & Blue Jug tucked beside the Structural Column (Ref 1 & Ref 2!)
+      const wdX = colX + sideSign * 0.65;
+      const wdZ = colZ;
+      const wdBody = new THREE.Mesh(step2Geos.waterDispenser, materials.rotundaInteriorWall);
+      wdBody.position.set(wdX, 0.50, wdZ);
+      rGroup.add(wdBody);
+      const wdJug = new THREE.Mesh(step2Geos.waterBottle, step2Mats.waterJugBlue);
+      wdJug.position.set(wdX, 1.20, wdZ);
+      rGroup.add(wdJug);
+      addUnderFurnitureAO(rGroup, wdX, wdZ, 0.62, 0.62);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(roomCX + wdX - 0.24, floorY, roomCZ + wdZ - 0.24),
+        new THREE.Vector3(roomCX + wdX + 0.24, floorY + 1.45, roomCZ + wdZ + 0.24)
+      ), 'furniture');
+
+      // Venetian Slatted Window Blinds & Curtains along Windows + Wall-Mounted Oscillating Fans (Ref 4 & Ref 5)
+      [-3.2, 3.2].forEach((wx, wIdx) => {
         buildInteriorWindowCurtains(rGroup, wx, 1.92, -6.52, 0, floorNum === 2);
-        buildInteriorWindowCurtains(rGroup, wx, 1.92, 6.52, Math.PI, floorNum === 2);
+        const vBlind = new THREE.Mesh(step2Geos.venetianBlinds, materials.deskSteelFrame);
+        vBlind.position.set(wx, 1.92, 6.48);
+        rGroup.add(vBlind);
+        if (wIdx === 0) {
+          interactiveHidingSpots.push({
+            id: 'rotunda-curtain-' + roomCode,
+            name: roomTitle + ' Window Curtain Cover',
+            spotType: 'curtain',
+            riskLevel: 'MEDIUM',
+            useCount: 0,
+            peekYaw: 0,
+            x: roomCX + wx,
+            y: floorY,
+            z: roomCZ - 5.85,
+            zone: roomTitle,
+          });
+        }
       });
       [-4.2, 0.0, 4.2].forEach(wz => {
-        buildInteriorWindowCurtains(rGroup, sideSign * 6.82, 1.92, wz, -sideSign * Math.PI / 2, floorNum === 2);
+        const sBlind = new THREE.Mesh(step2Geos.venetianBlinds, materials.deskSteelFrame);
+        sBlind.position.set(sideSign * 6.80, 1.92, wz);
+        sBlind.rotation.y = -sideSign * Math.PI / 2;
+        rGroup.add(sBlind);
       });
       buildWallMountedFan(rGroup, sideSign * 6.84, 2.62, -2.2, -sideSign * Math.PI / 2);
       buildWallMountedFan(rGroup, sideSign * 6.84, 2.62, 2.2, -sideSign * Math.PI / 2);
@@ -9214,64 +12887,70 @@ export function getHideAndSeekHtml(): string {
       noticeCork.position.set(0, 1.85, -6.60);
       rGroup.add(noticeCork);
 
-      // Phase B.1 Data-Driven Room Dispatch via ROOM_DEFINITIONS (zero roomCode if-chains!)
+      // Phase B.1 Data-Driven Room Dispatch via ROOM_DEFINITIONS
       const roomDef = getOrRegisterRoomDefinition(roomTitle, roomCX, roomCZ, floorY, 7.1, 6.8, 'ROTUNDA', 'rotunda_lecture');
+      roomDef.lightMood = normalizeRoomLightMood(dressing.lightMood || roomDef.lightMood);
       const rArch = roomDef.archetype;
       if (ROOM_ARCHETYPE_BUILDERS[rArch]) {
         ROOM_ARCHETYPE_BUILDERS[rArch](rGroup, roomCX, roomCZ, floorY, -1, roomTitle, false, roomDef);
+        // Add constructed 2-door wooden cupboard & corner counter details to Admin 102 & Library 202 (Ref 1 & Ref 2)
+        const cupX = sideSign * 6.38;
+        const cupZ = 4.2;
+        const cupboard = new THREE.Mesh(step2Geos.woodenCupboard, materials.chairWood);
+        cupboard.position.set(cupX, 0.96, cupZ);
+        cupboard.rotation.y = sideSign > 0 ? Math.PI : 0;
+        rGroup.add(cupboard);
+        addUnderFurnitureAO(rGroup, cupX, cupZ, 0.82, 1.48);
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(roomCX + cupX - 0.36, floorY, roomCZ + cupZ - 0.68),
+          new THREE.Vector3(roomCX + cupX + 0.36, floorY + 1.98, roomCZ + cupZ + 0.68)
+        ), 'furniture');
       } else {
         // Rotunda Lecture / Seminar / Smart Computer Lab Archetypes ('rotunda_lecture' | 'rotunda_seminar' | 'rotunda_lab')
         const isRotundaLab = (rArch === 'rotunda_lab');
         const isRotundaSeminar = (rArch === 'rotunda_seminar');
         const boardZ = 6.35;
-        const dais = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.16, 2.2), materials.rotundaPlinthConcrete);
+        const dais = new THREE.Mesh(new THREE.BoxGeometry(8.6, 0.16, 2.2), materials.rotundaInteriorWall);
         dais.position.set(0, 0.08, boardZ - 1.2);
         rGroup.add(dais);
+        addUnderFurnitureAO(rGroup, 0, boardZ - 1.2, 8.9, 2.45);
 
-        const greenBoard = new THREE.Mesh(new THREE.BoxGeometry(4.2, 1.45, 0.06), rotundaChalkboardMat);
-        greenBoard.position.set(-2.1, 1.95, boardZ);
+        const boardGeo = remapInteriorAtlasUVs(new THREE.BoxGeometry(4.6, 1.48, 0.06), 256, 256, 512, 256);
+        const greenBoard = new THREE.Mesh(boardGeo, materials.blackboardGreen);
+        greenBoard.position.set(-1.8, 1.95, boardZ);
         rGroup.add(greenBoard);
 
-        const whiteBoard = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.38, 0.06), materials.rotundaWhiteArch);
-        whiteBoard.position.set(2.2, 1.95, boardZ);
+        const whiteBoard = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.38, 0.06), materials.whiteboardSurface);
+        whiteBoard.position.set(2.4, 1.95, boardZ);
         rGroup.add(whiteBoard);
 
         const boardTray = new THREE.Mesh(new THREE.BoxGeometry(8.2, 0.08, 0.16), materials.chairWood);
         boardTray.position.set(-0.1, 1.18, boardZ - 0.08);
         rGroup.add(boardTray);
 
-        // Pull-Down Overhead Projector Screen + Ceiling Multimedia Projector
-        const projScreen = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.10, 0.12), materials.castIronDark);
-        projScreen.position.set(2.2, 2.75, boardZ - 0.10);
-        rGroup.add(projScreen);
-
-        const projectorMount = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.48, 8), materials.deskSteelFrame);
-        projectorMount.position.set(2.2, 3.12, boardZ - 3.4);
-        rGroup.add(projectorMount);
-        const projectorBox = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.16, 0.36), materials.rotundaWhiteArch);
-        projectorBox.position.set(2.2, 2.86, boardZ - 3.4);
-        rGroup.add(projectorBox);
-
-        // Teacher Lectern Podium & Professor Desk + Swivel Chair
+        // Teacher Lectern Podium & Beveled Professor Desk with Drawers/Handles + Upright & Toppled Swivel Chairs (Ref 1!)
         const profDeskX = -2.4;
         const profDeskZ = boardZ - 1.35;
-        const profDesk = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.78, 0.85), materials.chairWood);
-        profDesk.position.set(profDeskX, 0.16 + 0.39, profDeskZ);
+        const profDesk = new THREE.Mesh(step2Geos.officeDesk, materials.chairWood);
+        profDesk.position.set(profDeskX, 0.16 + 0.38, profDeskZ);
+        profDesk.rotation.y = 0.03;
         rGroup.add(profDesk);
+        addUnderFurnitureAO(rGroup, profDeskX, profDeskZ, 1.85, 1.15);
 
-        const profTop = new THREE.Mesh(new THREE.BoxGeometry(1.86, 0.06, 0.94), materials.deskWoodTop);
-        profTop.position.set(profDeskX, 0.16 + 0.80, profDeskZ);
-        rGroup.add(profTop);
+        const profChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
+        profChair.position.set(profDeskX - 0.12, 0.16 + 0.46, profDeskZ + 0.56);
+        profChair.rotation.y = -0.24;
+        rGroup.add(profChair);
 
-        const podiumLectern = new THREE.Mesh(new THREE.BoxGeometry(0.68, 1.18, 0.58), materials.chairWood);
+        const podiumLectern = new THREE.Mesh(sharedGeos.podiumBody, materials.chairWood);
         podiumLectern.position.set(2.8, 0.16 + 0.59, profDeskZ);
         rGroup.add(podiumLectern);
+        addUnderFurnitureAO(rGroup, 2.8, profDeskZ, 0.92, 0.85);
 
         addColliderBox(new THREE.Box3(
-          new THREE.Vector3(roomCX + profDeskX - 0.95, floorY, roomCZ + profDeskZ - 0.50),
-          new THREE.Vector3(roomCX + profDeskX + 0.95, floorY + 1.05, roomCZ + profDeskZ + 0.50)
+          new THREE.Vector3(roomCX + profDeskX - 0.85, floorY, roomCZ + profDeskZ - 0.46),
+          new THREE.Vector3(roomCX + profDeskX + 0.85, floorY + 1.05, roomCZ + profDeskZ + 0.46)
         ), 'furniture');
-        // Simplified box collider for Rotunda lectern podium
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(roomCX + 2.8 - 0.36, floorY, roomCZ + profDeskZ - 0.32),
           new THREE.Vector3(roomCX + 2.8 + 0.36, floorY + 1.35, roomCZ + profDeskZ + 0.32)
@@ -9279,19 +12958,24 @@ export function getHideAndSeekHtml(): string {
 
         interactiveHidingSpots.push({
           id: 'rotunda-prof-' + roomCode,
-          name: roomTitle + ' Lectern Desk',
+          name: roomTitle + ' Teacher Desk',
+          spotType: 'desk',
+          riskLevel: 'LOW',
+          useCount: 0,
+          peekYaw: Math.PI,
           x: roomCX + profDeskX,
           y: floorY,
-          z: roomCZ + profDeskZ + 0.72,
+          z: roomCZ + profDeskZ - 0.78,
           zone: roomTitle,
         });
 
         // Smart Computer Lab Archetype: Twin Glass-Door Server Racks with Blinking LEDs + Simplified Box Colliders
         if (isRotundaLab) {
           [-4.8, 4.8].forEach((srX, srIdx) => {
-            const sr = new THREE.Mesh(step2Geos.serverRack, materials.castIronDark);
+            const sr = new THREE.Mesh(step2Geos.serverRack, materials.deskSteelFrame);
             sr.position.set(srX, 1.08, -5.65);
             rGroup.add(sr);
+            addUnderFurnitureAO(rGroup, srX, -5.65, 1.15, 1.15);
             [-0.35, 0.15, 0.65].forEach((ly, lIdx) => {
               const led = new THREE.Mesh(
                 new THREE.BoxGeometry(0.48, 0.035, 0.04),
@@ -9307,77 +12991,110 @@ export function getHideAndSeekHtml(): string {
           });
         }
 
-        // 4 Rows x 3 Columns of Two-Seater Student Desks & Benches with Bags, Books, Laptops & Monitors
+        // 4 Rows x 3 Columns of Beveled Two-Seater Student Desks & Benches (InstancedMesh + Organic Jitter + Tilted/Fallen Benches)
         const rowZOffsets = [-3.8, -1.8, 0.2, 2.2];
         const colXOffsets = [-3.4, 0.0, 3.4];
         const bagMats = [step2Mats.bagNavy, step2Mats.bagOlive, step2Mats.bagMaroon];
 
         rowZOffsets.forEach((rz, rIdx) => {
           colXOffsets.forEach((cxOff, cIdx) => {
+            const seed = (rIdx * 7 + cIdx * 13 + floorNum * 5);
+            const jitterX = ((seed % 7) - 3) * 0.018;
+            const jitterZ = (((seed * 3) % 7) - 3) * 0.016;
+            const jitterYaw = (((seed * 5) % 9) - 4) * 0.022;
+            const isToppled = !!(dressing.toppledDesk && rIdx === 2 && cIdx === 2);
+
+            const dx = cxOff + jitterX;
+            const dz = rz + jitterZ;
+
+            // Under-desk contact AO decal strip
+            addUnderFurnitureAO(rGroup, dx, dz - 0.14, 1.56, 1.15, jitterYaw);
+
             const dMesh = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
-            dMesh.position.set(cxOff, 0.74, rz);
+            if (isToppled) {
+              dMesh.position.set(dx, 0.36, dz + 0.12);
+              dMesh.rotation.set(1.38, jitterYaw + 0.22, 0.12);
+            } else {
+              dMesh.position.set(dx, 0.74, dz);
+              dMesh.rotation.y = jitterYaw;
+            }
             rGroup.add(dMesh);
 
-            const modesty = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.38, 0.04), materials.chairWood);
-            modesty.position.set(cxOff, 0.52, rz + 0.28);
+            const modesty = new THREE.Mesh(sharedGeos.deskModestyPanel, materials.chairWood);
+            modesty.position.set(dx, isToppled ? 0.28 : 0.52, dz + 0.24);
+            modesty.rotation.y = jitterYaw;
             rGroup.add(modesty);
 
-            [-0.68, 0.68].forEach(lx => {
-              const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.72, 0.58), materials.deskSteelFrame);
-              leg.position.set(cxOff + lx, 0.36, rz);
+            [-0.58, 0.58].forEach(lx => {
+              const leg = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
+              leg.position.set(dx + lx, 0.36, dz);
+              leg.rotation.y = jitterYaw;
               rGroup.add(leg);
             });
 
-            // Bench seat & backrest behind each desk
-            const benchSeat = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.05, 0.36), materials.chairWood);
-            benchSeat.position.set(cxOff, 0.44, rz - 0.48);
+            // Constructed Bench with Legs & Cross-Brace (pushed in, tilted, or fallen)
+            const isFallenBench = (rIdx === 1 && cIdx === 0 && dressing.toppledDesk);
+            const benchPushZ = ((seed % 3) - 1) * 0.06;
+            const benchYaw = jitterYaw + (((seed * 11) % 7) - 3) * 0.035;
+
+            const benchSeat = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
+            if (isFallenBench) {
+              benchSeat.position.set(dx - 0.08, 0.22, dz - 0.54);
+              benchSeat.rotation.set(-1.32, benchYaw, 0.08);
+            } else {
+              benchSeat.position.set(dx, 0.44, dz - 0.48 + benchPushZ);
+              benchSeat.rotation.y = benchYaw;
+            }
             rGroup.add(benchSeat);
 
-            const benchBack = new THREE.Mesh(new THREE.BoxGeometry(1.46, 0.32, 0.04), materials.chairWood);
-            benchBack.position.set(cxOff, 0.62, rz - 0.64);
+            const benchBack = new THREE.Mesh(step2Geos.benchLongBack, materials.chairWood);
+            benchBack.position.set(dx, isFallenBench ? 0.16 : 0.62, dz - 0.64 + benchPushZ);
+            benchBack.rotation.y = benchYaw;
             rGroup.add(benchBack);
 
             if (isRotundaLab) {
-              // Computer Lab 302: Desktop LCD Monitors, Keyboards & Cable Tray
-              const cTray = new THREE.Mesh(step2Geos.cableTray, materials.castIronDark);
-              cTray.position.set(cxOff, 0.50, rz + 0.22);
-              rGroup.add(cTray);
+              // Low glass-topped cubicle partition strip along desk back (Ref 4!)
+              const glassDiv = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.28, 0.025), materials.windowGlass);
+              glassDiv.position.set(dx, 0.90, dz + 0.25);
+              rGroup.add(glassDiv);
               [-0.36, 0.36].forEach((mx, mIdx) => {
                 const mon = new THREE.Mesh(
                   step2Geos.monitorPanel,
                   (rIdx + cIdx + mIdx) % 2 === 0 ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff
                 );
-                mon.position.set(cxOff + mx, 0.96, rz + 0.12);
+                mon.position.set(dx + mx, 0.96, dz + 0.12);
+                mon.rotation.y = jitterYaw;
                 rGroup.add(mon);
                 const kb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
-                kb.position.set(cxOff + mx, 0.78, rz - 0.08);
+                kb.position.set(dx + mx, 0.78, dz - 0.08);
                 rGroup.add(kb);
               });
             } else if (isRotundaSeminar) {
-              // Seminar 301: Open Laptops & Notebooks
               [-0.36, 0.36].forEach(lapX => {
-                const lapBase = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.02, 0.24), materials.castIronDark);
-                lapBase.position.set(cxOff + lapX, 0.78, rz + 0.04);
+                const lapBase = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
+                lapBase.position.set(dx + lapX, 0.78, dz + 0.04);
                 rGroup.add(lapBase);
-                const lapScreen = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.02), materials.ceilingLightEmissive);
-                lapScreen.position.set(cxOff + lapX, 0.89, rz + 0.15);
+                const lapScreen = new THREE.Mesh(step2Geos.monitorPanel, step2Mats.monitorScreenOff);
+                lapScreen.scale.set(0.65, 0.65, 0.65);
+                lapScreen.position.set(dx + lapX, 0.89, dz + 0.15);
                 lapScreen.rotation.x = -0.22;
                 rGroup.add(lapScreen);
               });
-            } else {
-              // Lecture Halls 101 & 201: Student Bags & Open/Stacked Books on Desks
+            } else if (!isToppled) {
               if ((rIdx + cIdx) % 2 === 0) {
                 const openBk = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
-                openBk.position.set(cxOff + 0.24, 0.78, rz);
+                openBk.position.set(dx + 0.24, 0.78, dz);
+                openBk.rotation.y = jitterYaw + 0.22;
                 rGroup.add(openBk);
               } else {
-                const stackBk = new THREE.Mesh(step2Geos.bookStack, materials.gandakiBluePole);
-                stackBk.position.set(cxOff - 0.28, 0.82, rz);
+                const stackBk = new THREE.Mesh(step2Geos.bookStack, step2Mats.bagNavy);
+                stackBk.position.set(dx - 0.28, 0.82, dz);
+                stackBk.rotation.y = jitterYaw - 0.18;
                 rGroup.add(stackBk);
               }
               if ((rIdx * 3 + cIdx) % 2 === 1) {
                 const bag = new THREE.Mesh(step2Geos.backpack, bagMats[(rIdx + cIdx) % 3]);
-                bag.position.set(cxOff - 0.38, 0.64, rz - 0.46);
+                bag.position.set(dx - 0.38, 0.64, dz - 0.46);
                 rGroup.add(bag);
               }
             }
@@ -9393,6 +13110,10 @@ export function getHideAndSeekHtml(): string {
               interactiveHidingSpots.push({
                 id: 'rotunda-desk-' + roomCode + '-' + rIdx + '-' + cIdx,
                 name: roomTitle + ' Desk #' + (rIdx * 3 + cIdx + 1),
+                spotType: 'desk',
+                riskLevel: (rIdx === 0) ? 'HIGH' : 'LOW',
+                useCount: 0,
+                peekYaw: 0,
                 x: wx,
                 y: floorY,
                 z: wz - 0.88,
@@ -9402,68 +13123,160 @@ export function getHideAndSeekHtml(): string {
           });
         });
 
-        // Tall Wooden Bookshelf & Academic Lockers along the Outer Side Wall
-        const shelfX = sideSign * 6.45;
-        const bookcase = new THREE.Mesh(new THREE.BoxGeometry(0.52, 2.25, 3.2), materials.chairWood);
-        bookcase.position.set(shelfX, 1.12, -1.2);
+        // Tall Beveled Wooden Bookshelf, 2-Door Wooden Storage Cupboard & Constructed Steel Lockers along Outer Side Wall
+        const shelfX = sideSign * 6.42;
+        const bookcase = new THREE.Mesh(step2Geos.tallBookshelf, materials.chairWood);
+        bookcase.position.set(shelfX, 1.13, -1.6);
         rGroup.add(bookcase);
+        addUnderFurnitureAO(rGroup, shelfX, -1.6, 0.90, 2.75);
         [0.55, 1.05, 1.55, 1.98].forEach((by, bRow) => {
           const books = new THREE.Mesh(
-            new THREE.BoxGeometry(0.42, 0.28, 2.85),
-            bRow % 2 === 0 ? materials.rotundaRedSteel : materials.gandakiBluePole
+            step2Geos.bookRowSpan,
+            bRow % 2 === 0 ? step2Mats.bagMaroon : step2Mats.bagNavy
           );
-          books.position.set(shelfX - sideSign * 0.06, by, -1.2);
+          books.position.set(shelfX - sideSign * 0.06, by, -1.6);
           rGroup.add(books);
         });
 
-        const lockerCab = new THREE.Mesh(new THREE.BoxGeometry(0.50, 2.10, 2.4), materials.deskSteelFrame);
-        lockerCab.position.set(shelfX, 1.05, 2.8);
+        const cupboard = new THREE.Mesh(step2Geos.woodenCupboard, materials.chairWood);
+        cupboard.position.set(shelfX, 0.96, 0.85);
+        cupboard.rotation.y = sideSign > 0 ? Math.PI : 0;
+        rGroup.add(cupboard);
+        addUnderFurnitureAO(rGroup, shelfX, 0.85, 0.84, 1.48);
+
+        const lockerCab = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
+        lockerCab.position.set(shelfX, 0.96, 3.15);
         rGroup.add(lockerCab);
+        addUnderFurnitureAO(rGroup, shelfX, 3.15, 0.82, 2.05);
+        [-0.56, 0, 0.56].forEach((lz, lIdx) => {
+          const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
+          lDoor.position.set(shelfX - sideSign * 0.24, 1.05, 3.15 + lz);
+          if (lIdx === 1) lDoor.rotation.y = sideSign * 0.38; // Slightly ajar locker door!
+          rGroup.add(lDoor);
+        });
 
         addColliderBox(new THREE.Box3(
-          new THREE.Vector3(roomCX + shelfX - 0.32, floorY, roomCZ - 2.85),
-          new THREE.Vector3(roomCX + shelfX + 0.32, floorY + 2.25, roomCZ + 4.05)
+          new THREE.Vector3(roomCX + shelfX - 0.34, floorY, roomCZ - 3.05),
+          new THREE.Vector3(roomCX + shelfX + 0.34, floorY + 2.25, roomCZ + 4.15)
         ), 'furniture');
+
+        interactiveHidingSpots.push(
+          {
+            id: 'rotunda-locker-' + roomCode,
+            name: roomTitle + ' Steel Locker',
+            spotType: 'locker',
+            riskLevel: 'LOW',
+            useCount: 0,
+            peekYaw: -sideSign * (Math.PI / 2),
+            x: roomCX + shelfX - sideSign * 0.85,
+            y: floorY,
+            z: roomCZ + 3.15,
+            zone: roomTitle,
+          },
+          {
+            id: 'rotunda-bookshelf-' + roomCode,
+            name: roomTitle + ' Bookshelf Corner',
+            spotType: 'bookshelf',
+            riskLevel: 'MEDIUM',
+            useCount: 0,
+            peekYaw: -sideSign * (Math.PI / 2),
+            x: roomCX + shelfX - sideSign * 0.85,
+            y: floorY,
+            z: roomCZ - 1.6,
+            zone: roomTitle,
+          }
+        );
       }
 
-      // Wall-Mounted Split AC Unit inside Classroom
-      const shelfX = sideSign * 6.45;
-      const indoorAC = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.30, 1.15), materials.rotundaWhiteArch);
-      indoorAC.position.set(shelfX - sideSign * 0.05, 2.85, -4.2);
-      rGroup.add(indoorAC);
+      // Data-Driven Horror Dressing Items + Small Clutter & Asymmetry (Papers, Bottles, Fallen Chair, Jacket, Posters)
+      populateRoomClutterAndAsymmetry(rGroup, 13.4, 12.6, floorNum * 19 + sideSign * 7, false);
 
-      // 2 Detailed 3-Blade Ceiling Fans + 4 Glowing Warm LED Ceiling Light Panels
-      [-2.4, 2.4].forEach(fx => {
-        const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.45, 6), materials.rotundaWhiteArch);
-        rod.position.set(fx, 3.12, -0.5);
-        rGroup.add(rod);
-        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.08, 10), materials.rotundaWhiteArch);
-        hub.position.set(fx, 2.88, -0.5);
-        rGroup.add(hub);
-        for (let b = 0; b < 3; b++) {
-          const ang = (b * Math.PI * 2) / 3;
-          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.018, 0.92), materials.rotundaWhiteArch);
-          blade.position.set(fx + Math.sin(ang) * 0.52, 2.88, -0.5 + Math.cos(ang) * 0.52);
-          blade.rotation.y = ang;
-          rGroup.add(blade);
-        }
-      });
+      // 1) Solitary Chair Facing the Corner Wall (Requirement 4)
+      if (dressing.chairFacingWall) {
+        const eerieChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
+        eerieChair.position.set(sideSign * 5.85, 0.45, -5.65);
+        eerieChair.rotation.y = sideSign > 0 ? Math.PI * 0.25 : -Math.PI * 0.25;
+        rGroup.add(eerieChair);
+        addUnderFurnitureAO(rGroup, sideSign * 5.85, -5.65, 0.62, 0.62);
+      }
 
-      // 4 Warm Emissive Ceiling Light Fixtures per Classroom (mounted flush beneath the y=3.38 acoustic ceiling)
-      [
-        [-2.8, -2.4], [2.8, -2.4],
-        [-2.8,  2.2], [2.8,  2.2],
-      ].forEach(([lx, lz]) => {
-        const fixture = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.06, 0.42), materials.ceilingLightEmissive);
-        fixture.position.set(lx, 3.31, lz);
-        rGroup.add(fixture);
-      });
+      // 2) Scattered Loose Papers & Fallen Books Fanned Around Floor & Corner Desk (Ref 1 & Ref 3!)
+      if (dressing.scatteredPapers) {
+        [
+          [-1.6, -2.8, 0.35], [-1.2, -2.5, -0.62], [1.8, -0.9, 0.84],
+          [2.1, 1.1, -0.42], [-2.5, 1.4, 1.12], [0.4, -4.6, 0.28],
+          [-2.2, 4.1, 0.52], [-1.7, 3.8, -0.34], [-2.7, 4.3, 1.05],
+          [sideSign * 3.8, -4.1, 0.44], [sideSign * 4.1, -3.7, -0.58],
+        ].forEach(([px, pz, rot], pIdx) => {
+          const sheet = new THREE.Mesh(
+            pIdx % 3 === 0 ? step2Geos.openBook : step2Geos.noticeNote,
+            step2Mats.paperSheet
+          );
+          sheet.position.set(px, 0.020, pz);
+          sheet.rotation.set(Math.PI / 2, 0, rot);
+          rGroup.add(sheet);
+        });
+      }
 
+      // 3) Cracked Window Glass Overlay (Requirement 4: optional cracked window per room)
+      if (dressing.crackedWindow) {
+        const crackPane = new THREE.Mesh(
+          remapInteriorAtlasUVs(new THREE.PlaneGeometry(1.65, 1.35), 0, 256, 256, 128),
+          materials.windowGlass
+        );
+        crackPane.position.set(sideSign * 6.84, 1.92, 0.0);
+        crackPane.rotation.y = -sideSign * Math.PI / 2;
+        rGroup.add(crackPane);
+      }
+
+      // 4) Single Mysterious Item Left on Central Desk (Astrolabe / Recorder / Key / Ledger / Lantern / Drive)
+      if (dressing.mysteriousItem) {
+        const mysBase = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 0.08, 8), materials.deskSteelFrame);
+        mysBase.position.set(0.0, 0.81, 0.2);
+        rGroup.add(mysBase);
+        const mysOrb = new THREE.Mesh(new THREE.DodecahedronGeometry(0.085, 0), step2Mats.recessedPanelWarmMat);
+        mysOrb.position.set(0.0, 0.90, 0.2);
+        rGroup.add(mysOrb);
+      }
+
+      // 5) Damp Wall Stains & Ceiling Corner Cobwebs
+      if (dressing.wallStains) {
+        const stain1 = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.2), step2Mats.wallStainDecal);
+        stain1.position.set(-4.2, 2.1, 6.62);
+        stain1.rotation.y = Math.PI;
+        rGroup.add(stain1);
+        const stain2 = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.9), step2Mats.wallStainDecal);
+        stain2.position.set(sideSign * 6.92, 1.85, -3.4);
+        stain2.rotation.y = -sideSign * Math.PI / 2;
+        rGroup.add(stain2);
+      }
+      if (dressing.cobwebs) {
+        [
+          [-6.55, 3.18, -6.35,  0.78],
+          [ 6.55, 3.18, -6.35, -0.78],
+          [-6.55, 3.18,  6.35,  2.35],
+          [ 6.55, 3.18,  6.35, -2.35],
+        ].forEach(([wx, wy, wz, ry]) => {
+          const web = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.65), step2Mats.cobwebMat);
+          web.position.set(wx, wy, wz);
+          web.rotation.set(0.32, ry, 0);
+          rGroup.add(web);
+        });
+      }
+
+      // Bake all static geometry in the room first
+      rGroup.userData.isRoomGroup = true;
       bakeStaticGroup(rGroup, true);
+
+      // 6) Unified Per-Room Light Mood Fixtures, Volumetric Cone Moonlight Shafts & Dust Motes
+      applyRoomLightMoodFixtures(rGroup, roomDef, roomCX, floorY, roomCZ, 14.0, 13.4, sideSign);
+
       rGroup.userData.isRoomGroup = true;
       rGroup.userData.roomDef = roomDef;
+      rGroup.userData.roomCode = roomCode;
       roomVisibilityList.push({
         id: roomTitle,
+        roomCode,
         type: 'room',
         group: rGroup,
         x: roomCX,
@@ -9706,86 +13519,108 @@ export function getHideAndSeekHtml(): string {
       const h = fIdx === 2 ? topStoryH : storyH;
       [1.6, 10.4].forEach(px => {
         const roomSide = px < rotX ? -1 : 1;
+        const rCode = String((fIdx + 1) * 100 + (roomSide === -1 ? 1 : 2));
+        const rDress = MAIN_BUILDING_ROOM_DRESSING[rCode] || {};
         // 3 Wall Segments leaving two 2.2m-wide open doorways at z = rotFrontZ + 2.0 and z = rotBackZ - 1.8:
-        // Segment 1 (Front corner pier): z from rotFrontZ to rotFrontZ + 0.9 (length 0.9m)
         buildWallSegment(px, fy, rotFrontZ + 0.45, 0.26, h, 0.9, materials.rotundaInteriorWall);
-        // Segment 2 (Center pier between Front & Rear doorways): z from rotFrontZ + 3.1 to rotBackZ - 2.9 (length 8.0m)
         buildWallSegment(px, fy, rotZ + 0.10, 0.26, h, 8.0, materials.rotundaInteriorWall);
-        // Segment 3 (Rear corner pier): z from rotBackZ - 0.7 to rotBackZ (length 0.7m)
         buildWallSegment(px, fy, rotBackZ - 0.35, 0.26, h, 0.7, materials.rotundaInteriorWall);
 
-        // Wooden Door Frames, Glass Transoms, Open Door Leaves & Room Number Plaques on Both Doorways
+        // Wood-Framed Glazed Corridor Partition Sidelights along the Center Pier (Ref 2 & Ref 5!)
+        const pFrameTop = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.12, 7.8), materials.chairWood);
+        pFrameTop.position.set(px, fy + 2.68, rotZ + 0.10);
+        scene.add(pFrameTop);
+        const pFrameSill = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.10, 7.8), materials.chairWood);
+        pFrameSill.position.set(px, fy + 1.05, rotZ + 0.10);
+        scene.add(pFrameSill);
+        [-2.4, 0.0, 2.4].forEach(gz => {
+          const gPane = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.52, 1.85), materials.windowGlass);
+          gPane.position.set(px, fy + 1.86, rotZ + 0.10 + gz);
+          scene.add(gPane);
+          const gMullion = new THREE.Mesh(new THREE.BoxGeometry(0.31, 1.62, 0.10), materials.chairWood);
+          gMullion.position.set(px, fy + 1.86, rotZ + 0.10 + gz - 0.95);
+          scene.add(gMullion);
+        });
+
+        // Wooden Door Frames, Glass Transoms, Half-Open Door Leaves & Room Number Plaques on Both Doorways
         [rotFrontZ + 2.0, rotBackZ - 1.8].forEach((doorZ, dIdx) => {
+          addDoorFrameColliders(px, fy, doorZ, 2.20, 0.26, true);
           const dHeader = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.82, 2.24), materials.chairWood);
           dHeader.position.set(px, fy + h - 0.41, doorZ);
           scene.add(dHeader);
 
-          const dTransomGlass = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.46, 1.88), materials.windowWarmLit);
+          const dTransomGlass = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.46, 1.88), materials.windowGlass);
           dTransomGlass.position.set(px, fy + h - 0.42, doorZ);
           scene.add(dTransomGlass);
 
-          // Open Wooden Classroom Door Leaf swung neatly against the center pier inside the classroom
-          const doorLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.92, 2.28, 0.07), materials.deskWoodTop);
-          doorLeaf.position.set(
-            px + roomSide * 0.52,
-            fy + 1.14,
-            dIdx === 0 ? doorZ + 1.05 : doorZ - 1.05
+          // Requirement 4: Half-open door per room config
+          const swingAng = rDress.halfOpenDoor ? 0.92 : 1.35;
+          buildSwingingDoor(
+            scene,
+            px + roomSide * 0.14,
+            fy,
+            dIdx === 0 ? doorZ + 0.96 : doorZ - 0.96,
+            roomSide === -1 ? (dIdx === 0 ? swingAng : -swingAng) : (dIdx === 0 ? Math.PI - swingAng : -Math.PI + swingAng),
+            materials.chairWood,
+            "door-rotunda-f" + (fIdx + 1) + "-" + (roomSide === -1 ? "W" : "E") + "-" + (dIdx === 0 ? "front" : "rear")
           );
-          scene.add(doorLeaf);
-
-          // Navy & Gold Room Plaque beside the Front Doorway in the Atrium Concourse
-          if (dIdx === 0) {
-            const plaque = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.56), materials.gandakiBluePole);
-            plaque.position.set(px - roomSide * 0.15, fy + 2.05, doorZ + 1.38);
-            scene.add(plaque);
-          }
         });
       });
     });
 
-    // E. 4 Projecting White Segmental-Arched Window Bays per Front Wing + 3 per Side Facade (IMG_5835 2.JPG & IMG_5854!)
+    // E. 4 Projecting White Segmental-Arched Window Bays per Front Wing + 3 per Side Facade (IMG_6032, IMG_6033, IMG_6034!)
+    // Exact 35% lit distribution matching reference images:
+    // Front West Wing (12 panes): 3rd-floor inner bay (idx===3) warm yellow-amber lit; lower bays dark reflective glass with faint cool sky reflection
+    // Front East Wing (12 panes): 3rd-floor bay 1 (idx===1) warm amber lit, bay 2 (idx===2) red accent lit, bay 3 (idx===3) warm lit, plus 1st/ground right bays warm lit
     const westFrontBays = [-11.3, -8.1, -4.9, -1.7];
     const eastFrontBays = [13.7, 16.9, 20.1, 23.3];
 
     westFrontBays.forEach((bx, idx) => {
-      buildRotundaArchedBay(bx, rotFloor0, rotFrontZ - 0.16, -1, false, idx % 2 === 0, idx !== 2);
-      buildTopFloorWindowAndStruts(bx, rotFloor2, rotFrontZ - 0.16, -1, false, idx % 2 === 1);
+      const gMode = idx === 2 ? 'warm' : 'dark';
+      const fMode = 'dark';
+      const tMode = idx === 3 ? 'warm' : 'dark';
+      buildRotundaArchedBay(bx, rotFloor0, rotFrontZ - 0.16, -1, false, gMode, fMode);
+      buildTopFloorWindowAndStruts(bx, rotFloor2, rotFrontZ - 0.16, -1, false, tMode);
     });
     eastFrontBays.forEach((bx, idx) => {
-      buildRotundaArchedBay(bx, rotFloor0, rotFrontZ - 0.16, -1, false, idx !== 1, idx % 2 === 0);
-      buildTopFloorWindowAndStruts(bx, rotFloor2, rotFrontZ - 0.16, -1, false, idx % 2 === 0);
+      const gMode = idx === 3 ? 'warm' : 'dark';
+      const fMode = (idx === 2 || idx === 3) ? 'warm' : 'dark';
+      const tMode = idx === 1 ? 'warm' : (idx === 2 ? 'red' : (idx === 3 ? 'warm' : 'dark'));
+      buildRotundaArchedBay(bx, rotFloor0, rotFrontZ - 0.16, -1, false, gMode, fMode);
+      buildTopFloorWindowAndStruts(bx, rotFloor2, rotFrontZ - 0.16, -1, false, tMode);
     });
 
-    // Outer West & East Side Wall Arched Bays (visible in aerial IMG_5854!)
+    // Outer West & East Side Wall Arched Bays (~35% warm lit)
     [rotZ - 4.5, rotZ, rotZ + 4.5].forEach((sz, idx) => {
-      buildRotundaArchedBay(rotLeftX - 0.16, rotFloor0, sz, -1, true, true, idx % 2 === 0);
-      buildTopFloorWindowAndStruts(rotLeftX - 0.16, rotFloor2, sz, -1, true, idx !== 1);
+      buildRotundaArchedBay(rotLeftX - 0.16, rotFloor0, sz, -1, true, idx === 1 ? 'warm' : 'dark', idx === 0 ? 'warm' : 'dark');
+      buildTopFloorWindowAndStruts(rotLeftX - 0.16, rotFloor2, sz, -1, true, idx === 2 ? 'warm' : 'dark');
 
-      buildRotundaArchedBay(rotRightX + 0.16, rotFloor0, sz, 1, true, idx % 2 === 0, true);
-      buildTopFloorWindowAndStruts(rotRightX + 0.16, rotFloor2, sz, 1, true, idx % 2 === 1);
+      buildRotundaArchedBay(rotRightX + 0.16, rotFloor0, sz, 1, true, idx === 0 ? 'warm' : 'dark', idx === 2 ? 'warm' : 'dark');
+      buildTopFloorWindowAndStruts(rotRightX + 0.16, rotFloor2, sz, 1, true, idx === 1 ? 'red' : 'dark');
     });
 
-    // Rear Facade Windows & Top Struts
+    // Rear Facade Windows & Top Struts (~35% warm lit)
     [-9.5, -4.5, 1.5, 10.5, 16.5, 21.5].forEach((bx, idx) => {
-      buildDetailedWindow(bx, rotFloor0 + 1.85, rotBackZ + 0.18, 1, idx % 2 === 0);
-      buildDetailedWindow(bx, rotFloor1 + 1.85, rotBackZ + 0.18, 1, idx % 2 === 1);
-      buildTopFloorWindowAndStruts(bx, rotFloor2, rotBackZ + 0.16, 1, false, idx % 2 === 0);
+      buildDetailedWindow(bx, rotFloor0 + 1.85, rotBackZ + 0.18, 1, idx === 1 || idx === 4);
+      buildDetailedWindow(bx, rotFloor1 + 1.85, rotBackZ + 0.18, 1, idx === 0 || idx === 3);
+      buildTopFloorWindowAndStruts(bx, rotFloor2, rotBackZ + 0.16, 1, false, (idx === 2 || idx === 5) ? 'warm' : 'dark');
     });
 
-    // F. Hollow Perimeter 2nd-Story Cornice Ledge + 3rd-Story White Frieze & Terracotta-Red Band (IMG_5835 2.JPG!)
+    // F. Hollow Perimeter 2nd-Story Cornice Ledge + 3rd-Story White Frieze & Terracotta-Red Band (IMG_6033 & IMG_6034!)
     // Built as hollow exterior perimeter strips so the 3-floor interior is 100% unobstructed!
-    buildPerimeterBand(rotFloor2 - 0.04, 0.28, 0.34, materials.rotundaWhiteArch); // 2nd-Story Projecting White Cornice
-    buildPerimeterBand(rotEaveY - 0.61, 1.22, 0.06, materials.rotundaWhiteArch);  // Upper 3rd-Story White Frieze Band
-    buildPerimeterBand(rotEaveY - 1.24, 0.12, 0.10, materials.rotundaRedSteel);   // Terracotta-Red Trim Band
+    buildPerimeterBand(rotFloor1 - 0.04, 0.24, 0.22, materials.rotundaWhiteArch); // 1st-Story Projecting Floor Band
+    buildPerimeterBand(rotFloor2 - 0.04, 0.30, 0.36, materials.rotundaWhiteArch); // 2nd-Story Projecting White Cornice
+    buildPerimeterBand(rotEaveY - 0.61, 1.22, 0.08, materials.rotundaWhiteArch);  // Upper 3rd-Story White Frieze Band
+    buildPerimeterBand(rotEaveY - 1.24, 0.12, 0.12, materials.rotundaRedSteel);   // Terracotta-Red Trim Band
 
-    // G. Central 2-Story Semicircular Portico Columns (with Fluted Pedestals) + 3rd-Floor Curved Glass Rotunda (IMG_5854 & IMG_5835 2.JPG)
+    // G. Central 2-Story Semicircular Portico Columns (with Fluted Pedestals) + 3rd-Floor Curved Glass Rotunda (IMG_6033 & IMG_6034)
     const rotRadius = 5.55;
     const colAngles = [-Math.PI * 0.38, -Math.PI * 0.13, Math.PI * 0.13, Math.PI * 0.38];
     colAngles.forEach(ang => {
       const cx = rotX + Math.sin(ang) * rotRadius;
       const cz = rotFrontZ - Math.cos(ang) * rotRadius;
 
-      // 1. Octagonal/Cylindrical Fluted Dark-Grey Concrete Pedestal Base (IMG_5835 2.JPG bottom-left!)
+      // 1. Octagonal/Cylindrical Fluted Dark-Grey Concrete Pedestal Base
       const pedH = 1.48;
       const pedBase = new THREE.Mesh(
         new THREE.CylinderGeometry(0.52, 0.56, pedH, 16),
@@ -9795,7 +13630,7 @@ export function getHideAndSeekHtml(): string {
       pedBase.castShadow = true;
       scene.add(pedBase);
 
-      // Pedestal Ground Contact Shadow Disk (Phase 3 Contact Shadows)
+      // Pedestal Ground Contact Shadow Disk
       const pedShadow = new THREE.Mesh(sharedGeos.columnContactShadow, materials.pedestalShadowDecal);
       pedShadow.rotation.x = -Math.PI / 2;
       pedShadow.position.set(cx, rotFloor0 + 0.02, cz);
@@ -9817,9 +13652,9 @@ export function getHideAndSeekHtml(): string {
         scene.add(ring);
       });
 
-      // 2. Tall Smooth Cylindrical Concrete Column Shaft rising to the 2nd-floor ring beam (y = 0.48..7.62)
+      // 2. Tall Cylindrical Weathered White Concrete Column Shaft rising to the 2nd-floor ring beam (y = 0.48..7.62)
       const colShaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.40, 0.43, 7.12, 20),
+        new THREE.CylinderGeometry(0.42, 0.45, 7.12, 20),
         materials.rotundaWhiteArch
       );
       colShaft.position.set(cx, rotFloor0 + 3.56, cz);
@@ -9832,38 +13667,69 @@ export function getHideAndSeekHtml(): string {
       ));
     });
 
-    // 3rd-Floor Curved Semicircular Stone-Brick Parapet + 10-Bay Red Steel & Glass Rotunda Curtain Wall (IMG_5835 2.JPG & IMG_5854!)
+    // 3rd-Floor Curved Semicircular Stone-Brick Entablature Parapet + 10-Bay Rotunda Glass Ring (Fix 7: IMG_6033 & IMG_6034!)
     const parapetH = 1.05;
     const curvedParapet = new THREE.Mesh(
-      new THREE.CylinderGeometry(rotRadius + 0.15, rotRadius + 0.15, parapetH, 28, 1, true, Math.PI * 0.5, Math.PI),
-      materials.rotundaBrick
+      new THREE.CylinderGeometry(rotRadius + 0.28, rotRadius + 0.28, parapetH, 28, 1, true, Math.PI * 0.5, Math.PI),
+      materials.rotundaWhiteArch
     );
     curvedParapet.position.set(rotX, rotFloor2 + parapetH / 2, rotFrontZ);
     scene.add(curvedParapet);
 
     const parapetCoping = new THREE.Mesh(
-      new THREE.CylinderGeometry(rotRadius + 0.24, rotRadius + 0.24, 0.12, 28, 1, false, Math.PI * 0.5, Math.PI),
+      new THREE.CylinderGeometry(rotRadius + 0.38, rotRadius + 0.38, 0.14, 28, 1, false, Math.PI * 0.5, Math.PI),
       materials.rotundaWhiteArch
     );
-    parapetCoping.position.set(rotX, rotFloor2 + parapetH + 0.04, rotFrontZ);
+    parapetCoping.position.set(rotX, rotFloor2 + parapetH + 0.05, rotFrontZ);
     scene.add(parapetCoping);
 
-    // Curved Panoramic Glass Curtain Wall (y = 8.78..10.95)
+    // Fix 7: Rotunda Glass Ring — 10 individual curved glass bays: dark reflective glass + 2 warm interior-lit sections + visible orange railing!
     const glassCurtainH = 2.18;
-    const curvedGlassMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(rotRadius + 0.08, rotRadius + 0.08, glassCurtainH, 28, 1, true, Math.PI * 0.5, Math.PI),
-      materials.rotundaCurvedGlass
-    );
-    curvedGlassMesh.position.set(rotX, rotFloor2 + parapetH + glassCurtainH / 2, rotFrontZ);
-    scene.add(curvedGlassMesh);
-
-    // 11 Vertical Terracotta-Red Structural Steel Mullion Posts + 2 Horizontal Red Transom Rings (IMG_5835 2.JPG!)
     const numRotBays = 10;
+    const litRotBays = (HORROR_CONFIG.mainBuilding && HORROR_CONFIG.mainBuilding.rotundaLitBayIndices) || [3, 6];
+    for (let b = 0; b < numRotBays; b++) {
+      const thetaStart = Math.PI * 0.52 + (b / numRotBays) * Math.PI * 0.96;
+      const thetaLen = (Math.PI * 0.96) / numRotBays;
+      const isLitBay = litRotBays.indexOf(b) !== -1;
+      const bayGlassMat = isLitBay
+        ? (materials.rotundaCurvedGlassWarm || materials.rotundaCurvedGlass)
+        : materials.rotundaCurvedGlass;
+      const bayGlassMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(rotRadius + 0.08, rotRadius + 0.08, glassCurtainH, 6, 1, true, thetaStart, thetaLen),
+        bayGlassMat
+      );
+      bayGlassMesh.position.set(rotX, rotFloor2 + parapetH + glassCurtainH / 2, rotFrontZ);
+      scene.add(bayGlassMesh);
+    }
+
+    // Visible Warm-Orange Interior Safety Railing inside the Rotunda Glass Ring (Fix 7!)
+    [rotFloor2 + parapetH + 0.46, rotFloor2 + parapetH + 0.88].forEach((railY, rIdx) => {
+      const orangeRail = new THREE.Mesh(
+        new THREE.CylinderGeometry(rotRadius - 0.08, rotRadius - 0.08, rIdx === 1 ? 0.075 : 0.055, 28, 1, true, Math.PI * 0.52, Math.PI * 0.96),
+        materials.rotundaOrangeRailingMat || materials.rotundaRedSteel
+      );
+      orangeRail.position.set(rotX, railY, rotFrontZ);
+      scene.add(orangeRail);
+    });
+    for (let rp = 0; rp <= numRotBays; rp++) {
+      const rang = -Math.PI * 0.48 + (rp / numRotBays) * Math.PI * 0.96;
+      const rpx = rotX + Math.sin(rang) * (rotRadius - 0.08);
+      const rpz = rotFrontZ - Math.cos(rang) * (rotRadius - 0.08);
+      const railPost = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 0.95, 0.05),
+        materials.rotundaOrangeRailingMat || materials.rotundaRedSteel
+      );
+      railPost.position.set(rpx, rotFloor2 + parapetH + 0.48, rpz);
+      railPost.rotation.y = -rang;
+      scene.add(railPost);
+    }
+
+    // 11 Vertical Weathered Dark Mullion Posts + 2 Horizontal Transom Rings on the Rotunda Glass Ring (IMG_6033 & IMG_6034!)
     for (let m = 0; m <= numRotBays; m++) {
       const mang = -Math.PI * 0.48 + (m / numRotBays) * Math.PI * 0.96;
       const mx = rotX + Math.sin(mang) * (rotRadius + 0.14);
       const mz = rotFrontZ - Math.cos(mang) * (rotRadius + 0.14);
-      const mPost = new THREE.Mesh(new THREE.BoxGeometry(0.10, glassCurtainH + 0.35, 0.12), materials.rotundaRedSteel);
+      const mPost = new THREE.Mesh(new THREE.BoxGeometry(0.14, glassCurtainH + 0.35, 0.16), materials.rotundaColumnFlutedBase);
       mPost.position.set(mx, rotFloor2 + parapetH + glassCurtainH / 2, mz);
       mPost.rotation.y = -mang;
       scene.add(mPost);
@@ -9876,15 +13742,15 @@ export function getHideAndSeekHtml(): string {
     }
 
     [rotFloor2 + parapetH + 0.85, rotFloor2 + parapetH + glassCurtainH - 0.08].forEach(ty => {
-      const redRing = new THREE.Mesh(
-        new THREE.CylinderGeometry(rotRadius + 0.16, rotRadius + 0.16, 0.09, 28, 1, true, Math.PI * 0.5, Math.PI),
-        materials.rotundaRedSteel
+      const transRing = new THREE.Mesh(
+        new THREE.CylinderGeometry(rotRadius + 0.16, rotRadius + 0.16, 0.08, 28, 1, true, Math.PI * 0.5, Math.PI),
+        materials.castIronDark
       );
-      redRing.position.set(rotX, ty, rotFrontZ);
-      scene.add(redRing);
+      transRing.position.set(rotX, ty, rotFrontZ);
+      scene.add(transRing);
     });
 
-    // Inner Cylindrical White Concrete Columns inside the 3rd-Floor Rotunda Gallery (IMG_5835 2.JPG)
+    // Inner Cylindrical White Concrete Columns inside the 3rd-Floor Rotunda Gallery
     colAngles.forEach(ang => {
       const icx = rotX + Math.sin(ang) * (rotRadius - 0.85);
       const icz = rotFrontZ - Math.cos(ang) * (rotRadius - 0.85);
@@ -9893,20 +13759,105 @@ export function getHideAndSeekHtml(): string {
       scene.add(innerCol);
     });
 
-    // Overhanging Semicircular Curved Rotunda Roof (White Underside Soffit + Terracotta-Red Top Deck, IMG_5854!)
+    // Overhanging Semicircular Curved Rotunda Dome/Roof Crown (Bright White Cornice Rim + Lifted Terracotta-Red Top Deck, IMG_6033!)
     const rotRoofSoffit = new THREE.Mesh(
-      new THREE.CylinderGeometry(rotRadius + 0.95, rotRadius + 0.95, 0.28, 32, 1, false, Math.PI * 0.5, Math.PI),
+      new THREE.CylinderGeometry(rotRadius + 0.98, rotRadius + 0.98, 0.34, 32, 1, false, Math.PI * 0.5, Math.PI),
       materials.rotundaWhiteArch
     );
-    rotRoofSoffit.position.set(rotX, rotEaveY - 0.08, rotFrontZ);
+    rotRoofSoffit.position.set(rotX, rotEaveY - 0.06, rotFrontZ);
     scene.add(rotRoofSoffit);
 
     const rotRoofRedTop = new THREE.Mesh(
-      new THREE.CylinderGeometry(rotRadius + 0.75, rotRadius + 0.92, 0.22, 32, 1, false, Math.PI * 0.5, Math.PI),
+      new THREE.CylinderGeometry(rotRadius + 0.78, rotRadius + 0.96, 0.24, 32, 1, false, Math.PI * 0.5, Math.PI),
       materials.terracottaRoof
     );
-    rotRoofRedTop.position.set(rotX, rotEaveY + 0.16, rotFrontZ);
+    rotRoofRedTop.position.set(rotX, rotEaveY + 0.18, rotFrontZ);
     scene.add(rotRoofRedTop);
+
+    // Fix 3: Facade Warm Up-Light Wash, Portico Column Wash, Entrance Ground Spill & Baked AO Gradients (Zero New Real Lights; Skipped on FAST)
+    const mainBuildingEffectsGroup = new THREE.Group();
+    mainBuildingEffectsGroup.name = 'main-building-facade-effects';
+    mainBuildingEffectsGroup.userData.noMerge = true;
+    scene.add(mainBuildingEffectsGroup);
+
+    if (materials.rotundaFacadeUplightMat && materials.rotundaEntranceSpillMat && materials.rotundaBakedAoMat) {
+      // 1) Warm up-light wash planes on West & East front wing facades and central entrance wall
+      [-5.7, 17.7].forEach(wx => {
+        const wingWash = new THREE.Mesh(new THREE.PlaneGeometry(14.4, 8.8), materials.rotundaFacadeUplightMat);
+        wingWash.position.set(wx, rotFloor0 + 4.4, rotFrontZ - 0.38);
+        wingWash.rotation.y = Math.PI;
+        mainBuildingEffectsGroup.add(wingWash);
+      });
+      const entranceWash = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 7.2), materials.rotundaFacadeUplightMat);
+      entranceWash.position.set(rotX, rotFloor0 + 3.6, rotFrontZ - 0.22);
+      entranceWash.rotation.y = Math.PI;
+      mainBuildingEffectsGroup.add(entranceWash);
+
+      // 2) Warm up-light wash on the 4 semicircular portico columns
+      colAngles.forEach(ang => {
+        const cx = rotX + Math.sin(ang) * rotRadius;
+        const cz = rotFrontZ - Math.cos(ang) * rotRadius;
+        const colWash = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.47, 0.50, 6.8, 14, 1, true, Math.PI * 0.55, Math.PI * 0.90),
+          materials.rotundaColumnWashMat || materials.rotundaFacadeUplightMat
+        );
+        colWash.position.set(cx, rotFloor0 + 3.4, cz);
+        mainBuildingEffectsGroup.add(colWash);
+      });
+
+      // 3) Warm ground light spill at the portico entrance, steps & right-wing lamp plaza
+      const porticoSpill = new THREE.Mesh(new THREE.PlaneGeometry(13.5, 11.5), materials.rotundaEntranceSpillMat);
+      porticoSpill.rotation.x = -Math.PI / 2;
+      porticoSpill.position.set(rotX, rotFloor0 + 0.028, rotFrontZ - 2.6);
+      mainBuildingEffectsGroup.add(porticoSpill);
+
+      const forecourtSpill = new THREE.Mesh(new THREE.PlaneGeometry(16.0, 12.0), materials.rotundaEntranceSpillMat);
+      forecourtSpill.rotation.x = -Math.PI / 2;
+      forecourtSpill.position.set(rotX + 12.5, 0.04, rotFrontZ - 6.5);
+      mainBuildingEffectsGroup.add(forecourtSpill);
+
+      // 4) Subtle Baked AO gradient strips under eaves, under 2nd-floor cornice, and between floors
+      [
+        { y: rotEaveY - 0.28, h: 0.75, zOff: -0.22 },
+        { y: rotFloor2 - 0.32, h: 0.62, zOff: -0.22 },
+        { y: rotFloor1 - 0.26, h: 0.52, zOff: -0.20 },
+      ].forEach(aoRow => {
+        [-5.7, 17.7].forEach(wx => {
+          const aoStrip = new THREE.Mesh(new THREE.PlaneGeometry(14.6, aoRow.h), materials.rotundaBakedAoMat);
+          aoStrip.position.set(wx, aoRow.y, rotFrontZ + aoRow.zOff);
+          aoStrip.rotation.y = Math.PI;
+          mainBuildingEffectsGroup.add(aoStrip);
+        });
+      });
+
+      // Curved AO shadow band under the portico entablature & mezzanine ring
+      [rotFloor1 - 0.32, rotFloor2 - 0.34, rotEaveY - 0.30].forEach(cay => {
+        const curvedAo = new THREE.Mesh(
+          new THREE.CylinderGeometry(rotRadius + 0.32, rotRadius + 0.32, 0.55, 28, 1, true, Math.PI * 0.5, Math.PI),
+          materials.rotundaBakedAoMat
+        );
+        curvedAo.position.set(rotX, cay, rotFrontZ);
+        mainBuildingEffectsGroup.add(curvedAo);
+      });
+    }
+
+    // Twin Dark Wrought-Iron Portico Lantern Posts flanking the curved steps (exact match to IMG_6033 & IMG_6034!)
+    [-4.35, 4.35].forEach(lxOff => {
+      const lpx = rotX + lxOff;
+      const lpz = rotFrontZ - 4.45;
+      const pPole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 3.35, 8), materials.castIronDark);
+      pPole.position.set(lpx, rotFloor0 + 1.68, lpz);
+      scene.add(pPole);
+      const pCage = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.15, 0.48, 4), materials.castIronDark);
+      pCage.position.set(lpx, rotFloor0 + 3.52, lpz);
+      scene.add(pCage);
+      const pCap = new THREE.Mesh(new THREE.ConeGeometry(0.30, 0.24, 4), materials.castIronDark);
+      pCap.position.set(lpx, rotFloor0 + 3.84, lpz);
+      scene.add(pCap);
+    });
+    // Right-wing warm street lamp in front of East Wing (exact match to IMG_6032 & IMG_6033!)
+    lampFlickerMod.addLamp(rotX + 14.2, rotFrontZ - 7.2, -1, 'steady_warm');
+    addColliderCylinder(rotX + 14.2, rotFrontZ - 7.2, (HORROR_CONFIG.physics && HORROR_CONFIG.physics.streetLampPoleRadius) || 0.20, 0, 4.2);
 
     // H. Prominent Twin Terracotta-Red Hipped Roofs + Central White Octagonal Skylight Atrium Roof Deck + Water Tanks (IMG_5854!)
     buildTerracottaHippedWingRoof(-5.2, rotEaveY, rotZ, 16.0, rotD, 4.2, -1); // West Wing Hipped Roof
@@ -10037,61 +13988,196 @@ export function getHideAndSeekHtml(): string {
       scene.add(pVine);
     });
 
-    // 4. Ground Floor Atrium Reception Counter, Monitor, Lamp, Waiting Sofa & Corridor Props on All 3 Floors
-    const recDesk = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.05, 0.82), materials.chairWood);
-    recDesk.position.set(rotX + 1.4, rotFloor0 + 0.52, rotFrontZ + 2.2);
-    scene.add(recDesk);
-    const recTop = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.08, 0.94), materials.rotundaWhiteArch);
-    recTop.position.set(rotX + 1.4, rotFloor0 + 1.08, rotFrontZ + 2.2);
+    // 4. Grand Atrium U-Shaped Reception Counter with Green Marble Top, Monitors, Bowls, Paintings, Lounge & Corridor Props (Ref 1, 2, 3, 5!)
+    const recCX = rotX + 1.25;
+    const recCZ = rotFrontZ + 2.25;
+    const recFront = new THREE.Mesh(new THREE.BoxGeometry(2.45, 1.04, 0.72), materials.chairWood);
+    recFront.position.set(recCX, rotFloor0 + 0.52, recCZ);
+    scene.add(recFront);
+    [-1.02, 1.02].forEach(wingX => {
+      const recWing = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.04, 1.15), materials.chairWood);
+      recWing.position.set(recCX + wingX, rotFloor0 + 0.52, recCZ + 0.38);
+      scene.add(recWing);
+      const lipWing = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.08, 1.24), step2Mats.greenMarbleTop);
+      lipWing.position.set(recCX + wingX, rotFloor0 + 1.08, recCZ + 0.38);
+      scene.add(lipWing);
+    });
+    const recTop = new THREE.Mesh(new THREE.BoxGeometry(2.60, 0.08, 0.86), step2Mats.greenMarbleTop);
+    recTop.position.set(recCX, rotFloor0 + 1.08, recCZ);
     scene.add(recTop);
-    const recMon = new THREE.Mesh(step2Geos.monitorPanel, step2Mats.monitorScreenOn);
-    recMon.position.set(rotX + 0.95, rotFloor0 + 1.28, rotFrontZ + 2.2);
-    scene.add(recMon);
+    addUnderFurnitureAO(scene, recCX, recCZ + 0.15, 2.85, 1.45, 0, rotFloor0 + 0.016);
+
+    [-0.45, 0.35].forEach((mx, mIdx) => {
+      const recMon = new THREE.Mesh(step2Geos.monitorPanel, mIdx === 0 ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
+      recMon.position.set(recCX + mx, rotFloor0 + 1.28, recCZ);
+      scene.add(recMon);
+    });
     const recLamp = new THREE.Mesh(step2Geos.readingLampShade, step2Mats.lampShadeGreen);
-    recLamp.position.set(rotX + 1.95, rotFloor0 + 1.26, rotFrontZ + 2.2);
+    recLamp.position.set(recCX + 0.88, rotFloor0 + 1.26, recCZ);
     scene.add(recLamp);
+    // Fallen swivel chair & fanned white papers beside reception counter (Ref 1 & Ref 3)
+    const recFallenChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
+    recFallenChair.position.set(recCX - 1.55, rotFloor0 + 0.24, recCZ + 0.35);
+    recFallenChair.rotation.set(1.42, 0.65, 0.18);
+    scene.add(recFallenChair);
     const entryMat = new THREE.Mesh(step2Geos.floorMat, step2Mats.matRubber);
     entryMat.position.set(rotX, rotFloor0 + 0.012, rotFrontZ + 0.65);
     scene.add(entryMat);
 
     addColliderBox(new THREE.Box3(
-      new THREE.Vector3(rotX + 0.25, rotFloor0, rotFrontZ + 1.75),
-      new THREE.Vector3(rotX + 2.55, rotFloor0 + 1.15, rotFrontZ + 2.65)
-    ));
-    interactiveHidingSpots.push({
-      id: 'rotunda-reception-desk',
-      name: 'Rotunda Atrium Reception Counter',
-      x: rotX + 1.4,
-      y: rotFloor0,
-      z: rotFrontZ + 3.05,
-      zone: 'Grand Rotunda Atrium',
+      new THREE.Vector3(recCX - 1.26, rotFloor0, recCZ - 0.42),
+      new THREE.Vector3(recCX + 1.26, rotFloor0 + 1.15, recCZ + 0.96)
+    ), 'furniture');
+
+    // Ground Floor Atrium Left & Right Lounge Seating (Armchairs, Low Coffee Tables, Bowls & Scattered Papers, Ref 3!)
+    [
+      { x: 2.65, z: rotFrontZ + 1.65, sign: 1 },
+      { x: 9.35, z: rotFrontZ + 1.65, sign: -1 },
+    ].forEach(lg => {
+      const cTable = new THREE.Mesh(step2Geos.coffeeTable, materials.deskWoodTop);
+      cTable.position.set(lg.x, rotFloor0, lg.z);
+      scene.add(cTable);
+      addUnderFurnitureAO(scene, lg.x, lg.z, 1.35, 0.82, 0, rotFloor0 + 0.016);
+      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.09, 0.07, 10), materials.deskSteelFrame);
+      bowl.position.set(lg.x, rotFloor0 + 0.46, lg.z);
+      scene.add(bowl);
+      const armCh = new THREE.Mesh(step2Geos.loungeArmchair, step2Mats.sofaLeather);
+      armCh.position.set(lg.x - lg.sign * 0.82, rotFloor0, lg.z);
+      armCh.rotation.y = lg.sign * Math.PI * 0.5;
+      scene.add(armCh);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(lg.x - 0.95, rotFloor0, lg.z - 0.42),
+        new THREE.Vector3(lg.x + 0.65, rotFloor0 + 0.78, lg.z + 0.42)
+      ), 'furniture');
     });
 
-    // Populate Corridor Props (Lockers, Water Dispenser, Fire Extinguisher, Plants, Benches & Framed Boards) across all 3 Rotunda floors
-    [rotFloor0, rotFloor1, rotFloor2].forEach((afy, aIdx) => {
-      const benchX = aIdx === 0 ? 6.0 : (aIdx === 1 ? 7.2 : 4.8);
-      const aBench = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.46, 0.58), materials.chairWood);
-      aBench.position.set(benchX, afy + 0.23, rotBackZ - 1.1);
-      scene.add(aBench);
-      const aFrame = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.25, 0.06), materials.gandakiBluePole);
-      aFrame.position.set(benchX, afy + 1.95, rotBackZ - 0.20);
-      scene.add(aFrame);
+    // Rear Atrium Framed Landscape Paintings, Boarded Recess & Safe Eerie Warning Lintel (Ref 3!)
+    [3.4, 8.6].forEach(px => {
+      const pFrame = new THREE.Mesh(new THREE.BoxGeometry(1.68, 1.12, 0.05), materials.chairWood);
+      pFrame.position.set(px, rotFloor0 + 2.05, rotBackZ - 0.19);
+      scene.add(pFrame);
+      const pArt = new THREE.Mesh(step2Geos.photoCanvas, materials.rotundaInteriorWall);
+      pArt.scale.set(1, 1.85, 2.05);
+      pArt.rotation.y = Math.PI / 2;
+      pArt.position.set(px, rotFloor0 + 2.05, rotBackZ - 0.21);
+      scene.add(pArt);
+    });
+    const warningLintelGeo = remapInteriorAtlasUVs(new THREE.BoxGeometry(3.8, 0.56, 0.06), 768, 384, 256, 128);
+    const warningLintel = new THREE.Mesh(warningLintelGeo, materials.rotundaInteriorWall);
+    warningLintel.position.set(rotX, rotFloor0 + 2.95, rotBackZ - 0.19);
+    scene.add(warningLintel);
+    [-0.35, 0.15, 0.65].forEach((by, bIdx) => {
+      const plank = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.12, 0.04), materials.deskWoodTop);
+      plank.position.set(rotX, rotFloor0 + 0.85 + by, rotBackZ - 0.18);
+      plank.rotation.z = (bIdx - 1) * 0.16;
+      scene.add(plank);
+    });
 
-      // Corridor Water Dispenser & Fire Extinguisher on each floor concourse
-      const wd = new THREE.Mesh(step2Geos.waterDispenser, materials.rotundaWhiteArch);
-      wd.position.set(1.92, afy + 0.51, rotFrontZ + 3.6);
+    interactiveHidingSpots.push(
+      {
+        id: 'rotunda-reception-desk',
+        name: 'Rotunda Atrium Reception Counter',
+        x: recCX,
+        y: rotFloor0,
+        z: recCZ + 1.12,
+        zone: 'Grand Rotunda Atrium',
+        spotType: 'desk',
+        riskLevel: 0.25,
+        useCount: 0,
+      },
+      {
+        id: 'rotunda-under-stairs-1f',
+        name: 'Under Rotunda West Grand Staircase',
+        x: 3.0,
+        y: rotFloor0,
+        z: 63.2,
+        zone: 'Grand Rotunda Atrium',
+        spotType: 'stairs',
+        riskLevel: 0.18,
+        useCount: 0,
+      },
+      {
+        id: 'rotunda-under-stairs-2f',
+        name: 'Under Rotunda East Upper Staircase',
+        x: 9.0,
+        y: rotFloor1,
+        z: 64.2,
+        zone: 'Grand Rotunda Atrium',
+        spotType: 'stairs',
+        riskLevel: 0.20,
+        useCount: 0,
+      }
+    );
+
+    // Corridor Fog & Ground Mist Planes + Corridor Props (Cupboards, Water Dispensers, Sofa, Magazine Rack, Exit Signs) across all 3 Rotunda floors
+    const corridorMistPlanes = [];
+    [rotFloor0, rotFloor1, rotFloor2].forEach((afy, aIdx) => {
+      spawnCorridorFogPlanes(scene, rotX, afy, rotZ, 12.0);
+      const benchX = aIdx === 0 ? 6.0 : (aIdx === 1 ? 7.2 : 4.8);
+      const aBench = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
+      aBench.position.set(benchX, afy + 0.44, rotBackZ - 1.1);
+      scene.add(aBench);
+      addUnderFurnitureAO(scene, benchX, rotBackZ - 1.1, 1.55, 0.55, 0, afy + 0.016);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(benchX - 0.72, afy, rotBackZ - 1.35),
+        new THREE.Vector3(benchX + 0.72, afy + 0.65, rotBackZ - 0.85)
+      ), 'furniture');
+
+      // Corridor Ground Mist Layer (soft drifting fog volume in Main Building concourse)
+      const mistPlane = new THREE.Mesh(new THREE.PlaneGeometry(11.5, 13.5), step2Mats.corridorMistMat);
+      mistPlane.rotation.x = -Math.PI / 2;
+      mistPlane.position.set(rotX, afy + 0.11, rotZ);
+      mistPlane.receiveShadow = false;
+      mistPlane.castShadow = false;
+      mistPlane.userData.noMerge = true;
+      mistPlane.userData.baseX = rotX;
+      mistPlane.userData.baseZ = rotZ;
+      mistPlane.userData.phase = aIdx * 2.1;
+      scene.add(mistPlane);
+      corridorMistPlanes.push(mistPlane);
+
+      // Corridor Hot/Cold Water Dispenser, Fire Extinguisher, Wooden Cupboard & Glowing Green EXIT Sign (Ref 2 & Ref 5!)
+      const wd = new THREE.Mesh(step2Geos.waterDispenser, materials.rotundaInteriorWall);
+      wd.position.set(1.92, afy + 0.50, rotFrontZ + 3.6);
       scene.add(wd);
       const wJug = new THREE.Mesh(step2Geos.waterBottle, step2Mats.waterJugBlue);
-      wJug.position.set(1.92, afy + 1.22, rotFrontZ + 3.6);
+      wJug.position.set(1.92, afy + 1.20, rotFrontZ + 3.6);
       scene.add(wJug);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(1.68, afy, rotFrontZ + 3.36),
+        new THREE.Vector3(2.16, afy + 1.45, rotFrontZ + 3.84)
+      ), 'furniture');
 
       const fExt = new THREE.Mesh(step2Geos.fireExtBody, step2Mats.fireRed);
       fExt.position.set(10.18, afy + 1.22, rotFrontZ + 3.6);
       scene.add(fExt);
 
+      // Glowing Green [EXIT ->] Sign suspended from corridor ceiling (Ref 2 & Ref 5)
+      const exitSign = new THREE.Mesh(step2Geos.exitSignBox, step2Mats.exitSignGreenMat);
+      exitSign.position.set(rotX, afy + 3.12, rotFrontZ + 1.15);
+      scene.add(exitSign);
+
+      if (aIdx === 1) {
+        // 1st-Floor Corridor Lounge: Dark Leather Sofa, 4-Tier Wall Magazine Rack & Green-Lit 3D Wall Sign (Ref 5!)
+        const cSofa = new THREE.Mesh(step2Geos.sofaBase, step2Mats.sofaLeather);
+        cSofa.position.set(8.2, afy + 0.21, rotFrontZ + 1.15);
+        scene.add(cSofa);
+        const cSofaBack = new THREE.Mesh(step2Geos.sofaBack, step2Mats.sofaLeather);
+        cSofaBack.position.set(8.2, afy + 0.56, rotFrontZ + 0.82);
+        scene.add(cSofaBack);
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(7.2, afy, rotFrontZ + 0.72),
+          new THREE.Vector3(9.2, afy + 0.85, rotFrontZ + 1.58)
+        ), 'furniture');
+        const magRack = new THREE.Mesh(step2Geos.wallMagazineRack, materials.chairWood);
+        magRack.position.set(10.22, afy + 1.68, rotFrontZ + 3.95);
+        magRack.rotation.y = Math.PI;
+        scene.add(magRack);
+      }
+
       // Potted plants flanking the main atrium concourse
       [2.1, 9.9].forEach(px => {
-        const pot = new THREE.Mesh(step2Geos.plantPot, materials.nepalOchreDado);
+        const pot = new THREE.Mesh(step2Geos.plantPot, materials.chairWood);
         pot.position.set(px, afy + 0.18, rotFrontZ + 0.65);
         scene.add(pot);
         const bush = new THREE.Mesh(step2Geos.plantBush, materials.foliageGreen);
@@ -10100,49 +14186,54 @@ export function getHideAndSeekHtml(): string {
       });
     });
 
-    // 3rd-Floor Curved Rotunda Panoramic Seminar & Observation Lounge (y = 7.68, z = rotFrontZ - 2.8)
+    // 3rd-Floor Curved Rotunda Panoramic Seminar & Observation Lounge with Desktop Phone & Overturned Chair (Ref 5!)
     const loungeTable = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.45, 0.08, 20), materials.deskWoodTop);
     loungeTable.position.set(rotX, rotFloor2 + 0.76, rotFrontZ - 2.8);
     scene.add(loungeTable);
     const loungePedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.52, 0.74, 14), materials.deskSteelFrame);
     loungePedestal.position.set(rotX, rotFloor2 + 0.37, rotFrontZ - 2.8);
     scene.add(loungePedestal);
+    const lPhone = new THREE.Mesh(step2Geos.desktopPhone, materials.deskSteelFrame);
+    lPhone.position.set(rotX - 0.38, rotFloor2 + 0.80, rotFrontZ - 2.65);
+    lPhone.rotation.y = 0.42;
+    scene.add(lPhone);
 
     for (let ch = 0; ch < 6; ch++) {
       const cang = (ch * Math.PI * 2) / 6;
-      const chSeat = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
-      chSeat.position.set(rotX + Math.sin(cang) * 1.85, rotFloor2 + 0.45, rotFrontZ - 2.8 + Math.cos(cang) * 1.85);
-      chSeat.rotation.y = cang;
+      const chSeat = new THREE.Mesh(sharedGeos.chairSeat, ch === 2 ? step2Mats.lockerDoorBlue : materials.chairWood);
+      if (ch === 2) {
+        // Overturned blue/slate chair lying on its side in the window blind shadows (Ref 5!)
+        chSeat.position.set(rotX + Math.sin(cang) * 2.05, rotFloor2 + 0.24, rotFrontZ - 2.8 + Math.cos(cang) * 2.05);
+        chSeat.rotation.set(1.48, cang + 0.35, 0.15);
+      } else {
+        chSeat.position.set(rotX + Math.sin(cang) * 1.85, rotFloor2 + 0.45, rotFrontZ - 2.8 + Math.cos(cang) * 1.85);
+        chSeat.rotation.y = cang;
+      }
       scene.add(chSeat);
     }
 
     addColliderBox(new THREE.Box3(
       new THREE.Vector3(rotX - 1.4, rotFloor2, rotFrontZ - 4.2),
       new THREE.Vector3(rotX + 1.4, rotFloor2 + 0.85, rotFrontZ - 1.4)
-    ));
+    ), 'furniture');
 
     interactiveHidingSpots.push(
-      { id: 'rotunda-3f-lounge', name: '3rd-Floor Curved Rotunda Panoramic Table', x: rotX + 1.95, y: rotFloor2, z: rotFrontZ - 2.8, zone: '3rd-Floor Rotunda Balcony' },
-      { id: 'yellow-coach', name: 'Gandaki University Buses', x: 2.85, y: 0.0, z: -43.0, zone: 'Bus Parking Bay' },
-      { id: 'parked-suv', name: 'Parked Campus SUV (Wing L1 South)', x: -8.15, y: 0.0, z: -34.5, zone: 'Parking Plaza' },
-      { id: 'rotunda-fountain', name: 'Rotunda Courtyard Fountain', x: ftnX + 2.85, y: 0.0, z: ftnZ, zone: 'Grand Rotunda Plaza' }
+      { id: 'rotunda-3f-lounge', name: '3rd-Floor Curved Rotunda Panoramic Table', x: rotX + 1.95, y: rotFloor2, z: rotFrontZ - 2.8, zone: '3rd-Floor Rotunda Balcony', spotType: 'desk', riskLevel: 0.25, useCount: 0 },
+      { id: 'parked-suv', name: 'Parked Campus SUV (Wing L1 South)', x: -8.15, y: 0.0, z: -34.5, zone: 'Parking Plaza', spotType: 'desk', riskLevel: 0.30, useCount: 0 },
+      { id: 'rotunda-fountain', name: 'Rotunda Courtyard Fountain', x: ftnX + 2.85, y: 0.0, z: ftnZ, zone: 'Grand Rotunda Plaza', spotType: 'desk', riskLevel: 0.32, useCount: 0 }
     );
 
-    // J. Glowing Ceiling Light Fixtures Across All 3 Floors of the Grand Rotunda Complex
-    //    (Uses LampFlicker's shared 6-light pool when player is near/inside the Rotunda -> Zero extra GPU PointLight load!)
+    // J. Glowing Recessed Square Drop-Ceiling Panels Across All 3 Floors of the Grand Rotunda Complex (Ref 1 & Ref 2!)
     [
-      { x: rotX, y: rotFloor0 + 3.2, z: rotZ },
-      { x: rotX, y: rotFloor1 + 3.2, z: rotZ },
+      { x: rotX - 2.2, y: rotFloor0 + 3.2, z: rotFrontZ + 2.2 },
+      { x: rotX + 2.2, y: rotFloor0 + 3.2, z: rotFrontZ + 2.2 },
+      { x: rotX, y: rotFloor0 + 3.2, z: rotBackZ - 1.8 },
+      { x: rotX, y: rotFloor1 + 3.2, z: rotFrontZ + 2.1 },
+      { x: rotX, y: rotFloor1 + 3.2, z: rotBackZ - 1.8 },
       { x: rotX, y: rotFloor2 + 3.1, z: rotFrontZ - 2.4 },
-      { x: -5.7, y: rotFloor0 + 3.1, z: rotZ },
-      { x: 17.7, y: rotFloor0 + 3.1, z: rotZ },
-      { x: -5.7, y: rotFloor1 + 3.1, z: rotZ },
-      { x: 17.7, y: rotFloor1 + 3.1, z: rotZ },
-      { x: -5.7, y: rotFloor2 + 3.1, z: rotZ },
-      { x: 17.7, y: rotFloor2 + 3.1, z: rotZ },
     ].forEach(cfg => {
-      const ceilOrb = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.6), materials.ceilingLightEmissive);
-      ceilOrb.position.set(cfg.x, cfg.y + 0.12, cfg.z);
+      const ceilOrb = new THREE.Mesh(step2Geos.recessedCeilingPanel, step2Mats.recessedPanelWarmMat);
+      ceilOrb.position.set(cfg.x, cfg.y + 0.14, cfg.z);
       scene.add(ceilOrb);
     });
 
@@ -10187,27 +14278,20 @@ export function getHideAndSeekHtml(): string {
     spawnOldWallPoster(-13.65, 1.68, 16.0, Math.PI / 2, 0.04);
     spawnOldWallPoster(rotX - 4.2, rotFloor0 + 1.75, rotFrontZ - 0.18, Math.PI, -0.04);
 
-    // Main Building Gandaki University Facade Signboard drawn into Signage Texture Atlas (512, 192, 512, 96)
-    if (sAtlasCtx) {
-      sAtlasCtx.fillStyle = '#0f172a';
-      sAtlasCtx.fillRect(512, 192, 512, 96);
-      sAtlasCtx.strokeStyle = '#ffc27a';
-      sAtlasCtx.lineWidth = 4;
-      sAtlasCtx.strokeRect(518, 198, 500, 84);
-      sAtlasCtx.fillStyle = '#f8fafc';
-      sAtlasCtx.font = 'bold 30px Georgia, serif';
-      sAtlasCtx.textAlign = 'center';
-      sAtlasCtx.fillText('GANDAKI UNIVERSITY', 768, 238);
-      sAtlasCtx.fillStyle = '#ffc27a';
-      sAtlasCtx.font = 'bold 16px sans-serif';
-      sAtlasCtx.fillText('CENTRAL ACADEMIC ROTUNDA • POKHARA', 768, 266);
-      signageAtlasTex.needsUpdate = true;
-    }
-    const mainFacadeSign = new THREE.Mesh(
-      createAtlasUvGeo(new THREE.BoxGeometry(5.6, 0.72, 0.14), 512, 192, 512, 96),
-      sharedSignageAtlasMat
+    // Fix 6: High-Resolution "GANDAKI UNIVERSITY" Curved Entablature Sign (2048x256 with mipmaps, anisotropy & slight emissive)
+    const signBackingArc = new THREE.Mesh(
+      new THREE.CylinderGeometry(rotRadius + 0.36, rotRadius + 0.36, 0.78, 28, 1, true, Math.PI * 0.68, Math.PI * 0.64),
+      materials.rotundaWhiteArch
     );
-    mainFacadeSign.position.set(rotX, rotFloor2 - 0.02, rotFrontZ - 5.68);
+    signBackingArc.position.set(rotX, rotFloor2 + 0.42, rotFrontZ);
+    scene.add(signBackingArc);
+
+    const mainFacadeSign = new THREE.Mesh(
+      new THREE.CylinderGeometry(rotRadius + 0.40, rotRadius + 0.40, 0.68, 28, 1, true, Math.PI * 0.70, Math.PI * 0.60),
+      materials.rotundaSignMat || sharedSignageAtlasMat
+    );
+    mainFacadeSign.position.set(rotX, rotFloor2 + 0.42, rotFrontZ);
+    mainFacadeSign.userData.noMerge = true;
     scene.add(mainFacadeSign);
 
     // TASK 1: Sparse Warm Amber Lamps (#ffc27a, distance 10) — Mix of Faulty Flickering, Steady & Fully Dead ('dead') Lamps!
@@ -10253,7 +14337,7 @@ export function getHideAndSeekHtml(): string {
 
     /* =========================================================================
        PHASE A FINALIZATION: INSTANCED TREES & SHRUBS + BUILDING/SECTOR MERGING
-       + ROOM & BUILDING VISIBILITY MANAGER
+       + ROOM & BUILDING VISIBILITY & SHADOW-CASTER BUDGET MANAGER (< 400 DRAW CALLS)
        ========================================================================= */
     const buildingSectors = [];
     let visibleRoomsCount = 0;
@@ -10348,7 +14432,7 @@ export function getHideAndSeekHtml(): string {
         instPCrown.instanceMatrix.needsUpdate = true;
         instPTrunk.castShadow = true;
         instPTrunk.receiveShadow = true;
-        instPCrown.castShadow = true;
+        instPCrown.castShadow = false;
         instPCrown.receiveShadow = true;
         computeInstancedBoundingSphere(instPTrunk, np);
         computeInstancedBoundingSphere(instPCrown, np);
@@ -10437,17 +14521,34 @@ export function getHideAndSeekHtml(): string {
       scene.updateMatrixWorld(true);
       const topChildren = scene.children.slice();
       const worldPos = new THREE.Vector3();
+      const childWorldPos = new THREE.Vector3();
 
       for (let i = 0; i < topChildren.length; i++) {
         const ch = topChildren[i];
         if (!ch || ch === atmosphere.skyGroup || ch.isLight || ch.isCamera || ch.isInstancedMesh || ch.isPoints) continue;
-        if (ch.userData && (ch.userData.isRoomGroup || ch.userData.noMerge)) continue;
+        if (ch.userData && (ch.userData.isRoomGroup || (ch.userData.noMerge && !ch.userData.isSwingingDoor))) continue;
         if (buildingSectors.some(s => s.group === ch)) continue;
         if (ch === terrainMesh || ch === southParkingApron) {
           buildingSectors[0].group.add(ch);
           continue;
         }
         ch.getWorldPosition(worldPos);
+        // If a top-level Group sits at origin (0,0,0), compute the centroid of its child meshes so it joins its true spatial sector
+        if (ch.isGroup && Math.abs(worldPos.x) < 0.01 && Math.abs(worldPos.z) < 0.01 && ch.children.length > 0) {
+          let sumX = 0, sumZ = 0, cnt = 0;
+          ch.traverse(sub => {
+            if (sub !== ch && (sub.isMesh || sub.isInstancedMesh)) {
+              sub.getWorldPosition(childWorldPos);
+              sumX += childWorldPos.x;
+              sumZ += childWorldPos.z;
+              cnt++;
+            }
+          });
+          if (cnt > 0) {
+            worldPos.x = sumX / cnt;
+            worldPos.z = sumZ / cnt;
+          }
+        }
         for (let s = 1; s < buildingSectors.length; s++) {
           if (buildingSectors[s].test(worldPos.x, worldPos.z)) {
             buildingSectors[s].group.add(ch);
@@ -10459,24 +14560,65 @@ export function getHideAndSeekHtml(): string {
       for (let s = 0; s < buildingSectors.length; s++) {
         bakeStaticGroup(buildingSectors[s].group, true);
       }
+
+      // Flat ground planes (sector 0) only receive shadows and never need to cast shadows into moonDirLight
+      buildingSectors[0].group.traverse(ch => {
+        if (ch.isMesh) ch.castShadow = false;
+      });
+
+      // Cache mesh lists on rooms & sectors so shadow-caster culling is O(1) without per-frame traverse
+      roomVisibilityList.forEach(r => {
+        const meshes = [];
+        r.group.traverse(ch => {
+          if (ch.isMesh || ch.isInstancedMesh) {
+            ch.userData._canCastShadow = !!ch.castShadow;
+            meshes.push(ch);
+          }
+        });
+        r.meshes = meshes;
+      });
+      buildingSectors.forEach(sec => {
+        const meshes = [];
+        sec.group.traverse(ch => {
+          if (ch.isMesh || ch.isInstancedMesh) {
+            ch.userData._canCastShadow = !!ch.castShadow;
+            meshes.push(ch);
+          }
+        });
+        sec.meshes = meshes;
+      });
     })();
 
     function getRoomBuildingKey(id) {
       if (!id) return 'other';
-      if (id.indexOf('West Wing L1') !== -1) return 'L1';
-      if (id.indexOf('West Wing L2') !== -1) return 'L2';
-      if (id.indexOf('West Wing L3') !== -1 && id.indexOf('W2') === -1) return 'L3';
-      if (id.indexOf('East Wing R1') !== -1) return 'R1';
-      if (id.indexOf('East Wing R2') !== -1) return 'R2';
-      if (id.indexOf('East Wing R4') !== -1) return 'R4';
-      if (id.indexOf('W1') !== -1) return 'W1';
-      if (id.indexOf('W2') !== -1) return 'W2';
-      if (id.indexOf('W3') !== -1) return 'W3';
-      if (id.indexOf('W4') !== -1) return 'W4';
-      if (id.indexOf('Rotunda') !== -1) return 'ROTUNDA';
-      return 'other';
+      if (ROOM_DEFINITIONS[id] && ROOM_DEFINITIONS[id].building) {
+        return ROOM_DEFINITIONS[id].building;
+      }
+      const corridorMap = {
+        'West Wing L1 Corridor': 'L1',
+        'West Wing L2 Corridor': 'L2',
+        'West Wing L3 Corridor': 'L3',
+        'East Wing R1 Corridor': 'R1',
+        'East Wing R2 Corridor': 'R2',
+        'East Wing R4 Corridor': 'R4',
+      };
+      return corridorMap[id] || 'other';
     }
-    roomVisibilityList.forEach(r => { r.bKey = getRoomBuildingKey(r.id); });
+    roomVisibilityList.forEach(r => { if (!r.bKey) r.bKey = getRoomBuildingKey(r.id); });
+
+    let activeRoomSoundTimer = 0;
+    let powerCutDarkBuilding = null;
+    let powerCutBuildingTimer = 0;
+
+    function setRoomShadowCasters(r, enableShadows) {
+      if (r._lastShadowState === enableShadows) return;
+      r._lastShadowState = enableShadows;
+      const list = r.meshes || [];
+      for (let m = 0; m < list.length; m++) {
+        const mesh = list[m];
+        mesh.castShadow = enableShadows && !!mesh.userData._canCastShadow;
+      }
+    }
 
     function updateRoomAndBuildingVisibility(playerPos, yaw, preset) {
       const cullInterior = (preset && preset.cullDistInterior) || 20.0;
@@ -10507,23 +14649,34 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // 2. Room & Corridor Interior Visibility (shown ONLY when player is inside or can see into it via doors/windows)
+      // Requirement 2 & 5: Lower, cooler ambient modulated by per-room lightMood so flashlight is the hero!
+      if (atmosphere && atmosphere.updateRoomMoodAmbient) {
+        const activeMood = currentInsideRoom ? normalizeRoomLightMood(currentInsideRoom.lightMood) : null;
+        const inCorridor = !!(activeBuildingKey && !currentInsideRoom);
+        atmosphere.updateRoomMoodAmbient(0.016, activeMood, inCorridor);
+      }
+
+      // 2. Room & Corridor Interior Visibility + Shadow-Caster Culling (stays strictly < 400 draw calls on HIGH!)
+      const isOverview = !!(typeof exploreTools !== 'undefined' && exploreTools && exploreTools.overviewCam);
       let visCount = 0;
       for (let i = 0; i < roomVisibilityList.length; i++) {
         const r = roomVisibilityList[i];
-        if (r === currentInsideRoom) {
+        if (isOverview || r === currentInsideRoom) {
           r.group.visible = true;
+          setRoomShadowCasters(r, !isOverview);
           visCount++;
           continue;
         }
         // Different floor elevation (> 2.4m vertical separation) -> hidden
         if (Math.abs(playerPos.y - r.floorY) > 2.4) {
           r.group.visible = false;
+          setRoomShadowCasters(r, false);
           continue;
         }
         // If player is inside a specific building/corridor, do NOT render interiors of other buildings!
         if (activeBuildingKey && r.bKey !== activeBuildingKey) {
           r.group.visible = false;
+          setRoomShadowCasters(r, false);
           continue;
         }
         const dx = r.x - playerPos.x;
@@ -10532,53 +14685,186 @@ export function getHideAndSeekHtml(): string {
         const effDist = Math.max(0, dist - r.radius);
 
         // Far buildings' interiors must never be rendered
-        const maxIntDist = activeBuildingKey ? cullInterior : Math.min(cullInterior, 14.5);
+        const maxIntDist = activeBuildingKey ? cullInterior : Math.min(cullInterior, 13.5);
         if (effDist > maxIntDist) {
           r.group.visible = false;
+          setRoomShadowCasters(r, false);
           continue;
         }
         // If player is inside an enclosed room, hide other rooms in the same wing unless right at the doorway
         if (currentInsideRoom && r.type === 'room' && dist > 7.2) {
           r.group.visible = false;
+          setRoomShadowCasters(r, false);
           continue;
         }
         // Check camera sightline cone through doorway/windows
-        if (effDist > 4.5) {
+        if (effDist > 4.2) {
           const dot = (dx * fwdX + dz * fwdZ) / (dist || 1);
-          if (dot < -0.10) {
+          if (dot < 0.05) {
             r.group.visible = false;
+            setRoomShadowCasters(r, false);
             continue;
           }
         }
         r.group.visible = true;
+        setRoomShadowCasters(r, dist < 9.5);
         visCount++;
       }
       visibleRoomsCount = visCount;
 
-      // 3. Building & Courtyard Sector Distance Culling
-      const maxSectorDist = currentInsideRoom ? Math.min(cullBuilding, 42.0) : cullBuilding;
+      // 2b. Distance-cull articulated swinging doors beyond interior visibility range
+      const maxDoorDist = cullInterior + 8.0;
+      for (let d = 0; d < swingingDoors.length; d++) {
+        const dr = swingingDoors[d];
+        const dDist = Math.hypot(dr.x - playerPos.x, dr.z - playerPos.z);
+        dr.pivot.visible = (dDist <= maxDoorDist) && (Math.abs(dr.y - playerPos.y) <= 2.6);
+      }
+
+      // 3. Building & Courtyard Sector Distance & Shadow-Caster Culling
+      const maxSectorDist = currentInsideRoom ? Math.min(cullBuilding, 24.0) : (activeBuildingKey ? Math.min(cullBuilding, 32.0) : Math.min(cullBuilding, 54.0));
+      const minLandmarkDist = (HORROR_CONFIG.mainBuilding && HORROR_CONFIG.mainBuilding.minLandmarkCullDist) || 145.0;
+      if (typeof mainBuildingEffectsGroup !== 'undefined' && mainBuildingEffectsGroup) {
+        mainBuildingEffectsGroup.visible = (currentQuality !== 'fast');
+      }
       for (let s = 0; s < buildingSectors.length; s++) {
         const sec = buildingSectors[s];
         if (sec.alwaysVisible) {
           sec.group.visible = true;
           continue;
         }
+        if (activeBuildingKey === 'ROTUNDA' && sec.id !== 'rotunda-complex' && currentInsideRoom) {
+          sec.group.visible = false;
+          continue;
+        }
         const dx = sec.x - playerPos.x;
         const dz = sec.z - playerPos.z;
         const dist = Math.max(0, Math.hypot(dx, dz) - sec.radius);
-        const limit = sec.isLandmark ? maxSectorDist * 1.25 : maxSectorDist;
-        sec.group.visible = dist <= limit;
+        const limit = sec.isLandmark ? Math.max(maxSectorDist * 1.25, minLandmarkDist) : maxSectorDist;
+        const isVis = dist <= limit;
+        sec.group.visible = isVis;
+        const castShad = isVis && (dist <= 26.0);
+        if (sec._lastShadowState !== castShad && sec.meshes) {
+          sec._lastShadowState = castShad;
+          for (let m = 0; m < sec.meshes.length; m++) {
+            sec.meshes[m].castShadow = castShad && !!sec.meshes[m].userData._canCastShadow;
+          }
+        }
+      }
+
+      // 4. Distance-cull exterior lamp groups, puddles, tree shadow decals, corridor fog/mist & non-visible room shafts/gobos
+      const isLowOrFast = (currentQuality === 'low' || currentQuality === 'fast');
+      if (lampFlickerMod && lampFlickerMod.lamps) {
+        const lamps = lampFlickerMod.lamps;
+        for (let l = 0; l < lamps.length; l++) {
+          const lm = lamps[l];
+          const lx = lm.x !== undefined ? lm.x : (lm.bulbPos ? lm.bulbPos.x : 0);
+          const lz = lm.z !== undefined ? lm.z : (lm.bulbPos ? lm.bulbPos.z : 0);
+          const lDist = Math.hypot(lx - playerPos.x, lz - playerPos.z);
+          const showLamp = currentInsideRoom ? (lDist < 14.0) : (lDist < 34.0);
+          if (lm.group) lm.group.visible = showLamp;
+          if (lm.puddleMesh) lm.puddleMesh.visible = showLamp && lm.blinkProfile !== 'dead';
+        }
+      }
+      if (typeof rainPuddles !== 'undefined' && Array.isArray(rainPuddles)) {
+        for (let p = 0; p < rainPuddles.length; p++) {
+          const pd = rainPuddles[p];
+          if (!pd) continue;
+          pd.visible = !currentInsideRoom && Math.hypot(pd.position.x - playerPos.x, pd.position.z - playerPos.z) < 34.0;
+        }
+      }
+      if (typeof treeShadowDecals !== 'undefined' && Array.isArray(treeShadowDecals)) {
+        for (let t = 0; t < treeShadowDecals.length; t++) {
+          const ts = treeShadowDecals[t];
+          if (!ts || !ts.mesh) continue;
+          ts.mesh.visible = !currentInsideRoom && !isLowOrFast && Math.hypot(ts.mesh.position.x - playerPos.x, ts.mesh.position.z - playerPos.z) < 34.0;
+        }
+      }
+      // 5. Cull Rotunda corridor mist planes & corridor fog planes when outside sightline or on different floor (or on LOW/FAST)
+      for (let cm = 0; cm < corridorMistPlanes.length; cm++) {
+        const mp = corridorMistPlanes[cm];
+        if (!mp) continue;
+        const fy = mp.position.y - 0.11;
+        const inRotundaRange = (playerPos.z >= 36.0) && (Math.abs(playerPos.y - fy) <= 2.3);
+        mp.visible = !isLowOrFast && inRotundaRange && (!currentInsideRoom || currentInsideRoom.bKey === 'ROTUNDA');
+      }
+      for (let cf = 0; cf < corridorFogPlanes.length; cf++) {
+        const fp = corridorFogPlanes[cf];
+        if (!fp || !fp.mesh) continue;
+        if (isLowOrFast) {
+          fp.mesh.visible = false;
+        } else if (fp.isRootScene) {
+          fp.mesh.visible = (playerPos.z >= 36.0) && (Math.abs(playerPos.y - fp.floorY) <= 2.3) && (!currentInsideRoom || currentInsideRoom.bKey === 'ROTUNDA');
+        } else {
+          fp.mesh.visible = !!(fp.mesh.parent && fp.mesh.parent.visible);
+        }
+      }
+      // 6. Cull window shafts, gobos & beam dust in non-visible rooms, and reduce gobos/dust on LOW & FAST
+      for (let sg = 0; sg < roomShaftGroups.length; sg++) {
+        const item = roomShaftGroups[sg];
+        const rmVis = !!(item.roomGroup && item.roomGroup.visible);
+        item.group.visible = rmVis;
+        if (rmVis) {
+          if (item.gobo) item.gobo.visible = !isLowOrFast;
+          if (item.dPoints) item.dPoints.visible = !isLowOrFast;
+        }
+      }
+      // 7. Distance-cull battery pickups & fuse boxes on other floors or far away
+      if (typeof batteryPickups !== 'undefined') {
+        for (let b = 0; b < batteryPickups.length; b++) {
+          const bp = batteryPickups[b];
+          if (!bp || !bp.mesh) continue;
+          bp.mesh.visible = !bp.collected && (Math.abs(playerPos.y - bp.y) <= 2.5) && (Math.hypot(playerPos.x - bp.x, playerPos.z - bp.z) <= cullInterior + 10.0);
+        }
+      }
+      if (typeof fuseBoxes !== 'undefined') {
+        for (let f = 0; f < fuseBoxes.length; f++) {
+          const fb = fuseBoxes[f];
+          if (!fb || !fb.mesh) continue;
+          fb.mesh.visible = (Math.abs(playerPos.y - fb.y) <= 2.5) && (Math.hypot(playerPos.x - fb.x, playerPos.z - fb.z) <= cullInterior + 12.0);
+        }
+      }
+      // 8. Distance-cull enterable bus interiors (> 25m), keep horror roof/window vines visible, and blink Warm Amber & Blood-Red cabin tubes
+      if (typeof enterableBuses !== 'undefined') {
+        const busInteriorCutoff = (HORROR_CONFIG && HORROR_CONFIG.buses && HORROR_CONFIG.buses.interiorCutoffDistance) || 25.0;
+        const busCutoffSq = busInteriorCutoff * busInteriorCutoff;
+        const nowMs = performance.now();
+        for (let bi = 0; bi < enterableBuses.length; bi++) {
+          const b = enterableBuses[bi];
+          const dx = playerPos.x - b.bx;
+          const dz = playerPos.z - b.bz;
+          const distSq = dx * dx + dz * dz;
+          const showInt = distSq <= busCutoffSq;
+          if (b.interiorGroup && b.interiorGroup.visible !== showInt) b.interiorGroup.visible = showInt;
+          const showVines = distSq <= (busCutoffSq * 4.0);
+          if (b.vineGroup && b.vineGroup.visible !== showVines) b.vineGroup.visible = showVines;
+          const showProps = currentQuality !== 'fast' && showInt;
+          if (b.propsGroup && b.propsGroup.visible !== showProps) b.propsGroup.visible = showProps;
+          if (showInt) {
+            // Erratic dying-ballast blink for the Warm Amber front tube & Blood-Red rear horror tube
+            const wWave = Math.sin(nowMs * 0.013 + bi * 1.7) + 0.55 * Math.sin(nowMs * 0.041 + bi * 3.1) + 0.35 * Math.cos(nowMs * 0.089);
+            const warmOn = wWave > -0.35;
+            const warmInt = warmOn ? (wWave > 0.65 ? 1.55 : 0.95) : 0.08;
+            if (b.warmTubeMat) b.warmTubeMat.emissiveIntensity = warmInt;
+            if (b.warmGlowMat) b.warmGlowMat.opacity = warmOn ? 0.15 : 0.02;
+
+            const rWave = Math.sin(nowMs * 0.009 + bi * 2.3) + 0.65 * Math.cos(nowMs * 0.037 + bi * 0.9) + 0.4 * Math.sin(nowMs * 0.073);
+            const redOn = rWave > -0.20;
+            const redInt = redOn ? (rWave > 0.50 ? 1.75 : 1.05) : 0.10;
+            if (b.redTubeMat) b.redTubeMat.emissiveIntensity = redInt;
+            if (b.redGlowMat) b.redGlowMat.opacity = redOn ? 0.18 : 0.025;
+          }
+        }
       }
     }
 
     /* =========================================================================
-       CHARACTERS, BOTS, PHYSICS & GAMEPLAY LOOP
+       CHARACTERS, BOTS, PHYSICS & SINGLE-PLAYER HIDE-AND-SEEK GAMEPLAY LOOP
        ========================================================================= */
     const GAME_CONFIG = {
       role: 'hider',
       difficulty: 'medium',
-      matchDuration: 135,
-      seekerGracePeriod: 10,
+      matchDuration: (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.roundDurationSec) || 540,
+      seekerGracePeriod: (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.gracePeriodSec) || 10,
       botCount: 5,
     };
 
@@ -10592,6 +14878,33 @@ export function getHideAndSeekHtml(): string {
     let currentHunterProximity = 0.0;
     let proximitySyncCooldown = 0.0;
     let flickerBurstTimer = 11.0;
+
+    // Single-Player Hide-and-Seek Loop State (Fuse Boxes, Main Gate, Flashlight Battery, Throwables, Noise, Breath Mini-Game, Rescue)
+    const fuseBoxes = [];
+    const batteryPickups = [];
+    const activeProjectiles = [];
+    const recentNoiseEvents = [];
+    let mainGateUnlocked = false;
+    let mainGateBannerMesh = null;
+    let playerNoiseLevel = 0.08;
+    let flashlightBattery = 100.0;
+    let isFlashlightOn = true;
+    let throwablesRemaining = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.scholarStartingThrowables) || 2;
+    let playerCatchCount = 0;
+    let isPlayerSpectating = false;
+    let spectateBotIdx = 0;
+    let breathMiniGame = {
+      active: false,
+      holdingButton: false,
+      meter: 1.0,
+      surviveTimer: 0.0,
+      spot: null,
+    };
+    let hunterAbilities = {
+      pingTimer: (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.hunterFootstepPingIntervalSec) || 30.0,
+      doorLockCooldown: 0.0,
+      powerCutCooldown: 0.0,
+    };
 
     const sharedCharMats = {
       skin: new THREE.MeshStandardMaterial({ color: 0xc89666, roughness: 0.5 }),
@@ -10655,6 +14968,12 @@ export function getHideAndSeekHtml(): string {
       rightLeg.position.y = -0.32;
       rightLegPivot.add(rightLeg);
 
+      root.traverse(ch => {
+        if (ch.isMesh) {
+          ch.castShadow = true;
+          ch.receiveShadow = true;
+        }
+      });
       root.userData = {
         name: labelName,
         isSeeker,
@@ -10687,32 +15006,104 @@ export function getHideAndSeekHtml(): string {
       }
     }
 
-    const navWaypoints = [
-      { id: 'gate-entry', x: 1.5, y: 0, z: -60 },
-      { id: 'parking-plaza', x: -8.0, y: 0, z: -50 },
-      { id: 'wing-l1-south-door', x: -6.5, y: 0, z: -34 },
-      { id: 'bus-bay', x: 4.8, y: 0, z: -41 },
-      { id: 'spine-road-south', x: 0.0, y: 0, z: -28 },
-      { id: 'planter-courtyard', x: -12.0, y: 0, z: -16 },
-      { id: 'admin-lane', x: -28.0, y: 0, z: -36 },
-      { id: 'courtyard-north', x: -12.0, y: 0, z: 4 },
-      { id: 'spine-road-mid', x: 0.0, y: 0, z: -8 },
-      { id: 'wing-r1-walkway', x: 10.5, y: 0, z: -20 },
-      { id: 'spine-road-north', x: 0.5, y: 0, z: 22 },
-      { id: 'spine-terrace', x: 3.0, y: 0, z: 46 },
-      { id: 'rotunda-fountain', x: 6.0, y: 0, z: 42.5 },
-      { id: 'rotunda-ground-lobby', x: 6.0, y: 0.48, z: 59.0 },
-      { id: 'rotunda-stair1-bot', x: 3.0, y: 0.48, z: 60.5 },
-      { id: 'rotunda-stair1-top', x: 3.0, y: 4.08, z: 68.0 },
-      { id: 'rotunda-1f-landing', x: 9.0, y: 4.08, z: 68.0 },
-      { id: 'rotunda-stair2-top', x: 9.0, y: 7.68, z: 60.5 },
-      { id: 'rotunda-3f-balcony', x: 6.0, y: 7.68, z: 54.2 },
-      { id: 'rotunda-stair2-down', x: 9.0, y: 7.68, z: 60.5 },
-      { id: 'rotunda-1f-down', x: 9.0, y: 4.08, z: 68.0 },
-      { id: 'rotunda-stair1-down', x: 3.0, y: 4.08, z: 68.0 },
-      { id: 'rotunda-exit', x: 6.0, y: 0.48, z: 59.0 },
-      { id: 'wing-l3-path', x: -17.5, y: 0, z: 18 },
-    ];
+    // Phase B.3: Full Interior & Multi-Floor Bot Navigation Waypoints generated from ROOM_DEFINITIONS
+    const navWaypoints = [];
+    (function buildCampusNavWaypoints() {
+      function addWp(id, x, y, z, kind = 'exterior', roomId = null) {
+        navWaypoints.push({ id, x, y, z, kind, roomId });
+      }
+      function addRoomVisit(roomId) {
+        const def = ROOM_DEFINITIONS[roomId];
+        if (!def || !def.waypoints || def.waypoints.length === 0) return;
+        const doorWp = def.waypoints[0];
+        const inWp = def.waypoints[def.waypoints.length - 1];
+        addWp(doorWp.id, doorWp.x, doorWp.y, doorWp.z, 'door', roomId);
+        if (inWp !== doorWp) {
+          addWp(inWp.id, inWp.x, inWp.y, inWp.z, 'interior', roomId);
+          addWp(doorWp.id + '-exit', doorWp.x, doorWp.y, doorWp.z, 'door', roomId);
+        }
+      }
+
+      // 1. Southern Gate, Security Guardhouse & Enterable University Buses (Bus A & Bus B Perimeter + Walk-In Aisles)
+      addWp('gate-entry', 1.5, 0, -60, 'exterior');
+      addRoomVisit('Security Guardhouse');
+      addWp('parking-plaza', -8.0, 0, -50, 'exterior');
+      addWp('bus-a-front-door', 2.8, 0, -40.85, 'door', 'Bus A');
+      addWp('bus-a-aisle-front', 5.2, 0.54, -40.85, 'interior', 'Bus A');
+      addWp('bus-a-aisle-mid', 5.2, 0.54, -44.20, 'interior', 'Bus A');
+      addWp('bus-a-aisle-rear', 5.2, 0.54, -47.55, 'interior', 'Bus A');
+      addWp('bus-a-rear-door', 2.8, 0, -47.55, 'door', 'Bus A');
+      addWp('bus-plaza-lane', 9.2, 0, -44.5, 'exterior');
+      addWp('bus-b-front-door', 13.0, 0, -41.85, 'door', 'Bus B');
+      addWp('bus-b-aisle-front', 15.53, 0.54, -41.85, 'interior', 'Bus B');
+      addWp('bus-b-aisle-mid', 15.40, 0.54, -45.20, 'interior', 'Bus B');
+      addWp('bus-b-aisle-rear', 15.27, 0.54, -48.55, 'interior', 'Bus B');
+      addWp('bus-b-rear-door', 12.7, 0, -48.55, 'door', 'Bus B');
+
+      // 2. West Cluster (W1, W2, W3, W4)
+      addWp('w1-walkway', -28.0, 0, -34.6, 'corridor');
+      addRoomVisit('Newari Heritage Block W1 Room 2');
+      addRoomVisit('Newari Heritage Block W1 Room 1');
+      addWp('w2-walkway', -27.5, 0, -22.0, 'corridor');
+      addRoomVisit('Newari Cultural Hall W2 South');
+      addWp('wp-w2-north-in', -33.6, 0.22, -19.5, 'interior', 'West Wing L3 Heritage Library W2');
+      addWp('wp-w2-door-out', -28.1, 0.22, -22.0, 'door', 'Newari Cultural Hall W2 South');
+      addWp('w3-walkway', -27.5, 0, 5.4, 'corridor');
+      addRoomVisit('Building W3 West Wing Room 2');
+      addRoomVisit('Building W3 West Wing Room 1');
+      addWp('w4-walkway', -27.5, 0, 25.4, 'corridor');
+      addRoomVisit('Building W4 West Wing Room 1');
+      addRoomVisit('Building W4 West Wing Room 2');
+
+      // 3. West Wings (L3, L2, L1)
+      addWp('l3-corridor-north', -12.6, 0.18, 25.5, 'corridor');
+      addRoomVisit('West Wing L3 Room 2');
+      addRoomVisit('West Wing L3 Room 1');
+      addWp('l2-corridor-north', -12.6, 0.18, -2.67, 'corridor');
+      addRoomVisit('West Wing L2 Room 3');
+      addRoomVisit('West Wing L2 Room 2');
+      addRoomVisit('West Wing L2 Room 1');
+      addWp('l1-corridor-south', -11.2, 0.18, -28.0, 'corridor');
+      addRoomVisit('West Wing L1 Room 1');
+      addRoomVisit('West Wing L1 Room 2');
+      addRoomVisit('West Wing L1 Room 3');
+
+      // 4. Spine Avenue & East Wings (R1, R2, R4)
+      addWp('spine-road-south', 0.8, 0, -28.0, 'exterior');
+      addWp('r1-corridor-south', 10.0, 0.18, -32.67, 'corridor');
+      addRoomVisit('East Wing R1 Room 1');
+      addRoomVisit('East Wing R1 Room 2');
+      addRoomVisit('East Wing R1 Room 3');
+      addWp('r2-corridor-south', 20.6, 0.18, -22.67, 'corridor');
+      addRoomVisit('East Wing R2 Room 1');
+      addRoomVisit('East Wing R2 Room 2');
+      addRoomVisit('East Wing R2 Room 3');
+      addWp('r4-corridor-south', 20.6, 0.18, 10.67, 'corridor');
+      addRoomVisit('East Wing R4 Room 1');
+      addRoomVisit('East Wing R4 Room 2');
+      addRoomVisit('East Wing R4 Room 3');
+
+      // 5. Grand Rotunda All 3 Floors (Ground: 101 & 102, 1st Floor: 201 & 202, 2nd Floor: 301 & 302)
+      addWp('rotunda-fountain', 6.0, 0, 42.5, 'exterior');
+      addWp('rotunda-ground-lobby', 6.0, 0.48, 59.0, 'corridor');
+      addRoomVisit('Rotunda Ground West Hall 101');
+      addRoomVisit('Rotunda Ground East Hall 102');
+      addWp('rotunda-stair1-bot', 3.0, 0.48, 60.5, 'stair');
+      addWp('rotunda-stair1-top', 3.0, 4.08, 68.0, 'stair');
+      addRoomVisit('Rotunda 1st-Floor West Class 201');
+      addWp('rotunda-1f-landing', 9.0, 4.08, 68.0, 'corridor');
+      addRoomVisit('Rotunda 1st-Floor East Class 202');
+      addWp('rotunda-stair2-bot', 9.0, 4.08, 68.0, 'stair');
+      addWp('rotunda-stair2-top', 9.0, 7.68, 60.5, 'stair');
+      addRoomVisit('Rotunda 2nd-Floor East Lab 302');
+      addWp('rotunda-3f-balcony', 6.0, 7.68, 54.2, 'corridor');
+      addRoomVisit('Rotunda 2nd-Floor West Seminar 301');
+      addWp('rotunda-stair2-down', 9.0, 7.68, 60.5, 'stair');
+      addWp('rotunda-1f-down', 9.0, 4.08, 68.0, 'stair');
+      addWp('rotunda-stair1-down', 3.0, 4.08, 68.0, 'stair');
+      addWp('rotunda-exit', 6.0, 0.48, 59.0, 'corridor');
+      addWp('spine-terrace', 3.0, 0, 34.0, 'exterior');
+    })();
 
     function isObstacleCollider(b, y) {
       const stepHeight = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.stepHeight) || 0.52;
@@ -10729,6 +15120,20 @@ export function getHideAndSeekHtml(): string {
         if (b.type === 'cylinder') {
           const d = Math.hypot(x - b.x, z - b.z);
           if (d < b.radius + clearance) return false;
+        } else if (b.type === 'obb') {
+          if (x < b.min.x - clearance || x > b.max.x + clearance ||
+              z < b.min.z - clearance || z > b.max.z + clearance) {
+            continue;
+          }
+          const dx = x - b.cx;
+          const dz = z - b.cz;
+          const lx = dx * b.cosR - dz * b.sinR;
+          const lz = dx * b.sinR + dz * b.cosR;
+          const clx = Math.max(-b.hx, Math.min(b.hx, lx));
+          const clz = Math.max(-b.hz, Math.min(b.hz, lz));
+          const dlx = lx - clx;
+          const dlz = lz - clz;
+          if (dlx * dlx + dlz * dlz < clearance * clearance) return false;
         } else {
           if (x >= b.min.x - clearance && x <= b.max.x + clearance &&
               z >= b.min.z - clearance && z <= b.max.z + clearance) {
@@ -10741,7 +15146,13 @@ export function getHideAndSeekHtml(): string {
 
     function computeSafeHidingExit(spot) {
       const pRad = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.playerRadius) || 0.28;
-      const minClearance = pRad + 0.15; // At least playerRadius + 0.15 clear of every collider
+      const minClearance = pRad + 0.15;
+      if (spot.exitX !== undefined && spot.exitZ !== undefined) {
+        const ey = spot.exitY !== undefined ? spot.exitY : spot.y;
+        if (isPositionClearOfColliders(spot.exitX, ey, spot.exitZ, minClearance)) {
+          return { x: spot.exitX, y: ey, z: spot.exitZ };
+        }
+      }
       if (isPositionClearOfColliders(spot.x, spot.y, spot.z, minClearance)) {
         return { x: spot.x, y: spot.y, z: spot.z };
       }
@@ -10763,9 +15174,6 @@ export function getHideAndSeekHtml(): string {
 
     function initializeHidingSpotExitPositions() {
       let warningCount = 0;
-      const pRad = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.playerRadius) || 0.28;
-      const requiredClearance = pRad + 0.15;
-
       for (let i = 0; i < interactiveHidingSpots.length; i++) {
         const spot = interactiveHidingSpots[i];
         const exit = computeSafeHidingExit(spot);
@@ -10773,9 +15181,8 @@ export function getHideAndSeekHtml(): string {
         spot.exitY = exit.y;
         spot.exitZ = exit.z;
 
-        // Startup Dev Check: logs any hiding spot whose exit position is inside a collider
         if (!isPositionClearOfColliders(spot.exitX, spot.exitY, spot.exitZ, 0.001)) {
-          console.warn('[Hiding Spot Startup Dev Check] WARNING: Spot exit position is inside a collider!', spot.id, spot.name, 'at (' + spot.exitX.toFixed(2) + ', ' + spot.exitZ.toFixed(2) + ')');
+          console.warn('[Hiding Spot Startup Dev Check] WARNING: Spot exit position is inside a collider!', spot.id, spot.name);
           warningCount++;
         }
       }
@@ -10789,16 +15196,129 @@ export function getHideAndSeekHtml(): string {
     let playerCharacter = null;
     let seekerRef = null;
 
+    const fallbackExploreBot = {
+      id: 'explore-standby-bot',
+      name: 'Standby Bot',
+      mesh: new THREE.Group(),
+      isSeeker: true,
+      isCaught: false,
+      currentWpIdx: 0,
+      speed: 0,
+      state: 'standby',
+    };
+
+    function initFuseBoxesAndPickups() {
+      fuseBoxes.forEach(fb => { if (fb.mesh) scene.remove(fb.mesh); });
+      fuseBoxes.length = 0;
+      batteryPickups.forEach(bp => { if (bp.mesh) scene.remove(bp.mesh); });
+      batteryPickups.length = 0;
+      activeProjectiles.forEach(pr => { if (pr.mesh) scene.remove(pr.mesh); });
+      activeProjectiles.length = 0;
+      recentNoiseEvents.length = 0;
+      mainGateUnlocked = false;
+
+      if (!EXPLORE_FLAGS.ENABLE_FUSE_OBJECTIVES) {
+        return;
+      }
+
+      const fuseLocations = [
+        { id: 'fuse-main-302', name: 'Main Bldg 3F Server Lab 302 Fuse Box', x: 23.2, y: 7.68, z: 62.5, building: 'ROTUNDA' },
+        { id: 'fuse-main-101', name: 'Main Bldg 1F Lecture Hall 101 Fuse Box', x: -11.2, y: 0.48, z: 62.5, building: 'ROTUNDA' },
+        { id: 'fuse-west-l2', name: 'West Academic Wing L2 Fuse Box', x: -13.2, y: 0.18, z: -14.0, building: 'L2' },
+        { id: 'fuse-east-r2', name: 'East Engineering Wing R2 Fuse Box', x: 20.2, y: 0.18, z: -14.0, building: 'R2' },
+      ];
+
+      const boxGeo = new THREE.BoxGeometry(0.42, 0.56, 0.22);
+      const ledGeo = new THREE.SphereGeometry(0.06, 8, 8);
+      fuseLocations.forEach(loc => {
+        const grp = new THREE.Group();
+        grp.userData.noMerge = true;
+        const body = new THREE.Mesh(boxGeo, step2Mats.rustedLockerMetal);
+        const ledMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+        const led = new THREE.Mesh(ledGeo, ledMat);
+        led.position.set(0, 0.18, 0.13);
+        grp.add(body, led);
+        grp.position.set(loc.x, loc.y + 1.35, loc.z);
+        scene.add(grp);
+        fuseBoxes.push({
+          ...loc,
+          restored: false,
+          progress: 0,
+          mesh: grp,
+          ledMat,
+        });
+      });
+
+      // Requirement 5 (Playability): At least one battery recharge pickup per building across all 12 buildings!
+      const battLocs = [
+        { id: 'batt-rotunda-1f', building: 'ROTUNDA', x: 6.0, y: 0.48, z: 61.2 },
+        { id: 'batt-rotunda-201', building: 'ROTUNDA', x: -4.8, y: 4.08, z: 63.5 },
+        { id: 'batt-rotunda-301', building: 'ROTUNDA', x: -4.8, y: 7.68, z: 63.5 },
+        { id: 'batt-west-l1', building: 'L1', x: -10.8, y: 0.18, z: -20.0 },
+        { id: 'batt-west-l2', building: 'L2', x: -14.2, y: 0.22, z: -12.0 },
+        { id: 'batt-west-l3', building: 'L3', x: -14.2, y: 0.22, z: 18.0 },
+        { id: 'batt-east-r1', building: 'R1', x: 10.2, y: 0.18, z: -22.0 },
+        { id: 'batt-east-r2', building: 'R2', x: 20.8, y: 0.18, z: -18.0 },
+        { id: 'batt-east-r4', building: 'R4', x: 24.5, y: 0.18, z: 18.0 },
+        { id: 'batt-heritage-w1', building: 'W1', x: -33.5, y: 0.22, z: -41.5 },
+        { id: 'batt-heritage-w2', building: 'W2', x: -33.6, y: 0.22, z: -26.5 },
+        { id: 'batt-canteen-w3', building: 'W3', x: -34.0, y: 0.15, z: -6.0 },
+        { id: 'batt-annex-w4', building: 'W4', x: -29.0, y: 0.15, z: 8.0 },
+        { id: 'batt-guardhouse', building: 'GUARDHOUSE', x: 6.2, y: 0.15, z: -57.8 },
+      ];
+      const battGeo = new THREE.CylinderGeometry(0.10, 0.10, 0.24, 10);
+      const battMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xca8a04, emissiveIntensity: 0.65, roughness: 0.35 });
+      battLocs.forEach(bl => {
+        const bm = new THREE.Mesh(battGeo, battMat);
+        bm.userData.noMerge = true;
+        bm.position.set(bl.x, bl.y + 0.22, bl.z);
+        scene.add(bm);
+        batteryPickups.push({ ...bl, collected: false, mesh: bm });
+      });
+    }
+
+    function recordNoiseEvent(x, y, z, intensity, label) {
+      if (!EXPLORE_FLAGS.ENABLE_GAMEPLAY) return;
+      recentNoiseEvents.push({ x, y, z, intensity, label, time: Date.now() * 0.001 });
+      if (recentNoiseEvents.length > 16) recentNoiseEvents.shift();
+      // Alert Hunter bot if noise is loud enough within hearing range
+      if (seekerRef && !seekerRef.isPlayer && seekerRef.bot && !seekerRef.bot.isCaught) {
+        const sb = seekerRef.bot;
+        const d = Math.hypot(sb.mesh.position.x - x, sb.mesh.position.z - z);
+        const hearRadius = 14.0 + intensity * 38.0;
+        if (d <= hearRadius) {
+          sb.investigateTarget = { x, y, z, timer: 7.5 };
+        }
+      }
+    }
+
     function initCharactersAndBots() {
-      bots.forEach(b => scene.remove(b.mesh));
+      bots.forEach(b => { if (b && b.mesh) scene.remove(b.mesh); });
       bots.length = 0;
       if (playerCharacter) scene.remove(playerCharacter);
 
-      const botNames = ['Aayush', 'Bikash', 'Puja', 'Suman', 'Kritika', 'Rohan'];
-      const colors = [0x334155, 0x475569, 0x1e293b, 0x3f3f46, 0x52525b, 0x27272a];
+      initFuseBoxesAndPickups();
+
+      if (!EXPLORE_FLAGS.ENABLE_HUNTER_AND_BOTS) {
+        playerCharacter = createCampusCharacter(0x334155, false, 'You (Explorer)');
+        playerCharacter.visible = (playerPhysics.cameraMode === 'third');
+        scene.add(playerCharacter);
+        seekerRef = null;
+        Object.defineProperty(bots, '0', {
+          get() { return fallbackExploreBot; },
+          configurable: true,
+          enumerable: false,
+        });
+        return;
+      }
+      delete bots[0];
+
+      const botNames = ['Aayush', 'Bikash', 'Puja', 'Suman', 'Kritika', 'Rohan', 'Nabin'];
+      const colors = [0x334155, 0x475569, 0x1e293b, 0x3f3f46, 0x52525b, 0x27272a, 0x1f2937];
+      const hunterBaseSpd = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.hunterSpeed) || 5.35;
 
       if (GAME_CONFIG.role === 'seeker') {
-        playerCharacter = createCampusCharacter(0x11161f, true, 'You (Warden)');
+        playerCharacter = createCampusCharacter(0x11161f, true, 'You (Hollow Proctor)');
         playerCharacter.visible = (playerPhysics.cameraMode === 'third');
         scene.add(playerCharacter);
         seekerRef = { isPlayer: true, mesh: playerCharacter };
@@ -10814,29 +15334,36 @@ export function getHideAndSeekHtml(): string {
             mesh: bMesh,
             isSeeker: false,
             isCaught: false,
+            catchCount: 0,
+            canBeRescued: false,
             targetSpot,
             state: 'hiding',
-            speed: 3.4,
+            speed: 4.6,
+            fuseTimer: 12 + i * 7,
           });
         }
       } else {
-        playerCharacter = createCampusCharacter(0x334155, false, 'You (Student)');
+        playerCharacter = createCampusCharacter(0x334155, false, 'You (Scholar)');
         playerCharacter.visible = (playerPhysics.cameraMode === 'third');
         scene.add(playerCharacter);
 
-        const seekerBotMesh = createCampusCharacter(0x11161f, true, 'Campus Warden');
+        const seekerBotMesh = createCampusCharacter(0x11161f, true, 'The Hollow Proctor');
         scene.add(seekerBotMesh);
         seekerBotMesh.position.set(0, 0, -60);
 
         const seekerBot = {
           id: 'seeker-bot',
-          name: 'Campus Warden',
+          name: 'The Hollow Proctor',
           mesh: seekerBotMesh,
           isSeeker: true,
           isCaught: false,
           currentWpIdx: 0,
-          speed: GAME_CONFIG.difficulty === 'hard' ? 4.7 : 4.2,
+          speed: GAME_CONFIG.difficulty === 'hard' ? (hunterBaseSpd + 0.25) : (GAME_CONFIG.difficulty === 'easy' ? (hunterBaseSpd - 0.35) : hunterBaseSpd),
           state: 'patrolling',
+          inspectTimer: 0,
+          inspectSpot: null,
+          lastCheckedWpId: null,
+          investigateTarget: null,
         };
         bots.push(seekerBot);
         seekerRef = { isPlayer: false, bot: seekerBot };
@@ -10852,9 +15379,12 @@ export function getHideAndSeekHtml(): string {
             mesh: bMesh,
             isSeeker: false,
             isCaught: false,
+            catchCount: 0,
+            canBeRescued: false,
             targetSpot,
             state: 'hiding',
-            speed: 3.4,
+            speed: 4.6,
+            fuseTimer: 16 + i * 9,
           });
         }
       }
@@ -10885,7 +15415,7 @@ export function getHideAndSeekHtml(): string {
       isSprinting: false,
     };
 
-    // Physics & Collision Debug Telemetry State
+    // Phase B.4: Physics Colliders & Bot Waypoints Debug View (Toggle)
     const isDevTelemetryAllowed = !!(HORROR_CONFIG.enableDevTelemetry || (HORROR_CONFIG.physics && HORROR_CONFIG.physics.debugPhysics));
     const dbgBtnEl = document.getElementById('btn-debug-physics');
     if (dbgBtnEl) dbgBtnEl.style.display = isDevTelemetryAllowed ? 'flex' : 'none';
@@ -10906,10 +15436,12 @@ export function getHideAndSeekHtml(): string {
       initHelpers() {
         if (this.helpersCreated) return;
         this.helpersCreated = true;
+        this.helpersGroup.userData.noMerge = true;
         scene.add(this.helpersGroup);
-        const boxMat = new THREE.LineBasicMaterial({ color: 0x00e5ff, linewidth: 1 });
         const cylMat = new THREE.LineBasicMaterial({ color: 0x00ff88, linewidth: 1 });
 
+        // 1. Draw All Colliders (Cyan = Wall, Amber = Independent Furniture Box Colliders, Orange = Door Frame, Green = Cylinder)
+        let furnColCount = 0;
         for (let i = 0; i < colliders.length; i++) {
           const col = colliders[i];
           if (col.type === 'cylinder') {
@@ -10919,18 +15451,67 @@ export function getHideAndSeekHtml(): string {
             const line = new THREE.LineSegments(wire, cylMat);
             line.position.set(col.x, (col.minY || 0) + h / 2, col.z);
             this.helpersGroup.add(line);
+          } else if (col.type === 'obb') {
+            if (col.tag === 'furniture') furnColCount++;
+            const h = Math.max(0.1, (col.maxY || 3.1) - (col.minY || 0));
+            const geo = new THREE.BoxGeometry(col.hx * 2, h, col.hz * 2);
+            const wire = new THREE.WireframeGeometry(geo);
+            const colHex = col.tag === 'furniture' ? 0xffaa00 : (col.tag === 'roof' ? 0x38bdf8 : 0x00e5ff);
+            const line = new THREE.LineSegments(wire, new THREE.LineBasicMaterial({ color: colHex, linewidth: 1 }));
+            line.position.set(col.cx, (col.minY || 0) + h / 2, col.cz);
+            line.rotation.y = col.rotY || 0;
+            line.userData.colliderTag = col.tag || 'wall';
+            this.helpersGroup.add(line);
           } else {
             const min = col.min;
             const max = col.max;
             if (min && max) {
+              if (col.tag === 'furniture') furnColCount++;
               const b = col.box || new THREE.Box3(min, max);
-              const helper = new THREE.Box3Helper(b, 0x00e5ff);
+              const colHex = col.tag === 'furniture' ? 0xffaa00 : (col.tag === 'door_frame' ? 0xff5500 : 0x00e5ff);
+              const helper = new THREE.Box3Helper(b, colHex);
+              helper.userData.colliderTag = col.tag || 'wall';
               this.helpersGroup.add(helper);
             }
           }
         }
+        this.furnitureColliderCount = furnColCount;
 
-        // Player collision capsule wireframe helper
+        // 2. Draw All Bot Waypoints (Magenta = Interior/Door Waypoints, Yellow = Corridor/Stair/Exterior Waypoints) + Route Line
+        const wpGeo = new THREE.CylinderGeometry(0, 0.24, 0.48, 4);
+        const wpWire = new THREE.WireframeGeometry(wpGeo);
+        const wpIntMat = new THREE.LineBasicMaterial({ color: 0xff00ff, linewidth: 2 });
+        const wpExtMat = new THREE.LineBasicMaterial({ color: 0xffee00, linewidth: 2 });
+        const pathPoints = [];
+
+        for (let w = 0; w < navWaypoints.length; w++) {
+          const wp = navWaypoints[w];
+          const wy = (typeof wp.y === 'number' ? wp.y : 0) + 0.55;
+          const marker = new THREE.LineSegments(wpWire, (wp.kind === 'interior' || wp.kind === 'door') ? wpIntMat : wpExtMat);
+          marker.position.set(wp.x, wy, wp.z);
+          this.helpersGroup.add(marker);
+          pathPoints.push(new THREE.Vector3(wp.x, wy, wp.z));
+        }
+
+        if (pathPoints.length > 1) {
+          const pathGeo = new THREE.BufferGeometry().setFromPoints(pathPoints);
+          const pathMat = new THREE.LineBasicMaterial({ color: 0xff44cc, linewidth: 1 });
+          const pathLine = new THREE.Line(pathGeo, pathMat);
+          this.helpersGroup.add(pathLine);
+        }
+
+        // 3. Draw Hiding Spot Markers (Lime Green Wireframe Boxes)
+        const hsGeo = new THREE.BoxGeometry(0.32, 0.32, 0.32);
+        const hsWire = new THREE.WireframeGeometry(hsGeo);
+        const hsMat = new THREE.LineBasicMaterial({ color: 0x22ff66, linewidth: 1 });
+        for (let s = 0; s < interactiveHidingSpots.length; s++) {
+          const sp = interactiveHidingSpots[s];
+          const hsMarker = new THREE.LineSegments(hsWire, hsMat);
+          hsMarker.position.set(sp.x, (sp.y || 0) + 0.35, sp.z);
+          this.helpersGroup.add(hsMarker);
+        }
+
+        // 4. Player collision capsule wireframe helper
         const capGeo = new THREE.CylinderGeometry(0.38, 0.38, 1.8, 12, 1, true);
         const capWire = new THREE.WireframeGeometry(capGeo);
         const capMat = new THREE.LineBasicMaterial({ color: 0xff0055, linewidth: 2 });
@@ -10962,7 +15543,7 @@ export function getHideAndSeekHtml(): string {
         this.helpersGroup.visible = this.enabled;
         const hudEl = document.getElementById('physics-debug-hud');
         if (hudEl) hudEl.style.display = this.enabled ? 'block' : 'none';
-        showToast(this.enabled ? 'Physics Debug: ON (Colliders Drawn)' : 'Physics Debug: OFF');
+        showToast(this.enabled ? 'Debug View: ON (Colliders + Waypoints)' : 'Debug View: OFF');
       }
     };
 
@@ -11011,6 +15592,44 @@ export function getHideAndSeekHtml(): string {
               nz = 1;
               pen = combinedR;
             }
+          }
+        } else if (col.type === 'obb') {
+          // Circle vs Oriented Bounding Box (OBB in local bus space)
+          if (pos.x < col.min.x - radius || pos.x > col.max.x + radius ||
+              pos.z < col.min.z - radius || pos.z > col.max.z + radius) {
+            continue;
+          }
+          const dx = pos.x - col.cx;
+          const dz = pos.z - col.cz;
+          const lx = dx * col.cosR - dz * col.sinR;
+          const lz = dx * col.sinR + dz * col.cosR;
+          const clx = Math.max(-col.hx, Math.min(col.hx, lx));
+          const clz = Math.max(-col.hz, Math.min(col.hz, lz));
+          const dlx = lx - clx;
+          const dlz = lz - clz;
+          const distSq = dlx * dlx + dlz * dlz;
+
+          if (distSq < radius * radius) {
+            let nlx = 0;
+            let nlz = 0;
+            if (distSq > 0.00001) {
+              const dist = Math.sqrt(distSq);
+              nlx = dlx / dist;
+              nlz = dlz / dist;
+              pen = radius - dist;
+            } else {
+              const penLeft = lx + col.hx;
+              const penRight = col.hx - lx;
+              const penTop = lz + col.hz;
+              const penBottom = col.hz - lz;
+              const minP = Math.min(penLeft, penRight, penTop, penBottom);
+              if (minP === penLeft) { nlx = -1; nlz = 0; pen = radius + penLeft; }
+              else if (minP === penRight) { nlx = 1; nlz = 0; pen = radius + penRight; }
+              else if (minP === penTop) { nlx = 0; nlz = -1; pen = radius + penTop; }
+              else { nlx = 0; nlz = 1; pen = radius + penBottom; }
+            }
+            nx = nlx * col.cosR + nlz * col.sinR;
+            nz = -nlx * col.sinR + nlz * col.cosR;
           }
         } else {
           // Circle vs Axis-Aligned Box
@@ -11090,10 +15709,24 @@ export function getHideAndSeekHtml(): string {
     }
 
     function getSupportFloorY(x, z, currentY = playerPhysics.pos.y) {
-      // 1. Check Walkable Staircase Ramps first so climbing between Floor 0 <-> Floor 1 <-> Floor 2 is seamless
+      // 1. Check Walkable Staircase Ramps first so climbing between Floor 0 <-> Floor 1 <-> Floor 2 & Bus Steps is seamless
       for (let i = 0; i < walkableStairRamps.length; i++) {
         const r = walkableStairRamps[i];
-        if (x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ) {
+        if (x < r.minX || x > r.maxX || z < r.minZ || z > r.maxZ) continue;
+        if (r.isOBB) {
+          const dx = x - r.cx;
+          const dz = z - r.cz;
+          const lx = dx * r.cosR - dz * r.sinR;
+          const lz = dx * r.sinR + dz * r.cosR;
+          if (Math.abs(lx) <= r.hx && Math.abs(lz) <= r.hz) {
+            const worldLX = lx + (r.lxStart + r.lxEnd) * 0.5;
+            const t = Math.max(0.0, Math.min(1.0, (worldLX - r.lxStart) / (r.lxEnd - r.lxStart)));
+            const rampY = r.yStart + t * (r.yEnd - r.yStart);
+            if (Math.abs(currentY - rampY) <= 0.85) {
+              return rampY;
+            }
+          }
+        } else if (x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ) {
           const t = Math.max(0.0, Math.min(1.0, (z - r.zStart) / (r.zEnd - r.zStart)));
           const rampY = r.yStart + t * (r.yEnd - r.yStart);
           if (Math.abs(currentY - rampY) <= 1.55) {
@@ -11102,11 +15735,22 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // 2. Check Multi-Story Walkable Floor Slabs reachable from currentY (prevents snapping through upper ceilings)
+      // 2. Check Multi-Story & Bus Walkable Floor Slabs reachable from currentY (prevents snapping through upper ceilings)
       let maxFloor = 0.0;
       for (let i = 0; i < walkableFloors.length; i++) {
         const f = walkableFloors[i];
-        if (x >= f.minX && x <= f.maxX && z >= f.minZ && z <= f.maxZ) {
+        if (x < f.minX || x > f.maxX || z < f.minZ || z > f.maxZ) continue;
+        if (f.isOBB) {
+          const dx = x - f.cx;
+          const dz = z - f.cz;
+          const lx = dx * f.cosR - dz * f.sinR;
+          const lz = dx * f.sinR + dz * f.cosR;
+          if (Math.abs(lx) <= f.hx && Math.abs(lz) <= f.hz) {
+            if (f.floorY <= currentY + 0.72 && f.floorY > maxFloor) {
+              maxFloor = f.floorY;
+            }
+          }
+        } else if (x >= f.minX && x <= f.maxX && z >= f.minZ && z <= f.maxZ) {
           if (f.floorY <= currentY + 0.72 && f.floorY > maxFloor) {
             maxFloor = f.floorY;
           }
@@ -11115,13 +15759,84 @@ export function getHideAndSeekHtml(): string {
       return maxFloor;
     }
 
+    // Ceiling head-bump clamp so jumping inside a bus or under low eaves never clips through the roof
+    function getCeilingLimitBottomY(x, z, currentBottomY, playerHeight) {
+      let minAllowedBottomY = Infinity;
+      const r = 0.18;
+      for (let i = 0; i < colliders.length; i++) {
+        const c = colliders[i];
+        if (!c || !c.min || !c.max) continue;
+        if (c.min.y < currentBottomY + playerHeight - 0.15) continue;
+        if (c.type === 'obb') {
+          if (x < c.min.x - r || x > c.max.x + r || z < c.min.z - r || z > c.max.z + r) continue;
+          const dx = x - c.cx;
+          const dz = z - c.cz;
+          const lx = dx * c.cosR - dz * c.sinR;
+          const lz = dx * c.sinR + dz * c.cosR;
+          if (Math.abs(lx) <= c.hx + r && Math.abs(lz) <= c.hz + r) {
+            const limitY = c.min.y - playerHeight;
+            if (limitY < minAllowedBottomY) minAllowedBottomY = limitY;
+          }
+        } else if (c.type !== 'cylinder') {
+          if (x >= c.min.x - r && x <= c.max.x + r && z >= c.min.z - r && z <= c.max.z + r) {
+            const limitY = c.min.y - playerHeight;
+            if (limitY < minAllowedBottomY) minAllowedBottomY = limitY;
+          }
+        }
+      }
+      return minAllowedBottomY;
+    }
+
     // Fast 3D Ray-Box intersection for 3rd-person camera wall occlusion
     function raycastCameraDistance(ox, oy, oz, dirX, dirY, dirZ, maxDist) {
       let shortest = maxDist;
+      const minCamDist = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.minCameraDist) || 0.45;
+      const pushBack = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.cameraPushBack) || 0.18;
       for (let i = 0; i < colliders.length; i++) {
         const b = colliders[i];
         if (b.max.y <= oy - 0.2) continue;
         if (b.min.y >= Math.max(oy, oy + dirY * maxDist) + 0.2) continue;
+
+        if (b.type === 'obb') {
+          if (b.tag === 'furniture' || b.tag === 'step') continue;
+          const rx = ox - b.cx;
+          const rz = oz - b.cz;
+          const lox = rx * b.cosR - rz * b.sinR;
+          const loz = rx * b.sinR + rz * b.cosR;
+          const ldx = dirX * b.cosR - dirZ * b.sinR;
+          const ldz = dirX * b.sinR + dirZ * b.cosR;
+          let tmin = 0;
+          let tmax = shortest;
+          if (Math.abs(ldx) > 1e-6) {
+            const inv = 1.0 / ldx;
+            let t1 = (-b.hx - lox) * inv;
+            let t2 = (b.hx - lox) * inv;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+            tmin = Math.max(tmin, t1); tmax = Math.min(tmax, t2);
+            if (tmin > tmax) continue;
+          } else if (lox < -b.hx || lox > b.hx) continue;
+          if (Math.abs(dirY) > 1e-6) {
+            const inv = 1.0 / dirY;
+            let t1 = (b.minY - oy) * inv;
+            let t2 = (b.maxY - oy) * inv;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+            tmin = Math.max(tmin, t1); tmax = Math.min(tmax, t2);
+            if (tmin > tmax) continue;
+          } else if (oy < b.minY || oy > b.maxY) continue;
+          if (Math.abs(ldz) > 1e-6) {
+            const inv = 1.0 / ldz;
+            let t1 = (-b.hz - loz) * inv;
+            let t2 = (b.hz - loz) * inv;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+            tmin = Math.max(tmin, t1); tmax = Math.min(tmax, t2);
+            if (tmin > tmax) continue;
+          } else if (loz < -b.hz || loz > b.hz) continue;
+          if (tmin > 0.05 && tmin < shortest) {
+            const unobstructed = Math.max(0.0, tmin - pushBack);
+            shortest = unobstructed < minCamDist ? 0.0 : unobstructed;
+          }
+          continue;
+        }
 
         let tmin = 0;
         let tmax = shortest;
@@ -11180,13 +15895,24 @@ export function getHideAndSeekHtml(): string {
       if (e.code === 'KeyV') toggleCameraMode();
       if (e.code === 'KeyE') performAction();
       if (e.code === 'KeyC') toggleCrouch();
-      if (e.code === 'Space') performJump();
+      if (e.code === 'KeyF' || e.code === 'KeyQ') toggleFlashlightOrHunterPing();
+      if (e.code === 'KeyR') useThrowableOrHunterAbility();
+      if (e.code === 'Space') {
+        if (breathMiniGame.active) {
+          breathMiniGame.holdingButton = true;
+        } else {
+          performJump();
+        }
+      }
       if (isDevTelemetryAllowed && (e.code === 'KeyP' || e.code === 'Backquote')) physicsDebug.toggle();
       if (e.code === 'KeyG') {
         window.toggleColorGrade();
       }
     });
-    window.addEventListener('keyup', e => { keys[e.code] = false; });
+    window.addEventListener('keyup', e => {
+      keys[e.code] = false;
+      if (e.code === 'Space') breathMiniGame.holdingButton = false;
+    });
 
     const joystickZone = document.getElementById('joystick-zone');
     const joystickThumb = document.getElementById('joystick-thumb');
@@ -11274,7 +16000,8 @@ export function getHideAndSeekHtml(): string {
         el.closest('.touch-btn') ||
         el.closest('#action-prompt') ||
         el.closest('#campus-banner') ||
-        el.closest('#physics-debug-hud')
+        el.closest('#physics-debug-hud') ||
+        el.closest('#breath-minigame-overlay')
       );
     }
 
@@ -11305,7 +16032,7 @@ export function getHideAndSeekHtml(): string {
       for (let i = 0; i < e.touches.length; i++) {
         const touch = e.touches[i];
         if (touch.identifier === lookTouchId) {
-          e.preventDefault(); // Stop mobile browser gesture cancellation / rubber-banding
+          e.preventDefault();
           const dx = touch.clientX - lastLookX;
           const dy = touch.clientY - lastLookY;
           lastLookX = touch.clientX;
@@ -11315,6 +16042,12 @@ export function getHideAndSeekHtml(): string {
           const sensY = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.lookSensitivityY) || 0.0048;
           playerPhysics.targetYaw -= dx * sensX;
           playerPhysics.targetPitch = Math.max(-1.35, Math.min(1.35, playerPhysics.targetPitch - dy * sensY));
+          if (playerPhysics.isHiding && typeof playerPhysics.hideBaseYaw === 'number') {
+            const maxPeek = 0.72;
+            const dYaw = playerPhysics.targetYaw - playerPhysics.hideBaseYaw;
+            if (dYaw > maxPeek) playerPhysics.targetYaw = playerPhysics.hideBaseYaw + maxPeek;
+            if (dYaw < -maxPeek) playerPhysics.targetYaw = playerPhysics.hideBaseYaw - maxPeek;
+          }
           break;
         }
       }
@@ -11362,6 +16095,12 @@ export function getHideAndSeekHtml(): string {
       const sensY = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.mouseSensitivityY) || 0.0030;
       playerPhysics.targetYaw -= dx * sensX;
       playerPhysics.targetPitch = Math.max(-1.35, Math.min(1.35, playerPhysics.targetPitch - dy * sensY));
+      if (playerPhysics.isHiding && typeof playerPhysics.hideBaseYaw === 'number') {
+        const maxPeek = 0.72;
+        const dYaw = playerPhysics.targetYaw - playerPhysics.hideBaseYaw;
+        if (dYaw > maxPeek) playerPhysics.targetYaw = playerPhysics.hideBaseYaw + maxPeek;
+        if (dYaw < -maxPeek) playerPhysics.targetYaw = playerPhysics.hideBaseYaw - maxPeek;
+      }
     });
 
     window.addEventListener('mouseup', () => {
@@ -11387,17 +16126,119 @@ export function getHideAndSeekHtml(): string {
       playerPhysics.isSprinting = !playerPhysics.isSprinting;
       const el = document.getElementById('btn-sprint');
       if (el) el.classList.toggle('active', playerPhysics.isSprinting);
-      showToast(playerPhysics.isSprinting ? 'Sprint ON' : 'Sprint OFF');
+      showToast(playerPhysics.isSprinting ? 'Sprint ON (Loud Footsteps!)' : 'Sprint OFF');
+    }
+
+    function toggleFlashlightOrHunterPing() {
+      if (GAME_CONFIG.role === 'seeker') {
+        if (hunterAbilities.pingTimer <= 0.5) {
+          hunterAbilities.pingTimer = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.hunterFootstepPingIntervalSec) || 30.0;
+          soundEngine.playSonarPingSfx();
+          const lastNoise = recentNoiseEvents[recentNoiseEvents.length - 1];
+          if (lastNoise) {
+            showToast('Footstep Ping: Noise detected near (' + lastNoise.x.toFixed(0) + ', ' + lastNoise.z.toFixed(0) + ')!');
+          } else {
+            showToast('Footstep-Sense Ping: Scanning campus...');
+          }
+        } else {
+          showToast('Footstep-Sense Ping Cooldown: ' + Math.ceil(hunterAbilities.pingTimer) + 's');
+        }
+        return;
+      }
+      if (flashlightBattery <= 0) {
+        isFlashlightOn = false;
+        showToast('Flashlight Battery Empty! Find a yellow battery cell.');
+        return;
+      }
+      isFlashlightOn = !isFlashlightOn;
+      showToast(isFlashlightOn ? 'Flashlight: ON' : 'Flashlight: OFF (Stealth)');
+    }
+
+    function useThrowableOrHunterAbility() {
+      if (GAME_CONFIG.role === 'seeker') {
+        if (hunterAbilities.powerCutCooldown <= 0) {
+          hunterAbilities.powerCutCooldown = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.hunterPowerCutCooldownSec) || 28.0;
+          lampFlickerMod.triggerPowerDip(0.55);
+          soundEngine.playPowerDipHum();
+          powerCutDarkBuilding = 'ROTUNDA';
+          powerCutBuildingTimer = 9.0;
+          for (let d = 0; d < swingingDoors.length; d++) {
+            const dr = swingingDoors[d];
+            if (Math.hypot(dr.x - playerPhysics.pos.x, dr.z - playerPhysics.pos.z) < 5.5) {
+              dr.lockedTimer = 10.0;
+              dr.isOpen = false;
+              dr.targetAngleY = 0;
+            }
+          }
+          showToast('Power-Cut Pulse & Door Lock Activated!');
+        } else {
+          showToast('Power-Cut Pulse Cooldown: ' + Math.ceil(hunterAbilities.powerCutCooldown) + 's');
+        }
+        return;
+      }
+
+      if (throwablesRemaining <= 0) {
+        showToast('No distraction items left!');
+        return;
+      }
+      throwablesRemaining--;
+      const btnLbl = document.getElementById('btn-throw-label');
+      if (btnLbl) btnLbl.textContent = 'THROW (' + throwablesRemaining + ')';
+
+      const pMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 0.16, 8),
+        materials.brassGajur
+      );
+      pMesh.userData.noMerge = true;
+      const fx = -Math.sin(playerPhysics.yaw) * Math.cos(playerPhysics.pitch);
+      const fy = Math.max(0.15, Math.sin(playerPhysics.pitch) + 0.25);
+      const fz = -Math.cos(playerPhysics.yaw) * Math.cos(playerPhysics.pitch);
+      pMesh.position.set(playerPhysics.pos.x + fx * 0.6, playerPhysics.pos.y + 1.35, playerPhysics.pos.z + fz * 0.6);
+      scene.add(pMesh);
+      activeProjectiles.push({
+        mesh: pMesh,
+        vel: new THREE.Vector3(fx * 11.5, fy * 7.2, fz * 11.5),
+        floorY: playerPhysics.pos.y,
+        life: 2.2,
+      });
+      showToast('Threw distraction item! (' + throwablesRemaining + ' left)');
+    }
+
+    const holdBreathBtn = document.getElementById('btn-hold-breath');
+    if (holdBreathBtn) {
+      holdBreathBtn.addEventListener('touchstart', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        breathMiniGame.holdingButton = true;
+      }, { passive: false });
+      holdBreathBtn.addEventListener('touchend', e => {
+        e.preventDefault();
+        breathMiniGame.holdingButton = false;
+      }, { passive: false });
+      holdBreathBtn.addEventListener('mousedown', () => { breathMiniGame.holdingButton = true; });
+      holdBreathBtn.addEventListener('mouseup', () => { breathMiniGame.holdingButton = false; });
     }
 
     bindTouchBtn('btn-debug-physics', () => physicsDebug.toggle());
-    bindTouchBtn('btn-cam', toggleCameraMode);
+    bindTouchBtn('btn-flashlight', toggleFlashlightOrHunterPing);
+    bindTouchBtn('btn-throw', useThrowableOrHunterAbility);
+    bindTouchBtn('btn-cam', () => {
+      if (isPlayerSpectating) {
+        const aliveScholars = bots.filter(b => !b.isSeeker && !b.isCaught);
+        if (aliveScholars.length > 0) {
+          spectateBotIdx = (spectateBotIdx + 1) % aliveScholars.length;
+          showToast('Spectating ' + aliveScholars[spectateBotIdx].name);
+          return;
+        }
+      }
+      toggleCameraMode();
+    });
     bindTouchBtn('btn-sprint', toggleSprint);
     bindTouchBtn('btn-crouch', toggleCrouch);
     bindTouchBtn('btn-jump', performJump);
     bindTouchBtn('btn-action', performAction);
 
-    // Test Controls UI Event Bindings
+    // Test Controls & Accessibility UI Event Bindings
     function bindDbgClick(id, fn) {
       const el = document.getElementById(id);
       if (el) el.addEventListener('click', fn);
@@ -11436,10 +16277,36 @@ export function getHideAndSeekHtml(): string {
     bindDbgClick('dbg-btn-wireframes', () => {
       physicsDebug.toggle();
     });
+    bindDbgClick('dbg-btn-shadows', () => {
+      if (atmosphere && typeof atmosphere.toggleShadowsOnly === 'function') {
+        const sOn = atmosphere.toggleShadowsOnly();
+        showToast('Shadows Only: ' + (sOn ? 'ON' : 'OFF'));
+      }
+    });
     bindDbgClick('dbg-btn-run-audit', () => {
       if (window.__TEST_HARNESS__ && window.__TEST_HARNESS__.runAuditSuite) {
         window.__TEST_HARNESS__.runAuditSuite();
       }
+    });
+    bindDbgClick('dbg-btn-fear', () => {
+      const order = ['high', 'medium', 'low'];
+      const next = order[(order.indexOf(accessibilitySettings.fearIntensity) + 1) % order.length];
+      accessibilitySettings.fearIntensity = next;
+      const el = document.getElementById('dbg-btn-fear');
+      if (el) el.textContent = 'Fear: ' + next.toUpperCase();
+      showToast('Fear Intensity: ' + next.toUpperCase());
+    });
+    bindDbgClick('dbg-btn-flicker', () => {
+      accessibilitySettings.flickerReduction = !accessibilitySettings.flickerReduction;
+      const el = document.getElementById('dbg-btn-flicker');
+      if (el) el.textContent = 'Flicker: ' + (accessibilitySettings.flickerReduction ? 'REDUCED' : 'FULL');
+      showToast('Flicker Reduction: ' + (accessibilitySettings.flickerReduction ? 'ON' : 'OFF'));
+    });
+    bindDbgClick('dbg-btn-shake', () => {
+      accessibilitySettings.screenShakeOff = !accessibilitySettings.screenShakeOff;
+      const el = document.getElementById('dbg-btn-shake');
+      if (el) el.textContent = 'Shake: ' + (accessibilitySettings.screenShakeOff ? 'OFF' : 'ON');
+      showToast('Screen Shake: ' + (accessibilitySettings.screenShakeOff ? 'OFF' : 'ON'));
     });
 
     const tpSelect = document.getElementById('dbg-teleport-select');
@@ -11452,6 +16319,355 @@ export function getHideAndSeekHtml(): string {
         tpSelect.value = '';
       });
     }
+
+    /* =========================================================================
+       MAP-DESIGN TOOLS SUITE (DEBUG / TOOLS MENU)
+       ========================================================================= */
+    Object.assign(exploreTools, {
+      freeFly: false,
+      flySpeed: 14.0,
+      overviewCam: false,
+      minimapVisible: true,
+      screenshotMode: false,
+      fogEnabled: true,
+      dustEnabled: true,
+      lightShaftsEnabled: true,
+      flashlightBeamEnabled: true,
+      timeOfNight: 1.0,
+      fogMultiplier: 1.0,
+      currentRoomId: 'OUTDOORS',
+      currentBuilding: 'CAMPUS',
+      currentMood: 'night_sky',
+      notes: [],
+
+      init() {
+        const roomSelect = document.getElementById('dbg-room-teleport-select');
+        if (roomSelect && typeof ROOM_DEFINITIONS === 'object') {
+          Object.keys(ROOM_DEFINITIONS).forEach(roomId => {
+            const def = ROOM_DEFINITIONS[roomId];
+            if (!def || !def.bounds) return;
+            const cx = ((def.bounds.minX + def.bounds.maxX) * 0.5).toFixed(2);
+            const cz = ((def.bounds.minZ + def.bounds.maxZ) * 0.5).toFixed(2);
+            const fy = (def.bounds.floorY || 0).toFixed(2);
+            const opt = document.createElement('option');
+            opt.value = cx + ',' + fy + ',' + cz + ',0,' + roomId;
+            const floorTag = def.bounds.floorY > 6 ? '2F' : (def.bounds.floorY > 2 ? '1F' : 'GF');
+            opt.textContent = '[' + (def.building || 'BLDG') + ' ' + floorTag + '] ' + roomId + ' (' + (def.lightMood || 'dark') + ')';
+            if (typeof roomSelect.appendChild === 'function') {
+              roomSelect.appendChild(opt);
+            }
+          });
+          roomSelect.addEventListener('change', e => {
+            const val = e.target.value;
+            if (!val) return;
+            const parts = val.split(',');
+            const x = Number(parts[0]), y = Number(parts[1]), z = Number(parts[2]), yaw = Number(parts[3] || 0);
+            const rId = parts.slice(4).join(',');
+            this.overviewCam = false;
+            const ovBtn = document.getElementById('dbg-btn-overview-cam');
+            if (ovBtn) ovBtn.classList.remove('active');
+            physicsDebug.teleport(x, y, z, yaw);
+            showToast('Teleported to ' + (rId || 'Room'));
+            roomSelect.value = '';
+          });
+        }
+
+        bindDbgClick('dbg-btn-freefly', () => {
+          this.freeFly = !this.freeFly;
+          playerPhysics.vel.set(0, 0, 0);
+          const flyBtn = document.getElementById('dbg-btn-freefly');
+          const walkBtn = document.getElementById('dbg-btn-walkmode');
+          if (flyBtn) {
+            flyBtn.classList.toggle('active', this.freeFly);
+            flyBtn.textContent = this.freeFly ? 'Free-Fly: ON (Noclip)' : 'Free-Fly: OFF';
+          }
+          if (walkBtn) walkBtn.classList.toggle('active', !this.freeFly);
+          showToast(this.freeFly ? 'Free-Fly Camera ON (Collisions Off)' : 'Walking Mode Restored');
+        });
+        bindDbgClick('dbg-btn-walkmode', () => {
+          this.freeFly = false;
+          this.overviewCam = false;
+          playerPhysics.pos.y = getSupportFloorY(playerPhysics.pos.x, playerPhysics.pos.z, playerPhysics.pos.y);
+          playerPhysics.vel.set(0, 0, 0);
+          const flyBtn = document.getElementById('dbg-btn-freefly');
+          const walkBtn = document.getElementById('dbg-btn-walkmode');
+          const ovBtn = document.getElementById('dbg-btn-overview-cam');
+          if (flyBtn) {
+            flyBtn.classList.remove('active');
+            flyBtn.textContent = 'Free-Fly: OFF';
+          }
+          if (walkBtn) walkBtn.classList.add('active');
+          if (ovBtn) ovBtn.classList.remove('active');
+          showToast('Switched back to Walking Mode');
+        });
+
+        const flySpdSlider = document.getElementById('dbg-slider-flyspeed');
+        if (flySpdSlider) {
+          flySpdSlider.addEventListener('input', e => {
+            this.flySpeed = Number(e.target.value) || 14.0;
+            const lbl = document.getElementById('dbg-flyspeed-val');
+            if (lbl) lbl.textContent = this.flySpeed.toFixed(0) + 'm/s';
+          });
+        }
+
+        bindDbgClick('dbg-btn-cycle-mood', () => {
+          const moods = ['dark', 'dying_tube', 'moonlight', 'warm_lamp', 'emergency_red'];
+          const targetRoomId = this.currentRoomId !== 'OUTDOORS' ? this.currentRoomId : 'Rotunda Ground West Hall 101';
+          const def = ROOM_DEFINITIONS[targetRoomId];
+          const cur = (def && def.lightMood) ? normalizeRoomLightMood(def.lightMood) : 'dying_tube';
+          const next = moods[(moods.indexOf(cur) + 1) % moods.length];
+          if (typeof setRoomLightMood === 'function') {
+            setRoomLightMood(targetRoomId, next);
+          }
+          this.currentMood = next;
+          const btn = document.getElementById('dbg-btn-cycle-mood');
+          if (btn) btn.textContent = 'Mood: ' + next;
+          showToast(targetRoomId + ' -> ' + next.toUpperCase());
+        });
+
+        const timeSlider = document.getElementById('dbg-slider-time');
+        if (timeSlider) {
+          timeSlider.addEventListener('input', e => {
+            this.timeOfNight = Number(e.target.value);
+            const lbl = document.getElementById('dbg-time-val');
+            if (lbl) lbl.textContent = Math.round(this.timeOfNight * 100) + '%';
+            if (atmosphere) {
+              atmosphere.baseAmbIntensity = ((HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.ambientIntensity) || 0.28) * this.timeOfNight;
+              if (atmosphere.moonLight) {
+                atmosphere.moonLight.intensity = ((HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.moonIntensity) || 1.28) * this.timeOfNight;
+              }
+              if (atmosphere.hemiLight) {
+                atmosphere.hemiLight.intensity = ((HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.hemiIntensity) || 0.42) * this.timeOfNight;
+              }
+            }
+          });
+        }
+
+        const fogSlider = document.getElementById('dbg-slider-fog');
+        if (fogSlider) {
+          fogSlider.addEventListener('input', e => {
+            this.fogMultiplier = Number(e.target.value);
+            const lbl = document.getElementById('dbg-fog-val');
+            if (lbl) lbl.textContent = Math.round(this.fogMultiplier * 100) + '%';
+          });
+        }
+
+        bindDbgClick('dbg-btn-layer-fog', () => {
+          this.fogEnabled = !this.fogEnabled;
+          const b = document.getElementById('dbg-btn-layer-fog');
+          if (b) {
+            b.classList.toggle('active', this.fogEnabled);
+            b.textContent = 'Fog: ' + (this.fogEnabled ? 'ON' : 'OFF');
+          }
+          showToast('Fog Layer: ' + (this.fogEnabled ? 'ON' : 'OFF'));
+        });
+        bindDbgClick('dbg-btn-layer-dust', () => {
+          this.dustEnabled = !this.dustEnabled;
+          const b = document.getElementById('dbg-btn-layer-dust');
+          if (b) {
+            b.classList.toggle('active', this.dustEnabled);
+            b.textContent = 'Dust: ' + (this.dustEnabled ? 'ON' : 'OFF');
+          }
+          showToast('Dust Particles: ' + (this.dustEnabled ? 'ON' : 'OFF'));
+        });
+        bindDbgClick('dbg-btn-layer-shafts', () => {
+          this.lightShaftsEnabled = !this.lightShaftsEnabled;
+          if (typeof roomShaftGroups !== 'undefined') {
+            roomShaftGroups.forEach(s => { if (s && s.group) s.group.visible = this.lightShaftsEnabled; });
+          }
+          const b = document.getElementById('dbg-btn-layer-shafts');
+          if (b) {
+            b.classList.toggle('active', this.lightShaftsEnabled);
+            b.textContent = 'Shafts: ' + (this.lightShaftsEnabled ? 'ON' : 'OFF');
+          }
+          showToast('Window & Lamp Light Shafts: ' + (this.lightShaftsEnabled ? 'ON' : 'OFF'));
+        });
+        bindDbgClick('dbg-btn-layer-beam', () => {
+          this.flashlightBeamEnabled = !this.flashlightBeamEnabled;
+          const b = document.getElementById('dbg-btn-layer-beam');
+          if (b) {
+            b.classList.toggle('active', this.flashlightBeamEnabled);
+            b.textContent = 'FL Beam: ' + (this.flashlightBeamEnabled ? 'ON' : 'OFF');
+          }
+          showToast('Flashlight Cone & Spill: ' + (this.flashlightBeamEnabled ? 'ON' : 'OFF'));
+        });
+
+        bindDbgClick('dbg-btn-screenshot', () => this.setScreenshotMode(true));
+        bindDbgClick('screenshot-restore-btn', () => this.setScreenshotMode(false));
+
+        bindDbgClick('dbg-btn-overview-cam', () => {
+          this.overviewCam = !this.overviewCam;
+          const b = document.getElementById('dbg-btn-overview-cam');
+          if (b) {
+            b.classList.toggle('active', this.overviewCam);
+            b.textContent = this.overviewCam ? 'Overview Cam: ON' : 'Overview Cam: OFF';
+          }
+          showToast(this.overviewCam ? 'Top-Down 3D Campus Overview Camera' : 'Returned to Player Camera');
+        });
+        bindDbgClick('dbg-btn-minimap', () => {
+          this.minimapVisible = !this.minimapVisible;
+          const c = document.getElementById('explore-minimap-canvas');
+          if (c) c.style.display = this.minimapVisible ? 'block' : 'none';
+          const b = document.getElementById('dbg-btn-minimap');
+          if (b) b.classList.toggle('active', this.minimapVisible);
+        });
+
+        bindDbgClick('dbg-btn-add-note', () => {
+          const inp = document.getElementById('dbg-note-input');
+          const txt = (inp && inp.value.trim()) ? inp.value.trim() : 'Inspect lighting / props here';
+          const p = playerPhysics.pos;
+          const entry = '[' + new Date().toISOString().slice(11, 19) + '] Pos(' +
+            p.x.toFixed(2) + ', ' + p.y.toFixed(2) + ', ' + p.z.toFixed(2) + ') | Room: ' +
+            this.currentRoomId + ' (' + this.currentBuilding + ', mood=' + this.currentMood + ') — ' + txt;
+          this.notes.push(entry);
+          if (inp) inp.value = '';
+          const out = document.getElementById('dbg-notes-output');
+          if (out) out.value = this.notes.join('\\n');
+          showToast('Logged note #' + this.notes.length);
+        });
+        bindDbgClick('dbg-btn-copy-notes', () => {
+          const text = this.notes.join('\\n');
+          if (!text) {
+            showToast('No notes logged yet!');
+            return;
+          }
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).catch(() => {});
+          }
+          const out = document.getElementById('dbg-notes-output');
+          if (out) {
+            out.select();
+            try { document.execCommand('copy'); } catch (e) {}
+          }
+          sendToReactNative('COPY_DESIGN_NOTES', { notesText: text, count: this.notes.length });
+          showToast('Copied ' + this.notes.length + ' notes!');
+        });
+
+        const volSlider = document.getElementById('dbg-slider-volume');
+        if (volSlider) {
+          volSlider.addEventListener('input', e => {
+            const v = Number(e.target.value);
+            const lbl = document.getElementById('dbg-vol-val');
+            if (lbl) lbl.textContent = Math.round(v * 100) + '%';
+            soundEngine.setAmbienceVolume(v);
+          });
+        }
+        bindDbgClick('dbg-btn-mute-audio', () => {
+          soundEngine.setMuted(!soundEngine.isMuted);
+          const b = document.getElementById('dbg-btn-mute-audio');
+          if (b) {
+            b.classList.toggle('active', soundEngine.isMuted);
+            b.textContent = soundEngine.isMuted ? 'Muted: YES' : 'Mute Audio';
+          }
+          showToast(soundEngine.isMuted ? 'Audio Muted' : 'Audio Unmuted');
+        });
+      },
+
+      setScreenshotMode(hideUi) {
+        this.screenshotMode = !!hideUi;
+        const ids = ['campus-banner', 'explore-coord-pill', 'joystick-zone', 'action-cluster', 'physics-debug-hud', 'crosshair', 'action-prompt', 'toast'];
+        ids.forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          if (hideUi) {
+            el.dataset.prevDisplay = el.style.display || '';
+            el.style.display = 'none';
+          } else if (id === 'physics-debug-hud') {
+            el.style.display = physicsDebug.enabled ? 'block' : 'none';
+          } else {
+            el.style.display = el.dataset.prevDisplay || '';
+          }
+        });
+        const restoreBtn = document.getElementById('screenshot-restore-btn');
+        if (restoreBtn) restoreBtn.style.display = hideUi ? 'block' : 'none';
+        sendToReactNative('SCREENSHOT_UI_VISIBILITY', { hidden: hideUi });
+      },
+
+      drawMinimap() {
+        if (!this.minimapVisible) return;
+        const canvas = document.getElementById('explore-minimap-canvas');
+        if (!canvas || !canvas.getContext) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const w = canvas.width, h = canvas.height;
+        ctx.fillStyle = '#050b14';
+        ctx.fillRect(0, 0, w, h);
+
+        const mapX = x => ((x + 52) / 104) * w;
+        const mapZ = z => ((z + 75) / 155) * h;
+
+        ctx.fillStyle = 'rgba(71, 85, 105, 0.35)';
+        ctx.fillRect(mapX(-3.5), mapZ(-65), mapX(5.5) - mapX(-3.5), mapZ(55) - mapZ(-65));
+
+        if (typeof ROOM_DEFINITIONS === 'object') {
+          Object.keys(ROOM_DEFINITIONS).forEach(rId => {
+            const def = ROOM_DEFINITIONS[rId];
+            if (!def || !def.bounds) return;
+            const b = def.bounds;
+            const rx = mapX(b.minX), rz = mapZ(b.minZ);
+            const rw = Math.max(2, mapX(b.maxX) - rx);
+            const rh = Math.max(2, mapZ(b.maxZ) - rz);
+            const isCur = (rId === this.currentRoomId);
+            ctx.fillStyle = isCur ? 'rgba(56, 189, 248, 0.55)' : (def.lightMood === 'emergency_red' ? 'rgba(239, 68, 68, 0.32)' : 'rgba(30, 41, 59, 0.78)');
+            ctx.strokeStyle = isCur ? '#38bdf8' : 'rgba(148, 163, 184, 0.42)';
+            ctx.lineWidth = isCur ? 1.5 : 0.75;
+            ctx.fillRect(rx, rz, rw, rh);
+            ctx.strokeRect(rx, rz, rw, rh);
+          });
+        }
+
+        const px = mapX(playerPhysics.pos.x);
+        const pz = mapZ(playerPhysics.pos.z);
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath();
+        ctx.arc(px, pz, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fde047';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(px, pz);
+        ctx.lineTo(px - Math.sin(playerPhysics.yaw) * 8, pz - Math.cos(playerPhysics.yaw) * 8);
+        ctx.stroke();
+      },
+
+      updateFrame() {
+        const p = playerPhysics.pos;
+        let foundRoom = null;
+        if (typeof ROOM_DEFINITIONS === 'object') {
+          const keys = Object.keys(ROOM_DEFINITIONS);
+          for (let i = 0; i < keys.length; i++) {
+            const rId = keys[i];
+            const def = ROOM_DEFINITIONS[rId];
+            if (!def || !def.bounds) continue;
+            const b = def.bounds;
+            if (p.x >= b.minX && p.x <= b.maxX && p.z >= b.minZ && p.z <= b.maxZ && Math.abs(p.y - (b.floorY || 0)) <= 2.3) {
+              foundRoom = def;
+              break;
+            }
+          }
+        }
+        this.currentRoomId = foundRoom ? foundRoom.id : 'OUTDOORS';
+        this.currentBuilding = foundRoom ? (foundRoom.building || 'CAMPUS') : 'OUTDOORS';
+        this.currentMood = foundRoom ? (foundRoom.lightMood || 'dark') : 'night_sky';
+
+        const pill = document.getElementById('explore-coord-pill');
+        if (pill && !this.screenshotMode) {
+          pill.textContent = 'XYZ: (' + p.x.toFixed(1) + ', ' + p.y.toFixed(1) + ', ' + p.z.toFixed(1) + ') • BLDG: ' +
+            this.currentBuilding + ' • ROOM: ' + this.currentRoomId + ' • MOOD: ' + this.currentMood.toUpperCase() +
+            (this.freeFly ? ' [FREE-FLY]' : '');
+        }
+        const dbgRoom = document.getElementById('dbg-room-info');
+        if (dbgRoom && physicsDebug.enabled) {
+          dbgRoom.textContent = 'Room: ' + this.currentRoomId + ' [' + this.currentBuilding + '] | Mood: ' + this.currentMood;
+        }
+        if (physicsDebug.enabled) {
+          this.drawMinimap();
+        }
+      },
+    });
+    exploreTools.initUI = () => exploreTools.init();
+    exploreTools.init();
+    window.exploreTools = exploreTools;
 
     // STEP 1: Headless Scripted Input Runner
     window.__TEST_HARNESS__ = {
@@ -11513,8 +16729,94 @@ export function getHideAndSeekHtml(): string {
         };
       },
       runAuditSuite() {
-        showToast('Running Physics Audit Suite in Console...');
-        console.log('[TEST HARNESS] Running automated audit...');
+        showToast('Running Physics & Bus Audit Suite...');
+        console.log('[TEST HARNESS] Running automated physics & enterable bus audit...');
+        const savedPos = playerPhysics.pos.clone();
+        const savedVel = playerPhysics.vel.clone();
+        const savedYaw = playerPhysics.yaw;
+        const savedTargetYaw = playerPhysics.targetYaw;
+        const results = {
+          doorEntryExit: [],
+          aisleWalk: [],
+          eightAngleSweep: [],
+          sprintAntiTunneling: [],
+          roofHeadBump: [],
+          hidingSpotClearance: [],
+          fpsIndependenceInside: [],
+        };
+        for (let bi = 0; bi < enterableBuses.length; bi++) {
+          const bus = enterableBuses[bi];
+          const cosR = Math.cos(bus.rotY);
+          const sinR = Math.sin(bus.rotY);
+          const toW = (lx, lz) => ({
+            x: bus.bx + lx * cosR + lz * sinR,
+            z: bus.bz - lx * sinR + lz * cosR,
+          });
+          const toL = (wx, wz) => {
+            const dx = wx - bus.bx;
+            const dz = wz - bus.bz;
+            return { lx: dx * cosR - dz * sinR, lz: dx * sinR + dz * cosR };
+          };
+          // 1. Door entry & exit (front & rear doors)
+          [['front_door', bus.fDoorCenterZ], ['rear_door', bus.rDoorCenterZ]].forEach(([doorName, dcz]) => {
+            const sw = toW(-1.85, dcz);
+            playerPhysics.pos.set(sw.x, 0, sw.z);
+            playerPhysics.vel.set(0, 0, 0);
+            playerPhysics.isGrounded = true;
+            const enterYaw = Math.atan2(-cosR, sinR);
+            playerPhysics.yaw = enterYaw;
+            playerPhysics.targetYaw = enterYaw;
+            keys['KeyW'] = true; keys['ShiftLeft'] = false;
+            for (let f = 0; f < 55; f++) updatePlayer(1 / 60, f / 60);
+            const inL = toL(playerPhysics.pos.x, playerPhysics.pos.z);
+            const inY = playerPhysics.pos.y;
+            const enterOk = inL.lx > -0.38 && inL.lx < 0.92 && Math.abs(inY - bus.floorY) < 0.08;
+
+            const aw = toW(0.0, dcz);
+            playerPhysics.pos.set(aw.x, bus.floorY, aw.z);
+            playerPhysics.vel.set(0, 0, 0);
+            const exitYaw = Math.atan2(cosR, -sinR);
+            playerPhysics.yaw = exitYaw;
+            playerPhysics.targetYaw = exitYaw;
+            for (let f = 0; f < 55; f++) updatePlayer(1 / 60, f / 60);
+            keys['KeyW'] = false;
+            const outL = toL(playerPhysics.pos.x, playerPhysics.pos.z);
+            const outY = playerPhysics.pos.y;
+            const exitOk = outL.lx < -1.45 && outY <= 0.06;
+            results.doorEntryExit.push({
+              busId: bus.id,
+              door: doorName,
+              enteredLX: Number(inL.lx.toFixed(2)),
+              enteredY: Number(inY.toFixed(2)),
+              exitedLX: Number(outL.lx.toFixed(2)),
+              exitedY: Number(outY.toFixed(2)),
+              pass: enterOk && exitOk,
+            });
+          });
+          // 2. Walk full aisle front (-3.35) to back (+4.20)
+          const fW = toW(0.0, -3.35);
+          playerPhysics.pos.set(fW.x, bus.floorY, fW.z);
+          playerPhysics.vel.set(0, 0, 0);
+          const aisleYaw = Math.atan2(-sinR, -cosR); // facing +localZ (front to back)
+          playerPhysics.yaw = aisleYaw;
+          playerPhysics.targetYaw = aisleYaw;
+          keys['KeyW'] = true;
+          for (let f = 0; f < 130; f++) updatePlayer(1 / 60, f / 60);
+          keys['KeyW'] = false;
+          const endAisleL = toL(playerPhysics.pos.x, playerPhysics.pos.z);
+          results.aisleWalk.push({
+            busId: bus.id,
+            startLZ: -3.35,
+            endLZ: Number(endAisleL.lz.toFixed(2)),
+            endLX: Number(endAisleL.lx.toFixed(2)),
+            pass: endAisleL.lz > 3.45 && Math.abs(endAisleL.lx) < 0.25,
+          });
+        }
+        playerPhysics.pos.copy(savedPos);
+        playerPhysics.vel.copy(savedVel);
+        playerPhysics.yaw = savedYaw;
+        playerPhysics.targetYaw = savedTargetYaw;
+        return results;
       }
     };
 
@@ -11525,6 +16827,14 @@ export function getHideAndSeekHtml(): string {
     }
 
     function toggleCrouch() {
+      if (playerPhysics.isCrouching) {
+        const standH = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.standingHeight) || 1.80;
+        const ceilingLimit = getCeilingLimitBottomY(playerPhysics.pos.x, playerPhysics.pos.z, playerPhysics.pos.y, standH);
+        if (playerPhysics.pos.y > ceilingLimit + 0.02) {
+          showToast('Low Clearance — Cannot Stand Here');
+          return;
+        }
+      }
       playerPhysics.isCrouching = !playerPhysics.isCrouching;
       showToast(playerPhysics.isCrouching ? 'Crouched (Quiet Steps)' : 'Standing');
     }
@@ -11538,6 +16848,7 @@ export function getHideAndSeekHtml(): string {
     }
 
     function findNearbyHidingSpot() {
+      if (EXPLORE_FLAGS.ENABLE_HIDING_SPOTS_AND_MINIGAME === false) return null;
       let bestSpot = null;
       let bestDist = 2.6;
       for (let i = 0; i < interactiveHidingSpots.length; i++) {
@@ -11550,6 +16861,30 @@ export function getHideAndSeekHtml(): string {
         }
       }
       return bestSpot;
+    }
+
+    function findNearbyFuseBox() {
+      for (let i = 0; i < fuseBoxes.length; i++) {
+        const fb = fuseBoxes[i];
+        if (fb.restored) continue;
+        if (Math.abs(playerPhysics.pos.y - fb.y) < 1.8 && Math.hypot(playerPhysics.pos.x - fb.x, playerPhysics.pos.z - fb.z) < 2.6) {
+          return fb;
+        }
+      }
+      return null;
+    }
+
+    function findNearbyCaptiveTeammate() {
+      for (let i = 0; i < bots.length; i++) {
+        const b = bots[i];
+        if (!b.isSeeker && b.isCaught && b.canBeRescued && b.mesh) {
+          if (Math.abs(playerPhysics.pos.y - b.mesh.position.y) < 1.8 &&
+              Math.hypot(playerPhysics.pos.x - b.mesh.position.x, playerPhysics.pos.z - b.mesh.position.z) < 2.6) {
+            return b;
+          }
+        }
+      }
+      return null;
     }
 
     function checkTagLineOfSight(eyePos, chestPos, colliderList) {
@@ -11596,6 +16931,45 @@ export function getHideAndSeekHtml(): string {
               }
             }
           }
+          continue;
+        }
+
+        // Oriented Box (OBB) collider check
+        if (b.type === 'obb') {
+          if (b.tag === 'step') continue;
+          const rx = eyePos.x - b.cx;
+          const rz = eyePos.z - b.cz;
+          const lox = rx * b.cosR - rz * b.sinR;
+          const loz = rx * b.sinR + rz * b.cosR;
+          const ldx = dirX * b.cosR - dirZ * b.sinR;
+          const ldz = dirX * b.sinR + dirZ * b.cosR;
+          let tmin = 0.0;
+          let tmax = dist - 0.05;
+          if (Math.abs(ldx) > 1e-6) {
+            const inv = 1.0 / ldx;
+            let t1 = (-b.hx - lox) * inv;
+            let t2 = (b.hx - lox) * inv;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+            tmin = Math.max(tmin, t1); tmax = Math.min(tmax, t2);
+            if (tmin > tmax) continue;
+          } else if (lox < -b.hx || lox > b.hx) continue;
+          if (Math.abs(dirY) > 1e-6) {
+            const inv = 1.0 / dirY;
+            let t1 = (b.minY - eyePos.y) * inv;
+            let t2 = (b.maxY - eyePos.y) * inv;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+            tmin = Math.max(tmin, t1); tmax = Math.min(tmax, t2);
+            if (tmin > tmax) continue;
+          } else if (eyePos.y < b.minY || eyePos.y > b.maxY) continue;
+          if (Math.abs(ldz) > 1e-6) {
+            const inv = 1.0 / ldz;
+            let t1 = (-b.hz - loz) * inv;
+            let t2 = (b.hz - loz) * inv;
+            if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+            tmin = Math.max(tmin, t1); tmax = Math.min(tmax, t2);
+            if (tmin > tmax) continue;
+          } else if (loz < -b.hz || loz > b.hz) continue;
+          if (tmin < dist - 0.05 && tmax > 0.05) return false;
           continue;
         }
 
@@ -11652,6 +17026,20 @@ export function getHideAndSeekHtml(): string {
 
     function performAction() {
       soundEngine.resume();
+      if (!EXPLORE_FLAGS.ENABLE_GAMEPLAY) {
+        for (let d = 0; d < swingingDoors.length; d++) {
+          const dr = swingingDoors[d];
+          if (Math.abs(playerPhysics.pos.y - dr.y) < 2.2 && Math.hypot(playerPhysics.pos.x - dr.x, playerPhysics.pos.z - dr.z) < 2.8) {
+            dr.isOpen = !dr.isOpen;
+            dr.targetAngleY = dr.isOpen ? dr.openAngle : 0;
+            soundEngine.playDoorCreakSfx();
+            showToast(dr.isOpen ? 'Door Opened' : 'Door Closed');
+            return;
+          }
+        }
+        showToast('Map Exploration Mode — Open DEBUG for Map-Design Tools');
+        return;
+      }
       if (GAME_CONFIG.role === 'seeker') {
         let tagged = false;
         const eyeH = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.tagEyeHeight) || 1.62;
@@ -11670,11 +17058,13 @@ export function getHideAndSeekHtml(): string {
             if (dist < tagRange) {
               const targetChest = { x: bPos.x, y: bPos.y + chestH, z: bPos.z };
               if (checkTagLineOfSight(seekerEye, targetChest, colliders)) {
+                b.catchCount = (b.catchCount || 0) + 1;
                 b.isCaught = true;
-                if (b.mesh) scene.remove(b.mesh);
+                b.canBeRescued = (b.catchCount === 1);
+                if (b.mesh && !b.canBeRescued) scene.remove(b.mesh);
                 tagged = true;
                 soundEngine.playCatchSting();
-                showToast('Discovered ' + b.name + '!');
+                showToast(b.canBeRescued ? ('Captured ' + b.name + ' (1/2 - Can be rescued once!)') : ('Eliminated ' + b.name + ' (2/2 Permanent)!'));
                 sendToReactNative('HIDER_CAUGHT', {
                   hiderName: b.name,
                   remaining: bots.filter(h => !h.isSeeker && !h.isCaught).length,
@@ -11683,13 +17073,16 @@ export function getHideAndSeekHtml(): string {
             }
           }
         });
-        if (!tagged) showToast('Searching classrooms & surroundings...');
+        if (!tagged) showToast('Searching classrooms & hiding spots...');
         evaluateGameStatus();
         return;
       }
 
       if (playerPhysics.isHiding) {
         playerPhysics.isHiding = false;
+        breathMiniGame.active = false;
+        const bmEl = document.getElementById('breath-minigame-overlay');
+        if (bmEl) bmEl.style.display = 'none';
         if (playerPhysics.currentHidingSpot) {
           const spot = playerPhysics.currentHidingSpot;
           if (spot.exitX !== undefined && spot.exitY !== undefined && spot.exitZ !== undefined) {
@@ -11703,21 +17096,85 @@ export function getHideAndSeekHtml(): string {
         soundEngine.setMuffled(false);
         soundEngine.playHideSwoosh();
         showToast('Stepped out from cover');
-      } else {
-        const spot = findNearbyHidingSpot();
-        if (spot) {
-          playerPhysics.isHiding = true;
-          playerPhysics.currentHidingSpot = spot;
-          playerPhysics.pos.x = spot.x;
-          playerPhysics.pos.y = spot.y;
-          playerPhysics.pos.z = spot.z;
-          document.getElementById('stealth-overlay').classList.add('active');
-          soundEngine.setMuffled(true);
-          soundEngine.playHideSwoosh();
-          showToast('Hidden at ' + spot.name);
+        updatePrompts();
+        return;
+      }
+
+      // Priority 1: Rescue a captured teammate (1st catch)
+      const captive = findNearbyCaptiveTeammate();
+      if (captive) {
+        captive.isCaught = false;
+        captive.canBeRescued = false;
+        if (captive.mesh) captive.mesh.visible = true;
+        soundEngine.playFuseRepairSfx();
+        showToast('Freed teammate ' + captive.name + '!');
+        sendToReactNative('STATUS', {
+          hidersRemaining: bots.filter(b => !b.isSeeker && !b.isCaught).length + (isPlayerSpectating ? 0 : 1),
+          timeLeft: matchTimer,
+        });
+        updatePrompts();
+        return;
+      }
+
+      // Priority 2: Escape through Main Gate if all 4 Fuse Boxes are restored
+      if (mainGateUnlocked && Math.hypot(playerPhysics.pos.x - 1.5, playerPhysics.pos.z - (-59.0)) < 4.5) {
+        isGameOver = true;
+        isMatchActive = false;
+        soundEngine.playFuseRepairSfx();
+        sendToReactNative('GAMEOVER', {
+          winner: 'HIDERS',
+          reason: 'All 4 Fuse Boxes restored — You unlocked the South Main Gate and escaped!',
+        });
+        return;
+      }
+
+      // Priority 3: Restore nearby Fuse Box
+      const nearbyFuse = findNearbyFuseBox();
+      if (nearbyFuse) {
+        nearbyFuse.restored = true;
+        if (nearbyFuse.ledMat) nearbyFuse.ledMat.color.setHex(0x22c55e);
+        soundEngine.playFuseRepairSfx();
+        recordNoiseEvent(nearbyFuse.x, nearbyFuse.y, nearbyFuse.z, 0.55, 'Fuse Box Restored');
+        const restoredCount = fuseBoxes.filter(f => f.restored).length;
+        const fuseHud = document.getElementById('hud-fuses-label');
+        if (fuseHud) fuseHud.textContent = restoredCount + '/' + fuseBoxes.length;
+        if (restoredCount >= fuseBoxes.length) {
+          mainGateUnlocked = true;
+          soundEngine.playDistantChime();
+          showToast('ALL 4 FUSES RESTORED! Unlock & Escape at the South Main Gate!');
         } else {
-          showToast('Enter any classroom & move near a Table/Chair to hide!');
+          showToast('Restored ' + nearbyFuse.name + ' (' + restoredCount + '/4)!');
         }
+        sendToReactNative('FUSES_UPDATED', {
+          fusesRestored: restoredCount,
+          mainGateUnlocked,
+        });
+        updatePrompts();
+        return;
+      }
+
+      // Priority 4: Enter nearby Hiding Spot (under desks, lockers, behind curtains, cupboards, under stairs, behind bookshelves)
+      const spot = findNearbyHidingSpot();
+      if (spot) {
+        playerPhysics.isHiding = true;
+        playerPhysics.currentHidingSpot = spot;
+        playerPhysics.hideBaseYaw = playerPhysics.yaw;
+        spot.useCount = (spot.useCount || 0) + 1;
+        const isKnownSpot = spot.useCount >= ((HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.spotKnownThreshold) || 2);
+        playerPhysics.pos.x = spot.x;
+        playerPhysics.pos.y = spot.y;
+        playerPhysics.pos.z = spot.z;
+        const badgeTxt = document.getElementById('stealth-badge-text');
+        if (badgeTxt) {
+          const riskTag = isKnownSpot ? 'KNOWN SPOT (HIGH RISK!)' : ('RISK ' + Math.round((spot.riskLevel || 0.2) * 100) + '%');
+          badgeTxt.textContent = 'HIDDEN: ' + spot.name.toUpperCase() + ' • ' + riskTag + ' • PEEK VIEW';
+        }
+        document.getElementById('stealth-overlay').classList.add('active');
+        soundEngine.setMuffled(true);
+        soundEngine.playHideSwoosh();
+        showToast(isKnownSpot ? ('Hidden at ' + spot.name + ' — Careful, Hunter knows this spot!') : ('Hidden at ' + spot.name));
+      } else {
+        showToast('Move near a Desk, Locker, Curtain, Bookshelf, Staircase, or Fuse Box!');
       }
       updatePrompts();
     }
@@ -11728,6 +17185,12 @@ export function getHideAndSeekHtml(): string {
       const btnLabel = document.getElementById('btn-action-label');
       const crosshairEl = document.getElementById('crosshair');
 
+      if (!EXPLORE_FLAGS.ENABLE_HIDING_PROMPTS) {
+        if (promptEl) promptEl.classList.remove('active');
+        if (crosshairEl) crosshairEl.classList.remove('active');
+        return;
+      }
+
       if (GAME_CONFIG.role === 'seeker') {
         btnLabel.textContent = 'TAG';
         let nearHider = false;
@@ -11735,7 +17198,7 @@ export function getHideAndSeekHtml(): string {
           if (!b.isSeeker && !b.isCaught && playerPhysics.pos.distanceTo(b.mesh.position) < 3.2) nearHider = true;
         });
         if (nearHider) {
-          labelEl.textContent = 'TAG HIDER (E)';
+          labelEl.textContent = 'TAG SCHOLAR (E)';
           promptEl.classList.add('active');
           crosshairEl.classList.add('active');
         } else {
@@ -11746,22 +17209,50 @@ export function getHideAndSeekHtml(): string {
       }
 
       if (playerPhysics.isHiding) {
-        labelEl.textContent = 'LEAVE DESK COVER (E)';
+        labelEl.textContent = 'LEAVE COVER (E)';
         btnLabel.textContent = 'EXIT';
         promptEl.classList.add('active');
         crosshairEl.classList.add('active');
+        return;
+      }
+
+      const captive = findNearbyCaptiveTeammate();
+      if (captive) {
+        labelEl.textContent = 'FREE TEAMMATE: ' + captive.name.toUpperCase() + ' (E)';
+        btnLabel.textContent = 'RESCUE';
+        promptEl.classList.add('active');
+        crosshairEl.classList.add('active');
+        return;
+      }
+
+      if (mainGateUnlocked && Math.hypot(playerPhysics.pos.x - 1.5, playerPhysics.pos.z - (-59.0)) < 4.5) {
+        labelEl.textContent = 'UNLOCK MAIN GATE & ESCAPE! (E)';
+        btnLabel.textContent = 'ESCAPE';
+        promptEl.classList.add('active');
+        crosshairEl.classList.add('active');
+        return;
+      }
+
+      const fb = findNearbyFuseBox();
+      if (fb) {
+        labelEl.textContent = 'RESTORE ' + fb.name.toUpperCase() + ' (E)';
+        btnLabel.textContent = 'REPAIR';
+        promptEl.classList.add('active');
+        crosshairEl.classList.add('active');
+        return;
+      }
+
+      const spot = findNearbyHidingSpot();
+      if (spot) {
+        const knownStr = (spot.useCount || 0) >= 2 ? ' [KNOWN]' : '';
+        labelEl.textContent = 'HIDE: ' + spot.name + knownStr + ' (E)';
+        btnLabel.textContent = 'HIDE';
+        promptEl.classList.add('active');
+        crosshairEl.classList.add('active');
       } else {
-        const spot = findNearbyHidingSpot();
-        if (spot) {
-          labelEl.textContent = 'HIDE: ' + spot.name + ' (E)';
-          btnLabel.textContent = 'HIDE';
-          promptEl.classList.add('active');
-          crosshairEl.classList.add('active');
-        } else {
-          btnLabel.textContent = 'HIDE';
-          promptEl.classList.remove('active');
-          crosshairEl.classList.remove('active');
-        }
+        btnLabel.textContent = 'HIDE';
+        promptEl.classList.remove('active');
+        crosshairEl.classList.remove('active');
       }
     }
 
@@ -11770,42 +17261,71 @@ export function getHideAndSeekHtml(): string {
       if (!zoneEl) return;
       const x = playerPhysics.pos.x, y = playerPhysics.pos.y, z = playerPhysics.pos.z;
       let zone = 'GANDAKI UNIVERSITY • CENTRAL CAMPUS SPINE ROAD';
-      if (z < -42 && x < 2) zone = 'GANDAKI UNIVERSITY • MAIN PARKING PLAZA';
+      if (z < -42 && x < 2) zone = 'GANDAKI UNIVERSITY • MAIN PARKING PLAZA & ESCAPE GATE';
       else if (z < -36 && x >= 2) zone = 'GANDAKI UNIVERSITY • BUS PARKING BAY (YELLOW BUSES)';
       else if (x < -28) zone = 'GANDAKI UNIVERSITY • WEST ADMIN & WORKSHOP CLUSTER';
       else if (x >= -17 && x <= -9 && z >= -28 && z <= 0) zone = 'GANDAKI UNIVERSITY • PLANTER ISLAND COURTYARD';
       else if (x < -2 && z >= -36 && z <= 2) zone = 'GANDAKI UNIVERSITY • WEST CLASSROOM WING L1';
-      else if (x < -14 && z >= -26 && z <= 6) zone = 'GANDAKI UNIVERSITY • WEST WING L2 (MONITOR ROOF & VERANDA)';
+      else if (x < -14 && z >= -26 && z <= 6) zone = 'GANDAKI UNIVERSITY • WEST WING L2 (FUSE BOX SECTOR)';
       else if (x < -14 && z > 6 && z <= 28) zone = 'GANDAKI UNIVERSITY • WEST CLASSROOM WING L3';
       else if (x < -14 && z > 28) zone = 'GANDAKI UNIVERSITY • WEST CLASSROOM WING L4';
       else if (x >= 9 && x <= 20 && z >= -38 && z <= -10) zone = 'GANDAKI UNIVERSITY • EAST WING R1 (ACADEMIC BLOCK)';
-      else if (x > 18 && z >= -28 && z <= -4) zone = 'GANDAKI UNIVERSITY • EAST WING R2 (ACADEMIC BLOCK)';
+      else if (x > 18 && z >= -28 && z <= -4) zone = 'GANDAKI UNIVERSITY • EAST WING R2 (FUSE BOX SECTOR)';
       else if (x > 20 && z > -4 && z <= 18) zone = 'GANDAKI UNIVERSITY • EAST WING R3 (ACADEMIC BLOCK)';
       else if (x > 22 && z > 18 && z <= 46) zone = 'GANDAKI UNIVERSITY • EAST WING R4 (LONG BLOCK)';
-      else if (z > 66 && x >= -14 && x <= 26) {
-        if (y >= 6.2) zone = 'GANDAKI UNIVERSITY • ROTUNDA 3RD FLOOR & BALCONY (301-302)';
-        else if (y >= 2.5) zone = 'GANDAKI UNIVERSITY • ROTUNDA 2ND FLOOR (CLASSES 201-202)';
-        else zone = 'GANDAKI UNIVERSITY • ROTUNDA GROUND FLOOR (HALLS 101-102)';
-      } else if (z > 48) zone = 'GANDAKI UNIVERSITY • GRAND ROTUNDA PLAZA & FOUNTAIN';
+      else if (z > 51 && x >= -14 && x <= 26) {
+        if (y >= 6.2) zone = 'MAIN BUILDING • 2ND FLOOR: SEMINAR 301 (DARK) & LAB 302 (EMERGENCY RED)';
+        else if (y >= 2.5) zone = 'MAIN BUILDING • 1ST FLOOR: CLASS 201 (MOONLIT) & LIBRARY 202 (WARM LAMP)';
+        else zone = 'MAIN BUILDING • GROUND FLOOR: HALL 101 (FLICKER TUBE) & ADMIN 102';
+      } else if (z > 44) zone = 'GANDAKI UNIVERSITY • GRAND ROTUNDA PLAZA & FOUNTAIN';
       if (zoneEl.textContent !== zone) zoneEl.textContent = zone;
     }
 
     function startMatch() {
       matchTimer = GAME_CONFIG.matchDuration;
-      graceTimer = GAME_CONFIG.seekerGracePeriod;
+      graceTimer = EXPLORE_FLAGS.ENABLE_ROLES_AND_TIMER ? GAME_CONFIG.seekerGracePeriod : 0;
       isMatchActive = true;
       isGameOver = false;
       playerPhysics.isHiding = false;
+      playerCatchCount = 0;
+      isPlayerSpectating = false;
+      flashlightBattery = 100.0;
+      isFlashlightOn = true;
+      throwablesRemaining = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.scholarStartingThrowables) || 2;
+      breathMiniGame.active = false;
       document.getElementById('stealth-overlay').classList.remove('active');
       document.getElementById('horror-pulse-overlay').style.opacity = '0';
+      const glitchEl = document.getElementById('horror-glitch-overlay');
+      if (glitchEl) glitchEl.style.opacity = '0';
+      const flashEl = document.getElementById('horror-jumpscare-flash');
+      if (flashEl) flashEl.style.opacity = '0';
+      const specEl = document.getElementById('spectator-overlay');
+      if (specEl) specEl.style.display = 'none';
+      const bmEl = document.getElementById('breath-minigame-overlay');
+      if (bmEl) bmEl.style.display = 'none';
+      const telHud = document.getElementById('gameplay-telemetry-hud');
+      if (telHud) telHud.style.display = EXPLORE_FLAGS.ENABLE_GAMEPLAY_HUD ? 'flex' : 'none';
+      const actPrompt = document.getElementById('action-prompt');
+      if (actPrompt && !EXPLORE_FLAGS.ENABLE_GAMEPLAY_HUD) actPrompt.classList.remove('active');
+
+      const flBtnLbl = document.getElementById('btn-flashlight-label');
+      if (flBtnLbl) flBtnLbl.textContent = (!EXPLORE_MODE && GAME_CONFIG.role === 'seeker') ? 'PING' : 'LIGHT';
+      const thBtn = document.getElementById('btn-throw');
+      if (thBtn) thBtn.style.display = EXPLORE_FLAGS.ENABLE_THROWABLE_DISTRACTIONS ? 'flex' : 'none';
+      const actBtn = document.getElementById('btn-action');
+      if (actBtn) actBtn.style.display = EXPLORE_FLAGS.ENABLE_HIDING_SPOTS_AND_MINIGAME ? 'flex' : 'none';
+      const thBtnLbl = document.getElementById('btn-throw-label');
+      if (thBtnLbl) thBtnLbl.textContent = (!EXPLORE_MODE && GAME_CONFIG.role === 'seeker') ? 'PULSE' : ('THROW (' + throwablesRemaining + ')');
 
       initCharactersAndBots();
 
-      if (GAME_CONFIG.role === 'seeker') {
+      if (!EXPLORE_MODE && GAME_CONFIG.role === 'seeker') {
         playerPhysics.pos.set(0, 0, -60);
         playerPhysics.yaw = 0;
         playerPhysics.targetYaw = 0;
-        document.getElementById('blindfold-overlay').classList.add('active');
+        if (EXPLORE_FLAGS.ENABLE_ROLES_AND_TIMER) {
+          document.getElementById('blindfold-overlay').classList.add('active');
+        }
       } else {
         playerPhysics.pos.set(-4, 0, -48);
         playerPhysics.yaw = 0;
@@ -11813,31 +17333,36 @@ export function getHideAndSeekHtml(): string {
         document.getElementById('blindfold-overlay').classList.remove('active');
       }
 
-      sendToReactNative('STATUS', {
-        hidersRemaining: GAME_CONFIG.botCount,
-        timeLeft: matchTimer,
-      });
+      if (EXPLORE_FLAGS.ENABLE_ROLES_AND_TIMER) {
+        sendToReactNative('STATUS', {
+          hidersRemaining: GAME_CONFIG.botCount,
+          timeLeft: matchTimer,
+          fusesRestored: 0,
+          mainGateUnlocked: false,
+        });
+      }
     }
 
     function evaluateGameStatus(timeOut = false) {
-      if (isGameOver) return;
+      if (!EXPLORE_FLAGS.ENABLE_WIN_LOSE_EVALUATION || isGameOver) return;
+      const activeBotScholars = bots.filter(b => !b.isSeeker && !b.isCaught).length;
       const remainingHiders = GAME_CONFIG.role === 'seeker'
-        ? bots.filter(b => !b.isSeeker && !b.isCaught).length
-        : 1;
+        ? activeBotScholars
+        : (activeBotScholars + (isPlayerSpectating ? 0 : 1));
 
-      if (GAME_CONFIG.role === 'seeker' && remainingHiders === 0) {
+      if (remainingHiders === 0) {
         isGameOver = true;
         isMatchActive = false;
         sendToReactNative('GAMEOVER', {
           winner: 'SEEKER',
-          reason: 'Campus Security discovered all scholars before daybreak!',
+          reason: 'The Hollow Proctor captured all Scholars before the Main Gate was unlocked!',
         });
       } else if (timeOut) {
         isGameOver = true;
         isMatchActive = false;
         sendToReactNative('GAMEOVER', {
           winner: 'HIDERS',
-          reason: 'Scholars remained hidden inside the classrooms throughout the night!',
+          reason: 'Scholars survived the night until the 9-minute bell rang!',
         });
       }
     }
@@ -11845,16 +17370,16 @@ export function getHideAndSeekHtml(): string {
     function updatePlayer(delta, timeSec = 0) {
       if (!isMatchActive) return;
 
-      let canMove = true;
-      if (graceTimer > 0) {
+      let canMove = !isPlayerSpectating;
+      if (EXPLORE_FLAGS.ENABLE_ROLES_AND_TIMER && graceTimer > 0) {
         graceTimer -= delta;
         document.getElementById('blindfold-counter').textContent = Math.ceil(Math.max(0, graceTimer));
         if (graceTimer <= 0) {
           document.getElementById('blindfold-overlay').classList.remove('active');
-          showToast('Patrol Begins!');
+          showToast('Round Started — Restore 4 Fuse Boxes or Survive!');
         }
         if (GAME_CONFIG.role === 'seeker') {
-          canMove = false; // Seeker cannot walk during grace period, but CAN look around!
+          canMove = false;
         }
       }
 
@@ -11865,7 +17390,7 @@ export function getHideAndSeekHtml(): string {
 
       // 2. Input handling: touch joystick & keyboard
       let targetInputX = touchMove.x;
-      let targetInputZ = -touchMove.y; // Joystick UP (-touchMove.y > 0) = forward (+Z input)
+      let targetInputZ = -touchMove.y;
       if (keys['KeyD'] || keys['ArrowRight']) targetInputX += 1;
       if (keys['KeyA'] || keys['ArrowLeft']) targetInputX -= 1;
       if (keys['KeyW'] || keys['ArrowUp']) targetInputZ += 1;
@@ -11876,7 +17401,6 @@ export function getHideAndSeekHtml(): string {
         targetInputZ = 0;
       }
 
-      // Responsive input smoothing
       const inputSnap = 32.0;
       playerPhysics.smoothMoveX += (targetInputX - playerPhysics.smoothMoveX) * Math.min(1.0, inputSnap * delta);
       playerPhysics.smoothMoveZ += (targetInputZ - playerPhysics.smoothMoveZ) * Math.min(1.0, inputSnap * delta);
@@ -11885,7 +17409,7 @@ export function getHideAndSeekHtml(): string {
       let moveForward = playerPhysics.smoothMoveZ;
 
       if (playerPhysics.isHiding) {
-        if (Math.abs(moveForward) > 0.4 || Math.abs(moveRight) > 0.4) performAction();
+        if (!breathMiniGame.active && (Math.abs(moveForward) > 0.45 || Math.abs(moveRight) > 0.45)) performAction();
         moveForward = 0;
         moveRight = 0;
       }
@@ -11901,122 +17425,205 @@ export function getHideAndSeekHtml(): string {
       const walkSpd = pCfg.walkSpeed || 4.8;
       const runSpd = pCfg.runSpeed || 6.6;
       const crouchSpd = pCfg.crouchSpeed || 2.2;
+      const hunterSpd = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.hunterSpeed) || 5.35;
 
-      let targetSpeed = walkSpd;
+      let targetSpeed = (!EXPLORE_MODE && GAME_CONFIG.role === 'seeker') ? hunterSpd : walkSpd;
       const isSprint = keys['ShiftLeft'] || keys['ShiftRight'] || playerPhysics.isSprinting;
-      if (playerPhysics.isCrouching) targetSpeed = crouchSpd;
-      else if (isSprint) targetSpeed = runSpd;
+      if (playerPhysics.isCrouching && !exploreTools.freeFly) targetSpeed = crouchSpd;
+      else if (isSprint && (EXPLORE_MODE || GAME_CONFIG.role !== 'seeker')) targetSpeed = runSpd;
 
-      // 4. Movement direction computed strictly from playerPhysics.yaw only with joystick UP = forward (-Z in Three.js)
-      let targetVx = 0;
-      let targetVz = 0;
-      if (isMoving) {
-        // Normalize movement vector so diagonal speed equals straight speed
-        const axialMag = Math.max(Math.abs(moveForward), Math.abs(moveRight));
-        const clampedMag = Math.min(1.0, axialMag);
-        const normF = (moveForward / (moveMag || 1)) * clampedMag;
-        const normR = (moveRight / (moveMag || 1)) * clampedMag;
+      // Update Noise Level Indicator (only when gameplay HUD is enabled)
+      if (EXPLORE_FLAGS.ENABLE_GAMEPLAY_HUD) {
+        const targetNoise = !isMoving
+          ? 0.06
+          : (playerPhysics.isCrouching ? 0.14 : (isSprint ? 0.94 : 0.46));
+        playerNoiseLevel += (targetNoise - playerNoiseLevel) * Math.min(1.0, 8.0 * delta);
+        const noiseBarEl = document.getElementById('hud-noise-bar');
+        const noiseLblEl = document.getElementById('hud-noise-label');
+        if (noiseBarEl && noiseLblEl) {
+          noiseBarEl.style.width = Math.round(playerNoiseLevel * 100) + '%';
+          if (playerNoiseLevel > 0.68) {
+            noiseBarEl.style.background = '#ef4444';
+            noiseLblEl.textContent = 'LOUD!';
+          } else if (playerNoiseLevel > 0.25) {
+            noiseBarEl.style.background = '#f59e0b';
+            noiseLblEl.textContent = 'MEDIUM';
+          } else {
+            noiseBarEl.style.background = '#22c55e';
+            noiseLblEl.textContent = 'QUIET';
+          }
+        }
+      }
+
+      // 4. Free-Fly (Noclip) Camera Mode vs. Walk Mode
+      if (exploreTools.freeFly) {
+        const flySpd = targetSpeed * 1.45;
         const sinY = Math.sin(playerPhysics.yaw);
         const cosY = Math.cos(playerPhysics.yaw);
-        // In Three.js: forward facing is -Z when yaw = 0
-        targetVx = (normR * cosY - normF * sinY) * targetSpeed;
-        targetVz = (normR * sinY - normF * cosY) * targetSpeed;
-      }
-
-      // 5. Substepping movement physics & sliding collision response
-      const maxDt = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.maxDeltaTime) || 0.1;
-      const clampedDelta = Math.min(delta, maxDt);
-      const maxSubSteps = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.maxSubSteps) || 6;
-      const targetDt = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.targetSubStepDt) || (1.0 / 60.0);
-      const subSteps = Math.min(maxSubSteps, Math.max(1, Math.ceil(clampedDelta / targetDt)));
-      const subDt = clampedDelta / subSteps;
-      const accelRate = isMoving ? (pCfg.acceleration || 28.0) : (pCfg.deceleration || 32.0);
-      const playerH = playerPhysics.isHiding ? (pCfg.hidingHeight || 0.65) : (playerPhysics.isCrouching ? (pCfg.crouchHeight || 1.05) : (pCfg.standingHeight || 1.80));
-      const stepH = pCfg.stepHeight || 0.52;
-      const gravity = pCfg.gravity || 16.5;
-
-      physicsDebug.hasCollided = false;
-
-      for (let s = 0; s < subSteps; s++) {
-        // Horizontal velocity acceleration & damping
-        playerPhysics.vel.x += (targetVx - playerPhysics.vel.x) * Math.min(1.0, accelRate * subDt);
-        playerPhysics.vel.z += (targetVz - playerPhysics.vel.z) * Math.min(1.0, accelRate * subDt);
-
-        // Position integration
-        playerPhysics.pos.x += playerPhysics.vel.x * subDt;
-        playerPhysics.pos.z += playerPhysics.vel.z * subDt;
-
-        // Vertical floor step & jump gravity
-        const targetGroundY = getSupportFloorY(playerPhysics.pos.x, playerPhysics.pos.z, playerPhysics.pos.y);
-
-        if (!playerPhysics.isGrounded) {
-          playerPhysics.vel.y -= gravity * subDt;
-          let nextY = playerPhysics.pos.y + playerPhysics.vel.y * subDt;
-          if (nextY <= targetGroundY) {
-            nextY = targetGroundY;
-            playerPhysics.vel.y = 0;
-            playerPhysics.isGrounded = true;
-          }
-          playerPhysics.pos.y = nextY;
-        } else {
-          const stepDiff = targetGroundY - playerPhysics.pos.y;
-          if (Math.abs(stepDiff) < 0.04) {
-            playerPhysics.pos.y = targetGroundY;
-          } else {
-            playerPhysics.pos.y += stepDiff * Math.min(1.0, 18.0 * subDt);
-          }
+        const cosP = Math.cos(playerPhysics.pitch);
+        const sinP = Math.sin(playerPhysics.pitch);
+        let vx = 0, vy = 0, vz = 0;
+        if (isMoving) {
+          const axialMag = Math.min(1.0, Math.max(Math.abs(moveForward), Math.abs(moveRight)));
+          const normF = (moveForward / (moveMag || 1)) * axialMag;
+          const normR = (moveRight / (moveMag || 1)) * axialMag;
+          vx = (normR * cosY - normF * sinY * cosP) * flySpd;
+          vz = (normR * sinY - normF * cosY * cosP) * flySpd;
+          vy = (normF * sinP) * flySpd;
+        }
+        if (keys['Space'] || keys['KeyE'] || exploreTools.flyUpHeld) vy += flySpd * 0.85;
+        if (keys['KeyC'] || keys['KeyQ'] || exploreTools.flyDownHeld) vy -= flySpd * 0.85;
+        playerPhysics.vel.set(vx, vy, vz);
+        playerPhysics.pos.x = Math.max(-88, Math.min(88, playerPhysics.pos.x + vx * delta));
+        playerPhysics.pos.y = Math.max(-2, Math.min(65, playerPhysics.pos.y + vy * delta));
+        playerPhysics.pos.z = Math.max(-88, Math.min(88, playerPhysics.pos.z + vz * delta));
+        playerPhysics.isGrounded = false;
+        physicsDebug.hasCollided = false;
+      } else {
+        // Movement direction computed strictly from playerPhysics.yaw only
+        let targetVx = 0;
+        let targetVz = 0;
+        if (isMoving) {
+          const axialMag = Math.max(Math.abs(moveForward), Math.abs(moveRight));
+          const clampedMag = Math.min(1.0, axialMag);
+          const normF = (moveForward / (moveMag || 1)) * clampedMag;
+          const normR = (moveRight / (moveMag || 1)) * clampedMag;
+          const sinY = Math.sin(playerPhysics.yaw);
+          const cosY = Math.cos(playerPhysics.yaw);
+          targetVx = (normR * cosY - normF * sinY) * targetSpeed;
+          targetVz = (normR * sinY - normF * cosY) * targetSpeed;
         }
 
-        // Two relaxation passes per substep for seamless multi-box corner sliding
-        resolveCollisionSubstep(playerPhysics.pos, playerPhysics.vel, playerPhysics.radius, playerH, stepH, playerPhysics.isHiding);
-        resolveCollisionSubstep(playerPhysics.pos, playerPhysics.vel, playerPhysics.radius, playerH, stepH, playerPhysics.isHiding);
-      }
+        // 5. Substepping movement physics & sliding collision response
+        const maxDt = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.maxDeltaTime) || 0.1;
+        const clampedDelta = Math.min(delta, maxDt);
+        const maxSubSteps = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.maxSubSteps) || 6;
+        const targetDt = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.targetSubStepDt) || (1.0 / 60.0);
+        const subSteps = Math.min(maxSubSteps, Math.max(1, Math.ceil(clampedDelta / targetDt)));
+        const subDt = clampedDelta / subSteps;
+        const accelRate = isMoving ? (pCfg.acceleration || 28.0) : (pCfg.deceleration || 32.0);
+        const playerH = playerPhysics.isHiding ? (pCfg.hidingHeight || 0.65) : (playerPhysics.isCrouching ? (pCfg.crouchHeight || 1.05) : (pCfg.standingHeight || 1.80));
+        const stepH = pCfg.stepHeight || 0.52;
+        const gravity = pCfg.gravity || 16.5;
 
-      // Log collision debug info in console if enabled
-      if (physicsDebug.enabled && physicsDebug.hasCollided) {
-        console.log('[Physics Collision] Vel:', playerPhysics.vel.x.toFixed(2), playerPhysics.vel.z.toFixed(2), 'Normal:', physicsDebug.lastNormal.x.toFixed(2), physicsDebug.lastNormal.z.toFixed(2));
-      }
+        physicsDebug.hasCollided = false;
 
-      // Realistic Footsteps with surface audio & corridor acoustic resonance
-      if (isMoving && playerPhysics.isGrounded) {
-        const actualSpeed = Math.hypot(playerPhysics.vel.x, playerPhysics.vel.z);
-        playerPhysics.footstepTimer += delta * (actualSpeed / 4.8);
-        if (playerPhysics.footstepTimer > 0.44) {
-          playerPhysics.footstepTimer = 0;
-          let surface = 'paver';
-          const px = playerPhysics.pos.x;
-          const py = playerPhysics.pos.y;
-          const pz = playerPhysics.pos.z;
+        for (let s = 0; s < subSteps; s++) {
+          playerPhysics.vel.x += (targetVx - playerPhysics.vel.x) * Math.min(1.0, accelRate * subDt);
+          playerPhysics.vel.z += (targetVz - playerPhysics.vel.z) * Math.min(1.0, accelRate * subDt);
 
-          // Check if on lawn or planter grass
-          const isLawn = (px < -21 || px > 27) || (pz > 66) || (Math.hypot(px - 9.8, pz - (-37.0)) < 2.5);
-          // Check if on stair / ramp
-          const isOnRamp = walkableStairRamps.some(r => px >= r.minX && px <= r.maxX && pz >= r.minZ && pz <= r.maxZ);
+          playerPhysics.pos.x += playerPhysics.vel.x * subDt;
+          playerPhysics.pos.z += playerPhysics.vel.z * subDt;
 
-          if (isLawn && py <= 0.05) {
-            surface = 'grass';
-          } else if (isOnRamp || (Math.abs(playerPhysics.vel.y) > 0.08 && py > 0.1)) {
-            surface = 'stair';
-          } else if (py >= 0.42) {
-            surface = 'classroom';
-          } else if (pz < -42 && px > -2.0 && px < 4.0) {
-            surface = 'road';
+          const targetGroundY = getSupportFloorY(playerPhysics.pos.x, playerPhysics.pos.z, playerPhysics.pos.y);
+          const ceilingMaxBottomY = getCeilingLimitBottomY(playerPhysics.pos.x, playerPhysics.pos.z, playerPhysics.pos.y, playerH);
+
+          if (!playerPhysics.isGrounded) {
+            playerPhysics.vel.y -= gravity * subDt;
+            let nextY = playerPhysics.pos.y + playerPhysics.vel.y * subDt;
+            if (nextY >= ceilingMaxBottomY) {
+              nextY = ceilingMaxBottomY;
+              if (playerPhysics.vel.y > 0) playerPhysics.vel.y = 0;
+            }
+            if (nextY <= targetGroundY) {
+              nextY = targetGroundY;
+              playerPhysics.vel.y = 0;
+              playerPhysics.isGrounded = true;
+            }
+            playerPhysics.pos.y = nextY;
           } else {
-            surface = 'paver';
+            const stepDiff = targetGroundY - playerPhysics.pos.y;
+            if (Math.abs(stepDiff) < 0.04) {
+              playerPhysics.pos.y = targetGroundY;
+            } else {
+              playerPhysics.pos.y += stepDiff * Math.min(1.0, 18.0 * subDt);
+            }
           }
-          soundEngine.playFootstep(surface, playerPhysics.isCrouching);
+
+          resolveCollisionSubstep(playerPhysics.pos, playerPhysics.vel, playerPhysics.radius, playerH, stepH, playerPhysics.isHiding);
+          resolveCollisionSubstep(playerPhysics.pos, playerPhysics.vel, playerPhysics.radius, playerH, stepH, playerPhysics.isHiding);
+        }
+
+        // Realistic Footsteps with surface audio
+        if (isMoving && playerPhysics.isGrounded) {
+          const actualSpeed = Math.hypot(playerPhysics.vel.x, playerPhysics.vel.z);
+          playerPhysics.footstepTimer += delta * (actualSpeed / 4.8);
+          if (playerPhysics.footstepTimer > 0.44) {
+            playerPhysics.footstepTimer = 0;
+            let surface = 'paver';
+            const px = playerPhysics.pos.x;
+            const py = playerPhysics.pos.y;
+            const pz = playerPhysics.pos.z;
+
+            const isLawn = (px < -21 || px > 27) || (pz > 66) || (Math.hypot(px - 9.8, pz - (-37.0)) < 2.5);
+            const isOnRamp = walkableStairRamps.some(r => px >= r.minX && px <= r.maxX && pz >= r.minZ && pz <= r.maxZ);
+
+            if (isLawn && py <= 0.05) {
+              surface = 'grass';
+            } else if (isOnRamp || (Math.abs(playerPhysics.vel.y) > 0.08 && py > 0.1)) {
+              surface = 'stair';
+            } else if (py >= 0.42) {
+              surface = 'classroom';
+            } else if (pz < -42 && px > -2.0 && px < 4.0) {
+              surface = 'road';
+            } else {
+              surface = 'paver';
+            }
+            soundEngine.playFootstep(surface, playerPhysics.isCrouching);
+            if (EXPLORE_FLAGS.ENABLE_HUNTER_AND_BOTS) {
+              if (isSprint && !playerPhysics.isCrouching) {
+                recordNoiseEvent(px, py, pz, 0.90, 'Sprint Footsteps');
+              } else if (!playerPhysics.isCrouching) {
+                recordNoiseEvent(px, py, pz, 0.35, 'Walk Footsteps');
+              }
+            }
+          }
         }
       }
 
-      // Check if player is beneath covered veranda or inside room for corridor acoustics
+      // Check for Battery Pickups (disabled in EXPLORE_MODE)
+      if (EXPLORE_FLAGS.ENABLE_FUSE_BOXES_AND_OBJECTIVES) {
+        for (let b = 0; b < batteryPickups.length; b++) {
+          const bp = batteryPickups[b];
+          if (bp.collected) continue;
+          if (Math.abs(playerPhysics.pos.y - bp.y) < 1.5 && Math.hypot(playerPhysics.pos.x - bp.x, playerPhysics.pos.z - bp.z) < 1.35) {
+            bp.collected = true;
+            if (bp.mesh) bp.mesh.visible = false;
+            flashlightBattery = Math.min(100, flashlightBattery + ((HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.flashlightRechargeAmount) || 45));
+            isFlashlightOn = true;
+            soundEngine.playFuseRepairSfx();
+            showToast('Picked up Battery Cell (+45% Flashlight)!');
+          }
+        }
+      }
+
+      // Flashlight Battery Drain: Infinite in EXPLORE_MODE!
+      if (EXPLORE_FLAGS.INFINITE_FLASHLIGHT_BATTERY) {
+        flashlightBattery = 100.0;
+      } else if (GAME_CONFIG.role !== 'seeker' && isFlashlightOn && flashlightBattery > 0) {
+        const drainRate = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.flashlightBatteryDrainPerSec) || 1.15;
+        flashlightBattery = Math.max(0, flashlightBattery - drainRate * delta);
+        if (flashlightBattery <= 0) {
+          isFlashlightOn = false;
+          showToast('Flashlight battery depleted!');
+        }
+      }
+      const battLbl = document.getElementById('hud-battery-label');
+      if (battLbl) battLbl.textContent = Math.round(flashlightBattery) + '%';
+
       const inCoveredArea = (playerPhysics.pos.y >= 0.42) ||
         (playerPhysics.pos.x >= -19 && playerPhysics.pos.x <= -13 && playerPhysics.pos.z >= -26 && playerPhysics.pos.z <= 6) ||
         (Math.hypot(playerPhysics.pos.x - rotX, playerPhysics.pos.z - rotFrontZ) < 6.5 && playerPhysics.pos.y <= 0.6);
+      const isIndoorsBuilding = inCoveredArea ||
+        (playerPhysics.pos.z >= 51.0 && playerPhysics.pos.x >= -13.5 && playerPhysics.pos.x <= 25.5) ||
+        (playerPhysics.pos.x >= 19.5 && playerPhysics.pos.z >= -34.0 && playerPhysics.pos.z <= 12.0) ||
+        (playerPhysics.pos.x <= -13.0 && playerPhysics.pos.z >= -34.0 && playerPhysics.pos.z <= 12.0);
       soundEngine.setCorridorAcoustics(inCoveredArea);
+      soundEngine.updateSpatialLoops(playerPhysics.pos, playerPhysics.yaw, isIndoorsBuilding);
 
-      // Third-Person Character Rig: Facing Movement Direction (GTA V Style)
+      // Third-Person Character Rig
       if (playerCharacter) {
-        playerCharacter.visible = (playerPhysics.cameraMode === 'third');
+        playerCharacter.visible = (playerPhysics.cameraMode === 'third' && !isPlayerSpectating && !exploreTools.overviewCam && !exploreTools.freeFly);
         playerCharacter.position.copy(playerPhysics.pos);
 
         const actualSpeed = Math.hypot(playerPhysics.vel.x, playerPhysics.vel.z);
@@ -12033,28 +17640,39 @@ export function getHideAndSeekHtml(): string {
         animateCharacterRig(playerCharacter, speedRatio, playerPhysics.isCrouching || playerPhysics.isHiding, delta);
       }
 
-      // Eye Height & Dynamic Head Bobbing (GTA V Natural Motion)
       const targetEye = playerPhysics.isHiding
         ? (pCfg.hidingEyeHeight || 0.58)
-        : (playerPhysics.isCrouching ? (pCfg.crouchEyeHeight || 0.95) : (pCfg.standingEyeHeight || 1.62));
+        : (playerPhysics.isCrouching && !exploreTools.freeFly ? (pCfg.crouchEyeHeight || 0.95) : (pCfg.standingEyeHeight || 1.62));
       playerPhysics.currentEyeHeight += (targetEye - playerPhysics.currentEyeHeight) * 12.0 * delta;
 
       let vertBob = 0;
       let latBob = 0;
-      if (isMoving && playerPhysics.isGrounded && !playerPhysics.isHiding) {
-        const bobSpeed = (targetSpeed > 5.5) ? 12.0 : (playerPhysics.isCrouching ? 6.5 : 9.5);
-        playerPhysics.bobTimer += delta * bobSpeed;
-        const bobAmp = playerPhysics.isCrouching ? 0.022 : (targetSpeed > 5.5 ? 0.052 : 0.038);
-        vertBob = Math.sin(playerPhysics.bobTimer) * bobAmp;
-        latBob = Math.cos(playerPhysics.bobTimer * 0.5) * (bobAmp * 0.45);
-      } else if (!playerPhysics.isHiding) {
-        vertBob = Math.sin(Date.now() * 0.0024) * 0.008; // Idle breathing
+      if (!exploreTools.freeFly && !exploreTools.overviewCam) {
+        if (isMoving && playerPhysics.isGrounded && !playerPhysics.isHiding) {
+          const bobSpeed = (targetSpeed > 5.5) ? 12.0 : (playerPhysics.isCrouching ? 6.5 : 9.5);
+          playerPhysics.bobTimer += delta * bobSpeed;
+          const bobAmp = playerPhysics.isCrouching ? 0.022 : (targetSpeed > 5.5 ? 0.052 : 0.038);
+          vertBob = Math.sin(playerPhysics.bobTimer) * bobAmp;
+          latBob = Math.cos(playerPhysics.bobTimer * 0.5) * (bobAmp * 0.45);
+        } else if (!playerPhysics.isHiding && EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_SHAKE) {
+          vertBob = Math.sin(Date.now() * 0.0024) * 0.008;
+        }
       }
 
       const eyeY = playerPhysics.pos.y + playerPhysics.currentEyeHeight + vertBob;
 
-      // Camera Placement with 3rd-Person Wall Raycast Collision (Never modifies look direction or movement)
-      if (playerPhysics.cameraMode === 'first') {
+      // Top-Down 3D Campus Overview Camera vs Spectator / 1st-Person / 3rd-Person
+      if (exploreTools.overviewCam) {
+        camera.position.set(playerPhysics.pos.x * 0.35, 112.0, playerPhysics.pos.z * 0.35 + 4.0);
+        camera.rotation.set(-Math.PI * 0.49, 0, 0);
+      } else if (isPlayerSpectating && EXPLORE_FLAGS.ENABLE_HUNTER_AND_BOTS) {
+        const aliveScholars = bots.filter(b => !b.isSeeker && !b.isCaught && b.mesh);
+        if (aliveScholars.length > 0) {
+          const sb = aliveScholars[spectateBotIdx % aliveScholars.length];
+          camera.position.set(sb.mesh.position.x, sb.mesh.position.y + 2.2, sb.mesh.position.z + 3.0);
+          camera.lookAt(sb.mesh.position.x, sb.mesh.position.y + 1.2, sb.mesh.position.z);
+        }
+      } else if (playerPhysics.cameraMode === 'first' || exploreTools.freeFly) {
         const cosYaw = Math.cos(playerPhysics.yaw);
         const sinYaw = Math.sin(playerPhysics.yaw);
         camera.position.set(
@@ -12065,9 +17683,12 @@ export function getHideAndSeekHtml(): string {
         camera.rotation.y = playerPhysics.yaw;
         camera.rotation.x = playerPhysics.pitch;
 
-        // Subtle turn roll banking
-        const turnRate = playerPhysics.targetYaw - playerPhysics.yaw;
-        camera.rotation.z = Math.max(-0.025, Math.min(0.025, turnRate * 0.15));
+        if (EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_SHAKE) {
+          const turnRate = playerPhysics.targetYaw - playerPhysics.yaw;
+          camera.rotation.z = Math.max(-0.025, Math.min(0.025, turnRate * 0.15));
+        } else {
+          camera.rotation.z = 0;
+        }
       } else {
         camera.rotation.z = 0;
         const idealDist = pCfg.idealCameraDist || 3.4;
@@ -12080,7 +17701,6 @@ export function getHideAndSeekHtml(): string {
         const headY = eyeY + 0.15;
         const headZ = playerPhysics.pos.z;
 
-        // Check if wall is occluding third-person camera
         const targetCamDist = raycastCameraDistance(headX, headY, headZ, dirX, dirY, dirZ, idealDist);
         const camRate = (targetCamDist < playerPhysics.camDist) ? 22.0 : 8.0;
         playerPhysics.camDist += (targetCamDist - playerPhysics.camDist) * Math.min(1.0, camRate * delta);
@@ -12099,7 +17719,6 @@ export function getHideAndSeekHtml(): string {
         );
         camera.lookAt(headX, headY + 0.15 * vertRatio, headZ);
 
-        // Softly fade character mesh when camera pulls close against walls so interior never clips through screen
         if (playerCharacter) {
           const fadeStart = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.cameraFadeStartDist) || 0.60;
           const fadeEnd = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.cameraFadeEndDist) || 0.15;
@@ -12114,20 +17733,36 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // Phase A Requirement 3: Update Room & Building Portal/Distance Visibility
+      // Phase A Requirement 3: Update Room & Building Portal/Distance Visibility & Shadow Budget
       updateRoomAndBuildingVisibility(playerPhysics.pos, playerPhysics.yaw, activePreset);
 
-      // Phase A Requirement 4: Update Player Flashlight (SpotLight)
-      if (atmosphere && atmosphere.flashlight && atmosphere.flashlightTarget) {
-        const fx = -Math.sin(playerPhysics.yaw) * Math.cos(playerPhysics.pitch);
-        const fy = Math.sin(playerPhysics.pitch);
-        const fz = -Math.cos(playerPhysics.yaw) * Math.cos(playerPhysics.pitch);
-        atmosphere.flashlight.position.copy(camera.position);
-        atmosphere.flashlightTarget.position.set(
-          camera.position.x + fx * 12.0,
-          camera.position.y + fy * 12.0,
-          camera.position.z + fz * 12.0
+      // Requirement 1 & 5: Update Main Player Flashlight (Soft-edged SpotLight, visible volumetric beam cone, >=4m reveal in dark rooms at min battery)
+      if (atmosphere && atmosphere.updateFlashlight) {
+        const isOn = (!EXPLORE_MODE && GAME_CONFIG.role === 'seeker') ? true : isFlashlightOn;
+        atmosphere.updateFlashlight(
+          delta,
+          timeSec,
+          camera.position,
+          playerPhysics.yaw,
+          playerPhysics.pitch,
+          EXPLORE_FLAGS.INFINITE_FLASHLIGHT_BATTERY ? 0.0 : (currentHunterProximity || 0.0),
+          playerPhysics.isHiding,
+          (playerPhysics.cameraMode === 'first' || exploreTools.freeFly) && !isPlayerSpectating && !exploreTools.overviewCam
         );
+        if (!isOn || exploreTools.overviewCam) {
+          atmosphere.flashlight.intensity = 0;
+          if (atmosphere.flashlightSpill) atmosphere.flashlightSpill.intensity = 0;
+          if (atmosphere.flashlightRig) atmosphere.flashlightRig.visible = false;
+        } else {
+          if (atmosphere.flashlightRig) {
+            atmosphere.flashlightRig.visible = (exploreTools.flashlightBeamEnabled !== false);
+          }
+          if (!EXPLORE_FLAGS.INFINITE_FLASHLIGHT_BATTERY && flashlightBattery <= 5.0) {
+            // At minimum/reserve battery in dark rooms, guarantee ~4.2m ahead reveal without washing out the room mood
+            const minDarkDist = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.flashlightMinDarkRoomDistance) || 4.6;
+            atmosphere.flashlight.distance = Math.min(atmosphere.flashlight.distance, minDarkDist + (flashlightBattery / 5.0) * 4.0);
+          }
+        }
       }
 
       // Physics & Render Telemetry HUD update & capsule wireframe
@@ -12137,8 +17772,16 @@ export function getHideAndSeekHtml(): string {
         if (hudEl) {
           const fpsEl = document.getElementById('dbg-fps');
           const rInfo = (renderer && renderer.info) ? renderer.info : { render: { calls: 0 }, memory: { geometries: 0, textures: 0 } };
+          const totalCalls = (atmosphere && typeof atmosphere.lastTotalDrawCalls === 'number' && atmosphere.lastTotalDrawCalls > 0)
+            ? atmosphere.lastTotalDrawCalls
+            : (rInfo.render.calls || 0);
           if (fpsEl) {
-            fpsEl.textContent = 'FPS: ' + Math.round(physicsDebug.fps) + ' | Calls: ' + (rInfo.render.calls || 0) + ' | Geos: ' + (rInfo.memory.geometries || 0) + ' | Tex: ' + (rInfo.memory.textures || 0);
+            const curFrameMs = 1000.0 / Math.max(1.0, rollingAvgFps || physicsDebug.fps || 60);
+            const headroomPct = Math.max(0, ((16.67 - curFrameMs) / 16.67) * 100).toFixed(0);
+            const minHist = (sessionTelemetry && sessionTelemetry.minuteHistory && sessionTelemetry.minuteHistory.length > 0)
+              ? (' | 10mLog: ' + sessionTelemetry.minuteHistory.map(m => 'M' + m.minute + ':' + m.avgFps).join(' '))
+              : '';
+            fpsEl.textContent = 'FPS: ' + Math.round(physicsDebug.fps) + ' (5s Avg: ' + Math.round(rollingAvgFps) + ', ' + curFrameMs.toFixed(1) + 'ms, Headroom: ' + headroomPct + '%) | Calls: ' + totalCalls + ' | ' + qualityPinMode.toUpperCase() + ':' + currentQuality.toUpperCase() + (batterySaverEnabled ? ' [SAVER 30]' : '') + minHist;
           }
           document.getElementById('dbg-pos').textContent = 'Pos: (' + playerPhysics.pos.x.toFixed(1) + ', ' + playerPhysics.pos.y.toFixed(1) + ', ' + playerPhysics.pos.z.toFixed(1) + ') | VisRooms: ' + visibleRoomsCount;
           const spd = Math.hypot(playerPhysics.vel.x, playerPhysics.vel.z);
@@ -12150,19 +17793,23 @@ export function getHideAndSeekHtml(): string {
           const pitchDeg = ((playerPhysics.pitch * 180 / Math.PI) % 360).toFixed(1);
           document.getElementById('dbg-look').textContent = 'Yaw: ' + yawDeg + '° (' + playerPhysics.yaw.toFixed(2) + ' rad) | Pitch: ' + pitchDeg + '°';
           const grEl = document.getElementById('dbg-ground');
-          if (grEl) grEl.textContent = 'Grounded: ' + playerPhysics.isGrounded + ' | Crouching: ' + playerPhysics.isCrouching + ' | Hiding: ' + playerPhysics.isHiding;
+          if (grEl) grEl.textContent = 'Grounded: ' + playerPhysics.isGrounded + ' | Crouching: ' + playerPhysics.isCrouching + ' | FreeFly: ' + exploreTools.freeFly;
           const n = physicsDebug.lastNormal;
           document.getElementById('dbg-normal').textContent = physicsDebug.hasCollided ? ('Coll Normal: (' + n.x.toFixed(2) + ', ' + n.z.toFixed(2) + ')') : 'Coll Normal: None';
         }
       }
 
-      // TASK 2: Extra camera breathing & roll sway scaled by hunter proximity
-      const proxSway = currentHunterProximity || 0.0;
-      const swayAmp = (HORROR_CONFIG.tension.baseSwayRoll || 0.006) + proxSway * (HORROR_CONFIG.tension.hunterNearSwayRoll || 0.028);
-      camera.rotation.z += Math.sin(timeSec * (2.2 + proxSway * 3.5)) * swayAmp;
-      camera.position.y += Math.sin(timeSec * (2.6 + proxSway * 4.2)) * ((HORROR_CONFIG.tension.baseBreathingAmp || 0.012) + proxSway * (HORROR_CONFIG.tension.hunterNearBreathingBoost || 0.038));
+      // Extra camera breathing & roll sway scaled by hunter proximity (disabled in EXPLORE_MODE)
+      if (EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_SHAKE && !accessibilitySettings.screenShakeOff) {
+        const proxSway = (currentHunterProximity || 0.0) * getFearMultiplier();
+        const swayAmp = (HORROR_CONFIG.tension.baseSwayRoll || 0.006) + proxSway * (HORROR_CONFIG.tension.hunterNearSwayRoll || 0.028);
+        camera.rotation.z += Math.sin(timeSec * (2.2 + proxSway * 3.5)) * swayAmp;
+        camera.position.y += Math.sin(timeSec * (2.6 + proxSway * 4.2)) * ((HORROR_CONFIG.tension.baseBreathingAmp || 0.012) + proxSway * (HORROR_CONFIG.tension.hunterNearBreathingBoost || 0.038));
+      }
 
-      updatePrompts();
+      if (EXPLORE_FLAGS.ENABLE_GAMEPLAY_HUD) {
+        updatePrompts();
+      }
       updateCampusZoneBanner();
     }
 
@@ -12170,79 +17817,266 @@ export function getHideAndSeekHtml(): string {
     const tmpDirVec = new THREE.Vector3();
     let envEventTimer = 22 + Math.random() * 14;
 
+    // Phase B.3: Smoothly open swinging doors when bots or player approach within 2.2m (unless locked by Hunter!)
+    function updateSwingingDoors(delta) {
+      for (let d = 0; d < swingingDoors.length; d++) {
+        const door = swingingDoors[d];
+        if (door.lockedTimer && door.lockedTimer > 0) {
+          door.lockedTimer = Math.max(0, door.lockedTimer - delta);
+          door.isOpen = false;
+          door.targetAngleY = 0;
+          const diffL = door.targetAngleY - door.currentAngleY;
+          if (Math.abs(diffL) > 0.002) {
+            door.currentAngleY += diffL * Math.min(1.0, 9.0 * delta);
+            door.pivot.rotation.y = door.currentAngleY;
+          }
+          continue;
+        }
+        let nearAgent = false;
+        if (Math.abs(playerPhysics.pos.y - door.y) < 1.8 && Math.hypot(playerPhysics.pos.x - door.x, playerPhysics.pos.z - door.z) < 2.15) {
+          nearAgent = true;
+        }
+        if (!nearAgent) {
+          for (let b = 0; b < bots.length; b++) {
+            const bot = bots[b];
+            if (!bot || bot.isCaught || !bot.mesh) continue;
+            if (Math.abs(bot.mesh.position.y - door.y) < 1.8 && Math.hypot(bot.mesh.position.x - door.x, bot.mesh.position.z - door.z) < 2.25) {
+              nearAgent = true;
+              break;
+            }
+          }
+        }
+        if (nearAgent) {
+          if (!door.isOpen) {
+            soundEngine.playDoorCreakSfx();
+            recordNoiseEvent(door.x, door.y, door.z, 0.45, 'Door Creak');
+          }
+          door.isOpen = true;
+          door.holdTimer = 1.6;
+          door.targetAngleY = door.openAngleY;
+        } else if (door.holdTimer > 0) {
+          door.holdTimer = Math.max(0, door.holdTimer - delta);
+          if (door.holdTimer <= 0) {
+            door.isOpen = false;
+            door.targetAngleY = door.ajarAngleY;
+          }
+        }
+        const diff = door.targetAngleY - door.currentAngleY;
+        if (Math.abs(diff) > 0.002) {
+          door.currentAngleY += diff * Math.min(1.0, 6.5 * delta);
+          door.pivot.rotation.y = door.currentAngleY;
+        }
+      }
+    }
+
     function updateEnvironmentAndBots(delta, timeSec) {
       if (!isMatchActive) return;
 
-      matchTimer -= delta;
-      if (matchTimer <= 0) evaluateGameStatus(true);
-
-      statusSyncTimer += delta;
-      if (statusSyncTimer >= 1.0) {
-        statusSyncTimer = 0;
-        sendToReactNative('STATUS', {
-          hidersRemaining: GAME_CONFIG.role === 'seeker'
-            ? bots.filter(b => !b.isSeeker && !b.isCaught).length
-            : bots.filter(b => !b.isSeeker && !b.isCaught).length + 1,
-          timeLeft: matchTimer,
-        });
+      if (EXPLORE_FLAGS.ENABLE_ROLES_AND_TIMER) {
+        matchTimer -= delta;
+        if (matchTimer <= 0) evaluateGameStatus(true);
       }
 
-      // Decay Horror Visual Glitch & Camera Trauma Shake
-      if (horrorGlitchTimer > 0) {
+      // Update Hunter ability timers (disabled in EXPLORE_MODE)
+      if (EXPLORE_FLAGS.ENABLE_HUNTER_AND_BOTS) {
+        if (hunterAbilities.pingTimer > 0) {
+          hunterAbilities.pingTimer = Math.max(0, hunterAbilities.pingTimer - delta);
+          if (hunterAbilities.pingTimer <= 0 && GAME_CONFIG.role !== 'seeker' && graceTimer <= 0) {
+            hunterAbilities.pingTimer = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.hunterFootstepPingIntervalSec) || 30.0;
+            soundEngine.playSonarPingSfx();
+            if (playerNoiseLevel > 0.35 && seekerRef && seekerRef.bot) {
+              seekerRef.bot.investigateTarget = { x: playerPhysics.pos.x, y: playerPhysics.pos.y, z: playerPhysics.pos.z, timer: 8.0 };
+              showToast('Hunter Footstep-Sense Ping detected your noise!');
+            }
+          }
+        }
+        if (hunterAbilities.powerCutCooldown > 0) hunterAbilities.powerCutCooldown = Math.max(0, hunterAbilities.powerCutCooldown - delta);
+      }
+      if (powerCutBuildingTimer > 0) {
+        powerCutBuildingTimer = Math.max(0, powerCutBuildingTimer - delta);
+        if (powerCutBuildingTimer <= 0) powerCutDarkBuilding = null;
+      }
+
+      // Update active thrown distraction projectiles (disabled in EXPLORE_MODE)
+      if (EXPLORE_FLAGS.ENABLE_THROWABLE_DISTRACTIONS) {
+        for (let p = activeProjectiles.length - 1; p >= 0; p--) {
+          const pr = activeProjectiles[p];
+          pr.life -= delta;
+          pr.vel.y -= 15.0 * delta;
+          pr.mesh.position.x += pr.vel.x * delta;
+          pr.mesh.position.y += pr.vel.y * delta;
+          pr.mesh.position.z += pr.vel.z * delta;
+          if (pr.mesh.position.y <= pr.floorY + 0.08 || pr.life <= 0) {
+            soundEngine.playDistractionClatterSfx();
+            recordNoiseEvent(pr.mesh.position.x, pr.floorY, pr.mesh.position.z, 1.0, 'Thrown Distraction');
+            scene.remove(pr.mesh);
+            activeProjectiles.splice(p, 1);
+          }
+        }
+      }
+
+      // Requirement 2 & 3: Update Per-Room Light Moods, Window Light Shaft Dust Motes & Drifting Corridor Fog
+      updateRoomMoodLighting(delta, timeSec, playerPhysics.pos);
+
+      const showFogLayer = exploreTools.fogEnabled !== false;
+      for (let cf = 0; cf < corridorFogPlanes.length; cf++) {
+        const fp = corridorFogPlanes[cf];
+        if (!fp.mesh) continue;
+        fp.mesh.visible = showFogLayer;
+        if (!showFogLayer || !fp.mesh.parent || !fp.mesh.parent.visible) continue;
+        fp.mesh.position.x = fp.baseX + Math.sin(timeSec * fp.speed + fp.phase) * 0.22;
+        fp.mesh.position.z = fp.baseZ + Math.cos(timeSec * (fp.speed * 0.8) + fp.phase) * 0.35;
+      }
+
+      const showDustLayer = exploreTools.dustEnabled !== false && currentQuality !== 'fast';
+      for (let bd = 0; bd < roomBeamDustSystems.length; bd++) {
+        const sys = roomBeamDustSystems[bd];
+        if (!sys.points) continue;
+        sys.points.visible = showDustLayer && (exploreTools.lightShaftsEnabled !== false);
+        if (!sys.points.visible || !sys.points.parent || !sys.points.parent.parent || !sys.points.parent.parent.visible) continue;
+        const arr = sys.pos;
+        const meta = sys.meta;
+        for (let k = 0; k < meta.length; k++) {
+          const m = meta[k];
+          arr[k * 3]     = m.baseX + Math.sin(timeSec * 0.85 + m.phase) * 0.12;
+          arr[k * 3 + 1] = m.baseY + Math.cos(timeSec * 0.65 + m.phase * 1.3) * 0.10;
+          arr[k * 3 + 2] = m.baseZ + Math.sin(timeSec * 0.72 + m.phase * 0.7) * 0.12;
+        }
+        sys.geo.attributes.position.needsUpdate = true;
+      }
+
+      for (let cm = 0; cm < corridorMistPlanes.length; cm++) {
+        const mp = corridorMistPlanes[cm];
+        mp.visible = showFogLayer;
+        if (!showFogLayer) continue;
+        mp.position.x = mp.userData.baseX + Math.sin(timeSec * 0.45 + mp.userData.phase) * 0.35;
+      }
+
+      // Procedural per-room Web Audio soundscape (room tone, creaks, door sounds, toilet dripping, computer lab & server rack hum)
+      activeRoomSoundTimer -= delta;
+      if (activeRoomSoundTimer <= 0) {
+        activeRoomSoundTimer = 3.2 + Math.random() * 3.2;
+        const px = playerPhysics.pos.x, py = playerPhysics.pos.y, pz = playerPhysics.pos.z;
+        if (pz >= 51.0 && px >= -13.5 && px <= 25.5) {
+          if (py >= 6.2 && px > 6.0) {
+            // Room 302 Computer Lab & Server Rack: 60Hz/120Hz hum + room tone
+            soundEngine.playServerRackHumPulse();
+            soundEngine.playRoomTonePulse('rotunda_lab');
+          } else if (py >= 6.2 && px < 6.0) {
+            // Room 301 Dark Seminar Hall: room tone + structural creak
+            soundEngine.playRoomTonePulse('rotunda_seminar');
+            if (!EXPLORE_MODE && Math.random() < 0.5) soundEngine.playDistantCorridorFootsteps();
+            else soundEngine.playStructuralCreak();
+          } else if (py >= 2.8 && px > 6.0) {
+            // Room 202 Library: quiet archive room tone + wood creak
+            soundEngine.playRoomTonePulse('library');
+            soundEngine.playStructuralCreak();
+          } else if (py >= 2.8 && px < 6.0) {
+            // Room 201 Moonlit Classroom: room tone + subtle creak
+            soundEngine.playRoomTonePulse('rotunda_lecture');
+            if (!EXPLORE_MODE) soundEngine.playDistantCorridorFootsteps();
+            else soundEngine.playStructuralCreak();
+          } else if (px > 6.0) {
+            // Room 102 Admin Office & Washroom pipe line: dripping water + room tone
+            soundEngine.playWaterDripSfx();
+            soundEngine.playRoomTonePulse('staff_office');
+          } else if (px < 1.6) {
+            // Room 101 Lecture Hall: dying tube buzz + room tone
+            soundEngine.playTubeFlickerBuzzSfx();
+            soundEngine.playRoomTonePulse('rotunda_lecture');
+          } else {
+            // Main Building Atrium & Corridors: room tone + door creak
+            soundEngine.playRoomTonePulse('atrium');
+            if (!EXPLORE_MODE && Math.random() < 0.5) soundEngine.playDistantCorridorFootsteps();
+            else soundEngine.playDoorCreakSfx();
+          }
+        } else if (px > 20.0 && pz > -10.5 && pz < -0.5) {
+          // Campus Toilets (East Wing R2 Room 3): water dripping
+          soundEngine.playWaterDripSfx();
+          soundEngine.playRoomTonePulse('toilets');
+        } else if (px < -13.0 && pz > -26.5 && pz < -7.0) {
+          // West Wing L2 Computer Labs: server rack hum
+          soundEngine.playServerRackHumPulse();
+          soundEngine.playRoomTonePulse('computer_lab');
+        }
+      }
+
+      if (EXPLORE_FLAGS.ENABLE_ROLES_AND_TIMER) {
+        statusSyncTimer += delta;
+        if (statusSyncTimer >= 1.0) {
+          statusSyncTimer = 0;
+          const restoredCount = fuseBoxes.filter(f => f.restored).length;
+          sendToReactNative('STATUS', {
+            hidersRemaining: GAME_CONFIG.role === 'seeker'
+              ? bots.filter(b => !b.isSeeker && !b.isCaught).length
+              : bots.filter(b => !b.isSeeker && !b.isCaught).length + (isPlayerSpectating ? 0 : 1),
+            timeLeft: matchTimer,
+            fusesRestored: restoredCount,
+            mainGateUnlocked,
+          });
+        }
+      }
+
+      if (EXPLORE_FLAGS.ENABLE_SCREEN_GLITCH_AND_DISTORTION && horrorGlitchTimer > 0) {
         horrorGlitchTimer = Math.max(0, horrorGlitchTimer - delta);
         const glitchEl = document.getElementById('horror-glitch-overlay');
         if (glitchEl) {
-          glitchEl.style.opacity = (horrorGlitchTimer > 0 ? Math.min(0.85, horrorGlitchTimer * 2.2) : 0).toFixed(2);
+          glitchEl.style.opacity = (horrorGlitchTimer > 0 ? Math.min(0.85, horrorGlitchTimer * 2.2 * getFearMultiplier()) : 0).toFixed(2);
         }
       }
-      if (horrorCameraShake > 0) {
+      if (EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_SHAKE && horrorCameraShake > 0 && !accessibilitySettings.screenShakeOff) {
         horrorCameraShake = Math.max(0, horrorCameraShake - delta * 0.85);
         camera.position.x += (Math.random() - 0.5) * horrorCameraShake * 0.28;
         camera.position.y += (Math.random() - 0.5) * horrorCameraShake * 0.24;
         camera.rotation.z += (Math.random() - 0.5) * horrorCameraShake * 0.08;
       }
 
-      // Dynamic Environmental Horror Events (Thunder & Lightning, Ghost Whispers, Temple Bells, Power Blackouts)
+      // World events: In EXPLORE_MODE, play only calm ambient sounds (distant temple bell or timber settling), zero scare shocks/brownouts!
       envEventTimer -= delta;
       if (envEventTimer <= 0) {
-        const minI = Math.max(10, (activePreset.eventIntervalMin || 20) * 0.55);
-        const maxI = Math.max(18, (activePreset.eventIntervalMax || 35) * 0.62);
+        const minI = Math.max(14, (activePreset.eventIntervalMin || 20) * 0.75);
+        const maxI = Math.max(24, (activePreset.eventIntervalMax || 35) * 0.85);
         envEventTimer = minI + Math.random() * (maxI - minI);
-        const roll = Math.random();
-        if (roll < 0.20) {
-          lampFlickerMod.triggerPowerDip(0.28);
-          soundEngine.playPowerDipHum();
-        } else if (roll < 0.38) {
-          soundEngine.playDistantDogBarkSfx();
-        } else if (roll < 0.56) {
-          soundEngine.playPhantomFootstepsSfx();
-        } else if (roll < 0.72) {
-          soundEngine.playDistantChime();
-        } else if (roll < 0.88) {
-          soundEngine.playStructuralCreak();
+        if (!EXPLORE_FLAGS.ENABLE_RANDOM_SCARE_EVENTS) {
+          if (Math.random() < 0.55) {
+            soundEngine.playDistantChime();
+          } else {
+            soundEngine.playStructuralCreak();
+          }
         } else {
-          // Lightning flash in the moonlit sky + rolling Himalayan thunder crack!
-          soundEngine.playThunderCrackSfx();
-          if (atmosphere && atmosphere.moonDirLight) {
-            const baseMoon = HORROR_CONFIG.lighting.moonIntensity;
-            atmosphere.moonDirLight.intensity = baseMoon * 4.2;
-            setTimeout(() => {
-              if (atmosphere && atmosphere.moonDirLight) atmosphere.moonDirLight.intensity = baseMoon * 0.6;
-            }, 95);
-            setTimeout(() => {
-              if (atmosphere && atmosphere.moonDirLight) atmosphere.moonDirLight.intensity = baseMoon * 3.1;
-            }, 160);
-            setTimeout(() => {
-              if (atmosphere && atmosphere.moonDirLight) atmosphere.moonDirLight.intensity = baseMoon;
-            }, 310);
+          const roll = Math.random();
+          if (roll < 0.24) {
+            lampFlickerMod.triggerPowerDip(0.32);
+            soundEngine.playPowerDipHum();
+            soundEngine.playTubeFlickerBuzzSfx();
+          } else if (roll < 0.48) {
+            soundEngine.playFarDoorSlamSfx();
+            if (swingingDoors.length > 0) {
+              const farDoor = swingingDoors[Math.floor(Math.random() * swingingDoors.length)];
+              if (farDoor && Math.hypot(farDoor.x - playerPhysics.pos.x, farDoor.z - playerPhysics.pos.z) > 6.5) {
+                farDoor.targetAngleY = farDoor.closedAngleY;
+              }
+            }
+          } else if (roll < 0.72) {
+            soundEngine.playChairScrapeSfx();
+          } else if (roll < 0.88) {
+            soundEngine.playDistantCorridorFootsteps();
+            soundEngine.playStructuralCreak();
+          } else {
+            powerCutDarkBuilding = 'ROTUNDA';
+            powerCutBuildingTimer = 4.5;
+            lampFlickerMod.triggerPowerDip(0.42);
+            soundEngine.playPowerDipHum();
           }
         }
       }
 
-      // Rare Distant Silhouette Update (Phase 4)
-      rareSilhouetteMod.update(delta, playerPhysics.pos);
+      if (EXPLORE_FLAGS.ENABLE_GHOST_APPARITIONS) {
+        rareSilhouetteMod.update(delta, playerPhysics.pos);
+      } else if (rareSilhouetteMod && rareSilhouetteMod.group) {
+        rareSilhouetteMod.group.visible = false;
+      }
 
-      // Subtle Tree Shadow Wind Sway (Phase 4)
       for (let i = 0; i < treeShadowDecals.length; i++) {
         const ts = treeShadowDecals[i];
         ts.mesh.rotation.z = Math.sin(timeSec * 1.5 + ts.seed) * 0.05;
@@ -12252,6 +18086,39 @@ export function getHideAndSeekHtml(): string {
 
       particleFieldMod.update(delta, timeSec, playerPhysics.pos);
       lampFlickerMod.update(delta, timeSec, playerPhysics.pos);
+      updateSwingingDoors(delta);
+
+      if (!EXPLORE_FLAGS.ENABLE_HIDE_AND_SEEK_GAMEPLAY) {
+        return;
+      }
+
+      // Update Hold-Your-Breath Mini-Game if Hunter is checking player's hiding spot
+      if (EXPLORE_FLAGS.ENABLE_HIDING_SPOTS_AND_MINIGAME && breathMiniGame.active) {
+        const drainRate = 0.38 + ((breathMiniGame.spot && breathMiniGame.spot.useCount >= 2) ? 0.22 : 0.0);
+        if (breathMiniGame.holdingButton) {
+          breathMiniGame.meter = Math.max(0, breathMiniGame.meter - drainRate * delta);
+          breathMiniGame.surviveTimer -= delta;
+        } else {
+          breathMiniGame.surviveTimer -= delta * 0.35;
+          breathMiniGame.meter = Math.max(0, breathMiniGame.meter - drainRate * 1.65 * delta);
+        }
+        const fillEl = document.getElementById('breath-meter-fill');
+        if (fillEl) fillEl.style.width = Math.round(breathMiniGame.meter * 100) + '%';
+
+        if (breathMiniGame.meter <= 0) {
+          breathMiniGame.active = false;
+          const bmEl = document.getElementById('breath-minigame-overlay');
+          if (bmEl) bmEl.style.display = 'none';
+          handlePlayerCaughtByHunter('You gasped for air while the Hunter inspected your hiding spot!');
+        } else if (breathMiniGame.surviveTimer <= 0) {
+          breathMiniGame.active = false;
+          const bmEl = document.getElementById('breath-minigame-overlay');
+          if (bmEl) bmEl.style.display = 'none';
+          showToast('Held your breath — The Hollow Proctor moved on!');
+        }
+      }
+
+      if (!EXPLORE_FLAGS.ENABLE_HUNTER_AND_BOTS) return;
 
       for (let i = 0; i < bots.length; i++) {
         const b = bots[i];
@@ -12259,42 +18126,137 @@ export function getHideAndSeekHtml(): string {
 
         if (b.isSeeker) {
           if (graceTimer > 0) continue;
-          const targetWp = navWaypoints[b.currentWpIdx];
-          const wpY = typeof targetWp.y === 'number' ? targetWp.y : 0;
-          tmpTargetVec.set(targetWp.x, wpY, targetWp.z);
-          const distToWp = Math.hypot(targetWp.x - b.mesh.position.x, targetWp.z - b.mesh.position.z);
 
-          if (distToWp < 1.8) {
-            b.currentWpIdx = (b.currentWpIdx + 1) % navWaypoints.length;
+          if (b.investigateTarget && b.investigateTarget.timer > 0) {
+            b.investigateTarget.timer -= delta;
+            const ix = b.investigateTarget.x;
+            const iz = b.investigateTarget.z;
+            const dInv = Math.hypot(ix - b.mesh.position.x, iz - b.mesh.position.z);
+            if (dInv > 1.4) {
+              tmpDirVec.set(ix - b.mesh.position.x, 0, iz - b.mesh.position.z).normalize();
+              b.mesh.position.x += tmpDirVec.x * b.speed * delta;
+              b.mesh.position.z += tmpDirVec.z * b.speed * delta;
+              const botSupportY = getSupportFloorY(b.mesh.position.x, b.mesh.position.z, b.mesh.position.y);
+              b.mesh.position.y += (botSupportY - b.mesh.position.y) * Math.min(1.0, 14.0 * delta);
+              b.mesh.rotation.y = Math.atan2(tmpDirVec.x, tmpDirVec.z);
+              animateCharacterRig(b.mesh, 0.95, false, delta);
+            } else {
+              b.investigateTarget = null;
+            }
+          } else if (b.state === 'checking_spot' && b.inspectSpot) {
+            b.inspectTimer -= delta;
+            const sx = (typeof b.inspectSpot.exitX === 'number') ? b.inspectSpot.exitX : b.inspectSpot.x;
+            const sz = (typeof b.inspectSpot.exitZ === 'number') ? b.inspectSpot.exitZ : b.inspectSpot.z;
+            const distToSpot = Math.hypot(sx - b.mesh.position.x, sz - b.mesh.position.z);
+            if (distToSpot > 0.95 && b.inspectTimer > 0.25) {
+              tmpDirVec.set(sx - b.mesh.position.x, 0, sz - b.mesh.position.z).normalize();
+              b.mesh.position.x += tmpDirVec.x * (b.speed * 0.78) * delta;
+              b.mesh.position.z += tmpDirVec.z * (b.speed * 0.78) * delta;
+              b.mesh.rotation.y = Math.atan2(tmpDirVec.x, tmpDirVec.z);
+              animateCharacterRig(b.mesh, 0.75, false, delta);
+            } else {
+              b.mesh.rotation.y = Math.atan2(b.inspectSpot.x - b.mesh.position.x, b.inspectSpot.z - b.mesh.position.z);
+              animateCharacterRig(b.mesh, 0.1, true, delta);
+              if (playerPhysics.isHiding && playerPhysics.currentHidingSpot && !breathMiniGame.active && !isPlayerSpectating) {
+                const dSpot = Math.hypot(playerPhysics.currentHidingSpot.x - b.inspectSpot.x, playerPhysics.currentHidingSpot.z - b.inspectSpot.z);
+                if (dSpot < 3.5 && Math.abs(playerPhysics.pos.y - b.mesh.position.y) < 2.0) {
+                  breathMiniGame.active = true;
+                  breathMiniGame.meter = 1.0;
+                  breathMiniGame.surviveTimer = (HORROR_CONFIG.gameplay && HORROR_CONFIG.gameplay.breathHoldDurationSec) || 2.6;
+                  breathMiniGame.spot = playerPhysics.currentHidingSpot;
+                  const bmEl = document.getElementById('breath-minigame-overlay');
+                  if (bmEl) bmEl.style.display = 'flex';
+                }
+              }
+              for (let h = 0; h < bots.length; h++) {
+                const hb = bots[h];
+                if (!hb.isSeeker && !hb.isCaught && hb.targetSpot && hb.targetSpot.id === b.inspectSpot.id) {
+                  hb.catchCount = (hb.catchCount || 0) + 1;
+                  hb.isCaught = true;
+                  hb.canBeRescued = (hb.catchCount === 1);
+                  hb.mesh.visible = hb.canBeRescued;
+                }
+              }
+            }
+            if (b.inspectTimer <= 0) {
+              b.state = 'patrolling';
+              b.inspectSpot = null;
+              b.currentWpIdx = (b.currentWpIdx + 1) % navWaypoints.length;
+            }
           } else {
-            tmpDirVec.set(targetWp.x - b.mesh.position.x, 0, targetWp.z - b.mesh.position.z).normalize();
-            b.mesh.position.x += tmpDirVec.x * b.speed * delta;
-            b.mesh.position.z += tmpDirVec.z * b.speed * delta;
-            const botSupportY = getSupportFloorY(b.mesh.position.x, b.mesh.position.z, b.mesh.position.y);
-            b.mesh.position.y += (botSupportY - b.mesh.position.y) * Math.min(1.0, 14.0 * delta);
-            b.mesh.rotation.y = Math.atan2(tmpDirVec.x, tmpDirVec.z);
-            animateCharacterRig(b.mesh, 0.9, false, delta);
+            const targetWp = navWaypoints[b.currentWpIdx];
+            const wpY = typeof targetWp.y === 'number' ? targetWp.y : 0;
+            tmpTargetVec.set(targetWp.x, wpY, targetWp.z);
+            const distToWp = Math.hypot(targetWp.x - b.mesh.position.x, targetWp.z - b.mesh.position.z);
+
+            if (distToWp < 1.35) {
+              if (targetWp.kind === 'interior' && b.lastCheckedWpId !== targetWp.id) {
+                b.lastCheckedWpId = targetWp.id;
+                let nearestSpot = null;
+                let bestScore = 999;
+                for (let s = 0; s < interactiveHidingSpots.length; s++) {
+                  const sp = interactiveHidingSpots[s];
+                  if (targetWp.roomId && sp.zone !== targetWp.roomId) continue;
+                  const d = Math.hypot(sp.x - b.mesh.position.x, sp.z - b.mesh.position.z);
+                  const knownBonus = (sp.useCount || 0) >= 2 ? 4.0 : 0.0;
+                  const score = d - knownBonus;
+                  if (d < 8.5 && score < bestScore) {
+                    bestScore = score;
+                    nearestSpot = sp;
+                  }
+                }
+                if (nearestSpot) {
+                  b.state = 'checking_spot';
+                  b.inspectSpot = nearestSpot;
+                  b.inspectTimer = 1.35;
+                } else {
+                  b.currentWpIdx = (b.currentWpIdx + 1) % navWaypoints.length;
+                }
+              } else {
+                b.currentWpIdx = (b.currentWpIdx + 1) % navWaypoints.length;
+              }
+            } else {
+              tmpDirVec.set(targetWp.x - b.mesh.position.x, 0, targetWp.z - b.mesh.position.z).normalize();
+              b.mesh.position.x += tmpDirVec.x * b.speed * delta;
+              b.mesh.position.z += tmpDirVec.z * b.speed * delta;
+              const botSupportY = getSupportFloorY(b.mesh.position.x, b.mesh.position.z, b.mesh.position.y);
+              b.mesh.position.y += (botSupportY - b.mesh.position.y) * Math.min(1.0, 14.0 * delta);
+              b.mesh.rotation.y = Math.atan2(tmpDirVec.x, tmpDirVec.z);
+              animateCharacterRig(b.mesh, 0.9, false, delta);
+            }
           }
 
-          if (GAME_CONFIG.role === 'hider') {
+          if (GAME_CONFIG.role === 'hider' && !isPlayerSpectating) {
             const distToPlayer = b.mesh.position.distanceTo(playerPhysics.pos);
             const horrorOverlay = document.getElementById('horror-pulse-overlay');
             const bannerEl = document.getElementById('campus-banner');
 
-            if (distToPlayer < 25) {
-              const proximity = Math.max(0, Math.min(1, 1 - distToPlayer / 25));
+            if (distToPlayer < 26) {
+              const hasLos = distToPlayer < 18 && checkTagLineOfSight(
+                { x: b.mesh.position.x, y: b.mesh.position.y + 1.6, z: b.mesh.position.z },
+                { x: playerPhysics.pos.x, y: playerPhysics.pos.y + 1.1, z: playerPhysics.pos.z },
+                colliders
+              );
+              const rawProx = Math.max(0, Math.min(1, (1 - distToPlayer / 26) * (hasLos ? 1.25 : 0.92)));
+              const proximity = rawProx * getFearMultiplier();
               currentHunterProximity = proximity;
-              soundEngine.updateProximityTension(proximity);
-              if (horrorOverlay) horrorOverlay.style.opacity = (proximity * 0.92).toFixed(2);
-              if (bannerEl) bannerEl.classList.add('danger');
+              if (EXPLORE_FLAGS.ENABLE_HEARTBEAT_AND_CHASE_AUDIO) {
+                soundEngine.updateProximityTension(proximity);
+              }
+              if (horrorOverlay && EXPLORE_FLAGS.ENABLE_RED_VIGNETTE_AND_PULSES) {
+                horrorOverlay.style.opacity = (proximity * 0.92).toFixed(2);
+              }
+              if (bannerEl && EXPLORE_FLAGS.ENABLE_RED_VIGNETTE_AND_PULSES) {
+                bannerEl.classList.add('danger');
+              }
 
               heartbeatCooldown -= delta;
-              if (heartbeatCooldown <= 0) {
+              if (heartbeatCooldown <= 0 && EXPLORE_FLAGS.ENABLE_HEARTBEAT_AND_CHASE_AUDIO) {
                 heartbeatCooldown = Math.max(0.24, 0.92 - proximity * 0.64);
                 soundEngine.playHeartbeat(proximity);
               }
 
-              if (distToPlayer < 11.5) {
+              if (distToPlayer < 11.5 && EXPLORE_FLAGS.ENABLE_JUMPSCARES_AND_STINGERS) {
                 killApproachSfxCooldown -= delta;
                 if (killApproachSfxCooldown <= 0) {
                   const danger = Math.min(1.0, (11.5 - distToPlayer) / 8.0 + 0.35);
@@ -12309,30 +18271,121 @@ export function getHideAndSeekHtml(): string {
               if (bannerEl) bannerEl.classList.remove('danger');
             }
 
-            const detectionDist = playerPhysics.isHiding ? 1.65 : (playerPhysics.isCrouching ? 4.2 : 7.8);
+            const detectionDist = playerPhysics.isHiding ? (breathMiniGame.active ? 0.65 : 1.35) : (playerPhysics.isCrouching ? 4.0 : 7.4);
             const sameFloor = Math.abs(b.mesh.position.y - playerPhysics.pos.y) < 2.2;
-            if (sameFloor && distToPlayer < detectionDist) {
-              soundEngine.playJumpscareSting();
-              isGameOver = true;
-              isMatchActive = false;
-              sendToReactNative('GAMEOVER', {
-                winner: 'SEEKER',
-                reason: 'The Campus Warden caught you during midnight patrol!',
-              });
+            if (sameFloor && distToPlayer < detectionDist && !breathMiniGame.active) {
+              handlePlayerCaughtByHunter('The Hollow Proctor caught you during midnight patrol!');
             }
           }
         } else {
           animateCharacterRig(b.mesh, 0, true, delta);
+          if (typeof b.fuseTimer === 'number' && EXPLORE_FLAGS.ENABLE_FUSE_BOXES_AND_OBJECTIVES) {
+            b.fuseTimer -= delta;
+            if (b.fuseTimer <= 0) {
+              b.fuseTimer = 22 + Math.random() * 14;
+              if (isPlayerSpectating && playerCatchCount === 1) {
+                isPlayerSpectating = false;
+                const specEl = document.getElementById('spectator-overlay');
+                if (specEl) specEl.style.display = 'none';
+                playerPhysics.pos.set(-4, 0, -48);
+                soundEngine.playFuseRepairSfx();
+                showToast('Teammate ' + b.name + ' freed you! (Final Life — 2nd catch is permanent)');
+              } else {
+                const pendingFuse = fuseBoxes.find(f => !f.restored);
+                if (pendingFuse && Math.random() < 0.35) {
+                  pendingFuse.restored = true;
+                  if (pendingFuse.ledMat) pendingFuse.ledMat.color.setHex(0x22c55e);
+                  const restoredCount = fuseBoxes.filter(f => f.restored).length;
+                  const fuseHud = document.getElementById('hud-fuses-label');
+                  if (fuseHud) fuseHud.textContent = restoredCount + '/' + fuseBoxes.length;
+                  if (restoredCount >= fuseBoxes.length) mainGateUnlocked = true;
+                  showToast(b.name + ' restored ' + pendingFuse.name + ' (' + restoredCount + '/4)!');
+                  sendToReactNative('FUSES_UPDATED', { fusesRestored: restoredCount, mainGateUnlocked });
+                }
+              }
+            }
+          }
         }
       }
     }
 
-    function applyGraphicsQuality(q) {
+    function handlePlayerCaughtByHunter(reasonText) {
+      if (!EXPLORE_FLAGS.ENABLE_WIN_LOSE_EVALUATION) return;
+      soundEngine.playJumpscareSting();
+      playerCatchCount++;
+      playerPhysics.isHiding = false;
+      document.getElementById('stealth-overlay').classList.remove('active');
+      soundEngine.setMuffled(false);
+
+      const aliveTeammates = bots.filter(b => !b.isSeeker && !b.isCaught);
+      if (playerCatchCount === 1 && aliveTeammates.length > 0) {
+        isPlayerSpectating = true;
+        const specEl = document.getElementById('spectator-overlay');
+        if (specEl) specEl.style.display = 'flex';
+        showToast('Caught (1/2)! Spectating teammates — a teammate can free you once!');
+      } else {
+        isGameOver = true;
+        isMatchActive = false;
+        sendToReactNative('GAMEOVER', {
+          winner: 'SEEKER',
+          reason: reasonText,
+        });
+      }
+    }
+
+    // Requirement 2: LOW & FAST material bumpMap reduction (HIGH and ULTRA keep 100% of bump maps & textures untouched!)
+    function setLowFastMaterialSimplification(simplify) {
+      const allMatCollections = [materials, step2Mats];
+      allMatCollections.forEach(coll => {
+        if (!coll) return;
+        Object.keys(coll).forEach(k => {
+          const m = coll[k];
+          if (!m || !m.isMaterial) return;
+          if (!m.userData) m.userData = {};
+          if (m.userData._origBumpSaved === undefined) {
+            m.userData._origBumpSaved = true;
+            m.userData._origBumpMap = m.bumpMap || null;
+            m.userData._origBumpScale = m.bumpScale || 0;
+          }
+          const nextBump = simplify ? null : m.userData._origBumpMap;
+          if (m.bumpMap !== nextBump) {
+            m.bumpMap = nextBump;
+            m.bumpScale = simplify ? 0 : m.userData._origBumpScale;
+            m.needsUpdate = true;
+          }
+          if (m.userData._vcMat) {
+            const vc = m.userData._vcMat;
+            if (vc.bumpMap !== nextBump) {
+              vc.bumpMap = nextBump;
+              vc.bumpScale = simplify ? 0 : m.userData._origBumpScale;
+              vc.needsUpdate = true;
+            }
+          }
+        });
+      });
+    }
+
+    function applyGraphicsQuality(q, pinModeOverride) {
+      if (pinModeOverride !== undefined) {
+        qualityPinMode = pinModeOverride;
+      }
       currentQuality = (HORROR_CONFIG.qualityPresets && HORROR_CONFIG.qualityPresets[q]) ? q : 'high';
       activePreset = HORROR_CONFIG.qualityPresets[currentQuality];
+      const isLowOrFast = (currentQuality === 'low' || currentQuality === 'fast');
+      setLowFastMaterialSimplification(isLowOrFast);
       atmosphere.applyQuality(activePreset);
       particleFieldMod.applyQuality(activePreset);
       if (lampFlickerMod && lampFlickerMod.applyQuality) lampFlickerMod.applyQuality(activePreset);
+      updateRoomAndBuildingVisibility(playerPhysics.pos, playerPhysics.yaw, activePreset);
+    }
+
+    function setBatterySaverMode(enabled) {
+      batterySaverEnabled = !!enabled;
+      const w = Math.max(window.innerWidth || 0, 320);
+      const h = Math.max(window.innerHeight || 0, 240);
+      if (atmosphere && atmosphere.resizeGradeTarget) {
+        atmosphere.resizeGradeTarget(w, h);
+      }
     }
 
     function handleIncomingMessage(e) {
@@ -12340,17 +18393,53 @@ export function getHideAndSeekHtml(): string {
         const raw = typeof e.data === 'string' ? e.data : JSON.stringify(e.data);
         const data = JSON.parse(raw);
         if (data.type === 'CONFIGURE') {
+          if (typeof data.exploreMode === 'boolean') {
+            setExploreMode(data.exploreMode);
+          }
           GAME_CONFIG.role = data.role || 'hider';
           GAME_CONFIG.difficulty = data.difficulty || 'medium';
-          GAME_CONFIG.botCount = data.difficulty === 'easy' ? 4 : (data.difficulty === 'hard' ? 6 : 5);
+          GAME_CONFIG.botCount = data.difficulty === 'easy' ? 4 : (data.difficulty === 'hard' ? 7 : 5);
           if (typeof data.muted === 'boolean') soundEngine.setMuted(data.muted);
-          if (data.quality) applyGraphicsQuality(data.quality);
+          if (typeof data.batterySaver === 'boolean') setBatterySaverMode(data.batterySaver);
+          if (data.pinMode) qualityPinMode = data.pinMode;
+          if (data.quality) applyGraphicsQuality(data.quality, data.pinMode);
+          if (typeof data.flickerReduction === 'boolean') accessibilitySettings.flickerReduction = data.flickerReduction;
+          if (typeof data.screenShakeOff === 'boolean') accessibilitySettings.screenShakeOff = data.screenShakeOff;
+          if (data.fearIntensity) accessibilitySettings.fearIntensity = data.fearIntensity;
+          if (data.accessibility) {
+            if (data.accessibility.fearIntensity) accessibilitySettings.fearIntensity = data.accessibility.fearIntensity;
+            if (typeof data.accessibility.flickerReduction === 'boolean') accessibilitySettings.flickerReduction = data.accessibility.flickerReduction;
+            if (typeof data.accessibility.screenShakeOff === 'boolean') accessibilitySettings.screenShakeOff = data.accessibility.screenShakeOff;
+          }
           startMatch();
+        } else if (data.type === 'SET_EXPLORE_MODE') {
+          setExploreMode(Boolean(data.exploreMode));
+          startMatch();
+        } else if (data.type === 'SET_ACCESSIBILITY') {
+          if (data.fearIntensity) accessibilitySettings.fearIntensity = data.fearIntensity;
+          if (typeof data.flickerReduction === 'boolean') accessibilitySettings.flickerReduction = data.flickerReduction;
+          if (typeof data.screenShakeOff === 'boolean') accessibilitySettings.screenShakeOff = data.screenShakeOff;
         } else if (data.type === 'SET_MUTE') {
           soundEngine.setMuted(data.muted);
+          if (typeof exploreTools !== 'undefined' && exploreTools.syncAudioUi) exploreTools.syncAudioUi();
+        } else if (data.type === 'SET_BATTERY_SAVER') {
+          setBatterySaverMode(Boolean(data.enabled));
+          showToast('Battery Saver: ' + (batterySaverEnabled ? 'ON (30 FPS • 1.0x PR)' : 'OFF'));
+        } else if (data.type === 'SET_AMBIENCE_VOLUME') {
+          soundEngine.setAmbienceVolume(Number(data.volume));
+          if (typeof exploreTools !== 'undefined' && exploreTools.syncAudioUi) exploreTools.syncAudioUi();
+        } else if (data.type === 'SET_TINNITUS') {
+          soundEngine.setTinnitusEnabled(Boolean(data.enabled));
+        } else if (data.type === 'APP_STATE_CHANGE') {
+          if (data.active) {
+            soundEngine.resumeFromBackground();
+          } else {
+            soundEngine.suspendForBackground();
+          }
         } else if (data.type === 'SET_QUALITY') {
-          applyGraphicsQuality(data.quality);
-          showToast('Graphics Quality: ' + currentQuality.toUpperCase());
+          applyGraphicsQuality(data.quality, data.pinMode);
+          const modeText = qualityPinMode === 'auto' ? ('AUTO (' + currentQuality.toUpperCase() + ')') : ('PINNED ' + currentQuality.toUpperCase());
+          showToast('Graphics Quality: ' + modeText);
         } else if (data.type === 'RESTART_GAME') {
           startMatch();
         } else if (data.type === 'DISPOSE') {
@@ -12362,6 +18451,32 @@ export function getHideAndSeekHtml(): string {
 
     window.addEventListener('message', handleIncomingMessage);
     document.addEventListener('message', handleIncomingMessage);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        soundEngine.suspendForBackground();
+      } else {
+        soundEngine.resumeFromBackground();
+      }
+    });
+    window.addEventListener('blur', () => {
+      soundEngine.suspendForBackground();
+    });
+    window.addEventListener('focus', () => {
+      soundEngine.resumeFromBackground();
+    });
+
+    const unlockGateEl = document.getElementById('audio-unlock-gate');
+    if (unlockGateEl) {
+      unlockGateEl.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        soundEngine.unlockAudio();
+      }, { passive: false });
+      unlockGateEl.addEventListener('click', () => {
+        soundEngine.unlockAudio();
+      });
+    }
 
     window.addEventListener('pagehide', () => {
       soundEngine.dispose();
@@ -12396,18 +18511,65 @@ export function getHideAndSeekHtml(): string {
       return atmosphere.stylizedMode;
     };
 
-        startMatch();
+    // Requirement 1: Process chunked procedural textures across frames behind the loading screen
+    function flushTextureChunksIncrementally(chunksPerFrame = 2) {
+      if (!window.__TEXTURE_CHUNK_QUEUE__ || window.__TEXTURE_CHUNK_QUEUE__.length === 0) return;
+      let count = 0;
+      while (window.__TEXTURE_CHUNK_QUEUE__.length > 0 && count < chunksPerFrame) {
+        const fn = window.__TEXTURE_CHUNK_QUEUE__.shift();
+        try { fn(); } catch (e) {}
+        count++;
+      }
+      if (window.__TEXTURE_CHUNK_QUEUE__.length > 0) {
+        requestAnimationFrame(() => flushTextureChunksIncrementally(chunksPerFrame));
+      }
+    }
+    flushTextureChunksIncrementally(2);
+
+    startMatch();
+    if (typeof exploreTools !== 'undefined' && exploreTools.initUI) {
+      exploreTools.initUI();
+    }
     sendToReactNative('ENGINE_READY');
 
-    // TASK 4: Rolling FPS Monitor & Auto-Step-Down (ULTRA -> FAST if FPS < 30)
+    // Requirement 2 & 3: Rolling 5s Auto Quality Ladder + 10-Minute Session FPS & Headroom Telemetry
     let fpsFrameCount = 0;
     let fpsAccumSec = 0.0;
-    let hasSteppedDownFps = false;
+    let rollingAvgFps = 60.0;
+    let rollingAvgFrameMs = 16.67;
+    let batterySaverFrameAccum = 0.0;
+    const sessionTelemetry = {
+      elapsedSec: 0,
+      currentMinute: 1,
+      minFrameCount: 0,
+      minAccumSec: 0,
+      minuteHistory: [], // [{ minute: 1, avgFps, avgFrameMs, headroomPct, quality }]
+    };
+    window.__HORROR_SESSION_TELEMETRY__ = sessionTelemetry;
     const clock = new THREE.Clock();
+
+    function stepDownQualityOneTier(avgFps) {
+      const ladder = ['ultra', 'high', 'low', 'fast'];
+      const idx = ladder.indexOf(currentQuality);
+      if (idx >= 0 && idx < ladder.length - 1) {
+        const nextTier = ladder[idx + 1];
+        applyGraphicsQuality(nextTier, 'auto');
+        sendToReactNative('AUTO_STEP_DOWN_QUALITY', { fps: Math.round(avgFps), quality: nextTier });
+        showToast('FPS < 40 for 5s: Stepped down to ' + nextTier.toUpperCase());
+      }
+    }
 
     function animate() {
       requestAnimationFrame(animate);
       const rawDelta = clock.getDelta();
+      // Requirement 3: Optional Battery Saver 30 FPS frame-rate cap (never auto-enabled on capable phones)
+      if (batterySaverEnabled && !physicsDebug.fakeLowFPS) {
+        batterySaverFrameAccum += rawDelta;
+        if (batterySaverFrameAccum < (1.0 / 30.5)) {
+          return;
+        }
+        batterySaverFrameAccum = 0.0;
+      }
       const maxDt = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.maxDeltaTime) || (1.0 / 30.0);
       let delta = Math.min(rawDelta, maxDt);
       const timeSec = Date.now() * 0.001;
@@ -12420,23 +18582,38 @@ export function getHideAndSeekHtml(): string {
         atmosphere.skyGroup.position.copy(camera.position);
       }
 
-      // TASK 2: Occasional random lamp flicker bursts
-      flickerBurstTimer -= delta;
-      if (flickerBurstTimer <= 0) {
-        flickerBurstTimer = (HORROR_CONFIG.tension.flickerBurstIntervalMin || 9.0) +
-          Math.random() * ((HORROR_CONFIG.tension.flickerBurstIntervalMax || 18.0) - (HORROR_CONFIG.tension.flickerBurstIntervalMin || 9.0));
-        lampFlickerMod.triggerPowerDip(0.35);
-        soundEngine.playLampBuzz();
+      // TASK 2: Occasional random lamp flicker bursts (disabled in EXPLORE_MODE)
+      if (EXPLORE_FLAGS.ENABLE_STROBING_AND_BROWNOUTS) {
+        flickerBurstTimer -= delta;
+        if (flickerBurstTimer <= 0) {
+          flickerBurstTimer = (HORROR_CONFIG.tension.flickerBurstIntervalMin || 9.0) +
+            Math.random() * ((HORROR_CONFIG.tension.flickerBurstIntervalMax || 18.0) - (HORROR_CONFIG.tension.flickerBurstIntervalMin || 9.0));
+          lampFlickerMod.triggerPowerDip(0.35);
+          soundEngine.playLampBuzz();
+        }
       }
 
-      // TASK 2: Tighten linear fog & SVG vignette as timer runs down or hunter gets close
-      const timerRatio = Math.max(0, Math.min(1, 1 - (matchTimer / (GAME_CONFIG.matchDuration || 135))));
-      const combinedTension = Math.min(1.0, currentHunterProximity * 0.75 + timerRatio * 0.45);
+      // Fog & Vignette update: In EXPLORE_MODE, keep steady baseline or slider-tuned fog & normal subtle vignette
       if (scene.fog && scene.fog.isFog) {
-        const baseFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0;
-        const minFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogMinFarUnderTension) || 45.0;
-        scene.fog.near = Math.max(2.5, ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0) - combinedTension * 3.0);
-        scene.fog.far = baseFar - (baseFar - minFar) * combinedTension;
+        if (!exploreTools.fogEnabled) {
+          scene.fog.near = 9999;
+          scene.fog.far = 10000;
+        } else if (!EXPLORE_FLAGS.ENABLE_FEAR_FOV_AND_TENSION_FOG) {
+          const userFar = exploreTools.fogFar || ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0);
+          scene.fog.near = Math.max(2.5, (userFar / 88.0) * ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0));
+          scene.fog.far = userFar;
+        } else {
+          const timerRatio = Math.max(0, Math.min(1, 1 - (matchTimer / (GAME_CONFIG.matchDuration || 135))));
+          const combinedTension = Math.min(1.0, currentHunterProximity * 0.75 + timerRatio * 0.45);
+          const baseFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0;
+          const minFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogMinFarUnderTension) || 45.0;
+          scene.fog.near = Math.max(2.5, ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0) - combinedTension * 3.0);
+          scene.fog.far = baseFar - (baseFar - minFar) * combinedTension;
+          const vigEl = document.getElementById('cinematic-vignette');
+          if (vigEl) {
+            vigEl.style.opacity = (0.28 + combinedTension * 0.20).toFixed(2);
+          }
+        }
 
         // Faint warm tint to the fog when the player is near a warm lamp pool (< 14m)
         const lampDist = (lampFlickerMod && typeof lampFlickerMod.nearestLampDist === 'number')
@@ -12445,16 +18622,18 @@ export function getHideAndSeekHtml(): string {
         const warmFactor = Math.max(0.0, Math.min(0.45, (1.0 - lampDist / 14.0) * 0.45));
         scene.fog.color.copy(atmosphere.baseFogColor).lerp(atmosphere.warmFogColor, warmFactor);
       }
-      const vigEl = document.getElementById('cinematic-vignette');
-      if (vigEl) {
-        vigEl.style.opacity = (0.28 + combinedTension * 0.20).toFixed(2);
+      if (!EXPLORE_FLAGS.ENABLE_FEAR_FOV_AND_TENSION_FOG) {
+        const vigEl = document.getElementById('cinematic-vignette');
+        if (vigEl) vigEl.style.opacity = '0.28';
       }
 
-      // Throttled hunter proximity message for expo-av heartbeat (4Hz max, never per-frame!)
-      proximitySyncCooldown -= delta;
-      if (proximitySyncCooldown <= 0) {
-        proximitySyncCooldown = 0.25;
-        sendToReactNative('HUNTER_PROXIMITY', { proximity: Number(currentHunterProximity.toFixed(2)) });
+      // Throttled hunter proximity message (disabled in EXPLORE_MODE)
+      if (EXPLORE_FLAGS.ENABLE_HUNTER_AND_BOTS) {
+        proximitySyncCooldown -= delta;
+        if (proximitySyncCooldown <= 0) {
+          proximitySyncCooldown = 0.25;
+          sendToReactNative('HUNTER_PROXIMITY', { proximity: Number(currentHunterProximity.toFixed(2)) });
+        }
       }
 
       // Physics execution with test harness profiling and hooks
@@ -12476,6 +18655,9 @@ export function getHideAndSeekHtml(): string {
       physicsDebug.fps = rawDelta > 0.0001 ? (1.0 / rawDelta) : 60;
 
       updateEnvironmentAndBots(delta, timeSec);
+      if (typeof exploreTools !== 'undefined' && exploreTools.updateFrame) {
+        exploreTools.updateFrame();
+      }
       atmosphere.renderFrame(timeSec);
 
       // Step 1 FPS Guard: If average FPS < 40 for 3.0 seconds, disable the color grade pass automatically!
@@ -12496,19 +18678,43 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // TASK 4: Rolling FPS check every 2.5 seconds
+      // Requirement 2 & 3: Rolling 5.0s FPS & Frame-Time Monitor + 10-Minute Session Telemetry
       if (rawDelta > 0.001 && rawDelta < 0.5) {
         fpsFrameCount++;
         fpsAccumSec += rawDelta;
-        if (fpsAccumSec >= (HORROR_CONFIG.tension.autoStepDownWindowSec || 2.5)) {
-          const avgFps = fpsFrameCount / fpsAccumSec;
+        sessionTelemetry.elapsedSec += rawDelta;
+        sessionTelemetry.minFrameCount++;
+        sessionTelemetry.minAccumSec += rawDelta;
+
+        if (sessionTelemetry.minAccumSec >= 60.0 && sessionTelemetry.minuteHistory.length < 10) {
+          const mAvgFps = sessionTelemetry.minFrameCount / sessionTelemetry.minAccumSec;
+          const mAvgMs = 1000.0 / Math.max(1.0, mAvgFps);
+          const headroomPct = Math.max(0, ((16.67 - mAvgMs) / 16.67) * 100);
+          const entry = {
+            minute: sessionTelemetry.currentMinute,
+            avgFps: Number(mAvgFps.toFixed(1)),
+            avgFrameMs: Number(mAvgMs.toFixed(2)),
+            headroomPct: Number(headroomPct.toFixed(1)),
+            quality: currentQuality,
+          };
+          sessionTelemetry.minuteHistory.push(entry);
+          sessionTelemetry.currentMinute++;
+          sessionTelemetry.minFrameCount = 0;
+          sessionTelemetry.minAccumSec = 0.0;
+          sendToReactNative('SESSION_TELEMETRY_REPORT', entry);
+        }
+
+        const windowSec = (HORROR_CONFIG.tension && HORROR_CONFIG.tension.autoStepDownWindowSec) || 5.0;
+        if (fpsAccumSec >= windowSec) {
+          rollingAvgFps = fpsFrameCount / fpsAccumSec;
+          rollingAvgFrameMs = 1000.0 / Math.max(1.0, rollingAvgFps);
           fpsFrameCount = 0;
           fpsAccumSec = 0.0;
-          if (!hasSteppedDownFps && currentQuality === 'high' && avgFps < (HORROR_CONFIG.tension.autoStepDownFpsThreshold || 30)) {
-            hasSteppedDownFps = true;
-            applyGraphicsQuality('low');
-            sendToReactNative('AUTO_STEP_DOWN_QUALITY', { fps: Math.round(avgFps) });
-            showToast('FPS < 30: Auto-switched to FAST mode');
+          const stepDownThresh = (HORROR_CONFIG.tension && HORROR_CONFIG.tension.autoStepDownFpsThreshold) || 40;
+          const safeFps = (HORROR_CONFIG.tension && HORROR_CONFIG.tension.autoStepDownSafeFps) || 45;
+          // Never step down if pinned manually, if Battery Saver 30 FPS cap is active, or if holding >= 45 FPS
+          if (qualityPinMode === 'auto' && !batterySaverEnabled && rollingAvgFps < safeFps && rollingAvgFps < stepDownThresh) {
+            stepDownQualityOneTier(rollingAvgFps);
           }
         }
       }

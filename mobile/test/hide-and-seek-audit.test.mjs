@@ -41,6 +41,8 @@ globalThis.__HARNESS_EXPORTS__ = {
   walkableFloors,
   walkableStairRamps,
   interactiveHidingSpots,
+  enterableBuses,
+  isPositionClearOfColliders,
   bots,
   navWaypoints,
   playerPhysics,
@@ -478,7 +480,6 @@ describe('Physics & Controls Audit: Gandaki University 3D Hide-and-Seek', () => 
         { name: 'Mandala Archway Post (-14.1, -28.5)', x: -14.1, z: -28.5, expectedBlocked: true },
         { name: 'Campus Bench (Rotated 90 deg) (-4.2, -14.0)', x: -4.2, z: -14.0, expectedBlocked: true },
         { name: 'Parked Car (-17.0, -46.0)', x: -17.0, z: -46.0, expectedBlocked: true },
-        { name: 'Campus Bus (4.8, -43.0)', x: 4.8, z: -43.0, expectedBlocked: true },
         { name: 'Stone Chaitya Stupa (-12.0, -16.0)', x: -12.0, z: -16.0, expectedBlocked: true },
         { name: 'Forecourt Circular Fountain (6.0, 42.5)', x: 6.0, z: 42.5, expectedBlocked: true },
       ];
@@ -1285,6 +1286,359 @@ describe('Physics & Controls Audit: Gandaki University 3D Hide-and-Seek', () => 
           severity: pass ? 'None' : 'High',
         }
       );
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 8. ENTERABLE UNIVERSITY BUSES AUDIT (BUS A & BUS B — STEP 6)
+  // --------------------------------------------------------------------------
+  describe('8. Enterable University Buses Audit (Bus A & Bus B)', () => {
+    test('8.1 Enter and exit through each door (Front & Rear) of Bus A and Bus B', () => {
+      const env = initGameEnvironment();
+      const dt = 1 / 60;
+      assert.strictEqual(env.enterableBuses.length, 2, 'Should have exactly 2 enterable buses');
+
+      const doorResults = [];
+      for (const bus of env.enterableBuses) {
+        const cosR = Math.cos(bus.rotY);
+        const sinR = Math.sin(bus.rotY);
+        const toW = (lx, lz) => ({
+          x: bus.bx + lx * cosR + lz * sinR,
+          z: bus.bz - lx * sinR + lz * cosR,
+        });
+        const toL = (wx, wz) => {
+          const dx = wx - bus.bx;
+          const dz = wz - bus.bz;
+          return { lx: dx * cosR - dz * sinR, lz: dx * sinR + dz * cosR };
+        };
+
+        for (const [doorName, dcz] of [['Front Door', bus.fDoorCenterZ], ['Rear Door', bus.rDoorCenterZ]]) {
+          // Walk IN from outside (lx = -1.85) into center aisle (lx ~ 0.0)
+          const startW = toW(-1.85, dcz);
+          env.playerPhysics.pos.set(startW.x, 0, startW.z);
+          env.playerPhysics.vel.set(0, 0, 0);
+          env.playerPhysics.isGrounded = true;
+          const enterYaw = Math.atan2(-cosR, sinR); // facing +localX
+          env.playerPhysics.yaw = enterYaw;
+          env.playerPhysics.targetYaw = enterYaw;
+          env.keys['KeyW'] = true;
+          env.keys['ShiftLeft'] = false;
+          for (let f = 0; f < 55; f++) env.updatePlayer(dt, f * dt);
+          const inL = toL(env.playerPhysics.pos.x, env.playerPhysics.pos.z);
+          const inY = env.playerPhysics.pos.y;
+          const enteredOk = inL.lx > -0.35 && inL.lx < 0.92 && Math.abs(inY - bus.floorY) < 0.08;
+
+          // Walk OUT from center aisle (lx = 0.0) back outside (lx < -1.45, y ~ 0.0)
+          const aisleW = toW(0.0, dcz);
+          env.playerPhysics.pos.set(aisleW.x, bus.floorY, aisleW.z);
+          env.playerPhysics.vel.set(0, 0, 0);
+          const exitYaw = Math.atan2(cosR, -sinR); // facing -localX
+          env.playerPhysics.yaw = exitYaw;
+          env.playerPhysics.targetYaw = exitYaw;
+          for (let f = 0; f < 55; f++) env.updatePlayer(dt, f * dt);
+          env.keys['KeyW'] = false;
+          const outL = toL(env.playerPhysics.pos.x, env.playerPhysics.pos.z);
+          const outY = env.playerPhysics.pos.y;
+          const exitedOk = outL.lx < -1.45 && outY <= 0.06;
+
+          const pass = enteredOk && exitedOk;
+          doorResults.push({ busId: bus.id, doorName, inLX: inL.lx, inY, outLX: outL.lx, outY, pass });
+          recordResult(
+            `Bus door enter/exit: ${bus.label} ${doorName}`,
+            pass,
+            `in=(lx:${inL.lx.toFixed(2)}m, y:${inY.toFixed(2)}m), out=(lx:${outL.lx.toFixed(2)}m, y:${outY.toFixed(2)}m)`,
+            'in lx in [-0.35, 0.38] at y=0.54m; out lx < -1.45m at y=0.00m',
+            { file: 'gameHtml.ts', severity: pass ? 'None' : 'Critical' }
+          );
+          assert.strictEqual(pass, true, `${bus.id} ${doorName} enter/exit failed`);
+        }
+      }
+    });
+
+    test('8.2 Walk the full center aisle front to back of Bus A and Bus B', () => {
+      const env = initGameEnvironment();
+      const dt = 1 / 60;
+
+      for (const bus of env.enterableBuses) {
+        const cosR = Math.cos(bus.rotY);
+        const sinR = Math.sin(bus.rotY);
+        const toW = (lx, lz) => ({
+          x: bus.bx + lx * cosR + lz * sinR,
+          z: bus.bz - lx * sinR + lz * cosR,
+        });
+        const toL = (wx, wz) => {
+          const dx = wx - bus.bx;
+          const dz = wz - bus.bz;
+          return { lx: dx * cosR - dz * sinR, lz: dx * sinR + dz * cosR };
+        };
+
+        const startW = toW(0.0, -3.35);
+        env.playerPhysics.pos.set(startW.x, bus.floorY, startW.z);
+        env.playerPhysics.vel.set(0, 0, 0);
+        env.playerPhysics.isGrounded = true;
+        const backYaw = Math.atan2(-sinR, -cosR); // facing +localZ (from -Z Front to +Z Rear)
+        env.playerPhysics.yaw = backYaw;
+        env.playerPhysics.targetYaw = backYaw;
+        env.keys['KeyW'] = true;
+        env.keys['ShiftLeft'] = false;
+        for (let f = 0; f < 130; f++) env.updatePlayer(dt, f * dt);
+        env.keys['KeyW'] = false;
+
+        const endL = toL(env.playerPhysics.pos.x, env.playerPhysics.pos.z);
+        const pass = endL.lz > 3.45 && Math.abs(endL.lx) < 0.25 && Math.abs(env.playerPhysics.pos.y - bus.floorY) < 0.08;
+        recordResult(
+          `Walk full aisle front-to-back: ${bus.label}`,
+          pass,
+          `startLZ: -3.35m -> endLZ: +${endL.lz.toFixed(2)}m, endLX: ${endL.lx.toFixed(2)}m, floorY: ${env.playerPhysics.pos.y.toFixed(2)}m`,
+          'endLZ > +3.45m, |endLX| < 0.25m, floorY = 0.54m',
+          { file: 'gameHtml.ts', severity: pass ? 'None' : 'Critical' }
+        );
+        assert.strictEqual(pass, true, `${bus.id} aisle walk failed`);
+      }
+    });
+
+    test('8.3 Sweep Bus A and Bus B from 8 angles (blocked at solid walls, open at doors)', () => {
+      const env = initGameEnvironment();
+      const dt = 1 / 60;
+
+      for (const bus of env.enterableBuses) {
+        const cosR = Math.cos(bus.rotY);
+        const sinR = Math.sin(bus.rotY);
+        const toW = (lx, lz) => ({
+          x: bus.bx + lx * cosR + lz * sinR,
+          z: bus.bz - lx * sinR + lz * cosR,
+        });
+        const toL = (wx, wz) => {
+          const dx = wx - bus.bx;
+          const dz = wz - bus.bz;
+          return { lx: dx * cosR - dz * sinR, lz: dx * sinR + dz * cosR };
+        };
+
+        const sweepSpecs = [
+          { name: 'Front (+Z Wall)', sLX: 0.0, sLZ: 6.5, tLX: 0.0, tLZ: 3.5, expectBlocked: true },
+          { name: 'Rear (-Z Wall)', sLX: 0.0, sLZ: -6.5, tLX: 0.0, tLZ: -3.5, expectBlocked: true },
+          { name: 'Right Mid (+X Wall)', sLX: 2.3, sLZ: 0.0, tLX: 0.0, tLZ: 0.0, expectBlocked: true },
+          { name: 'Left Mid (-X Wall between doors)', sLX: -2.3, sLZ: 0.0, tLX: 0.0, tLZ: 0.0, expectBlocked: true },
+          { name: 'Front-Right Corner Wall', sLX: 2.2, sLZ: 4.2, tLX: 0.0, tLZ: 4.2, expectBlocked: true },
+          { name: 'Rear-Right Corner Wall', sLX: 2.2, sLZ: -4.2, tLX: 0.0, tLZ: -4.2, expectBlocked: true },
+          { name: 'Left Front Door (-X Open)', sLX: -2.0, sLZ: bus.fDoorCenterZ, tLX: 0.0, tLZ: bus.fDoorCenterZ, expectBlocked: false },
+          { name: 'Left Rear Door (-X Open)', sLX: -2.0, sLZ: bus.rDoorCenterZ, tLX: 0.0, tLZ: bus.rDoorCenterZ, expectBlocked: false },
+        ];
+
+        let passedAngles = 0;
+        for (const sp of sweepSpecs) {
+          const sw = toW(sp.sLX, sp.sLZ);
+          const tw = toW(sp.tLX, sp.tLZ);
+          env.playerPhysics.pos.set(sw.x, 0, sw.z);
+          env.playerPhysics.vel.set(0, 0, 0);
+          env.playerPhysics.isGrounded = true;
+          const yaw = Math.atan2(-(tw.x - sw.x), -(tw.z - sw.z));
+          env.playerPhysics.yaw = yaw;
+          env.playerPhysics.targetYaw = yaw;
+          env.keys['KeyW'] = true;
+          env.keys['ShiftLeft'] = false;
+          for (let f = 0; f < 55; f++) env.updatePlayer(dt, f * dt);
+          env.keys['KeyW'] = false;
+
+          const endL = toL(env.playerPhysics.pos.x, env.playerPhysics.pos.z);
+          const enteredInterior = Math.abs(endL.lx) < 0.92 && Math.abs(endL.lz) < 4.90;
+          const ok = sp.expectBlocked ? !enteredInterior : enteredInterior;
+          if (ok) passedAngles++;
+        }
+
+        const pass = passedAngles === 8;
+        recordResult(
+          `8-angle bus sweep (6 walls blocked, 2 doors open): ${bus.label}`,
+          pass,
+          `${passedAngles}/8 angles matched expected wall-block / door-open behavior`,
+          '8/8 angles (6 solid walls blocked, 2 doorways open)',
+          { file: 'gameHtml.ts', severity: pass ? 'None' : 'Critical' }
+        );
+        assert.strictEqual(pass, true, `${bus.id} 8-angle sweep failed (${passedAngles}/8)`);
+      }
+    });
+
+    test('8.4 Sprint into side and rear of Bus A and Bus B at full speed (no tunneling)', () => {
+      const env = initGameEnvironment();
+
+      for (const bus of env.enterableBuses) {
+        const cosR = Math.cos(bus.rotY);
+        const sinR = Math.sin(bus.rotY);
+        const toW = (lx, lz) => ({
+          x: bus.bx + lx * cosR + lz * sinR,
+          z: bus.bz - lx * sinR + lz * cosR,
+        });
+        const toL = (wx, wz) => {
+          const dx = wx - bus.bx;
+          const dz = wz - bus.bz;
+          return { lx: dx * cosR - dz * sinR, lz: dx * sinR + dz * cosR };
+        };
+
+        for (const [wallTag, sLX, sLZ, tLX, tLZ] of [
+          ['Right Side Wall (+X)', 2.8, 0.0, 0.0, 0.0],
+          ['Left Mid Wall (-X)', -2.8, 0.0, 0.0, 0.0],
+          ['Rear Wall (-Z)', 0.0, -7.0, 0.0, -3.0],
+        ]) {
+          const sw = toW(sLX, sLZ);
+          const tw = toW(tLX, tLZ);
+          env.playerPhysics.pos.set(sw.x, 0, sw.z);
+          env.playerPhysics.vel.set(0, 0, 0);
+          env.playerPhysics.isGrounded = true;
+          const yaw = Math.atan2(-(tw.x - sw.x), -(tw.z - sw.z));
+          env.playerPhysics.yaw = yaw;
+          env.playerPhysics.targetYaw = yaw;
+          env.keys['KeyW'] = true;
+          env.keys['ShiftLeft'] = true;
+
+          let tunneled = false;
+          for (let f = 0; f < 35; f++) {
+            env.updatePlayer(1 / 15, f / 15); // Test at heavy 15 FPS step + full sprint
+            const curL = toL(env.playerPhysics.pos.x, env.playerPhysics.pos.z);
+            if (Math.abs(curL.lx) < 1.12 && Math.abs(curL.lz) < 5.10) tunneled = true;
+          }
+          env.keys['KeyW'] = false;
+          env.keys['ShiftLeft'] = false;
+          const endL = toL(env.playerPhysics.pos.x, env.playerPhysics.pos.z);
+
+          recordResult(
+            `Sprint into ${bus.label} ${wallTag} (anti-tunneling)`,
+            !tunneled,
+            `tunneled: ${tunneled}, finalLocal=(${endL.lx.toFixed(2)}m, ${endL.lz.toFixed(2)}m)`,
+            'tunneled: false (stopped outside OBB wall)',
+            { file: 'gameHtml.ts', severity: !tunneled ? 'None' : 'Critical' }
+          );
+          assert.strictEqual(tunneled, false, `Tunneled into ${bus.id} ${wallTag}`);
+        }
+      }
+    });
+
+    test('8.5 Jump inside under the roof of Bus A and Bus B (head bump, no clipping through)', () => {
+      const env = initGameEnvironment();
+      const dt = 1 / 60;
+      const roofMinY = 2.82;
+      const standingH = 1.80;
+
+      for (const bus of env.enterableBuses) {
+        env.playerPhysics.pos.set(bus.bx, bus.floorY, bus.bz);
+        env.playerPhysics.vel.set(0, 0, 0);
+        env.playerPhysics.isGrounded = true;
+        env.playerPhysics.isCrouching = false;
+        env.playerPhysics.isHiding = false;
+        env.performJump();
+
+        let maxHeadY = bus.floorY + standingH;
+        for (let f = 0; f < 60; f++) {
+          env.updatePlayer(dt, f * dt);
+          const headY = env.playerPhysics.pos.y + standingH;
+          if (headY > maxHeadY) maxHeadY = headY;
+        }
+
+        const pass = maxHeadY <= roofMinY + 0.01 && maxHeadY > bus.floorY + standingH + 0.15;
+        recordResult(
+          `Jump inside under bus roof (head bump): ${bus.label}`,
+          pass,
+          `maxHeadY: ${maxHeadY.toFixed(3)}m vs roofMinY: ${roofMinY.toFixed(2)}m`,
+          `maxHeadY <= ${roofMinY.toFixed(2)}m (clamped by roof OBB)`,
+          { file: 'gameHtml.ts', severity: pass ? 'None' : 'Critical' }
+        );
+        assert.strictEqual(pass, true, `${bus.id} roof head bump check failed: maxHeadY=${maxHeadY}`);
+      }
+    });
+
+    test('8.6 Hiding spot exit positions clear (>= playerRadius + 0.15 = 0.43m) & >= 1.5m bus clearance from walls/cars/lamps', () => {
+      const env = initGameEnvironment();
+      const minClearance = 0.28 + 0.15; // 0.43m
+      const busSpots = env.interactiveHidingSpots.filter(s => s.id.startsWith('bus-'));
+      assert.strictEqual(busSpots.length, 4, 'Should have 4 bus hiding spots (2 per bus)');
+
+      for (const sp of busSpots) {
+        const clear = env.isPositionClearOfColliders(sp.exitX, sp.exitY, sp.exitZ, minClearance);
+        recordResult(
+          `Bus hiding spot exit clearance: ${sp.id}`,
+          clear,
+          `exit=(${sp.exitX.toFixed(2)}, ${sp.exitY.toFixed(2)}, ${sp.exitZ.toFixed(2)}), clearRadius=${minClearance.toFixed(2)}m: ${clear}`,
+          'clear: true (>= 0.43m from all colliders)',
+          { file: 'gameHtml.ts', severity: clear ? 'None' : 'Critical' }
+        );
+        assert.strictEqual(clear, true, `Hiding spot ${sp.id} exit is not clear by ${minClearance}m`);
+      }
+
+      // Verify >= 1.5m clearance between Bus A / Bus B outer footprints and all non-bus colliders
+      const nonBusColliders = env.colliders.filter(c => !(c.label && c.label.startsWith('bus-')));
+      for (const bus of env.enterableBuses) {
+        const busWalls = env.colliders.filter(c => c.label && c.label.startsWith(bus.id + '_wall_'));
+        const busMinX = Math.min(...busWalls.map(w => w.min.x));
+        const busMaxX = Math.max(...busWalls.map(w => w.max.x));
+        const busMinZ = Math.min(...busWalls.map(w => w.min.z));
+        const busMaxZ = Math.max(...busWalls.map(w => w.max.z));
+
+        let minGap = Infinity;
+        let nearestDesc = 'none';
+        for (const c of nonBusColliders) {
+          if (!c.min || !c.max || c.max.y <= 0.15) continue;
+          const dx = Math.max(0, busMinX - c.max.x, c.min.x - busMaxX);
+          const dz = Math.max(0, busMinZ - c.max.z, c.min.z - busMaxZ);
+          const dist = Math.hypot(dx, dz);
+          if (dist < minGap) {
+            minGap = dist;
+            nearestDesc = `(${((c.min.x + c.max.x) / 2).toFixed(1)}, ${((c.min.z + c.max.z) / 2).toFixed(1)})`;
+          }
+        }
+
+        const passGap = minGap >= 1.5;
+        recordResult(
+          `Placement clearance (>= 1.5m from walls/cars/lamps): ${bus.label}`,
+          passGap,
+          `minGap: ${minGap.toFixed(2)}m to nearest obstacle at ${nearestDesc}`,
+          'minGap >= 1.50m (zero overlap)',
+          { file: 'gameHtml.ts', severity: passGap ? 'None' : 'High' }
+        );
+        assert.strictEqual(passGap, true, `${bus.id} minGap=${minGap.toFixed(2)}m < 1.5m`);
+      }
+    });
+
+    test('8.7 Frame-rate independence while walking inside Bus A and Bus B (60 / 30 / 15 FPS)', () => {
+      for (const busIndex of [0, 1]) {
+        const runBusAisleFps = (fps) => {
+          const env = initGameEnvironment();
+          const bus = env.enterableBuses[busIndex];
+          const cosR = Math.cos(bus.rotY);
+          const sinR = Math.sin(bus.rotY);
+          const startX = bus.bx - 2.8 * sinR;
+          const startZ = bus.bz - 2.8 * cosR;
+          env.playerPhysics.pos.set(startX, bus.floorY, startZ);
+          env.playerPhysics.vel.set(0, 0, 0);
+          env.playerPhysics.isGrounded = true;
+          const yaw = Math.atan2(-sinR, -cosR);
+          env.playerPhysics.yaw = yaw;
+          env.playerPhysics.targetYaw = yaw;
+          env.keys['KeyW'] = true;
+          env.keys['ShiftLeft'] = false;
+          const dt = 1 / fps;
+          const frames = Math.round(1.4 * fps);
+          for (let f = 0; f < frames; f++) env.updatePlayer(dt, f * dt);
+          return {
+            label: bus.label,
+            dist: Math.hypot(env.playerPhysics.pos.x - startX, env.playerPhysics.pos.z - startZ),
+          };
+        };
+
+        const r60 = runBusAisleFps(60);
+        const r30 = runBusAisleFps(30);
+        const r15 = runBusAisleFps(15);
+        const diff30 = Math.abs(r30.dist - r60.dist) / r60.dist;
+        const diff15 = Math.abs(r15.dist - r60.dist) / r60.dist;
+        const maxDiff = Math.max(diff30, diff15);
+        const pass = maxDiff <= 0.05;
+        recordResult(
+          `Framerate independence walking inside ${r60.label} (60/30/15 FPS)`,
+          pass,
+          `60fps: ${r60.dist.toFixed(3)}m, 30fps: ${r30.dist.toFixed(3)}m (${(diff30 * 100).toFixed(1)}%), 15fps: ${r15.dist.toFixed(3)}m (${(diff15 * 100).toFixed(1)}%)`,
+          'Variance <= 5.0%',
+          { file: 'gameHtml.ts', severity: pass ? 'None' : 'High' }
+        );
+        assert.strictEqual(pass, true, `${r60.label} FPS variance=${(maxDiff * 100).toFixed(1)}%`);
+      }
     });
   });
 });

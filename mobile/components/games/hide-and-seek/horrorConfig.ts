@@ -1,4 +1,11 @@
 export type GraphicsQuality = 'ultra' | 'high' | 'low' | 'fast';
+export type QualityPinMode = 'auto' | GraphicsQuality;
+
+/**
+ * Single Master Switch for Map Exploration Mode vs. Hide-and-Seek Gameplay Mode.
+ * Set EXPLORE_MODE = false to re-enable full Hide-and-Seek gameplay (Hunter, bots, timer, fuses, scares).
+ */
+export const EXPLORE_MODE = true;
 
 export interface QualityPreset {
   label: string;
@@ -26,7 +33,8 @@ export interface QualityPreset {
  *  Darkened Grimy Materials, 3-Layer Ridge Silhouettes & Rim Lighting)
  */
 export const HORROR_CONFIG = {
-  enableDevTelemetry: false,
+  exploreMode: true,
+  enableDevTelemetry: true,
 
   // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (All required grade values in one section)
   grade: {
@@ -117,45 +125,67 @@ export const HORROR_CONFIG = {
   },
   roomLightMoods: {
     dark: {
-      ambientColor: 0x080f18,
-      ambientMult: 0.45,
+      ambientColor: 0x060b12,
+      ambientMult: 0.36,
+      color: 0x060b12,
       lightColor: 0x000000,
+      intensity: 0.0,
       lightIntensity: 0.0,
+      distance: 0.0,
       lightDistance: 0.0,
       flickerType: 'none',
     },
     dying_tube: {
-      ambientColor: 0x13262b,
-      ambientMult: 0.72,
+      ambientColor: 0x0c1a20,
+      ambientMult: 0.50,
+      color: 0xb4f0e4,
       lightColor: 0xb4f0e4,
-      lightIntensity: 5.8,
+      intensity: 3.8,
+      lightIntensity: 3.8,
+      distance: 10.5,
       lightDistance: 10.5,
       flickerType: 'fluorescent_dying',
     },
     moonlight: {
-      ambientColor: 0x162a42,
-      ambientMult: 0.78,
+      ambientColor: 0x0b1828,
+      ambientMult: 0.52,
+      color: 0x84b6e6,
       lightColor: 0x84b6e6,
-      lightIntensity: 4.4,
-      lightDistance: 12.0,
+      intensity: 2.8,
+      lightIntensity: 2.8,
+      distance: 11.5,
+      lightDistance: 11.5,
       flickerType: 'steady_moon',
     },
     warm_lamp: {
-      ambientColor: 0x241912,
-      ambientMult: 0.76,
+      ambientColor: 0x16100c,
+      ambientMult: 0.52,
+      color: 0xff9838,
       lightColor: 0xff9838,
-      lightIntensity: 6.4,
+      intensity: 4.2,
+      lightIntensity: 4.2,
+      distance: 9.8,
       lightDistance: 9.8,
       flickerType: 'warm_filament',
     },
     emergency_red: {
-      ambientColor: 0x280a0e,
-      ambientMult: 0.70,
+      ambientColor: 0x180608,
+      ambientMult: 0.48,
+      color: 0xff2222,
       lightColor: 0xff2222,
-      lightIntensity: 6.2,
+      intensity: 4.0,
+      lightIntensity: 4.0,
+      distance: 10.5,
       lightDistance: 10.5,
       flickerType: 'emergency_pulse',
     },
+    '101': { mood: 'dying_tube', color: 0xcbe4f5, intensity: 3.8, ambientScale: 0.14, tubeFlicker: true, moonlightShafts: true },
+    '102': { mood: 'warm_lamp', color: 0xe6a152, intensity: 4.0, ambientScale: 0.16, tubeFlicker: false, moonlightShafts: true },
+    '201': { mood: 'moonlight', color: 0x82acc9, intensity: 2.8, ambientScale: 0.14, tubeFlicker: false, moonlightShafts: true },
+    '202': { mood: 'warm_lamp', color: 0xd99445, intensity: 3.8, ambientScale: 0.16, tubeFlicker: true, moonlightShafts: true },
+    '301': { mood: 'dark', color: 0x3b5263, intensity: 0.0, ambientScale: 0.10, tubeFlicker: true, moonlightShafts: true },
+    '302': { mood: 'emergency_red', color: 0xc92a2a, intensity: 4.0, ambientScale: 0.14, tubeFlicker: true, moonlightShafts: false },
+    'atrium': { mood: 'dying_tube', color: 0xd8a060, intensity: 3.4, ambientScale: 0.18, tubeFlicker: true, moonlightShafts: true },
   },
   tension: {
     baseBreathingAmp: 0.012,
@@ -165,8 +195,9 @@ export const HORROR_CONFIG = {
     hunterProximityRadius: 24.0,
     flickerBurstIntervalMin: 12.0,
     flickerBurstIntervalMax: 22.0,
-    autoStepDownFpsThreshold: 30,
-    autoStepDownWindowSec: 2.5,
+    autoStepDownFpsThreshold: 40,
+    autoStepDownSafeFps: 45,
+    autoStepDownWindowSec: 5.0,
   },
   audioAssets: {
     windLoop: 'assets/sounds/horror/campus_wind_loop.mp3',
@@ -298,9 +329,11 @@ export const HORROR_CONFIG = {
     debugPhysics: false,
   },
   accessibility: {
-    fearIntensity: 'high' as 'low' | 'medium' | 'high',
+    fearIntensity: 'high',
     flickerReduction: false,
     screenShakeOff: false,
+    batterySaver: false,
+    qualityPinMode: 'auto',
   },
   gameplay: {
     roundDurationSec: 540, // 9 minutes (8-10 min design pillar)
@@ -314,18 +347,136 @@ export const HORROR_CONFIG = {
     doorLockDurationSec: 12.0,
     powerCutCooldownSec: 35.0,
     powerCutDurationSec: 10.0,
-    flashlightDrainPerSec: 1.15,
+    flashlightDrainPerSec: 0.18,
+    flashlightBatteryDrainPerSec: 0.18,
     batteryPickupRestore: 45.0,
+    flashlightRechargeAmount: 45.0,
+    flashlightMinReserveFactor: 0.28,
+    flashlightMinDarkRoomDistance: 4.6,
     breathHoldDurationSec: 3.2,
   },
-  roomLightMoods: {
-    '101': { mood: 'flickering_tube', color: 0xcbe4f5, intensity: 1.35, ambientScale: 0.16, tubeFlicker: true, moonlightShafts: true },
-    '102': { mood: 'warm_lamp', color: 0xe6a152, intensity: 1.25, ambientScale: 0.18, tubeFlicker: false, moonlightShafts: true },
-    '201': { mood: 'moonlit', color: 0x82acc9, intensity: 0.95, ambientScale: 0.14, tubeFlicker: false, moonlightShafts: true },
-    '202': { mood: 'warm_lamp', color: 0xd99445, intensity: 1.15, ambientScale: 0.18, tubeFlicker: true, moonlightShafts: true },
-    '301': { mood: 'dark', color: 0x3b5263, intensity: 0.40, ambientScale: 0.12, tubeFlicker: true, moonlightShafts: true },
-    '302': { mood: 'emergency_red', color: 0xc92a2a, intensity: 1.45, ambientScale: 0.15, tubeFlicker: true, moonlightShafts: false },
-    'atrium': { mood: 'flickering_tube', color: 0xd8a060, intensity: 1.10, ambientScale: 0.22, tubeFlicker: true, moonlightShafts: true },
+  buses: {
+    length: 10.5,
+    width: 2.5,
+    height: 3.1,
+    floorY: 0.54,
+    roofBottomY: 2.82,
+    stepHeight1: 0.18,
+    stepHeight2: 0.36,
+    interiorCullDist: 25.0,
+    mossAmountBusA: 0.52,
+    mossAmountBusB: 0.86,
+    glassBreakageBusA: 0.35,
+    glassBreakageBusB: 0.68,
+    vineCountBusA: 10,
+    vineCountBusB: 16,
+    routeDevanagari: 'पोखरा',
+    busA: {
+      id: 'bus-a',
+      label: 'Bus A (GP62 • ग १ ख ९४९१)',
+      x: 5.2,
+      z: -44.2,
+      rotY: 0.0,
+      plateNumber: 'ग १ ख ९४९१',
+      plateAscii: 'GA 1 KHA 9491',
+      fleetCode: 'GP62',
+      mossAmount: 0.52,
+      glassBreakage: 0.35,
+      vineCount: 10,
+      doorOpenAngle: 0.55, // Slightly open folding door leaf
+    },
+    busB: {
+      id: 'bus-b',
+      label: 'Bus B (GP64 • ग १ ख ७२६२)',
+      x: 15.4,
+      z: -45.2,
+      rotY: 0.04,
+      plateNumber: 'ग १ ख ७२६२',
+      plateAscii: 'GA 1 KHA 7262',
+      fleetCode: 'GP64',
+      mossAmount: 0.86,
+      glassBreakage: 0.68,
+      vineCount: 16,
+      doorOpenAngle: 1.25, // Wider open door leaf, more broken glass & heavier moss
+    },
+  },
+  mainBuilding: {
+    // 1. Windows: 1024px/512px mipmapped + anisotropic dark frame/mullions, ~35% warm/red lit, ~65% cool sky-reflective dark glass
+    litWindowRatio: 0.35,
+    windowTextureSize: 512,
+    windowAnisotropy: 8,
+    windowFrameHex: '#151c24',
+    windowSillColor: 0xd0dae2,
+    windowWarmColor: 0xffe4a0,
+    windowWarmEmissive: 0xffa434,
+    windowWarmEmissiveIntensity: 0.94,
+    windowRedColor: 0xff7e58,
+    windowRedEmissive: 0xe63926,
+    windowRedEmissiveIntensity: 0.98,
+    windowDarkColor: 0x263c52,
+    windowDarkSkyReflectEmissive: 0x1e344a,
+    windowDarkEmissiveIntensity: 0.36,
+    windowDarkRoughness: 0.14,
+    windowDarkMetalness: 0.78,
+
+    // 2. Walls, Pilasters, Columns, Floor Bands & Cornices (fine plaster/brick, low normalScale, restored relief contrast)
+    wallColor: 0x9ca6b0,
+    wallEmissive: 0x16222e,
+    wallEmissiveIntensity: 0.18,
+    wallNormalScale: 0.016,
+    wallRoughness: 0.66,
+    pilasterColor: 0xdce4ec,
+    pilasterEmissive: 0x243444,
+    pilasterEmissiveIntensity: 0.25,
+    pilasterNormalScale: 0.012,
+    pilasterRoughness: 0.56,
+    columnPedestalColor: 0x66727c,
+    plinthColor: 0x7e8a94,
+
+    // 3. Facade Lighting, Entrance Spill, Cool Moon Rim & Baked AO (0 new real lights; skipped on FAST)
+    facadeUplightColor: 0xff9436,
+    facadeUplightOpacity: 0.24,
+    porticoColumnWashOpacity: 0.28,
+    entranceGroundSpillColor: 0xff9838,
+    entranceGroundSpillOpacity: 0.30,
+    moonRimColor: [0.24, 0.38, 0.52],
+    moonRimIntensity: 0.92,
+    moonRimPower: 2.0,
+    eaveAoOpacity: 0.64,
+    floorBandAoOpacity: 0.48,
+
+    // 4. Roof: Lifted Terracotta-Red Tile & Ridge/Edge Highlight
+    roofColor: 0xb83e30,
+    roofEmissive: 0x3a120e,
+    roofEmissiveIntensity: 0.24,
+    roofRidgeColor: 0xd65444,
+    roofRidgeEmissive: 0x4c1914,
+    roofRidgeEmissiveIntensity: 0.30,
+    roofNormalScale: 0.026,
+    roofRoughness: 0.44,
+
+    // 5. Distance Silhouette & Per-Building Fog Reduction (building only, global fog untouched)
+    fogInfluence: 0.34,
+    minLandmarkCullDist: 145.0,
+
+    // 6. High-Res "GANDAKI UNIVERSITY" Sign (>= 1024px wide with mipmaps + slight emissive)
+    signCanvasWidth: 2048,
+    signCanvasHeight: 256,
+    signPlaqueColor: 0xc8d2da,
+    signEmissive: 0x2c3a48,
+    signEmissiveIntensity: 0.30,
+
+    // 7. Rotunda Glass Ring (dark glass, 2 warm interior-lit sections, visible orange railing)
+    rotundaGlassDarkColor: 0x182838,
+    rotundaGlassDarkEmissive: 0x16283a,
+    rotundaGlassDarkEmissiveIntensity: 0.28,
+    rotundaGlassWarmColor: 0xffcf86,
+    rotundaGlassWarmEmissive: 0xff9636,
+    rotundaGlassWarmEmissiveIntensity: 0.72,
+    rotundaLitBayIndices: [3, 6],
+    rotundaRailingColor: 0xf07c24,
+    rotundaRailingEmissive: 0xff6e18,
+    rotundaRailingEmissiveIntensity: 0.56,
   },
 };
 

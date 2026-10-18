@@ -2,11 +2,12 @@ import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { HORROR_CONFIG, GraphicsQuality } from './horrorConfig';
+import { HORROR_CONFIG, EXPLORE_MODE, GraphicsQuality, QualityPinMode } from './horrorConfig';
 
 export type FearIntensity = 'low' | 'medium' | 'high';
 
 interface HorrorHUDProps {
+  exploreMode?: boolean;
   hidersRemaining: number;
   timeLeft: number;
   fusesRestored?: number;
@@ -14,12 +15,15 @@ interface HorrorHUDProps {
   gateUnlocked?: boolean;
   isMuted: boolean;
   quality: GraphicsQuality;
+  qualityPinMode?: QualityPinMode;
+  batterySaver?: boolean;
   fearIntensity?: FearIntensity;
   flickerReduction?: boolean;
   screenShakeOff?: boolean;
   onExitLobby: () => void;
   onToggleMute: () => void;
   onToggleQuality: () => void;
+  onToggleBatterySaver?: () => void;
   onCycleFearIntensity?: () => void;
   onToggleFlickerReduction?: () => void;
   onToggleScreenShake?: () => void;
@@ -27,6 +31,7 @@ interface HorrorHUDProps {
 }
 
 export const HorrorHUD: React.FC<HorrorHUDProps> = ({
+  exploreMode = EXPLORE_MODE,
   hidersRemaining,
   timeLeft,
   fusesRestored = 0,
@@ -34,17 +39,23 @@ export const HorrorHUD: React.FC<HorrorHUDProps> = ({
   gateUnlocked = false,
   isMuted,
   quality,
+  qualityPinMode = 'auto',
+  batterySaver = false,
   fearIntensity = 'high',
   flickerReduction = false,
   screenShakeOff = false,
   onExitLobby,
   onToggleMute,
   onToggleQuality,
+  onToggleBatterySaver,
   onCycleFearIntensity,
   onToggleFlickerReduction,
   onToggleScreenShake,
   formatTimer,
 }) => {
+  const tierLabel = HORROR_CONFIG.qualityPresets[quality]?.label || quality.toUpperCase();
+  const gfxLabel = qualityPinMode === 'auto' ? `AUTO (${tierLabel})` : `PIN: ${tierLabel}`;
+
   return (
     <>
       {/* Lightweight Vignette Overlay above 3D view and below HUD */}
@@ -112,19 +123,26 @@ export const HorrorHUD: React.FC<HorrorHUDProps> = ({
                 color={quality === 'ultra' || quality === 'high' ? HORROR_CONFIG.palette.dimAmber : '#64748b'}
               />
               <Text style={styles.hudButtonText}>
-                GFX: {HORROR_CONFIG.qualityPresets[quality]?.label || quality.toUpperCase()}
+                GFX: {gfxLabel}
               </Text>
             </TouchableOpacity>
 
-            {onCycleFearIntensity && (
+            {onToggleBatterySaver && (
               <TouchableOpacity
-                onPress={onCycleFearIntensity}
-                style={styles.hudButton}
+                onPress={onToggleBatterySaver}
+                style={[
+                  styles.hudButton,
+                  batterySaver && { borderColor: '#22c55e' },
+                ]}
                 activeOpacity={0.8}
               >
-                <Ionicons name="pulse-outline" size={13} color={HORROR_CONFIG.palette.dimAmber} />
+                <Ionicons
+                  name={batterySaver ? 'battery-charging' : 'battery-full-outline'}
+                  size={13}
+                  color={batterySaver ? '#22c55e' : '#64748b'}
+                />
                 <Text style={styles.hudButtonText}>
-                  FEAR: {fearIntensity.toUpperCase()}
+                  SAVER: {batterySaver ? '30 FPS' : 'OFF'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -149,7 +167,20 @@ export const HorrorHUD: React.FC<HorrorHUDProps> = ({
               </TouchableOpacity>
             )}
 
-            {onToggleScreenShake && (
+            {!exploreMode && onCycleFearIntensity && (
+              <TouchableOpacity
+                onPress={onCycleFearIntensity}
+                style={styles.hudButton}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="pulse-outline" size={13} color={HORROR_CONFIG.palette.dimAmber} />
+                <Text style={styles.hudButtonText}>
+                  FEAR: {fearIntensity.toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {!exploreMode && onToggleScreenShake && (
               <TouchableOpacity
                 onPress={onToggleScreenShake}
                 style={[
@@ -170,39 +201,48 @@ export const HorrorHUD: React.FC<HorrorHUDProps> = ({
             )}
           </View>
 
-          <View style={styles.hudStatsPill} pointerEvents="none">
-            <View style={styles.hudStatBlock}>
-              <Ionicons
-                name={gateUnlocked ? 'lock-open' : 'flash'}
-                size={13}
-                color={gateUnlocked ? '#22c55e' : HORROR_CONFIG.palette.dimAmber}
-              />
-              <Text style={[styles.hudStatText, gateUnlocked && { color: '#4ade80' }]}>
-                {gateUnlocked ? 'GATE OPEN!' : `Fuses: ${fusesRestored}/${totalFuses}`}
-              </Text>
+          {exploreMode ? (
+            <View style={styles.hudStatsPill} pointerEvents="none">
+              <View style={styles.hudStatBlock}>
+                <Ionicons name="compass-outline" size={13} color={HORROR_CONFIG.palette.dimAmber} />
+                <Text style={styles.hudStatText}>MAP EXPLORATION MODE</Text>
+              </View>
             </View>
-            <View style={styles.hudDivider} />
-            <View style={styles.hudStatBlock}>
-              <Ionicons name="people" size={13} color={HORROR_CONFIG.palette.dimAmber} />
-              <Text style={styles.hudStatText}>{hidersRemaining} Scholars</Text>
+          ) : (
+            <View style={styles.hudStatsPill} pointerEvents="none">
+              <View style={styles.hudStatBlock}>
+                <Ionicons
+                  name={gateUnlocked ? 'lock-open' : 'flash'}
+                  size={13}
+                  color={gateUnlocked ? '#22c55e' : HORROR_CONFIG.palette.dimAmber}
+                />
+                <Text style={[styles.hudStatText, gateUnlocked && { color: '#4ade80' }]}>
+                  {gateUnlocked ? 'GATE OPEN!' : `Fuses: ${fusesRestored}/${totalFuses}`}
+                </Text>
+              </View>
+              <View style={styles.hudDivider} />
+              <View style={styles.hudStatBlock}>
+                <Ionicons name="people" size={13} color={HORROR_CONFIG.palette.dimAmber} />
+                <Text style={styles.hudStatText}>{hidersRemaining} Scholars</Text>
+              </View>
+              <View style={styles.hudDivider} />
+              <View style={styles.hudStatBlock}>
+                <Ionicons
+                  name="time-outline"
+                  size={13}
+                  color={timeLeft < 60 ? '#ef4444' : HORROR_CONFIG.palette.dimAmber}
+                />
+                <Text
+                  style={[
+                    styles.hudStatText,
+                    timeLeft < 60 && { color: '#fca5a5' },
+                  ]}
+                >
+                  {formatTimer(timeLeft)}
+                </Text>
+              </View>
             </View>
-            <View style={styles.hudDivider} />
-            <View style={styles.hudStatBlock}>
-              <Ionicons
-                name="time-outline"
-                size={13}
-                color={timeLeft < 60 ? '#ef4444' : HORROR_CONFIG.palette.dimAmber}
-              />
-              <Text
-                style={[
-                  styles.hudStatText,
-                  timeLeft < 60 && { color: '#fca5a5' },
-                ]}
-              >
-                {formatTimer(timeLeft)}
-              </Text>
-            </View>
-          </View>
+          )}
         </View>
       </View>
     </>

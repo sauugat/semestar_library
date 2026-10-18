@@ -10,6 +10,8 @@ import {
   useWindowDimensions,
   Animated,
   ActivityIndicator,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +21,7 @@ import * as Haptics from 'expo-haptics';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getHideAndSeekHtml } from './gameHtml';
-import { HORROR_CONFIG, GraphicsQuality } from './horrorConfig';
+import { HORROR_CONFIG, EXPLORE_MODE, GraphicsQuality, QualityPinMode } from './horrorConfig';
 import { HorrorHUD, FearIntensity } from './HorrorHUD';
 
 interface HideAndSeekProps {
@@ -59,10 +61,17 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
+  const exploreMode = EXPLORE_MODE;
 
   const [role, setRole] = useState<Role>('hider');
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [quality, setQuality] = useState<GraphicsQuality>('high');
+  const [qualityPinMode, setQualityPinMode] = useState<QualityPinMode>(
+    ((HORROR_CONFIG as any).accessibility?.qualityPinMode as QualityPinMode) || 'auto'
+  );
+  const [batterySaver, setBatterySaver] = useState<boolean>(
+    !!(HORROR_CONFIG as any).accessibility?.batterySaver
+  );
   const [fearIntensity, setFearIntensity] = useState<FearIntensity>(
     (HORROR_CONFIG as any).accessibility?.fearIntensity || 'high'
   );
@@ -74,6 +83,7 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
   );
   const [gameStarted, setGameStarted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [hideUiForScreenshot, setHideUiForScreenshot] = useState(false);
   const [webViewError, setWebViewError] = useState<string | null>(null);
   const [cachedHtmlUri, setCachedHtmlUri] = useState<string | null>(null);
   const [gameState, setGameState] = useState<{
@@ -95,6 +105,8 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
 
   const webViewRef = useRef<WebView>(null);
   const hunterProximityRef = useRef<number>(0);
+  const disposeFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isExitingRef = useRef<boolean>(false);
   const moonAnim = useRef(new Animated.Value(1)).current;
 
   // Cache large Three.js HTML string to local device storage to prevent Android WebView Binder limit black screen
@@ -102,7 +114,7 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
     let isCancelled = false;
     const cacheHtml = async () => {
       try {
-        const targetPath = `${FileSystem.cacheDirectory}hide-and-seek-nightfall-v12-main-bldg.html`;
+        const targetPath = `${FileSystem.cacheDirectory}hide-and-seek-nightfall-v15-syntax-fix.html`;
         const content = getHideAndSeekHtml();
         await FileSystem.writeAsStringAsync(targetPath, content, {
           encoding: FileSystem.EncodingType.UTF8,
@@ -127,8 +139,31 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
     return { html: getHideAndSeekHtml() };
   }, [cachedHtmlUri]);
 
+  // Step 1.5 Lifecycle: Suspend/resume WebView audio & timers when app is backgrounded or interrupted
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      const isActive = nextAppState === 'active';
+      try {
+        webViewRef.current?.postMessage(
+          JSON.stringify({
+            type: 'APP_STATE_CHANGE',
+            active: isActive,
+            state: nextAppState,
+          })
+        );
+      } catch (e) {}
+    });
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   useEffect(() => {
     return () => {
+      if (disposeFallbackTimerRef.current) {
+        clearTimeout(disposeFallbackTimerRef.current);
+        disposeFallbackTimerRef.current = null;
+      }
       try {
         webViewRef.current?.postMessage(JSON.stringify({ type: 'DISPOSE' }));
       } catch (e) {}
@@ -189,14 +224,29 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
   };
 
   const toggleQuality = () => {
-    const order: GraphicsQuality[] = ['high', 'fast', 'low', 'ultra'];
-    const nextQuality: GraphicsQuality = order[(order.indexOf(quality) + 1) % order.length];
+    const order: QualityPinMode[] = ['auto', 'high', 'ultra', 'low', 'fast'];
+    const nextPinMode: QualityPinMode = order[(order.indexOf(qualityPinMode) + 1) % order.length];
+    const nextQuality: GraphicsQuality = nextPinMode === 'auto' ? 'high' : nextPinMode;
+    setQualityPinMode(nextPinMode);
     setQuality(nextQuality);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     webViewRef.current?.postMessage(
       JSON.stringify({
         type: 'SET_QUALITY',
         quality: nextQuality,
+        pinMode: nextPinMode,
+      })
+    );
+  };
+
+  const toggleBatterySaver = () => {
+    const nextSaver = !batterySaver;
+    setBatterySaver(nextSaver);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    webViewRef.current?.postMessage(
+      JSON.stringify({
+        type: 'SET_BATTERY_SAVER',
+        enabled: nextSaver,
       })
     );
   };
@@ -252,15 +302,23 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
         webViewRef.current?.postMessage(
           JSON.stringify({
             type: 'CONFIGURE',
+            exploreMode,
             role,
             difficulty,
             muted: isMuted,
             quality,
+            pinMode: qualityPinMode,
+            batterySaver,
             fearIntensity,
             flickerReduction,
             screenShakeOff,
           })
         );
+      } else if (data.type === 'SCREENSHOT_UI_VISIBILITY') {
+        setHideUiForScreenshot(Boolean(data.hidden));
+      } else if (data.type === 'COPY_DESIGN_NOTES') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        console.log('[Gandaki Map Design Notes]\n' + (data.text || ''));
       } else if (data.type === 'STATUS') {
         setGameState((prev) => ({
           ...prev,
@@ -271,36 +329,54 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
           gateUnlocked: typeof data.gateUnlocked === 'boolean' ? data.gateUnlocked : prev.gateUnlocked,
         }));
       } else if (data.type === 'HIDER_CAUGHT') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-        setGameState((prev) => ({
-          ...prev,
-          hidersRemaining: data.remaining,
-        }));
+        if (!exploreMode) {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          setGameState((prev) => ({
+            ...prev,
+            hidersRemaining: data.remaining,
+          }));
+        }
       } else if (data.type === 'ACCESSIBILITY_SYNC') {
         if (data.fearIntensity) setFearIntensity(data.fearIntensity);
         if (typeof data.flickerReduction === 'boolean') setFlickerReduction(data.flickerReduction);
         if (typeof data.screenShakeOff === 'boolean') setScreenShakeOff(data.screenShakeOff);
+        if (typeof data.batterySaver === 'boolean') setBatterySaver(data.batterySaver);
+        if (data.pinMode) setQualityPinMode(data.pinMode);
       } else if (data.type === 'GAMEOVER') {
-        const didPlayerWin =
-          (role === 'seeker' && data.winner === 'SEEKER') ||
-          (role === 'hider' && data.winner === 'HIDERS');
-        Haptics.notificationAsync(
-          didPlayerWin
-            ? Haptics.NotificationFeedbackType.Success
-            : Haptics.NotificationFeedbackType.Warning
-        );
-        setGameState((prev) => ({
-          ...prev,
-          status: 'GAMEOVER',
-          winner: data.winner,
-          reason: data.reason,
-          foundCount: data.foundCount,
-        }));
+        if (!exploreMode) {
+          const didPlayerWin =
+            (role === 'seeker' && data.winner === 'SEEKER') ||
+            (role === 'hider' && data.winner === 'HIDERS');
+          Haptics.notificationAsync(
+            didPlayerWin
+              ? Haptics.NotificationFeedbackType.Success
+              : Haptics.NotificationFeedbackType.Warning
+          );
+          setGameState((prev) => ({
+            ...prev,
+            status: 'GAMEOVER',
+            winner: data.winner,
+            reason: data.reason,
+            foundCount: data.foundCount,
+          }));
+        }
       } else if (data.type === 'HUNTER_PROXIMITY') {
         const prox = Math.max(0, Math.min(1, Number(data.proximity) || 0));
         hunterProximityRef.current = prox;
+      } else if (data.type === 'DISPOSE_ACK') {
+        if (disposeFallbackTimerRef.current) {
+          clearTimeout(disposeFallbackTimerRef.current);
+          disposeFallbackTimerRef.current = null;
+        }
+        if (isExitingRef.current) {
+          isExitingRef.current = false;
+          setGameStarted(false);
+        }
       } else if (data.type === 'AUTO_STEP_DOWN_QUALITY') {
-        setQuality('low');
+        if (data.quality) setQuality(data.quality as GraphicsQuality);
+        else setQuality('low');
+      } else if (data.type === 'SESSION_TELEMETRY_REPORT') {
+        console.log('[HideAndSeek 10-Min Telemetry]', JSON.stringify(data));
       } else if (data.type === 'LOG_ERROR') {
         console.warn('[HideAndSeek WebView Error]', data.message, data.stack);
         setWebViewError(data.message || 'Game engine encountered an unexpected error.');
@@ -326,13 +402,24 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
 
   const exitToLobby = () => {
     setWebViewError(null);
+    setHideUiForScreenshot(false);
+    isExitingRef.current = true;
     try {
       webViewRef.current?.postMessage(JSON.stringify({ type: 'DISPOSE' }));
     } catch (e) {}
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {
       ScreenOrientation.unlockAsync().catch(() => {});
     });
-    setGameStarted(false);
+    if (disposeFallbackTimerRef.current) {
+      clearTimeout(disposeFallbackTimerRef.current);
+    }
+    disposeFallbackTimerRef.current = setTimeout(() => {
+      disposeFallbackTimerRef.current = null;
+      if (isExitingRef.current) {
+        isExitingRef.current = false;
+        setGameStarted(false);
+      }
+    }, 140);
   };
 
   const didWin =
@@ -387,14 +474,18 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
                   color={HORROR_CONFIG.palette.dimAmber}
                 />
                 <Text style={styles.qualityPillText}>
-                  {HORROR_CONFIG.qualityPresets[quality].label}
+                  {qualityPinMode === 'auto'
+                    ? `AUTO (${HORROR_CONFIG.qualityPresets[quality].label})`
+                    : `PIN: ${HORROR_CONFIG.qualityPresets[quality].label}`}
                 </Text>
               </TouchableOpacity>
 
               <View style={styles.cultureBadge}>
-                <Ionicons name="moon" size={13} color={HORROR_CONFIG.palette.dimAmber} />
+                <Ionicons name={exploreMode ? 'compass-outline' : 'moon'} size={13} color={HORROR_CONFIG.palette.dimAmber} />
                 <Text style={styles.cultureBadgeText}>
-                  GANDAKI UNIVERSITY • 1 HUNTER VS 3–7 SCHOLARS
+                  {exploreMode
+                    ? 'GANDAKI UNIVERSITY • MAP EXPLORATION & DESIGN MODE'
+                    : 'GANDAKI UNIVERSITY • 1 HUNTER VS 3–7 SCHOLARS'}
                 </Text>
               </View>
             </View>
@@ -415,26 +506,36 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
               ]}
             >
               <View style={styles.carvedHeaderFrame}>
-                <Text style={styles.eyebrowText}>POKHARA • 9-MINUTE SURVIVAL</Text>
+                <Text style={styles.eyebrowText}>
+                  {exploreMode ? 'POKHARA • ARCHITECTURAL & LIGHTING INSPECTION' : 'POKHARA • 9-MINUTE SURVIVAL'}
+                </Text>
                 <Text style={[styles.title, isLandscape && styles.titleLandscape]}>
                   GANDAKI CAMPUS 3D
                 </Text>
                 <Text style={styles.subtitle}>
-                  Restore 4 fuse boxes across the campus wings to unlock the Main Gate and escape the Hollow Entity. Hide under desks, inside lockers, or behind bookshelves—and hold your breath when it checks your room.
+                  {exploreMode
+                    ? 'Walk or free-fly across all campus buildings, inspect 32 rooms, test live room light moods, adjust night/fog layers, view the top-down campus map, and record design notes with zero bots or scares.'
+                    : 'Restore 4 fuse boxes across the campus wings to unlock the Main Gate and escape the Hollow Entity. Hide under desks, inside lockers, or behind bookshelves—and hold your breath when it checks your room.'}
                 </Text>
 
                 <View style={styles.featurePillsRow}>
                   <View style={styles.featurePill}>
                     <Ionicons name="flash-outline" size={12} color={HORROR_CONFIG.palette.dimAmber} />
-                    <Text style={styles.featurePillText}>4 Fuse Boxes & Main Gate</Text>
+                    <Text style={styles.featurePillText}>
+                      {exploreMode ? 'Free-Fly, Teleport & Room Moods' : '4 Fuse Boxes & Main Gate'}
+                    </Text>
                   </View>
                   <View style={styles.featurePill}>
-                    <Ionicons name="skull-outline" size={12} color={HORROR_CONFIG.palette.bloodRed} />
-                    <Text style={styles.featurePillText}>Hold-Your-Breath Hiding</Text>
+                    <Ionicons name={exploreMode ? 'map-outline' : 'skull-outline'} size={12} color={HORROR_CONFIG.palette.dimAmber} />
+                    <Text style={styles.featurePillText}>
+                      {exploreMode ? 'Top-Down Minimap & Design Notes' : 'Hold-Your-Breath Hiding'}
+                    </Text>
                   </View>
                   <View style={styles.featurePill}>
                     <Ionicons name="volume-medium-outline" size={12} color={HORROR_CONFIG.palette.dimAmber} />
-                    <Text style={styles.featurePillText}>Acoustic Noise & Distractions</Text>
+                    <Text style={styles.featurePillText}>
+                      {exploreMode ? 'Calm Night Ambience & Infinite Torch' : 'Acoustic Noise & Distractions'}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -446,110 +547,125 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
                 isLandscape && styles.configColumnLandscape,
               ]}
             >
-              <Text style={styles.sectionTitle}>CHOOSE YOUR ROLE</Text>
-              <View style={styles.roleContainer}>
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setRole('hider');
-                  }}
-                  activeOpacity={0.85}
-                  style={[
-                    styles.roleCard,
-                    role === 'hider' && styles.roleCardActiveAmber,
-                  ]}
-                >
-                  <View style={styles.roleInner}>
-                    <Ionicons
-                      name="eye-off"
-                      size={24}
-                      color={role === 'hider' ? HORROR_CONFIG.palette.dimAmber : HORROR_CONFIG.palette.mutedBone}
-                    />
-                    <Text style={[styles.roleTitle, role === 'hider' && styles.roleTitleActive]}>
-                      SCHOLAR
-                    </Text>
-                    <Text style={styles.roleSub}>3–7 Survivors</Text>
-                    <Text style={styles.roleDesc}>
-                      Repair 4 fuse boxes, manage flashlight battery, throw distractions, and rescue caught teammates
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setRole('seeker');
-                  }}
-                  activeOpacity={0.85}
-                  style={[
-                    styles.roleCard,
-                    role === 'seeker' && styles.roleCardActiveRed,
-                  ]}
-                >
-                  <View style={styles.roleInner}>
-                    <Ionicons
-                      name="eye"
-                      size={24}
-                      color={role === 'seeker' ? '#d93838' : HORROR_CONFIG.palette.mutedBone}
-                    />
-                    <Text style={[styles.roleTitle, role === 'seeker' && styles.roleTitleActive]}>
-                      HUNTER
-                    </Text>
-                    <Text style={[styles.roleSub, { color: '#d93838' }]}>
-                      The Hollow Proctor (Entity)
-                    </Text>
-                    <Text style={styles.roleDesc}>
-                      Track noise pings every 30s, lock classroom doors, trigger power-cut pulses, and search hiding spots
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.sectionTitle}>NIGHT INTENSITY & SCHOLAR COUNT</Text>
-              <View style={styles.diffContainer}>
-                {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => {
-                  const meta = DIFFICULTY_META[d];
-                  const active = difficulty === d;
-                  return (
+              {!exploreMode && (
+                <>
+                  <Text style={styles.sectionTitle}>CHOOSE YOUR ROLE</Text>
+                  <View style={styles.roleContainer}>
                     <TouchableOpacity
-                      key={d}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setDifficulty(d);
+                        setRole('hider');
                       }}
                       activeOpacity={0.85}
                       style={[
-                        styles.diffButton,
-                        active && {
-                          borderColor: HORROR_CONFIG.palette.dimAmber,
-                          backgroundColor: 'rgba(201, 146, 58, 0.14)',
-                        },
+                        styles.roleCard,
+                        role === 'hider' && styles.roleCardActiveAmber,
                       ]}
                     >
-                      <Text style={[styles.diffButtonTitle, active && { color: HORROR_CONFIG.palette.boneWhite }]}>
-                        {meta.label}
-                      </Text>
-                      <Text style={[styles.diffButtonSub, active && { color: HORROR_CONFIG.palette.dimAmber }]}>
-                        {meta.sub}
-                      </Text>
+                      <View style={styles.roleInner}>
+                        <Ionicons
+                          name="eye-off"
+                          size={24}
+                          color={role === 'hider' ? HORROR_CONFIG.palette.dimAmber : HORROR_CONFIG.palette.mutedBone}
+                        />
+                        <Text style={[styles.roleTitle, role === 'hider' && styles.roleTitleActive]}>
+                          SCHOLAR
+                        </Text>
+                        <Text style={styles.roleSub}>3–7 Survivors</Text>
+                        <Text style={styles.roleDesc}>
+                          Repair 4 fuse boxes, manage flashlight battery, throw distractions, and rescue caught teammates
+                        </Text>
+                      </View>
                     </TouchableOpacity>
-                  );
-                })}
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setRole('seeker');
+                      }}
+                      activeOpacity={0.85}
+                      style={[
+                        styles.roleCard,
+                        role === 'seeker' && styles.roleCardActiveRed,
+                      ]}
+                    >
+                      <View style={styles.roleInner}>
+                        <Ionicons
+                          name="eye"
+                          size={24}
+                          color={role === 'seeker' ? '#d93838' : HORROR_CONFIG.palette.mutedBone}
+                        />
+                        <Text style={[styles.roleTitle, role === 'seeker' && styles.roleTitleActive]}>
+                          HUNTER
+                        </Text>
+                        <Text style={[styles.roleSub, { color: '#d93838' }]}>
+                          The Hollow Proctor (Entity)
+                        </Text>
+                        <Text style={styles.roleDesc}>
+                          Track noise pings every 30s, lock classroom doors, trigger power-cut pulses, and search hiding spots
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+
+                  <Text style={styles.sectionTitle}>NIGHT INTENSITY & SCHOLAR COUNT</Text>
+                  <View style={styles.diffContainer}>
+                    {(['easy', 'medium', 'hard'] as Difficulty[]).map((d) => {
+                      const meta = DIFFICULTY_META[d];
+                      const active = difficulty === d;
+                      return (
+                        <TouchableOpacity
+                          key={d}
+                          onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            setDifficulty(d);
+                          }}
+                          activeOpacity={0.85}
+                          style={[
+                            styles.diffButton,
+                            active && {
+                              borderColor: HORROR_CONFIG.palette.dimAmber,
+                              backgroundColor: 'rgba(201, 146, 58, 0.14)',
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.diffButtonTitle, active && { color: HORROR_CONFIG.palette.boneWhite }]}>
+                            {meta.label}
+                          </Text>
+                          <Text style={[styles.diffButtonSub, active && { color: HORROR_CONFIG.palette.dimAmber }]}>
+                            {meta.sub}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                </>
+              )}
+
+              <Text style={styles.sectionTitle}>LIGHT SAFETY, QUALITY & BATTERY</Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  backgroundColor: 'rgba(224, 142, 54, 0.10)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(224, 142, 54, 0.35)',
+                  marginBottom: 8,
+                }}
+              >
+                <Ionicons name="warning-outline" size={16} color={HORROR_CONFIG.palette.dimAmber} />
+                <Text style={{ flex: 1, color: '#cbd5e1', fontSize: 10.5, lineHeight: 14 }}>
+                  <Text style={{ color: '#fde047', fontWeight: '800' }}>LIGHT SAFETY NOTICE: </Text>
+                  Contains flickering lights and dark rooms. Turn on <Text style={{ color: '#fff', fontWeight: '800' }}>Reduce Flicker</Text> below to cap flashes at ≤2/sec with softer brightness swings and no sharp red pulses.
+                </Text>
               </View>
 
-              <Text style={styles.sectionTitle}>ACCESSIBILITY & COMFORT</Text>
               <View style={styles.diffContainer}>
-                <TouchableOpacity
-                  onPress={cycleFearIntensity}
-                  activeOpacity={0.85}
-                  style={styles.diffButton}
-                >
-                  <Text style={[styles.diffButtonTitle, { color: HORROR_CONFIG.palette.boneWhite }]}>
-                    FEAR: {fearIntensity.toUpperCase()}
-                  </Text>
-                  <Text style={styles.diffButtonSub}>Heartbeat & Vignette</Text>
-                </TouchableOpacity>
-
                 <TouchableOpacity
                   onPress={toggleFlickerReduction}
                   activeOpacity={0.85}
@@ -562,28 +678,77 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
                   ]}
                 >
                   <Text style={[styles.diffButtonTitle, { color: HORROR_CONFIG.palette.boneWhite }]}>
-                    FLICKER: {flickerReduction ? 'REDUCED' : 'NORMAL'}
+                    REDUCE FLICKER: {flickerReduction ? 'ON (≤2 Hz)' : 'OFF'}
                   </Text>
-                  <Text style={styles.diffButtonSub}>Smooth Tube Lights</Text>
+                  <Text style={styles.diffButtonSub}>Gentle Pulses & Brownouts</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={toggleScreenShakeOff}
+                  onPress={toggleQuality}
                   activeOpacity={0.85}
                   style={[
                     styles.diffButton,
-                    screenShakeOff && {
+                    qualityPinMode !== 'auto' && {
                       borderColor: HORROR_CONFIG.palette.dimAmber,
                       backgroundColor: 'rgba(201, 146, 58, 0.14)',
                     },
                   ]}
                 >
                   <Text style={[styles.diffButtonTitle, { color: HORROR_CONFIG.palette.boneWhite }]}>
-                    SHAKE: {screenShakeOff ? 'OFF' : 'ON'}
+                    QUALITY: {qualityPinMode === 'auto' ? `AUTO (${HORROR_CONFIG.qualityPresets[quality].label})` : `PIN ${HORROR_CONFIG.qualityPresets[quality].label}`}
                   </Text>
-                  <Text style={styles.diffButtonSub}>Camera Motion</Text>
+                  <Text style={styles.diffButtonSub}>Auto Ladder (&lt;40 FPS / 5s) or Pin</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={toggleBatterySaver}
+                  activeOpacity={0.85}
+                  style={[
+                    styles.diffButton,
+                    batterySaver && {
+                      borderColor: '#22c55e',
+                      backgroundColor: 'rgba(34, 197, 94, 0.14)',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.diffButtonTitle, { color: HORROR_CONFIG.palette.boneWhite }]}>
+                    BATTERY SAVER: {batterySaver ? 'ON (30 FPS)' : 'OFF'}
+                  </Text>
+                  <Text style={styles.diffButtonSub}>30 FPS Cap • 1.0x Pixel Ratio</Text>
                 </TouchableOpacity>
               </View>
+
+              {!exploreMode && (
+                <View style={[styles.diffContainer, { marginTop: 6 }]}>
+                  <TouchableOpacity
+                    onPress={cycleFearIntensity}
+                    activeOpacity={0.85}
+                    style={styles.diffButton}
+                  >
+                    <Text style={[styles.diffButtonTitle, { color: HORROR_CONFIG.palette.boneWhite }]}>
+                      FEAR: {fearIntensity.toUpperCase()}
+                    </Text>
+                    <Text style={styles.diffButtonSub}>Heartbeat & Vignette</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={toggleScreenShakeOff}
+                    activeOpacity={0.85}
+                    style={[
+                      styles.diffButton,
+                      screenShakeOff && {
+                        borderColor: HORROR_CONFIG.palette.dimAmber,
+                        backgroundColor: 'rgba(201, 146, 58, 0.14)',
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.diffButtonTitle, { color: HORROR_CONFIG.palette.boneWhite }]}>
+                      SHAKE: {screenShakeOff ? 'OFF' : 'ON'}
+                    </Text>
+                    <Text style={styles.diffButtonSub}>Camera Motion</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               <TouchableOpacity
                 onPress={startGame}
@@ -597,7 +762,9 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
                   style={styles.startGradient}
                 >
                   <Ionicons name="moon" size={18} color={HORROR_CONFIG.palette.boneWhite} />
-                  <Text style={styles.startText}>ENTER GANDAKI CAMPUS</Text>
+                  <Text style={styles.startText}>
+                    {exploreMode ? 'EXPLORE GANDAKI CAMPUS' : 'ENTER GANDAKI CAMPUS'}
+                  </Text>
                   <Ionicons name="arrow-forward" size={18} color={HORROR_CONFIG.palette.boneWhite} />
                 </LinearGradient>
               </TouchableOpacity>
@@ -612,7 +779,6 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
             source={webViewSource}
             style={styles.webview}
             androidLayerType="hardware"
-            androidHardwareAccelerationDisabled={false}
             allowingReadAccessToURL={FileSystem.cacheDirectory || undefined}
             webviewDebuggingEnabled={true}
             allowFileAccess={true}
@@ -632,7 +798,7 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
               <View style={styles.loadingOverlay}>
                 <ActivityIndicator size="large" color={HORROR_CONFIG.palette.dimAmber} />
                 <Text style={styles.loadingTitle}>IGNITING NIGHTFALL 3D ENGINE...</Text>
-                <Text style={styles.loadingSub}>Loading Main Building baked AO, colliders & procedural audio</Text>
+                <Text style={styles.loadingSub}>Streaming chunked textures, baked AO & light safety systems</Text>
               </View>
             )}
             onLoadStart={() => {
@@ -643,10 +809,13 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
               webViewRef.current?.postMessage(
                 JSON.stringify({
                   type: 'CONFIGURE',
+                  exploreMode,
                   role,
                   difficulty,
                   muted: isMuted,
                   quality,
+                  pinMode: qualityPinMode,
+                  batterySaver,
                   fearIntensity,
                   flickerReduction,
                   screenShakeOff,
@@ -691,27 +860,33 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
             </View>
           )}
 
-          <HorrorHUD
-            hidersRemaining={gameState.hidersRemaining}
-            timeLeft={gameState.timeLeft}
-            fusesRestored={gameState.fusesRestored}
-            totalFuses={4}
-            gateUnlocked={gameState.gateUnlocked}
-            isMuted={isMuted}
-            quality={quality}
-            fearIntensity={fearIntensity}
-            flickerReduction={flickerReduction}
-            screenShakeOff={screenShakeOff}
-            onExitLobby={exitToLobby}
-            onToggleMute={toggleSound}
-            onToggleQuality={toggleQuality}
-            onCycleFearIntensity={cycleFearIntensity}
-            onToggleFlickerReduction={toggleFlickerReduction}
-            onToggleScreenShake={toggleScreenShakeOff}
-            formatTimer={formatTimer}
-          />
+          {!hideUiForScreenshot && (
+            <HorrorHUD
+              exploreMode={exploreMode}
+              hidersRemaining={gameState.hidersRemaining}
+              timeLeft={gameState.timeLeft}
+              fusesRestored={gameState.fusesRestored}
+              totalFuses={4}
+              gateUnlocked={gameState.gateUnlocked}
+              isMuted={isMuted}
+              quality={quality}
+              qualityPinMode={qualityPinMode}
+              batterySaver={batterySaver}
+              fearIntensity={fearIntensity}
+              flickerReduction={flickerReduction}
+              screenShakeOff={screenShakeOff}
+              onExitLobby={exitToLobby}
+              onToggleMute={toggleSound}
+              onToggleQuality={toggleQuality}
+              onToggleBatterySaver={toggleBatterySaver}
+              onCycleFearIntensity={cycleFearIntensity}
+              onToggleFlickerReduction={toggleFlickerReduction}
+              onToggleScreenShake={toggleScreenShakeOff}
+              formatTimer={formatTimer}
+            />
+          )}
 
-          {gameState.status === 'GAMEOVER' && (
+          {!exploreMode && gameState.status === 'GAMEOVER' && (
             <View style={styles.gameOverOverlay}>
               <View style={styles.gameOverCard}>
                 <Text style={styles.gameOverEyebrow}>

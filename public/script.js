@@ -369,21 +369,12 @@ function initLoginHandlers() {
   const isAction = urlParams.get('reset') === 'true' || urlParams.get('verified') === 'true' || urlParams.get('error') || urlParams.get('reauth') === 'true';
   if (!isLogout && !isAction && typeof SemesterAuth !== 'undefined') {
     const syncUser = typeof SemesterAuth.getUserSync === 'function' ? SemesterAuth.getUserSync() : null;
-    if (syncUser) {
+    const token = typeof SemesterAuth.getAccessTokenSync === 'function' ? SemesterAuth.getAccessTokenSync() : null;
+    if (syncUser && token) {
       const redirectParam = urlParams.get('redirect');
       const target = redirectParam || (syncUser.role === 'teacher' ? '/teacher-dashboard.html' : '/dashboard.html');
       window.location.replace(target);
       return;
-    }
-    const token = typeof SemesterAuth.getAccessTokenSync === 'function' ? SemesterAuth.getAccessTokenSync() : null;
-    if (token) {
-      SemesterAuth.getUser().then(u => {
-        if (u) {
-          const redirectParam = urlParams.get('redirect');
-          const target = redirectParam || (u.role === 'teacher' ? '/teacher-dashboard.html' : '/dashboard.html');
-          window.location.replace(target);
-        }
-      }).catch(() => {});
     }
   }
 

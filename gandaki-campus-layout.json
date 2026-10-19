@@ -1,0 +1,811 @@
+{
+  "format": "gandaki-campus-layout",
+  "version": "1.0.0",
+  "exportedAt": "2026-10-19T08:30:55.468Z",
+  "coordinateSystem": {
+    "units": "meters",
+    "upAxis": "Y",
+    "groundY": 0,
+    "positionOrigin": "bottom-center",
+    "axes": {
+      "+X": "East",
+      "-X": "West",
+      "+Z": "North (Rotunda)",
+      "-Z": "South (Main Gate)"
+    }
+  },
+  "objects": [
+    {
+      "id": "area_parking_plaza",
+      "name": "Collage bus parkng ",
+      "type": "ground_area",
+      "position": {
+        "x": -56,
+        "y": 0,
+        "z": -0.5
+      },
+      "center": {
+        "x": -56,
+        "y": 0.02,
+        "z": -0.5
+      },
+      "dimensions": {
+        "width": 35.5,
+        "height": 0.04,
+        "depth": 22
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -73.75,
+          "y": 0,
+          "z": -11.5
+        },
+        "max": {
+          "x": -38.25,
+          "y": 0.04,
+          "z": 10.5
+        }
+      }
+    },
+    {
+      "id": "area_rotunda_plaza",
+      "name": "North Rotunda Forecourt Plaza",
+      "type": "ground_area",
+      "position": {
+        "x": 3,
+        "y": 0,
+        "z": -110
+      },
+      "center": {
+        "x": 3,
+        "y": 0.02,
+        "z": -110
+      },
+      "dimensions": {
+        "width": 66,
+        "height": 0.04,
+        "depth": 54
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -30,
+          "y": 0,
+          "z": -137
+        },
+        "max": {
+          "x": 36,
+          "y": 0.04,
+          "z": -83
+        }
+      }
+    },
+    {
+      "id": "road_central_spine",
+      "name": "path",
+      "type": "road",
+      "position": {
+        "x": 16,
+        "y": 0.02,
+        "z": 3
+      },
+      "center": {
+        "x": 16,
+        "y": 0.06,
+        "z": 3
+      },
+      "dimensions": {
+        "width": 5.6,
+        "height": 0.08,
+        "depth": 68
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 13.2,
+          "y": 0.02,
+          "z": -31
+        },
+        "max": {
+          "x": 18.8,
+          "y": 0.1,
+          "z": 37
+        }
+      }
+    },
+    {
+      "id": "bldg_main_rotunda",
+      "name": "Main Grand Rotunda Complex",
+      "type": "building",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": -110
+      },
+      "center": {
+        "x": 0,
+        "y": 5.75,
+        "z": -110
+      },
+      "dimensions": {
+        "width": 46,
+        "height": 11.5,
+        "depth": 18
+      },
+      "rotation": {
+        "yDeg": 2,
+        "yRad": 0.0349
+      },
+      "collider": {
+        "min": {
+          "x": -23.3,
+          "y": 0,
+          "z": -119.8
+        },
+        "max": {
+          "x": 23.3,
+          "y": 11.5,
+          "z": -100.2
+        }
+      }
+    },
+    {
+      "id": "bldg_west_wing_l1",
+      "name": "Staffroom, lab , washroom",
+      "type": "building",
+      "position": {
+        "x": -5,
+        "y": 0,
+        "z": -7
+      },
+      "center": {
+        "x": -5,
+        "y": 2.1,
+        "z": -7
+      },
+      "dimensions": {
+        "width": 7.6,
+        "height": 4.2,
+        "depth": 32.5
+      },
+      "rotation": {
+        "yDeg": -88,
+        "yRad": -1.5359
+      },
+      "collider": {
+        "min": {
+          "x": -21.37,
+          "y": 0,
+          "z": -11.36
+        },
+        "max": {
+          "x": 11.37,
+          "y": 4.2,
+          "z": -2.64
+        }
+      }
+    },
+    {
+      "id": "bldg_west_wing_l2",
+      "name": "labs , washroom",
+      "type": "building",
+      "position": {
+        "x": -4.5,
+        "y": 0,
+        "z": 8.5
+      },
+      "center": {
+        "x": -4.5,
+        "y": 2.4,
+        "z": 8.5
+      },
+      "dimensions": {
+        "width": 7.6,
+        "height": 4.8,
+        "depth": 33
+      },
+      "rotation": {
+        "yDeg": 92,
+        "yRad": 1.6057
+      },
+      "collider": {
+        "min": {
+          "x": -21.12,
+          "y": 0,
+          "z": 4.13
+        },
+        "max": {
+          "x": 12.12,
+          "y": 4.8,
+          "z": 12.87
+        }
+      }
+    },
+    {
+      "id": "bldg_east_wing_r1",
+      "name": "Cafeteria",
+      "type": "building",
+      "position": {
+        "x": 3,
+        "y": 0,
+        "z": -24
+      },
+      "center": {
+        "x": 3,
+        "y": 2.1,
+        "z": -24
+      },
+      "dimensions": {
+        "width": 18.1,
+        "height": 4.2,
+        "depth": 11.5
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -6.05,
+          "y": 0,
+          "z": -29.75
+        },
+        "max": {
+          "x": 12.05,
+          "y": 4.2,
+          "z": -18.25
+        }
+      }
+    },
+    {
+      "id": "bldg_east_wing_r2",
+      "name": "Multipurpose Hall",
+      "type": "building",
+      "position": {
+        "x": 23,
+        "y": 0,
+        "z": -28.5
+      },
+      "center": {
+        "x": 23,
+        "y": 2.1,
+        "z": -28.5
+      },
+      "dimensions": {
+        "width": 7.6,
+        "height": 4.2,
+        "depth": 20.5
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 19.2,
+          "y": 0,
+          "z": -38.75
+        },
+        "max": {
+          "x": 26.8,
+          "y": 4.2,
+          "z": -18.25
+        }
+      }
+    },
+    {
+      "id": "bldg_east_wing_r4",
+      "name": "library",
+      "type": "building",
+      "position": {
+        "x": 25,
+        "y": 0,
+        "z": 7.5
+      },
+      "center": {
+        "x": 25,
+        "y": 2.1,
+        "z": 7.5
+      },
+      "dimensions": {
+        "width": 9.6,
+        "height": 4.2,
+        "depth": 21.5
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 20.2,
+          "y": 0,
+          "z": -3.25
+        },
+        "max": {
+          "x": 29.8,
+          "y": 4.2,
+          "z": 18.25
+        }
+      }
+    },
+    {
+      "id": "bldg_guardhouse",
+      "name": "South Gate Guardhouse",
+      "type": "building",
+      "position": {
+        "x": 15,
+        "y": 0,
+        "z": -60
+      },
+      "center": {
+        "x": 15,
+        "y": 1.7,
+        "z": -60
+      },
+      "dimensions": {
+        "width": 4.6,
+        "height": 3.4,
+        "depth": 4.6
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 12.7,
+          "y": 0,
+          "z": -62.3
+        },
+        "max": {
+          "x": 17.3,
+          "y": 3.4,
+          "z": -57.7
+        }
+      }
+    },
+    {
+      "id": "bldg_1",
+      "name": "Office ",
+      "type": "building",
+      "position": {
+        "x": 16.5,
+        "y": 0,
+        "z": -47.5
+      },
+      "center": {
+        "x": 16.5,
+        "y": 3.5,
+        "z": -47.5
+      },
+      "dimensions": {
+        "width": 12,
+        "height": 7,
+        "depth": 8
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 10.5,
+          "y": 0,
+          "z": -51.5
+        },
+        "max": {
+          "x": 22.5,
+          "y": 7,
+          "z": -43.5
+        }
+      }
+    },
+    {
+      "id": "bldg_2",
+      "name": "warehouse ig",
+      "type": "building",
+      "position": {
+        "x": 31,
+        "y": 0,
+        "z": -48.5
+      },
+      "center": {
+        "x": 31,
+        "y": 2.25,
+        "z": -48.5
+      },
+      "dimensions": {
+        "width": 8.5,
+        "height": 4.5,
+        "depth": 8
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 26.75,
+          "y": 0,
+          "z": -52.5
+        },
+        "max": {
+          "x": 35.25,
+          "y": 4.5,
+          "z": -44.5
+        }
+      }
+    },
+    {
+      "id": "bldg_3",
+      "name": "Washroom 1 ",
+      "type": "building",
+      "position": {
+        "x": 9.5,
+        "y": 0,
+        "z": -36
+      },
+      "center": {
+        "x": 9.5,
+        "y": 2,
+        "z": -36
+      },
+      "dimensions": {
+        "width": 11,
+        "height": 4,
+        "depth": 6.5
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 4,
+          "y": 0,
+          "z": -39.25
+        },
+        "max": {
+          "x": 15,
+          "y": 4,
+          "z": -32.75
+        }
+      }
+    },
+    {
+      "id": "bldg_4",
+      "name": "Pharmacy Lab",
+      "type": "building",
+      "position": {
+        "x": 24,
+        "y": 0,
+        "z": -10.5
+      },
+      "center": {
+        "x": 24,
+        "y": 2.25,
+        "z": -10.5
+      },
+      "dimensions": {
+        "width": 7,
+        "height": 4.5,
+        "depth": 10
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 20.5,
+          "y": 0,
+          "z": -15.5
+        },
+        "max": {
+          "x": 27.5,
+          "y": 4.5,
+          "z": -5.5
+        }
+      }
+    },
+    {
+      "id": "bldg_5",
+      "name": "Computer lab , electronic labs ",
+      "type": "building",
+      "position": {
+        "x": -5,
+        "y": 0,
+        "z": 22
+      },
+      "center": {
+        "x": -5,
+        "y": 2.25,
+        "z": 22
+      },
+      "dimensions": {
+        "width": 34.5,
+        "height": 4.5,
+        "depth": 8
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -22.25,
+          "y": 0,
+          "z": 18
+        },
+        "max": {
+          "x": 12.25,
+          "y": 4.5,
+          "z": 26
+        }
+      }
+    },
+    {
+      "id": "bldg_6",
+      "name": "Classrooms",
+      "type": "building",
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": 40
+      },
+      "center": {
+        "x": 2,
+        "y": 2.25,
+        "z": 40
+      },
+      "dimensions": {
+        "width": 52,
+        "height": 4.5,
+        "depth": 8
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -24,
+          "y": 0,
+          "z": 36
+        },
+        "max": {
+          "x": 28,
+          "y": 4.5,
+          "z": 44
+        }
+      }
+    },
+    {
+      "id": "road_7",
+      "name": "Road Path 5",
+      "type": "road",
+      "position": {
+        "x": -29.5,
+        "y": 0.02,
+        "z": 21
+      },
+      "center": {
+        "x": -29.5,
+        "y": 0.06,
+        "z": 21
+      },
+      "dimensions": {
+        "width": 8.5,
+        "height": 0.08,
+        "depth": 64
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -33.75,
+          "y": 0.02,
+          "z": -11
+        },
+        "max": {
+          "x": -25.25,
+          "y": 0.1,
+          "z": 53
+        }
+      }
+    },
+    {
+      "id": "area_8",
+      "name": "Cars/bike parking",
+      "type": "ground_area",
+      "position": {
+        "x": -36,
+        "y": 0,
+        "z": -24
+      },
+      "center": {
+        "x": -36,
+        "y": 0.02,
+        "z": -24
+      },
+      "dimensions": {
+        "width": 57,
+        "height": 0.04,
+        "depth": 23.5
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -64.5,
+          "y": 0,
+          "z": -35.75
+        },
+        "max": {
+          "x": -7.5,
+          "y": 0.04,
+          "z": -12.25
+        }
+      }
+    },
+    {
+      "id": "bldg_10",
+      "name": "classrooms 4",
+      "type": "building",
+      "position": {
+        "x": -62,
+        "y": 0,
+        "z": 14
+      },
+      "center": {
+        "x": -62,
+        "y": 2.25,
+        "z": 14
+      },
+      "dimensions": {
+        "width": 52,
+        "height": 4.5,
+        "depth": 8
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -88,
+          "y": 0,
+          "z": 10
+        },
+        "max": {
+          "x": -36,
+          "y": 4.5,
+          "z": 18
+        }
+      }
+    },
+    {
+      "id": "bldg_11",
+      "name": "classrooms 3 ",
+      "type": "building",
+      "position": {
+        "x": -63,
+        "y": 0,
+        "z": 27
+      },
+      "center": {
+        "x": -63,
+        "y": 2.25,
+        "z": 27
+      },
+      "dimensions": {
+        "width": 52,
+        "height": 4.5,
+        "depth": 8
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -89,
+          "y": 0,
+          "z": 23
+        },
+        "max": {
+          "x": -37,
+          "y": 4.5,
+          "z": 31
+        }
+      }
+    },
+    {
+      "id": "bldg_12",
+      "name": "Classrooms 2",
+      "type": "building",
+      "position": {
+        "x": -62,
+        "y": 0,
+        "z": 40.5
+      },
+      "center": {
+        "x": -62,
+        "y": 2.25,
+        "z": 40.5
+      },
+      "dimensions": {
+        "width": 52,
+        "height": 4.5,
+        "depth": 8
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -88,
+          "y": 0,
+          "z": 36.5
+        },
+        "max": {
+          "x": -36,
+          "y": 4.5,
+          "z": 44.5
+        }
+      }
+    },
+    {
+      "id": "road_14",
+      "name": "Road Path 3",
+      "type": "road",
+      "position": {
+        "x": -5.5,
+        "y": 0.02,
+        "z": -59
+      },
+      "center": {
+        "x": -5.5,
+        "y": 0.06,
+        "z": -59
+      },
+      "dimensions": {
+        "width": 14.5,
+        "height": 0.08,
+        "depth": 48
+      },
+      "rotation": {
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -12.75,
+          "y": 0.02,
+          "z": -83
+        },
+        "max": {
+          "x": 1.75,
+          "y": 0.1,
+          "z": -35
+        }
+      }
+    }
+  ]
+}

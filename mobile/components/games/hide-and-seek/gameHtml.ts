@@ -28,10 +28,14 @@ export function getHideAndSeekHtml(): string {
       touch-action: none;
     }
     #game-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
       display: block;
       touch-action: none;
+      z-index: 1;
     }
 
     /* FAST & LOW Mode Clean CSS Grade Fallback (Used when ULTRA WebGL grade pass is off — clean edge vignette without scanline noise) */
@@ -218,17 +222,17 @@ export function getHideAndSeekHtml(): string {
       box-shadow: 0 0 24px rgba(224, 142, 54, 0.35);
     }
 
-    /* Crosshair */
+    /* Crosshair (Crisp White + matching 5E872F9F) */
     #crosshair {
       position: absolute;
       top: 50%;
       left: 50%;
-      width: 12px;
-      height: 12px;
+      width: 22px;
+      height: 22px;
       transform: translate(-50%, -50%);
       pointer-events: none;
       z-index: 4;
-      opacity: 0.6;
+      opacity: 0.90;
       transition: transform 0.15s ease, opacity 0.15s ease;
     }
     #crosshair.active {
@@ -238,15 +242,15 @@ export function getHideAndSeekHtml(): string {
     #crosshair::before, #crosshair::after {
       content: '';
       position: absolute;
-      background: #cbd5e1;
+      background: #ffffff;
       border-radius: 1px;
     }
     #crosshair.active::before, #crosshair.active::after {
       background: #ef4444;
       box-shadow: 0 0 8px rgba(239, 68, 68, 0.95);
     }
-    #crosshair::before { top: 5px; left: 0; width: 12px; height: 2px; }
-    #crosshair::after { top: 0; left: 5px; width: 2px; height: 12px; }
+    #crosshair::before { top: 10px; left: 0; width: 22px; height: 2px; }
+    #crosshair::after { top: 0; left: 10px; width: 2px; height: 22px; }
 
     /* Action Prompt Banner */
     #action-prompt {
@@ -281,91 +285,92 @@ export function getHideAndSeekHtml(): string {
       border-radius: 4px;
     }
 
-    /* Dark Slate Controls */
+    /* Sleek Dark-Glass Controls matching Reference Image (5E872F9F) */
     #joystick-zone {
       position: absolute;
-      bottom: max(16px, env(safe-area-inset-bottom, 16px));
-      left: max(22px, env(safe-area-inset-left, 22px));
-      width: 112px;
-      height: 112px;
-      border-radius: 56px;
-      background: radial-gradient(circle, rgba(15, 23, 42, 0.45) 0%, rgba(6, 10, 18, 0.88) 100%);
-      border: 1.5px solid rgba(148, 163, 184, 0.32);
+      bottom: max(18px, env(safe-area-inset-bottom, 18px));
+      left: max(24px, env(safe-area-inset-left, 24px));
+      width: 136px;
+      height: 136px;
+      border-radius: 68px;
+      background: radial-gradient(circle, rgba(12, 18, 26, 0.56) 0%, rgba(6, 10, 16, 0.82) 100%);
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
       z-index: 12;
       touch-action: none;
-      box-shadow: 0 4px 22px rgba(0, 0, 0, 0.9);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.85);
     }
     #joystick-thumb {
       position: absolute;
-      top: 34px;
-      left: 34px;
-      width: 44px;
-      height: 44px;
-      border-radius: 22px;
-      background: radial-gradient(circle, #e08e36 0%, #7c2d12 100%);
-      border: 1.5px solid #cbd5e1;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.9);
+      top: 41px;
+      left: 41px;
+      width: 54px;
+      height: 54px;
+      border-radius: 27px;
+      background: radial-gradient(circle at 38% 35%, #9ca3af 0%, #6b7280 55%, #374151 100%);
+      border: 1.5px solid rgba(255, 255, 255, 0.45);
+      box-shadow: 0 3px 12px rgba(0, 0, 0, 0.85);
       pointer-events: none;
       transition: transform 0.04s ease-out;
     }
 
     #action-cluster {
       position: absolute;
-      bottom: max(16px, env(safe-area-inset-bottom, 16px));
-      right: max(22px, env(safe-area-inset-right, 22px));
+      bottom: max(18px, env(safe-area-inset-bottom, 18px));
+      right: max(24px, env(safe-area-inset-right, 24px));
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
       z-index: 12;
       touch-action: none;
       pointer-events: none;
     }
     .action-row {
       display: flex;
-      gap: 10px;
+      gap: 12px;
       justify-content: flex-end;
       align-items: center;
       pointer-events: none;
     }
     .touch-btn {
-      width: 50px;
-      height: 50px;
-      border-radius: 25px;
-      background: rgba(8, 13, 22, 0.86);
-      border: 1px solid rgba(148, 163, 184, 0.32);
-      color: #e2e8f0;
-      font-size: 9px;
+      width: 60px;
+      height: 60px;
+      border-radius: 30px;
+      background: rgba(8, 13, 20, 0.74);
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
+      color: #ffffff;
+      font-size: 9.5px;
       font-weight: 800;
+      letter-spacing: 0.6px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.85);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.82);
       touch-action: none;
       pointer-events: auto;
       cursor: pointer;
     }
     .touch-btn:active {
       transform: scale(0.92);
-      background: rgba(224, 142, 54, 0.25);
-      border-color: #e08e36;
+      background: rgba(255, 255, 255, 0.18);
+      border-color: rgba(255, 255, 255, 0.55);
     }
     .touch-btn.primary {
-      width: 64px;
-      height: 64px;
-      border-radius: 32px;
-      background: linear-gradient(135deg, #991b1b, #450a0a);
-      border: 1.5px solid #e08e36;
-      color: #f8fafc;
-      font-size: 10.5px;
-      font-weight: 900;
-      box-shadow: 0 4px 20px rgba(153, 27, 27, 0.6);
+      width: 60px;
+      height: 60px;
+      border-radius: 30px;
+      background: rgba(8, 13, 20, 0.78);
+      border: 1.5px solid rgba(255, 255, 255, 0.32);
+      color: #ffffff;
+      font-size: 9.5px;
+      font-weight: 800;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.85);
     }
     .touch-btn svg {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       fill: currentColor;
-      margin-bottom: 2px;
+      margin-bottom: 3px;
       pointer-events: none;
     }
     .touch-btn span { pointer-events: none; }
@@ -604,15 +609,15 @@ export function getHideAndSeekHtml(): string {
     <div class="blindfold-timer-box" id="blindfold-counter">10</div>
   </div>
 
-  <!-- Pre-Game Audio Unlock Gate (Shown if first touch was consumed by React Native Lobby before WebView mounted) -->
-  <div id="audio-unlock-gate" style="position:absolute;top:52px;left:50%;transform:translateX(-50%);background:rgba(224,142,54,0.95);border:1.5px solid #fef08a;color:#060a10;padding:6px 16px;border-radius:16px;font-size:10.5px;font-weight:900;letter-spacing:1px;z-index:24;display:flex;align-items:center;gap:7px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.85);">
+  <!-- Pre-Game Audio Unlock Gate (Hidden by default for clean HUD matching 5E872F9F) -->
+  <div id="audio-unlock-gate" style="position:absolute;top:52px;left:50%;transform:translateX(-50%);background:rgba(224,142,54,0.95);border:1.5px solid #fef08a;color:#060a10;padding:6px 16px;border-radius:16px;font-size:10.5px;font-weight:900;letter-spacing:1px;z-index:24;display:none;align-items:center;gap:7px;cursor:pointer;box-shadow:0 4px 18px rgba(0,0,0,0.85);">
     <span>TAP ANYWHERE TO ENABLE NIGHTFALL AUDIO</span>
   </div>
 
   <div id="toast"></div>
 
-  <!-- Live Coordinate, Building, Room ID & Light Mood Readout Pill (Explore Mode) -->
-  <div id="explore-coord-pill" style="position:absolute;top:36px;left:50%;transform:translateX(-50%);background:rgba(6,10,18,0.88);border:1px solid rgba(56,189,248,0.42);color:#e0f2fe;font-family:monospace;font-size:10px;font-weight:700;padding:4px 12px;border-radius:10px;z-index:7;pointer-events:none;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.8);">
+  <!-- Live Coordinate, Building, Room ID & Light Mood Readout Pill (Shown when Debug HUD is active) -->
+  <div id="explore-coord-pill" style="position:absolute;top:36px;left:50%;transform:translateX(-50%);background:rgba(6,10,18,0.88);border:1px solid rgba(56,189,248,0.42);color:#e0f2fe;font-family:monospace;font-size:10px;font-weight:700;padding:4px 12px;border-radius:10px;z-index:7;pointer-events:none;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.8);display:none;">
     XYZ: (-4.0, 0.0, -48.0) • BLDG: OUTDOORS • ROOM: OUTDOORS • MOOD: NIGHT_SKY
   </div>
 
@@ -937,12 +942,16 @@ export function getHideAndSeekHtml(): string {
 
       const gpHud = document.getElementById('gameplay-telemetry-hud');
       if (gpHud) gpHud.style.display = gOn ? 'flex' : 'none';
+      const cBanner = document.getElementById('campus-banner');
+      if (cBanner) cBanner.style.display = gOn ? 'flex' : 'none';
       const throwBtn = document.getElementById('btn-throw');
       if (throwBtn) throwBtn.style.display = gOn ? 'flex' : 'none';
+      const actBtn = document.getElementById('btn-action');
+      if (actBtn) actBtn.style.display = gOn ? 'flex' : 'none';
       const actLbl = document.getElementById('btn-action-label');
       if (actLbl && !gOn) actLbl.textContent = 'DOOR';
       const coordPill = document.getElementById('explore-coord-pill');
-      if (coordPill) coordPill.style.display = EXPLORE_MODE ? 'block' : 'none';
+      if (coordPill) coordPill.style.display = 'none';
     }
     window.setExploreMode = setExploreMode;
     window.EXPLORE_FLAGS = EXPLORE_FLAGS;
@@ -8591,21 +8600,21 @@ export function getHideAndSeekHtml(): string {
     };
     step2Mats.flutterPaperMat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = prayerFlagUniforms.uTime;
-      shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader;
+      shader.vertexShader = 'uniform float uTime;\\n' + shader.vertexShader;
       shader.vertexShader = shader.vertexShader.replace(
         '#include <begin_vertex>',
-        '#include <begin_vertex>\n' +
-        'float pWave = sin(uTime * 2.8 + position.x * 14.0 + position.z * 11.0) * 0.008 * max(0.0, position.x + 0.12);\n' +
+        '#include <begin_vertex>\\n' +
+        'float pWave = sin(uTime * 2.8 + position.x * 14.0 + position.z * 11.0) * 0.008 * max(0.0, position.x + 0.12);\\n' +
         'transformed.y += pWave;'
       );
     };
     step2Mats.swayingCableMat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = prayerFlagUniforms.uTime;
-      shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader;
+      shader.vertexShader = 'uniform float uTime;\\n' + shader.vertexShader;
       shader.vertexShader = shader.vertexShader.replace(
         '#include <begin_vertex>',
-        '#include <begin_vertex>\n' +
-        'float cSway = sin(uTime * 1.9 + position.y * 4.2) * 0.018 * max(0.0, 0.35 - position.y);\n' +
+        '#include <begin_vertex>\\n' +
+        'float cSway = sin(uTime * 1.9 + position.y * 4.2) * 0.018 * max(0.0, 0.35 - position.y);\\n' +
         'transformed.x += cSway;'
       );
     };
@@ -19634,179 +19643,188 @@ export function getHideAndSeekHtml(): string {
 
     function animate() {
       requestAnimationFrame(animate);
-      const rawDelta = clock.getDelta();
-      // Requirement 3: Optional Battery Saver 30 FPS frame-rate cap (never auto-enabled on capable phones)
-      if (batterySaverEnabled && !physicsDebug.fakeLowFPS) {
-        batterySaverFrameAccum += rawDelta;
-        if (batterySaverFrameAccum < (1.0 / 30.5)) {
-          return;
+      try {
+        const rawDelta = clock.getDelta();
+        // Requirement 3: Optional Battery Saver 30 FPS frame-rate cap (never auto-enabled on capable phones)
+        if (batterySaverEnabled && !physicsDebug.fakeLowFPS) {
+          batterySaverFrameAccum += rawDelta;
+          if (batterySaverFrameAccum < (1.0 / 30.5)) {
+            return;
+          }
+          batterySaverFrameAccum = 0.0;
         }
-        batterySaverFrameAccum = 0.0;
-      }
-      const maxDt = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.maxDeltaTime) || (1.0 / 30.0);
-      let delta = Math.min(rawDelta, maxDt);
-      const timeSec = Date.now() * 0.001;
+        const maxDt = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.maxDeltaTime) || (1.0 / 30.0);
+        let delta = Math.min(rawDelta, maxDt);
+        const timeSec = Date.now() * 0.001;
 
-      // Update GPU shader uniform for waving cloth prayer flags (zero CPU vertex loop!)
-      prayerFlagUniforms.uTime.value = timeSec;
+        // Update GPU shader uniform for waving cloth prayer flags (zero CPU vertex loop!)
+        prayerFlagUniforms.uTime.value = timeSec;
 
-      // Keep sky dome centered at player camera position
-      if (atmosphere.skyGroup && camera) {
-        atmosphere.skyGroup.position.copy(camera.position);
-      }
-
-      // TASK 2: Occasional random lamp flicker bursts (disabled in EXPLORE_MODE)
-      if (EXPLORE_FLAGS.ENABLE_STROBING_AND_BROWNOUTS) {
-        flickerBurstTimer -= delta;
-        if (flickerBurstTimer <= 0) {
-          flickerBurstTimer = (HORROR_CONFIG.tension.flickerBurstIntervalMin || 9.0) +
-            Math.random() * ((HORROR_CONFIG.tension.flickerBurstIntervalMax || 18.0) - (HORROR_CONFIG.tension.flickerBurstIntervalMin || 9.0));
-          lampFlickerMod.triggerPowerDip(0.35);
-          soundEngine.playLampBuzz();
+        // Keep sky dome centered at player camera position
+        if (atmosphere.skyGroup && camera) {
+          atmosphere.skyGroup.position.copy(camera.position);
         }
-      }
 
-      // Fog & Vignette update: In EXPLORE_MODE, keep steady baseline or slider-tuned fog & normal subtle vignette
-      if (scene.fog && scene.fog.isFog) {
-        if (!exploreTools.fogEnabled) {
-          scene.fog.near = 9999;
-          scene.fog.far = 10000;
-        } else if (!EXPLORE_FLAGS.ENABLE_FEAR_FOV_AND_TENSION_FOG) {
-          const userFar = exploreTools.fogFar || ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0);
-          scene.fog.near = Math.max(2.5, (userFar / 88.0) * ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0));
-          scene.fog.far = userFar;
-        } else {
-          const timerRatio = Math.max(0, Math.min(1, 1 - (matchTimer / (GAME_CONFIG.matchDuration || 135))));
-          const combinedTension = Math.min(1.0, currentHunterProximity * 0.75 + timerRatio * 0.45);
-          const baseFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0;
-          const minFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogMinFarUnderTension) || 45.0;
-          scene.fog.near = Math.max(2.5, ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0) - combinedTension * 3.0);
-          scene.fog.far = baseFar - (baseFar - minFar) * combinedTension;
+        // TASK 2: Occasional random lamp flicker bursts (disabled in EXPLORE_MODE)
+        if (EXPLORE_FLAGS.ENABLE_STROBING_AND_BROWNOUTS) {
+          flickerBurstTimer -= delta;
+          if (flickerBurstTimer <= 0) {
+            flickerBurstTimer = (HORROR_CONFIG.tension.flickerBurstIntervalMin || 9.0) +
+              Math.random() * ((HORROR_CONFIG.tension.flickerBurstIntervalMax || 18.0) - (HORROR_CONFIG.tension.flickerBurstIntervalMin || 9.0));
+            lampFlickerMod.triggerPowerDip(0.35);
+            soundEngine.playLampBuzz();
+          }
+        }
+
+        // Fog & Vignette update: In EXPLORE_MODE, keep steady baseline or slider-tuned fog & normal subtle vignette
+        if (scene.fog && scene.fog.isFog) {
+          if (!exploreTools.fogEnabled) {
+            scene.fog.near = 9999;
+            scene.fog.far = 10000;
+          } else if (!EXPLORE_FLAGS.ENABLE_FEAR_FOV_AND_TENSION_FOG) {
+            const userFar = exploreTools.fogFar || ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0);
+            scene.fog.near = Math.max(2.5, (userFar / 88.0) * ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0));
+            scene.fog.far = userFar;
+          } else {
+            const timerRatio = Math.max(0, Math.min(1, 1 - (matchTimer / (GAME_CONFIG.matchDuration || 135))));
+            const combinedTension = Math.min(1.0, currentHunterProximity * 0.75 + timerRatio * 0.45);
+            const baseFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0;
+            const minFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogMinFarUnderTension) || 45.0;
+            scene.fog.near = Math.max(2.5, ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0) - combinedTension * 3.0);
+            scene.fog.far = baseFar - (baseFar - minFar) * combinedTension;
+            const vigEl = document.getElementById('cinematic-vignette');
+            if (vigEl) {
+              vigEl.style.opacity = (0.28 + combinedTension * 0.20).toFixed(2);
+            }
+          }
+
+          // Faint warm tint to the fog when the player is near a warm lamp pool (< 14m)
+          const lampDist = (lampFlickerMod && typeof lampFlickerMod.nearestLampDist === 'number')
+            ? lampFlickerMod.nearestLampDist
+            : 999;
+          const warmFactor = Math.max(0.0, Math.min(0.45, (1.0 - lampDist / 14.0) * 0.45));
+          scene.fog.color.copy(atmosphere.baseFogColor).lerp(atmosphere.warmFogColor, warmFactor);
+        }
+        if (!EXPLORE_FLAGS.ENABLE_FEAR_FOV_AND_TENSION_FOG) {
           const vigEl = document.getElementById('cinematic-vignette');
-          if (vigEl) {
-            vigEl.style.opacity = (0.28 + combinedTension * 0.20).toFixed(2);
+          if (vigEl) vigEl.style.opacity = '0.28';
+        }
+
+        // Throttled hunter proximity message (disabled in EXPLORE_MODE)
+        if (EXPLORE_FLAGS.ENABLE_HUNTER_AND_BOTS) {
+          proximitySyncCooldown -= delta;
+          if (proximitySyncCooldown <= 0) {
+            proximitySyncCooldown = 0.25;
+            sendToReactNative('HUNTER_PROXIMITY', { proximity: Number(currentHunterProximity.toFixed(2)) });
           }
         }
 
-        // Faint warm tint to the fog when the player is near a warm lamp pool (< 14m)
-        const lampDist = (lampFlickerMod && typeof lampFlickerMod.nearestLampDist === 'number')
-          ? lampFlickerMod.nearestLampDist
-          : 999;
-        const warmFactor = Math.max(0.0, Math.min(0.45, (1.0 - lampDist / 14.0) * 0.45));
-        scene.fog.color.copy(atmosphere.baseFogColor).lerp(atmosphere.warmFogColor, warmFactor);
-      }
-      if (!EXPLORE_FLAGS.ENABLE_FEAR_FOV_AND_TENSION_FOG) {
-        const vigEl = document.getElementById('cinematic-vignette');
-        if (vigEl) vigEl.style.opacity = '0.28';
-      }
-
-      // Throttled hunter proximity message (disabled in EXPLORE_MODE)
-      if (EXPLORE_FLAGS.ENABLE_HUNTER_AND_BOTS) {
-        proximitySyncCooldown -= delta;
-        if (proximitySyncCooldown <= 0) {
-          proximitySyncCooldown = 0.25;
-          sendToReactNative('HUNTER_PROXIMITY', { proximity: Number(currentHunterProximity.toFixed(2)) });
+        // Physics execution with test harness profiling and hooks
+        if (physicsDebug.fakeLowFPS) {
+          delta = 1 / 15;
         }
-      }
-
-      // Physics execution with test harness profiling and hooks
-      if (physicsDebug.fakeLowFPS) {
-        delta = 1 / 15;
-      }
-      if (physicsDebug.lagSpikeRemaining > 0) {
-        physicsDebug.lagSpikeRemaining = 0;
-        const freezeStart = performance.now();
-        while (performance.now() - freezeStart < 1000) {
-          // Simulated 1.0s system / garbage collection freeze
-        }
-      }
-
-      const physT0 = performance.now();
-      const simDelta = delta * physicsDebug.speedMultiplier;
-      updatePlayer(simDelta, timeSec);
-      physicsDebug.physicsCostMs = performance.now() - physT0;
-      physicsDebug.fps = rawDelta > 0.0001 ? (1.0 / rawDelta) : 60;
-
-      updateEnvironmentAndBots(delta, timeSec);
-      if (typeof exploreTools !== 'undefined' && exploreTools.updateFrame) {
-        exploreTools.updateFrame();
-      }
-      atmosphere.renderFrame(timeSec);
-
-      // Step 1 FPS Guard: If average FPS < 40 for 3.0 seconds, disable the color grade pass automatically!
-      if (rawDelta > 0.001 && rawDelta < 0.5 && atmosphere.isColorGradePassActive()) {
-        atmosphere._gradeFpsCount = (atmosphere._gradeFpsCount || 0) + 1;
-        atmosphere._gradeFpsAccum = (atmosphere._gradeFpsAccum || 0.0) + rawDelta;
-        const guardWin = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.fpsGuardWindowSec) || 3.0;
-        if (atmosphere._gradeFpsAccum >= guardWin) {
-          const gradeAvgFps = atmosphere._gradeFpsCount / atmosphere._gradeFpsAccum;
-          atmosphere._gradeFpsCount = 0;
-          atmosphere._gradeFpsAccum = 0.0;
-          const guardThresh = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.fpsGuardThreshold) || 40;
-          if (gradeAvgFps < guardThresh) {
-            atmosphere.gradeAutoDisabledByFps = true;
-            atmosphere.updateCssFallbackVisibility();
-            showToast('FPS < 40: Color Grade switched to CSS fallback');
+        if (physicsDebug.lagSpikeRemaining > 0) {
+          physicsDebug.lagSpikeRemaining = 0;
+          const freezeStart = performance.now();
+          while (performance.now() - freezeStart < 1000) {
+            // Simulated 1.0s system / garbage collection freeze
           }
         }
-      }
 
-      // Requirement 2 & 3: Rolling 5.0s FPS & Frame-Time Monitor + 10-Minute Session Telemetry
-      if (rawDelta > 0.001 && rawDelta < 0.5) {
-        fpsFrameCount++;
-        fpsAccumSec += rawDelta;
-        sessionTelemetry.elapsedSec += rawDelta;
-        sessionTelemetry.minFrameCount++;
-        sessionTelemetry.minAccumSec += rawDelta;
+        const physT0 = performance.now();
+        const simDelta = delta * physicsDebug.speedMultiplier;
+        updatePlayer(simDelta, timeSec);
+        physicsDebug.physicsCostMs = performance.now() - physT0;
+        physicsDebug.fps = rawDelta > 0.0001 ? (1.0 / rawDelta) : 60;
 
-        if (sessionTelemetry.minAccumSec >= 60.0 && sessionTelemetry.minuteHistory.length < 10) {
-          const mAvgFps = sessionTelemetry.minFrameCount / sessionTelemetry.minAccumSec;
-          const mAvgMs = 1000.0 / Math.max(1.0, mAvgFps);
-          const headroomPct = Math.max(0, ((16.67 - mAvgMs) / 16.67) * 100);
-          const entry = {
-            minute: sessionTelemetry.currentMinute,
-            avgFps: Number(mAvgFps.toFixed(1)),
-            avgFrameMs: Number(mAvgMs.toFixed(2)),
-            headroomPct: Number(headroomPct.toFixed(1)),
-            quality: currentQuality,
-          };
-          sessionTelemetry.minuteHistory.push(entry);
-          sessionTelemetry.currentMinute++;
-          sessionTelemetry.minFrameCount = 0;
-          sessionTelemetry.minAccumSec = 0.0;
-          sendToReactNative('SESSION_TELEMETRY_REPORT', entry);
+        updateEnvironmentAndBots(delta, timeSec);
+        if (typeof exploreTools !== 'undefined' && exploreTools.updateFrame) {
+          exploreTools.updateFrame();
         }
+        atmosphere.renderFrame(timeSec);
 
-        const windowSec = (HORROR_CONFIG.tension && HORROR_CONFIG.tension.autoStepDownWindowSec) || 5.0;
-        if (fpsAccumSec >= windowSec) {
-          rollingAvgFps = fpsFrameCount / fpsAccumSec;
-          rollingAvgFrameMs = 1000.0 / Math.max(1.0, rollingAvgFps);
-          fpsFrameCount = 0;
-          fpsAccumSec = 0.0;
-          const stepDownThresh = (HORROR_CONFIG.tension && HORROR_CONFIG.tension.autoStepDownFpsThreshold) || 40;
-          const safeFps = (HORROR_CONFIG.tension && HORROR_CONFIG.tension.autoStepDownSafeFps) || 45;
-          // Never step down if pinned manually, if Battery Saver 30 FPS cap is active, or if holding >= 45 FPS
-          if (qualityPinMode === 'auto' && !batterySaverEnabled && rollingAvgFps < safeFps && rollingAvgFps < stepDownThresh) {
-            stepDownQualityOneTier(rollingAvgFps);
+        // Step 1 FPS Guard: If average FPS < 40 for 3.0 seconds, disable the color grade pass automatically!
+        if (rawDelta > 0.001 && rawDelta < 0.5 && atmosphere.isColorGradePassActive()) {
+          atmosphere._gradeFpsCount = (atmosphere._gradeFpsCount || 0) + 1;
+          atmosphere._gradeFpsAccum = (atmosphere._gradeFpsAccum || 0.0) + rawDelta;
+          const guardWin = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.fpsGuardWindowSec) || 3.0;
+          if (atmosphere._gradeFpsAccum >= guardWin) {
+            const gradeAvgFps = atmosphere._gradeFpsCount / atmosphere._gradeFpsAccum;
+            atmosphere._gradeFpsCount = 0;
+            atmosphere._gradeFpsAccum = 0.0;
+            const guardThresh = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.fpsGuardThreshold) || 40;
+            if (gradeAvgFps < guardThresh) {
+              atmosphere.gradeAutoDisabledByFps = true;
+              atmosphere.updateCssFallbackVisibility();
+              showToast('FPS < 40: Color Grade switched to CSS fallback');
+            }
           }
         }
+
+        // Requirement 2 & 3: Rolling 5.0s FPS & Frame-Time Monitor + 10-Minute Session Telemetry
+        if (rawDelta > 0.001 && rawDelta < 0.5) {
+          fpsFrameCount++;
+          fpsAccumSec += rawDelta;
+          sessionTelemetry.elapsedSec += rawDelta;
+          sessionTelemetry.minFrameCount++;
+          sessionTelemetry.minAccumSec += rawDelta;
+
+          if (sessionTelemetry.minAccumSec >= 60.0 && sessionTelemetry.minuteHistory.length < 10) {
+            const mAvgFps = sessionTelemetry.minFrameCount / sessionTelemetry.minAccumSec;
+            const mAvgMs = 1000.0 / Math.max(1.0, mAvgFps);
+            const headroomPct = Math.max(0, ((16.67 - mAvgMs) / 16.67) * 100);
+            const entry = {
+              minute: sessionTelemetry.currentMinute,
+              avgFps: Number(mAvgFps.toFixed(1)),
+              avgFrameMs: Number(mAvgMs.toFixed(2)),
+              headroomPct: Number(headroomPct.toFixed(1)),
+              quality: currentQuality,
+            };
+            sessionTelemetry.minuteHistory.push(entry);
+            sessionTelemetry.currentMinute++;
+            sessionTelemetry.minFrameCount = 0;
+            sessionTelemetry.minAccumSec = 0.0;
+            sendToReactNative('SESSION_TELEMETRY_REPORT', entry);
+          }
+
+          const windowSec = (HORROR_CONFIG.tension && HORROR_CONFIG.tension.autoStepDownWindowSec) || 5.0;
+          if (fpsAccumSec >= windowSec) {
+            rollingAvgFps = fpsFrameCount / fpsAccumSec;
+            rollingAvgFrameMs = 1000.0 / Math.max(1.0, rollingAvgFps);
+            fpsFrameCount = 0;
+            fpsAccumSec = 0.0;
+            const stepDownThresh = (HORROR_CONFIG.tension && HORROR_CONFIG.tension.autoStepDownFpsThreshold) || 40;
+            const safeFps = (HORROR_CONFIG.tension && HORROR_CONFIG.tension.autoStepDownSafeFps) || 45;
+            // Never step down if pinned manually, if Battery Saver 30 FPS cap is active, or if holding >= 45 FPS
+            if (qualityPinMode === 'auto' && !batterySaverEnabled && rollingAvgFps < safeFps && rollingAvgFps < stepDownThresh) {
+              stepDownQualityOneTier(rollingAvgFps);
+            }
+          }
+        }
+      } catch (loopErr) {
+        console.error('[HideAndSeek] Frame error:', loopErr);
       }
     }
     animate();
 
     function handleResize() {
-      const w = Math.max(window.innerWidth || 0, 320);
-      const h = Math.max(window.innerHeight || 0, 240);
+      const w = Math.max(window.innerWidth || (document.documentElement && document.documentElement.clientWidth) || 0, 320);
+      const h = Math.max(window.innerHeight || (document.documentElement && document.documentElement.clientHeight) || 0, 240);
       if (camera) {
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
       }
-      if (atmosphere && atmosphere.resizeGradeTarget) {
-        atmosphere.resizeGradeTarget(w, h);
-      } else if (renderer) {
+      if (renderer) {
         renderer.setSize(w, h);
       }
+      if (atmosphere && atmosphere.resizeGradeTarget) {
+        atmosphere.resizeGradeTarget(w, h);
+      }
     }
+    handleResize();
+    setTimeout(handleResize, 50);
+    setTimeout(handleResize, 200);
+    setTimeout(handleResize, 500);
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', () => {
       setTimeout(handleResize, 100);

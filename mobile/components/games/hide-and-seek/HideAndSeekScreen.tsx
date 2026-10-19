@@ -121,6 +121,7 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
   const [hideUiForScreenshot, setHideUiForScreenshot] = useState(false);
   const [webViewError, setWebViewError] = useState<string | null>(null);
   const [cachedHtmlUri, setCachedHtmlUri] = useState<string | null>(null);
+  const [fallbackInline, setFallbackInline] = useState<boolean>(false);
   const [gameState, setGameState] = useState<{
     status: 'LOBBY' | 'PLAYING' | 'GAMEOVER';
     hidersRemaining: number;
@@ -165,7 +166,7 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
     let isCancelled = false;
     const cacheHtml = async () => {
       try {
-        const targetPath = `${FileSystem.cacheDirectory}hide-and-seek-nightfall-v16-ui.html`;
+        const targetPath = `${FileSystem.cacheDirectory}hide-and-seek-nightfall-v17-render-fix.html`;
         const content = getHideAndSeekHtml();
         await FileSystem.writeAsStringAsync(targetPath, content, {
           encoding: FileSystem.EncodingType.UTF8,
@@ -175,6 +176,9 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
         }
       } catch (err) {
         console.warn('[HideAndSeek] Could not write HTML cache, falling back to string:', err);
+        if (!isCancelled) {
+          setFallbackInline(true);
+        }
       }
     };
     cacheHtml();
@@ -187,8 +191,11 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
     if (cachedHtmlUri) {
       return { uri: cachedHtmlUri };
     }
-    return { html: getHideAndSeekHtml() };
-  }, [cachedHtmlUri]);
+    if (fallbackInline) {
+      return { html: getHideAndSeekHtml() };
+    }
+    return null;
+  }, [cachedHtmlUri, fallbackInline]);
 
   // Suspend/resume WebView audio & timers when app is backgrounded or interrupted
   useEffect(() => {
@@ -958,69 +965,77 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
         </ImageBackground>
       ) : (
         <View style={styles.gameWrapper}>
-          <WebView
-            ref={webViewRef}
-            originWhitelist={['*']}
-            source={webViewSource}
-            style={styles.webview}
-            androidLayerType="hardware"
-            allowingReadAccessToURL={FileSystem.cacheDirectory || undefined}
-            webviewDebuggingEnabled={true}
-            allowFileAccess={true}
-            allowFileAccessFromFileURLs={true}
-            allowUniversalAccessFromFileURLs={true}
-            javaScriptEnabled={true}
-            domStorageEnabled={true}
-            allowsInlineMediaPlayback={true}
-            mediaPlaybackRequiresUserAction={false}
-            scrollEnabled={false}
-            bounces={false}
-            overScrollMode="never"
-            mixedContentMode="always"
-            cacheEnabled={false}
-            startInLoadingState={true}
-            renderLoading={() => (
-              <View style={styles.loadingOverlay}>
-                <ActivityIndicator size="large" color={HORROR_CONFIG.palette.dimAmber} />
-                <Text style={styles.loadingTitle}>ENTERING GANDAKI UNIVERSITY...</Text>
-                <Text style={styles.loadingSub}>Loading 3D campus architecture, night lighting & audio</Text>
-              </View>
-            )}
-            onLoadStart={() => {
-              console.log('[HideAndSeek] WebView onLoadStart');
-            }}
-            onLoadEnd={() => {
-              console.log('[HideAndSeek] WebView onLoadEnd');
-              webViewRef.current?.postMessage(
-                JSON.stringify({
-                  type: 'CONFIGURE',
-                  exploreMode,
-                  role,
-                  difficulty,
-                  muted: isMuted,
-                  quality,
-                  pinMode: qualityPinMode,
-                  batterySaver,
-                  fearIntensity,
-                  flickerReduction,
-                  screenShakeOff,
-                })
-              );
-            }}
-            onMessage={handleMessage}
-            onError={(e) => {
-              console.warn('[HideAndSeek WebView onError]', e.nativeEvent);
-              setWebViewError('WebView failed to load: ' + (e.nativeEvent.description || 'Unknown network or layout error'));
-            }}
-            onHttpError={(e) => {
-              console.warn('[HideAndSeek WebView onHttpError]', e.nativeEvent);
-              setWebViewError('WebView HTTP error: ' + e.nativeEvent.statusCode);
-            }}
-            onRenderProcessGone={(e) => {
-              console.warn('[HideAndSeek WebView onRenderProcessGone]', e.nativeEvent);
-              setWebViewError('3D WebGL render process ran out of memory. Please reload.');
-            }}
-          />
+          {!webViewSource ? (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color={HORROR_CONFIG.palette.dimAmber} />
+              <Text style={styles.loadingTitle}>ENTERING GANDAKI UNIVERSITY...</Text>
+              <Text style={styles.loadingSub}>Loading 3D campus architecture, night lighting & audio</Text>
+            </View>
+          ) : (
+            <WebView
+              ref={webViewRef}
+              originWhitelist={['*']}
+              source={webViewSource}
+              style={styles.webview}
+              androidLayerType="hardware"
+              allowingReadAccessToURL={FileSystem.cacheDirectory || undefined}
+              webviewDebuggingEnabled={true}
+              allowFileAccess={true}
+              allowFileAccessFromFileURLs={true}
+              allowUniversalAccessFromFileURLs={true}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              allowsInlineMediaPlayback={true}
+              mediaPlaybackRequiresUserAction={false}
+              scrollEnabled={false}
+              bounces={false}
+              overScrollMode="never"
+              mixedContentMode="always"
+              cacheEnabled={false}
+              startInLoadingState={true}
+              renderLoading={() => (
+                <View style={styles.loadingOverlay}>
+                  <ActivityIndicator size="large" color={HORROR_CONFIG.palette.dimAmber} />
+                  <Text style={styles.loadingTitle}>ENTERING GANDAKI UNIVERSITY...</Text>
+                  <Text style={styles.loadingSub}>Loading 3D campus architecture, night lighting & audio</Text>
+                </View>
+              )}
+              onLoadStart={() => {
+                console.log('[HideAndSeek] WebView onLoadStart');
+              }}
+              onLoadEnd={() => {
+                console.log('[HideAndSeek] WebView onLoadEnd');
+                webViewRef.current?.postMessage(
+                  JSON.stringify({
+                    type: 'CONFIGURE',
+                    exploreMode,
+                    role,
+                    difficulty,
+                    muted: isMuted,
+                    quality,
+                    pinMode: qualityPinMode,
+                    batterySaver,
+                    fearIntensity,
+                    flickerReduction,
+                    screenShakeOff,
+                  })
+                );
+              }}
+              onMessage={handleMessage}
+              onError={(e) => {
+                console.warn('[HideAndSeek WebView onError]', e.nativeEvent);
+                setWebViewError('WebView failed to load: ' + (e.nativeEvent.description || 'Unknown network or layout error'));
+              }}
+              onHttpError={(e) => {
+                console.warn('[HideAndSeek WebView onHttpError]', e.nativeEvent);
+                setWebViewError('WebView HTTP error: ' + e.nativeEvent.statusCode);
+              }}
+              onRenderProcessGone={(e) => {
+                console.warn('[HideAndSeek WebView onRenderProcessGone]', e.nativeEvent);
+                setWebViewError('3D WebGL render process ran out of memory. Please reload.');
+              }}
+            />
+          )}
 
           {webViewError && (
             <View style={styles.errorBannerContainer}>
@@ -1598,7 +1613,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#020408',
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#050811',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1665,7 +1680,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   gameOverOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(3, 6, 12, 0.88)',
     alignItems: 'center',
     justifyContent: 'center',

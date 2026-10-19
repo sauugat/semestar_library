@@ -1,0 +1,2634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Gandaki University — 3D Campus Layout Editor</title>
+  <style>
+    :root {
+      --bg-black: #0a0a0a;
+      --bg-panel: #141414;
+      --bg-elevated: #1f1f1f;
+      --bg-input: #0f0f0f;
+      --bg-hover: #292929;
+      --border-dim: #2e2e2e;
+      --border-mid: #4a4a4a;
+      --border-bright: #ffffff;
+      --text-white: #f5f5f5;
+      --text-light: #d4d4d4;
+      --text-muted: #8a8a8a;
+      --accent-white: #ffffff;
+      --accent-gray: #e0e0e0;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-left: env(safe-area-inset-left, 0px);
+      --safe-right: env(safe-area-inset-right, 0px);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    input, textarea, select {
+      user-select: text;
+      -webkit-user-select: text;
+      font-family: inherit;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-black);
+      color: var(--text-white);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      touch-action: none;
+    }
+
+    /* Main App Layout */
+    #app {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-black);
+    }
+
+    /* Top Header Toolbar */
+    #topbar {
+      padding-top: calc(var(--safe-top) + 6px);
+      padding-bottom: 6px;
+      padding-left: calc(var(--safe-left) + 10px);
+      padding-right: calc(var(--safe-right) + 10px);
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      z-index: 20;
+      flex-shrink: 0;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .brand-title {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--text-white);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .count-pill {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-mid);
+      color: var(--text-light);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    /* Secondary Quick-Add & Mode Bar */
+    #subbar {
+      padding: 6px calc(var(--safe-right) + 10px) 6px calc(var(--safe-left) + 10px);
+      background: #101010;
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      z-index: 20;
+      flex-shrink: 0;
+    }
+    #subbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .bar-divider {
+      width: 1px;
+      height: 18px;
+      background: var(--border-dim);
+      margin: 0 2px;
+      flex-shrink: 0;
+    }
+
+    /* Neutral Monochrome Buttons */
+    .btn {
+      background: var(--bg-elevated);
+      color: var(--text-white);
+      border: 1px solid var(--border-mid);
+      border-radius: 5px;
+      padding: 6px 9px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      min-height: 30px;
+      transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+    }
+
+    .btn:active {
+      background: #383838;
+    }
+
+    .btn.primary {
+      background: var(--accent-white);
+      color: var(--bg-black);
+      border-color: var(--accent-white);
+      font-weight: 700;
+    }
+
+    .btn.primary:active {
+      background: #cccccc;
+    }
+
+    .btn.active {
+      background: var(--accent-white);
+      color: var(--bg-black);
+      border-color: var(--accent-white);
+      font-weight: 700;
+    }
+
+    .btn:disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    .btn.danger {
+      background: #1a1a1a;
+      color: #e5e5e5;
+      border-color: #666666;
+    }
+    .btn.danger:active {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    /* Viewport Area */
+    #viewport-wrap {
+      position: relative;
+      flex: 1;
+      min-height: 180px;
+      width: 100%;
+      overflow: hidden;
+      background: #111111;
+    }
+
+    #editor-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+    }
+
+    /* Floating Viewport HUD Overlays */
+    #hud-top-left {
+      position: absolute;
+      top: 8px;
+      left: calc(var(--safe-left) + 8px);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .hud-pill {
+      background: rgba(12, 12, 12, 0.85);
+      border: 1px solid var(--border-mid);
+      color: var(--text-light);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px;
+      line-height: 1.35;
+      letter-spacing: 0.2px;
+    }
+
+    #hud-compass {
+      position: absolute;
+      top: 8px;
+      right: calc(var(--safe-right) + 8px);
+      background: rgba(12, 12, 12, 0.85);
+      border: 1px solid var(--border-mid);
+      border-radius: 5px;
+      padding: 5px 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 10px;
+      color: var(--text-light);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .axis-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .axis-tag {
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    /* Floating Camera & Mode Quick Controls on Viewport Bottom-Left */
+    #viewport-quick-controls {
+      position: absolute;
+      bottom: 8px;
+      left: calc(var(--safe-left) + 8px);
+      right: calc(var(--safe-right) + 8px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .vp-btn-group {
+      display: flex;
+      gap: 4px;
+      pointer-events: auto;
+      background: rgba(14, 14, 14, 0.9);
+      padding: 3px;
+      border-radius: 6px;
+      border: 1px solid var(--border-mid);
+    }
+
+    .vp-btn {
+      background: transparent;
+      color: var(--text-light);
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 5px 8px;
+      font-size: 10.5px;
+      font-weight: 700;
+      cursor: pointer;
+      min-height: 26px;
+    }
+
+    .vp-btn.active {
+      background: var(--accent-white);
+      color: var(--bg-black);
+    }
+
+    /* 3D Object Floating Labels Container */
+    #labels-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 5;
+    }
+
+    .obj-label {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      background: rgba(10, 10, 10, 0.85);
+      border: 1px solid #666666;
+      color: #e5e5e5;
+      font-size: 9.5px;
+      font-weight: 600;
+      padding: 2px 5px;
+      border-radius: 3px;
+      white-space: nowrap;
+      pointer-events: none;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .obj-label.selected {
+      background: #ffffff;
+      color: #000000;
+      border-color: #000000;
+      font-weight: 800;
+      z-index: 6;
+    }
+
+    /* Bottom Docked Panel (Inspector + Building List) */
+    #bottom-panel {
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border-mid);
+      display: flex;
+      flex-direction: column;
+      height: 44vh;
+      min-height: 230px;
+      max-height: 62vh;
+      padding-bottom: var(--safe-bottom);
+      z-index: 25;
+      flex-shrink: 0;
+      transition: height 0.18s ease, min-height 0.18s ease;
+    }
+
+    #bottom-panel.collapsed {
+      height: calc(38px + var(--safe-bottom));
+      min-height: calc(38px + var(--safe-bottom));
+      overflow: hidden;
+    }
+
+    #panel-tabs-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #101010;
+      border-bottom: 1px solid var(--border-dim);
+      padding: 0 calc(var(--safe-right) + 8px) 0 calc(var(--safe-left) + 8px);
+      height: 38px;
+      flex-shrink: 0;
+    }
+
+    .tab-buttons {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      height: 100%;
+    }
+
+    .tab-btn {
+      background: transparent;
+      color: var(--text-muted);
+      border: none;
+      border-bottom: 2px solid transparent;
+      height: 100%;
+      padding: 0 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tab-btn.active {
+      color: var(--text-white);
+      border-bottom-color: var(--accent-white);
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 10px calc(var(--safe-right) + 10px) 14px calc(var(--safe-left) + 10px);
+    }
+
+    .tab-pane {
+      display: none;
+    }
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Inspector Form Controls */
+    .inspector-empty {
+      text-align: center;
+      padding: 22px 12px;
+      color: var(--text-muted);
+      border: 1px dashed var(--border-dim);
+      border-radius: 6px;
+      line-height: 1.5;
+    }
+
+    .inspector-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-dim);
+      flex-wrap: wrap;
+    }
+
+    .id-badge {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10.5px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-dim);
+      color: var(--text-muted);
+      padding: 3px 7px;
+      border-radius: 4px;
+    }
+
+    .inspector-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .form-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .form-label {
+      width: 68px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      flex-shrink: 0;
+    }
+
+    .text-input, .select-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border-mid);
+      color: var(--text-white);
+      border-radius: 5px;
+      padding: 7px 9px;
+      font-size: 13px;
+      font-weight: 600;
+      min-height: 32px;
+    }
+
+    .text-input:focus, .select-input:focus, .num-input:focus {
+      outline: none;
+      border-color: var(--accent-white);
+      background: #000000;
+    }
+
+    .section-subtitle {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin: 10px 0 6px 0;
+    }
+
+    .numeric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .num-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .num-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .num-control-row {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .step-btn {
+      background: var(--bg-panel);
+      color: var(--text-white);
+      border: 1px solid var(--border-mid);
+      border-radius: 4px;
+      width: 26px;
+      height: 28px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-btn:active {
+      background: var(--accent-white);
+      color: var(--bg-black);
+    }
+
+    .num-input {
+      width: 100%;
+      min-width: 0;
+      background: var(--bg-input);
+      border: 1px solid var(--border-mid);
+      color: var(--text-white);
+      border-radius: 4px;
+      height: 28px;
+      padding: 0 4px;
+      text-align: center;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* Rotation Bar */
+    .rotation-box {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .rot-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .rot-quick-btns {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .rot-slider {
+      width: 100%;
+      accent-color: #ffffff;
+      height: 20px;
+    }
+
+    /* Building / Object List Styles */
+    .list-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .obj-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .obj-row {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 7px 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .obj-row.selected {
+      background: #2b2b2b;
+      border-color: var(--accent-white);
+    }
+
+    .obj-row-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .type-badge {
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 2px 5px;
+      border-radius: 3px;
+      border: 1px solid var(--border-mid);
+      background: var(--bg-panel);
+      color: var(--text-light);
+      flex-shrink: 0;
+    }
+
+    .obj-row-info {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .obj-row-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-white);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .obj-row-meta {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .obj-row-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    /* Modal for Export / Import JSON */
+    #json-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 100;
+    }
+
+    #json-modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-mid);
+      border-radius: 8px;
+      width: 100%;
+      max-width: 540px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.9);
+    }
+
+    .modal-header {
+      padding: 12px 14px;
+      background: #0f0f0f;
+      border-bottom: 1px solid var(--border-dim);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .modal-body {
+      padding: 12px 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .json-textarea {
+      width: 100%;
+      height: 210px;
+      background: #080808;
+      border: 1px solid var(--border-mid);
+      border-radius: 6px;
+      color: #e5e5e5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      line-height: 1.4;
+      padding: 8px;
+      resize: vertical;
+    }
+
+    .modal-btn-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      top: calc(var(--safe-top) + 52px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #000000;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+      white-space: nowrap;
+    }
+    #toast.visible {
+      opacity: 1;
+    }
+
+    /* Responsive Desktop Split Layout */
+    @media (min-width: 820px) {
+      #main-workspace {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        flex-direction: row;
+      }
+      #bottom-panel {
+        width: 390px;
+        height: 100% !important;
+        max-height: none;
+        border-top: none;
+        border-left: 1px solid var(--border-mid);
+      }
+    }
+    @media (max-width: 819px) {
+      #main-workspace {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        flex-direction: column;
+      }
+    }
+  </style>
+  <script src="./vendor/three.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- Top Bar: Brand, Undo/Redo, Camera View Toggle, Export/Import -->
+    <header id="topbar">
+      <div class="brand-group">
+        <span class="brand-title">Gandaki Layout Editor</span>
+        <span id="obj-count-badge" class="count-pill">0 Objects</span>
+      </div>
+      <div class="toolbar-actions">
+        <button id="btn-undo" class="btn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+        <button id="btn-redo" class="btn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+        <button id="btn-view-preset" class="btn" title="Toggle 3D Perspective / Top-Down View">Top-Down</button>
+        <button id="btn-json-modal" class="btn primary" title="Export or Import Scene JSON">JSON ⇅</button>
+      </div>
+    </header>
+
+    <!-- Sub Bar: Add Objects, Grid Snap, Preset Loader -->
+    <div id="subbar">
+      <button id="btn-add-building" class="btn primary">+ Building</button>
+      <button id="btn-add-road" class="btn">+ Road / Path</button>
+      <button id="btn-add-ground" class="btn">+ Ground Area</button>
+      <div class="bar-divider"></div>
+      <button id="btn-duplicate-top" class="btn" disabled>Duplicate</button>
+      <button id="btn-delete-top" class="btn danger" disabled>Delete</button>
+      <div class="bar-divider"></div>
+      <button id="btn-snap-toggle" class="btn">Snap: 0.5m</button>
+      <button id="btn-labels-toggle" class="btn active">Labels: ON</button>
+      <button id="btn-reset-cam" class="btn">Reset Cam</button>
+    </div>
+
+    <!-- Main Workspace: 3D Viewport + Inspector/List Panel -->
+    <div id="main-workspace">
+      <div id="viewport-wrap">
+        <canvas id="editor-canvas"></canvas>
+        <div id="labels-container"></div>
+
+        <!-- Top-Left Coordinate & Selection Readout -->
+        <div id="hud-top-left">
+          <div id="hud-cam-readout" class="hud-pill">VIEW: 3D PERSPECTIVE • GRID: 200m (2m minor / 10m major)</div>
+          <div id="hud-sel-readout" class="hud-pill">SELECTED: NONE (Tap block to select)</div>
+        </div>
+
+        <!-- Top-Right Axis / Compass Legend -->
+        <div id="hud-compass">
+          <div class="axis-row"><span class="axis-tag">+Z</span><span>NORTH (Rotunda)</span></div>
+          <div class="axis-row"><span class="axis-tag">-Z</span><span>SOUTH (Main Gate)</span></div>
+          <div class="axis-row"><span class="axis-tag">+X / -X</span><span>EAST / WEST</span></div>
+        </div>
+
+        <!-- Bottom Touch Mode & View Switcher -->
+        <div id="viewport-quick-controls">
+          <div class="vp-btn-group" role="group" aria-label="Touch Interaction Mode">
+            <button id="mode-select-move" class="vp-btn active" data-mode="move">Touch: Move/Orbit</button>
+            <button id="mode-orbit-only" class="vp-btn" data-mode="orbit">Orbit Only</button>
+            <button id="mode-pan-only" class="vp-btn" data-mode="pan">Pan Only</button>
+          </div>
+          <div class="vp-btn-group" role="group" aria-label="Camera Preset">
+            <button id="cam-3d-btn" class="vp-btn active">3D</button>
+            <button id="cam-top-btn" class="vp-btn">Top</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Docked Bottom/Side Panel: Inspector & Object List -->
+      <section id="bottom-panel">
+        <div id="panel-tabs-bar">
+          <div class="tab-buttons">
+            <button id="tab-btn-inspector" class="tab-btn active" data-tab="inspector">Inspector</button>
+            <button id="tab-btn-list" class="tab-btn" data-tab="list">Objects (<span id="tab-obj-count">0</span>)</button>
+          </div>
+          <button id="btn-toggle-panel" class="btn" style="padding:4px 8px;min-height:24px;font-size:10px;">Minimize ▼</button>
+        </div>
+
+        <div class="panel-content">
+          <!-- TAB 1: INSPECTOR -->
+          <div id="tab-inspector" class="tab-pane active">
+            <div id="inspector-empty-state" class="inspector-empty">
+              <div style="font-weight:700;color:#d4d4d4;margin-bottom:4px;">No Object Selected</div>
+              <div>Tap any building, road, or ground area in the 3D viewport (or open the <strong>Objects</strong> tab) to select, rename, move, resize, rotate, duplicate, or delete it.</div>
+              <div style="margin-top:10px;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;">
+                <button id="btn-empty-add-bldg" class="btn primary">+ Add Building</button>
+                <button id="btn-empty-open-list" class="btn">View Object List</button>
+              </div>
+            </div>
+
+            <div id="inspector-form" style="display:none;">
+              <div class="inspector-header">
+                <span id="insp-id-badge" class="id-badge">ID: bldg_1</span>
+                <div class="inspector-actions">
+                  <button id="btn-insp-focus" class="btn">Focus</button>
+                  <button id="btn-insp-duplicate" class="btn">Duplicate</button>
+                  <button id="btn-insp-delete" class="btn danger">Delete</button>
+                  <button id="btn-insp-deselect" class="btn" title="Deselect">✕</button>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <label class="form-label" for="inp-name">Name</label>
+                <input id="inp-name" class="text-input" type="text" placeholder="Building or Road Name" autocomplete="off" />
+              </div>
+
+              <div class="form-row">
+                <label class="form-label" for="inp-type">Category</label>
+                <select id="inp-type" class="select-input">
+                  <option value="building">Building (Cuboid Block)</option>
+                  <option value="road">Road / Path (Flat Strip)</option>
+                  <option value="ground_area">Ground Area / Plaza</option>
+                </select>
+              </div>
+
+              <div class="section-subtitle">Position (Meters — Ground Base Center)</div>
+              <div class="numeric-grid">
+                <div class="num-card">
+                  <div class="num-card-header"><span>Pos X</span><span>E/W</span></div>
+                  <div class="num-control-row">
+                    <button class="step-btn" data-field="x" data-dir="-1">−</button>
+                    <input id="inp-x" class="num-input" type="number" step="0.5" />
+                    <button class="step-btn" data-field="x" data-dir="1">+</button>
+                  </div>
+                </div>
+                <div class="num-card">
+                  <div class="num-card-header"><span>Pos Y</span><span>Base</span></div>
+                  <div class="num-control-row">
+                    <button class="step-btn" data-field="y" data-dir="-1">−</button>
+                    <input id="inp-y" class="num-input" type="number" step="0.25" />
+                    <button class="step-btn" data-field="y" data-dir="1">+</button>
+                  </div>
+                </div>
+                <div class="num-card">
+                  <div class="num-card-header"><span>Pos Z</span><span>N/S</span></div>
+                  <div class="num-control-row">
+                    <button class="step-btn" data-field="z" data-dir="-1">−</button>
+                    <input id="inp-z" class="num-input" type="number" step="0.5" />
+                    <button class="step-btn" data-field="z" data-dir="1">+</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-subtitle">Dimensions (Meters — Width × Height × Depth)</div>
+              <div class="numeric-grid">
+                <div class="num-card">
+                  <div class="num-card-header"><span>Width</span><span>X</span></div>
+                  <div class="num-control-row">
+                    <button class="step-btn" data-field="width" data-dir="-1">−</button>
+                    <input id="inp-width" class="num-input" type="number" step="0.5" min="0.1" />
+                    <button class="step-btn" data-field="width" data-dir="1">+</button>
+                  </div>
+                </div>
+                <div class="num-card">
+                  <div class="num-card-header"><span>Height</span><span>Y</span></div>
+                  <div class="num-control-row">
+                    <button class="step-btn" data-field="height" data-dir="-1">−</button>
+                    <input id="inp-height" class="num-input" type="number" step="0.5" min="0.02" />
+                    <button class="step-btn" data-field="height" data-dir="1">+</button>
+                  </div>
+                </div>
+                <div class="num-card">
+                  <div class="num-card-header"><span>Depth</span><span>Z</span></div>
+                  <div class="num-control-row">
+                    <button class="step-btn" data-field="depth" data-dir="-1">−</button>
+                    <input id="inp-depth" class="num-input" type="number" step="0.5" min="0.1" />
+                    <button class="step-btn" data-field="depth" data-dir="1">+</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-subtitle">Y-Axis Rotation (Degrees)</div>
+              <div class="rotation-box">
+                <div class="rot-top-row">
+                  <div class="num-control-row" style="width:135px;">
+                    <button class="step-btn" data-field="rotY" data-dir="-1">−</button>
+                    <input id="inp-rot-y" class="num-input" type="number" step="5" />
+                    <button class="step-btn" data-field="rotY" data-dir="1">+</button>
+                  </div>
+                  <div class="rot-quick-btns">
+                    <button class="btn rot-preset-btn" data-rot="-90">-90°</button>
+                    <button class="btn rot-preset-btn" data-rot="-45">-45°</button>
+                    <button class="btn rot-preset-btn" data-rot="0">0°</button>
+                    <button class="btn rot-preset-btn" data-rot="45">+45°</button>
+                    <button class="btn rot-preset-btn" data-rot="90">+90°</button>
+                  </div>
+                </div>
+                <input id="slider-rot-y" class="rot-slider" type="range" min="-180" max="180" step="1" value="0" />
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: BUILDING & OBJECT LIST -->
+          <div id="tab-list" class="tab-pane">
+            <div class="list-toolbar">
+              <div class="filter-group">
+                <button class="btn list-filter-btn active" data-filter="all">All</button>
+                <button class="btn list-filter-btn" data-filter="building">Buildings</button>
+                <button class="btn list-filter-btn" data-filter="road">Roads</button>
+                <button class="btn list-filter-btn" data-filter="ground_area">Ground</button>
+              </div>
+              <div style="display:flex;gap:4px;">
+                <button id="btn-load-gandaki-preset" class="btn" title="Load default Gandaki University campus blockout">Reset Starter Map</button>
+                <button id="btn-clear-all" class="btn danger" title="Remove all objects">Clear All</button>
+              </div>
+            </div>
+            <div id="object-list-container" class="obj-list"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Export / Import JSON Modal -->
+    <div id="json-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="json-modal-title">
+      <div class="modal-card">
+        <div class="modal-header">
+          <span id="json-modal-title" class="modal-title">Export / Import Campus Layout JSON</span>
+          <button id="btn-close-modal" class="btn">✕ Close</button>
+        </div>
+        <div class="modal-body">
+          <div style="font-size:11.5px;color:var(--text-muted);line-height:1.45;">
+            Contains all scene objects (IDs, names, types, bottom-center positions, dimensions, Y-axis rotations, and precomputed AABB colliders) ready for the Gandaki University Three.js game renderer.
+          </div>
+          <div class="modal-btn-grid">
+            <button id="btn-download-json" class="btn primary">⬇ Download .JSON File</button>
+            <button id="btn-copy-json" class="btn">📋 Copy JSON</button>
+            <label for="file-import-input" class="btn" style="cursor:pointer;">📂 Import .JSON File</label>
+            <input id="file-import-input" type="file" accept=".json,application/json" style="display:none;" />
+            <button id="btn-apply-textarea-json" class="btn">✓ Load JSON Below</button>
+          </div>
+          <textarea id="json-textarea" class="json-textarea" spellcheck="false"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast">Saved</div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      /* =====================================================================
+         1. STARTER GANDAKI UNIVERSITY CAMPUS BLOCKOUT DATA
+         ===================================================================== */
+      const GANDAKI_STARTER_OBJECTS = [
+        {
+          id: 'area_parking_plaza',
+          name: 'South Parking Plaza',
+          type: 'ground_area',
+          position: { x: -6.0, y: 0.0, z: -49.0 },
+          dimensions: { width: 68.0, height: 0.04, depth: 28.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'area_rotunda_plaza',
+          name: 'North Rotunda Forecourt Plaza',
+          type: 'ground_area',
+          position: { x: 6.0, y: 0.0, z: 56.0 },
+          dimensions: { width: 66.0, height: 0.04, depth: 54.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'road_central_spine',
+          name: 'Main Central Spine Avenue',
+          type: 'road',
+          position: { x: 0.8, y: 0.02, z: -5.0 },
+          dimensions: { width: 5.6, height: 0.08, depth: 68.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'road_west_courtyard',
+          name: 'West Courtyard Footpath',
+          type: 'road',
+          position: { x: -12.0, y: 0.02, z: -4.0 },
+          dimensions: { width: 3.2, height: 0.08, depth: 62.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'road_east_courtyard',
+          name: 'East Courtyard Footpath',
+          type: 'road',
+          position: { x: 19.8, y: 0.02, z: -2.0 },
+          dimensions: { width: 3.2, height: 0.08, depth: 60.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'road_south_crosswalk',
+          name: 'South Cross-Walkway',
+          type: 'road',
+          position: { x: -13.0, y: 0.02, z: -34.5 },
+          dimensions: { width: 28.0, height: 0.08, depth: 2.8 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_main_rotunda',
+          name: 'Main Grand Rotunda Complex',
+          type: 'building',
+          position: { x: 6.0, y: 0.0, z: 64.0 },
+          dimensions: { width: 46.0, height: 11.5, depth: 18.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_west_wing_l1',
+          name: 'West Wing L1',
+          type: 'building',
+          position: { x: -6.5, y: 0.0, z: -18.0 },
+          dimensions: { width: 7.6, height: 4.2, depth: 30.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_west_wing_l2',
+          name: 'West Wing L2',
+          type: 'building',
+          position: { x: -17.5, y: 0.0, z: -12.0 },
+          dimensions: { width: 7.6, height: 4.8, depth: 28.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_west_wing_l3',
+          name: 'West Wing L3',
+          type: 'building',
+          position: { x: -17.5, y: 0.0, z: 20.0 },
+          dimensions: { width: 7.6, height: 4.2, depth: 22.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_east_wing_r1',
+          name: 'East Wing R1',
+          type: 'building',
+          position: { x: 14.5, y: 0.0, z: -24.0 },
+          dimensions: { width: 7.6, height: 4.2, depth: 26.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_east_wing_r2',
+          name: 'East Wing R2',
+          type: 'building',
+          position: { x: 25.5, y: 0.0, z: -14.0 },
+          dimensions: { width: 7.6, height: 4.2, depth: 26.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_east_wing_r4',
+          name: 'East Wing R4',
+          type: 'building',
+          position: { x: 25.5, y: 0.0, z: 20.0 },
+          dimensions: { width: 7.6, height: 4.2, depth: 28.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_newari_w1',
+          name: 'Newari Heritage Block W1',
+          type: 'building',
+          position: { x: -34.0, y: 0.0, z: -42.0 },
+          dimensions: { width: 9.5, height: 4.5, depth: 14.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_newari_w2',
+          name: 'Newari Cultural Hall W2',
+          type: 'building',
+          position: { x: -34.0, y: 0.0, z: -22.0 },
+          dimensions: { width: 11.0, height: 4.8, depth: 16.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_west_w3',
+          name: 'Academic Block W3',
+          type: 'building',
+          position: { x: -34.0, y: 0.0, z: -2.0 },
+          dimensions: { width: 9.5, height: 4.2, depth: 14.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_west_w4',
+          name: 'Academic Block W4',
+          type: 'building',
+          position: { x: -34.0, y: 0.0, z: 18.0 },
+          dimensions: { width: 9.5, height: 4.2, depth: 14.0 },
+          rotation: { yDeg: 0 }
+        },
+        {
+          id: 'bldg_guardhouse',
+          name: 'South Gate Guardhouse',
+          type: 'building',
+          position: { x: 6.0, y: 0.0, z: -58.0 },
+          dimensions: { width: 4.6, height: 3.4, depth: 4.6 },
+          rotation: { yDeg: 0 }
+        }
+      ];
+
+      /* =====================================================================
+         2. EDITOR STATE, HISTORY (UNDO/REDO) & PERSISTENCE
+         ===================================================================== */
+      const STORAGE_KEY = 'gandaki_campus_layout_editor_v1';
+      const SNAP_OPTIONS = [0, 0.5, 1.0, 2.0];
+
+      const state = {
+        objects: [],
+        selectedId: null,
+        cameraMode: '3d',        // '3d' | 'top'
+        touchMode: 'move',       // 'move' | 'orbit' | 'pan'
+        snapIndex: 1,            // default 0.5m
+        showLabels: true,
+        listFilter: 'all',       // 'all' | 'building' | 'road' | 'ground_area'
+        history: [],
+        historyIndex: -1,
+        idCounter: 1
+      };
+
+      function getSnapStep() {
+        return SNAP_OPTIONS[state.snapIndex] || 0;
+      }
+
+      function snapVal(val) {
+        const step = getSnapStep();
+        if (!step) return Math.round(val * 100) / 100;
+        return Math.round(val / step) * step;
+      }
+
+      function round2(val) {
+        return Math.round((Number(val) || 0) * 100) / 100;
+      }
+
+      function cloneObjects(objs) {
+        return JSON.parse(JSON.stringify(objs));
+      }
+
+      function showToast(msg) {
+        const el = document.getElementById('toast');
+        if (!el) return;
+        el.textContent = msg;
+        el.classList.add('visible');
+        clearTimeout(showToast._timer);
+        showToast._timer = setTimeout(() => {
+          el.classList.remove('visible');
+        }, 1600);
+      }
+
+      /* =====================================================================
+         3. THREE.JS SCENE, GROUND PLANE, COORDINATE GRID & AXIS INDICATORS
+         ===================================================================== */
+      const canvas = document.getElementById('editor-canvas');
+      const viewportWrap = document.getElementById('viewport-wrap');
+      const labelsContainer = document.getElementById('labels-container');
+
+      const renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: true,
+        powerPreference: 'high-performance'
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setClearColor(0x111111, 1);
+
+      const scene = new THREE.Scene();
+
+      // Neutral Lighting so simple gray cuboids have clear 3D face shading
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.68);
+      scene.add(ambientLight);
+
+      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.62);
+      dirLight1.position.set(60, 120, -80);
+      scene.add(dirLight1);
+
+      const dirLight2 = new THREE.DirectionalLight(0xffffff, 0.25);
+      dirLight2.position.set(-70, 60, 90);
+      scene.add(dirLight2);
+
+      // Base Ground Plane (240m x 240m)
+      const GROUND_SIZE = 240;
+      const groundGeo = new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE);
+      const groundMat = new THREE.MeshLambertMaterial({ color: 0x181818 });
+      const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+      groundMesh.rotation.x = -Math.PI / 2;
+      groundMesh.position.y = -0.02;
+      groundMesh.name = '__ground__';
+      scene.add(groundMesh);
+
+      // Minor Grid (every 2m across 200m = 100 divisions)
+      const minorGrid = new THREE.GridHelper(200, 100, 0x3a3a3a, 0x262626);
+      minorGrid.position.y = 0.002;
+      scene.add(minorGrid);
+
+      // Major Grid (every 10m across 200m = 20 divisions)
+      const majorGrid = new THREE.GridHelper(200, 20, 0x777777, 0x444444);
+      majorGrid.position.y = 0.005;
+      scene.add(majorGrid);
+
+      // World Coordinate Axes & Direction Markers on Ground
+      const axesGroup = new THREE.Group();
+      scene.add(axesGroup);
+
+      function buildAxisMarkers() {
+        const lineMatX = new THREE.LineBasicMaterial({ color: 0xb0b0b0 });
+        const lineMatZ = new THREE.LineBasicMaterial({ color: 0xd8d8d8 });
+        const lineMatY = new THREE.LineBasicMaterial({ color: 0xffffff });
+
+        // X Axis (-100 to +100)
+        const xGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-100, 0.015, 0),
+          new THREE.Vector3(100, 0.015, 0)
+        ]);
+        axesGroup.add(new THREE.Line(xGeo, lineMatX));
+
+        // Z Axis (-100 to +100)
+        const zGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0.015, -100),
+          new THREE.Vector3(0, 0.015, 100)
+        ]);
+        axesGroup.add(new THREE.Line(zGeo, lineMatZ));
+
+        // Vertical Origin Pole (Y: 0 to 12m)
+        const yGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(0, 12, 0)
+        ]);
+        axesGroup.add(new THREE.Line(yGeo, lineMatY));
+
+        // Ground Sprite Text Labels for Axis Directions & 20m Ruler Ticks
+        function makeTextSprite(text, scaleW, scaleH, bgHex, fgHex) {
+          const c = document.createElement('canvas');
+          c.width = 256;
+          c.height = 64;
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = bgHex || 'rgba(16,16,16,0.88)';
+          ctx.fillRect(0, 0, 256, 64);
+          ctx.strokeStyle = '#777777';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(2, 2, 252, 60);
+          ctx.fillStyle = fgHex || '#ffffff';
+          ctx.font = 'bold 26px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(text, 128, 32);
+
+          const tex = new THREE.CanvasTexture(c);
+          const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
+          const sprite = new THREE.Sprite(mat);
+          sprite.scale.set(scaleW, scaleH, 1);
+          sprite.renderOrder = 2;
+          return sprite;
+        }
+
+        const dirLabels = [
+          { text: '+Z NORTH (ROTUNDA)', x: 0, y: 1.5, z: 92, w: 16, h: 4 },
+          { text: '-Z SOUTH (MAIN GATE)', x: 0, y: 1.5, z: -92, w: 16, h: 4 },
+          { text: '+X EAST', x: 92, y: 1.5, z: 0, w: 12, h: 3 },
+          { text: '-X WEST', x: -92, y: 1.5, z: 0, w: 12, h: 3 }
+        ];
+        dirLabels.forEach((d) => {
+          const sp = makeTextSprite(d.text, d.w, d.h, '#0d0d0d', '#ffffff');
+          sp.position.set(d.x, d.y, d.z);
+          axesGroup.add(sp);
+        });
+
+        for (let v = -80; v <= 80; v += 20) {
+          if (v === 0) continue;
+          const spX = makeTextSprite('X:' + v + 'm', 6.5, 1.6, 'rgba(15,15,15,0.75)', '#bcbcbc');
+          spX.position.set(v, 0.6, 1.8);
+          axesGroup.add(spX);
+
+          const spZ = makeTextSprite('Z:' + v + 'm', 6.5, 1.6, 'rgba(15,15,15,0.75)', '#bcbcbc');
+          spZ.position.set(2.2, 0.6, v);
+          axesGroup.add(spZ);
+        }
+      }
+      buildAxisMarkers();
+
+      /* =====================================================================
+         4. PERSPECTIVE CAMERA, TOP-DOWN PRESET & TOUCH ORBIT/PAN/ZOOM
+         ===================================================================== */
+      const camera = new THREE.PerspectiveCamera(50, 1, 0.5, 800);
+
+      const camController = {
+        target: new THREE.Vector3(0, 0, -5),
+        radius: 95,
+        theta: 0.45,          // horizontal azimuth (radians)
+        phi: 0.92,            // polar angle from +Y (radians)
+        saved3D: {
+          theta: 0.45,
+          phi: 0.92,
+          radius: 95
+        },
+        updateCamera: function () {
+          if (state.cameraMode === 'top') {
+            // Top-down preset: straight overhead looking down at target, aligned so +Z is up or North-aligned
+            // In Three.js right-handed coordinates: if camera is at (target.x, radius, target.z)
+            // with up = (0, 0, 1) (+Z North at top of screen, +X East to left or right):
+            // Let's keep standard map orientation or match 3D azimuth seamlessly:
+            // With phi = 0.001 and theta = Math.PI (looking from slightly South-Overhead so +Z North is UP on screen and +X East is RIGHT on screen!)
+            const r = Math.max(12, Math.min(280, this.radius));
+            camera.position.set(this.target.x, r, this.target.z - 0.01);
+            camera.up.set(0, 0, 1); // +Z North points UP on screen, +X East points RIGHT on screen!
+            camera.lookAt(this.target.x, 0, this.target.z);
+          } else {
+            this.phi = Math.max(0.08, Math.min(Math.PI / 2 - 0.04, this.phi));
+            this.radius = Math.max(8, Math.min(280, this.radius));
+            const sinPhi = Math.sin(this.phi);
+            const cosPhi = Math.cos(this.phi);
+            const sinTheta = Math.sin(this.theta);
+            const cosTheta = Math.cos(this.theta);
+
+            // Standard spherical around target (theta=0 is from -Z South looking toward +Z North so +Z is forward & +X is right!)
+            camera.position.set(
+              this.target.x + this.radius * sinPhi * sinTheta,
+              this.target.y + this.radius * cosPhi,
+              this.target.z - this.radius * sinPhi * cosTheta
+            );
+            camera.up.set(0, 1, 0);
+            camera.lookAt(this.target);
+          }
+          updateHudReadout();
+        },
+        setPreset: function (mode) {
+          if (mode === state.cameraMode) return;
+          if (mode === 'top') {
+            this.saved3D.theta = this.theta;
+            this.saved3D.phi = this.phi;
+            this.saved3D.radius = this.radius;
+            state.cameraMode = 'top';
+            this.radius = Math.max(45, this.radius * 1.15);
+          } else {
+            state.cameraMode = '3d';
+            this.theta = this.saved3D.theta;
+            this.phi = this.saved3D.phi;
+            this.radius = this.saved3D.radius;
+          }
+          this.updateCamera();
+          syncCameraPresetButtons();
+        },
+        reset: function () {
+          this.target.set(0, 0, -5);
+          this.radius = 95;
+          this.theta = 0.35;
+          this.phi = 0.88;
+          this.saved3D = { theta: 0.35, phi: 0.88, radius: 95 };
+          this.updateCamera();
+        },
+        panByScreenDelta: function (dxPx, dyPx) {
+          const vpH = Math.max(1, viewportWrap.clientHeight);
+          const worldPerPixel = (2 * this.radius * Math.tan((camera.fov * Math.PI) / 360)) / vpH;
+
+          // Camera right & forward projected onto XZ ground plane
+          const forward = new THREE.Vector3();
+          camera.getWorldDirection(forward);
+          const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+          const groundUp = new THREE.Vector3().crossVectors(right, new THREE.Vector3(0, 1, 0)).normalize();
+
+          this.target.addScaledVector(right, -dxPx * worldPerPixel);
+          this.target.addScaledVector(groundUp, dyPx * worldPerPixel);
+          this.target.x = Math.max(-120, Math.min(120, this.target.x));
+          this.target.z = Math.max(-120, Math.min(120, this.target.z));
+          this.updateCamera();
+        }
+      };
+
+      /* =====================================================================
+         5. SCENE OBJECT MESH MANAGEMENT (MONOCHROME GRAY BLOCKS + EDGES)
+         ===================================================================== */
+      const objectsGroup = new THREE.Group();
+      scene.add(objectsGroup);
+
+      // Map id -> { group, mesh, edgeLines, labelEl }
+      const meshMap = new Map();
+
+      const PALETTE_BY_TYPE = {
+        building:    { fill: 0x969696, fillSel: 0xc8c8c8, edge: 0x1c1c1c, edgeSel: 0xffffff },
+        road:        { fill: 0x363636, fillSel: 0x525252, edge: 0x6e6e6e, edgeSel: 0xffffff },
+        ground_area: { fill: 0x525252, fillSel: 0x6e6e6e, edge: 0x8a8a8a, edgeSel: 0xffffff }
+      };
+
+      const unitBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+      const unitEdgesGeo = new THREE.EdgesGeometry(unitBoxGeo);
+
+      function syncSceneMeshes() {
+        const activeIds = new Set(state.objects.map((o) => o.id));
+
+        // Remove deleted meshes
+        for (const [id, entry] of meshMap.entries()) {
+          if (!activeIds.has(id)) {
+            objectsGroup.remove(entry.group);
+            entry.mesh.material.dispose();
+            entry.edgeLines.material.dispose();
+            if (entry.labelEl && entry.labelEl.parentNode) {
+              entry.labelEl.parentNode.removeChild(entry.labelEl);
+            }
+            meshMap.delete(id);
+          }
+        }
+
+        // Create or update current objects
+        for (const obj of state.objects) {
+          let entry = meshMap.get(obj.id);
+          const isSelected = obj.id === state.selectedId;
+          const pal = PALETTE_BY_TYPE[obj.type] || PALETTE_BY_TYPE.building;
+
+          if (!entry) {
+            const group = new THREE.Group();
+            group.userData.objectId = obj.id;
+
+            const mat = new THREE.MeshLambertMaterial({ color: pal.fill });
+            const mesh = new THREE.Mesh(unitBoxGeo, mat);
+            mesh.userData.objectId = obj.id;
+            group.add(mesh);
+
+            const edgeMat = new THREE.LineBasicMaterial({ color: pal.edge });
+            const edgeLines = new THREE.LineSegments(unitEdgesGeo, edgeMat);
+            group.add(edgeLines);
+
+            objectsGroup.add(group);
+
+            const labelEl = document.createElement('div');
+            labelEl.className = 'obj-label';
+            labelsContainer.appendChild(labelEl);
+
+            entry = { group, mesh, edgeLines, labelEl };
+            meshMap.set(obj.id, entry);
+          }
+
+          // Update colors for type & selection state
+          entry.mesh.material.color.setHex(isSelected ? pal.fillSel : pal.fill);
+          entry.edgeLines.material.color.setHex(isSelected ? pal.edgeSel : pal.edge);
+
+          // Update transform: position.y is bottom base, so center Y is y + height/2
+          const w = Math.max(0.1, Number(obj.dimensions.width) || 1);
+          const h = Math.max(0.02, Number(obj.dimensions.height) || 0.1);
+          const d = Math.max(0.1, Number(obj.dimensions.depth) || 1);
+          const px = Number(obj.position.x) || 0;
+          const py = Number(obj.position.y) || 0;
+          const pz = Number(obj.position.z) || 0;
+          const rotRad = ((Number(obj.rotation.yDeg) || 0) * Math.PI) / 180;
+
+          entry.group.position.set(px, py + h / 2, pz);
+          entry.group.rotation.set(0, rotRad, 0);
+          entry.mesh.scale.set(w, h, d);
+          entry.edgeLines.scale.set(w + 0.01, h + 0.01, d + 0.01);
+
+          // Update floating label text
+          entry.labelEl.textContent = `${obj.name} (${round2(w)}×${round2(d)}m)`;
+          entry.labelEl.classList.toggle('selected', isSelected);
+        }
+
+        updateFloatingLabels();
+      }
+
+      const tempProjVec = new THREE.Vector3();
+      function updateFloatingLabels() {
+        const w = viewportWrap.clientWidth;
+        const h = viewportWrap.clientHeight;
+        for (const obj of state.objects) {
+          const entry = meshMap.get(obj.id);
+          if (!entry) continue;
+          if (!state.showLabels && obj.id !== state.selectedId) {
+            entry.labelEl.style.display = 'none';
+            continue;
+          }
+          const objH = Math.max(0.02, Number(obj.dimensions.height) || 0.1);
+          tempProjVec.set(
+            Number(obj.position.x) || 0,
+            (Number(obj.position.y) || 0) + objH + 0.6,
+            Number(obj.position.z) || 0
+          );
+          tempProjVec.project(camera);
+
+          if (tempProjVec.z > 1 || tempProjVec.z < -1) {
+            entry.labelEl.style.display = 'none';
+            continue;
+          }
+          const sx = (tempProjVec.x * 0.5 + 0.5) * w;
+          const sy = (-tempProjVec.y * 0.5 + 0.5) * h;
+          if (sx < -40 || sx > w + 40 || sy < -20 || sy > h + 20) {
+            entry.labelEl.style.display = 'none';
+            continue;
+          }
+          entry.labelEl.style.display = 'block';
+          entry.labelEl.style.left = `${sx}px`;
+          entry.labelEl.style.top = `${sy}px`;
+        }
+      }
+
+      /* =====================================================================
+         6. HISTORY STACK (UNDO / REDO) & LOCALSTORAGE AUTO-SAVE
+         ===================================================================== */
+      function pushHistory() {
+        const snapshot = cloneObjects(state.objects);
+        if (state.historyIndex < state.history.length - 1) {
+          state.history = state.history.slice(0, state.historyIndex + 1);
+        }
+        state.history.push(snapshot);
+        if (state.history.length > 60) {
+          state.history.shift();
+        }
+        state.historyIndex = state.history.length - 1;
+        updateUndoRedoButtons();
+        saveToLocalStorage();
+      }
+
+      function undo() {
+        if (state.historyIndex <= 0) return;
+        state.historyIndex--;
+        state.objects = cloneObjects(state.history[state.historyIndex]);
+        if (state.selectedId && !state.objects.some((o) => o.id === state.selectedId)) {
+          state.selectedId = null;
+        }
+        refreshAllUI();
+        saveToLocalStorage();
+        showToast('Undo');
+      }
+
+      function redo() {
+        if (state.historyIndex >= state.history.length - 1) return;
+        state.historyIndex++;
+        state.objects = cloneObjects(state.history[state.historyIndex]);
+        if (state.selectedId && !state.objects.some((o) => o.id === state.selectedId)) {
+          state.selectedId = null;
+        }
+        refreshAllUI();
+        saveToLocalStorage();
+        showToast('Redo');
+      }
+
+      function updateUndoRedoButtons() {
+        document.getElementById('btn-undo').disabled = state.historyIndex <= 0;
+        document.getElementById('btn-redo').disabled = state.historyIndex >= state.history.length - 1;
+      }
+
+      function saveToLocalStorage() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(buildExportPayload()));
+        } catch (e) {}
+      }
+
+      function loadFromLocalStorageOrStarter() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && Array.isArray(parsed.objects) && parsed.objects.length > 0) {
+              importObjectsArray(parsed.objects, false);
+              return;
+            }
+          }
+        } catch (e) {}
+        importObjectsArray(GANDAKI_STARTER_OBJECTS, false);
+      }
+
+      /* =====================================================================
+         7. OBJECT CRUD OPERATIONS (ADD, SELECT, MOVE, RESIZE, ROTATE, DUP, DEL)
+         ===================================================================== */
+      function generateObjectId(type) {
+        const prefix = type === 'road' ? 'road' : type === 'ground_area' ? 'area' : 'bldg';
+        const existingIds = new Set(state.objects.map((o) => o.id));
+        while (existingIds.has(`${prefix}_${state.idCounter}`)) {
+          state.idCounter++;
+        }
+        return `${prefix}_${state.idCounter++}`;
+      }
+
+      function addObject(type) {
+        const id = generateObjectId(type);
+        const countOfType = state.objects.filter((o) => o.type === type).length + 1;
+
+        let defaults = {
+          name: `Building ${countOfType}`,
+          width: 10.0,
+          height: 4.5,
+          depth: 8.0,
+          y: 0.0
+        };
+        if (type === 'road') {
+          defaults = {
+            name: `Road Path ${countOfType}`,
+            width: 4.0,
+            height: 0.08,
+            depth: 18.0,
+            y: 0.02
+          };
+        } else if (type === 'ground_area') {
+          defaults = {
+            name: `Ground Area ${countOfType}`,
+            width: 18.0,
+            height: 0.04,
+            depth: 18.0,
+            y: 0.0
+          };
+        }
+
+        const spawnX = snapVal(camController.target.x);
+        const spawnZ = snapVal(camController.target.z);
+
+        const newObj = {
+          id: id,
+          name: defaults.name,
+          type: type,
+          position: { x: spawnX, y: defaults.y, z: spawnZ },
+          dimensions: { width: defaults.width, height: defaults.height, depth: defaults.depth },
+          rotation: { yDeg: 0 }
+        };
+
+        state.objects.push(newObj);
+        state.selectedId = newObj.id;
+        pushHistory();
+        switchTab('inspector');
+        refreshAllUI();
+        showToast(`Added ${newObj.name}`);
+      }
+
+      function getSelectedObject() {
+        if (!state.selectedId) return null;
+        return state.objects.find((o) => o.id === state.selectedId) || null;
+      }
+
+      function selectObject(id) {
+        state.selectedId = id || null;
+        refreshAllUI();
+      }
+
+      function duplicateSelected() {
+        const sel = getSelectedObject();
+        if (!sel) return;
+        const id = generateObjectId(sel.type);
+        const offset = Math.max(2.0, getSnapStep() || 2.0);
+        const copy = {
+          id: id,
+          name: `${sel.name} Copy`,
+          type: sel.type,
+          position: {
+            x: round2(sel.position.x + offset),
+            y: round2(sel.position.y),
+            z: round2(sel.position.z + offset)
+          },
+          dimensions: {
+            width: round2(sel.dimensions.width),
+            height: round2(sel.dimensions.height),
+            depth: round2(sel.dimensions.depth)
+          },
+          rotation: {
+            yDeg: round2(sel.rotation.yDeg)
+          }
+        };
+        state.objects.push(copy);
+        state.selectedId = copy.id;
+        pushHistory();
+        refreshAllUI();
+        showToast(`Duplicated ${sel.name}`);
+      }
+
+      function deleteObjectById(id) {
+        const idx = state.objects.findIndex((o) => o.id === id);
+        if (idx === -1) return;
+        const removed = state.objects[idx];
+        state.objects.splice(idx, 1);
+        if (state.selectedId === id) {
+          state.selectedId = null;
+        }
+        pushHistory();
+        refreshAllUI();
+        showToast(`Deleted ${removed.name}`);
+      }
+
+      function focusObject(id) {
+        const obj = state.objects.find((o) => o.id === id);
+        if (!obj) return;
+        camController.target.set(obj.position.x, 0, obj.position.z);
+        const maxDim = Math.max(obj.dimensions.width, obj.dimensions.depth, obj.dimensions.height);
+        camController.radius = Math.max(22, maxDim * 2.4);
+        camController.updateCamera();
+      }
+
+      /* =====================================================================
+         8. RAYCAST SELECTION & TOUCH / MOUSE DRAG ON GROUND PLANE
+         ===================================================================== */
+      const raycaster = new THREE.Raycaster();
+      const pointerNDC = new THREE.Vector2();
+      const groundPlaneMath = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const intersectPoint = new THREE.Vector3();
+
+      function updateNDCFromClient(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        pointerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        pointerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      }
+
+      function raycastObjectsAt(clientX, clientY) {
+        updateNDCFromClient(clientX, clientY);
+        raycaster.setFromCamera(pointerNDC, camera);
+        const meshes = [];
+        for (const entry of meshMap.values()) {
+          meshes.push(entry.mesh);
+        }
+        const hits = raycaster.intersectObjects(meshes, false);
+        if (hits.length > 0) {
+          return hits[0].object.userData.objectId || null;
+        }
+        return null;
+      }
+
+      function raycastGroundAt(clientX, clientY, outVec) {
+        updateNDCFromClient(clientX, clientY);
+        raycaster.setFromCamera(pointerNDC, camera);
+        return raycaster.ray.intersectPlane(groundPlaneMath, outVec);
+      }
+
+      // Unified Touch & Mouse Pointer Interaction State
+      const gesture = {
+        active: false,
+        type: 'none',       // 'drag-object' | 'orbit' | 'pan' | 'pinch'
+        startX: 0,
+        startY: 0,
+        lastX: 0,
+        lastY: 0,
+        movedDist: 0,
+        tappedObjectId: null,
+        dragOffset: new THREE.Vector3(),
+        objectMoved: false,
+        prevPinchDist: 0,
+        prevPinchMidX: 0,
+        prevPinchMidY: 0
+      };
+
+      function beginSinglePointer(clientX, clientY, isRightOrShift) {
+        gesture.active = true;
+        gesture.startX = clientX;
+        gesture.startY = clientY;
+        gesture.lastX = clientX;
+        gesture.lastY = clientY;
+        gesture.movedDist = 0;
+        gesture.objectMoved = false;
+
+        const hitId = raycastObjectsAt(clientX, clientY);
+        gesture.tappedObjectId = hitId;
+
+        if (isRightOrShift || state.touchMode === 'pan') {
+          gesture.type = 'pan';
+          return;
+        }
+        if (state.touchMode === 'orbit') {
+          gesture.type = state.cameraMode === 'top' ? 'pan' : 'orbit';
+          return;
+        }
+
+        // Default 'move' mode: if user touches the currently selected object, dragging moves it on ground plane!
+        if (hitId && hitId === state.selectedId) {
+          const sel = getSelectedObject();
+          if (sel && raycastGroundAt(clientX, clientY, intersectPoint)) {
+            gesture.type = 'drag-object';
+            gesture.dragOffset.set(
+              sel.position.x - intersectPoint.x,
+              0,
+              sel.position.z - intersectPoint.z
+            );
+            return;
+          }
+        }
+
+        // Otherwise 1-finger drag orbits in 3D view or pans in Top-Down view
+        gesture.type = state.cameraMode === 'top' ? 'pan' : 'orbit';
+      }
+
+      function moveSinglePointer(clientX, clientY) {
+        if (!gesture.active) return;
+        const dx = clientX - gesture.lastX;
+        const dy = clientY - gesture.lastY;
+        gesture.lastX = clientX;
+        gesture.lastY = clientY;
+        gesture.movedDist += Math.hypot(dx, dy);
+
+        if (gesture.type === 'drag-object') {
+          const sel = getSelectedObject();
+          if (sel && raycastGroundAt(clientX, clientY, intersectPoint)) {
+            const nextX = snapVal(intersectPoint.x + gesture.dragOffset.x);
+            const nextZ = snapVal(intersectPoint.z + gesture.dragOffset.z);
+            if (nextX !== sel.position.x || nextZ !== sel.position.z) {
+              sel.position.x = round2(Math.max(-110, Math.min(110, nextX)));
+              sel.position.z = round2(Math.max(-110, Math.min(110, nextZ)));
+              gesture.objectMoved = true;
+              syncSceneMeshes();
+              syncInspectorInputs();
+              updateHudReadout();
+            }
+          }
+        } else if (gesture.type === 'orbit') {
+          camController.theta -= dx * 0.0075;
+          camController.phi -= dy * 0.0065;
+          camController.updateCamera();
+        } else if (gesture.type === 'pan') {
+          camController.panByScreenDelta(dx, dy);
+        }
+      }
+
+      function endSinglePointer() {
+        if (!gesture.active) return;
+        const wasTap = gesture.movedDist < 7;
+        if (wasTap) {
+          if (gesture.tappedObjectId) {
+            selectObject(gesture.tappedObjectId);
+          } else {
+            selectObject(null);
+          }
+        } else if (gesture.type === 'drag-object' && gesture.objectMoved) {
+          pushHistory();
+          renderObjectList();
+        }
+        gesture.active = false;
+        gesture.type = 'none';
+      }
+
+      // Touch Event Listeners (iPhone Safari optimized)
+      canvas.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        if (e.touches.length === 1) {
+          const t = e.touches[0];
+          beginSinglePointer(t.clientX, t.clientY, false);
+        } else if (e.touches.length >= 2) {
+          gesture.active = true;
+          gesture.type = 'pinch';
+          const t0 = e.touches[0];
+          const t1 = e.touches[1];
+          gesture.prevPinchDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+          gesture.prevPinchMidX = (t0.clientX + t1.clientX) * 0.5;
+          gesture.prevPinchMidY = (t0.clientY + t1.clientY) * 0.5;
+        }
+      }, { passive: false });
+
+      canvas.addEventListener('touchmove', function (e) {
+        e.preventDefault();
+        if (e.touches.length === 1 && gesture.type !== 'pinch') {
+          const t = e.touches[0];
+          moveSinglePointer(t.clientX, t.clientY);
+        } else if (e.touches.length >= 2) {
+          const t0 = e.touches[0];
+          const t1 = e.touches[1];
+          const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+          const midX = (t0.clientX + t1.clientX) * 0.5;
+          const midY = (t0.clientY + t1.clientY) * 0.5;
+
+          if (gesture.prevPinchDist > 10) {
+            const scale = gesture.prevPinchDist / Math.max(10, dist);
+            camController.radius = Math.max(8, Math.min(280, camController.radius * scale));
+          }
+          const panDx = midX - gesture.prevPinchMidX;
+          const panDy = midY - gesture.prevPinchMidY;
+          camController.panByScreenDelta(panDx, panDy);
+
+          gesture.prevPinchDist = dist;
+          gesture.prevPinchMidX = midX;
+          gesture.prevPinchMidY = midY;
+        }
+      }, { passive: false });
+
+      canvas.addEventListener('touchend', function (e) {
+        e.preventDefault();
+        if (e.touches.length === 0) {
+          endSinglePointer();
+        } else if (e.touches.length === 1) {
+          // Transition smoothly back to 1 finger without spurious tap
+          gesture.type = 'none';
+          gesture.active = false;
+        }
+      }, { passive: false });
+
+      // Mouse Event Listeners (Desktop & Playwright testing)
+      canvas.addEventListener('mousedown', function (e) {
+        const isPanBtn = e.button === 1 || e.button === 2 || e.shiftKey;
+        beginSinglePointer(e.clientX, e.clientY, isPanBtn);
+      });
+
+      window.addEventListener('mousemove', function (e) {
+        if (!gesture.active || gesture.type === 'pinch') return;
+        moveSinglePointer(e.clientX, e.clientY);
+      });
+
+      window.addEventListener('mouseup', function () {
+        if (!gesture.active) return;
+        endSinglePointer();
+      });
+
+      canvas.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+      });
+
+      canvas.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        const factor = e.deltaY > 0 ? 1.08 : 0.92;
+        camController.radius = Math.max(8, Math.min(280, camController.radius * factor));
+        camController.updateCamera();
+      }, { passive: false });
+
+      /* =====================================================================
+         9. UI SYNCHRONIZATION (INSPECTOR, LIST, HUD, EXPORT/IMPORT JSON)
+         ===================================================================== */
+      function updateHudReadout() {
+        const camEl = document.getElementById('hud-cam-readout');
+        const selEl = document.getElementById('hud-sel-readout');
+        const snapLabel = getSnapStep() ? `${getSnapStep()}m` : 'FREE';
+        const viewLabel = state.cameraMode === 'top' ? 'TOP-DOWN 2D/ORTHO PRESET' : '3D PERSPECTIVE';
+        camEl.textContent = `VIEW: ${viewLabel} • SNAP: ${snapLabel} • TARGET: (${round2(camController.target.x)}, ${round2(camController.target.z)})`;
+
+        const sel = getSelectedObject();
+        if (sel) {
+          selEl.textContent = `SELECTED: ${sel.name} [${sel.id}] • Pos (${sel.position.x}, ${sel.position.y}, ${sel.position.z}) • Size ${sel.dimensions.width}×${sel.dimensions.height}×${sel.dimensions.depth}m • Rot ${sel.rotation.yDeg}°`;
+        } else {
+          selEl.textContent = 'SELECTED: NONE (Tap any block in 3D view or Objects list)';
+        }
+      }
+
+      function syncCameraPresetButtons() {
+        const isTop = state.cameraMode === 'top';
+        const topBarBtn = document.getElementById('btn-view-preset');
+        topBarBtn.textContent = isTop ? '3D View' : 'Top-Down';
+        topBarBtn.classList.toggle('active', isTop);
+
+        document.getElementById('cam-3d-btn').classList.toggle('active', !isTop);
+        document.getElementById('cam-top-btn').classList.toggle('active', isTop);
+      }
+
+      function syncInspectorInputs() {
+        const sel = getSelectedObject();
+        const emptyState = document.getElementById('inspector-empty-state');
+        const form = document.getElementById('inspector-form');
+        const dupTop = document.getElementById('btn-duplicate-top');
+        const delTop = document.getElementById('btn-delete-top');
+
+        if (!sel) {
+          emptyState.style.display = 'block';
+          form.style.display = 'none';
+          dupTop.disabled = true;
+          delTop.disabled = true;
+          return;
+        }
+
+        emptyState.style.display = 'none';
+        form.style.display = 'block';
+        dupTop.disabled = false;
+        delTop.disabled = false;
+
+        document.getElementById('insp-id-badge').textContent = `ID: ${sel.id}`;
+
+        const setIfNotFocused = (id, val) => {
+          const el = document.getElementById(id);
+          if (document.activeElement !== el) {
+            el.value = val;
+          }
+        };
+
+        setIfNotFocused('inp-name', sel.name);
+        setIfNotFocused('inp-type', sel.type);
+        setIfNotFocused('inp-x', sel.position.x);
+        setIfNotFocused('inp-y', sel.position.y);
+        setIfNotFocused('inp-z', sel.position.z);
+        setIfNotFocused('inp-width', sel.dimensions.width);
+        setIfNotFocused('inp-height', sel.dimensions.height);
+        setIfNotFocused('inp-depth', sel.dimensions.depth);
+        setIfNotFocused('inp-rot-y', sel.rotation.yDeg);
+        document.getElementById('slider-rot-y').value = sel.rotation.yDeg;
+      }
+
+      function renderObjectList() {
+        const container = document.getElementById('object-list-container');
+        const total = state.objects.length;
+        document.getElementById('obj-count-badge').textContent = `${total} Object${total === 1 ? '' : 's'}`;
+        document.getElementById('tab-obj-count').textContent = String(total);
+
+        const filtered = state.objects.filter((o) => {
+          if (state.listFilter === 'all') return true;
+          return o.type === state.listFilter;
+        });
+
+        container.innerHTML = '';
+        if (filtered.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'inspector-empty';
+          empty.textContent = 'No objects match this filter.';
+          container.appendChild(empty);
+          return;
+        }
+
+        filtered.forEach((obj) => {
+          const row = document.createElement('div');
+          row.className = 'obj-row' + (obj.id === state.selectedId ? ' selected' : '');
+          row.dataset.id = obj.id;
+
+          const typeLabel = obj.type === 'road' ? 'ROAD' : obj.type === 'ground_area' ? 'AREA' : 'BLDG';
+
+          const main = document.createElement('div');
+          main.className = 'obj-row-main';
+
+          const badge = document.createElement('span');
+          badge.className = 'type-badge';
+          badge.textContent = typeLabel;
+
+          const info = document.createElement('div');
+          info.className = 'obj-row-info';
+
+          const nameEl = document.createElement('div');
+          nameEl.className = 'obj-row-name';
+          nameEl.textContent = obj.name;
+
+          const metaEl = document.createElement('div');
+          metaEl.className = 'obj-row-meta';
+          metaEl.textContent = `${obj.id} • Pos(${obj.position.x}, ${obj.position.y}, ${obj.position.z}) • ${obj.dimensions.width}×${obj.dimensions.height}×${obj.dimensions.depth}m • ${obj.rotation.yDeg}°`;
+
+          info.appendChild(nameEl);
+          info.appendChild(metaEl);
+          main.appendChild(badge);
+          main.appendChild(info);
+
+          const actions = document.createElement('div');
+          actions.className = 'obj-row-actions';
+
+          const btnFocus = document.createElement('button');
+          btnFocus.className = 'btn';
+          btnFocus.textContent = 'Focus';
+          btnFocus.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            selectObject(obj.id);
+            focusObject(obj.id);
+          });
+
+          const btnDel = document.createElement('button');
+          btnDel.className = 'btn danger';
+          btnDel.textContent = 'Del';
+          btnDel.addEventListener('click', function (ev) {
+            ev.stopPropagation();
+            deleteObjectById(obj.id);
+          });
+
+          actions.appendChild(btnFocus);
+          actions.appendChild(btnDel);
+
+          row.appendChild(main);
+          row.appendChild(actions);
+
+          row.addEventListener('click', function () {
+            selectObject(obj.id);
+            switchTab('inspector');
+          });
+
+          container.appendChild(row);
+        });
+      }
+
+      function refreshAllUI() {
+        syncSceneMeshes();
+        syncInspectorInputs();
+        renderObjectList();
+        updateHudReadout();
+      }
+
+      /* =====================================================================
+         10. JSON EXPORT / IMPORT SCHEMA BUILDER & PARSER
+         ===================================================================== */
+      function computeObjectAABB(obj) {
+        const w = Number(obj.dimensions.width) || 1;
+        const h = Number(obj.dimensions.height) || 0.1;
+        const d = Number(obj.dimensions.depth) || 1;
+        const rad = ((Number(obj.rotation.yDeg) || 0) * Math.PI) / 180;
+        const cos = Math.abs(Math.cos(rad));
+        const sin = Math.abs(Math.sin(rad));
+        const extX = (w * cos + d * sin) * 0.5;
+        const extZ = (w * sin + d * cos) * 0.5;
+        return {
+          min: {
+            x: round2(obj.position.x - extX),
+            y: round2(obj.position.y),
+            z: round2(obj.position.z - extZ)
+          },
+          max: {
+            x: round2(obj.position.x + extX),
+            y: round2(obj.position.y + h),
+            z: round2(obj.position.z + extZ)
+          }
+        };
+      }
+
+      function buildExportPayload() {
+        return {
+          format: 'gandaki-campus-layout',
+          version: '1.0.0',
+          exportedAt: new Date().toISOString(),
+          coordinateSystem: {
+            units: 'meters',
+            upAxis: 'Y',
+            groundY: 0,
+            positionOrigin: 'bottom-center',
+            axes: {
+              '+X': 'East',
+              '-X': 'West',
+              '+Z': 'North (Rotunda)',
+              '-Z': 'South (Main Gate)'
+            }
+          },
+          objects: state.objects.map((o) => {
+            const w = round2(o.dimensions.width);
+            const h = round2(o.dimensions.height);
+            const d = round2(o.dimensions.depth);
+            const px = round2(o.position.x);
+            const py = round2(o.position.y);
+            const pz = round2(o.position.z);
+            const yDeg = round2(o.rotation.yDeg);
+            const yRad = Math.round(((yDeg * Math.PI) / 180) * 10000) / 10000;
+            return {
+              id: String(o.id),
+              name: String(o.name),
+              type: o.type,
+              position: { x: px, y: py, z: pz },
+              center: { x: px, y: round2(py + h * 0.5), z: pz },
+              dimensions: { width: w, height: h, depth: d },
+              rotation: { yDeg: yDeg, yRad: yRad },
+              collider: computeObjectAABB(o)
+            };
+          })
+        };
+      }
+
+      function importObjectsArray(rawList, recordHistory = true) {
+        if (!Array.isArray(rawList)) {
+          throw new Error('JSON must contain an "objects" array.');
+        }
+        const normalized = rawList.map((item, idx) => {
+          const type = ['building', 'road', 'ground_area'].includes(item.type) ? item.type : 'building';
+          const pos = item.position || {};
+          const dim = item.dimensions || {};
+          const rot = item.rotation || {};
+          const yDeg = typeof rot.yDeg === 'number'
+            ? rot.yDeg
+            : typeof rot.y === 'number'
+              ? rot.y
+              : typeof item.rotY === 'number'
+                ? item.rotY
+                : 0;
+          return {
+            id: String(item.id || `${type}_${idx + 1}`),
+            name: String(item.name || `Object ${idx + 1}`),
+            type: type,
+            position: {
+              x: round2(pos.x ?? item.x ?? 0),
+              y: round2(pos.y ?? item.y ?? 0),
+              z: round2(pos.z ?? item.z ?? 0)
+            },
+            dimensions: {
+              width: Math.max(0.1, round2(dim.width ?? item.width ?? 8)),
+              height: Math.max(0.02, round2(dim.height ?? item.height ?? (type === 'building' ? 4 : 0.08))),
+              depth: Math.max(0.1, round2(dim.depth ?? item.depth ?? 8))
+            },
+            rotation: {
+              yDeg: round2(yDeg)
+            }
+          };
+        });
+
+        state.objects = normalized;
+        state.selectedId = normalized.length > 0 ? normalized[0].id : null;
+        if (recordHistory) {
+          pushHistory();
+        } else {
+          state.history = [cloneObjects(state.objects)];
+          state.historyIndex = 0;
+          updateUndoRedoButtons();
+        }
+        refreshAllUI();
+      }
+
+      /* =====================================================================
+         11. UI EVENT BINDINGS
+         ===================================================================== */
+      function switchTab(tabName) {
+        const panel = document.getElementById('bottom-panel');
+        panel.classList.remove('collapsed');
+        document.getElementById('btn-toggle-panel').textContent = 'Minimize ▼';
+
+        document.querySelectorAll('.tab-btn').forEach((btn) => {
+          btn.classList.toggle('active', btn.dataset.tab === tabName);
+        });
+        document.getElementById('tab-inspector').classList.toggle('active', tabName === 'inspector');
+        document.getElementById('tab-list').classList.toggle('active', tabName === 'list');
+        handleResize();
+      }
+
+      document.querySelectorAll('.tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+
+      document.getElementById('btn-toggle-panel').addEventListener('click', function () {
+        const panel = document.getElementById('bottom-panel');
+        const collapsed = panel.classList.toggle('collapsed');
+        this.textContent = collapsed ? 'Expand ▲' : 'Minimize ▼';
+        setTimeout(handleResize, 200);
+      });
+
+      // Top & Subbar Creation Buttons
+      document.getElementById('btn-add-building').addEventListener('click', () => addObject('building'));
+      document.getElementById('btn-empty-add-bldg').addEventListener('click', () => addObject('building'));
+      document.getElementById('btn-empty-open-list').addEventListener('click', () => switchTab('list'));
+      document.getElementById('btn-add-road').addEventListener('click', () => addObject('road'));
+      document.getElementById('btn-add-ground').addEventListener('click', () => addObject('ground_area'));
+
+      // Undo / Redo
+      document.getElementById('btn-undo').addEventListener('click', undo);
+      document.getElementById('btn-redo').addEventListener('click', redo);
+
+      // Duplicate & Delete
+      document.getElementById('btn-duplicate-top').addEventListener('click', duplicateSelected);
+      document.getElementById('btn-insp-duplicate').addEventListener('click', duplicateSelected);
+      document.getElementById('btn-delete-top').addEventListener('click', () => {
+        if (state.selectedId) deleteObjectById(state.selectedId);
+      });
+      document.getElementById('btn-insp-delete').addEventListener('click', () => {
+        if (state.selectedId) deleteObjectById(state.selectedId);
+      });
+      document.getElementById('btn-insp-focus').addEventListener('click', () => {
+        if (state.selectedId) focusObject(state.selectedId);
+      });
+      document.getElementById('btn-insp-deselect').addEventListener('click', () => selectObject(null));
+
+      // Camera View Presets & Reset
+      document.getElementById('btn-view-preset').addEventListener('click', () => {
+        camController.setPreset(state.cameraMode === '3d' ? 'top' : '3d');
+      });
+      document.getElementById('cam-3d-btn').addEventListener('click', () => camController.setPreset('3d'));
+      document.getElementById('cam-top-btn').addEventListener('click', () => camController.setPreset('top'));
+      document.getElementById('btn-reset-cam').addEventListener('click', () => camController.reset());
+
+      // Touch Mode Selector
+      document.querySelectorAll('[data-mode]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          state.touchMode = this.dataset.mode;
+          document.querySelectorAll('[data-mode]').forEach((b) => b.classList.toggle('active', b === this));
+        });
+      });
+
+      // Grid Snap Toggle
+      document.getElementById('btn-snap-toggle').addEventListener('click', function () {
+        state.snapIndex = (state.snapIndex + 1) % SNAP_OPTIONS.length;
+        const s = getSnapStep();
+        this.textContent = s ? `Snap: ${s}m` : 'Snap: Free';
+        updateHudReadout();
+      });
+
+      // Floating Labels Toggle
+      document.getElementById('btn-labels-toggle').addEventListener('click', function () {
+        state.showLabels = !state.showLabels;
+        this.textContent = state.showLabels ? 'Labels: ON' : 'Labels: OFF';
+        this.classList.toggle('active', state.showLabels);
+        updateFloatingLabels();
+      });
+
+      // Inspector Input Listeners
+      document.getElementById('inp-name').addEventListener('input', function () {
+        const sel = getSelectedObject();
+        if (!sel) return;
+        sel.name = this.value || 'Unnamed';
+        syncSceneMeshes();
+        renderObjectList();
+        updateHudReadout();
+      });
+      document.getElementById('inp-name').addEventListener('change', pushHistory);
+
+      document.getElementById('inp-type').addEventListener('change', function () {
+        const sel = getSelectedObject();
+        if (!sel) return;
+        sel.type = this.value;
+        pushHistory();
+        refreshAllUI();
+      });
+
+      const numericFieldMap = {
+        'inp-x': (sel, v) => { sel.position.x = round2(v); },
+        'inp-y': (sel, v) => { sel.position.y = round2(v); },
+        'inp-z': (sel, v) => { sel.position.z = round2(v); },
+        'inp-width': (sel, v) => { sel.dimensions.width = Math.max(0.1, round2(v)); },
+        'inp-height': (sel, v) => { sel.dimensions.height = Math.max(0.02, round2(v)); },
+        'inp-depth': (sel, v) => { sel.dimensions.depth = Math.max(0.1, round2(v)); },
+        'inp-rot-y': (sel, v) => {
+          let deg = ((v % 360) + 540) % 360 - 180;
+          sel.rotation.yDeg = round2(deg);
+          document.getElementById('slider-rot-y').value = sel.rotation.yDeg;
+        }
+      };
+
+      Object.keys(numericFieldMap).forEach((inputId) => {
+        const el = document.getElementById(inputId);
+        el.addEventListener('input', function () {
+          const sel = getSelectedObject();
+          if (!sel) return;
+          const val = parseFloat(this.value);
+          if (Number.isNaN(val)) return;
+          numericFieldMap[inputId](sel, val);
+          syncSceneMeshes();
+          renderObjectList();
+          updateHudReadout();
+        });
+        el.addEventListener('change', function () {
+          pushHistory();
+          syncInspectorInputs();
+        });
+      });
+
+      // Stepper Buttons (− / +)
+      document.querySelectorAll('.step-btn').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          const sel = getSelectedObject();
+          if (!sel) return;
+          const field = this.dataset.field;
+          const dir = Number(this.dataset.dir) || 1;
+          const step = getSnapStep() || 0.5;
+
+          if (field === 'x') sel.position.x = round2(sel.position.x + dir * step);
+          else if (field === 'y') sel.position.y = round2(sel.position.y + dir * 0.25);
+          else if (field === 'z') sel.position.z = round2(sel.position.z + dir * step);
+          else if (field === 'width') sel.dimensions.width = Math.max(0.2, round2(sel.dimensions.width + dir * step));
+          else if (field === 'height') sel.dimensions.height = Math.max(0.02, round2(sel.dimensions.height + dir * (sel.type === 'building' ? 0.5 : 0.02)));
+          else if (field === 'depth') sel.dimensions.depth = Math.max(0.2, round2(sel.dimensions.depth + dir * step));
+          else if (field === 'rotY') {
+            let deg = sel.rotation.yDeg + dir * 15;
+            deg = ((deg % 360) + 540) % 360 - 180;
+            sel.rotation.yDeg = round2(deg);
+          }
+
+          pushHistory();
+          refreshAllUI();
+        });
+      });
+
+      // Rotation Quick Presets & Slider
+      document.querySelectorAll('.rot-preset-btn').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          const sel = getSelectedObject();
+          if (!sel) return;
+          sel.rotation.yDeg = Number(this.dataset.rot) || 0;
+          pushHistory();
+          refreshAllUI();
+        });
+      });
+
+      const rotSlider = document.getElementById('slider-rot-y');
+      rotSlider.addEventListener('input', function () {
+        const sel = getSelectedObject();
+        if (!sel) return;
+        sel.rotation.yDeg = round2(parseFloat(this.value) || 0);
+        document.getElementById('inp-rot-y').value = sel.rotation.yDeg;
+        syncSceneMeshes();
+        renderObjectList();
+        updateHudReadout();
+      });
+      rotSlider.addEventListener('change', pushHistory);
+
+      // Object List Filter & Presets
+      document.querySelectorAll('.list-filter-btn').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          state.listFilter = this.dataset.filter;
+          document.querySelectorAll('.list-filter-btn').forEach((b) => b.classList.toggle('active', b === this));
+          renderObjectList();
+        });
+      });
+
+      document.getElementById('btn-load-gandaki-preset').addEventListener('click', function () {
+        importObjectsArray(GANDAKI_STARTER_OBJECTS, true);
+        showToast('Loaded Gandaki Campus Starter Map');
+      });
+
+      document.getElementById('btn-clear-all').addEventListener('click', function () {
+        state.objects = [];
+        state.selectedId = null;
+        pushHistory();
+        refreshAllUI();
+        showToast('Cleared Scene');
+      });
+
+      // JSON Export / Import Modal Controls
+      const jsonModal = document.getElementById('json-modal-backdrop');
+      const jsonTextarea = document.getElementById('json-textarea');
+
+      function openJsonModal() {
+        const payload = buildExportPayload();
+        jsonTextarea.value = JSON.stringify(payload, null, 2);
+        jsonModal.classList.add('open');
+      }
+
+      function closeJsonModal() {
+        jsonModal.classList.remove('open');
+      }
+
+      document.getElementById('btn-json-modal').addEventListener('click', openJsonModal);
+      document.getElementById('btn-close-modal').addEventListener('click', closeJsonModal);
+      jsonModal.addEventListener('click', function (e) {
+        if (e.target === jsonModal) closeJsonModal();
+      });
+
+      document.getElementById('btn-download-json').addEventListener('click', function () {
+        const payload = buildExportPayload();
+        const jsonStr = JSON.stringify(payload, null, 2);
+        jsonTextarea.value = jsonStr;
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'gandaki-campus-layout.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Downloaded gandaki-campus-layout.json');
+      });
+
+      document.getElementById('btn-copy-json').addEventListener('click', async function () {
+        const payload = buildExportPayload();
+        const jsonStr = JSON.stringify(payload, null, 2);
+        jsonTextarea.value = jsonStr;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(jsonStr);
+            showToast('Copied JSON to Clipboard');
+            return;
+          }
+        } catch (e) {}
+        jsonTextarea.select();
+        document.execCommand('copy');
+        showToast('Copied JSON to Clipboard');
+      });
+
+      document.getElementById('btn-apply-textarea-json').addEventListener('click', function () {
+        try {
+          const parsed = JSON.parse(jsonTextarea.value);
+          const list = Array.isArray(parsed) ? parsed : parsed.objects;
+          importObjectsArray(list, true);
+          closeJsonModal();
+          showToast(`Imported ${state.objects.length} Objects`);
+        } catch (err) {
+          alert('Invalid JSON format: ' + err.message);
+        }
+      });
+
+      document.getElementById('file-import-input').addEventListener('change', function (e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function (ev) {
+          try {
+            const text = String(ev.target.result || '');
+            jsonTextarea.value = text;
+            const parsed = JSON.parse(text);
+            const list = Array.isArray(parsed) ? parsed : parsed.objects;
+            importObjectsArray(list, true);
+            closeJsonModal();
+            showToast(`Imported ${state.objects.length} Objects from File`);
+          } catch (err) {
+            alert('Could not parse JSON file: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      });
+
+      // Keyboard Shortcuts (Undo/Redo/Delete/Duplicate)
+      window.addEventListener('keydown', function (e) {
+        const tag = ( document.activeElement && document.activeElement.tagName ) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) redo();
+          else undo();
+        } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          redo();
+        } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd') {
+          e.preventDefault();
+          duplicateSelected();
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          if (state.selectedId) {
+            e.preventDefault();
+            deleteObjectById(state.selectedId);
+          }
+        }
+      });
+
+      /* =====================================================================
+         12. RESIZE HANDLER, RENDER LOOP & GLOBAL TEST API
+         ===================================================================== */
+      function handleResize() {
+        const w = Math.max(1, viewportWrap.clientWidth);
+        const h = Math.max(1, viewportWrap.clientHeight);
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        updateFloatingLabels();
+      }
+
+      window.addEventListener('resize', handleResize);
+
+      function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+        updateFloatingLabels();
+      }
+
+      // Initialize Scene & UI
+      loadFromLocalStorageOrStarter();
+      handleResize();
+      camController.updateCamera();
+      animate();
+
+      // Expose clean programmatic API for automated testing & external inspection
+      window.CampusEditor = {
+        getState: () => state,
+        exportJSON: buildExportPayload,
+        importJSON: (data) => {
+          const list = Array.isArray(data) ? data : data.objects;
+          importObjectsArray(list, true);
+        },
+        addObject: addObject,
+        selectObject: selectObject,
+        duplicateSelected: duplicateSelected,
+        deleteSelected: () => state.selectedId && deleteObjectById(state.selectedId),
+        undo: undo,
+        redo: redo,
+        setCameraPreset: (mode) => camController.setPreset(mode)
+      };
+    })();
+  </script>
+</body>
+</html>

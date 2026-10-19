@@ -248,7 +248,8 @@ router.get('/subjects', requireOnboardingToken, async (req, res) => {
 router.post('/submit', requireOnboardingToken, async (req, res) => {
   const { name, username, email, password, confirmPassword, subjectIds } = req.body;
   const proto = req.headers['x-forwarded-proto'] || (req.headers.host?.includes('localhost') ? 'http' : 'https');
-  const origin = req.headers.host ? `${proto}://${req.headers.host}` : 'https://semestar-library.vercel.app';
+  const appBaseUrl = process.env.APP_URL || process.env.SITE_URL;
+  const origin = req.headers.origin || (appBaseUrl ? appBaseUrl.replace(/\/$/, '') : (req.headers.host ? `${proto}://${req.headers.host}` : 'https://semestar-library.vercel.app'));
   const redirectTo = `${origin}/teacher-verify.html`;
 
   const result = await submitTeacherOnboarding(db, {

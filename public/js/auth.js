@@ -326,6 +326,14 @@
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.success) {
+        if (data.user) {
+          cachedUser = data.user;
+          window.IS_AUTHENTICATED = true;
+          try {
+            window.sessionStorage.setItem('sl_user_cache', JSON.stringify(data.user));
+          } catch {}
+        }
+        await Promise.race([syncSession().catch(() => null), new Promise(r => setTimeout(r, 1500))]);
         return { data, error: null };
       }
       return { data: null, error: { message: getResponseErrorMessage(res, data, 'Registration failed. Please check your information.') } };

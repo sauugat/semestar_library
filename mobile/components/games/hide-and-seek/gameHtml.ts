@@ -662,6 +662,12 @@ export function getHideAndSeekHtml(): string {
       <div style="margin-top:4px;">
         <select id="dbg-teleport-select" class="dbg-select">
           <option value="">Landmark Teleport Presets...</option>
+          <option value="-7.5,0.18,-28.0,3.14">Classroom: best example (West Wing L1 Room 1)</option>
+          <option value="-7.5,0.18,-28.0,3.14">Classroom Mood: dying_tube (West Wing L1 Room 1)</option>
+          <option value="-6.5,0.18,-18.6,3.14">Classroom Mood: moonlight (West Wing L1 Room 2)</option>
+          <option value="-7.5,0.18,-8.0,3.14">Classroom Mood: emergency_red (West Wing L1 Room 3)</option>
+          <option value="-35.2,0.22,-42.0,3.14">Classroom Mood: warm_lamp (Newari W1 Room 1)</option>
+          <option value="24.5,0.18,-22.67,3.14">Classroom Mood: dark (East Wing R2 Room 1)</option>
           <option value="1.8,0,-51.2,-0.55">Bus A exterior</option>
           <option value="5.2,0.54,-43.2,0">Bus A interior</option>
           <option value="12.0,0,-52.2,-0.55">Bus B exterior</option>
@@ -2888,17 +2894,40 @@ export function getHideAndSeekHtml(): string {
         if (!this.ctx || this.isMuted || this.isBackgrounded) return;
         try {
           const now = this.ctx.currentTime;
+          const vol = (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.audio && HORROR_CONFIG.classroom.audio.tubeBuzzVolume) || 0.038;
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
           osc.type = 'sawtooth';
           osc.frequency.setValueAtTime(120, now);
           osc.frequency.setValueAtTime(240, now + 0.045);
           osc.frequency.setValueAtTime(120, now + 0.09);
-          this.scheduleEnvelope(gain.gain, now, 0.038, 0.010, 0.16);
+          this.scheduleEnvelope(gain.gain, now, vol, 0.010, 0.16);
           osc.connect(gain);
           gain.connect(this.masterGain);
           osc.start(now);
           osc.stop(now + 0.18);
+        } catch (e) {}
+      }
+
+      playFanTickSfx() {
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          const vol = (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.audio && HORROR_CONFIG.classroom.audio.fanTickVolume) || 0.022;
+          const osc = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(780, now);
+          osc.frequency.exponentialRampToValueAtTime(210, now + 0.038);
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(640, now);
+          this.scheduleEnvelope(gain.gain, now, vol, 0.003, 0.042);
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 0.05);
         } catch (e) {}
       }
 
@@ -5637,40 +5666,80 @@ export function getHideAndSeekHtml(): string {
       })(),
       rotundaBrick: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
-        // Fine plaster & subtle masonry texture with vertical damp weathering streaks (no pebble look!)
-        const fineWallTex = createProceduralTexture(512, 512, (ctx) => {
-          ctx.fillStyle = '#8d96a0';
-          ctx.fillRect(0, 0, 512, 512);
-          // Fine horizontal plaster/masonry courses
-          for (let y = 0; y < 512; y += 16) {
-            ctx.fillStyle = (y % 32 === 0) ? 'rgba(218, 226, 234, 0.10)' : 'rgba(30, 40, 50, 0.10)';
-            ctx.fillRect(0, y, 512, 1.5);
+        // High-detail 1024px weathered plaster & exposed brick masonry with damp moss, mortar joints & hairline cracks
+        const fineWallTex = createProceduralTexture(1024, 1024, (ctx) => {
+          ctx.fillStyle = '#86909a';
+          ctx.fillRect(0, 0, 1024, 1024);
+
+          // Subtle tonal stone/plaster variation patches
+          for (let py = 0; py < 1024; py += 64) {
+            for (let px = 0; px < 1024; px += 64) {
+              const v = ((px * 17 + py * 31) % 24) - 12;
+              ctx.fillStyle = v >= 0 ? ('rgba(220, 230, 240, ' + (v * 0.005) + ')') : ('rgba(18, 26, 34, ' + (-v * 0.006) + ')');
+              ctx.fillRect(px, py, 64, 64);
+            }
           }
-          // Subtle micro-plaster grain
-          for (let i = 0; i < 600; i++) {
-            const gx = (i * 79) % 512;
-            const gy = (i * 131) % 512;
-            ctx.fillStyle = (i % 2 === 0) ? 'rgba(235, 242, 248, 0.06)' : 'rgba(22, 30, 38, 0.07)';
-            ctx.fillRect(gx, gy, 3, 3);
+
+          // Crisp horizontal masonry/plaster courses + staggered vertical mortar joints
+          for (let y = 0; y < 1024; y += 24) {
+            ctx.fillStyle = 'rgba(20, 28, 36, 0.24)';
+            ctx.fillRect(0, y, 1024, 2);
+            ctx.fillStyle = 'rgba(230, 238, 246, 0.12)';
+            ctx.fillRect(0, y + 2, 1024, 1.5);
+            const rowOff = ((y / 24) % 2) * 32;
+            ctx.fillStyle = 'rgba(22, 30, 38, 0.15)';
+            for (let x = rowOff; x < 1024; x += 64) {
+              ctx.fillRect(x, y, 1.5, 24);
+            }
           }
-          // Realistic vertical rain/moss weathering streaks matching IMG_6033 & IMG_6034
-          const topDamp = ctx.createLinearGradient(0, 0, 0, 110);
-          topDamp.addColorStop(0.0, 'rgba(18, 26, 30, 0.42)');
-          topDamp.addColorStop(0.5, 'rgba(24, 34, 38, 0.16)');
+
+          // Exposed weathered red-brick spalling patches where old plaster has flaked off (horror realism!)
+          [
+            [140, 310, 95, 58], [620, 190, 110, 64], [380, 680, 88, 52], [810, 540, 96, 62],
+          ].forEach(([bx, by, bw, bh]) => {
+            ctx.fillStyle = 'rgba(32, 22, 20, 0.45)';
+            ctx.fillRect(bx - 4, by - 4, bw + 8, bh + 8);
+            ctx.fillStyle = '#6e3228';
+            ctx.fillRect(bx, by, bw, bh);
+            ctx.fillStyle = 'rgba(24, 14, 12, 0.55)';
+            for (let ry = by; ry < by + bh; ry += 12) {
+              ctx.fillRect(bx, ry, bw, 2);
+              for (let rx = bx + ((ry % 24 === 0) ? 0 : 14); rx < bx + bw; rx += 28) {
+                ctx.fillRect(rx, ry, 2, 12);
+              }
+            }
+          });
+
+          // Hairline structural plaster cracks
+          ctx.strokeStyle = 'rgba(16, 22, 28, 0.48)';
+          ctx.lineWidth = 2;
+          [[210, 80, 245, 260], [740, 120, 710, 340], [490, 420, 530, 640]].forEach(([x0, y0, x1, y1]) => {
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo((x0 + x1) * 0.5 + 14, (y0 + y1) * 0.5);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+          });
+
+          // Under-eave dark dampness & vertical monsoon rain/moss streaks
+          const topDamp = ctx.createLinearGradient(0, 0, 0, 240);
+          topDamp.addColorStop(0.0, 'rgba(10, 16, 20, 0.58)');
+          topDamp.addColorStop(0.45, 'rgba(18, 28, 30, 0.24)');
           topDamp.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
           ctx.fillStyle = topDamp;
-          ctx.fillRect(0, 0, 512, 110);
-          for (let sx = 14; sx < 512; sx += 32) {
-            const sw = 5 + ((sx * 7) % 9);
-            const sh = 120 + ((sx * 19) % 240);
+          ctx.fillRect(0, 0, 1024, 240);
+
+          for (let sx = 22; sx < 1024; sx += 48) {
+            const sw = 8 + ((sx * 7) % 16);
+            const sh = 240 + ((sx * 29) % 520);
             const sg = ctx.createLinearGradient(0, 0, 0, sh);
-            sg.addColorStop(0.0, 'rgba(20, 28, 26, 0.28)');
-            sg.addColorStop(0.65, 'rgba(26, 36, 32, 0.12)');
+            sg.addColorStop(0.0, 'rgba(14, 22, 20, 0.38)');
+            sg.addColorStop(0.6, 'rgba(20, 32, 26, 0.16)');
             sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
             ctx.fillStyle = sg;
             ctx.fillRect(sx, 0, sw, sh);
           }
-        }, 'main-bldg-fine-wall-plaster');
+        }, 'main-bldg-fine-wall-plaster-1024');
         fineWallTex.wrapS = THREE.RepeatWrapping;
         fineWallTex.wrapT = THREE.RepeatWrapping;
         fineWallTex.repeat.set(4, 2);
@@ -5680,43 +5749,55 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: fineWallTex,
           bumpMap: fineWallTex,
-          bumpScale: mb.wallNormalScale !== undefined ? mb.wallNormalScale : 0.016,
-          color: mb.wallColor || 0x9ca6b0,
-          emissive: mb.wallEmissive || 0x16222e,
-          emissiveIntensity: mb.wallEmissiveIntensity !== undefined ? mb.wallEmissiveIntensity : 0.18,
-          roughness: mb.wallRoughness !== undefined ? mb.wallRoughness : 0.66,
+          bumpScale: mb.wallNormalScale !== undefined ? mb.wallNormalScale : 0.022,
+          color: mb.wallColor || 0x949ea8,
+          emissive: mb.wallEmissive || 0x0d151e,
+          emissiveIntensity: mb.wallEmissiveIntensity !== undefined ? mb.wallEmissiveIntensity : 0.10,
+          roughness: mb.wallRoughness !== undefined ? mb.wallRoughness : 0.68,
           side: THREE.DoubleSide,
         });
       })(),
       rotundaWhiteArch: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
-        // Bright weathered off-white concrete plaster for columns, pilasters, floor bands & cornices (IMG_6033 & IMG_6034!)
-        const colPlasterTex = createProceduralTexture(512, 512, (ctx) => {
-          ctx.fillStyle = '#d4dde4';
-          ctx.fillRect(0, 0, 512, 512);
-          for (let i = 0; i < 450; i++) {
-            const gx = (i * 83) % 512;
-            const gy = (i * 149) % 512;
-            ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.08)' : 'rgba(35, 45, 55, 0.07)';
-            ctx.fillRect(gx, gy, 3, 4);
+        // High-contrast classical off-white stone/plaster for columns, pilasters, quoins, floor bands & cornices
+        const colPlasterTex = createProceduralTexture(1024, 1024, (ctx) => {
+          ctx.fillStyle = '#d6dfe6';
+          ctx.fillRect(0, 0, 1024, 1024);
+
+          // Subtle dressed-stone block courses & bevel highlights
+          for (let y = 0; y < 1024; y += 64) {
+            ctx.fillStyle = 'rgba(30, 42, 54, 0.16)';
+            ctx.fillRect(0, y, 1024, 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+            ctx.fillRect(0, y + 2, 1024, 2);
           }
-          // Vertical dark rain/moss streaks along columns and pilasters (matching IMG_6034!)
-          for (let sx = 18; sx < 512; sx += 44) {
-            const sw = 6 + ((sx * 11) % 12);
-            const sh = 150 + ((sx * 23) % 280);
+
+          // Fine stone grain
+          for (let i = 0; i < 900; i++) {
+            const gx = (i * 97) % 1024;
+            const gy = (i * 163) % 1024;
+            ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.10)' : 'rgba(28, 38, 48, 0.09)';
+            ctx.fillRect(gx, gy, 4, 4);
+          }
+
+          // Vertical dark rain/moss streaks along columns and pilasters
+          for (let sx = 28; sx < 1024; sx += 64) {
+            const sw = 10 + ((sx * 11) % 20);
+            const sh = 260 + ((sx * 37) % 540);
             const sg = ctx.createLinearGradient(0, 0, 0, sh);
-            sg.addColorStop(0.0, 'rgba(22, 30, 28, 0.36)');
-            sg.addColorStop(0.55, 'rgba(30, 40, 36, 0.16)');
+            sg.addColorStop(0.0, 'rgba(18, 26, 24, 0.42)');
+            sg.addColorStop(0.55, 'rgba(26, 36, 32, 0.18)');
             sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
             ctx.fillStyle = sg;
             ctx.fillRect(sx, 0, sw, sh);
           }
-          const baseStain = ctx.createLinearGradient(0, 410, 0, 512);
+
+          const baseStain = ctx.createLinearGradient(0, 780, 0, 1024);
           baseStain.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
-          baseStain.addColorStop(1.0, 'rgba(20, 28, 26, 0.34)');
+          baseStain.addColorStop(1.0, 'rgba(16, 24, 22, 0.44)');
           ctx.fillStyle = baseStain;
-          ctx.fillRect(0, 410, 512, 102);
-        }, 'main-bldg-col-pilaster-plaster');
+          ctx.fillRect(0, 780, 1024, 244);
+        }, 'main-bldg-col-pilaster-plaster-1024');
         colPlasterTex.wrapS = THREE.RepeatWrapping;
         colPlasterTex.wrapT = THREE.RepeatWrapping;
         colPlasterTex.repeat.set(2, 2);
@@ -5726,11 +5807,11 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: colPlasterTex,
           bumpMap: colPlasterTex,
-          bumpScale: mb.pilasterNormalScale !== undefined ? mb.pilasterNormalScale : 0.012,
+          bumpScale: mb.pilasterNormalScale !== undefined ? mb.pilasterNormalScale : 0.015,
           color: mb.pilasterColor || 0xdce4ec,
-          emissive: mb.pilasterEmissive || 0x243444,
-          emissiveIntensity: mb.pilasterEmissiveIntensity !== undefined ? mb.pilasterEmissiveIntensity : 0.25,
-          roughness: mb.pilasterRoughness !== undefined ? mb.pilasterRoughness : 0.56,
+          emissive: mb.pilasterEmissive || 0x182430,
+          emissiveIntensity: mb.pilasterEmissiveIntensity !== undefined ? mb.pilasterEmissiveIntensity : 0.16,
+          roughness: mb.pilasterRoughness !== undefined ? mb.pilasterRoughness : 0.54,
           metalness: 0.06,
         });
       })(),
@@ -5739,10 +5820,10 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: scuffedFloorTex.map,
           bumpMap: scuffedFloorTex.bumpMap,
-          bumpScale: 0.018,
-          color: mb.plinthColor || 0x7e8a94,
-          emissive: 0x121c26,
-          emissiveIntensity: 0.14,
+          bumpScale: 0.022,
+          color: mb.plinthColor || 0x727e88,
+          emissive: 0x0b1218,
+          emissiveIntensity: 0.08,
           roughness: 0.72,
           metalness: 0.08,
         });
@@ -5752,21 +5833,21 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: scuffedFloorTex.map,
           bumpMap: scuffedFloorTex.bumpMap,
-          bumpScale: 0.018,
-          color: mb.columnPedestalColor || 0x66727c,
-          emissive: 0x101820,
-          emissiveIntensity: 0.14,
-          roughness: 0.62,
-          metalness: 0.16,
+          bumpScale: 0.022,
+          color: mb.columnPedestalColor || 0x5c6772,
+          emissive: 0x0a1016,
+          emissiveIntensity: 0.08,
+          roughness: 0.60,
+          metalness: 0.18,
         });
       })(),
       rotundaRedSteel: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.016,
+        bumpScale: 0.018,
         color: 0xc24030,
-        emissive: 0x38100c,
-        emissiveIntensity: 0.20,
+        emissive: 0x300d09,
+        emissiveIntensity: 0.16,
         roughness: 0.42,
         metalness: 0.48,
       }),
@@ -5776,13 +5857,13 @@ export function getHideAndSeekHtml(): string {
           map: dirtyGlassTex.map,
           bumpMap: dirtyGlassTex.bumpMap,
           bumpScale: 0.008,
-          color: mb.rotundaGlassDarkColor || 0x182838,
-          emissive: mb.rotundaGlassDarkEmissive || 0x16283a,
-          emissiveIntensity: mb.rotundaGlassDarkEmissiveIntensity !== undefined ? mb.rotundaGlassDarkEmissiveIntensity : 0.28,
-          roughness: 0.14,
-          metalness: 0.84,
+          color: mb.rotundaGlassDarkColor || 0x162636,
+          emissive: mb.rotundaGlassDarkEmissive || 0x152638,
+          emissiveIntensity: mb.rotundaGlassDarkEmissiveIntensity !== undefined ? mb.rotundaGlassDarkEmissiveIntensity : 0.26,
+          roughness: 0.12,
+          metalness: 0.86,
           transparent: true,
-          opacity: 0.74,
+          opacity: 0.76,
           side: THREE.DoubleSide,
         });
       })(),
@@ -5790,66 +5871,99 @@ export function getHideAndSeekHtml(): string {
         const mb = HORROR_CONFIG.mainBuilding || {};
         return new THREE.MeshStandardMaterial({
           map: dirtyGlassTex.map,
-          color: mb.rotundaGlassWarmColor || 0xffcf86,
-          emissive: mb.rotundaGlassWarmEmissive || 0xff9636,
-          emissiveIntensity: mb.rotundaGlassWarmEmissiveIntensity !== undefined ? mb.rotundaGlassWarmEmissiveIntensity : 0.72,
-          roughness: 0.20,
-          metalness: 0.35,
+          color: mb.rotundaGlassWarmColor || 0xffd28a,
+          emissive: mb.rotundaGlassWarmEmissive || 0xff9632,
+          emissiveIntensity: mb.rotundaGlassWarmEmissiveIntensity !== undefined ? mb.rotundaGlassWarmEmissiveIntensity : 0.82,
+          roughness: 0.18,
+          metalness: 0.28,
           transparent: true,
-          opacity: 0.86,
+          opacity: 0.88,
           side: THREE.DoubleSide,
         });
       })(),
       rotundaOrangeRailingMat: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
         return new THREE.MeshStandardMaterial({
-          color: mb.rotundaRailingColor || 0xf07c24,
+          color: mb.rotundaRailingColor || 0xf27e26,
           emissive: mb.rotundaRailingEmissive || 0xff6e18,
-          emissiveIntensity: mb.rotundaRailingEmissiveIntensity !== undefined ? mb.rotundaRailingEmissiveIntensity : 0.56,
-          roughness: 0.34,
-          metalness: 0.45,
+          emissiveIntensity: mb.rotundaRailingEmissiveIntensity !== undefined ? mb.rotundaRailingEmissiveIntensity : 0.62,
+          roughness: 0.32,
+          metalness: 0.48,
         });
       })(),
       rotundaWindowWarm: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
-        const sz = mb.windowTextureSize || 512;
+        const sz = mb.windowTextureSize || 1024;
         const winWarmTex = createProceduralTexture(sz, sz, (ctx) => {
-          // Warm gradient glass pane (brighter at bottom & center, darker warm amber at top/edges)
+          // 1. Deep interior room perspective gradient (warm lit ceiling & back wall + bright sill bounce)
           const bg = ctx.createLinearGradient(0, sz, 0, 0);
-          bg.addColorStop(0.0, '#fff2b2');
-          bg.addColorStop(0.38, '#ffbe58');
-          bg.addColorStop(0.75, '#d47624');
-          bg.addColorStop(1.0, '#783c12');
+          bg.addColorStop(0.0, '#fff3b8');
+          bg.addColorStop(0.32, '#ffc45c');
+          bg.addColorStop(0.68, '#d97824');
+          bg.addColorStop(1.0, '#5e2c0c');
           ctx.fillStyle = bg;
           ctx.fillRect(0, 0, sz, sz);
 
-          const rad = ctx.createRadialGradient(sz * 0.52, sz * 0.72, sz * 0.04, sz * 0.50, sz * 0.60, sz * 0.58);
-          rad.addColorStop(0.0, 'rgba(255, 250, 215, 0.85)');
-          rad.addColorStop(0.45, 'rgba(255, 195, 95, 0.35)');
-          rad.addColorStop(1.0, 'rgba(40, 16, 4, 0.48)');
-          ctx.fillStyle = rad;
+          // 2. Actual Interior Light Source: Glowing Ceiling Fluorescent Tube / Pendant Bulb Housing visible inside upper window!
+          const lampGlow = ctx.createRadialGradient(sz * 0.54, sz * 0.20, sz * 0.02, sz * 0.52, sz * 0.42, sz * 0.56);
+          lampGlow.addColorStop(0.0, 'rgba(255, 255, 240, 0.98)');
+          lampGlow.addColorStop(0.22, 'rgba(255, 230, 155, 0.82)');
+          lampGlow.addColorStop(0.58, 'rgba(255, 168, 64, 0.42)');
+          lampGlow.addColorStop(1.0, 'rgba(25, 10, 2, 0.55)');
+          ctx.fillStyle = lampGlow;
           ctx.fillRect(0, 0, sz, sz);
 
-          // Subtle vertical interior curtain/blind shadow on left & bright vertical light slit in center-right (matches IMG_6034!)
-          ctx.fillStyle = 'rgba(45, 22, 8, 0.38)';
-          ctx.fillRect(0, 0, sz * 0.28, sz);
-          ctx.fillStyle = 'rgba(255, 252, 225, 0.72)';
-          ctx.fillRect(sz * 0.54, sz * 0.18, sz * 0.11, sz * 0.78);
+          // Visible bright ceiling light fixture bar inside room at y = 0.16 * sz
+          ctx.fillStyle = '#1e1610';
+          ctx.fillRect(sz * 0.30, sz * 0.13, sz * 0.44, sz * 0.025);
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(sz * 0.33, sz * 0.15, sz * 0.38, sz * 0.022);
 
-          // Crisp Dark Frame & Mullions (outer border + upper transom + center vertical mullion)
-          const fHex = mb.windowFrameHex || '#151c24';
-          ctx.fillStyle = fHex;
+          // Warm sill upward light bounce at bottom of window
+          const sillBounce = ctx.createLinearGradient(0, sz, 0, sz * 0.68);
+          sillBounce.addColorStop(0.0, 'rgba(255, 245, 200, 0.86)');
+          sillBounce.addColorStop(0.5, 'rgba(255, 190, 90, 0.38)');
+          sillBounce.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+          ctx.fillStyle = sillBounce;
+          ctx.fillRect(0, sz * 0.68, sz, sz * 0.32);
+
+          // 3. Half-drawn Venetian blinds on upper half (with 1 crooked broken slat) + heavy left curtain shadow
+          ctx.fillStyle = 'rgba(38, 16, 5, 0.46)';
+          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.46); by += Math.round(sz * 0.028)) {
+            ctx.fillRect(0, by, sz, Math.round(sz * 0.013));
+          }
+          // Left interior drape/bookshelf shadow & bright vertical light slit on center-right
+          ctx.fillStyle = 'rgba(32, 14, 4, 0.52)';
+          ctx.fillRect(0, 0, sz * 0.26, sz);
+          ctx.fillStyle = 'rgba(255, 252, 228, 0.78)';
+          ctx.fillRect(sz * 0.54, sz * 0.16, sz * 0.12, sz * 0.78);
+
+          // 4. Exterior glass grime, corner vignette & rain condensation streaks
+          const vig = ctx.createRadialGradient(sz * 0.5, sz * 0.5, sz * 0.25, sz * 0.5, sz * 0.5, sz * 0.72);
+          vig.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
+          vig.addColorStop(1.0, 'rgba(18, 8, 2, 0.52)');
+          ctx.fillStyle = vig;
+          ctx.fillRect(0, 0, sz, sz);
+
+          // 5. Crisp Dark Beveled Frame & Mullions
+          const fHex = mb.windowFrameHex || '#11171f';
           const bW = Math.round(sz * 0.055);
+          const mW = Math.round(sz * 0.036);
+          ctx.fillStyle = fHex;
           ctx.fillRect(0, 0, sz, bW);
           ctx.fillRect(0, sz - bW, sz, bW);
           ctx.fillRect(0, 0, bW, sz);
           ctx.fillRect(sz - bW, 0, bW, sz);
-          // Center vertical mullion & upper horizontal transom
-          const mW = Math.round(sz * 0.036);
           ctx.fillRect(Math.round(sz * 0.5 - mW * 0.5), 0, mW, sz);
           ctx.fillRect(0, Math.round(sz * 0.30), sz, mW);
           ctx.fillRect(0, Math.round(sz * 0.65), sz, Math.round(mW * 0.75));
-        }, 'main-bldg-win-warm');
+
+          // Warm light catching the inner edges of the mullions & sill
+          ctx.fillStyle = 'rgba(255, 210, 130, 0.42)';
+          ctx.fillRect(Math.round(sz * 0.5 - mW * 0.5) - 3, bW, 3, sz - bW * 2);
+          ctx.fillRect(bW, Math.round(sz * 0.30) + mW, sz - bW * 2, 4);
+          ctx.fillRect(bW, sz - bW - 5, sz - bW * 2, 5);
+        }, 'main-bldg-win-warm-1024');
         winWarmTex.generateMipmaps = true;
         winWarmTex.minFilter = THREE.LinearMipmapLinearFilter;
         winWarmTex.magFilter = THREE.LinearFilter;
@@ -5857,44 +5971,73 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: winWarmTex,
           emissiveMap: winWarmTex,
-          color: mb.windowWarmColor || 0xffe4a0,
-          emissive: mb.windowWarmEmissive || 0xffa434,
-          emissiveIntensity: mb.windowWarmEmissiveIntensity !== undefined ? mb.windowWarmEmissiveIntensity : 0.94,
-          roughness: 0.22,
-          metalness: 0.15,
+          color: mb.windowWarmColor || 0xffe6a8,
+          emissive: mb.windowWarmEmissive || 0xff9c2a,
+          emissiveIntensity: mb.windowWarmEmissiveIntensity !== undefined ? mb.windowWarmEmissiveIntensity : 1.05,
+          roughness: 0.18,
+          metalness: 0.18,
         });
       })(),
       rotundaWindowRed: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
-        const sz = mb.windowTextureSize || 512;
+        const sz = mb.windowTextureSize || 1024;
         const winRedTex = createProceduralTexture(sz, sz, (ctx) => {
+          // Haunted Blood-Red Emergency-Lit Lab 302 Window with Ceiling Fixture, Broken Blinds & Watcher Silhouette!
           const bg = ctx.createLinearGradient(0, sz, 0, 0);
-          bg.addColorStop(0.0, '#ff9d78');
-          bg.addColorStop(0.45, '#ea482c');
-          bg.addColorStop(0.85, '#9e1f16');
-          bg.addColorStop(1.0, '#4f0d0a');
+          bg.addColorStop(0.0, '#ffaa82');
+          bg.addColorStop(0.40, '#ee4426');
+          bg.addColorStop(0.80, '#961610');
+          bg.addColorStop(1.0, '#3d0605');
           ctx.fillStyle = bg;
           ctx.fillRect(0, 0, sz, sz);
 
-          const rad = ctx.createRadialGradient(sz * 0.5, sz * 0.68, sz * 0.05, sz * 0.5, sz * 0.55, sz * 0.58);
-          rad.addColorStop(0.0, 'rgba(255, 190, 155, 0.75)');
-          rad.addColorStop(0.55, 'rgba(235, 68, 44, 0.35)');
-          rad.addColorStop(1.0, 'rgba(30, 4, 4, 0.52)');
+          // Glowing red emergency cage lamp at top-center of room
+          const rad = ctx.createRadialGradient(sz * 0.5, sz * 0.22, sz * 0.02, sz * 0.5, sz * 0.52, sz * 0.58);
+          rad.addColorStop(0.0, 'rgba(255, 235, 215, 0.95)');
+          rad.addColorStop(0.28, 'rgba(255, 96, 64, 0.72)');
+          rad.addColorStop(0.65, 'rgba(210, 32, 22, 0.38)');
+          rad.addColorStop(1.0, 'rgba(20, 2, 2, 0.62)');
           ctx.fillStyle = rad;
           ctx.fillRect(0, 0, sz, sz);
 
-          const fHex = mb.windowFrameHex || '#151c24';
-          ctx.fillStyle = fHex;
+          // Crooked Venetian blinds across top (drawn via polygon paths for universal Canvas2D + headless test compatibility)
+          ctx.fillStyle = 'rgba(28, 4, 4, 0.52)';
+          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.42); by += Math.round(sz * 0.03)) {
+            const tiltY = Math.round(sz * 0.025);
+            const slatH = Math.round(sz * 0.014);
+            ctx.beginPath();
+            ctx.moveTo(0, by);
+            ctx.lineTo(sz, by + tiltY);
+            ctx.lineTo(sz, by + tiltY + slatH);
+            ctx.lineTo(0, by + slatH);
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          // Eerie dark horror silhouette (The Hollow Proctor / Watcher) standing behind the right pane!
+          ctx.fillStyle = 'rgba(14, 2, 3, 0.76)';
+          ctx.beginPath();
+          ctx.arc(sz * 0.68, sz * 0.52, sz * 0.065, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(sz * 0.68, sz * 0.78, sz * 0.14, sz * 0.22, 0, Math.PI, 0, false);
+          ctx.fill();
+
+          const fHex = mb.windowFrameHex || '#11171f';
           const bW = Math.round(sz * 0.055);
+          const mW = Math.round(sz * 0.036);
+          ctx.fillStyle = fHex;
           ctx.fillRect(0, 0, sz, bW);
           ctx.fillRect(0, sz - bW, sz, bW);
           ctx.fillRect(0, 0, bW, sz);
           ctx.fillRect(sz - bW, 0, bW, sz);
-          const mW = Math.round(sz * 0.036);
           ctx.fillRect(Math.round(sz * 0.5 - mW * 0.5), 0, mW, sz);
           ctx.fillRect(0, Math.round(sz * 0.30), sz, mW);
           ctx.fillRect(0, Math.round(sz * 0.65), sz, Math.round(mW * 0.75));
-        }, 'main-bldg-win-red');
+
+          ctx.fillStyle = 'rgba(255, 120, 90, 0.40)';
+          ctx.fillRect(bW, sz - bW - 5, sz - bW * 2, 5);
+        }, 'main-bldg-win-red-1024');
         winRedTex.generateMipmaps = true;
         winRedTex.minFilter = THREE.LinearMipmapLinearFilter;
         winRedTex.magFilter = THREE.LinearFilter;
@@ -5902,38 +6045,54 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: winRedTex,
           emissiveMap: winRedTex,
-          color: mb.windowRedColor || 0xff7e58,
-          emissive: mb.windowRedEmissive || 0xe63926,
-          emissiveIntensity: mb.windowRedEmissiveIntensity !== undefined ? mb.windowRedEmissiveIntensity : 0.98,
-          roughness: 0.22,
-          metalness: 0.15,
+          color: mb.windowRedColor || 0xff7852,
+          emissive: mb.windowRedEmissive || 0xe62e1c,
+          emissiveIntensity: mb.windowRedEmissiveIntensity !== undefined ? mb.windowRedEmissiveIntensity : 1.12,
+          roughness: 0.18,
+          metalness: 0.18,
         });
       })(),
       rotundaWindowDark: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
-        const sz = mb.windowTextureSize || 512;
+        const sz = mb.windowTextureSize || 1024;
         const winDarkTex = createProceduralTexture(sz, sz, (ctx) => {
-          // Dark glass pane with faint cool night-sky reflection so dark windows & frames still read clearly!
+          // Dark reflective glass pane with cool night-sky reflection, faint blind slats & cracked corner pane
           const skyRefl = ctx.createLinearGradient(0, 0, sz * 0.65, sz);
-          skyRefl.addColorStop(0.0, '#324c66');
-          skyRefl.addColorStop(0.38, '#1e3144');
-          skyRefl.addColorStop(0.75, '#111d2a');
-          skyRefl.addColorStop(1.0, '#0a121a');
+          skyRefl.addColorStop(0.0, '#36526e');
+          skyRefl.addColorStop(0.35, '#1e3246');
+          skyRefl.addColorStop(0.72, '#0f1b28');
+          skyRefl.addColorStop(1.0, '#070d14');
           ctx.fillStyle = skyRefl;
           ctx.fillRect(0, 0, sz, sz);
 
-          // Faint cool specular reflection streak on glass panes
-          ctx.fillStyle = 'rgba(135, 175, 210, 0.14)';
+          // Dimly visible closed interior blinds behind dark glass
+          ctx.fillStyle = 'rgba(6, 11, 18, 0.42)';
+          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.62); by += Math.round(sz * 0.032)) {
+            ctx.fillRect(0, by, sz, Math.round(sz * 0.015));
+          }
+
+          // Cool moonlight diagonal specular reflection streak across glass
+          ctx.fillStyle = 'rgba(145, 188, 226, 0.18)';
           ctx.beginPath();
-          ctx.moveTo(sz * 0.12, sz * 0.08);
-          ctx.lineTo(sz * 0.38, sz * 0.08);
-          ctx.lineTo(sz * 0.18, sz * 0.88);
-          ctx.lineTo(sz * 0.06, sz * 0.88);
+          ctx.moveTo(sz * 0.10, sz * 0.06);
+          ctx.lineTo(sz * 0.36, sz * 0.06);
+          ctx.lineTo(sz * 0.16, sz * 0.90);
+          ctx.lineTo(sz * 0.04, sz * 0.90);
           ctx.closePath();
           ctx.fill();
 
-          // Crisp dark frame & mullions with subtle moonlight bevel highlight so frames read against the dark glass
-          const fHex = mb.windowFrameHex || '#151c24';
+          // Subtle spiderweb crack in bottom-right pane corner
+          ctx.strokeStyle = 'rgba(165, 198, 224, 0.25)';
+          ctx.lineWidth = 2;
+          [[0.92, 0.92, 0.76, 0.82], [0.92, 0.92, 0.81, 0.72], [0.92, 0.92, 0.72, 0.90]].forEach(([x0, y0, x1, y1]) => {
+            ctx.beginPath();
+            ctx.moveTo(sz * x0, sz * y0);
+            ctx.lineTo(sz * x1, sz * y1);
+            ctx.stroke();
+          });
+
+          // Crisp dark frame & mullions with moonlight bevel highlight
+          const fHex = mb.windowFrameHex || '#11171f';
           const bW = Math.round(sz * 0.055);
           const mW = Math.round(sz * 0.036);
           ctx.fillStyle = fHex;
@@ -5945,15 +6104,14 @@ export function getHideAndSeekHtml(): string {
           ctx.fillRect(0, Math.round(sz * 0.30), sz, mW);
           ctx.fillRect(0, Math.round(sz * 0.65), sz, Math.round(mW * 0.75));
 
-          // Subtle moonlit edge highlight along mullions & sill
-          ctx.fillStyle = 'rgba(148, 178, 204, 0.26)';
+          ctx.fillStyle = 'rgba(156, 188, 216, 0.30)';
           ctx.fillRect(Math.round(sz * 0.5 - mW * 0.5), bW, 3, sz - bW * 2);
           ctx.fillRect(bW, Math.round(sz * 0.30), sz - bW * 2, 3);
           ctx.fillRect(bW, Math.round(sz * 0.65), sz - bW * 2, 2.5);
-          ctx.strokeStyle = 'rgba(165, 192, 214, 0.32)';
+          ctx.strokeStyle = 'rgba(172, 202, 226, 0.34)';
           ctx.lineWidth = 4;
           ctx.strokeRect(bW * 0.5, bW * 0.5, sz - bW, sz - bW);
-        }, 'main-bldg-win-dark');
+        }, 'main-bldg-win-dark-1024');
         winDarkTex.generateMipmaps = true;
         winDarkTex.minFilter = THREE.LinearMipmapLinearFilter;
         winDarkTex.magFilter = THREE.LinearFilter;
@@ -5961,11 +6119,11 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: winDarkTex,
           emissiveMap: winDarkTex,
-          color: mb.windowDarkColor || 0x263c52,
-          emissive: mb.windowDarkSkyReflectEmissive || 0x1e344a,
-          emissiveIntensity: mb.windowDarkEmissiveIntensity !== undefined ? mb.windowDarkEmissiveIntensity : 0.36,
-          roughness: mb.windowDarkRoughness !== undefined ? mb.windowDarkRoughness : 0.14,
-          metalness: mb.windowDarkMetalness !== undefined ? mb.windowDarkMetalness : 0.78,
+          color: mb.windowDarkColor || 0x22364a,
+          emissive: mb.windowDarkSkyReflectEmissive || 0x1c3248,
+          emissiveIntensity: mb.windowDarkEmissiveIntensity !== undefined ? mb.windowDarkEmissiveIntensity : 0.34,
+          roughness: mb.windowDarkRoughness !== undefined ? mb.windowDarkRoughness : 0.12,
+          metalness: mb.windowDarkMetalness !== undefined ? mb.windowDarkMetalness : 0.82,
         });
       })(),
       rotundaSignMat: (function() {
@@ -5973,39 +6131,51 @@ export function getHideAndSeekHtml(): string {
         const sw = mb.signCanvasWidth || 2048;
         const sh = mb.signCanvasHeight || 256;
         const signTex = createProceduralTexture(sw, sh, (ctx) => {
-          // Weathered stone entablature plaque background (matching IMG_6033 & IMG_6034!)
+          // Weathered stone entablature plaque with warm floodlight cones from the 2 ledge spotlights
           const bg = ctx.createLinearGradient(0, 0, 0, sh);
-          bg.addColorStop(0.0, '#7c8790');
-          bg.addColorStop(0.18, '#aeb8c0');
-          bg.addColorStop(0.82, '#9aa5ae');
-          bg.addColorStop(1.0, '#68737c');
+          bg.addColorStop(0.0, '#78838c');
+          bg.addColorStop(0.20, '#b4bec6');
+          bg.addColorStop(0.80, '#a0abb4');
+          bg.addColorStop(1.0, '#646f78');
           ctx.fillStyle = bg;
           ctx.fillRect(0, 0, sw, sh);
 
-          // Recessed inner stone tablet border
-          ctx.strokeStyle = '#26323d';
+          // Dual warm floodlight hotspots matching the 2 physical entablature sign lamps
+          [sw * 0.32, sw * 0.68].forEach(lx => {
+            const spot = ctx.createRadialGradient(lx, sh * 0.88, 12, lx, sh * 0.52, sw * 0.28);
+            spot.addColorStop(0.0, 'rgba(255, 224, 168, 0.36)');
+            spot.addColorStop(0.55, 'rgba(255, 178, 96, 0.14)');
+            spot.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+            ctx.fillStyle = spot;
+            ctx.fillRect(0, 0, sw, sh);
+          });
+
+          // Recessed inner stone tablet border & corner bolts
+          ctx.strokeStyle = '#1e2832';
           ctx.lineWidth = 10;
           ctx.strokeRect(18, 18, sw - 36, sh - 36);
-          ctx.strokeStyle = 'rgba(235, 242, 248, 0.38)';
+          ctx.strokeStyle = 'rgba(240, 246, 252, 0.42)';
           ctx.lineWidth = 4;
           ctx.strokeRect(24, 24, sw - 48, sh - 48);
 
-          // Subtle vertical damp/moss weathering streaks across plaque ends
-          for (let sx = 40; sx < sw; sx += 140) {
-            const sg = ctx.createLinearGradient(0, 0, 0, sh * 0.85);
-            sg.addColorStop(0.0, 'rgba(20, 28, 26, 0.32)');
+          // Subtle vertical damp/moss weathering streaks across plaque
+          for (let sx = 40; sx < sw; sx += 130) {
+            const sg = ctx.createLinearGradient(0, 0, 0, sh * 0.88);
+            sg.addColorStop(0.0, 'rgba(18, 26, 24, 0.36)');
             sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
             ctx.fillStyle = sg;
-            ctx.fillRect(sx, 0, 22, sh * 0.85);
+            ctx.fillRect(sx, 0, 24, sh * 0.88);
           }
 
-          // Chiseled embossed highlight + bold dark-slate "GANDAKI UNIVERSITY" lettering
+          // Chiseled 3D embossed highlight + deep shadow + bold dark-slate "GANDAKI UNIVERSITY" lettering
           ctx.font = '900 112px "Arial Black", Impact, sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillStyle = 'rgba(240, 246, 252, 0.55)';
-          ctx.fillText('GANDAKI UNIVERSITY', sw * 0.5 + 3, sh * 0.54 + 3);
-          ctx.fillStyle = '#141c24';
+          ctx.fillStyle = 'rgba(255, 248, 230, 0.62)';
+          ctx.fillText('GANDAKI UNIVERSITY', sw * 0.5 + 3, sh * 0.54 + 4);
+          ctx.fillStyle = 'rgba(8, 12, 16, 0.65)';
+          ctx.fillText('GANDAKI UNIVERSITY', sw * 0.5 - 3, sh * 0.54 - 3);
+          ctx.fillStyle = '#121921';
           ctx.fillText('GANDAKI UNIVERSITY', sw * 0.5, sh * 0.54);
         }, 'main-bldg-gandaki-sign-2048');
         signTex.generateMipmaps = true;
@@ -6014,20 +6184,22 @@ export function getHideAndSeekHtml(): string {
         signTex.anisotropy = mb.windowAnisotropy || 8;
         return new THREE.MeshStandardMaterial({
           map: signTex,
-          color: mb.signPlaqueColor || 0xc8d2da,
-          emissive: mb.signEmissive || 0x2c3a48,
-          emissiveIntensity: mb.signEmissiveIntensity !== undefined ? mb.signEmissiveIntensity : 0.30,
-          roughness: 0.52,
-          metalness: 0.12,
+          bumpMap: signTex,
+          bumpScale: 0.014,
+          color: mb.signPlaqueColor || 0xcfd8e0,
+          emissive: mb.signEmissive || 0x263442,
+          emissiveIntensity: mb.signEmissiveIntensity !== undefined ? mb.signEmissiveIntensity : 0.26,
+          roughness: 0.48,
+          metalness: 0.14,
         });
       })(),
       rotundaFacadeUplightMat: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
         const upTex = createProceduralTexture(256, 256, (ctx) => {
-          const g = ctx.createLinearGradient(0, 256, 0, 0);
-          g.addColorStop(0.0, 'rgba(255, 156, 58, 0.92)');
-          g.addColorStop(0.45, 'rgba(255, 138, 42, 0.42)');
-          g.addColorStop(0.85, 'rgba(255, 120, 30, 0.08)');
+          const g = ctx.createRadialGradient(128, 240, 10, 128, 180, 180);
+          g.addColorStop(0.0, 'rgba(255, 168, 72, 0.85)');
+          g.addColorStop(0.45, 'rgba(255, 138, 42, 0.35)');
+          g.addColorStop(0.85, 'rgba(255, 110, 24, 0.08)');
           g.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
           ctx.fillStyle = g;
           ctx.fillRect(0, 0, 256, 256);
@@ -6036,7 +6208,7 @@ export function getHideAndSeekHtml(): string {
           map: upTex,
           color: mb.facadeUplightColor || 0xff9436,
           transparent: true,
-          opacity: mb.facadeUplightOpacity !== undefined ? mb.facadeUplightOpacity : 0.24,
+          opacity: mb.facadeUplightOpacity !== undefined ? mb.facadeUplightOpacity : 0.14,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
           side: THREE.DoubleSide,
@@ -6049,8 +6221,8 @@ export function getHideAndSeekHtml(): string {
         const mb = HORROR_CONFIG.mainBuilding || {};
         const cwTex = createProceduralTexture(128, 256, (ctx) => {
           const g = ctx.createLinearGradient(0, 256, 0, 0);
-          g.addColorStop(0.0, 'rgba(255, 168, 72, 0.95)');
-          g.addColorStop(0.55, 'rgba(255, 142, 48, 0.45)');
+          g.addColorStop(0.0, 'rgba(255, 168, 72, 0.88)');
+          g.addColorStop(0.55, 'rgba(255, 142, 48, 0.38)');
           g.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
           ctx.fillStyle = g;
           ctx.fillRect(0, 0, 128, 256);
@@ -6059,7 +6231,7 @@ export function getHideAndSeekHtml(): string {
           map: cwTex,
           color: mb.facadeUplightColor || 0xff9436,
           transparent: true,
-          opacity: mb.porticoColumnWashOpacity !== undefined ? mb.porticoColumnWashOpacity : 0.28,
+          opacity: mb.porticoColumnWashOpacity !== undefined ? mb.porticoColumnWashOpacity : 0.18,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
           side: THREE.DoubleSide,
@@ -6080,7 +6252,7 @@ export function getHideAndSeekHtml(): string {
           map: spTex,
           color: mb.entranceGroundSpillColor || 0xff9838,
           transparent: true,
-          opacity: mb.entranceGroundSpillOpacity !== undefined ? mb.entranceGroundSpillOpacity : 0.30,
+          opacity: mb.entranceGroundSpillOpacity !== undefined ? mb.entranceGroundSpillOpacity : 0.28,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
           polygonOffset: true,
@@ -6092,8 +6264,8 @@ export function getHideAndSeekHtml(): string {
         const mb = HORROR_CONFIG.mainBuilding || {};
         const aoTex = createProceduralTexture(64, 128, (ctx) => {
           const g = ctx.createLinearGradient(0, 0, 0, 128);
-          g.addColorStop(0.0, 'rgba(2, 5, 10, 0.92)');
-          g.addColorStop(0.45, 'rgba(4, 9, 16, 0.42)');
+          g.addColorStop(0.0, 'rgba(2, 5, 10, 0.94)');
+          g.addColorStop(0.45, 'rgba(4, 9, 16, 0.46)');
           g.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
           ctx.fillStyle = g;
           ctx.fillRect(0, 0, 64, 128);
@@ -6101,7 +6273,7 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshBasicMaterial({
           map: aoTex,
           transparent: true,
-          opacity: mb.eaveAoOpacity !== undefined ? mb.eaveAoOpacity : 0.64,
+          opacity: mb.eaveAoOpacity !== undefined ? mb.eaveAoOpacity : 0.68,
           depthWrite: false,
           side: THREE.DoubleSide,
           polygonOffset: true,
@@ -6584,14 +6756,22 @@ export function getHideAndSeekHtml(): string {
       shrubs: [],
     };
 
-    // Step 5 & Main Administration Building Shader Tweaks:
+    // Step 5 & Main Administration Building Real Light-Source Shader System:
+    // - True 3D world-space point & spot light evaluation from physical building fixtures (0 extra Three.js PointLights!)
+    // - Procedural masonry/plaster relief normal perturbation + architectural eave/crevice AO
     // - Cool moonlit rim light on roof edges, cornices, pilasters & rotunda dome
     // - Reduced fog influence on the Main Administration Building ONLY (Fix 5: global fog untouched!)
     const mbShaderCfg = HORROR_CONFIG.mainBuilding || {};
-    const mbFogInfluence = (typeof mbShaderCfg.fogInfluence === 'number') ? mbShaderCfg.fogInfluence : 0.34;
-    const mbRimCol = mbShaderCfg.moonRimColor || [0.24, 0.38, 0.52];
-    const mbRimInt = (typeof mbShaderCfg.moonRimIntensity === 'number') ? mbShaderCfg.moonRimIntensity : 0.92;
-    const mbRimPow = (typeof mbShaderCfg.moonRimPower === 'number') ? mbShaderCfg.moonRimPower : 2.0;
+    const mbFogInfluence = (typeof mbShaderCfg.fogInfluence === 'number') ? mbShaderCfg.fogInfluence : 0.32;
+    const mbRimCol = mbShaderCfg.moonRimColor || [0.28, 0.44, 0.62];
+    const mbRimInt = (typeof mbShaderCfg.moonRimIntensity === 'number') ? mbShaderCfg.moonRimIntensity : 1.05;
+    const mbRimPow = (typeof mbShaderCfg.moonRimPower === 'number') ? mbShaderCfg.moonRimPower : 2.1;
+    const mbPhysLightInt = (typeof mbShaderCfg.physicalLightIntensity === 'number') ? mbShaderCfg.physicalLightIntensity : 1.38;
+    const mbWinSpillInt = (typeof mbShaderCfg.windowSpillIntensity === 'number') ? mbShaderCfg.windowSpillIntensity : 1.18;
+    const mbFlickerStr = (typeof mbShaderCfg.horrorFlickerStrength === 'number') ? mbShaderCfg.horrorFlickerStrength : 0.18;
+    const mainBuildingShaderUniforms = {
+      uMbTime: { value: 0.0 },
+    };
 
     [
       materials.foliageGreen,
@@ -6611,18 +6791,107 @@ export function getHideAndSeekHtml(): string {
       };
     });
 
-    function applyMainBuildingShaderTweaks(mat, rimScale = 1.0) {
+    function applyMainBuildingShaderTweaks(mat, rimScale = 1.0, lightScale = 1.0) {
       if (!mat) return;
       mat.onBeforeCompile = (shader) => {
-        if ( rimScale > 0.0) {
-          shader.fragmentShader = shader.fragmentShader.replace(
-            '#include <dithering_fragment>',
-            'float mbRimDot = 1.0 - max(0.0, abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0))));\\n' +
-            'float mbTopBias = clamp(vNormal.y * 0.55 + 0.45, 0.0, 1.0);\\n' +
-            'gl_FragColor.rgb += vec3(' + mbRimCol[0].toFixed(3) + ', ' + mbRimCol[1].toFixed(3) + ', ' + mbRimCol[2].toFixed(3) + ') * pow(mbRimDot, ' + mbRimPow.toFixed(2) + ') * mbTopBias * ' + (mbRimInt * rimScale).toFixed(3) + ';\\n' +
-            '#include <dithering_fragment>'
-          );
-        }
+        shader.uniforms.uMbTime = mainBuildingShaderUniforms.uMbTime;
+
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <common>',
+          '#include <common>\\n' +
+          'varying vec3 vMbWorldPos;\\n' +
+          'varying vec3 vMbWorldNormal;\\n'
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+          '#include <worldpos_vertex>',
+          '#include <worldpos_vertex>\\n' +
+          'vec4 mbWp = vec4( transformed, 1.0 );\\n' +
+          '#ifdef USE_INSTANCING\\n' +
+          '  mbWp = instanceMatrix * mbWp;\\n' +
+          '#endif\\n' +
+          'mbWp = modelMatrix * mbWp;\\n' +
+          'vMbWorldPos = mbWp.xyz;\\n' +
+          'vMbWorldNormal = normalize( mat3( modelMatrix ) * objectNormal );\\n'
+        );
+
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <common>',
+          '#include <common>\\n' +
+          'uniform float uMbTime;\\n' +
+          'varying vec3 vMbWorldPos;\\n' +
+          'varying vec3 vMbWorldNormal;\\n' +
+          'vec3 evalMbFixtureLight(vec3 fragPos, vec3 N, vec3 V, vec3 lPos, vec3 lCol, float radius, float intensity, float coneDown) {\\n' +
+          '  vec3 toL = lPos - fragPos;\\n' +
+          '  float dist = length(toL);\\n' +
+          '  if (dist >= radius) return vec3(0.0);\\n' +
+          '  vec3 L = toL / max(dist, 0.001);\\n' +
+          '  float normDist = dist / radius;\\n' +
+          '  float win = clamp(1.0 - normDist * normDist, 0.0, 1.0);\\n' +
+          '  float atten = (win * win) / (1.0 + 0.16 * dist * dist);\\n' +
+          '  float cone = mix(1.0, smoothstep(-0.35, 0.65, -L.y), coneDown);\\n' +
+          '  float ndl = max(0.0, dot(N, L) * 0.76 + 0.24);\\n' +
+          '  vec3 H = normalize(L + V);\\n' +
+          '  float spec = pow(max(0.0, dot(N, H)), 20.0) * 0.30;\\n' +
+          '  return lCol * (intensity * atten * cone * (ndl + spec));\\n' +
+          '}\\n'
+        );
+
+        shader.fragmentShader = shader.fragmentShader.replace(
+          '#include <dithering_fragment>',
+          'vec3 mbWPos = vMbWorldPos;\\n' +
+          'vec3 mbWNorm = normalize(vMbWorldNormal);\\n' +
+          '// Micro-masonry course & fluted stone normal perturbation so 3D light catches courses and joints\\n' +
+          'float courseWave = sin(mbWPos.y * 28.0) * 0.045 + sin(mbWPos.x * 16.0 + mbWPos.z * 16.0) * 0.025;\\n' +
+          'mbWNorm = normalize(mbWNorm + vec3(courseWave * 0.4, courseWave, 0.0));\\n' +
+          'vec3 mbViewDir = normalize(cameraPosition - mbWPos);\\n' +
+          'float flkPortico = 1.0 + (sin(uMbTime * 6.2) * 0.5 + sin(uMbTime * 17.5) * 0.5) * ' + (mbFlickerStr * 0.45).toFixed(3) + ';\\n' +
+          'float flkRedLab = 0.86 + (sin(uMbTime * 11.4) * 0.5 + cos(uMbTime * 29.0) * 0.5) * ' + mbFlickerStr.toFixed(3) + ';\\n' +
+          'float flkWest = 0.90 + sin(uMbTime * 23.0 + cos(uMbTime * 7.3) * 2.0) * ' + (mbFlickerStr * 0.85).toFixed(3) + ';\\n' +
+          'vec3 mbPhysicalLight = vec3(0.0);\\n' +
+          'if (' + lightScale.toFixed(2) + ' > 0.01) {\\n' +
+          '  // 1. Twin Wrought-Iron Portico Step Pedestal Lanterns (1.65, 4.02, 52.55) & (10.35, 4.02, 52.55)\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(1.65, 4.02, 52.55), vec3(1.0, 0.58, 0.20), 15.5, 4.2 * flkPortico, 0.35);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(10.35, 4.02, 52.55), vec3(1.0, 0.58, 0.20), 15.5, 4.2 * flkPortico, 0.35);\\n' +
+          '  // 2. Portico Ceiling Hanging Iron Chandelier (6.0, 3.65, 53.8) & Twin Entrance Door Sconces (4.15/7.85, 2.85, 56.65)\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(6.0, 3.65, 53.80), vec3(1.0, 0.64, 0.24), 14.0, 4.6 * flkPortico, 0.45);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(4.15, 2.85, 56.55), vec3(1.0, 0.56, 0.18), 9.5, 3.1 * flkPortico, 0.25);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(7.85, 2.85, 56.55), vec3(1.0, 0.56, 0.18), 9.5, 3.1 * flkPortico, 0.25);\\n' +
+          '  // 3. Twin Brass Entablature Sign Floodlights (3.8, 7.85, 50.8) & (8.2, 7.85, 50.8) illuminating sign & upper portico\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(3.80, 7.85, 50.75), vec3(1.0, 0.70, 0.32), 10.5, 3.6, 0.0);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(8.20, 7.85, 50.75), vec3(1.0, 0.70, 0.32), 10.5, 3.6, 0.0);\\n' +
+          '  // 4. East & West Forecourt Street Lamps (20.2, 4.82, 49.8) & (-7.8, 4.82, 49.8)\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(20.2, 4.82, 49.8), vec3(1.0, 0.54, 0.16), 21.0, 5.2, 0.30);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(-7.8, 4.82, 49.8), vec3(1.0, 0.50, 0.15), 16.5, 2.9 * flkWest, 0.35);\\n' +
+          '  // 5. Actual Lit Window Spill Sources (casting warm & crimson-red interior light onto stone sills, jambs, pilasters & eaves!)\\n' +
+          '  float wSpill = ' + mbWinSpillInt.toFixed(3) + ';\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(20.1, 9.52, 56.35), vec3(1.0, 0.22, 0.12), 6.8, 3.8 * wSpill * flkRedLab, 0.0);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(16.9, 9.52, 56.35), vec3(1.0, 0.64, 0.22), 6.2, 3.0 * wSpill, 0.0);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(23.3, 9.52, 56.35), vec3(1.0, 0.64, 0.22), 6.2, 3.0 * wSpill, 0.0);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(20.1, 5.84, 56.35), vec3(1.0, 0.60, 0.20), 6.4, 3.0 * wSpill, 0.0);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(23.3, 4.10, 56.35), vec3(1.0, 0.60, 0.20), 6.8, 3.2 * wSpill, 0.0);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(-1.7, 9.52, 56.35), vec3(1.0, 0.64, 0.22), 6.2, 3.1 * wSpill * flkWest, 0.0);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(-4.9, 2.36, 56.35), vec3(1.0, 0.58, 0.18), 6.2, 2.8 * wSpill, 0.0);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(2.55, 9.85, 52.05), vec3(1.0, 0.62, 0.22), 6.5, 3.2 * wSpill, 0.0);\\n' +
+          '  mbPhysicalLight += evalMbFixtureLight(mbWPos, mbWNorm, mbViewDir, vec3(9.45, 9.85, 52.05), vec3(1.0, 0.62, 0.22), 6.5, 3.2 * wSpill, 0.0);\\n' +
+          '  // Architectural Crevice, Under-Eave & Plinth AO Darkening for true 3D Horror Depth\\n' +
+          '  float eaveAo = smoothstep(0.0, 0.85, abs(mbWPos.y - 11.12)) * 0.42 + 0.58;\\n' +
+          '  float corniceAo = smoothstep(0.0, 0.55, abs(mbWPos.y - 7.64)) * 0.28 + 0.72;\\n' +
+          '  float bandAo = smoothstep(0.0, 0.45, abs(mbWPos.y - 4.04)) * 0.22 + 0.78;\\n' +
+          '  float plinthAo = smoothstep(0.0, 0.65, mbWPos.y - 0.45) * 0.32 + 0.68;\\n' +
+          '  float archAo = eaveAo * corniceAo * bandAo * plinthAo;\\n' +
+          '  gl_FragColor.rgb *= archAo;\\n' +
+          '  gl_FragColor.rgb += diffuseColor.rgb * mbPhysicalLight * ' + (mbPhysLightInt * lightScale).toFixed(3) + ';\\n' +
+          '}\\n' +
+          (rimScale > 0.0
+            ? (
+              'float mbRimDot = 1.0 - max(0.0, abs(dot(normalize(vNormal), vec3(0.0, 0.0, 1.0))));\\n' +
+              'float mbTopBias = clamp(vNormal.y * 0.55 + 0.45, 0.0, 1.0);\\n' +
+              'gl_FragColor.rgb += vec3(' + mbRimCol[0].toFixed(3) + ', ' + mbRimCol[1].toFixed(3) + ', ' + mbRimCol[2].toFixed(3) + ') * pow(mbRimDot, ' + mbRimPow.toFixed(2) + ') * mbTopBias * ' + (mbRimInt * rimScale).toFixed(3) + ';\\n'
+            )
+            : '') +
+          '#include <dithering_fragment>'
+        );
+
         shader.fragmentShader = shader.fragmentShader.replace(
           '#include <fog_fragment>',
           '#ifdef USE_FOG\\n' +
@@ -6639,21 +6908,21 @@ export function getHideAndSeekHtml(): string {
     }
 
     [
-      [materials.terracottaRoof, 1.15],
-      [materials.rotundaRoofRidge, 1.30],
-      [materials.rotundaRedSteel, 0.85],
-      [materials.rotundaWhiteArch, 0.95],
-      [materials.rotundaBrick, 0.45],
-      [materials.rotundaPlinthConcrete, 0.35],
-      [materials.rotundaColumnFlutedBase, 0.55],
-      [materials.rotundaCurvedGlass, 1.10],
-      [materials.rotundaCurvedGlassWarm, 0.65],
-      [materials.rotundaWindowWarm, 0.0],
-      [materials.rotundaWindowRed, 0.0],
-      [materials.rotundaWindowDark, 0.50],
-      [materials.rotundaSignMat, 0.40],
-      [materials.rotundaOrangeRailingMat, 0.30],
-    ].forEach(([m, rScale]) => applyMainBuildingShaderTweaks(m, rScale));
+      [materials.terracottaRoof, 1.25, 0.75],
+      [materials.rotundaRoofRidge, 1.40, 0.85],
+      [materials.rotundaRedSteel, 0.85, 0.95],
+      [materials.rotundaWhiteArch, 1.05, 1.18],
+      [materials.rotundaBrick, 0.48, 1.15],
+      [materials.rotundaPlinthConcrete, 0.40, 1.10],
+      [materials.rotundaColumnFlutedBase, 0.60, 1.15],
+      [materials.rotundaCurvedGlass, 1.15, 0.85],
+      [materials.rotundaCurvedGlassWarm, 0.65, 0.35],
+      [materials.rotundaWindowWarm, 0.0, 0.0],
+      [materials.rotundaWindowRed, 0.0, 0.0],
+      [materials.rotundaWindowDark, 0.55, 0.75],
+      [materials.rotundaSignMat, 0.45, 1.30],
+      [materials.rotundaOrangeRailingMat, 0.35, 0.60],
+    ].forEach(([m, rScale, lScale]) => applyMainBuildingShaderTweaks(m, rScale, lScale));
 
     const colliders = [];
     const walkableFloors = [];
@@ -7910,7 +8179,7 @@ export function getHideAndSeekHtml(): string {
     const ibCtx = interiorBumpCanvas.getContext('2d');
 
     if (iCtx && ibCtx) {
-      // 1. Tile (0,0,256,256): Weathered Muted Wood Grain & Recessed Wainscoting
+      // 1. Tile (0,0,256,256): Scratched Wood Grain, Uneven Wear & Carved Student Initials
       iCtx.fillStyle = '#342216';
       iCtx.fillRect(0, 0, 256, 256);
       ibCtx.fillStyle = '#787878';
@@ -7928,45 +8197,89 @@ export function getHideAndSeekHtml(): string {
         ibCtx.fillStyle = '#202020';
         ibCtx.fillRect(px, 0, 2, 256);
       }
+      // Uneven worn varnish blotches, deep wood scratches & carved student initials
+      iCtx.fillStyle = 'rgba(92, 68, 46, 0.28)';
+      iCtx.beginPath(); iCtx.ellipse(82, 96, 46, 22, 0.2, 0, Math.PI * 2); iCtx.fill();
+      iCtx.beginPath(); iCtx.ellipse(186, 174, 52, 26, -0.3, 0, Math.PI * 2); iCtx.fill();
+      iCtx.strokeStyle = 'rgba(118, 92, 66, 0.62)';
+      iCtx.lineWidth = 1.4;
+      ibCtx.strokeStyle = '#181818';
+      ibCtx.lineWidth = 2.0;
+      [[22, 42, 78, 56], [134, 88, 198, 74], [48, 188, 118, 204], [156, 212, 228, 196]].forEach(sc => {
+        iCtx.beginPath(); iCtx.moveTo(sc[0], sc[1]); iCtx.lineTo(sc[2], sc[3]); iCtx.stroke();
+        ibCtx.beginPath(); ibCtx.moveTo(sc[0], sc[1]); ibCtx.lineTo(sc[2], sc[3]); ibCtx.stroke();
+      });
+      iCtx.font = 'bold 13px monospace';
+      iCtx.fillStyle = 'rgba(124, 96, 68, 0.68)';
+      iCtx.fillText('GU २०८१', 32, 134);
+      iCtx.fillText('K.S. + R.T.', 142, 148);
+      ibCtx.font = 'bold 13px monospace';
+      ibCtx.fillStyle = '#141414';
+      ibCtx.fillText('GU २०८१', 32, 134);
+      ibCtx.fillText('K.S. + R.T.', 142, 148);
 
-      // 2. Tile (256,0,256,256): Scuffed Painted Institutional Wall (Muted Liminal Ochre-Grey / Slate)
-      iCtx.fillStyle = '#585f5a';
+      // 2. Tile (256,0,256,256): Peeling Paint Wall, Ceiling Water Stains, Cracks, Corner Mold & Darker Lower Third
+      iCtx.fillStyle = '#525954';
       iCtx.fillRect(256, 0, 256, 256);
       ibCtx.fillStyle = '#808080';
       ibCtx.fillRect(256, 0, 256, 256);
-      for (let vx = 264; vx < 512; vx += 16) {
-        iCtx.fillStyle = 'rgba(38, 44, 38, 0.14)';
-        iCtx.fillRect(vx, 0, 2, 256);
+      // Vertical water stains dripping down from ceiling
+      for (let ws = 0; ws < 14; ws++) {
+        const wx = 266 + ws * 18;
+        const wh = 75 + ((ws * 37) % 110);
+        const wGrad = iCtx.createLinearGradient(wx, 0, wx, wh);
+        wGrad.addColorStop(0, 'rgba(18, 24, 20, 0.56)');
+        wGrad.addColorStop(1, 'rgba(18, 24, 20, 0.0)');
+        iCtx.fillStyle = wGrad;
+        iCtx.fillRect(wx, 0, 6 + (ws % 5), wh);
       }
-      for (let s = 0; s < 52; s++) {
+      // Peeling paint flakes & plaster cracks
+      for (let s = 0; s < 58; s++) {
         const sx = 262 + ((s * 37) % 238);
         const sy = 10 + ((s * 53) % 232);
-        iCtx.fillStyle = (s % 3 === 0) ? 'rgba(24, 30, 28, 0.38)' : 'rgba(112, 120, 114, 0.20)';
+        iCtx.fillStyle = (s % 3 === 0) ? 'rgba(20, 26, 22, 0.46)' : 'rgba(112, 120, 114, 0.22)';
         iCtx.fillRect(sx, sy, 14 + (s % 18), 4 + (s % 9));
-        ibCtx.fillStyle = (s % 2 === 0) ? '#505050' : '#a8a8a8';
-        ibCtx.fillRect(sx, sy, 12, 4);
+        ibCtx.fillStyle = (s % 2 === 0) ? '#424242' : '#adadad';
+        ibCtx.fillRect(sx, sy, 12, 5);
       }
-      const dampGrad = iCtx.createLinearGradient(256, 165, 256, 256);
-      dampGrad.addColorStop(0, 'rgba(16, 22, 18, 0.0)');
-      dampGrad.addColorStop(1, 'rgba(10, 15, 12, 0.72)');
+      // Dark mold clusters in top/bottom corners + darker lower third
+      [ [268, 18, 34], [498, 22, 38], [268, 238, 44], [498, 238, 44] ].forEach(([mx, my, mr]) => {
+        const mG = iCtx.createRadialGradient(mx, my, 2, mx, my, mr);
+        mG.addColorStop(0, 'rgba(8, 14, 10, 0.78)');
+        mG.addColorStop(1, 'rgba(8, 14, 10, 0.0)');
+        iCtx.fillStyle = mG;
+        iCtx.fillRect(256, 0, 256, 256);
+      });
+      const dampGrad = iCtx.createLinearGradient(256, 150, 256, 256);
+      dampGrad.addColorStop(0, 'rgba(14, 20, 16, 0.0)');
+      dampGrad.addColorStop(0.35, 'rgba(10, 15, 12, 0.45)');
+      dampGrad.addColorStop(1, 'rgba(6, 10, 8, 0.84)');
       iCtx.fillStyle = dampGrad;
-      iCtx.fillRect(256, 165, 256, 91);
+      iCtx.fillRect(256, 150, 256, 106);
 
-      // 3. Tile (512,0,256,256): Cracked Institutional Terrazzo & Liminal Carpet-Tile Floor
-      iCtx.fillStyle = '#3d454c';
+      // 3. Tile (512,0,256,256): Dirty Concrete/Terrazzo Tile Floor with Stains, Scuffs & Cracks
+      iCtx.fillStyle = '#384047';
       iCtx.fillRect(512, 0, 256, 256);
       ibCtx.fillStyle = '#909090';
       ibCtx.fillRect(512, 0, 256, 256);
       for (let ty = 0; ty < 256; ty += 64) {
         for (let tx = 512; tx < 768; tx += 64) {
           const alt = ((tx / 64) + (ty / 64)) % 2 === 0;
-          iCtx.fillStyle = alt ? '#4d565e' : '#434b53';
+          iCtx.fillStyle = alt ? '#475058' : '#3d454d';
           iCtx.fillRect(tx + 2, ty + 2, 60, 60);
           ibCtx.fillStyle = '#b8b8b8';
           ibCtx.fillRect(tx + 2, ty + 2, 60, 60);
         }
       }
-      iCtx.strokeStyle = 'rgba(12, 16, 20, 0.82)';
+      // Dark water/oil stains & heel scuff marks
+      [[576, 84, 38], [692, 178, 44], [612, 212, 28]].forEach(([fx, fy, fr]) => {
+        const stG = iCtx.createRadialGradient(fx, fy, 4, fx, fy, fr);
+        stG.addColorStop(0, 'rgba(12, 16, 18, 0.56)');
+        stG.addColorStop(1, 'rgba(12, 16, 18, 0.0)');
+        iCtx.fillStyle = stG;
+        iCtx.fillRect(512, 0, 256, 256);
+      });
+      iCtx.strokeStyle = 'rgba(10, 14, 18, 0.85)';
       iCtx.lineWidth = 2;
       ibCtx.strokeStyle = '#181818';
       ibCtx.lineWidth = 2.5;
@@ -7989,28 +8302,30 @@ export function getHideAndSeekHtml(): string {
         ibCtx.fillRect(rx, ry, 10, 8);
       }
 
-      // 5. Tile (0,256,256,256): Dusty Glass with Cracks (top half) + Acoustic Drop-Ceiling Grid (bottom half, Ref 1/2/5)
-      iCtx.fillStyle = '#192733';
+      // 5. Tile (0,256,256,256): Dirty Glass with Faint Reflection & Cracked Pane (top) + Stained Ceiling Panels (bottom)
+      iCtx.fillStyle = '#182632';
       iCtx.fillRect(0, 256, 256, 128);
-      const glassGrad = iCtx.createRadialGradient(128, 320, 14, 128, 320, 120);
-      glassGrad.addColorStop(0, 'rgba(44, 64, 78, 0.24)');
-      glassGrad.addColorStop(1, 'rgba(10, 16, 22, 0.88)');
+      const glassGrad = iCtx.createLinearGradient(0, 256, 256, 384);
+      glassGrad.addColorStop(0, 'rgba(24, 38, 50, 0.86)');
+      glassGrad.addColorStop(0.48, 'rgba(110, 146, 174, 0.30)');
+      glassGrad.addColorStop(1, 'rgba(10, 16, 22, 0.90)');
       iCtx.fillStyle = glassGrad;
       iCtx.fillRect(0, 256, 256, 128);
-      iCtx.strokeStyle = 'rgba(168, 184, 196, 0.48)';
-      iCtx.lineWidth = 1.5;
+      iCtx.strokeStyle = 'rgba(182, 202, 216, 0.64)';
+      iCtx.lineWidth = 1.6;
       iCtx.beginPath();
-      iCtx.moveTo(36, 268); iCtx.lineTo(96, 318); iCtx.lineTo(154, 304);
-      iCtx.moveTo(96, 318); iCtx.lineTo(72, 372);
+      iCtx.moveTo(28, 266); iCtx.lineTo(96, 318); iCtx.lineTo(176, 298);
+      iCtx.moveTo(96, 318); iCtx.lineTo(68, 376);
+      iCtx.moveTo(96, 318); iCtx.lineTo(148, 368);
       iCtx.stroke();
-      // Acoustic tile drop-ceiling grid (0,384,256,128) with dark T-bar seams & water stains (Ref 1 & Ref 5)
-      iCtx.fillStyle = '#4e544e';
+      // Acoustic tile drop-ceiling grid (0,384,256,128) with dark T-bar seams & heavy leak stains
+      iCtx.fillStyle = '#4a504a';
       iCtx.fillRect(0, 384, 256, 128);
       ibCtx.fillStyle = '#888888';
       ibCtx.fillRect(0, 384, 256, 128);
       for (let cy = 384; cy < 512; cy += 32) {
         for (let cx = 0; cx < 256; cx += 64) {
-          iCtx.strokeStyle = '#222624';
+          iCtx.strokeStyle = '#202422';
           iCtx.lineWidth = 3;
           iCtx.strokeRect(cx + 1, cy + 1, 62, 30);
           ibCtx.strokeStyle = '#282828';
@@ -8018,60 +8333,99 @@ export function getHideAndSeekHtml(): string {
           ibCtx.strokeRect(cx + 1, cy + 1, 62, 30);
         }
       }
-      iCtx.fillStyle = 'rgba(26, 24, 18, 0.38)';
-      iCtx.beginPath(); iCtx.arc(92, 442, 26, 0, Math.PI * 2); iCtx.fill();
-      iCtx.beginPath(); iCtx.arc(198, 476, 22, 0, Math.PI * 2); iCtx.fill();
+      iCtx.fillStyle = 'rgba(22, 20, 14, 0.48)';
+      iCtx.beginPath(); iCtx.arc(92, 442, 28, 0, Math.PI * 2); iCtx.fill();
+      iCtx.beginPath(); iCtx.arc(198, 476, 24, 0, Math.PI * 2); iCtx.fill();
 
-      // 6. Tile (256,256,512,256): Faded Slate Chalkboard with Equations & University-Safe Eerie Scribbles
-      iCtx.fillStyle = '#15271f';
+      // 6. Tile (256,256,512,256): Green/Black Chalkboard — Left (256..512): Half-Erased Devanagari/English Lecture;
+      //    Right (512..768): Unsettling Scratched / Repeated Text Variant (Non-Graphic)
+      iCtx.fillStyle = '#14261e';
       iCtx.fillRect(256, 256, 512, 256);
       ibCtx.fillStyle = '#686868';
       ibCtx.fillRect(256, 256, 512, 256);
-      for (let c = 0; c < 16; c++) {
-        iCtx.fillStyle = 'rgba(210, 222, 216, 0.06)';
-        iCtx.fillRect(272 + ((c * 61) % 440), 272 + ((c * 43) % 190), 58, 32);
+      for (let c = 0; c < 18; c++) {
+        iCtx.fillStyle = 'rgba(210, 224, 218, 0.08)';
+        iCtx.fillRect(268 + ((c * 57) % 450), 268 + ((c * 41) % 200), 64, 34);
       }
-      iCtx.fillStyle = 'rgba(212, 224, 218, 0.62)';
-      iCtx.font = 'bold 16px Georgia, serif';
-      iCtx.fillText('GANDAKI UNIVERSITY — NIGHT ARCHIVE & MECHANICS', 274, 296);
-      iCtx.font = '14px monospace';
-      iCtx.fillStyle = 'rgba(190, 204, 196, 0.48)';
-      iCtx.fillText('1. Damped Wave:  x(t) = A·e^(-γt)·cos(ωt + φ)', 276, 330);
-      iCtx.fillText('2. Dome Stress:  σ_θ = (p·R)/(2·t)   [CURFEW 22:00]', 276, 358);
-      iCtx.fillStyle = 'rgba(218, 178, 134, 0.72)';
-      iCtx.font = 'bold 14px monospace';
-      iCtx.fillText('>> RESTORE 4 FUSE BOXES TO UNLOCK SOUTH GATE <<', 276, 398);
-      iCtx.fillText('>> DO NOT LOOK UP AT THE SKYLIGHT — HOLD BREATH <<', 276, 428);
-      iCtx.fillStyle = 'rgba(186, 196, 190, 0.36)';
-      iCtx.fillText('...why are the chairs facing the wall?...', 276, 466);
+      // Left Half (256..512): Half-erased Devanagari & English lecture writing
+      iCtx.fillStyle = 'rgba(214, 228, 220, 0.68)';
+      iCtx.font = 'bold 14px Georgia, serif';
+      iCtx.fillText('गण्डकी विश्वविद्यालय — रात्रि कर्फ्यू १०:००', 266, 292);
+      iCtx.font = '12px monospace';
+      iCtx.fillStyle = 'rgba(190, 208, 198, 0.52)';
+      iCtx.fillText('1. Damped Wave: x(t) = A·e^(-γt)cos(ωt)', 266, 324);
+      iCtx.fillText('2. ∂²u/∂t² = c²∇²u   [ROOM LOCKED]', 266, 352);
+      iCtx.fillStyle = 'rgba(218, 184, 142, 0.72)';
+      iCtx.fillText('अन्तिम हाजिरी: कोही बाँकी छैन', 266, 390);
+      iCtx.fillStyle = 'rgba(186, 198, 192, 0.38)';
+      iCtx.fillText('...why is the clock stopped at 10:17?...', 266, 432);
 
-      // 7. Tile (768,256,256,256): Dark Landscape Painting (top) & Safe Eerie Archway Lintel Stencil (bottom, Ref 3)
-      iCtx.fillStyle = '#162028';
-      iCtx.fillRect(768, 256, 256, 128);
-      const skyG = iCtx.createLinearGradient(768, 256, 768, 340);
-      skyG.addColorStop(0, '#1c2d3d');
-      skyG.addColorStop(1, '#4a3b32');
-      iCtx.fillStyle = skyG;
-      iCtx.fillRect(774, 262, 244, 78);
-      iCtx.fillStyle = '#121c18';
-      iCtx.beginPath();
-      iCtx.moveTo(774, 340); iCtx.lineTo(825, 288); iCtx.lineTo(878, 322); iCtx.lineTo(942, 278); iCtx.lineTo(1018, 340);
-      iCtx.closePath(); iCtx.fill();
-      iCtx.fillStyle = '#182830';
-      iCtx.fillRect(774, 340, 244, 38);
-      // Bottom half (768,384,256,128): Weathered plaster lintel with safe red warning (Ref 3)
-      iCtx.fillStyle = '#4e483e';
-      iCtx.fillRect(768, 384, 256, 128);
-      iCtx.strokeStyle = 'rgba(32, 28, 22, 0.55)';
-      iCtx.lineWidth = 2;
-      for (let lx = 768; lx < 1024; lx += 32) {
-        iCtx.strokeRect(lx, 384, 32, 128);
+      // Right Half (512..768): Unsettling Scratched / Repeated Text Board (Non-graphic)
+      iCtx.fillStyle = '#101d17';
+      iCtx.fillRect(512, 256, 256, 256);
+      iCtx.fillStyle = 'rgba(216, 224, 218, 0.58)';
+      iCtx.font = 'bold 12px monospace';
+      for (let ry = 0; ry < 7; ry++) {
+        const yPos = 284 + ry * 30;
+        iCtx.fillText('पछाडि नहेर्नुहोस् • DO NOT TURN AROUND', 518, yPos);
+        ibCtx.fillStyle = '#222222';
+        ibCtx.fillRect(518, yPos - 8, 236, 2);
       }
-      iCtx.fillStyle = 'rgba(128, 28, 24, 0.86)';
-      iCtx.font = 'bold 20px Georgia, serif';
-      iCtx.fillText('CURFEW ENFORCED', 792, 442);
-      iCtx.font = 'bold 16px monospace';
-      iCtx.fillText('DO NOT ENTER AFTER DARK', 782, 474);
+
+      // 7. Tile (768,256,256,256): 4 Sub-Tiles for Classroom Storytelling Props & Window Patch:
+      //    (768,256,128,128): Stopped Clock Face (10:17) + Nepali Notice
+      //    (896,256,128,128): Crossed-Out Attendance Sheet
+      //    (768,384,128,128): Dusty Window Handprint Smudge
+      //    (896,384,128,128): Hard-Edged Window Moonlight Patch with Mullion Shadows
+      iCtx.fillStyle = '#d8d2c5';
+      iCtx.fillRect(768, 256, 128, 128);
+      iCtx.strokeStyle = '#1e2428';
+      iCtx.lineWidth = 4;
+      iCtx.beginPath(); iCtx.arc(832, 320, 52, 0, Math.PI * 2); iCtx.stroke();
+      // Clock hands stopped at 10:17
+      iCtx.lineWidth = 3.5;
+      iCtx.beginPath();
+      iCtx.moveTo(832, 320); iCtx.lineTo(802, 298); // Hour hand -> 10
+      iCtx.moveTo(832, 320); iCtx.lineTo(868, 336); // Minute hand -> 17
+      iCtx.stroke();
+
+      // Crossed-Out Attendance Sheet (896,256,128,128)
+      iCtx.fillStyle = '#c8c2b4';
+      iCtx.fillRect(896, 256, 128, 128);
+      iCtx.fillStyle = '#1b2024';
+      iCtx.font = 'bold 10px monospace';
+      iCtx.fillText('हाजिरी / ATTENDANCE', 902, 274);
+      for (let r = 0; r < 7; r++) {
+        const ry = 288 + r * 13;
+        iCtx.fillStyle = 'rgba(30, 36, 42, 0.55)';
+        iCtx.fillRect(904, ry - 5, 108, 3);
+        // Heavy dark ink cross-out strike across every student name
+        iCtx.strokeStyle = 'rgba(18, 12, 14, 0.94)';
+        iCtx.lineWidth = 2.6;
+        iCtx.beginPath(); iCtx.moveTo(900, ry - 3); iCtx.lineTo(1018, ry - 4); iCtx.stroke();
+      }
+
+      // Dusty Window Handprint Smudge (768,384,128,128)
+      iCtx.fillStyle = 'rgba(14, 22, 30, 0.15)';
+      iCtx.fillRect(768, 384, 128, 128);
+      const palmG = iCtx.createRadialGradient(832, 456, 4, 832, 456, 28);
+      palmG.addColorStop(0, 'rgba(196, 212, 224, 0.52)');
+      palmG.addColorStop(1, 'rgba(196, 212, 224, 0.0)');
+      iCtx.fillStyle = palmG;
+      iCtx.beginPath(); iCtx.arc(832, 456, 28, 0, Math.PI * 2); iCtx.fill();
+      [[-18, -32], [-7, -38], [5, -36], [16, -28], [-26, -12]].forEach(([fx, fy]) => {
+        iCtx.fillStyle = 'rgba(196, 212, 224, 0.44)';
+        iCtx.beginPath(); iCtx.ellipse(832 + fx, 456 + fy, 4.5, 12, fx * 0.02, 0, Math.PI * 2); iCtx.fill();
+      });
+
+      // Hard-Edged Window Moonlight Patch with Mullion Crossbar Shadows (896,384,128,128)
+      iCtx.fillStyle = '#04080e';
+      iCtx.fillRect(896, 384, 128, 128);
+      iCtx.fillStyle = '#9ecdf5';
+      iCtx.fillRect(906, 394, 108, 108);
+      iCtx.fillStyle = '#050a12';
+      iCtx.fillRect(956, 394, 8, 108); // Vertical window frame mullion shadow
+      iCtx.fillRect(906, 444, 108, 8); // Horizontal window frame crossbar shadow
     }
 
     const interiorSurfaceAtlasTex = new THREE.CanvasTexture(interiorAtlasCanvas);
@@ -8176,10 +8530,84 @@ export function getHideAndSeekHtml(): string {
       vineGreen: new THREE.MeshStandardMaterial({ color: 0x1c2b20, roughness: 0.84, side: THREE.DoubleSide }),
       terrazzoInlayGold: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x786238, roughness: 0.34, metalness: 0.36 }),
       terrazzoInlayDark: new THREE.MeshStandardMaterial({ map: interiorSurfaceAtlasTex, color: 0x1b222b, roughness: 0.30, metalness: 0.24 }),
-      wallStainDecal: new THREE.MeshBasicMaterial({ map: softContactShadowTex, color: 0x05080c, transparent: true, opacity: 0.64, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
+      wallStainDecal: new THREE.MeshBasicMaterial({ map: softContactShadowTex, color: 0x05080c, transparent: true, opacity: 0.72, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
       cobwebMat: new THREE.MeshBasicMaterial({ color: 0x7c868f, transparent: true, opacity: 0.26, side: THREE.DoubleSide, depthWrite: false }),
-      moonlightShaftMat: new THREE.MeshBasicMaterial({ map: windowLightShaftTex, color: 0x8cc2f5, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }),
+      moonlightShaftMat: new THREE.MeshBasicMaterial({ map: windowLightShaftTex, color: 0x8cc2f5, transparent: true, opacity: (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.shaftStrength && HORROR_CONFIG.classroom.shaftStrength.coneOpacity) || 0.16, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }),
       corridorMistMat: new THREE.MeshBasicMaterial({ map: corridorFogTex, color: 0x5c768f, transparent: true, opacity: 0.14, depthWrite: false }),
+      floorWetSheenMat: new THREE.MeshStandardMaterial({
+        map: interiorSurfaceAtlasTex,
+        color: 0x1a2836,
+        emissive: 0x162838,
+        emissiveIntensity: 0.32,
+        roughness: (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.decayAmount && HORROR_CONFIG.classroom.decayAmount.floorWetRoughness) || 0.14,
+        metalness: 0.78,
+        transparent: true,
+        opacity: (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.decayAmount && HORROR_CONFIG.classroom.decayAmount.floorWetSheenOpacity) || 0.24,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+      }),
+      steadyDimTubeMat: new THREE.MeshStandardMaterial({
+        color: 0xc8f4e8,
+        emissive: (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.tubeStates && HORROR_CONFIG.classroom.tubeStates.steadyDimColor) || 0x9ce8d6,
+        emissiveIntensity: (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.tubeStates && HORROR_CONFIG.classroom.tubeStates.steadyDimIntensity) || 0.38,
+        roughness: 0.25,
+      }),
+      exitSignRedMat: new THREE.MeshStandardMaterial({
+        color: 0xfca5a5,
+        emissive: 0xdc2626,
+        emissiveIntensity: 1.15,
+        roughness: 0.24,
+      }),
+      handprintSmudgeMat: new THREE.MeshBasicMaterial({
+        map: interiorSurfaceAtlasTex,
+        color: 0xcbd5e1,
+        transparent: true,
+        opacity: 0.46,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+      }),
+      windowHardPatchMat: new THREE.MeshBasicMaterial({
+        map: interiorSurfaceAtlasTex,
+        color: 0x92c5f8,
+        transparent: true,
+        opacity: (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.shaftStrength && HORROR_CONFIG.classroom.shaftStrength.floorPatchOpacity) || 0.28,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+      flutterPaperMat: new THREE.MeshStandardMaterial({
+        map: interiorSurfaceAtlasTex,
+        color: 0x9aa4ae,
+        roughness: 0.86,
+        side: THREE.DoubleSide,
+      }),
+      swayingCableMat: new THREE.MeshStandardMaterial({
+        color: 0x14181f,
+        roughness: 0.62,
+      }),
+    };
+    step2Mats.flutterPaperMat.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = prayerFlagUniforms.uTime;
+      shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\n' +
+        'float pWave = sin(uTime * 2.8 + position.x * 14.0 + position.z * 11.0) * 0.008 * max(0.0, position.x + 0.12);\n' +
+        'transformed.y += pWave;'
+      );
+    };
+    step2Mats.swayingCableMat.onBeforeCompile = (shader) => {
+      shader.uniforms.uTime = prayerFlagUniforms.uTime;
+      shader.vertexShader = 'uniform float uTime;\n' + shader.vertexShader;
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        '#include <begin_vertex>\n' +
+        'float cSway = sin(uTime * 1.9 + position.y * 4.2) * 0.018 * max(0.0, 0.35 - position.y);\n' +
+        'transformed.x += cSway;'
+      );
     };
 
     // Helper: Build Low-Triangle Beveled/Constructed Composite BufferGeometry
@@ -8777,12 +9205,13 @@ export function getHideAndSeekHtml(): string {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
+    const sharedWindowFramePatchGeo = remapInteriorAtlasUVs(new THREE.PlaneGeometry(1.0, 1.0), 896, 384, 128, 128);
     function buildWindowLightShaftWithDust(parent, wx, wy, wz, inDirX, inDirZ, length = 3.8, width = 1.55) {
       const shaftGrp = new THREE.Group();
       shaftGrp.userData.noMerge = true;
       shaftGrp.position.set(wx, wy, wz);
 
-      // Requirement 5: Moonlight through windows as a visible volumetric shaft (additive cone mesh with soft alpha)
+      // 1. Cold moonlight through windows as hard-edged volumetric shaft
       const coneMesh = new THREE.Mesh(sharedMoonShaftConeGeo, step2Mats.moonlightShaftMat);
       coneMesh.position.set(inDirX * (length * 0.42), -length * 0.34, inDirZ * (length * 0.42));
       if (Math.abs(inDirX) > 0.5) {
@@ -8794,7 +9223,7 @@ export function getHideAndSeekHtml(): string {
       coneMesh.userData.noMerge = true;
       shaftGrp.add(coneMesh);
 
-      // Slanted Venetian-blind ray plane inside the cone for crisp blind-slat light streaks (Ref 4 & Ref 5)
+      // 2. Hard-edged slanted moonlight ray blade inside the shaft
       const sGeo = new THREE.PlaneGeometry(width, length);
       const shaft1 = new THREE.Mesh(sGeo, materials.windowMoonShaftMat);
       shaft1.position.set(inDirX * (length * 0.38), -length * 0.32, inDirZ * (length * 0.38));
@@ -8808,15 +9237,23 @@ export function getHideAndSeekHtml(): string {
       shaft1.userData.noMerge = true;
       shaftGrp.add(shaft1);
 
-      // Projected window-frame & Venetian-blind slat moonlight patch on the floor where the shaft lands
-      const gobo = new THREE.Mesh(aoSharedPlaneGeo, materials.moonFloorGoboMat);
+      // 3. Hard-edged window-shaped light patch with window-frame mullion shadows on the FLOOR
+      const gobo = new THREE.Mesh(sharedWindowFramePatchGeo, step2Mats.windowHardPatchMat);
       gobo.rotation.x = -Math.PI / 2;
-      gobo.position.set(inDirX * (length * 0.66), -wy + 0.024, inDirZ * (length * 0.66));
-      gobo.scale.set(width * 1.35, width * 1.65, 1.0);
+      gobo.position.set(inDirX * (length * 0.64), -wy + 0.024, inDirZ * (length * 0.64));
+      gobo.scale.set(width * 1.28, width * 1.52, 1.0);
       gobo.userData.noMerge = true;
       shaftGrp.add(gobo);
 
-      // Floating dust motes suspended inside the window light shaft
+      // 4. Hard-edged window-shaped light patch with window-frame shadows landing on nearby DESK TOPS (y = 0.76m)
+      const deskGobo = new THREE.Mesh(sharedWindowFramePatchGeo, step2Mats.windowHardPatchMat);
+      deskGobo.rotation.x = -Math.PI / 2;
+      deskGobo.position.set(inDirX * (length * 0.38), -wy + 0.765, inDirZ * (length * 0.38));
+      deskGobo.scale.set(width * 0.92, width * 1.05, 1.0);
+      deskGobo.userData.noMerge = true;
+      shaftGrp.add(deskGobo);
+
+      // 5. Floating dust motes suspended inside the window light shaft
       const dCount = 14;
       const dGeo = new THREE.BufferGeometry();
       const dPos = new Float32Array(dCount * 3);
@@ -8840,10 +9277,11 @@ export function getHideAndSeekHtml(): string {
       shaftGrp.add(dPoints);
       roomBeamDustSystems.push({ points: dPoints, geo: dGeo, pos: dPos, meta: dMeta, roomGroup: parent });
       shaftGrp.userData.goboMesh = gobo;
+      shaftGrp.userData.deskGoboMesh = deskGobo;
       shaftGrp.userData.dustPoints = dPoints;
       shaftGrp.userData.coneMesh = coneMesh;
       shaftGrp.userData.rayMesh = shaft1;
-      roomShaftGroups.push({ group: shaftGrp, roomGroup: parent, gobo, dPoints, coneMesh, shaft1 });
+      roomShaftGroups.push({ group: shaftGrp, roomGroup: parent, gobo, deskGobo, dPoints, coneMesh, shaft1 });
 
       parent.add(shaftGrp);
       return shaftGrp;
@@ -9039,9 +9477,199 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
+    const classroomBoardNormalGeo = remapInteriorAtlasUVs(sharedGeos.whiteboard.clone(), 256, 256, 256, 256);
+    const classroomBoardUnsettlingGeo = remapInteriorAtlasUVs(sharedGeos.whiteboard.clone(), 512, 256, 256, 256);
+    const stoppedClockFaceGeo = remapInteriorAtlasUVs(new THREE.CylinderGeometry(0.18, 0.18, 0.032, 12), 768, 256, 128, 128);
+    const crossedAttendanceGeo = remapInteriorAtlasUVs(new THREE.BoxGeometry(0.28, 0.008, 0.36), 896, 256, 128, 128);
+    const windowHandprintDecalGeo = remapInteriorAtlasUVs(new THREE.PlaneGeometry(0.46, 0.52), 768, 384, 128, 128);
+    const crackedWindowPaneGeo = remapInteriorAtlasUVs(new THREE.PlaneGeometry(1.52, 1.24), 0, 256, 256, 128);
+    const wetFloorSheenGeo = remapInteriorAtlasUVs(new THREE.PlaneGeometry(2.6, 1.5), 512, 0, 256, 256);
+    const saggingCeilingTileGeo = remapInteriorAtlasUVs(new THREE.BoxGeometry(0.84, 0.028, 0.84), 0, 384, 256, 128);
+    const hangingCableGeo = new THREE.CylinderGeometry(0.010, 0.010, 0.72, 6, 6);
+    const tubeStripGeo = new THREE.BoxGeometry(1.36, 0.042, 0.16);
+    tubeStripGeo.userData.instancedCategory = 'tube';
+    const animatedClassroomFans = [];
+    const classroomDoorMistPlanes = [];
+    const classroomCobwebMeshes = [];
+
+    // Shared Classroom Horror Layer (called by both wing classrooms and Rotunda classrooms — zero copy-paste per room)
+    function addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, roomW, roomD, windowSideSignX, roomSeed) {
+      const cCfg = (HORROR_CONFIG && HORROR_CONFIG.classroom) || {};
+      const decayCfg = cCfg.decayAmount || {};
+      const propCfg = cCfg.propDensity || {};
+      const hw = roomW * 0.5;
+      const hd = roomD * 0.5;
+      const boardZ = facingDirZ * -(hd - 0.95);
+
+      // 1. MATERIALS & DECAY: Wet floor sheen patch near window wall + dark corner mold decals + ceiling water stains
+      const wetPatch = new THREE.Mesh(wetFloorSheenGeo, step2Mats.floorWetSheenMat);
+      wetPatch.rotation.x = -Math.PI / 2;
+      wetPatch.position.set(windowSideSignX * (hw - 1.15), 0.019, -0.55);
+      cGroup.add(wetPatch);
+
+      // One sagging ceiling panel hanging down at an angle + dark cavity above it
+      const sagX = (roomSeed % 2 === 0 ? -1 : 1) * (hw * 0.36);
+      const sagZ = facingDirZ * 0.55;
+      const cavityMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.86), materials.aoUnderDeskDecal);
+      cavityMesh.rotation.x = Math.PI / 2;
+      cavityMesh.position.set(sagX, 3.35, sagZ);
+      cGroup.add(cavityMesh);
+      const sagTile = new THREE.Mesh(saggingCeilingTileGeo, materials.stainedCeilingTiles);
+      sagTile.position.set(sagX, 3.26, sagZ);
+      sagTile.rotation.set(decayCfg.ceilingSagAngleRad || 0.24, 0.12, -0.18);
+      cGroup.add(sagTile);
+
+      // Vertical water stain decals running down from ceiling & dark mold in corners
+      [
+        [windowSideSignX * (hw - 0.04), 2.15, -hd * 0.32, -windowSideSignX * Math.PI / 2],
+        [-windowSideSignX * (hw - 0.04), 2.05, hd * 0.28, windowSideSignX * Math.PI / 2],
+      ].forEach(([sx, sy, sz, sry]) => {
+        const st = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.95), step2Mats.wallStainDecal);
+        st.position.set(sx, sy, sz);
+        st.rotation.y = sry;
+        cGroup.add(st);
+      });
+
+      // One cracked window pane overlay on the window wall
+      const crackMesh = new THREE.Mesh(crackedWindowPaneGeo, materials.windowGlass);
+      crackMesh.position.set(windowSideSignX * (hw - 0.05), 1.92, -hd * 0.22);
+      crackMesh.rotation.y = -windowSideSignX * Math.PI / 2;
+      cGroup.add(crackMesh);
+
+      // 2. STORYTELLING PROPS (instanced/shared geometry): Stopped wall clock (10:17), spilled water bottle + puddle, abandoned bag, overturned chairs
+      const clockMesh = new THREE.Mesh(stoppedClockFaceGeo, materials.whiteboardSurface);
+      clockMesh.rotation.x = Math.PI / 2;
+      clockMesh.position.set(0.55, 2.74, boardZ + facingDirZ * 0.03);
+      cGroup.add(clockMesh);
+
+      // Hanging broken projector/speaker cable with GPU vertex-shader draft sway (zero CPU loop)
+      const cableMesh = new THREE.Mesh(hangingCableGeo, step2Mats.swayingCableMat);
+      cableMesh.position.set(-1.45, 3.02, boardZ + facingDirZ * 0.42);
+      cableMesh.userData.noMerge = true;
+      cGroup.add(cableMesh);
+
+      // Loose papers on floor & front desk with GPU vertex-shader air movement
+      [ [-0.85, 0.016, 0.15, 0.42], [1.15, 0.016, -1.05, -0.58], [0.42, 0.855, facingDirZ * -2.05, 0.24] ].forEach(([px, py, pz, ry]) => {
+        const flPaper = new THREE.Mesh(clutterPaperGeo, step2Mats.flutterPaperMat);
+        flPaper.position.set(px, py, pz);
+        flPaper.rotation.y = ry;
+        flPaper.userData.noMerge = true;
+        cGroup.add(flPaper);
+      });
+
+      // Spilled water bottle on floor with dark wet puddle underneath
+      const spillX = -1.18, spillZ = facingDirZ * 1.38;
+      const spillBottle = new THREE.Mesh(clutterBottleGeo, step2Mats.bottleClearPlastic);
+      spillBottle.position.set(spillX, 0.038, spillZ);
+      spillBottle.rotation.set(Math.PI / 2, 0.95, 0);
+      cGroup.add(spillBottle);
+      const spillPuddle = new THREE.Mesh(aoSharedPlaneGeo, step2Mats.floorWetSheenMat);
+      spillPuddle.rotation.x = -Math.PI / 2;
+      spillPuddle.position.set(spillX + 0.14, 0.018, spillZ + 0.08);
+      spillPuddle.scale.set(0.62, 0.48, 1);
+      cGroup.add(spillPuddle);
+
+      // Second overturned chair & abandoned student bag on floor (non-blocking)
+      const ovChair = new THREE.Mesh(fallenChairGeo, materials.chairWood);
+      ovChair.position.set(windowSideSignX * (hw - 0.82), 0.22, facingDirZ * 2.45);
+      ovChair.rotation.set(Math.PI / 2, -0.68, 0.14);
+      cGroup.add(ovChair);
+      const abBag = new THREE.Mesh(step2Geos.backpack, step2Mats.bagOlive);
+      abBag.position.set(-windowSideSignX * 1.25, 0.19, facingDirZ * -1.42);
+      abBag.rotation.set(0.32, 0.85, -0.45);
+      cGroup.add(abBag);
+
+      // One desk dragged near the door wall (has furniture collider, leaves doorway entry >= 1.25m clear!)
+      if (propCfg.draggedDeskNearDoor !== false && roomW <= 9.0) {
+        const dragX = -windowSideSignX * (hw - 1.05);
+        const dragZ = facingDirZ * (hd - 1.18);
+        const dragDesk = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
+        dragDesk.position.set(dragX, 0.74, dragZ);
+        dragDesk.rotation.y = 0.38;
+        cGroup.add(dragDesk);
+        const dragLegL = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
+        dragLegL.position.set(dragX - 0.48, 0.36, dragZ - 0.18);
+        dragLegL.rotation.y = 0.38;
+        cGroup.add(dragLegL);
+        const dragLegR = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
+        dragLegR.position.set(dragX + 0.48, 0.36, dragZ + 0.18);
+        dragLegR.rotation.y = 0.38;
+        cGroup.add(dragLegR);
+        addUnderFurnitureAO(cGroup, dragX, dragZ, 1.38, 0.88, 0.38);
+        addColliderBox(new THREE.Box3(
+          new THREE.Vector3(unitCenterX + dragX - 0.56, floorY, unitCenterZ + dragZ - 0.36),
+          new THREE.Vector3(unitCenterX + dragX + 0.56, floorY + 0.78, unitCenterZ + dragZ + 0.36)
+        ), 'furniture');
+      }
+
+      // Corner cobwebs near ceiling (culled on FAST)
+      [
+        [-hw + 0.34, 3.16, -hd + 0.34,  0.78],
+        [ hw - 0.34, 3.16, -hd + 0.34, -0.78],
+        [ hw - 0.34, 3.16,  hd - 0.34, -2.35],
+      ].forEach(([cx, cy, cz, cry]) => {
+        const web = new THREE.Mesh(new THREE.PlaneGeometry(0.76, 0.58), step2Mats.cobwebMat);
+        web.position.set(cx, cy, cz);
+        web.rotation.set(0.30, cry, 0);
+        web.userData.noMerge = true;
+        cGroup.add(web);
+        classroomCobwebMeshes.push({ mesh: web, roomGroup: cGroup });
+      });
+
+      // 3. ONE DETERMINISTIC "WRONG" DETAIL PER CLASSROOM (Rewards looking closely; Representative Room gets all/signature set)
+      const isRepRoom = (roomDef && roomDef.id === (cCfg.representativeRoomId || 'West Wing L1 Room 1'));
+      const wrongIdx = Math.abs(Math.round(roomSeed)) % 4;
+      if (isRepRoom || wrongIdx === 0) {
+        // (a) Single chair in the dark corner facing directly into the wall
+        const wChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
+        const wcX = windowSideSignX * (hw - 0.62);
+        const wcZ = facingDirZ * -(hd - 0.72);
+        wChair.position.set(wcX, 0.45, wcZ);
+        wChair.rotation.y = windowSideSignX > 0 ? Math.PI * 0.25 : -Math.PI * 0.25;
+        cGroup.add(wChair);
+        addUnderFurnitureAO(cGroup, wcX, wcZ, 0.62, 0.62);
+      }
+      if (isRepRoom || wrongIdx === 1) {
+        // (b) Attendance sheet on teacher desk with all student names crossed out
+        const attSheet = new THREE.Mesh(crossedAttendanceGeo, materials.whiteboardSurface);
+        attSheet.position.set(0.12, 0.858, facingDirZ * -2.06);
+        attSheet.rotation.y = -0.16;
+        cGroup.add(attSheet);
+      }
+      if (isRepRoom || wrongIdx === 2) {
+        // (c) Dusty handprint smudge pressed against the inside of the window glass
+        const smudge = new THREE.Mesh(windowHandprintDecalGeo, step2Mats.handprintSmudgeMat);
+        smudge.position.set(windowSideSignX * (hw - 0.06), 1.68, hd * 0.18);
+        smudge.rotation.y = -windowSideSignX * Math.PI / 2;
+        cGroup.add(smudge);
+      }
+      if (wrongIdx === 3 && roomDef) {
+        // (d) Mark room door as slightly ajar (0.18 rad crack)
+        roomDef.wrongDetail = 'door_slightly_open';
+      }
+
+      // 4. ULTRA-ONLY Low Ground Mist Near the Classroom Doorway Threshold
+      const doorMistCount = (cCfg.mistAmount && cCfg.mistAmount.doorMistPlanes) || 2;
+      for (let m = 0; m < doorMistCount; m++) {
+        const mistPlane = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.8), step2Mats.corridorMistMat);
+        mistPlane.rotation.x = -Math.PI / 2;
+        mistPlane.position.set(-windowSideSignX * (hw - 1.35) + m * 0.55, 0.11 + m * 0.05, facingDirZ * (hd * 0.25));
+        mistPlane.userData.noMerge = true;
+        cGroup.add(mistPlane);
+        classroomDoorMistPlanes.push({
+          mesh: mistPlane,
+          roomGroup: cGroup,
+          baseX: mistPlane.position.x,
+          baseZ: mistPlane.position.z,
+          phase: roomSeed + m * 1.9,
+        });
+      }
+    }
+
     // Helper: Standard / Seminar Classroom Interior
     function buildDetailedClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false, layoutVariant = 0) {
-      // 1. Teaching Wall Dado Band + Raised Dais Platform + Whiteboard & Chalkboard
+      const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
+      // 1. Teaching Wall Dado Band + Raised Dais Platform + Whiteboard & Chalkboard (with Devanagari/English & Unsettling Repeated Text)
       const boardZ = facingDirZ * -3.1;
       const dadoBand = new THREE.Mesh(
         new THREE.BoxGeometry(6.8, 1.02, 0.04),
@@ -9055,23 +9683,30 @@ export function getHideAndSeekHtml(): string {
       cGroup.add(dais);
       addUnderFurnitureAO(cGroup, 0, boardZ + facingDirZ * 0.82, 5.85, 1.65);
 
-      const wbMesh = new THREE.Mesh(sharedGeos.whiteboard, materials.whiteboardSurface);
+      const wbMesh = new THREE.Mesh(classroomBoardNormalGeo, materials.blackboardGreen);
       wbMesh.position.set(-1.1, 1.85, boardZ);
       cGroup.add(wbMesh);
 
-      const bbMesh = new THREE.Mesh(sharedGeos.whiteboard, materials.blackboardGreen);
+      const useUnsettlingBoard = (roomSeed % 2 === 1) || (unitTitle === 'West Wing L1 Room 1');
+      const bbMesh = new THREE.Mesh(useUnsettlingBoard ? classroomBoardUnsettlingGeo : classroomBoardNormalGeo, materials.blackboardGreen);
       bbMesh.position.set(2.2, 1.85, boardZ);
       cGroup.add(bbMesh);
 
-      // Rear Wall Notice Board with pinned notes
+      // Tilted Rear Wall Notice Board with Nepali Notices
       const rearNotice = new THREE.Mesh(step2Geos.noticeBoard, materials.chairWood);
-      rearNotice.rotation.y = Math.PI / 2;
+      rearNotice.rotation.set(0.085, Math.PI / 2, 0.04);
       rearNotice.position.set(0, 1.75, facingDirZ * 3.15);
       cGroup.add(rearNotice);
       const rearCork = new THREE.Mesh(step2Geos.noticeCork, step2Mats.corkBoard);
-      rearCork.rotation.y = Math.PI / 2;
+      rearCork.rotation.set(0.085, Math.PI / 2, 0.04);
       rearCork.position.set(0, 1.75, facingDirZ * 3.12);
       cGroup.add(rearCork);
+      [-0.42, 0.05, 0.46].forEach((nx, nIdx) => {
+        const nSheet = new THREE.Mesh(step2Geos.noticeNote, step2Mats.paperSheet);
+        nSheet.position.set(nx, 1.76 + (nIdx - 1) * 0.06, facingDirZ * 3.09);
+        nSheet.rotation.set(0, Math.PI / 2, (nIdx - 1) * 0.14);
+        cGroup.add(nSheet);
+      });
 
       // Side Wall Wooden Bookshelf + Upper Wall Shelves with Books + Simplified Box Collider + Under-Bookcase AO
       const bookcase = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.95, 2.1), materials.chairWood);
@@ -9143,7 +9778,6 @@ export function getHideAndSeekHtml(): string {
         : [facingDirZ * -0.45, facingDirZ * 0.85, facingDirZ * 2.10];
       const colOffsetsX = [-2.35, 0.0, 2.35];
       const bagMats = [step2Mats.bagNavy, step2Mats.bagOlive, step2Mats.bagMaroon];
-      const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
 
       rowOffsetsZ.forEach((rz, rIdx) => {
         colOffsetsX.forEach((cx, cIdx) => {
@@ -9720,7 +10354,7 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-l1-r2-door', x: -10.6, y: 0.18, z: -18.0, kind: 'door' }, { id: 'wp-l1-r2-in', x: -6.5, y: 0.18, z: -18.6, kind: 'interior' }],
       },
       'West Wing L1 Room 3': {
-        id: 'West Wing L1 Room 3', building: 'L1', archetype: 'classroom_standard', lightMood: 'dark',
+        id: 'West Wing L1 Room 3', building: 'L1', archetype: 'classroom_standard', lightMood: 'emergency_red',
         bounds: { minX: -10.3, maxX: -2.7, minZ: -13.0, maxZ: -3.0, floorY: 0.18, ceilingY: 3.56 },
         furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf', 'wall_shelves', 'ceiling_fan'],
         hidingSpots: ['podium', 'student_desks'],
@@ -9867,7 +10501,7 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-w3-r2-door', x: -31.63, y: 0.22, z: 5.4, kind: 'door' }, { id: 'wp-w3-r2-in', x: -31.63, y: 0.22, z: -2.0, kind: 'interior' }],
       },
       'Building W4 West Wing Room 1': {
-        id: 'Building W4 West Wing Room 1', building: 'W4', archetype: 'classroom_standard', lightMood: 'moonlight',
+        id: 'Building W4 West Wing Room 1', building: 'W4', archetype: 'classroom_standard', lightMood: 'dying_tube',
         bounds: { minX: -38.75, maxX: -34.0, minZ: 11.0, maxZ: 25.0, floorY: 0.22, ceilingY: 3.60 },
         furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'side_bookshelf'],
         hidingSpots: ['podium', 'student_desks'],
@@ -9963,13 +10597,14 @@ export function getHideAndSeekHtml(): string {
       return def;
     }
 
-    // Requirement 5 & Phase A Light Budget: Zero extra PointLights created here!
-    // Indoor rooms claim 1 pooled light from lampFlickerMod.lightPool (strictly <= 3 pooled lights total)
-    // ONLY when the player is inside the room!
+    // Requirement 1 & 5: Dying fluorescent tubes (1 steady-dim, 1 stuttering, 1 dead) + cool-green/white desk & floor spill
+    // + hard-edged window moonlight shafts + at most 1 warm accent per room + zero new real PointLights!
     function applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, roomW = 6.8, roomD = 8.2, windowSideSignX = 1) {
       const softRadialGlowTex = (typeof atmosphere !== 'undefined' && atmosphere && atmosphere.lampGlowTexture) || null;
-      const mood = normalizeRoomLightMood(roomDef && roomDef.lightMood);
-      roomDef.lightMood = mood;
+      const cCfg = (HORROR_CONFIG && HORROR_CONFIG.classroom) || {};
+      const configuredMood = (cCfg.moods && roomDef && cCfg.moods[roomDef.id]) || (roomDef && roomDef.lightMood);
+      const mood = normalizeRoomLightMood(configuredMood);
+      if (roomDef) roomDef.lightMood = mood;
       const moodsCfg = HORROR_CONFIG.roomLightMoods || {};
       const mCfg = moodsCfg[mood] || {
         color: 0xb4f0e4,
@@ -9980,115 +10615,83 @@ export function getHideAndSeekHtml(): string {
       const seed = Math.abs(unitCenterX * 1.7 + unitCenterZ * 2.3 + floorY * 3.1);
       const halfW = roomW * 0.5;
       const halfD = roomD * 0.5;
-
-      // 1. Moonlight through windows as a visible volumetric cone shaft + Venetian blind gobo + dust motes
-      // Added to Main Building rooms & moonlit rooms so exterior windows cast eerie shafts into the dark room (Ref 4 & Ref 5)
       const isMainBldg = (roomDef && roomDef.building === 'ROTUNDA');
-      if (mood === 'moonlight' || (isMainBldg && mood !== 'emergency_red')) {
+      const isClassroom = !!(roomDef && (roomDef.archetype === 'classroom_standard' || roomDef.archetype === 'classroom_seminar' || roomDef.archetype === 'rotunda_lecture' || roomDef.archetype === 'rotunda_seminar'));
+
+      // 1. Cold moonlight through windows as hard-edged shafts + floor & desk window patches with mullion shadows
+      if (isClassroom || mood === 'moonlight' || (isMainBldg && mood !== 'emergency_red')) {
         const winX = windowSideSignX * (roomW * 0.46);
         const inDirX = -windowSideSignX;
-        buildWindowLightShaftWithDust(cGroup, winX, 2.05, -roomD * 0.22, inDirX, 0, Math.min(4.6, roomW * 0.60), 1.55);
-        if (mood === 'moonlight') {
-          buildWindowLightShaftWithDust(cGroup, winX, 2.05, roomD * 0.22, inDirX, 0, Math.min(4.6, roomW * 0.60), 1.55);
+        const shaftLen = Math.min(4.6, roomW * 0.62);
+        buildWindowLightShaftWithDust(cGroup, winX, 2.05, -roomD * 0.22, inDirX, 0, shaftLen, 1.55);
+        if (mood === 'moonlight' || isClassroom) {
+          buildWindowLightShaftWithDust(cGroup, winX, 2.05, roomD * 0.22, inDirX, 0, shaftLen, 1.55);
         }
       }
 
-      if (mood === 'dark') {
-        roomMoodFixtures.push({
-          roomId: roomDef.id,
-          mood: 'dark',
-          group: cGroup,
-          worldX: unitCenterX,
-          worldY: floorY + 2.5,
-          worldZ: unitCenterZ,
-          floorY,
-          halfW,
-          halfD,
-          color: mCfg.color || 0x0a1420,
-          baseIntensity: 0.0,
-          distance: 7.0,
-          seed,
-        });
-      } else if (mood === 'dying_tube') {
-        // DYING TUBE MOOD: Stuttering, buzzing fluorescent tube + ceiling/floor light pool (Ref 1, Ref 2, Ref 4)
-        const tubeMat = step2Mats.dyingTubeMat.clone();
-        const liveTube = new THREE.Mesh(new THREE.BoxGeometry(1.38, 0.05, 0.28), tubeMat);
-        liveTube.position.set(roomW * 0.14, isMainBldg ? 2.86 : 3.32, roomD * 0.12);
-        liveTube.userData.noMerge = true;
-        cGroup.add(liveTube);
+      // 2. Classroom 3-Tube Ceiling Array: 1 steady-dim, 1 stuttering (irregular on/off bursts), 1 dead (merged into static room before bake)
+      const tubeY = isMainBldg ? 2.86 : 3.28;
+      const stutterTubeMat = step2Mats.dyingTubeMat.clone();
+      const stutterTube = new THREE.Mesh(tubeStripGeo, stutterTubeMat);
+      stutterTube.position.set(roomW * 0.14, tubeY, roomD * 0.12);
+      stutterTube.userData.noMerge = true;
+      cGroup.add(stutterTube);
 
-        const poolMat = new THREE.MeshBasicMaterial({
-          map: softRadialGlowTex,
-          color: mCfg.color || 0xb4f0e4,
-          transparent: true,
-          opacity: 0.24,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        });
-        const floorPool = new THREE.Mesh(aoSharedPlaneGeo, poolMat);
-        floorPool.rotation.x = -Math.PI / 2;
-        floorPool.position.set(roomW * 0.14, 0.02, roomD * 0.12);
-        floorPool.scale.set(5.2, 5.2, 1.0);
-        floorPool.userData.noMerge = true;
-        cGroup.add(floorPool);
+      const spillCfg = cCfg.tubeSpill || {};
+      const spillColor = (mood === 'emergency_red') ? 0xdc2626 : (spillCfg.color || 0xaef2e2);
+      const floorSpillMat = new THREE.MeshBasicMaterial({
+        map: softRadialGlowTex,
+        color: spillColor,
+        transparent: true,
+        opacity: spillCfg.floorSpillOpacity || 0.16,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const floorSpill = new THREE.Mesh(aoSharedPlaneGeo, floorSpillMat);
+      floorSpill.rotation.x = -Math.PI / 2;
+      floorSpill.position.set(roomW * 0.12, 0.021, roomD * 0.10);
+      floorSpill.scale.set(4.8, 4.8, 1.0);
+      floorSpill.userData.noMerge = true;
+      cGroup.add(floorSpill);
 
-        roomMoodFixtures.push({
-          roomId: roomDef.id,
-          mood: 'dying_tube',
-          group: cGroup,
-          bulbMat: tubeMat,
-          poolMat,
-          worldX: unitCenterX + roomW * 0.14,
-          worldY: floorY + 2.82,
-          worldZ: unitCenterZ + roomD * 0.12,
-          floorY,
-          halfW,
-          halfD,
-          color: mCfg.color || 0xb4f0e4,
-          baseIntensity: mCfg.intensity || 3.6,
-          distance: mCfg.distance || 10.5,
-          seed,
-        });
-      } else if (mood === 'moonlight') {
-        roomMoodFixtures.push({
-          roomId: roomDef.id,
-          mood: 'moonlight',
-          group: cGroup,
-          worldX: unitCenterX + windowSideSignX * (roomW * 0.22),
-          worldY: floorY + 2.15,
-          worldZ: unitCenterZ,
-          floorY,
-          halfW,
-          halfD,
-          color: mCfg.color || 0x84b6e6,
-          baseIntensity: mCfg.intensity || 2.6,
-          distance: mCfg.distance || 11.5,
-          seed,
-        });
-      } else if (mood === 'warm_lamp') {
-        // WARM DESK LAMP MOOD: Isolated warm tungsten banker/desk lamp pool on wooden desk (Ref 4)
-        const lampX = (roomDef.archetype === 'library') ? 1.75 : -2.15;
-        const lampZ = (roomDef.archetype === 'library') ? -1.35 : 4.85;
-        const lampY = 0.88;
+      const deskSpillMat = new THREE.MeshBasicMaterial({
+        map: softRadialGlowTex,
+        color: spillColor,
+        transparent: true,
+        opacity: spillCfg.deskSpillOpacity || 0.13,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const deskSpill = new THREE.Mesh(aoSharedPlaneGeo, deskSpillMat);
+      deskSpill.rotation.x = -Math.PI / 2;
+      deskSpill.position.set(0.0, 0.762, roomD * 0.08);
+      deskSpill.scale.set(3.2, 2.4, 1.0);
+      deskSpill.userData.noMerge = true;
+      cGroup.add(deskSpill);
 
+      // 3. At most ONE warm accent per room (desk lamp in warm_lamp rooms; single doorway hallway glow in others; red exit sign in emergency_red)
+      if (mood === 'warm_lamp') {
+        const lampX = (roomDef && roomDef.archetype === 'library') ? 1.75 : 0.42;
+        const lampZ = (roomDef && roomDef.archetype === 'library') ? -1.35 : -roomD * 0.25;
+        const lampY = 0.86;
         const bulbMat = step2Mats.warmDeskLampBulbMat.clone();
         const shade = new THREE.Mesh(step2Geos.readingLampShade, bulbMat);
-        shade.position.set(lampX, lampY + 0.30, lampZ);
+        shade.position.set(lampX, lampY + 0.28, lampZ);
         shade.userData.noMerge = true;
         cGroup.add(shade);
 
-        const poolMat = new THREE.MeshBasicMaterial({
+        const warmPoolMat = new THREE.MeshBasicMaterial({
           map: softRadialGlowTex,
-          color: mCfg.color || 0xff9838,
+          color: (cCfg.warmAccent && cCfg.warmAccent.deskLampColor) || 0xff9636,
           transparent: true,
-          opacity: 0.32,
+          opacity: (cCfg.warmAccent && cCfg.warmAccent.deskLampOpacity) || 0.28,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         });
-        const deskPool = new THREE.Mesh(aoSharedPlaneGeo, poolMat);
+        const deskPool = new THREE.Mesh(aoSharedPlaneGeo, warmPoolMat);
         deskPool.rotation.x = -Math.PI / 2;
-        deskPool.position.set(lampX, 0.022, lampZ);
-        deskPool.scale.set(4.6, 4.6, 1.0);
+        deskPool.position.set(lampX, 0.023, lampZ);
+        deskPool.scale.set(4.2, 4.2, 1.0);
         deskPool.userData.noMerge = true;
         cGroup.add(deskPool);
 
@@ -10097,7 +10700,10 @@ export function getHideAndSeekHtml(): string {
           mood: 'warm_lamp',
           group: cGroup,
           bulbMat,
-          poolMat,
+          poolMat: warmPoolMat,
+          stutterTubeMat,
+          floorSpillMat,
+          deskSpillMat,
           worldX: unitCenterX + lampX,
           worldY: floorY + lampY + 0.42,
           worldZ: unitCenterZ + lampZ,
@@ -10110,41 +10716,68 @@ export function getHideAndSeekHtml(): string {
           seed,
         });
       } else if (mood === 'emergency_red') {
-        const cageMat = step2Mats.emergencyRedBulbMat.clone();
-        const beaconCage = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.22, 10), cageMat);
-        beaconCage.position.set(0, 3.24, 0);
-        beaconCage.userData.noMerge = true;
-        cGroup.add(beaconCage);
-
-        const poolMat = new THREE.MeshBasicMaterial({
-          map: softRadialGlowTex,
-          color: mCfg.color || 0xff2218,
-          transparent: true,
-          opacity: 0.28,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        });
-        const redPool = new THREE.Mesh(aoSharedPlaneGeo, poolMat);
-        redPool.rotation.x = -Math.PI / 2;
-        redPool.position.set(0, 0.022, 0);
-        redPool.scale.set(5.6, 5.6, 1.0);
-        redPool.userData.noMerge = true;
-        cGroup.add(redPool);
+        // Dim red emergency mood with a visible glowing red EXIT sign above the classroom doorway
+        const redMat = step2Mats.exitSignRedMat.clone();
+        const exitSign = new THREE.Mesh(step2Geos.exitSignBox, redMat);
+        exitSign.position.set(-windowSideSignX * (halfW - 0.14), 2.58, 0.0);
+        exitSign.rotation.y = windowSideSignX * Math.PI / 2;
+        exitSign.userData.noMerge = true;
+        cGroup.add(exitSign);
 
         roomMoodFixtures.push({
           roomId: roomDef.id,
           mood: 'emergency_red',
           group: cGroup,
-          bulbMat: cageMat,
-          poolMat,
-          worldX: unitCenterX,
-          worldY: floorY + 3.05,
+          bulbMat: redMat,
+          poolMat: floorSpillMat,
+          stutterTubeMat,
+          floorSpillMat,
+          deskSpillMat,
+          worldX: unitCenterX - windowSideSignX * (halfW - 0.8),
+          worldY: floorY + 2.55,
           worldZ: unitCenterZ,
           floorY,
           halfW,
           halfD,
-          color: mCfg.color || 0xff2218,
-          baseIntensity: mCfg.intensity || 3.8,
+          color: mCfg.color || 0xdc2626,
+          baseIntensity: 2.35,
+          distance: 8.8,
+          seed,
+        });
+      } else {
+        // Single subtle warm hallway glow spilling through the doorway for cold/warm contrast
+        const doorGlowMat = new THREE.MeshBasicMaterial({
+          map: softRadialGlowTex,
+          color: (cCfg.warmAccent && cCfg.warmAccent.doorwayGlowColor) || 0xff8a2a,
+          transparent: true,
+          opacity: (cCfg.warmAccent && cCfg.warmAccent.doorwayGlowOpacity) || 0.16,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        });
+        const doorGlow = new THREE.Mesh(aoSharedPlaneGeo, doorGlowMat);
+        doorGlow.rotation.x = -Math.PI / 2;
+        doorGlow.position.set(-windowSideSignX * (halfW - 0.85), 0.023, 0.0);
+        doorGlow.scale.set(2.4, 2.8, 1.0);
+        doorGlow.userData.noMerge = true;
+        cGroup.add(doorGlow);
+
+        roomMoodFixtures.push({
+          roomId: roomDef.id,
+          mood,
+          group: cGroup,
+          bulbMat: stutterTubeMat,
+          poolMat: floorSpillMat,
+          stutterTubeMat,
+          floorSpillMat,
+          deskSpillMat,
+          worldX: unitCenterX + (mood === 'moonlight' ? windowSideSignX * (roomW * 0.22) : roomW * 0.14),
+          worldY: floorY + (mood === 'moonlight' ? 2.15 : 2.82),
+          worldZ: unitCenterZ,
+          floorY,
+          halfW,
+          halfD,
+          color: mCfg.color || (mood === 'moonlight' ? 0x84b6e6 : 0xb4f0e4),
+          baseIntensity: mood === 'dark' ? 0.0 : (mCfg.intensity || 3.2),
           distance: mCfg.distance || 10.5,
           seed,
         });
@@ -10181,46 +10814,77 @@ export function getHideAndSeekHtml(): string {
     }
 
     function updateRoomMoodLighting(delta, timeSec, playerPos) {
-      // Requirement 5: Cheap emissive flicker PLUS one pooled light ONLY when the player is inside the room!
       let insideFixture = null;
       const safeFlicker = !!(accessibilitySettings && accessibilitySettings.flickerReduction);
       const calmTube = !!EXPLORE_FLAGS.CALM_DYING_TUBE_FLICKER;
       const steadyRed = !!EXPLORE_FLAGS.STEADY_EMERGENCY_RED;
+      const isFast = (currentQuality === 'fast');
+      const cCfg = (HORROR_CONFIG && HORROR_CONFIG.classroom) || {};
+      const fRates = cCfg.flickerRates || {};
+      const tStates = cCfg.tubeStates || {};
+      const tSpill = cCfg.tubeSpill || {};
+
+      // Animate classroom ceiling fans with 1 bent blade when room is visible
+      for (let f = 0; f < animatedClassroomFans.length; f++) {
+        const fn = animatedClassroomFans[f];
+        if (!fn.roomGroup || !fn.roomGroup.visible) continue;
+        fn.hub.rotation.y = Math.sin(timeSec * (fn.speed || 0.85) + fn.seed) * 0.42;
+      }
+
+      // Animate ULTRA-only doorway ground mist planes when room is visible
+      for (let m = 0; m < classroomDoorMistPlanes.length; m++) {
+        const dm = classroomDoorMistPlanes[m];
+        if (!dm.mesh.visible) continue;
+        dm.mesh.position.x = dm.baseX + Math.sin(timeSec * 0.34 + dm.phase) * 0.22;
+        dm.mesh.position.z = dm.baseZ + Math.cos(timeSec * 0.28 + dm.phase) * 0.18;
+      }
 
       for (let i = 0; i < roomMoodFixtures.length; i++) {
         const rf = roomMoodFixtures[i];
         if (!rf.group || !rf.group.visible) continue;
 
+        // Irregular stuttering fluorescent tube burst math (simplified on FAST)
+        let tubeStutter = 0.22;
+        if (calmTube) {
+          tubeStutter = 0.88 + 0.08 * Math.sin(timeSec * 7.85 + rf.seed);
+        } else if (safeFlicker || isFast) {
+          tubeStutter = 0.72 + 0.18 * Math.sin(timeSec * 9.5 + rf.seed);
+        } else {
+          const w1 = Math.sin(timeSec * ((fRates.stutterBurstHz || 18.5) * 1.1) + rf.seed * 3.1);
+          const w2 = Math.sin(timeSec * 41.0 + rf.seed * 7.4);
+          const burstGate = Math.sin(timeSec * (fRates.stutterBaseHz || 3.1) + rf.seed);
+          const dropout = (burstGate > (fRates.stutterDropoutThreshold || 0.64)) ? 0.04 : 1.0;
+          tubeStutter = (w1 > -0.22 ? (0.72 + 0.28 * w2) : 0.08) * dropout;
+        }
+        if (rf.stutterTubeMat) {
+          const peak = (rf.mood === 'dark') ? 0.32 : (tStates.stutterPeakIntensity || 1.55);
+          rf.stutterTubeMat.emissiveIntensity = Math.max(tStates.stutterMinIntensity || 0.04, peak * tubeStutter);
+        }
+        if (rf.floorSpillMat && rf.mood !== 'emergency_red') {
+          rf.floorSpillMat.opacity = (tSpill.floorSpillOpacity || 0.16) * (0.35 + 0.65 * tubeStutter);
+        }
+        if (rf.deskSpillMat && rf.mood !== 'emergency_red') {
+          rf.deskSpillMat.opacity = (tSpill.deskSpillOpacity || 0.13) * (0.35 + 0.65 * tubeStutter);
+        }
+
         let mult = 1.0;
         if (rf.mood === 'dying_tube') {
-          if (calmTube) {
-            // Explore Mode: gentle slow wave at ~1.25 Hz (7.85 rad/s) with small 0.90..1.00 swing, zero strobing/dropouts
-            mult = 0.95 + 0.05 * Math.sin(timeSec * 7.85 + rf.seed);
-          } else if (safeFlicker) {
-            // Requirement 4 (Light Safety): <= 2 flashes/sec (omega <= 12.56 rad/s) & smaller brightness swing
-            mult = 0.84 + 0.10 * Math.sin(timeSec * 10.2 + rf.seed);
-          } else {
-            const w1 = Math.sin(timeSec * 19.5 + rf.seed * 3.1);
-            const w2 = Math.sin(timeSec * 43.0 + rf.seed * 7.4);
-            const dropout = (Math.sin(timeSec * 2.3 + rf.seed) > 0.72) ? 0.06 : 1.0;
-            mult = (w1 > -0.25 ? (0.75 + 0.25 * w2) : 0.12) * dropout;
-          }
-          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 1.25 * mult;
-          if (rf.poolMat) rf.poolMat.opacity = 0.24 * mult;
+          mult = tubeStutter;
+          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = (tStates.stutterPeakIntensity || 1.55) * mult;
+          if (rf.poolMat) rf.poolMat.opacity = (tSpill.floorSpillOpacity || 0.16) * mult;
         } else if (rf.mood === 'emergency_red') {
-          // Explore Mode: steady red glow with zero pulsing
           const pulse = steadyRed
-            ? 1.0
-            : (safeFlicker
-              ? (0.80 + 0.12 * Math.sin(timeSec * 2.2 + rf.seed))
-              : (0.35 + 0.65 * (0.5 + 0.5 * Math.sin(timeSec * 3.4 + rf.seed))));
+            ? 0.85
+            : (safeFlicker || isFast
+              ? (0.75 + 0.12 * Math.sin(timeSec * 2.2 + rf.seed))
+              : (0.42 + 0.48 * (0.5 + 0.5 * Math.sin(timeSec * 3.1 + rf.seed))));
           mult = pulse;
-          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = (steadyRed ? 1.55 : (safeFlicker ? 1.35 : 1.85)) * pulse;
-          if (rf.poolMat) rf.poolMat.opacity = (steadyRed ? 0.26 : (safeFlicker ? 0.22 : 0.30)) * pulse;
+          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 1.25 * pulse;
+          if (rf.poolMat) rf.poolMat.opacity = 0.18 * pulse;
         } else if (rf.mood === 'warm_lamp') {
           mult = 0.96 + 0.04 * Math.sin(timeSec * 3.2 + rf.seed);
           if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 1.45 * mult;
-          if (rf.poolMat) rf.poolMat.opacity = 0.32 * mult;
+          if (rf.poolMat) rf.poolMat.opacity = 0.28 * mult;
         } else if (rf.mood === 'moonlight') {
           mult = 0.98 + 0.02 * Math.sin(timeSec * 1.1 + rf.seed);
         } else {
@@ -10229,12 +10893,12 @@ export function getHideAndSeekHtml(): string {
         rf.currentMult = mult;
 
         // Check if player is physically inside this room's bounds
-        if (rf.baseIntensity > 0.01 && Math.abs(playerPos.y - rf.floorY) < 2.2) {
+        if (Math.abs(playerPos.y - rf.floorY) < 2.2) {
           const hw = rf.halfW || 7.0;
           const hd = rf.halfD || 6.8;
           if (Math.abs(playerPos.x - rf.worldX) <= hw + 1.5 && Math.abs(playerPos.z - rf.worldZ) <= hd + 1.5) {
-            insideFixture = rf;
-            if (!calmTube && !safeFlicker && rf.mood === 'dying_tube' && mult < 0.20 && Math.random() < 0.03) {
+            if (rf.baseIntensity > 0.01) insideFixture = rf;
+            if (!calmTube && !safeFlicker && tubeStutter < 0.16 && Math.random() < 0.028) {
               soundEngine.playTubeFlickerBuzzSfx();
             }
           }
@@ -10273,8 +10937,15 @@ export function getHideAndSeekHtml(): string {
       const cGroup = new THREE.Group();
       cGroup.position.set(unitCenterX, floorY, unitCenterZ);
       scene.add(cGroup);
+      const roomDef = getOrRegisterRoomDefinition(unitTitle, unitCenterX, unitCenterZ, floorY);
+      const cCfg = (HORROR_CONFIG && HORROR_CONFIG.classroom) || {};
+      if (cCfg.moods && cCfg.moods[unitTitle]) {
+        roomDef.lightMood = cCfg.moods[unitTitle];
+      }
+      const windowSideSignX = unitCenterX < 0 ? -1 : 1;
+      const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
 
-      // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3-Blade Fan
+      // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3 Fluorescent Tube Hoods (1 steady-dim, 1 dead, 1 stuttering added post-bake)
       const ceilPanel = new THREE.Mesh(
         new THREE.BoxGeometry(6.8, 0.06, 8.2),
         isNewariStyle ? materials.carvedSalWood : materials.stainedCeilingTiles
@@ -10282,31 +10953,65 @@ export function getHideAndSeekHtml(): string {
       ceilPanel.position.set(0, 3.38, 0);
       cGroup.add(ceilPanel);
 
-      const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.whiteTrim);
+      [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz], tIdx) => {
+        const hood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
+        hood.position.set(tx, 3.30, tz);
+        cGroup.add(hood);
+        if (tIdx === 0) {
+          // Tube 1: Steady-Dim emissive strip
+          const steadyTube = new THREE.Mesh(tubeStripGeo, step2Mats.steadyDimTubeMat);
+          steadyTube.position.set(tx, 3.27, tz);
+          cGroup.add(steadyTube);
+        } else if (tIdx === 2) {
+          // Tube 3: Dead blackened tube strip
+          const deadTube = new THREE.Mesh(tubeStripGeo, step2Mats.deadTubeMat);
+          deadTube.position.set(tx, 3.27, tz);
+          cGroup.add(deadTube);
+        }
+      });
+
+      // Ceiling Fan with 1 Bent Blade (slowly swaying/ticking when room is visible)
+      const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.deskSteelFrame);
       fanRod.position.set(0, 3.16, -0.4);
       cGroup.add(fanRod);
+      const fanHub = new THREE.Group();
+      fanHub.position.set(0, 2.96, -0.4);
+      fanHub.userData.noMerge = true;
+      const bentAng = (cCfg.propDensity && cCfg.propDensity.ceilingFanBentBladeRad) || 0.28;
       for (let b = 0; b < 3; b++) {
         const ang = (b * Math.PI * 2) / 3;
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.whiteTrim);
-        blade.position.set(Math.sin(ang) * 0.44, 2.96, -0.4 + Math.cos(ang) * 0.44);
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.deskSteelFrame);
+        blade.position.set(Math.sin(ang) * 0.44, b === 0 ? -0.09 : 0.0, Math.cos(ang) * 0.44);
         blade.rotation.y = ang;
-        cGroup.add(blade);
+        if (b === 0) blade.rotation.x = bentAng; // One bent blade drooping downward
+        blade.userData.noMerge = true;
+        fanHub.add(blade);
       }
+      cGroup.add(fanHub);
+      animatedClassroomFans.push({
+        hub: fanHub,
+        roomGroup: cGroup,
+        seed: roomSeed,
+        speed: (cCfg.propDensity && cCfg.propDensity.fanSwaySpeed) || 0.85,
+      });
 
       // 2. Data-Driven Archetype Dispatch via ROOM_DEFINITIONS
-      const roomDef = getOrRegisterRoomDefinition(unitTitle, unitCenterX, unitCenterZ, floorY);
       const builderFn = ROOM_ARCHETYPE_BUILDERS[roomDef.archetype] || ROOM_ARCHETYPE_BUILDERS.classroom_standard;
       builderFn(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, roomDef);
 
-      // 3. Baked Room Corner/Baseboard/Ceiling AO Decals + Small Clutter & Asymmetry (Papers, Bottles, Fallen Chair, Jacket, Posters)
+      // 3. Shared Classroom Horror Decay, Props & Deterministic "Wrong" Detail
+      if (roomDef.archetype === 'classroom_standard' || roomDef.archetype === 'classroom_seminar') {
+        addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, 6.8, 8.2, windowSideSignX, roomSeed);
+      }
+
+      // 4. Deep Dark Corners & Under-Desk Baked AO + Small Clutter & Asymmetry
       addRoomBakedAO(cGroup, 6.8, 8.2, 3.38);
       populateRoomClutterAndAsymmetry(cGroup, 6.6, 7.8, unitCenterX * 3.1 + unitCenterZ * 7.3, false);
 
       cGroup.userData.isRoomGroup = true;
       bakeStaticGroup(cGroup, true);
 
-      // 4. Per-Room Light Mood Fixtures, Window Light Shafts & Dust Motes (added after static merge so animated meshes stay unmerged)
-      const windowSideSignX = unitCenterX < 0 ? -1 : 1;
+      // 5. Per-Room Light Mood Fixtures, Stuttering Tube, Spill Gradients, Window Shafts & Dust Motes
       applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, 6.8, 8.2, windowSideSignX);
 
       cGroup.userData.roomDef = roomDef;
@@ -12385,7 +13090,88 @@ export function getHideAndSeekHtml(): string {
       return materials.rotundaWindowDark || materials.windowGlass;
     }
 
-    // 1. Projecting 2-Story White Pilaster & Window Bay (Fixes 1 & 2: Crisp dark window frames/mullions, zero moire stripes, high-contrast pilasters/cornices!)
+    // Helper: Build 3D Interior Light Fixture, Venetian Blinds & Horror Details inside a Window Reveal
+    function addWindow3DArchitecturalAndLightDetails(parentGroup, winW, winH, winY, mode) {
+      const isWarm = (mode === 'warm' || mode === true);
+      const isRed = (mode === 'red');
+      const isLit = isWarm || isRed;
+
+      // 1. Deep Recessed Masonry Reveal Surround (Left/Right Jambs + Stepped Architrave + Segmental Arch Header + Keystone)
+      const jambW = 0.11;
+      const jambD = 0.22;
+      [-winW / 2 - jambW / 2, winW / 2 + jambW / 2].forEach(jx => {
+        const jamb = new THREE.Mesh(new THREE.BoxGeometry(jambW, winH + 0.16, jambD), materials.rotundaWhiteArch);
+        jamb.position.set(jx, winY, 0.10);
+        parentGroup.add(jamb);
+      });
+
+      // Segmental Arch Lintel & Projecting Central Keystone above the window
+      const archLintel = new THREE.Mesh(new THREE.BoxGeometry(winW + 0.30, 0.18, jambD + 0.04), materials.rotundaWhiteArch);
+      archLintel.position.set(0, winY + winH / 2 + 0.12, 0.12);
+      parentGroup.add(archLintel);
+
+      const keystone = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, jambD + 0.10), materials.rotundaWhiteArch);
+      keystone.position.set(0, winY + winH / 2 + 0.15, 0.15);
+      parentGroup.add(keystone);
+
+      // 2. Twin Under-Sill Stone Corbel Brackets & Dark Rain-Drip Stain Beneath Sill
+      const sillY = winY - winH / 2 - 0.05;
+      [-winW * 0.36, winW * 0.36].forEach(cx => {
+        const corbel = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.20), materials.rotundaColumnFlutedBase);
+        corbel.position.set(cx, sillY - 0.12, 0.11);
+        parentGroup.add(corbel);
+      });
+      if (materials.rotundaBakedAoMat) {
+        const dripStain = new THREE.Mesh(new THREE.PlaneGeometry(winW + 0.16, 0.38), materials.rotundaBakedAoMat);
+        dripStain.position.set(0, sillY - 0.24, 0.045);
+        parentGroup.add(dripStain);
+      }
+
+      // 3. True 3D Dark Iron Mullion & Transom Bars (cleanly offset at z = 0.175 in front of z = 0.12 glass so zero moire!)
+      const vMullion = new THREE.Mesh(new THREE.BoxGeometry(0.052, winH, 0.06), materials.castIronDark);
+      vMullion.position.set(0, winY, 0.165);
+      parentGroup.add(vMullion);
+
+      const hTransomTop = new THREE.Mesh(new THREE.BoxGeometry(winW, 0.052, 0.06), materials.castIronDark);
+      hTransomTop.position.set(0, winY + winH * 0.20, 0.165);
+      parentGroup.add(hTransomTop);
+
+      const hTransomMid = new THREE.Mesh(new THREE.BoxGeometry(winW, 0.042, 0.055), materials.castIronDark);
+      hTransomMid.position.set(0, winY - winH * 0.15, 0.162);
+      parentGroup.add(hTransomMid);
+
+      // 4. Actual Visible 3D Interior Light Source Fixture inside Lit Windows (Ceiling Fluorescent Tube / Emergency Cage Lamp!)
+      if (isLit) {
+        const housing = new THREE.Mesh(new THREE.BoxGeometry(winW * 0.56, 0.06, 0.10), materials.castIronDark);
+        housing.position.set(0, winY + winH * 0.38, 0.08);
+        parentGroup.add(housing);
+
+        const bulbMat = isRed ? materials.rotundaWindowRed : materials.ceilingLightEmissive;
+        const lightTube = new THREE.Mesh(new THREE.BoxGeometry(winW * 0.50, 0.055, 0.08), bulbMat);
+        lightTube.position.set(0, winY + winH * 0.34, 0.095);
+        parentGroup.add(lightTube);
+
+        // 3D Crooked Interior Venetian Blind Header & Slats
+        for (let b = 0; b < 3; b++) {
+          const slat = new THREE.Mesh(new THREE.BoxGeometry(winW * 0.44, 0.035, 0.03), materials.castIronDark);
+          slat.position.set(-winW * 0.24, winY + winH * (0.28 - b * 0.09), 0.135);
+          slat.rotation.z = b === 2 ? -0.08 : 0.02;
+          parentGroup.add(slat);
+        }
+
+        // If blood-red horror window (Lab 302), add 3D dark watcher silhouette figure inside the window!
+        if (isRed) {
+          const watcherTorso = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.68, 8), materials.castIronDark);
+          watcherTorso.position.set(winW * 0.22, winY - winH * 0.16, 0.138);
+          parentGroup.add(watcherTorso);
+          const watcherHead = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 8), materials.castIronDark);
+          watcherHead.position.set(winW * 0.22, winY + winH * 0.12, 0.138);
+          parentGroup.add(watcherHead);
+        }
+      }
+    }
+
+    // 1. Projecting 2-Story White Pilaster & Window Bay (Deep 3D reveals, keystones, corbels, 3D mullions & interior light fixtures!)
     function buildRotundaArchedBay(wx, baseY, wz, facingZDir = -1, isSideWall = false, warmGround = 'dark', warmFirst = 'dark') {
       const bayGroup = new THREE.Group();
       bayGroup.position.set(wx, baseY, wz);
@@ -12398,73 +13184,87 @@ export function getHideAndSeekHtml(): string {
       const bayW = 2.36;
       const bayH = 7.05; // Spans Ground Floor (0..3.60) + 1st Floor (3.60..7.05)
       const pilasterW = 0.28;
-      const pilasterD = 0.34;
+      const pilasterD = 0.36;
       const innerW = bayW - pilasterW * 2;
 
-      // Two tall projecting vertical pilasters framing the 2-story bay
+      // Two tall projecting vertical pilasters framing the 2-story bay + moulded base plinths & capitals
       [-bayW / 2 + pilasterW / 2, bayW / 2 - pilasterW / 2].forEach(px => {
         const pil = new THREE.Mesh(new THREE.BoxGeometry(pilasterW, bayH, pilasterD), materials.rotundaWhiteArch);
         pil.position.set(px, bayH / 2, pilasterD / 2 - 0.04);
         bayGroup.add(pil);
+
+        const pilBase = new THREE.Mesh(new THREE.BoxGeometry(pilasterW + 0.08, 0.42, pilasterD + 0.08), materials.rotundaColumnFlutedBase);
+        pilBase.position.set(px, 0.21, pilasterD / 2 - 0.02);
+        bayGroup.add(pilBase);
+
+        const pilCap = new THREE.Mesh(new THREE.BoxGeometry(pilasterW + 0.08, 0.22, pilasterD + 0.08), materials.rotundaWhiteArch);
+        pilCap.position.set(px, bayH - 0.36, pilasterD / 2 - 0.01);
+        bayGroup.add(pilCap);
       });
 
-      // Projecting horizontal floor band & recessed spandrel panel between Ground & 1st Floor (IMG_6033 & IMG_6034)
+      // Projecting horizontal floor band & recessed coffered spandrel panel between Ground & 1st Floor
       const spandrelPanel = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.04, 0.72, 0.14), materials.rotundaPlinthConcrete);
       spandrelPanel.position.set(0, 3.52, 0.05);
       bayGroup.add(spandrelPanel);
 
-      const midBeam = new THREE.Mesh(new THREE.BoxGeometry(bayW + 0.06, 0.26, pilasterD + 0.06), materials.rotundaWhiteArch);
-      midBeam.position.set(0, 3.86, pilasterD / 2 - 0.01);
+      const spandrelInlay = new THREE.Mesh(new THREE.BoxGeometry(innerW - 0.26, 0.42, 0.18), materials.rotundaBrick);
+      spandrelInlay.position.set(0, 3.52, 0.07);
+      bayGroup.add(spandrelInlay);
+
+      const midBeam = new THREE.Mesh(new THREE.BoxGeometry(bayW + 0.08, 0.26, pilasterD + 0.08), materials.rotundaWhiteArch);
+      midBeam.position.set(0, 3.86, pilasterD / 2);
       bayGroup.add(midBeam);
 
       // Top lintel & cornice hood crowning the 2-story bay
-      const topCornice = new THREE.Mesh(new THREE.BoxGeometry(bayW + 0.06, 0.28, pilasterD + 0.06), materials.rotundaWhiteArch);
-      topCornice.position.set(0, bayH - 0.14, pilasterD / 2 - 0.01);
+      const topCornice = new THREE.Mesh(new THREE.BoxGeometry(bayW + 0.10, 0.28, pilasterD + 0.10), materials.rotundaWhiteArch);
+      topCornice.position.set(0, bayH - 0.14, pilasterD / 2 + 0.01);
       bayGroup.add(topCornice);
 
-      // Ground Floor Window (y = 1.88 above plinth) — uses mipmapped anisotropic window texture with baked dark mullions (zero moire!)
+      // Ground Floor Window (y = 1.88 above plinth)
       const winW = innerW - 0.10;
       const gWinH = 1.72;
       const gWinY = 1.88;
 
-      const gOuterFrame = new THREE.Mesh(new THREE.BoxGeometry(winW + 0.12, gWinH + 0.12, 0.14), materials.castIronDark);
+      const gOuterFrame = new THREE.Mesh(new THREE.BoxGeometry(winW + 0.14, gWinH + 0.14, 0.16), materials.castIronDark);
       gOuterFrame.position.set(0, gWinY, 0.05);
       bayGroup.add(gOuterFrame);
 
-      const gSill = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.08, 0.11, 0.28), materials.rotundaWhiteArch);
-      gSill.position.set(0, gWinY - gWinH / 2 - 0.05, 0.11);
+      const gSill = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.12, 0.12, 0.32), materials.rotundaWhiteArch);
+      gSill.position.set(0, gWinY - gWinH / 2 - 0.05, 0.13);
       bayGroup.add(gSill);
 
       const gPane = new THREE.Mesh(
         new THREE.PlaneGeometry(winW, gWinH),
         resolveMainBuildingWindowMat(warmGround)
       );
-      gPane.position.set(0, gWinY, 0.13);
+      gPane.position.set(0, gWinY, 0.12);
       bayGroup.add(gPane);
+      addWindow3DArchitecturalAndLightDetails(bayGroup, winW, gWinH, gWinY, warmGround);
 
       // 1st Floor (2nd Story) Window (y = 5.36 above plinth)
       const fWinH = 1.80;
       const fWinY = 5.36;
 
-      const fOuterFrame = new THREE.Mesh(new THREE.BoxGeometry(winW + 0.12, fWinH + 0.12, 0.14), materials.castIronDark);
+      const fOuterFrame = new THREE.Mesh(new THREE.BoxGeometry(winW + 0.14, fWinH + 0.14, 0.16), materials.castIronDark);
       fOuterFrame.position.set(0, fWinY, 0.05);
       bayGroup.add(fOuterFrame);
 
-      const fSill = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.08, 0.11, 0.26), materials.rotundaWhiteArch);
-      fSill.position.set(0, fWinY - fWinH / 2 - 0.05, 0.11);
+      const fSill = new THREE.Mesh(new THREE.BoxGeometry(innerW + 0.12, 0.12, 0.30), materials.rotundaWhiteArch);
+      fSill.position.set(0, fWinY - fWinH / 2 - 0.05, 0.12);
       bayGroup.add(fSill);
 
       const fPane = new THREE.Mesh(
         new THREE.PlaneGeometry(winW, fWinH),
         resolveMainBuildingWindowMat(warmFirst)
       );
-      fPane.position.set(0, fWinY, 0.13);
+      fPane.position.set(0, fWinY, 0.12);
       bayGroup.add(fPane);
+      addWindow3DArchitecturalAndLightDetails(bayGroup, winW, fWinH, fWinY, warmFirst);
 
       scene.add(bayGroup);
     }
 
-    // 2. 3rd-Story Casement Window + Eave Brackets (Fix 1: Supports 'dark', 'warm', and 'red' window states matching IMG_6032-IMG_6034!)
+    // 2. 3rd-Story Casement Window + Eave Brackets + 3D Interior Light Fixture / Watcher Silhouette
     function buildTopFloorWindowAndStruts(wx, topFloorY, wz, facingZDir = -1, isSideWall = false, winMode = 'dark') {
       const tGroup = new THREE.Group();
       tGroup.position.set(wx, topFloorY, wz);
@@ -12475,29 +13275,30 @@ export function getHideAndSeekHtml(): string {
       }
 
       const wW = 1.48, wH = 1.56, wY = 1.84;
-      const outerFrame = new THREE.Mesh(new THREE.BoxGeometry(wW + 0.14, wH + 0.14, 0.14), materials.castIronDark);
+      const outerFrame = new THREE.Mesh(new THREE.BoxGeometry(wW + 0.16, wH + 0.16, 0.16), materials.castIronDark);
       outerFrame.position.set(0, wY, 0.05);
       tGroup.add(outerFrame);
 
-      const sill = new THREE.Mesh(new THREE.BoxGeometry(wW + 0.22, 0.10, 0.24), materials.rotundaWhiteArch);
-      sill.position.set(0, wY - wH / 2 - 0.05, 0.10);
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(wW + 0.26, 0.12, 0.28), materials.rotundaWhiteArch);
+      sill.position.set(0, wY - wH / 2 - 0.05, 0.12);
       tGroup.add(sill);
 
       const pane = new THREE.Mesh(
         new THREE.PlaneGeometry(wW, wH),
         resolveMainBuildingWindowMat(winMode)
       );
-      pane.position.set(0, wY, 0.13);
+      pane.position.set(0, wY, 0.12);
       tGroup.add(pane);
+      addWindow3DArchitecturalAndLightDetails(tGroup, wW, wH, wY, winMode);
 
-      // Pair of Angled Eave Brackets flanking the 3rd-floor window (IMG_6033 & IMG_6034!)
+      // Pair of Angled Eave Brackets with Gusset Plates flanking the 3rd-floor window
       [-1.08, 1.08].forEach(sx => {
-        const strut = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.48, 0.09), materials.rotundaColumnFlutedBase);
+        const strut = new THREE.Mesh(new THREE.BoxGeometry(0.10, 1.48, 0.10), materials.rotundaColumnFlutedBase);
         strut.position.set(sx, 2.82, 0.48);
         strut.rotation.x = -0.68;
         tGroup.add(strut);
 
-        const plate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.08), materials.rotundaColumnFlutedBase);
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.22, 0.10), materials.rotundaColumnFlutedBase);
         plate.position.set(sx, 2.24, 0.06);
         tGroup.add(plate);
       });
@@ -13188,6 +13989,10 @@ export function getHideAndSeekHtml(): string {
         );
       }
 
+      // Shared Classroom Horror Decay, Props & Deterministic "Wrong" Detail for Rotunda Classrooms
+      if (rArch === 'rotunda_lecture' || rArch === 'rotunda_seminar') {
+        addSharedClassroomHorrorDecayAndProps(rGroup, roomDef, roomCX, roomCZ, floorY, -1, 14.0, 13.4, sideSign, floorNum * 19 + sideSign * 7);
+      }
       // Data-Driven Horror Dressing Items + Small Clutter & Asymmetry (Papers, Bottles, Fallen Chair, Jacket, Posters)
       populateRoomClutterAndAsymmetry(rGroup, 13.4, 12.6, floorNum * 19 + sideSign * 7, false);
 
@@ -13475,35 +14280,103 @@ export function getHideAndSeekHtml(): string {
     buildWallSegment(17.7, rotFloor0, rotFrontZ, 14.6, totalWallH, 0.32, materials.rotundaBrick);
 
     // Central Portico Entrance Wall:
-    // Ground Floor: Wide central 2.8m double-doorway flanked by glazed window walls
+    // Ground Floor: Wide central 2.8m double-doorway flanked by glazed window walls + Grand Recessed Portal & Real Sconce Lanterns!
     buildWallSegment(3.1, rotFloor0, rotFrontZ, 3.0, storyH, 0.30, materials.rotundaBrick);
     buildWallSegment(8.9, rotFloor0, rotFrontZ, 3.0, storyH, 0.30, materials.rotundaBrick);
     const mainDoorTransom = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.85, 0.32), materials.rotundaWhiteArch);
     mainDoorTransom.position.set(rotX, rotFloor0 + storyH - 0.42, rotFrontZ);
     scene.add(mainDoorTransom);
+
+    // Grand Entrance Moulded Stone Portal Jambs, Architrave Lintel, Keystone & Glazed Fanlight Transom
+    [-1.48, 1.48].forEach(djx => {
+      const portalJamb = new THREE.Mesh(new THREE.BoxGeometry(0.24, storyH - 0.20, 0.44), materials.rotundaWhiteArch);
+      portalJamb.position.set(rotX + djx, rotFloor0 + (storyH - 0.20) * 0.5, rotFrontZ - 0.08);
+      scene.add(portalJamb);
+    });
+    const portalHeader = new THREE.Mesh(new THREE.BoxGeometry(3.32, 0.28, 0.48), materials.rotundaWhiteArch);
+    portalHeader.position.set(rotX, rotFloor0 + storyH - 0.82, rotFrontZ - 0.10);
+    scene.add(portalHeader);
+    const portalKeystone = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.38, 0.54), materials.rotundaWhiteArch);
+    portalKeystone.position.set(rotX, rotFloor0 + storyH - 0.78, rotFrontZ - 0.12);
+    scene.add(portalKeystone);
+
+    // Glazed Fanlight Transom Window with Wrought-Iron Bars above Main Entrance Doors
+    const fanlightPane = new THREE.Mesh(new THREE.PlaneGeometry(2.64, 0.62), materials.rotundaWindowWarm || materials.windowWarmLit);
+    fanlightPane.rotation.y = Math.PI;
+    fanlightPane.position.set(rotX, rotFloor0 + storyH - 0.42, rotFrontZ - 0.18);
+    scene.add(fanlightPane);
+    [-0.66, 0.0, 0.66].forEach(fbx => {
+      const fBar = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.62, 0.05), materials.castIronDark);
+      fBar.position.set(rotX + fbx, rotFloor0 + storyH - 0.42, rotFrontZ - 0.20);
+      scene.add(fBar);
+    });
+
+    // Heavy Panelled Teak Double Entrance Doors (swung inward into atrium so entrance remains 100% walkable!)
+    [
+      { hingeX: rotX - 1.34, rotY: 1.22 },
+      { hingeX: rotX + 1.34, rotY: Math.PI - 1.08 },
+    ].forEach((dCfg, dSide) => {
+      const doorLeafGrp = new THREE.Group();
+      doorLeafGrp.position.set(dCfg.hingeX, rotFloor0, rotFrontZ + 0.12);
+      doorLeafGrp.rotation.y = dCfg.rotY;
+      const leafW = 1.32, leafH = 2.68;
+      const leafSign = dSide === 0 ? 1 : -1;
+      const leafBody = new THREE.Mesh(new THREE.BoxGeometry(leafW, leafH, 0.08), materials.ebonyCarvedWood || materials.chairWood);
+      leafBody.position.set(leafSign * (leafW * 0.5), leafH * 0.5, 0);
+      doorLeafGrp.add(leafBody);
+      const kickPlate = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.12, 0.24, 0.095), materials.brassGajur);
+      kickPlate.position.set(leafSign * (leafW * 0.5), 0.14, 0);
+      doorLeafGrp.add(kickPlate);
+      const upperGlass = new THREE.Mesh(new THREE.BoxGeometry(leafW - 0.28, 0.88, 0.09), materials.rotundaWindowWarm || materials.windowWarmLit);
+      upperGlass.position.set(leafSign * (leafW * 0.5), leafH * 0.68, 0);
+      doorLeafGrp.add(upperGlass);
+      const brassHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.36, 8), materials.brassGajur);
+      brassHandle.position.set(leafSign * (leafW - 0.14), 1.12, -0.06);
+      doorLeafGrp.add(brassHandle);
+      scene.add(doorLeafGrp);
+    });
+
+    // Actual Physical Cast-Iron Entrance Wall Sconces flanking the Main Doorway (registered in lampFlickerMod!)
+    lampFlickerMod.addWallSconce(rotX - 1.85, rotFloor0 + 2.45, rotFrontZ - 0.34, 'steady_warm');
+    lampFlickerMod.addWallSconce(rotX + 1.85, rotFloor0 + 2.45, rotFrontZ - 0.34, 'steady_warm');
+
     // Goal 4: Warm glow at the Grand Rotunda Main Entrance & Portico Steps!
     addWarmDoorwayGlow(rotX, rotFloor0, rotFrontZ, 2.8, false);
     addWarmDoorwayGlow(rotX, 0.01, rotFrontZ - 5.8, 3.6, false);
 
-    // Under-Portico Wide Dark-Framed Multi-Pane Glass Windows on Ground & 1st Floor
-    [3.1, 8.9].forEach(px => {
-      const gPortWin = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.85), materials.windowWarmLit);
+    // Under-Portico Wide Dark-Framed Multi-Pane Glass Windows on Ground & 1st Floor (with 3D frames, sills & interior light tubes!)
+    [3.1, 8.9].forEach((px, pIdx) => {
+      const gPortMode = pIdx === 1 ? 'warm' : 'dark';
+      const gPortWin = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.85), resolveMainBuildingWindowMat(gPortMode));
       gPortWin.rotation.y = Math.PI;
       gPortWin.position.set(px, rotFloor0 + 1.85, rotFrontZ - 0.17);
       scene.add(gPortWin);
+      const gPortSill = new THREE.Mesh(new THREE.BoxGeometry(2.52, 0.12, 0.32), materials.rotundaWhiteArch);
+      gPortSill.position.set(px, rotFloor0 + 0.88, rotFrontZ - 0.22);
+      scene.add(gPortSill);
 
-      const fPortWin = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.85), materials.windowWarmLit);
+      const fPortMode = pIdx === 0 ? 'warm' : 'dark';
+      const fPortWin = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.85), resolveMainBuildingWindowMat(fPortMode));
       fPortWin.rotation.y = Math.PI;
       fPortWin.position.set(px, rotFloor1 + 1.85, rotFrontZ - 0.17);
       scene.add(fPortWin);
+      const fPortSill = new THREE.Mesh(new THREE.BoxGeometry(2.52, 0.12, 0.32), materials.rotundaWhiteArch);
+      fPortSill.position.set(px, rotFloor1 + 0.88, rotFrontZ - 0.22);
+      scene.add(fPortSill);
     });
 
-    // 1st Floor Central Portico Wall with central panoramic window
+    // 1st Floor Central Portico Wall with central panoramic window & 3D moulded stone surround
     buildWallSegment(rotX, rotFloor1, rotFrontZ, 8.8, storyH, 0.30, materials.rotundaBrick);
-    const centerPortWin = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.95), materials.windowWarmLit);
+    const centerPortWin = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.95), materials.rotundaWindowWarm || materials.windowWarmLit);
     centerPortWin.rotation.y = Math.PI;
     centerPortWin.position.set(rotX, rotFloor1 + 1.85, rotFrontZ - 0.17);
     scene.add(centerPortWin);
+    const centerPortSill = new THREE.Mesh(new THREE.BoxGeometry(2.88, 0.14, 0.34), materials.rotundaWhiteArch);
+    centerPortSill.position.set(rotX, rotFloor1 + 0.82, rotFrontZ - 0.22);
+    scene.add(centerPortSill);
+    const centerPortHeader = new THREE.Mesh(new THREE.BoxGeometry(2.88, 0.20, 0.34), materials.rotundaWhiteArch);
+    centerPortHeader.position.set(rotX, rotFloor1 + 2.92, rotFrontZ - 0.22);
+    scene.add(centerPortHeader);
 
     // 2nd Floor (3rd Story) Central Archway Opening onto the Semicircular Curved Glass Rotunda Gallery
     buildWallSegment(3.05, rotFloor2, rotFrontZ, 2.9, topStoryH, 0.30, materials.rotundaBrick);
@@ -13606,17 +14479,63 @@ export function getHideAndSeekHtml(): string {
       buildTopFloorWindowAndStruts(bx, rotFloor2, rotBackZ + 0.16, 1, false, (idx === 2 || idx === 5) ? 'warm' : 'dark');
     });
 
-    // F. Hollow Perimeter 2nd-Story Cornice Ledge + 3rd-Story White Frieze & Terracotta-Red Band (IMG_6033 & IMG_6034!)
+    // F. Hollow Perimeter 2nd-Story Cornice Ledge + 3rd-Story White Frieze, Dentil Moldings, Corner Quoins & Rainwater Downspouts!
     // Built as hollow exterior perimeter strips so the 3-floor interior is 100% unobstructed!
-    buildPerimeterBand(rotFloor1 - 0.04, 0.24, 0.22, materials.rotundaWhiteArch); // 1st-Story Projecting Floor Band
-    buildPerimeterBand(rotFloor2 - 0.04, 0.30, 0.36, materials.rotundaWhiteArch); // 2nd-Story Projecting White Cornice
-    buildPerimeterBand(rotEaveY - 0.61, 1.22, 0.08, materials.rotundaWhiteArch);  // Upper 3rd-Story White Frieze Band
-    buildPerimeterBand(rotEaveY - 1.24, 0.12, 0.12, materials.rotundaRedSteel);   // Terracotta-Red Trim Band
+    buildPerimeterBand(rotFloor0 + 0.92, 0.16, 0.14, materials.rotundaPlinthConcrete); // Rusticated Ground-Floor Water-Table Dado Ledge
+    buildPerimeterBand(rotFloor1 - 0.04, 0.24, 0.22, materials.rotundaWhiteArch);      // 1st-Story Projecting Floor Band
+    buildPerimeterBand(rotFloor2 - 0.04, 0.30, 0.36, materials.rotundaWhiteArch);      // 2nd-Story Projecting White Cornice
+    buildPerimeterBand(rotEaveY - 0.61, 1.22, 0.08, materials.rotundaWhiteArch);       // Upper 3rd-Story White Frieze Band
+    buildPerimeterBand(rotEaveY - 1.24, 0.12, 0.12, materials.rotundaRedSteel);        // Terracotta-Red Trim Band
 
-    // G. Central 2-Story Semicircular Portico Columns (with Fluted Pedestals) + 3rd-Floor Curved Glass Rotunda (IMG_6033 & IMG_6034)
+    // Classical Dentil Molding Blocks under the 2nd-Story Cornice & Main Roof Eave across West & East Front Wings
+    for (let dx = rotLeftX + 0.6; dx <= rotRightX - 0.6; dx += 0.95) {
+      if (dx > 0.2 && dx < 11.8) continue; // Skip central rotunda portico span
+      const dentil2 = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.28), materials.rotundaWhiteArch);
+      dentil2.position.set(dx, rotFloor2 - 0.24, rotFrontZ - 0.28);
+      scene.add(dentil2);
+      const dentilEave = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.20, 0.32), materials.rotundaWhiteArch);
+      dentilEave.position.set(dx, rotEaveY - 0.14, rotFrontZ - 0.24);
+      scene.add(dentilEave);
+    }
+
+    // Alternating Dressed-Stone Corner Quoins along Outer West, Outer East, and Central Pavilion Corners
+    [
+      [rotLeftX - 0.04, rotFrontZ - 0.04],
+      [rotRightX + 0.04, rotFrontZ - 0.04],
+      [rotLeftX - 0.04, rotBackZ + 0.04],
+      [rotRightX + 0.04, rotBackZ + 0.04],
+      [0.18, rotFrontZ - 0.06],
+      [11.82, rotFrontZ - 0.06],
+    ].forEach(([qx, qz]) => {
+      for (let qy = rotFloor0 + 0.22; qy < rotEaveY - 1.35; qy += 0.56) {
+        const isLong = Math.round((qy - rotFloor0) / 0.56) % 2 === 0;
+        const qw = isLong ? 0.58 : 0.38;
+        const qd = isLong ? 0.38 : 0.54;
+        const quoin = new THREE.Mesh(new THREE.BoxGeometry(qw, 0.26, qd), materials.rotundaWhiteArch);
+        quoin.position.set(qx, qy, qz);
+        scene.add(quoin);
+      }
+    });
+
+    // Cast-Iron Rainwater Downspouts with Iron Pipe Clamps & Drain Shoes along the Front Facade
+    [-12.55, 0.42, 11.58, 24.55].forEach(dsX => {
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, totalWallH - 0.2, 8), materials.castIronDark);
+      pipe.position.set(dsX, rotFloor0 + totalWallH * 0.5, rotFrontZ - 0.22);
+      scene.add(pipe);
+      const hopper = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.07, 0.28, 6), materials.castIronDark);
+      hopper.position.set(dsX, rotEaveY - 0.22, rotFrontZ - 0.24);
+      scene.add(hopper);
+      [2.2, 5.2, 8.2].forEach(cy => {
+        const clamp = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.14), materials.castIronDark);
+        clamp.position.set(dsX, rotFloor0 + cy, rotFrontZ - 0.20);
+        scene.add(clamp);
+      });
+    });
+
+    // G. Central 2-Story Semicircular Portico Columns (with Fluted Pedestals, Attic Bases, Doric Capitals & Sconces) + 3rd-Floor Curved Glass Rotunda
     const rotRadius = 5.55;
     const colAngles = [-Math.PI * 0.38, -Math.PI * 0.13, Math.PI * 0.13, Math.PI * 0.38];
-    colAngles.forEach(ang => {
+    colAngles.forEach((ang, cIdx) => {
       const cx = rotX + Math.sin(ang) * rotRadius;
       const cz = rotFrontZ - Math.cos(ang) * rotRadius;
 
@@ -13645,12 +14564,15 @@ export function getHideAndSeekHtml(): string {
         scene.add(flute);
       }
 
-      // Molded top & bottom collar rings on pedestal
+      // Molded top & bottom collar rings + Classical Attic Torus Base on pedestal
       [rotFloor0 + 0.08, rotFloor0 + pedH - 0.06].forEach(ry => {
         const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.58, 0.12, 16), materials.rotundaPlinthConcrete);
         ring.position.set(cx, ry, cz);
         scene.add(ring);
       });
+      const atticTorus = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.54, 0.18, 20), materials.rotundaWhiteArch);
+      atticTorus.position.set(cx, rotFloor0 + pedH + 0.09, cz);
+      scene.add(atticTorus);
 
       // 2. Tall Cylindrical Weathered White Concrete Column Shaft rising to the 2nd-floor ring beam (y = 0.48..7.62)
       const colShaft = new THREE.Mesh(
@@ -13661,11 +14583,60 @@ export function getHideAndSeekHtml(): string {
       colShaft.castShadow = true;
       scene.add(colShaft);
 
+      // 3. Classical Doric/Tuscan Column Capital (Necking Astragal + Echinus Flare + Square Abacus Slab)
+      const colNecking = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.09, 20), materials.rotundaWhiteArch);
+      colNecking.position.set(cx, rotFloor2 - 0.42, cz);
+      scene.add(colNecking);
+      const colEchinus = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.44, 0.22, 20), materials.rotundaWhiteArch);
+      colEchinus.position.set(cx, rotFloor2 - 0.26, cz);
+      scene.add(colEchinus);
+      const colAbacus = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.18, 1.22), materials.rotundaWhiteArch);
+      colAbacus.position.set(cx, rotFloor2 - 0.08, cz);
+      colAbacus.rotation.y = -ang;
+      scene.add(colAbacus);
+
+      // 4. Physical Wrought-Iron Sconce Lanterns mounted on the inner face of the two center portico columns
+      if (cIdx === 1 || cIdx === 2) {
+        const scX = cx - Math.sin(ang) * 0.46;
+        const scZ = cz + Math.cos(ang) * 0.46;
+        const scBracket = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.26, 0.22), materials.castIronDark);
+        scBracket.position.set(scX, rotFloor0 + 2.85, scZ);
+        scBracket.rotation.y = -ang;
+        scene.add(scBracket);
+        const scBulb = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.08, 0.26, 6), materials.diyoFlameGlow);
+        scBulb.position.set(scX, rotFloor0 + 3.02, scZ);
+        scene.add(scBulb);
+        const scCap = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.14, 6), materials.castIronDark);
+        scCap.position.set(scX, rotFloor0 + 3.20, scZ);
+        scene.add(scCap);
+      }
+
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(cx - 0.52, 0, cz - 0.52),
         new THREE.Vector3(cx + 0.52, rotFloor2, cz + 0.52)
       ));
     });
+
+    // Radial Coffered Ceiling Ribs under the Semicircular Portico Mezzanine Slab + Grand Hanging Iron-Cage Lantern!
+    [-Math.PI * 0.36, -Math.PI * 0.18, 0, Math.PI * 0.18, Math.PI * 0.36].forEach(cAng => {
+      const ribLen = 5.4;
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.16, ribLen), materials.rotundaColumnFlutedBase);
+      rib.position.set(rotX + Math.sin(cAng) * (ribLen * 0.5), rotFloor1 - 0.26, rotFrontZ - Math.cos(cAng) * (ribLen * 0.5));
+      rib.rotation.y = -cAng;
+      scene.add(rib);
+    });
+    // Actual Hanging Portico Iron Chandelier Lantern at (rotX, 3.65, rotFrontZ - 3.2) — Registered in lampFlickerMod!
+    const porticoLanternZ = rotFrontZ - 3.2;
+    const porticoChain = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.58, 6), materials.castIronDark);
+    porticoChain.position.set(rotX, rotFloor1 - 0.42, porticoLanternZ);
+    scene.add(porticoChain);
+    const porticoCage = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.24, 0.52, 8), materials.castIronDark);
+    porticoCage.position.set(rotX, rotFloor1 - 0.82, porticoLanternZ);
+    scene.add(porticoCage);
+    const porticoCore = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.18, 0.42, 8), materials.diyoFlameGlow);
+    porticoCore.position.set(rotX, rotFloor1 - 0.82, porticoLanternZ);
+    scene.add(porticoCore);
+    lampFlickerMod.addWallSconce(rotX, rotFloor1 - 0.95, porticoLanternZ, 'steady_warm');
 
     // 3rd-Floor Curved Semicircular Stone-Brick Entablature Parapet + 10-Bay Rotunda Glass Ring (Fix 7: IMG_6033 & IMG_6034!)
     const parapetH = 1.05;
@@ -13683,7 +14654,7 @@ export function getHideAndSeekHtml(): string {
     parapetCoping.position.set(rotX, rotFloor2 + parapetH + 0.05, rotFrontZ);
     scene.add(parapetCoping);
 
-    // Fix 7: Rotunda Glass Ring — 10 individual curved glass bays: dark reflective glass + 2 warm interior-lit sections + visible orange railing!
+    // Fix 7: Rotunda Glass Ring — 10 individual curved glass bays: dark reflective glass + 2 warm interior-lit sections with visible interior pendant fixtures + orange railing!
     const glassCurtainH = 2.18;
     const numRotBays = 10;
     const litRotBays = (HORROR_CONFIG.mainBuilding && HORROR_CONFIG.mainBuilding.rotundaLitBayIndices) || [3, 6];
@@ -13700,6 +14671,22 @@ export function getHideAndSeekHtml(): string {
       );
       bayGlassMesh.position.set(rotX, rotFloor2 + parapetH + glassCurtainH / 2, rotFrontZ);
       scene.add(bayGlassMesh);
+
+      // Inside lit rotunda bays, mount a physical 3D Interior Ceiling Pendant Lamp & Shade so light comes from a real interior fixture!
+      if (isLitBay) {
+        const midAng = -Math.PI * 0.48 + ((b + 0.5) / numRotBays) * Math.PI * 0.96;
+        const pLx = rotX + Math.sin(midAng) * (rotRadius - 0.55);
+        const pLz = rotFrontZ - Math.cos(midAng) * (rotRadius - 0.55);
+        const pCord = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.55, 6), materials.castIronDark);
+        pCord.position.set(pLx, rotEaveY - 0.35, pLz);
+        scene.add(pCord);
+        const pShade = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.18, 10), materials.castIronDark);
+        pShade.position.set(pLx, rotEaveY - 0.62, pLz);
+        scene.add(pShade);
+        const pBulb = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 10), materials.ceilingLightEmissive);
+        pBulb.position.set(pLx, rotEaveY - 0.72, pLz);
+        scene.add(pBulb);
+      }
     }
 
     // Visible Warm-Orange Interior Safety Railing inside the Rotunda Glass Ring (Fix 7!)
@@ -13759,7 +14746,7 @@ export function getHideAndSeekHtml(): string {
       scene.add(innerCol);
     });
 
-    // Overhanging Semicircular Curved Rotunda Dome/Roof Crown (Bright White Cornice Rim + Lifted Terracotta-Red Top Deck, IMG_6033!)
+    // Overhanging Semicircular Curved Rotunda Dome/Roof Crown + Rooftop Iron Balustrade & Lightning Rod Finial
     const rotRoofSoffit = new THREE.Mesh(
       new THREE.CylinderGeometry(rotRadius + 0.98, rotRadius + 0.98, 0.34, 32, 1, false, Math.PI * 0.5, Math.PI),
       materials.rotundaWhiteArch
@@ -13774,6 +14761,21 @@ export function getHideAndSeekHtml(): string {
     rotRoofRedTop.position.set(rotX, rotEaveY + 0.18, rotFrontZ);
     scene.add(rotRoofRedTop);
 
+    const rotRoofRidgeRim = new THREE.Mesh(
+      new THREE.CylinderGeometry(rotRadius + 1.02, rotRadius + 1.02, 0.12, 32, 1, true, Math.PI * 0.5, Math.PI),
+      materials.rotundaRoofRidge || materials.rotundaRedSteel
+    );
+    rotRoofRidgeRim.position.set(rotX, rotEaveY + 0.16, rotFrontZ);
+    scene.add(rotRoofRidgeRim);
+
+    // Wrought-Iron Crown Finial & Lightning Rod atop the Rotunda Dome Axis
+    const finialBase = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.32, 0.45, 10), materials.castIronDark);
+    finialBase.position.set(rotX, rotEaveY + 0.52, rotFrontZ - rotRadius * 0.82);
+    scene.add(finialBase);
+    const lightningSpire = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.045, 1.85, 8), materials.brassGajur);
+    lightningSpire.position.set(rotX, rotEaveY + 1.62, rotFrontZ - rotRadius * 0.82);
+    scene.add(lightningSpire);
+
     // Fix 3: Facade Warm Up-Light Wash, Portico Column Wash, Entrance Ground Spill & Baked AO Gradients (Zero New Real Lights; Skipped on FAST)
     const mainBuildingEffectsGroup = new THREE.Group();
     mainBuildingEffectsGroup.name = 'main-building-facade-effects';
@@ -13781,7 +14783,7 @@ export function getHideAndSeekHtml(): string {
     scene.add(mainBuildingEffectsGroup);
 
     if (materials.rotundaFacadeUplightMat && materials.rotundaEntranceSpillMat && materials.rotundaBakedAoMat) {
-      // 1) Warm up-light wash planes on West & East front wing facades and central entrance wall
+      // 1) Subtle localized warm light spill planes behind physical fixtures
       [-5.7, 17.7].forEach(wx => {
         const wingWash = new THREE.Mesh(new THREE.PlaneGeometry(14.4, 8.8), materials.rotundaFacadeUplightMat);
         wingWash.position.set(wx, rotFloor0 + 4.4, rotFrontZ - 0.38);
@@ -13841,23 +14843,32 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
-    // Twin Dark Wrought-Iron Portico Lantern Posts flanking the curved steps (exact match to IMG_6033 & IMG_6034!)
+    // Twin Wrought-Iron Portico Step Pedestal Lanterns with ACTUAL Glowing Amber Bulbs, Glass Cores & Lamp Pool Registration!
     [-4.35, 4.35].forEach(lxOff => {
       const lpx = rotX + lxOff;
       const lpz = rotFrontZ - 4.45;
-      const pPole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 3.35, 8), materials.castIronDark);
-      pPole.position.set(lpx, rotFloor0 + 1.68, lpz);
+      const pPed = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.55, 0.42), materials.rotundaColumnFlutedBase);
+      pPed.position.set(lpx, rotFloor0 + 0.28, lpz);
+      scene.add(pPed);
+      const pPole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.095, 3.15, 8), materials.castIronDark);
+      pPole.position.set(lpx, rotFloor0 + 1.85, lpz);
       scene.add(pPole);
-      const pCage = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.15, 0.48, 4), materials.castIronDark);
-      pCage.position.set(lpx, rotFloor0 + 3.52, lpz);
-      scene.add(pCage);
-      const pCap = new THREE.Mesh(new THREE.ConeGeometry(0.30, 0.24, 4), materials.castIronDark);
-      pCap.position.set(lpx, rotFloor0 + 3.84, lpz);
+      const pTray = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.14, 0.10, 4), materials.castIronDark);
+      pTray.position.set(lpx, rotFloor0 + 3.28, lpz);
+      scene.add(pTray);
+      const pGlass = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.14, 0.44, 4), materials.diyoFlameGlow);
+      pGlass.position.set(lpx, rotFloor0 + 3.54, lpz);
+      scene.add(pGlass);
+      const pCap = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.26, 4), materials.castIronDark);
+      pCap.position.set(lpx, rotFloor0 + 3.86, lpz);
       scene.add(pCap);
+      // Register in lampFlickerMod so dynamic PointLight pool + halos + ground pool attach to these real portico lanterns!
+      lampFlickerMod.addWallSconce(lpx, rotFloor0 + 3.38, lpz, 'steady_warm');
     });
-    // Right-wing warm street lamp in front of East Wing (exact match to IMG_6032 & IMG_6033!)
+    // Right-wing warm street lamp in front of East Wing + Left-wing flickering street lamp in front of West Wing!
     lampFlickerMod.addLamp(rotX + 14.2, rotFrontZ - 7.2, -1, 'steady_warm');
     addColliderCylinder(rotX + 14.2, rotFrontZ - 7.2, (HORROR_CONFIG.physics && HORROR_CONFIG.physics.streetLampPoleRadius) || 0.20, 0, 4.2);
+    lampFlickerMod.addWallSconce(rotX - 13.8, 4.4, rotFrontZ - 7.2, 'heavy_blink');
 
     // H. Prominent Twin Terracotta-Red Hipped Roofs + Central White Octagonal Skylight Atrium Roof Deck + Water Tanks (IMG_5854!)
     buildTerracottaHippedWingRoof(-5.2, rotEaveY, rotZ, 16.0, rotD, 4.2, -1); // West Wing Hipped Roof
@@ -14278,7 +15289,7 @@ export function getHideAndSeekHtml(): string {
     spawnOldWallPoster(-13.65, 1.68, 16.0, Math.PI / 2, 0.04);
     spawnOldWallPoster(rotX - 4.2, rotFloor0 + 1.75, rotFrontZ - 0.18, Math.PI, -0.04);
 
-    // Fix 6: High-Resolution "GANDAKI UNIVERSITY" Curved Entablature Sign (2048x256 with mipmaps, anisotropy & slight emissive)
+    // Fix 6: High-Resolution "GANDAKI UNIVERSITY" Curved Entablature Sign (2048x256) + 2 Physical Brass Sign Floodlights + Sculpted Crest Medallion!
     const signBackingArc = new THREE.Mesh(
       new THREE.CylinderGeometry(rotRadius + 0.36, rotRadius + 0.36, 0.78, 28, 1, true, Math.PI * 0.68, Math.PI * 0.64),
       materials.rotundaWhiteArch
@@ -14293,6 +15304,38 @@ export function getHideAndSeekHtml(): string {
     mainFacadeSign.position.set(rotX, rotFloor2 + 0.42, rotFrontZ);
     mainFacadeSign.userData.noMerge = true;
     scene.add(mainFacadeSign);
+
+    // Twin Physical Brass Floodlight Fixtures mounted on the portico ledge aiming upward at "GANDAKI UNIVERSITY"
+    [-0.36, 0.36].forEach(sAng => {
+      const fx = rotX + Math.sin(sAng) * (rotRadius + 0.56);
+      const fz = rotFrontZ - Math.cos(sAng) * (rotRadius + 0.56);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.28), materials.castIronDark);
+      arm.position.set(fx, rotFloor2 + 0.08, fz);
+      arm.rotation.y = -sAng;
+      scene.add(arm);
+      const hood = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.07, 0.16, 8), materials.castIronDark);
+      hood.position.set(fx, rotFloor2 + 0.15, fz - 0.06);
+      hood.rotation.x = 0.65;
+      scene.add(hood);
+      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.04, 8), materials.ceilingLightEmissive);
+      lens.position.set(fx, rotFloor2 + 0.19, fz - 0.02);
+      lens.rotation.x = 0.65;
+      scene.add(lens);
+    });
+
+    // 3D Sculpted Circular University Crest & Frozen Midnight Clock Medallion above the Sign
+    const crestRing = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.14, 18), materials.rotundaWhiteArch);
+    crestRing.rotation.x = Math.PI / 2;
+    crestRing.position.set(rotX, rotFloor2 + 0.98, rotFrontZ - rotRadius - 0.34);
+    scene.add(crestRing);
+    const crestFace = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.16, 18), materials.castIronDark);
+    crestFace.rotation.x = Math.PI / 2;
+    crestFace.position.set(rotX, rotFloor2 + 0.98, rotFrontZ - rotRadius - 0.35);
+    scene.add(crestFace);
+    const crestRimBrass = new THREE.Mesh(new THREE.CylinderGeometry(0.40, 0.40, 0.15, 18), materials.brassGajur);
+    crestRimBrass.rotation.x = Math.PI / 2;
+    crestRimBrass.position.set(rotX, rotFloor2 + 0.98, rotFrontZ - rotRadius - 0.345);
+    scene.add(crestRimBrass);
 
     // TASK 1: Sparse Warm Amber Lamps (#ffc27a, distance 10) — Mix of Faulty Flickering, Steady & Fully Dead ('dead') Lamps!
     const lampPoleRadius = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.streetLampPoleRadius) || 0.20;
@@ -14732,17 +15775,24 @@ export function getHideAndSeekHtml(): string {
           sec.group.visible = true;
           continue;
         }
-        if (activeBuildingKey === 'ROTUNDA' && sec.id !== 'rotunda-complex' && currentInsideRoom) {
-          sec.group.visible = false;
-          continue;
+        if (currentInsideRoom) {
+          if (activeBuildingKey === 'ROTUNDA' && sec.id !== 'rotunda-complex') {
+            sec.group.visible = false;
+            continue;
+          }
+          const secDist = Math.max(0, Math.hypot(sec.x - playerPos.x, sec.z - playerPos.z) - sec.radius);
+          if (secDist > 2.5 || sec.id === 'central-courtyard') {
+            sec.group.visible = false;
+            continue;
+          }
         }
         const dx = sec.x - playerPos.x;
         const dz = sec.z - playerPos.z;
         const dist = Math.max(0, Math.hypot(dx, dz) - sec.radius);
-        const limit = sec.isLandmark ? Math.max(maxSectorDist * 1.25, minLandmarkDist) : maxSectorDist;
+        const limit = (sec.isLandmark && !currentInsideRoom) ? Math.max(maxSectorDist * 1.25, minLandmarkDist) : maxSectorDist;
         const isVis = dist <= limit;
         sec.group.visible = isVis;
-        const castShad = isVis && (dist <= 26.0);
+        const castShad = isVis && (dist <= (currentInsideRoom ? 8.0 : 26.0));
         if (sec._lastShadowState !== castShad && sec.meshes) {
           sec._lastShadowState = castShad;
           for (let m = 0; m < sec.meshes.length; m++) {
@@ -14753,6 +15803,8 @@ export function getHideAndSeekHtml(): string {
 
       // 4. Distance-cull exterior lamp groups, puddles, tree shadow decals, corridor fog/mist & non-visible room shafts/gobos
       const isLowOrFast = (currentQuality === 'low' || currentQuality === 'fast');
+      const isFastOnly = (currentQuality === 'fast');
+      const isUltraOnly = (currentQuality === 'ultra');
       if (lampFlickerMod && lampFlickerMod.lamps) {
         const lamps = lampFlickerMod.lamps;
         for (let l = 0; l < lamps.length; l++) {
@@ -14760,7 +15812,7 @@ export function getHideAndSeekHtml(): string {
           const lx = lm.x !== undefined ? lm.x : (lm.bulbPos ? lm.bulbPos.x : 0);
           const lz = lm.z !== undefined ? lm.z : (lm.bulbPos ? lm.bulbPos.z : 0);
           const lDist = Math.hypot(lx - playerPos.x, lz - playerPos.z);
-          const showLamp = currentInsideRoom ? (lDist < 14.0) : (lDist < 34.0);
+          const showLamp = currentInsideRoom ? (lDist < 12.0) : (lDist < 34.0);
           if (lm.group) lm.group.visible = showLamp;
           if (lm.puddleMesh) lm.puddleMesh.visible = showLamp && lm.blinkProfile !== 'dead';
         }
@@ -14776,16 +15828,26 @@ export function getHideAndSeekHtml(): string {
         for (let t = 0; t < treeShadowDecals.length; t++) {
           const ts = treeShadowDecals[t];
           if (!ts || !ts.mesh) continue;
-          ts.mesh.visible = !currentInsideRoom && !isLowOrFast && Math.hypot(ts.mesh.position.x - playerPos.x, ts.mesh.position.z - playerPos.z) < 34.0;
+          ts.mesh.visible = !currentInsideRoom && !isLowOrFast && Math.hypot(ts.mesh.position.x - playerPos.x, playerPos.z - ts.mesh.position.z) < 34.0;
         }
       }
-      // 5. Cull Rotunda corridor mist planes & corridor fog planes when outside sightline or on different floor (or on LOW/FAST)
+      // 5. Cull Rotunda corridor mist planes, corridor fog planes & ULTRA-only classroom doorway mist planes
       for (let cm = 0; cm < corridorMistPlanes.length; cm++) {
         const mp = corridorMistPlanes[cm];
         if (!mp) continue;
         const fy = mp.position.y - 0.11;
         const inRotundaRange = (playerPos.z >= 36.0) && (Math.abs(playerPos.y - fy) <= 2.3);
         mp.visible = !isLowOrFast && inRotundaRange && (!currentInsideRoom || currentInsideRoom.bKey === 'ROTUNDA');
+      }
+      for (let dm = 0; dm < classroomDoorMistPlanes.length; dm++) {
+        const item = classroomDoorMistPlanes[dm];
+        if (!item || !item.mesh) continue;
+        item.mesh.visible = isUltraOnly && !!(item.roomGroup && item.roomGroup.visible);
+      }
+      for (let cw = 0; cw < classroomCobwebMeshes.length; cw++) {
+        const item = classroomCobwebMeshes[cw];
+        if (!item || !item.mesh) continue;
+        item.mesh.visible = !isFastOnly && !!(item.roomGroup && item.roomGroup.visible);
       }
       for (let cf = 0; cf < corridorFogPlanes.length; cf++) {
         const fp = corridorFogPlanes[cf];
@@ -14798,13 +15860,15 @@ export function getHideAndSeekHtml(): string {
           fp.mesh.visible = !!(fp.mesh.parent && fp.mesh.parent.visible);
         }
       }
-      // 6. Cull window shafts, gobos & beam dust in non-visible rooms, and reduce gobos/dust on LOW & FAST
+      // 6. Cull window shafts, gobos & beam dust in non-visible rooms, and drop shaft detail on FAST
       for (let sg = 0; sg < roomShaftGroups.length; sg++) {
         const item = roomShaftGroups[sg];
         const rmVis = !!(item.roomGroup && item.roomGroup.visible);
         item.group.visible = rmVis;
         if (rmVis) {
+          if (item.shaft1) item.shaft1.visible = !isFastOnly;
           if (item.gobo) item.gobo.visible = !isLowOrFast;
+          if (item.deskGobo) item.deskGobo.visible = !isFastOnly;
           if (item.dPoints) item.dPoints.visible = !isLowOrFast;
         }
       }
@@ -17915,7 +18979,10 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // Requirement 2 & 3: Update Per-Room Light Moods, Window Light Shaft Dust Motes & Drifting Corridor Fog
+      // Requirement 2 & 3: Update Per-Room Light Moods, Main Building Physical Light Shader Time, Window Light Shaft Dust Motes & Drifting Corridor Fog
+      if (typeof mainBuildingShaderUniforms !== 'undefined' && mainBuildingShaderUniforms.uMbTime) {
+        mainBuildingShaderUniforms.uMbTime.value = timeSec;
+      }
       updateRoomMoodLighting(delta, timeSec, playerPhysics.pos);
 
       const showFogLayer = exploreTools.fogEnabled !== false;
@@ -17998,6 +19065,12 @@ export function getHideAndSeekHtml(): string {
           // West Wing L2 Computer Labs: server rack hum
           soundEngine.playServerRackHumPulse();
           soundEngine.playRoomTonePulse('computer_lab');
+        } else {
+          // Wing Classrooms (L1, R2, W1, W2, W4): faint bent-blade fan tick, slow tube buzz & occasional wood creak
+          soundEngine.playFanTickSfx();
+          if (Math.random() < 0.45) soundEngine.playTubeFlickerBuzzSfx();
+          else soundEngine.playStructuralCreak();
+          soundEngine.playRoomTonePulse('classroom_standard');
         }
       }
 

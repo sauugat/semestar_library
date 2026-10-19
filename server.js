@@ -307,7 +307,7 @@ app.use((req, res, next) => {
   // Browser requests (carrying __gu_session cookie) always run sessionMiddleware.
   const hasSessionCookie = Boolean(req.headers.cookie && req.headers.cookie.includes('__gu_session'));
   const authHeader = req.headers['authorization'];
-  if (!hasSessionCookie && authHeader && authHeader.startsWith('Bearer ') && !req.path.startsWith('/api/auth/sync-session')) {
+  if (!hasSessionCookie && authHeader && authHeader.startsWith('Bearer ') && !req.path.startsWith('/api/auth/sync-session') && !req.path.startsWith('/api/auth/register')) {
     return next();
   }
   sessionMiddleware(req, res, next);
@@ -1253,9 +1253,11 @@ app.post(['/api/auth/register', '/api/auth/finalize-signup'], loginRateLimiter, 
       const createdAt = new Date().toISOString();
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       await db.run('INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)', mobileToken, existingStudentByUid.studentId, createdAt, expiresAt);
-      req.session.studentId = existingStudentByUid.studentId;
-      req.session.studentName = existingStudentByUid.name;
-      req.session.role = existingStudentByUid.role || 'student';
+      if (req.session) {
+        req.session.studentId = existingStudentByUid.studentId;
+        req.session.studentName = existingStudentByUid.name;
+        req.session.role = existingStudentByUid.role || 'student';
+      }
       return res.status(200).json({
         success: true,
         message: 'Account already finalized.',
@@ -1346,9 +1348,11 @@ app.post(['/api/auth/register', '/api/auth/finalize-signup'], loginRateLimiter, 
       }
     });
 
-    req.session.studentId = studentIdToUse;
-    req.session.studentName = cleanName;
-    req.session.role = 'student';
+    if (req.session) {
+      req.session.studentId = studentIdToUse;
+      req.session.studentName = cleanName;
+      req.session.role = 'student';
+    }
 
     const mobileToken = crypto.randomBytes(32).toString('hex');
     const createdAt = new Date().toISOString();
@@ -1473,7 +1477,8 @@ app.post(['/api/auth/register', '/api/auth/finalize-signup'], loginRateLimiter, 
   const assignedCohortId = assignedCohort.id;
 
   // Resolve verification redirect URL
-  let origin = req.headers.origin || (process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : '');
+  const appBaseUrl = process.env.APP_URL || process.env.SITE_URL;
+  let origin = req.headers.origin || (appBaseUrl ? appBaseUrl.replace(/\/$/, '') : '');
   if (!origin && req.headers.host) {
     const proto = req.headers['x-forwarded-proto'] || (req.headers.host.includes('localhost') ? 'http' : 'https');
     origin = `${proto}://${req.headers.host}`;
@@ -1754,7 +1759,8 @@ app.post('/api/auth/forgot-password', loginRateLimiter, async (req, res) => {
   if (emailToSend) {
     try {
       const { sendPasswordResetEmail } = require('./lib/supabase');
-      let origin = req.headers.origin || (process.env.APP_URL ? process.env.APP_URL.replace(/\/$/, '') : '');
+      const appBaseUrl = process.env.APP_URL || process.env.SITE_URL;
+      let origin = req.headers.origin || (appBaseUrl ? appBaseUrl.replace(/\/$/, '') : '');
       if (!origin && req.headers.host) {
         const proto = req.headers['x-forwarded-proto'] || (req.headers.host.includes('localhost') ? 'http' : 'https');
         origin = `${proto}://${req.headers.host}`;

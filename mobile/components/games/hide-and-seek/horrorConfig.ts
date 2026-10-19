@@ -401,82 +401,196 @@ export const HORROR_CONFIG = {
     },
   },
   mainBuilding: {
-    // 1. Windows: 1024px/512px mipmapped + anisotropic dark frame/mullions, ~35% warm/red lit, ~65% cool sky-reflective dark glass
+    // 1. Windows: 1024px mipmapped + anisotropic dark frame/mullions, interior light fixture + blinds, ~35% lit, ~65% cool sky-reflective dark glass
     litWindowRatio: 0.35,
-    windowTextureSize: 512,
+    windowTextureSize: 1024,
     windowAnisotropy: 8,
-    windowFrameHex: '#151c24',
+    windowFrameHex: '#11171f',
     windowSillColor: 0xd0dae2,
-    windowWarmColor: 0xffe4a0,
-    windowWarmEmissive: 0xffa434,
-    windowWarmEmissiveIntensity: 0.94,
-    windowRedColor: 0xff7e58,
-    windowRedEmissive: 0xe63926,
-    windowRedEmissiveIntensity: 0.98,
-    windowDarkColor: 0x263c52,
-    windowDarkSkyReflectEmissive: 0x1e344a,
-    windowDarkEmissiveIntensity: 0.36,
-    windowDarkRoughness: 0.14,
-    windowDarkMetalness: 0.78,
+    windowWarmColor: 0xffe6a8,
+    windowWarmEmissive: 0xff9c2a,
+    windowWarmEmissiveIntensity: 1.05,
+    windowRedColor: 0xff7852,
+    windowRedEmissive: 0xe62e1c,
+    windowRedEmissiveIntensity: 1.12,
+    windowDarkColor: 0x22364a,
+    windowDarkSkyReflectEmissive: 0x1c3248,
+    windowDarkEmissiveIntensity: 0.34,
+    windowDarkRoughness: 0.12,
+    windowDarkMetalness: 0.82,
 
-    // 2. Walls, Pilasters, Columns, Floor Bands & Cornices (fine plaster/brick, low normalScale, restored relief contrast)
-    wallColor: 0x9ca6b0,
-    wallEmissive: 0x16222e,
-    wallEmissiveIntensity: 0.18,
-    wallNormalScale: 0.016,
-    wallRoughness: 0.66,
+    // 2. Walls, Pilasters, Columns, Quoins, Floor Bands & Cornices (realistic masonry/plaster relief & horror weathering)
+    wallColor: 0x949ea8,
+    wallEmissive: 0x0d151e,
+    wallEmissiveIntensity: 0.10,
+    wallNormalScale: 0.022,
+    wallRoughness: 0.68,
     pilasterColor: 0xdce4ec,
-    pilasterEmissive: 0x243444,
-    pilasterEmissiveIntensity: 0.25,
-    pilasterNormalScale: 0.012,
-    pilasterRoughness: 0.56,
-    columnPedestalColor: 0x66727c,
-    plinthColor: 0x7e8a94,
+    pilasterEmissive: 0x182430,
+    pilasterEmissiveIntensity: 0.16,
+    pilasterNormalScale: 0.015,
+    pilasterRoughness: 0.54,
+    columnPedestalColor: 0x5c6772,
+    plinthColor: 0x727e88,
 
-    // 3. Facade Lighting, Entrance Spill, Cool Moon Rim & Baked AO (0 new real lights; skipped on FAST)
+    // 3. Real 3D Light-Source Shader Illumination, Cool Moon Rim & Baked AO (0 new real PointLights; real 3D world-space light sources!)
+    physicalLightIntensity: 1.38,
+    windowSpillIntensity: 1.18,
+    horrorFlickerStrength: 0.18,
     facadeUplightColor: 0xff9436,
-    facadeUplightOpacity: 0.24,
-    porticoColumnWashOpacity: 0.28,
+    facadeUplightOpacity: 0.14,
+    porticoColumnWashOpacity: 0.18,
     entranceGroundSpillColor: 0xff9838,
-    entranceGroundSpillOpacity: 0.30,
-    moonRimColor: [0.24, 0.38, 0.52],
-    moonRimIntensity: 0.92,
-    moonRimPower: 2.0,
-    eaveAoOpacity: 0.64,
-    floorBandAoOpacity: 0.48,
+    entranceGroundSpillOpacity: 0.28,
+    moonRimColor: [0.28, 0.44, 0.62],
+    moonRimIntensity: 1.05,
+    moonRimPower: 2.1,
+    eaveAoOpacity: 0.68,
+    floorBandAoOpacity: 0.52,
 
     // 4. Roof: Lifted Terracotta-Red Tile & Ridge/Edge Highlight
-    roofColor: 0xb83e30,
-    roofEmissive: 0x3a120e,
-    roofEmissiveIntensity: 0.24,
-    roofRidgeColor: 0xd65444,
-    roofRidgeEmissive: 0x4c1914,
-    roofRidgeEmissiveIntensity: 0.30,
-    roofNormalScale: 0.026,
-    roofRoughness: 0.44,
+    roofColor: 0xbc4032,
+    roofEmissive: 0x320e0a,
+    roofEmissiveIntensity: 0.20,
+    roofRidgeColor: 0xdc5846,
+    roofRidgeEmissive: 0x481610,
+    roofRidgeEmissiveIntensity: 0.28,
+    roofNormalScale: 0.028,
+    roofRoughness: 0.42,
 
     // 5. Distance Silhouette & Per-Building Fog Reduction (building only, global fog untouched)
-    fogInfluence: 0.34,
+    fogInfluence: 0.32,
     minLandmarkCullDist: 145.0,
 
-    // 6. High-Res "GANDAKI UNIVERSITY" Sign (>= 1024px wide with mipmaps + slight emissive)
+    // 6. High-Res "GANDAKI UNIVERSITY" Sign (>= 1024px wide with mipmaps + floodlit stone relief)
     signCanvasWidth: 2048,
     signCanvasHeight: 256,
-    signPlaqueColor: 0xc8d2da,
-    signEmissive: 0x2c3a48,
-    signEmissiveIntensity: 0.30,
+    signPlaqueColor: 0xcfd8e0,
+    signEmissive: 0x263442,
+    signEmissiveIntensity: 0.26,
 
-    // 7. Rotunda Glass Ring (dark glass, 2 warm interior-lit sections, visible orange railing)
-    rotundaGlassDarkColor: 0x182838,
-    rotundaGlassDarkEmissive: 0x16283a,
-    rotundaGlassDarkEmissiveIntensity: 0.28,
-    rotundaGlassWarmColor: 0xffcf86,
-    rotundaGlassWarmEmissive: 0xff9636,
-    rotundaGlassWarmEmissiveIntensity: 0.72,
+    // 7. Rotunda Glass Ring (dark glass, 2 warm interior-lit sections with pendant fixtures, visible orange railing)
+    rotundaGlassDarkColor: 0x162636,
+    rotundaGlassDarkEmissive: 0x152638,
+    rotundaGlassDarkEmissiveIntensity: 0.26,
+    rotundaGlassWarmColor: 0xffd28a,
+    rotundaGlassWarmEmissive: 0xff9632,
+    rotundaGlassWarmEmissiveIntensity: 0.82,
     rotundaLitBayIndices: [3, 6],
-    rotundaRailingColor: 0xf07c24,
+    rotundaRailingColor: 0xf27e26,
     rotundaRailingEmissive: 0xff6e18,
-    rotundaRailingEmissiveIntensity: 0.56,
+    rotundaRailingEmissiveIntensity: 0.62,
+  },
+
+  // 8. CLASSROOM HORROR REDESIGN TUNABLES (Centralized in horrorConfig.ts)
+  classroom: {
+    representativeRoomId: 'West Wing L1 Room 1',
+    cullDistance: 20.0,
+
+    // Dying fluorescent tube states & cool-green/white additive spill gradients (no new real PointLights)
+    tubeStates: {
+      steadyDimColor: 0x9ce8d6,
+      steadyDimIntensity: 0.38,
+      stutterColor: 0xbef6e8,
+      stutterPeakIntensity: 1.55,
+      stutterMinIntensity: 0.04,
+      deadColor: 0x161d22,
+      deadIntensity: 0.0,
+    },
+    flickerRates: {
+      stutterBaseHz: 3.1,
+      stutterBurstHz: 18.5,
+      stutterDropoutThreshold: 0.64,
+      safeMaxHz: 1.6,
+      calmExploreHz: 1.25,
+    },
+    tubeSpill: {
+      color: 0xaef2e2,
+      floorSpillOpacity: 0.16,
+      deskSpillOpacity: 0.13,
+    },
+
+    // Cold moonlight shafts & window-shaped floor/desk patches with window-frame shadow mullions
+    shaftStrength: {
+      coneOpacity: 0.16,
+      rayBladeOpacity: 0.22,
+      floorPatchOpacity: 0.28,
+      deskPatchOpacity: 0.22,
+      frameShadowContrast: 0.78,
+    },
+
+    // Deep dark corners & under-desk AO falloff while keeping visibilityFloorAmbient readable
+    cornerDarkness: {
+      cornerVertexAoFloor: 0.14,
+      underDeskAoOpacity: 0.86,
+      wallLowerThirdDarken: 0.76,
+      visibilityFloorAmbient: 0.08,
+    },
+
+    // At most ONE warm accent per room (desk lamp OR doorway hallway spill)
+    warmAccent: {
+      maxPerRoom: 1,
+      deskLampColor: 0xff9636,
+      deskLampOpacity: 0.28,
+      doorwayGlowColor: 0xff8a2a,
+      doorwayGlowOpacity: 0.16,
+    },
+
+    // Surface decay, stains, wet floor sheen, sagging ceiling panel, scratched wood & cracked window pane
+    decayAmount: {
+      overall: 0.84,
+      floorWetSheenOpacity: 0.24,
+      floorWetRoughness: 0.14,
+      wallMoldOpacity: 0.74,
+      ceilingSagAngleRad: 0.24,
+      deskScratchStrength: 0.85,
+      crackedPaneOpacity: 0.78,
+    },
+
+    // Instanced storytelling props & deterministic "wrong" detail per classroom
+    propDensity: {
+      overturnedChairsPerRoom: 2,
+      scatteredPapersCount: 9,
+      cobwebsPerRoom: 3,
+      draggedDeskNearDoor: true,
+      ceilingFanBentBladeRad: 0.28,
+      fanSwaySpeed: 0.85,
+    },
+
+    // Atmosphere: ULTRA-only doorway ground mist & GPU vertex shader draft movement
+    mistAmount: {
+      ultraOnly: true,
+      doorMistPlanes: 2,
+      opacity: 0.16,
+      driftSpeed: 0.34,
+      paperFlutterAmp: 0.008,
+      cableSwayAmp: 0.018,
+    },
+
+    // Cheap procedural Web Audio hooks (respecting EXPLORE_MODE flags)
+    audio: {
+      tubeBuzzVolume: 0.038,
+      creakVolume: 0.055,
+      fanTickVolume: 0.022,
+      fanTickIntervalSec: 2.8,
+    },
+
+    // Classroom mood distribution (emergency_red used in ONE classroom room only, dim, with visible exit sign)
+    moods: {
+      'West Wing L1 Room 1': 'dying_tube',      // Representative "Best Example" Classroom
+      'West Wing L1 Room 2': 'moonlight',
+      'West Wing L1 Room 3': 'emergency_red',   // ONLY emergency_red classroom (dim red exit sign above door)
+      'East Wing R2 Room 1': 'dark',
+      'East Wing R2 Room 2': 'moonlight',
+      'Newari Heritage Block W1 Room 1': 'warm_lamp',
+      'Newari Heritage Block W1 Room 2': 'moonlight',
+      'Newari Cultural Hall W2 South': 'dark',
+      'Building W4 West Wing Room 1': 'dying_tube',
+      'Rotunda Ground West Hall 101': 'dying_tube',
+      'Rotunda 1st-Floor West Class 201': 'moonlight',
+      'Rotunda 2nd-Floor West Seminar 301': 'dark',
+    },
   },
 };
+
 

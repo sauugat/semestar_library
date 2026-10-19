@@ -308,6 +308,137 @@
       font-weight: 700;
     }
 
+    /* Names Filter Popover (Building, Bus, Car, Bike + Individual Selection) */
+    #names-dropdown {
+      position: absolute;
+      top: 56px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(18, 18, 18, 0.97);
+      border: 1px solid var(--border-bright);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      width: 340px;
+      max-width: calc(100vw - 20px);
+      z-index: 32;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.88);
+    }
+    #names-dropdown.open { display: flex; }
+
+    .names-dd-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      border-bottom: 1px solid var(--border-dim);
+      padding-bottom: 6px;
+    }
+    .names-dd-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-white);
+    }
+    .names-cat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 5px;
+    }
+    .name-cat-btn {
+      background: var(--bg-elevated);
+      color: var(--text-light);
+      border: 1px solid var(--border-mid);
+      border-radius: 6px;
+      padding: 7px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .name-cat-btn.active {
+      background: #ffffff;
+      color: #0a0a0a;
+      border-color: #ffffff;
+    }
+    .names-preset-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+    .names-preset-btn {
+      background: var(--bg-elevated);
+      color: var(--text-light);
+      border: 1px solid var(--border-dim);
+      border-radius: 5px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .names-preset-btn:hover, .names-preset-btn.active {
+      border-color: #ffffff;
+      color: #ffffff;
+    }
+    .names-obj-section {
+      border-top: 1px solid var(--border-dim);
+      padding-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .names-obj-list {
+      max-height: 155px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-right: 2px;
+    }
+    .names-obj-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 5px;
+      padding: 5px 8px;
+      font-size: 11.5px;
+      cursor: pointer;
+    }
+    .names-obj-item input[type="checkbox"] {
+      accent-color: #ffffff;
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .names-obj-item-label {
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 600;
+    }
+    .names-obj-badge {
+      font-size: 9.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: #2a2a2a;
+      color: var(--text-light);
+      flex-shrink: 0;
+    }
+
     /* Floating 3D Object Labels */
     #labels-container {
       position: absolute;
@@ -872,6 +1003,64 @@
           <button id="btn-snap-cycle" class="mode-btn" title="Cycle Grid Snapping (Off / 0.5m / 1m / 2m)">
             <span>Snap: Off</span>
           </button>
+          <div class="bar-sep"></div>
+          <button id="btn-bar-names" class="mode-btn active" title="Select which object names to show (Building, Bus, Car, Bike)">
+            <span>Names: All (4) ▾</span>
+          </button>
+          <button id="btn-bar-dims" class="mode-btn" title="Show or Hide Length / Dimensions (W×D×H) on Buildings, Roads, Buses, etc.">
+            <span>Size: OFF</span>
+          </button>
+        </div>
+
+        <!-- Floating Popover: Select Which Names to Show (Building, Bus, Car, Bike + Specific Objects) -->
+        <div id="names-dropdown" role="region" aria-label="Show Names Filter">
+          <div class="names-dd-header">
+            <span class="names-dd-title">Show Names (Building / Bus / Car / Bike)</span>
+            <button id="btn-close-names-dd" class="btn sm">✕</button>
+          </div>
+
+          <div style="font-size:11px;color:var(--text-muted);">
+            Select which categories to show names for on the map:
+          </div>
+
+          <div class="names-cat-grid">
+            <button type="button" class="name-cat-btn active" data-name-cat="building">
+              <span>🏢 Building</span>
+              <span class="cat-check">✓</span>
+            </button>
+            <button type="button" class="name-cat-btn active" data-name-cat="bus">
+              <span>🚌 Bus</span>
+              <span class="cat-check">✓</span>
+            </button>
+            <button type="button" class="name-cat-btn active" data-name-cat="car">
+              <span>🚗 Car</span>
+              <span class="cat-check">✓</span>
+            </button>
+            <button type="button" class="name-cat-btn active" data-name-cat="bike">
+              <span>🏍️ Bike</span>
+              <span class="cat-check">✓</span>
+            </button>
+          </div>
+
+          <div class="names-preset-row">
+            <button type="button" class="names-preset-btn active" data-name-preset="all">All 4</button>
+            <button type="button" class="names-preset-btn" data-name-preset="building">Only Building</button>
+            <button type="button" class="names-preset-btn" data-name-preset="bus">Only Bus</button>
+            <button type="button" class="names-preset-btn" data-name-preset="car">Only Car</button>
+            <button type="button" class="names-preset-btn" data-name-preset="bike">Only Bike</button>
+            <button type="button" class="names-preset-btn" data-name-preset="none">Hide All (OFF)</button>
+          </div>
+
+          <div class="names-obj-section">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              <span style="font-size:11px;font-weight:700;color:var(--text-light);">Select Specific Items:</span>
+              <div style="display:flex;gap:4px;">
+                <button type="button" id="btn-names-check-all" class="names-preset-btn">Check All</button>
+                <button type="button" id="btn-names-uncheck-all" class="names-preset-btn">Uncheck All</button>
+              </div>
+            </div>
+            <div id="names-individual-list" class="names-obj-list"></div>
+          </div>
         </div>
 
         <!-- Tap-to-Place Active Banner -->
@@ -901,6 +1090,7 @@
         <section id="selected-panel" aria-label="Selected Object Controls">
           <div class="sel-header">
             <input id="inp-name" class="sel-name-input" type="text" placeholder="Object Name" autocomplete="off" />
+            <button id="btn-sel-name" class="btn sm icon-only" title="Show / Hide Name on Map">🏷</button>
             <button id="btn-sel-lock" class="btn sm icon-only" title="Lock / Unlock Object">🔓</button>
             <button id="btn-sel-hide" class="btn sm icon-only" title="Hide / Show Object">👁</button>
             <button id="btn-sel-close" class="btn sm icon-only" title="Deselect">✕</button>
@@ -1045,7 +1235,12 @@
           <details style="background:var(--bg-elevated);border:1px solid var(--border-dim);border-radius:6px;padding:8px;">
             <summary style="cursor:pointer;font-weight:700;font-size:12px;">Advanced Options (Grid, Labels, Colliders &amp; Reset)</summary>
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
-              <button id="btn-toggle-labels" class="btn sm active">Labels: ON</button>
+              <button id="btn-toggle-labels" class="btn sm active">Names: ON</button>
+              <button type="button" class="btn sm active" data-menu-name-cat="building">Building Names: ON</button>
+              <button type="button" class="btn sm active" data-menu-name-cat="bus">Bus Names: ON</button>
+              <button type="button" class="btn sm active" data-menu-name-cat="car">Car Names: ON</button>
+              <button type="button" class="btn sm active" data-menu-name-cat="bike">Bike Names: ON</button>
+              <button id="btn-toggle-dims" class="btn sm">Size / Length: OFF</button>
               <button id="btn-toggle-colliders" class="btn sm">Colliders: OFF</button>
               <button id="btn-reset-default-map" class="btn sm danger">Reset to Default Campus</button>
               <button id="btn-clear-map" class="btn sm danger">Clear All</button>
@@ -4282,7 +4477,7 @@
         // VEHICLES
         { assetId: 'veh_bus_gandaki_a', name: 'Bus', category: 'vehicles', objType: 'vehicle', iconKey: 'bus', dims: [2.5, 3.1, 10.5], y: 0.0, solid: true },
         { assetId: 'veh_car_sedan_navy', name: 'Car', category: 'vehicles', objType: 'vehicle', iconKey: 'car', dims: [1.92, 1.52, 4.45], y: 0.0, solid: true },
-        { assetId: 'veh_motorcycle_scooter', name: 'Motorcycle', category: 'vehicles', objType: 'vehicle', iconKey: 'motorcycle', dims: [0.78, 1.15, 1.85], y: 0.0, solid: true }
+        { assetId: 'veh_motorcycle_scooter', name: 'Bike', category: 'vehicles', objType: 'vehicle', iconKey: 'motorcycle', dims: [0.78, 1.15, 1.85], y: 0.0, solid: true }
       ];
 
       const ASSET_MAP = new Map(VISUAL_ASSET_CATALOG.map((a) => [a.assetId, a]));
@@ -4301,6 +4496,13 @@
         placingAssetId: null,       // When non-null, tapping the 3D map places this asset at the tapped point
         snapIndex: 0,               // Default 0 ('Off') so objects move smoothly and never snap back unexpectedly
         showLabels: true,
+        nameCategories: {
+          building: true,
+          bus: true,
+          car: true,
+          bike: true
+        },
+        showDimensions: false,
         showColliders: false,
         unsavedChanges: false,
         assetSearch: '',
@@ -4309,6 +4511,65 @@
         historyIndex: -1,
         idCounter: 40
       };
+
+      function getObjectLabelCategory(obj) {
+        if (!obj) return 'other';
+        const type = String(obj.type || '').toLowerCase();
+        const assetId = String(obj.assetId || '').toLowerCase();
+        const id = String(obj.id || '').toLowerCase();
+        const name = String(obj.name || '').toLowerCase();
+        const d = (Number(obj.dimensions?.depth) || 1) * (Number(obj.scale?.z) || 1);
+
+        if (
+          type === 'building' ||
+          assetId.startsWith('arch_admin_') ||
+          assetId.startsWith('arch_classroom_') ||
+          assetId.startsWith('arch_building_') ||
+          assetId.startsWith('arch_rotunda_') ||
+          assetId.startsWith('arch_guardhouse') ||
+          id.startsWith('bldg_')
+        ) {
+          return 'building';
+        }
+        if (
+          assetId.startsWith('veh_bus') ||
+          id.startsWith('bus_') ||
+          (type === 'vehicle' && (/\bbus\b/.test(name) || d >= 7.5))
+        ) {
+          return 'bus';
+        }
+        if (
+          assetId.startsWith('veh_car') ||
+          id.startsWith('car_') ||
+          (type === 'vehicle' && (/\b(car|sedan|suv|van)\b/.test(name) || (d >= 3.0 && d < 7.5)))
+        ) {
+          return 'car';
+        }
+        if (
+          assetId.startsWith('veh_motorcycle') ||
+          assetId.startsWith('veh_bike') ||
+          id.startsWith('bike_') ||
+          id.startsWith('moto_') ||
+          (type === 'vehicle' && (/\b(bike|motorcycle|scooter|cycle)\b/.test(name) || d < 3.0))
+        ) {
+          return 'bike';
+        }
+        return 'other';
+      }
+
+      function isLabelEligibleObject(obj) {
+        const cat = getObjectLabelCategory(obj);
+        return cat === 'building' || cat === 'bus' || cat === 'car' || cat === 'bike';
+      }
+
+      function shouldShowObjectName(obj) {
+        if (!state.showLabels || !obj) return false;
+        const cat = getObjectLabelCategory(obj);
+        if (cat !== 'building' && cat !== 'bus' && cat !== 'car' && cat !== 'bike') return false;
+        if (!state.nameCategories[cat]) return false;
+        if (obj.showName === false) return false;
+        return true;
+      }
 
       function getSnapStep() {
         return SNAP_STEPS[state.snapIndex] || 0;
@@ -4395,40 +4656,265 @@
       majorGrid.position.y = 0.005;
       scene.add(majorGrid);
 
-      // Shared Geometry & Material Pools
+      // Shared Geometry & Material Pools (In-Game Visual Parity)
+      function createGableTriGeo(alongZ) {
+        const geo = new THREE.BufferGeometry();
+        const verts = alongZ
+          ? new Float32Array([
+              -0.5, 0, 0,   0.5, 0, 0,   0, 1, 0,
+               0, 1, 0,     0.5, 0, 0,  -0.5, 0, 0
+            ])
+          : new Float32Array([
+               0, 0, -0.5,  0, 0, 0.5,   0, 1, 0,
+               0, 1, 0,     0, 0, 0.5,   0, 0, -0.5
+            ]);
+        geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+        geo.computeVertexNormals();
+        return geo;
+      }
+
       const sharedGeoPool = {
         unitBox: new THREE.BoxGeometry(1, 1, 1),
         unitEdges: new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)),
         unitCyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 12),
+        unitCyl8: new THREE.CylinderGeometry(0.5, 0.5, 1, 8),
+        unitCyl4: new THREE.CylinderGeometry(0.5, 0.5, 1, 4),
+        unitTaperPole: new THREE.CylinderGeometry(0.32, 0.5, 1, 8),
         unitCone: new THREE.ConeGeometry(0.5, 1, 12),
-        unitSphere: new THREE.SphereGeometry(0.5, 10, 8)
+        unitPyramid4: new THREE.ConeGeometry(0.707, 1, 4),
+        unitSphere: new THREE.SphereGeometry(0.5, 10, 8),
+        unitDome: new THREE.SphereGeometry(0.5, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5),
+        unitDodeca: new THREE.DodecahedronGeometry(0.5, 0),
+        unitCircle: new THREE.CircleGeometry(0.5, 18),
+        semiCylPortico: new THREE.CylinderGeometry(1, 1, 1, 16, 1, false, Math.PI * 0.5, Math.PI),
+        semiCylOpen: new THREE.CylinderGeometry(1, 1, 1, 16, 1, true, Math.PI * 0.5, Math.PI),
+        signArcCyl: new THREE.CylinderGeometry(1, 1, 1, 16, 1, true, Math.PI * 0.70, Math.PI * 0.60),
+        gableTriX: createGableTriGeo(false),
+        gableTriZ: createGableTriGeo(true)
       };
 
+      // Lightweight Procedural Canvas Textures matching gameHtml.ts signage & lighting
+      function makeCanvasTex(w, h, drawFn) {
+        try {
+          const c = document.createElement('canvas');
+          c.width = w;
+          c.height = h;
+          const ctx = c.getContext('2d');
+          if (ctx) drawFn(ctx, w, h);
+          const tex = new THREE.CanvasTexture(c);
+          tex.needsUpdate = true;
+          return tex;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      const lampPoolTex = makeCanvasTex(128, 128, (ctx, w, h) => {
+        const g = ctx.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, w / 2);
+        g.addColorStop(0.0, 'rgba(255, 165, 70, 0.55)');
+        g.addColorStop(0.45, 'rgba(255, 138, 42, 0.24)');
+        g.addColorStop(1.0, 'rgba(255, 138, 42, 0.0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      });
+
+      const busSideTex = makeCanvasTex(512, 128, (ctx, w, h) => {
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0, '#c28b1e');
+        bg.addColorStop(0.5, '#d99b26');
+        bg.addColorStop(1, '#855810');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#1b2838';
+        ctx.fillRect(8, 34, 135, 10);
+        ctx.fillRect(8, 50, 135, 12);
+        ctx.fillRect(369, 34, 135, 10);
+        ctx.fillRect(369, 50, 135, 12);
+        ctx.fillStyle = '#1e293b';
+        ctx.font = '900 26px Arial, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('GANDAKI', 228, 56);
+        ctx.textAlign = 'left';
+        ctx.fillText('UNIVERSITY', 284, 56);
+        ctx.beginPath();
+        ctx.arc(256, 46, 20, 0, Math.PI * 2);
+        ctx.fillStyle = '#f8fafc';
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#1e3a5f';
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(256, 46, 15, Math.PI, 0, false);
+        ctx.fillStyle = '#b91c1c';
+        ctx.fill();
+        ctx.fillStyle = '#eab308';
+        ctx.fillRect(32, 18, 62, 28);
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(32, 18, 62, 28);
+      });
+
+      const rotundaSignTex = makeCanvasTex(512, 64, (ctx, w, h) => {
+        ctx.fillStyle = '#cfd8e0';
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(4, 4, w - 8, h - 8);
+        ctx.fillStyle = '#0f172a';
+        ctx.font = '900 30px Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('GANDAKI UNIVERSITY', w / 2, 43);
+      });
+
+      const parkingStencilTex = makeCanvasTex(256, 64, (ctx, w, h) => {
+        ctx.fillStyle = '#252d3a';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(226, 232, 240, 0.78)';
+        ctx.fillRect(16, 6, w - 32, 4);
+        ctx.fillRect(16, h - 10, w - 32, 4);
+        ctx.font = '900 28px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('P A R K I N G', w / 2, 42);
+      });
+
       const sharedDetailMats = {
+        // Architectural & Building Materials (matching gameHtml.ts)
+        campusStucco: new THREE.MeshLambertMaterial({ color: 0xc8c0b0 }),
+        nepalDachiBrick: new THREE.MeshLambertMaterial({ color: 0x8c3b26 }),
+        rotundaBrick: new THREE.MeshLambertMaterial({ color: 0x8e4232 }),
+        rotundaWhiteArch: new THREE.MeshLambertMaterial({ color: 0xdce4ec }),
+        whiteTrim: new THREE.MeshLambertMaterial({ color: 0xd0d8e0 }),
+        plinthDarkConcrete: new THREE.MeshLambertMaterial({ color: 0x475569 }),
+        terrazzoFloor: new THREE.MeshLambertMaterial({ color: 0x8894a0 }),
+        riverStoneCoping: new THREE.MeshLambertMaterial({ color: 0x5c6772 }),
+        brightBlueRoof: new THREE.MeshLambertMaterial({ color: 0x1e5bb8 }),
+        gandakiBluePole: new THREE.MeshLambertMaterial({ color: 0x1d4ed8 }),
+        roofTerracotta: new THREE.MeshLambertMaterial({ color: 0xbc4032 }),
+        roofRidgeTerracotta: new THREE.MeshLambertMaterial({ color: 0xdc5846 }),
+        jhingatiRoof: new THREE.MeshLambertMaterial({ color: 0x9a381e }),
+        roofSoffitDark: new THREE.MeshLambertMaterial({ color: 0x181e28 }),
+        castIronDark: new THREE.MeshLambertMaterial({ color: 0x181f29 }),
+        carvedSalWood: new THREE.MeshLambertMaterial({ color: 0x784218 }),
+        ebonyCarvedWood: new THREE.MeshLambertMaterial({ color: 0x28180e }),
+        brassGajur: new THREE.MeshLambertMaterial({ color: 0xd99b26 }),
+        glassDark: new THREE.MeshLambertMaterial({ color: 0x182b3c, transparent: true, opacity: 0.84 }),
+        rotundaCurvedGlass: new THREE.MeshLambertMaterial({ color: 0x1d354d, transparent: true, opacity: 0.82 }),
+        windowWarmLit: new THREE.MeshBasicMaterial({ color: 0xffb35c }),
+        windowRedHorror: new THREE.MeshBasicMaterial({ color: 0xe62e1c }),
+        doorwayWarmGlow: new THREE.MeshBasicMaterial({ color: 0xff9838, transparent: true, opacity: 0.42 }),
+        rotundaOrangeRail: new THREE.MeshBasicMaterial({ color: 0xf27e26 }),
+        rotundaSignMat: new THREE.MeshLambertMaterial({ color: 0xdfe6ed, map: rotundaSignTex || null }),
+        fountainPinkTrim: new THREE.MeshLambertMaterial({ color: 0xb45346 }),
+        fountainWater: new THREE.MeshLambertMaterial({ color: 0x1d4ed8 }),
+        monitorGreen: new THREE.MeshBasicMaterial({ color: 0x22c55e }),
+        terracottaPot: new THREE.MeshLambertMaterial({ color: 0xb45309 }),
+        fireRed: new THREE.MeshLambertMaterial({ color: 0xdc2626 }),
+
+        // Road & Ground Materials
+        asphaltRoad: new THREE.MeshLambertMaterial({ color: 0x2b313a }),
+        footpathPaver: new THREE.MeshLambertMaterial({ color: 0x3b434f }),
+        dirtPath: new THREE.MeshLambertMaterial({ color: 0x524334 }),
+        parkingPaver: new THREE.MeshLambertMaterial({ color: 0x363e4a }),
+        parkingStencil: new THREE.MeshBasicMaterial({ color: 0xffffff, map: parkingStencilTex || null }),
+        roadStripe: new THREE.MeshBasicMaterial({ color: 0xe2e8f0 }),
+        roadYellowLine: new THREE.MeshBasicMaterial({ color: 0xfacc15 }),
+
+        // Nature Materials
+        treeBark: new THREE.MeshLambertMaterial({ color: 0x3d2c1e }),
+        foliageDark: new THREE.MeshLambertMaterial({ color: 0x233d22 }),
+        foliageMid: new THREE.MeshLambertMaterial({ color: 0x2e522c }),
+        foliageLight: new THREE.MeshLambertMaterial({ color: 0x3c6838 }),
+        pineFoliage: new THREE.MeshLambertMaterial({ color: 0x1d3e24 }),
+        grassTurf: new THREE.MeshLambertMaterial({ color: 0x274225 }),
+        flowerRed: new THREE.MeshBasicMaterial({ color: 0xf43f5e }),
+        flowerYellow: new THREE.MeshBasicMaterial({ color: 0xfacc15 }),
+        flowerOrange: new THREE.MeshBasicMaterial({ color: 0xf97316 }),
+        rockGrey: new THREE.MeshLambertMaterial({ color: 0x64748b }),
+        shadowDisc: new THREE.MeshBasicMaterial({ color: 0x07090d, transparent: true, opacity: 0.45, depthWrite: false }),
+
+        // Lighting Materials
+        lampBulbWarm: new THREE.MeshBasicMaterial({ color: 0xffb35c }),
+        lampCoreBright: new THREE.MeshBasicMaterial({ color: 0xffe8c2 }),
+        lampHaloGlow: new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.28, depthWrite: false }),
+        lampPoolMat: new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          map: lampPoolTex || null,
+          transparent: true,
+          opacity: 0.75,
+          depthWrite: false
+        }),
+
+        // Vehicle Materials
+        busAmberPaint: new THREE.MeshLambertMaterial({ color: 0xd99b26 }),
+        busLiverySide: new THREE.MeshLambertMaterial({ color: 0xffffff, map: busSideTex || null }),
+        busStripe: new THREE.MeshLambertMaterial({ color: 0x1b2838 }),
+        busBumper: new THREE.MeshLambertMaterial({ color: 0x334155 }),
+        busMoss: new THREE.MeshLambertMaterial({ color: 0x3b5323 }),
+        carDarkNavy: new THREE.MeshLambertMaterial({ color: 0x17253b }),
+        carSilverTrim: new THREE.MeshLambertMaterial({ color: 0x94a3b8 }),
+        bikeRedPaint: new THREE.MeshLambertMaterial({ color: 0xb91c1c }),
+        rubberTire: new THREE.MeshLambertMaterial({ color: 0x121418 }),
+        headlightLit: new THREE.MeshBasicMaterial({ color: 0xfef08a }),
+        taillightRed: new THREE.MeshBasicMaterial({ color: 0xdc2626 }),
+
+        // Legacy aliases & wireframe
         darkTrim: new THREE.MeshLambertMaterial({ color: 0x222222 }),
         lightTrim: new THREE.MeshLambertMaterial({ color: 0xd8d8d8 }),
-        glassDark: new THREE.MeshLambertMaterial({ color: 0x2a3b4c, transparent: true, opacity: 0.78 }),
-        roofTerracotta: new THREE.MeshLambertMaterial({ color: 0x8a4b3c }),
-        busStripe: new THREE.MeshLambertMaterial({ color: 0x1e293b }),
-        busMoss: new THREE.MeshLambertMaterial({ color: 0x3b5323 }),
-        foliageMid: new THREE.MeshLambertMaterial({ color: 0x4d6648 }),
-        lampBulbWarm: new THREE.MeshBasicMaterial({ color: 0xffaa44 }),
-        roadStripe: new THREE.MeshBasicMaterial({ color: 0xd4d4d4 }),
         colliderWire: new THREE.LineBasicMaterial({ color: 0xffffff })
       };
 
       const PALETTE_BY_TYPE = {
-        building:        { fill: 0x929292, fillSel: 0xdddddd, edge: 0x1c1c1c, edgeSel: 0xffffff },
-        architecture:    { fill: 0x848484, fillSel: 0xd4d4d4, edge: 0x222222, edgeSel: 0xffffff },
-        road:            { fill: 0x343434, fillSel: 0x5c5c5c, edge: 0x666666, edgeSel: 0xffffff },
-        ground_area:     { fill: 0x484848, fillSel: 0x707070, edge: 0x858585, edgeSel: 0xffffff },
-        nature:          { fill: 0x556b52, fillSel: 0x88aa84, edge: 0x243022, edgeSel: 0xffffff },
-        lighting:        { fill: 0xb8a47e, fillSel: 0xffe4ad, edge: 0x333333, edgeSel: 0xffffff },
-        prop:            { fill: 0x78726a, fillSel: 0xc2b9ad, edge: 0x262626, edgeSel: 0xffffff },
-        vehicle:         { fill: 0xb58932, fillSel: 0xf0c465, edge: 0x1a1a1a, edgeSel: 0xffffff },
+        building:        { fill: 0xc8c0b0, fillSel: 0xffffff, edge: 0x2b313a, edgeSel: 0xffffff },
+        architecture:    { fill: 0x9aa6b2, fillSel: 0xffffff, edge: 0x2b313a, edgeSel: 0xffffff },
+        road:            { fill: 0x2b313a, fillSel: 0x64748b, edge: 0x475569, edgeSel: 0xffffff },
+        ground_area:     { fill: 0x363e4a, fillSel: 0x64748b, edge: 0x5c6772, edgeSel: 0xffffff },
+        nature:          { fill: 0x2e522c, fillSel: 0x88aa84, edge: 0x1d3e24, edgeSel: 0xffffff },
+        lighting:        { fill: 0xffb35c, fillSel: 0xffe8c2, edge: 0x333333, edgeSel: 0xffffff },
+        prop:            { fill: 0x784218, fillSel: 0xc2b9ad, edge: 0x262626, edgeSel: 0xffffff },
+        vehicle:         { fill: 0xd99b26, fillSel: 0xf0c465, edge: 0x1a1a1a, edgeSel: 0xffffff },
         gameplay_marker: { fill: 0x60788a, fillSel: 0xa8cbe5, edge: 0xd8e8f5, edgeSel: 0xffffff },
         sound_marker:    { fill: 0x786888, fillSel: 0xc2ace0, edge: 0xe0d0f5, edgeSel: 0xffffff }
       };
+
+      // Build subtle in-game 1.00m Terrace Retaining Wall & 3 Terrace Staircases on the reference ground
+      const terraceRefGroup = new THREE.Group();
+      terraceRefGroup.name = '__terrace_reference__';
+      (function buildInGameTerracePerimeterReference() {
+        const retEdges = [
+          [-91.50, 55.00, -31.30, 55.00],
+          [-27.70, 55.00,  39.50, 55.00],
+          [ 39.50, -39.25, 39.50,  3.70],
+          [ 39.50,   7.30, 39.50, 55.00],
+          [ 39.50, -39.25, 44.75, -39.25],
+          [ 44.75, -139.0, 44.75, -39.25],
+          [-32.00, -139.0, 44.75, -139.0],
+          [-32.00, -139.0, -32.00, -39.25],
+          [-91.50, -39.25, -46.80, -39.25],
+          [-43.20, -39.25, -32.00, -39.25],
+          [-91.50, -39.25, -91.50, 55.00]
+        ];
+        retEdges.forEach(([x1, z1, x2, z2]) => {
+          const dx = x2 - x1;
+          const dz = z2 - z1;
+          const len = Math.hypot(dx, dz);
+          const coping = new THREE.Mesh(sharedGeoPool.unitBox, sharedDetailMats.riverStoneCoping);
+          coping.scale.set(Math.abs(dx) > 0.01 ? len : 0.45, 0.14, Math.abs(dz) > 0.01 ? len : 0.45);
+          coping.position.set((x1 + x2) * 0.5, 0.03, (z1 + z2) * 0.5);
+          terraceRefGroup.add(coping);
+        });
+        // 3 Wide Concrete Terrace Staircase Landings (East x=39.5 z=5.5, North x=-29.5 z=55, South-West x=-45 z=-39.25)
+        [
+          { x: 40.7, z: 5.5, w: 2.4, d: 3.6 },
+          { x: -29.5, z: 56.2, w: 3.6, d: 2.4 },
+          { x: -45.0, z: -40.45, w: 3.6, d: 2.4 }
+        ].forEach((st) => {
+          const pad = new THREE.Mesh(sharedGeoPool.unitBox, sharedDetailMats.whiteTrim);
+          pad.scale.set(st.w, 0.12, st.d);
+          pad.position.set(st.x, 0.02, st.z);
+          terraceRefGroup.add(pad);
+        });
+      })();
+      scene.add(terraceRefGroup);
 
       const objectsGroup = new THREE.Group();
       scene.add(objectsGroup);
@@ -4437,105 +4923,1244 @@
       collidersOverlayGroup.visible = false;
       scene.add(collidersOverlayGroup);
 
+      // Live 3D Placement Preview Ghost Group (shows exact in-game 3D model before & while placing)
+      const placementPreviewGroup = new THREE.Group();
+      placementPreviewGroup.visible = false;
+      const placementPreviewDetail = new THREE.Group();
+      const placementPreviewEdges = new THREE.LineSegments(
+        sharedGeoPool.unitEdges,
+        new THREE.LineBasicMaterial({ color: 0xffffff })
+      );
+      placementPreviewGroup.add(placementPreviewDetail);
+      placementPreviewGroup.add(placementPreviewEdges);
+      scene.add(placementPreviewGroup);
+      let placementPreviewSig = '';
+
       const meshMap = new Map();
+
+      function resolveEffectiveAssetId(obj, w, h, d) {
+        if (!obj) return 'arch_building_block';
+        const rawAid = String(obj.assetId || '').trim();
+        const id = String(obj.id || '').toLowerCase();
+        const name = String(obj.name || '').toLowerCase();
+        const type = String(obj.type || 'building').toLowerCase();
+        const maxSpan = Math.max(w || 1, d || 1);
+
+        if (id === 'bldg_main_rotunda' || rawAid === 'arch_rotunda_complex' || /\brotunda\b/.test(name)) {
+          return 'arch_rotunda_complex';
+        }
+        if (id === 'bldg_1' || rawAid === 'arch_admin_office_2storey' || /\boffice\b|\badmin\b/.test(name) || (type === 'building' && h >= 6.0 && h < 9.8)) {
+          return 'arch_admin_office_2storey';
+        }
+        if (id === 'bldg_guardhouse' || rawAid === 'arch_guardhouse' || /\bguardhouse\b|\bgatehouse\b/.test(name)) {
+          return 'arch_guardhouse';
+        }
+        if (rawAid && rawAid !== 'arch_building_block') {
+          return rawAid;
+        }
+        if (type === 'building') {
+          if (maxSpan >= 13.5 || /\b(wing|classroom|lab|hall|library|cafeteria|staffroom|washroom)\b/.test(name)) {
+            return 'arch_classroom_wing';
+          }
+          return 'arch_building_block';
+        }
+        if (type === 'vehicle') {
+          if (id.startsWith('bus_') || /\bbus\b/.test(name) || maxSpan >= 7.0) return 'veh_bus_gandaki_a';
+          if (id.startsWith('bike_') || /\b(bike|motorcycle|scooter)\b/.test(name) || maxSpan < 2.6) return 'veh_motorcycle_scooter';
+          return 'veh_car_sedan_navy';
+        }
+        if (type === 'nature') {
+          if (/\bpine\b|\bconifer\b/.test(name)) return 'nat_tree_pine';
+          if (/\bbush\b|\bshrub\b/.test(name)) return 'nat_bush_small';
+          if (/\bflower\b/.test(name)) return 'nat_flower_cluster';
+          if (/\brock\b|\bboulder\b/.test(name)) return 'nat_rock_boulder';
+          return 'nat_tree_large';
+        }
+        if (type === 'lighting') {
+          if (/\bflood\b|\boutdoor\b/.test(name)) return 'light_outdoor_flood';
+          if (/\bgarden\b|\bdeco\b|\blantern\b/.test(name)) return 'light_garden_lamp';
+          return 'light_streetlight';
+        }
+        if (type === 'ground_area') {
+          if (/\bgrass\b|\blawn\b/.test(name)) return 'nat_grass_area';
+          if (/\bgarden\b/.test(name)) return 'nat_garden_area';
+          return 'road_parking_lot';
+        }
+        if (type === 'road') {
+          if (/\bzebra\b|\bmarking\b/.test(name)) return 'road_zebra_crossing';
+          if (/\bdirt\b|\bnarrow\b/.test(name)) return 'road_narrow';
+          if (/\bfootpath\b|\bwalkway\b/.test(name)) return 'road_footpath';
+          return 'road_asphalt';
+        }
+        if (type === 'prop' || type === 'architecture') {
+          if (/\bchaitya\b|\bstupa\b|\bfountain\b/.test(name)) return 'prop_fountain_chaitya';
+          if (/\bbench\b/.test(name)) return 'prop_bench';
+          if (/\btrash\b|\bdustbin\b|\bbin\b/.test(name)) return 'prop_dustbin';
+          if (/\bcreate\b|\bcrate\b|\bbox\b/.test(name)) return 'prop_crate_wooden';
+          if (/\bshelter\b|\bbus stop\b/.test(name)) return 'road_bus_shelter';
+          if (/\bsign\b/.test(name)) return 'prop_sign_campus';
+          if (/\bfence\b/.test(name)) return 'arch_fence_wrought_iron';
+          if (/\bpillar\b|\bcolumn\b/.test(name)) return 'arch_pillar_concrete';
+          if (/\bbarrier\b/.test(name)) return 'road_barrier';
+          if (/\bdoor\b/.test(name)) return 'arch_door_single';
+          if (/\bwindow\b/.test(name)) return 'arch_window_standard';
+          if (/\broof\b/.test(name)) return 'arch_roof_sloped';
+          if (/\bstair\b/.test(name)) return 'arch_staircase';
+          if (/\bfloor\b|\bslab\b/.test(name)) return 'arch_floor_slab';
+          if (/\bwall\b/.test(name)) return 'arch_wall_exterior';
+          return rawAid || 'prop_bench';
+        }
+        return rawAid || 'arch_building_block';
+      }
+
+      function addPartBox(parent, sx, sy, sz, px, py, pz, mat, rx, ry, rz) {
+        const m = new THREE.Mesh(sharedGeoPool.unitBox, mat);
+        m.scale.set(Math.max(0.01, sx), Math.max(0.01, sy), Math.max(0.01, sz));
+        m.position.set(px, py, pz);
+        if (rx || ry || rz) m.rotation.set(rx || 0, ry || 0, rz || 0);
+        parent.add(m);
+        return m;
+      }
+
+      function addPartCyl(parent, sx, sy, sz, px, py, pz, mat, rx, ry, rz, geo) {
+        const m = new THREE.Mesh(geo || sharedGeoPool.unitCyl, mat);
+        m.scale.set(Math.max(0.01, sx), Math.max(0.01, sy), Math.max(0.01, sz));
+        m.position.set(px, py, pz);
+        if (rx || ry || rz) m.rotation.set(rx || 0, ry || 0, rz || 0);
+        parent.add(m);
+        return m;
+      }
+
+      // Helper: Build in-game Pitched Gable Roof (matching buildPitchedGableRoof in gameHtml.ts)
+      function addPitchedGableRoofToGroup(parent, cx, eaveY, cz, width, depth, ridgeH, roofMat, gableWallMat, trimMat, ridgeMat, isLongitudinal, isNewari) {
+        const overhang = isNewari ? 0.55 : 0.42;
+        const totalW = width + overhang * 2;
+        const totalD = depth + overhang * 2;
+
+        // Overhanging eave cornice & dark soffit
+        addPartBox(parent, totalW, 0.14, totalD, cx, eaveY + 0.04, cz, trimMat);
+        addPartBox(parent, totalW - 0.08, 0.05, totalD - 0.08, cx, eaveY - 0.03, cz, sharedDetailMats.roofSoffitDark);
+
+        if (!isLongitudinal) {
+          // Ridge runs along X axis (East-West)
+          const halfD = totalD * 0.5;
+          const slopeLen = Math.hypot(halfD, ridgeH);
+          const slopeAng = Math.atan2(ridgeH, halfD);
+
+          addPartBox(parent, totalW, 0.11, slopeLen, cx, eaveY + ridgeH * 0.5, cz + halfD * 0.5, roofMat, slopeAng, 0, 0);
+          addPartBox(parent, totalW, 0.11, slopeLen, cx, eaveY + ridgeH * 0.5, cz - halfD * 0.5, roofMat, -slopeAng, 0, 0);
+          addPartBox(parent, totalW + 0.08, 0.15, 0.28, cx, eaveY + ridgeH + 0.04, cz, ridgeMat);
+
+          // Left & Right triangular gable walls + louver vents
+          [-width * 0.5 + 0.06, width * 0.5 - 0.06].forEach((gx) => {
+            const gTri = new THREE.Mesh(sharedGeoPool.gableTriX, gableWallMat);
+            gTri.scale.set(1, ridgeH, depth);
+            gTri.position.set(cx + gx, eaveY, cz);
+            parent.add(gTri);
+            addPartBox(parent, 0.12, Math.min(0.32, ridgeH * 0.28), Math.min(1.1, depth * 0.22), cx + gx + (gx > 0 ? 0.05 : -0.05), eaveY + ridgeH * 0.52, cz, trimMat);
+          });
+
+          if (isNewari) {
+            [-totalW * 0.5 + 0.25, totalW * 0.5 - 0.25].forEach((gx) => {
+              addPartCyl(parent, 0.26, 0.36, 0.26, cx + gx, eaveY + ridgeH + 0.26, cz, sharedDetailMats.brassGajur, 0, 0, 0, sharedGeoPool.unitCone);
+            });
+          }
+        } else {
+          // Ridge runs along Z axis (North-South longitudinal wing)
+          const halfW = totalW * 0.5;
+          const slopeLen = Math.hypot(halfW, ridgeH);
+          const slopeAng = Math.atan2(ridgeH, halfW);
+
+          addPartBox(parent, slopeLen, 0.11, totalD, cx - halfW * 0.5, eaveY + ridgeH * 0.5, cz, roofMat, 0, 0, slopeAng);
+          addPartBox(parent, slopeLen, 0.11, totalD, cx + halfW * 0.5, eaveY + ridgeH * 0.5, cz, roofMat, 0, 0, -slopeAng);
+          addPartBox(parent, 0.28, 0.15, totalD + 0.08, cx, eaveY + ridgeH + 0.04, cz, ridgeMat);
+
+          // North & South triangular gable walls + louver vents
+          [-depth * 0.5 + 0.06, depth * 0.5 - 0.06].forEach((gz) => {
+            const gTri = new THREE.Mesh(sharedGeoPool.gableTriZ, gableWallMat);
+            gTri.scale.set(width, ridgeH, 1);
+            gTri.position.set(cx, eaveY, cz + gz);
+            parent.add(gTri);
+            addPartBox(parent, Math.min(1.1, width * 0.22), Math.min(0.32, ridgeH * 0.28), 0.12, cx, eaveY + ridgeH * 0.52, cz + gz + (gz > 0 ? 0.05 : -0.05), trimMat);
+          });
+        }
+      }
+
+      // Helper: Build in-game Framed Multi-Pane Window (matching buildDetailedWindow in gameHtml.ts)
+      function addDetailedWindowToGroup(parent, wx, wy, wz, alongZ, outSign, isWarmLit, isNewari, winW, winH) {
+        const w = winW || 1.65;
+        const h = winH || 1.22;
+        const frameMat = isNewari ? sharedDetailMats.ebonyCarvedWood : sharedDetailMats.whiteTrim;
+        const paneMat = isWarmLit ? sharedDetailMats.windowWarmLit : sharedDetailMats.glassDark;
+
+        if (!alongZ) {
+          // Window on wall running along X (normal along Z)
+          addPartBox(parent, w + 0.16, h + 0.14, 0.10, wx, wy, wz, frameMat);
+          addPartBox(parent, w + 0.28, 0.09, 0.20, wx, wy - h * 0.5 - 0.04, wz + outSign * 0.04, frameMat);
+          addPartBox(parent, w, h, 0.12, wx, wy, wz + outSign * 0.01, paneMat);
+          addPartBox(parent, 0.05, h, 0.14, wx, wy, wz + outSign * 0.02, frameMat);
+          addPartBox(parent, w, 0.05, 0.14, wx, wy + 0.08, wz + outSign * 0.02, frameMat);
+        } else {
+          // Window on wall running along Z (normal along X)
+          addPartBox(parent, 0.10, h + 0.14, w + 0.16, wx, wy, wz, frameMat);
+          addPartBox(parent, 0.20, 0.09, w + 0.28, wx + outSign * 0.04, wy - h * 0.5 - 0.04, wz, frameMat);
+          addPartBox(parent, 0.12, h, w, wx + outSign * 0.01, wy, wz, paneMat);
+          addPartBox(parent, 0.14, h, 0.05, wx + outSign * 0.02, wy, wz, frameMat);
+          addPartBox(parent, 0.14, 0.05, w, wx + outSign * 0.02, wy + 0.08, wz, frameMat);
+        }
+      }
+
+      // Helper: Build in-game Corner Quoins (matching buildCornerQuoins in gameHtml.ts)
+      function addCornerQuoinsToGroup(parent, x, baseY, z, wallH, mat) {
+        const qMat = mat || sharedDetailMats.whiteTrim;
+        addPartBox(parent, 0.22, wallH, 0.22, x, baseY + wallH * 0.5, z, qMat);
+        const step = Math.max(0.55, wallH / 6);
+        for (let y = baseY + 0.24; y < baseY + wallH - 0.15; y += step) {
+          addPartBox(parent, 0.36, 0.22, 0.36, x, y, z, qMat);
+        }
+      }
 
       function populateProceduralDetail(detailGroup, obj, w, h, d) {
         while (detailGroup.children.length > 0) {
           detailGroup.remove(detailGroup.children[0]);
         }
-        const assetId = obj.assetId || '';
+        const assetId = resolveEffectiveAssetId(obj, w, h, d);
         const type = obj.type || 'building';
+        const id = String(obj.id || '').toLowerCase();
+        const name = String(obj.name || '').toLowerCase();
+        const bY = -h * 0.5; // Bottom ground plane inside object group
 
-        // 1. Gandaki University Buses (GP62 / GP64)
-        if (assetId.startsWith('veh_bus_') || (type === 'vehicle' && d >= 7.5)) {
-          const stripe = new THREE.Mesh(sharedGeoPool.unitBox, sharedDetailMats.busStripe);
-          stripe.scale.set(w + 0.04, h * 0.16, d + 0.02);
-          stripe.position.set(0, -h * 0.05, 0);
-          detailGroup.add(stripe);
+        // ===================================================================
+        // 1. GANDAKI UNIVERSITY BUSES (GP62 & GP64 — buildEnterableUniversityBus)
+        // ===================================================================
+        if (assetId.startsWith('veh_bus_')) {
+          const floorY = bY + Math.min(0.52, h * 0.17);
+          const bodyH = Math.max(1.2, h - 0.58);
+          const halfW = w * 0.5;
+          const halfD = d * 0.5;
 
-          const fGlass = new THREE.Mesh(sharedGeoPool.unitBox, sharedDetailMats.glassDark);
-          fGlass.scale.set(w * 0.86, h * 0.28, d * 0.96);
-          fGlass.position.set(0, h * 0.18, 0);
-          detailGroup.add(fGlass);
+          // Ground contact shadow + underbody dark chassis
+          addPartBox(detailGroup, w * 0.96, 0.02, d * 0.96, 0, bY + 0.01, 0, sharedDetailMats.shadowDisc);
+          addPartBox(detailGroup, w * 0.84, 0.18, d * 0.94, 0, floorY - 0.08, 0, sharedDetailMats.castIronDark);
 
-          [
-            [-w * 0.48, -h * 0.5 + 0.45, -d * 0.28],
-            [ w * 0.48, -h * 0.5 + 0.45, -d * 0.28],
-            [-w * 0.48, -h * 0.5 + 0.45,  d * 0.28],
-            [ w * 0.48, -h * 0.5 + 0.45,  d * 0.28]
-          ].forEach(([wx, wy, wz]) => {
-            const wh = new THREE.Mesh(sharedGeoPool.unitCyl, sharedDetailMats.darkTrim);
-            wh.rotation.z = Math.PI / 2;
-            wh.scale.set(0.92, 0.28, 0.92);
-            wh.position.set(wx, wy, wz);
-            detailGroup.add(wh);
+          // Lower amber body & side livery panels ("GANDAKI [Crest] UNIVERSITY")
+          const waistH = bodyH * 0.48;
+          const waistY = floorY + waistH * 0.5;
+          addPartBox(detailGroup, w * 0.96, waistH, d * 0.96, 0, waistY, 0, sharedDetailMats.busAmberPaint);
+          addPartBox(detailGroup, 0.04, waistH * 0.94, d * 0.90, -halfW - 0.01, waistY, 0, sharedDetailMats.busLiverySide);
+          addPartBox(detailGroup, 0.04, waistH * 0.94, d * 0.90, halfW + 0.01, waistY, 0, sharedDetailMats.busLiverySide);
+
+          // Twin navy waist stripes across front & rear
+          addPartBox(detailGroup, w + 0.03, bodyH * 0.11, d + 0.02, 0, floorY + waistH * 0.55, 0, sharedDetailMats.busStripe);
+
+          // Recessed passenger door stepwells on -X side (front & rear doors)
+          [-d * 0.32, d * 0.32].forEach((dz) => {
+            addPartBox(detailGroup, 0.14, bodyH * 0.82, Math.min(1.15, d * 0.11), -halfW + 0.02, floorY + bodyH * 0.41, dz, sharedDetailMats.castIronDark);
           });
 
-          const moss = new THREE.Mesh(sharedGeoPool.unitBox, sharedDetailMats.busMoss);
-          moss.scale.set(w * 0.72, 0.08, d * 0.65);
-          moss.position.set(0, h * 0.5 + 0.04, 0);
-          detailGroup.add(moss);
-          return;
-        }
+          // Window belt (dark glass + pillars + cant rail header)
+          const winBeltH = bodyH * 0.34;
+          const winBeltY = floorY + waistH + winBeltH * 0.5;
+          addPartBox(detailGroup, w * 0.94, winBeltH, d * 0.94, 0, winBeltY, 0, sharedDetailMats.glassDark);
 
-        // 2. Cars
-        if (assetId.startsWith('veh_car_') || (type === 'vehicle' && d >= 3.0 && d < 7.5)) {
-          const cabin = new THREE.Mesh(sharedGeoPool.unitBox, sharedDetailMats.glassDark);
-          cabin.scale.set(w * 0.84, h * 0.44, d * 0.52);
-          cabin.position.set(0, h * 0.24, d * 0.04);
-          detailGroup.add(cabin);
-          return;
-        }
-
-        // 3. Rotunda Dome
-        if (assetId === 'arch_rotunda_complex' || obj.id === 'bldg_main_rotunda') {
-          const domeCyl = new THREE.Mesh(sharedGeoPool.unitCyl, sharedDetailMats.lightTrim);
-          domeCyl.scale.set(Math.min(w, d) * 0.75, h * 0.28, Math.min(w, d) * 0.75);
-          domeCyl.position.set(0, h * 0.5 + h * 0.14, 0);
-          detailGroup.add(domeCyl);
-
-          const roofCap = new THREE.Mesh(sharedGeoPool.unitCone, sharedDetailMats.roofTerracotta);
-          roofCap.scale.set(Math.min(w, d) * 0.85, h * 0.22, Math.min(w, d) * 0.85);
-          roofCap.position.set(0, h * 0.5 + h * 0.38, 0);
-          detailGroup.add(roofCap);
-          return;
-        }
-
-        // 4. Trees (Regular & Pine)
-        if (assetId.startsWith('nat_tree_')) {
-          const crown = new THREE.Mesh(
-            assetId === 'nat_tree_pine' ? sharedGeoPool.unitCone : sharedGeoPool.unitSphere,
-            sharedDetailMats.foliageMid
-          );
-          crown.scale.set(w * 0.95, h * 0.68, d * 0.95);
-          crown.position.set(0, h * 0.16, 0);
-          detailGroup.add(crown);
-          return;
-        }
-
-        // 5. Street Lamps & Lights
-        if (type === 'lighting') {
-          const arm = new THREE.Mesh(sharedGeoPool.unitBox, sharedDetailMats.lightTrim);
-          arm.scale.set(0.12, 0.12, Math.max(0.4, d * 0.6));
-          arm.position.set(0, h * 0.46, d * 0.2);
-          detailGroup.add(arm);
-
-          const head = new THREE.Mesh(sharedGeoPool.unitSphere, sharedDetailMats.lampBulbWarm);
-          head.scale.set(0.42, 0.32, 0.42);
-          head.position.set(0, h * 0.44, d * 0.42);
-          detailGroup.add(head);
-          return;
-        }
-
-        // 6. Road Markings
-        if (assetId === 'road_zebra_crossing') {
-          for (let i = -2; i <= 2; i++) {
-            const bar = new THREE.Mesh(sharedGeoPool.unitBox, sharedDetailMats.roadStripe);
-            bar.scale.set(w * 0.12, h + 0.02, d * 0.82);
-            bar.position.set(i * (w * 0.18), 0.01, 0);
-            detailGroup.add(bar);
+          const numPillars = 7;
+          for (let i = 0; i <= numPillars; i++) {
+            const pz = -halfD * 0.90 + (i / numPillars) * (d * 0.90);
+            addPartBox(detailGroup, w + 0.02, winBeltH + 0.04, 0.10, 0, winBeltY, pz, sharedDetailMats.busAmberPaint);
           }
+
+          // Upper cant-rail yellow header & domed 7-strip roof
+          const roofY = floorY + waistH + winBeltH;
+          const roofH = Math.max(0.22, (bY + h) - roofY);
+          addPartBox(detailGroup, w * 0.98, roofH * 0.65, d * 0.96, 0, roofY + roofH * 0.32, 0, sharedDetailMats.busAmberPaint);
+          addPartBox(detailGroup, w * 0.76, roofH * 0.45, d * 0.92, 0, roofY + roofH * 0.75, 0, sharedDetailMats.busAmberPaint);
+
+          // Raised Front Destination Brow ("GP62 | GANDAKI UNIVERSITY") at -Z + Split Windshield + Yellow Route Sign
+          addPartBox(detailGroup, w * 0.86, 0.32, 0.34, 0, roofY + roofH * 0.55, -halfD + 0.18, sharedDetailMats.busAmberPaint);
+          addPartBox(detailGroup, w * 0.76, 0.22, 0.06, 0, roofY + roofH * 0.55, -halfD + 0.01, sharedDetailMats.castIronDark);
+          addPartBox(detailGroup, 0.36, 0.18, 0.04, -w * 0.22, winBeltY - 0.12, -halfD - 0.01, sharedDetailMats.roadYellowLine);
+
+          // Front & Rear Heavy Steel Bumpers, Grille, Headlights (-Z) & Taillights (+Z)
+          addPartBox(detailGroup, w + 0.06, 0.26, 0.24, 0, floorY + 0.06, -halfD - 0.04, sharedDetailMats.busBumper);
+          addPartBox(detailGroup, w + 0.06, 0.26, 0.22, 0, floorY + 0.06, halfD + 0.04, sharedDetailMats.busBumper);
+          addPartBox(detailGroup, w * 0.52, 0.36, 0.06, 0, floorY + 0.36, -halfD - 0.01, sharedDetailMats.castIronDark);
+
+          [-w * 0.34, w * 0.34].forEach((lx) => {
+            addPartCyl(detailGroup, 0.22, 0.06, 0.22, lx, floorY + 0.34, -halfD - 0.02, sharedDetailMats.headlightLit, Math.PI * 0.5, 0, 0);
+            addPartBox(detailGroup, 0.26, 0.16, 0.06, lx, floorY + 0.36, halfD + 0.02, sharedDetailMats.taillightRed);
+          });
+
+          // 4 Heavy Rubber Tires + Silver Wheel Rims
+          const wheelR = Math.min(0.48, h * 0.16);
+          const wheelZOff = d * 0.29;
+          [
+            [-halfW + 0.12, -wheelZOff],
+            [ halfW - 0.12, -wheelZOff],
+            [-halfW + 0.12,  wheelZOff],
+            [ halfW - 0.12,  wheelZOff]
+          ].forEach(([wx, wz]) => {
+            addPartCyl(detailGroup, wheelR * 2, 0.30, wheelR * 2, wx, bY + wheelR, wz, sharedDetailMats.rubberTire, 0, 0, Math.PI * 0.5);
+            addPartCyl(detailGroup, wheelR * 1.15, 0.33, wheelR * 1.15, wx, bY + wheelR, wz, sharedDetailMats.carSilverTrim, 0, 0, Math.PI * 0.5);
+          });
+
+          // Roof escape hatches & weathered green moss patches
+          addPartBox(detailGroup, w * 0.32, 0.08, 0.68, 0, bY + h + 0.02, -d * 0.18, sharedDetailMats.whiteTrim);
+          addPartBox(detailGroup, w * 0.32, 0.08, 0.68, 0, bY + h + 0.02, d * 0.20, sharedDetailMats.whiteTrim);
+          addPartBox(detailGroup, w * 0.68, 0.05, d * 0.58, 0, bY + h + 0.01, 0.3, sharedDetailMats.busMoss);
+          return;
         }
+
+        // ===================================================================
+        // 2. CARS / SEDANS (veh_car_sedan_navy / car_01)
+        // ===================================================================
+        if (assetId.startsWith('veh_car_')) {
+          const wheelR = Math.min(0.34, h * 0.22);
+          const bodyBotY = bY + wheelR * 0.65;
+          const lowerH = Math.max(0.42, h * 0.38);
+          const cabinH = Math.max(0.36, h * 0.36);
+
+          addPartBox(detailGroup, w * 0.95, 0.02, d * 0.95, 0, bY + 0.01, 0, sharedDetailMats.shadowDisc);
+          // Lower sedan chassis, hood & trunk
+          addPartBox(detailGroup, w * 0.94, lowerH, d * 0.96, 0, bodyBotY + lowerH * 0.5, 0, sharedDetailMats.carDarkNavy);
+          // Bumpers & front grille
+          addPartBox(detailGroup, w * 0.98, lowerH * 0.42, 0.18, 0, bodyBotY + lowerH * 0.28, -d * 0.48, sharedDetailMats.busBumper);
+          addPartBox(detailGroup, w * 0.98, lowerH * 0.42, 0.18, 0, bodyBotY + lowerH * 0.28, d * 0.48, sharedDetailMats.busBumper);
+          addPartBox(detailGroup, w * 0.48, lowerH * 0.36, 0.06, 0, bodyBotY + lowerH * 0.52, -d * 0.485, sharedDetailMats.castIronDark);
+
+          // Greenhouse cabin & roof
+          const cabY = bodyBotY + lowerH + cabinH * 0.5 - 0.02;
+          addPartBox(detailGroup, w * 0.82, cabinH, d * 0.50, 0, cabY, d * 0.03, sharedDetailMats.glassDark);
+          addPartBox(detailGroup, w * 0.78, 0.07, d * 0.44, 0, cabY + cabinH * 0.5, d * 0.03, sharedDetailMats.carDarkNavy);
+          // Sloped front windshield & rear glass pillars
+          addPartBox(detailGroup, w * 0.80, cabinH * 0.92, 0.08, 0, cabY - 0.02, -d * 0.21, sharedDetailMats.glassDark, 0.45, 0, 0);
+          addPartBox(detailGroup, w * 0.80, cabinH * 0.90, 0.08, 0, cabY - 0.02, d * 0.26, sharedDetailMats.glassDark, -0.42, 0, 0);
+
+          // Headlights (-Z) & Taillights (+Z)
+          [-w * 0.33, w * 0.33].forEach((lx) => {
+            addPartBox(detailGroup, 0.26, 0.14, 0.06, lx, bodyBotY + lowerH * 0.62, -d * 0.485, sharedDetailMats.headlightLit);
+            addPartBox(detailGroup, 0.28, 0.14, 0.06, lx, bodyBotY + lowerH * 0.62, d * 0.485, sharedDetailMats.taillightRed);
+          });
+
+          // 4 Wheels + Silver Rims
+          const wzOff = d * 0.30;
+          [
+            [-w * 0.46, -wzOff],
+            [ w * 0.46, -wzOff],
+            [-w * 0.46,  wzOff],
+            [ w * 0.46,  wzOff]
+          ].forEach(([wx, wz]) => {
+            addPartCyl(detailGroup, wheelR * 2, 0.22, wheelR * 2, wx, bY + wheelR, wz, sharedDetailMats.rubberTire, 0, 0, Math.PI * 0.5);
+            addPartCyl(detailGroup, wheelR * 1.2, 0.24, wheelR * 1.2, wx, bY + wheelR, wz, sharedDetailMats.carSilverTrim, 0, 0, Math.PI * 0.5);
+          });
+          return;
+        }
+
+        // ===================================================================
+        // 3. MOTORCYCLES / BIKES (veh_motorcycle_scooter)
+        // ===================================================================
+        if (assetId.startsWith('veh_motorcycle') || assetId.startsWith('veh_bike')) {
+          const wheelR = Math.min(0.32, h * 0.28);
+          addPartBox(detailGroup, w * 0.85, 0.02, d * 0.90, 0, bY + 0.01, 0, sharedDetailMats.shadowDisc);
+          // Front & Rear Tires + Silver Rims
+          [-d * 0.34, d * 0.34].forEach((wz) => {
+            addPartCyl(detailGroup, wheelR * 2, 0.14, wheelR * 2, 0, bY + wheelR, wz, sharedDetailMats.rubberTire, 0, 0, Math.PI * 0.5);
+            addPartCyl(detailGroup, wheelR * 1.25, 0.16, wheelR * 1.25, 0, bY + wheelR, wz, sharedDetailMats.carSilverTrim, 0, 0, Math.PI * 0.5);
+          });
+          // Engine block, exhaust, fuel tank & frame
+          addPartBox(detailGroup, w * 0.38, h * 0.26, d * 0.32, 0, bY + wheelR + h * 0.08, 0, sharedDetailMats.riverStoneCoping);
+          addPartCyl(detailGroup, 0.09, d * 0.48, 0.09, w * 0.22, bY + wheelR * 0.85, d * 0.14, sharedDetailMats.carSilverTrim, Math.PI * 0.46, 0, 0);
+          addPartBox(detailGroup, w * 0.44, h * 0.22, d * 0.28, 0, bY + h * 0.58, -d * 0.10, sharedDetailMats.bikeRedPaint, 0.18, 0, 0);
+          // Stepped black seat & rear tail
+          addPartBox(detailGroup, w * 0.42, h * 0.14, d * 0.38, 0, bY + h * 0.56, d * 0.18, sharedDetailMats.castIronDark, 0.10, 0, 0);
+          // Front fork, handlebars & round headlight
+          addPartCyl(detailGroup, 0.08, h * 0.58, 0.08, 0, bY + h * 0.56, -d * 0.28, sharedDetailMats.carSilverTrim, -0.32, 0, 0);
+          addPartCyl(detailGroup, 0.05, w * 0.95, 0.05, 0, bY + h * 0.86, -d * 0.22, sharedDetailMats.castIronDark, 0, 0, Math.PI * 0.5);
+          addPartCyl(detailGroup, 0.18, 0.10, 0.18, 0, bY + h * 0.74, -d * 0.34, sharedDetailMats.headlightLit, Math.PI * 0.5, 0, 0);
+          addPartBox(detailGroup, 0.14, 0.09, 0.05, 0, bY + h * 0.58, d * 0.40, sharedDetailMats.taillightRed);
+          return;
+        }
+
+        // ===================================================================
+        // 4. MAIN GRAND ROTUNDA COMPLEX (bldg_main_rotunda / arch_rotunda_complex)
+        //    Exact 3-Storey Brick & White Pilaster Landmark with Semicircular
+        //    4-Column Portico, Curved Glass Gallery, Twin Terracotta Hipped Roofs,
+        //    Octagonal Glass Skylight Dome & Rooftop Water Tanks!
+        // ===================================================================
+        if (assetId === 'arch_rotunda_complex') {
+          const plinthH = Math.min(0.36, h * 0.035);
+          const roofH = Math.max(2.2, h * 0.28);
+          const wallH = Math.max(2.5, h - plinthH - roofH);
+          const floor0Y = bY + plinthH;
+          const storyH = wallH / 3;
+          const floor1Y = floor0Y + storyH;
+          const floor2Y = floor0Y + storyH * 2;
+          const eaveY = floor0Y + wallH;
+          const centerSpanW = Math.min(w * 0.22, 9.2);
+          const wingW = Math.max(2.0, (w - centerSpanW) * 0.5);
+          const westWingX = -w * 0.5 + wingW * 0.5;
+          const eastWingX = w * 0.5 - wingW * 0.5;
+          const frontZ = -d * 0.5;
+          const backZ = d * 0.5;
+          const rotRad = Math.min(5.55, centerSpanW * 0.58, d * 0.34);
+
+          // A. Raised Concrete Plinth + Red Brick Toe Trim + Terrazzo Top
+          addPartBox(detailGroup, w + 0.64, plinthH, d + 0.64, 0, bY + plinthH * 0.5, 0, sharedDetailMats.plinthDarkConcrete);
+          addPartBox(detailGroup, w + 0.72, plinthH * 0.38, d + 0.72, 0, bY + plinthH * 0.19, 0, sharedDetailMats.rotundaBrick);
+          addPartBox(detailGroup, w + 0.20, 0.06, d + 0.20, 0, floor0Y + 0.02, 0, sharedDetailMats.terrazzoFloor);
+
+          // Semicircular Front Portico Deck & 3 Curved Entrance Steps at -Z
+          addPartCyl(detailGroup, rotRad, plinthH, rotRad, 0, bY + plinthH * 0.5, frontZ, sharedDetailMats.plinthDarkConcrete, 0, 0, 0, sharedGeoPool.semiCylPortico);
+          for (let st = 0; st < 3; st++) {
+            const stR = rotRad + (3 - st) * 0.36;
+            const stH = ((st + 1) / 3) * plinthH;
+            addPartCyl(detailGroup, stR, stH, stR, 0, bY + stH * 0.5, frontZ, sharedDetailMats.rotundaWhiteArch, 0, 0, 0, sharedGeoPool.semiCylPortico);
+          }
+
+          // Twin Wrought-Iron Portico Step Pedestal Lanterns
+          [-rotRad * 0.76, rotRad * 0.76].forEach((lx) => {
+            const lz = frontZ - rotRad * 0.74;
+            addPartBox(detailGroup, 0.38, 0.45, 0.38, lx, floor0Y + 0.22, lz, sharedDetailMats.riverStoneCoping);
+            addPartCyl(detailGroup, 0.12, 2.2, 0.12, lx, floor0Y + 1.45, lz, sharedDetailMats.castIronDark);
+            addPartCyl(detailGroup, 0.32, 0.38, 0.32, lx, floor0Y + 2.65, lz, sharedDetailMats.lampBulbWarm, 0, Math.PI * 0.25, 0, sharedGeoPool.unitCyl4);
+            addPartCyl(detailGroup, 0.42, 0.24, 0.42, lx, floor0Y + 2.94, lz, sharedDetailMats.castIronDark, 0, Math.PI * 0.25, 0, sharedGeoPool.unitPyramid4);
+          });
+
+          // B. 3-Story Main Brick/Masonry Volume + White Perimeter Cornice Bands + Red Steel Frieze Band
+          addPartBox(detailGroup, w, wallH, d, 0, floor0Y + wallH * 0.5, 0, sharedDetailMats.rotundaBrick);
+          addPartBox(detailGroup, w + 0.26, 0.20, d + 0.26, 0, floor1Y, 0, sharedDetailMats.rotundaWhiteArch);
+          addPartBox(detailGroup, w + 0.34, 0.24, d + 0.34, 0, floor2Y, 0, sharedDetailMats.rotundaWhiteArch);
+          addPartBox(detailGroup, w + 0.18, Math.min(0.85, storyH * 0.32), d + 0.18, 0, eaveY - Math.min(0.42, storyH * 0.16), 0, sharedDetailMats.rotundaWhiteArch);
+          addPartBox(detailGroup, w + 0.24, 0.12, d + 0.24, 0, eaveY - Math.min(0.90, storyH * 0.34), 0, sharedDetailMats.roofTerracotta);
+
+          // White Corner Quoins on all 6 main corners
+          [
+            [-w * 0.5, frontZ], [w * 0.5, frontZ],
+            [-w * 0.5, backZ],  [w * 0.5, backZ],
+            [-centerSpanW * 0.5, frontZ], [centerSpanW * 0.5, frontZ]
+          ].forEach(([qx, qz]) => {
+            addCornerQuoinsToGroup(detailGroup, qx, floor0Y, qz, wallH, sharedDetailMats.rotundaWhiteArch);
+          });
+
+          // C. Projecting 2-Story White Arched Window Bays & 3rd-Floor Windows across West & East Wings
+          const baysPerWing = Math.max(2, Math.min(4, Math.floor(wingW / 4.2)));
+          [-1, 1].forEach((wingSide) => {
+            const wingCenterX = wingSide < 0 ? westWingX : eastWingX;
+            const spanStart = wingCenterX - wingW * 0.40;
+            const spanStep = baysPerWing > 1 ? (wingW * 0.80) / (baysPerWing - 1) : 0;
+            for (let b = 0; b < baysPerWing; b++) {
+              const bx = baysPerWing > 1 ? spanStart + b * spanStep : wingCenterX;
+              const bayW = Math.min(2.2, (wingW / baysPerWing) * 0.62);
+              // White pilaster surround spanning Ground + 1st floor
+              addPartBox(detailGroup, bayW, storyH * 2, 0.26, bx, floor0Y + storyH, frontZ - 0.08, sharedDetailMats.rotundaWhiteArch);
+              // Ground, 1st, and 2nd floor window panes (including signature blood-red window on East wing 3rd floor!)
+              const gMat = (b === 2) ? sharedDetailMats.windowWarmLit : sharedDetailMats.glassDark;
+              const fMat = (wingSide > 0 && b >= 2) ? sharedDetailMats.windowWarmLit : sharedDetailMats.glassDark;
+              const tMat = (wingSide > 0 && b === 2)
+                ? sharedDetailMats.windowRedHorror
+                : ((b === 1 || b === 3) ? sharedDetailMats.windowWarmLit : sharedDetailMats.glassDark);
+
+              addPartBox(detailGroup, bayW * 0.72, storyH * 0.52, 0.14, bx, floor0Y + storyH * 0.52, frontZ - 0.18, gMat);
+              addPartBox(detailGroup, bayW * 0.72, storyH * 0.52, 0.14, bx, floor1Y + storyH * 0.52, frontZ - 0.18, fMat);
+              addPartBox(detailGroup, bayW * 0.72, storyH * 0.48, 0.14, bx, floor2Y + storyH * 0.48, frontZ - 0.14, tMat);
+
+              // Rear facade corresponding windows
+              addPartBox(detailGroup, bayW * 0.72, storyH * 0.50, 0.14, bx, floor0Y + storyH * 0.52, backZ + 0.08, (b % 2 === 1) ? sharedDetailMats.windowWarmLit : sharedDetailMats.glassDark);
+              addPartBox(detailGroup, bayW * 0.72, storyH * 0.50, 0.14, bx, floor1Y + storyH * 0.52, backZ + 0.08, (b % 2 === 0) ? sharedDetailMats.windowWarmLit : sharedDetailMats.glassDark);
+              addPartBox(detailGroup, bayW * 0.72, storyH * 0.46, 0.14, bx, floor2Y + storyH * 0.48, backZ + 0.08, sharedDetailMats.glassDark);
+            }
+          });
+
+          // Side Facade Arched Window Bays (West -X & East +X)
+          [-d * 0.28, 0, d * 0.28].forEach((sz, sIdx) => {
+            [-1, 1].forEach((sxSign) => {
+              const sx = sxSign * (w * 0.5 + 0.08);
+              addPartBox(detailGroup, 0.24, storyH * 2, 2.1, sx, floor0Y + storyH, sz, sharedDetailMats.rotundaWhiteArch);
+              addPartBox(detailGroup, 0.14, storyH * 0.52, 1.5, sx + sxSign * 0.08, floor0Y + storyH * 0.52, sz, sIdx === 1 ? sharedDetailMats.windowWarmLit : sharedDetailMats.glassDark);
+              addPartBox(detailGroup, 0.14, storyH * 0.52, 1.5, sx + sxSign * 0.08, floor1Y + storyH * 0.52, sz, sIdx === 0 ? sharedDetailMats.windowWarmLit : sharedDetailMats.glassDark);
+              addPartBox(detailGroup, 0.14, storyH * 0.48, 1.5, sx + sxSign * 0.06, floor2Y + storyH * 0.48, sz, (sxSign > 0 && sIdx === 1) ? sharedDetailMats.windowRedHorror : sharedDetailMats.glassDark);
+            });
+          });
+
+          // D. Central 2-Story Semicircular Portico (4 Tall White Columns + Curved Glass 3rd-Floor Gallery + Sign Arc)
+          // Grand Main Entrance Portal at frontZ
+          addPartBox(detailGroup, 3.2, storyH * 0.88, 0.36, 0, floor0Y + storyH * 0.44, frontZ - 0.12, sharedDetailMats.rotundaWhiteArch);
+          addPartBox(detailGroup, 2.5, storyH * 0.76, 0.40, 0, floor0Y + storyH * 0.38, frontZ - 0.14, sharedDetailMats.doorwayWarmGlow);
+
+          // 4 Fluted White Portico Columns on Dark Pedestals
+          const colH = storyH * 2;
+          const pedH = Math.min(1.4, colH * 0.20);
+          [-Math.PI * 0.38, -Math.PI * 0.13, Math.PI * 0.13, Math.PI * 0.38].forEach((ang) => {
+            const cx = Math.sin(ang) * (rotRad - 0.15);
+            const cz = frontZ - Math.cos(ang) * (rotRad - 0.15);
+            addPartCyl(detailGroup, 1.04, pedH, 1.04, cx, floor0Y + pedH * 0.5, cz, sharedDetailMats.riverStoneCoping);
+            addPartCyl(detailGroup, 0.82, colH - pedH, 0.82, cx, floor0Y + pedH + (colH - pedH) * 0.5, cz, sharedDetailMats.rotundaWhiteArch);
+            addPartCyl(detailGroup, 1.08, 0.24, 1.08, cx, floor0Y + colH - 0.12, cz, sharedDetailMats.rotundaWhiteArch);
+          });
+
+          // 2nd-Floor Semicircular Balcony Deck + Curved Entablature with "GANDAKI UNIVERSITY" Sign Arc & Crest Medallion
+          addPartCyl(detailGroup, rotRad + 0.25, 0.34, rotRad + 0.25, 0, floor2Y + 0.05, frontZ, sharedDetailMats.rotundaWhiteArch, 0, 0, 0, sharedGeoPool.semiCylPortico);
+          addPartCyl(detailGroup, rotRad + 0.36, 0.68, rotRad + 0.36, 0, floor2Y + 0.42, frontZ, sharedDetailMats.rotundaSignMat, 0, 0, 0, sharedGeoPool.signArcCyl);
+          // 3D Sculpted Circular University Crest above sign
+          addPartCyl(detailGroup, 0.96, 0.18, 0.96, 0, floor2Y + 0.98, frontZ - rotRad - 0.32, sharedDetailMats.rotundaWhiteArch, Math.PI * 0.5, 0, 0);
+          addPartCyl(detailGroup, 0.76, 0.22, 0.76, 0, floor2Y + 0.98, frontZ - rotRad - 0.34, sharedDetailMats.brassGajur, Math.PI * 0.5, 0, 0);
+
+          // 3rd-Floor Semicircular Curved Glass Rotunda Gallery + Visible Orange Railing + Conical Rotunda Cap
+          const galH = storyH * 0.92;
+          addPartCyl(detailGroup, rotRad - 0.10, galH, rotRad - 0.10, 0, floor2Y + 0.20 + galH * 0.5, frontZ, sharedDetailMats.rotundaCurvedGlass, 0, 0, 0, sharedGeoPool.semiCylPortico);
+          addPartCyl(detailGroup, rotRad + 0.16, 0.14, rotRad + 0.16, 0, floor2Y + 1.02, frontZ, sharedDetailMats.rotundaOrangeRail, 0, 0, 0, sharedGeoPool.semiCylOpen);
+          addPartCyl(detailGroup, rotRad + 0.45, 0.26, rotRad + 0.45, 0, eaveY + 0.08, frontZ, sharedDetailMats.rotundaWhiteArch, 0, 0, 0, sharedGeoPool.semiCylPortico);
+
+          // E. Twin 4-Slope Terracotta-Red Hipped Wing Roofs + Central Octagonal Glass Skylight Dome + Rooftop Water Tanks
+          [-1, 1].forEach((wingSide) => {
+            const wx = wingSide < 0 ? westWingX : eastWingX;
+            const rOver = 0.85;
+            const rw = wingW + rOver * 2;
+            const rd = d + rOver * 2;
+            // White overhanging soffit & red fascia
+            addPartBox(detailGroup, rw, 0.20, rd, wx, eaveY + 0.08, 0, sharedDetailMats.rotundaWhiteArch);
+            addPartBox(detailGroup, rw + 0.10, 0.14, rd + 0.10, wx, eaveY + 0.20, 0, sharedDetailMats.roofRidgeTerracotta);
+            // 5-tier stepped terracotta hipped roof volume + top ridge beam
+            const tiers = 5;
+            for (let t = 0; t < tiers; t++) {
+              const frac0 = t / tiers;
+              const frac1 = (t + 1) / tiers;
+              const fm = (frac0 + frac1) * 0.5;
+              const th = (roofH / tiers) + 0.04;
+              const tw = rw * (1 - fm * 0.50);
+              const td = Math.max(0.5, rd * (1 - fm * 0.88));
+              addPartBox(detailGroup, tw, th, td, wx, eaveY + 0.22 + fm * roofH, 0, sharedDetailMats.roofTerracotta);
+            }
+            addPartBox(detailGroup, rw * 0.48, 0.24, 0.36, wx, eaveY + 0.24 + roofH, 0, sharedDetailMats.roofRidgeTerracotta);
+            // White Rooftop Ventilation Dormer
+            addPartBox(detailGroup, 1.1, 1.1, 1.1, wx + wingSide * (wingW * 0.26), eaveY + roofH * 0.55, -d * 0.12, sharedDetailMats.rotundaWhiteArch);
+          });
+
+          // Central Flat White Atrium Roof Deck + Octagonal Skylight Rim & Glass Dome
+          addPartBox(detailGroup, centerSpanW + 1.8, 0.42, d + 1.0, 0, eaveY + 0.21, 0, sharedDetailMats.rotundaWhiteArch);
+          const skyR = Math.min(3.5, centerSpanW * 0.38);
+          addPartCyl(detailGroup, skyR * 2, 0.82, skyR * 2, 0, eaveY + 0.68, -0.4, sharedDetailMats.rotundaWhiteArch, 0, 0, 0, sharedGeoPool.unitCyl8);
+          addPartCyl(detailGroup, skyR * 1.88, 0.65, skyR * 1.88, 0, eaveY + 1.25, -0.4, sharedDetailMats.fountainWater, 0, 0, 0, sharedGeoPool.unitCone);
+
+          // Twin Rooftop Cylindrical Water Tanks on Rear Stand
+          const standZ = backZ - Math.min(2.2, d * 0.18);
+          addPartBox(detailGroup, Math.min(4.2, centerSpanW * 0.5), 0.75, Math.min(3.0, d * 0.22), -0.4, eaveY + 0.75, standZ, sharedDetailMats.rotundaWhiteArch);
+          [-1.2, 0.5].forEach((tx) => {
+            addPartCyl(detailGroup, 1.45, 1.85, 1.45, tx, eaveY + 1.95, standZ, sharedDetailMats.rotundaWhiteArch);
+            addPartCyl(detailGroup, 1.48, 0.22, 1.48, tx, eaveY + 2.95, standZ, sharedDetailMats.castIronDark);
+          });
+          return;
+        }
+
+        // ===================================================================
+        // 5. 2-STOREY ADMINISTRATIVE OFFICE BLOCK (bldg_1 / arch_admin_office_2storey)
+        //    Exact in-game 2-Storey Office with Plinth, Terrazzo Steps, 10 Red
+        //    Flower Pots, Red Dustbin, 2 Rows of Windows & Bright Blue Gable Roof!
+        // ===================================================================
+        if (assetId === 'arch_admin_office_2storey') {
+          const plinthH = Math.min(0.28, h * 0.05);
+          const roofH = Math.max(1.25, h * 0.22);
+          const wallH = Math.max(2.2, h - plinthH - roofH);
+          const floor0Y = bY + plinthH;
+          const floor1Y = floor0Y + wallH * 0.5;
+          const eaveY = floor0Y + wallH;
+          const isLongZ = d > w * 1.15;
+
+          // Raised Dark Concrete Plinth + Front Entrance Steps
+          addPartBox(detailGroup, w + 0.56, plinthH, d + 0.56, 0, bY + plinthH * 0.5, 0, sharedDetailMats.plinthDarkConcrete);
+          addPartBox(detailGroup, w + 0.20, 0.05, d + 0.20, 0, floor0Y + 0.01, 0, sharedDetailMats.terrazzoFloor);
+          if (!isLongZ) {
+            addPartBox(detailGroup, Math.min(2.6, w * 0.22), plinthH * 0.85, 0.75, 0, bY + plinthH * 0.42, -d * 0.5 - 0.35, sharedDetailMats.terrazzoFloor);
+          } else {
+            addPartBox(detailGroup, 0.75, plinthH * 0.85, Math.min(2.6, d * 0.22), -w * 0.5 - 0.35, bY + plinthH * 0.42, 0, sharedDetailMats.terrazzoFloor);
+          }
+
+          // 2-Storey Stucco Walls + Mid-Floor Cornice Band + 4 Corner Quoins
+          addPartBox(detailGroup, w, wallH, d, 0, floor0Y + wallH * 0.5, 0, sharedDetailMats.campusStucco);
+          addPartBox(detailGroup, w + 0.18, 0.16, d + 0.18, 0, floor1Y, 0, sharedDetailMats.whiteTrim);
+          [
+            [-w * 0.5, -d * 0.5], [w * 0.5, -d * 0.5],
+            [-w * 0.5,  d * 0.5], [w * 0.5,  d * 0.5]
+          ].forEach(([qx, qz]) => {
+            addCornerQuoinsToGroup(detailGroup, qx, floor0Y, qz, wallH, sharedDetailMats.whiteTrim);
+          });
+
+          if (!isLongZ) {
+            // Central Doorway on -Z Front Wall + Row of Red Terracotta Flower Pots & Red Bin
+            const doorH = Math.min(2.3, wallH * 0.42);
+            addPartBox(detailGroup, 2.05, doorH + 0.16, 0.16, 0, floor0Y + doorH * 0.5, -d * 0.5 - 0.04, sharedDetailMats.whiteTrim);
+            addPartBox(detailGroup, 1.80, doorH, 0.18, 0, floor0Y + doorH * 0.5, -d * 0.5 - 0.06, sharedDetailMats.doorwayWarmGlow);
+            addPartBox(detailGroup, 0.88, doorH - 0.08, 0.08, -0.52, floor0Y + doorH * 0.5, -d * 0.5 - 0.36, sharedDetailMats.gandakiBluePole, 0, 0.85, 0);
+
+            // 8 Red Terracotta Pots with Green Bushes along Front Plinth Ledge + Red Dustbin
+            [-0.38, -0.30, -0.22, -0.14, 0.14, 0.22, 0.30, 0.38].forEach((frac) => {
+              const px = frac * w;
+              addPartCyl(detailGroup, 0.26, 0.24, 0.26, px, floor0Y + 0.12, -d * 0.5 - 0.18, sharedDetailMats.terracottaPot);
+              addPartCyl(detailGroup, 0.34, 0.28, 0.34, px, floor0Y + 0.32, -d * 0.5 - 0.18, sharedDetailMats.foliageMid, 0, 0, 0, sharedGeoPool.unitSphere);
+            });
+            addPartCyl(detailGroup, 0.32, 0.44, 0.32, -1.35, floor0Y + 0.22, -d * 0.5 - 0.18, sharedDetailMats.fireRed);
+
+            // 2 Stories of Windows on Front, Back & Side Walls
+            [-0.32, 0, 0.32].forEach((frac, idx) => {
+              const wx = frac * w;
+              const winW = Math.min(1.65, w * 0.18);
+              const winH = Math.min(1.15, wallH * 0.22);
+              if (idx !== 1) {
+                addDetailedWindowToGroup(detailGroup, wx, floor0Y + wallH * 0.26, -d * 0.5 - 0.04, false, -1, idx === 2, false, winW, winH);
+              }
+              addDetailedWindowToGroup(detailGroup, wx, floor1Y + wallH * 0.24, -d * 0.5 - 0.04, false, -1, idx === 0, false, winW, winH);
+              addDetailedWindowToGroup(detailGroup, wx, floor0Y + wallH * 0.26, d * 0.5 + 0.04, false, 1, false, false, winW, winH);
+              addDetailedWindowToGroup(detailGroup, wx, floor1Y + wallH * 0.24, d * 0.5 + 0.04, false, 1, idx === 1, false, winW, winH);
+            });
+            [-0.24, 0.24].forEach((frac, sIdx) => {
+              const wz = frac * d;
+              const winW = Math.min(1.5, d * 0.26);
+              const winH = Math.min(1.15, wallH * 0.22);
+              addDetailedWindowToGroup(detailGroup, -w * 0.5 - 0.04, floor0Y + wallH * 0.26, wz, true, -1, false, false, winW, winH);
+              addDetailedWindowToGroup(detailGroup, -w * 0.5 - 0.04, floor1Y + wallH * 0.24, wz, true, -1, sIdx === 0, false, winW, winH);
+              addDetailedWindowToGroup(detailGroup, w * 0.5 + 0.04, floor0Y + wallH * 0.26, wz, true, 1, sIdx === 1, false, winW, winH);
+              addDetailedWindowToGroup(detailGroup, w * 0.5 + 0.04, floor1Y + wallH * 0.24, wz, true, 1, false, false, winW, winH);
+            });
+          }
+
+          // Bright Blue Pitched Gable Roof
+          addPitchedGableRoofToGroup(
+            detailGroup, 0, eaveY, 0, w, d, roofH,
+            sharedDetailMats.brightBlueRoof,
+            sharedDetailMats.campusStucco,
+            sharedDetailMats.whiteTrim,
+            sharedDetailMats.gandakiBluePole,
+            isLongZ,
+            false
+          );
+          return;
+        }
+
+        // ===================================================================
+        // 6. SOUTH GATE GUARDHOUSE (bldg_guardhouse / arch_guardhouse)
+        // ===================================================================
+        if (assetId === 'arch_guardhouse') {
+          const plinthH = Math.min(0.25, h * 0.08);
+          const roofH = Math.max(0.95, h * 0.28);
+          const wallH = Math.max(1.8, h - plinthH - roofH);
+          const floorY = bY + plinthH;
+          const eaveY = floorY + wallH;
+
+          // Plinth & West Entrance Steps
+          addPartBox(detailGroup, w + 0.44, plinthH, d + 0.44, 0, bY + plinthH * 0.5, 0, sharedDetailMats.plinthDarkConcrete);
+          addPartBox(detailGroup, 0.65, plinthH * 0.85, Math.min(1.8, d * 0.42), -w * 0.5 - 0.30, bY + plinthH * 0.42, 0, sharedDetailMats.terrazzoFloor);
+
+          // Stucco Guardhouse Body & Corner Quoins
+          addPartBox(detailGroup, w, wallH, d, 0, floorY + wallH * 0.5, 0, sharedDetailMats.campusStucco);
+          [
+            [-w * 0.5, -d * 0.5], [w * 0.5, -d * 0.5],
+            [-w * 0.5,  d * 0.5], [w * 0.5,  d * 0.5]
+          ].forEach(([qx, qz]) => {
+            addCornerQuoinsToGroup(detailGroup, qx, floorY, qz, wallH, sharedDetailMats.whiteTrim);
+          });
+
+          // West Doorway (-X) with Open Blue Door & Warm Interior Glow + Monitor Accent
+          const doorH = Math.min(2.1, wallH * 0.78);
+          addPartBox(detailGroup, 0.16, doorH + 0.14, 1.55, -w * 0.5 - 0.03, floorY + doorH * 0.5, 0, sharedDetailMats.whiteTrim);
+          addPartBox(detailGroup, 0.18, doorH, 1.35, -w * 0.5 - 0.05, floorY + doorH * 0.5, 0, sharedDetailMats.doorwayWarmGlow);
+          addPartBox(detailGroup, 0.08, doorH - 0.08, 0.72, -w * 0.5 - 0.32, floorY + doorH * 0.5, -0.45, sharedDetailMats.gandakiBluePole, 0, 0.55, 0);
+          addPartBox(detailGroup, 0.12, 0.38, 0.55, 0.35, floorY + 0.95, 0, sharedDetailMats.monitorGreen);
+
+          // Observation Windows on North, South & East Walls
+          const winW = Math.min(1.55, w * 0.42);
+          const winH = Math.min(1.05, wallH * 0.40);
+          addDetailedWindowToGroup(detailGroup, 0, floorY + wallH * 0.55, -d * 0.5 - 0.04, false, -1, true, false, winW, winH);
+          addDetailedWindowToGroup(detailGroup, 0, floorY + wallH * 0.55, d * 0.5 + 0.04, false, 1, true, false, winW, winH);
+          addDetailedWindowToGroup(detailGroup, w * 0.5 + 0.04, floorY + wallH * 0.55, 0, true, 1, false, false, winW, winH);
+
+          // Bright Blue Pitched Gable Roof
+          addPitchedGableRoofToGroup(
+            detailGroup, 0, eaveY, 0, w, d, roofH,
+            sharedDetailMats.brightBlueRoof,
+            sharedDetailMats.campusStucco,
+            sharedDetailMats.whiteTrim,
+            sharedDetailMats.gandakiBluePole,
+            false,
+            false
+          );
+          return;
+        }
+
+        // ===================================================================
+        // 7. CLASSROOM WINGS & CAMPUS BUILDINGS (arch_classroom_wing & arch_building_block)
+        //    Exact in-game Classroom Blocks (L1, L2, B5, B15, B6, R1, R2, R4, B2, B3, B4, W1-W4)
+        //    with Raised Plinth, Steps, Veranda Posts & Roof, Open Blue Doors,
+        //    Warm/Dark Framed Windows, AC Units & Pitched Blue/Terracotta Roof!
+        // ===================================================================
+        if (assetId === 'arch_classroom_wing' || assetId === 'arch_building_block') {
+          const isLongZ = d > w * 1.15;
+          const longSpan = isLongZ ? d : w;
+          const shortSpan = isLongZ ? w : d;
+          const isNewari = /newari|heritage/i.test(name);
+          const hasRaisedRoof = id === 'bldg_west_wing_l2' || (h >= 4.75 && h < 6.0 && longSpan >= 20);
+          const hasVeranda = longSpan >= 16.0 && shortSpan >= 6.8;
+
+          const plinthH = Math.min(0.26, h * 0.06);
+          const roofH = Math.max(1.05, h * (hasRaisedRoof ? 0.24 : 0.27));
+          const wallH = Math.max(2.0, h - plinthH - roofH - (hasRaisedRoof ? 0.35 : 0));
+          const floorY = bY + plinthH;
+          const eaveY = floorY + wallH;
+
+          const wallMat = isNewari ? sharedDetailMats.nepalDachiBrick : sharedDetailMats.campusStucco;
+          const trimMat = isNewari ? sharedDetailMats.ebonyCarvedWood : sharedDetailMats.whiteTrim;
+          const roofMat = isNewari ? sharedDetailMats.jhingatiRoof : sharedDetailMats.brightBlueRoof;
+          const ridgeMat = isNewari ? sharedDetailMats.ebonyCarvedWood : sharedDetailMats.gandakiBluePole;
+          const doorMat = isNewari ? sharedDetailMats.carvedSalWood : sharedDetailMats.gandakiBluePole;
+
+          const verandaDepth = hasVeranda ? Math.min(1.65, shortSpan * 0.21) : 0;
+          const bodyShort = Math.max(2.4, shortSpan - verandaDepth);
+          const bodyW = isLongZ ? bodyShort : w;
+          const bodyD = isLongZ ? d : bodyShort;
+          const bodyOffX = isLongZ ? verandaDepth * 0.5 : 0;
+          const bodyOffZ = isLongZ ? 0 : verandaDepth * 0.5;
+
+          // 1. Raised Dark Concrete Plinth + Terrazzo Walkable Deck (including Veranda)
+          addPartBox(detailGroup, w + 0.48, plinthH, d + 0.48, 0, bY + plinthH * 0.5, 0, sharedDetailMats.plinthDarkConcrete);
+          addPartBox(detailGroup, w + 0.16, 0.05, d + 0.16, 0, floorY + 0.01, 0, sharedDetailMats.terrazzoFloor);
+
+          // 2. Main Building Wall Volume + 4 Corner Quoins
+          addPartBox(detailGroup, bodyW, wallH, bodyD, bodyOffX, floorY + wallH * 0.5, bodyOffZ, wallMat);
+          [
+            [bodyOffX - bodyW * 0.5, bodyOffZ - bodyD * 0.5],
+            [bodyOffX + bodyW * 0.5, bodyOffZ - bodyD * 0.5],
+            [bodyOffX - bodyW * 0.5, bodyOffZ + bodyD * 0.5],
+            [bodyOffX + bodyW * 0.5, bodyOffZ + bodyD * 0.5]
+          ].forEach(([qx, qz]) => {
+            addCornerQuoinsToGroup(detailGroup, qx, floorY, qz, wallH, trimMat);
+          });
+
+          // 3. Classroom Doors, Entrance Steps, Framed Windows & AC Units along the Long Axis
+          const numRooms = longSpan >= 26 ? 3 : (longSpan >= 14 ? 2 : 1);
+          const roomSpan = longSpan / numRooms;
+          const doorH = Math.min(2.25, wallH * 0.74);
+          const doorW = Math.min(1.85, roomSpan * 0.28);
+          const winW = Math.min(1.65, roomSpan * 0.24);
+          const winH = Math.min(1.15, wallH * 0.36);
+
+          for (let r = 0; r < numRooms; r++) {
+            const rCenter = -longSpan * 0.5 + roomSpan * (r + 0.5);
+            if (!isLongZ) {
+              // Front facade at -Z, Back facade at +Z
+              const frontFaceZ = bodyOffZ - bodyD * 0.5;
+              const backFaceZ = bodyOffZ + bodyD * 0.5;
+
+              // Entrance Steps at each classroom door
+              addPartBox(detailGroup, doorW + 0.65, plinthH * 0.85, 0.68, rCenter, bY + plinthH * 0.42, -d * 0.5 - 0.32, sharedDetailMats.terrazzoFloor);
+              // Doorway frame, warm interior glow & open swinging door leaf
+              addPartBox(detailGroup, doorW + 0.22, doorH + 0.14, 0.14, rCenter, floorY + doorH * 0.5, frontFaceZ - 0.04, trimMat);
+              addPartBox(detailGroup, doorW, doorH, 0.16, rCenter, floorY + doorH * 0.5, frontFaceZ - 0.05, sharedDetailMats.doorwayWarmGlow);
+              addPartBox(detailGroup, doorW * 0.48, doorH - 0.08, 0.07, rCenter - doorW * 0.36, floorY + doorH * 0.5, frontFaceZ - 0.32, doorMat, 0, 0.92, 0);
+
+              // Flanking Front Windows
+              if (roomSpan >= 6.8) {
+                const wOff = Math.min(roomSpan * 0.32, doorW * 0.5 + winW * 0.72);
+                addDetailedWindowToGroup(detailGroup, rCenter - wOff, floorY + wallH * 0.54, frontFaceZ - 0.04, false, -1, r === 0, isNewari, winW, winH);
+                addDetailedWindowToGroup(detailGroup, rCenter + wOff, floorY + wallH * 0.54, frontFaceZ - 0.04, false, -1, false, isNewari, winW, winH);
+              }
+              // Back Wall Windows + Exterior AC Units
+              addDetailedWindowToGroup(detailGroup, rCenter - roomSpan * 0.22, floorY + wallH * 0.54, backFaceZ + 0.04, false, 1, r % 2 === 0, isNewari, winW, winH);
+              addDetailedWindowToGroup(detailGroup, rCenter + roomSpan * 0.22, floorY + wallH * 0.54, backFaceZ + 0.04, false, 1, false, isNewari, winW, winH);
+              addPartBox(detailGroup, 0.68, 0.46, 0.26, rCenter, floorY + wallH * 0.74, backFaceZ + 0.14, sharedDetailMats.whiteTrim);
+            } else {
+              // Longitudinal Wing: Front facade at -X, Back facade at +X
+              const frontFaceX = bodyOffX - bodyW * 0.5;
+              const backFaceX = bodyOffX + bodyW * 0.5;
+
+              addPartBox(detailGroup, 0.68, plinthH * 0.85, doorW + 0.65, -w * 0.5 - 0.32, bY + plinthH * 0.42, rCenter, sharedDetailMats.terrazzoFloor);
+              addPartBox(detailGroup, 0.14, doorH + 0.14, doorW + 0.22, frontFaceX - 0.04, floorY + doorH * 0.5, rCenter, trimMat);
+              addPartBox(detailGroup, 0.16, doorH, doorW, frontFaceX - 0.05, floorY + doorH * 0.5, rCenter, sharedDetailMats.doorwayWarmGlow);
+              addPartBox(detailGroup, 0.07, doorH - 0.08, doorW * 0.48, frontFaceX - 0.32, floorY + doorH * 0.5, rCenter - doorW * 0.36, doorMat, 0, 0.65, 0);
+
+              if (roomSpan >= 6.8) {
+                const wOff = Math.min(roomSpan * 0.32, doorW * 0.5 + winW * 0.72);
+                addDetailedWindowToGroup(detailGroup, frontFaceX - 0.04, floorY + wallH * 0.54, rCenter - wOff, true, -1, r === 0, isNewari, winW, winH);
+                addDetailedWindowToGroup(detailGroup, frontFaceX - 0.04, floorY + wallH * 0.54, rCenter + wOff, true, -1, false, isNewari, winW, winH);
+              }
+              addDetailedWindowToGroup(detailGroup, backFaceX + 0.04, floorY + wallH * 0.54, rCenter - roomSpan * 0.22, true, 1, r % 2 === 0, isNewari, winW, winH);
+              addDetailedWindowToGroup(detailGroup, backFaceX + 0.04, floorY + wallH * 0.54, rCenter + roomSpan * 0.22, true, 1, false, isNewari, winW, winH);
+              addPartBox(detailGroup, 0.26, 0.46, 0.68, backFaceX + 0.14, floorY + wallH * 0.74, rCenter, sharedDetailMats.whiteTrim);
+            }
+          }
+
+          // 4. Covered Veranda Columns & Sloped Veranda Roof (matching buildEnterableClassroomWing)
+          if (hasVeranda) {
+            const numPosts = Math.max(4, Math.min(11, Math.floor(longSpan / 4.8) + 1));
+            const postH = wallH * 0.90;
+            for (let p = 0; p < numPosts; p++) {
+              const t = numPosts > 1 ? -0.46 + (p / (numPosts - 1)) * 0.92 : 0;
+              if (!isLongZ) {
+                const px = t * w;
+                const pz = -d * 0.5 + 0.22;
+                addPartBox(detailGroup, 0.30, 0.24, 0.30, px, floorY + 0.12, pz, trimMat);
+                addPartCyl(detailGroup, 0.19, postH, 0.19, px, floorY + postH * 0.5, pz, trimMat);
+              } else {
+                const px = -w * 0.5 + 0.22;
+                const pz = t * d;
+                addPartBox(detailGroup, 0.30, 0.24, 0.30, px, floorY + 0.12, pz, trimMat);
+                addPartCyl(detailGroup, 0.19, postH, 0.19, px, floorY + postH * 0.5, pz, trimMat);
+              }
+            }
+            if (!isLongZ) {
+              addPartBox(detailGroup, w + 0.5, 0.12, verandaDepth + 0.45, 0, floorY + postH, -d * 0.5 + verandaDepth * 0.5, roofMat, 0.12, 0, 0);
+            } else {
+              addPartBox(detailGroup, verandaDepth + 0.45, 0.12, d + 0.5, -w * 0.5 + verandaDepth * 0.5, floorY + postH, 0, roofMat, 0, 0, -0.12);
+            }
+          }
+
+          // 5. Main Pitched Gable Roof (+ optional Raised Double-Tier Roof for L2)
+          addPitchedGableRoofToGroup(
+            detailGroup, bodyOffX, eaveY, bodyOffZ, bodyW, bodyD, roofH,
+            roofMat, wallMat, trimMat, ridgeMat, isLongZ, isNewari
+          );
+          if (hasRaisedRoof) {
+            addPitchedGableRoofToGroup(
+              detailGroup,
+              bodyOffX,
+              eaveY + roofH * 0.42,
+              bodyOffZ,
+              isLongZ ? bodyW * 0.58 : bodyW * 0.86,
+              isLongZ ? bodyD * 0.86 : bodyD * 0.58,
+              roofH * 0.68,
+              roofMat, wallMat, trimMat, ridgeMat, isLongZ, isNewari
+            );
+          }
+          return;
+        }
+
+        // ===================================================================
+        // 8. ARCHITECTURAL SUB-COMPONENTS (Door, Window, Wall, Roof, Stairs, Floor)
+        // ===================================================================
+        if (assetId === 'arch_door_single') {
+          addPartBox(detailGroup, w, h, Math.max(0.18, d), 0, 0, 0, sharedDetailMats.whiteTrim);
+          addPartBox(detailGroup, w * 0.82, h * 0.20, Math.max(0.20, d + 0.02), 0, h * 0.34, 0, sharedDetailMats.glassDark);
+          addPartBox(detailGroup, w * 0.80, h * 0.72, Math.max(0.10, d * 0.6), -w * 0.12, -h * 0.12, -Math.max(0.15, d * 0.8), sharedDetailMats.gandakiBluePole, 0, 0.55, 0);
+          addPartCyl(detailGroup, 0.08, 0.22, 0.08, w * 0.22, -h * 0.10, 0, sharedDetailMats.brassGajur);
+          return;
+        }
+        if (assetId === 'arch_window_standard') {
+          addDetailedWindowToGroup(detailGroup, 0, 0, 0, d > w, 1, true, false, Math.max(w, d) * 0.92, h * 0.90);
+          return;
+        }
+        if (assetId === 'arch_wall_exterior') {
+          const plinthH = Math.min(0.28, h * 0.12);
+          addPartBox(detailGroup, w + 0.08, plinthH, d + 0.08, 0, bY + plinthH * 0.5, 0, sharedDetailMats.plinthDarkConcrete);
+          addPartBox(detailGroup, w, h - plinthH - 0.12, d, 0, bY + plinthH + (h - plinthH - 0.12) * 0.5, 0, sharedDetailMats.campusStucco);
+          addPartBox(detailGroup, w + 0.12, 0.12, d + 0.12, 0, bY + h - 0.06, 0, sharedDetailMats.whiteTrim);
+          addCornerQuoinsToGroup(detailGroup, -w * 0.5, bY + plinthH, 0, h - plinthH, sharedDetailMats.whiteTrim);
+          addCornerQuoinsToGroup(detailGroup, w * 0.5, bY + plinthH, 0, h - plinthH, sharedDetailMats.whiteTrim);
+          return;
+        }
+        if (assetId === 'arch_roof_sloped') {
+          addPitchedGableRoofToGroup(
+            detailGroup, 0, bY + 0.12, 0, Math.max(0.5, w - 0.8), Math.max(0.5, d - 0.8), Math.max(0.4, h - 0.16),
+            sharedDetailMats.brightBlueRoof, sharedDetailMats.campusStucco, sharedDetailMats.whiteTrim, sharedDetailMats.gandakiBluePole, d > w * 1.15, false
+          );
+          return;
+        }
+        if (assetId === 'arch_staircase') {
+          const steps = 8;
+          const stepH = h / steps;
+          const stepD = d / steps;
+          for (let s = 0; s < steps; s++) {
+            const curH = (s + 1) * stepH;
+            const sz = -d * 0.5 + (s + 0.5) * stepD;
+            addPartBox(detailGroup, w * 0.88, curH, stepD + 0.02, 0, bY + curH * 0.5, sz, sharedDetailMats.terrazzoFloor);
+            addPartBox(detailGroup, w * 0.86, 0.03, 0.05, 0, bY + curH + 0.01, sz - stepD * 0.42, sharedDetailMats.castIronDark);
+          }
+          const slopeLen = Math.hypot(d, h);
+          const pitch = Math.atan2(h, d);
+          [-w * 0.46, w * 0.46].forEach((rx) => {
+            addPartBox(detailGroup, 0.12, 0.26, slopeLen, rx, 0, 0, sharedDetailMats.riverStoneCoping, pitch, 0, 0);
+            addPartBox(detailGroup, 0.07, 0.07, slopeLen, rx, 0.72, 0, sharedDetailMats.carvedSalWood, pitch, 0, 0);
+            addPartCyl(detailGroup, 0.06, 0.75, 0.06, rx, bY + 0.38, -d * 0.44, sharedDetailMats.castIronDark);
+            addPartCyl(detailGroup, 0.06, 0.75, 0.06, rx, bY + h + 0.38, d * 0.44, sharedDetailMats.castIronDark);
+          });
+          return;
+        }
+        if (assetId === 'arch_floor_slab') {
+          addPartBox(detailGroup, w, h * 0.65, d, 0, bY + h * 0.325, 0, sharedDetailMats.plinthDarkConcrete);
+          addPartBox(detailGroup, w - 0.12, h * 0.38, d - 0.12, 0, bY + h * 0.81, 0, sharedDetailMats.terrazzoFloor);
+          return;
+        }
+
+        // ===================================================================
+        // 9. NATURE (Broadleaf Trees, Pine Trees, Bushes, Grass, Flowers, Rocks, Gardens)
+        // ===================================================================
+        if (assetId === 'nat_tree_large') {
+          const trunkR = Math.max(0.18, Math.min(w, d) * 0.08);
+          const trunkH = h * 0.48;
+          // Soft contact shadow disc + root flare + furrowed trunk + 3 boughs
+          addPartCyl(detailGroup, w * 0.78, 0.02, d * 0.78, 0, bY + 0.01, 0, sharedDetailMats.shadowDisc);
+          addPartCyl(detailGroup, trunkR * 2.8, trunkH * 0.22, trunkR * 2.8, 0, bY + trunkH * 0.11, 0, sharedDetailMats.treeBark, 0, 0, 0, sharedGeoPool.unitCone);
+          addPartCyl(detailGroup, trunkR * 2.1, trunkH, trunkR * 2.1, 0, bY + trunkH * 0.5, 0, sharedDetailMats.treeBark, 0, 0, 0, sharedGeoPool.unitTaperPole);
+          [
+            [-w * 0.12, trunkH * 0.85, -d * 0.08, 0.35, 0, 0.48],
+            [ w * 0.12, trunkH * 0.82,  d * 0.06, -0.30, 0, -0.45],
+            [ 0,        trunkH * 0.88,  d * 0.12, -0.45, 0, 0.10]
+          ].forEach(([bx, by, bz, rx, ry, rz]) => {
+            addPartCyl(detailGroup, trunkR * 0.9, trunkH * 0.45, trunkR * 0.9, bx, bY + by, bz, sharedDetailMats.treeBark, rx, ry, rz);
+          });
+          // Multi-cluster organic leafy canopy (5 overlapping foliage domes)
+          const cY = bY + h * 0.66;
+          addPartCyl(detailGroup, w * 0.82, h * 0.52, d * 0.82, 0, cY + h * 0.06, 0, sharedDetailMats.foliageMid, 0, 0, 0, sharedGeoPool.unitSphere);
+          addPartCyl(detailGroup, w * 0.62, h * 0.40, d * 0.62, -w * 0.20, cY - h * 0.04, -d * 0.14, sharedDetailMats.foliageDark, 0, 0, 0, sharedGeoPool.unitSphere);
+          addPartCyl(detailGroup, w * 0.60, h * 0.40, d * 0.60,  w * 0.20, cY - h * 0.02,  d * 0.14, sharedDetailMats.foliageLight, 0, 0, 0, sharedGeoPool.unitSphere);
+          addPartCyl(detailGroup, w * 0.56, h * 0.38, d * 0.56,  w * 0.15, cY - h * 0.05, -d * 0.18, sharedDetailMats.foliageMid, 0, 0, 0, sharedGeoPool.unitSphere);
+          addPartCyl(detailGroup, w * 0.56, h * 0.38, d * 0.56, -w * 0.14, cY + h * 0.01,  d * 0.18, sharedDetailMats.foliageLight, 0, 0, 0, sharedGeoPool.unitSphere);
+          return;
+        }
+        if (assetId === 'nat_tree_pine') {
+          const trunkR = Math.max(0.14, Math.min(w, d) * 0.07);
+          const trunkH = h * 0.35;
+          addPartCyl(detailGroup, w * 0.72, 0.02, d * 0.72, 0, bY + 0.01, 0, sharedDetailMats.shadowDisc);
+          addPartCyl(detailGroup, trunkR * 2.0, trunkH, trunkR * 2.0, 0, bY + trunkH * 0.5, 0, sharedDetailMats.treeBark, 0, 0, 0, sharedGeoPool.unitTaperPole);
+          // 4 Stacked Conical Himalayan Pine Tiers
+          [
+            { yFrac: 0.36, hFrac: 0.34, sFrac: 1.00, mat: sharedDetailMats.pineFoliage },
+            { yFrac: 0.54, hFrac: 0.30, sFrac: 0.82, mat: sharedDetailMats.foliageDark },
+            { yFrac: 0.70, hFrac: 0.26, sFrac: 0.62, mat: sharedDetailMats.pineFoliage },
+            { yFrac: 0.85, hFrac: 0.24, sFrac: 0.42, mat: sharedDetailMats.foliageMid }
+          ].forEach((tier) => {
+            addPartCyl(detailGroup, w * tier.sFrac, h * tier.hFrac, d * tier.sFrac, 0, bY + h * tier.yFrac, 0, tier.mat, 0, 0, 0, sharedGeoPool.unitCone);
+          });
+          return;
+        }
+        if (assetId === 'nat_bush_small') {
+          addPartCyl(detailGroup, w * 0.88, 0.02, d * 0.88, 0, bY + 0.01, 0, sharedDetailMats.shadowDisc);
+          addPartCyl(detailGroup, w * 0.76, h * 0.88, d * 0.76, 0, bY + h * 0.46, 0, sharedDetailMats.foliageMid, 0, 0, 0, sharedGeoPool.unitDodeca);
+          addPartCyl(detailGroup, w * 0.58, h * 0.70, d * 0.58, -w * 0.20, bY + h * 0.36, d * 0.12, sharedDetailMats.foliageDark, 0, 0.5, 0, sharedGeoPool.unitDodeca);
+          addPartCyl(detailGroup, w * 0.56, h * 0.68, d * 0.56,  w * 0.20, bY + h * 0.35, -d * 0.12, sharedDetailMats.foliageLight, 0, 1.1, 0, sharedGeoPool.unitDodeca);
+          return;
+        }
+        if (assetId === 'nat_flower_cluster') {
+          addPartCyl(detailGroup, w * 0.92, h * 0.45, d * 0.92, 0, bY + h * 0.22, 0, sharedDetailMats.foliageDark);
+          const flMats = [sharedDetailMats.flowerRed, sharedDetailMats.flowerYellow, sharedDetailMats.flowerOrange];
+          [
+            [0, 0], [-0.26, -0.20], [0.26, -0.18], [-0.22, 0.24], [0.24, 0.22], [0, -0.30], [0, 0.30]
+          ].forEach(([fx, fz], idx) => {
+            addPartCyl(detailGroup, w * 0.20, h * 0.45, d * 0.20, fx * w, bY + h * 0.68, fz * d, flMats[idx % flMats.length], 0, 0, 0, sharedGeoPool.unitSphere);
+          });
+          return;
+        }
+        if (assetId === 'nat_rock_boulder') {
+          addPartCyl(detailGroup, w * 0.76, h * 0.92, d * 0.76, -w * 0.06, bY + h * 0.44, 0, sharedDetailMats.rockGrey, 0.2, 0.4, 0.1, sharedGeoPool.unitDodeca);
+          addPartCyl(detailGroup, w * 0.48, h * 0.62, d * 0.48,  w * 0.24, bY + h * 0.30, d * 0.16, sharedDetailMats.plinthDarkConcrete, -0.3, 0.8, 0, sharedGeoPool.unitDodeca);
+          addPartCyl(detailGroup, w * 0.38, h * 0.48, d * 0.38, -w * 0.24, bY + h * 0.24, -d * 0.18, sharedDetailMats.riverStoneCoping, 0.1, 1.2, -0.2, sharedGeoPool.unitDodeca);
+          return;
+        }
+        if (assetId === 'nat_grass_area') {
+          addPartBox(detailGroup, w, Math.max(0.04, h), d, 0, 0, 0, sharedDetailMats.grassTurf);
+          return;
+        }
+        if (assetId === 'nat_garden_area') {
+          const kerbH = Math.max(0.22, h);
+          addPartBox(detailGroup, w, kerbH, d, 0, bY + kerbH * 0.5, 0, sharedDetailMats.rotundaWhiteArch);
+          addPartBox(detailGroup, Math.max(0.4, w - 0.36), kerbH + 0.03, Math.max(0.4, d - 0.36), 0, bY + kerbH * 0.5 + 0.01, 0, sharedDetailMats.grassTurf);
+          [-0.34, 0, 0.34].forEach((fx, idx) => {
+            addPartCyl(detailGroup, 0.85, 0.65, 0.85, fx * w, bY + kerbH + 0.30, 0, idx === 1 ? sharedDetailMats.foliageLight : sharedDetailMats.foliageMid, 0, 0, 0, sharedGeoPool.unitDodeca);
+          });
+          return;
+        }
+
+        // ===================================================================
+        // 10. LIGHTING (Street Lamps, Outdoor Floodlights, Decorative Pedestal Lamps)
+        //     Exact in-game LampFlicker cast-iron post + 4-sided lantern cage + ground pool!
+        // ===================================================================
+        if (assetId === 'light_streetlight' || (type === 'lighting' && assetId !== 'light_outdoor_flood' && assetId !== 'light_garden_lamp')) {
+          // Warm orange ground pool disc (#ff8a2a)
+          const poolMesh = new THREE.Mesh(sharedGeoPool.unitCircle, sharedDetailMats.lampPoolMat);
+          poolMesh.rotation.x = -Math.PI * 0.5;
+          poolMesh.scale.set(5.4, 5.4, 1);
+          poolMesh.position.set(0, bY + 0.02, 0);
+          detailGroup.add(poolMesh);
+
+          // Cast-iron stepped plinth + fluted base + lower collar + tapered pole + upper collar
+          const plinthH = Math.min(0.44, h * 0.08);
+          const baseH = Math.min(0.88, h * 0.16);
+          const lanternY = bY + h * 0.84;
+          const poleH = Math.max(0.5, (lanternY - 0.30) - (bY + plinthH + baseH));
+
+          addPartBox(detailGroup, 0.56, plinthH, 0.56, 0, bY + plinthH * 0.5, 0, sharedDetailMats.castIronDark);
+          addPartCyl(detailGroup, 0.36, baseH, 0.36, 0, bY + plinthH + baseH * 0.5, 0, sharedDetailMats.castIronDark, 0, 0, 0, sharedGeoPool.unitTaperPole);
+          addPartCyl(detailGroup, 0.36, 0.12, 0.36, 0, bY + plinthH + baseH, 0, sharedDetailMats.castIronDark);
+          addPartCyl(detailGroup, 0.22, poleH, 0.22, 0, bY + plinthH + baseH + poleH * 0.5, 0, sharedDetailMats.castIronDark, 0, 0, 0, sharedGeoPool.unitTaperPole);
+          addPartCyl(detailGroup, 0.34, 0.12, 0.34, 0, lanternY - 0.36, 0, sharedDetailMats.castIronDark);
+
+          // 4-sided Lantern Bottom Tray + Warm Glowing Glass Body + 4 Corner Ribs + Pyramidal Roof Cap + Finial + Halo
+          addPartCyl(detailGroup, 0.44, 0.14, 0.44, 0, lanternY - 0.26, 0, sharedDetailMats.castIronDark, 0, Math.PI * 0.25, 0, sharedGeoPool.unitCyl4);
+          addPartCyl(detailGroup, 0.46, 0.54, 0.46, 0, lanternY, 0, sharedDetailMats.lampBulbWarm, 0, Math.PI * 0.25, 0, sharedGeoPool.unitCyl4);
+          addPartCyl(detailGroup, 0.24, 0.32, 0.24, 0, lanternY, 0, sharedDetailMats.lampCoreBright, 0, 0, 0, sharedGeoPool.unitSphere);
+          [
+            [-0.19, -0.19], [0.19, -0.19], [-0.19, 0.19], [0.19, 0.19]
+          ].forEach(([rx, rz]) => {
+            addPartBox(detailGroup, 0.04, 0.58, 0.04, rx, lanternY, rz, sharedDetailMats.castIronDark);
+          });
+          addPartCyl(detailGroup, 0.68, 0.32, 0.68, 0, lanternY + 0.38, 0, sharedDetailMats.castIronDark, 0, Math.PI * 0.25, 0, sharedGeoPool.unitPyramid4);
+          addPartCyl(detailGroup, 0.12, 0.26, 0.12, 0, lanternY + 0.62, 0, sharedDetailMats.castIronDark, 0, 0, 0, sharedGeoPool.unitCone);
+          addPartCyl(detailGroup, 1.35, 1.35, 1.35, 0, lanternY, 0, sharedDetailMats.lampHaloGlow, 0, 0, 0, sharedGeoPool.unitSphere);
+          return;
+        }
+        if (assetId === 'light_outdoor_flood') {
+          const poolMesh = new THREE.Mesh(sharedGeoPool.unitCircle, sharedDetailMats.lampPoolMat);
+          poolMesh.rotation.x = -Math.PI * 0.5;
+          poolMesh.scale.set(7.2, 7.2, 1);
+          poolMesh.position.set(0, bY + 0.02, 0);
+          detailGroup.add(poolMesh);
+
+          addPartBox(detailGroup, 0.72, 0.45, 0.72, 0, bY + 0.225, 0, sharedDetailMats.plinthDarkConcrete);
+          addPartCyl(detailGroup, 0.28, h * 0.88, 0.28, 0, bY + h * 0.46, 0, sharedDetailMats.busBumper, 0, 0, 0, sharedGeoPool.unitTaperPole);
+          addPartBox(detailGroup, 1.35, 0.12, 0.12, 0, bY + h * 0.90, 0, sharedDetailMats.castIronDark);
+          [-0.44, 0.44].forEach((fx) => {
+            addPartBox(detailGroup, 0.48, 0.34, 0.24, fx, bY + h * 0.93, 0.10, sharedDetailMats.castIronDark, 0.38, 0, 0);
+            addPartBox(detailGroup, 0.42, 0.28, 0.06, fx, bY + h * 0.92, 0.22, sharedDetailMats.lampCoreBright, 0.38, 0, 0);
+          });
+          return;
+        }
+        if (assetId === 'light_garden_lamp') {
+          const poolMesh = new THREE.Mesh(sharedGeoPool.unitCircle, sharedDetailMats.lampPoolMat);
+          poolMesh.rotation.x = -Math.PI * 0.5;
+          poolMesh.scale.set(2.8, 2.8, 1);
+          poolMesh.position.set(0, bY + 0.02, 0);
+          detailGroup.add(poolMesh);
+
+          addPartBox(detailGroup, w * 0.82, h * 0.28, d * 0.82, 0, bY + h * 0.14, 0, sharedDetailMats.riverStoneCoping);
+          addPartCyl(detailGroup, w * 0.28, h * 0.38, d * 0.28, 0, bY + h * 0.46, 0, sharedDetailMats.castIronDark);
+          addPartCyl(detailGroup, w * 0.68, h * 0.24, d * 0.68, 0, bY + h * 0.74, 0, sharedDetailMats.lampBulbWarm, 0, Math.PI * 0.25, 0, sharedGeoPool.unitCyl4);
+          addPartCyl(detailGroup, w * 0.86, h * 0.18, d * 0.86, 0, bY + h * 0.92, 0, sharedDetailMats.castIronDark, 0, Math.PI * 0.25, 0, sharedGeoPool.unitPyramid4);
+          return;
+        }
+
+        // ===================================================================
+        // 11. PROPS (Bench, Chaitya, Trash Bin, Wooden Crate, Bus Shelter, Signboard, Fence, Pillar, Barrier)
+        // ===================================================================
+        if (assetId === 'prop_bench') {
+          // Exact in-game buildCampusBench (wooden seat & backrest planks + cast-iron side leg frames)
+          addPartBox(detailGroup, w * 0.96, 0.07, d * 0.74, 0, bY + h * 0.48, d * 0.06, sharedDetailMats.carvedSalWood);
+          addPartBox(detailGroup, w * 0.96, h * 0.42, 0.07, 0, bY + h * 0.76, -d * 0.28, sharedDetailMats.carvedSalWood, -0.14, 0, 0);
+          [-w * 0.40, w * 0.40].forEach((lx) => {
+            addPartBox(detailGroup, 0.09, h * 0.52, d * 0.72, lx, bY + h * 0.26, 0, sharedDetailMats.castIronDark);
+            addPartBox(detailGroup, 0.08, h * 0.48, 0.08, lx, bY + h * 0.72, -d * 0.26, sharedDetailMats.castIronDark);
+          });
+          return;
+        }
+        if (assetId === 'prop_fountain_chaitya') {
+          // Exact in-game Stepped Stone Chaitya Stupa Shrine (3-tier plinth + lotus ring + white dome + Harmika + 13-tier Gajur)
+          addPartBox(detailGroup, w * 0.96, h * 0.12, d * 0.96, 0, bY + h * 0.06, 0, sharedDetailMats.plinthDarkConcrete);
+          addPartBox(detailGroup, w * 0.76, h * 0.12, d * 0.76, 0, bY + h * 0.18, 0, sharedDetailMats.riverStoneCoping);
+          addPartBox(detailGroup, w * 0.58, h * 0.10, d * 0.58, 0, bY + h * 0.29, 0, sharedDetailMats.rotundaWhiteArch);
+          addPartCyl(detailGroup, w * 0.50, h * 0.06, d * 0.50, 0, bY + h * 0.37, 0, sharedDetailMats.riverStoneCoping);
+          // Whitewashed hemispherical dome (Garbha)
+          addPartCyl(detailGroup, w * 0.48, h * 0.42, d * 0.48, 0, bY + h * 0.40, 0, sharedDetailMats.rotundaWhiteArch, 0, 0, 0, sharedGeoPool.unitDome);
+          // Square Harmika cube + Conical Brass Gajur Spire
+          addPartBox(detailGroup, w * 0.22, h * 0.11, d * 0.22, 0, bY + h * 0.66, 0, sharedDetailMats.brassGajur);
+          addPartCyl(detailGroup, w * 0.20, h * 0.26, d * 0.20, 0, bY + h * 0.84, 0, sharedDetailMats.brassGajur, 0, 0, 0, sharedGeoPool.unitCone);
+          return;
+        }
+        if (assetId === 'prop_dustbin') {
+          addPartCyl(detailGroup, w * 0.86, h * 0.78, d * 0.86, 0, bY + h * 0.39, 0, sharedDetailMats.fireRed);
+          addPartCyl(detailGroup, w * 0.92, h * 0.10, d * 0.92, 0, bY + h * 0.80, 0, sharedDetailMats.castIronDark);
+          addPartCyl(detailGroup, w * 0.88, h * 0.28, d * 0.88, 0, bY + h * 0.82, 0, sharedDetailMats.fireRed, 0, 0, 0, sharedGeoPool.unitDome);
+          return;
+        }
+        if (assetId === 'prop_crate_wooden') {
+          addPartBox(detailGroup, w * 0.94, h * 0.94, d * 0.94, 0, 0, 0, sharedDetailMats.carvedSalWood);
+          [
+            [-w * 0.46, -d * 0.46], [w * 0.46, -d * 0.46],
+            [-w * 0.46,  d * 0.46], [w * 0.46,  d * 0.46]
+          ].forEach(([cx, cz]) => {
+            addPartBox(detailGroup, 0.09, h, 0.09, cx, 0, cz, sharedDetailMats.ebonyCarvedWood);
+          });
+          addPartBox(detailGroup, w + 0.02, 0.09, d + 0.02, 0, h * 0.44, 0, sharedDetailMats.ebonyCarvedWood);
+          addPartBox(detailGroup, w + 0.02, 0.09, d + 0.02, 0, -h * 0.44, 0, sharedDetailMats.ebonyCarvedWood);
+          return;
+        }
+        if (assetId === 'road_bus_shelter') {
+          // Concrete waiting pad + 4 steel posts + back/side glass panels + sloped blue roof + waiting bench
+          addPartBox(detailGroup, w, 0.14, d, 0, bY + 0.07, 0, sharedDetailMats.plinthDarkConcrete);
+          [
+            [-w * 0.45, -d * 0.42], [w * 0.45, -d * 0.42],
+            [-w * 0.45,  d * 0.42], [w * 0.45,  d * 0.42]
+          ].forEach(([px, pz]) => {
+            addPartCyl(detailGroup, 0.11, h * 0.88, 0.11, px, bY + h * 0.46, pz, sharedDetailMats.castIronDark);
+          });
+          addPartBox(detailGroup, w * 0.90, h * 0.72, 0.06, 0, bY + h * 0.48, -d * 0.42, sharedDetailMats.glassDark);
+          addPartBox(detailGroup, 0.06, h * 0.72, d * 0.78, -w * 0.45, bY + h * 0.48, 0, sharedDetailMats.glassDark);
+          addPartBox(detailGroup, 0.06, h * 0.72, d * 0.78,  w * 0.45, bY + h * 0.48, 0, sharedDetailMats.glassDark);
+          addPartBox(detailGroup, w + 0.30, 0.14, d + 0.35, 0, bY + h * 0.92, 0, sharedDetailMats.brightBlueRoof, -0.08, 0, 0);
+          addPartBox(detailGroup, w * 0.62, 0.07, 0.42, 0, bY + 0.48, -d * 0.18, sharedDetailMats.carvedSalWood);
+          return;
+        }
+        if (assetId === 'prop_sign_campus') {
+          [-w * 0.38, w * 0.38].forEach((px) => {
+            addPartBox(detailGroup, 0.24, 0.22, 0.24, px, bY + 0.11, 0, sharedDetailMats.plinthDarkConcrete);
+            addPartCyl(detailGroup, 0.10, h * 0.94, 0.10, px, bY + h * 0.47, 0, sharedDetailMats.gandakiBluePole);
+          });
+          addPartBox(detailGroup, w * 0.92, h * 0.46, Math.max(0.14, d * 0.6), 0, bY + h * 0.70, 0, sharedDetailMats.whiteTrim);
+          addPartBox(detailGroup, w * 0.84, h * 0.38, Math.max(0.18, d * 0.7), 0, bY + h * 0.70, 0, sharedDetailMats.busStripe);
+          addPartCyl(detailGroup, h * 0.16, Math.max(0.20, d * 0.75), h * 0.16, 0, bY + h * 0.70, 0, sharedDetailMats.brassGajur, Math.PI * 0.5, 0, 0);
+          return;
+        }
+        if (assetId === 'arch_fence_wrought_iron') {
+          const isLongZ = d > w;
+          const span = isLongZ ? d : w;
+          // Top & bottom cast-iron rails + end posts + vertical wrought-iron pickets
+          if (!isLongZ) {
+            addPartBox(detailGroup, w, 0.06, 0.06, 0, bY + h * 0.84, 0, sharedDetailMats.castIronDark);
+            addPartBox(detailGroup, w, 0.06, 0.06, 0, bY + h * 0.18, 0, sharedDetailMats.castIronDark);
+          } else {
+            addPartBox(detailGroup, 0.06, 0.06, d, 0, bY + h * 0.84, 0, sharedDetailMats.castIronDark);
+            addPartBox(detailGroup, 0.06, 0.06, d, 0, bY + h * 0.18, 0, sharedDetailMats.castIronDark);
+          }
+          const numPickets = Math.max(5, Math.min(26, Math.floor(span / 0.42)));
+          for (let i = 0; i <= numPickets; i++) {
+            const pos = -span * 0.5 + (i / numPickets) * span;
+            const isPost = (i === 0 || i === numPickets);
+            const thick = isPost ? 0.12 : 0.045;
+            addPartCyl(detailGroup, thick, h * 0.94, thick, isLongZ ? 0 : pos, bY + h * 0.47, isLongZ ? pos : 0, sharedDetailMats.castIronDark);
+          }
+          return;
+        }
+        if (assetId === 'arch_pillar_concrete') {
+          addPartBox(detailGroup, w * 0.96, h * 0.10, d * 0.96, 0, bY + h * 0.05, 0, sharedDetailMats.riverStoneCoping);
+          addPartCyl(detailGroup, w * 0.68, h * 0.78, d * 0.68, 0, bY + h * 0.49, 0, sharedDetailMats.rotundaWhiteArch);
+          addPartBox(detailGroup, w * 0.98, h * 0.10, d * 0.98, 0, bY + h * 0.93, 0, sharedDetailMats.rotundaWhiteArch);
+          return;
+        }
+        if (assetId === 'road_barrier') {
+          [-w * 0.40, w * 0.40].forEach((lx) => {
+            addPartBox(detailGroup, 0.10, h * 0.92, d * 0.92, lx, bY + h * 0.46, 0, sharedDetailMats.busBumper);
+          });
+          const stripes = 7;
+          const segW = w / stripes;
+          for (let s = 0; s < stripes; s++) {
+            const sx = -w * 0.5 + (s + 0.5) * segW;
+            addPartBox(detailGroup, segW, h * 0.34, Math.min(0.14, d * 0.45), sx, bY + h * 0.68, 0, s % 2 === 0 ? sharedDetailMats.fireRed : sharedDetailMats.whiteTrim);
+          }
+          return;
+        }
+
+        // ===================================================================
+        // 12. ROADS, FOOTPATHS & GROUND AREAS (buildConcreteFootpath, Parking & Rotunda Fountain)
+        // ===================================================================
+        if (assetId === 'road_zebra_crossing') {
+          addPartBox(detailGroup, w, Math.max(0.03, h * 0.6), d, 0, bY + h * 0.3, 0, sharedDetailMats.asphaltRoad);
+          for (let i = -2; i <= 2; i++) {
+            addPartBox(detailGroup, w * 0.12, h + 0.02, d * 0.82, i * (w * 0.18), 0.01, 0, sharedDetailMats.roadStripe);
+          }
+          return;
+        }
+        if (assetId === 'road_asphalt' || assetId === 'road_footpath' || assetId === 'road_narrow' || type === 'road') {
+          const isDirt = assetId === 'road_narrow';
+          const isFootpath = assetId === 'road_footpath' || (!isDirt && Math.min(w, d) <= 4.5);
+          const surfMat = isDirt ? sharedDetailMats.dirtPath : (isFootpath ? sharedDetailMats.footpathPaver : sharedDetailMats.asphaltRoad);
+          const isLongZ = d >= w;
+          const curbT = 0.18;
+          const curbH = Math.max(0.09, h + 0.04);
+
+          addPartBox(detailGroup, w, Math.max(0.04, h), d, 0, 0, 0, surfMat);
+          if (!isDirt) {
+            // Raised River-Stone Coping Curbs along both long edges (matching buildConcreteFootpath in gameHtml.ts)
+            if (isLongZ) {
+              addPartBox(detailGroup, curbT, curbH, d, -w * 0.5 + curbT * 0.5, 0.02, 0, sharedDetailMats.riverStoneCoping);
+              addPartBox(detailGroup, curbT, curbH, d,  w * 0.5 - curbT * 0.5, 0.02, 0, sharedDetailMats.riverStoneCoping);
+              if (!isFootpath && w >= 5.5) {
+                const dashes = Math.max(2, Math.min(14, Math.floor(d / 5.5)));
+                for (let i = 0; i < dashes; i++) {
+                  const dz = -d * 0.44 + (i / Math.max(1, dashes - 1)) * (d * 0.88);
+                  addPartBox(detailGroup, 0.14, h + 0.02, Math.min(2.2, d / (dashes * 2)), 0, 0.01, dz, sharedDetailMats.roadStripe);
+                }
+              }
+            } else {
+              addPartBox(detailGroup, w, curbH, curbT, 0, 0.02, -d * 0.5 + curbT * 0.5, sharedDetailMats.riverStoneCoping);
+              addPartBox(detailGroup, w, curbH, curbT, 0, 0.02,  d * 0.5 - curbT * 0.5, sharedDetailMats.riverStoneCoping);
+              if (!isFootpath && d >= 5.5) {
+                const dashes = Math.max(2, Math.min(14, Math.floor(w / 5.5)));
+                for (let i = 0; i < dashes; i++) {
+                  const dx = -w * 0.44 + (i / Math.max(1, dashes - 1)) * (w * 0.88);
+                  addPartBox(detailGroup, Math.min(2.2, w / (dashes * 2)), h + 0.02, 0.14, dx, 0.01, 0, sharedDetailMats.roadStripe);
+                }
+              }
+            }
+          }
+          return;
+        }
+        if (assetId === 'road_parking_lot' || type === 'ground_area') {
+          addPartBox(detailGroup, w, Math.max(0.04, h), d, 0, 0, 0, sharedDetailMats.parkingPaver);
+          // Perimeter stone curb border
+          const cT = 0.22;
+          const cH = Math.max(0.08, h + 0.04);
+          addPartBox(detailGroup, w, cH, cT, 0, 0.02, -d * 0.5 + cT * 0.5, sharedDetailMats.riverStoneCoping);
+          addPartBox(detailGroup, w, cH, cT, 0, 0.02,  d * 0.5 - cT * 0.5, sharedDetailMats.riverStoneCoping);
+          addPartBox(detailGroup, cT, cH, d, -w * 0.5 + cT * 0.5, 0.02, 0, sharedDetailMats.riverStoneCoping);
+          addPartBox(detailGroup, cT, cH, d,  w * 0.5 - cT * 0.5, 0.02, 0, sharedDetailMats.riverStoneCoping);
+
+          if (id === 'area_rotunda_plaza' || /\brotunda\b/.test(name)) {
+            // Exact in-game Forecourt Circular Fountain (gameHtml.ts lines 13517-13545) at (-3, -21.5) relative to (3, -110) -> world (0, -131.5)
+            const fx = id === 'area_rotunda_plaza' ? -3.0 : 0;
+            const fz = id === 'area_rotunda_plaza' ? -Math.min(21.5, d * 0.36) : 0;
+            addPartCyl(detailGroup, 9.9, 0.14, 9.9, fx, bY + 0.09, fz, sharedDetailMats.fountainPinkTrim);
+            addPartCyl(detailGroup, 9.4, 0.24, 9.4, fx, bY + 0.14, fz, sharedDetailMats.rotundaWhiteArch);
+            addPartCyl(detailGroup, 8.8, 0.26, 8.8, fx, bY + 0.16, fz, sharedDetailMats.plinthDarkConcrete);
+            addPartCyl(detailGroup, 4.4, 0.58, 4.4, fx, bY + 0.34, fz, sharedDetailMats.rotundaWhiteArch);
+            addPartCyl(detailGroup, 3.84, 0.62, 3.84, fx, bY + 0.38, fz, sharedDetailMats.fountainWater);
+            addPartCyl(detailGroup, 0.72, 1.18, 0.72, fx, bY + 0.72, fz, sharedDetailMats.fountainPinkTrim);
+            addPartCyl(detailGroup, 1.56, 0.24, 1.56, fx, bY + 1.22, fz, sharedDetailMats.rotundaWhiteArch);
+            // Twin square stone planter islands
+            [-9.5, 9.5].forEach((px) => {
+              addPartBox(detailGroup, 2.2, 0.22, 2.2, fx + px, bY + 0.13, fz, sharedDetailMats.rotundaWhiteArch);
+              addPartBox(detailGroup, 1.9, 0.25, 1.9, fx + px, bY + 0.15, fz, sharedDetailMats.plinthDarkConcrete);
+            });
+          } else if (id !== 'area_16') {
+            // Parking bay lines & "P A R K I N G" ground stencil
+            const stencilW = Math.min(9.5, w * 0.42);
+            const stencilD = Math.min(2.4, d * 0.20);
+            addPartBox(detailGroup, stencilW, h + 0.03, stencilD, 0, 0.015, -d * 0.28, sharedDetailMats.parkingStencil);
+            const bays = Math.max(3, Math.min(8, Math.floor(w / 5.5)));
+            for (let b = 1; b < bays; b++) {
+              const bx = -w * 0.42 + (b / bays) * (w * 0.84);
+              addPartBox(detailGroup, 0.12, h + 0.02, Math.min(5.5, d * 0.32), bx, 0.01, d * 0.22, sharedDetailMats.roadStripe);
+            }
+          }
+          return;
+        }
+
+        // Default fallback volume
+        addPartBox(detailGroup, w, h, d, 0, 0, 0, sharedDetailMats.campusStucco);
+      }
+
+      function updatePlacementPreview(worldX, worldZ) {
+        if (!state.placingAssetId) {
+          placementPreviewGroup.visible = false;
+          return;
+        }
+        const spec = ASSET_MAP.get(state.placingAssetId);
+        if (!spec) {
+          placementPreviewGroup.visible = false;
+          return;
+        }
+        const w = spec.dims[0] || 1;
+        const h = spec.dims[1] || 1;
+        const d = spec.dims[2] || 1;
+        const px = snapVal(worldX ?? camController.target.x);
+        const pz = snapVal(worldZ ?? camController.target.z);
+        const py = spec.y || 0;
+
+        const sig = `${spec.assetId}_${spec.objType}_${w}_${h}_${d}`;
+        if (placementPreviewSig !== sig) {
+          placementPreviewSig = sig;
+          populateProceduralDetail(
+            placementPreviewDetail,
+            { id: 'preview_' + spec.assetId, name: spec.name, type: spec.objType, assetId: spec.assetId },
+            w, h, d
+          );
+          placementPreviewEdges.scale.set(w + 0.12, h + 0.12, d + 0.12);
+        }
+        placementPreviewGroup.position.set(px, py + h * 0.5, pz);
+        placementPreviewGroup.visible = true;
       }
 
       /* =====================================================================
@@ -4755,7 +6380,13 @@
             const group = new THREE.Group();
             group.userData.objectId = obj.id;
 
-            const mat = new THREE.MeshLambertMaterial({ color: pal.fill });
+            // Invisible bounding-box raycast hit proxy (keeps detailGroup 100% visible without a grey cube covering it)
+            const mat = new THREE.MeshBasicMaterial({
+              color: 0xffffff,
+              transparent: true,
+              opacity: 0.0,
+              depthWrite: false
+            });
             const baseMesh = new THREE.Mesh(sharedGeoPool.unitBox, mat);
             baseMesh.userData.objectId = obj.id;
             group.add(baseMesh);
@@ -4792,35 +6423,32 @@
           const pz = Number(obj.position?.z) || 0;
           const ryRad = ((Number(obj.rotation?.yDeg) || 0) * Math.PI) / 180;
 
-          entry.baseMesh.material.color.setHex(isSelected ? pal.fillSel : pal.fill);
-          entry.edgeLines.material.color.setHex(isSelected ? pal.edgeSel : pal.edge);
+          entry.baseMesh.material.opacity = isSelected ? 0.08 : 0.0;
+          entry.baseMesh.scale.set(w, h, d);
+          entry.baseMesh.position.set(0, 0, 0);
 
-          const isTree = (obj.assetId || '').startsWith('nat_tree_');
-          const isPoleLight = obj.type === 'lighting';
-          if (isTree) {
-            entry.baseMesh.scale.set(Math.max(0.28, w * 0.2), h * 0.55, Math.max(0.28, d * 0.2));
-            entry.baseMesh.position.set(0, -h * 0.225, 0);
-          } else if (isPoleLight) {
-            entry.baseMesh.scale.set(Math.max(0.2, w * 0.25), h, Math.max(0.2, d * 0.25));
-            entry.baseMesh.position.set(0, 0, 0);
-          } else {
-            entry.baseMesh.scale.set(w, h, d);
-            entry.baseMesh.position.set(0, 0, 0);
-          }
-
-          // Highlight selected object outline clearly
-          const pad = isSelected ? 0.08 : 0.015;
+          // Show selection outline when selected or when Size/Dimensions overlay is enabled
+          entry.edgeLines.visible = isSelected || state.showDimensions;
+          entry.edgeLines.material.color.setHex(isSelected ? 0xffffff : pal.edge);
+          const pad = isSelected ? 0.10 : 0.02;
           entry.edgeLines.scale.set(w + pad, h + pad, d + pad);
+
           entry.group.position.set(px, py + h / 2, pz);
           entry.group.rotation.set(0, ryRad, 0);
 
-          const sig = `${obj.assetId || ''}_${obj.type}_${round2(w)}_${round2(h)}_${round2(d)}`;
+          const sig = `${obj.id || ''}_${obj.assetId || ''}_${obj.type}_${round2(w)}_${round2(h)}_${round2(d)}_${/newari|heritage/i.test(obj.name || '') ? 1 : 0}`;
           if (entry.signature !== sig) {
             entry.signature = sig;
             populateProceduralDetail(entry.detailGroup, obj, w, h, d);
+            entry.detailGroup.traverse((ch) => {
+              if (ch.isMesh) ch.userData.objectId = obj.id;
+            });
           }
 
-          entry.labelEl.textContent = (obj.locked ? '🔒 ' : '') + obj.name;
+          const showThisName = shouldShowObjectName(obj);
+          const namePart = showThisName ? ((obj.locked ? '🔒 ' : '') + obj.name) : '';
+          const dimPart = state.showDimensions ? `${round2(w)}×${round2(d)}×${round2(h)}m` : '';
+          entry.labelEl.textContent = (namePart && dimPart) ? `${namePart} (${dimPart})` : (namePart || dimPart);
           entry.labelEl.classList.toggle('selected', isSelected);
         }
 
@@ -4862,8 +6490,7 @@
         for (const obj of state.objects) {
           const entry = meshMap.get(obj.id);
           if (!entry) continue;
-          const isSelected = obj.id === state.selectedId;
-          if (obj.visible === false || (!state.showLabels && !isSelected)) {
+          if (obj.visible === false || !entry.labelEl.textContent || (!state.showLabels && !state.showDimensions)) {
             entry.labelEl.style.display = 'none';
             continue;
           }
@@ -4987,6 +6614,27 @@
           this.radius = 95;
           this.theta = 0.38;
           this.phi = 0.88;
+          this.updateCamera();
+        },
+        zoomAtScreenPoint: function (clientX, clientY, factor) {
+          const oldRadius = this.radius;
+          const newRadius = Math.max(this.minRadius, Math.min(this.maxRadius, oldRadius * factor));
+          if (Math.abs(newRadius - oldRadius) < 0.0001) return;
+
+          // Raycast ground at cursor position BEFORE changing radius so we zoom directly toward the cursor point
+          const cursorWorld = new THREE.Vector3();
+          const rect = canvas.getBoundingClientRect();
+          const ndcX = ((clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1;
+          const ndcY = -((clientY - rect.top) / Math.max(1, rect.height)) * 2 + 1;
+          const zRay = new THREE.Raycaster();
+          zRay.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
+          const groundPl = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+          if (zRay.ray.intersectPlane(groundPl, cursorWorld)) {
+            const t = 1 - (newRadius / oldRadius);
+            this.target.x = Math.max(-180, Math.min(180, this.target.x + (cursorWorld.x - this.target.x) * t));
+            this.target.z = Math.max(-180, Math.min(180, this.target.z + (cursorWorld.z - this.target.z) * t));
+          }
+          this.radius = newRadius;
           this.updateCamera();
         },
         panByScreenDelta: function (dxPx, dyPx) {
@@ -5116,6 +6764,7 @@
         const bannerText = document.getElementById('placement-banner-text');
         bannerText.textContent = `Tap map to place: ${spec.name}`;
         banner.classList.add('active');
+        updatePlacementPreview(camController.target.x, camController.target.z);
         // Collapse asset drawer on mobile so user can see the whole map to tap
         if (window.innerWidth < 820) {
           closeAssetDrawer();
@@ -5126,6 +6775,7 @@
 
       function cancelPlacingAsset() {
         state.placingAssetId = null;
+        updatePlacementPreview();
         document.getElementById('placement-banner').classList.remove('active');
         renderAssetCards();
       }
@@ -5157,6 +6807,7 @@
 
         state.objects.push(newObj);
         state.placingAssetId = null;
+        updatePlacementPreview();
         document.getElementById('placement-banner').classList.remove('active');
         state.selectedId = newObj.id;
         setTransformMode('move');
@@ -5260,16 +6911,32 @@
       function raycastObjectsAt(clientX, clientY) {
         updateNDCFromClient(clientX, clientY);
         raycaster.setFromCamera(pointerNDC, camera);
-        const meshes = [];
-        for (const [id, entry] of meshMap.entries()) {
-          const obj = state.objects.find((o) => o.id === id);
+        const pickTargets = [];
+        const objById = new Map();
+        for (const obj of state.objects) {
           if (obj && obj.visible !== false) {
-            meshes.push(entry.baseMesh);
+            objById.set(obj.id, obj);
+            const entry = meshMap.get(obj.id);
+            if (entry) {
+              pickTargets.push(entry.baseMesh);
+              pickTargets.push(entry.detailGroup);
+            }
           }
         }
-        const hits = raycaster.intersectObjects(meshes, false);
+        const hits = raycaster.intersectObjects(pickTargets, true);
         if (hits.length > 0) {
-          return hits[0].object.userData.objectId || null;
+          // Prefer 3D structures/vehicles/lamps/trees/props over flat ground_area/road slabs when overlapping
+          for (const h of hits) {
+            const oid = h.object.userData && h.object.userData.objectId;
+            const o = oid && objById.get(oid);
+            if (o && o.type !== 'ground_area' && o.type !== 'road') {
+              return oid;
+            }
+          }
+          for (const h of hits) {
+            const oid = h.object.userData && h.object.userData.objectId;
+            if (oid) return oid;
+          }
         }
         return null;
       }
@@ -5524,7 +7191,7 @@
 
           if (gesture.prevPinchDist > 8) {
             const scale = gesture.prevPinchDist / Math.max(8, dist);
-            camController.radius = Math.max(camController.minRadius, Math.min(camController.maxRadius, camController.radius * scale));
+            camController.zoomAtScreenPoint(midX, midY, scale);
           }
           const panDx = midX - gesture.prevPinchMidX;
           const panDy = midY - gesture.prevPinchMidY;
@@ -5555,6 +7222,11 @@
       });
 
       window.addEventListener('mousemove', function (e) {
+        if (state.placingAssetId && !gesture.active) {
+          if (raycastGroundAt(e.clientX, e.clientY, intersectPoint)) {
+            updatePlacementPreview(intersectPoint.x, intersectPoint.z);
+          }
+        }
         if (!gesture.active || gesture.type === 'pinch') return;
         moveSinglePointer(e.clientX, e.clientY);
       });
@@ -5568,9 +7240,8 @@
 
       canvas.addEventListener('wheel', function (e) {
         e.preventDefault();
-        const factor = e.deltaY > 0 ? 1.08 : 0.92;
-        camController.radius = Math.max(camController.minRadius, Math.min(camController.maxRadius, camController.radius * factor));
-        camController.updateCamera();
+        const factor = e.deltaY > 0 ? 1.10 : 0.90;
+        camController.zoomAtScreenPoint(e.clientX, e.clientY, factor);
       }, { passive: false });
 
       /* =====================================================================
@@ -5630,25 +7301,26 @@
 
         const knownKeys = new Set([
           'id', 'name', 'type', 'assetId', 'position', 'center', 'dimensions',
-          'scale', 'rotation', 'collider', 'obbCollider', 'collision', 'visible', 'locked', '_extra'
+          'scale', 'rotation', 'collider', 'obbCollider', 'collision', 'visible', 'locked', 'showName', '_extra'
         ]);
         const extra = { ...(item._extra || {}) };
         Object.keys(item).forEach((k) => {
           if (!knownKeys.has(k)) extra[k] = item[k];
         });
 
-        const defaultAsset = type === 'road' ? 'road_asphalt'
-          : type === 'ground_area' ? 'road_parking_lot'
-          : type === 'vehicle' ? 'veh_bus_gandaki_a'
-          : type === 'nature' ? 'nat_tree_large'
-          : type === 'lighting' ? 'light_streetlight'
-          : 'arch_building_block';
+        const normW = Math.max(0.1, round2(dim.width ?? item.width ?? 8));
+        const normH = Math.max(0.02, round2(dim.height ?? item.height ?? (type === 'building' ? 4 : 0.08)));
+        const normD = Math.max(0.1, round2(dim.depth ?? item.depth ?? 8));
+        const resolvedAid = resolveEffectiveAssetId(
+          { id: item.id, name: item.name, type: type, assetId: item.assetId },
+          normW, normH, normD
+        );
 
         return {
           id: String(item.id || `${type}_${idx + 1}`),
           name: String(item.name || `Object ${idx + 1}`),
           type: type,
-          assetId: String(item.assetId || defaultAsset),
+          assetId: String(resolvedAid),
           position: {
             x: round2(pos.x ?? item.x ?? 0),
             y: round2(pos.y ?? item.y ?? 0),
@@ -5677,6 +7349,7 @@
           },
           visible: item.visible !== false,
           locked: Boolean(item.locked),
+          showName: item.showName !== false,
           _extra: Object.keys(extra).length > 0 ? extra : undefined
         };
       }
@@ -5734,7 +7407,8 @@
                 shape: (o.collision && o.collision.shape) || 'obb'
               },
               visible: o.visible !== false,
-              locked: !!o.locked
+              locked: !!o.locked,
+              ...(o.showName === false ? { showName: false } : {})
             };
           })
         };
@@ -5800,6 +7474,18 @@
         setVal('inp-width', sel.dimensions.width);
         setVal('inp-height', sel.dimensions.height);
         setVal('inp-depth', sel.dimensions.depth);
+
+        const nameBtn = document.getElementById('btn-sel-name');
+        if (nameBtn) {
+          const eligible = isLabelEligibleObject(sel);
+          nameBtn.style.display = eligible ? 'inline-flex' : 'none';
+          if (eligible) {
+            const shown = shouldShowObjectName(sel);
+            nameBtn.textContent = '🏷';
+            nameBtn.classList.toggle('active', shown);
+            nameBtn.title = shown ? 'Name Shown on Map (Tap to Hide)' : 'Name Hidden on Map (Tap to Show)';
+          }
+        }
 
         const lockBtn = document.getElementById('btn-sel-lock');
         lockBtn.textContent = sel.locked ? '🔒' : '🔓';
@@ -5893,13 +7579,37 @@
 
           const subEl = document.createElement('div');
           subEl.className = 'obj-item-sub';
-          subEl.textContent = `(${obj.position.x}, ${obj.position.y}, ${obj.position.z})`;
+          subEl.textContent = state.showDimensions
+            ? `(${obj.position.x}, ${obj.position.y}, ${obj.position.z}) • ${obj.dimensions.width}×${obj.dimensions.depth}×${obj.dimensions.height}m`
+            : `(${obj.position.x}, ${obj.position.y}, ${obj.position.z})`;
 
           info.appendChild(nameEl);
           info.appendChild(subEl);
 
           const actions = document.createElement('div');
           actions.className = 'obj-item-actions';
+
+          if (isLabelEligibleObject(obj)) {
+            const btnName = document.createElement('button');
+            const isNameOn = shouldShowObjectName(obj);
+            btnName.className = 'btn sm icon-only' + (isNameOn ? ' active' : '');
+            btnName.textContent = '🏷';
+            btnName.title = isNameOn ? 'Hide Name on Map' : 'Show Name on Map';
+            btnName.addEventListener('click', function (ev) {
+              ev.stopPropagation();
+              const cat = getObjectLabelCategory(obj);
+              if (shouldShowObjectName(obj)) {
+                obj.showName = false;
+              } else {
+                obj.showName = true;
+                state.showLabels = true;
+                state.nameCategories[cat] = true;
+              }
+              syncNameAndDimButtons();
+              syncSelectedPanel();
+            });
+            actions.appendChild(btnName);
+          }
 
           const btnVis = document.createElement('button');
           btnVis.className = 'btn sm icon-only';
@@ -5962,6 +7672,7 @@
         syncSelectedPanel();
         renderObjectList();
         renderAssetCards();
+        renderNamesIndividualList();
       }
 
       // Top Bar Buttons
@@ -6052,8 +7763,29 @@
         sel.name = this.value || 'Unnamed';
         syncSceneMeshes();
         renderObjectList();
+        renderNamesIndividualList();
       });
       document.getElementById('inp-name').addEventListener('change', () => pushHistory());
+
+      const btnSelName = document.getElementById('btn-sel-name');
+      if (btnSelName) {
+        btnSelName.addEventListener('click', function () {
+          const sel = getSelectedObject();
+          if (!sel || !isLabelEligibleObject(sel)) return;
+          const cat = getObjectLabelCategory(sel);
+          if (shouldShowObjectName(sel)) {
+            sel.showName = false;
+            showToast(`Hidden name for ${sel.name}`);
+          } else {
+            sel.showName = true;
+            state.showLabels = true;
+            state.nameCategories[cat] = true;
+            showToast(`Shown name for ${sel.name}`);
+          }
+          syncNameAndDimButtons();
+          syncSelectedPanel();
+        });
+      }
 
       document.getElementById('btn-sel-lock').addEventListener('click', function () {
         const sel = getSelectedObject();
@@ -6227,12 +7959,258 @@
         e.target.value = '';
       });
 
-      document.getElementById('btn-toggle-labels').addEventListener('click', function () {
-        state.showLabels = !state.showLabels;
-        this.textContent = state.showLabels ? 'Labels: ON' : 'Labels: OFF';
-        this.classList.toggle('active', state.showLabels);
-        updateFloatingLabels();
+      const LABEL_CAT_META = {
+        building: { label: 'Building', short: 'Bldg' },
+        bus:      { label: 'Bus',      short: 'Bus'  },
+        car:      { label: 'Car',      short: 'Car'  },
+        bike:     { label: 'Bike',     short: 'Bike' }
+      };
+
+      function getActiveNameCategoriesList() {
+        return ['building', 'bus', 'car', 'bike'].filter((k) => !!state.nameCategories[k]);
+      }
+
+      function getNamesButtonSummary() {
+        if (!state.showLabels) return 'Names: OFF ▾';
+        const active = getActiveNameCategoriesList();
+        if (active.length === 0) return 'Names: OFF ▾';
+        if (active.length === 4) return 'Names: All (4) ▾';
+        if (active.length <= 2) {
+          return 'Names: ' + active.map((k) => LABEL_CAT_META[k].label).join(', ') + ' ▾';
+        }
+        return 'Names: ' + active.map((k) => LABEL_CAT_META[k].short).join(', ') + ' ▾';
+      }
+
+      function renderNamesIndividualList() {
+        const listEl = document.getElementById('names-individual-list');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+
+        const eligibleObjs = state.objects.filter((o) => isLabelEligibleObject(o));
+        if (eligibleObjs.length === 0) {
+          const empty = document.createElement('div');
+          empty.style.cssText = 'font-size:11px;color:var(--text-muted);padding:4px;';
+          empty.textContent = 'No Building, Bus, Car, or Bike objects on map.';
+          listEl.appendChild(empty);
+          return;
+        }
+
+        eligibleObjs.forEach((obj) => {
+          const cat = getObjectLabelCategory(obj);
+          const catEnabled = state.showLabels && !!state.nameCategories[cat];
+          const itemShow = obj.showName !== false;
+
+          const row = document.createElement('label');
+          row.className = 'names-obj-item';
+          row.style.opacity = catEnabled ? '1' : '0.5';
+
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.checked = itemShow && catEnabled;
+          cb.addEventListener('change', function () {
+            obj.showName = this.checked;
+            if (this.checked) {
+              state.showLabels = true;
+              state.nameCategories[cat] = true;
+            }
+            syncNameAndDimButtons();
+            syncSelectedPanel();
+          });
+
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'names-obj-item-label';
+          nameSpan.textContent = obj.name;
+
+          const badge = document.createElement('span');
+          badge.className = 'names-obj-badge';
+          badge.textContent = LABEL_CAT_META[cat] ? LABEL_CAT_META[cat].label : cat;
+
+          row.append(cb, nameSpan, badge);
+          listEl.appendChild(row);
+        });
+      }
+
+      function syncNameAndDimButtons() {
+        const barNames = document.getElementById('btn-bar-names');
+        const menuNames = document.getElementById('btn-toggle-labels');
+        const barDims = document.getElementById('btn-bar-dims');
+        const menuDims = document.getElementById('btn-toggle-dims');
+        const activeCats = getActiveNameCategoriesList();
+        const anyNamesActive = state.showLabels && activeCats.length > 0;
+
+        if (barNames) {
+          barNames.innerHTML = `<span>${getNamesButtonSummary()}</span>`;
+          barNames.classList.toggle('active', anyNamesActive);
+        }
+        if (menuNames) {
+          menuNames.textContent = anyNamesActive ? 'Names: ON' : 'Names: OFF';
+          menuNames.classList.toggle('active', anyNamesActive);
+        }
+
+        document.querySelectorAll('.name-cat-btn[data-name-cat]').forEach((btn) => {
+          const cat = btn.dataset.nameCat;
+          const on = state.showLabels && !!state.nameCategories[cat];
+          btn.classList.toggle('active', on);
+          const chk = btn.querySelector('.cat-check');
+          if (chk) chk.textContent = on ? '✓' : '○';
+        });
+
+        document.querySelectorAll('[data-menu-name-cat]').forEach((btn) => {
+          const cat = btn.dataset.menuNameCat;
+          const on = state.showLabels && !!state.nameCategories[cat];
+          const label = LABEL_CAT_META[cat] ? LABEL_CAT_META[cat].label : cat;
+          btn.textContent = `${label} Names: ${on ? 'ON' : 'OFF'}`;
+          btn.classList.toggle('active', on);
+        });
+
+        document.querySelectorAll('.names-preset-btn[data-name-preset]').forEach((btn) => {
+          const p = btn.dataset.namePreset;
+          let isPresetActive = false;
+          if (p === 'none') {
+            isPresetActive = !anyNamesActive;
+          } else if (p === 'all') {
+            isPresetActive = state.showLabels && activeCats.length === 4;
+          } else {
+            isPresetActive = state.showLabels && activeCats.length === 1 && activeCats[0] === p;
+          }
+          btn.classList.toggle('active', isPresetActive);
+        });
+
+        if (barDims) {
+          barDims.innerHTML = `<span>Size: ${state.showDimensions ? 'ON' : 'OFF'}</span>`;
+          barDims.classList.toggle('active', state.showDimensions);
+        }
+        if (menuDims) {
+          menuDims.textContent = state.showDimensions ? 'Size / Length: ON' : 'Size / Length: OFF';
+          menuDims.classList.toggle('active', state.showDimensions);
+        }
+        renderNamesIndividualList();
+        syncSceneMeshes();
+        renderObjectList();
+      }
+
+      function toggleShowNames() {
+        const activeCats = getActiveNameCategoriesList();
+        if (state.showLabels && activeCats.length > 0) {
+          state.showLabels = false;
+        } else {
+          state.showLabels = true;
+          if (activeCats.length === 0) {
+            state.nameCategories = { building: true, bus: true, car: true, bike: true };
+          }
+        }
+        syncNameAndDimButtons();
+        showToast(state.showLabels ? 'Names: Shown (' + getActiveNameCategoriesList().map((k) => LABEL_CAT_META[k].label).join(', ') + ')' : 'Names: Hidden');
+      }
+
+      function toggleNameCategory(cat) {
+        if (!LABEL_CAT_META[cat]) return;
+        if (!state.showLabels) {
+          state.showLabels = true;
+          state.nameCategories = { building: false, bus: false, car: false, bike: false };
+          state.nameCategories[cat] = true;
+        } else {
+          state.nameCategories[cat] = !state.nameCategories[cat];
+          if (getActiveNameCategoriesList().length === 0) {
+            state.showLabels = false;
+          }
+        }
+        syncNameAndDimButtons();
+        const on = state.showLabels && state.nameCategories[cat];
+        showToast(`${LABEL_CAT_META[cat].label} Names: ${on ? 'Shown' : 'Hidden'}`);
+      }
+
+      function applyNamePreset(preset) {
+        if (preset === 'none') {
+          state.showLabels = false;
+          state.nameCategories = { building: false, bus: false, car: false, bike: false };
+          showToast('Object Names: Hidden');
+        } else if (preset === 'all') {
+          state.showLabels = true;
+          state.nameCategories = { building: true, bus: true, car: true, bike: true };
+          state.objects.forEach((o) => {
+            if (isLabelEligibleObject(o)) o.showName = true;
+          });
+          showToast('Names: Building, Bus, Car & Bike');
+        } else if (LABEL_CAT_META[preset]) {
+          state.showLabels = true;
+          state.nameCategories = { building: false, bus: false, car: false, bike: false };
+          state.nameCategories[preset] = true;
+          state.objects.forEach((o) => {
+            if (getObjectLabelCategory(o) === preset) o.showName = true;
+          });
+          showToast(`Names: Only ${LABEL_CAT_META[preset].label}`);
+        }
+        syncNameAndDimButtons();
+      }
+
+      function toggleShowDimensions() {
+        state.showDimensions = !state.showDimensions;
+        syncNameAndDimButtons();
+        showToast(state.showDimensions ? 'Size / Length: Shown' : 'Size / Length: Hidden');
+      }
+
+      const namesDropdown = document.getElementById('names-dropdown');
+      document.getElementById('btn-bar-names').addEventListener('click', function () {
+        if (namesDropdown) {
+          namesDropdown.classList.toggle('open');
+          renderNamesIndividualList();
+        } else {
+          toggleShowNames();
+        }
       });
+      const btnCloseNamesDd = document.getElementById('btn-close-names-dd');
+      if (btnCloseNamesDd && namesDropdown) {
+        btnCloseNamesDd.addEventListener('click', () => namesDropdown.classList.remove('open'));
+      }
+
+      document.querySelectorAll('.name-cat-btn[data-name-cat]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          toggleNameCategory(this.dataset.nameCat);
+        });
+      });
+
+      document.querySelectorAll('[data-menu-name-cat]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          toggleNameCategory(this.dataset.menuNameCat);
+        });
+      });
+
+      document.querySelectorAll('.names-preset-btn[data-name-preset]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          applyNamePreset(this.dataset.namePreset);
+        });
+      });
+
+      const btnCheckAllNames = document.getElementById('btn-names-check-all');
+      if (btnCheckAllNames) {
+        btnCheckAllNames.addEventListener('click', function () {
+          state.showLabels = true;
+          state.nameCategories = { building: true, bus: true, car: true, bike: true };
+          state.objects.forEach((o) => {
+            if (isLabelEligibleObject(o)) o.showName = true;
+          });
+          syncNameAndDimButtons();
+          syncSelectedPanel();
+          showToast('Checked all Building, Bus, Car & Bike names');
+        });
+      }
+
+      const btnUncheckAllNames = document.getElementById('btn-names-uncheck-all');
+      if (btnUncheckAllNames) {
+        btnUncheckAllNames.addEventListener('click', function () {
+          state.objects.forEach((o) => {
+            if (isLabelEligibleObject(o)) o.showName = false;
+          });
+          syncNameAndDimButtons();
+          syncSelectedPanel();
+          showToast('Unchecked all item names');
+        });
+      }
+
+      document.getElementById('btn-toggle-labels').addEventListener('click', toggleShowNames);
+      document.getElementById('btn-toggle-dims').addEventListener('click', toggleShowDimensions);
+      document.getElementById('btn-bar-dims').addEventListener('click', toggleShowDimensions);
 
       document.getElementById('btn-toggle-colliders').addEventListener('click', function () {
         state.showColliders = !state.showColliders;
@@ -6279,6 +8257,7 @@
           duplicateSelected();
         } else if (e.key === 'Escape') {
           cancelPlacingAsset();
+          if (namesDropdown) namesDropdown.classList.remove('open');
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
           if (state.selectedId) {
             e.preventDefault();
@@ -6306,6 +8285,7 @@
 
       // Initialize Editor
       loadInitialScene();
+      syncNameAndDimButtons();
       handleResize();
       camController.updateCamera();
       requestAnimationFrame(animate);
@@ -6372,7 +8352,23 @@
         setCameraPreset: (preset) => camController.setPreset(preset),
         focusSelected: () => camController.focusSelected(),
         fitAll: () => camController.fitAll(),
-        resetCamera: () => camController.reset()
+        resetCamera: () => camController.reset(),
+        zoomAtScreenPoint: (x, y, factor) => camController.zoomAtScreenPoint(x, y, factor),
+        toggleShowNames: toggleShowNames,
+        toggleNameCategory: toggleNameCategory,
+        applyNamePreset: applyNamePreset,
+        setNameCategories: (cats) => {
+          state.showLabels = true;
+          state.nameCategories = {
+            building: !!cats.building,
+            bus: !!cats.bus,
+            car: !!cats.car,
+            bike: !!cats.bike
+          };
+          syncNameAndDimButtons();
+        },
+        getObjectLabelCategory: getObjectLabelCategory,
+        toggleShowDimensions: toggleShowDimensions
       };
     })();
   </script>

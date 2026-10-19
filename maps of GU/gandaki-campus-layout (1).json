@@ -1,0 +1,8378 @@
+{
+  "format": "gandaki-campus-layout",
+  "version": "1.1.0",
+  "exportedAt": "2026-10-19T17:47:37.202Z",
+  "coordinateSystem": {
+    "units": "meters",
+    "upAxis": "Y",
+    "groundY": 0,
+    "positionOrigin": "bottom-center",
+    "axes": {
+      "+X": "East",
+      "-X": "West",
+      "+Z": "North (Rotunda)",
+      "-Z": "South (Main Gate)"
+    }
+  },
+  "objects": [
+    {
+      "id": "area_parking_plaza",
+      "name": "Collage bus parkng ",
+      "type": "ground_area",
+      "assetId": "road_parking_lot",
+      "position": {
+        "x": -56,
+        "y": 0,
+        "z": -0.5
+      },
+      "center": {
+        "x": -56,
+        "y": 0.02,
+        "z": -0.5
+      },
+      "dimensions": {
+        "width": 35.5,
+        "height": 0.04,
+        "depth": 22
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -73.75,
+          "y": 0,
+          "z": -11.5
+        },
+        "max": {
+          "x": -38.25,
+          "y": 0.04,
+          "z": 10.5
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -56,
+          "y": 0.02,
+          "z": -0.5
+        },
+        "halfExtents": {
+          "x": 17.75,
+          "y": 0.02,
+          "z": 11
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_rotunda_plaza",
+      "name": "North Rotunda Forecourt Plaza",
+      "type": "ground_area",
+      "assetId": "arch_rotunda_complex",
+      "position": {
+        "x": 3,
+        "y": 0,
+        "z": -110
+      },
+      "center": {
+        "x": 3,
+        "y": 0.02,
+        "z": -110
+      },
+      "dimensions": {
+        "width": 66,
+        "height": 0.04,
+        "depth": 54
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 174.75,
+        "zDeg": 0,
+        "yRad": 3.05
+      },
+      "collider": {
+        "min": {
+          "x": -32.33,
+          "y": 0,
+          "z": -139.91
+        },
+        "max": {
+          "x": 38.33,
+          "y": 0.04,
+          "z": -80.09
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 3,
+          "y": 0.02,
+          "z": -110
+        },
+        "halfExtents": {
+          "x": 33,
+          "y": 0.02,
+          "z": 27
+        },
+        "yDeg": 174.75,
+        "yRad": 3.05
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_central_spine",
+      "name": "path",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": 18,
+        "y": 0.02,
+        "z": 2.5
+      },
+      "center": {
+        "x": 18,
+        "y": 0.06,
+        "z": 2.5
+      },
+      "dimensions": {
+        "width": 10.1,
+        "height": 0.08,
+        "depth": 68
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 12.95,
+          "y": 0.02,
+          "z": -31.5
+        },
+        "max": {
+          "x": 23.05,
+          "y": 0.1,
+          "z": 36.5
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 18,
+          "y": 0.06,
+          "z": 2.5
+        },
+        "halfExtents": {
+          "x": 5.05,
+          "y": 0.04,
+          "z": 34
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_main_rotunda",
+      "name": "Main Grand Rotunda Complex",
+      "type": "building",
+      "assetId": "arch_rotunda_complex",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": -110
+      },
+      "center": {
+        "x": 0,
+        "y": 5.75,
+        "z": -110
+      },
+      "dimensions": {
+        "width": 46,
+        "height": 11.5,
+        "depth": 18
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 176,
+        "zDeg": 0,
+        "yRad": 3.0718
+      },
+      "collider": {
+        "min": {
+          "x": -23.57,
+          "y": 0,
+          "z": -120.58
+        },
+        "max": {
+          "x": 23.57,
+          "y": 11.5,
+          "z": -99.42
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 0,
+          "y": 5.75,
+          "z": -110
+        },
+        "halfExtents": {
+          "x": 23,
+          "y": 5.75,
+          "z": 9
+        },
+        "yDeg": 176,
+        "yRad": 3.0718
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_west_wing_l1",
+      "name": "Staffroom, lab , washroom",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": -4,
+        "y": 0,
+        "z": -9.51
+      },
+      "center": {
+        "x": -4,
+        "y": 2.1,
+        "z": -9.51
+      },
+      "dimensions": {
+        "width": 7.6,
+        "height": 4.2,
+        "depth": 32.5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": -88,
+        "zDeg": 0,
+        "yRad": -1.5359
+      },
+      "collider": {
+        "min": {
+          "x": -20.37,
+          "y": 0,
+          "z": -13.87
+        },
+        "max": {
+          "x": 12.37,
+          "y": 4.2,
+          "z": -5.15
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -4,
+          "y": 2.1,
+          "z": -9.51
+        },
+        "halfExtents": {
+          "x": 3.8,
+          "y": 2.1,
+          "z": 16.25
+        },
+        "yDeg": -88,
+        "yRad": -1.5359
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_west_wing_l2",
+      "name": "labs , washroom",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": -4.5,
+        "y": 0,
+        "z": 4
+      },
+      "center": {
+        "x": -4.5,
+        "y": 2.4,
+        "z": 4
+      },
+      "dimensions": {
+        "width": 7.6,
+        "height": 4.8,
+        "depth": 33
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 92,
+        "zDeg": 0,
+        "yRad": 1.6057
+      },
+      "collider": {
+        "min": {
+          "x": -21.12,
+          "y": 0,
+          "z": -0.37
+        },
+        "max": {
+          "x": 12.12,
+          "y": 4.8,
+          "z": 8.37
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -4.5,
+          "y": 2.4,
+          "z": 4
+        },
+        "halfExtents": {
+          "x": 3.8,
+          "y": 2.4,
+          "z": 16.5
+        },
+        "yDeg": 92,
+        "yRad": 1.6057
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_east_wing_r1",
+      "name": "Cafeteria",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": 3,
+        "y": 0,
+        "z": -25.5
+      },
+      "center": {
+        "x": 3,
+        "y": 2.1,
+        "z": -25.5
+      },
+      "dimensions": {
+        "width": 18.1,
+        "height": 4.2,
+        "depth": 11.5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -6.05,
+          "y": 0,
+          "z": -31.25
+        },
+        "max": {
+          "x": 12.05,
+          "y": 4.2,
+          "z": -19.75
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 3,
+          "y": 2.1,
+          "z": -25.5
+        },
+        "halfExtents": {
+          "x": 9.05,
+          "y": 2.1,
+          "z": 5.75
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_east_wing_r2",
+      "name": "Multipurpose Hall",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": 28,
+        "y": 0,
+        "z": -27
+      },
+      "center": {
+        "x": 28,
+        "y": 2.1,
+        "z": -27
+      },
+      "dimensions": {
+        "width": 7.6,
+        "height": 4.2,
+        "depth": 20.5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 24.2,
+          "y": 0,
+          "z": -37.25
+        },
+        "max": {
+          "x": 31.8,
+          "y": 4.2,
+          "z": -16.75
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 28,
+          "y": 2.1,
+          "z": -27
+        },
+        "halfExtents": {
+          "x": 3.8,
+          "y": 2.1,
+          "z": 10.25
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_east_wing_r4",
+      "name": "library",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": 28.5,
+        "y": 0,
+        "z": 19
+      },
+      "center": {
+        "x": 28.5,
+        "y": 2.1,
+        "z": 19
+      },
+      "dimensions": {
+        "width": 9.6,
+        "height": 4.2,
+        "depth": 21.5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 23.7,
+          "y": 0,
+          "z": 8.25
+        },
+        "max": {
+          "x": 33.3,
+          "y": 4.2,
+          "z": 29.75
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 28.5,
+          "y": 2.1,
+          "z": 19
+        },
+        "halfExtents": {
+          "x": 4.8,
+          "y": 2.1,
+          "z": 10.75
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_guardhouse",
+      "name": "South Gate Guardhouse",
+      "type": "building",
+      "assetId": "arch_guardhouse",
+      "position": {
+        "x": 9,
+        "y": 0,
+        "z": -67.84
+      },
+      "center": {
+        "x": 9,
+        "y": 1.7,
+        "z": -67.84
+      },
+      "dimensions": {
+        "width": 4.6,
+        "height": 3.4,
+        "depth": 4.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 6.7,
+          "y": 0,
+          "z": -70.14
+        },
+        "max": {
+          "x": 11.3,
+          "y": 3.4,
+          "z": -65.54
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 9,
+          "y": 1.7,
+          "z": -67.84
+        },
+        "halfExtents": {
+          "x": 2.3,
+          "y": 1.7,
+          "z": 2.3
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_1",
+      "name": "Office ",
+      "type": "building",
+      "assetId": "arch_admin_office_2storey",
+      "position": {
+        "x": 21,
+        "y": -0.87,
+        "z": -56
+      },
+      "center": {
+        "x": 21,
+        "y": 2.63,
+        "z": -56
+      },
+      "dimensions": {
+        "width": 15.5,
+        "height": 7,
+        "depth": 7.5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 13.25,
+          "y": -0.87,
+          "z": -59.75
+        },
+        "max": {
+          "x": 28.75,
+          "y": 6.13,
+          "z": -52.25
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 21,
+          "y": 2.63,
+          "z": -56
+        },
+        "halfExtents": {
+          "x": 7.75,
+          "y": 3.5,
+          "z": 3.75
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_2",
+      "name": "warehouse ig",
+      "type": "building",
+      "assetId": "arch_building_block",
+      "position": {
+        "x": 38.5,
+        "y": 0,
+        "z": -54
+      },
+      "center": {
+        "x": 38.5,
+        "y": 2.25,
+        "z": -54
+      },
+      "dimensions": {
+        "width": 8.5,
+        "height": 4.5,
+        "depth": 8
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 34.25,
+          "y": 0,
+          "z": -58
+        },
+        "max": {
+          "x": 42.75,
+          "y": 4.5,
+          "z": -50
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 38.5,
+          "y": 2.25,
+          "z": -54
+        },
+        "halfExtents": {
+          "x": 4.25,
+          "y": 2.25,
+          "z": 4
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_3",
+      "name": "Washroom 1 ",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": 12.5,
+        "y": 0,
+        "z": -42
+      },
+      "center": {
+        "x": 12.5,
+        "y": 2,
+        "z": -42
+      },
+      "dimensions": {
+        "width": 14.5,
+        "height": 4,
+        "depth": 7.5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 5.25,
+          "y": 0,
+          "z": -45.75
+        },
+        "max": {
+          "x": 19.75,
+          "y": 4,
+          "z": -38.25
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 12.5,
+          "y": 2,
+          "z": -42
+        },
+        "halfExtents": {
+          "x": 7.25,
+          "y": 2,
+          "z": 3.75
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_4",
+      "name": "Pharmacy Lab",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": 27,
+        "y": 0,
+        "z": -5.5
+      },
+      "center": {
+        "x": 27,
+        "y": 2.25,
+        "z": -5.5
+      },
+      "dimensions": {
+        "width": 7,
+        "height": 4.5,
+        "depth": 16
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 23.5,
+          "y": 0,
+          "z": -13.5
+        },
+        "max": {
+          "x": 30.5,
+          "y": 4.5,
+          "z": 2.5
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 27,
+          "y": 2.25,
+          "z": -5.5
+        },
+        "halfExtents": {
+          "x": 3.5,
+          "y": 2.25,
+          "z": 8
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_5",
+      "name": "Computer lab , electronic labs ",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": -4.5,
+        "y": 0,
+        "z": 18
+      },
+      "center": {
+        "x": -4.5,
+        "y": 2.25,
+        "z": 18
+      },
+      "dimensions": {
+        "width": 34.5,
+        "height": 4.5,
+        "depth": 8
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0.75,
+        "zDeg": 0,
+        "yRad": 0.0131
+      },
+      "collider": {
+        "min": {
+          "x": -21.8,
+          "y": 0,
+          "z": 13.77
+        },
+        "max": {
+          "x": 12.8,
+          "y": 4.5,
+          "z": 22.23
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -4.5,
+          "y": 2.25,
+          "z": 18
+        },
+        "halfExtents": {
+          "x": 17.25,
+          "y": 2.25,
+          "z": 4
+        },
+        "yDeg": 0.75,
+        "yRad": 0.0131
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_6",
+      "name": "Classrooms",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": 2,
+        "y": 0,
+        "z": 49
+      },
+      "center": {
+        "x": 2,
+        "y": 2.25,
+        "z": 49
+      },
+      "dimensions": {
+        "width": 52,
+        "height": 4.5,
+        "depth": 8
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -24,
+          "y": 0,
+          "z": 45
+        },
+        "max": {
+          "x": 28,
+          "y": 4.5,
+          "z": 53
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 2,
+          "y": 2.25,
+          "z": 49
+        },
+        "halfExtents": {
+          "x": 26,
+          "y": 2.25,
+          "z": 4
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_7",
+      "name": "Road Path 5",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": -30.51,
+        "y": 0.02,
+        "z": 19.57
+      },
+      "center": {
+        "x": -30.51,
+        "y": 0.06,
+        "z": 19.57
+      },
+      "dimensions": {
+        "width": 11.79,
+        "height": 0.08,
+        "depth": 69.63
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -36.4,
+          "y": 0.02,
+          "z": -15.24
+        },
+        "max": {
+          "x": -24.61,
+          "y": 0.1,
+          "z": 54.39
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -30.51,
+          "y": 0.06,
+          "z": 19.57
+        },
+        "halfExtents": {
+          "x": 5.9,
+          "y": 0.04,
+          "z": 34.82
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_8",
+      "name": "Cars/bike parking",
+      "type": "ground_area",
+      "assetId": "road_parking_lot",
+      "position": {
+        "x": -39,
+        "y": 0,
+        "z": -23.5
+      },
+      "center": {
+        "x": -39,
+        "y": 0.07,
+        "z": -23.5
+      },
+      "dimensions": {
+        "width": 57,
+        "height": 0.13,
+        "depth": 23.5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -67.5,
+          "y": 0,
+          "z": -35.25
+        },
+        "max": {
+          "x": -10.5,
+          "y": 0.13,
+          "z": -11.75
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -39,
+          "y": 0.07,
+          "z": -23.5
+        },
+        "halfExtents": {
+          "x": 28.5,
+          "y": 0.07,
+          "z": 11.75
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_10",
+      "name": "classrooms 4",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": -62.5,
+        "y": 0,
+        "z": 20
+      },
+      "center": {
+        "x": -62.5,
+        "y": 2.25,
+        "z": 20
+      },
+      "dimensions": {
+        "width": 52,
+        "height": 4.5,
+        "depth": 8
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -88.5,
+          "y": 0,
+          "z": 16
+        },
+        "max": {
+          "x": -36.5,
+          "y": 4.5,
+          "z": 24
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -62.5,
+          "y": 2.25,
+          "z": 20
+        },
+        "halfExtents": {
+          "x": 26,
+          "y": 2.25,
+          "z": 4
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_11",
+      "name": "classrooms 3 ",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": -63,
+        "y": 0,
+        "z": 34.5
+      },
+      "center": {
+        "x": -63,
+        "y": 2.25,
+        "z": 34.5
+      },
+      "dimensions": {
+        "width": 52,
+        "height": 4.5,
+        "depth": 8
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -89,
+          "y": 0,
+          "z": 30.5
+        },
+        "max": {
+          "x": -37,
+          "y": 4.5,
+          "z": 38.5
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -63,
+          "y": 2.25,
+          "z": 34.5
+        },
+        "halfExtents": {
+          "x": 26,
+          "y": 2.25,
+          "z": 4
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_12",
+      "name": "Classrooms 2",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": -63.5,
+        "y": 0,
+        "z": 48.5
+      },
+      "center": {
+        "x": -63.5,
+        "y": 2.25,
+        "z": 48.5
+      },
+      "dimensions": {
+        "width": 52,
+        "height": 4.5,
+        "depth": 8
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -89.5,
+          "y": 0,
+          "z": 44.5
+        },
+        "max": {
+          "x": -37.5,
+          "y": 4.5,
+          "z": 52.5
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -63.5,
+          "y": 2.25,
+          "z": 48.5
+        },
+        "halfExtents": {
+          "x": 26,
+          "y": 2.25,
+          "z": 4
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_14",
+      "name": "Road Path 3",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": -2.5,
+        "y": 0.02,
+        "z": -59
+      },
+      "center": {
+        "x": -2.5,
+        "y": 0.06,
+        "z": -59
+      },
+      "dimensions": {
+        "width": 14.5,
+        "height": 0.08,
+        "depth": 48
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -9.75,
+          "y": 0.02,
+          "z": -83
+        },
+        "max": {
+          "x": 4.75,
+          "y": 0.1,
+          "z": -35
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -2.5,
+          "y": 0.06,
+          "z": -59
+        },
+        "halfExtents": {
+          "x": 7.25,
+          "y": 0.04,
+          "z": 24
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_15",
+      "name": "Computer lab , electronic labs  Copy",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "position": {
+        "x": -4.5,
+        "y": 0,
+        "z": 32
+      },
+      "center": {
+        "x": -4.5,
+        "y": 2.25,
+        "z": 32
+      },
+      "dimensions": {
+        "width": 34.5,
+        "height": 4.5,
+        "depth": 8
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -21.75,
+          "y": 0,
+          "z": 28
+        },
+        "max": {
+          "x": 12.75,
+          "y": 4.5,
+          "z": 36
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -4.5,
+          "y": 2.25,
+          "z": 32
+        },
+        "halfExtents": {
+          "x": 17.25,
+          "y": 2.25,
+          "z": 4
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_17",
+      "name": "Road Path 4",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": 5.5,
+        "y": 0.02,
+        "z": -35
+      },
+      "center": {
+        "x": 5.5,
+        "y": 0.06,
+        "z": -35
+      },
+      "dimensions": {
+        "width": 6,
+        "height": 0.08,
+        "depth": 35
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -12,
+          "y": 0.02,
+          "z": -38
+        },
+        "max": {
+          "x": 23,
+          "y": 0.1,
+          "z": -32
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 5.5,
+          "y": 0.06,
+          "z": -35
+        },
+        "halfExtents": {
+          "x": 3,
+          "y": 0.04,
+          "z": 17.5
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_18",
+      "name": "Road Path 4 Copy",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": 1.24,
+        "y": 0.08,
+        "z": -16.74
+      },
+      "center": {
+        "x": 1.24,
+        "y": 0.12,
+        "z": -16.74
+      },
+      "dimensions": {
+        "width": 6,
+        "height": 0.08,
+        "depth": 24.5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -11.01,
+          "y": 0.08,
+          "z": -19.74
+        },
+        "max": {
+          "x": 13.49,
+          "y": 0.16,
+          "z": -13.74
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 1.24,
+          "y": 0.12,
+          "z": -16.74
+        },
+        "halfExtents": {
+          "x": 3,
+          "y": 0.04,
+          "z": 12.25
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_19",
+      "name": "Road Path 6",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": 12.33,
+        "y": 0.02,
+        "z": -49
+      },
+      "center": {
+        "x": 12.33,
+        "y": 0.06,
+        "z": -49
+      },
+      "dimensions": {
+        "width": 4,
+        "height": 0.08,
+        "depth": 18
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 92,
+        "zDeg": 0,
+        "yRad": 1.6057
+      },
+      "collider": {
+        "min": {
+          "x": 3.27,
+          "y": 0.02,
+          "z": -51.31
+        },
+        "max": {
+          "x": 21.39,
+          "y": 0.1,
+          "z": -46.69
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 12.33,
+          "y": 0.06,
+          "z": -49
+        },
+        "halfExtents": {
+          "x": 2,
+          "y": 0.04,
+          "z": 9
+        },
+        "yDeg": 92,
+        "yRad": 1.6057
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_20",
+      "name": "Road Path 6 Copy",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": 21.72,
+        "y": 0.02,
+        "z": -45.79
+      },
+      "center": {
+        "x": 21.72,
+        "y": 0.06,
+        "z": -45.79
+      },
+      "dimensions": {
+        "width": 4,
+        "height": 0.08,
+        "depth": 18
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 180,
+        "zDeg": 0,
+        "yRad": 3.1416
+      },
+      "collider": {
+        "min": {
+          "x": 19.72,
+          "y": 0.02,
+          "z": -54.79
+        },
+        "max": {
+          "x": 23.72,
+          "y": 0.1,
+          "z": -36.79
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 21.72,
+          "y": 0.06,
+          "z": -45.79
+        },
+        "halfExtents": {
+          "x": 2,
+          "y": 0.04,
+          "z": 9
+        },
+        "yDeg": 180,
+        "yRad": 3.1416
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_21",
+      "name": "Road Path 8",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": 28.5,
+        "y": 0.02,
+        "z": -15
+      },
+      "center": {
+        "x": 28.5,
+        "y": 0.06,
+        "z": -15
+      },
+      "dimensions": {
+        "width": 4,
+        "height": 0.08,
+        "depth": 18
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": 19.5,
+          "y": 0.02,
+          "z": -17
+        },
+        "max": {
+          "x": 37.5,
+          "y": 0.1,
+          "z": -13
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 28.5,
+          "y": 0.06,
+          "z": -15
+        },
+        "halfExtents": {
+          "x": 2,
+          "y": 0.04,
+          "z": 9
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_22",
+      "name": "Road Path 8 Copy",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": 27.5,
+        "y": 0.02,
+        "z": 5.5
+      },
+      "center": {
+        "x": 27.5,
+        "y": 0.06,
+        "z": 5.5
+      },
+      "dimensions": {
+        "width": 4,
+        "height": 0.08,
+        "depth": 18
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": 18.5,
+          "y": 0.02,
+          "z": 3.5
+        },
+        "max": {
+          "x": 36.5,
+          "y": 0.1,
+          "z": 7.5
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 27.5,
+          "y": 0.06,
+          "z": 5.5
+        },
+        "halfExtents": {
+          "x": 2,
+          "y": 0.04,
+          "z": 9
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_23",
+      "name": "Road Path 10",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": -3.24,
+        "y": 0.02,
+        "z": 11
+      },
+      "center": {
+        "x": -3.24,
+        "y": 0.06,
+        "z": 11
+      },
+      "dimensions": {
+        "width": 5.1,
+        "height": 0.08,
+        "depth": 48.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 91.5,
+        "zDeg": 0,
+        "yRad": 1.597
+      },
+      "collider": {
+        "min": {
+          "x": -27.6,
+          "y": 0.02,
+          "z": 7.81
+        },
+        "max": {
+          "x": 21.12,
+          "y": 0.1,
+          "z": 14.19
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -3.24,
+          "y": 0.06,
+          "z": 11
+        },
+        "halfExtents": {
+          "x": 2.55,
+          "y": 0.04,
+          "z": 24.3
+        },
+        "yDeg": 91.5,
+        "yRad": 1.597
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_24",
+      "name": "Road Path 10 Copy",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": -8,
+        "y": 0.02,
+        "z": -2.5
+      },
+      "center": {
+        "x": -8,
+        "y": 0.06,
+        "z": -2.5
+      },
+      "dimensions": {
+        "width": 5.6,
+        "height": 0.08,
+        "depth": 39.1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 92.25,
+        "zDeg": 0,
+        "yRad": 1.6101
+      },
+      "collider": {
+        "min": {
+          "x": -27.64,
+          "y": 0.02,
+          "z": -6.07
+        },
+        "max": {
+          "x": 11.64,
+          "y": 0.1,
+          "z": 1.07
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -8,
+          "y": 0.06,
+          "z": -2.5
+        },
+        "halfExtents": {
+          "x": 2.8,
+          "y": 0.04,
+          "z": 19.55
+        },
+        "yDeg": 92.25,
+        "yRad": 1.6101
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_25",
+      "name": "Road Path 10 Copy",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": -6.5,
+        "y": 0.13,
+        "z": 25
+      },
+      "center": {
+        "x": -6.5,
+        "y": 0.17,
+        "z": 25
+      },
+      "dimensions": {
+        "width": 5.1,
+        "height": 0.08,
+        "depth": 41.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -27.3,
+          "y": 0.13,
+          "z": 22.45
+        },
+        "max": {
+          "x": 14.3,
+          "y": 0.21,
+          "z": 27.55
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -6.5,
+          "y": 0.17,
+          "z": 25
+        },
+        "halfExtents": {
+          "x": 2.55,
+          "y": 0.04,
+          "z": 20.8
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_26",
+      "name": "Road Path 10 Copy Copy",
+      "type": "road",
+      "assetId": "road_asphalt",
+      "position": {
+        "x": 0.5,
+        "y": 0.02,
+        "z": 40.5
+      },
+      "center": {
+        "x": 0.5,
+        "y": 0.06,
+        "z": 40.5
+      },
+      "dimensions": {
+        "width": 7.1,
+        "height": 0.08,
+        "depth": 55.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -27.3,
+          "y": 0.02,
+          "z": 36.95
+        },
+        "max": {
+          "x": 28.3,
+          "y": 0.1,
+          "z": 44.05
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 0.5,
+          "y": 0.06,
+          "z": 40.5
+        },
+        "halfExtents": {
+          "x": 3.55,
+          "y": 0.04,
+          "z": 27.8
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "auto"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "groupId": "grp_bus_parking",
+      "vehicleMeta": {
+        "fleetCode": "GP62",
+        "plateNumber": "ग १ ख ९४९१",
+        "enterable": true,
+        "designatedZone": "area_parking_plaza"
+      },
+      "id": "bus_a_gp62",
+      "name": "Bus NO 2",
+      "type": "vehicle",
+      "assetId": "veh_bus_gandaki_a",
+      "position": {
+        "x": -56.5,
+        "y": 0,
+        "z": -1.5
+      },
+      "center": {
+        "x": -56.5,
+        "y": 1.55,
+        "z": -1.5
+      },
+      "dimensions": {
+        "width": 2.5,
+        "height": 3.1,
+        "depth": 10.5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -57.75,
+          "y": 0,
+          "z": -6.75
+        },
+        "max": {
+          "x": -55.25,
+          "y": 3.1,
+          "z": 3.75
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -56.5,
+          "y": 1.55,
+          "z": -1.5
+        },
+        "halfExtents": {
+          "x": 1.25,
+          "y": 1.55,
+          "z": 5.25
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "groupId": "grp_bus_parking",
+      "vehicleMeta": {
+        "fleetCode": "GP64",
+        "plateNumber": "ग १ ख ७२६२",
+        "enterable": true,
+        "designatedZone": "area_parking_plaza"
+      },
+      "id": "bus_b_gp64",
+      "name": "Bus NO 1 ",
+      "type": "vehicle",
+      "assetId": "veh_bus_gandaki_b",
+      "position": {
+        "x": -44.5,
+        "y": 0,
+        "z": -1.5
+      },
+      "center": {
+        "x": -44.5,
+        "y": 1.55,
+        "z": -1.5
+      },
+      "dimensions": {
+        "width": 2.5,
+        "height": 3.1,
+        "depth": 10.5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 2.29,
+        "zDeg": 0,
+        "yRad": 0.04
+      },
+      "collider": {
+        "min": {
+          "x": -45.96,
+          "y": 0,
+          "z": -6.8
+        },
+        "max": {
+          "x": -43.04,
+          "y": 3.1,
+          "z": 3.8
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -44.5,
+          "y": 1.55,
+          "z": -1.5
+        },
+        "halfExtents": {
+          "x": 1.25,
+          "y": 1.55,
+          "z": 5.25
+        },
+        "yDeg": 2.29,
+        "yRad": 0.04
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_33",
+      "name": "Parked Campus Sedan (Silver) 3",
+      "type": "vehicle",
+      "assetId": "veh_car_sedan_silver",
+      "position": {
+        "x": -12.9,
+        "y": 0.04,
+        "z": -17
+      },
+      "center": {
+        "x": -12.9,
+        "y": 0.8,
+        "z": -17
+      },
+      "dimensions": {
+        "width": 1.92,
+        "height": 1.52,
+        "depth": 4.45
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -13.86,
+          "y": 0.04,
+          "z": -19.23
+        },
+        "max": {
+          "x": -11.94,
+          "y": 1.56,
+          "z": -14.77
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -12.9,
+          "y": 0.8,
+          "z": -17
+        },
+        "halfExtents": {
+          "x": 0.96,
+          "y": 0.76,
+          "z": 2.23
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_34",
+      "name": "Courtyard Scooter / Motorcycle 4",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -23.5,
+        "y": 0.04,
+        "z": -34
+      },
+      "center": {
+        "x": -23.5,
+        "y": 0.62,
+        "z": -34
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -23.89,
+          "y": 0.04,
+          "z": -34.92
+        },
+        "max": {
+          "x": -23.11,
+          "y": 1.19,
+          "z": -33.08
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -23.5,
+          "y": 0.62,
+          "z": -34
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "isPlaceholder": true,
+      "id": "veh_35",
+      "name": "Campus Utility Van (Placeholder) 5",
+      "type": "vehicle",
+      "assetId": "veh_parked_van",
+      "position": {
+        "x": -17.17,
+        "y": 0.04,
+        "z": -18
+      },
+      "center": {
+        "x": -17.17,
+        "y": 1.12,
+        "z": -18
+      },
+      "dimensions": {
+        "width": 2.1,
+        "height": 2.15,
+        "depth": 4.9
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 3,
+        "zDeg": 0,
+        "yRad": 0.0524
+      },
+      "collider": {
+        "min": {
+          "x": -18.35,
+          "y": 0.04,
+          "z": -20.5
+        },
+        "max": {
+          "x": -15.99,
+          "y": 2.19,
+          "z": -15.5
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -17.17,
+          "y": 1.12,
+          "z": -18
+        },
+        "halfExtents": {
+          "x": 1.05,
+          "y": 1.08,
+          "z": 2.45
+        },
+        "yDeg": 3,
+        "yRad": 0.0524
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_36",
+      "name": "Parked Campus Sedan (Navy) 6",
+      "type": "vehicle",
+      "assetId": "veh_car_sedan_navy",
+      "position": {
+        "x": -21.5,
+        "y": 0.04,
+        "z": -18.5
+      },
+      "center": {
+        "x": -21.5,
+        "y": 0.8,
+        "z": -18.5
+      },
+      "dimensions": {
+        "width": 1.92,
+        "height": 1.52,
+        "depth": 4.45
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -22.46,
+          "y": 0.04,
+          "z": -20.72
+        },
+        "max": {
+          "x": -20.54,
+          "y": 1.56,
+          "z": -16.27
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -21.5,
+          "y": 0.8,
+          "z": -18.5
+        },
+        "halfExtents": {
+          "x": 0.96,
+          "y": 0.76,
+          "z": 2.23
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "lightMeta": {
+        "active": false,
+        "color": "#ff8a2a",
+        "intensity": 11.5,
+        "range": 16.5
+      },
+      "id": "light_37",
+      "name": "Campus Streetlight Pole (#ff8a2a) 1",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "position": {
+        "x": -22,
+        "y": 0.04,
+        "z": -13.5
+      },
+      "center": {
+        "x": -22,
+        "y": 2.84,
+        "z": -13.5
+      },
+      "dimensions": {
+        "width": 0.8,
+        "height": 5.6,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -22.4,
+          "y": 0.04,
+          "z": -14.1
+        },
+        "max": {
+          "x": -21.6,
+          "y": 5.64,
+          "z": -12.9
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -22,
+          "y": 2.84,
+          "z": -13.5
+        },
+        "halfExtents": {
+          "x": 0.4,
+          "y": 2.8,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "cylinder"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "lightMeta": {
+        "active": false,
+        "color": "#ff8a2a",
+        "intensity": 11.5,
+        "range": 16.5
+      },
+      "id": "light_38",
+      "name": "Campus Streetlight Pole (#ff8a2a) 2",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "position": {
+        "x": -39,
+        "y": 0.04,
+        "z": -11
+      },
+      "center": {
+        "x": -39,
+        "y": 2.84,
+        "z": -11
+      },
+      "dimensions": {
+        "width": 0.8,
+        "height": 5.6,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -39.4,
+          "y": 0.04,
+          "z": -11.6
+        },
+        "max": {
+          "x": -38.6,
+          "y": 5.64,
+          "z": -10.4
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -39,
+          "y": 2.84,
+          "z": -11
+        },
+        "halfExtents": {
+          "x": 0.4,
+          "y": 2.8,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "cylinder"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "lightMeta": {
+        "active": false,
+        "color": "#ff8a2a",
+        "intensity": 11.5,
+        "range": 16.5
+      },
+      "id": "light_39",
+      "name": "Campus Streetlight Pole (#ff8a2a) 3",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "position": {
+        "x": -38.5,
+        "y": 0.04,
+        "z": 10.5
+      },
+      "center": {
+        "x": -38.5,
+        "y": 2.84,
+        "z": 10.5
+      },
+      "dimensions": {
+        "width": 0.8,
+        "height": 5.6,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -38.9,
+          "y": 0.04,
+          "z": 9.9
+        },
+        "max": {
+          "x": -38.1,
+          "y": 5.64,
+          "z": 11.1
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -38.5,
+          "y": 2.84,
+          "z": 10.5
+        },
+        "halfExtents": {
+          "x": 0.4,
+          "y": 2.8,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "cylinder"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "lightMeta": {
+        "active": false,
+        "color": "#ff8a2a",
+        "intensity": 11.5,
+        "range": 16.5
+      },
+      "id": "light_40",
+      "name": "Campus Streetlight Pole (#ff8a2a) 4",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "position": {
+        "x": -38.89,
+        "y": 0.04,
+        "z": 1
+      },
+      "center": {
+        "x": -38.89,
+        "y": 2.84,
+        "z": 1
+      },
+      "dimensions": {
+        "width": 0.8,
+        "height": 5.6,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -39.29,
+          "y": 0.04,
+          "z": 0.4
+        },
+        "max": {
+          "x": -38.49,
+          "y": 5.64,
+          "z": 1.6
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -38.89,
+          "y": 2.84,
+          "z": 1
+        },
+        "halfExtents": {
+          "x": 0.4,
+          "y": 2.8,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "cylinder"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_42",
+      "name": "Garden Park Bench 1",
+      "type": "prop",
+      "assetId": "nat_garden_bench",
+      "position": {
+        "x": -70.5,
+        "y": 0,
+        "z": -10
+      },
+      "center": {
+        "x": -70.5,
+        "y": 0.43,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 2.1,
+        "height": 0.85,
+        "depth": 0.65
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -71.55,
+          "y": 0,
+          "z": -10.32
+        },
+        "max": {
+          "x": -69.45,
+          "y": 0.85,
+          "z": -9.68
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -70.5,
+          "y": 0.43,
+          "z": -10
+        },
+        "halfExtents": {
+          "x": 1.05,
+          "y": 0.43,
+          "z": 0.33
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_43",
+      "name": "Garden Park Bench 2",
+      "type": "prop",
+      "assetId": "nat_garden_bench",
+      "position": {
+        "x": -67.5,
+        "y": 0,
+        "z": -10
+      },
+      "center": {
+        "x": -67.5,
+        "y": 0.43,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 2.1,
+        "height": 0.85,
+        "depth": 0.65
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -68.55,
+          "y": 0,
+          "z": -10.32
+        },
+        "max": {
+          "x": -66.45,
+          "y": 0.85,
+          "z": -9.68
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -67.5,
+          "y": 0.43,
+          "z": -10
+        },
+        "halfExtents": {
+          "x": 1.05,
+          "y": 0.43,
+          "z": 0.33
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_44",
+      "name": "Garden Park Bench 3",
+      "type": "prop",
+      "assetId": "nat_garden_bench",
+      "position": {
+        "x": -64.5,
+        "y": 0,
+        "z": -10
+      },
+      "center": {
+        "x": -64.5,
+        "y": 0.43,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 2.1,
+        "height": 0.85,
+        "depth": 0.65
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -65.55,
+          "y": 0,
+          "z": -10.32
+        },
+        "max": {
+          "x": -63.45,
+          "y": 0.85,
+          "z": -9.68
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -64.5,
+          "y": 0.43,
+          "z": -10
+        },
+        "halfExtents": {
+          "x": 1.05,
+          "y": 0.43,
+          "z": 0.33
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_45",
+      "name": "Garden Park Bench 4",
+      "type": "prop",
+      "assetId": "nat_garden_bench",
+      "position": {
+        "x": -70.5,
+        "y": 0,
+        "z": -8
+      },
+      "center": {
+        "x": -70.5,
+        "y": 0.43,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 2.1,
+        "height": 0.85,
+        "depth": 0.65
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -71.55,
+          "y": 0,
+          "z": -8.32
+        },
+        "max": {
+          "x": -69.45,
+          "y": 0.85,
+          "z": -7.67
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -70.5,
+          "y": 0.43,
+          "z": -8
+        },
+        "halfExtents": {
+          "x": 1.05,
+          "y": 0.43,
+          "z": 0.33
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_46",
+      "name": "Garden Park Bench 5",
+      "type": "prop",
+      "assetId": "nat_garden_bench",
+      "position": {
+        "x": -67.5,
+        "y": 0,
+        "z": -8
+      },
+      "center": {
+        "x": -67.5,
+        "y": 0.43,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 2.1,
+        "height": 0.85,
+        "depth": 0.65
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -68.55,
+          "y": 0,
+          "z": -8.32
+        },
+        "max": {
+          "x": -66.45,
+          "y": 0.85,
+          "z": -7.67
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -67.5,
+          "y": 0.43,
+          "z": -8
+        },
+        "halfExtents": {
+          "x": 1.05,
+          "y": 0.43,
+          "z": 0.33
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_47",
+      "name": "Garden Park Bench 6",
+      "type": "prop",
+      "assetId": "nat_garden_bench",
+      "position": {
+        "x": -64.5,
+        "y": 0,
+        "z": -8
+      },
+      "center": {
+        "x": -64.5,
+        "y": 0.43,
+        "z": -8
+      },
+      "dimensions": {
+        "width": 2.1,
+        "height": 0.85,
+        "depth": 0.65
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -65.55,
+          "y": 0,
+          "z": -8.32
+        },
+        "max": {
+          "x": -63.45,
+          "y": 0.85,
+          "z": -7.67
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -64.5,
+          "y": 0.43,
+          "z": -8
+        },
+        "halfExtents": {
+          "x": 1.05,
+          "y": 0.43,
+          "z": 0.33
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_51",
+      "name": "Security Guardhouse 18",
+      "type": "building",
+      "assetId": "arch_guardhouse",
+      "position": {
+        "x": -63.5,
+        "y": 0.04,
+        "z": -16.5
+      },
+      "center": {
+        "x": -63.5,
+        "y": 1.74,
+        "z": -16.5
+      },
+      "dimensions": {
+        "width": 4.6,
+        "height": 3.4,
+        "depth": 4.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -65.8,
+          "y": 0.04,
+          "z": -18.8
+        },
+        "max": {
+          "x": -61.2,
+          "y": 3.44,
+          "z": -14.2
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -63.5,
+          "y": 1.74,
+          "z": -16.5
+        },
+        "halfExtents": {
+          "x": 2.3,
+          "y": 1.7,
+          "z": 2.3
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_52",
+      "name": "Stone Road Curb Segment 14",
+      "type": "road",
+      "assetId": "road_curb",
+      "position": {
+        "x": -37.5,
+        "y": 0,
+        "z": -5.5
+      },
+      "center": {
+        "x": -37.5,
+        "y": 0.11,
+        "z": -5.5
+      },
+      "dimensions": {
+        "width": 0.35,
+        "height": 0.22,
+        "depth": 12
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -37.67,
+          "y": 0,
+          "z": -11.5
+        },
+        "max": {
+          "x": -37.33,
+          "y": 0.22,
+          "z": 0.5
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -37.5,
+          "y": 0.11,
+          "z": -5.5
+        },
+        "halfExtents": {
+          "x": 0.18,
+          "y": 0.11,
+          "z": 6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "none"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "arch_30",
+      "name": "Concrete Structural Pillar 1",
+      "type": "architecture",
+      "assetId": "arch_pillar_concrete",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": -10
+      },
+      "center": {
+        "x": 0,
+        "y": 2.1,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 0.45,
+        "height": 4.2,
+        "depth": 0.45
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -0.22,
+          "y": 0,
+          "z": -10.22
+        },
+        "max": {
+          "x": 0.23,
+          "y": 4.2,
+          "z": -9.77
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 0,
+          "y": 2.1,
+          "z": -10
+        },
+        "halfExtents": {
+          "x": 0.23,
+          "y": 2.1,
+          "z": 0.23
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "arch_31",
+      "name": "Exterior Split AC Unit 2",
+      "type": "architecture",
+      "assetId": "arch_ac_unit",
+      "position": {
+        "x": 0,
+        "y": 2.6,
+        "z": -10
+      },
+      "center": {
+        "x": 0,
+        "y": 2.91,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 0.88,
+        "height": 0.62,
+        "depth": 0.36
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -0.44,
+          "y": 2.6,
+          "z": -10.18
+        },
+        "max": {
+          "x": 0.44,
+          "y": 3.22,
+          "z": -9.82
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 0,
+          "y": 2.91,
+          "z": -10
+        },
+        "halfExtents": {
+          "x": 0.44,
+          "y": 0.31,
+          "z": 0.18
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "none"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "arch_32",
+      "name": "Exterior Split AC Unit 3",
+      "type": "architecture",
+      "assetId": "arch_ac_unit",
+      "position": {
+        "x": 0,
+        "y": 2.6,
+        "z": -10
+      },
+      "center": {
+        "x": 0,
+        "y": 2.91,
+        "z": -10
+      },
+      "dimensions": {
+        "width": 0.88,
+        "height": 0.62,
+        "depth": 0.36
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -0.44,
+          "y": 2.6,
+          "z": -10.18
+        },
+        "max": {
+          "x": 0.44,
+          "y": 3.22,
+          "z": -9.82
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 0,
+          "y": 2.91,
+          "z": -10
+        },
+        "halfExtents": {
+          "x": 0.44,
+          "y": 0.31,
+          "z": 0.18
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "none"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "arch_33",
+      "name": "Concrete Floor Slab 4",
+      "type": "architecture",
+      "assetId": "arch_floor_slab",
+      "position": {
+        "x": -20.5,
+        "y": 0,
+        "z": -27.5
+      },
+      "center": {
+        "x": -20.5,
+        "y": 0.11,
+        "z": -27.5
+      },
+      "dimensions": {
+        "width": 12,
+        "height": 0.22,
+        "depth": 8
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -26.5,
+          "y": 0,
+          "z": -31.5
+        },
+        "max": {
+          "x": -14.5,
+          "y": 0.22,
+          "z": -23.5
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -20.5,
+          "y": 0.11,
+          "z": -27.5
+        },
+        "halfExtents": {
+          "x": 6,
+          "y": 0.11,
+          "z": 4
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_37",
+      "name": "Courtyard Scooter / Motorcycle 7",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -21.5,
+        "y": 0.22,
+        "z": -33.5
+      },
+      "center": {
+        "x": -21.5,
+        "y": 0.8,
+        "z": -33.5
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -21.89,
+          "y": 0.22,
+          "z": -34.42
+        },
+        "max": {
+          "x": -21.11,
+          "y": 1.37,
+          "z": -32.58
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -21.5,
+          "y": 0.8,
+          "z": -33.5
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_38",
+      "name": "Courtyard Scooter / Motorcycle 8",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -19.5,
+        "y": 0.22,
+        "z": -33.5
+      },
+      "center": {
+        "x": -19.5,
+        "y": 0.8,
+        "z": -33.5
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -19.89,
+          "y": 0.22,
+          "z": -34.42
+        },
+        "max": {
+          "x": -19.11,
+          "y": 1.37,
+          "z": -32.58
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -19.5,
+          "y": 0.8,
+          "z": -33.5
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_39",
+      "name": "Courtyard Scooter / Motorcycle 9",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -18,
+        "y": 0.22,
+        "z": -33.5
+      },
+      "center": {
+        "x": -18,
+        "y": 0.8,
+        "z": -33.5
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -18.39,
+          "y": 0.22,
+          "z": -34.42
+        },
+        "max": {
+          "x": -17.61,
+          "y": 1.37,
+          "z": -32.58
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -18,
+          "y": 0.8,
+          "z": -33.5
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_40",
+      "name": "Courtyard Scooter / Motorcycle 10",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -16.5,
+        "y": 0.22,
+        "z": -33.5
+      },
+      "center": {
+        "x": -16.5,
+        "y": 0.8,
+        "z": -33.5
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -16.89,
+          "y": 0.22,
+          "z": -34.42
+        },
+        "max": {
+          "x": -16.11,
+          "y": 1.37,
+          "z": -32.58
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -16.5,
+          "y": 0.8,
+          "z": -33.5
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_41",
+      "name": "Parked Campus Sedan (Silver) 11",
+      "type": "vehicle",
+      "assetId": "veh_car_sedan_silver",
+      "position": {
+        "x": -6.23,
+        "y": 0.22,
+        "z": -16.27
+      },
+      "center": {
+        "x": -6.23,
+        "y": 0.98,
+        "z": -16.27
+      },
+      "dimensions": {
+        "width": 1.92,
+        "height": 1.52,
+        "depth": 4.45
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -7.19,
+          "y": 0.22,
+          "z": -18.49
+        },
+        "max": {
+          "x": -5.27,
+          "y": 1.74,
+          "z": -14.04
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -6.23,
+          "y": 0.98,
+          "z": -16.27
+        },
+        "halfExtents": {
+          "x": 0.96,
+          "y": 0.76,
+          "z": 2.23
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_42",
+      "name": "Courtyard Scooter / Motorcycle 12",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -27.5,
+        "y": 0.22,
+        "z": -33.5
+      },
+      "center": {
+        "x": -27.5,
+        "y": 0.8,
+        "z": -33.5
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -27.89,
+          "y": 0.22,
+          "z": -34.42
+        },
+        "max": {
+          "x": -27.11,
+          "y": 1.37,
+          "z": -32.58
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -27.5,
+          "y": 0.8,
+          "z": -33.5
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_43",
+      "name": "Courtyard Scooter / Motorcycle 13",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -30,
+        "y": 0.22,
+        "z": -33
+      },
+      "center": {
+        "x": -30,
+        "y": 0.8,
+        "z": -33
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -30.39,
+          "y": 0.22,
+          "z": -33.92
+        },
+        "max": {
+          "x": -29.61,
+          "y": 1.37,
+          "z": -32.08
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -30,
+          "y": 0.8,
+          "z": -33
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_44",
+      "name": "Courtyard Scooter / Motorcycle 14",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -32.5,
+        "y": 0.22,
+        "z": -33
+      },
+      "center": {
+        "x": -32.5,
+        "y": 0.8,
+        "z": -33
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -32.89,
+          "y": 0.22,
+          "z": -33.92
+        },
+        "max": {
+          "x": -32.11,
+          "y": 1.37,
+          "z": -32.08
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -32.5,
+          "y": 0.8,
+          "z": -33
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_45",
+      "name": "Courtyard Scooter / Motorcycle 15",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -35.5,
+        "y": 0.22,
+        "z": -33
+      },
+      "center": {
+        "x": -35.5,
+        "y": 0.8,
+        "z": -33
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -35.89,
+          "y": 0.22,
+          "z": -33.92
+        },
+        "max": {
+          "x": -35.11,
+          "y": 1.37,
+          "z": -32.08
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -35.5,
+          "y": 0.8,
+          "z": -33
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_46",
+      "name": "Courtyard Scooter / Motorcycle 16",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -38.5,
+        "y": 0.22,
+        "z": -33
+      },
+      "center": {
+        "x": -38.5,
+        "y": 0.8,
+        "z": -33
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -38.89,
+          "y": 0.22,
+          "z": -33.92
+        },
+        "max": {
+          "x": -38.11,
+          "y": 1.37,
+          "z": -32.08
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -38.5,
+          "y": 0.8,
+          "z": -33
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_47",
+      "name": "Courtyard Scooter / Motorcycle 17",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -41.5,
+        "y": 0.22,
+        "z": -33
+      },
+      "center": {
+        "x": -41.5,
+        "y": 0.8,
+        "z": -33
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -41.89,
+          "y": 0.22,
+          "z": -33.92
+        },
+        "max": {
+          "x": -41.11,
+          "y": 1.37,
+          "z": -32.08
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -41.5,
+          "y": 0.8,
+          "z": -33
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "veh_48",
+      "name": "Courtyard Scooter / Motorcycle 18",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "position": {
+        "x": -44.5,
+        "y": 0.22,
+        "z": -33
+      },
+      "center": {
+        "x": -44.5,
+        "y": 0.8,
+        "z": -33
+      },
+      "dimensions": {
+        "width": 0.78,
+        "height": 1.15,
+        "depth": 1.85
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -44.89,
+          "y": 0.22,
+          "z": -33.92
+        },
+        "max": {
+          "x": -44.11,
+          "y": 1.37,
+          "z": -32.08
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -44.5,
+          "y": 0.8,
+          "z": -33
+        },
+        "halfExtents": {
+          "x": 0.39,
+          "y": 0.57,
+          "z": 0.93
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_49",
+      "name": "Green Grass Lawn Area 5",
+      "type": "ground_area",
+      "assetId": "nat_grass_area",
+      "position": {
+        "x": -18.46,
+        "y": 0,
+        "z": -48.39
+      },
+      "center": {
+        "x": -18.46,
+        "y": 0.02,
+        "z": -48.39
+      },
+      "dimensions": {
+        "width": 16,
+        "height": 0.04,
+        "depth": 16
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -26.46,
+          "y": 0,
+          "z": -56.39
+        },
+        "max": {
+          "x": -10.46,
+          "y": 0.04,
+          "z": -40.39
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -18.46,
+          "y": 0.02,
+          "z": -48.39
+        },
+        "halfExtents": {
+          "x": 8,
+          "y": 0.02,
+          "z": 8
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "none"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "nat_51",
+      "name": "Himalayan Pine Tree 1",
+      "type": "nature",
+      "assetId": "nat_tree_pine",
+      "position": {
+        "x": -47.11,
+        "y": -0.18,
+        "z": -37.21
+      },
+      "center": {
+        "x": -47.11,
+        "y": 4.07,
+        "z": -37.21
+      },
+      "dimensions": {
+        "width": 3.2,
+        "height": 8.5,
+        "depth": 3.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -48.71,
+          "y": -0.18,
+          "z": -38.81
+        },
+        "max": {
+          "x": -45.51,
+          "y": 8.32,
+          "z": -35.61
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -47.11,
+          "y": 4.07,
+          "z": -37.21
+        },
+        "halfExtents": {
+          "x": 1.6,
+          "y": 4.25,
+          "z": 1.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "cylinder"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "nat_52",
+      "name": "Large Overgrown Bush 2",
+      "type": "nature",
+      "assetId": "nat_bush_large",
+      "position": {
+        "x": -39,
+        "y": 0.04,
+        "z": -38.25
+      },
+      "center": {
+        "x": -39,
+        "y": 0.79,
+        "z": -38.25
+      },
+      "dimensions": {
+        "width": 2.2,
+        "height": 1.5,
+        "depth": 2.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -40.1,
+          "y": 0.04,
+          "z": -39.35
+        },
+        "max": {
+          "x": -37.9,
+          "y": 1.54,
+          "z": -37.15
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -39,
+          "y": 0.79,
+          "z": -38.25
+        },
+        "halfExtents": {
+          "x": 1.1,
+          "y": 0.75,
+          "z": 1.1
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "cylinder"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "tree_40",
+      "name": "Tree 03",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "position": {
+        "x": -16.7,
+        "y": 0,
+        "z": -36.24
+      },
+      "center": {
+        "x": -16.7,
+        "y": 3.75,
+        "z": -36.24
+      },
+      "dimensions": {
+        "width": 5,
+        "height": 7.5,
+        "depth": 5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -19.2,
+          "y": 0,
+          "z": -38.74
+        },
+        "max": {
+          "x": -14.2,
+          "y": 7.5,
+          "z": -33.74
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -16.7,
+          "y": 3.75,
+          "z": -36.24
+        },
+        "halfExtents": {
+          "x": 2.5,
+          "y": 3.75,
+          "z": 2.5
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "tree_41",
+      "name": "Tree 04",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "position": {
+        "x": -23.18,
+        "y": 0,
+        "z": -37.01
+      },
+      "center": {
+        "x": -23.18,
+        "y": 3.75,
+        "z": -37.01
+      },
+      "dimensions": {
+        "width": 5,
+        "height": 7.5,
+        "depth": 5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -25.68,
+          "y": 0,
+          "z": -39.51
+        },
+        "max": {
+          "x": -20.68,
+          "y": 7.5,
+          "z": -34.51
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -23.18,
+          "y": 3.75,
+          "z": -37.01
+        },
+        "halfExtents": {
+          "x": 2.5,
+          "y": 3.75,
+          "z": 2.5
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "tree_42",
+      "name": "Tree 05",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "position": {
+        "x": -28.07,
+        "y": 0,
+        "z": -37.92
+      },
+      "center": {
+        "x": -28.07,
+        "y": 3.75,
+        "z": -37.92
+      },
+      "dimensions": {
+        "width": 5,
+        "height": 7.5,
+        "depth": 5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -30.57,
+          "y": 0,
+          "z": -40.42
+        },
+        "max": {
+          "x": -25.57,
+          "y": 7.5,
+          "z": -35.42
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -28.07,
+          "y": 3.75,
+          "z": -37.92
+        },
+        "halfExtents": {
+          "x": 2.5,
+          "y": 3.75,
+          "z": 2.5
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "tree_43",
+      "name": "Tree 06",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "position": {
+        "x": -38.25,
+        "y": 0,
+        "z": -36.85
+      },
+      "center": {
+        "x": -38.25,
+        "y": 3.75,
+        "z": -36.85
+      },
+      "dimensions": {
+        "width": 5,
+        "height": 7.5,
+        "depth": 5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -40.75,
+          "y": 0,
+          "z": -39.35
+        },
+        "max": {
+          "x": -35.75,
+          "y": 7.5,
+          "z": -34.35
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -38.25,
+          "y": 3.75,
+          "z": -36.85
+        },
+        "halfExtents": {
+          "x": 2.5,
+          "y": 3.75,
+          "z": 2.5
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "tree_44",
+      "name": "Tree 07",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "position": {
+        "x": -60.71,
+        "y": 0,
+        "z": -40.05
+      },
+      "center": {
+        "x": -60.71,
+        "y": 3.75,
+        "z": -40.05
+      },
+      "dimensions": {
+        "width": 5,
+        "height": 7.5,
+        "depth": 5
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -63.21,
+          "y": 0,
+          "z": -42.55
+        },
+        "max": {
+          "x": -58.21,
+          "y": 7.5,
+          "z": -37.55
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -60.71,
+          "y": 3.75,
+          "z": -40.05
+        },
+        "halfExtents": {
+          "x": 2.5,
+          "y": 3.75,
+          "z": 2.5
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "tree_45",
+      "name": "Bush 08",
+      "type": "nature",
+      "assetId": "nat_bush_small",
+      "position": {
+        "x": -35.59,
+        "y": -20,
+        "z": -7.43
+      },
+      "center": {
+        "x": -35.59,
+        "y": -19.5,
+        "z": -7.43
+      },
+      "dimensions": {
+        "width": 1.4,
+        "height": 1,
+        "depth": 1.4
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -36.29,
+          "y": -20,
+          "z": -8.13
+        },
+        "max": {
+          "x": -34.89,
+          "y": -19,
+          "z": -6.73
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -35.59,
+          "y": -19.5,
+          "z": -7.43
+        },
+        "halfExtents": {
+          "x": 0.7,
+          "y": 0.5,
+          "z": 0.7
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_47",
+      "name": "Street Lamp 06",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "position": {
+        "x": -37.63,
+        "y": 0,
+        "z": 14.4
+      },
+      "center": {
+        "x": -37.63,
+        "y": 2.8,
+        "z": 14.4
+      },
+      "dimensions": {
+        "width": 0.8,
+        "height": 5.6,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -38.03,
+          "y": 0,
+          "z": 13.8
+        },
+        "max": {
+          "x": -37.23,
+          "y": 5.6,
+          "z": 15
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -37.63,
+          "y": 2.8,
+          "z": 14.4
+        },
+        "halfExtents": {
+          "x": 0.4,
+          "y": 2.8,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_51",
+      "name": "Outdoor Light 07",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": -25.86,
+        "y": 0,
+        "z": 33.09
+      },
+      "center": {
+        "x": -25.86,
+        "y": 4,
+        "z": 33.09
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -26.46,
+          "y": 0,
+          "z": 32.49
+        },
+        "max": {
+          "x": -25.26,
+          "y": 8,
+          "z": 33.69
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -25.86,
+          "y": 4,
+          "z": 33.09
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_52",
+      "name": "Outdoor Light 08",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": -24.71,
+        "y": 0,
+        "z": 17.8
+      },
+      "center": {
+        "x": -24.71,
+        "y": 4,
+        "z": 17.8
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -25.31,
+          "y": 0,
+          "z": 17.2
+        },
+        "max": {
+          "x": -24.11,
+          "y": 8,
+          "z": 18.4
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -24.71,
+          "y": 4,
+          "z": 17.8
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_53",
+      "name": "Outdoor Light 09",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": -24.81,
+        "y": 0,
+        "z": 3.63
+      },
+      "center": {
+        "x": -24.81,
+        "y": 4,
+        "z": 3.63
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -25.41,
+          "y": 0,
+          "z": 3.03
+        },
+        "max": {
+          "x": -24.21,
+          "y": 8,
+          "z": 4.23
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -24.81,
+          "y": 4,
+          "z": 3.63
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_40",
+      "name": "Outdoor Light 11",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": 10.92,
+        "y": 0,
+        "z": 25.39
+      },
+      "center": {
+        "x": 10.92,
+        "y": 4,
+        "z": 25.39
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 10.32,
+          "y": 0,
+          "z": 24.79
+        },
+        "max": {
+          "x": 11.52,
+          "y": 8,
+          "z": 25.99
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 10.92,
+          "y": 4,
+          "z": 25.39
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_42",
+      "name": "Outdoor Light 12",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": 11.42,
+        "y": 0,
+        "z": 11.51
+      },
+      "center": {
+        "x": 11.42,
+        "y": 4,
+        "z": 11.51
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 10.82,
+          "y": 0,
+          "z": 10.91
+        },
+        "max": {
+          "x": 12.02,
+          "y": 8,
+          "z": 12.11
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 11.42,
+          "y": 4,
+          "z": 11.51
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_43",
+      "name": "Outdoor Light 13",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": 10.53,
+        "y": 0,
+        "z": -2.56
+      },
+      "center": {
+        "x": 10.53,
+        "y": 4,
+        "z": -2.56
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 9.93,
+          "y": 0,
+          "z": -3.16
+        },
+        "max": {
+          "x": 11.13,
+          "y": 8,
+          "z": -1.96
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 10.53,
+          "y": 4,
+          "z": -2.56
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_44",
+      "name": "Outdoor Light 14",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": 10.78,
+        "y": 0,
+        "z": -16.49
+      },
+      "center": {
+        "x": 10.78,
+        "y": 4,
+        "z": -16.49
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 10.18,
+          "y": 0,
+          "z": -17.09
+        },
+        "max": {
+          "x": 11.38,
+          "y": 8,
+          "z": -15.89
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 10.78,
+          "y": 4,
+          "z": -16.49
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_45",
+      "name": "Outdoor Light 15",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": 24.48,
+        "y": 0,
+        "z": -14.96
+      },
+      "center": {
+        "x": 24.48,
+        "y": 4,
+        "z": -14.96
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 23.88,
+          "y": 0,
+          "z": -15.56
+        },
+        "max": {
+          "x": 25.08,
+          "y": 8,
+          "z": -14.36
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 24.48,
+          "y": 4,
+          "z": -14.96
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_46",
+      "name": "Outdoor Light 16",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": 24.39,
+        "y": 0,
+        "z": 7.01
+      },
+      "center": {
+        "x": 24.39,
+        "y": 4,
+        "z": 7.01
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 23.79,
+          "y": 0,
+          "z": 6.41
+        },
+        "max": {
+          "x": 24.99,
+          "y": 8,
+          "z": 7.61
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 24.39,
+          "y": 4,
+          "z": 7.01
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_48",
+      "name": "Outdoor Light 17",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": 23.91,
+        "y": 0,
+        "z": 31.13
+      },
+      "center": {
+        "x": 23.91,
+        "y": 4,
+        "z": 31.13
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 23.31,
+          "y": 0,
+          "z": 30.53
+        },
+        "max": {
+          "x": 24.51,
+          "y": 8,
+          "z": 31.73
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 23.91,
+          "y": 4,
+          "z": 31.13
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_49",
+      "name": "Outdoor Light 18",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": 29.37,
+        "y": 0,
+        "z": 45.07
+      },
+      "center": {
+        "x": 29.37,
+        "y": 4,
+        "z": 45.07
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 28.77,
+          "y": 0,
+          "z": 44.47
+        },
+        "max": {
+          "x": 29.97,
+          "y": 8,
+          "z": 45.67
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 29.37,
+          "y": 4,
+          "z": 45.07
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_51",
+      "name": "Garden Area 07",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -3.45,
+        "y": 0.25,
+        "z": 40.55
+      },
+      "center": {
+        "x": -3.45,
+        "y": 0.29,
+        "z": 40.55
+      },
+      "dimensions": {
+        "width": 37.1,
+        "height": 0.08,
+        "depth": 4.45
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -22,
+          "y": 0.25,
+          "z": 38.32
+        },
+        "max": {
+          "x": 15.1,
+          "y": 0.33,
+          "z": 42.78
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -3.45,
+          "y": 0.29,
+          "z": 40.55
+        },
+        "halfExtents": {
+          "x": 18.55,
+          "y": 0.04,
+          "z": 2.23
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_52",
+      "name": "Garden Area 07 Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -4.37,
+        "y": 0.25,
+        "z": 25.05
+      },
+      "center": {
+        "x": -4.37,
+        "y": 0.26,
+        "z": 25.05
+      },
+      "dimensions": {
+        "width": 33.6,
+        "height": 0.02,
+        "depth": 3.1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -21.17,
+          "y": 0.25,
+          "z": 23.5
+        },
+        "max": {
+          "x": 12.43,
+          "y": 0.27,
+          "z": 26.6
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -4.37,
+          "y": 0.26,
+          "z": 25.05
+        },
+        "halfExtents": {
+          "x": 16.8,
+          "y": 0.01,
+          "z": 1.55
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_53",
+      "name": "Garden Area 07 Copy Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -3.81,
+        "y": 0.25,
+        "z": 11.05
+      },
+      "center": {
+        "x": -3.81,
+        "y": 0.29,
+        "z": 11.05
+      },
+      "dimensions": {
+        "width": 30.6,
+        "height": 0.08,
+        "depth": 3.1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 1.5,
+        "zDeg": 0,
+        "yRad": 0.0262
+      },
+      "collider": {
+        "min": {
+          "x": -19.15,
+          "y": 0.25,
+          "z": 9.1
+        },
+        "max": {
+          "x": 11.53,
+          "y": 0.33,
+          "z": 13
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -3.81,
+          "y": 0.29,
+          "z": 11.05
+        },
+        "halfExtents": {
+          "x": 15.3,
+          "y": 0.04,
+          "z": 1.55
+        },
+        "yDeg": 1.5,
+        "yRad": 0.0262
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_54",
+      "name": "Garden Area 07 Copy Copy Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -4.5,
+        "y": 0.25,
+        "z": -2.89
+      },
+      "center": {
+        "x": -4.5,
+        "y": 0.29,
+        "z": -2.89
+      },
+      "dimensions": {
+        "width": 32.6,
+        "height": 0.08,
+        "depth": 3.1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 2.25,
+        "zDeg": 0,
+        "yRad": 0.0393
+      },
+      "collider": {
+        "min": {
+          "x": -20.85,
+          "y": 0.25,
+          "z": -5.08
+        },
+        "max": {
+          "x": 11.85,
+          "y": 0.33,
+          "z": -0.7
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -4.5,
+          "y": 0.29,
+          "z": -2.89
+        },
+        "halfExtents": {
+          "x": 16.3,
+          "y": 0.04,
+          "z": 1.55
+        },
+        "yDeg": 2.25,
+        "yRad": 0.0393
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "tree_55",
+      "name": "Bush 09",
+      "type": "nature",
+      "assetId": "nat_bush_small",
+      "position": {
+        "x": -39.73,
+        "y": 0,
+        "z": -49.18
+      },
+      "center": {
+        "x": -39.73,
+        "y": 0.5,
+        "z": -49.18
+      },
+      "dimensions": {
+        "width": 2.29,
+        "height": 1,
+        "depth": 18.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -40.87,
+          "y": 0,
+          "z": -58.48
+        },
+        "max": {
+          "x": -38.58,
+          "y": 1,
+          "z": -39.88
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -39.73,
+          "y": 0.5,
+          "z": -49.18
+        },
+        "halfExtents": {
+          "x": 1.15,
+          "y": 0.5,
+          "z": 9.3
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_56",
+      "name": "Bench 07",
+      "type": "prop",
+      "assetId": "prop_bench",
+      "position": {
+        "x": 25.02,
+        "y": 0,
+        "z": 5.15
+      },
+      "center": {
+        "x": 25.02,
+        "y": 0.43,
+        "z": 5.15
+      },
+      "dimensions": {
+        "width": 2.1,
+        "height": 0.85,
+        "depth": 0.65
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 92.25,
+        "zDeg": 0,
+        "yRad": 1.6101
+      },
+      "collider": {
+        "min": {
+          "x": 24.65,
+          "y": 0,
+          "z": 4.09
+        },
+        "max": {
+          "x": 25.39,
+          "y": 0.85,
+          "z": 6.21
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 25.02,
+          "y": 0.43,
+          "z": 5.15
+        },
+        "halfExtents": {
+          "x": 1.05,
+          "y": 0.43,
+          "z": 0.33
+        },
+        "yDeg": 92.25,
+        "yRad": 1.6101
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_57",
+      "name": "Bench 08",
+      "type": "prop",
+      "assetId": "prop_bench",
+      "position": {
+        "x": 13.52,
+        "y": 0,
+        "z": -9.3
+      },
+      "center": {
+        "x": 13.52,
+        "y": 0.43,
+        "z": -9.3
+      },
+      "dimensions": {
+        "width": 2.1,
+        "height": 0.85,
+        "depth": 0.65
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": -86.25,
+        "zDeg": 0,
+        "yRad": -1.5053
+      },
+      "collider": {
+        "min": {
+          "x": 13.13,
+          "y": 0,
+          "z": -10.37
+        },
+        "max": {
+          "x": 13.91,
+          "y": 0.85,
+          "z": -8.23
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 13.52,
+          "y": 0.43,
+          "z": -9.3
+        },
+        "halfExtents": {
+          "x": 1.05,
+          "y": 0.43,
+          "z": 0.33
+        },
+        "yDeg": -86.25,
+        "yRad": -1.5053
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_58",
+      "name": "Bench 09",
+      "type": "prop",
+      "assetId": "prop_bench",
+      "position": {
+        "x": 13.39,
+        "y": 0,
+        "z": 3.69
+      },
+      "center": {
+        "x": 13.39,
+        "y": 0.43,
+        "z": 3.69
+      },
+      "dimensions": {
+        "width": 2.1,
+        "height": 0.85,
+        "depth": 0.65
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": -85.5,
+        "zDeg": 0,
+        "yRad": -1.4923
+      },
+      "collider": {
+        "min": {
+          "x": 12.98,
+          "y": 0,
+          "z": 2.62
+        },
+        "max": {
+          "x": 13.8,
+          "y": 0.85,
+          "z": 4.76
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 13.39,
+          "y": 0.43,
+          "z": 3.69
+        },
+        "halfExtents": {
+          "x": 1.05,
+          "y": 0.43,
+          "z": 0.33
+        },
+        "yDeg": -85.5,
+        "yRad": -1.4923
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_59",
+      "name": "Trash Bin 10",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "position": {
+        "x": 13.01,
+        "y": 0,
+        "z": 1.79
+      },
+      "center": {
+        "x": 13.01,
+        "y": 0.45,
+        "z": 1.79
+      },
+      "dimensions": {
+        "width": 0.55,
+        "height": 0.9,
+        "depth": 0.55
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 12.74,
+          "y": 0,
+          "z": 1.52
+        },
+        "max": {
+          "x": 13.29,
+          "y": 0.9,
+          "z": 2.07
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 13.01,
+          "y": 0.45,
+          "z": 1.79
+        },
+        "halfExtents": {
+          "x": 0.28,
+          "y": 0.45,
+          "z": 0.28
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_60",
+      "name": "Trash Bin 11",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "position": {
+        "x": 13.18,
+        "y": 0,
+        "z": -11.1
+      },
+      "center": {
+        "x": 13.18,
+        "y": 0.45,
+        "z": -11.1
+      },
+      "dimensions": {
+        "width": 0.55,
+        "height": 0.9,
+        "depth": 0.55
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 12.91,
+          "y": 0,
+          "z": -11.37
+        },
+        "max": {
+          "x": 13.46,
+          "y": 0.9,
+          "z": -10.82
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 13.18,
+          "y": 0.45,
+          "z": -11.1
+        },
+        "halfExtents": {
+          "x": 0.28,
+          "y": 0.45,
+          "z": 0.28
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_61",
+      "name": "Trash Bin 12",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "position": {
+        "x": 13.42,
+        "y": 0,
+        "z": 14.58
+      },
+      "center": {
+        "x": 13.42,
+        "y": 0.45,
+        "z": 14.58
+      },
+      "dimensions": {
+        "width": 0.55,
+        "height": 0.9,
+        "depth": 0.55
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 13.15,
+          "y": 0,
+          "z": 14.31
+        },
+        "max": {
+          "x": 13.7,
+          "y": 0.9,
+          "z": 14.86
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 13.42,
+          "y": 0.45,
+          "z": 14.58
+        },
+        "halfExtents": {
+          "x": 0.28,
+          "y": 0.45,
+          "z": 0.28
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_62",
+      "name": "Trash Bin 13",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "position": {
+        "x": 24.36,
+        "y": 0,
+        "z": -15.33
+      },
+      "center": {
+        "x": 24.36,
+        "y": 0.45,
+        "z": -15.33
+      },
+      "dimensions": {
+        "width": 0.55,
+        "height": 0.9,
+        "depth": 0.55
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 24.09,
+          "y": 0,
+          "z": -15.6
+        },
+        "max": {
+          "x": 24.64,
+          "y": 0.9,
+          "z": -15.05
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 24.36,
+          "y": 0.45,
+          "z": -15.33
+        },
+        "halfExtents": {
+          "x": 0.28,
+          "y": 0.45,
+          "z": 0.28
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_63",
+      "name": "Trash Bin 14",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "position": {
+        "x": 11.32,
+        "y": 0,
+        "z": -31.64
+      },
+      "center": {
+        "x": 11.32,
+        "y": 0.45,
+        "z": -31.64
+      },
+      "dimensions": {
+        "width": 0.55,
+        "height": 0.9,
+        "depth": 0.55
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 11.05,
+          "y": 0,
+          "z": -31.91
+        },
+        "max": {
+          "x": 11.6,
+          "y": 0.9,
+          "z": -31.36
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 11.32,
+          "y": 0.45,
+          "z": -31.64
+        },
+        "halfExtents": {
+          "x": 0.28,
+          "y": 0.45,
+          "z": 0.28
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_64",
+      "name": "Trash Bin 15",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "position": {
+        "x": -6.53,
+        "y": 0,
+        "z": -13.66
+      },
+      "center": {
+        "x": -6.53,
+        "y": 0.45,
+        "z": -13.66
+      },
+      "dimensions": {
+        "width": 0.55,
+        "height": 0.9,
+        "depth": 0.55
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -6.81,
+          "y": 0,
+          "z": -13.93
+        },
+        "max": {
+          "x": -6.25,
+          "y": 0.9,
+          "z": -13.38
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -6.53,
+          "y": 0.45,
+          "z": -13.66
+        },
+        "halfExtents": {
+          "x": 0.28,
+          "y": 0.45,
+          "z": 0.28
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_65",
+      "name": "Trash Bin 16",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "position": {
+        "x": -38.15,
+        "y": 0,
+        "z": 9.47
+      },
+      "center": {
+        "x": -38.15,
+        "y": 0.45,
+        "z": 9.47
+      },
+      "dimensions": {
+        "width": 0.55,
+        "height": 0.9,
+        "depth": 0.55
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -38.42,
+          "y": 0,
+          "z": 9.2
+        },
+        "max": {
+          "x": -37.87,
+          "y": 0.9,
+          "z": 9.75
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -38.15,
+          "y": 0.45,
+          "z": 9.47
+        },
+        "halfExtents": {
+          "x": 0.28,
+          "y": 0.45,
+          "z": 0.28
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_66",
+      "name": "Trash Bin 17",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "position": {
+        "x": -61.61,
+        "y": 0,
+        "z": -13.72
+      },
+      "center": {
+        "x": -61.61,
+        "y": 0.45,
+        "z": -13.72
+      },
+      "dimensions": {
+        "width": 0.55,
+        "height": 0.9,
+        "depth": 0.55
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -61.88,
+          "y": 0,
+          "z": -13.99
+        },
+        "max": {
+          "x": -61.33,
+          "y": 0.9,
+          "z": -13.44
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -61.61,
+          "y": 0.45,
+          "z": -13.72
+        },
+        "halfExtents": {
+          "x": 0.28,
+          "y": 0.45,
+          "z": 0.28
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_40",
+      "name": "Footpath 15",
+      "type": "road",
+      "assetId": "road_footpath",
+      "position": {
+        "x": 17.47,
+        "y": -0.05,
+        "z": -62.82
+      },
+      "center": {
+        "x": 17.47,
+        "y": 0.21,
+        "z": -62.82
+      },
+      "dimensions": {
+        "width": 5.1,
+        "height": 0.52,
+        "depth": 24.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 91.5,
+        "zDeg": 0,
+        "yRad": 1.597
+      },
+      "collider": {
+        "min": {
+          "x": 5.11,
+          "y": -0.05,
+          "z": -65.69
+        },
+        "max": {
+          "x": 29.83,
+          "y": 0.47,
+          "z": -59.95
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 17.47,
+          "y": 0.21,
+          "z": -62.82
+        },
+        "halfExtents": {
+          "x": 2.55,
+          "y": 0.26,
+          "z": 12.3
+        },
+        "yDeg": 91.5,
+        "yRad": 1.597
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "tree_51",
+      "name": "Bush 10",
+      "type": "nature",
+      "assetId": "nat_bush_small",
+      "position": {
+        "x": 28.4,
+        "y": 0,
+        "z": -38.2
+      },
+      "center": {
+        "x": 28.4,
+        "y": 0.53,
+        "z": -38.2
+      },
+      "dimensions": {
+        "width": 6.6,
+        "height": 1.06,
+        "depth": 1.78
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 25.1,
+          "y": 0,
+          "z": -39.09
+        },
+        "max": {
+          "x": 31.7,
+          "y": 1.06,
+          "z": -37.31
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 28.4,
+          "y": 0.53,
+          "z": -38.2
+        },
+        "halfExtents": {
+          "x": 3.3,
+          "y": 0.53,
+          "z": 0.89
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_55",
+      "name": "Street Lamp 19",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "position": {
+        "x": 24.34,
+        "y": 0,
+        "z": -37.99
+      },
+      "center": {
+        "x": 24.34,
+        "y": 2.8,
+        "z": -37.99
+      },
+      "dimensions": {
+        "width": 0.8,
+        "height": 5.6,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 23.94,
+          "y": 0,
+          "z": -38.59
+        },
+        "max": {
+          "x": 24.74,
+          "y": 5.6,
+          "z": -37.39
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 24.34,
+          "y": 2.8,
+          "z": -37.99
+        },
+        "halfExtents": {
+          "x": 0.4,
+          "y": 2.8,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_56",
+      "name": "Street Lamp 20",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "position": {
+        "x": 19.08,
+        "y": 0,
+        "z": -46.82
+      },
+      "center": {
+        "x": 19.08,
+        "y": 2.8,
+        "z": -46.82
+      },
+      "dimensions": {
+        "width": 0.8,
+        "height": 5.6,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 18.68,
+          "y": 0,
+          "z": -47.42
+        },
+        "max": {
+          "x": 19.48,
+          "y": 5.6,
+          "z": -46.22
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 19.08,
+          "y": 2.8,
+          "z": -46.82
+        },
+        "halfExtents": {
+          "x": 0.4,
+          "y": 2.8,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_57",
+      "name": "Street Lamp 21",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "position": {
+        "x": 6.49,
+        "y": 0,
+        "z": -46.23
+      },
+      "center": {
+        "x": 6.49,
+        "y": 2.8,
+        "z": -46.23
+      },
+      "dimensions": {
+        "width": 0.8,
+        "height": 5.6,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 6.09,
+          "y": 0,
+          "z": -46.83
+        },
+        "max": {
+          "x": 6.89,
+          "y": 5.6,
+          "z": -45.63
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 6.49,
+          "y": 2.8,
+          "z": -46.23
+        },
+        "halfExtents": {
+          "x": 0.4,
+          "y": 2.8,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_58",
+      "name": "Street Lamp 22",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "position": {
+        "x": 6.38,
+        "y": 0,
+        "z": -51.43
+      },
+      "center": {
+        "x": 6.38,
+        "y": 2.8,
+        "z": -51.43
+      },
+      "dimensions": {
+        "width": 0.8,
+        "height": 5.6,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 5.98,
+          "y": 0,
+          "z": -52.03
+        },
+        "max": {
+          "x": 6.78,
+          "y": 5.6,
+          "z": -50.83
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 6.38,
+          "y": 2.8,
+          "z": -51.43
+        },
+        "halfExtents": {
+          "x": 0.4,
+          "y": 2.8,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_59",
+      "name": "Outdoor Light 23",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": 6.41,
+        "y": 0,
+        "z": -59.45
+      },
+      "center": {
+        "x": 6.41,
+        "y": 4,
+        "z": -59.45
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 5.81,
+          "y": 0,
+          "z": -60.05
+        },
+        "max": {
+          "x": 7.01,
+          "y": 8,
+          "z": -58.85
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 6.41,
+          "y": 4,
+          "z": -59.45
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_60",
+      "name": "Street Lamp 24",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "position": {
+        "x": -6.99,
+        "y": 0,
+        "z": -31.48
+      },
+      "center": {
+        "x": -6.99,
+        "y": 2.8,
+        "z": -31.48
+      },
+      "dimensions": {
+        "width": 0.8,
+        "height": 5.6,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -7.39,
+          "y": 0,
+          "z": -32.08
+        },
+        "max": {
+          "x": -6.59,
+          "y": 5.6,
+          "z": -30.88
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -6.99,
+          "y": 2.8,
+          "z": -31.48
+        },
+        "halfExtents": {
+          "x": 0.4,
+          "y": 2.8,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "lamp_61",
+      "name": "Outdoor Light 25",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "position": {
+        "x": 12.61,
+        "y": 0,
+        "z": -31.37
+      },
+      "center": {
+        "x": 12.61,
+        "y": 4,
+        "z": -31.37
+      },
+      "dimensions": {
+        "width": 1.2,
+        "height": 8,
+        "depth": 1.2
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 12.01,
+          "y": 0,
+          "z": -31.97
+        },
+        "max": {
+          "x": 13.21,
+          "y": 8,
+          "z": -30.77
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 12.61,
+          "y": 4,
+          "z": -31.37
+        },
+        "halfExtents": {
+          "x": 0.6,
+          "y": 4,
+          "z": 0.6
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_67",
+      "name": "Trash Bin 18",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "position": {
+        "x": 19.26,
+        "y": 0,
+        "z": -46.12
+      },
+      "center": {
+        "x": 19.26,
+        "y": 0.45,
+        "z": -46.12
+      },
+      "dimensions": {
+        "width": 0.55,
+        "height": 0.9,
+        "depth": 0.55
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 18.99,
+          "y": 0,
+          "z": -46.39
+        },
+        "max": {
+          "x": 19.54,
+          "y": 0.9,
+          "z": -45.84
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 19.26,
+          "y": 0.45,
+          "z": -46.12
+        },
+        "halfExtents": {
+          "x": 0.28,
+          "y": 0.45,
+          "z": 0.28
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "prop_69",
+      "name": "Trash Bin 19",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "position": {
+        "x": 13.66,
+        "y": 0,
+        "z": -46.34
+      },
+      "center": {
+        "x": 13.66,
+        "y": 0.45,
+        "z": -46.34
+      },
+      "dimensions": {
+        "width": 0.55,
+        "height": 0.9,
+        "depth": 0.55
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 13.39,
+          "y": 0,
+          "z": -46.61
+        },
+        "max": {
+          "x": 13.94,
+          "y": 0.9,
+          "z": -46.07
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 13.66,
+          "y": 0.45,
+          "z": -46.34
+        },
+        "halfExtents": {
+          "x": 0.28,
+          "y": 0.45,
+          "z": 0.28
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "road_43",
+      "name": "Footpath 16",
+      "type": "road",
+      "assetId": "road_footpath",
+      "position": {
+        "x": 43.59,
+        "y": -9.72,
+        "z": -2.73
+      },
+      "center": {
+        "x": 43.59,
+        "y": -9.68,
+        "z": -2.73
+      },
+      "dimensions": {
+        "width": 3.2,
+        "height": 0.08,
+        "depth": 16
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": 41.99,
+          "y": -9.72,
+          "z": -10.73
+        },
+        "max": {
+          "x": 45.19,
+          "y": -9.64,
+          "z": 5.27
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": 43.59,
+          "y": -9.68,
+          "z": -2.73
+        },
+        "halfExtents": {
+          "x": 1.6,
+          "y": 0.04,
+          "z": 8
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "arch_44",
+      "name": "Wall 05",
+      "type": "architecture",
+      "assetId": "arch_wall_exterior",
+      "position": {
+        "x": -39.97,
+        "y": 0,
+        "z": -40.12
+      },
+      "center": {
+        "x": -39.97,
+        "y": 2,
+        "z": -40.12
+      },
+      "dimensions": {
+        "width": 59.97,
+        "height": 4,
+        "depth": 0.3
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -69.95,
+          "y": 0,
+          "z": -40.27
+        },
+        "max": {
+          "x": -9.98,
+          "y": 4,
+          "z": -39.97
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -39.97,
+          "y": 2,
+          "z": -40.12
+        },
+        "halfExtents": {
+          "x": 29.99,
+          "y": 2,
+          "z": 0.15
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "arch_45",
+      "name": "Wall 06",
+      "type": "architecture",
+      "assetId": "arch_wall_exterior",
+      "position": {
+        "x": -77.37,
+        "y": -0.21,
+        "z": -12.04
+      },
+      "center": {
+        "x": -77.37,
+        "y": 1.47,
+        "z": -12.04
+      },
+      "dimensions": {
+        "width": 29.43,
+        "height": 3.36,
+        "depth": 0.1
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -77.42,
+          "y": -0.21,
+          "z": -26.75
+        },
+        "max": {
+          "x": -77.32,
+          "y": 3.15,
+          "z": 2.68
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -77.37,
+          "y": 1.47,
+          "z": -12.04
+        },
+        "halfExtents": {
+          "x": 14.72,
+          "y": 1.68,
+          "z": 0.05
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "arch_46",
+      "name": "Wall 07",
+      "type": "architecture",
+      "assetId": "arch_wall_exterior",
+      "position": {
+        "x": -102.98,
+        "y": 0,
+        "z": 2.52
+      },
+      "center": {
+        "x": -102.98,
+        "y": 1.66,
+        "z": 2.52
+      },
+      "dimensions": {
+        "width": 51.35,
+        "height": 3.32,
+        "depth": 0.29
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -128.65,
+          "y": 0,
+          "z": 2.38
+        },
+        "max": {
+          "x": -77.31,
+          "y": 3.32,
+          "z": 2.67
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -102.98,
+          "y": 1.66,
+          "z": 2.52
+        },
+        "halfExtents": {
+          "x": 25.68,
+          "y": 1.66,
+          "z": 0.14
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_47",
+      "name": "Garden Area 10",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -98.45,
+        "y": 0.19,
+        "z": 34.02
+      },
+      "center": {
+        "x": -98.45,
+        "y": 0.7,
+        "z": 34.02
+      },
+      "dimensions": {
+        "width": 12.69,
+        "height": 1.02,
+        "depth": 37.42
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -104.79,
+          "y": 0.19,
+          "z": 15.31
+        },
+        "max": {
+          "x": -92.1,
+          "y": 1.21,
+          "z": 52.73
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -98.45,
+          "y": 0.7,
+          "z": 34.02
+        },
+        "halfExtents": {
+          "x": 6.35,
+          "y": 0.51,
+          "z": 18.71
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "bldg_48",
+      "name": "Washroom 2",
+      "type": "building",
+      "assetId": "arch_building_block",
+      "position": {
+        "x": -113.95,
+        "y": 0,
+        "z": 8.45
+      },
+      "center": {
+        "x": -113.95,
+        "y": 2.1,
+        "z": 8.45
+      },
+      "dimensions": {
+        "width": 10,
+        "height": 4.2,
+        "depth": 8
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -118.95,
+          "y": 0,
+          "z": 4.45
+        },
+        "max": {
+          "x": -108.95,
+          "y": 4.2,
+          "z": 12.45
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -113.95,
+          "y": 2.1,
+          "z": 8.45
+        },
+        "halfExtents": {
+          "x": 5,
+          "y": 2.1,
+          "z": 4
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "arch_49",
+      "name": "Wall 08",
+      "type": "architecture",
+      "assetId": "arch_wall_exterior",
+      "position": {
+        "x": -10.15,
+        "y": 0,
+        "z": -56.95
+      },
+      "center": {
+        "x": -10.15,
+        "y": 2,
+        "z": -56.95
+      },
+      "dimensions": {
+        "width": 33.84,
+        "height": 4,
+        "depth": 0.17
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -10.24,
+          "y": 0,
+          "z": -73.87
+        },
+        "max": {
+          "x": -10.06,
+          "y": 4,
+          "z": -40.03
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -10.15,
+          "y": 2,
+          "z": -56.95
+        },
+        "halfExtents": {
+          "x": 16.92,
+          "y": 2,
+          "z": 0.09
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": true,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_50",
+      "name": "Grass 10",
+      "type": "ground_area",
+      "assetId": "nat_grass_area",
+      "position": {
+        "x": -17.62,
+        "y": 0,
+        "z": -63.65
+      },
+      "center": {
+        "x": -17.62,
+        "y": 0.02,
+        "z": -63.65
+      },
+      "dimensions": {
+        "width": 14,
+        "height": 0.04,
+        "depth": 14
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -24.62,
+          "y": 0,
+          "z": -70.65
+        },
+        "max": {
+          "x": -10.62,
+          "y": 0.04,
+          "z": -56.65
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -17.62,
+          "y": 0.02,
+          "z": -63.65
+        },
+        "halfExtents": {
+          "x": 7,
+          "y": 0.02,
+          "z": 7
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_55",
+      "name": "Garden Area 11",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -37.5,
+        "y": -0.1,
+        "z": -0.96
+      },
+      "center": {
+        "x": -37.5,
+        "y": 0.66,
+        "z": -0.96
+      },
+      "dimensions": {
+        "width": 19.1,
+        "height": 1.52,
+        "depth": 1.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -38.3,
+          "y": -0.1,
+          "z": -10.51
+        },
+        "max": {
+          "x": -36.7,
+          "y": 1.42,
+          "z": 8.59
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -37.5,
+          "y": 0.66,
+          "z": -0.96
+        },
+        "halfExtents": {
+          "x": 9.55,
+          "y": 0.76,
+          "z": 0.8
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_56",
+      "name": "Garden Area 11 Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -22,
+        "y": -0.1,
+        "z": 3.77
+      },
+      "center": {
+        "x": -22,
+        "y": 0.41,
+        "z": 3.77
+      },
+      "dimensions": {
+        "width": 6.1,
+        "height": 1.02,
+        "depth": 1.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -22.8,
+          "y": -0.1,
+          "z": 0.72
+        },
+        "max": {
+          "x": -21.2,
+          "y": 0.92,
+          "z": 6.82
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -22,
+          "y": 0.41,
+          "z": 3.77
+        },
+        "halfExtents": {
+          "x": 3.05,
+          "y": 0.51,
+          "z": 0.8
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_57",
+      "name": "Garden Area 11 Copy Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -22.48,
+        "y": -0.1,
+        "z": 19.08
+      },
+      "center": {
+        "x": -22.48,
+        "y": 0.41,
+        "z": 19.08
+      },
+      "dimensions": {
+        "width": 6.1,
+        "height": 1.02,
+        "depth": 1.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -23.28,
+          "y": -0.1,
+          "z": 16.03
+        },
+        "max": {
+          "x": -21.68,
+          "y": 0.92,
+          "z": 22.13
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -22.48,
+          "y": 0.41,
+          "z": 19.08
+        },
+        "halfExtents": {
+          "x": 3.05,
+          "y": 0.51,
+          "z": 0.8
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_63",
+      "name": "Garden Area 11 Copy Copy Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -22.64,
+        "y": -0.1,
+        "z": 32.5
+      },
+      "center": {
+        "x": -22.64,
+        "y": 0.41,
+        "z": 32.5
+      },
+      "dimensions": {
+        "width": 6.1,
+        "height": 1.02,
+        "depth": 1.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -23.44,
+          "y": -0.1,
+          "z": 29.45
+        },
+        "max": {
+          "x": -21.84,
+          "y": 0.92,
+          "z": 35.55
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -22.64,
+          "y": 0.41,
+          "z": 32.5
+        },
+        "halfExtents": {
+          "x": 3.05,
+          "y": 0.51,
+          "z": 0.8
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_64",
+      "name": "Garden Area 11 Copy Copy Copy Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -24.58,
+        "y": -0.19,
+        "z": 49.77
+      },
+      "center": {
+        "x": -24.58,
+        "y": 0.32,
+        "z": 49.77
+      },
+      "dimensions": {
+        "width": 6.1,
+        "height": 1.02,
+        "depth": 1.6
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 90,
+        "zDeg": 0,
+        "yRad": 1.5708
+      },
+      "collider": {
+        "min": {
+          "x": -25.38,
+          "y": -0.19,
+          "z": 46.72
+        },
+        "max": {
+          "x": -23.78,
+          "y": 0.83,
+          "z": 52.82
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -24.58,
+          "y": 0.32,
+          "z": 49.77
+        },
+        "halfExtents": {
+          "x": 3.05,
+          "y": 0.51,
+          "z": 0.8
+        },
+        "yDeg": 90,
+        "yRad": 1.5708
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_65",
+      "name": "Garden Area 07 Copy Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -62.23,
+        "y": 0.05,
+        "z": 27.1
+      },
+      "center": {
+        "x": -62.23,
+        "y": 0.06,
+        "z": 27.1
+      },
+      "dimensions": {
+        "width": 46.1,
+        "height": 0.02,
+        "depth": 3.25
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -85.28,
+          "y": 0.05,
+          "z": 25.48
+        },
+        "max": {
+          "x": -39.18,
+          "y": 0.07,
+          "z": 28.73
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -62.23,
+          "y": 0.06,
+          "z": 27.1
+        },
+        "halfExtents": {
+          "x": 23.05,
+          "y": 0.01,
+          "z": 1.63
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    },
+    {
+      "id": "area_66",
+      "name": "Garden Area 07 Copy Copy Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "position": {
+        "x": -62.27,
+        "y": 0.2,
+        "z": 41.63
+      },
+      "center": {
+        "x": -62.27,
+        "y": 0.21,
+        "z": 41.63
+      },
+      "dimensions": {
+        "width": 46.1,
+        "height": 0.02,
+        "depth": 3.25
+      },
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "rotation": {
+        "xDeg": 0,
+        "yDeg": 0,
+        "zDeg": 0,
+        "yRad": 0
+      },
+      "collider": {
+        "min": {
+          "x": -85.32,
+          "y": 0.2,
+          "z": 40.01
+        },
+        "max": {
+          "x": -39.22,
+          "y": 0.22,
+          "z": 43.26
+        }
+      },
+      "obbCollider": {
+        "center": {
+          "x": -62.27,
+          "y": 0.21,
+          "z": 41.63
+        },
+        "halfExtents": {
+          "x": 23.05,
+          "y": 0.01,
+          "z": 1.63
+        },
+        "yDeg": 0,
+        "yRad": 0
+      },
+      "collision": {
+        "enabled": false,
+        "shape": "obb"
+      },
+      "visible": true,
+      "locked": false
+    }
+  ]
+}

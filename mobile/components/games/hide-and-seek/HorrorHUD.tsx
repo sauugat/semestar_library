@@ -40,181 +40,78 @@ export const HorrorHUD: React.FC<HorrorHUDProps> = ({
   isMuted,
   quality,
   qualityPinMode = 'auto',
-  batterySaver = false,
-  fearIntensity = 'high',
-  flickerReduction = false,
-  screenShakeOff = false,
   onExitLobby,
   onToggleMute,
   onToggleQuality,
-  onToggleBatterySaver,
-  onCycleFearIntensity,
-  onToggleFlickerReduction,
-  onToggleScreenShake,
   formatTimer,
 }) => {
   const tierLabel = HORROR_CONFIG.qualityPresets[quality]?.label || quality.toUpperCase();
-  const gfxLabel = qualityPinMode === 'auto' ? `AUTO (${tierLabel})` : `PIN: ${tierLabel}`;
+  const gfxLabel = qualityPinMode === 'auto' ? `PIN: ${tierLabel}` : `PIN: ${tierLabel}`;
 
   return (
     <>
-      {/* Lightweight Vignette Overlay above 3D view and below HUD */}
+      {/* Subtle Edge Vignette Overlay above 3D view and below HUD */}
       <View style={styles.vignetteContainer} pointerEvents="none">
         <LinearGradient
           colors={[
-            'rgba(4, 7, 11, 0.68)',
-            'rgba(4, 7, 11, 0.0)',
-            'rgba(4, 7, 11, 0.0)',
-            'rgba(4, 7, 11, 0.74)',
+            'rgba(2, 5, 10, 0.55)',
+            'rgba(2, 5, 10, 0.0)',
+            'rgba(2, 5, 10, 0.0)',
+            'rgba(2, 5, 10, 0.62)',
           ]}
-          locations={[0, 0.24, 0.76, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-        <LinearGradient
-          colors={[
-            'rgba(4, 7, 11, 0.62)',
-            'rgba(4, 7, 11, 0.0)',
-            'rgba(4, 7, 11, 0.0)',
-            'rgba(4, 7, 11, 0.62)',
-          ]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          locations={[0, 0.20, 0.80, 1]}
+          locations={[0, 0.22, 0.78, 1]}
           style={StyleSheet.absoluteFill}
         />
       </View>
 
-      {/* Dark Slate & Warm Amber HUD */}
+      {/* Top-Left Sleek Dark-Glass Pill Bar matching Reference Image (5E872F9F) */}
       <View style={styles.hudOverlay} pointerEvents="box-none">
         <View style={styles.hudTopRow} pointerEvents="box-none">
           <View style={styles.hudLeftCluster} pointerEvents="box-none">
             <TouchableOpacity
               onPress={onExitLobby}
-              style={styles.hudButton}
+              style={styles.hudPillButton}
               activeOpacity={0.8}
             >
-              <Ionicons name="chevron-back" size={16} color={HORROR_CONFIG.palette.dimAmber} />
-              <Text style={styles.hudButtonText}>LOBBY</Text>
+              <Ionicons name="chevron-back" size={16} color="#ffffff" />
+              <Text style={styles.hudPillText}>LOBBY</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={onToggleMute}
-              style={styles.hudIconButton}
+              style={styles.hudCircleButton}
               activeOpacity={0.8}
             >
               <Ionicons
                 name={isMuted ? 'volume-mute' : 'volume-high'}
-                size={16}
-                color={isMuted ? '#64748b' : HORROR_CONFIG.palette.dimAmber}
+                size={17}
+                color={isMuted ? '#94a3b8' : '#ffffff'}
               />
             </TouchableOpacity>
 
             <TouchableOpacity
               onPress={onToggleQuality}
-              style={[
-                styles.hudButton,
-                (quality === 'low' || quality === 'fast') && { borderColor: 'rgba(148, 163, 184, 0.18)' },
-              ]}
+              style={styles.hudPillButton}
               activeOpacity={0.8}
             >
               <Ionicons
-                name="sparkles-outline"
-                size={13}
-                color={quality === 'ultra' || quality === 'high' ? HORROR_CONFIG.palette.dimAmber : '#64748b'}
+                name="settings-sharp"
+                size={15}
+                color="#ffffff"
               />
-              <Text style={styles.hudButtonText}>
+              <Text style={styles.hudPillText}>
                 GFX: {gfxLabel}
               </Text>
             </TouchableOpacity>
-
-            {onToggleBatterySaver && (
-              <TouchableOpacity
-                onPress={onToggleBatterySaver}
-                style={[
-                  styles.hudButton,
-                  batterySaver && { borderColor: '#22c55e' },
-                ]}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={batterySaver ? 'battery-charging' : 'battery-full-outline'}
-                  size={13}
-                  color={batterySaver ? '#22c55e' : '#64748b'}
-                />
-                <Text style={styles.hudButtonText}>
-                  SAVER: {batterySaver ? '30 FPS' : 'OFF'}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {onToggleFlickerReduction && (
-              <TouchableOpacity
-                onPress={onToggleFlickerReduction}
-                style={[
-                  styles.hudButton,
-                  flickerReduction && { borderColor: '#38bdf8' },
-                ]}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="flash-off-outline"
-                  size={13}
-                  color={flickerReduction ? '#38bdf8' : '#64748b'}
-                />
-                <Text style={styles.hudButtonText}>
-                  FLICKER: {flickerReduction ? 'REDUCED' : 'FULL'}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {!exploreMode && onCycleFearIntensity && (
-              <TouchableOpacity
-                onPress={onCycleFearIntensity}
-                style={styles.hudButton}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="pulse-outline" size={13} color={HORROR_CONFIG.palette.dimAmber} />
-                <Text style={styles.hudButtonText}>
-                  FEAR: {fearIntensity.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {!exploreMode && onToggleScreenShake && (
-              <TouchableOpacity
-                onPress={onToggleScreenShake}
-                style={[
-                  styles.hudButton,
-                  screenShakeOff && { borderColor: '#38bdf8' },
-                ]}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name="phone-portrait-outline"
-                  size={13}
-                  color={screenShakeOff ? '#38bdf8' : '#64748b'}
-                />
-                <Text style={styles.hudButtonText}>
-                  SHAKE: {screenShakeOff ? 'OFF' : 'ON'}
-                </Text>
-              </TouchableOpacity>
-            )}
           </View>
 
-          {exploreMode ? (
-            <View style={styles.hudStatsPill} pointerEvents="none">
-              <View style={styles.hudStatBlock}>
-                <Ionicons name="compass-outline" size={13} color={HORROR_CONFIG.palette.dimAmber} />
-                <Text style={styles.hudStatText}>MAP EXPLORATION MODE</Text>
-              </View>
-            </View>
-          ) : (
+          {!exploreMode && (
             <View style={styles.hudStatsPill} pointerEvents="none">
               <View style={styles.hudStatBlock}>
                 <Ionicons
                   name={gateUnlocked ? 'lock-open' : 'flash'}
                   size={13}
-                  color={gateUnlocked ? '#22c55e' : HORROR_CONFIG.palette.dimAmber}
+                  color={gateUnlocked ? '#22c55e' : '#f8fafc'}
                 />
                 <Text style={[styles.hudStatText, gateUnlocked && { color: '#4ade80' }]}>
                   {gateUnlocked ? 'GATE OPEN!' : `Fuses: ${fusesRestored}/${totalFuses}`}
@@ -222,7 +119,7 @@ export const HorrorHUD: React.FC<HorrorHUDProps> = ({
               </View>
               <View style={styles.hudDivider} />
               <View style={styles.hudStatBlock}>
-                <Ionicons name="people" size={13} color={HORROR_CONFIG.palette.dimAmber} />
+                <Ionicons name="people" size={13} color="#f8fafc" />
                 <Text style={styles.hudStatText}>{hidersRemaining} Scholars</Text>
               </View>
               <View style={styles.hudDivider} />
@@ -230,7 +127,7 @@ export const HorrorHUD: React.FC<HorrorHUDProps> = ({
                 <Ionicons
                   name="time-outline"
                   size={13}
-                  color={timeLeft < 60 ? '#ef4444' : HORROR_CONFIG.palette.dimAmber}
+                  color={timeLeft < 60 ? '#ef4444' : '#f8fafc'}
                 />
                 <Text
                   style={[
@@ -257,13 +154,13 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     zIndex: 2,
-    opacity: 0.38,
+    opacity: 0.32,
   },
   hudOverlay: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 40 : 20,
-    left: 14,
-    right: 14,
+    top: Platform.OS === 'ios' ? 20 : 16,
+    left: 20,
+    right: 20,
     zIndex: 10,
   },
   hudTopRow: {
@@ -274,33 +171,32 @@ const styles = StyleSheet.create({
   hudLeftCluster: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
+    gap: 10,
   },
-  hudButton: {
+  hudPillButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 10,
-    backgroundColor: HORROR_CONFIG.palette.charcoalTranslucent,
-    borderWidth: 1,
-    borderColor: HORROR_CONFIG.palette.dimAmberBorder,
+    gap: 7,
+    height: 38,
+    paddingHorizontal: 16,
+    borderRadius: 999,
+    backgroundColor: 'rgba(8, 13, 20, 0.72)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.24)',
   },
-  hudButtonText: {
-    color: HORROR_CONFIG.palette.boneWhite,
-    fontSize: 9.5,
+  hudPillText: {
+    color: '#ffffff',
+    fontSize: 11.5,
     fontWeight: '800',
-    letterSpacing: 0.6,
+    letterSpacing: 1.1,
   },
-  hudIconButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor: HORROR_CONFIG.palette.charcoalTranslucent,
-    borderWidth: 1,
-    borderColor: HORROR_CONFIG.palette.dimAmberBorder,
+  hudCircleButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(8, 13, 20, 0.72)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.24)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -308,12 +204,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: HORROR_CONFIG.palette.charcoalTranslucent,
-    borderWidth: 1,
-    borderColor: HORROR_CONFIG.palette.dimAmberBorder,
+    height: 38,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: 'rgba(8, 13, 20, 0.72)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(255, 255, 255, 0.24)',
   },
   hudStatBlock: {
     flexDirection: 'row',
@@ -321,13 +217,13 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   hudStatText: {
-    color: HORROR_CONFIG.palette.boneWhite,
+    color: '#f8fafc',
     fontSize: 11,
     fontWeight: '800',
   },
   hudDivider: {
     width: 1,
     height: 13,
-    backgroundColor: HORROR_CONFIG.palette.dimAmberBorder,
+    backgroundColor: 'rgba(255, 255, 255, 0.22)',
   },
 });

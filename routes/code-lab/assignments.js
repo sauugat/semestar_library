@@ -59,9 +59,10 @@ const uploadAssignmentPdf = multer({
 
 // ── POST /upload-assignment-pdf — upload assignment PDF document ─────────────
 router.post('/upload-assignment-pdf', requireLogin, async (req, res) => {
-    const admin = await isAdmin(req.session.studentId);
-    if (!admin) {
-        return res.status(403).json({ message: 'Only teachers/admins can upload assignment PDFs.' });
+    const context = await getAcademicContext(db, req);
+    const isStaff = context.role === 'admin' || context.role === 'teacher';
+    if (!isStaff) {
+        return res.status(403).json({ message: 'Only teachers and admins can upload assignment PDFs.' });
     }
 
     uploadAssignmentPdf.single('pdf')(req, res, async (err) => {
@@ -70,6 +71,17 @@ router.post('/upload-assignment-pdf', requireLogin, async (req, res) => {
         }
         if (!req.file) {
             return res.status(400).json({ message: 'No PDF file uploaded.' });
+        }
+
+        const subject = req.body?.subject || req.query?.subject || null;
+        if (context.role === 'teacher' && subject) {
+            const { validateTeacherSubjectAuthorization } = require('../../lib/teacher-service');
+            try {
+                await validateTeacherSubjectAuthorization(db, context.studentId, subject);
+            } catch (authErr) {
+                try { if (req.file) fs.unlinkSync(req.file.path); } catch (_) {}
+                return res.status(authErr.status || 403).json({ message: authErr.message });
+            }
         }
 
         try {
@@ -189,8 +201,39 @@ async function runTestCases(language, code, testCases) {
 }
 
 // ── GET /subjects — return semester/subject list from syllabus-data.json ────
-router.get('/subjects', (req, res) => {
-    const semesters = (syllabusData.semesters || []).map(s => ({
+router.get('/subjects', async (req, res) => {
+    let callerContext = null;
+    try {
+        callerContext = await getAcademicContext(db, req);
+    } catch (_) {}
+
+    let rawSemesters = syllabusData.semesters || [];
+
+    // If caller is an authenticated teacher, restrict to their assigned subjects
+    if (callerContext && callerContext.authenticated && callerContext.role === 'teacher') {
+        const { getTeacherSubjects } = require('../../lib/teacher-service');
+        const assignedSubjects = await getTeacherSubjects(db, callerContext.studentId);
+        const assignedSubjectCodes = new Set(assignedSubjects.map(s => (s.code || '').trim().toLowerCase()));
+        const assignedSubjectNames = new Set(assignedSubjects.map(s => (s.name || '').trim().toLowerCase()));
+
+        const filteredSemesters = rawSemesters.map(s => ({
+            semester: s.semester,
+            year: s.year,
+            courses: (s.courses || []).filter(c => 
+                assignedSubjectCodes.has((c.code || '').trim().toLowerCase()) ||
+                assignedSubjectNames.has((c.title || '').trim().toLowerCase())
+            ).map(c => ({
+                title: c.title,
+                code: c.code,
+                credit: c.credit,
+                nature: c.nature
+            }))
+        })).filter(s => s.courses.length > 0);
+
+        return res.json({ semesters: filteredSemesters });
+    }
+
+    const semesters = rawSemesters.map(s => ({
         semester: s.semester,
         year: s.year,
         courses: (s.courses || []).map(c => ({
@@ -203,7 +246,7 @@ router.get('/subjects', (req, res) => {
     res.json({ semesters });
 });
 
-// ── POST /assignments — staff/CR creation, accepts nested questions ────────────────
+// ── POST /assignments — staff creation, accepts nested questions ────────────────
 router.post('/assignments', requireLogin, async (req, res) => {
     const studentId = (req.user && req.user.studentId) || (req.session && req.session.studentId);
     const context = await getAcademicContext(db, req);
@@ -212,8 +255,7 @@ router.post('/assignments', requireLogin, async (req, res) => {
     }
 
     const isStaff = context.role === 'admin' || context.role === 'teacher';
-    const isCR = context.role === 'cr';
-    if (!isStaff && !isCR) {
+    if (!isStaff) {
         return res.status(403).json({ message: 'Only teachers and admins can create assignments.' });
     }
 
@@ -491,9 +533,26 @@ router.delete('/assignments/:id', requireLogin, async (req, res) => {
             return res.status(404).json({ message: 'Assignment not found.' });
         }
 
-        const admin = await isAdmin(req.session.studentId);
-        if (assignment.createdBy !== req.session.studentId && !admin) {
-            return res.status(403).json({ message: 'You are not authorized to delete this assignment.' });
+        const context = await getAcademicContext(db, req);
+        const isAdminUser = context.role === 'admin' || (await isAdmin(req.session.studentId));
+        const isTeacher = context.role === 'teacher';
+
+        if (!isAdminUser && !isTeacher) {
+            return res.status(403).json({ message: 'Forbidden: Students are not authorized to delete assignments.' });
+        }
+
+        if (isTeacher) {
+            const { validateTeacherSubjectAuthorization } = require('../../lib/teacher-service');
+            try {
+                await validateTeacherSubjectAuthorization(
+                    db,
+                    context.studentId,
+                    assignment.subject,
+                    assignment.semester || assignment.semester_no
+                );
+            } catch (authErr) {
+                return res.status(authErr.status || 403).json({ message: authErr.message });
+            }
         }
 
         // Clean up associated PDF file and blob if present
@@ -690,9 +749,20 @@ router.post('/assignments/:id/student-questions', requireLogin, async (req, res)
             return res.status(404).json({ message: 'Assignment not found.' });
         }
 
-        const admin = await isAdmin(req.session.studentId);
-        if (!admin && assignment.createdBy !== req.session.studentId) {
-            return res.status(403).json({ message: 'Only admins or the assignment creator can add questions.' });
+        const isAdminUser = context.role === 'admin' || (await isAdmin(req.session.studentId));
+        const isTeacher = context.role === 'teacher';
+
+        if (!isAdminUser && !isTeacher) {
+            return res.status(403).json({ message: 'Only teachers and admins can add questions.' });
+        }
+
+        if (isTeacher) {
+            const { validateTeacherSubjectAuthorization } = require('../../lib/teacher-service');
+            try {
+                await validateTeacherSubjectAuthorization(db, context.studentId, assignment.subject, assignment.semester || assignment.semester_no);
+            } catch (authErr) {
+                return res.status(authErr.status || 403).json({ message: authErr.message });
+            }
         }
 
         const { title, language } = req.body;
@@ -1284,34 +1354,43 @@ router.delete('/questions/:questionId/test-cases/:testCaseId', requireLogin, asy
     }
 });
 
-// ── PATCH /questions/:questionId — update question's maxPoints (admin / creator only) ──
+// ── PATCH /questions/:questionId — update question's maxPoints (admin / authorized teacher only) ──
 router.patch('/questions/:questionId', requireLogin, async (req, res) => {
     try {
-        const admin = await isAdmin(req.session.studentId);
-        if (!admin) {
-            return res.status(403).json({ message: 'Only admins can update questions.' });
-        }
-
         const questionId = Number(req.params.questionId);
         if (!Number.isInteger(questionId) || questionId <= 0) {
             return res.status(400).json({ message: 'Invalid question ID.' });
+        }
+
+        const question = await db.get(
+            `SELECT aq.*, a.createdBy, a.subject, a.semester FROM assignment_questions aq
+             JOIN assignments a ON a.id = aq.assignmentId
+             WHERE aq.id = ?`,
+            questionId
+        );
+        if (!question) return res.status(404).json({ message: 'Question not found.' });
+
+        const context = await getAcademicContext(db, req);
+        const isAdminUser = context.role === 'admin' || (await isAdmin(req.session.studentId));
+        const isTeacher = context.role === 'teacher';
+
+        if (!isAdminUser && !isTeacher) {
+            return res.status(403).json({ message: 'Only teachers and admins can update questions.' });
+        }
+
+        if (isTeacher) {
+            const { validateTeacherSubjectAuthorization } = require('../../lib/teacher-service');
+            try {
+                await validateTeacherSubjectAuthorization(db, context.studentId, question.subject, question.semester);
+            } catch (authErr) {
+                return res.status(authErr.status || 403).json({ message: authErr.message });
+            }
         }
 
         const { maxPoints } = req.body;
         const parsedPoints = Number(maxPoints);
         if (isNaN(parsedPoints) || parsedPoints < 1) {
             return res.status(400).json({ message: 'maxPoints must be a positive number.' });
-        }
-
-        const question = await db.get(
-            `SELECT aq.*, a.createdBy FROM assignment_questions aq
-             JOIN assignments a ON a.id = aq.assignmentId
-             WHERE aq.id = ?`,
-            questionId
-        );
-        if (!question) return res.status(404).json({ message: 'Question not found.' });
-        if (question.createdBy !== req.session.studentId) {
-            return res.status(403).json({ message: 'You can only edit your own questions.' });
         }
 
         await db.run('UPDATE assignment_questions SET maxPoints = ? WHERE id = ?', Math.floor(parsedPoints), questionId);
@@ -1322,28 +1401,36 @@ router.patch('/questions/:questionId', requireLogin, async (req, res) => {
     }
 });
 
-// ── PUT /questions/:questionId/grade/:studentId — grade submission (admin / creator only) ──
+// ── PUT /questions/:questionId/grade/:studentId — grade submission (admin / authorized teacher only) ──
 router.put('/questions/:questionId/grade/:studentId', requireLogin, async (req, res) => {
     try {
-        const admin = await isAdmin(req.session.studentId);
-        if (!admin) {
-            return res.status(403).json({ message: 'Only admins can grade submissions.' });
-        }
-
         const questionId = Number(req.params.questionId);
         const studentId = req.params.studentId;
         const { marksObtained, remarks, checked, released } = req.body;
 
-        // Verify this teacher owns the assignment this question belongs to
         const question = await db.get(
-            `SELECT aq.*, a.createdBy FROM assignment_questions aq
+            `SELECT aq.*, a.createdBy, a.subject, a.semester FROM assignment_questions aq
              JOIN assignments a ON a.id = aq.assignmentId
              WHERE aq.id = ?`,
             questionId
         );
         if (!question) return res.status(404).json({ message: 'Question not found.' });
-        if (question.createdBy !== req.session.studentId && !admin) {
-            return res.status(403).json({ message: 'You can only grade your own assignments.' });
+
+        const context = await getAcademicContext(db, req);
+        const isAdminUser = context.role === 'admin' || (await isAdmin(req.session.studentId));
+        const isTeacher = context.role === 'teacher';
+
+        if (!isAdminUser && !isTeacher) {
+            return res.status(403).json({ message: 'Only teachers and admins can grade submissions.' });
+        }
+
+        if (isTeacher) {
+            const { validateTeacherSubjectAuthorization } = require('../../lib/teacher-service');
+            try {
+                await validateTeacherSubjectAuthorization(db, context.studentId, question.subject, question.semester);
+            } catch (authErr) {
+                return res.status(authErr.status || 403).json({ message: authErr.message });
+            }
         }
 
         const maxPts = question.maxPoints != null ? question.maxPoints : 10;
@@ -1392,16 +1479,25 @@ router.put('/questions/:questionId/grade/:studentId', requireLogin, async (req, 
 // ── POST /assignments/:id/release-grades — bulk release reviewed grades ──
 router.post('/assignments/:id/release-grades', requireLogin, async (req, res) => {
     try {
-        const admin = await isAdmin(req.session.studentId);
-        if (!admin) {
-            return res.status(403).json({ message: 'Only admins can release grades.' });
+        const context = await getAcademicContext(db, req);
+        const isAdminUser = context.role === 'admin' || (await isAdmin(req.session.studentId));
+        const isTeacher = context.role === 'teacher';
+
+        if (!isAdminUser && !isTeacher) {
+            return res.status(403).json({ message: 'Only teachers and admins can release grades.' });
         }
 
         const assignmentId = Number(req.params.id);
         const assignment = await db.get('SELECT * FROM assignments WHERE id = ?', assignmentId);
         if (!assignment) return res.status(404).json({ message: 'Assignment not found.' });
-        if (assignment.createdBy !== req.session.studentId) {
-            return res.status(403).json({ message: 'You can only release grades for your own assignments.' });
+
+        if (isTeacher) {
+            const { validateTeacherSubjectAuthorization } = require('../../lib/teacher-service');
+            try {
+                await validateTeacherSubjectAuthorization(db, context.studentId, assignment.subject, assignment.semester || assignment.semester_no);
+            } catch (authErr) {
+                return res.status(authErr.status || 403).json({ message: authErr.message });
+            }
         }
 
         const now = new Date().toISOString();
@@ -1529,9 +1625,12 @@ router.get('/assignments/:id/report/:studentId', requireLogin, async (req, res) 
 // ── POST /assignments/:id/grade-student/:studentId — save draft / submit grades from report ──
 router.post('/assignments/:id/grade-student/:studentId', requireLogin, async (req, res) => {
     try {
-        const admin = await isAdmin(req.session.studentId);
-        if (!admin) {
-            return res.status(403).json({ message: 'Only admins can grade submissions.' });
+        const context = await getAcademicContext(db, req);
+        const isAdminUser = context.role === 'admin' || (await isAdmin(req.session.studentId));
+        const isTeacher = context.role === 'teacher';
+
+        if (!isAdminUser && !isTeacher) {
+            return res.status(403).json({ message: 'Only teachers and admins can grade submissions.' });
         }
 
         const assignmentId = Number(req.params.id);
@@ -1540,8 +1639,14 @@ router.post('/assignments/:id/grade-student/:studentId', requireLogin, async (re
 
         const assignment = await db.get('SELECT * FROM assignments WHERE id = ?', assignmentId);
         if (!assignment) return res.status(404).json({ message: 'Assignment not found.' });
-        if (assignment.createdBy !== req.session.studentId && !admin) {
-            return res.status(403).json({ message: 'You can only grade your own assignments.' });
+
+        if (isTeacher) {
+            const { validateTeacherSubjectAuthorization } = require('../../lib/teacher-service');
+            try {
+                await validateTeacherSubjectAuthorization(db, context.studentId, assignment.subject, assignment.semester || assignment.semester_no);
+            } catch (authErr) {
+                return res.status(authErr.status || 403).json({ message: authErr.message });
+            }
         }
 
         if (!Array.isArray(grades) || grades.length === 0) {

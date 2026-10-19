@@ -561,6 +561,7 @@ function StudentHomeScreenInner() {
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
   const { isAdmin, setAdminMode } = useAdminMode();
+  const isStaff = Boolean(isAdmin || user?.isAdmin || user?.role === 'teacher' || user?.role === 'admin');
   const { colors, spacing, radii } = useTheme();
   const queryClient = useQueryClient();
   const navigation = useNavigation();
@@ -1980,38 +1981,40 @@ function StudentHomeScreenInner() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => setUploadModalOpen(true)}
-            style={{
-              flex: 1,
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              borderWidth: 1,
-              borderRadius: radii.md,
-              paddingVertical: 10,
-              paddingHorizontal: 6,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <View
+          {isStaff && (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setUploadModalOpen(true)}
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: colors.surfaceRaised,
+                flex: 1,
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderWidth: 1,
+                borderRadius: radii.md,
+                paddingVertical: 10,
+                paddingHorizontal: 6,
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: 4,
               }}
             >
-              <Ionicons name="cloud-upload-outline" size={17} color={colors.primary} />
-            </View>
-            <Text variant="xs" weight="700" numberOfLines={1}>
-              Upload
-            </Text>
-          </TouchableOpacity>
+              <View
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: colors.surfaceRaised,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 4,
+                }}
+              >
+                <Ionicons name="cloud-upload-outline" size={17} color={colors.primary} />
+              </View>
+              <Text variant="xs" weight="700" numberOfLines={1}>
+                Upload
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 

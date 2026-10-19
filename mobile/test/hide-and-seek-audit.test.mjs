@@ -1641,4 +1641,279 @@ describe('Physics & Controls Audit: Gandaki University 3D Hide-and-Seek', () => 
       }
     });
   });
+
+  // --------------------------------------------------------------------------
+  // 9. STEP 4 CAMPUS REBUILD & ELEVATION AUDIT (JSON LAYOUT + TERRACE + PLINTHS)
+  // --------------------------------------------------------------------------
+  describe('9. Step 4 Campus Rebuild & Elevation Audit', () => {
+    test('9.1 Walk the entire perimeter of the terrace retaining wall — blocks player everywhere except at stairs', () => {
+      const env = initGameEnvironment();
+      const dt = 1 / 60;
+      const s4 = env.scene.userData.step4Audit;
+      assert.ok(s4, 'step4Audit metadata should be attached to scene.userData');
+
+      // Sample points along all 8 retaining wall faces (leaving gaps only at the 3 concrete staircases)
+      const wallProbes = [
+        // Lower East Wall (x = 44.75, z in [-139.0, -39.25])
+        { label: 'Lower East Wall South (z=-50)', sx: 45.6, sz: -50.0, yaw: Math.PI / 2, checkBlocked: p => p.x > 44.75 && p.y < 0.2 },
+        // Upper East Wall (x = 39.50, z in [-39.25, 55.0], stair gap at z in [3.7, 7.3])
+        { label: 'East Wall Mid-South (z=-15)', sx: 40.4, sz: -15.0, yaw: Math.PI / 2, checkBlocked: p => p.x > 39.50 && p.y < 0.2 },
+        { label: 'East Wall Mid-North (z=25)', sx: 40.4, sz: 25.0, yaw: Math.PI / 2, checkBlocked: p => p.x > 39.50 && p.y < 0.2 },
+        { label: 'East Wall North (z=48)', sx: 40.4, sz: 48.0, yaw: Math.PI / 2, checkBlocked: p => p.x > 39.50 && p.y < 0.2 },
+        // North Wall (z = 55.00, x in [-91.5, 39.5], stair gap at x in [-31.3, -27.7])
+        { label: 'North Wall East (x=15)', sx: 15.0, sz: 55.9, yaw: 0, checkBlocked: p => p.z > 55.00 && p.y < 0.2 },
+        { label: 'North Wall Center (x=-10)', sx: -10.0, sz: 55.9, yaw: 0, checkBlocked: p => p.z > 55.00 && p.y < 0.2 },
+        { label: 'North Wall West (x=-55)', sx: -55.0, sz: 55.9, yaw: 0, checkBlocked: p => p.z > 55.00 && p.y < 0.2 },
+        // East Step Wall (z = -39.25, x in [39.50, 44.75])
+        { label: 'East Step Wall (x=42)', sx: 42.0, sz: -38.3, yaw: 0, checkBlocked: p => p.z > -39.25 && p.y < 0.2 },
+        // West South Wall (z = -39.25, x in [-91.5, -32.0], stair gap at x in [-46.8, -43.2])
+        { label: 'South-West Parking Wall (x=-60)', sx: -60.0, sz: -40.1, yaw: Math.PI, checkBlocked: p => p.z < -39.25 && p.y < 0.2 },
+        { label: 'South-West Parking Wall West (x=-75)', sx: -75.0, sz: -40.1, yaw: Math.PI, checkBlocked: p => p.z < -39.25 && p.y < 0.2 },
+        // Lower West Wall (x = -32.00, z in [-139.0, -39.25])
+        { label: 'West Spine Wall South (z=-58)', sx: -32.9, sz: -58.0, yaw: -Math.PI / 2, checkBlocked: p => p.x < -32.00 && p.y < 0.2 },
+        { label: 'West Spine Wall North (z=-45)', sx: -32.9, sz: -45.0, yaw: -Math.PI / 2, checkBlocked: p => p.x < -32.00 && p.y < 0.2 },
+        { label: 'West Rotunda Wall (z=-80)', sx: -32.9, sz: -80.0, yaw: -Math.PI / 2, checkBlocked: p => p.x < -32.00 && p.y < 0.2 },
+      ];
+
+      const failedProbes = [];
+      for (const probe of wallProbes) {
+        env.playerPhysics.pos.set(probe.sx, 0.0, probe.sz);
+        env.playerPhysics.vel.set(0, 0, 0);
+        env.playerPhysics.isGrounded = true;
+        env.playerPhysics.yaw = probe.yaw;
+        env.playerPhysics.targetYaw = probe.yaw;
+        env.keys['KeyW'] = true;
+        env.keys['ShiftLeft'] = true;
+        for (let f = 0; f < 45; f++) env.updatePlayer(dt, f * dt);
+        env.keys['KeyW'] = false;
+        env.keys['ShiftLeft'] = false;
+        if (!probe.checkBlocked(env.playerPhysics.pos)) {
+          failedProbes.push(`${probe.label} -> (${env.playerPhysics.pos.x.toFixed(2)}, ${env.playerPhysics.pos.y.toFixed(2)}, ${env.playerPhysics.pos.z.toFixed(2)})`);
+        }
+      }
+
+      assert.strictEqual(failedProbes.length, 0, `Retaining wall failed to block at: ${failedProbes.join('; ')}`);
+    });
+
+    test('9.2 Walk up and down every terrace staircase at 60, 30, and 15 FPS — smooth climb, no stuck, no airborne flicker', () => {
+      const fpsList = [60, 30, 15];
+      for (const fps of fpsList) {
+        const env = initGameEnvironment();
+        const dt = 1 / fps;
+        const stairs = env.scene.userData.step4Audit.terraceStairsRegistry;
+        assert.ok(stairs.length >= 3, 'Should have at least 3 terrace staircases');
+
+        for (const st of stairs) {
+          // 1. Climb UP from lower ground (y=0.00) to terrace (y=1.00)
+          env.playerPhysics.pos.set(st.bottomX, st.bottomY, st.bottomZ);
+          env.playerPhysics.vel.set(0, 0, 0);
+          env.playerPhysics.isGrounded = true;
+          const upYaw = Math.atan2(-(st.topX - st.bottomX), -(st.topZ - st.bottomZ));
+          env.playerPhysics.yaw = upYaw;
+          env.playerPhysics.targetYaw = upYaw;
+          env.keys['KeyW'] = true;
+          env.keys['ShiftLeft'] = false;
+
+          let airborneFramesUp = 0;
+          const totalFrames = Math.ceil(1.5 * fps);
+          for (let f = 0; f < totalFrames; f++) {
+            env.updatePlayer(dt, f * dt);
+            if (!env.playerPhysics.isGrounded) airborneFramesUp++;
+          }
+          env.keys['KeyW'] = false;
+          const topY = env.playerPhysics.pos.y;
+          assert.ok(Math.abs(topY - 1.0) <= 0.06, `[${fps} FPS] Stair ${st.id} climb UP failed: endY=${topY.toFixed(3)}m`);
+          assert.strictEqual(airborneFramesUp, 0, `[${fps} FPS] Stair ${st.id} climb UP had airborne flicker frames=${airborneFramesUp}`);
+
+          // 2. Walk DOWN from terrace (y=1.00) to lower ground (y=0.00)
+          env.playerPhysics.pos.set(st.topX, st.topY, st.topZ);
+          env.playerPhysics.vel.set(0, 0, 0);
+          env.playerPhysics.isGrounded = true;
+          const downYaw = Math.atan2(-(st.bottomX - st.topX), -(st.bottomZ - st.topZ));
+          env.playerPhysics.yaw = downYaw;
+          env.playerPhysics.targetYaw = downYaw;
+          env.keys['KeyW'] = true;
+
+          let airborneFramesDown = 0;
+          for (let f = 0; f < totalFrames; f++) {
+            env.updatePlayer(dt, f * dt);
+            if (!env.playerPhysics.isGrounded) airborneFramesDown++;
+          }
+          env.keys['KeyW'] = false;
+          const botY = env.playerPhysics.pos.y;
+          assert.ok(Math.abs(botY - 0.0) <= 0.06, `[${fps} FPS] Stair ${st.id} walk DOWN failed: endY=${botY.toFixed(3)}m`);
+          assert.strictEqual(airborneFramesDown, 0, `[${fps} FPS] Stair ${st.id} walk DOWN had airborne flicker frames=${airborneFramesDown}`);
+        }
+      }
+    });
+
+    test('9.3 Walk into and out of every building through every entrance step — no lip catches player', () => {
+      const env = initGameEnvironment();
+      const dt = 1 / 60;
+      const entrances = env.scene.userData.step4Audit.buildingEntrancesRegistry;
+      assert.ok(entrances.length >= 16, `Expected >= 16 building entrances, found ${entrances.length}`);
+
+      const failures = [];
+      for (const ent of entrances) {
+        if (ent.blockLabel === 'Computer Lab Copy B15') continue; // Solid placeholder volume (non-enterable)
+        // Walk IN from terrace (y=1.00) up plinth steps into building floor (y=1.25)
+        env.playerPhysics.pos.set(ent.outsideX, ent.outsideY, ent.outsideZ);
+        env.playerPhysics.vel.set(0, 0, 0);
+        env.playerPhysics.isGrounded = true;
+        const inYaw = Math.atan2(-(ent.insideX - ent.outsideX), -(ent.insideZ - ent.outsideZ));
+        env.playerPhysics.yaw = inYaw;
+        env.playerPhysics.targetYaw = inYaw;
+        env.keys['KeyW'] = true;
+        env.keys['ShiftLeft'] = false;
+        for (let f = 0; f < 38; f++) env.updatePlayer(dt, f * dt);
+        env.keys['KeyW'] = false;
+
+        const inY = env.playerPhysics.pos.y;
+        const crossedIn = ent.doorAxis === 'z'
+          ? ((ent.doorDirSign < 0) ? (env.playerPhysics.pos.z > ent.doorZ) : (env.playerPhysics.pos.z < ent.doorZ))
+          : ((ent.doorDirSign < 0) ? (env.playerPhysics.pos.x > ent.doorX) : (env.playerPhysics.pos.x < ent.doorX));
+        const enteredOk = crossedIn && Math.abs(inY - ent.insideY) <= 0.08;
+
+        // Walk OUT from building floor (y=1.25) down plinth steps onto terrace (y=1.00)
+        env.playerPhysics.pos.set(ent.insideX, ent.insideY, ent.insideZ);
+        env.playerPhysics.vel.set(0, 0, 0);
+        env.playerPhysics.isGrounded = true;
+        const outYaw = Math.atan2(-(ent.outsideX - ent.insideX), -(ent.outsideZ - ent.insideZ));
+        env.playerPhysics.yaw = outYaw;
+        env.playerPhysics.targetYaw = outYaw;
+        env.keys['KeyW'] = true;
+        for (let f = 0; f < 42; f++) env.updatePlayer(dt, f * dt);
+        env.keys['KeyW'] = false;
+
+        const outY = env.playerPhysics.pos.y;
+        const crossedOut = ent.doorAxis === 'z'
+          ? ((ent.doorDirSign < 0) ? (env.playerPhysics.pos.z < ent.doorZ - 0.8) : (env.playerPhysics.pos.z > ent.doorZ + 0.8))
+          : ((ent.doorDirSign < 0) ? (env.playerPhysics.pos.x < ent.doorX - 0.8) : (env.playerPhysics.pos.x > ent.doorX + 0.8));
+        const exitedOk = crossedOut && Math.abs(outY - ent.outsideY) <= 0.08;
+
+        if (!enteredOk || !exitedOk) {
+          failures.push(`${ent.id}: in=(crossed:${crossedIn}, y:${inY.toFixed(2)}), out=(crossed:${crossedOut}, y:${outY.toFixed(2)})`);
+        }
+      }
+
+      assert.strictEqual(failures.length, 0, `Building entrance step failures: ${failures.join(' | ')}`);
+    });
+
+    test('9.4 Confirm 0 remaining instances of deleted object types (trees, gates, white stupas, grass meshes, parked cars)', () => {
+      const env = initGameEnvironment();
+      const gameHtmlPath = path.resolve(__dirname, '../components/games/hide-and-seek/gameHtml.ts');
+      const src = fs.readFileSync(gameHtmlPath, 'utf8');
+
+      // Verify zero calls to deleted builders in gameHtml.ts
+      const forbiddenCalls = [
+        'spawnCampusTree(',
+        'spawnPalmTree(',
+        'spawnDeadTree(',
+        'spawnRoadsideShrubs(',
+        'buildStoneChaityaShrine(',
+        'buildMandalaStreetArchway(',
+        'buildParkedCar(',
+        'buildCourtyardScooter(',
+      ];
+      for (const callStr of forbiddenCalls) {
+        assert.strictEqual(src.includes(callStr), false, `Forbidden deleted builder call still present: ${callStr}`);
+      }
+
+      // Verify zero hiding spots for parked-suv or chaitya stupa
+      const forbiddenSpots = env.interactiveHidingSpots.filter(
+        s => s.id.includes('parked-suv') || s.id.includes('chaitya')
+      );
+      assert.strictEqual(forbiddenSpots.length, 0, 'Should have 0 parked-suv or chaitya hiding spots');
+    });
+
+    test('9.5 Confirm 0 orphaned colliders and 0 hiding spots or waypoints inside colliders', () => {
+      const env = initGameEnvironment();
+
+      // 1. Every collider must have valid finite geometry and non-zero volume/radius
+      let invalidColliders = 0;
+      for (const c of env.colliders) {
+        if (c.type === 'cylinder') {
+          if (!Number.isFinite(c.x) || !Number.isFinite(c.z) || !(c.radius > 0)) invalidColliders++;
+        } else {
+          if (!c.min || !c.max || !(c.max.x > c.min.x) || !(c.max.y > c.min.y) || !(c.max.z > c.min.z)) {
+            invalidColliders++;
+          }
+        }
+      }
+      assert.strictEqual(invalidColliders, 0, `Found ${invalidColliders} malformed/orphaned colliders`);
+
+      // 2. Confirm 0 hiding spot exit positions inside colliders
+      const blockedSpots = [];
+      for (const spot of env.interactiveHidingSpots) {
+        const ey = spot.exitY !== undefined ? spot.exitY : spot.y;
+        if (!env.isPositionClearOfColliders(spot.exitX, ey, spot.exitZ, 0.25)) {
+          blockedSpots.push(spot.id);
+        }
+      }
+      assert.strictEqual(blockedSpots.length, 0, `Hiding spots with blocked exit: ${blockedSpots.join(', ')}`);
+
+      // 3. Confirm 0 navWaypoints embedded inside solid obstacle colliders
+      const blockedWps = [];
+      for (const wp of env.navWaypoints) {
+        if (!env.isPositionClearOfColliders(wp.x, wp.y, wp.z, 0.12)) {
+          blockedWps.push(`${wp.id}(${wp.x},${wp.y},${wp.z})`);
+        }
+      }
+      assert.strictEqual(blockedWps.length, 0, `Waypoints inside colliders: ${blockedWps.join(', ')}`);
+    });
+
+    test('9.6 Confirm all 34 JSON objects exist in scene at exact JSON positions (±0.05m) and dimensions (±0.05m)', () => {
+      const env = initGameEnvironment();
+      const jsonPath = path.resolve(__dirname, '../../gandaki-campus-layout.json');
+      const diskLayout = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+      const sceneObjects = env.scene.userData.step4Audit.layoutObjects;
+
+      assert.strictEqual(diskLayout.objects.length, 34, 'JSON file must contain 34 objects');
+      assert.strictEqual(sceneObjects.length, 34, 'Scene layout registry must contain 34 objects');
+
+      for (const expected of diskLayout.objects) {
+        const actual = sceneObjects.find(o => o.id === expected.id);
+        assert.ok(actual, `Missing JSON object in scene: ${expected.id}`);
+        const expX = expected.position.x;
+        const expZ = expected.position.z;
+        const expW = expected.dimensions.width;
+        const expD = expected.dimensions.depth;
+        const actX = actual.position ? actual.position.x : actual.x;
+        const actZ = actual.position ? actual.position.z : actual.z;
+        const actW = actual.dimensions ? actual.dimensions.width : actual.width;
+        const actD = actual.dimensions ? actual.dimensions.depth : actual.depth;
+
+        assert.ok(Math.abs(actX - expX) <= 0.05, `${expected.id} x mismatch: ${actX} vs ${expX}`);
+        assert.ok(Math.abs(actZ - expZ) <= 0.05, `${expected.id} z mismatch: ${actZ} vs ${expZ}`);
+        assert.ok(Math.abs(actW - expW) <= 0.05, `${expected.id} width mismatch: ${actW} vs ${expW}`);
+        assert.ok(Math.abs(actD - expD) <= 0.05, `${expected.id} depth mismatch: ${actD} vs ${expD}`);
+
+        // If building, verify a walkableFloor exists at BUILDING_FLOOR_Y (1.25m) covering its center (except solid placeholder bldg_15 which has a solid plinth + wall collider)
+        if (expected.type === 'building') {
+          if (expected.id === 'bldg_15') {
+            const hasCollider = env.colliders.some(
+              c => c.min && c.min.x <= expX && c.max.x >= expX && c.min.z <= expZ && c.max.z >= expZ && c.max.y >= 5.0
+            );
+            assert.strictEqual(hasCollider, true, 'Placeholder bldg_15 must have solid building collider');
+          } else {
+            const floorYAtCenter = env.getSupportFloorY(expX, expZ, 1.25);
+            assert.ok(
+              Math.abs(floorYAtCenter - 1.25) <= 0.05,
+              `Building ${expected.id} center (${expX}, ${expZ}) should have floorY=1.25m, got ${floorYAtCenter}`
+            );
+          }
+        } else {
+          // Road or ground_area on terrace should have support floor at TERRACE_HEIGHT = 1.00m (area_16 is on lower ground y=0.00m; area_rotunda_plaza surrounds bldg_main_rotunda so sample its open plaza at z=-90)
+          const expectedSurfaceY = expected.id === 'area_16' ? 0.00 : 1.00;
+          const sampleZ = expected.id === 'area_rotunda_plaza' ? -90.0 : expZ;
+          const floorYAtSurface = env.getSupportFloorY(expX, sampleZ, expectedSurfaceY);
+          assert.ok(
+            Math.abs(floorYAtSurface - expectedSurfaceY) <= 0.05,
+            `Surface ${expected.id} (${expX}, ${sampleZ}) should have floorY=${expectedSurfaceY}m, got ${floorYAtSurface}`
+          );
+        }
+      }
+    });
+  });
 });
+

@@ -2180,6 +2180,89 @@
     body.dark-mode .cl-submit-btn:hover {
       background: #e5e5ea;
     }
+
+    /* Clean Minimalist Auth Gate Card */
+    .auth-gate-card {
+      max-width: 520px;
+      margin: 60px auto;
+      padding: 44px 36px;
+      text-align: center;
+      background: var(--surface, #ffffff);
+      border: 1px solid var(--border, rgba(0,0,0,0.08));
+      border-radius: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.03);
+    }
+    .auth-gate-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 28px;
+      background: rgba(0,0,0,0.05);
+      color: #111111;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .auth-gate-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111111;
+      margin: 0 0 10px;
+      letter-spacing: -0.02em;
+    }
+    .auth-gate-desc {
+      font-size: 14.5px;
+      color: #666666;
+      line-height: 1.5;
+      margin: 0 auto 28px;
+      max-width: 420px;
+    }
+    .auth-gate-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 28px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 980px;
+      background: #000000;
+      color: #ffffff;
+      text-decoration: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+    .auth-gate-btn:hover {
+      opacity: 0.88;
+      transform: translateY(-1px);
+    }
+    [data-theme="dark"] .auth-gate-card,
+    .dark .auth-gate-card,
+    body.dark-mode .auth-gate-card {
+      background: #18181b;
+      border-color: rgba(255,255,255,0.1);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+    [data-theme="dark"] .auth-gate-icon,
+    .dark .auth-gate-icon,
+    body.dark-mode .auth-gate-icon {
+      background: rgba(255,255,255,0.08);
+      color: #ffffff;
+    }
+    [data-theme="dark"] .auth-gate-title,
+    .dark .auth-gate-title,
+    body.dark-mode .auth-gate-title {
+      color: #ffffff;
+    }
+    [data-theme="dark"] .auth-gate-desc,
+    .dark .auth-gate-desc,
+    body.dark-mode .auth-gate-desc {
+      color: rgba(255,255,255,0.65);
+    }
+    [data-theme="dark"] .auth-gate-btn,
+    .dark .auth-gate-btn,
+    body.dark-mode .auth-gate-btn {
+      background: #ffffff;
+      color: #000000;
+    }
   </style>
   <link rel="stylesheet" href="/theme-overrides.css">
 </head>
@@ -2223,7 +2306,7 @@
     </div>
 
     <div class="dash-hero-actions">
-      <a href="/code-lab/create.html" id="dashCreateAssignBtn" class="dash-hero-btn primary cl-btn-pro" title="Create a new programming assignment" onclick="handleCreateAssignmentClick(event)">
+      <a href="/code-lab/create.html" id="dashCreateAssignBtn" class="dash-hero-btn primary cl-btn-pro" style="display:none;" title="Create a new programming assignment" onclick="handleCreateAssignmentClick(event)">
         <svg class="cl-btn-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
         <span>Create Assignment</span>
       </a>
@@ -3092,11 +3175,29 @@
     // ── Ingest & Render Curriculum Subjects ──
     async function initSubjects() {
       let semesters = [];
-      try {
-        syllabusData = await SyllabusHelper.loadSyllabusData();
-        semesters = SyllabusHelper.getFormattedSemesters(syllabusData);
-      } catch (e) {
-        console.warn('SyllabusHelper fallback:', e);
+      const isTeacher = academicContext && academicContext.role === 'teacher';
+      if (isTeacher) {
+        try {
+          const res = await fetch('/api/code-lab/subjects');
+          const data = await res.json();
+          if (data && data.semesters) {
+            semesters = data.semesters.map(s => ({
+              rawSemester: String(s.semester),
+              displayPill: `Sem ${s.semester}`,
+              fullLabel: `Semester ${s.semester}`,
+              courses: s.courses || []
+            }));
+          }
+        } catch (e) {
+          console.error('Failed to load teacher subjects from API:', e);
+        }
+      } else {
+        try {
+          syllabusData = await SyllabusHelper.loadSyllabusData();
+          semesters = SyllabusHelper.getFormattedSemesters(syllabusData);
+        } catch (e) {
+          console.warn('SyllabusHelper fallback:', e);
+        }
       }
 
       if (!semesters || semesters.length === 0) {
@@ -3292,7 +3393,8 @@
         return;
       }
 
-      const isTeacher = currentUser.isAdmin === true || currentUser.role === 'admin';
+      const isTeacher = (academicContext && (academicContext.role === 'teacher' || academicContext.role === 'admin')) ||
+                        (currentUser && (currentUser.isAdmin === true || currentUser.role === 'admin' || currentUser.role === 'teacher'));
 
       if (!isTeacher) {
         openStudentDeniedModal();
@@ -3365,7 +3467,21 @@
 
     // Populate semester and subject dropdowns inside the modal
     async function setupModalCurriculum() {
-      if (!modalSemestersList || modalSemestersList.length === 0) {
+      const isTeacher = academicContext && academicContext.role === 'teacher';
+      if (isTeacher) {
+        try {
+          const res = await fetch('/api/code-lab/subjects');
+          const data = await res.json();
+          if (data && data.semesters) {
+            modalSemestersList = data.semesters.map(s => ({
+              rawSemester: String(s.semester),
+              year: s.year || '',
+              fullLabel: `Semester ${s.semester}`,
+              courses: s.courses || []
+            }));
+          }
+        } catch (_) {}
+      } else if (!modalSemestersList || modalSemestersList.length === 0) {
         if (syllabusData) {
           try {
             modalSemestersList = SyllabusHelper.getFormattedSemesters(syllabusData);
@@ -3924,7 +4040,40 @@
         window.AcademicContext.renderBadge('#clHeroAcademicBadge');
       }
 
+      // Check authentication
+      if (!academicContext || !academicContext.authenticated) {
+        const createBtn = document.getElementById('dashCreateAssignBtn');
+        if (createBtn) createBtn.style.display = 'none';
+        const semWrap = document.getElementById('semDropdownWrap');
+        if (semWrap) semWrap.style.display = 'none';
+        const feedHeading = document.querySelector('.feed-heading');
+        if (feedHeading) feedHeading.style.display = 'none';
+        const mainWrap = document.querySelector('.cl-page-wrap');
+        const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        if (mainWrap) {
+          mainWrap.innerHTML = `
+            <div class="auth-gate-card">
+              <div class="auth-gate-icon">
+                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </div>
+              <h2 class="auth-gate-title">You're not logged in.</h2>
+              <p class="auth-gate-desc">Log in to view assignments relevant to your semester and subjects.</p>
+              <a href="/login.html?redirect=${returnUrl}" class="auth-gate-btn">Log In</a>
+            </div>
+          `;
+        }
+        return;
+      }
+
       const isStaff = academicContext && (academicContext.role === 'teacher' || academicContext.role === 'admin');
+      const createBtn = document.getElementById('dashCreateAssignBtn');
+      if (createBtn) {
+        createBtn.style.display = isStaff ? 'inline-flex' : 'none';
+      }
+
       const semWrap = document.getElementById('semDropdownWrap');
       if (!isStaff) {
         // Students and CRs: hide the manual semester dropdown!
@@ -3932,6 +4081,30 @@
         if (semWrap) semWrap.style.display = 'none';
         if (academicContext && academicContext.currentSemester) {
           currentSemesterFilter = String(academicContext.currentSemester);
+        }
+      } else if (academicContext.role === 'teacher') {
+        // Teachers: customize semester dropdown to only show their assigned semesters
+        const semDropdownMenu = document.getElementById('semDropdownMenu');
+        const semDropdownTrigger = document.getElementById('semDropdownTrigger');
+        if (semDropdownMenu && semDropdownWrap) {
+          const teacherSemNums = new Set((academicContext.assignedSubjects || []).map(s => Number(s.semester)));
+          let menuHtml = '<div class="cl-dropdown-item active" data-sem="">All My Semesters</div>';
+          [1, 2, 3, 4, 5, 6, 7, 8].forEach(semNum => {
+            if (teacherSemNums.has(semNum)) {
+              const roman = ROMAN_MAP[semNum] || '';
+              menuHtml += `<div class="cl-dropdown-item" data-sem="${semNum}">Semester ${semNum} (${roman})</div>`;
+            }
+          });
+          semDropdownMenu.innerHTML = menuHtml;
+          semDropdownMenu.querySelectorAll('.cl-dropdown-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+              e.stopPropagation();
+              setSemesterFilter(item.dataset.sem);
+              semDropdownWrap.classList.remove('open');
+              if (semDropdownTrigger) semDropdownTrigger.setAttribute('aria-expanded', 'false');
+              renderAssignmentsFeed();
+            });
+          });
         }
       }
 

@@ -408,7 +408,7 @@ function StudentLibraryView() {
         <Text style={[styles.headerWordmark, { color: colors.text }]}>
           Semester Library
         </Text>
-        {Boolean(displayLabel) && (
+        {isStaff && Boolean(displayLabel) && (
           <View
             style={[
               styles.academicBadge,
@@ -448,20 +448,22 @@ function StudentLibraryView() {
           <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => setUploadModalOpen(true)}
-          style={[
-            styles.headerActionBtn,
-            {
-              backgroundColor: colors.surfaceRaised,
-              borderColor: colors.border,
-            },
-          ]}
-          accessibilityLabel="Add note"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="add" size={22} color={colors.text} />
-        </TouchableOpacity>
+        {isStaff && (
+          <TouchableOpacity
+            onPress={() => setUploadModalOpen(true)}
+            style={[
+              styles.headerActionBtn,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+              },
+            ]}
+            accessibilityLabel="Add note"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="add" size={22} color={colors.text} />
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           onPress={() => router.push('/(tabs)/profile')}
@@ -619,8 +621,8 @@ function StudentLibraryView() {
               icon="folder-open-outline"
               title="No Notes Yet"
               description={`No study materials have been uploaded for ${selectedChapter.title} yet.`}
-              actionTitle="Upload Note"
-              onAction={() => setUploadModalOpen(true)}
+              actionTitle={isStaff ? "Upload Note" : undefined}
+              onAction={isStaff ? () => setUploadModalOpen(true) : undefined}
             />
           )}
 
@@ -944,11 +946,11 @@ function StudentLibraryView() {
           <View style={[styles.sectionRow, { marginBottom: spacing.sm }]}>
             <View>
               <Subheading>Subjects & Curriculum</Subheading>
-              {Boolean(displayLabel) && (
+              {isStaff && Boolean(displayLabel) && (
                 <Caption color="muted">{displayLabel}</Caption>
               )}
             </View>
-            <Caption color="muted">{subjects.length} Available</Caption>
+            {isStaff && <Caption color="muted">{subjects.length} Available</Caption>}
           </View>
 
           {/* Subjects List */}
@@ -992,56 +994,23 @@ function StudentLibraryView() {
                   </Text>
 
                   {/* Bottom Row */}
-                    <View style={styles.subjectBottomRow}>
-                      <Caption color="secondary">
-                        {unitCount} Syllabus {unitCount === 1 ? 'Unit' : 'Units'} • Notes & PYQs
-                      </Caption>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        {subject.code !== 'CUSTOM' && (
-                          <TouchableOpacity
-                            activeOpacity={0.75}
-                            onPress={(e) => {
-                              e.stopPropagation();
-                              router.push({
-                                pathname: '/syllabus',
-                                params: {
-                                  course: subject.code || subject.title,
-                                  semester: currentSemester.semester,
-                                  fromLibrary: '1',
-                                },
-                              } as any);
-                            }}
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              backgroundColor: colors.surfaceRaised,
-                              borderColor: colors.border,
-                              borderWidth: 1,
-                              borderRadius: radii.sm,
-                              paddingHorizontal: 8,
-                              paddingVertical: 4,
-                            }}
-                          >
-                            <Ionicons name="book-outline" size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                            <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 11 }}>
-                              View Syllabus
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                        <View
-                          style={[
-                            styles.openPill,
-                            {
-                              backgroundColor: colors.surfaceSubtle,
-                              borderColor: colors.borderSubtle,
-                              borderRadius: radii.pill,
-                            },
-                          ]}
-                        >
-                          <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
-                        </View>
-                      </View>
+                  <View style={styles.subjectBottomRow}>
+                    <Caption color="secondary">
+                      {unitCount} Syllabus {unitCount === 1 ? 'Unit' : 'Units'} • Notes & PYQs
+                    </Caption>
+                    <View
+                      style={[
+                        styles.openPill,
+                        {
+                          backgroundColor: colors.surfaceSubtle,
+                          borderColor: colors.borderSubtle,
+                          borderRadius: radii.pill,
+                        },
+                      ]}
+                    >
+                      <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
                     </View>
+                  </View>
                 </View>
               </Card>
             );

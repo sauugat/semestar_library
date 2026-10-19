@@ -1,8 +1,9 @@
 /**
  * Standalone Three.js Loader & Validator for Gandaki University Campus Layout JSON
  * --------------------------------------------------------------------------------
- * Single source of truth for building positions, sizes, rotations and ground areas
- * from `/semester-library/gandaki-campus-layout.json` (format: "gandaki-campus-layout", v1.0.0).
+ * Single source of truth for building positions, sizes, rotations, ground areas,
+ * architectural components, vehicles, nature, lighting, props, and gameplay markers
+ * from `/semester-library/gandaki-campus-layout.json` (format: "gandaki-campus-layout", v1.0.0 / v1.1.0).
  */
 
 export interface CampusVec3 {
@@ -11,13 +12,26 @@ export interface CampusVec3 {
   z: number;
 }
 
-export const SUPPORTED_CAMPUS_OBJECT_TYPES = ['building', 'road', 'ground_area'] as const;
+export const SUPPORTED_CAMPUS_OBJECT_TYPES = [
+  'building',
+  'architecture',
+  'road',
+  'ground_area',
+  'nature',
+  'lighting',
+  'prop',
+  'vehicle',
+  'gameplay_marker',
+  'sound_marker',
+] as const;
 export type SupportedCampusObjectType = (typeof SUPPORTED_CAMPUS_OBJECT_TYPES)[number];
 
 export interface CampusLayoutObject {
   id: string;
   name: string;
   type: SupportedCampusObjectType | string;
+  assetId?: string;
+  isPlaceholder?: boolean;
   /** Bottom-center ground position in meters (Y = base elevation, 0 = ground plane) */
   position: CampusVec3;
   /** Precomputed 3D mesh center (Y = position.y + dimensions.height / 2) */
@@ -27,15 +41,37 @@ export interface CampusLayoutObject {
     height: number;
     depth: number;
   };
+  scale?: CampusVec3;
   rotation: {
+    xDeg?: number;
     yDeg: number;
-    yRad: number;
+    zDeg?: number;
+    yRad?: number;
   };
   /** Precomputed world-space Axis-Aligned Bounding Box (AABB) for server/client colliders */
   collider?: {
     min: CampusVec3;
     max: CampusVec3;
   };
+  /** Precomputed Oriented Bounding Box (OBB) for rotated structures & vehicles */
+  obbCollider?: {
+    center: CampusVec3;
+    halfExtents: CampusVec3;
+    yDeg: number;
+    yRad: number;
+  };
+  collision?: {
+    enabled: boolean;
+    shape?: 'auto' | 'obb' | 'aabb' | 'cylinder' | 'none' | string;
+  };
+  visible?: boolean;
+  locked?: boolean;
+  groupId?: string;
+  lightMeta?: Record<string, any>;
+  gameplayMeta?: Record<string, any>;
+  soundMeta?: Record<string, any>;
+  vehicleMeta?: Record<string, any>;
+  [key: string]: any;
 }
 
 export interface CampusLayoutDocument {
@@ -95,11 +131,17 @@ export function computeObjectWorldAABB(obj: CampusLayoutObject): { min: CampusVe
       max: { ...obj.collider.max },
     };
   }
+  const sx = obj.scale?.x ?? 1;
+  const sy = obj.scale?.y ?? 1;
+  const sz = obj.scale?.z ?? 1;
+  const w = (obj.dimensions?.width ?? 1) * sx;
+  const h = (obj.dimensions?.height ?? 0.1) * sy;
+  const d = (obj.dimensions?.depth ?? 1) * sz;
   const rotRad = obj.rotation?.yRad ?? ((obj.rotation?.yDeg ?? 0) * Math.PI) / 180;
   const c = Math.abs(Math.cos(rotRad));
   const s = Math.abs(Math.sin(rotRad));
-  const halfW = (obj.dimensions.width * c + obj.dimensions.depth * s) * 0.5;
-  const halfD = (obj.dimensions.width * s + obj.dimensions.depth * c) * 0.5;
+  const halfW = (w * c + d * s) * 0.5;
+  const halfD = (w * s + d * c) * 0.5;
   return {
     min: {
       x: obj.position.x - halfW,
@@ -108,7 +150,7 @@ export function computeObjectWorldAABB(obj: CampusLayoutObject): { min: CampusVe
     },
     max: {
       x: obj.position.x + halfW,
-      y: obj.position.y + obj.dimensions.height,
+      y: obj.position.y + h,
       z: obj.position.z + halfD,
     },
   };
@@ -126,7 +168,7 @@ export function validateCampusLayout(
     logger?: Pick<Console, 'warn' | 'info'>;
   }
 ): CampusLayoutValidationResult {
-  const mapBound = options?.mapBound ?? 88.0;
+  const mapBound = options?.mapBound ?? 140.0;
   const logWarnings = options?.logWarnings ?? true;
   const logger = options?.logger ?? console;
 
@@ -237,7 +279,7 @@ export function loadCampusLayoutIntoScene(
   }
 ) {
   const validation = validateCampusLayout(layout, {
-    mapBound: options?.mapBound ?? 88.0,
+    mapBound: options?.mapBound ?? 140.0,
     logWarnings: options?.logValidation ?? true,
   });
 
@@ -250,15 +292,29 @@ export function loadCampusLayoutIntoScene(
 
   const materials: Record<string, any> = {
     building: new THREE.MeshStandardMaterial({ color: 0x949ea8, roughness: 0.72, metalness: 0.08 }),
+    architecture: new THREE.MeshStandardMaterial({ color: 0x88929c, roughness: 0.72, metalness: 0.08 }),
     road: new THREE.MeshStandardMaterial({ color: 0x333942, roughness: 0.88, metalness: 0.04 }),
     ground_area: new THREE.MeshStandardMaterial({ color: 0x4b5563, roughness: 0.85, metalness: 0.04 }),
+    nature: new THREE.MeshStandardMaterial({ color: 0x3f5e42, roughness: 0.88, metalness: 0.02 }),
+    lighting: new THREE.MeshStandardMaterial({ color: 0xd99445, roughness: 0.45, metalness: 0.25 }),
+    prop: new THREE.MeshStandardMaterial({ color: 0x78726a, roughness: 0.78, metalness: 0.12 }),
+    vehicle: new THREE.MeshStandardMaterial({ color: 0xb9851e, roughness: 0.58, metalness: 0.22 }),
   };
 
   for (const obj of layout.objects || []) {
     if (!(SUPPORTED_CAMPUS_OBJECT_TYPES as readonly string[]).includes(obj.type)) {
       continue;
     }
-    const { width, height, depth } = obj.dimensions;
+    if (obj.visible === false || obj.type === 'gameplay_marker' || obj.type === 'sound_marker') {
+      continue;
+    }
+    const sx = obj.scale?.x ?? 1;
+    const sy = obj.scale?.y ?? 1;
+    const sz = obj.scale?.z ?? 1;
+    const width = (obj.dimensions?.width ?? 1) * sx;
+    const height = (obj.dimensions?.height ?? 0.1) * sy;
+    const depth = (obj.dimensions?.depth ?? 1) * sz;
+
     const geo = new THREE.BoxGeometry(width, height, depth);
     const mat = materials[obj.type] || materials.building;
     const mesh = new THREE.Mesh(geo, mat);
@@ -273,7 +329,7 @@ export function loadCampusLayoutIntoScene(
 
     const baseY = obj.position.y + baseElevation;
     const centerY = baseY + height * 0.5;
-    const rotYRad = obj.rotation?.yRad ?? (obj.rotation.yDeg * Math.PI) / 180;
+    const rotYRad = obj.rotation?.yRad ?? ((obj.rotation?.yDeg ?? 0) * Math.PI) / 180;
 
     mesh.position.set(obj.position.x, centerY, obj.position.z);
     mesh.rotation.y = rotYRad;
@@ -282,14 +338,20 @@ export function loadCampusLayoutIntoScene(
       layoutId: obj.id,
       layoutName: obj.name,
       layoutType: obj.type,
+      assetId: obj.assetId,
       baseY,
     };
 
     group.add(mesh);
 
-    // Register solid building colliders for player/seeker movement & line-of-sight
-    if (obj.type === 'building') {
-      if (options?.onRegisterOBBCollider) {
+    // Register solid colliders when enabled (buildings, architecture, vehicles, or solid props)
+    const isSolid =
+      obj.collision && typeof obj.collision.enabled === 'boolean'
+        ? obj.collision.enabled
+        : obj.type === 'building' || obj.type === 'architecture' || obj.type === 'vehicle';
+
+    if (isSolid) {
+      if (options?.onRegisterOBBCollider && (obj.collision?.shape !== 'aabb')) {
         options.onRegisterOBBCollider(
           obj.position.x,
           obj.position.z,

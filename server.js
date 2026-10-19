@@ -2816,7 +2816,26 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
 
   const academicCtx = await getAcademicContext(db, req);
 
+  if (!isAdmin && academicCtx.role !== 'teacher') {
+    for (const f of uploadedFiles) {
+      const tempPath = path.join(UPLOAD_DIR, f.filename);
+      if (isSafeUploadPath(tempPath) && fs.existsSync(tempPath)) {
+        try { fs.unlinkSync(tempPath); } catch (_) {}
+      }
+    }
+    return res.status(403).json({ message: 'Forbidden: Students are not authorized to upload library notes.' });
+  }
+
   if (academicCtx.role === 'teacher') {
+    if (!subject) {
+      for (const f of uploadedFiles) {
+        const tempPath = path.join(UPLOAD_DIR, f.filename);
+        if (isSafeUploadPath(tempPath) && fs.existsSync(tempPath)) {
+          try { fs.unlinkSync(tempPath); } catch (_) {}
+        }
+      }
+      return res.status(400).json({ message: 'Subject is required for teacher uploads.' });
+    }
     const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
     try {
       const authSub = await validateTeacherSubjectAuthorization(
@@ -3112,7 +3131,25 @@ function verifyUploadToken(token, { studentId, storedName, size, ext }) {
 
 // Issue server authorization and pre-assigned filename for direct-to-storage uploads
 app.post('/api/files/authorize-upload', requireLogin, async (req, res) => {
-  const { filename, size, mimeType } = req.body || {};
+  const currentStudentId = req.session?.studentId || req.user?.studentId;
+  const isAdmin = await isStudentAdmin(currentStudentId);
+  const academicCtx = await getAcademicContext(db, req);
+
+  if (!isAdmin && academicCtx.role !== 'teacher') {
+    return res.status(403).json({ message: 'Forbidden: Students are not authorized to upload library notes.' });
+  }
+
+  const { filename, size, mimeType, subject, semester } = req.body || {};
+
+  if (academicCtx.role === 'teacher' && subject) {
+    const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+    try {
+      await validateTeacherSubjectAuthorization(db, academicCtx.studentId, subject, semester || req.body.semester_no);
+    } catch (authErr) {
+      return res.status(authErr.status || 403).json({ message: authErr.message });
+    }
+  }
+
   if (!filename || typeof filename !== 'string') {
     return res.status(400).json({ message: 'Filename is required.' });
   }
@@ -3145,6 +3182,14 @@ app.post('/api/files/authorize-upload', requireLogin, async (req, res) => {
 
 // Record direct client-to-Supabase Storage uploads
 app.post('/api/files/record-upload', requireLogin, async (req, res) => {
+  const currentStudentId = req.session?.studentId || req.user?.studentId;
+  const isAdmin = await isStudentAdmin(currentStudentId);
+  const academicCtx = await getAcademicContext(db, req);
+
+  if (!isAdmin && academicCtx.role !== 'teacher') {
+    return res.status(403).json({ message: 'Forbidden: Students are not authorized to manage library notes.' });
+  }
+
   const { files: uploadedFiles, title, semester, subject, chapter } = req.body;
   if (!uploadedFiles || !Array.isArray(uploadedFiles) || uploadedFiles.length === 0) {
     return res.status(400).json({ message: 'No file information provided.' });
@@ -3154,12 +3199,11 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
   let cleanSubject = (subject || '').trim() || null;
   const cleanChapter = (chapter || '').trim() || null;
   const cleanTitle = (title || '').trim() || null;
-  const currentStudentId = req.session?.studentId || req.user?.studentId;
-
-  const isAdmin = await isStudentAdmin(currentStudentId);
-  const academicCtx = await getAcademicContext(db, req);
 
   if (academicCtx.role === 'teacher') {
+    if (!cleanSubject) {
+      return res.status(400).json({ message: 'Subject is required for teacher uploads.' });
+    }
     const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
     try {
       const authSub = await validateTeacherSubjectAuthorization(
@@ -3421,11 +3465,11 @@ app.get('/api/files', requireLogin, async (req, res) => {
   const isFeedRequest = req.query.feed === '1' || req.query.context === 'feed';
   let teacherFeedSql = '';
   const teacherFeedParams = [];
+  let teacherSubjects = [];
 
   const isTeacher = context.role === 'teacher' || context.role === 'faculty';
-  if (isTeacher && isFeedRequest) {
+  if (isTeacher) {
     const activeTeacherId = req.session?.studentId || context.studentId || req.user?.studentId || req.student?.studentId;
-    let teacherSubjects = [];
     try {
       const { getTeacherSubjects } = require('./lib/teacher-service');
       teacherSubjects = await getTeacherSubjects(db, activeTeacherId);
@@ -3435,26 +3479,28 @@ app.get('/api/files', requireLogin, async (req, res) => {
       teacherSubjects = req.user?.subjects || context.subjects || [];
     }
 
-    const subTerms = [];
-    for (const s of (teacherSubjects || [])) {
-      if (s.name) subTerms.push(s.name.trim().toLowerCase());
-      if (s.code) subTerms.push(s.code.trim().toLowerCase());
-      if (s.title) subTerms.push(s.title.trim().toLowerCase());
-    }
-
-    if (subTerms.length > 0) {
-      const orParts = ['files.uploadedBy = ?'];
-      teacherFeedParams.push(activeTeacherId);
-      for (const term of subTerms) {
-        orParts.push('LOWER(files.subject) = ?');
-        teacherFeedParams.push(term);
-        orParts.push('LOWER(files.subject) LIKE ?');
-        teacherFeedParams.push(`%${term}%`);
+    if (isFeedRequest) {
+      const subTerms = [];
+      for (const s of (teacherSubjects || [])) {
+        if (s.name) subTerms.push(s.name.trim().toLowerCase());
+        if (s.code) subTerms.push(s.code.trim().toLowerCase());
+        if (s.title) subTerms.push(s.title.trim().toLowerCase());
       }
-      teacherFeedSql = ` AND (${orParts.join(' OR ')})`;
-    } else {
-      teacherFeedSql = ' AND files.uploadedBy = ?';
-      teacherFeedParams.push(activeTeacherId);
+
+      if (subTerms.length > 0) {
+        const orParts = ['files.uploadedBy = ?'];
+        teacherFeedParams.push(activeTeacherId);
+        for (const term of subTerms) {
+          orParts.push('LOWER(files.subject) = ?');
+          teacherFeedParams.push(term);
+          orParts.push('LOWER(files.subject) LIKE ?');
+          teacherFeedParams.push(`%${term}%`);
+        }
+        teacherFeedSql = ` AND (${orParts.join(' OR ')})`;
+      } else {
+        teacherFeedSql = ' AND files.uploadedBy = ?';
+        teacherFeedParams.push(activeTeacherId);
+      }
     }
   }
 
@@ -3484,6 +3530,14 @@ app.get('/api/files', requireLogin, async (req, res) => {
     db.all(query, ...queryParams)
   ]);
 
+  const teacherSubjectSet = new Set(
+    (teacherSubjects || []).flatMap(s => [
+      (s.name || '').trim().toLowerCase(),
+      (s.code || '').trim().toLowerCase(),
+      (s.id || '').trim().toLowerCase()
+    ]).filter(Boolean)
+  );
+
   const processed = files.map(f => ({
     ...f,
     cohortId: f.cohort_id || f.cohortId || null,
@@ -3494,13 +3548,13 @@ app.get('/api/files', requireLogin, async (req, res) => {
     audience_scope: f.audience_scope || f.audienceScope || 'cohort',
     uploaderRole: f.uploaderRole || 'student',
     isOfficial: f.uploaderRole === 'admin',
-    canDelete: viewerIsAdmin || f.uploadedBy === req.session.studentId
+    canDelete: viewerIsAdmin || (context.role === 'teacher' && teacherSubjectSet.has(String(f.subject || '').trim().toLowerCase()))
   }));
 
   res.json(processed);
 });
 
-// Delete a post/file (Admins can delete any post; students can only delete their own)
+// Delete a post/file (Admins can delete any post; teachers can only delete notes for authorized subjects)
 app.delete('/api/files/:id', requireLogin, async (req, res) => {
   const fileId = req.params.id;
   const studentId = req.session.studentId;
@@ -3512,15 +3566,25 @@ app.delete('/api/files/:id', requireLogin, async (req, res) => {
   }
 
   const isAdmin = viewer.role === 'admin';
+  const isTeacher = viewer.role === 'teacher';
+
+  if (!isAdmin && !isTeacher) {
+    return res.status(403).json({ message: 'Forbidden: Students are not authorized to delete library notes.' });
+  }
+
   const file = await db.get('SELECT * FROM files WHERE id = ?', fileId);
 
   if (!file) {
     return res.status(404).json({ message: 'File/post not found' });
   }
 
-  // Permission Check: only admin or original uploader
-  if (!isAdmin && file.uploadedBy !== studentId) {
-    return res.status(403).json({ message: 'Forbidden: You can only delete your own posts.' });
+  if (isTeacher) {
+    const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+    try {
+      await validateTeacherSubjectAuthorization(db, studentId, file.subject);
+    } catch (authErr) {
+      return res.status(authErr.status || 403).json({ message: authErr.message });
+    }
   }
 
   // Remove physical file and preview from uploads/ and persistent blob store
@@ -3564,11 +3628,22 @@ app.post('/api/files/:id/delete', requireLogin, async (req, res) => {
   if (!viewer) return res.status(401).json({ message: 'Authentication required' });
 
   const isAdmin = viewer.role === 'admin';
+  const isTeacher = viewer.role === 'teacher';
+
+  if (!isAdmin && !isTeacher) {
+    return res.status(403).json({ message: 'Forbidden: Students are not authorized to delete library notes.' });
+  }
+
   const file = await db.get('SELECT * FROM files WHERE id = ?', fileId);
   if (!file) return res.status(404).json({ message: 'File/post not found' });
 
-  if (!isAdmin && file.uploadedBy !== studentId) {
-    return res.status(403).json({ message: 'Forbidden: You can only delete your own posts.' });
+  if (isTeacher) {
+    const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+    try {
+      await validateTeacherSubjectAuthorization(db, studentId, file.subject);
+    } catch (authErr) {
+      return res.status(authErr.status || 403).json({ message: authErr.message });
+    }
   }
 
   const filePath = path.join(UPLOAD_DIR, path.basename(file.storedName));
@@ -3607,6 +3682,11 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
   const viewer = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
   if (!viewer) return res.status(401).json({ message: 'Authentication required' });
   const isAdmin = viewer.role === 'admin';
+  const isTeacher = viewer.role === 'teacher';
+
+  if (!isAdmin && !isTeacher) {
+    return res.status(403).json({ message: 'Forbidden: Students are not authorized to delete library notes.' });
+  }
 
   let { subject, chapter, fileIds } = req.body || {};
   let targetFiles = [];
@@ -3615,11 +3695,7 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
     const placeholders = fileIds.map(() => '?').join(',');
     targetFiles = await db.all(`SELECT * FROM files WHERE id IN (${placeholders})`, ...fileIds);
   } else if (subject && chapter) {
-    if (isAdmin) {
-      targetFiles = await db.all('SELECT * FROM files WHERE subject = ? AND chapter = ?', subject, chapter);
-    } else {
-      targetFiles = await db.all('SELECT * FROM files WHERE subject = ? AND chapter = ? AND uploadedBy = ?', subject, chapter, studentId);
-    }
+    targetFiles = await db.all('SELECT * FROM files WHERE subject = ? AND chapter = ?', subject, chapter);
   } else {
     return res.status(400).json({ message: 'Missing subject/chapter or fileIds parameter' });
   }
@@ -3628,9 +3704,15 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
     return res.status(404).json({ message: 'No deletable files found for this chapter.' });
   }
 
-  // Security enforcement: Non-admins can only delete files they themselves uploaded
-  if (!isAdmin) {
-    targetFiles = targetFiles.filter(f => f.uploadedBy === studentId);
+  if (isTeacher) {
+    const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+    for (const f of targetFiles) {
+      try {
+        await validateTeacherSubjectAuthorization(db, studentId, f.subject);
+      } catch (authErr) {
+        return res.status(authErr.status || 403).json({ message: `Teacher is not authorized to delete notes for subject "${f.subject}".` });
+      }
+    }
   }
 
   if (targetFiles.length === 0) {
@@ -3672,6 +3754,109 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
     count: deletedCount,
     message: `Successfully deleted ${deletedCount} note${deletedCount === 1 ? '' : 's'} from ${chapter || 'unit'}`
   });
+});
+
+// Edit note details (Title, Subject, Chapter) — Restricted to Admins and authorized Teachers only
+app.patch(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, res) => {
+  const fileId = req.params.id;
+  const studentId = req.session.studentId;
+  const viewer = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
+  if (!viewer) return res.status(401).json({ message: 'Authentication required' });
+  const isAdmin = viewer.role === 'admin';
+  const isTeacher = viewer.role === 'teacher';
+
+  if (!isAdmin && !isTeacher) {
+    return res.status(403).json({ message: 'Forbidden: Students are not authorized to edit library notes.' });
+  }
+
+  const file = await db.get('SELECT * FROM files WHERE id = ?', fileId);
+  if (!file) return res.status(404).json({ message: 'File/post not found' });
+
+  if (isTeacher) {
+    const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+    try {
+      await validateTeacherSubjectAuthorization(db, studentId, file.subject);
+      if (req.body.subject && String(req.body.subject).trim() !== file.subject) {
+        await validateTeacherSubjectAuthorization(db, studentId, String(req.body.subject).trim());
+      }
+    } catch (authErr) {
+      return res.status(authErr.status || 403).json({ message: authErr.message });
+    }
+  }
+
+  const updates = [];
+  const params = [];
+  if (req.body.title !== undefined) {
+    updates.push('title = ?');
+    params.push(String(req.body.title).trim());
+  }
+  if (req.body.subject !== undefined) {
+    updates.push('subject = ?');
+    params.push(String(req.body.subject).trim());
+  }
+  if (req.body.chapter !== undefined) {
+    updates.push('chapter = ?');
+    params.push(String(req.body.chapter).trim());
+  }
+
+  if (updates.length > 0) {
+    params.push(fileId);
+    await db.run(`UPDATE files SET ${updates.join(', ')} WHERE id = ?`, ...params);
+  }
+
+  const updatedFile = await db.get('SELECT * FROM files WHERE id = ?', fileId);
+  res.json({ success: true, file: updatedFile });
+});
+
+app.put(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, res) => {
+  const fileId = req.params.id;
+  const studentId = req.session.studentId;
+  const viewer = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
+  if (!viewer) return res.status(401).json({ message: 'Authentication required' });
+  const isAdmin = viewer.role === 'admin';
+  const isTeacher = viewer.role === 'teacher';
+
+  if (!isAdmin && !isTeacher) {
+    return res.status(403).json({ message: 'Forbidden: Students are not authorized to edit library notes.' });
+  }
+
+  const file = await db.get('SELECT * FROM files WHERE id = ?', fileId);
+  if (!file) return res.status(404).json({ message: 'File/post not found' });
+
+  if (isTeacher) {
+    const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+    try {
+      await validateTeacherSubjectAuthorization(db, studentId, file.subject);
+      if (req.body.subject && String(req.body.subject).trim() !== file.subject) {
+        await validateTeacherSubjectAuthorization(db, studentId, String(req.body.subject).trim());
+      }
+    } catch (authErr) {
+      return res.status(authErr.status || 403).json({ message: authErr.message });
+    }
+  }
+
+  const updates = [];
+  const params = [];
+  if (req.body.title !== undefined) {
+    updates.push('title = ?');
+    params.push(String(req.body.title).trim());
+  }
+  if (req.body.subject !== undefined) {
+    updates.push('subject = ?');
+    params.push(String(req.body.subject).trim());
+  }
+  if (req.body.chapter !== undefined) {
+    updates.push('chapter = ?');
+    params.push(String(req.body.chapter).trim());
+  }
+
+  if (updates.length > 0) {
+    params.push(fileId);
+    await db.run(`UPDATE files SET ${updates.join(', ')} WHERE id = ?`, ...params);
+  }
+
+  const updatedFile = await db.get('SELECT * FROM files WHERE id = ?', fileId);
+  res.json({ success: true, file: updatedFile });
 });
 
 app.get(['/api/files/:id/download', '/api/files/download/:id'], requireLogin, async (req, res) => {

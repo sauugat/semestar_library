@@ -704,6 +704,7 @@
   </footer>
 
   <script src="/auth-modal.js"></script>
+  <script src="/academic-context.js"></script>
   <script src="/syllabus-helper.js"></script>
   <script src="/code-lab/utils.js"></script>
   <script>
@@ -723,12 +724,41 @@
     }
 
     async function init() {
+      let academicCtx = null;
+      if (window.AcademicContext) {
+        academicCtx = await window.AcademicContext.getAcademicContext();
+      }
+
+      // Teachers & Admins ONLY: Students cannot create assignments
+      if (!academicCtx || !academicCtx.authenticated || academicCtx.isStudent || (!academicCtx.isStaff && academicCtx.role !== 'teacher' && academicCtx.role !== 'admin')) {
+        window.location.replace('/code-lab/subjects.html');
+        return;
+      }
+
       let semesters = [];
-      try {
-        syllabusData = await SyllabusHelper.loadSyllabusData();
-        semesters = SyllabusHelper.getFormattedSemesters(syllabusData);
-      } catch (e) {
-        console.warn('SyllabusHelper load failed:', e);
+      const isTeacher = academicCtx.role === 'teacher';
+      if (isTeacher) {
+        try {
+          const res = await fetch('/api/code-lab/subjects');
+          const data = await res.json();
+          if (data && data.semesters) {
+            semesters = data.semesters.map(s => ({
+              rawSemester: String(s.semester),
+              year: s.year || '',
+              fullLabel: `Semester ${s.semester}`,
+              courses: s.courses || []
+            }));
+          }
+        } catch (e) {
+          console.error('Failed to load teacher subjects from API:', e);
+        }
+      } else {
+        try {
+          syllabusData = await SyllabusHelper.loadSyllabusData();
+          semesters = SyllabusHelper.getFormattedSemesters(syllabusData);
+        } catch (e) {
+          console.warn('SyllabusHelper load failed:', e);
+        }
       }
 
       // Robust fallback from backend API if empty

@@ -7282,9 +7282,9 @@ export function getHideAndSeekHtml(): string {
             doorX: dCoord,
             doorZ: wallEdgeZ,
             outsideX: dCoord,
-            outsideZ: outerZ + doorDirSign * 0.95,
+            outsideZ: outerZ + doorDirSign * 0.45,
             insideX: dCoord,
-            insideZ: wallEdgeZ - doorDirSign * 1.15,
+            insideZ: wallEdgeZ - doorDirSign * 0.55,
             outsideY: TERRACE_HEIGHT,
             insideY: BUILDING_FLOOR_Y,
           });
@@ -7328,9 +7328,9 @@ export function getHideAndSeekHtml(): string {
             doorDirSign,
             doorX: wallEdgeX,
             doorZ: dCoord,
-            outsideX: outerX + doorDirSign * 0.95,
+            outsideX: outerX + doorDirSign * 0.45,
             outsideZ: dCoord,
-            insideX: wallEdgeX - doorDirSign * 1.15,
+            insideX: wallEdgeX - doorDirSign * 0.55,
             insideZ: dCoord,
             outsideY: TERRACE_HEIGHT,
             insideY: BUILDING_FLOOR_Y,
@@ -9638,16 +9638,17 @@ export function getHideAndSeekHtml(): string {
       });
 
       // Side Wall Wooden Bookshelf + Upper Wall Shelves with Books + Simplified Box Collider + Under-Bookcase AO
+      const bcSignX = unitCenterX > 15 ? 1 : -1;
       const bookcase = new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.95, 2.1), materials.chairWood);
-      bookcase.position.set(-3.15, 0.98, 0.4);
+      bookcase.position.set(bcSignX * 3.15, 0.98, 0.4);
       cGroup.add(bookcase);
-      addUnderFurnitureAO(cGroup, -3.12, 0.4, 0.72, 2.35);
+      addUnderFurnitureAO(cGroup, bcSignX * 3.12, 0.4, 0.72, 2.35);
       const bookRow = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 1.85), materials.gandakiBluePole);
-      bookRow.position.set(-3.10, 1.35, 0.4);
+      bookRow.position.set(bcSignX * 3.10, 1.35, 0.4);
       cGroup.add(bookRow);
       addColliderBox(new THREE.Box3(
-        new THREE.Vector3(unitCenterX - 3.38, floorY, unitCenterZ + 0.4 - 1.05),
-        new THREE.Vector3(unitCenterX - 2.92, floorY + 1.95, unitCenterZ + 0.4 + 1.05)
+        new THREE.Vector3(unitCenterX + bcSignX * 3.15 - 0.23, floorY, unitCenterZ + 0.4 - 1.05),
+        new THREE.Vector3(unitCenterX + bcSignX * 3.15 + 0.23, floorY + 1.95, unitCenterZ + 0.4 + 1.05)
       ), 'furniture');
 
       [1.45, 2.05].forEach((sy, sIdx) => {
@@ -10597,12 +10598,18 @@ export function getHideAndSeekHtml(): string {
     function getOrRegisterRoomDefinition(roomId, cx, cz, floorY, halfW = 3.8, halfD = 4.6, building = 'OTHER', archetype = 'classroom_standard', doorAxis = 'z', doorDirSign = -1) {
       const doorWpX = doorAxis === 'x' ? (cx + doorDirSign * (halfW - 0.3)) : cx;
       const doorWpZ = doorAxis === 'z' ? (cz + doorDirSign * (halfD - 0.3)) : cz;
+      const inWpX = building === 'ROTUNDA'
+        ? (cx + (cx < 0 ? 4.8 : -4.8))
+        : (doorAxis === 'x' ? (cx + doorDirSign * (halfW - 0.62)) : cx);
+      const inWpZ = building === 'ROTUNDA'
+        ? (cz - 4.8)
+        : (doorAxis === 'z' ? (cz + doorDirSign * (halfD - 0.62)) : cz);
       if (ROOM_DEFINITIONS[roomId]) {
         ROOM_DEFINITIONS[roomId].lightMood = normalizeRoomLightMood(ROOM_DEFINITIONS[roomId].lightMood);
         ROOM_DEFINITIONS[roomId].bounds = { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + 3.4 };
         ROOM_DEFINITIONS[roomId].waypoints = [
           { id: 'wp-' + roomId + '-door', x: doorWpX, y: floorY, z: doorWpZ, kind: 'door' },
-          { id: 'wp-' + roomId + '-in', x: cx, y: floorY, z: cz, kind: 'interior' },
+          { id: 'wp-' + roomId + '-in', x: inWpX, y: floorY, z: inWpZ, kind: 'interior' },
         ];
         return ROOM_DEFINITIONS[roomId];
       }
@@ -10617,7 +10624,7 @@ export function getHideAndSeekHtml(): string {
         hidingSpots: ['podium', 'student_desks'],
         waypoints: [
           { id: 'wp-' + roomId + '-door', x: doorWpX, y: floorY, z: doorWpZ, kind: 'door' },
-          { id: 'wp-' + roomId + '-in', x: cx, y: floorY, z: cz, kind: 'interior' },
+          { id: 'wp-' + roomId + '-in', x: inWpX, y: floorY, z: inWpZ, kind: 'interior' },
         ],
       };
       ROOM_DEFINITIONS[roomId] = def;
@@ -11201,10 +11208,10 @@ export function getHideAndSeekHtml(): string {
       scene.add(slab);
 
       addWalkableFloor(
-        cx - width / 2 - (doorSideX === -1 ? verandaW : 0.4),
-        cx + width / 2 + (doorSideX === 1 ? verandaW : 0.4),
-        cz - length / 2 - 0.5,
-        cz + length / 2 + 0.5,
+        cx - width / 2 - 0.32,
+        cx + width / 2 + 0.32,
+        cz - length / 2 - 0.32,
+        cz + length / 2 + 0.32,
         floorH
       );
 
@@ -11365,10 +11372,10 @@ export function getHideAndSeekHtml(): string {
       slab.position.set(cx, TERRACE_HEIGHT + PLINTH_HEIGHT * 0.5, cz + doorSide * (verandaDepth / 2 - 0.2));
       scene.add(slab);
       addWalkableFloor(
-        cx - width / 2 - 0.4,
-        cx + width / 2 + 0.4,
-        cz - depth / 2 - (doorSide === -1 ? verandaDepth : 0.4),
-        cz + depth / 2 + (doorSide === 1 ? verandaDepth : 0.4),
+        cx - width / 2 - 0.32,
+        cx + width / 2 + 0.32,
+        cz - depth / 2 - 0.32,
+        cz + depth / 2 + 0.32,
         floorH
       );
 
@@ -11560,7 +11567,7 @@ export function getHideAndSeekHtml(): string {
       const rightX  = cx + width / 2;
 
       // 1. Shared Raised Concrete Plinth & 3 Terrazzo Entrance Steps with Walkable Ramp (IMG_5839 3.JPG)
-      addWalkableFloor(leftX - 0.4, rightX + 0.4, frontZ - 1.4, backZ + 0.4, floor0Y);
+      addWalkableFloor(leftX - 0.32, rightX + 0.32, frontZ - 0.32, backZ + 0.32, floor0Y);
       buildSharedBuildingPlinthAndSteps(cx, cz, width, depth, [cx], 'z', -1, 'Office B1');
 
       // Row of 10 Red Terracotta Flower Pots with Flowering Plants along the Raised Plinth Ledge + Red Dustbin (IMG_5839 3.JPG!)
@@ -14583,43 +14590,44 @@ export function getHideAndSeekHtml(): string {
     }
 
     /* -------------------------------------------------------------------------
-       BUILD THE 3-STOREY GRAND ROTUNDA MAIN BUILDING (rotX = 6, rotZ = 64)
+       BUILD THE 3-STOREY GRAND ROTUNDA MAIN BUILDING (JSON bldg_main_rotunda at (0, 0, -110), 46m x 18m)
+       Raised onto TERRACE_HEIGHT (1.00m) + shared PLINTH_HEIGHT (0.25m -> rotFloor0 = BUILDING_FLOOR_Y = 1.25m)
        ------------------------------------------------------------------------- */
-    const rotX = 6.0, rotZ = 64.0;
-    const rotW = 38.0; // x from -13.0 to +25.0
-    const rotD = 14.0; // z from 57.0 to 71.0
-    const rotFrontZ = rotZ - rotD / 2; // 57.0
-    const rotBackZ = rotZ + rotD / 2;  // 71.0
-    const rotLeftX = rotX - rotW / 2;  // -13.0
-    const rotRightX = rotX + rotW / 2; // +25.0
+    const rotObj = getLayoutObj('bldg_main_rotunda', { position: { x: 0, y: 0, z: -110 }, dimensions: { width: 46, height: 11.5, depth: 18 } });
+    const rotX = rotObj.position.x, rotZ = rotObj.position.z;
+    const rotW = rotObj.dimensions.width; // 46.0 (x from -23.0 to +23.0)
+    const rotD = rotObj.dimensions.depth; // 18.0 (z from -119.0 to -101.0)
+    const rotFrontZ = rotZ - rotD / 2; // -119.0
+    const rotBackZ = rotZ + rotD / 2;  // -101.0
+    const rotLeftX = rotX - rotW / 2;  // -23.0
+    const rotRightX = rotX + rotW / 2; // +23.0
 
-    const rotFloor0 = 0.48;  // Ground Floor (1st Story)
-    const rotFloor1 = 4.08;  // 1st Floor (2nd Story)
-    const rotFloor2 = 7.68;  // 2nd Floor (3rd Story)
-    const rotEaveY  = 11.18; // Top of 3rd Story / Roof Eave Level
+    const rotFloor0 = BUILDING_FLOOR_Y;         // Ground Floor (1st Story, y = 1.25m)
+    const rotFloor1 = BUILDING_FLOOR_Y + 3.60;  // 1st Floor (2nd Story, y = 4.85m)
+    const rotFloor2 = BUILDING_FLOOR_Y + 7.20;  // 2nd Floor (3rd Story, y = 8.45m)
+    const rotEaveY  = BUILDING_FLOOR_Y + 10.70; // Top of 3rd Story / Roof Eave Level (y = 11.95m)
     const storyH    = 3.60;
     const topStoryH = 3.50;
     const rotFloorY = rotFloor0; // Alias for backward compatibility
+    const wingSpanEach = (rotW - 8.8) * 0.5; // 18.6m per side wing
+    const westWingCX = rotLeftX + wingSpanEach * 0.5;  // rotX - 13.7
+    const eastWingCX = rotRightX - wingSpanEach * 0.5; // rotX + 13.7
 
     // Helper: Build Hollow Exterior Perimeter Band (Front, Back, Left, Right strips ONLY)
-    // Prevents solid horizontal slabs from cutting through the 2nd & 3rd floor interiors!
     function buildPerimeterBand(yCenter, bandH, bandOutset, mat) {
       const stripT = 0.28;
       const totalW = rotW + bandOutset * 2;
       const totalD = rotD + bandOutset * 2;
-      // Front West & Front East strips (leaving central semicircular rotunda bay open)
-      const wingSpanW = 14.8 + bandOutset;
+      const wingSpanW = wingSpanEach + bandOutset;
       const fWest = new THREE.Mesh(new THREE.BoxGeometry(wingSpanW, bandH, stripT), mat);
       fWest.position.set(rotLeftX - bandOutset + wingSpanW / 2, yCenter, rotFrontZ - bandOutset);
       scene.add(fWest);
       const fEast = new THREE.Mesh(new THREE.BoxGeometry(wingSpanW, bandH, stripT), mat);
       fEast.position.set(rotRightX + bandOutset - wingSpanW / 2, yCenter, rotFrontZ - bandOutset);
       scene.add(fEast);
-      // Back full-width strip
       const bStrip = new THREE.Mesh(new THREE.BoxGeometry(totalW, bandH, stripT), mat);
       bStrip.position.set(rotX, yCenter, rotBackZ + bandOutset);
       scene.add(bStrip);
-      // Left & Right side strips
       const lStrip = new THREE.Mesh(new THREE.BoxGeometry(stripT, bandH, totalD), mat);
       lStrip.position.set(rotLeftX - bandOutset, yCenter, rotZ);
       scene.add(lStrip);
@@ -14628,19 +14636,19 @@ export function getHideAndSeekHtml(): string {
       scene.add(rStrip);
     }
 
-    // A. Raised Cement-Grey Concrete Plinth Base (IMG_5835 2.JPG) + Red Brick Toe Trim + Entrance Steps
+    // A. Raised Cement-Grey Concrete Plinth Base on the 1.00m Terrace + Red Brick Toe Trim + Portico Steps
     const mainPlinth = new THREE.Mesh(
-      new THREE.BoxGeometry(rotW + 0.6, rotFloor0, rotD + 0.6),
+      new THREE.BoxGeometry(rotW + PLINTH_OUTSET * 2, PLINTH_HEIGHT, rotD + PLINTH_OUTSET * 2),
       materials.rotundaPlinthConcrete
     );
-    mainPlinth.position.set(rotX, rotFloor0 / 2, rotZ);
+    mainPlinth.position.set(rotX, TERRACE_HEIGHT + PLINTH_HEIGHT * 0.5, rotZ);
     scene.add(mainPlinth);
 
     const redToeTrim = new THREE.Mesh(
-      new THREE.BoxGeometry(rotW + 0.85, 0.12, rotD + 0.85),
+      new THREE.BoxGeometry(rotW + PLINTH_OUTSET * 2 + 0.18, Math.min(0.10, PLINTH_HEIGHT * 0.4), rotD + PLINTH_OUTSET * 2 + 0.18),
       materials.rotundaRedSteel
     );
-    redToeTrim.position.set(rotX, 0.06, rotZ);
+    redToeTrim.position.set(rotX, TERRACE_HEIGHT + Math.min(0.05, PLINTH_HEIGHT * 0.2), rotZ);
     scene.add(redToeTrim);
 
     // Polished Terrazzo Ground Floor Topping + Walkable Ground Floor
@@ -14654,37 +14662,62 @@ export function getHideAndSeekHtml(): string {
 
     // Semicircular Front Portico Concrete Deck (radius = 6.0m extending forward from rotFrontZ to rotFrontZ - 6.0)
     const porticoDeck = new THREE.Mesh(
-      new THREE.CylinderGeometry(6.0, 6.2, rotFloor0, 28, 1, false, Math.PI * 0.5, Math.PI),
+      new THREE.CylinderGeometry(6.0, 6.2, PLINTH_HEIGHT, 28, 1, false, Math.PI * 0.5, Math.PI),
       materials.rotundaPlinthConcrete
     );
-    porticoDeck.position.set(rotX, rotFloor0 / 2, rotFrontZ);
+    porticoDeck.position.set(rotX, TERRACE_HEIGHT + PLINTH_HEIGHT * 0.5, rotFrontZ);
     scene.add(porticoDeck);
 
-    // Wide Curved Entrance Steps at the Front of the Semicircular Portico + Smooth Walkable Step Ramp
+    // Wide Curved Entrance Steps at the Front of the Semicircular Portico + Smooth Walkable Step Ramp (TERRACE_HEIGHT -> rotFloor0)
     for (let st = 0; st < 3; st++) {
       const stepR = 6.25 + (3 - st) * 0.38;
+      const stepH = ((st + 1) / 3) * PLINTH_HEIGHT;
       const stepMesh = new THREE.Mesh(
-        new THREE.CylinderGeometry(stepR, stepR + 0.1, (st + 1) * 0.15, 28, 1, false, Math.PI * 0.5, Math.PI),
+        new THREE.CylinderGeometry(stepR, stepR + 0.1, stepH, 28, 1, false, Math.PI * 0.5, Math.PI),
         materials.rotundaTerrazzoFloor
       );
-      stepMesh.position.set(rotX, ((st + 1) * 0.15) / 2, rotFrontZ);
+      stepMesh.position.set(rotX, TERRACE_HEIGHT + stepH * 0.5, rotFrontZ);
       scene.add(stepMesh);
     }
-    addWalkableStairRamp(rotX - 4.8, rotX + 4.8, rotFrontZ - 7.8, rotFrontZ - 5.4, rotFrontZ - 7.5, rotFrontZ - 5.8, 0.0, rotFloor0);
+    addWalkableStairRamp(rotX - 4.8, rotX + 4.8, rotFrontZ - 7.8, rotFrontZ - 5.4, rotFrontZ - 7.5, rotFrontZ - 5.8, TERRACE_HEIGHT, rotFloor0);
+    buildingEntrancesRegistry.push({
+      id: 'Main Grand Rotunda-door-1',
+      blockLabel: 'Main Grand Rotunda',
+      doorAxis: 'z',
+      doorDirSign: -1,
+      doorX: rotX,
+      doorZ: rotFrontZ - 6.0,
+      outsideX: rotX,
+      outsideZ: rotFrontZ - 7.8,
+      insideX: rotX,
+      insideZ: rotFrontZ - 4.8,
+      outsideY: TERRACE_HEIGHT,
+      insideY: rotFloor0,
+    });
+    scene.userData.step4Audit = {
+      LOWER_GROUND_Y,
+      TERRACE_HEIGHT,
+      PLINTH_HEIGHT,
+      BUILDING_FLOOR_Y,
+      terraceStairsRegistry,
+      buildingEntrancesRegistry,
+      layoutObjects,
+      layoutValidationReport,
+      TERRACE_POLYGON,
+    };
 
-    // B. 1st Floor (y = 4.08) & 2nd Floor (y = 7.68) Walkable Terrazzo Floor Slabs
-    // Stairwells occupy only the central bay (z = rotFrontZ + 4.2 to rotBackZ - 3.6, length = 6.2m),
-    // leaving full-width Front (4.2m deep) and Rear (3.6m deep) Atrium Concourses on BOTH upper floors!
-    const stairZFront = rotFrontZ + 4.2; // 61.2
-    const stairZBack  = rotBackZ - 3.6;  // 67.4
-    const stairMidZ   = (stairZFront + stairZBack) * 0.5; // 64.3
+    // B. 1st Floor (rotFloor1) & 2nd Floor (rotFloor2) Walkable Terrazzo Floor Slabs
+    const stairZFront = rotZ - 3.1; // -113.1
+    const stairZBack  = rotZ + 3.1; // -106.9
+    const stairMidZ   = rotZ;       // -110.0
+    const concourseDepth = (rotD - 6.2) * 0.5; // 5.9m
 
-    // Floor 1 (y = 4.08): Stairwell cutout only on Left Half of middle bay (x = 1.6..4.4, z = 61.2..67.4)
-    buildFloorSlabSegment(-5.7, rotFloor1, rotZ, 14.6, 0.22, rotD, materials.rotundaTerrazzoFloor); // Floor 1 West Wing Classroom 201
-    buildFloorSlabSegment(17.7, rotFloor1, rotZ, 14.6, 0.22, rotD, materials.rotundaTerrazzoFloor); // Floor 1 East Wing Classroom 202
-    buildFloorSlabSegment(rotX, rotFloor1, rotFrontZ + 2.1, 8.8, 0.22, 4.2, materials.rotundaTerrazzoFloor); // Floor 1 Full-Width Front Concourse
-    buildFloorSlabSegment(rotX, rotFloor1, rotBackZ - 1.8, 8.8, 0.22, 3.6, materials.rotundaTerrazzoFloor);  // Floor 1 Full-Width Rear Concourse
-    buildFloorSlabSegment(7.4, rotFloor1, stairMidZ, 6.0, 0.22, 6.2, materials.rotundaTerrazzoFloor);        // Floor 1 Atrium Right Bridge (x = 4.4..10.4)
+    // Floor 1 (rotFloor1): Stairwell cutout on Left Half of middle bay (x = rotX - 4.4 .. rotX - 1.6)
+    buildFloorSlabSegment(westWingCX, rotFloor1, rotZ, wingSpanEach, 0.22, rotD, materials.rotundaTerrazzoFloor);
+    buildFloorSlabSegment(eastWingCX, rotFloor1, rotZ, wingSpanEach, 0.22, rotD, materials.rotundaTerrazzoFloor);
+    buildFloorSlabSegment(rotX, rotFloor1, rotFrontZ + concourseDepth * 0.5, 8.8, 0.22, concourseDepth, materials.rotundaTerrazzoFloor);
+    buildFloorSlabSegment(rotX, rotFloor1, rotBackZ - concourseDepth * 0.5, 8.8, 0.22, concourseDepth, materials.rotundaTerrazzoFloor);
+    buildFloorSlabSegment(rotX + 1.4, rotFloor1, stairMidZ, 6.0, 0.22, 6.2, materials.rotundaTerrazzoFloor);
 
     // Semicircular 1st-Floor Portico Ceiling / Mezzanine Slab
     const porticoMidSlab = new THREE.Mesh(
@@ -14694,19 +14727,19 @@ export function getHideAndSeekHtml(): string {
     porticoMidSlab.position.set(rotX, rotFloor1 - 0.12, rotFrontZ);
     scene.add(porticoMidSlab);
 
-    // Floor 2 (y = 7.68): Stairwell cutout only on Right Half of middle bay (x = 7.6..10.4, z = 61.2..67.4)
-    buildFloorSlabSegment(-5.7, rotFloor2, rotZ, 14.6, 0.22, rotD, materials.rotundaTerrazzoFloor); // Floor 2 West Wing Seminar 301
-    buildFloorSlabSegment(17.7, rotFloor2, rotZ, 14.6, 0.22, rotD, materials.rotundaTerrazzoFloor); // Floor 2 East Wing Smart Lab 302
-    buildFloorSlabSegment(rotX, rotFloor2, rotFrontZ + 2.1, 8.8, 0.22, 4.2, materials.rotundaTerrazzoFloor); // Floor 2 Full-Width Front Concourse
-    buildFloorSlabSegment(rotX, rotFloor2, rotBackZ - 1.8, 8.8, 0.22, 3.6, materials.rotundaTerrazzoFloor);  // Floor 2 Full-Width Rear Concourse
-    buildFloorSlabSegment(4.6, rotFloor2, stairMidZ, 6.0, 0.22, 6.2, materials.rotundaTerrazzoFloor);        // Floor 2 Atrium Left Bridge (x = 1.6..7.6)
+    // Floor 2 (rotFloor2): Stairwell cutout on Right Half of middle bay (x = rotX + 1.6 .. rotX + 4.4)
+    buildFloorSlabSegment(westWingCX, rotFloor2, rotZ, wingSpanEach, 0.22, rotD, materials.rotundaTerrazzoFloor);
+    buildFloorSlabSegment(eastWingCX, rotFloor2, rotZ, wingSpanEach, 0.22, rotD, materials.rotundaTerrazzoFloor);
+    buildFloorSlabSegment(rotX, rotFloor2, rotFrontZ + concourseDepth * 0.5, 8.8, 0.22, concourseDepth, materials.rotundaTerrazzoFloor);
+    buildFloorSlabSegment(rotX, rotFloor2, rotBackZ - concourseDepth * 0.5, 8.8, 0.22, concourseDepth, materials.rotundaTerrazzoFloor);
+    buildFloorSlabSegment(rotX - 1.4, rotFloor2, stairMidZ, 6.0, 0.22, 6.2, materials.rotundaTerrazzoFloor);
 
-    // Finished 3rd-Floor Atrium Ceiling Slab (under the octagonal skylight well at y = 11.12)
+    // Finished 3rd-Floor Atrium Ceiling Slab (under the octagonal skylight well)
     const atriumTopCeiling = new THREE.Mesh(new THREE.BoxGeometry(8.8, 0.12, rotD), materials.rotundaWhiteArch);
     atriumTopCeiling.position.set(rotX, rotEaveY - 0.06, rotZ);
     scene.add(atriumTopCeiling);
 
-    // Walkable Semicircular 3rd-Floor Rotunda Balcony Deck (y = 7.68)
+    // Walkable Semicircular 3rd-Floor Rotunda Balcony Deck (rotFloor2)
     const rotundaFloor2Deck = new THREE.Mesh(
       new THREE.CylinderGeometry(5.95, 5.95, 0.28, 28, 1, false, Math.PI * 0.5, Math.PI),
       materials.rotundaTerrazzoFloor
@@ -14716,61 +14749,56 @@ export function getHideAndSeekHtml(): string {
     addWalkableFloor(rotX - 5.6, rotX + 5.6, rotFrontZ - 5.6, rotFrontZ + 0.5, rotFloor2);
 
     // Build Walkable 3D Grand Staircases (Flight 1: Ground -> Floor 1 on Left, Flight 2: Floor 1 -> Floor 2 on Right)
-    buildGrandStaircase(3.0, stairZFront, stairZBack, rotFloor0, rotFloor1, 2.1);
-    buildGrandStaircase(9.0, stairZBack, stairZFront, rotFloor1, rotFloor2, 2.1);
+    buildGrandStaircase(rotX - 3.0, stairZFront, stairZBack, rotFloor0, rotFloor1, 2.1);
+    buildGrandStaircase(rotX + 3.0, stairZBack, stairZFront, rotFloor1, rotFloor2, 2.1);
 
     // Stairwell Safety Balustrades + Physical Guardrail Colliders on Floor 1 & Floor 2
-    // Prevents players from falling sideways into the stairwell opening while keeping landings 100% open!
     const railMat = materials.chairWood;
     const railF1 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 1.05, 6.2), railMat);
-    railF1.position.set(4.35, rotFloor1 + 0.52, stairMidZ);
+    railF1.position.set(rotX - 1.65, rotFloor1 + 0.52, stairMidZ);
     scene.add(railF1);
     addColliderBox(new THREE.Box3(
-      new THREE.Vector3(4.25, rotFloor1, stairZFront),
-      new THREE.Vector3(4.45, rotFloor1 + 1.15, stairZBack)
+      new THREE.Vector3(rotX - 1.75, rotFloor1, stairZFront + 0.08),
+      new THREE.Vector3(rotX - 1.55, rotFloor1 + 1.15, stairZBack - 0.08)
     ));
-    // Floor 1 front stairwell guard return (protects the drop-off behind Flight 1 bottom)
-    const railF1Front = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.05, 0.10), railMat);
-    railF1Front.position.set(3.0, rotFloor1 + 0.52, stairZFront - 0.05);
+    const railF1Front = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.05, 0.10), railMat);
+    railF1Front.position.set(rotX - 3.0, rotFloor1 + 0.52, stairZFront - 0.05);
     scene.add(railF1Front);
     addColliderBox(new THREE.Box3(
-      new THREE.Vector3(1.7, rotFloor1, stairZFront - 0.12),
-      new THREE.Vector3(4.35, rotFloor1 + 1.15, stairZFront + 0.05)
+      new THREE.Vector3(rotX - 4.15, rotFloor1, stairZFront - 0.12),
+      new THREE.Vector3(rotX - 1.80, rotFloor1 + 1.15, stairZFront + 0.05)
     ));
 
     const railF2 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 1.05, 6.2), railMat);
-    railF2.position.set(7.65, rotFloor2 + 0.52, stairMidZ);
+    railF2.position.set(rotX + 1.65, rotFloor2 + 0.52, stairMidZ);
     scene.add(railF2);
     addColliderBox(new THREE.Box3(
-      new THREE.Vector3(7.55, rotFloor2, stairZFront),
-      new THREE.Vector3(7.75, rotFloor2 + 1.15, stairZBack)
+      new THREE.Vector3(rotX + 1.55, rotFloor2, stairZFront + 0.08),
+      new THREE.Vector3(rotX + 1.75, rotFloor2 + 1.15, stairZBack - 0.08)
     ));
-    // Floor 2 rear stairwell guard return (protects the drop-off above Flight 2 bottom)
-    const railF2Back = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.05, 0.10), railMat);
-    railF2Back.position.set(9.0, rotFloor2 + 0.52, stairZBack + 0.05);
+    const railF2Back = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.05, 0.10), railMat);
+    railF2Back.position.set(rotX + 3.0, rotFloor2 + 0.52, stairZBack + 0.05);
     scene.add(railF2Back);
     addColliderBox(new THREE.Box3(
-      new THREE.Vector3(7.65, rotFloor2, stairZBack - 0.05),
-      new THREE.Vector3(10.3, rotFloor2 + 1.15, stairZBack + 0.12)
+      new THREE.Vector3(rotX + 1.80, rotFloor2, stairZBack - 0.05),
+      new THREE.Vector3(rotX + 4.15, rotFloor2 + 1.15, stairZBack + 0.12)
     ));
 
-    // C. Exterior Stone-Brick Walls Across All 3 Floors + Hollow 3rd-Story White Frieze & Red Band (IMG_5835 2.JPG)
+    // C. Exterior Stone-Brick Walls Across All 3 Floors + Hollow 3rd-Story White Frieze & Red Band
     const totalWallH = rotEaveY - rotFloor0; // 10.70m
 
     // Back Wall + Side Walls
     buildWallSegment(rotX, rotFloor0, rotBackZ, rotW, totalWallH, 0.32, materials.rotundaBrick);
-    buildWallSegment(rotLeftX, rotFloor0, rotZ, 0.32, totalWallH, rotD, materials.rotundaBrick);
-    buildWallSegment(rotRightX, rotFloor0, rotZ, 0.32, totalWallH, rotD, materials.rotundaBrick);
+    buildWallSegment(rotLeftX, rotFloor0, rotZ, 0.32, totalWallH, rotD - 0.40, materials.rotundaBrick);
+    buildWallSegment(rotRightX, rotFloor0, rotZ, 0.32, totalWallH, rotD - 0.40, materials.rotundaBrick);
 
-    // Front Facade Walls:
-    // West Wing Front Wall & East Wing Front Wall
-    buildWallSegment(-5.7, rotFloor0, rotFrontZ, 14.6, totalWallH, 0.32, materials.rotundaBrick);
-    buildWallSegment(17.7, rotFloor0, rotFrontZ, 14.6, totalWallH, 0.32, materials.rotundaBrick);
+    // Front Facade Walls: West Wing Front Wall & East Wing Front Wall
+    buildWallSegment(westWingCX, rotFloor0, rotFrontZ, wingSpanEach - 0.2, totalWallH, 0.32, materials.rotundaBrick);
+    buildWallSegment(eastWingCX, rotFloor0, rotFrontZ, wingSpanEach - 0.2, totalWallH, 0.32, materials.rotundaBrick);
 
     // Central Portico Entrance Wall:
-    // Ground Floor: Wide central 2.8m double-doorway flanked by glazed window walls + Grand Recessed Portal & Real Sconce Lanterns!
-    buildWallSegment(3.1, rotFloor0, rotFrontZ, 3.0, storyH, 0.30, materials.rotundaBrick);
-    buildWallSegment(8.9, rotFloor0, rotFrontZ, 3.0, storyH, 0.30, materials.rotundaBrick);
+    buildWallSegment(rotX - 2.9, rotFloor0, rotFrontZ, 2.8, storyH, 0.30, materials.rotundaBrick);
+    buildWallSegment(rotX + 2.9, rotFloor0, rotFrontZ, 2.8, storyH, 0.30, materials.rotundaBrick);
     const mainDoorTransom = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.85, 0.32), materials.rotundaWhiteArch);
     mainDoorTransom.position.set(rotX, rotFloor0 + storyH - 0.42, rotFrontZ);
     scene.add(mainDoorTransom);
@@ -14824,16 +14852,16 @@ export function getHideAndSeekHtml(): string {
       scene.add(doorLeafGrp);
     });
 
-    // Actual Physical Cast-Iron Entrance Wall Sconces flanking the Main Doorway (registered in lampFlickerMod!)
-    lampFlickerMod.addWallSconce(rotX - 1.85, rotFloor0 + 2.45, rotFrontZ - 0.34, 'steady_warm');
-    lampFlickerMod.addWallSconce(rotX + 1.85, rotFloor0 + 2.45, rotFrontZ - 0.34, 'steady_warm');
+    // Actual Physical Cast-Iron Entrance Wall Sconces flanking the Main Doorway
+    lampFlickerMod.addWallSconce(rotX - 1.85, rotFloor0 + 2.45, rotFrontZ - 0.34, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addWallSconce(rotX + 1.85, rotFloor0 + 2.45, rotFrontZ - 0.34, 'steady_warm', TERRACE_HEIGHT);
 
     // Goal 4: Warm glow at the Grand Rotunda Main Entrance & Portico Steps!
     addWarmDoorwayGlow(rotX, rotFloor0, rotFrontZ, 2.8, false);
-    addWarmDoorwayGlow(rotX, 0.01, rotFrontZ - 5.8, 3.6, false);
+    addWarmDoorwayGlow(rotX, TERRACE_HEIGHT + 0.01, rotFrontZ - 5.8, 3.6, false);
 
-    // Under-Portico Wide Dark-Framed Multi-Pane Glass Windows on Ground & 1st Floor (with 3D frames, sills & interior light tubes!)
-    [3.1, 8.9].forEach((px, pIdx) => {
+    // Under-Portico Wide Dark-Framed Multi-Pane Glass Windows on Ground & 1st Floor
+    [rotX - 2.9, rotX + 2.9].forEach((px, pIdx) => {
       const gPortMode = pIdx === 1 ? 'warm' : 'dark';
       const gPortWin = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.85), resolveMainBuildingWindowMat(gPortMode));
       gPortWin.rotation.y = Math.PI;
@@ -14854,7 +14882,7 @@ export function getHideAndSeekHtml(): string {
     });
 
     // 1st Floor Central Portico Wall with central panoramic window & 3D moulded stone surround
-    buildWallSegment(rotX, rotFloor1, rotFrontZ, 8.8, storyH, 0.30, materials.rotundaBrick);
+    buildWallSegment(rotX, rotFloor1, rotFrontZ, 8.4, storyH, 0.30, materials.rotundaBrick);
     const centerPortWin = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.95), materials.rotundaWindowWarm || materials.windowWarmLit);
     centerPortWin.rotation.y = Math.PI;
     centerPortWin.position.set(rotX, rotFloor1 + 1.85, rotFrontZ - 0.17);
@@ -14867,44 +14895,46 @@ export function getHideAndSeekHtml(): string {
     scene.add(centerPortHeader);
 
     // 2nd Floor (3rd Story) Central Archway Opening onto the Semicircular Curved Glass Rotunda Gallery
-    buildWallSegment(3.05, rotFloor2, rotFrontZ, 2.9, topStoryH, 0.30, materials.rotundaBrick);
-    buildWallSegment(8.95, rotFloor2, rotFrontZ, 2.9, topStoryH, 0.30, materials.rotundaBrick);
+    buildWallSegment(rotX - 2.95, rotFloor2, rotFrontZ, 2.7, topStoryH, 0.30, materials.rotundaBrick);
+    buildWallSegment(rotX + 2.95, rotFloor2, rotFrontZ, 2.7, topStoryH, 0.30, materials.rotundaBrick);
     const rotArchHeader = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.75, 0.34), materials.rotundaWhiteArch);
     rotArchHeader.position.set(rotX, rotFloor2 + topStoryH - 0.38, rotFrontZ);
     scene.add(rotArchHeader);
 
     // D. Interior Partition Walls & Dual Open Classroom Doorways on All 3 Floors (Ground, 1st Floor, 2nd Floor)
-    // Each classroom has a Front Concourse Doorway (z = rotFrontZ + 2.0, width 2.2m) AND a Rear Concourse Doorway
-    // (z = rotBackZ - 1.8, width 2.2m), opening directly onto the solid Front & Rear Atrium Concourses!
+    const frontDoorZ = rotFrontZ + 2.5;
+    const rearDoorZ  = rotBackZ - 2.5;
+    const frontPierLen = (frontDoorZ - 1.1) - (rotFrontZ + 0.20);
+    const midPierLen   = (rearDoorZ - 1.1) - (frontDoorZ + 1.1);
+    const rearPierLen  = (rotBackZ - 0.20) - (rearDoorZ + 1.1);
     [rotFloor0, rotFloor1, rotFloor2].forEach((fy, fIdx) => {
       const h = fIdx === 2 ? topStoryH : storyH;
-      [1.6, 10.4].forEach(px => {
+      [rotX - 4.4, rotX + 4.4].forEach(px => {
         const roomSide = px < rotX ? -1 : 1;
         const rCode = String((fIdx + 1) * 100 + (roomSide === -1 ? 1 : 2));
         const rDress = MAIN_BUILDING_ROOM_DRESSING[rCode] || {};
-        // 3 Wall Segments leaving two 2.2m-wide open doorways at z = rotFrontZ + 2.0 and z = rotBackZ - 1.8:
-        buildWallSegment(px, fy, rotFrontZ + 0.45, 0.26, h, 0.9, materials.rotundaInteriorWall);
-        buildWallSegment(px, fy, rotZ + 0.10, 0.26, h, 8.0, materials.rotundaInteriorWall);
-        buildWallSegment(px, fy, rotBackZ - 0.35, 0.26, h, 0.7, materials.rotundaInteriorWall);
+        buildWallSegment(px, fy, rotFrontZ + 0.20 + frontPierLen * 0.5, 0.26, h, frontPierLen, materials.rotundaInteriorWall);
+        buildWallSegment(px, fy, rotZ, 0.26, h, midPierLen, materials.rotundaInteriorWall);
+        buildWallSegment(px, fy, rotBackZ - 0.20 - rearPierLen * 0.5, 0.26, h, rearPierLen, materials.rotundaInteriorWall);
 
-        // Wood-Framed Glazed Corridor Partition Sidelights along the Center Pier (Ref 2 & Ref 5!)
+        // Wood-Framed Glazed Corridor Partition Sidelights along the Center Pier
         const pFrameTop = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.12, 7.8), materials.chairWood);
-        pFrameTop.position.set(px, fy + 2.68, rotZ + 0.10);
+        pFrameTop.position.set(px, fy + 2.68, rotZ);
         scene.add(pFrameTop);
         const pFrameSill = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.10, 7.8), materials.chairWood);
-        pFrameSill.position.set(px, fy + 1.05, rotZ + 0.10);
+        pFrameSill.position.set(px, fy + 1.05, rotZ);
         scene.add(pFrameSill);
         [-2.4, 0.0, 2.4].forEach(gz => {
           const gPane = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.52, 1.85), materials.windowGlass);
-          gPane.position.set(px, fy + 1.86, rotZ + 0.10 + gz);
+          gPane.position.set(px, fy + 1.86, rotZ + gz);
           scene.add(gPane);
           const gMullion = new THREE.Mesh(new THREE.BoxGeometry(0.31, 1.62, 0.10), materials.chairWood);
-          gMullion.position.set(px, fy + 1.86, rotZ + 0.10 + gz - 0.95);
+          gMullion.position.set(px, fy + 1.86, rotZ + gz - 0.95);
           scene.add(gMullion);
         });
 
         // Wooden Door Frames, Glass Transoms, Half-Open Door Leaves & Room Number Plaques on Both Doorways
-        [rotFrontZ + 2.0, rotBackZ - 1.8].forEach((doorZ, dIdx) => {
+        [frontDoorZ, rearDoorZ].forEach((doorZ, dIdx) => {
           addDoorFrameColliders(px, fy, doorZ, 2.20, 0.26, true);
           const dHeader = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.82, 2.24), materials.chairWood);
           dHeader.position.set(px, fy + h - 0.41, doorZ);
@@ -14914,7 +14944,6 @@ export function getHideAndSeekHtml(): string {
           dTransomGlass.position.set(px, fy + h - 0.42, doorZ);
           scene.add(dTransomGlass);
 
-          // Requirement 4: Half-open door per room config
           const swingAng = rDress.halfOpenDoor ? 0.92 : 1.35;
           buildSwingingDoor(
             scene,
@@ -14929,12 +14958,9 @@ export function getHideAndSeekHtml(): string {
       });
     });
 
-    // E. 4 Projecting White Segmental-Arched Window Bays per Front Wing + 3 per Side Facade (IMG_6032, IMG_6033, IMG_6034!)
-    // Exact 35% lit distribution matching reference images:
-    // Front West Wing (12 panes): 3rd-floor inner bay (idx===3) warm yellow-amber lit; lower bays dark reflective glass with faint cool sky reflection
-    // Front East Wing (12 panes): 3rd-floor bay 1 (idx===1) warm amber lit, bay 2 (idx===2) red accent lit, bay 3 (idx===3) warm lit, plus 1st/ground right bays warm lit
-    const westFrontBays = [-11.3, -8.1, -4.9, -1.7];
-    const eastFrontBays = [13.7, 16.9, 20.1, 23.3];
+    // E. 4 Projecting White Segmental-Arched Window Bays per Front Wing + 3 per Side Facade
+    const westFrontBays = [rotX - 19.3, rotX - 15.1, rotX - 10.9, rotX - 6.7];
+    const eastFrontBays = [rotX + 6.7, rotX + 10.9, rotX + 15.1, rotX + 19.3];
 
     westFrontBays.forEach((bx, idx) => {
       const gMode = idx === 2 ? 'warm' : 'dark';
@@ -14952,7 +14978,7 @@ export function getHideAndSeekHtml(): string {
     });
 
     // Outer West & East Side Wall Arched Bays (~35% warm lit)
-    [rotZ - 4.5, rotZ, rotZ + 4.5].forEach((sz, idx) => {
+    [rotZ - 5.2, rotZ, rotZ + 5.2].forEach((sz, idx) => {
       buildRotundaArchedBay(rotLeftX - 0.16, rotFloor0, sz, -1, true, idx === 1 ? 'warm' : 'dark', idx === 0 ? 'warm' : 'dark');
       buildTopFloorWindowAndStruts(rotLeftX - 0.16, rotFloor2, sz, -1, true, idx === 2 ? 'warm' : 'dark');
 
@@ -14961,23 +14987,21 @@ export function getHideAndSeekHtml(): string {
     });
 
     // Rear Facade Windows & Top Struts (~35% warm lit)
-    [-9.5, -4.5, 1.5, 10.5, 16.5, 21.5].forEach((bx, idx) => {
+    [rotX - 17.5, rotX - 11.5, rotX - 5.5, rotX + 5.5, rotX + 11.5, rotX + 17.5].forEach((bx, idx) => {
       buildDetailedWindow(bx, rotFloor0 + 1.85, rotBackZ + 0.18, 1, idx === 1 || idx === 4);
       buildDetailedWindow(bx, rotFloor1 + 1.85, rotBackZ + 0.18, 1, idx === 0 || idx === 3);
       buildTopFloorWindowAndStruts(bx, rotFloor2, rotBackZ + 0.16, 1, false, (idx === 2 || idx === 5) ? 'warm' : 'dark');
     });
 
     // F. Hollow Perimeter 2nd-Story Cornice Ledge + 3rd-Story White Frieze, Dentil Moldings, Corner Quoins & Rainwater Downspouts!
-    // Built as hollow exterior perimeter strips so the 3-floor interior is 100% unobstructed!
-    buildPerimeterBand(rotFloor0 + 0.92, 0.16, 0.14, materials.rotundaPlinthConcrete); // Rusticated Ground-Floor Water-Table Dado Ledge
-    buildPerimeterBand(rotFloor1 - 0.04, 0.24, 0.22, materials.rotundaWhiteArch);      // 1st-Story Projecting Floor Band
-    buildPerimeterBand(rotFloor2 - 0.04, 0.30, 0.36, materials.rotundaWhiteArch);      // 2nd-Story Projecting White Cornice
-    buildPerimeterBand(rotEaveY - 0.61, 1.22, 0.08, materials.rotundaWhiteArch);       // Upper 3rd-Story White Frieze Band
-    buildPerimeterBand(rotEaveY - 1.24, 0.12, 0.12, materials.rotundaRedSteel);        // Terracotta-Red Trim Band
+    buildPerimeterBand(rotFloor0 + 0.92, 0.16, 0.14, materials.rotundaPlinthConcrete);
+    buildPerimeterBand(rotFloor1 - 0.04, 0.24, 0.22, materials.rotundaWhiteArch);
+    buildPerimeterBand(rotFloor2 - 0.04, 0.30, 0.36, materials.rotundaWhiteArch);
+    buildPerimeterBand(rotEaveY - 0.61, 1.22, 0.08, materials.rotundaWhiteArch);
+    buildPerimeterBand(rotEaveY - 1.24, 0.12, 0.12, materials.rotundaRedSteel);
 
-    // Classical Dentil Molding Blocks under the 2nd-Story Cornice & Main Roof Eave across West & East Front Wings
     for (let dx = rotLeftX + 0.6; dx <= rotRightX - 0.6; dx += 0.95) {
-      if (dx > 0.2 && dx < 11.8) continue; // Skip central rotunda portico span
+      if (dx > rotX - 5.8 && dx < rotX + 5.8) continue;
       const dentil2 = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.28), materials.rotundaWhiteArch);
       dentil2.position.set(dx, rotFloor2 - 0.24, rotFrontZ - 0.28);
       scene.add(dentil2);
@@ -14986,14 +15010,13 @@ export function getHideAndSeekHtml(): string {
       scene.add(dentilEave);
     }
 
-    // Alternating Dressed-Stone Corner Quoins along Outer West, Outer East, and Central Pavilion Corners
     [
       [rotLeftX - 0.04, rotFrontZ - 0.04],
       [rotRightX + 0.04, rotFrontZ - 0.04],
       [rotLeftX - 0.04, rotBackZ + 0.04],
       [rotRightX + 0.04, rotBackZ + 0.04],
-      [0.18, rotFrontZ - 0.06],
-      [11.82, rotFrontZ - 0.06],
+      [rotX - 5.82, rotFrontZ - 0.06],
+      [rotX + 5.82, rotFrontZ - 0.06],
     ].forEach(([qx, qz]) => {
       for (let qy = rotFloor0 + 0.22; qy < rotEaveY - 1.35; qy += 0.56) {
         const isLong = Math.round((qy - rotFloor0) / 0.56) % 2 === 0;
@@ -15005,8 +15028,7 @@ export function getHideAndSeekHtml(): string {
       }
     });
 
-    // Cast-Iron Rainwater Downspouts with Iron Pipe Clamps & Drain Shoes along the Front Facade
-    [-12.55, 0.42, 11.58, 24.55].forEach(dsX => {
+    [rotLeftX + 0.45, rotX - 5.58, rotX + 5.58, rotRightX - 0.45].forEach(dsX => {
       const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, totalWallH - 0.2, 8), materials.castIronDark);
       pipe.position.set(dsX, rotFloor0 + totalWallH * 0.5, rotFrontZ - 0.22);
       scene.add(pipe);
@@ -15020,14 +15042,13 @@ export function getHideAndSeekHtml(): string {
       });
     });
 
-    // G. Central 2-Story Semicircular Portico Columns (with Fluted Pedestals, Attic Bases, Doric Capitals & Sconces) + 3rd-Floor Curved Glass Rotunda
+    // G. Central 2-Story Semicircular Portico Columns + 3rd-Floor Curved Glass Rotunda
     const rotRadius = 5.55;
     const colAngles = [-Math.PI * 0.38, -Math.PI * 0.13, Math.PI * 0.13, Math.PI * 0.38];
     colAngles.forEach((ang, cIdx) => {
       const cx = rotX + Math.sin(ang) * rotRadius;
       const cz = rotFrontZ - Math.cos(ang) * rotRadius;
 
-      // 1. Octagonal/Cylindrical Fluted Dark-Grey Concrete Pedestal Base
       const pedH = 1.48;
       const pedBase = new THREE.Mesh(
         new THREE.CylinderGeometry(0.52, 0.56, pedH, 16),
@@ -15037,13 +15058,11 @@ export function getHideAndSeekHtml(): string {
       pedBase.castShadow = true;
       scene.add(pedBase);
 
-      // Pedestal Ground Contact Shadow Disk
       const pedShadow = new THREE.Mesh(sharedGeos.columnContactShadow, materials.pedestalShadowDecal);
       pedShadow.rotation.x = -Math.PI / 2;
       pedShadow.position.set(cx, rotFloor0 + 0.02, cz);
       scene.add(pedShadow);
 
-      // Vertical fluted relief ribs around the pedestal base
       for (let fl = 0; fl < 12; fl++) {
         const fang = (fl * Math.PI * 2) / 12;
         const flute = new THREE.Mesh(new THREE.BoxGeometry(0.05, pedH - 0.24, 0.05), materials.castIronDark);
@@ -15052,7 +15071,6 @@ export function getHideAndSeekHtml(): string {
         scene.add(flute);
       }
 
-      // Molded top & bottom collar rings + Classical Attic Torus Base on pedestal
       [rotFloor0 + 0.08, rotFloor0 + pedH - 0.06].forEach(ry => {
         const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.58, 0.12, 16), materials.rotundaPlinthConcrete);
         ring.position.set(cx, ry, cz);
@@ -15062,7 +15080,6 @@ export function getHideAndSeekHtml(): string {
       atticTorus.position.set(cx, rotFloor0 + pedH + 0.09, cz);
       scene.add(atticTorus);
 
-      // 2. Tall Cylindrical Weathered White Concrete Column Shaft rising to the 2nd-floor ring beam (y = 0.48..7.62)
       const colShaft = new THREE.Mesh(
         new THREE.CylinderGeometry(0.42, 0.45, 7.12, 20),
         materials.rotundaWhiteArch
@@ -15071,7 +15088,6 @@ export function getHideAndSeekHtml(): string {
       colShaft.castShadow = true;
       scene.add(colShaft);
 
-      // 3. Classical Doric/Tuscan Column Capital (Necking Astragal + Echinus Flare + Square Abacus Slab)
       const colNecking = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.09, 20), materials.rotundaWhiteArch);
       colNecking.position.set(cx, rotFloor2 - 0.42, cz);
       scene.add(colNecking);
@@ -15083,7 +15099,6 @@ export function getHideAndSeekHtml(): string {
       colAbacus.rotation.y = -ang;
       scene.add(colAbacus);
 
-      // 4. Physical Wrought-Iron Sconce Lanterns mounted on the inner face of the two center portico columns
       if (cIdx === 1 || cIdx === 2) {
         const scX = cx - Math.sin(ang) * 0.46;
         const scZ = cz + Math.cos(ang) * 0.46;
@@ -15100,7 +15115,7 @@ export function getHideAndSeekHtml(): string {
       }
 
       addColliderBox(new THREE.Box3(
-        new THREE.Vector3(cx - 0.52, 0, cz - 0.52),
+        new THREE.Vector3(cx - 0.52, TERRACE_HEIGHT, cz - 0.52),
         new THREE.Vector3(cx + 0.52, rotFloor2, cz + 0.52)
       ));
     });
@@ -15113,7 +15128,6 @@ export function getHideAndSeekHtml(): string {
       rib.rotation.y = -cAng;
       scene.add(rib);
     });
-    // Actual Hanging Portico Iron Chandelier Lantern at (rotX, 3.65, rotFrontZ - 3.2) — Registered in lampFlickerMod!
     const porticoLanternZ = rotFrontZ - 3.2;
     const porticoChain = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.58, 6), materials.castIronDark);
     porticoChain.position.set(rotX, rotFloor1 - 0.42, porticoLanternZ);
@@ -15124,9 +15138,9 @@ export function getHideAndSeekHtml(): string {
     const porticoCore = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.18, 0.42, 8), materials.diyoFlameGlow);
     porticoCore.position.set(rotX, rotFloor1 - 0.82, porticoLanternZ);
     scene.add(porticoCore);
-    lampFlickerMod.addWallSconce(rotX, rotFloor1 - 0.95, porticoLanternZ, 'steady_warm');
+    lampFlickerMod.addWallSconce(rotX, rotFloor1 - 0.95, porticoLanternZ, 'steady_warm', TERRACE_HEIGHT);
 
-    // 3rd-Floor Curved Semicircular Stone-Brick Entablature Parapet + 10-Bay Rotunda Glass Ring (Fix 7: IMG_6033 & IMG_6034!)
+    // 3rd-Floor Curved Semicircular Stone-Brick Entablature Parapet + 10-Bay Rotunda Glass Ring
     const parapetH = 1.05;
     const curvedParapet = new THREE.Mesh(
       new THREE.CylinderGeometry(rotRadius + 0.28, rotRadius + 0.28, parapetH, 28, 1, true, Math.PI * 0.5, Math.PI),
@@ -15142,7 +15156,6 @@ export function getHideAndSeekHtml(): string {
     parapetCoping.position.set(rotX, rotFloor2 + parapetH + 0.05, rotFrontZ);
     scene.add(parapetCoping);
 
-    // Fix 7: Rotunda Glass Ring — 10 individual curved glass bays: dark reflective glass + 2 warm interior-lit sections with visible interior pendant fixtures + orange railing!
     const glassCurtainH = 2.18;
     const numRotBays = 10;
     const litRotBays = (HORROR_CONFIG.mainBuilding && HORROR_CONFIG.mainBuilding.rotundaLitBayIndices) || [3, 6];
@@ -15160,7 +15173,6 @@ export function getHideAndSeekHtml(): string {
       bayGlassMesh.position.set(rotX, rotFloor2 + parapetH + glassCurtainH / 2, rotFrontZ);
       scene.add(bayGlassMesh);
 
-      // Inside lit rotunda bays, mount a physical 3D Interior Ceiling Pendant Lamp & Shade so light comes from a real interior fixture!
       if (isLitBay) {
         const midAng = -Math.PI * 0.48 + ((b + 0.5) / numRotBays) * Math.PI * 0.96;
         const pLx = rotX + Math.sin(midAng) * (rotRadius - 0.55);
@@ -15177,7 +15189,6 @@ export function getHideAndSeekHtml(): string {
       }
     }
 
-    // Visible Warm-Orange Interior Safety Railing inside the Rotunda Glass Ring (Fix 7!)
     [rotFloor2 + parapetH + 0.46, rotFloor2 + parapetH + 0.88].forEach((railY, rIdx) => {
       const orangeRail = new THREE.Mesh(
         new THREE.CylinderGeometry(rotRadius - 0.08, rotRadius - 0.08, rIdx === 1 ? 0.075 : 0.055, 28, 1, true, Math.PI * 0.52, Math.PI * 0.96),
@@ -15199,7 +15210,6 @@ export function getHideAndSeekHtml(): string {
       scene.add(railPost);
     }
 
-    // 11 Vertical Weathered Dark Mullion Posts + 2 Horizontal Transom Rings on the Rotunda Glass Ring (IMG_6033 & IMG_6034!)
     for (let m = 0; m <= numRotBays; m++) {
       const mang = -Math.PI * 0.48 + (m / numRotBays) * Math.PI * 0.96;
       const mx = rotX + Math.sin(mang) * (rotRadius + 0.14);
@@ -15209,7 +15219,6 @@ export function getHideAndSeekHtml(): string {
       mPost.rotation.y = -mang;
       scene.add(mPost);
 
-      // Collider post along outer rotunda rim so players on the 3rd-floor balcony don't walk off the edge
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(mx - 0.35, rotFloor2, mz - 0.35),
         new THREE.Vector3(mx + 0.35, rotFloor2 + 3.2, mz + 0.35)
@@ -15225,7 +15234,6 @@ export function getHideAndSeekHtml(): string {
       scene.add(transRing);
     });
 
-    // Inner Cylindrical White Concrete Columns inside the 3rd-Floor Rotunda Gallery
     colAngles.forEach(ang => {
       const icx = rotX + Math.sin(ang) * (rotRadius - 0.85);
       const icz = rotFrontZ - Math.cos(ang) * (rotRadius - 0.85);
@@ -15234,7 +15242,6 @@ export function getHideAndSeekHtml(): string {
       scene.add(innerCol);
     });
 
-    // Overhanging Semicircular Curved Rotunda Dome/Roof Crown + Rooftop Iron Balustrade & Lightning Rod Finial
     const rotRoofSoffit = new THREE.Mesh(
       new THREE.CylinderGeometry(rotRadius + 0.98, rotRadius + 0.98, 0.34, 32, 1, false, Math.PI * 0.5, Math.PI),
       materials.rotundaWhiteArch
@@ -15256,7 +15263,6 @@ export function getHideAndSeekHtml(): string {
     rotRoofRidgeRim.position.set(rotX, rotEaveY + 0.16, rotFrontZ);
     scene.add(rotRoofRidgeRim);
 
-    // Wrought-Iron Crown Finial & Lightning Rod atop the Rotunda Dome Axis
     const finialBase = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.32, 0.45, 10), materials.castIronDark);
     finialBase.position.set(rotX, rotEaveY + 0.52, rotFrontZ - rotRadius * 0.82);
     scene.add(finialBase);
@@ -15264,15 +15270,13 @@ export function getHideAndSeekHtml(): string {
     lightningSpire.position.set(rotX, rotEaveY + 1.62, rotFrontZ - rotRadius * 0.82);
     scene.add(lightningSpire);
 
-    // Fix 3: Facade Warm Up-Light Wash, Portico Column Wash, Entrance Ground Spill & Baked AO Gradients (Zero New Real Lights; Skipped on FAST)
     const mainBuildingEffectsGroup = new THREE.Group();
     mainBuildingEffectsGroup.name = 'main-building-facade-effects';
     mainBuildingEffectsGroup.userData.noMerge = true;
     scene.add(mainBuildingEffectsGroup);
 
     if (materials.rotundaFacadeUplightMat && materials.rotundaEntranceSpillMat && materials.rotundaBakedAoMat) {
-      // 1) Subtle localized warm light spill planes behind physical fixtures
-      [rotX - 11.7, rotX + 11.7].forEach(wx => {
+      [rotX - 12.2, rotX + 12.2].forEach(wx => {
         const wingWash = new THREE.Mesh(new THREE.PlaneGeometry(14.4, 8.8), materials.rotundaFacadeUplightMat);
         wingWash.position.set(wx, rotFloor0 + 4.4, rotFrontZ - 0.38);
         wingWash.rotation.y = Math.PI;
@@ -15283,7 +15287,6 @@ export function getHideAndSeekHtml(): string {
       entranceWash.rotation.y = Math.PI;
       mainBuildingEffectsGroup.add(entranceWash);
 
-      // 2) Warm up-light wash on the 4 semicircular portico columns
       colAngles.forEach(ang => {
         const cx = rotX + Math.sin(ang) * rotRadius;
         const cz = rotFrontZ - Math.cos(ang) * rotRadius;
@@ -15295,7 +15298,6 @@ export function getHideAndSeekHtml(): string {
         mainBuildingEffectsGroup.add(colWash);
       });
 
-      // 3) Warm ground light spill at the portico entrance, steps & right-wing lamp plaza
       const porticoSpill = new THREE.Mesh(new THREE.PlaneGeometry(13.5, 11.5), materials.rotundaEntranceSpillMat);
       porticoSpill.rotation.x = -Math.PI / 2;
       porticoSpill.position.set(rotX, rotFloor0 + 0.028, rotFrontZ - 2.6);
@@ -15303,16 +15305,15 @@ export function getHideAndSeekHtml(): string {
 
       const forecourtSpill = new THREE.Mesh(new THREE.PlaneGeometry(16.0, 12.0), materials.rotundaEntranceSpillMat);
       forecourtSpill.rotation.x = -Math.PI / 2;
-      forecourtSpill.position.set(rotX + 12.5, 0.04, rotFrontZ - 6.5);
+      forecourtSpill.position.set(rotX + 12.5, TERRACE_HEIGHT + 0.04, rotFrontZ - 6.5);
       mainBuildingEffectsGroup.add(forecourtSpill);
 
-      // 4) Subtle Baked AO gradient strips under eaves, under 2nd-floor cornice, and between floors
       [
         { y: rotEaveY - 0.28, h: 0.75, zOff: -0.22 },
         { y: rotFloor2 - 0.32, h: 0.62, zOff: -0.22 },
         { y: rotFloor1 - 0.26, h: 0.52, zOff: -0.20 },
       ].forEach(aoRow => {
-        [rotX - 11.7, rotX + 11.7].forEach(wx => {
+        [rotX - 12.2, rotX + 12.2].forEach(wx => {
           const aoStrip = new THREE.Mesh(new THREE.PlaneGeometry(14.6, aoRow.h), materials.rotundaBakedAoMat);
           aoStrip.position.set(wx, aoRow.y, rotFrontZ + aoRow.zOff);
           aoStrip.rotation.y = Math.PI;
@@ -15320,7 +15321,6 @@ export function getHideAndSeekHtml(): string {
         });
       });
 
-      // Curved AO shadow band under the portico entablature & mezzanine ring
       [rotFloor1 - 0.32, rotFloor2 - 0.34, rotEaveY - 0.30].forEach(cay => {
         const curvedAo = new THREE.Mesh(
           new THREE.CylinderGeometry(rotRadius + 0.32, rotRadius + 0.32, 0.55, 28, 1, true, Math.PI * 0.5, Math.PI),
@@ -15331,7 +15331,7 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
-    // Twin Wrought-Iron Portico Step Pedestal Lanterns with ACTUAL Glowing Amber Bulbs, Glass Cores & Lamp Pool Registration!
+    // Twin Wrought-Iron Portico Step Pedestal Lanterns
     [-4.35, 4.35].forEach(lxOff => {
       const lpx = rotX + lxOff;
       const lpz = rotFrontZ - 4.45;
@@ -15350,19 +15350,15 @@ export function getHideAndSeekHtml(): string {
       const pCap = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.26, 4), materials.castIronDark);
       pCap.position.set(lpx, rotFloor0 + 3.86, lpz);
       scene.add(pCap);
-      // Register in lampFlickerMod so dynamic PointLight pool + halos + ground pool attach to these real portico lanterns!
-      lampFlickerMod.addWallSconce(lpx, rotFloor0 + 3.38, lpz, 'steady_warm');
+      lampFlickerMod.addWallSconce(lpx, rotFloor0 + 3.38, lpz, 'steady_warm', TERRACE_HEIGHT);
     });
-    // Right-wing warm street lamp in front of East Wing + Left-wing flickering street lamp in front of West Wing!
-    lampFlickerMod.addLamp(rotX + 14.2, rotFrontZ - 7.2, -1, 'steady_warm');
-    addColliderCylinder(rotX + 14.2, rotFrontZ - 7.2, (HORROR_CONFIG.physics && HORROR_CONFIG.physics.streetLampPoleRadius) || 0.20, 0, 4.2);
-    lampFlickerMod.addWallSconce(rotX - 13.8, 4.4, rotFrontZ - 7.2, 'heavy_blink');
+    lampFlickerMod.addLamp(rotX + 14.2, rotFrontZ - 7.2, -1, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addWallSconce(rotX - 13.8, rotFloor0 + 3.4, rotFrontZ - 7.2, 'heavy_blink', TERRACE_HEIGHT);
 
-    // H. Prominent Twin Terracotta-Red Hipped Roofs + Central White Octagonal Skylight Atrium Roof Deck + Water Tanks (IMG_5854!)
-    buildTerracottaHippedWingRoof(rotX - 11.2, rotEaveY, rotZ, 16.0, rotD, 4.2, -1); // West Wing Hipped Roof
-    buildTerracottaHippedWingRoof(rotX + 11.2, rotEaveY, rotZ, 16.0, rotD, 4.2, 1);  // East Wing Hipped Roof
+    // H. Prominent Twin Terracotta-Red Hipped Roofs + Central White Octagonal Skylight Atrium Roof Deck + Water Tanks
+    buildTerracottaHippedWingRoof(westWingCX, rotEaveY, rotZ, wingSpanEach + 1.2, rotD, 4.2, -1);
+    buildTerracottaHippedWingRoof(eastWingCX, rotEaveY, rotZ, wingSpanEach + 1.2, rotD, 4.2, 1);
 
-    // Central Stepped White Flat Roof Terrace & Parapet Wall (between West & East hipped roofs, IMG_5854)
     const centerRoofDeck = new THREE.Mesh(
       new THREE.BoxGeometry(11.6, 0.45, rotD + 1.2),
       materials.rotundaWhiteArch
@@ -15370,7 +15366,6 @@ export function getHideAndSeekHtml(): string {
     centerRoofDeck.position.set(rotX, rotEaveY + 0.22, rotZ + 0.3);
     scene.add(centerRoofDeck);
 
-    // Recessed Octagonal Atrium Skylight Well in the Center of the White Roof Deck (IMG_5854 signature detail!)
     const octRim = new THREE.Mesh(
       new THREE.CylinderGeometry(3.6, 3.8, 0.85, 8, 1, true),
       materials.rotundaWhiteArch
@@ -15385,7 +15380,6 @@ export function getHideAndSeekHtml(): string {
     octSkylightGlass.position.set(rotX, rotEaveY + 0.38, rotZ - 0.6);
     scene.add(octSkylightGlass);
 
-    // Raised Rear White Equipment Platform + Twin Cylindrical White Rooftop Water Tanks (IMG_5854!)
     const tankStand = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.85, 3.2), materials.rotundaWhiteArch);
     tankStand.position.set(rotX - 0.6, rotEaveY + 0.85, rotBackZ - 2.2);
     scene.add(tankStand);
@@ -15403,17 +15397,14 @@ export function getHideAndSeekHtml(): string {
        I. POPULATE ALL 3 FLOORS: 6 DISTINCT ROOMS, ATRIUM CONCOURSES, GRAND CHANDELIER,
           HANGING VINES, TILED FLOOR PATTERN, BALCONY RAILINGS & 3RD-FLOOR LOUNGE
        ------------------------------------------------------------------------- */
-    // Ground Floor (y = 0.48): West Auditorium Hall 101 & East Admin/Registrar Office 102
-    populateGrandRotundaClassroom(rotX - 11.7, rotZ, rotFloor0, -1, 1, '101', 'Rotunda Ground West Hall 101');
-    populateGrandRotundaClassroom(rotX + 11.7, rotZ, rotFloor0, 1, 1, '102', 'Rotunda Ground East Hall 102');
+    populateGrandRotundaClassroom(rotX - 12.2, rotZ, rotFloor0, -1, 1, '101', 'Rotunda Ground West Hall 101');
+    populateGrandRotundaClassroom(rotX + 12.2, rotZ, rotFloor0, 1, 1, '102', 'Rotunda Ground East Hall 102');
 
-    // 1st Floor (y = 4.08): West BIT Classroom 201 & East Reference Library 202
-    populateGrandRotundaClassroom(rotX - 11.7, rotZ, rotFloor1, -1, 2, '201', 'Rotunda 1st-Floor West Class 201');
-    populateGrandRotundaClassroom(rotX + 11.7, rotZ, rotFloor1, 1, 2, '202', 'Rotunda 1st-Floor East Class 202');
+    populateGrandRotundaClassroom(rotX - 12.2, rotZ, rotFloor1, -1, 2, '201', 'Rotunda 1st-Floor West Class 201');
+    populateGrandRotundaClassroom(rotX + 12.2, rotZ, rotFloor1, 1, 2, '202', 'Rotunda 1st-Floor East Class 202');
 
-    // 2nd Floor (y = 7.68): West Seminar Hall 301 & East AI/Networking Computer Lab 302
-    populateGrandRotundaClassroom(rotX - 11.7, rotZ, rotFloor2, -1, 3, '301', 'Rotunda 2nd-Floor West Seminar 301');
-    populateGrandRotundaClassroom(rotX + 11.7, rotZ, rotFloor2, 1, 3, '302', 'Rotunda 2nd-Floor East Lab 302');
+    populateGrandRotundaClassroom(rotX - 12.2, rotZ, rotFloor2, -1, 3, '301', 'Rotunda 2nd-Floor West Seminar 301');
+    populateGrandRotundaClassroom(rotX + 12.2, rotZ, rotFloor2, 1, 3, '302', 'Rotunda 2nd-Floor East Lab 302');
 
     // 1. Tiled Floor Pattern (Geometric Compass Rose Medallion & Inlaid Gold/Slate Borders across All 3 Floors)
     [rotFloor0, rotFloor1, rotFloor2].forEach((tfY, fIdx) => {
@@ -15718,8 +15709,7 @@ export function getHideAndSeekHtml(): string {
 
     interactiveHidingSpots.push(
       { id: 'rotunda-3f-lounge', name: '3rd-Floor Curved Rotunda Panoramic Table', x: rotX + 1.95, y: rotFloor2, z: rotFrontZ - 2.8, zone: '3rd-Floor Rotunda Balcony', spotType: 'desk', riskLevel: 0.25, useCount: 0 },
-      { id: 'parked-suv', name: 'Parked Campus SUV (Cars/Bike Parking)', x: -47.0, y: 0.0, z: -20.8, zone: 'Cars/bike parking', spotType: 'desk', riskLevel: 0.30, useCount: 0 },
-      { id: 'rotunda-fountain', name: 'Rotunda Courtyard Fountain', x: ftnX + 2.85, y: 0.0, z: ftnZ, zone: 'Grand Rotunda Plaza', spotType: 'desk', riskLevel: 0.32, useCount: 0 }
+      { id: 'rotunda-fountain', name: 'Rotunda Courtyard Fountain', x: ftnX + 2.85, y: TERRACE_HEIGHT, z: ftnZ, zone: 'Grand Rotunda Plaza', spotType: 'desk', riskLevel: 0.32, useCount: 0 }
     );
 
     // J. Glowing Recessed Square Drop-Ceiling Panels Across All 3 Floors of the Grand Rotunda Complex (Ref 1 & Ref 2!)
@@ -15737,43 +15727,17 @@ export function getHideAndSeekHtml(): string {
     });
 
     /* =========================================================================
-       8. REALISTIC TREES, BUSHES & SPARSE WARM AMBER LAMPS
-          Repositioned to frame the new campus layout roads & courtyards cleanly
+       8. BENCHES, POSTERS & SPARSE WARM AMBER LAMPS ON THE 1.00m TERRACE
+          (All trees, palms, dead trees, shrubs, and Mandala archway removed per Step 1;
+           benches and lamps re-placed with >= 1.5m clearance from all walls)
        ========================================================================= */
-    spawnCampusTree(-16.0, -53.5, 1.45);
-    spawnCampusTree(6.5, -55.0, 1.52);
-    spawnPalmTree(-16.0, -38.5, 1.15);
-    spawnCampusTree(16.0, -38.0, 1.35);
-    spawnPalmTree(-18.0, -1.5, 1.18);
-    spawnCampusTree(15.5, -1.5, 1.32);
-    spawnPalmTree(-18.0, 15.4, 1.15);
-    spawnCampusTree(-32.0, 2.0, 1.55);
-    spawnCampusTree(33.5, 22.0, 1.50);
-    spawnPalmTree(-32.0, 19.5, 1.25);
-    spawnPalmTree(16.5, 29.5, 1.25);
-
-    // Bushes & Shrub Clumps along the Concrete Footpath Curbs & Trees
-    spawnRoadsideShrubs(-13.2, -55.5, 5);
-    spawnRoadsideShrubs(-13.2, -38.5, 4);
-    spawnRoadsideShrubs(14.2, -24.0, 5);
-    spawnRoadsideShrubs(-24.4, -10.5, 4);
-    spawnRoadsideShrubs(14.2, 3.5, 5);
-    spawnRoadsideShrubs(-24.2, 25.5, 5);
-    spawnRoadsideShrubs(17.8, 25.5, 5);
-    spawnRoadsideShrubs(-34.8, 12.0, 4);
-    spawnRoadsideShrubs(19.2, -8.0, 4);
-
-    // TASK 3: Dead Leafless Horror Trees, Campus Benches, Old Curfew Posters & Mandala Heritage Archway
-    spawnDeadTree(-22.5, -42.0, 1.38);
-    spawnDeadTree(32.5, 36.0, 1.45);
-    buildMandalaStreetArchway(-18.0, -32.0, 4.2);
-    buildCampusBench(-14.0, -15.5, Math.PI / 2);
-    buildCampusBench(14.0, 2.0, -Math.PI / 2);
-    buildCampusBench(-28.0, 48.0, 0);
-    buildCampusBench(16.0, 48.0, 0);
-    spawnOldWallPoster(10.5, 1.65, -47.5, -Math.PI / 2, 0.05);
-    spawnOldWallPoster(19.2, 1.60, -28.5, -Math.PI / 2, -0.07);
-    spawnOldWallPoster(-21.2, 1.68, 8.5, -Math.PI / 2, 0.04);
+    buildCampusBench(-15.0, -16.0, 0, TERRACE_HEIGHT);
+    buildCampusBench(15.0, 2.0, -Math.PI / 2, TERRACE_HEIGHT);
+    buildCampusBench(-28.0, 41.0, 0, TERRACE_HEIGHT);
+    buildCampusBench(16.0, 41.0, 0, TERRACE_HEIGHT);
+    spawnOldWallPoster(21.0, BUILDING_FLOOR_Y + 1.65, -59.88, Math.PI, 0.05);
+    spawnOldWallPoster(24.08, BUILDING_FLOOR_Y + 1.60, -27.0, -Math.PI / 2, -0.07);
+    spawnOldWallPoster(-21.0, BUILDING_FLOOR_Y + 1.68, 4.0, -Math.PI / 2, 0.04);
     spawnOldWallPoster(rotX - 4.2, rotFloor0 + 1.75, rotFrontZ - 0.18, Math.PI, -0.04);
 
     // Fix 6: High-Resolution "GANDAKI UNIVERSITY" Curved Entablature Sign (2048x256) + 2 Physical Brass Sign Floodlights + Sculpted Crest Medallion!
@@ -15824,46 +15788,29 @@ export function getHideAndSeekHtml(): string {
     crestRimBrass.position.set(rotX, rotFloor2 + 0.98, rotFrontZ - rotRadius - 0.345);
     scene.add(crestRimBrass);
 
-    // TASK 1: Sparse Warm Amber Lamps (#ffc27a, distance 10) — Mix of Faulty Flickering, Steady & Fully Dead ('dead') Lamps!
-    const lampPoleRadius = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.streetLampPoleRadius) || 0.20;
-    lampFlickerMod.addLamp(3.2, -61.0, 1, 'intermittent');
-    addColliderCylinder(3.2, -61.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-16.0, -50.0, 1, 'steady_warm');
-    addColliderCylinder(-16.0, -50.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(8.5, -47.5, 1, 'steady_warm');
-    addColliderCylinder(8.5, -47.5, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-8.5, -30.0, 1, 'steady_warm');
-    addColliderCylinder(-8.5, -30.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(15.0, -15.0, -1, 'heavy_blink');
-    addColliderCylinder(15.0, -15.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(15.0, 15.0, 1, 'intermittent');
-    addColliderCylinder(15.0, 15.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-26.0, -8.0, 1, 'steady_warm');
-    addColliderCylinder(-26.0, -8.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-26.0, 8.5, -1, 'heavy_blink');
-    addColliderCylinder(-26.0, 8.5, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-26.0, 22.0, 1, 'dead');
-    addColliderCylinder(-26.0, 22.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-26.0, 35.0, -1, 'intermittent');
-    addColliderCylinder(-26.0, 35.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-39.5, -6.5, 1, 'heavy_blink');
-    addColliderCylinder(-39.5, -6.5, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-39.5, 6.5, -1, 'heavy_blink');
-    addColliderCylinder(-39.5, 6.5, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-10.0, -95.0, 1, 'steady_warm');
-    addColliderCylinder(-10.0, -95.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(10.0, -95.0, -1, 'intermittent');
-    addColliderCylinder(10.0, -95.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(-6.0, -124.0, 1, 'heavy_blink');
-    addColliderCylinder(-6.0, -124.0, lampPoleRadius, 0, 4.2);
-    lampFlickerMod.addLamp(6.0, -124.0, -1, 'steady_warm');
-    addColliderCylinder(6.0, -124.0, lampPoleRadius, 0, 4.2);
+    // TASK 1: Sparse Warm Amber Lamps (#ff8a2a) on the 1.00m Terrace (>= 1.5m clear of all walls; addLamp registers cylinder collider)
+    lampFlickerMod.addLamp(3.2, -64.0, 1, 'intermittent', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(-12.0, -50.0, 1, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(8.5, -49.0, 1, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(-10.0, -34.0, 1, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(16.0, -15.0, -1, 'heavy_blink', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(16.0, 11.0, 1, 'intermittent', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(-26.0, -2.5, 1, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(-26.0, 11.0, -1, 'heavy_blink', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(-26.0, 25.5, 1, 'dead', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(-26.0, 41.0, -1, 'intermittent', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(-39.5, -6.5, 1, 'heavy_blink', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(-39.5, 6.5, -1, 'heavy_blink', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(-10.0, -92.0, 1, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(10.0, -92.0, -1, 'intermittent', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(-8.0, -128.0, 1, 'heavy_blink', TERRACE_HEIGHT);
+    lampFlickerMod.addLamp(8.0, -128.0, -1, 'steady_warm', TERRACE_HEIGHT);
 
-    lampFlickerMod.addWallSconce(rotX, rotFloorY + 3.4, rotFrontZ - 0.35, 'steady_warm');
-    lampFlickerMod.addWallSconce(rotX, rotFloor1 + 3.1, rotZ, 'steady_warm');
-    lampFlickerMod.addWallSconce(rotX, rotFloor2 + 3.0, rotFrontZ - 2.4, 'steady_warm');
-    lampFlickerMod.addWallSconce(16.5, 3.1, -51.7, 'steady_warm');
-    lampFlickerMod.addWallSconce(-5.0, 2.9, -11.0, 'intermittent');
+    lampFlickerMod.addWallSconce(rotX, rotFloorY + 3.4, rotFrontZ - 0.35, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addWallSconce(rotX, rotFloor1 + 3.1, rotZ, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addWallSconce(rotX, rotFloor2 + 3.0, rotFrontZ - 2.4, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addWallSconce(21.0, BUILDING_FLOOR_Y + 2.85, -59.85, 'steady_warm', TERRACE_HEIGHT);
+    lampFlickerMod.addWallSconce(-4.5, BUILDING_FLOOR_Y + 2.65, -13.45, 'intermittent', TERRACE_HEIGHT);
 
     /* =========================================================================
        PHASE A FINALIZATION: INSTANCED TREES & SHRUBS + BUILDING/SECTOR MERGING
@@ -15873,172 +15820,18 @@ export function getHideAndSeekHtml(): string {
     let visibleRoomsCount = 0;
 
     (function finalizePhaseASceneOptimization() {
-      const dummy = new THREE.Object3D();
-
-      // 1. Build InstancedMesh for Campus Horror Trees (12 trees -> 2 draw calls: bark + canopy)
-      if (exteriorTreeQueues.campusTrees.length > 0) {
-        const barkParts = [];
-        const canopyParts = [];
-        const addXform = (arr, geo, x, y, z, rx, ry, rz, sx = 1, sy = 1, sz = 1) => {
-          const g = geo.clone();
-          dummy.position.set(x, y, z);
-          dummy.rotation.set(rx, ry, rz);
-          dummy.scale.set(sx, sy, sz);
-          dummy.updateMatrix();
-          g.applyMatrix4(dummy.matrix);
-          arr.push(g);
-        };
-        addXform(barkParts, new THREE.CylinderGeometry(0.28, 0.48, 2.6, 8), 0, 1.3, 0, 0, 0, 0.06);
-        addXform(barkParts, new THREE.CylinderGeometry(0.18, 0.29, 2.4, 7), -0.12, 3.5, 0.08, 0, 0, -0.11);
-        const limbConfigs = [
-          { rx: 0.48, rz:  0.65, len: 2.8, y: 3.9, ox: -0.9, oz:  0.6 },
-          { rx: -0.42, rz: -0.62, len: 3.0, y: 4.1, ox:  1.0, oz: -0.5 },
-          { rx: 0.62, rz: -0.35, len: 2.5, y: 4.3, ox:  0.5, oz:  0.9 },
-          { rx: -0.55, rz:  0.40, len: 2.6, y: 3.7, ox: -0.7, oz: -0.8 },
-          { rx: 0.25, rz:  0.78, len: 2.4, y: 4.6, ox: -1.2, oz:  0.2 },
-        ];
-        limbConfigs.forEach(cfg => {
-          addXform(barkParts, new THREE.CylinderGeometry(0.05, 0.14, cfg.len, 6), cfg.ox, cfg.y, cfg.oz, cfg.rx, 0, cfg.rz);
-          addXform(barkParts, new THREE.CylinderGeometry(0.02, 0.06, 1.5, 5), cfg.ox * 1.55, cfg.y + 0.85, cfg.oz * 1.55, cfg.rx * 1.25, 0.3, cfg.rz * 1.25);
-          addXform(canopyParts, new THREE.DodecahedronGeometry(1.25, 1), cfg.ox * 1.45, cfg.y + 1.05, cfg.oz * 1.45, 0, 0, 0, 1.25, 0.68, 1.25);
-        });
-        const mergedBarkGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(barkParts);
-        const mergedCanopyGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(canopyParts);
-        const n = exteriorTreeQueues.campusTrees.length;
-        const instBark = new THREE.InstancedMesh(mergedBarkGeo, materials.treeBark, n);
-        const instCanopy = new THREE.InstancedMesh(mergedCanopyGeo, materials.foliageGreen, n);
-        exteriorTreeQueues.campusTrees.forEach((t, idx) => {
-          dummy.position.set(t.x, 0, t.z);
-          dummy.rotation.set(0, 0, 0);
-          dummy.scale.set(t.scale, t.scale, t.scale);
-          dummy.updateMatrix();
-          instBark.setMatrixAt(idx, dummy.matrix);
-          instCanopy.setMatrixAt(idx, dummy.matrix);
-        });
-        instBark.instanceMatrix.needsUpdate = true;
-        instCanopy.instanceMatrix.needsUpdate = true;
-        instBark.castShadow = true;
-        instBark.receiveShadow = true;
-        instCanopy.castShadow = true;
-        instCanopy.receiveShadow = true;
-        computeInstancedBoundingSphere(instBark, n);
-        computeInstancedBoundingSphere(instCanopy, n);
-        scene.add(instBark);
-        scene.add(instCanopy);
-      }
-
-      // 2. Build InstancedMesh for Palm Trees (5 palms -> 2 draw calls: trunk + crown)
-      if (exteriorTreeQueues.palmTrees.length > 0) {
-        const trunkGeo = new THREE.CylinderGeometry(0.14, 0.24, 5.6, 8).clone();
-        dummy.position.set(0, 2.8, 0);
-        dummy.rotation.set(0, 0, 0.05);
-        dummy.scale.set(1, 1, 1);
-        dummy.updateMatrix();
-        trunkGeo.applyMatrix4(dummy.matrix);
-        const frondParts = [];
-        for (let f = 0; f < 9; f++) {
-          const ang = (f * Math.PI * 2) / 9;
-          const fg = new THREE.BoxGeometry(0.36, 0.04, 2.35).clone();
-          dummy.position.set(Math.sin(ang) * 1.05, 5.40, Math.cos(ang) * 1.05);
-          dummy.rotation.set(0.42, ang, 0);
-          dummy.scale.set(1, 1, 1);
-          dummy.updateMatrix();
-          fg.applyMatrix4(dummy.matrix);
-          frondParts.push(fg);
-        }
-        const mergedCrownGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(frondParts);
-        const np = exteriorTreeQueues.palmTrees.length;
-        const instPTrunk = new THREE.InstancedMesh(trunkGeo, materials.treeBark, np);
-        const instPCrown = new THREE.InstancedMesh(mergedCrownGeo, materials.palmFrondMat, np);
-        exteriorTreeQueues.palmTrees.forEach((t, idx) => {
-          dummy.position.set(t.x, 0, t.z);
-          dummy.rotation.set(0, 0, 0);
-          dummy.scale.set(t.scale, t.scale, t.scale);
-          dummy.updateMatrix();
-          instPTrunk.setMatrixAt(idx, dummy.matrix);
-          instPCrown.setMatrixAt(idx, dummy.matrix);
-        });
-        instPTrunk.instanceMatrix.needsUpdate = true;
-        instPCrown.instanceMatrix.needsUpdate = true;
-        instPTrunk.castShadow = true;
-        instPTrunk.receiveShadow = true;
-        instPCrown.castShadow = false;
-        instPCrown.receiveShadow = true;
-        computeInstancedBoundingSphere(instPTrunk, np);
-        computeInstancedBoundingSphere(instPCrown, np);
-        scene.add(instPTrunk);
-        scene.add(instPCrown);
-      }
-
-      // 3. Build InstancedMesh for Dead Trees & Roadside Shrubs
-      if (exteriorTreeQueues.deadTrees.length > 0) {
-        const deadParts = [];
-        const tg = new THREE.CylinderGeometry(0.18, 0.44, 4.2, 7).clone();
-        dummy.position.set(0, 2.1, 0);
-        dummy.rotation.set(0, 0, 0.09);
-        dummy.scale.set(1, 1, 1);
-        dummy.updateMatrix();
-        tg.applyMatrix4(dummy.matrix);
-        deadParts.push(tg);
-        [
-          { rx: 0.62, rz:  0.74, len: 3.1, y: 3.4, ox: -0.8, oz:  0.5 },
-          { rx: -0.58, rz: -0.68, len: 3.3, y: 3.7, ox:  0.9, oz: -0.6 },
-          { rx: 0.72, rz: -0.42, len: 2.7, y: 3.9, ox:  0.4, oz:  0.8 },
-          { rx: -0.65, rz:  0.48, len: 2.8, y: 3.1, ox: -0.7, oz: -0.7 },
-        ].forEach(cfg => {
-          const lg = new THREE.CylinderGeometry(0.025, 0.13, cfg.len, 5).clone();
-          dummy.position.set(cfg.ox, cfg.y, cfg.oz);
-          dummy.rotation.set(cfg.rx, 0, cfg.rz);
-          dummy.updateMatrix();
-          lg.applyMatrix4(dummy.matrix);
-          deadParts.push(lg);
-        });
-        const mergedDeadGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(deadParts);
-        const nd = exteriorTreeQueues.deadTrees.length;
-        const instDead = new THREE.InstancedMesh(mergedDeadGeo, materials.treeBark, nd);
-        exteriorTreeQueues.deadTrees.forEach((t, idx) => {
-          dummy.position.set(t.x, 0, t.z);
-          dummy.rotation.set(0, 0, 0);
-          dummy.scale.set(t.scale, t.scale, t.scale);
-          dummy.updateMatrix();
-          instDead.setMatrixAt(idx, dummy.matrix);
-        });
-        instDead.instanceMatrix.needsUpdate = true;
-        instDead.castShadow = true;
-        instDead.receiveShadow = true;
-        computeInstancedBoundingSphere(instDead, nd);
-        scene.add(instDead);
-      }
-
-      if (exteriorTreeQueues.shrubs.length > 0) {
-        const ns = exteriorTreeQueues.shrubs.length;
-        const instShrubs = new THREE.InstancedMesh(sharedGeos.shrubClump, materials.foliageGreen, ns);
-        exteriorTreeQueues.shrubs.forEach((s, idx) => {
-          dummy.position.set(s.x, s.y, s.z);
-          dummy.rotation.set(0, 0, 0);
-          dummy.scale.set(s.sx, s.sy, s.sz);
-          dummy.updateMatrix();
-          instShrubs.setMatrixAt(idx, dummy.matrix);
-        });
-        instShrubs.instanceMatrix.needsUpdate = true;
-        instShrubs.castShadow = false;
-        instShrubs.receiveShadow = true;
-        computeInstancedBoundingSphere(instShrubs, ns);
-        scene.add(instShrubs);
-      }
-
-      // 4. Partition static exterior & building meshes into spatial Building/Courtyard Sectors and bake each sector by material!
       const sectorDefs = [
-        { id: 'ground-base', x: 0, z: 0, radius: 220, alwaysVisible: true, test: (x, z) => false },
-        { id: 'rotunda-complex', x: 6.0, z: 60.0, radius: 26.0, isLandmark: true, test: (x, z) => z >= 36.0 },
-        { id: 'west-wing-l1', x: -6.5, z: -18.0, radius: 18.0, test: (x, z) => x >= -12.5 && x <= -1.5 && z >= -34.0 && z <= -2.0 },
-        { id: 'west-wing-l2', x: -17.5, z: -12.0, radius: 17.0, test: (x, z) => x >= -23.0 && x < -12.5 && z >= -28.0 && z <= 4.0 },
-        { id: 'west-wing-l3', x: -17.5, z: 20.0, radius: 15.0, test: (x, z) => x >= -23.0 && x <= -11.0 && z > 4.0 && z < 36.0 },
-        { id: 'east-wing-r1-r2', x: 20.0, z: -19.0, radius: 20.0, test: (x, z) => x >= 10.0 && z >= -38.0 && z <= 2.0 },
-        { id: 'east-wing-r4', x: 25.5, z: 20.0, radius: 18.0, test: (x, z) => x >= 10.0 && z > 2.0 && z < 36.0 },
-        { id: 'west-heritage-cluster', x: -34.0, z: -12.0, radius: 28.0, test: (x, z) => x < -23.0 && z >= -52.0 && z < 36.0 },
-        { id: 'south-gate-parking', x: 0.0, z: -50.0, radius: 28.0, test: (x, z) => z < -34.0 },
-        { id: 'central-courtyard', x: 0.0, z: 0.0, radius: 36.0, test: () => true },
+        { id: 'ground-base', x: 0, z: 0, radius: 240, alwaysVisible: true, test: () => false },
+        { id: 'rotunda-complex', x: 0.0, z: -110.0, radius: 28.0, isLandmark: true, test: (x, z) => z <= -80.0 },
+        { id: 'west-wing-l1', x: -4.5, z: -9.5, radius: 20.0, test: (x, z) => x >= -24.0 && x <= 14.0 && z >= -18.0 && z <= -3.0 },
+        { id: 'west-wing-l2', x: -4.5, z: 4.0, radius: 20.0, test: (x, z) => x >= -24.0 && x <= 14.0 && z > -3.0 && z <= 10.5 },
+        { id: 'west-wing-l3', x: -4.5, z: 25.0, radius: 24.0, test: (x, z) => x >= -24.0 && x <= 14.0 && z > 10.5 && z < 41.0 },
+        { id: 'north-wing-b6', x: 2.0, z: 49.0, radius: 20.0, test: (x, z) => x >= -16.0 && x <= 20.0 && z >= 41.0 },
+        { id: 'east-wing-r1-r2', x: 24.0, z: -28.0, radius: 24.0, test: (x, z) => x > 14.0 && z >= -46.0 && z <= 2.0 },
+        { id: 'east-wing-r4', x: 28.0, z: 19.0, radius: 20.0, test: (x, z) => x > 14.0 && z > 2.0 },
+        { id: 'west-heritage-cluster', x: -63.0, z: 34.0, radius: 28.0, test: (x, z) => x < -38.0 && z >= 12.0 },
+        { id: 'south-gate-parking', x: -55.0, z: -5.0, radius: 30.0, test: (x, z) => (x < -38.0 && z < 12.0) || z < -46.0 },
+        { id: 'central-courtyard', x: 0.0, z: 0.0, radius: 42.0, test: () => true },
       ];
 
       sectorDefs.forEach(sd => {
@@ -16058,7 +15851,7 @@ export function getHideAndSeekHtml(): string {
         if (!ch || ch === atmosphere.skyGroup || ch.isLight || ch.isCamera || ch.isInstancedMesh || ch.isPoints) continue;
         if (ch.userData && (ch.userData.isRoomGroup || (ch.userData.noMerge && !ch.userData.isSwingingDoor))) continue;
         if (buildingSectors.some(s => s.group === ch)) continue;
-        if (ch === terrainMesh || ch === southParkingApron) {
+        if (ch === terrainMesh) {
           buildingSectors[0].group.add(ch);
           continue;
         }
@@ -16159,7 +15952,7 @@ export function getHideAndSeekHtml(): string {
       // 1. Check if player is currently inside any enclosed room or building corridor
       let currentInsideRoom = null;
       let activeBuildingKey = null;
-      if (playerPos.z >= 51.0 && playerPos.x >= -13.5 && playerPos.x <= 25.5) {
+      if (playerPos.z <= -98.0 && playerPos.x >= -24.0 && playerPos.x <= 24.0) {
         activeBuildingKey = 'ROTUNDA';
       }
       for (let i = 0; i < roomVisibilityList.length; i++) {
@@ -16575,85 +16368,85 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // 1. Southern Gate, Security Guardhouse & Enterable University Buses (Bus A & Bus B Perimeter + Walk-In Aisles)
-      addWp('gate-entry', 1.5, 0, -60, 'exterior');
+      // 1. Southern Gate, Security Guardhouse & Enterable University Buses (Bus A & Bus B Perimeter + Walk-In Aisles on Terrace)
+      addWp('gate-entry', -2.5, TERRACE_HEIGHT, -62.0, 'exterior');
       addRoomVisit('Security Guardhouse');
-      addWp('parking-plaza', -8.0, 0, -50, 'exterior');
-      addWp('bus-a-front-door', 2.8, 0, -40.85, 'door', 'Bus A');
-      addWp('bus-a-aisle-front', 5.2, 0.54, -40.85, 'interior', 'Bus A');
-      addWp('bus-a-aisle-mid', 5.2, 0.54, -44.20, 'interior', 'Bus A');
-      addWp('bus-a-aisle-rear', 5.2, 0.54, -47.55, 'interior', 'Bus A');
-      addWp('bus-a-rear-door', 2.8, 0, -47.55, 'door', 'Bus A');
-      addWp('bus-plaza-lane', 9.2, 0, -44.5, 'exterior');
-      addWp('bus-b-front-door', 13.0, 0, -41.85, 'door', 'Bus B');
-      addWp('bus-b-aisle-front', 15.53, 0.54, -41.85, 'interior', 'Bus B');
-      addWp('bus-b-aisle-mid', 15.40, 0.54, -45.20, 'interior', 'Bus B');
-      addWp('bus-b-aisle-rear', 15.27, 0.54, -48.55, 'interior', 'Bus B');
-      addWp('bus-b-rear-door', 12.7, 0, -48.55, 'door', 'Bus B');
+      addWp('parking-plaza', -55.0, TERRACE_HEIGHT, -8.5, 'exterior');
+      addWp('bus-a-front-door', -63.2, TERRACE_HEIGHT, -3.85, 'door', 'Bus A');
+      addWp('bus-a-aisle-front', -61.0, TERRACE_HEIGHT + 0.54, -3.85, 'interior', 'Bus A');
+      addWp('bus-a-aisle-mid', -61.0, TERRACE_HEIGHT + 0.54, -0.50, 'interior', 'Bus A');
+      addWp('bus-a-aisle-rear', -61.0, TERRACE_HEIGHT + 0.54, 2.85, 'interior', 'Bus A');
+      addWp('bus-a-rear-door', -63.2, TERRACE_HEIGHT, 2.85, 'door', 'Bus A');
+      addWp('bus-plaza-lane', -55.0, TERRACE_HEIGHT, -0.50, 'exterior');
+      addWp('bus-b-front-door', -51.2, TERRACE_HEIGHT, -3.85, 'door', 'Bus B');
+      addWp('bus-b-aisle-front', -48.87, TERRACE_HEIGHT + 0.54, -3.85, 'interior', 'Bus B');
+      addWp('bus-b-aisle-mid', -49.00, TERRACE_HEIGHT + 0.54, -0.50, 'interior', 'Bus B');
+      addWp('bus-b-aisle-rear', -49.13, TERRACE_HEIGHT + 0.54, 2.85, 'interior', 'Bus B');
+      addWp('bus-b-rear-door', -51.3, TERRACE_HEIGHT, 2.85, 'door', 'Bus B');
 
-      // 2. West Cluster (W1, W2, W3, W4)
-      addWp('w1-walkway', -28.0, 0, -34.6, 'corridor');
+      // 2. West Classrooms Cluster (bldg_10, bldg_11, bldg_12) & South-East Admin/Warehouse (bldg_1, bldg_2, bldg_3, bldg_4)
+      addWp('w1-walkway', -63.5, TERRACE_HEIGHT, 42.2, 'corridor');
       addRoomVisit('Newari Heritage Block W1 Room 2');
       addRoomVisit('Newari Heritage Block W1 Room 1');
-      addWp('w2-walkway', -27.5, 0, -22.0, 'corridor');
+      addWp('w2-walkway', -63.0, TERRACE_HEIGHT, 28.2, 'corridor');
       addRoomVisit('Newari Cultural Hall W2 South');
-      addWp('wp-w2-north-in', -33.6, 0.22, -19.5, 'interior', 'West Wing L3 Heritage Library W2');
-      addWp('wp-w2-door-out', -28.1, 0.22, -22.0, 'door', 'Newari Cultural Hall W2 South');
-      addWp('w3-walkway', -27.5, 0, 5.4, 'corridor');
+      addWp('wp-w2-north-in', -73.9, BUILDING_FLOOR_Y, 34.5, 'interior', 'West Wing L3 Heritage Library W2');
+      addWp('wp-w2-door-out', -63.5, BUILDING_FLOOR_Y, 42.8, 'door', 'Newari Cultural Hall W2 South');
+      addWp('w3-walkway', 27.0, TERRACE_HEIGHT, -15.6, 'corridor');
       addRoomVisit('Building W3 West Wing Room 2');
       addRoomVisit('Building W3 West Wing Room 1');
-      addWp('w4-walkway', -27.5, 0, 25.4, 'corridor');
+      addWp('w4-walkway', 38.5, TERRACE_HEIGHT, -59.8, 'corridor');
       addRoomVisit('Building W4 West Wing Room 1');
       addRoomVisit('Building W4 West Wing Room 2');
 
-      // 3. West Wings (L3, L2, L1)
-      addWp('l3-corridor-north', -12.6, 0.18, 25.5, 'corridor');
+      // 3. West Academic Wings (bldg_west_wing_l1, bldg_west_wing_l2, bldg_5, bldg_6)
+      addWp('l3-corridor-north', -4.5, BUILDING_FLOOR_Y, 12.2, 'corridor');
       addRoomVisit('West Wing L3 Room 2');
       addRoomVisit('West Wing L3 Room 1');
-      addWp('l2-corridor-north', -12.6, 0.18, -2.67, 'corridor');
+      addWp('l2-corridor-north', -4.5, BUILDING_FLOOR_Y, -1.8, 'corridor');
       addRoomVisit('West Wing L2 Room 3');
       addRoomVisit('West Wing L2 Room 2');
       addRoomVisit('West Wing L2 Room 1');
-      addWp('l1-corridor-south', -11.2, 0.18, -28.0, 'corridor');
+      addWp('l1-corridor-south', -4.5, BUILDING_FLOOR_Y, -15.3, 'corridor');
       addRoomVisit('West Wing L1 Room 1');
       addRoomVisit('West Wing L1 Room 2');
       addRoomVisit('West Wing L1 Room 3');
 
-      // 4. Spine Avenue & East Wings (R1, R2, R4)
-      addWp('spine-road-south', 0.8, 0, -28.0, 'exterior');
-      addWp('r1-corridor-south', 10.0, 0.18, -32.67, 'corridor');
+      // 4. Spine Avenue & East Wings (bldg_east_wing_r1, bldg_east_wing_r2, bldg_east_wing_r4)
+      addWp('spine-road-south', -2.5, TERRACE_HEIGHT, -28.0, 'exterior');
+      addWp('r1-corridor-south', 15.0, BUILDING_FLOOR_Y, -32.2, 'corridor');
       addRoomVisit('East Wing R1 Room 1');
       addRoomVisit('East Wing R1 Room 2');
       addRoomVisit('East Wing R1 Room 3');
-      addWp('r2-corridor-south', 20.6, 0.18, -22.67, 'corridor');
+      addWp('r2-corridor-south', 22.3, BUILDING_FLOOR_Y, -27.0, 'corridor');
       addRoomVisit('East Wing R2 Room 1');
       addRoomVisit('East Wing R2 Room 2');
       addRoomVisit('East Wing R2 Room 3');
-      addWp('r4-corridor-south', 20.6, 0.18, 10.67, 'corridor');
+      addWp('r4-corridor-south', 21.8, BUILDING_FLOOR_Y, 19.0, 'corridor');
       addRoomVisit('East Wing R4 Room 1');
       addRoomVisit('East Wing R4 Room 2');
       addRoomVisit('East Wing R4 Room 3');
 
       // 5. Grand Rotunda All 3 Floors (Ground: 101 & 102, 1st Floor: 201 & 202, 2nd Floor: 301 & 302)
-      addWp('rotunda-fountain', 6.0, 0, 42.5, 'exterior');
-      addWp('rotunda-ground-lobby', 6.0, 0.48, 59.0, 'corridor');
+      addWp('rotunda-fountain', 0.0, TERRACE_HEIGHT, -83.5, 'exterior');
+      addWp('rotunda-ground-lobby', 0.0, BUILDING_FLOOR_Y, -115.0, 'corridor');
       addRoomVisit('Rotunda Ground West Hall 101');
       addRoomVisit('Rotunda Ground East Hall 102');
-      addWp('rotunda-stair1-bot', 3.0, 0.48, 60.5, 'stair');
-      addWp('rotunda-stair1-top', 3.0, 4.08, 68.0, 'stair');
+      addWp('rotunda-stair1-bot', -3.0, BUILDING_FLOOR_Y, -115.5, 'stair');
+      addWp('rotunda-stair1-top', -3.0, BUILDING_FLOOR_Y + 3.60, -108.0, 'stair');
       addRoomVisit('Rotunda 1st-Floor West Class 201');
-      addWp('rotunda-1f-landing', 9.0, 4.08, 68.0, 'corridor');
+      addWp('rotunda-1f-landing', 3.0, BUILDING_FLOOR_Y + 3.60, -108.0, 'corridor');
       addRoomVisit('Rotunda 1st-Floor East Class 202');
-      addWp('rotunda-stair2-bot', 9.0, 4.08, 68.0, 'stair');
-      addWp('rotunda-stair2-top', 9.0, 7.68, 60.5, 'stair');
+      addWp('rotunda-stair2-bot', 3.0, BUILDING_FLOOR_Y + 3.60, -108.0, 'stair');
+      addWp('rotunda-stair2-top', 3.0, BUILDING_FLOOR_Y + 7.20, -115.5, 'stair');
       addRoomVisit('Rotunda 2nd-Floor East Lab 302');
-      addWp('rotunda-3f-balcony', 6.0, 7.68, 54.2, 'corridor');
+      addWp('rotunda-3f-balcony', 1.95, BUILDING_FLOOR_Y + 7.20, -121.8, 'corridor');
       addRoomVisit('Rotunda 2nd-Floor West Seminar 301');
-      addWp('rotunda-stair2-down', 9.0, 7.68, 60.5, 'stair');
-      addWp('rotunda-1f-down', 9.0, 4.08, 68.0, 'stair');
-      addWp('rotunda-stair1-down', 3.0, 4.08, 68.0, 'stair');
-      addWp('rotunda-exit', 6.0, 0.48, 59.0, 'corridor');
-      addWp('spine-terrace', 3.0, 0, 34.0, 'exterior');
+      addWp('rotunda-stair2-down', 3.0, BUILDING_FLOOR_Y + 7.20, -115.5, 'stair');
+      addWp('rotunda-1f-down', 3.0, BUILDING_FLOOR_Y + 3.60, -108.0, 'stair');
+      addWp('rotunda-stair1-down', -3.0, BUILDING_FLOOR_Y + 3.60, -108.0, 'stair');
+      addWp('rotunda-exit', 0.0, BUILDING_FLOOR_Y, -115.0, 'corridor');
+      addWp('spine-terrace', -2.5, TERRACE_HEIGHT, 5.5, 'exterior');
     })();
 
     function isObstacleCollider(b, y) {
@@ -16773,10 +16566,10 @@ export function getHideAndSeekHtml(): string {
       }
 
       const fuseLocations = [
-        { id: 'fuse-main-302', name: 'Main Bldg 3F Server Lab 302 Fuse Box', x: 23.2, y: 7.68, z: 62.5, building: 'ROTUNDA' },
-        { id: 'fuse-main-101', name: 'Main Bldg 1F Lecture Hall 101 Fuse Box', x: -11.2, y: 0.48, z: 62.5, building: 'ROTUNDA' },
-        { id: 'fuse-west-l2', name: 'West Academic Wing L2 Fuse Box', x: -13.2, y: 0.18, z: -14.0, building: 'L2' },
-        { id: 'fuse-east-r2', name: 'East Engineering Wing R2 Fuse Box', x: 20.2, y: 0.18, z: -14.0, building: 'R2' },
+        { id: 'fuse-main-302', name: 'Main Bldg 3F Server Lab 302 Fuse Box', x: 17.2, y: BUILDING_FLOOR_Y + 7.20, z: -113.5, building: 'ROTUNDA' },
+        { id: 'fuse-main-101', name: 'Main Bldg 1F Lecture Hall 101 Fuse Box', x: -17.2, y: BUILDING_FLOOR_Y, z: -113.5, building: 'ROTUNDA' },
+        { id: 'fuse-west-l2', name: 'West Academic Wing L2 Fuse Box', x: -4.5, y: BUILDING_FLOOR_Y, z: 2.0, building: 'L2' },
+        { id: 'fuse-east-r2', name: 'East Engineering Wing R2 Fuse Box', x: 25.0, y: BUILDING_FLOOR_Y, z: -27.0, building: 'R2' },
       ];
 
       const boxGeo = new THREE.BoxGeometry(0.42, 0.56, 0.22);
@@ -16800,22 +16593,22 @@ export function getHideAndSeekHtml(): string {
         });
       });
 
-      // Requirement 5 (Playability): At least one battery recharge pickup per building across all 12 buildings!
+      // Requirement 5 (Playability): At least one battery recharge pickup per building across all campus buildings!
       const battLocs = [
-        { id: 'batt-rotunda-1f', building: 'ROTUNDA', x: 6.0, y: 0.48, z: 61.2 },
-        { id: 'batt-rotunda-201', building: 'ROTUNDA', x: -4.8, y: 4.08, z: 63.5 },
-        { id: 'batt-rotunda-301', building: 'ROTUNDA', x: -4.8, y: 7.68, z: 63.5 },
-        { id: 'batt-west-l1', building: 'L1', x: -10.8, y: 0.18, z: -20.0 },
-        { id: 'batt-west-l2', building: 'L2', x: -14.2, y: 0.22, z: -12.0 },
-        { id: 'batt-west-l3', building: 'L3', x: -14.2, y: 0.22, z: 18.0 },
-        { id: 'batt-east-r1', building: 'R1', x: 10.2, y: 0.18, z: -22.0 },
-        { id: 'batt-east-r2', building: 'R2', x: 20.8, y: 0.18, z: -18.0 },
-        { id: 'batt-east-r4', building: 'R4', x: 24.5, y: 0.18, z: 18.0 },
-        { id: 'batt-heritage-w1', building: 'W1', x: -33.5, y: 0.22, z: -41.5 },
-        { id: 'batt-heritage-w2', building: 'W2', x: -33.6, y: 0.22, z: -26.5 },
-        { id: 'batt-canteen-w3', building: 'W3', x: -34.0, y: 0.15, z: -6.0 },
-        { id: 'batt-annex-w4', building: 'W4', x: -29.0, y: 0.15, z: 8.0 },
-        { id: 'batt-guardhouse', building: 'GUARDHOUSE', x: 6.2, y: 0.15, z: -57.8 },
+        { id: 'batt-rotunda-1f', building: 'ROTUNDA', x: 0.0, y: BUILDING_FLOOR_Y, z: -114.8 },
+        { id: 'batt-rotunda-201', building: 'ROTUNDA', x: -10.8, y: BUILDING_FLOOR_Y + 3.60, z: -112.5 },
+        { id: 'batt-rotunda-301', building: 'ROTUNDA', x: -10.8, y: BUILDING_FLOOR_Y + 7.20, z: -112.5 },
+        { id: 'batt-west-l1', building: 'L1', x: -4.5, y: BUILDING_FLOOR_Y, z: -9.5 },
+        { id: 'batt-west-l2', building: 'L2', x: -4.5, y: BUILDING_FLOOR_Y, z: 4.0 },
+        { id: 'batt-west-l3', building: 'L3', x: -4.5, y: BUILDING_FLOOR_Y, z: 18.0 },
+        { id: 'batt-east-r1', building: 'R1', x: 15.0, y: BUILDING_FLOOR_Y, z: -38.0 },
+        { id: 'batt-east-r2', building: 'R2', x: 28.0, y: BUILDING_FLOOR_Y, z: -27.0 },
+        { id: 'batt-east-r4', building: 'R4', x: 27.5, y: BUILDING_FLOOR_Y, z: 19.0 },
+        { id: 'batt-heritage-w1', building: 'W1', x: -63.5, y: BUILDING_FLOOR_Y, z: 48.5 },
+        { id: 'batt-heritage-w2', building: 'W2', x: -63.0, y: BUILDING_FLOOR_Y, z: 34.5 },
+        { id: 'batt-canteen-w3', building: 'W3', x: 27.0, y: BUILDING_FLOOR_Y, z: -9.5 },
+        { id: 'batt-annex-w4', building: 'W4', x: 38.5, y: BUILDING_FLOOR_Y, z: -66.0 },
+        { id: 'batt-guardhouse', building: 'GUARDHOUSE', x: 9.0, y: BUILDING_FLOOR_Y, z: -64.0 },
       ];
       const battGeo = new THREE.CylinderGeometry(0.10, 0.10, 0.24, 10);
       const battMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xca8a04, emissiveIntensity: 0.65, roughness: 0.35 });
@@ -16900,7 +16693,7 @@ export function getHideAndSeekHtml(): string {
 
         const seekerBotMesh = createCampusCharacter(0x11161f, true, 'The Hollow Proctor');
         scene.add(seekerBotMesh);
-        seekerBotMesh.position.set(0, 0, -60);
+        seekerBotMesh.position.set(0, TERRACE_HEIGHT, -62);
 
         const seekerBot = {
           id: 'seeker-bot',
@@ -16942,7 +16735,7 @@ export function getHideAndSeekHtml(): string {
     }
 
     const playerPhysics = {
-      pos: new THREE.Vector3(-4, 0, -48),
+      pos: new THREE.Vector3(-2.5, TERRACE_HEIGHT, -48),
       vel: new THREE.Vector3(0, 0, 0),
       radius: 0.28,
       height: 1.8,
@@ -17101,15 +16894,19 @@ export function getHideAndSeekHtml(): string {
     // Circle/Capsule vs Box & Cylinder Collision Solver with Pure Tangent Sliding (Zero Bouncing, Zero Inversion)
     function resolveCollisionSubstep(pos, vel, radius, playerHeight, stepHeight, isHiding) {
       const BOUND = 88.0;
+      const minBoundX = pos.y >= 0.96 ? -91.5 : -BOUND;
+      const maxBoundX = BOUND;
+      const minBoundZ = pos.y >= 0.96 ? -139.0 : -BOUND;
+      const maxBoundZ = BOUND;
       const playerBottom = pos.y;
       const playerTop = pos.y + playerHeight;
       let collided = false;
 
       // 1. World Bounds clamping
-      if (pos.x < -BOUND) { pos.x = -BOUND; if (vel.x < 0) vel.x = 0; }
-      if (pos.x > BOUND) { pos.x = BOUND; if (vel.x > 0) vel.x = 0; }
-      if (pos.z < -BOUND) { pos.z = -BOUND; if (vel.z < 0) vel.z = 0; }
-      if (pos.z > BOUND) { pos.z = BOUND; if (vel.z > 0) vel.z = 0; }
+      if (pos.x < minBoundX) { pos.x = minBoundX; if (vel.x < 0) vel.x = 0; }
+      if (pos.x > maxBoundX) { pos.x = maxBoundX; if (vel.x > 0) vel.x = 0; }
+      if (pos.z < minBoundZ) { pos.z = minBoundZ; if (vel.z < 0) vel.z = 0; }
+      if (pos.z > maxBoundZ) { pos.z = maxBoundZ; if (vel.z > 0) vel.z = 0; }
 
       // 2. Iterate colliders
       for (let i = 0; i < colliders.length; i++) {
@@ -17278,7 +17075,9 @@ export function getHideAndSeekHtml(): string {
             }
           }
         } else if (x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ) {
-          const t = Math.max(0.0, Math.min(1.0, (z - r.zStart) / (r.zEnd - r.zStart)));
+          const t = r.axis === 'x'
+            ? Math.max(0.0, Math.min(1.0, (x - r.xStart) / (r.xEnd - r.xStart)))
+            : Math.max(0.0, Math.min(1.0, (z - r.zStart) / (r.zEnd - r.zStart)));
           const rampY = r.yStart + t * (r.yEnd - r.yStart);
           if (Math.abs(currentY - rampY) <= 1.55) {
             return rampY;
@@ -18144,11 +17943,12 @@ export function getHideAndSeekHtml(): string {
         ctx.fillStyle = '#050b14';
         ctx.fillRect(0, 0, w, h);
 
-        const mapX = x => ((x + 52) / 104) * w;
-        const mapZ = z => ((z + 75) / 155) * h;
+        const mapX = x => ((x + 95) / 143) * w;
+        const mapZ = z => ((z + 142) / 202) * h;
 
         ctx.fillStyle = 'rgba(71, 85, 105, 0.35)';
-        ctx.fillRect(mapX(-3.5), mapZ(-65), mapX(5.5) - mapX(-3.5), mapZ(55) - mapZ(-65));
+        ctx.fillRect(mapX(-6.5), mapZ(-68), mapX(1.5) - mapX(-6.5), mapZ(52) - mapZ(-68));
+        ctx.fillRect(mapX(-42), mapZ(1.5), mapX(42) - mapX(-42), mapZ(9.5) - mapZ(1.5));
 
         if (typeof ROOM_DEFINITIONS === 'object') {
           Object.keys(ROOM_DEFINITIONS).forEach(rId => {
@@ -18309,9 +18109,10 @@ export function getHideAndSeekHtml(): string {
             return { lx: dx * cosR - dz * sinR, lz: dx * sinR + dz * cosR };
           };
           // 1. Door entry & exit (front & rear doors)
+          const busBaseY = bus.baseY !== undefined ? bus.baseY : TERRACE_HEIGHT;
           [['front_door', bus.fDoorCenterZ], ['rear_door', bus.rDoorCenterZ]].forEach(([doorName, dcz]) => {
             const sw = toW(-1.85, dcz);
-            playerPhysics.pos.set(sw.x, 0, sw.z);
+            playerPhysics.pos.set(sw.x, busBaseY, sw.z);
             playerPhysics.vel.set(0, 0, 0);
             playerPhysics.isGrounded = true;
             const enterYaw = Math.atan2(-cosR, sinR);
@@ -18812,23 +18613,18 @@ export function getHideAndSeekHtml(): string {
       if (!zoneEl) return;
       const x = playerPhysics.pos.x, y = playerPhysics.pos.y, z = playerPhysics.pos.z;
       let zone = 'GANDAKI UNIVERSITY • CENTRAL CAMPUS SPINE ROAD';
-      if (z < -42 && x < 2) zone = 'GANDAKI UNIVERSITY • MAIN PARKING PLAZA & ESCAPE GATE';
-      else if (z < -36 && x >= 2) zone = 'GANDAKI UNIVERSITY • BUS PARKING BAY (YELLOW BUSES)';
-      else if (x < -28) zone = 'GANDAKI UNIVERSITY • WEST ADMIN & WORKSHOP CLUSTER';
-      else if (x >= -17 && x <= -9 && z >= -28 && z <= 0) zone = 'GANDAKI UNIVERSITY • PLANTER ISLAND COURTYARD';
-      else if (x < -2 && z >= -36 && z <= 2) zone = 'GANDAKI UNIVERSITY • WEST CLASSROOM WING L1';
-      else if (x < -14 && z >= -26 && z <= 6) zone = 'GANDAKI UNIVERSITY • WEST WING L2 (FUSE BOX SECTOR)';
-      else if (x < -14 && z > 6 && z <= 28) zone = 'GANDAKI UNIVERSITY • WEST CLASSROOM WING L3';
-      else if (x < -14 && z > 28) zone = 'GANDAKI UNIVERSITY • WEST CLASSROOM WING L4';
-      else if (x >= 9 && x <= 20 && z >= -38 && z <= -10) zone = 'GANDAKI UNIVERSITY • EAST WING R1 (ACADEMIC BLOCK)';
-      else if (x > 18 && z >= -28 && z <= -4) zone = 'GANDAKI UNIVERSITY • EAST WING R2 (FUSE BOX SECTOR)';
-      else if (x > 20 && z > -4 && z <= 18) zone = 'GANDAKI UNIVERSITY • EAST WING R3 (ACADEMIC BLOCK)';
-      else if (x > 22 && z > 18 && z <= 46) zone = 'GANDAKI UNIVERSITY • EAST WING R4 (LONG BLOCK)';
-      else if (z > 51 && x >= -14 && x <= 26) {
-        if (y >= 6.2) zone = 'MAIN BUILDING • 2ND FLOOR: SEMINAR 301 (DARK) & LAB 302 (EMERGENCY RED)';
-        else if (y >= 2.5) zone = 'MAIN BUILDING • 1ST FLOOR: CLASS 201 (MOONLIT) & LIBRARY 202 (WARM LAMP)';
+      if (z <= -98 && x >= -24 && x <= 24) {
+        if (y >= BUILDING_FLOOR_Y + 6.0) zone = 'MAIN BUILDING • 2ND FLOOR: SEMINAR 301 (DARK) & LAB 302 (EMERGENCY RED)';
+        else if (y >= BUILDING_FLOOR_Y + 2.4) zone = 'MAIN BUILDING • 1ST FLOOR: CLASS 201 (MOONLIT) & LIBRARY 202 (WARM LAMP)';
         else zone = 'MAIN BUILDING • GROUND FLOOR: HALL 101 (FLICKER TUBE) & ADMIN 102';
-      } else if (z > 44) zone = 'GANDAKI UNIVERSITY • GRAND ROTUNDA PLAZA & FOUNTAIN';
+      } else if (z <= -68) zone = 'GANDAKI UNIVERSITY • GRAND ROTUNDA PLAZA & FOUNTAIN';
+      else if (x <= -41.5 && z <= 14) zone = 'GANDAKI UNIVERSITY • WEST BUS & PARKING PLAZA';
+      else if (x <= -40 && z > 14) zone = 'GANDAKI UNIVERSITY • WEST CLASSROOMS CLUSTER (BLDG 10–12)';
+      else if (x < -1.5 && z >= -18 && z <= 38) zone = 'GANDAKI UNIVERSITY • WEST ACADEMIC WINGS (L1, L2, LABS)';
+      else if (x >= -15 && x <= 19 && z >= 42) zone = 'GANDAKI UNIVERSITY • NORTH CLASSROOMS BLOCK (BLDG 6)';
+      else if (x > 1.5 && z >= -46 && z <= -32) zone = 'GANDAKI UNIVERSITY • EAST WING R1 (CAFETERIA)';
+      else if (x > 20 && z >= -45 && z <= 36) zone = 'GANDAKI UNIVERSITY • EAST ACADEMIC WINGS (MULTIPURPOSE HALL & LIBRARY)';
+      else if (x > 3.5 && z < -46) zone = 'GANDAKI UNIVERSITY • SOUTH-EAST ADMIN, WASHROOM & WAREHOUSE SECTOR';
       if (zoneEl.textContent !== zone) zoneEl.textContent = zone;
     }
 
@@ -18871,14 +18667,14 @@ export function getHideAndSeekHtml(): string {
       initCharactersAndBots();
 
       if (!EXPLORE_MODE && GAME_CONFIG.role === 'seeker') {
-        playerPhysics.pos.set(0, 0, -60);
+        playerPhysics.pos.set(0, TERRACE_HEIGHT, -62);
         playerPhysics.yaw = 0;
         playerPhysics.targetYaw = 0;
         if (EXPLORE_FLAGS.ENABLE_ROLES_AND_TIMER) {
           document.getElementById('blindfold-overlay').classList.add('active');
         }
       } else {
-        playerPhysics.pos.set(-4, 0, -48);
+        playerPhysics.pos.set(-2.5, TERRACE_HEIGHT, -48);
         playerPhysics.yaw = 0;
         playerPhysics.targetYaw = 0;
         document.getElementById('blindfold-overlay').classList.remove('active');
@@ -19025,9 +18821,9 @@ export function getHideAndSeekHtml(): string {
         if (keys['Space'] || keys['KeyE'] || exploreTools.flyUpHeld) vy += flySpd * 0.85;
         if (keys['KeyC'] || keys['KeyQ'] || exploreTools.flyDownHeld) vy -= flySpd * 0.85;
         playerPhysics.vel.set(vx, vy, vz);
-        playerPhysics.pos.x = Math.max(-88, Math.min(88, playerPhysics.pos.x + vx * delta));
+        playerPhysics.pos.x = Math.max(-92, Math.min(88, playerPhysics.pos.x + vx * delta));
         playerPhysics.pos.y = Math.max(-2, Math.min(65, playerPhysics.pos.y + vy * delta));
-        playerPhysics.pos.z = Math.max(-88, Math.min(88, playerPhysics.pos.z + vz * delta));
+        playerPhysics.pos.z = Math.max(-140, Math.min(88, playerPhysics.pos.z + vz * delta));
         playerPhysics.isGrounded = false;
         physicsDebug.hasCollided = false;
       } else {
@@ -19095,7 +18891,15 @@ export function getHideAndSeekHtml(): string {
           resolveCollisionSubstep(playerPhysics.pos, playerPhysics.vel, playerPhysics.radius, playerH, stepH, playerPhysics.isHiding);
         }
 
-        // Realistic Footsteps with surface audio
+        // Respawn threshold safety check
+        const respawnMinY = (pCfg.respawnThresholdY !== undefined) ? pCfg.respawnThresholdY : -8.0;
+        if (playerPhysics.pos.y < respawnMinY) {
+          playerPhysics.pos.set(-2.5, TERRACE_HEIGHT, -48.0);
+          playerPhysics.vel.set(0, 0, 0);
+          playerPhysics.isGrounded = true;
+        }
+
+        // Realistic Footsteps with surface audio (no grass surfaces; gravel on lower ground, road/paver on terrace, classroom on plinth/upper floors)
         if (isMoving && playerPhysics.isGrounded) {
           const actualSpeed = Math.hypot(playerPhysics.vel.x, playerPhysics.vel.z);
           playerPhysics.footstepTimer += delta * (actualSpeed / 4.8);
@@ -19106,16 +18910,18 @@ export function getHideAndSeekHtml(): string {
             const py = playerPhysics.pos.y;
             const pz = playerPhysics.pos.z;
 
-            const isLawn = (px < -21 || px > 27) || (pz > 66) || (Math.hypot(px - 9.8, pz - (-37.0)) < 2.5);
             const isOnRamp = walkableStairRamps.some(r => px >= r.minX && px <= r.maxX && pz >= r.minZ && pz <= r.maxZ);
+            const isMainRoad = (px >= -6.5 && px <= 1.5 && pz >= -68.0 && pz <= 52.0) ||
+              (px >= -42.0 && px <= 42.0 && pz >= 1.5 && pz <= 9.5) ||
+              (px <= -41.5 && pz >= -25.0 && pz <= 14.0);
 
-            if (isLawn && py <= 0.05) {
-              surface = 'grass';
-            } else if (isOnRamp || (Math.abs(playerPhysics.vel.y) > 0.08 && py > 0.1)) {
+            if (isOnRamp || (Math.abs(playerPhysics.vel.y) > 0.08 && py > 0.1)) {
               surface = 'stair';
-            } else if (py >= 0.42) {
+            } else if (py >= BUILDING_FLOOR_Y - 0.08) {
               surface = 'classroom';
-            } else if (pz < -42 && px > -2.0 && px < 4.0) {
+            } else if (py < TERRACE_HEIGHT - 0.25) {
+              surface = 'gravel';
+            } else if (isMainRoad) {
               surface = 'road';
             } else {
               surface = 'paver';
@@ -19162,13 +18968,12 @@ export function getHideAndSeekHtml(): string {
       const battLbl = document.getElementById('hud-battery-label');
       if (battLbl) battLbl.textContent = Math.round(flashlightBattery) + '%';
 
-      const inCoveredArea = (playerPhysics.pos.y >= 0.42) ||
-        (playerPhysics.pos.x >= -19 && playerPhysics.pos.x <= -13 && playerPhysics.pos.z >= -26 && playerPhysics.pos.z <= 6) ||
-        (Math.hypot(playerPhysics.pos.x - rotX, playerPhysics.pos.z - rotFrontZ) < 6.5 && playerPhysics.pos.y <= 0.6);
+      const inCoveredArea = (playerPhysics.pos.y >= BUILDING_FLOOR_Y - 0.08) ||
+        (Math.hypot(playerPhysics.pos.x - rotX, playerPhysics.pos.z - rotFrontZ) < 6.5 && playerPhysics.pos.y <= BUILDING_FLOOR_Y + 0.5);
       const isIndoorsBuilding = inCoveredArea ||
-        (playerPhysics.pos.z >= 51.0 && playerPhysics.pos.x >= -13.5 && playerPhysics.pos.x <= 25.5) ||
-        (playerPhysics.pos.x >= 19.5 && playerPhysics.pos.z >= -34.0 && playerPhysics.pos.z <= 12.0) ||
-        (playerPhysics.pos.x <= -13.0 && playerPhysics.pos.z >= -34.0 && playerPhysics.pos.z <= 12.0);
+        (playerPhysics.pos.z <= -98.0 && playerPhysics.pos.x >= -24.0 && playerPhysics.pos.x <= 24.0) ||
+        (playerPhysics.pos.x >= 21.0 && playerPhysics.pos.z >= -45.0 && playerPhysics.pos.z <= 36.0) ||
+        (playerPhysics.pos.x <= -1.5 && playerPhysics.pos.z >= -17.0 && playerPhysics.pos.z <= 25.0);
       soundEngine.setCorridorAcoustics(inCoveredArea);
       soundEngine.updateSpatialLoops(playerPhysics.pos, playerPhysics.yaw, isIndoorsBuilding);
 

@@ -2346,6 +2346,79 @@
         width: 100%;
       }
     }
+
+    /* Clean Minimalist Auth Gate Card */
+    .auth-gate-card {
+      max-width: 520px;
+      margin: 70px auto;
+      padding: 44px 36px;
+      text-align: center;
+      background: var(--surface, #ffffff);
+      border: 1px solid var(--border, rgba(0,0,0,0.08));
+      border-radius: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.03);
+    }
+    .auth-gate-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 28px;
+      background: var(--surface-raised, rgba(0,0,0,0.04));
+      color: var(--text, #111111);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+    .auth-gate-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text, #111111);
+      margin: 0 0 10px;
+      letter-spacing: -0.02em;
+    }
+    .auth-gate-desc {
+      font-size: 14.5px;
+      color: var(--text-muted, #666666);
+      line-height: 1.5;
+      margin: 0 auto 28px;
+      max-width: 420px;
+    }
+    .auth-gate-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 28px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 980px;
+      background: #000000;
+      color: #ffffff;
+      text-decoration: none;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+    .auth-gate-btn:hover {
+      opacity: 0.88;
+      transform: translateY(-1px);
+    }
+    body.dark-mode .auth-gate-card {
+      background: #18181b;
+      border-color: rgba(255,255,255,0.1);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+    }
+    body.dark-mode .auth-gate-icon {
+      background: rgba(255,255,255,0.08);
+      color: #ffffff;
+    }
+    body.dark-mode .auth-gate-title {
+      color: #ffffff;
+    }
+    body.dark-mode .auth-gate-desc {
+      color: #a1a1aa;
+    }
+    body.dark-mode .auth-gate-btn {
+      background: #ffffff;
+      color: #000000;
+    }
   </style>
   <link rel="stylesheet" href="auth-modal.css">
   <link rel="stylesheet" href="/theme-overrides.css">
@@ -2398,7 +2471,7 @@
           </svg>
           <input type="text" id="libSearch" placeholder="Search subjects, chapters, notes, or topics…">
         </div>
-        <button type="button" class="upload-cta-btn" onclick="openDirectUploadModal()" title="Upload Notes to Library">
+        <button type="button" class="upload-cta-btn" id="uploadNotesBtn" style="display:none;" onclick="openDirectUploadModal()" title="Upload Notes to Library">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
           </svg>
@@ -2408,7 +2481,7 @@
     </div>
 
     <!-- Segmented Semester Tabs (Full "Semester X" labels) -->
-    <div class="sem-switcher" id="semSwitcher">
+    <div class="sem-switcher" id="semSwitcher" style="display:none;">
       <button class="sem-btn active" data-sem="I">Semester 1</button>
       <button class="sem-btn" data-sem="II">Semester 2</button>
       <button class="sem-btn" data-sem="III">Semester 3</button>
@@ -2913,9 +2986,16 @@
 
     async function init() {
       const container = document.getElementById('mainContentContainer');
+      const switcher = document.getElementById('semSwitcher');
+      const uploadBtn = document.getElementById('uploadNotesBtn');
+      const searchPill = document.querySelector('.lib-search-pill');
+
       if (container && typeof getSkeletonCoursesHtml === 'function') {
         container.innerHTML = `<div class="course-grid-clean" id="courseGrid">${getSkeletonCoursesHtml(6)}</div>`;
       }
+      if (switcher) switcher.style.display = 'none';
+      if (uploadBtn) uploadBtn.style.display = 'none';
+
       const startTime = Date.now();
       try {
         const [sData, statsRes, filesRes, academicCtx] = await Promise.all([
@@ -2928,19 +3008,52 @@
         if (elapsed < 200) {
           await new Promise(res => setTimeout(res, 200 - elapsed));
         }
+
+        window.ACADEMIC_CONTEXT = academicCtx;
+
+        // Clean Auth Gate: Prompt unauthenticated visitors to log in
+        if (!academicCtx || !academicCtx.authenticated) {
+          const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+          if (container) {
+            container.innerHTML = `
+              <div class="auth-gate-card">
+                <div class="auth-gate-icon">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </div>
+                <h2 class="auth-gate-title">You're not logged in.</h2>
+                <p class="auth-gate-desc">Log in to access your semester's subjects, chapters, and study notes.</p>
+                <a href="/login.html?redirect=${returnUrl}" class="auth-gate-btn">Log In</a>
+              </div>
+            `;
+          }
+          if (switcher) switcher.style.display = 'none';
+          if (uploadBtn) uploadBtn.style.display = 'none';
+          if (searchPill) searchPill.style.display = 'none';
+          return;
+        }
+
+        if (searchPill) searchPill.style.display = 'flex';
+
         SYLLABUS_DATA = sData;
         SEMESTER_LIST = window.SyllabusHelper.getFormattedSemesters(sData);
         FILE_STATS = statsRes || [];
         ALL_FILES = filesRes || [];
-        window.ACADEMIC_CONTEXT = academicCtx;
 
-        if (academicCtx) {
-          if (window.AcademicContext) {
-            window.AcademicContext.renderBadge('#academicContextBadge');
-          }
-          if (academicCtx.isStudent && academicCtx.semesterRoman) {
+        if (window.AcademicContext) {
+          window.AcademicContext.renderBadge('#academicContextBadge');
+        }
+
+        // Student experience: strictly hide upload notes button, set active semester to their semester
+        if (academicCtx.isStudent) {
+          if (uploadBtn) uploadBtn.style.display = 'none';
+          if (academicCtx.semesterRoman) {
             ACTIVE_SEM = academicCtx.semesterRoman;
           }
+        } else if (academicCtx.role === 'teacher' || academicCtx.role === 'admin') {
+          if (uploadBtn) uploadBtn.style.display = 'inline-flex';
         }
 
         syncCustomCourses();
@@ -2949,7 +3062,9 @@
         renderView();
         checkUrl();
         if (new URLSearchParams(location.search).get('upload') === '1') {
-          openDirectUploadModal();
+          if (academicCtx.isStaff || academicCtx.role === 'teacher' || academicCtx.role === 'admin') {
+            openDirectUploadModal();
+          }
           const cleanUrl = new URL(location.href);
           cleanUrl.searchParams.delete('upload');
           history.replaceState(null, '', cleanUrl);
@@ -3966,8 +4081,27 @@
       if (emptyTitleEl) emptyTitleEl.textContent = `${course.title} Reader`;
       if (emptyDescEl) emptyDescEl.textContent = `Select any study note or syllabus unit on the right to preview it directly in this page.`;
 
+      const ctx = window.ACADEMIC_CONTEXT;
+      const isAdminUser = ctx && (ctx.role === 'admin' || ctx.canManageCohorts);
+      const isTeacher = ctx && ctx.role === 'teacher';
+      let canManageThisCourse = false;
+      if (isAdminUser) {
+        canManageThisCourse = true;
+      } else if (isTeacher && Array.isArray(ctx.assignedSubjects)) {
+        const cTitle = (course.title || '').trim().toLowerCase();
+        const cCode = (course.code || '').trim().toLowerCase();
+        canManageThisCourse = ctx.assignedSubjects.some(s => {
+          const sName = (s.name || '').trim().toLowerCase();
+          const sCode = (s.code || '').trim().toLowerCase();
+          return sName === cTitle || sCode === cCode || (cCode && sCode === cCode);
+        });
+      }
+
       const dUploadBtn = document.getElementById('dUploadBtn');
-      dUploadBtn.onclick = () => openDirectUploadModal(course.title, course.rawSemester);
+      if (dUploadBtn) {
+        dUploadBtn.style.display = canManageThisCourse ? 'inline-flex' : 'none';
+        dUploadBtn.onclick = () => openDirectUploadModal(course.title, course.rawSemester);
+      }
 
       const body = document.getElementById('drawerBody');
       body.innerHTML = `
@@ -3994,7 +4128,9 @@
             <img src="/minecraft-404-voxel-ruby.svg" alt="No study notes" class="empty-voxel-illu" style="max-width:220px; margin:0 auto 14px;">
             <p style="font-weight:700; color:var(--text); font-size:15px; margin:0 0 4px;">No study notes uploaded yet</p>
             <p style="margin:0 0 14px; color:var(--text-muted); font-size:13px;">No study notes uploaded for this course yet.</p>
-            <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}')" class="upload-cta-btn" style="font-size:12px; padding:6px 14px;">+ Upload First Note</button>
+            ${canManageThisCourse ? `
+              <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}')" class="upload-cta-btn" style="font-size:12px; padding:6px 14px;">+ Upload First Note</button>
+            ` : ''}
           </div>
         `;
         return;
@@ -4050,9 +4186,11 @@
                   </p>
                 </div>
               `}
-              <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', 'Unit ${u.num}: ${escapeJs(u.title)}')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
-              </div>
+              ${canManageThisCourse ? `
+                <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
+                  <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', 'Unit ${u.num}: ${escapeJs(u.title)}')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
@@ -4110,9 +4248,11 @@
                   ${renderFileActions(f)}
                 </div>
               `).join('')}
-              <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', '${escapeJs(chapName)}')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
-              </div>
+              ${canManageThisCourse ? `
+                <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
+                  <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', '${escapeJs(chapName)}')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
@@ -4150,9 +4290,11 @@
                   ${renderFileActions(f)}
                 </div>
               `).join('')}
-              <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', 'Lab / Practical')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
-              </div>
+              ${canManageThisCourse ? `
+                <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
+                  <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', 'Lab / Practical')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
@@ -4189,9 +4331,11 @@
                   ${renderFileActions(f)}
                 </div>
               `).join('')}
-              <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', 'General')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
-              </div>
+              ${canManageThisCourse ? `
+                <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
+                  <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', 'General')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
@@ -4365,9 +4509,23 @@
     }
 
     function setupUploadModalControls() {
+      const academicCtx = window.ACADEMIC_CONTEXT;
+      const isTeacher = academicCtx && academicCtx.role === 'teacher';
+      const teacherSubjects = isTeacher && Array.isArray(academicCtx.assignedSubjects) ? academicCtx.assignedSubjects : [];
+      const teacherSemNums = new Set(teacherSubjects.map(s => Number(s.semester)));
+      const ROMANS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+
+      let eligibleSemList = SEMESTER_LIST;
+      if (isTeacher) {
+        eligibleSemList = SEMESTER_LIST.filter(s => {
+          const sNum = ROMANS.indexOf(s.rawSemester) + 1;
+          return teacherSemNums.has(sNum);
+        });
+      }
+
       modalSemesterSelect.innerHTML = '<option value="">Select Semester…</option>' +
-        SEMESTER_LIST.map(s => `<option value="${s.shortName}">${s.fullLabel}</option>`).join('') +
-        '<option value="General">General / All Semesters</option>';
+        eligibleSemList.map(s => `<option value="${s.shortName}">${s.fullLabel}</option>`).join('') +
+        (isTeacher ? '' : '<option value="General">General / All Semesters</option>');
 
       modalSemesterSelect.addEventListener('change', () => {
         const val = modalSemesterSelect.value;
@@ -4383,6 +4541,23 @@
         }
 
         const sem = SEMESTER_LIST.find(s => s.shortName === val);
+        const semNum = sem ? (ROMANS.indexOf(sem.rawSemester) + 1) : null;
+
+        if (isTeacher) {
+          const teacherSubsForSem = teacherSubjects.filter(s => Number(s.semester) === semNum);
+          let opts = '<option value="">Select Course / Subject…</option>';
+          if (teacherSubsForSem.length) {
+            teacherSubsForSem.forEach(s => {
+              opts += `<option value="${escapeHtml(s.name)}">${s.code ? escapeHtml(s.code) + ' — ' : ''}${escapeHtml(s.name)}</option>`;
+            });
+          }
+          modalSubjectSelect.innerHTML = opts;
+          modalSubjectSelect.disabled = teacherSubsForSem.length === 0;
+          modalChapterSelect.innerHTML = '<option value="">Choose course first</option>';
+          modalChapterSelect.disabled = true;
+          return;
+        }
+
         const courses = sem ? sem.courses : [];
         const normSem = window.SyllabusHelper.normalizeSemester(val);
         const syllabusCourseNames = new Set((courses || []).map(c => c.title.toLowerCase().trim()));
@@ -4474,6 +4649,25 @@
     }
 
     window.openDirectUploadModal = function (prefillSubject = null, prefillSem = null, prefillChapter = null) {
+      const academicCtx = window.ACADEMIC_CONTEXT;
+      if (!academicCtx || !academicCtx.authenticated || academicCtx.isStudent || (!academicCtx.isStaff && academicCtx.role !== 'teacher' && academicCtx.role !== 'admin')) {
+        alert('Only teachers and administrators are authorized to upload notes.');
+        return;
+      }
+
+      if (academicCtx.role === 'teacher' && prefillSubject) {
+        const isAuth = (academicCtx.assignedSubjects || []).some(s => {
+          const sName = (s.name || '').trim().toLowerCase();
+          const sCode = (s.code || '').trim().toLowerCase();
+          const p = prefillSubject.trim().toLowerCase();
+          return sName === p || sCode === p || p.includes(sName) || sName.includes(p);
+        });
+        if (!isAuth) {
+          alert('You are not authorized to upload notes for this subject.');
+          return;
+        }
+      }
+
       clearModalStatus();
       SELECTED_FILES = [];
       directFileInput.value = '';
@@ -4495,14 +4689,14 @@
         setTimeout(() => {
           let subFound = false;
           for (let opt of modalSubjectSelect.options) {
-            if (opt.value.toLowerCase() === prefillSubject.toLowerCase() || opt.value.toLowerCase().includes(prefillSubject.toLowerCase())) {
+            if (opt.value.toLowerCase() === prefillSubject.toLowerCase() || opt.value.toLowerCase().includes(prefillSubject.toLowerCase()) || prefillSubject.toLowerCase().includes(opt.value.toLowerCase())) {
               modalSubjectSelect.value = opt.value;
               modalSubjectSelect.dispatchEvent(new Event('change'));
               subFound = true;
               break;
             }
           }
-          if (!subFound) {
+          if (!subFound && academicCtx.role !== 'teacher') {
             modalSubjectSelect.value = '__custom__';
             modalSubjectSelect.dispatchEvent(new Event('change'));
             modalCustomSubInput.value = prefillSubject;

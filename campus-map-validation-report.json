@@ -1,0 +1,2691 @@
+{
+  "generatedAt": "2026-10-20T11:59:58.833Z",
+  "campusName": "Gandaki University (Hide and Seek: Lost in Gandaki University)",
+  "version": "1.2.0",
+  "summary": {
+    "totalObjectsChecked": 139,
+    "objectsCorrected": 61,
+    "positionModifiedCount": 55,
+    "metadataOnlyModifiedCount": 6,
+    "floatingObjectsDetected": 50,
+    "buriedObjectsDetected": 0,
+    "intersectionsFixedAutomatically": 13,
+    "collisionMetadataNormalized": 10,
+    "objectsRequiringManualReview": 19,
+    "invalidJsonOrGeometryRecords": 0,
+    "postCorrectionUnintentionalOverlaps": 1
+  },
+  "schemaErrors": [],
+  "terrainReport": {
+    "present": true,
+    "width": 320,
+    "depth": 320,
+    "segmentsX": 128,
+    "segmentsZ": 128,
+    "vertexCount": 16641,
+    "expectedVertexCount": 16641,
+    "minHeight": -5.73,
+    "maxHeight": 40,
+    "negativeVertexCount": 241,
+    "steepCellCount": 1614,
+    "depressions": [
+      {
+        "region": "North Ditch / Crater (x in [-27.5, -5], z in [70, 90])",
+        "minY": -5.73,
+        "note": "Deep sculpted depression north of Building 6; no objects placed inside it, but player boundaries should prevent falling into it."
+      },
+      {
+        "region": "East Hollow (x in [45, 57.5], z in [-40, -20])",
+        "minY": -2.83,
+        "note": "Sculpted depression east of the central plateau."
+      },
+      {
+        "region": "Brush Seam Artifact (x = -25m and z = -142.5m)",
+        "minY": -0.09,
+        "note": "Minor -0.09m brush seam along grid line ix=54 / iz=7."
+      }
+    ]
+  },
+  "corrections": [
+    {
+      "id": "bldg_2",
+      "name": "warehouse ig",
+      "type": "building",
+      "assetId": "arch_building_block",
+      "originalPosition": {
+        "x": 38.5,
+        "y": 0.85,
+        "z": -54
+      },
+      "supportElevation": 0.3,
+      "footprintMinY": -0.2,
+      "footprintMaxY": 0.9,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Building \"warehouse ig\" at (38.5, 0.85, -54) sits on the eastern plateau slope (west edge 0.86m, center 0.30m, east edge -0.12m), causing its center to float +0.55m and its eastern half to float +0.97m above ground."
+      ],
+      "correctionsApplied": [
+        "Adjusted building foundation elevation to y=0.30m (matching its center ground elevation) while keeping the building level."
+      ],
+      "finalPosition": {
+        "x": 38.5,
+        "y": 0.3,
+        "z": -54
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "veh_33",
+      "name": "Parked Campus Sedan (Silver) 3",
+      "type": "vehicle",
+      "assetId": "veh_car_sedan_silver",
+      "originalPosition": {
+        "x": -12.9,
+        "y": 1.31,
+        "z": -17
+      },
+      "supportElevation": 1.29,
+      "footprintMinY": 1.25,
+      "footprintMaxY": 1.32,
+      "wheelSupportY": 1.29,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.02m above road/ramp wheel-contact surface (1.29m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=1.29m (was 1.31m)."
+      ],
+      "finalPosition": {
+        "x": -12.9,
+        "y": 1.29,
+        "z": -17
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "veh_34",
+      "name": "Courtyard Scooter / Motorcycle 4",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "originalPosition": {
+        "x": -23.5,
+        "y": 0.71,
+        "z": -34
+      },
+      "supportElevation": 0.66,
+      "footprintMinY": 0.6,
+      "footprintMaxY": 0.72,
+      "wheelSupportY": 0.66,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.05m above road/ramp wheel-contact surface (0.66m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=0.66m (was 0.71m)."
+      ],
+      "finalPosition": {
+        "x": -23.5,
+        "y": 0.66,
+        "z": -34
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "veh_35",
+      "name": "Campus Utility Van (Placeholder) 5",
+      "type": "vehicle",
+      "assetId": "veh_parked_van",
+      "originalPosition": {
+        "x": -17.17,
+        "y": 1.25,
+        "z": -18
+      },
+      "supportElevation": 1.16,
+      "footprintMinY": 1.05,
+      "footprintMaxY": 1.26,
+      "wheelSupportY": 1.16,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.09m above road/ramp wheel-contact surface (1.16m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=1.16m (was 1.25m)."
+      ],
+      "finalPosition": {
+        "x": -17.17,
+        "y": 1.16,
+        "z": -18
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "veh_36",
+      "name": "Parked Campus Sedan (Navy) 6",
+      "type": "vehicle",
+      "assetId": "veh_car_sedan_navy",
+      "originalPosition": {
+        "x": -21.5,
+        "y": 0.94,
+        "z": -18.5
+      },
+      "supportElevation": 0.85,
+      "footprintMinY": 0.76,
+      "footprintMaxY": 0.96,
+      "wheelSupportY": 0.85,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.09m above road/ramp wheel-contact surface (0.85m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=0.85m (was 0.94m)."
+      ],
+      "finalPosition": {
+        "x": -21.5,
+        "y": 0.85,
+        "z": -18.5
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "light_37",
+      "name": "Campus Streetlight Pole (#ff8a2a) 1",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "originalPosition": {
+        "x": -22,
+        "y": 0.94,
+        "z": -13.5
+      },
+      "supportElevation": 0.88,
+      "footprintMinY": 0.82,
+      "footprintMaxY": 0.95,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.06m above pole ground elevation (0.88m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 0.94m to pole ground elevation 0.88m."
+      ],
+      "finalPosition": {
+        "x": -22,
+        "y": 0.88,
+        "z": -13.5
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "arch_30",
+      "name": "Concrete Structural Pillar 1",
+      "type": "architecture",
+      "assetId": "arch_pillar_concrete",
+      "originalPosition": {
+        "x": 0,
+        "y": 1.4,
+        "z": -10
+      },
+      "supportElevation": 1.36,
+      "footprintMinY": 1.35,
+      "footprintMaxY": 1.37,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Stacked at default spawn (0, 1.4, -10) with arch_31 & arch_32 and embedded inside bldg_west_wing_l1 interior."
+      ],
+      "correctionsApplied": [
+        "Repositioned to the front southern veranda colonnade of bldg_west_wing_l1 (0, 1.4, -13.55) resting on the 1.40m terrace."
+      ],
+      "finalPosition": {
+        "x": 0,
+        "y": 1.4,
+        "z": -13.55
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "arch_31",
+      "name": "Exterior Split AC Unit 2",
+      "type": "architecture",
+      "assetId": "arch_ac_unit",
+      "originalPosition": {
+        "x": 0,
+        "y": 1.4,
+        "z": -10
+      },
+      "supportElevation": 1.32,
+      "footprintMinY": 1.31,
+      "footprintMaxY": 1.33,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Exterior Split AC Unit 2 was stacked at ground level (0, 1.4, -10) inside bldg_west_wing_l1 with arch_30 & arch_32."
+      ],
+      "correctionsApplied": [
+        "Wall-mounted on the exterior north wall of parent building bldg_west_wing_l1 at (-4.0, 4.0, -5.55) (2.6m above the 1.4m terrace floor) and disabled ground-level collision."
+      ],
+      "finalPosition": {
+        "x": -4,
+        "y": 4,
+        "z": -5.55
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "arch_32",
+      "name": "Exterior Split AC Unit 3",
+      "type": "architecture",
+      "assetId": "arch_ac_unit",
+      "originalPosition": {
+        "x": 0,
+        "y": 1.4,
+        "z": -10
+      },
+      "supportElevation": 1.32,
+      "footprintMinY": 1.31,
+      "footprintMaxY": 1.33,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Exterior Split AC Unit 3 was stacked at ground level (0, 1.4, -10) inside bldg_west_wing_l1 with arch_30 & arch_31."
+      ],
+      "correctionsApplied": [
+        "Wall-mounted on the exterior north wall of parent building bldg_west_wing_l1 at (4.0, 4.0, -5.55) (2.6m above the 1.4m terrace floor) and disabled ground-level collision."
+      ],
+      "finalPosition": {
+        "x": 4,
+        "y": 4,
+        "z": -5.55
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "veh_37",
+      "name": "Courtyard Scooter / Motorcycle 7",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "originalPosition": {
+        "x": -21.5,
+        "y": 0.94,
+        "z": -33.5
+      },
+      "supportElevation": 0.89,
+      "footprintMinY": 0.83,
+      "footprintMaxY": 0.95,
+      "wheelSupportY": 0.89,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.05m above road/ramp wheel-contact surface (0.89m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=0.89m (was 0.94m)."
+      ],
+      "finalPosition": {
+        "x": -21.5,
+        "y": 0.89,
+        "z": -33.5
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "veh_38",
+      "name": "Courtyard Scooter / Motorcycle 8",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "originalPosition": {
+        "x": -19.5,
+        "y": 1.11,
+        "z": -33.5
+      },
+      "supportElevation": 1.06,
+      "footprintMinY": 1.01,
+      "footprintMaxY": 1.11,
+      "wheelSupportY": 1.06,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.05m above road/ramp wheel-contact surface (1.06m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=1.06m (was 1.11m)."
+      ],
+      "finalPosition": {
+        "x": -19.5,
+        "y": 1.06,
+        "z": -33.5
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "veh_39",
+      "name": "Courtyard Scooter / Motorcycle 9",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "originalPosition": {
+        "x": -18,
+        "y": 1.18,
+        "z": -33.5
+      },
+      "supportElevation": 1.15,
+      "footprintMinY": 1.1,
+      "footprintMaxY": 1.19,
+      "wheelSupportY": 1.15,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.03m above road/ramp wheel-contact surface (1.15m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=1.15m (was 1.18m)."
+      ],
+      "finalPosition": {
+        "x": -18,
+        "y": 1.15,
+        "z": -33.5
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "veh_40",
+      "name": "Courtyard Scooter / Motorcycle 10",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "originalPosition": {
+        "x": -16.5,
+        "y": 1.23,
+        "z": -33.5
+      },
+      "supportElevation": 1.21,
+      "footprintMinY": 1.17,
+      "footprintMaxY": 1.23,
+      "wheelSupportY": 1.21,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.02m above road/ramp wheel-contact surface (1.21m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=1.21m (was 1.23m)."
+      ],
+      "finalPosition": {
+        "x": -16.5,
+        "y": 1.21,
+        "z": -33.5
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "veh_41",
+      "name": "Parked Campus Sedan (Silver) 11",
+      "type": "vehicle",
+      "assetId": "veh_car_sedan_silver",
+      "originalPosition": {
+        "x": -6.23,
+        "y": 1.33,
+        "z": -16.27
+      },
+      "supportElevation": 1.31,
+      "footprintMinY": 1.31,
+      "footprintMaxY": 1.34,
+      "wheelSupportY": 1.32,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.01m above road/ramp wheel-contact surface (1.32m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=1.32m (was 1.33m)."
+      ],
+      "finalPosition": {
+        "x": -6.23,
+        "y": 1.32,
+        "z": -16.27
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "veh_42",
+      "name": "Courtyard Scooter / Motorcycle 12",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "originalPosition": {
+        "x": -27.5,
+        "y": 0.3,
+        "z": -33.5
+      },
+      "supportElevation": 0.23,
+      "footprintMinY": 0.17,
+      "footprintMaxY": 0.31,
+      "wheelSupportY": 0.24,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.06m above road/ramp wheel-contact surface (0.24m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=0.24m (was 0.30m)."
+      ],
+      "finalPosition": {
+        "x": -27.5,
+        "y": 0.24,
+        "z": -33.5
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "veh_43",
+      "name": "Courtyard Scooter / Motorcycle 13",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "originalPosition": {
+        "x": -30,
+        "y": 0.15,
+        "z": -33
+      },
+      "supportElevation": 0.1,
+      "footprintMinY": 0.07,
+      "footprintMaxY": 0.16,
+      "wheelSupportY": 0.11,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.04m above road/ramp wheel-contact surface (0.11m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=0.11m (was 0.15m)."
+      ],
+      "finalPosition": {
+        "x": -30,
+        "y": 0.11,
+        "z": -33
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "veh_44",
+      "name": "Courtyard Scooter / Motorcycle 14",
+      "type": "vehicle",
+      "assetId": "veh_motorcycle_scooter",
+      "originalPosition": {
+        "x": -32.5,
+        "y": 0.05,
+        "z": -33
+      },
+      "supportElevation": 0.03,
+      "footprintMinY": 0.02,
+      "footprintMaxY": 0.06,
+      "wheelSupportY": 0.03,
+      "detectedIssues": [
+        "Vehicle wheels floated +0.02m above road/ramp wheel-contact surface (0.03m)."
+      ],
+      "correctionsApplied": [
+        "Placed vehicle wheels on support surface Y=0.03m (was 0.05m)."
+      ],
+      "finalPosition": {
+        "x": -32.5,
+        "y": 0.03,
+        "z": -33
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "tree_40",
+      "name": "Tree 03",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": -16.7,
+        "y": 1.3,
+        "z": -36.24
+      },
+      "supportElevation": 1.26,
+      "footprintMinY": 1.09,
+      "footprintMaxY": 1.3,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Base floated +0.04m above trunk/root terrain height (1.26m) due to canopy bounding-box maxH sampling.",
+        "Tree collision.shape was \"obb\" (5m x 5m canopy box) instead of trunk \"cylinder\"."
+      ],
+      "correctionsApplied": [
+        "Snapped base Y from 1.30m to trunk/root ground elevation 1.26m.",
+        "Changed collision.shape from \"obb\" to \"cylinder\" so player collision uses the trunk radius rather than the 5m upper foliage box."
+      ],
+      "finalPosition": {
+        "x": -16.7,
+        "y": 1.26,
+        "z": -36.24
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "tree_41",
+      "name": "Tree 04",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": -23.18,
+        "y": 1.22,
+        "z": -37.01
+      },
+      "supportElevation": 0.8,
+      "footprintMinY": 0.1,
+      "footprintMaxY": 1.25,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Base floated +0.42m above trunk/root terrain height (0.80m) due to canopy bounding-box maxH sampling.",
+        "Tree collision.shape was \"obb\" (5m x 5m canopy box) instead of trunk \"cylinder\"."
+      ],
+      "correctionsApplied": [
+        "Snapped base Y from 1.22m to trunk/root ground elevation 0.80m.",
+        "Changed collision.shape from \"obb\" to \"cylinder\" so player collision uses the trunk radius rather than the 5m upper foliage box."
+      ],
+      "finalPosition": {
+        "x": -23.18,
+        "y": 0.8,
+        "z": -37.01
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "tree_42",
+      "name": "Tree 05",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": -28.07,
+        "y": 0.24,
+        "z": -37.92
+      },
+      "supportElevation": 0.09,
+      "footprintMinY": 0.01,
+      "footprintMaxY": 0.31,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Base floated +0.15m above trunk/root terrain height (0.09m) due to canopy bounding-box maxH sampling.",
+        "Tree collision.shape was \"obb\" (5m x 5m canopy box) instead of trunk \"cylinder\"."
+      ],
+      "correctionsApplied": [
+        "Snapped base Y from 0.24m to trunk/root ground elevation 0.09m.",
+        "Changed collision.shape from \"obb\" to \"cylinder\" so player collision uses the trunk radius rather than the 5m upper foliage box."
+      ],
+      "finalPosition": {
+        "x": -28.07,
+        "y": 0.09,
+        "z": -37.92
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "tree_43",
+      "name": "Tree 06",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": -38.25,
+        "y": 0,
+        "z": -36.85
+      },
+      "supportElevation": 0,
+      "footprintMinY": 0,
+      "footprintMaxY": 0,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Tree collision.shape was \"obb\" (5m x 5m canopy box) instead of trunk \"cylinder\"."
+      ],
+      "correctionsApplied": [
+        "Changed collision.shape from \"obb\" to \"cylinder\" so player collision uses the trunk radius rather than the 5m upper foliage box."
+      ],
+      "finalPosition": {
+        "x": -38.25,
+        "y": 0,
+        "z": -36.85
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "tree_44",
+      "name": "Tree 07",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": -60.71,
+        "y": 0,
+        "z": -40.05
+      },
+      "supportElevation": 0,
+      "footprintMinY": 0,
+      "footprintMaxY": 0,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Tree 07 at (-60.71, 0, -40.05) had its trunk and 5m canopy embedded directly inside Wall 05 (arch_44 at z=-40.12, penetration 2.57m).",
+        "Tree collision.shape was \"obb\" (5m x 5m canopy box) instead of trunk \"cylinder\"."
+      ],
+      "correctionsApplied": [
+        "Moved tree_44 2.85m north to (-60.71, 0.00, -37.20), aligning it with the adjacent tree row (nat_51 at z=-37.21, tree_43 at z=-36.85) clear of Wall 05.",
+        "Changed collision.shape from \"obb\" to \"cylinder\" so player collision uses the trunk radius rather than the 5m upper foliage box."
+      ],
+      "finalPosition": {
+        "x": -60.71,
+        "y": 0,
+        "z": -37.2
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "tree_45",
+      "name": "Bush 08",
+      "type": "nature",
+      "assetId": "nat_bush_small",
+      "originalPosition": {
+        "x": -35.59,
+        "y": 0.04,
+        "z": -7.43
+      },
+      "supportElevation": 0.03,
+      "footprintMinY": 0.02,
+      "footprintMaxY": 0.04,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Base floated +0.01m above trunk/root terrain height (0.03m) due to canopy bounding-box maxH sampling."
+      ],
+      "correctionsApplied": [
+        "Snapped base Y from 0.04m to trunk/root ground elevation 0.03m."
+      ],
+      "finalPosition": {
+        "x": -35.59,
+        "y": 0.03,
+        "z": -7.43
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_51",
+      "name": "Outdoor Light 07",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "originalPosition": {
+        "x": -25.86,
+        "y": 0.02,
+        "z": 33.09
+      },
+      "supportElevation": -0.02,
+      "footprintMinY": -0.07,
+      "footprintMaxY": 0.03,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.04m above pole ground elevation (-0.02m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 0.02m to pole ground elevation -0.02m."
+      ],
+      "finalPosition": {
+        "x": -25.86,
+        "y": -0.02,
+        "z": 33.09
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_52",
+      "name": "Outdoor Light 08",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "originalPosition": {
+        "x": -24.71,
+        "y": 0.35,
+        "z": 17.8
+      },
+      "supportElevation": 0.07,
+      "footprintMinY": -0.06,
+      "footprintMaxY": 0.4,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.28m above pole ground elevation (0.07m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 0.35m to pole ground elevation 0.07m."
+      ],
+      "finalPosition": {
+        "x": -24.71,
+        "y": 0.07,
+        "z": 17.8
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_53",
+      "name": "Outdoor Light 09",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "originalPosition": {
+        "x": -24.81,
+        "y": 0.3,
+        "z": 3.63
+      },
+      "supportElevation": 0.02,
+      "footprintMinY": -0.06,
+      "footprintMaxY": 0.35,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.28m above pole ground elevation (0.02m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 0.30m to pole ground elevation 0.02m."
+      ],
+      "finalPosition": {
+        "x": -24.81,
+        "y": 0.02,
+        "z": 3.63
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_40",
+      "name": "Outdoor Light 11",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "originalPosition": {
+        "x": 10.51,
+        "y": 1.35,
+        "z": 24.36
+      },
+      "supportElevation": 1.33,
+      "footprintMinY": 1.3,
+      "footprintMaxY": 1.35,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.02m above pole ground elevation (1.33m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.35m to pole ground elevation 1.33m."
+      ],
+      "finalPosition": {
+        "x": 10.51,
+        "y": 1.33,
+        "z": 24.36
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_43",
+      "name": "Outdoor Light 13",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "originalPosition": {
+        "x": 11.74,
+        "y": 1.32,
+        "z": -3.18
+      },
+      "supportElevation": 1.31,
+      "footprintMinY": 1.3,
+      "footprintMaxY": 1.33,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.01m above pole ground elevation (1.31m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.32m to pole ground elevation 1.31m."
+      ],
+      "finalPosition": {
+        "x": 11.74,
+        "y": 1.31,
+        "z": -3.18
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_45",
+      "name": "Outdoor Light 15",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "originalPosition": {
+        "x": 24.48,
+        "y": 1.32,
+        "z": -14.96
+      },
+      "supportElevation": 1.3,
+      "footprintMinY": 1.3,
+      "footprintMaxY": 1.33,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.02m above pole ground elevation (1.30m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.32m to pole ground elevation 1.30m."
+      ],
+      "finalPosition": {
+        "x": 24.48,
+        "y": 1.3,
+        "z": -14.96
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_48",
+      "name": "Outdoor Light 17",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "originalPosition": {
+        "x": 23.91,
+        "y": 1.36,
+        "z": 31.13
+      },
+      "supportElevation": 1.33,
+      "footprintMinY": 1.31,
+      "footprintMaxY": 1.36,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.03m above pole ground elevation (1.33m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.36m to pole ground elevation 1.33m."
+      ],
+      "finalPosition": {
+        "x": 23.91,
+        "y": 1.33,
+        "z": 31.13
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_49",
+      "name": "Outdoor Light 18",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "originalPosition": {
+        "x": 29.37,
+        "y": 1.35,
+        "z": 45.07
+      },
+      "supportElevation": 1.3,
+      "footprintMinY": 1.3,
+      "footprintMaxY": 1.31,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Outdoor Light 05 at (29.37, 1.35, 45.07) was swallowed inside the SE corner of bldg_6 (\"New Building\" at xMax=29.50, zMin=45.00, XZ penetration 0.67m) and floated +0.02m."
+      ],
+      "correctionsApplied": [
+        "Moved lamp_49 1.27m SE to (30.35, 1.33, 44.25) just outside the SE corner of bldg_6 and snapped base to terrain (1.33m)."
+      ],
+      "finalPosition": {
+        "x": 30.35,
+        "y": 1.33,
+        "z": 44.25
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "tree_55",
+      "name": "Bush 09",
+      "type": "nature",
+      "assetId": "nat_bush_small",
+      "originalPosition": {
+        "x": -39.73,
+        "y": 1.9,
+        "z": -49.18
+      },
+      "supportElevation": 0.91,
+      "footprintMinY": 0,
+      "footprintMaxY": 1.93,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Bush 09 (18.6m hedge) at (-39.73, 1.90, -49.18) floated +1.19m above its center terrain (0.71m) and its north tip poked 0.39m through Wall 05 (arch_44)."
+      ],
+      "correctionsApplied": [
+        "Nudged tree_55 0.47m south to z=-49.65 to clear Wall 05 and lowered y from 1.90m to its center terrain height (0.68m)."
+      ],
+      "finalPosition": {
+        "x": -39.73,
+        "y": 0.68,
+        "z": -49.65
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "prop_56",
+      "name": "Bench 07",
+      "type": "prop",
+      "assetId": "prop_bench",
+      "originalPosition": {
+        "x": 25.02,
+        "y": 1.33,
+        "z": 5.15
+      },
+      "supportElevation": 1.3,
+      "footprintMinY": 1.3,
+      "footprintMaxY": 1.34,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Prop base floated +0.03m above terrain elevation (1.30m)."
+      ],
+      "correctionsApplied": [
+        "Snapped prop base Y from 1.33m to terrain elevation 1.30m."
+      ],
+      "finalPosition": {
+        "x": 25.02,
+        "y": 1.3,
+        "z": 5.15
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "prop_57",
+      "name": "Bench 08",
+      "type": "prop",
+      "assetId": "prop_bench",
+      "originalPosition": {
+        "x": 13.52,
+        "y": 1.37,
+        "z": -9.3
+      },
+      "supportElevation": 1.36,
+      "footprintMinY": 1.34,
+      "footprintMaxY": 1.37,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Prop base floated +0.01m above terrain elevation (1.36m)."
+      ],
+      "correctionsApplied": [
+        "Snapped prop base Y from 1.37m to terrain elevation 1.36m."
+      ],
+      "finalPosition": {
+        "x": 13.52,
+        "y": 1.36,
+        "z": -9.3
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "prop_60",
+      "name": "Trash Bin 11",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "originalPosition": {
+        "x": 13.18,
+        "y": 1.38,
+        "z": -11.1
+      },
+      "supportElevation": 1.37,
+      "footprintMinY": 1.36,
+      "footprintMaxY": 1.38,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Prop base floated +0.01m above terrain elevation (1.37m)."
+      ],
+      "correctionsApplied": [
+        "Snapped prop base Y from 1.38m to terrain elevation 1.37m."
+      ],
+      "finalPosition": {
+        "x": 13.18,
+        "y": 1.37,
+        "z": -11.1
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "prop_61",
+      "name": "Trash Bin 12",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "originalPosition": {
+        "x": 13.42,
+        "y": 1.37,
+        "z": 14.58
+      },
+      "supportElevation": 1.35,
+      "footprintMinY": 1.34,
+      "footprintMaxY": 1.37,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Prop base floated +0.02m above terrain elevation (1.35m)."
+      ],
+      "correctionsApplied": [
+        "Snapped prop base Y from 1.37m to terrain elevation 1.35m."
+      ],
+      "finalPosition": {
+        "x": 13.42,
+        "y": 1.35,
+        "z": 14.58
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "prop_62",
+      "name": "Trash Bin 13",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "originalPosition": {
+        "x": 24.36,
+        "y": 1.32,
+        "z": -15.33
+      },
+      "supportElevation": 1.33,
+      "footprintMinY": 1.32,
+      "footprintMaxY": 1.34,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Trash Bin 13 at (24.36, 1.32, -15.33) was embedded 0.25m inside the base plinth of Outdoor Light 01 (lamp_45 at 24.48, 1.32, -14.96)."
+      ],
+      "correctionsApplied": [
+        "Moved prop_62 0.55m south to (24.36, 1.31, -15.88) beside the lamp post and snapped base to terrain (1.31m)."
+      ],
+      "finalPosition": {
+        "x": 24.36,
+        "y": 1.31,
+        "z": -15.88
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "prop_64",
+      "name": "Trash Bin 15",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "originalPosition": {
+        "x": -6.53,
+        "y": 1.37,
+        "z": -13.66
+      },
+      "supportElevation": 1.36,
+      "footprintMinY": 1.35,
+      "footprintMaxY": 1.37,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Prop base floated +0.01m above terrain elevation (1.36m)."
+      ],
+      "correctionsApplied": [
+        "Snapped prop base Y from 1.37m to terrain elevation 1.36m."
+      ],
+      "finalPosition": {
+        "x": -6.53,
+        "y": 1.36,
+        "z": -13.66
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "tree_51",
+      "name": "Bush 10",
+      "type": "nature",
+      "assetId": "nat_bush_small",
+      "originalPosition": {
+        "x": 28.4,
+        "y": 1.4,
+        "z": -38.2
+      },
+      "supportElevation": 1.37,
+      "footprintMinY": 1.24,
+      "footprintMaxY": 1.4,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Base floated +0.03m above trunk/root terrain height (1.37m) due to canopy bounding-box maxH sampling."
+      ],
+      "correctionsApplied": [
+        "Snapped base Y from 1.40m to trunk/root ground elevation 1.37m."
+      ],
+      "finalPosition": {
+        "x": 28.4,
+        "y": 1.37,
+        "z": -38.2
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_55",
+      "name": "Street Lamp 19",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "originalPosition": {
+        "x": 24.34,
+        "y": 1.39,
+        "z": -37.99
+      },
+      "supportElevation": 1.36,
+      "footprintMinY": 1.33,
+      "footprintMaxY": 1.39,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.03m above pole ground elevation (1.36m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.39m to pole ground elevation 1.36m."
+      ],
+      "finalPosition": {
+        "x": 24.34,
+        "y": 1.36,
+        "z": -37.99
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_56",
+      "name": "Street Lamp 20",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "originalPosition": {
+        "x": 19.08,
+        "y": 1.35,
+        "z": -46.82
+      },
+      "supportElevation": 1.33,
+      "footprintMinY": 1.3,
+      "footprintMaxY": 1.35,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.02m above pole ground elevation (1.33m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.35m to pole ground elevation 1.33m."
+      ],
+      "finalPosition": {
+        "x": 19.08,
+        "y": 1.33,
+        "z": -46.82
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_57",
+      "name": "Street Lamp 21",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "originalPosition": {
+        "x": 6.49,
+        "y": 1.37,
+        "z": -46.23
+      },
+      "supportElevation": 1.34,
+      "footprintMinY": 1.32,
+      "footprintMaxY": 1.37,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Outdoor Light 16 at (6.49, 1.37, -46.23) overlapped the south wall of bldg_3 (zMin=-45.75) by 0.12m and floated +0.02m."
+      ],
+      "correctionsApplied": [
+        "Nudged lamp_57 0.22m south to (6.49, 1.35, -46.45) to clear bldg_3 wall and snapped base to terrain (1.35m)."
+      ],
+      "finalPosition": {
+        "x": 6.49,
+        "y": 1.35,
+        "z": -46.45
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_60",
+      "name": "Street Lamp 24",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "originalPosition": {
+        "x": -6.99,
+        "y": 1.33,
+        "z": -31.48
+      },
+      "supportElevation": 1.32,
+      "footprintMinY": 1.31,
+      "footprintMaxY": 1.33,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.01m above pole ground elevation (1.32m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.33m to pole ground elevation 1.32m."
+      ],
+      "finalPosition": {
+        "x": -6.99,
+        "y": 1.32,
+        "z": -31.48
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_61",
+      "name": "Outdoor Light 25",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "originalPosition": {
+        "x": 12.61,
+        "y": 1.31,
+        "z": -31.37
+      },
+      "supportElevation": 1.3,
+      "footprintMinY": 1.3,
+      "footprintMaxY": 1.31,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Outdoor Light 22 at (12.61, 1.31, -31.37) clipped the SE corner AABB of bldg_east_wing_r1 (xMax=12.05, zMin=-31.25) by 0.04m and floated +0.01m."
+      ],
+      "correctionsApplied": [
+        "Nudged lamp_61 0.12m SE to (12.70, 1.30, -31.45) to clear bldg_east_wing_r1 and snapped base to terrain (1.30m)."
+      ],
+      "finalPosition": {
+        "x": 12.7,
+        "y": 1.3,
+        "z": -31.45
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "prop_67",
+      "name": "Trash Bin 18",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "originalPosition": {
+        "x": 19.26,
+        "y": 1.36,
+        "z": -46.12
+      },
+      "supportElevation": 1.33,
+      "footprintMinY": 1.31,
+      "footprintMaxY": 1.34,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Trash Bin 18 at (19.26, 1.36, -46.12) overlapped the base of Street Lamp 20 (lamp_56 at 19.08, 1.35, -46.82) by 0.17m."
+      ],
+      "correctionsApplied": [
+        "Placed prop_67 0.90m east of lamp_56 at (19.98, 1.35, -46.82), clearing both lamp_56 and bldg_3."
+      ],
+      "finalPosition": {
+        "x": 19.98,
+        "y": 1.35,
+        "z": -46.82
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "prop_69",
+      "name": "Trash Bin 19",
+      "type": "prop",
+      "assetId": "prop_dustbin",
+      "originalPosition": {
+        "x": 13.66,
+        "y": 1.36,
+        "z": -46.34
+      },
+      "supportElevation": 1.35,
+      "footprintMinY": 1.34,
+      "footprintMaxY": 1.36,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Prop base floated +0.01m above terrain elevation (1.35m)."
+      ],
+      "correctionsApplied": [
+        "Snapped prop base Y from 1.36m to terrain elevation 1.35m."
+      ],
+      "finalPosition": {
+        "x": 13.66,
+        "y": 1.35,
+        "z": -46.34
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "arch_44",
+      "name": "Wall 05",
+      "type": "architecture",
+      "assetId": "arch_wall_exterior",
+      "originalPosition": {
+        "x": -39.97,
+        "y": 1.3,
+        "z": -40.12
+      },
+      "supportElevation": 0,
+      "footprintMinY": 0,
+      "footprintMaxY": 1.3,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Wall 05 (59.97m wide) was placed at y=1.30m (maxH of eastern end), causing 45m of the wall (from x=-69.95 to x=-25 where terrain is 0.00m) to float 1.30m in the air."
+      ],
+      "correctionsApplied": [
+        "Lowered wall base to y=0.00m so the 45m western/central span rests flush on the 0.00m ground while the eastern 15m embeds cleanly into the 1.30m terrace bank (top at y=4.00m)."
+      ],
+      "finalPosition": {
+        "x": -39.97,
+        "y": 0,
+        "z": -40.12
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "arch_49",
+      "name": "Wall 08",
+      "type": "architecture",
+      "assetId": "arch_wall_exterior",
+      "originalPosition": {
+        "x": -10.15,
+        "y": 2.94,
+        "z": -56.95
+      },
+      "supportElevation": 2.08,
+      "footprintMinY": 1.3,
+      "footprintMaxY": 2.97,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Wall 08 (33.84m long) was placed at y=2.94m, floating above the entire terrain mound beneath it (minH=1.30m, centerH=2.08m, maxH=2.77m; floating up to +1.64m at both ends)."
+      ],
+      "correctionsApplied": [
+        "Lowered wall base to y=1.30m (the base elevation at both ends of the wall) so no part of the wall floats above the mound and its top reaches y=5.30m."
+      ],
+      "finalPosition": {
+        "x": -10.15,
+        "y": 1.3,
+        "z": -56.95
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "area_57",
+      "name": "Garden Area 11 Copy Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "originalPosition": {
+        "x": -22.48,
+        "y": 1.3,
+        "z": 19.08
+      },
+      "supportElevation": 1.19,
+      "footprintMinY": 0.74,
+      "footprintMaxY": 1.32,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Grass Patch 16 (raised garden kerb, width 1.6m) at x=-22.48 overlapped the west wall of bldg_5 (xMin=-21.80) by 0.12m."
+      ],
+      "correctionsApplied": [
+        "Nudged area_57 0.22m west to (-22.70, 1.30, 19.08) so its east kerb sits flush outside bldg_5."
+      ],
+      "finalPosition": {
+        "x": -22.7,
+        "y": 1.3,
+        "z": 19.08
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "area_64",
+      "name": "Garden Area 11 Copy Copy Copy Copy",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "originalPosition": {
+        "x": -23.04,
+        "y": 1.08,
+        "z": 49.77
+      },
+      "supportElevation": 0.86,
+      "footprintMinY": 0.38,
+      "footprintMaxY": 1.34,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Grass Patch 23 (raised garden kerb, width 1.6m) at x=-23.04 overlapped the west wall of bldg_6 (xMin=-22.50) by 0.26m."
+      ],
+      "correctionsApplied": [
+        "Nudged area_64 0.36m west to (-23.40, 1.00, 49.77) outside bldg_6 and updated ground elevation to match terrain (1.00m)."
+      ],
+      "finalPosition": {
+        "x": -23.4,
+        "y": 1,
+        "z": 49.77
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_73",
+      "name": "Decorative Lamp 37",
+      "type": "lighting",
+      "assetId": "light_garden_lamp",
+      "originalPosition": {
+        "x": -12.91,
+        "y": 1.31,
+        "z": -2.57
+      },
+      "supportElevation": 1.3,
+      "footprintMinY": 1.3,
+      "footprintMaxY": 1.31,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.01m above pole ground elevation (1.30m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.31m to pole ground elevation 1.30m."
+      ],
+      "finalPosition": {
+        "x": -12.91,
+        "y": 1.3,
+        "z": -2.57
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_75",
+      "name": "Decorative Lamp 39",
+      "type": "lighting",
+      "assetId": "light_garden_lamp",
+      "originalPosition": {
+        "x": 7.41,
+        "y": 1.34,
+        "z": -3.27
+      },
+      "supportElevation": 1.33,
+      "footprintMinY": 1.32,
+      "footprintMaxY": 1.34,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.01m above pole ground elevation (1.33m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.34m to pole ground elevation 1.33m."
+      ],
+      "finalPosition": {
+        "x": 7.41,
+        "y": 1.33,
+        "z": -3.27
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_80",
+      "name": "Decorative Lamp 42",
+      "type": "lighting",
+      "assetId": "light_garden_lamp",
+      "originalPosition": {
+        "x": 8.19,
+        "y": 1.33,
+        "z": 24.56
+      },
+      "supportElevation": 1.32,
+      "footprintMinY": 1.31,
+      "footprintMaxY": 1.33,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.01m above pole ground elevation (1.32m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.33m to pole ground elevation 1.32m."
+      ],
+      "finalPosition": {
+        "x": 8.19,
+        "y": 1.32,
+        "z": 24.56
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_81",
+      "name": "Street Lamp 43",
+      "type": "lighting",
+      "assetId": "light_streetlight",
+      "originalPosition": {
+        "x": -7.04,
+        "y": 1.34,
+        "z": -20.06
+      },
+      "supportElevation": 1.33,
+      "footprintMinY": 1.32,
+      "footprintMaxY": 1.34,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Lamp plinth base floated +0.01m above pole ground elevation (1.33m)."
+      ],
+      "correctionsApplied": [
+        "Snapped lamp base Y from 1.34m to pole ground elevation 1.33m."
+      ],
+      "finalPosition": {
+        "x": -7.04,
+        "y": 1.33,
+        "z": -20.06
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "lamp_82",
+      "name": "Outdoor Light 44",
+      "type": "lighting",
+      "assetId": "light_outdoor_flood",
+      "originalPosition": {
+        "x": -4.69,
+        "y": 1.35,
+        "z": -14.24
+      },
+      "supportElevation": 1.34,
+      "footprintMinY": 1.31,
+      "footprintMaxY": 1.36,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Outdoor Light 44 at (-4.69, 1.35, -14.24) clipped the NE corner AABB of parked vehicle veh_41 by 0.02m and floated +0.01m."
+      ],
+      "correctionsApplied": [
+        "Nudged lamp_82 0.11m east to (-4.58, 1.34, -14.24) for clean clearance from veh_41 and snapped base to terrain (1.34m)."
+      ],
+      "finalPosition": {
+        "x": -4.58,
+        "y": 1.34,
+        "z": -14.24
+      },
+      "status": "Automatic"
+    },
+    {
+      "id": "tree_83",
+      "name": "Tree 11",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": 19.46,
+        "y": 31.33,
+        "z": 97.01
+      },
+      "supportElevation": 31.33,
+      "footprintMinY": 22.69,
+      "footprintMaxY": 39.25,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Tree collision.shape was \"obb\" (5m x 5m canopy box) instead of trunk \"cylinder\"."
+      ],
+      "correctionsApplied": [
+        "Changed collision.shape from \"obb\" to \"cylinder\" so player collision uses the trunk radius rather than the 5m upper foliage box."
+      ],
+      "finalPosition": {
+        "x": 19.46,
+        "y": 31.33,
+        "z": 97.01
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "tree_84",
+      "name": "Tree 12",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": 23.79,
+        "y": 33.3,
+        "z": 109.2
+      },
+      "supportElevation": 33.3,
+      "footprintMinY": 25.45,
+      "footprintMaxY": 38.32,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Tree collision.shape was \"obb\" (5m x 5m canopy box) instead of trunk \"cylinder\"."
+      ],
+      "correctionsApplied": [
+        "Changed collision.shape from \"obb\" to \"cylinder\" so player collision uses the trunk radius rather than the 5m upper foliage box."
+      ],
+      "finalPosition": {
+        "x": 23.79,
+        "y": 33.3,
+        "z": 109.2
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "tree_85",
+      "name": "Tree 13",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": 23.74,
+        "y": 15.06,
+        "z": 90.54
+      },
+      "supportElevation": 15.06,
+      "footprintMinY": 9.34,
+      "footprintMaxY": 22.47,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Tree collision.shape was \"obb\" (5m x 5m canopy box) instead of trunk \"cylinder\"."
+      ],
+      "correctionsApplied": [
+        "Changed collision.shape from \"obb\" to \"cylinder\" so player collision uses the trunk radius rather than the 5m upper foliage box."
+      ],
+      "finalPosition": {
+        "x": 23.74,
+        "y": 15.06,
+        "z": 90.54
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "tree_86",
+      "name": "Tree 14",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": 27.03,
+        "y": 21.64,
+        "z": 103.89
+      },
+      "supportElevation": 21.64,
+      "footprintMinY": 15,
+      "footprintMaxY": 29.4,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Tree collision.shape was \"obb\" (5m x 5m canopy box) instead of trunk \"cylinder\"."
+      ],
+      "correctionsApplied": [
+        "Changed collision.shape from \"obb\" to \"cylinder\" so player collision uses the trunk radius rather than the 5m upper foliage box."
+      ],
+      "finalPosition": {
+        "x": 27.03,
+        "y": 21.64,
+        "z": 103.89
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "tree_87",
+      "name": "Tree 15",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": 13.86,
+        "y": 17.86,
+        "z": 81.21
+      },
+      "supportElevation": 17.86,
+      "footprintMinY": 11.43,
+      "footprintMaxY": 25.09,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Tree collision.shape was \"obb\" (5m x 5m canopy box) instead of trunk \"cylinder\"."
+      ],
+      "correctionsApplied": [
+        "Changed collision.shape from \"obb\" to \"cylinder\" so player collision uses the trunk radius rather than the 5m upper foliage box."
+      ],
+      "finalPosition": {
+        "x": 13.86,
+        "y": 17.86,
+        "z": 81.21
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    },
+    {
+      "id": "tree_88",
+      "name": "Rock 16",
+      "type": "nature",
+      "assetId": "nat_rock_boulder",
+      "originalPosition": {
+        "x": 60.06,
+        "y": 14.68,
+        "z": 38.17
+      },
+      "supportElevation": 14.67,
+      "footprintMinY": 6.39,
+      "footprintMaxY": 25.2,
+      "wheelSupportY": null,
+      "detectedIssues": [
+        "Base floated +0.01m above trunk/root terrain height (14.67m) due to canopy bounding-box maxH sampling."
+      ],
+      "correctionsApplied": [
+        "Snapped base Y from 14.68m to trunk/root ground elevation 14.67m."
+      ],
+      "finalPosition": {
+        "x": 60.06,
+        "y": 14.67,
+        "z": 38.17
+      },
+      "status": "Automatic Fix + Flagged for Review"
+    }
+  ],
+  "manualReviewItems": [
+    {
+      "id": "bldg_main_rotunda",
+      "name": "Main Grand Rotunda Complex",
+      "type": "building",
+      "assetId": "arch_rotunda_complex",
+      "originalPosition": {
+        "x": 0,
+        "y": 1.4,
+        "z": -110
+      },
+      "finalPosition": {
+        "x": 0,
+        "y": 1.4,
+        "z": -110
+      },
+      "supportElevation": 1.4,
+      "footprintRange": [
+        0.76,
+        1.4
+      ],
+      "reason": "Structure footprint spans 0.64m of terrain relief (minH=0.76m, centerH=1.40m, maxH=1.40m at foundation Y=1.40m). Located near outer campus boundary at (0.00, 1.40, -110.00) outside the core [-88m, 88m] gameplay arena.",
+      "wasAutomaticallyAdjusted": false
+    },
+    {
+      "id": "bldg_2",
+      "name": "warehouse ig",
+      "type": "building",
+      "assetId": "arch_building_block",
+      "originalPosition": {
+        "x": 38.5,
+        "y": 0.85,
+        "z": -54
+      },
+      "finalPosition": {
+        "x": 38.5,
+        "y": 0.3,
+        "z": -54
+      },
+      "supportElevation": 0.3,
+      "footprintRange": [
+        -0.2,
+        0.9
+      ],
+      "reason": "bldg_2 (\"warehouse ig\") straddles a 0.98m terrain slope on the eastern plateau edge (terrain drops from 0.86m on the west face to -0.12m on the east face). Set to center foundation height y=0.30m; consider extending the flat plateau east to x=44m in the terrain editor.",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "veh_35",
+      "name": "Campus Utility Van (Placeholder) 5",
+      "type": "vehicle",
+      "assetId": "veh_parked_van",
+      "originalPosition": {
+        "x": -17.17,
+        "y": 1.25,
+        "z": -18
+      },
+      "finalPosition": {
+        "x": -17.17,
+        "y": 1.16,
+        "z": -18
+      },
+      "supportElevation": 1.16,
+      "footprintRange": [
+        1.05,
+        1.26
+      ],
+      "reason": "Parked across courtyard ramp slope (wheel elevations vary by 0.15m; grounded at mean wheel elevation 1.16m without tilting chassis).",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "veh_36",
+      "name": "Parked Campus Sedan (Navy) 6",
+      "type": "vehicle",
+      "assetId": "veh_car_sedan_navy",
+      "originalPosition": {
+        "x": -21.5,
+        "y": 0.94,
+        "z": -18.5
+      },
+      "finalPosition": {
+        "x": -21.5,
+        "y": 0.85,
+        "z": -18.5
+      },
+      "supportElevation": 0.85,
+      "footprintRange": [
+        0.76,
+        0.96
+      ],
+      "reason": "Parked across courtyard ramp slope (wheel elevations vary by 0.14m; grounded at mean wheel elevation 0.85m without tilting chassis).",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "road_52",
+      "name": "Stone Road Curb Segment 14",
+      "type": "road",
+      "assetId": "road_curb",
+      "originalPosition": {
+        "x": -37.5,
+        "y": 0.03,
+        "z": -5.5
+      },
+      "finalPosition": {
+        "x": -37.5,
+        "y": 0.03,
+        "z": -5.5
+      },
+      "supportElevation": 0.01,
+      "footprintRange": [
+        0,
+        0.03
+      ],
+      "reason": "Only 1 curb segment (road_52 at -37.5, 0.03, -5.5) remains in v1.2.0 and overlaps raised garden bed area_55; 15 road segments from v1.1.0 were removed in v1.2.0. Confirm whether roads are intended to be painted via terrain textures or restored as meshes.",
+      "wasAutomaticallyAdjusted": false
+    },
+    {
+      "id": "area_49",
+      "name": "Green Grass Lawn Area 5",
+      "type": "ground_area",
+      "assetId": "nat_grass_area",
+      "originalPosition": {
+        "x": -18.46,
+        "y": 2.13,
+        "z": -48.39
+      },
+      "finalPosition": {
+        "x": -18.46,
+        "y": 2.13,
+        "z": -48.39
+      },
+      "supportElevation": 2.14,
+      "footprintRange": [
+        0.11,
+        3
+      ],
+      "reason": "Flat ground_area patch spans 2.89m of sloped terrain (minH=0.11m, centerH=2.14m, maxH=3.00m at pos.y=2.13m).",
+      "wasAutomaticallyAdjusted": false
+    },
+    {
+      "id": "tree_55",
+      "name": "Bush 09",
+      "type": "nature",
+      "assetId": "nat_bush_small",
+      "originalPosition": {
+        "x": -39.73,
+        "y": 1.9,
+        "z": -49.18
+      },
+      "finalPosition": {
+        "x": -39.73,
+        "y": 0.68,
+        "z": -49.65
+      },
+      "supportElevation": 0.91,
+      "footprintRange": [
+        0,
+        1.93
+      ],
+      "reason": "Bush 09 (tree_55) is an 18.6m-long hedge spanning a 1.77m slope (north end terrain 0.00m, center 0.68m, south end 1.77m). Grounded at center height y=0.68m; consider splitting into 3 shorter hedge segments so each conforms closely to the hill.",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "arch_44",
+      "name": "Wall 05",
+      "type": "architecture",
+      "assetId": "arch_wall_exterior",
+      "originalPosition": {
+        "x": -39.97,
+        "y": 1.3,
+        "z": -40.12
+      },
+      "finalPosition": {
+        "x": -39.97,
+        "y": 0,
+        "z": -40.12
+      },
+      "supportElevation": 0,
+      "footprintRange": [
+        0,
+        1.3
+      ],
+      "reason": "Wall 05 spans across the 0.00m lower campus and 1.30m upper terrace step (x=-69.95 to -9.98). Grounded at y=0.00m so no section floats; consider splitting into two stepped wall segments if a uniform top-of-wall profile is desired.",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "arch_46",
+      "name": "Wall 07",
+      "type": "architecture",
+      "assetId": "arch_wall_exterior",
+      "originalPosition": {
+        "x": -102.98,
+        "y": 0,
+        "z": 2.52
+      },
+      "finalPosition": {
+        "x": -102.98,
+        "y": 0,
+        "z": 2.52
+      },
+      "supportElevation": 0,
+      "footprintRange": [
+        0,
+        0
+      ],
+      "reason": "Located near outer campus boundary at (-102.98, 0.00, 2.52) outside the core [-88m, 88m] gameplay arena.",
+      "wasAutomaticallyAdjusted": false
+    },
+    {
+      "id": "area_47",
+      "name": "Garden Area 10",
+      "type": "ground_area",
+      "assetId": "nat_garden_area",
+      "originalPosition": {
+        "x": -98.45,
+        "y": 0,
+        "z": 34.02
+      },
+      "finalPosition": {
+        "x": -98.45,
+        "y": 0,
+        "z": 34.02
+      },
+      "supportElevation": 0,
+      "footprintRange": [
+        0,
+        0
+      ],
+      "reason": "Located near outer campus boundary at (-98.45, 0.00, 34.02) outside the core [-88m, 88m] gameplay arena.",
+      "wasAutomaticallyAdjusted": false
+    },
+    {
+      "id": "bldg_48",
+      "name": "Washroom 2",
+      "type": "building",
+      "assetId": "arch_classroom_wing",
+      "originalPosition": {
+        "x": -113.95,
+        "y": 0,
+        "z": 8.45
+      },
+      "finalPosition": {
+        "x": -113.95,
+        "y": 0,
+        "z": 8.45
+      },
+      "supportElevation": 0,
+      "footprintRange": [
+        0,
+        0
+      ],
+      "reason": "Located near outer campus boundary at (-113.95, 0.00, 8.45) outside the core [-88m, 88m] gameplay arena.",
+      "wasAutomaticallyAdjusted": false
+    },
+    {
+      "id": "arch_49",
+      "name": "Wall 08",
+      "type": "architecture",
+      "assetId": "arch_wall_exterior",
+      "originalPosition": {
+        "x": -10.15,
+        "y": 2.94,
+        "z": -56.95
+      },
+      "finalPosition": {
+        "x": -10.15,
+        "y": 1.3,
+        "z": -56.95
+      },
+      "supportElevation": 2.08,
+      "footprintRange": [
+        1.3,
+        2.97
+      ],
+      "reason": "Wall 08 crosses a 1.47m terrain mound (1.30m at ends to 2.77m at peak). Grounded at y=1.30m to eliminate under-wall gaps.",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "area_50",
+      "name": "Grass 10",
+      "type": "ground_area",
+      "assetId": "nat_grass_area",
+      "originalPosition": {
+        "x": -17.62,
+        "y": 2.39,
+        "z": -63.65
+      },
+      "finalPosition": {
+        "x": -17.62,
+        "y": 2.39,
+        "z": -63.65
+      },
+      "supportElevation": 2.39,
+      "footprintRange": [
+        1.8,
+        3
+      ],
+      "reason": "Flat ground_area patch spans 1.20m of sloped terrain (minH=1.80m, centerH=2.39m, maxH=3.00m at pos.y=2.39m).",
+      "wasAutomaticallyAdjusted": false
+    },
+    {
+      "id": "tree_83",
+      "name": "Tree 11",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": 19.46,
+        "y": 31.33,
+        "z": 97.01
+      },
+      "finalPosition": {
+        "x": 19.46,
+        "y": 31.33,
+        "z": 97.01
+      },
+      "supportElevation": 31.33,
+      "footprintRange": [
+        22.69,
+        39.25
+      ],
+      "reason": "Located on steep outer hill slope (footprint elevation spans 22.69m to 39.25m; trunk grounded at center 31.33m). Located near outer campus boundary at (19.46, 31.33, 97.01) outside the core [-88m, 88m] gameplay arena.",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "tree_84",
+      "name": "Tree 12",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": 23.79,
+        "y": 33.3,
+        "z": 109.2
+      },
+      "finalPosition": {
+        "x": 23.79,
+        "y": 33.3,
+        "z": 109.2
+      },
+      "supportElevation": 33.3,
+      "footprintRange": [
+        25.45,
+        38.32
+      ],
+      "reason": "Located on steep outer hill slope (footprint elevation spans 25.45m to 38.32m; trunk grounded at center 33.30m). Located near outer campus boundary at (23.79, 33.30, 109.20) outside the core [-88m, 88m] gameplay arena.",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "tree_85",
+      "name": "Tree 13",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": 23.74,
+        "y": 15.06,
+        "z": 90.54
+      },
+      "finalPosition": {
+        "x": 23.74,
+        "y": 15.06,
+        "z": 90.54
+      },
+      "supportElevation": 15.06,
+      "footprintRange": [
+        9.34,
+        22.47
+      ],
+      "reason": "Located on steep outer hill slope (footprint elevation spans 9.34m to 22.47m; trunk grounded at center 15.06m).",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "tree_86",
+      "name": "Tree 14",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": 27.03,
+        "y": 21.64,
+        "z": 103.89
+      },
+      "finalPosition": {
+        "x": 27.03,
+        "y": 21.64,
+        "z": 103.89
+      },
+      "supportElevation": 21.64,
+      "footprintRange": [
+        15,
+        29.4
+      ],
+      "reason": "Located on steep outer hill slope (footprint elevation spans 15.00m to 29.40m; trunk grounded at center 21.64m). Located near outer campus boundary at (27.03, 21.64, 103.89) outside the core [-88m, 88m] gameplay arena.",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "tree_87",
+      "name": "Tree 15",
+      "type": "nature",
+      "assetId": "nat_tree_large",
+      "originalPosition": {
+        "x": 13.86,
+        "y": 17.86,
+        "z": 81.21
+      },
+      "finalPosition": {
+        "x": 13.86,
+        "y": 17.86,
+        "z": 81.21
+      },
+      "supportElevation": 17.86,
+      "footprintRange": [
+        11.43,
+        25.09
+      ],
+      "reason": "Located on steep outer hill slope (footprint elevation spans 11.43m to 25.09m; trunk grounded at center 17.86m).",
+      "wasAutomaticallyAdjusted": true
+    },
+    {
+      "id": "tree_88",
+      "name": "Rock 16",
+      "type": "nature",
+      "assetId": "nat_rock_boulder",
+      "originalPosition": {
+        "x": 60.06,
+        "y": 14.68,
+        "z": 38.17
+      },
+      "finalPosition": {
+        "x": 60.06,
+        "y": 14.67,
+        "z": 38.17
+      },
+      "supportElevation": 14.67,
+      "footprintRange": [
+        6.39,
+        25.2
+      ],
+      "reason": "Located on steep outer hill slope (footprint elevation spans 6.39m to 25.20m; trunk grounded at center 14.67m).",
+      "wasAutomaticallyAdjusted": true
+    }
+  ],
+  "postOverlaps": [
+    {
+      "pairKey": "area_parking_plaza__bus_a_gp62",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "bus_a_gp62",
+        "name": "Bus NO 2",
+        "type": "vehicle"
+      },
+      "penetrationXZ": 2.5,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__bus_b_gp64",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "bus_b_gp64",
+        "name": "Bus NO 1 ",
+        "type": "vehicle"
+      },
+      "penetrationXZ": 2.5,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__light_38",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "light_38",
+        "name": "Campus Streetlight Pole (#ff8a2a) 2",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.8,
+      "overlapY": 0.03,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__light_39",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "light_39",
+        "name": "Campus Streetlight Pole (#ff8a2a) 3",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.6,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__light_40",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "light_40",
+        "name": "Campus Streetlight Pole (#ff8a2a) 4",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.8,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__prop_42",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "prop_42",
+        "name": "Garden Park Bench 1",
+        "type": "prop"
+      },
+      "penetrationXZ": 0.65,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__prop_43",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "prop_43",
+        "name": "Garden Park Bench 2",
+        "type": "prop"
+      },
+      "penetrationXZ": 0.65,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__prop_44",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "prop_44",
+        "name": "Garden Park Bench 3",
+        "type": "prop"
+      },
+      "penetrationXZ": 0.65,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__prop_45",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "prop_45",
+        "name": "Garden Park Bench 4",
+        "type": "prop"
+      },
+      "penetrationXZ": 0.65,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__prop_46",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "prop_46",
+        "name": "Garden Park Bench 5",
+        "type": "prop"
+      },
+      "penetrationXZ": 0.65,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__prop_47",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "prop_47",
+        "name": "Garden Park Bench 6",
+        "type": "prop"
+      },
+      "penetrationXZ": 0.65,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_parking_plaza__prop_65",
+      "objectA": {
+        "id": "area_parking_plaza",
+        "name": "Collage bus parkng ",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "prop_65",
+        "name": "Trash Bin 16",
+        "type": "prop"
+      },
+      "penetrationXZ": 0.17,
+      "overlapY": 0.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "arch_30__bldg_west_wing_l1",
+      "objectA": {
+        "id": "bldg_west_wing_l1",
+        "name": "Staffroom, lab , washroom",
+        "type": "building"
+      },
+      "objectB": {
+        "id": "arch_30",
+        "name": "Concrete Structural Pillar 1",
+        "type": "architecture"
+      },
+      "penetrationXZ": 0.13,
+      "overlapY": 4.2,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "tree_41__veh_34",
+      "objectA": {
+        "id": "veh_34",
+        "name": "Courtyard Scooter / Motorcycle 4",
+        "type": "vehicle"
+      },
+      "objectB": {
+        "id": "tree_41",
+        "name": "Tree 04",
+        "type": "nature"
+      },
+      "penetrationXZ": 0.41,
+      "overlapY": 1.01,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_55__road_52",
+      "objectA": {
+        "id": "road_52",
+        "name": "Stone Road Curb Segment 14",
+        "type": "road"
+      },
+      "objectB": {
+        "id": "area_55",
+        "name": "Garden Area 11",
+        "type": "ground_area"
+      },
+      "penetrationXZ": 0.35,
+      "overlapY": 0.22,
+      "classification": "Needs Manual Review (Road Curb / Raised Garden Bed Overlap)"
+    },
+    {
+      "pairKey": "tree_40__veh_38",
+      "objectA": {
+        "id": "veh_38",
+        "name": "Courtyard Scooter / Motorcycle 8",
+        "type": "vehicle"
+      },
+      "objectB": {
+        "id": "tree_40",
+        "name": "Tree 03",
+        "type": "nature"
+      },
+      "penetrationXZ": 0.09,
+      "overlapY": 0.95,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "tree_40__veh_39",
+      "objectA": {
+        "id": "veh_39",
+        "name": "Courtyard Scooter / Motorcycle 9",
+        "type": "vehicle"
+      },
+      "objectB": {
+        "id": "tree_40",
+        "name": "Tree 03",
+        "type": "nature"
+      },
+      "penetrationXZ": 0.68,
+      "overlapY": 1.04,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "tree_40__veh_40",
+      "objectA": {
+        "id": "veh_40",
+        "name": "Courtyard Scooter / Motorcycle 10",
+        "type": "vehicle"
+      },
+      "objectB": {
+        "id": "tree_40",
+        "name": "Tree 03",
+        "type": "nature"
+      },
+      "penetrationXZ": 0.68,
+      "overlapY": 1.1,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "nat_52__tree_43",
+      "objectA": {
+        "id": "nat_52",
+        "name": "Large Overgrown Bush 2",
+        "type": "nature"
+      },
+      "objectB": {
+        "id": "tree_43",
+        "name": "Tree 06",
+        "type": "nature"
+      },
+      "penetrationXZ": 2.2,
+      "overlapY": 1.5,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "tree_41__tree_42",
+      "objectA": {
+        "id": "tree_41",
+        "name": "Tree 04",
+        "type": "nature"
+      },
+      "objectB": {
+        "id": "tree_42",
+        "name": "Tree 05",
+        "type": "nature"
+      },
+      "penetrationXZ": 0.11,
+      "overlapY": 6.79,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "arch_44__tree_42",
+      "objectA": {
+        "id": "tree_42",
+        "name": "Tree 05",
+        "type": "nature"
+      },
+      "objectB": {
+        "id": "arch_44",
+        "name": "Wall 05",
+        "type": "architecture"
+      },
+      "penetrationXZ": 0.3,
+      "overlapY": 3.91,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_40__lamp_40",
+      "objectA": {
+        "id": "lamp_40",
+        "name": "Outdoor Light 11",
+        "type": "lighting"
+      },
+      "objectB": {
+        "id": "area_40",
+        "name": "Garden Area 07 Copy Copy Copy",
+        "type": "ground_area"
+      },
+      "penetrationXZ": 0.16,
+      "overlapY": 0.05,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_54__lamp_43",
+      "objectA": {
+        "id": "lamp_43",
+        "name": "Outdoor Light 13",
+        "type": "lighting"
+      },
+      "objectB": {
+        "id": "area_54",
+        "name": "Garden Area 07 Copy Copy Copy",
+        "type": "ground_area"
+      },
+      "penetrationXZ": 0.68,
+      "overlapY": 0.07,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_53__lamp_76",
+      "objectA": {
+        "id": "area_53",
+        "name": "Garden Area 07 Copy Copy",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "lamp_76",
+        "name": "Decorative Lamp 40",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.5,
+      "overlapY": 0.08,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_53__lamp_77",
+      "objectA": {
+        "id": "area_53",
+        "name": "Garden Area 07 Copy Copy",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "lamp_77",
+        "name": "Decorative Lamp 41",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.5,
+      "overlapY": 0.08,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_53__lamp_78",
+      "objectA": {
+        "id": "area_53",
+        "name": "Garden Area 07 Copy Copy",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "lamp_78",
+        "name": "Decorative Lamp 42",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.5,
+      "overlapY": 0.08,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_54__lamp_73",
+      "objectA": {
+        "id": "area_54",
+        "name": "Garden Area 07 Copy Copy Copy",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "lamp_73",
+        "name": "Decorative Lamp 37",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.5,
+      "overlapY": 0.08,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_54__lamp_74",
+      "objectA": {
+        "id": "area_54",
+        "name": "Garden Area 07 Copy Copy Copy",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "lamp_74",
+        "name": "Decorative Lamp 38",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.5,
+      "overlapY": 0.08,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_54__lamp_75",
+      "objectA": {
+        "id": "area_54",
+        "name": "Garden Area 07 Copy Copy Copy",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "lamp_75",
+        "name": "Decorative Lamp 39",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.5,
+      "overlapY": 0.05,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "arch_44__arch_49",
+      "objectA": {
+        "id": "arch_44",
+        "name": "Wall 05",
+        "type": "architecture"
+      },
+      "objectB": {
+        "id": "arch_49",
+        "name": "Wall 08",
+        "type": "architecture"
+      },
+      "penetrationXZ": 0.17,
+      "overlapY": 2.7,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "arch_45__arch_46",
+      "objectA": {
+        "id": "arch_45",
+        "name": "Wall 06",
+        "type": "architecture"
+      },
+      "objectB": {
+        "id": "arch_46",
+        "name": "Wall 07",
+        "type": "architecture"
+      },
+      "penetrationXZ": 0.1,
+      "overlapY": 3.32,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_40__lamp_50",
+      "objectA": {
+        "id": "area_40",
+        "name": "Garden Area 07 Copy Copy Copy",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "lamp_50",
+        "name": "Decorative Lamp 24",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.5,
+      "overlapY": 0.08,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_40__lamp_79",
+      "objectA": {
+        "id": "area_40",
+        "name": "Garden Area 07 Copy Copy Copy",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "lamp_79",
+        "name": "Decorative Lamp 41",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.5,
+      "overlapY": 0.08,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    },
+    {
+      "pairKey": "area_40__lamp_80",
+      "objectA": {
+        "id": "area_40",
+        "name": "Garden Area 07 Copy Copy Copy",
+        "type": "ground_area"
+      },
+      "objectB": {
+        "id": "lamp_80",
+        "name": "Decorative Lamp 42",
+        "type": "lighting"
+      },
+      "penetrationXZ": 0.5,
+      "overlapY": 0.06,
+      "classification": "Intentional / Benign Attachment or Canopy Overhang"
+    }
+  ]
+}

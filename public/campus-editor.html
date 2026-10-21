@@ -470,6 +470,125 @@
     }
 
     /* =====================================================================
+       TERRAIN SCULPTING PANEL (Right or Bottom Contextual Sheet)
+       ===================================================================== */
+    #terrain-panel {
+      position: absolute;
+      bottom: calc(var(--safe-bottom) + 64px);
+      right: calc(var(--safe-right) + 10px);
+      width: 326px;
+      max-width: calc(100vw - 20px);
+      max-height: calc(100vh - 150px);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      background: rgba(18, 18, 18, 0.96);
+      border: 1px solid var(--border-bright);
+      border-radius: 10px;
+      padding: 10px 12px;
+      z-index: 29;
+      display: none;
+      flex-direction: column;
+      gap: 7px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.85);
+    }
+    #terrain-panel.open { display: flex; }
+
+    .terrain-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      border-bottom: 1px solid var(--border-dim);
+      padding-bottom: 6px;
+    }
+    .terrain-title {
+      font-size: 12.5px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .terrain-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+    }
+    .terrain-shape-btn.active {
+      background: #ffffff;
+      color: #0a0a0a;
+      border-color: #ffffff;
+    }
+    .terrain-tools-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+    .terrain-tool-btn {
+      background: var(--bg-elevated);
+      color: var(--text-white);
+      border: 1px solid var(--border-mid);
+      border-radius: 6px;
+      padding: 7px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      white-space: nowrap;
+    }
+    .terrain-tool-btn.active {
+      background: #ffffff;
+      color: #0a0a0a;
+      border-color: #ffffff;
+    }
+    .terrain-slider-box {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-dim);
+      border-radius: 6px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .terrain-slider-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-light);
+    }
+    .terrain-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .terrain-slider-row input[type="range"] {
+      flex: 1;
+      accent-color: #ffffff;
+    }
+    .terrain-subbox {
+      background: #141414;
+      border: 1px solid var(--border-mid);
+      border-radius: 7px;
+      padding: 7px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .terrain-warning {
+      background: rgba(245, 158, 11, 0.16);
+      border: 1px solid #f59e0b;
+      color: #fde68a;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    /* =====================================================================
        SELECTED OBJECT PANEL (Right or Bottom Contextual Sheet)
        ===================================================================== */
     #selected-panel {
@@ -999,28 +1118,46 @@
             <svg viewBox="0 0 24 24"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             <span>Scale</span>
           </button>
+          <button id="btn-terrain-mode" class="mode-btn" data-mode="terrain" title="Sculpt Campus Terrain (Raise, Lower, Smooth, Flatten, Slope)">
+            <svg viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
+            <span>Terrain</span>
+          </button>
           <div class="bar-sep"></div>
           <button id="btn-snap-cycle" class="mode-btn" title="Cycle Grid Snapping (Off / 0.5m / 1m / 2m)">
             <span>Snap: Off</span>
           </button>
           <div class="bar-sep"></div>
-          <button id="btn-bar-names" class="mode-btn active" title="Select which object names to show (Building, Bus, Car, Bike)">
-            <span>Names: All (4) ▾</span>
+          <button id="btn-bring-in-place" class="mode-btn" title="Bring All in Place: Ground at base, roads above ground, all objects (buildings, buses, trees, etc.) resting cleanly on top without sinking below!">
+            <svg viewBox="0 0 24 24"><polyline points="7 13 12 18 17 13"/><polyline points="7 6 12 11 17 6"/></svg>
+            <span>In Place</span>
+          </button>
+          <div class="bar-sep"></div>
+          <button id="btn-bar-names" class="mode-btn active" title="Show or Hide Object Names on Map (Filter by Building, Road, Bus, Car, etc.)">
+            <span>Names: All ▾</span>
           </button>
           <button id="btn-bar-dims" class="mode-btn" title="Show or Hide Length / Dimensions (W×D×H) on Buildings, Roads, Buses, etc.">
             <span>Size: OFF</span>
           </button>
         </div>
 
-        <!-- Floating Popover: Select Which Names to Show (Building, Bus, Car, Bike + Specific Objects) -->
-        <div id="names-dropdown" role="region" aria-label="Show Names Filter">
+        <!-- Floating Popover: Select Which Names & Dimensions to Show -->
+        <div id="names-dropdown" role="region" aria-label="Show Names and Dimensions Filter">
           <div class="names-dd-header">
-            <span class="names-dd-title">Show Names (Building / Bus / Car / Bike)</span>
+            <span class="names-dd-title">Names &amp; Length / Size Display</span>
             <button id="btn-close-names-dd" class="btn sm">✕</button>
           </div>
 
-          <div style="font-size:11px;color:var(--text-muted);">
-            Select which categories to show names for on the map:
+          <!-- Quick Toggle for Size/Dimensions -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;background:var(--bg-elevated);padding:6px 8px;border-radius:6px;border:1px solid var(--border-dim);">
+            <div style="display:flex;flex-direction:column;gap:1px;">
+              <span style="font-size:11.5px;font-weight:700;color:var(--text-white);">Length / Dimensions (W×D×H)</span>
+              <span style="font-size:10px;color:var(--text-muted);">Show sizes on buildings, roads, buses, etc.</span>
+            </div>
+            <button type="button" id="btn-dropdown-toggle-dims" class="btn sm">Size: OFF</button>
+          </div>
+
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+            Filter object names by category:
           </div>
 
           <div class="names-cat-grid">
@@ -1040,14 +1177,29 @@
               <span>🏍️ Bike</span>
               <span class="cat-check">✓</span>
             </button>
+            <button type="button" class="name-cat-btn active" data-name-cat="road">
+              <span>🛣️ Road</span>
+              <span class="cat-check">✓</span>
+            </button>
+            <button type="button" class="name-cat-btn active" data-name-cat="prop">
+              <span>📦 Prop</span>
+              <span class="cat-check">✓</span>
+            </button>
+            <button type="button" class="name-cat-btn active" data-name-cat="nature">
+              <span>🌳 Nature</span>
+              <span class="cat-check">✓</span>
+            </button>
+            <button type="button" class="name-cat-btn active" data-name-cat="other">
+              <span>🏷️ Other</span>
+              <span class="cat-check">✓</span>
+            </button>
           </div>
 
           <div class="names-preset-row">
-            <button type="button" class="names-preset-btn active" data-name-preset="all">All 4</button>
-            <button type="button" class="names-preset-btn" data-name-preset="building">Only Building</button>
-            <button type="button" class="names-preset-btn" data-name-preset="bus">Only Bus</button>
-            <button type="button" class="names-preset-btn" data-name-preset="car">Only Car</button>
-            <button type="button" class="names-preset-btn" data-name-preset="bike">Only Bike</button>
+            <button type="button" class="names-preset-btn active" data-name-preset="all">Show All</button>
+            <button type="button" class="names-preset-btn" data-name-preset="building">Only Buildings</button>
+            <button type="button" class="names-preset-btn" data-name-preset="vehicles">Only Vehicles</button>
+            <button type="button" class="names-preset-btn" data-name-preset="road">Only Roads</button>
             <button type="button" class="names-preset-btn" data-name-preset="none">Hide All (OFF)</button>
           </div>
 
@@ -1086,11 +1238,165 @@
           </div>
         </div>
 
+        <!-- TERRAIN SCULPTING PANEL (Shown when Terrain Mode is active) -->
+        <section id="terrain-panel" aria-label="Terrain Sculpting Controls">
+          <div class="terrain-header">
+            <span class="terrain-title">⛰ Terrain Sculpting</span>
+            <button id="btn-exit-terrain" class="btn sm danger" title="Exit Terrain Mode and return to Object Selection">✕ Exit Terrain</button>
+          </div>
+
+          <div id="terrain-warning-box" class="terrain-warning" style="display:none;"></div>
+
+          <!-- Selection Shape: Circular Brush vs Rectangular Area -->
+          <div class="terrain-row-2">
+            <button type="button" class="btn sm terrain-shape-btn active" data-tshape="brush">◯ Circular Brush</button>
+            <button type="button" class="btn sm terrain-shape-btn" data-tshape="rect">▭ Rect Area</button>
+          </div>
+
+          <!-- 7 Terrain Sculpting Tools -->
+          <div class="terrain-tools-grid">
+            <button type="button" class="terrain-tool-btn active" data-ttool="raise" title="Push terrain upward">
+              <span>↑ Raise</span>
+            </button>
+            <button type="button" class="terrain-tool-btn" data-ttool="lower" title="Push terrain downward">
+              <span>↓ Lower</span>
+            </button>
+            <button type="button" class="terrain-tool-btn" data-ttool="smooth" title="Smooth rough bumps & blend transitions">
+              <span>≈ Smooth</span>
+            </button>
+            <button type="button" class="terrain-tool-btn" data-ttool="flatten" title="Flatten terrain toward Target Height">
+              <span>⎯ Flatten</span>
+            </button>
+            <button type="button" class="terrain-tool-btn" data-ttool="slope" title="Create a gradual ramp/incline between two points">
+              <span>⟋ Slope</span>
+            </button>
+            <button type="button" class="terrain-tool-btn" data-ttool="set_height" title="Set terrain to exact Target Height">
+              <span>= Set Height</span>
+            </button>
+            <button type="button" class="terrain-tool-btn" data-ttool="reset_area" title="Restore brushed area to 0m original height">
+              <span>↺ Reset Area</span>
+            </button>
+          </div>
+
+          <!-- Rectangular Area Actions (when Rect Area is active) -->
+          <div id="terrain-rect-controls" class="terrain-subbox" style="display:none;">
+            <div id="lbl-terrain-rect-status" style="font-size:10.5px;color:var(--text-light);font-weight:700;">
+              Drag on ground to select a rectangular area
+            </div>
+            <div class="terrain-tools-grid">
+              <button type="button" class="btn sm" data-rect-op="raise">+ Raise Rect</button>
+              <button type="button" class="btn sm" data-rect-op="lower">− Lower Rect</button>
+              <button type="button" class="btn sm" data-rect-op="smooth">≈ Smooth Rect</button>
+              <button type="button" class="btn sm" data-rect-op="flatten">⎯ Flatten Rect</button>
+              <button type="button" class="btn sm" data-rect-op="set_height">= Set Height</button>
+              <button type="button" class="btn sm" data-rect-op="reset_area">↺ Reset Rect</button>
+            </div>
+            <button type="button" class="btn sm danger" data-rect-op="clear_sel">Clear Selected Rectangle</button>
+          </div>
+
+          <!-- Brush Size (Radius) & Strength Sliders with Mobile +/- Nudge Buttons -->
+          <div class="terrain-slider-box">
+            <div class="terrain-slider-head">
+              <span>Brush Size (Radius)</span>
+              <span id="lbl-terrain-radius">10m</span>
+            </div>
+            <div class="terrain-slider-row">
+              <button type="button" class="nudge-btn" data-terrain-nudge="brushRadius" data-delta="-2">−</button>
+              <input id="inp-terrain-radius" type="range" min="1" max="45" step="0.5" value="10" />
+              <button type="button" class="nudge-btn" data-terrain-nudge="brushRadius" data-delta="2">+</button>
+            </div>
+          </div>
+
+          <div class="terrain-slider-box">
+            <div class="terrain-slider-head">
+              <span>Brush Strength</span>
+              <span id="lbl-terrain-strength">50%</span>
+            </div>
+            <div class="terrain-slider-row">
+              <button type="button" class="nudge-btn" data-terrain-nudge="brushStrength" data-delta="-0.1">−</button>
+              <input id="inp-terrain-strength" type="range" min="0.05" max="1" step="0.05" value="0.5" />
+              <button type="button" class="nudge-btn" data-terrain-nudge="brushStrength" data-delta="0.1">+</button>
+            </div>
+          </div>
+
+          <!-- Falloff: Soft, Medium, Hard & Speed -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+            <span style="font-size:10.5px;font-weight:700;color:var(--text-light);">Falloff:</span>
+            <div style="display:flex;gap:4px;flex:1;">
+              <button type="button" class="btn sm terrain-falloff-btn active" style="flex:1;" data-tfalloff="soft">Soft</button>
+              <button type="button" class="btn sm terrain-falloff-btn" style="flex:1;" data-tfalloff="medium">Medium</button>
+              <button type="button" class="btn sm terrain-falloff-btn" style="flex:1;" data-tfalloff="hard">Hard</button>
+            </div>
+          </div>
+
+          <div class="terrain-slider-box">
+            <div class="terrain-slider-head">
+              <span>Sculpt Speed / Sensitivity</span>
+              <span id="lbl-terrain-speed">1x</span>
+            </div>
+            <input id="inp-terrain-speed" type="range" min="0.2" max="2.5" step="0.1" value="1.0" style="width:100%;" />
+          </div>
+
+          <!-- Target Height (used by Flatten & Set Height) -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+            <span style="font-size:11px;font-weight:700;color:var(--text-light);">Target Height (m):</span>
+            <div class="xyz-input-row" style="width:140px;">
+              <button type="button" class="nudge-btn" data-terrain-nudge="targetHeight" data-delta="-0.5">−</button>
+              <input id="inp-terrain-target-h" class="xyz-num" type="number" step="0.25" value="2.0" />
+              <button type="button" class="nudge-btn" data-terrain-nudge="targetHeight" data-delta="0.5">+</button>
+            </div>
+          </div>
+
+          <!-- Slope / Ramp Controls (shown when Slope tool is selected) -->
+          <div id="terrain-slope-controls" class="terrain-subbox" style="display:none;">
+            <div style="font-size:10.5px;color:var(--text-light);">
+              <strong>Slope Tool:</strong> Drag from Start Point to End Point on the ground (or click Apply below).
+            </div>
+            <div class="xyz-grid">
+              <div class="xyz-box">
+                <div class="xyz-label"><span>Start Y (m)</span></div>
+                <input id="inp-slope-start-h" class="xyz-num" type="number" step="0.5" value="0" />
+              </div>
+              <div class="xyz-box">
+                <div class="xyz-label"><span>End Y (m)</span></div>
+                <input id="inp-slope-end-h" class="xyz-num" type="number" step="0.5" value="3" />
+              </div>
+              <div class="xyz-box">
+                <div class="xyz-label"><span>Width (m)</span></div>
+                <input id="inp-slope-width" class="xyz-num" type="number" step="1" min="1" value="8" />
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+              <span style="font-size:10.5px;color:var(--text-light);">Blend Margin (m):</span>
+              <input id="inp-slope-trans" class="xyz-num" style="width:72px;" type="number" step="0.5" min="0.5" value="4" />
+              <button type="button" id="btn-apply-slope" class="btn sm primary">Apply Slope A→B</button>
+            </div>
+          </div>
+
+          <!-- Object Protection, Wireframe & Resolution -->
+          <div style="display:flex;flex-wrap:wrap;gap:5px;border-top:1px solid var(--border-dim);padding-top:6px;">
+            <button type="button" id="btn-terrain-under-objs" class="btn sm" style="flex:1;">Sculpt Under Buildings: OFF</button>
+            <button type="button" id="btn-terrain-wireframe" class="btn sm active">Mesh Grid: ON</button>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+            <span style="font-size:10.5px;color:var(--text-muted);">Mesh Detail:</span>
+            <select id="sel-terrain-res" class="xyz-num" style="width:110px;padding:0 4px;">
+              <option value="64">64×64 (5m)</option>
+              <option value="128" selected>128×128 (2.5m)</option>
+              <option value="160">160×160 (2m)</option>
+            </select>
+            <button type="button" id="btn-terrain-reset-all" class="btn sm danger">Reset All Terrain</button>
+          </div>
+        </section>
+
         <!-- RIGHT OR BOTTOM SELECTED OBJECT PANEL -->
         <section id="selected-panel" aria-label="Selected Object Controls">
           <div class="sel-header">
             <input id="inp-name" class="sel-name-input" type="text" placeholder="Object Name" autocomplete="off" />
             <button id="btn-sel-name" class="btn sm icon-only" title="Show / Hide Name on Map">🏷</button>
+            <button id="btn-sel-dim" class="btn sm icon-only" title="Show / Hide Dimensions &amp; Length on Map">📏</button>
+            <button id="btn-sel-bring-in-place" class="btn sm" title="Snap to Surface: Lower roads &amp; ground below, this object resting cleanly on top!">⬇ Place</button>
             <button id="btn-sel-lock" class="btn sm icon-only" title="Lock / Unlock Object">🔓</button>
             <button id="btn-sel-hide" class="btn sm icon-only" title="Hide / Show Object">👁</button>
             <button id="btn-sel-close" class="btn sm icon-only" title="Deselect">✕</button>
@@ -1159,6 +1465,12 @@
             <button class="btn sm sel-mode-btn" data-mode="scale">Scale</button>
           </div>
 
+          <!-- Terrain Alignment Actions: [ Snap Object to Terrain ] [ Conform Road ] -->
+          <div style="display:flex;gap:6px;">
+            <button type="button" id="btn-sel-snap-terrain" class="btn sm" style="flex:1;" title="Snap this object's base Y to the sculpted terrain height below it">⬇ Snap to Terrain</button>
+            <button type="button" id="btn-sel-conform-terrain" class="btn sm" style="flex:1;display:none;" title="Conform road or ground slab to follow terrain slopes">⛰ Conform Road</button>
+          </div>
+
           <!-- [ Duplicate ] [ Delete ] -->
           <div class="sel-bottom-row">
             <button id="btn-sel-duplicate" class="btn sm">Duplicate</button>
@@ -1168,10 +1480,14 @@
       </div>
     </div>
 
-    <!-- BOTTOM ASSET PANEL: [ Buildings ] [ Roads ] [ Nature ] [ Lights ] [ Props ] [ Vehicles ] -->
+    <!-- BOTTOM ASSET PANEL: [ Terrain ] [ Buildings ] [ Roads ] [ Nature ] [ Lights ] [ Props ] [ Vehicles ] -->
     <footer id="asset-dock">
       <div id="asset-categories-bar">
         <div class="cat-tabs">
+          <button type="button" id="btn-cat-terrain" class="cat-btn" title="Open Terrain Sculpting Tools">
+            <svg viewBox="0 0 24 24"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
+            <span>Terrain</span>
+          </button>
           <button class="cat-btn" data-cat="buildings">
             <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="1"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><path d="M9 22v-4h6v4"/></svg>
             <span>Buildings</span>
@@ -1233,13 +1549,17 @@
 
           <!-- Optional Advanced Section -->
           <details style="background:var(--bg-elevated);border:1px solid var(--border-dim);border-radius:6px;padding:8px;">
-            <summary style="cursor:pointer;font-weight:700;font-size:12px;">Advanced Options (Grid, Labels, Colliders &amp; Reset)</summary>
+            <summary style="cursor:pointer;font-weight:700;font-size:12px;">Advanced Options (Align Heights, Grid, Labels, Colliders &amp; Reset)</summary>
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+              <button id="btn-menu-bring-in-place" class="btn sm" title="Lower roads &amp; ground, bring all objects resting cleanly on top">⬇ Bring All in Place</button>
               <button id="btn-toggle-labels" class="btn sm active">Names: ON</button>
               <button type="button" class="btn sm active" data-menu-name-cat="building">Building Names: ON</button>
               <button type="button" class="btn sm active" data-menu-name-cat="bus">Bus Names: ON</button>
               <button type="button" class="btn sm active" data-menu-name-cat="car">Car Names: ON</button>
               <button type="button" class="btn sm active" data-menu-name-cat="bike">Bike Names: ON</button>
+              <button type="button" class="btn sm active" data-menu-name-cat="road">Road Names: ON</button>
+              <button type="button" class="btn sm active" data-menu-name-cat="prop">Prop Names: ON</button>
+              <button type="button" class="btn sm active" data-menu-name-cat="nature">Nature Names: ON</button>
               <button id="btn-toggle-dims" class="btn sm">Size / Length: OFF</button>
               <button id="btn-toggle-colliders" class="btn sm">Colliders: OFF</button>
               <button id="btn-reset-default-map" class="btn sm danger">Reset to Default Campus</button>
@@ -4491,7 +4811,7 @@
       const state = {
         objects: [],
         selectedId: null,
-        transformMode: 'move',      // 'select' | 'move' | 'rotate' | 'scale'
+        transformMode: 'move',      // 'select' | 'move' | 'rotate' | 'scale' | 'terrain'
         activeCategory: null,       // 'buildings' | 'roads' | 'nature' | 'lights' | 'props' | 'vehicles' | null
         placingAssetId: null,       // When non-null, tapping the 3D map places this asset at the tapped point
         snapIndex: 0,               // Default 0 ('Off') so objects move smoothly and never snap back unexpectedly
@@ -4500,7 +4820,11 @@
           building: true,
           bus: true,
           car: true,
-          bike: true
+          bike: true,
+          road: true,
+          prop: true,
+          nature: true,
+          other: true
         },
         showDimensions: false,
         showColliders: false,
@@ -4509,7 +4833,36 @@
         objectSearch: '',
         history: [],
         historyIndex: -1,
-        idCounter: 40
+        idCounter: 40,
+        terrain: {
+          enabled: false,
+          tool: 'raise',            // 'raise' | 'lower' | 'smooth' | 'flatten' | 'slope' | 'set_height' | 'reset_area'
+          selectionShape: 'brush',  // 'brush' | 'rect'
+          brushRadius: 10.0,
+          brushStrength: 0.50,
+          brushFalloff: 'soft',     // 'soft' | 'medium' | 'hard'
+          sculptSpeed: 1.0,
+          targetHeight: 2.0,
+          rectStepDelta: 1.0,
+          selectedRect: null,
+          slopeStart: { x: -20, z: -20, y: 0.0 },
+          slopeEnd: { x: 20, z: -20, y: 3.0 },
+          slopeWidth: 8.0,
+          slopeTransition: 4.0,
+          allowUnderObjects: true,
+          autoSyncObjectsToTerrain: true,
+          showWireframe: true,
+          width: 320,
+          depth: 320,
+          segmentsX: 128,
+          segmentsZ: 128,
+          heights: new Float32Array(129 * 129),
+          hoverX: 0,
+          hoverZ: 0,
+          hoverValid: false,
+          warnings: [],
+          versionCounter: 0
+        }
       };
 
       function getObjectLabelCategory(obj) {
@@ -4554,21 +4907,241 @@
         ) {
           return 'bike';
         }
+        if (
+          type === 'road' ||
+          type === 'ground_area' ||
+          assetId.startsWith('road_') ||
+          id.startsWith('road_') ||
+          id.startsWith('path_') ||
+          id.startsWith('area_')
+        ) {
+          return 'road';
+        }
+        if (
+          type === 'prop' ||
+          type === 'lighting' ||
+          type === 'architecture' ||
+          assetId.startsWith('prop_') ||
+          assetId.startsWith('light_') ||
+          id.startsWith('prop_') ||
+          id.startsWith('light_')
+        ) {
+          return 'prop';
+        }
+        if (
+          type === 'nature' ||
+          assetId.startsWith('nat_') ||
+          id.startsWith('nat_') ||
+          id.startsWith('tree_')
+        ) {
+          return 'nature';
+        }
         return 'other';
       }
 
       function isLabelEligibleObject(obj) {
-        const cat = getObjectLabelCategory(obj);
-        return cat === 'building' || cat === 'bus' || cat === 'car' || cat === 'bike';
+        return !!obj;
       }
 
       function shouldShowObjectName(obj) {
         if (!state.showLabels || !obj) return false;
         const cat = getObjectLabelCategory(obj);
-        if (cat !== 'building' && cat !== 'bus' && cat !== 'car' && cat !== 'bike') return false;
-        if (!state.nameCategories[cat]) return false;
+        if (state.nameCategories[cat] === false) return false;
         if (obj.showName === false) return false;
         return true;
+      }
+
+      function shouldShowObjectDimensions(obj) {
+        if (!obj) return false;
+        if (obj.showDimensions === false) return false;
+        if (obj.showDimensions === true) return true;
+        return !!state.showDimensions;
+      }
+
+      function isPointInOrientedBox(px, pz, obj) {
+        if (!obj || !obj.position || !obj.dimensions) return false;
+        const sx = Math.max(0.05, Number(obj.scale?.x) || 1);
+        const sz = Math.max(0.05, Number(obj.scale?.z) || 1);
+        const w = (Number(obj.dimensions?.width) || 1) * sx;
+        const d = (Number(obj.dimensions?.depth) || 1) * sz;
+        const hw = w * 0.5;
+        const hd = d * 0.5;
+
+        const cx = Number(obj.position.x) || 0;
+        const cz = Number(obj.position.z) || 0;
+        const ryDeg = Number(obj.rotation?.yDeg) || 0;
+        const rad = (ryDeg * Math.PI) / 180;
+
+        const dx = px - cx;
+        const dz = pz - cz;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
+        const lx = dx * cos - dz * sin;
+        const lz = dx * sin + dz * cos;
+
+        return Math.abs(lx) <= hw + 0.05 && Math.abs(lz) <= hd + 0.05;
+      }
+
+      function getSurfaceHeightUnderObject(obj, targetX, targetZ) {
+        const px = Number(targetX !== undefined ? targetX : obj?.position?.x) || 0;
+        const pz = Number(targetZ !== undefined ? targetZ : obj?.position?.z) || 0;
+        const isGroundArea = obj && (obj.type === 'ground_area' || obj.assetId === 'road_parking_lot');
+        const isRoad = obj && obj.type === 'road';
+
+        // 1. Layer 0 (Ground Areas): Base on terrain height (min 0)
+        if (isGroundArea) {
+          return round2(Math.max(0, getTerrainHeightAt(px, pz)));
+        }
+
+        // 2. Layer 1 (Roads): Rests on terrain and on top of any overlapping ground area (+ 0.02 to avoid z-fighting)
+        if (isRoad) {
+          let groundTop = Math.max(0, getTerrainHeightAt(px, pz));
+          for (const ga of state.objects) {
+            if (ga.id === obj?.id || ga.visible === false) continue;
+            if (ga.type === 'ground_area' && isPointInOrientedBox(px, pz, ga)) {
+              const gaSy = Math.max(0.05, Number(ga.scale?.y) || 1);
+              const gaH = (Number(ga.dimensions?.height) || 0.04) * gaSy;
+              const gaTopY = (Number(ga.position?.y) || 0) + gaH;
+              if (gaTopY > groundTop) groundTop = gaTopY;
+            }
+          }
+          return round2(groundTop + 0.02);
+        }
+
+        // 3. Layer 2 (All other objects: buildings, buses, cars, bikes, trees, props, lights, etc.):
+        // "anythings other should be up don’t lets element goes below road , ground etc etc"
+        const sx = Math.max(0.05, Number(obj?.scale?.x) || 1);
+        const sz = Math.max(0.05, Number(obj?.scale?.z) || 1);
+        const hw = ((Number(obj?.dimensions?.width) || 1) * sx) * 0.5;
+        const hd = ((Number(obj?.dimensions?.depth) || 1) * sz) * 0.5;
+        const ryDeg = Number(obj?.rotation?.yDeg) || 0;
+        const rad = (ryDeg * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
+        // Sample center and 4 corners of footprint
+        const samplePts = [
+          [px, pz],
+          [px + hw * cos + hd * sin, pz - hw * sin + hd * cos],
+          [px - hw * cos + hd * sin, pz + hw * sin + hd * cos],
+          [px + hw * cos - hd * sin, pz - hw * sin - hd * cos],
+          [px - hw * cos - hd * sin, pz + hw * sin - hd * cos]
+        ];
+
+        let maxSurfaceY = 0;
+        for (const [sxCoord, szCoord] of samplePts) {
+          const th = Math.max(0, getTerrainHeightAt(sxCoord, szCoord));
+          if (th > maxSurfaceY) maxSurfaceY = th;
+        }
+
+        // Check for underlying roads and ground areas
+        for (const surfaceObj of state.objects) {
+          if (!surfaceObj || surfaceObj.id === obj?.id || surfaceObj.visible === false) continue;
+          if (surfaceObj.type !== 'road' && surfaceObj.type !== 'ground_area') continue;
+
+          let isUnder = false;
+          for (const [sxCoord, szCoord] of samplePts) {
+            if (isPointInOrientedBox(sxCoord, szCoord, surfaceObj)) {
+              isUnder = true;
+              break;
+            }
+          }
+
+          if (isUnder) {
+            const sSy = Math.max(0.05, Number(surfaceObj.scale?.y) || 1);
+            const sH = (Number(surfaceObj.dimensions?.height) || 0.04) * sSy;
+            const sTop = (Number(surfaceObj.position?.y) || 0) + sH;
+            if (sTop > maxSurfaceY) {
+              maxSurfaceY = sTop;
+            }
+          }
+        }
+
+        return round2(maxSurfaceY);
+      }
+
+      function bringAllObjectsInPlace() {
+        pushHistory();
+        let count = 0;
+
+        // Step 1: Lower layers first — Ground areas
+        for (const obj of state.objects) {
+          if (obj.locked) continue;
+          if (obj.type === 'ground_area') {
+            const ny = round2(Math.max(0, getTerrainHeightAt(obj.position.x, obj.position.z)));
+            if (Math.abs(obj.position.y - ny) > 0.005) {
+              obj.position.y = ny;
+              count++;
+            }
+          }
+        }
+
+        // Step 2: Roads sit on top of terrain and ground areas
+        for (const obj of state.objects) {
+          if (obj.locked) continue;
+          if (obj.type === 'road') {
+            const ny = getSurfaceHeightUnderObject(obj, obj.position.x, obj.position.z);
+            if (Math.abs(obj.position.y - ny) > 0.005) {
+              obj.position.y = ny;
+              count++;
+            }
+          }
+        }
+
+        // Step 3: All other objects (buildings, vehicles, props, nature, lighting, etc.)
+        // Sit on top of roads and ground, never below!
+        for (const obj of state.objects) {
+          if (obj.locked) continue;
+          if (obj.type !== 'ground_area' && obj.type !== 'road') {
+            const ny = getSurfaceHeightUnderObject(obj, obj.position.x, obj.position.z);
+            if (Math.abs(obj.position.y - ny) > 0.005) {
+              obj.position.y = ny;
+              count++;
+            }
+          }
+        }
+
+        for (const obj of state.objects) {
+          const sy = Math.max(0.05, Number(obj.scale?.y) || 1);
+          const h = (Number(obj.dimensions?.height) || 0.1) * sy;
+          if (obj.center) {
+            obj.center.x = round2(obj.position.x);
+            obj.center.y = round2(obj.position.y + h * 0.5);
+            obj.center.z = round2(obj.position.z);
+          }
+        }
+
+        setUnsavedState(true);
+        syncSceneMeshes();
+        syncSelectedPanel();
+        renderObjectList();
+        showToast(`Brought ${count} objects into place (roads & ground below, objects on top)`);
+      }
+
+      function bringSelectedObjectInPlace() {
+        const sel = getSelectedObject();
+        if (!sel) {
+          showToast('Tap an object first to bring into place');
+          return;
+        }
+        if (sel.locked) {
+          showToast('Object is locked');
+          return;
+        }
+        pushHistory();
+        const ny = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
+        sel.position.y = ny;
+        const sy = Math.max(0.05, Number(sel.scale?.y) || 1);
+        const h = (Number(sel.dimensions?.height) || 0.1) * sy;
+        if (sel.center) {
+          sel.center.y = round2(sel.position.y + h * 0.5);
+        }
+        setUnsavedState(true);
+        syncSceneMeshes();
+        syncSelectedPanel();
+        renderObjectList();
+        showToast(`Brought "${sel.name}" into place at Y: ${ny}m`);
       }
 
       function getSnapStep() {
@@ -4609,7 +5182,7 @@
       }
 
       /* =====================================================================
-         3. THREE.JS SCENE, PROCEDURAL 3D MODELS & 3D TRANSFORM GIZMO
+         3. THREE.JS SCENE, EDITABLE SUBDIVIDED TERRAIN MESH & SCULPTING SYSTEM
          ===================================================================== */
       const canvas = document.getElementById('editor-canvas');
       const viewportWrap = document.getElementById('viewport-wrap');
@@ -4636,16 +5209,792 @@
       dirLight2.position.set(-80, 70, 100);
       scene.add(dirLight2);
 
-      // Ground Plane (320m x 320m)
+      // Editable Subdivided Terrain Mesh (320m x 320m, pure neutral gray shading on raised height)
       const GROUND_SIZE = 320;
-      const groundMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE),
-        new THREE.MeshLambertMaterial({ color: 0x161616 })
+      const groundMaterial = new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        vertexColors: true
+      });
+      const terrainWireMaterial = new THREE.MeshBasicMaterial({
+        color: 0x666666,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.34,
+        depthWrite: false
+      });
+
+      let groundMesh = null;
+      let terrainWireMesh = null;
+
+      function computeTerrainGrayValue(h) {
+        const baseGray = 0x16 / 255;
+        if (h > 0.005) {
+          // Pure neutral gray (R = G = B) that brightens cleanly as land height increases
+          return Math.max(baseGray, Math.min(0.68, baseGray + 0.06 + h * 0.045));
+        }
+        if (h < -0.005) {
+          return Math.max(0.03, baseGray + h * 0.015);
+        }
+        return baseGray;
+      }
+
+      function createTerrainGeometry(width, depth, segsX, segsZ, heightsArr) {
+        const geo = new THREE.PlaneGeometry(width, depth, segsX, segsZ);
+        geo.rotateX(-Math.PI / 2);
+        const pos = geo.attributes.position;
+        const count = pos.count;
+        const colors = new Float32Array(count * 3);
+
+        for (let i = 0; i < count; i++) {
+          const h = heightsArr && i < heightsArr.length ? (Number(heightsArr[i]) || 0) : 0;
+          pos.setY(i, h);
+          const g = computeTerrainGrayValue(h);
+          colors[i * 3]     = g;
+          colors[i * 3 + 1] = g;
+          colors[i * 3 + 2] = g;
+        }
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geo.computeVertexNormals();
+        geo.computeBoundingBox();
+        geo.computeBoundingSphere();
+        return geo;
+      }
+
+      function rebuildTerrainGeometry(segsX, segsZ, heightsInput) {
+        const sx = Math.max(8, Math.min(256, Math.round(segsX || 128)));
+        const sz = Math.max(8, Math.min(256, Math.round(segsZ || 128)));
+        const total = (sx + 1) * (sz + 1);
+        const nextHeights = new Float32Array(total);
+        if (heightsInput && heightsInput.length === total) {
+          for (let i = 0; i < total; i++) {
+            nextHeights[i] = Number(heightsInput[i]) || 0;
+          }
+        }
+        state.terrain.segmentsX = sx;
+        state.terrain.segmentsZ = sz;
+        state.terrain.heights = nextHeights;
+        state.terrain.versionCounter++;
+
+        const newGeo = createTerrainGeometry(state.terrain.width, state.terrain.depth, sx, sz, nextHeights);
+        if (!groundMesh) {
+          groundMesh = new THREE.Mesh(newGeo, groundMaterial);
+          groundMesh.position.y = -0.03;
+          groundMesh.name = '__ground__';
+          scene.add(groundMesh);
+
+          terrainWireMesh = new THREE.Mesh(newGeo, terrainWireMaterial);
+          terrainWireMesh.position.y = -0.018;
+          terrainWireMesh.name = '__terrain_wire__';
+          terrainWireMesh.visible = false;
+          scene.add(terrainWireMesh);
+        } else {
+          const oldGeo = groundMesh.geometry;
+          groundMesh.geometry = newGeo;
+          if (terrainWireMesh) terrainWireMesh.geometry = newGeo;
+          if (oldGeo) oldGeo.dispose();
+        }
+      }
+
+      // Compute the effective terrain elevation underneath an object so it rides on top of raised land
+      function getObjectEffectiveTerrainY(obj) {
+        if (!obj) return 0;
+        const cx = Number(obj.position?.x) || 0;
+        const cz = Number(obj.position?.z) || 0;
+        const centerH = getTerrainHeightAt(cx, cz);
+
+        // Trees, bushes, lamps, props, roads, ground areas, and buildings ground at their base/origin center
+        // rather than taking maxH of upper foliage canopies or crossbars.
+        if (
+          obj.type === 'nature' ||
+          obj.type === 'lighting' ||
+          obj.type === 'prop' ||
+          obj.type === 'road' ||
+          obj.type === 'ground_area' ||
+          obj.type === 'building'
+        ) {
+          return centerH;
+        }
+
+        const sx = Math.max(0.05, Number(obj.scale?.x) || 1);
+        const sz = Math.max(0.05, Number(obj.scale?.z) || 1);
+        const w = (Number(obj.dimensions?.width) || 1) * sx;
+        const d = (Number(obj.dimensions?.depth) || 1) * sz;
+        const rad = ((Number(obj.rotation?.yDeg) || 0) * Math.PI) / 180;
+        const cosR = Math.cos(rad);
+        const sinR = Math.sin(rad);
+
+        // Vehicles rest their wheels on the road/ramp surface (mean of 4 wheel contact points)
+        if (obj.type === 'vehicle') {
+          if (obj.id === 'bus_a_gp62' || obj.id === 'bus_b_gp64') return 0;
+          const wxOff = w * 0.35;
+          const wzOff = d * 0.35;
+          const wheelPts = [
+            [-wxOff, -wzOff],
+            [wxOff, -wzOff],
+            [-wxOff, wzOff],
+            [wxOff, wzOff]
+          ];
+          let sumW = 0;
+          for (const [lx, lz] of wheelPts) {
+            const wx = cx + lx * cosR + lz * sinR;
+            const wz = cz - lx * sinR + lz * cosR;
+            sumW += getTerrainHeightAt(wx, wz);
+          }
+          return sumW / wheelPts.length;
+        }
+
+        // Long perimeter walls ground at the lower of centerH or their endpoints so they never float with a gap underneath
+        if (obj.type === 'architecture' && (w > 15 || d > 15)) {
+          const hw = w * 0.5;
+          const hd = d * 0.5;
+          const endPts = [
+            [-hw, 0],
+            [hw, 0],
+            [0, -hd],
+            [0, hd]
+          ];
+          let minEndH = centerH;
+          for (const [lx, lz] of endPts) {
+            const wx = cx + lx * cosR + lz * sinR;
+            const wz = cz - lx * sinR + lz * cosR;
+            const th = getTerrainHeightAt(wx, wz);
+            if (th < minEndH) minEndH = th;
+          }
+          return minEndH;
+        }
+
+        return centerH;
+      }
+
+      function syncObjectsToTerrainHeight() {
+        if (state.terrain.autoSyncObjectsToTerrain === false || !Array.isArray(state.objects)) return;
+        for (const obj of state.objects) {
+          if (!obj) continue;
+          // Preserve intentionally elevated wall-mounted AC units
+          if (obj.assetId === 'arch_ac_unit' && obj.position?.y > 2.5) continue;
+          const defaultBaseOffset = obj.type === 'road' ? 0.02 : 0.0;
+          const ty = getObjectEffectiveTerrainY(obj);
+          obj.position.y = round2(ty + defaultBaseOffset);
+        }
+      }
+
+      function syncTerrainMeshVertices() {
+        if (!groundMesh || !groundMesh.geometry) return;
+        const geo = groundMesh.geometry;
+        const pos = geo.attributes.position;
+        const col = geo.attributes.color;
+        const hs = state.terrain.heights;
+        const count = pos.count;
+
+        for (let i = 0; i < count; i++) {
+          const h = hs[i] || 0;
+          pos.setY(i, h);
+          if (col) {
+            const g = computeTerrainGrayValue(h);
+            col.setXYZ(i, g, g, g);
+          }
+        }
+        pos.needsUpdate = true;
+        if (col) col.needsUpdate = true;
+        geo.computeVertexNormals();
+        geo.computeBoundingBox();
+        geo.computeBoundingSphere();
+        state.terrain.versionCounter++;
+
+        // Automatically elevate elements on the sculpted terrain so they never sink when land height increases
+        syncObjectsToTerrainHeight();
+        if (typeof syncSceneMeshes === 'function' && typeof objectsGroup !== 'undefined') {
+          syncSceneMeshes();
+        }
+      }
+
+      // Initialize default 128x128 subdivided terrain mesh
+      rebuildTerrainGeometry(128, 128, null);
+
+      // Bilinear height sampling at any world (x, z) coordinate
+      function getTerrainHeightAt(worldX, worldZ) {
+        const w = state.terrain.width;
+        const d = state.terrain.depth;
+        const sx = state.terrain.segmentsX;
+        const sz = state.terrain.segmentsZ;
+        const hs = state.terrain.heights;
+        if (!hs || hs.length === 0) return 0;
+
+        const u = Math.max(0, Math.min(1, (worldX + w * 0.5) / w));
+        const v = Math.max(0, Math.min(1, (worldZ + d * 0.5) / d));
+        const fx = u * sx;
+        const fz = v * sz;
+        const ix0 = Math.min(sx, Math.floor(fx));
+        const iz0 = Math.min(sz, Math.floor(fz));
+        const ix1 = Math.min(sx, ix0 + 1);
+        const iz1 = Math.min(sz, iz0 + 1);
+        const tx = fx - ix0;
+        const tz = fz - iz0;
+
+        const stride = sx + 1;
+        const h00 = hs[iz0 * stride + ix0] || 0;
+        const h10 = hs[iz0 * stride + ix1] || 0;
+        const h01 = hs[iz1 * stride + ix0] || 0;
+        const h11 = hs[iz1 * stride + ix1] || 0;
+
+        const h0 = h00 * (1 - tx) + h10 * tx;
+        const h1 = h01 * (1 - tx) + h11 * tx;
+        return h0 * (1 - tz) + h1 * tz;
+      }
+
+      function setTerrainResolution(newSegsX, newSegsZ, recordHistory = true) {
+        const sx = Math.max(16, Math.min(256, Math.round(newSegsX || 128)));
+        const sz = Math.max(16, Math.min(256, Math.round(newSegsZ || 128)));
+        if (sx === state.terrain.segmentsX && sz === state.terrain.segmentsZ) return;
+
+        const w = state.terrain.width;
+        const d = state.terrain.depth;
+        const resampled = new Float32Array((sx + 1) * (sz + 1));
+        for (let iz = 0; iz <= sz; iz++) {
+          const wz = -d * 0.5 + (iz / sz) * d;
+          for (let ix = 0; ix <= sx; ix++) {
+            const wx = -w * 0.5 + (ix / sx) * w;
+            resampled[iz * (sx + 1) + ix] = round2(getTerrainHeightAt(wx, wz));
+          }
+        }
+        rebuildTerrainGeometry(sx, sz, resampled);
+        if (recordHistory) finalizeTerrainStroke();
+      }
+
+      function resetAllTerrainHeights(recordHistory = true) {
+        const hs = state.terrain.heights;
+        for (let i = 0; i < hs.length; i++) hs[i] = 0;
+        syncTerrainMeshVertices();
+        state.terrain.warnings = [];
+        if (recordHistory) finalizeTerrainStroke();
+      }
+
+      function computeFalloffWeight(normDist, falloffType) {
+        if (normDist >= 1.0) return 0;
+        if (normDist <= 0.0) return 1;
+        const t = normDist;
+        if (falloffType === 'hard') {
+          if (t <= 0.65) return 1.0;
+          const u = (t - 0.65) / 0.35;
+          return 1 - (3 * u * u - 2 * u * u * u);
+        }
+        if (falloffType === 'medium') {
+          return 1 - (3 * t * t - 2 * t * t * t);
+        }
+        // 'soft' cosine/quartic bell
+        const q = 1 - t * t;
+        return q * q;
+      }
+
+      function isPointUnderProtectedBuilding(wx, wz) {
+        if (state.terrain.allowUnderObjects) return false;
+        for (const obj of state.objects) {
+          if (!obj || obj.visible === false || obj.type !== 'building') continue;
+          const sx = Math.max(0.05, Number(obj.scale?.x) || 1);
+          const sz = Math.max(0.05, Number(obj.scale?.z) || 1);
+          const halfW = ((Number(obj.dimensions?.width) || 1) * sx) * 0.5 + 0.35;
+          const halfD = ((Number(obj.dimensions?.depth) || 1) * sz) * 0.5 + 0.35;
+          const dx = wx - (Number(obj.position?.x) || 0);
+          const dz = wz - (Number(obj.position?.z) || 0);
+          const rad = ((Number(obj.rotation?.yDeg) || 0) * Math.PI) / 180;
+          const cosR = Math.cos(-rad);
+          const sinR = Math.sin(-rad);
+          const lx = dx * cosR - dz * sinR;
+          const lz = dx * sinR + dz * cosR;
+          if (Math.abs(lx) <= halfW && Math.abs(lz) <= halfD) {
+            return true;
+          }
+        }
+        return false;
+      }
+
+      function applyTerrainBrushAt(worldX, worldZ, toolName, dtScale = 1.0) {
+        const tool = toolName || state.terrain.tool || 'raise';
+        const radius = Math.max(0.5, Number(state.terrain.brushRadius) || 8);
+        const strength = Math.max(0.02, Math.min(1.0, Number(state.terrain.brushStrength) || 0.5));
+        const speed = Math.max(0.1, Math.min(3.0, Number(state.terrain.sculptSpeed) || 1.0));
+        const falloff = state.terrain.brushFalloff || 'soft';
+        const targetH = Number(state.terrain.targetHeight) || 0;
+
+        const w = state.terrain.width;
+        const d = state.terrain.depth;
+        const sx = state.terrain.segmentsX;
+        const sz = state.terrain.segmentsZ;
+        const stride = sx + 1;
+        const hs = state.terrain.heights;
+
+        const minX = worldX - radius;
+        const maxX = worldX + radius;
+        const minZ = worldZ - radius;
+        const maxZ = worldZ + radius;
+
+        const ixMin = Math.max(0, Math.floor(((minX + w * 0.5) / w) * sx));
+        const ixMax = Math.min(sx, Math.ceil(((maxX + w * 0.5) / w) * sx));
+        const izMin = Math.max(0, Math.floor(((minZ + d * 0.5) / d) * sz));
+        const izMax = Math.min(sz, Math.ceil(((maxZ + d * 0.5) / d) * sz));
+
+        const origCopy = tool === 'smooth' ? new Float32Array(hs) : null;
+        let modified = false;
+        const stepDelta = 0.55 * strength * speed * dtScale;
+
+        for (let iz = izMin; iz <= izMax; iz++) {
+          const vz = -d * 0.5 + (iz / sz) * d;
+          for (let ix = ixMin; ix <= ixMax; ix++) {
+            const vx = -w * 0.5 + (ix / sx) * w;
+            const dist = Math.hypot(vx - worldX, vz - worldZ);
+            if (dist >= radius) continue;
+            if (isPointUnderProtectedBuilding(vx, vz)) continue;
+
+            const weight = computeFalloffWeight(dist / radius, falloff);
+            if (weight <= 0.0001) continue;
+
+            const idx = iz * stride + ix;
+            const oldH = hs[idx];
+            let newH = oldH;
+
+            if (tool === 'raise') {
+              newH = Math.min(40, oldH + stepDelta * weight);
+            } else if (tool === 'lower') {
+              newH = Math.max(-25, oldH - stepDelta * weight);
+            } else if (tool === 'smooth' && origCopy) {
+              let sum = 0;
+              let wSum = 0;
+              for (let dz = -1; dz <= 1; dz++) {
+                const nz = Math.max(0, Math.min(sz, iz + dz));
+                for (let dx = -1; dx <= 1; dx++) {
+                  const nx = Math.max(0, Math.min(sx, ix + dx));
+                  const kw = (dx === 0 && dz === 0) ? 4 : (dx === 0 || dz === 0 ? 2 : 1);
+                  sum += origCopy[nz * stride + nx] * kw;
+                  wSum += kw;
+                }
+              }
+              const avgH = sum / wSum;
+              const blend = Math.min(1, strength * speed * 0.88 * weight * dtScale);
+              newH = oldH + (avgH - oldH) * blend;
+            } else if (tool === 'flatten') {
+              const blend = Math.min(1, strength * speed * 0.72 * weight * dtScale);
+              newH = oldH + (targetH - oldH) * blend;
+            } else if (tool === 'set_height') {
+              const blend = Math.min(1, (0.40 + 0.60 * strength) * weight);
+              newH = oldH + (targetH - oldH) * blend;
+            } else if (tool === 'reset_area') {
+              const blend = Math.min(1, (0.45 + 0.55 * strength) * weight);
+              newH = oldH * (1 - blend);
+              if (Math.abs(newH) < 0.005) newH = 0;
+            }
+
+            if (Math.abs(newH - oldH) > 0.0001) {
+              hs[idx] = newH;
+              modified = true;
+            }
+          }
+        }
+
+        if (modified) {
+          syncTerrainMeshVertices();
+        }
+        return modified;
+      }
+
+      function applyTerrainRectOperation(op, customDelta) {
+        const r = state.terrain.selectedRect;
+        if (!r) return false;
+        const minX = Math.min(r.minX, r.maxX);
+        const maxX = Math.max(r.minX, r.maxX);
+        const minZ = Math.min(r.minZ, r.maxZ);
+        const maxZ = Math.max(r.minZ, r.maxZ);
+
+        const falloff = state.terrain.brushFalloff || 'soft';
+        const strength = Math.max(0.05, Math.min(1.0, Number(state.terrain.brushStrength) || 0.5));
+        const edgeMargin = falloff === 'hard' ? 1.5 : (falloff === 'medium' ? 3.5 : 6.0);
+        const deltaH = typeof customDelta === 'number'
+          ? customDelta
+          : (Number(state.terrain.rectStepDelta) || 1.0) * (0.4 + 0.6 * strength);
+        const targetH = Number(state.terrain.targetHeight) || 0;
+
+        const w = state.terrain.width;
+        const d = state.terrain.depth;
+        const sx = state.terrain.segmentsX;
+        const sz = state.terrain.segmentsZ;
+        const stride = sx + 1;
+        const hs = state.terrain.heights;
+
+        const ixMin = Math.max(0, Math.floor(((minX - edgeMargin + w * 0.5) / w) * sx));
+        const ixMax = Math.min(sx, Math.ceil(((maxX + edgeMargin + w * 0.5) / w) * sx));
+        const izMin = Math.max(0, Math.floor(((minZ - edgeMargin + d * 0.5) / d) * sz));
+        const izMax = Math.min(sz, Math.ceil(((maxZ + edgeMargin + d * 0.5) / d) * sz));
+
+        const origCopy = op === 'smooth' ? new Float32Array(hs) : null;
+        let modified = false;
+
+        for (let iz = izMin; iz <= izMax; iz++) {
+          const vz = -d * 0.5 + (iz / sz) * d;
+          for (let ix = ixMin; ix <= ixMax; ix++) {
+            const vx = -w * 0.5 + (ix / sx) * w;
+            if (isPointUnderProtectedBuilding(vx, vz)) continue;
+
+            const dxOut = vx < minX ? (minX - vx) : (vx > maxX ? (vx - maxX) : 0);
+            const dzOut = vz < minZ ? (minZ - vz) : (vz > maxZ ? (vz - maxZ) : 0);
+            const outDist = Math.hypot(dxOut, dzOut);
+            if (outDist >= edgeMargin) continue;
+
+            const weight = outDist <= 0 ? 1.0 : computeFalloffWeight(outDist / edgeMargin, falloff);
+            if (weight <= 0.0001) continue;
+
+            const idx = iz * stride + ix;
+            const oldH = hs[idx];
+            let newH = oldH;
+
+            if (op === 'raise') {
+              newH = Math.min(40, oldH + deltaH * weight);
+            } else if (op === 'lower') {
+              newH = Math.max(-25, oldH - deltaH * weight);
+            } else if (op === 'smooth' && origCopy) {
+              let sum = 0, wSum = 0;
+              for (let dz = -1; dz <= 1; dz++) {
+                const nz = Math.max(0, Math.min(sz, iz + dz));
+                for (let dx = -1; dx <= 1; dx++) {
+                  const nx = Math.max(0, Math.min(sx, ix + dx));
+                  const kw = (dx === 0 && dz === 0) ? 4 : (dx === 0 || dz === 0 ? 2 : 1);
+                  sum += origCopy[nz * stride + nx] * kw;
+                  wSum += kw;
+                }
+              }
+              newH = oldH + (sum / wSum - oldH) * (0.85 * weight);
+            } else if (op === 'flatten' || op === 'set_height') {
+              newH = oldH + (targetH - oldH) * weight;
+            } else if (op === 'reset_area') {
+              newH = oldH * (1 - weight);
+              if (Math.abs(newH) < 0.005) newH = 0;
+            }
+
+            if (Math.abs(newH - oldH) > 0.0001) {
+              hs[idx] = newH;
+              modified = true;
+            }
+          }
+        }
+
+        if (modified) {
+          syncTerrainMeshVertices();
+          finalizeTerrainStroke();
+        }
+        return modified;
+      }
+
+      function applyTerrainSlope(startPt, endPt, startH, endH, slopeWidth, transition, recordHistory = true) {
+        const ax = Number(startPt?.x) || 0;
+        const az = Number(startPt?.z) || 0;
+        const bx = Number(endPt?.x) || 0;
+        const bz = Number(endPt?.z) || 0;
+        const hA = typeof startH === 'number' ? startH : (Number(startPt?.y) || 0);
+        const hB = typeof endH === 'number' ? endH : (Number(endPt?.y) || 0);
+        const halfW = Math.max(0.5, (Number(slopeWidth) || 8) * 0.5);
+        const trans = Math.max(0.5, Number(transition) || 4);
+
+        const abX = bx - ax;
+        const abZ = bz - az;
+        const lenSq = abX * abX + abZ * abZ;
+        const len = Math.sqrt(lenSq);
+        if (len < 0.5) return false;
+
+        const w = state.terrain.width;
+        const d = state.terrain.depth;
+        const sx = state.terrain.segmentsX;
+        const sz = state.terrain.segmentsZ;
+        const stride = sx + 1;
+        const hs = state.terrain.heights;
+
+        const pad = halfW + trans;
+        const minX = Math.min(ax, bx) - pad;
+        const maxX = Math.max(ax, bx) + pad;
+        const minZ = Math.min(az, bz) - pad;
+        const maxZ = Math.max(az, bz) + pad;
+
+        const ixMin = Math.max(0, Math.floor(((minX + w * 0.5) / w) * sx));
+        const ixMax = Math.min(sx, Math.ceil(((maxX + w * 0.5) / w) * sx));
+        const izMin = Math.max(0, Math.floor(((minZ + d * 0.5) / d) * sz));
+        const izMax = Math.min(sz, Math.ceil(((maxZ + d * 0.5) / d) * sz));
+
+        let modified = false;
+
+        for (let iz = izMin; iz <= izMax; iz++) {
+          const vz = -d * 0.5 + (iz / sz) * d;
+          for (let ix = ixMin; ix <= ixMax; ix++) {
+            const vx = -w * 0.5 + (ix / sx) * w;
+            if (isPointUnderProtectedBuilding(vx, vz)) continue;
+
+            const apX = vx - ax;
+            const apZ = vz - az;
+            const u = (apX * abX + apZ * abZ) / lenSq;
+            const longDistPast = u < 0 ? (-u * len) : (u > 1 ? ((u - 1) * len) : 0);
+            if (longDistPast >= trans) continue;
+
+            const perpDist = Math.abs(apX * abZ - apZ * abX) / len;
+            if (perpDist >= halfW + trans) continue;
+
+            const uClamped = Math.max(0, Math.min(1, u));
+            const uSmooth = uClamped * uClamped * (3 - 2 * uClamped);
+            const targetSlopeH = hA + (hB - hA) * uSmooth;
+
+            const wPerp = perpDist <= halfW ? 1.0 : computeFalloffWeight((perpDist - halfW) / trans, 'soft');
+            const wLong = longDistPast <= 0 ? 1.0 : computeFalloffWeight(longDistPast / trans, 'soft');
+            const weight = wPerp * wLong;
+            if (weight <= 0.0001) continue;
+
+            const idx = iz * stride + ix;
+            const oldH = hs[idx];
+            const newH = oldH + (targetSlopeH - oldH) * weight;
+            if (Math.abs(newH - oldH) > 0.0001) {
+              hs[idx] = newH;
+              modified = true;
+            }
+          }
+        }
+
+        if (modified) {
+          syncTerrainMeshVertices();
+          if (recordHistory) finalizeTerrainStroke();
+        }
+        return modified;
+      }
+
+      function checkBuildingTerrainWarnings() {
+        const warnings = [];
+        for (const obj of state.objects) {
+          if (!obj || obj.visible === false || obj.type !== 'building') continue;
+          const sx = Math.max(0.05, Number(obj.scale?.x) || 1);
+          const sz = Math.max(0.05, Number(obj.scale?.z) || 1);
+          const halfW = ((Number(obj.dimensions?.width) || 1) * sx) * 0.5;
+          const halfD = ((Number(obj.dimensions?.depth) || 1) * sz) * 0.5;
+          const cx = Number(obj.position?.x) || 0;
+          const baseY = Number(obj.position?.y) || 0;
+          const cz = Number(obj.position?.z) || 0;
+          const rad = ((Number(obj.rotation?.yDeg) || 0) * Math.PI) / 180;
+          const cosR = Math.cos(rad);
+          const sinR = Math.sin(rad);
+
+          const samplePts = [
+            [0, 0],
+            [-halfW * 0.85, -halfD * 0.85],
+            [ halfW * 0.85, -halfD * 0.85],
+            [-halfW * 0.85,  halfD * 0.85],
+            [ halfW * 0.85,  halfD * 0.85]
+          ];
+          let minTY = Infinity;
+          let maxTY = -Infinity;
+          for (const [lx, lz] of samplePts) {
+            const wx = cx + lx * cosR + lz * sinR;
+            const wz = cz - lx * sinR + lz * cosR;
+            const ty = getTerrainHeightAt(wx, wz);
+            if (ty < minTY) minTY = ty;
+            if (ty > maxTY) maxTY = ty;
+          }
+          if (baseY - minTY > 0.35) {
+            warnings.push(`${obj.name} is floating (+${round2(baseY - minTY)}m above terrain)`);
+          } else if (maxTY - baseY > 0.35) {
+            warnings.push(`${obj.name} is partially buried (-${round2(maxTY - baseY)}m below terrain)`);
+          }
+        }
+        state.terrain.warnings = warnings;
+        return warnings;
+      }
+
+      function snapObjectToTerrain(objId, recordHistory = true) {
+        const obj = state.objects.find((o) => o.id === objId);
+        if (!obj || obj.locked) return false;
+        const ty = getTerrainHeightAt(obj.position.x, obj.position.z);
+        obj.position.y = round2(ty);
+        checkBuildingTerrainWarnings();
+        if (recordHistory) pushHistory();
+        refreshAllUI();
+        showToast(`Snapped ${obj.name} to terrain (${obj.position.y}m)`);
+        return true;
+      }
+
+      function conformRoadToTerrain(objId, enableFlag, recordHistory = true) {
+        const obj = state.objects.find((o) => o.id === objId);
+        if (!obj || obj.locked) return false;
+        obj.conformToTerrain = typeof enableFlag === 'boolean' ? enableFlag : !obj.conformToTerrain;
+        if (obj.conformToTerrain) {
+          obj.position.y = round2(getTerrainHeightAt(obj.position.x, obj.position.z) + 0.02);
+        }
+        if (recordHistory) pushHistory();
+        refreshAllUI();
+        showToast(obj.conformToTerrain ? `Conformed ${obj.name} to terrain` : `Reset ${obj.name} to flat slab`);
+        return obj.conformToTerrain;
+      }
+
+      function finalizeTerrainStroke() {
+        const warnings = checkBuildingTerrainWarnings();
+        pushHistory(true);
+        syncSceneMeshes();
+        if (typeof syncTerrainUI === 'function') syncTerrainUI();
+        if (warnings.length > 0) {
+          showToast(`Warning: ${warnings[0]}`);
+        }
+      }
+
+      // 3D Surface-Following Brush, Rectangular Area & Slope Previews
+      const terrainPreviewGroup = new THREE.Group();
+      terrainPreviewGroup.name = '__terrain_previews__';
+      scene.add(terrainPreviewGroup);
+
+      const BRUSH_SEGMENTS = 64;
+      const brushOuterPositions = new Float32Array((BRUSH_SEGMENTS + 1) * 3);
+      const brushOuterGeo = new THREE.BufferGeometry();
+      brushOuterGeo.setAttribute('position', new THREE.BufferAttribute(brushOuterPositions, 3));
+      const brushOuterMat = new THREE.LineBasicMaterial({ color: 0x22c55e, depthTest: false, transparent: true, opacity: 0.95 });
+      const brushOuterLine = new THREE.Line(brushOuterGeo, brushOuterMat);
+      brushOuterLine.renderOrder = 950;
+      terrainPreviewGroup.add(brushOuterLine);
+
+      const brushInnerPositions = new Float32Array((BRUSH_SEGMENTS + 1) * 3);
+      const brushInnerGeo = new THREE.BufferGeometry();
+      brushInnerGeo.setAttribute('position', new THREE.BufferAttribute(brushInnerPositions, 3));
+      const brushInnerMat = new THREE.LineBasicMaterial({ color: 0x22c55e, depthTest: false, transparent: true, opacity: 0.45 });
+      const brushInnerLine = new THREE.Line(brushInnerGeo, brushInnerMat);
+      brushInnerLine.renderOrder = 950;
+      terrainPreviewGroup.add(brushInnerLine);
+
+      const brushCenterDot = new THREE.Mesh(
+        new THREE.ConeGeometry(0.35, 1.1, 10),
+        new THREE.MeshBasicMaterial({ color: 0x22c55e, depthTest: false, transparent: true, opacity: 0.85 })
       );
-      groundMesh.rotation.x = -Math.PI / 2;
-      groundMesh.position.y = -0.03;
-      groundMesh.name = '__ground__';
-      scene.add(groundMesh);
+      brushCenterDot.renderOrder = 951;
+      terrainPreviewGroup.add(brushCenterDot);
+
+      // Rectangular Area 3D Surface-Following Outline
+      const RECT_SEG_PER_SIDE = 16;
+      const rectOutlinePositions = new Float32Array((RECT_SEG_PER_SIDE * 4 + 1) * 3);
+      const rectOutlineGeo = new THREE.BufferGeometry();
+      rectOutlineGeo.setAttribute('position', new THREE.BufferAttribute(rectOutlinePositions, 3));
+      const rectOutlineMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, depthTest: false });
+      const rectOutlineLine = new THREE.Line(rectOutlineGeo, rectOutlineMat);
+      rectOutlineLine.renderOrder = 952;
+      rectOutlineLine.visible = false;
+      terrainPreviewGroup.add(rectOutlineLine);
+
+      // Slope A->B Corridor 3D Preview
+      const slopePreviewPositions = new Float32Array(5 * 3);
+      const slopePreviewGeo = new THREE.BufferGeometry();
+      slopePreviewGeo.setAttribute('position', new THREE.BufferAttribute(slopePreviewPositions, 3));
+      const slopePreviewMat = new THREE.LineBasicMaterial({ color: 0xa855f7, depthTest: false });
+      const slopePreviewLine = new THREE.Line(slopePreviewGeo, slopePreviewMat);
+      slopePreviewLine.renderOrder = 952;
+      slopePreviewLine.visible = false;
+      terrainPreviewGroup.add(slopePreviewLine);
+
+      const TOOL_COLORS = {
+        raise:      0x22c55e,
+        lower:      0xef4444,
+        smooth:     0x38bdf8,
+        flatten:    0xf59e0b,
+        slope:      0xa855f7,
+        set_height: 0x14b8a6,
+        reset_area: 0xe5e5e5
+      };
+
+      function updateTerrainPreviews() {
+        const isTerrain = state.transformMode === 'terrain';
+        terrainPreviewGroup.visible = isTerrain;
+        if (!isTerrain) return;
+
+        const tool = state.terrain.tool || 'raise';
+        const colHex = TOOL_COLORS[tool] || 0x22c55e;
+        brushOuterMat.color.setHex(colHex);
+        brushInnerMat.color.setHex(colHex);
+        brushCenterDot.material.color.setHex(colHex);
+
+        const showBrush = state.terrain.selectionShape === 'brush' && state.terrain.hoverValid;
+        brushOuterLine.visible = showBrush;
+        brushInnerLine.visible = showBrush;
+        brushCenterDot.visible = showBrush;
+
+        if (showBrush) {
+          const cx = state.terrain.hoverX;
+          const cz = state.terrain.hoverZ;
+          const r = state.terrain.brushRadius;
+          const innerRatio = state.terrain.brushFalloff === 'hard' ? 0.65 : (state.terrain.brushFalloff === 'medium' ? 0.45 : 0.25);
+          const rInner = r * innerRatio;
+          const outAttr = brushOuterGeo.attributes.position;
+          const inAttr = brushInnerGeo.attributes.position;
+
+          for (let i = 0; i <= BRUSH_SEGMENTS; i++) {
+            const ang = (i / BRUSH_SEGMENTS) * Math.PI * 2;
+            const cosA = Math.cos(ang);
+            const sinA = Math.sin(ang);
+            const ox = cx + cosA * r;
+            const oz = cz + sinA * r;
+            const oy = getTerrainHeightAt(ox, oz) + 0.08;
+            outAttr.setXYZ(i, ox, oy, oz);
+
+            const ix = cx + cosA * rInner;
+            const iz = cz + sinA * rInner;
+            const iy = getTerrainHeightAt(ix, iz) + 0.08;
+            inAttr.setXYZ(i, ix, iy, iz);
+          }
+          outAttr.needsUpdate = true;
+          inAttr.needsUpdate = true;
+
+          const cy = getTerrainHeightAt(cx, cz);
+          brushCenterDot.position.set(cx, cy + 0.65, cz);
+          brushCenterDot.rotation.x = tool === 'lower' ? Math.PI : 0;
+        }
+
+        const selRect = state.terrain.selectedRect;
+        if (state.terrain.selectionShape === 'rect' && selRect) {
+          rectOutlineLine.visible = true;
+          rectOutlineMat.color.setHex(colHex);
+          const x0 = Math.min(selRect.minX, selRect.maxX);
+          const x1 = Math.max(selRect.minX, selRect.maxX);
+          const z0 = Math.min(selRect.minZ, selRect.maxZ);
+          const z1 = Math.max(selRect.minZ, selRect.maxZ);
+          const corners = [
+            [x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]
+          ];
+          const rAttr = rectOutlineGeo.attributes.position;
+          let ptIdx = 0;
+          for (let s = 0; s < 4; s++) {
+            const [ax, az] = corners[s];
+            const [bx, bz] = corners[s + 1];
+            for (let k = 0; k < RECT_SEG_PER_SIDE; k++) {
+              const t = k / RECT_SEG_PER_SIDE;
+              const px = ax + (bx - ax) * t;
+              const pz = az + (bz - az) * t;
+              rAttr.setXYZ(ptIdx++, px, getTerrainHeightAt(px, pz) + 0.10, pz);
+            }
+          }
+          rAttr.setXYZ(ptIdx, x0, getTerrainHeightAt(x0, z0) + 0.10, z0);
+          rAttr.needsUpdate = true;
+        } else {
+          rectOutlineLine.visible = false;
+        }
+
+        if (tool === 'slope') {
+          slopePreviewLine.visible = true;
+          const ax = state.terrain.slopeStart.x;
+          const az = state.terrain.slopeStart.z;
+          const bx = state.terrain.slopeEnd.x;
+          const bz = state.terrain.slopeEnd.z;
+          const dx = bx - ax;
+          const dz = bz - az;
+          const len = Math.hypot(dx, dz) || 1;
+          const nx = (-dz / len) * (state.terrain.slopeWidth * 0.5);
+          const nz = (dx / len) * (state.terrain.slopeWidth * 0.5);
+          const hA = state.terrain.slopeStart.y + 0.12;
+          const hB = state.terrain.slopeEnd.y + 0.12;
+          const sAttr = slopePreviewGeo.attributes.position;
+          sAttr.setXYZ(0, ax + nx, hA, az + nz);
+          sAttr.setXYZ(1, bx + nx, hB, bz + nz);
+          sAttr.setXYZ(2, bx - nx, hB, bz - nz);
+          sAttr.setXYZ(3, ax - nx, hA, az - nz);
+          sAttr.setXYZ(4, ax + nx, hA, az + nz);
+          sAttr.needsUpdate = true;
+        } else {
+          slopePreviewLine.visible = false;
+        }
+      }
 
       // Subtle Monochrome Reference Grids (2m minor, 10m major)
       const minorGrid = new THREE.GridHelper(260, 130, 0x2c2c2c, 0x1f1f1f);
@@ -5213,15 +6562,18 @@
         // ===================================================================
         // 2. CARS / SEDANS (veh_car_sedan_navy / car_01)
         // ===================================================================
-        if (assetId.startsWith('veh_car_')) {
-          const wheelR = Math.min(0.34, h * 0.22);
+        if (assetId.startsWith('veh_car_') || assetId === 'veh_parked_van') {
+          const isVan = assetId === 'veh_parked_van' || /\bvan\b/.test(name);
+          const isSilver = isVan || assetId.includes('silver') || /\bsilver\b/.test(name);
+          const bodyMat = isSilver ? sharedDetailMats.carSilverTrim : sharedDetailMats.carDarkNavy;
+          const wheelR = Math.min(0.36, h * 0.21);
           const bodyBotY = bY + wheelR * 0.65;
-          const lowerH = Math.max(0.42, h * 0.38);
-          const cabinH = Math.max(0.36, h * 0.36);
+          const lowerH = Math.max(0.42, h * (isVan ? 0.44 : 0.38));
+          const cabinH = Math.max(0.36, h * (isVan ? 0.38 : 0.36));
 
           addPartBox(detailGroup, w * 0.95, 0.02, d * 0.95, 0, bY + 0.01, 0, sharedDetailMats.shadowDisc);
-          // Lower sedan chassis, hood & trunk
-          addPartBox(detailGroup, w * 0.94, lowerH, d * 0.96, 0, bodyBotY + lowerH * 0.5, 0, sharedDetailMats.carDarkNavy);
+          // Lower sedan/van chassis, hood & trunk
+          addPartBox(detailGroup, w * 0.94, lowerH, d * 0.96, 0, bodyBotY + lowerH * 0.5, 0, bodyMat);
           // Bumpers & front grille
           addPartBox(detailGroup, w * 0.98, lowerH * 0.42, 0.18, 0, bodyBotY + lowerH * 0.28, -d * 0.48, sharedDetailMats.busBumper);
           addPartBox(detailGroup, w * 0.98, lowerH * 0.42, 0.18, 0, bodyBotY + lowerH * 0.28, d * 0.48, sharedDetailMats.busBumper);
@@ -5229,8 +6581,8 @@
 
           // Greenhouse cabin & roof
           const cabY = bodyBotY + lowerH + cabinH * 0.5 - 0.02;
-          addPartBox(detailGroup, w * 0.82, cabinH, d * 0.50, 0, cabY, d * 0.03, sharedDetailMats.glassDark);
-          addPartBox(detailGroup, w * 0.78, 0.07, d * 0.44, 0, cabY + cabinH * 0.5, d * 0.03, sharedDetailMats.carDarkNavy);
+          addPartBox(detailGroup, w * (isVan ? 0.90 : 0.82), cabinH, d * (isVan ? 0.76 : 0.50), 0, cabY, d * (isVan ? 0.08 : 0.03), sharedDetailMats.glassDark);
+          addPartBox(detailGroup, w * (isVan ? 0.88 : 0.78), 0.08, d * (isVan ? 0.72 : 0.44), 0, cabY + cabinH * 0.5, d * (isVan ? 0.08 : 0.03), bodyMat);
           // Sloped front windshield & rear glass pillars
           addPartBox(detailGroup, w * 0.80, cabinH * 0.92, 0.08, 0, cabY - 0.02, -d * 0.21, sharedDetailMats.glassDark, 0.45, 0, 0);
           addPartBox(detailGroup, w * 0.80, cabinH * 0.90, 0.08, 0, cabY - 0.02, d * 0.26, sharedDetailMats.glassDark, -0.42, 0, 0);
@@ -5786,6 +7138,12 @@
           addPartBox(detailGroup, w - 0.12, h * 0.38, d - 0.12, 0, bY + h * 0.81, 0, sharedDetailMats.terrazzoFloor);
           return;
         }
+        if (assetId === 'arch_ac_unit') {
+          addPartBox(detailGroup, w, h, d, 0, 0, 0, sharedDetailMats.whiteTrim);
+          addPartCyl(detailGroup, Math.min(w, h) * 0.62, d + 0.04, Math.min(w, h) * 0.62, -w * 0.16, 0, 0, sharedDetailMats.castIronDark, Math.PI * 0.5, 0, 0);
+          addPartBox(detailGroup, w * 0.26, h * 0.76, d + 0.03, w * 0.28, 0, 0, sharedDetailMats.riverStoneCoping);
+          return;
+        }
 
         // ===================================================================
         // 9. NATURE (Broadleaf Trees, Pine Trees, Bushes, Grass, Flowers, Rocks, Gardens)
@@ -5829,7 +7187,7 @@
           });
           return;
         }
-        if (assetId === 'nat_bush_small') {
+        if (assetId === 'nat_bush_small' || assetId === 'nat_bush_large') {
           addPartCyl(detailGroup, w * 0.88, 0.02, d * 0.88, 0, bY + 0.01, 0, sharedDetailMats.shadowDisc);
           addPartCyl(detailGroup, w * 0.76, h * 0.88, d * 0.76, 0, bY + h * 0.46, 0, sharedDetailMats.foliageMid, 0, 0, 0, sharedGeoPool.unitDodeca);
           addPartCyl(detailGroup, w * 0.58, h * 0.70, d * 0.58, -w * 0.20, bY + h * 0.36, d * 0.12, sharedDetailMats.foliageDark, 0, 0.5, 0, sharedGeoPool.unitDodeca);
@@ -5937,7 +7295,7 @@
         // ===================================================================
         // 11. PROPS (Bench, Chaitya, Trash Bin, Wooden Crate, Bus Shelter, Signboard, Fence, Pillar, Barrier)
         // ===================================================================
-        if (assetId === 'prop_bench') {
+        if (assetId === 'prop_bench' || assetId === 'nat_garden_bench') {
           // Exact in-game buildCampusBench (wooden seat & backrest planks + cast-iron side leg frames)
           addPartBox(detailGroup, w * 0.96, 0.07, d * 0.74, 0, bY + h * 0.48, d * 0.06, sharedDetailMats.carvedSalWood);
           addPartBox(detailGroup, w * 0.96, h * 0.42, 0.07, 0, bY + h * 0.76, -d * 0.28, sharedDetailMats.carvedSalWood, -0.14, 0, 0);
@@ -6333,7 +7691,7 @@
 
       function updateTransformGizmo() {
         const sel = getSelectedObject();
-        if (!sel || sel.visible === false || state.transformMode === 'select') {
+        if (!sel || sel.visible === false || state.transformMode === 'select' || state.transformMode === 'terrain') {
           gizmoGroup.visible = false;
           return;
         }
@@ -6354,6 +7712,63 @@
         gizmoVisualsByMode.rotate.forEach((g) => { g.visible = m === 'rotate'; });
         gizmoVisualsByMode.scale.forEach((g) => { g.visible = m === 'scale'; });
         gizmoGroup.updateMatrixWorld(true);
+      }
+
+      function hasTerrainVariationUnderObject(obj, w, d) {
+        if (!obj) return false;
+        const px = Number(obj.position?.x) || 0;
+        const pz = Number(obj.position?.z) || 0;
+        const ryRad = ((Number(obj.rotation?.yDeg) || 0) * Math.PI) / 180;
+        const cosR = Math.cos(ryRad);
+        const sinR = Math.sin(ryRad);
+        const halfW = (w || 1) * 0.5;
+        const halfD = (d || 1) * 0.5;
+        const pts = [
+          [0, 0],
+          [-halfW, -halfD], [halfW, -halfD],
+          [-halfW,  halfD], [halfW,  halfD],
+          [0, -halfD * 0.5], [0, halfD * 0.5],
+          [-halfW * 0.5, 0], [halfW * 0.5, 0]
+        ];
+        for (const [lx, lz] of pts) {
+          const wx = px + lx * cosR + lz * sinR;
+          const wz = pz - lx * sinR + lz * cosR;
+          if (Math.abs(getTerrainHeightAt(wx, wz)) > 0.015) return true;
+        }
+        return false;
+      }
+
+      function applyConformedRoadDetail(detailGroup, obj, w, h, d) {
+        while (detailGroup.children.length > 0) {
+          detailGroup.remove(detailGroup.children[0]);
+        }
+        const px = Number(obj.position?.x) || 0;
+        const py = Number(obj.position?.y) || 0;
+        const pz = Number(obj.position?.z) || 0;
+        const ryRad = ((Number(obj.rotation?.yDeg) || 0) * Math.PI) / 180;
+        const cosR = Math.cos(ryRad);
+        const sinR = Math.sin(ryRad);
+
+        const stepsX = Math.max(1, Math.min(20, Math.ceil(w / 3.0)));
+        const stepsZ = Math.max(1, Math.min(24, Math.ceil(d / 3.0)));
+        const mat = obj.type === 'ground_area' ? sharedDetailMats.plinthDarkConcrete : sharedDetailMats.asphaltDark;
+        const slabH = Math.max(0.08, h);
+
+        for (let ix = 0; ix < stepsX; ix++) {
+          const tx = (ix + 0.5) / stepsX - 0.5;
+          const lx = tx * w;
+          const segW = (w / stepsX) * 1.03;
+          for (let iz = 0; iz < stepsZ; iz++) {
+            const tz = (iz + 0.5) / stepsZ - 0.5;
+            const lz = tz * d;
+            const segD = (d / stepsZ) * 1.03;
+            const wx = px + lx * cosR + lz * sinR;
+            const wz = pz - lx * sinR + lz * cosR;
+            const th = getTerrainHeightAt(wx, wz);
+            const segY = (th - py) + 0.025;
+            addPartBox(detailGroup, segW, slabH, segD, lx, segY, lz, mat);
+          }
+        }
       }
 
       function syncSceneMeshes() {
@@ -6436,18 +7851,29 @@
           entry.group.position.set(px, py + h / 2, pz);
           entry.group.rotation.set(0, ryRad, 0);
 
-          const sig = `${obj.id || ''}_${obj.assetId || ''}_${obj.type}_${round2(w)}_${round2(h)}_${round2(d)}_${/newari|heritage/i.test(obj.name || '') ? 1 : 0}`;
+          const isSurfaceSlab = obj.type === 'road' || obj.type === 'ground_area';
+          const shouldConformSlab = isSurfaceSlab && (obj.conformToTerrain || hasTerrainVariationUnderObject(obj, w, d));
+          const conformVer = shouldConformSlab ? `conform_${state.terrain.versionCounter}_${round2(px)}_${round2(py)}_${round2(pz)}_${round2(ryRad)}` : 'flat';
+          const sig = `${obj.id || ''}_${obj.assetId || ''}_${obj.type}_${round2(w)}_${round2(h)}_${round2(d)}_${/newari|heritage/i.test(obj.name || '') ? 1 : 0}_${conformVer}`;
           if (entry.signature !== sig) {
             entry.signature = sig;
-            populateProceduralDetail(entry.detailGroup, obj, w, h, d);
+            if (shouldConformSlab) {
+              applyConformedRoadDetail(entry.detailGroup, obj, w, h, d);
+              if (obj.id === 'area_rotunda_plaza' || /\brotunda\b/i.test(obj.name || '')) {
+                populateProceduralDetail(entry.detailGroup, obj, w, h, d);
+              }
+            } else {
+              populateProceduralDetail(entry.detailGroup, obj, w, h, d);
+            }
             entry.detailGroup.traverse((ch) => {
               if (ch.isMesh) ch.userData.objectId = obj.id;
             });
           }
 
           const showThisName = shouldShowObjectName(obj);
+          const showThisDim = shouldShowObjectDimensions(obj);
           const namePart = showThisName ? ((obj.locked ? '🔒 ' : '') + obj.name) : '';
-          const dimPart = state.showDimensions ? `${round2(w)}×${round2(d)}×${round2(h)}m` : '';
+          const dimPart = showThisDim ? `${round2(w)}×${round2(d)}×${round2(h)}m` : '';
           entry.labelEl.textContent = (namePart && dimPart) ? `${namePart} (${dimPart})` : (namePart || dimPart);
           entry.labelEl.classList.toggle('selected', isSelected);
         }
@@ -6490,7 +7916,7 @@
         for (const obj of state.objects) {
           const entry = meshMap.get(obj.id);
           if (!entry) continue;
-          if (obj.visible === false || !entry.labelEl.textContent || (!state.showLabels && !state.showDimensions)) {
+          if (obj.visible === false || !entry.labelEl.textContent) {
             entry.labelEl.style.display = 'none';
             continue;
           }
@@ -6621,19 +8047,61 @@
           const newRadius = Math.max(this.minRadius, Math.min(this.maxRadius, oldRadius * factor));
           if (Math.abs(newRadius - oldRadius) < 0.0001) return;
 
-          // Raycast ground at cursor position BEFORE changing radius so we zoom directly toward the cursor point
-          const cursorWorld = new THREE.Vector3();
           const rect = canvas.getBoundingClientRect();
           const ndcX = ((clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1;
           const ndcY = -((clientY - rect.top) / Math.max(1, rect.height)) * 2 + 1;
+
           const zRay = new THREE.Raycaster();
           zRay.setFromCamera(new THREE.Vector2(ndcX, ndcY), camera);
-          const groundPl = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-          if (zRay.ray.intersectPlane(groundPl, cursorWorld)) {
-            const t = 1 - (newRadius / oldRadius);
-            this.target.x = Math.max(-180, Math.min(180, this.target.x + (cursorWorld.x - this.target.x) * t));
-            this.target.z = Math.max(-180, Math.min(180, this.target.z + (cursorWorld.z - this.target.z) * t));
+
+          let hitPoint = null;
+
+          // 1. Check intersection with 3D campus objects (buildings, roads, buses, props, etc.)
+          if (objectsGroup && objectsGroup.children.length > 0) {
+            const hits = zRay.intersectObjects(objectsGroup.children, true);
+            for (let i = 0; i < hits.length; i++) {
+              const h = hits[i];
+              if (h.object && h.object.visible !== false) {
+                // Ignore invisible gizmo hitboxes
+                if (h.object.userData?.gizmoAxis) continue;
+                if (h.object.material && h.object.material.opacity < 0.02 && !h.object.userData?.objectId) continue;
+                hitPoint = h.point.clone();
+                break;
+              }
+            }
           }
+
+          // 2. If no object hit, check terrain mesh
+          if (!hitPoint && typeof terrainMesh !== 'undefined' && terrainMesh) {
+            const tHits = zRay.intersectObject(terrainMesh, false);
+            if (tHits && tHits.length > 0) {
+              hitPoint = tHits[0].point.clone();
+            }
+          }
+
+          // 3. Fallback: Intersect horizontal plane at this.target.y or ground (y=0)
+          if (!hitPoint) {
+            const groundPl = new THREE.Plane(new THREE.Vector3(0, 1, 0), -this.target.y);
+            const planePt = new THREE.Vector3();
+            if (zRay.ray.intersectPlane(groundPl, planePt)) {
+              const toPt = planePt.clone().sub(camera.position);
+              if (toPt.dot(zRay.ray.direction) > 0 && toPt.length() < 1200) {
+                hitPoint = planePt;
+              }
+            }
+          }
+
+          // 4. Ultimate fallback: point along ray at radius distance
+          if (!hitPoint) {
+            hitPoint = camera.position.clone().addScaledVector(zRay.ray.direction, this.radius);
+          }
+
+          // Adjust target toward hitPoint so the cursor world point remains stationary on screen
+          const t = 1 - (newRadius / oldRadius);
+          this.target.x = Math.max(-250, Math.min(250, this.target.x + (hitPoint.x - this.target.x) * t));
+          this.target.y = Math.max(-30, Math.min(100, this.target.y + (hitPoint.y - this.target.y) * t));
+          this.target.z = Math.max(-250, Math.min(250, this.target.z + (hitPoint.z - this.target.z) * t));
+
           this.radius = newRadius;
           this.updateCamera();
         },
@@ -6656,23 +8124,60 @@
       /* =====================================================================
          6. HISTORY (UNDO/REDO), OBJECT CRUD & JSON SAVE/EXPORT/IMPORT
          ===================================================================== */
+      function cloneTerrainSnapshot() {
+        return {
+          segmentsX: state.terrain.segmentsX,
+          segmentsZ: state.terrain.segmentsZ,
+          heights: Array.from(state.terrain.heights || [])
+        };
+      }
+
+      function restoreTerrainSnapshot(snap) {
+        if (!snap || !Array.isArray(snap.heights)) return;
+        const sx = Number(snap.segmentsX) || state.terrain.segmentsX;
+        const sz = Number(snap.segmentsZ) || state.terrain.segmentsZ;
+        if (sx !== state.terrain.segmentsX || sz !== state.terrain.segmentsZ) {
+          rebuildTerrainGeometry(sx, sz, snap.heights);
+        } else {
+          const len = state.terrain.heights.length;
+          for (let i = 0; i < len; i++) {
+            state.terrain.heights[i] = Number(snap.heights[i]) || 0;
+          }
+          syncTerrainMeshVertices();
+        }
+        checkBuildingTerrainWarnings();
+      }
+
       function pushHistory(markUnsaved = true) {
-        const snapshot = cloneObjects(state.objects);
+        const snapshot = {
+          objects: cloneObjects(state.objects),
+          terrain: cloneTerrainSnapshot()
+        };
         if (state.historyIndex < state.history.length - 1) {
           state.history = state.history.slice(0, state.historyIndex + 1);
         }
         state.history.push(snapshot);
-        if (state.history.length > 60) state.history.shift();
+        if (state.history.length > 50) state.history.shift();
         state.historyIndex = state.history.length - 1;
         updateUndoRedoButtons();
         if (markUnsaved) setUnsavedState(true);
         saveToLocalStorage(false);
       }
 
+      function applyHistoryEntry(entry) {
+        if (!entry) return;
+        if (Array.isArray(entry)) {
+          state.objects = cloneObjects(entry);
+        } else {
+          state.objects = cloneObjects(entry.objects || []);
+          if (entry.terrain) restoreTerrainSnapshot(entry.terrain);
+        }
+      }
+
       function undo() {
         if (state.historyIndex <= 0) return;
         state.historyIndex--;
-        state.objects = cloneObjects(state.history[state.historyIndex]);
+        applyHistoryEntry(state.history[state.historyIndex]);
         if (state.selectedId && !state.objects.some((o) => o.id === state.selectedId)) {
           state.selectedId = null;
         }
@@ -6685,7 +8190,7 @@
       function redo() {
         if (state.historyIndex >= state.history.length - 1) return;
         state.historyIndex++;
-        state.objects = cloneObjects(state.history[state.historyIndex]);
+        applyHistoryEntry(state.history[state.historyIndex]);
         if (state.selectedId && !state.objects.some((o) => o.id === state.selectedId)) {
           state.selectedId = null;
         }
@@ -6734,6 +8239,13 @@
       }
 
       function selectObject(id) {
+        if (state.transformMode === 'terrain' && id) {
+          // Do not exit terrain mode or move objects accidentally while sculpting
+          state.selectedId = id;
+          syncSelectedPanel();
+          renderObjectList();
+          return;
+        }
         state.selectedId = id || null;
         if (state.selectedId && state.transformMode === 'select') {
           // Make Move the automatic active tool when selecting an object so Red/Green/Blue arrows appear immediately
@@ -6744,6 +8256,10 @@
 
       function setTransformMode(mode) {
         state.transformMode = mode;
+        state.terrain.enabled = mode === 'terrain';
+        if (mode === 'terrain' && state.placingAssetId) {
+          cancelPlacingAsset();
+        }
         document.querySelectorAll('.mode-btn[data-mode]').forEach((b) => {
           b.classList.toggle('active', b.dataset.mode === mode);
         });
@@ -6753,12 +8269,17 @@
         document.getElementById('sel-extra-row').classList.toggle('open', mode === 'rotate');
         document.getElementById('sel-scale-row').style.display = mode === 'scale' ? 'flex' : 'none';
         updateTransformGizmo();
+        if (typeof syncTerrainUI === 'function') syncTerrainUI();
+        syncSelectedPanel();
       }
 
       // Enter Tap-to-Place mode when user taps an asset card in the library
       function startPlacingAsset(assetId) {
         const spec = ASSET_MAP.get(assetId);
         if (!spec) return;
+        if (state.transformMode === 'terrain') {
+          setTransformMode('move');
+        }
         state.placingAssetId = assetId;
         const banner = document.getElementById('placement-banner');
         const bannerText = document.getElementById('placement-banner-text');
@@ -6789,7 +8310,16 @@
 
         const px = snapVal(worldX ?? camController.target.x);
         const pz = snapVal(worldZ ?? camController.target.z);
-        const py = spec.y || 0;
+        const tempObj = {
+          type: objType,
+          assetId: spec.assetId,
+          position: { x: px, y: 0, z: pz },
+          dimensions: { width: spec.dims[0], height: spec.dims[1], depth: spec.dims[2] },
+          scale: { x: 1, y: 1, z: 1 },
+          rotation: { yDeg: 0 }
+        };
+        const surfaceY = getSurfaceHeightUnderObject(tempObj, px, pz);
+        const py = round2(surfaceY);
 
         const newObj = normalizeObject({
           id: id,
@@ -6845,6 +8375,8 @@
         const offset = Math.max(2.5, Math.min(8.0, (sel.dimensions.width || 2) * 0.6 + 1.5));
         copy.position.x = round2(sel.position.x + offset);
         copy.position.z = round2(sel.position.z + 1.5);
+        const minY = getSurfaceHeightUnderObject(copy, copy.position.x, copy.position.z);
+        if (copy.position.y < minY) copy.position.y = minY;
         state.objects.push(copy);
         state.selectedId = copy.id;
         setTransformMode('move');
@@ -6882,7 +8414,7 @@
       }
 
       /* =====================================================================
-         7. 3D GIZMO AXIS DRAGGING, TAP-TO-SELECT & CAMERA TOUCH GESTURES
+         7. 3D GIZMO AXIS DRAGGING, TERRAIN SCULPTING & CAMERA TOUCH GESTURES
          ===================================================================== */
       const raycaster = new THREE.Raycaster();
       const pointerNDC = new THREE.Vector2();
@@ -6944,6 +8476,13 @@
       function raycastGroundAt(clientX, clientY, outVec) {
         updateNDCFromClient(clientX, clientY);
         raycaster.setFromCamera(pointerNDC, camera);
+        if (groundMesh) {
+          const hits = raycaster.intersectObject(groundMesh, false);
+          if (hits && hits.length > 0) {
+            outVec.copy(hits[0].point);
+            return outVec;
+          }
+        }
         return raycaster.ray.intersectPlane(groundPlaneMath, outVec);
       }
 
@@ -6987,7 +8526,7 @@
 
       const gesture = {
         active: false,
-        type: 'none',       // 'gizmo-move' | 'gizmo-rotate' | 'gizmo-scale' | 'orbit' | 'pan' | 'pinch'
+        type: 'none',       // 'gizmo-move' | 'gizmo-rotate' | 'gizmo-scale' | 'terrain-brush' | 'terrain-rect' | 'terrain-slope' | 'orbit' | 'pan' | 'pinch'
         gizmoAxis: null,
         startX: 0,
         startY: 0,
@@ -7001,6 +8540,8 @@
         dragStartRotY: 0,
         dragStartDims: { width: 1, height: 1, depth: 1 },
         objectModified: false,
+        terrainModified: false,
+        terrainRectStart: { x: 0, z: 0 },
         prevPinchDist: 0,
         prevPinchMidX: 0,
         prevPinchMidY: 0
@@ -7014,10 +8555,51 @@
         gesture.lastY = clientY;
         gesture.movedDist = 0;
         gesture.objectModified = false;
+        gesture.terrainModified = false;
         gesture.gizmoAxis = null;
 
+        // 0. If in Terrain Sculpting Mode (and not holding Pan modifier):
+        //    1-finger/left-click drag sculpts terrain, drags a rectangular selection, or drags a slope A->B without moving the camera or objects!
+        if (state.transformMode === 'terrain' && !isPanModifier) {
+          if (raycastGroundAt(clientX, clientY, intersectPoint)) {
+            state.terrain.hoverX = intersectPoint.x;
+            state.terrain.hoverZ = intersectPoint.z;
+            state.terrain.hoverValid = true;
+
+            if (state.terrain.selectionShape === 'rect') {
+              gesture.type = 'terrain-rect';
+              gesture.terrainRectStart = { x: intersectPoint.x, z: intersectPoint.z };
+              state.terrain.selectedRect = {
+                minX: intersectPoint.x,
+                maxX: intersectPoint.x,
+                minZ: intersectPoint.z,
+                maxZ: intersectPoint.z
+              };
+              syncTerrainUI();
+              return;
+            }
+
+            if (state.terrain.tool === 'slope') {
+              gesture.type = 'terrain-slope';
+              state.terrain.slopeStart.x = round2(intersectPoint.x);
+              state.terrain.slopeStart.z = round2(intersectPoint.z);
+              state.terrain.slopeEnd.x = round2(intersectPoint.x);
+              state.terrain.slopeEnd.z = round2(intersectPoint.z);
+              updateTerrainPreviews();
+              return;
+            }
+
+            gesture.type = 'terrain-brush';
+            if (applyTerrainBrushAt(intersectPoint.x, intersectPoint.z, state.terrain.tool, 0.65)) {
+              gesture.terrainModified = true;
+            }
+            updateTerrainPreviews();
+            return;
+          }
+        }
+
         // 1. Check if user grabbed one of the 3D Transform Gizmo handles (Red X, Green Y, Blue Z, Center XZ, Rotate ring, or Scale cubes)
-        if (!isPanModifier && !state.placingAssetId) {
+        if (!isPanModifier && !state.placingAssetId && state.transformMode !== 'terrain') {
           const gizmoHit = raycastGizmoAt(clientX, clientY);
           const sel = getSelectedObject();
           if (gizmoHit && sel && !sel.locked) {
@@ -7048,7 +8630,7 @@
 
         // 2. Otherwise record which object was under the finger/cursor (for tap selection) and orbit/pan the camera on drag!
         // This guarantees dragging the map rotates the camera without EVER accidentally moving an object!
-        gesture.tappedObjectId = raycastObjectsAt(clientX, clientY);
+        gesture.tappedObjectId = state.transformMode === 'terrain' ? null : raycastObjectsAt(clientX, clientY);
         gesture.type = (isPanModifier || camController.viewMode === 'top') ? 'pan' : 'orbit';
       }
 
@@ -7060,6 +8642,48 @@
         gesture.lastY = clientY;
         gesture.movedDist += Math.hypot(dx, dy);
 
+        // 0. Terrain Brush, Rectangular Selection, or Slope Drag
+        if (gesture.type === 'terrain-brush') {
+          if (raycastGroundAt(clientX, clientY, intersectPoint)) {
+            state.terrain.hoverX = intersectPoint.x;
+            state.terrain.hoverZ = intersectPoint.z;
+            state.terrain.hoverValid = true;
+            if (applyTerrainBrushAt(intersectPoint.x, intersectPoint.z, state.terrain.tool, 0.45)) {
+              gesture.terrainModified = true;
+            }
+            updateTerrainPreviews();
+          }
+          return;
+        }
+
+        if (gesture.type === 'terrain-rect') {
+          if (raycastGroundAt(clientX, clientY, intersectPoint)) {
+            state.terrain.hoverX = intersectPoint.x;
+            state.terrain.hoverZ = intersectPoint.z;
+            state.terrain.hoverValid = true;
+            state.terrain.selectedRect = {
+              minX: round2(Math.min(gesture.terrainRectStart.x, intersectPoint.x)),
+              maxX: round2(Math.max(gesture.terrainRectStart.x, intersectPoint.x)),
+              minZ: round2(Math.min(gesture.terrainRectStart.z, intersectPoint.z)),
+              maxZ: round2(Math.max(gesture.terrainRectStart.z, intersectPoint.z))
+            };
+            syncTerrainUI();
+          }
+          return;
+        }
+
+        if (gesture.type === 'terrain-slope') {
+          if (raycastGroundAt(clientX, clientY, intersectPoint)) {
+            state.terrain.hoverX = intersectPoint.x;
+            state.terrain.hoverZ = intersectPoint.z;
+            state.terrain.hoverValid = true;
+            state.terrain.slopeEnd.x = round2(intersectPoint.x);
+            state.terrain.slopeEnd.z = round2(intersectPoint.z);
+            updateTerrainPreviews();
+          }
+          return;
+        }
+
         const sel = getSelectedObject();
 
         // A. Dragging a Move Gizmo Arrow (Red X, Green Y, Blue Z, or Center XZ)
@@ -7069,15 +8693,22 @@
             const deltaY = intersectPoint.y - gesture.dragStartHit.y;
             const deltaZ = intersectPoint.z - gesture.dragStartHit.z;
 
+            const curSurfaceMinY = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
             if (gesture.gizmoAxis === 'x') {
               sel.position.x = round2(snapVal(gesture.dragStartPos.x + deltaX));
+              const nextMinY = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
+              if (sel.position.y < nextMinY) sel.position.y = nextMinY;
             } else if (gesture.gizmoAxis === 'y') {
-              sel.position.y = round2(Math.max(-20, snapVal(gesture.dragStartPos.y + deltaY)));
+              sel.position.y = round2(Math.max(curSurfaceMinY, snapVal(gesture.dragStartPos.y + deltaY)));
             } else if (gesture.gizmoAxis === 'z') {
               sel.position.z = round2(snapVal(gesture.dragStartPos.z + deltaZ));
+              const nextMinY = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
+              if (sel.position.y < nextMinY) sel.position.y = nextMinY;
             } else if (gesture.gizmoAxis === 'xz') {
               sel.position.x = round2(snapVal(gesture.dragStartPos.x + deltaX));
               sel.position.z = round2(snapVal(gesture.dragStartPos.z + deltaZ));
+              const nextMinY = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
+              if (sel.position.y < nextMinY) sel.position.y = nextMinY;
             }
             gesture.objectModified = true;
             syncSceneMeshes();
@@ -7134,7 +8765,31 @@
         if (!gesture.active) return;
         const wasTap = gesture.movedDist < 8;
 
-        if (gesture.gizmoAxis && gesture.objectModified) {
+        if (gesture.type === 'terrain-brush') {
+          if (gesture.terrainModified) {
+            finalizeTerrainStroke();
+          }
+        } else if (gesture.type === 'terrain-rect') {
+          syncTerrainUI();
+          showToast('Rectangle selected — tap Raise, Lower, Smooth, or Flatten in Terrain Panel');
+        } else if (gesture.type === 'terrain-slope') {
+          const dist = Math.hypot(
+            state.terrain.slopeEnd.x - state.terrain.slopeStart.x,
+            state.terrain.slopeEnd.z - state.terrain.slopeStart.z
+          );
+          if (dist >= 1.5) {
+            applyTerrainSlope(
+              state.terrain.slopeStart,
+              state.terrain.slopeEnd,
+              state.terrain.slopeStart.y,
+              state.terrain.slopeEnd.y,
+              state.terrain.slopeWidth,
+              state.terrain.slopeTransition,
+              true
+            );
+            showToast(`Created slope (${round2(dist)}m long)`);
+          }
+        } else if (gesture.gizmoAxis && gesture.objectModified) {
           pushHistory();
           renderObjectList();
         } else if (wasTap) {
@@ -7145,10 +8800,12 @@
             } else {
               placeAssetAt(state.placingAssetId, camController.target.x, camController.target.z);
             }
-          } else if (gesture.tappedObjectId) {
-            selectObject(gesture.tappedObjectId);
-          } else if (!gesture.gizmoAxis) {
-            selectObject(null);
+          } else if (state.transformMode !== 'terrain') {
+            if (gesture.tappedObjectId) {
+              selectObject(gesture.tappedObjectId);
+            } else if (!gesture.gizmoAxis) {
+              selectObject(null);
+            }
           }
         } else if (gesture.objectModified) {
           pushHistory();
@@ -7167,6 +8824,9 @@
           const t = e.touches[0];
           beginSinglePointer(t.clientX, t.clientY, false);
         } else if (e.touches.length >= 2) {
+          if (gesture.type === 'terrain-brush' && gesture.terrainModified) {
+            finalizeTerrainStroke();
+          }
           gesture.active = true;
           gesture.type = 'pinch';
           const t0 = e.touches[0];
@@ -7222,12 +8882,22 @@
       });
 
       window.addEventListener('mousemove', function (e) {
-        if (state.placingAssetId && !gesture.active) {
-          if (raycastGroundAt(e.clientX, e.clientY, intersectPoint)) {
-            updatePlacementPreview(intersectPoint.x, intersectPoint.z);
+        if (!gesture.active) {
+          if (state.placingAssetId) {
+            if (raycastGroundAt(e.clientX, e.clientY, intersectPoint)) {
+              updatePlacementPreview(intersectPoint.x, intersectPoint.z);
+            }
+          } else if (state.transformMode === 'terrain') {
+            if (raycastGroundAt(e.clientX, e.clientY, intersectPoint)) {
+              state.terrain.hoverX = intersectPoint.x;
+              state.terrain.hoverZ = intersectPoint.z;
+              state.terrain.hoverValid = true;
+              updateTerrainPreviews();
+            }
           }
+          return;
         }
-        if (!gesture.active || gesture.type === 'pinch') return;
+        if (gesture.type === 'pinch') return;
         moveSinglePointer(e.clientX, e.clientY);
       });
 
@@ -7240,12 +8910,13 @@
 
       canvas.addEventListener('wheel', function (e) {
         e.preventDefault();
-        const factor = e.deltaY > 0 ? 1.10 : 0.90;
+        const delta = Math.max(-80, Math.min(80, e.deltaY));
+        const factor = Math.exp(delta * 0.0018);
         camController.zoomAtScreenPoint(e.clientX, e.clientY, factor);
       }, { passive: false });
 
       /* =====================================================================
-         8. JSON SCHEMA COMPATIBILITY & VALIDATION
+         8. JSON SCHEMA COMPATIBILITY, TERRAIN SERIALIZATION & VALIDATION
          ===================================================================== */
       function computeObjectAABB(obj) {
         const sx = Math.max(0.05, Number(obj.scale?.x) || 1);
@@ -7301,7 +8972,7 @@
 
         const knownKeys = new Set([
           'id', 'name', 'type', 'assetId', 'position', 'center', 'dimensions',
-          'scale', 'rotation', 'collider', 'obbCollider', 'collision', 'visible', 'locked', 'showName', '_extra'
+          'scale', 'rotation', 'collider', 'obbCollider', 'collision', 'visible', 'locked', 'showName', 'conformToTerrain', '_extra'
         ]);
         const extra = { ...(item._extra || {}) };
         Object.keys(item).forEach((k) => {
@@ -7350,14 +9021,56 @@
           visible: item.visible !== false,
           locked: Boolean(item.locked),
           showName: item.showName !== false,
+          conformToTerrain: Boolean(item.conformToTerrain),
           _extra: Object.keys(extra).length > 0 ? extra : undefined
         };
+      }
+
+      function buildTerrainExportBlock() {
+        const hs = state.terrain.heights || [];
+        let minH = 0;
+        let maxH = 0;
+        let hasNonZero = false;
+        const quantized = new Array(hs.length);
+        for (let i = 0; i < hs.length; i++) {
+          const v = round2(hs[i] || 0);
+          quantized[i] = v;
+          if (v !== 0) hasNonZero = true;
+          if (v < minH) minH = v;
+          if (v > maxH) maxH = v;
+        }
+        return {
+          version: '1.0.0',
+          width: state.terrain.width,
+          depth: state.terrain.depth,
+          segmentsX: state.terrain.segmentsX,
+          segmentsZ: state.terrain.segmentsZ,
+          origin: { x: 0, y: 0, z: 0 },
+          heightScale: 1,
+          minHeight: minH,
+          maxHeight: maxH,
+          hasCustomHeights: hasNonZero,
+          heights: quantized
+        };
+      }
+
+      function importTerrainBlock(terrainData) {
+        if (!terrainData || !Array.isArray(terrainData.heights)) {
+          resetAllTerrainHeights(false);
+          return;
+        }
+        const sx = Math.max(8, Math.min(256, Number(terrainData.segmentsX) || 128));
+        const sz = Math.max(8, Math.min(256, Number(terrainData.segmentsZ) || 128));
+        const scale = Number(terrainData.heightScale) || 1;
+        const rawHeights = terrainData.heights.map((v) => (Number(v) || 0) * scale);
+        rebuildTerrainGeometry(sx, sz, rawHeights);
+        checkBuildingTerrainWarnings();
       }
 
       function buildExportPayload() {
         return {
           format: 'gandaki-campus-layout',
-          version: '1.1.0',
+          version: '1.2.0',
           exportedAt: new Date().toISOString(),
           coordinateSystem: {
             units: 'meters',
@@ -7371,6 +9084,7 @@
               '-Z': 'South (Main Gate)'
             }
           },
+          terrain: buildTerrainExportBlock(),
           objects: state.objects.map((o) => {
             const w = round2(o.dimensions.width);
             const h = round2(o.dimensions.height);
@@ -7408,7 +9122,8 @@
               },
               visible: o.visible !== false,
               locked: !!o.locked,
-              ...(o.showName === false ? { showName: false } : {})
+              ...(o.showName === false ? { showName: false } : {}),
+              ...(o.conformToTerrain ? { conformToTerrain: true } : {})
             };
           })
         };
@@ -7420,15 +9135,30 @@
         }
         state.objects = rawList.map((item, idx) => normalizeObject(item, idx));
         state.selectedId = state.objects.length > 0 ? state.objects[0].id : null;
+        checkBuildingTerrainWarnings();
         if (recordHistory) {
           pushHistory(true);
         } else {
-          state.history = [cloneObjects(state.objects)];
+          state.history = [{
+            objects: cloneObjects(state.objects),
+            terrain: cloneTerrainSnapshot()
+          }];
           state.historyIndex = 0;
           updateUndoRedoButtons();
           setUnsavedState(false);
         }
         refreshAllUI();
+      }
+
+      function importLayoutPayload(parsed, recordHistory = true) {
+        const list = Array.isArray(parsed) ? parsed : (parsed && parsed.objects);
+        if (!Array.isArray(list)) {
+          throw new Error('JSON must contain an "objects" array.');
+        }
+        if (parsed && !Array.isArray(parsed) && parsed.terrain) {
+          importTerrainBlock(parsed.terrain);
+        }
+        importObjectsArray(list, recordHistory);
       }
 
       function loadInitialScene() {
@@ -7439,12 +9169,13 @@
             if (parsed && Array.isArray(parsed.objects) && parsed.objects.length > 0) {
               const isOld18 = parsed.objects.length === 18 && parsed.objects[0].id === 'area_parking_plaza' && parsed.objects[0].position.x === -6;
               if (!isOld18) {
-                importObjectsArray(parsed.objects, false);
+                importLayoutPayload(parsed, false);
                 return;
               }
             }
           }
         } catch (e) {}
+        resetAllTerrainHeights(false);
         importObjectsArray(GANDAKI_STARTER_OBJECTS, false);
         saveToLocalStorage(true);
       }
@@ -7455,7 +9186,7 @@
       function syncSelectedPanel() {
         const panel = document.getElementById('selected-panel');
         const sel = getSelectedObject();
-        if (!sel) {
+        if (!sel || state.transformMode === 'terrain') {
           panel.classList.remove('open');
           return;
         }
@@ -7477,13 +9208,32 @@
 
         const nameBtn = document.getElementById('btn-sel-name');
         if (nameBtn) {
-          const eligible = isLabelEligibleObject(sel);
-          nameBtn.style.display = eligible ? 'inline-flex' : 'none';
-          if (eligible) {
-            const shown = shouldShowObjectName(sel);
-            nameBtn.textContent = '🏷';
-            nameBtn.classList.toggle('active', shown);
-            nameBtn.title = shown ? 'Name Shown on Map (Tap to Hide)' : 'Name Hidden on Map (Tap to Show)';
+          const shown = shouldShowObjectName(sel);
+          nameBtn.textContent = '🏷';
+          nameBtn.classList.toggle('active', shown);
+          nameBtn.title = shown ? 'Name Shown on Map (Tap to Hide)' : 'Name Hidden on Map (Tap to Show)';
+        }
+
+        const dimBtn = document.getElementById('btn-sel-dim');
+        if (dimBtn) {
+          const shown = shouldShowObjectDimensions(sel);
+          dimBtn.classList.toggle('active', shown);
+          dimBtn.title = shown ? 'Dimensions Shown on Map (Tap to Hide)' : 'Dimensions Hidden on Map (Tap to Show)';
+        }
+
+        const inPlaceBtn = document.getElementById('btn-sel-bring-in-place');
+        if (inPlaceBtn) {
+          inPlaceBtn.title = `Bring ${sel.name} onto surface (roads/ground)`;
+          inPlaceBtn.onclick = bringSelectedObjectInPlace;
+        }
+
+        const conformBtn = document.getElementById('btn-sel-conform-terrain');
+        if (conformBtn) {
+          const isRoadOrArea = sel.type === 'road' || sel.type === 'ground_area';
+          conformBtn.style.display = isRoadOrArea ? 'inline-flex' : 'none';
+          if (isRoadOrArea) {
+            conformBtn.classList.toggle('active', !!sel.conformToTerrain);
+            conformBtn.textContent = sel.conformToTerrain ? '⛰ Conform: ON' : '⛰ Conform Road';
           }
         }
 
@@ -7536,7 +9286,7 @@
           return;
         }
         state.activeCategory = cat;
-        document.querySelectorAll('.cat-btn').forEach((b) => {
+        document.querySelectorAll('.cat-btn[data-cat]').forEach((b) => {
           b.classList.toggle('active', b.dataset.cat === cat);
         });
         document.getElementById('asset-drawer').classList.add('open');
@@ -7546,7 +9296,7 @@
 
       function closeAssetDrawer() {
         state.activeCategory = null;
-        document.querySelectorAll('.cat-btn').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.cat-btn[data-cat]').forEach((b) => b.classList.remove('active'));
         document.getElementById('asset-drawer').classList.remove('open');
         document.getElementById('btn-close-assets').style.display = 'none';
       }
@@ -7673,6 +9423,7 @@
         renderObjectList();
         renderAssetCards();
         renderNamesIndividualList();
+        if (typeof syncTerrainUI === 'function') syncTerrainUI();
       }
 
       // Top Bar Buttons
@@ -7808,12 +9559,41 @@
       document.getElementById('btn-sel-duplicate').addEventListener('click', duplicateSelected);
       document.getElementById('btn-sel-delete').addEventListener('click', deleteSelected);
 
+      // Selected Object Dimension / Size toggle button
+      const btnSelDim = document.getElementById('btn-sel-dim');
+      if (btnSelDim) {
+        btnSelDim.addEventListener('click', function () {
+          const sel = getSelectedObject();
+          if (!sel) return;
+          sel.showDimensions = !shouldShowObjectDimensions(sel);
+          pushHistory();
+          syncSceneMeshes();
+          syncSelectedPanel();
+          showToast(`${sel.name} Size / Length: ${sel.showDimensions ? 'Shown' : 'Hidden'}`);
+        });
+      }
+
       // Numeric X, Y, Z, Rotation & Scale Inputs
       const numBindings = {
-        'inp-x': (sel, v) => { sel.position.x = round2(v); },
-        'inp-y': (sel, v) => { sel.position.y = round2(v); },
-        'inp-z': (sel, v) => { sel.position.z = round2(v); },
-        'inp-rot-y': (sel, v) => { sel.rotation.yDeg = round2(v); },
+        'inp-x': (sel, v) => {
+          sel.position.x = round2(v);
+          const minY = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
+          if (sel.position.y < minY) sel.position.y = minY;
+        },
+        'inp-y': (sel, v) => {
+          const minY = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
+          sel.position.y = round2(Math.max(minY, v));
+        },
+        'inp-z': (sel, v) => {
+          sel.position.z = round2(v);
+          const minY = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
+          if (sel.position.y < minY) sel.position.y = minY;
+        },
+        'inp-rot-y': (sel, v) => {
+          sel.rotation.yDeg = round2(v);
+          const minY = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
+          if (sel.position.y < minY) sel.position.y = minY;
+        },
         'inp-width': (sel, v) => { sel.dimensions.width = Math.max(0.1, round2(v)); },
         'inp-height': (sel, v) => { sel.dimensions.height = Math.max(0.02, round2(v)); },
         'inp-depth': (sel, v) => { sel.dimensions.depth = Math.max(0.1, round2(v)); }
@@ -7844,7 +9624,15 @@
           const axis = this.dataset.axis;
           const dir = Number(this.dataset.dir) || 1;
           const step = getSnapStep() || (axis === 'y' ? 0.25 : 0.5);
-          sel.position[axis] = round2(sel.position[axis] + dir * step);
+          const nextVal = round2(sel.position[axis] + dir * step);
+          if (axis === 'y') {
+            const minY = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
+            sel.position.y = Math.max(minY, nextVal);
+          } else {
+            sel.position[axis] = nextVal;
+            const minY = getSurfaceHeightUnderObject(sel, sel.position.x, sel.position.z);
+            if (sel.position.y < minY) sel.position.y = minY;
+          }
           pushHistory();
           refreshAllUI();
         });
@@ -7929,10 +9717,9 @@
       document.getElementById('btn-apply-textarea-json').addEventListener('click', function () {
         try {
           const parsed = JSON.parse(jsonTextarea.value);
-          const list = Array.isArray(parsed) ? parsed : parsed.objects;
-          importObjectsArray(list, true);
+          importLayoutPayload(parsed, true);
           menuModal.classList.remove('open');
-          showToast(`Imported ${state.objects.length} Objects`);
+          showToast(`Imported ${state.objects.length} Objects & Terrain`);
         } catch (err) {
           alert('Invalid JSON format: ' + err.message);
         }
@@ -7947,10 +9734,9 @@
             const text = String(ev.target.result || '');
             jsonTextarea.value = text;
             const parsed = JSON.parse(text);
-            const list = Array.isArray(parsed) ? parsed : parsed.objects;
-            importObjectsArray(list, true);
+            importLayoutPayload(parsed, true);
             menuModal.classList.remove('open');
-            showToast(`Imported ${state.objects.length} Objects`);
+            showToast(`Imported ${state.objects.length} Objects & Terrain`);
           } catch (err) {
             alert('Could not parse JSON file: ' + err.message);
           }
@@ -7963,18 +9749,22 @@
         building: { label: 'Building', short: 'Bldg' },
         bus:      { label: 'Bus',      short: 'Bus'  },
         car:      { label: 'Car',      short: 'Car'  },
-        bike:     { label: 'Bike',     short: 'Bike' }
+        bike:     { label: 'Bike',     short: 'Bike' },
+        road:     { label: 'Road',     short: 'Road' },
+        prop:     { label: 'Prop',     short: 'Prop' },
+        nature:   { label: 'Nature',   short: 'Nat'  },
+        other:    { label: 'Other',    short: 'Oth'  }
       };
 
       function getActiveNameCategoriesList() {
-        return ['building', 'bus', 'car', 'bike'].filter((k) => !!state.nameCategories[k]);
+        return Object.keys(LABEL_CAT_META).filter((k) => !!state.nameCategories[k]);
       }
 
       function getNamesButtonSummary() {
         if (!state.showLabels) return 'Names: OFF ▾';
         const active = getActiveNameCategoriesList();
         if (active.length === 0) return 'Names: OFF ▾';
-        if (active.length === 4) return 'Names: All (4) ▾';
+        if (active.length === Object.keys(LABEL_CAT_META).length) return 'Names: All ▾';
         if (active.length <= 2) {
           return 'Names: ' + active.map((k) => LABEL_CAT_META[k].label).join(', ') + ' ▾';
         }
@@ -7990,14 +9780,14 @@
         if (eligibleObjs.length === 0) {
           const empty = document.createElement('div');
           empty.style.cssText = 'font-size:11px;color:var(--text-muted);padding:4px;';
-          empty.textContent = 'No Building, Bus, Car, or Bike objects on map.';
+          empty.textContent = 'No objects on map.';
           listEl.appendChild(empty);
           return;
         }
 
         eligibleObjs.forEach((obj) => {
           const cat = getObjectLabelCategory(obj);
-          const catEnabled = state.showLabels && !!state.nameCategories[cat];
+          const catEnabled = state.showLabels && state.nameCategories[cat] !== false;
           const itemShow = obj.showName !== false;
 
           const row = document.createElement('label');
@@ -8035,6 +9825,7 @@
         const menuNames = document.getElementById('btn-toggle-labels');
         const barDims = document.getElementById('btn-bar-dims');
         const menuDims = document.getElementById('btn-toggle-dims');
+        const ddDims = document.getElementById('btn-dropdown-toggle-dims');
         const activeCats = getActiveNameCategoriesList();
         const anyNamesActive = state.showLabels && activeCats.length > 0;
 
@@ -8049,7 +9840,7 @@
 
         document.querySelectorAll('.name-cat-btn[data-name-cat]').forEach((btn) => {
           const cat = btn.dataset.nameCat;
-          const on = state.showLabels && !!state.nameCategories[cat];
+          const on = state.showLabels && state.nameCategories[cat] !== false;
           btn.classList.toggle('active', on);
           const chk = btn.querySelector('.cat-check');
           if (chk) chk.textContent = on ? '✓' : '○';
@@ -8057,7 +9848,7 @@
 
         document.querySelectorAll('[data-menu-name-cat]').forEach((btn) => {
           const cat = btn.dataset.menuNameCat;
-          const on = state.showLabels && !!state.nameCategories[cat];
+          const on = state.showLabels && state.nameCategories[cat] !== false;
           const label = LABEL_CAT_META[cat] ? LABEL_CAT_META[cat].label : cat;
           btn.textContent = `${label} Names: ${on ? 'ON' : 'OFF'}`;
           btn.classList.toggle('active', on);
@@ -8069,7 +9860,9 @@
           if (p === 'none') {
             isPresetActive = !anyNamesActive;
           } else if (p === 'all') {
-            isPresetActive = state.showLabels && activeCats.length === 4;
+            isPresetActive = state.showLabels && activeCats.length === Object.keys(LABEL_CAT_META).length;
+          } else if (p === 'vehicles') {
+            isPresetActive = state.showLabels && state.nameCategories.bus && state.nameCategories.car && state.nameCategories.bike && !state.nameCategories.building && !state.nameCategories.road;
           } else {
             isPresetActive = state.showLabels && activeCats.length === 1 && activeCats[0] === p;
           }
@@ -8084,6 +9877,10 @@
           menuDims.textContent = state.showDimensions ? 'Size / Length: ON' : 'Size / Length: OFF';
           menuDims.classList.toggle('active', state.showDimensions);
         }
+        if (ddDims) {
+          ddDims.textContent = `Size: ${state.showDimensions ? 'ON' : 'OFF'}`;
+          ddDims.classList.toggle('active', state.showDimensions);
+        }
         renderNamesIndividualList();
         syncSceneMeshes();
         renderObjectList();
@@ -8096,7 +9893,7 @@
         } else {
           state.showLabels = true;
           if (activeCats.length === 0) {
-            state.nameCategories = { building: true, bus: true, car: true, bike: true };
+            Object.keys(LABEL_CAT_META).forEach((k) => { state.nameCategories[k] = true; });
           }
         }
         syncNameAndDimButtons();
@@ -8107,7 +9904,7 @@
         if (!LABEL_CAT_META[cat]) return;
         if (!state.showLabels) {
           state.showLabels = true;
-          state.nameCategories = { building: false, bus: false, car: false, bike: false };
+          Object.keys(LABEL_CAT_META).forEach((k) => { state.nameCategories[k] = false; });
           state.nameCategories[cat] = true;
         } else {
           state.nameCategories[cat] = !state.nameCategories[cat];
@@ -8123,18 +9920,29 @@
       function applyNamePreset(preset) {
         if (preset === 'none') {
           state.showLabels = false;
-          state.nameCategories = { building: false, bus: false, car: false, bike: false };
+          Object.keys(LABEL_CAT_META).forEach((k) => { state.nameCategories[k] = false; });
           showToast('Object Names: Hidden');
         } else if (preset === 'all') {
           state.showLabels = true;
-          state.nameCategories = { building: true, bus: true, car: true, bike: true };
+          Object.keys(LABEL_CAT_META).forEach((k) => { state.nameCategories[k] = true; });
           state.objects.forEach((o) => {
-            if (isLabelEligibleObject(o)) o.showName = true;
+            o.showName = true;
           });
-          showToast('Names: Building, Bus, Car & Bike');
+          showToast('Names: Shown on All Objects');
+        } else if (preset === 'vehicles') {
+          state.showLabels = true;
+          Object.keys(LABEL_CAT_META).forEach((k) => { state.nameCategories[k] = false; });
+          state.nameCategories.bus = true;
+          state.nameCategories.car = true;
+          state.nameCategories.bike = true;
+          state.objects.forEach((o) => {
+            const cat = getObjectLabelCategory(o);
+            if (cat === 'bus' || cat === 'car' || cat === 'bike') o.showName = true;
+          });
+          showToast('Names: Only Buses, Cars & Bikes');
         } else if (LABEL_CAT_META[preset]) {
           state.showLabels = true;
-          state.nameCategories = { building: false, bus: false, car: false, bike: false };
+          Object.keys(LABEL_CAT_META).forEach((k) => { state.nameCategories[k] = false; });
           state.nameCategories[preset] = true;
           state.objects.forEach((o) => {
             if (getObjectLabelCategory(o) === preset) o.showName = true;
@@ -8164,6 +9972,24 @@
         btnCloseNamesDd.addEventListener('click', () => namesDropdown.classList.remove('open'));
       }
 
+      const btnDdToggleDims = document.getElementById('btn-dropdown-toggle-dims');
+      if (btnDdToggleDims) {
+        btnDdToggleDims.addEventListener('click', toggleShowDimensions);
+      }
+
+      const btnBringInPlace = document.getElementById('btn-bring-in-place');
+      if (btnBringInPlace) {
+        btnBringInPlace.addEventListener('click', bringAllObjectsInPlace);
+      }
+
+      const btnMenuBringInPlace = document.getElementById('btn-menu-bring-in-place');
+      if (btnMenuBringInPlace) {
+        btnMenuBringInPlace.addEventListener('click', () => {
+          bringAllObjectsInPlace();
+          menuModal.classList.remove('open');
+        });
+      }
+
       document.querySelectorAll('.name-cat-btn[data-name-cat]').forEach((btn) => {
         btn.addEventListener('click', function () {
           toggleNameCategory(this.dataset.nameCat);
@@ -8186,13 +10012,13 @@
       if (btnCheckAllNames) {
         btnCheckAllNames.addEventListener('click', function () {
           state.showLabels = true;
-          state.nameCategories = { building: true, bus: true, car: true, bike: true };
+          Object.keys(LABEL_CAT_META).forEach((k) => { state.nameCategories[k] = true; });
           state.objects.forEach((o) => {
-            if (isLabelEligibleObject(o)) o.showName = true;
+            o.showName = true;
           });
           syncNameAndDimButtons();
           syncSelectedPanel();
-          showToast('Checked all Building, Bus, Car & Bike names');
+          showToast('Checked all item names');
         });
       }
 
@@ -8200,7 +10026,7 @@
       if (btnUncheckAllNames) {
         btnUncheckAllNames.addEventListener('click', function () {
           state.objects.forEach((o) => {
-            if (isLabelEligibleObject(o)) o.showName = false;
+            o.showName = false;
           });
           syncNameAndDimButtons();
           syncSelectedPanel();
@@ -8223,6 +10049,7 @@
         if (typeof window.confirm === 'function' && !window.__HEADLESS_TEST__) {
           if (!window.confirm('Reset to the default Gandaki University campus layout?')) return;
         }
+        resetAllTerrainHeights(false);
         importObjectsArray(GANDAKI_STARTER_OBJECTS, true);
         menuModal.classList.remove('open');
         showToast('Reset to Default Campus Layout');
@@ -8239,6 +10066,300 @@
         menuModal.classList.remove('open');
         showToast('Cleared map');
       });
+
+      // ===================================================================
+      // TERRAIN SCULPTING UI LISTENERS
+      // ===================================================================
+      function syncTerrainUI() {
+        const isTerrain = state.transformMode === 'terrain';
+        const panel = document.getElementById('terrain-panel');
+        if (panel) panel.classList.toggle('open', isTerrain);
+
+        const bottomCatTerrain = document.getElementById('btn-cat-terrain');
+        if (bottomCatTerrain) bottomCatTerrain.classList.toggle('active', isTerrain);
+
+        if (terrainWireMesh) {
+          terrainWireMesh.visible = isTerrain && !!state.terrain.showWireframe;
+        }
+
+        document.querySelectorAll('.terrain-tool-btn[data-ttool]').forEach((b) => {
+          b.classList.toggle('active', b.dataset.ttool === state.terrain.tool);
+        });
+
+        document.querySelectorAll('.terrain-shape-btn[data-tshape]').forEach((b) => {
+          b.classList.toggle('active', b.dataset.tshape === state.terrain.selectionShape);
+        });
+
+        document.querySelectorAll('.terrain-falloff-btn[data-tfalloff]').forEach((b) => {
+          b.classList.toggle('active', b.dataset.tfalloff === state.terrain.brushFalloff);
+        });
+
+        const setElVal = (id, val) => {
+          const el = document.getElementById(id);
+          if (el && document.activeElement !== el) el.value = val;
+        };
+        const setElText = (id, txt) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = txt;
+        };
+
+        setElVal('inp-terrain-radius', state.terrain.brushRadius);
+        setElText('lbl-terrain-radius', `${round2(state.terrain.brushRadius)}m`);
+
+        setElVal('inp-terrain-strength', state.terrain.brushStrength);
+        setElText('lbl-terrain-strength', `${Math.round(state.terrain.brushStrength * 100)}%`);
+
+        setElVal('inp-terrain-speed', state.terrain.sculptSpeed);
+        setElText('lbl-terrain-speed', `${round2(state.terrain.sculptSpeed)}x`);
+
+        setElVal('inp-terrain-target-h', state.terrain.targetHeight);
+        setElVal('inp-slope-start-h', state.terrain.slopeStart.y);
+        setElVal('inp-slope-end-h', state.terrain.slopeEnd.y);
+        setElVal('inp-slope-width', state.terrain.slopeWidth);
+        setElVal('inp-slope-trans', state.terrain.slopeTransition);
+        setElVal('sel-terrain-res', String(state.terrain.segmentsX));
+
+        const slopeBox = document.getElementById('terrain-slope-controls');
+        if (slopeBox) {
+          slopeBox.style.display = state.terrain.tool === 'slope' ? 'flex' : 'none';
+        }
+        const rectBox = document.getElementById('terrain-rect-controls');
+        if (rectBox) {
+          rectBox.style.display = state.terrain.selectionShape === 'rect' ? 'flex' : 'none';
+        }
+        const rectStatus = document.getElementById('lbl-terrain-rect-status');
+        if (rectStatus) {
+          const r = state.terrain.selectedRect;
+          rectStatus.textContent = r
+            ? `Selected Rect: X [${round2(r.minX)}..${round2(r.maxX)}m], Z [${round2(r.minZ)}..${round2(r.maxZ)}m]`
+            : 'Drag on ground to select a rectangular area';
+        }
+
+        const btnUnder = document.getElementById('btn-terrain-under-objs');
+        if (btnUnder) {
+          btnUnder.textContent = state.terrain.allowUnderObjects ? 'Sculpt Under Buildings: ON' : 'Sculpt Under Buildings: OFF';
+          btnUnder.classList.toggle('active', !!state.terrain.allowUnderObjects);
+        }
+
+        const btnWire = document.getElementById('btn-terrain-wireframe');
+        if (btnWire) {
+          btnWire.textContent = state.terrain.showWireframe ? 'Mesh Grid: ON' : 'Mesh Grid: OFF';
+          btnWire.classList.toggle('active', !!state.terrain.showWireframe);
+        }
+
+        const warnEl = document.getElementById('terrain-warning-box');
+        if (warnEl) {
+          if (state.terrain.warnings && state.terrain.warnings.length > 0) {
+            warnEl.style.display = 'block';
+            warnEl.textContent = '⚠ ' + state.terrain.warnings.slice(0, 2).join(' • ');
+          } else {
+            warnEl.style.display = 'none';
+            warnEl.textContent = '';
+          }
+        }
+
+        updateTerrainPreviews();
+      }
+
+      document.querySelectorAll('.terrain-tool-btn[data-ttool]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          state.terrain.tool = this.dataset.ttool;
+          syncTerrainUI();
+          showToast(`Terrain Tool: ${this.dataset.ttool.replace('_', ' ').toUpperCase()}`);
+        });
+      });
+
+      document.querySelectorAll('.terrain-shape-btn[data-tshape]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          state.terrain.selectionShape = this.dataset.tshape;
+          syncTerrainUI();
+          showToast(state.terrain.selectionShape === 'rect' ? 'Rectangular Area Selection Mode' : 'Circular Brush Mode');
+        });
+      });
+
+      document.querySelectorAll('.terrain-falloff-btn[data-tfalloff]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          state.terrain.brushFalloff = this.dataset.tfalloff;
+          syncTerrainUI();
+        });
+      });
+
+      const bindTerrainRange = (id, prop, minV, maxV) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', function () {
+          const v = parseFloat(this.value);
+          if (!Number.isNaN(v)) {
+            state.terrain[prop] = Math.max(minV, Math.min(maxV, v));
+            syncTerrainUI();
+          }
+        });
+      };
+      bindTerrainRange('inp-terrain-radius', 'brushRadius', 1, 50);
+      bindTerrainRange('inp-terrain-strength', 'brushStrength', 0.05, 1.0);
+      bindTerrainRange('inp-terrain-speed', 'sculptSpeed', 0.2, 2.5);
+
+      document.querySelectorAll('[data-terrain-nudge]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          const prop = this.dataset.terrainNudge;
+          const delta = parseFloat(this.dataset.delta || '0');
+          if (prop === 'brushRadius') {
+            state.terrain.brushRadius = Math.max(1, Math.min(50, round2(state.terrain.brushRadius + delta)));
+          } else if (prop === 'brushStrength') {
+            state.terrain.brushStrength = Math.max(0.05, Math.min(1.0, round2(state.terrain.brushStrength + delta)));
+          } else if (prop === 'targetHeight') {
+            state.terrain.targetHeight = Math.max(-25, Math.min(40, round2(state.terrain.targetHeight + delta)));
+          }
+          syncTerrainUI();
+        });
+      });
+
+      const inpTargetH = document.getElementById('inp-terrain-target-h');
+      if (inpTargetH) {
+        inpTargetH.addEventListener('input', function () {
+          const v = parseFloat(this.value);
+          if (!Number.isNaN(v)) state.terrain.targetHeight = round2(v);
+        });
+      }
+
+      const inpSlopeStartH = document.getElementById('inp-slope-start-h');
+      if (inpSlopeStartH) {
+        inpSlopeStartH.addEventListener('input', function () {
+          const v = parseFloat(this.value);
+          if (!Number.isNaN(v)) state.terrain.slopeStart.y = round2(v);
+        });
+      }
+      const inpSlopeEndH = document.getElementById('inp-slope-end-h');
+      if (inpSlopeEndH) {
+        inpSlopeEndH.addEventListener('input', function () {
+          const v = parseFloat(this.value);
+          if (!Number.isNaN(v)) state.terrain.slopeEnd.y = round2(v);
+        });
+      }
+      const inpSlopeW = document.getElementById('inp-slope-width');
+      if (inpSlopeW) {
+        inpSlopeW.addEventListener('input', function () {
+          const v = parseFloat(this.value);
+          if (!Number.isNaN(v)) {
+            state.terrain.slopeWidth = Math.max(1, Math.min(60, round2(v)));
+            updateTerrainPreviews();
+          }
+        });
+      }
+      const inpSlopeTrans = document.getElementById('inp-slope-trans');
+      if (inpSlopeTrans) {
+        inpSlopeTrans.addEventListener('input', function () {
+          const v = parseFloat(this.value);
+          if (!Number.isNaN(v)) state.terrain.slopeTransition = Math.max(0.5, Math.min(30, round2(v)));
+        });
+      }
+
+      const btnApplySlope = document.getElementById('btn-apply-slope');
+      if (btnApplySlope) {
+        btnApplySlope.addEventListener('click', function () {
+          applyTerrainSlope(
+            state.terrain.slopeStart,
+            state.terrain.slopeEnd,
+            state.terrain.slopeStart.y,
+            state.terrain.slopeEnd.y,
+            state.terrain.slopeWidth,
+            state.terrain.slopeTransition,
+            true
+          );
+          showToast('Created terrain slope between Start and End');
+        });
+      }
+
+      document.querySelectorAll('[data-rect-op]').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          const op = this.dataset.rectOp;
+          if (op === 'clear_sel') {
+            state.terrain.selectedRect = null;
+            syncTerrainUI();
+            return;
+          }
+          if (!state.terrain.selectedRect) {
+            showToast('Drag on the ground first to select a rectangular area');
+            return;
+          }
+          applyTerrainRectOperation(op);
+        });
+      });
+
+      const btnUnderObjs = document.getElementById('btn-terrain-under-objs');
+      if (btnUnderObjs) {
+        btnUnderObjs.addEventListener('click', function () {
+          state.terrain.allowUnderObjects = !state.terrain.allowUnderObjects;
+          syncTerrainUI();
+          showToast(state.terrain.allowUnderObjects ? 'Sculpting under buildings: Allowed' : 'Sculpting under buildings: Protected');
+        });
+      }
+
+      const btnTerrainWire = document.getElementById('btn-terrain-wireframe');
+      if (btnTerrainWire) {
+        btnTerrainWire.addEventListener('click', function () {
+          state.terrain.showWireframe = !state.terrain.showWireframe;
+          syncTerrainUI();
+        });
+      }
+
+      const selTerrainRes = document.getElementById('sel-terrain-res');
+      if (selTerrainRes) {
+        selTerrainRes.addEventListener('change', function () {
+          const segs = parseInt(this.value, 10) || 128;
+          setTerrainResolution(segs, segs, true);
+          showToast(`Terrain mesh resolution: ${segs}×${segs}`);
+        });
+      }
+
+      const btnResetAllTerrain = document.getElementById('btn-terrain-reset-all');
+      if (btnResetAllTerrain) {
+        btnResetAllTerrain.addEventListener('click', function () {
+          if (typeof window.confirm === 'function' && !window.__HEADLESS_TEST__) {
+            if (!window.confirm('Flatten and reset the entire campus terrain back to 0m?')) return;
+          }
+          resetAllTerrainHeights(true);
+          showToast('Reset entire terrain to 0m');
+        });
+      }
+
+      const btnExitTerrain = document.getElementById('btn-exit-terrain');
+      if (btnExitTerrain) {
+        btnExitTerrain.addEventListener('click', function () {
+          setTransformMode('move');
+          showToast('Exited Terrain Mode');
+        });
+      }
+
+      const btnCatTerrain = document.getElementById('btn-cat-terrain');
+      if (btnCatTerrain) {
+        btnCatTerrain.addEventListener('click', function () {
+          if (state.transformMode === 'terrain') {
+            setTransformMode('move');
+          } else {
+            closeAssetDrawer();
+            setTransformMode('terrain');
+          }
+        });
+      }
+
+      const btnSnapObjTerrain = document.getElementById('btn-sel-snap-terrain');
+      if (btnSnapObjTerrain) {
+        btnSnapObjTerrain.addEventListener('click', function () {
+          const sel = getSelectedObject();
+          if (!sel) return;
+          snapObjectToTerrain(sel.id, true);
+        });
+      }
+
+      const btnConformRoadTerrain = document.getElementById('btn-sel-conform-terrain');
+      if (btnConformRoadTerrain) {
+        btnConformRoadTerrain.addEventListener('click', function () {
+          const sel = getSelectedObject();
+          if (!sel) return;
+          conformRoadToTerrain(sel.id, undefined, true);
+        });
+      }
 
       // Keyboard Shortcuts
       window.addEventListener('keydown', function (e) {
@@ -8258,8 +10379,9 @@
         } else if (e.key === 'Escape') {
           cancelPlacingAsset();
           if (namesDropdown) namesDropdown.classList.remove('open');
+          if (state.transformMode === 'terrain') setTransformMode('move');
         } else if (e.key === 'Delete' || e.key === 'Backspace') {
-          if (state.selectedId) {
+          if (state.selectedId && state.transformMode !== 'terrain') {
             e.preventDefault();
             deleteSelected();
           }
@@ -8286,6 +10408,7 @@
       // Initialize Editor
       loadInitialScene();
       syncNameAndDimButtons();
+      syncTerrainUI();
       handleResize();
       camController.updateCamera();
       requestAnimationFrame(animate);
@@ -8295,10 +10418,10 @@
         getState: () => state,
         getAssetCatalog: () => VISUAL_ASSET_CATALOG,
         getGizmoGroup: () => gizmoGroup,
+        getGroundMesh: () => groundMesh,
         exportJSON: buildExportPayload,
         importJSON: (data) => {
-          const list = Array.isArray(data) ? data : data.objects;
-          importObjectsArray(list, true);
+          importLayoutPayload(data, true);
         },
         selectObject: selectObject,
         setTransformMode: setTransformMode,
@@ -8368,7 +10491,72 @@
           syncNameAndDimButtons();
         },
         getObjectLabelCategory: getObjectLabelCategory,
-        toggleShowDimensions: toggleShowDimensions
+        toggleShowDimensions: toggleShowDimensions,
+        // Terrain Sculpting Programmatic API
+        setTerrainTool: (tool) => {
+          state.terrain.tool = tool;
+          if (state.transformMode !== 'terrain') setTransformMode('terrain');
+          else syncTerrainUI();
+        },
+        setTerrainBrush: (opts = {}) => {
+          if (typeof opts.radius === 'number') state.terrain.brushRadius = Math.max(1, Math.min(50, opts.radius));
+          if (typeof opts.strength === 'number') state.terrain.brushStrength = Math.max(0.05, Math.min(1, opts.strength));
+          if (typeof opts.falloff === 'string') state.terrain.brushFalloff = opts.falloff;
+          if (typeof opts.speed === 'number') state.terrain.sculptSpeed = Math.max(0.2, Math.min(2.5, opts.speed));
+          if (typeof opts.targetHeight === 'number') state.terrain.targetHeight = opts.targetHeight;
+          if (typeof opts.allowUnderObjects === 'boolean') state.terrain.allowUnderObjects = opts.allowUnderObjects;
+          if (typeof opts.selectionShape === 'string') state.terrain.selectionShape = opts.selectionShape;
+          syncTerrainUI();
+        },
+        sculptTerrainAt: (worldX, worldZ, toolOverride, steps = 1) => {
+          const prevTool = state.terrain.tool;
+          if (toolOverride) state.terrain.tool = toolOverride;
+          const count = Math.max(1, Math.floor(steps));
+          let changed = false;
+          for (let i = 0; i < count; i++) {
+            if (applyTerrainBrushAt(worldX, worldZ, state.terrain.tool, 1.0)) changed = true;
+          }
+          state.terrain.tool = prevTool;
+          if (changed) {
+            finalizeTerrainStroke();
+          }
+          return changed;
+        },
+        selectTerrainRect: (minX, minZ, maxX, maxZ) => {
+          state.terrain.selectionShape = 'rect';
+          state.terrain.selectedRect = {
+            minX: Math.min(minX, maxX),
+            maxX: Math.max(minX, maxX),
+            minZ: Math.min(minZ, maxZ),
+            maxZ: Math.max(minZ, maxZ)
+          };
+          syncTerrainUI();
+          return state.terrain.selectedRect;
+        },
+        applyTerrainRectOperation: (op, customDelta) => applyTerrainRectOperation(op, customDelta),
+        createTerrainSlope: (startPt, endPt, startH, endH, width, transition) => {
+          return applyTerrainSlope(
+            startPt || state.terrain.slopeStart,
+            endPt || state.terrain.slopeEnd,
+            typeof startH === 'number' ? startH : state.terrain.slopeStart.y,
+            typeof endH === 'number' ? endH : state.terrain.slopeEnd.y,
+            typeof width === 'number' ? width : state.terrain.slopeWidth,
+            typeof transition === 'number' ? transition : state.terrain.slopeTransition,
+            true
+          );
+        },
+        getTerrainHeightAt: getTerrainHeightAt,
+        getSurfaceHeightUnderObject: getSurfaceHeightUnderObject,
+        bringAllObjectsInPlace: bringAllObjectsInPlace,
+        bringSelectedObjectInPlace: bringSelectedObjectInPlace,
+        toggleShowNames: toggleShowNames,
+        toggleShowDimensions: toggleShowDimensions,
+        applyNamePreset: applyNamePreset,
+        setTerrainResolution: (segs) => setTerrainResolution(segs, segs, true),
+        resetTerrain: () => resetAllTerrainHeights(true),
+        snapObjectToTerrain: (id) => snapObjectToTerrain(id || state.selectedId, true),
+        conformRoadToTerrain: (id, enable) => conformRoadToTerrain(id || state.selectedId, enable, true),
+        checkBuildingTerrainWarnings: checkBuildingTerrainWarnings
       };
     })();
   </script>

@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Gandaki Campus Map — Validation & Ground-Contact Debug View</title>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; height: 100vh; overflow: hidden; }
+    #sidebar { width: 440px; background: #1e293b; border-right: 1px solid #334155; padding: 16px; overflow-y: auto; }
+    #canvas-wrap { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; background: #090d16; }
+    h1 { font-size: 18px; margin: 0 0 8px; color: #f8fafc; }
+    h2 { font-size: 14px; margin: 16px 0 8px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat-card { background: #0f172a; padding: 10px; border-radius: 6px; border: 1px solid #334155; }
+    .stat-val { font-size: 20px; font-weight: 700; color: #38bdf8; }
+    .stat-lbl { font-size: 11px; color: #94a3b8; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; margin-bottom: 12px; }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+    .fix-item { background: #0f172a; border-left: 3px solid #f43f5e; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px; }
+    .rev-item { background: #0f172a; border-left: 3px solid #eab308; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px; font-size: 12px; }
+    .map-obj:hover rect { stroke: #ffffff; stroke-width: 3px; fill-opacity: 0.95; cursor: pointer; }
+    code { color: #fca5a5; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h1>Gandaki Campus Validation Debug</h1>
+    <div style="font-size:12px;color:#94a3b8;margin-bottom:12px;">
+      Hover any object in the 2D footprint &amp; ground-contact view to inspect coordinates and applied fixes.
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-val">139</div><div class="stat-lbl">Objects Checked</div></div>
+      <div class="stat-card"><div class="stat-val">61</div><div class="stat-lbl">Objects Corrected</div></div>
+      <div class="stat-card"><div class="stat-val">50</div><div class="stat-lbl">Floating Fixed</div></div>
+      <div class="stat-card"><div class="stat-val">13</div><div class="stat-lbl">Intersections Fixed</div></div>
+    </div>
+    <h2>Legend</h2>
+    <div class="legend">
+      <div class="legend-item"><span class="swatch" style="background:#3b82f6"></span>Building</div>
+      <div class="legend-item"><span class="swatch" style="background:#8b5cf6"></span>Architecture</div>
+      <div class="legend-item"><span class="swatch" style="background:#22c55e"></span>Nature</div>
+      <div class="legend-item"><span class="swatch" style="background:#facc15"></span>Lighting</div>
+      <div class="legend-item"><span class="swatch" style="background:#ef4444"></span>Vehicle</div>
+      <div class="legend-item"><span class="swatch" style="background:#f97316"></span>Prop</div>
+      <div class="legend-item"><span class="swatch" style="border:2px solid #f43f5e"></span>Auto-Fixed</div>
+      <div class="legend-item"><span class="swatch" style="border:2px solid #eab308"></span>Manual Review</div>
+    </div>
+    <h2>Coordinate &amp; Elevation Fixes (55)</h2>
+    <div class="fix-item">
+          <strong>bldg_2</strong> — warehouse ig (<code>building</code>)<br/>
+          Orig: <code>(38.5, 0.85, -54)</code> →
+          Final: <code>(38.5, 0.3, -54)</code><br/>
+          <span style="color:#cbd5e1">Adjusted building foundation elevation to y=0.30m (matching its center ground elevation) while keeping the building level.</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_33</strong> — Parked Campus Sedan (Silver) 3 (<code>vehicle</code>)<br/>
+          Orig: <code>(-12.9, 1.31, -17)</code> →
+          Final: <code>(-12.9, 1.29, -17)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=1.29m (was 1.31m).</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_34</strong> — Courtyard Scooter / Motorcycle 4 (<code>vehicle</code>)<br/>
+          Orig: <code>(-23.5, 0.71, -34)</code> →
+          Final: <code>(-23.5, 0.66, -34)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=0.66m (was 0.71m).</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_35</strong> — Campus Utility Van (Placeholder) 5 (<code>vehicle</code>)<br/>
+          Orig: <code>(-17.17, 1.25, -18)</code> →
+          Final: <code>(-17.17, 1.16, -18)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=1.16m (was 1.25m).</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_36</strong> — Parked Campus Sedan (Navy) 6 (<code>vehicle</code>)<br/>
+          Orig: <code>(-21.5, 0.94, -18.5)</code> →
+          Final: <code>(-21.5, 0.85, -18.5)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=0.85m (was 0.94m).</span>
+        </div>
+<div class="fix-item">
+          <strong>light_37</strong> — Campus Streetlight Pole (#ff8a2a) 1 (<code>lighting</code>)<br/>
+          Orig: <code>(-22, 0.94, -13.5)</code> →
+          Final: <code>(-22, 0.88, -13.5)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 0.94m to pole ground elevation 0.88m.</span>
+        </div>
+<div class="fix-item">
+          <strong>arch_30</strong> — Concrete Structural Pillar 1 (<code>architecture</code>)<br/>
+          Orig: <code>(0, 1.4, -10)</code> →
+          Final: <code>(0, 1.4, -13.55)</code><br/>
+          <span style="color:#cbd5e1">Repositioned to the front southern veranda colonnade of bldg_west_wing_l1 (0, 1.4, -13.55) resting on the 1.40m terrace.</span>
+        </div>
+<div class="fix-item">
+          <strong>arch_31</strong> — Exterior Split AC Unit 2 (<code>architecture</code>)<br/>
+          Orig: <code>(0, 1.4, -10)</code> →
+          Final: <code>(-4, 4, -5.55)</code><br/>
+          <span style="color:#cbd5e1">Wall-mounted on the exterior north wall of parent building bldg_west_wing_l1 at (-4.0, 4.0, -5.55) (2.6m above the 1.4m terrace floor) and disabled ground-level collision.</span>
+        </div>
+<div class="fix-item">
+          <strong>arch_32</strong> — Exterior Split AC Unit 3 (<code>architecture</code>)<br/>
+          Orig: <code>(0, 1.4, -10)</code> →
+          Final: <code>(4, 4, -5.55)</code><br/>
+          <span style="color:#cbd5e1">Wall-mounted on the exterior north wall of parent building bldg_west_wing_l1 at (4.0, 4.0, -5.55) (2.6m above the 1.4m terrace floor) and disabled ground-level collision.</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_37</strong> — Courtyard Scooter / Motorcycle 7 (<code>vehicle</code>)<br/>
+          Orig: <code>(-21.5, 0.94, -33.5)</code> →
+          Final: <code>(-21.5, 0.89, -33.5)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=0.89m (was 0.94m).</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_38</strong> — Courtyard Scooter / Motorcycle 8 (<code>vehicle</code>)<br/>
+          Orig: <code>(-19.5, 1.11, -33.5)</code> →
+          Final: <code>(-19.5, 1.06, -33.5)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=1.06m (was 1.11m).</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_39</strong> — Courtyard Scooter / Motorcycle 9 (<code>vehicle</code>)<br/>
+          Orig: <code>(-18, 1.18, -33.5)</code> →
+          Final: <code>(-18, 1.15, -33.5)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=1.15m (was 1.18m).</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_40</strong> — Courtyard Scooter / Motorcycle 10 (<code>vehicle</code>)<br/>
+          Orig: <code>(-16.5, 1.23, -33.5)</code> →
+          Final: <code>(-16.5, 1.21, -33.5)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=1.21m (was 1.23m).</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_41</strong> — Parked Campus Sedan (Silver) 11 (<code>vehicle</code>)<br/>
+          Orig: <code>(-6.23, 1.33, -16.27)</code> →
+          Final: <code>(-6.23, 1.32, -16.27)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=1.32m (was 1.33m).</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_42</strong> — Courtyard Scooter / Motorcycle 12 (<code>vehicle</code>)<br/>
+          Orig: <code>(-27.5, 0.3, -33.5)</code> →
+          Final: <code>(-27.5, 0.24, -33.5)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=0.24m (was 0.30m).</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_43</strong> — Courtyard Scooter / Motorcycle 13 (<code>vehicle</code>)<br/>
+          Orig: <code>(-30, 0.15, -33)</code> →
+          Final: <code>(-30, 0.11, -33)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=0.11m (was 0.15m).</span>
+        </div>
+<div class="fix-item">
+          <strong>veh_44</strong> — Courtyard Scooter / Motorcycle 14 (<code>vehicle</code>)<br/>
+          Orig: <code>(-32.5, 0.05, -33)</code> →
+          Final: <code>(-32.5, 0.03, -33)</code><br/>
+          <span style="color:#cbd5e1">Placed vehicle wheels on support surface Y=0.03m (was 0.05m).</span>
+        </div>
+<div class="fix-item">
+          <strong>tree_40</strong> — Tree 03 (<code>nature</code>)<br/>
+          Orig: <code>(-16.7, 1.3, -36.24)</code> →
+          Final: <code>(-16.7, 1.26, -36.24)</code><br/>
+          <span style="color:#cbd5e1">Snapped base Y from 1.30m to trunk/root ground elevation 1.26m. Changed collision.shape from "obb" to "cylinder" so player collision uses the trunk radius rather than the 5m upper foliage box.</span>
+        </div>
+<div class="fix-item">
+          <strong>tree_41</strong> — Tree 04 (<code>nature</code>)<br/>
+          Orig: <code>(-23.18, 1.22, -37.01)</code> →
+          Final: <code>(-23.18, 0.8, -37.01)</code><br/>
+          <span style="color:#cbd5e1">Snapped base Y from 1.22m to trunk/root ground elevation 0.80m. Changed collision.shape from "obb" to "cylinder" so player collision uses the trunk radius rather than the 5m upper foliage box.</span>
+        </div>
+<div class="fix-item">
+          <strong>tree_42</strong> — Tree 05 (<code>nature</code>)<br/>
+          Orig: <code>(-28.07, 0.24, -37.92)</code> →
+          Final: <code>(-28.07, 0.09, -37.92)</code><br/>
+          <span style="color:#cbd5e1">Snapped base Y from 0.24m to trunk/root ground elevation 0.09m. Changed collision.shape from "obb" to "cylinder" so player collision uses the trunk radius rather than the 5m upper foliage box.</span>
+        </div>
+<div class="fix-item">
+          <strong>tree_44</strong> — Tree 07 (<code>nature</code>)<br/>
+          Orig: <code>(-60.71, 0, -40.05)</code> →
+          Final: <code>(-60.71, 0, -37.2)</code><br/>
+          <span style="color:#cbd5e1">Moved tree_44 2.85m north to (-60.71, 0.00, -37.20), aligning it with the adjacent tree row (nat_51 at z=-37.21, tree_43 at z=-36.85) clear of Wall 05. Changed collision.shape from "obb" to "cylinder" so player collision uses the trunk radius rather than the 5m upper foliage box.</span>
+        </div>
+<div class="fix-item">
+          <strong>tree_45</strong> — Bush 08 (<code>nature</code>)<br/>
+          Orig: <code>(-35.59, 0.04, -7.43)</code> →
+          Final: <code>(-35.59, 0.03, -7.43)</code><br/>
+          <span style="color:#cbd5e1">Snapped base Y from 0.04m to trunk/root ground elevation 0.03m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_51</strong> — Outdoor Light 07 (<code>lighting</code>)<br/>
+          Orig: <code>(-25.86, 0.02, 33.09)</code> →
+          Final: <code>(-25.86, -0.02, 33.09)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 0.02m to pole ground elevation -0.02m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_52</strong> — Outdoor Light 08 (<code>lighting</code>)<br/>
+          Orig: <code>(-24.71, 0.35, 17.8)</code> →
+          Final: <code>(-24.71, 0.07, 17.8)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 0.35m to pole ground elevation 0.07m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_53</strong> — Outdoor Light 09 (<code>lighting</code>)<br/>
+          Orig: <code>(-24.81, 0.3, 3.63)</code> →
+          Final: <code>(-24.81, 0.02, 3.63)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 0.30m to pole ground elevation 0.02m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_40</strong> — Outdoor Light 11 (<code>lighting</code>)<br/>
+          Orig: <code>(10.51, 1.35, 24.36)</code> →
+          Final: <code>(10.51, 1.33, 24.36)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.35m to pole ground elevation 1.33m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_43</strong> — Outdoor Light 13 (<code>lighting</code>)<br/>
+          Orig: <code>(11.74, 1.32, -3.18)</code> →
+          Final: <code>(11.74, 1.31, -3.18)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.32m to pole ground elevation 1.31m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_45</strong> — Outdoor Light 15 (<code>lighting</code>)<br/>
+          Orig: <code>(24.48, 1.32, -14.96)</code> →
+          Final: <code>(24.48, 1.3, -14.96)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.32m to pole ground elevation 1.30m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_48</strong> — Outdoor Light 17 (<code>lighting</code>)<br/>
+          Orig: <code>(23.91, 1.36, 31.13)</code> →
+          Final: <code>(23.91, 1.33, 31.13)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.36m to pole ground elevation 1.33m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_49</strong> — Outdoor Light 18 (<code>lighting</code>)<br/>
+          Orig: <code>(29.37, 1.35, 45.07)</code> →
+          Final: <code>(30.35, 1.33, 44.25)</code><br/>
+          <span style="color:#cbd5e1">Moved lamp_49 1.27m SE to (30.35, 1.33, 44.25) just outside the SE corner of bldg_6 and snapped base to terrain (1.33m).</span>
+        </div>
+<div class="fix-item">
+          <strong>tree_55</strong> — Bush 09 (<code>nature</code>)<br/>
+          Orig: <code>(-39.73, 1.9, -49.18)</code> →
+          Final: <code>(-39.73, 0.68, -49.65)</code><br/>
+          <span style="color:#cbd5e1">Nudged tree_55 0.47m south to z=-49.65 to clear Wall 05 and lowered y from 1.90m to its center terrain height (0.68m).</span>
+        </div>
+<div class="fix-item">
+          <strong>prop_56</strong> — Bench 07 (<code>prop</code>)<br/>
+          Orig: <code>(25.02, 1.33, 5.15)</code> →
+          Final: <code>(25.02, 1.3, 5.15)</code><br/>
+          <span style="color:#cbd5e1">Snapped prop base Y from 1.33m to terrain elevation 1.30m.</span>
+        </div>
+<div class="fix-item">
+          <strong>prop_57</strong> — Bench 08 (<code>prop</code>)<br/>
+          Orig: <code>(13.52, 1.37, -9.3)</code> →
+          Final: <code>(13.52, 1.36, -9.3)</code><br/>
+          <span style="color:#cbd5e1">Snapped prop base Y from 1.37m to terrain elevation 1.36m.</span>
+        </div>
+<div class="fix-item">
+          <strong>prop_60</strong> — Trash Bin 11 (<code>prop</code>)<br/>
+          Orig: <code>(13.18, 1.38, -11.1)</code> →
+          Final: <code>(13.18, 1.37, -11.1)</code><br/>
+          <span style="color:#cbd5e1">Snapped prop base Y from 1.38m to terrain elevation 1.37m.</span>
+        </div>
+<div class="fix-item">
+          <strong>prop_61</strong> — Trash Bin 12 (<code>prop</code>)<br/>
+          Orig: <code>(13.42, 1.37, 14.58)</code> →
+          Final: <code>(13.42, 1.35, 14.58)</code><br/>
+          <span style="color:#cbd5e1">Snapped prop base Y from 1.37m to terrain elevation 1.35m.</span>
+        </div>
+<div class="fix-item">
+          <strong>prop_62</strong> — Trash Bin 13 (<code>prop</code>)<br/>
+          Orig: <code>(24.36, 1.32, -15.33)</code> →
+          Final: <code>(24.36, 1.31, -15.88)</code><br/>
+          <span style="color:#cbd5e1">Moved prop_62 0.55m south to (24.36, 1.31, -15.88) beside the lamp post and snapped base to terrain (1.31m).</span>
+        </div>
+<div class="fix-item">
+          <strong>prop_64</strong> — Trash Bin 15 (<code>prop</code>)<br/>
+          Orig: <code>(-6.53, 1.37, -13.66)</code> →
+          Final: <code>(-6.53, 1.36, -13.66)</code><br/>
+          <span style="color:#cbd5e1">Snapped prop base Y from 1.37m to terrain elevation 1.36m.</span>
+        </div>
+<div class="fix-item">
+          <strong>tree_51</strong> — Bush 10 (<code>nature</code>)<br/>
+          Orig: <code>(28.4, 1.4, -38.2)</code> →
+          Final: <code>(28.4, 1.37, -38.2)</code><br/>
+          <span style="color:#cbd5e1">Snapped base Y from 1.40m to trunk/root ground elevation 1.37m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_55</strong> — Street Lamp 19 (<code>lighting</code>)<br/>
+          Orig: <code>(24.34, 1.39, -37.99)</code> →
+          Final: <code>(24.34, 1.36, -37.99)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.39m to pole ground elevation 1.36m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_56</strong> — Street Lamp 20 (<code>lighting</code>)<br/>
+          Orig: <code>(19.08, 1.35, -46.82)</code> →
+          Final: <code>(19.08, 1.33, -46.82)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.35m to pole ground elevation 1.33m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_57</strong> — Street Lamp 21 (<code>lighting</code>)<br/>
+          Orig: <code>(6.49, 1.37, -46.23)</code> →
+          Final: <code>(6.49, 1.35, -46.45)</code><br/>
+          <span style="color:#cbd5e1">Nudged lamp_57 0.22m south to (6.49, 1.35, -46.45) to clear bldg_3 wall and snapped base to terrain (1.35m).</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_60</strong> — Street Lamp 24 (<code>lighting</code>)<br/>
+          Orig: <code>(-6.99, 1.33, -31.48)</code> →
+          Final: <code>(-6.99, 1.32, -31.48)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.33m to pole ground elevation 1.32m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_61</strong> — Outdoor Light 25 (<code>lighting</code>)<br/>
+          Orig: <code>(12.61, 1.31, -31.37)</code> →
+          Final: <code>(12.7, 1.3, -31.45)</code><br/>
+          <span style="color:#cbd5e1">Nudged lamp_61 0.12m SE to (12.70, 1.30, -31.45) to clear bldg_east_wing_r1 and snapped base to terrain (1.30m).</span>
+        </div>
+<div class="fix-item">
+          <strong>prop_67</strong> — Trash Bin 18 (<code>prop</code>)<br/>
+          Orig: <code>(19.26, 1.36, -46.12)</code> →
+          Final: <code>(19.98, 1.35, -46.82)</code><br/>
+          <span style="color:#cbd5e1">Placed prop_67 0.90m east of lamp_56 at (19.98, 1.35, -46.82), clearing both lamp_56 and bldg_3.</span>
+        </div>
+<div class="fix-item">
+          <strong>prop_69</strong> — Trash Bin 19 (<code>prop</code>)<br/>
+          Orig: <code>(13.66, 1.36, -46.34)</code> →
+          Final: <code>(13.66, 1.35, -46.34)</code><br/>
+          <span style="color:#cbd5e1">Snapped prop base Y from 1.36m to terrain elevation 1.35m.</span>
+        </div>
+<div class="fix-item">
+          <strong>arch_44</strong> — Wall 05 (<code>architecture</code>)<br/>
+          Orig: <code>(-39.97, 1.3, -40.12)</code> →
+          Final: <code>(-39.97, 0, -40.12)</code><br/>
+          <span style="color:#cbd5e1">Lowered wall base to y=0.00m so the 45m western/central span rests flush on the 0.00m ground while the eastern 15m embeds cleanly into the 1.30m terrace bank (top at y=4.00m).</span>
+        </div>
+<div class="fix-item">
+          <strong>arch_49</strong> — Wall 08 (<code>architecture</code>)<br/>
+          Orig: <code>(-10.15, 2.94, -56.95)</code> →
+          Final: <code>(-10.15, 1.3, -56.95)</code><br/>
+          <span style="color:#cbd5e1">Lowered wall base to y=1.30m (the base elevation at both ends of the wall) so no part of the wall floats above the mound and its top reaches y=5.30m.</span>
+        </div>
+<div class="fix-item">
+          <strong>area_57</strong> — Garden Area 11 Copy Copy (<code>ground_area</code>)<br/>
+          Orig: <code>(-22.48, 1.3, 19.08)</code> →
+          Final: <code>(-22.7, 1.3, 19.08)</code><br/>
+          <span style="color:#cbd5e1">Nudged area_57 0.22m west to (-22.70, 1.30, 19.08) so its east kerb sits flush outside bldg_5.</span>
+        </div>
+<div class="fix-item">
+          <strong>area_64</strong> — Garden Area 11 Copy Copy Copy Copy (<code>ground_area</code>)<br/>
+          Orig: <code>(-23.04, 1.08, 49.77)</code> →
+          Final: <code>(-23.4, 1, 49.77)</code><br/>
+          <span style="color:#cbd5e1">Nudged area_64 0.36m west to (-23.40, 1.00, 49.77) outside bldg_6 and updated ground elevation to match terrain (1.00m).</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_73</strong> — Decorative Lamp 37 (<code>lighting</code>)<br/>
+          Orig: <code>(-12.91, 1.31, -2.57)</code> →
+          Final: <code>(-12.91, 1.3, -2.57)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.31m to pole ground elevation 1.30m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_75</strong> — Decorative Lamp 39 (<code>lighting</code>)<br/>
+          Orig: <code>(7.41, 1.34, -3.27)</code> →
+          Final: <code>(7.41, 1.33, -3.27)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.34m to pole ground elevation 1.33m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_80</strong> — Decorative Lamp 42 (<code>lighting</code>)<br/>
+          Orig: <code>(8.19, 1.33, 24.56)</code> →
+          Final: <code>(8.19, 1.32, 24.56)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.33m to pole ground elevation 1.32m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_81</strong> — Street Lamp 43 (<code>lighting</code>)<br/>
+          Orig: <code>(-7.04, 1.34, -20.06)</code> →
+          Final: <code>(-7.04, 1.33, -20.06)</code><br/>
+          <span style="color:#cbd5e1">Snapped lamp base Y from 1.34m to pole ground elevation 1.33m.</span>
+        </div>
+<div class="fix-item">
+          <strong>lamp_82</strong> — Outdoor Light 44 (<code>lighting</code>)<br/>
+          Orig: <code>(-4.69, 1.35, -14.24)</code> →
+          Final: <code>(-4.58, 1.34, -14.24)</code><br/>
+          <span style="color:#cbd5e1">Nudged lamp_82 0.11m east to (-4.58, 1.34, -14.24) for clean clearance from veh_41 and snapped base to terrain (1.34m).</span>
+        </div>
+<div class="fix-item">
+          <strong>tree_88</strong> — Rock 16 (<code>nature</code>)<br/>
+          Orig: <code>(60.06, 14.68, 38.17)</code> →
+          Final: <code>(60.06, 14.67, 38.17)</code><br/>
+          <span style="color:#cbd5e1">Snapped base Y from 14.68m to trunk/root ground elevation 14.67m.</span>
+        </div>
+    <h2>Manual Review Flags (19)</h2>
+    <div class="rev-item">
+          <strong>bldg_main_rotunda</strong> — Main Grand Rotunda Complex (<code>building</code>)<br/>
+          Pos: <code>(0, 1.4, -110)</code> | Terrain: <code>[0.76m, 1.4m]</code><br/>
+          <span style="color:#cbd5e1">Structure footprint spans 0.64m of terrain relief (minH=0.76m, centerH=1.40m, maxH=1.40m at foundation Y=1.40m). Located near outer campus boundary at (0.00, 1.40, -110.00) outside the core [-88m, 88m] gameplay arena.</span>
+        </div>
+<div class="rev-item">
+          <strong>bldg_2</strong> — warehouse ig (<code>building</code>)<br/>
+          Pos: <code>(38.5, 0.3, -54)</code> | Terrain: <code>[-0.2m, 0.9m]</code><br/>
+          <span style="color:#cbd5e1">bldg_2 ("warehouse ig") straddles a 0.98m terrain slope on the eastern plateau edge (terrain drops from 0.86m on the west face to -0.12m on the east face). Set to center foundation height y=0.30m; consider extending the flat plateau east to x=44m in the terrain editor.</span>
+        </div>
+<div class="rev-item">
+          <strong>veh_35</strong> — Campus Utility Van (Placeholder) 5 (<code>vehicle</code>)<br/>
+          Pos: <code>(-17.17, 1.16, -18)</code> | Terrain: <code>[1.05m, 1.26m]</code><br/>
+          <span style="color:#cbd5e1">Parked across courtyard ramp slope (wheel elevations vary by 0.15m; grounded at mean wheel elevation 1.16m without tilting chassis).</span>
+        </div>
+<div class="rev-item">
+          <strong>veh_36</strong> — Parked Campus Sedan (Navy) 6 (<code>vehicle</code>)<br/>
+          Pos: <code>(-21.5, 0.85, -18.5)</code> | Terrain: <code>[0.76m, 0.96m]</code><br/>
+          <span style="color:#cbd5e1">Parked across courtyard ramp slope (wheel elevations vary by 0.14m; grounded at mean wheel elevation 0.85m without tilting chassis).</span>
+        </div>
+<div class="rev-item">
+          <strong>road_52</strong> — Stone Road Curb Segment 14 (<code>road</code>)<br/>
+          Pos: <code>(-37.5, 0.03, -5.5)</code> | Terrain: <code>[0m, 0.03m]</code><br/>
+          <span style="color:#cbd5e1">Only 1 curb segment (road_52 at -37.5, 0.03, -5.5) remains in v1.2.0 and overlaps raised garden bed area_55; 15 road segments from v1.1.0 were removed in v1.2.0. Confirm whether roads are intended to be painted via terrain textures or restored as meshes.</span>
+        </div>
+<div class="rev-item">
+          <strong>area_49</strong> — Green Grass Lawn Area 5 (<code>ground_area</code>)<br/>
+          Pos: <code>(-18.46, 2.13, -48.39)</code> | Terrain: <code>[0.11m, 3m]</code><br/>
+          <span style="color:#cbd5e1">Flat ground_area patch spans 2.89m of sloped terrain (minH=0.11m, centerH=2.14m, maxH=3.00m at pos.y=2.13m).</span>
+        </div>
+<div class="rev-item">
+          <strong>tree_55</strong> — Bush 09 (<code>nature</code>)<br/>
+          Pos: <code>(-39.73, 0.68, -49.65)</code> | Terrain: <code>[0m, 1.93m]</code><br/>
+          <span style="color:#cbd5e1">Bush 09 (tree_55) is an 18.6m-long hedge spanning a 1.77m slope (north end terrain 0.00m, center 0.68m, south end 1.77m). Grounded at center height y=0.68m; consider splitting into 3 shorter hedge segments so each conforms closely to the hill.</span>
+        </div>
+<div class="rev-item">
+          <strong>arch_44</strong> — Wall 05 (<code>architecture</code>)<br/>
+          Pos: <code>(-39.97, 0, -40.12)</code> | Terrain: <code>[0m, 1.3m]</code><br/>
+          <span style="color:#cbd5e1">Wall 05 spans across the 0.00m lower campus and 1.30m upper terrace step (x=-69.95 to -9.98). Grounded at y=0.00m so no section floats; consider splitting into two stepped wall segments if a uniform top-of-wall profile is desired.</span>
+        </div>
+<div class="rev-item">
+          <strong>arch_46</strong> — Wall 07 (<code>architecture</code>)<br/>
+          Pos: <code>(-102.98, 0, 2.52)</code> | Terrain: <code>[0m, 0m]</code><br/>
+          <span style="color:#cbd5e1">Located near outer campus boundary at (-102.98, 0.00, 2.52) outside the core [-88m, 88m] gameplay arena.</span>
+        </div>
+<div class="rev-item">
+          <strong>area_47</strong> — Garden Area 10 (<code>ground_area</code>)<br/>
+          Pos: <code>(-98.45, 0, 34.02)</code> | Terrain: <code>[0m, 0m]</code><br/>
+          <span style="color:#cbd5e1">Located near outer campus boundary at (-98.45, 0.00, 34.02) outside the core [-88m, 88m] gameplay arena.</span>
+        </div>
+<div class="rev-item">
+          <strong>bldg_48</strong> — Washroom 2 (<code>building</code>)<br/>
+          Pos: <code>(-113.95, 0, 8.45)</code> | Terrain: <code>[0m, 0m]</code><br/>
+          <span style="color:#cbd5e1">Located near outer campus boundary at (-113.95, 0.00, 8.45) outside the core [-88m, 88m] gameplay arena.</span>
+        </div>
+<div class="rev-item">
+          <strong>arch_49</strong> — Wall 08 (<code>architecture</code>)<br/>
+          Pos: <code>(-10.15, 1.3, -56.95)</code> | Terrain: <code>[1.3m, 2.97m]</code><br/>
+          <span style="color:#cbd5e1">Wall 08 crosses a 1.47m terrain mound (1.30m at ends to 2.77m at peak). Grounded at y=1.30m to eliminate under-wall gaps.</span>
+        </div>
+<div class="rev-item">
+          <strong>area_50</strong> — Grass 10 (<code>ground_area</code>)<br/>
+          Pos: <code>(-17.62, 2.39, -63.65)</code> | Terrain: <code>[1.8m, 3m]</code><br/>
+          <span style="color:#cbd5e1">Flat ground_area patch spans 1.20m of sloped terrain (minH=1.80m, centerH=2.39m, maxH=3.00m at pos.y=2.39m).</span>
+        </div>
+<div class="rev-item">
+          <strong>tree_83</strong> — Tree 11 (<code>nature</code>)<br/>
+          Pos: <code>(19.46, 31.33, 97.01)</code> | Terrain: <code>[22.69m, 39.25m]</code><br/>
+          <span style="color:#cbd5e1">Located on steep outer hill slope (footprint elevation spans 22.69m to 39.25m; trunk grounded at center 31.33m). Located near outer campus boundary at (19.46, 31.33, 97.01) outside the core [-88m, 88m] gameplay arena.</span>
+        </div>
+<div class="rev-item">
+          <strong>tree_84</strong> — Tree 12 (<code>nature</code>)<br/>
+          Pos: <code>(23.79, 33.3, 109.2)</code> | Terrain: <code>[25.45m, 38.32m]</code><br/>
+          <span style="color:#cbd5e1">Located on steep outer hill slope (footprint elevation spans 25.45m to 38.32m; trunk grounded at center 33.30m). Located near outer campus boundary at (23.79, 33.30, 109.20) outside the core [-88m, 88m] gameplay arena.</span>
+        </div>
+<div class="rev-item">
+          <strong>tree_85</strong> — Tree 13 (<code>nature</code>)<br/>
+          Pos: <code>(23.74, 15.06, 90.54)</code> | Terrain: <code>[9.34m, 22.47m]</code><br/>
+          <span style="color:#cbd5e1">Located on steep outer hill slope (footprint elevation spans 9.34m to 22.47m; trunk grounded at center 15.06m).</span>
+        </div>
+<div class="rev-item">
+          <strong>tree_86</strong> — Tree 14 (<code>nature</code>)<br/>
+          Pos: <code>(27.03, 21.64, 103.89)</code> | Terrain: <code>[15m, 29.4m]</code><br/>
+          <span style="color:#cbd5e1">Located on steep outer hill slope (footprint elevation spans 15.00m to 29.40m; trunk grounded at center 21.64m). Located near outer campus boundary at (27.03, 21.64, 103.89) outside the core [-88m, 88m] gameplay arena.</span>
+        </div>
+<div class="rev-item">
+          <strong>tree_87</strong> — Tree 15 (<code>nature</code>)<br/>
+          Pos: <code>(13.86, 17.86, 81.21)</code> | Terrain: <code>[11.43m, 25.09m]</code><br/>
+          <span style="color:#cbd5e1">Located on steep outer hill slope (footprint elevation spans 11.43m to 25.09m; trunk grounded at center 17.86m).</span>
+        </div>
+<div class="rev-item">
+          <strong>tree_88</strong> — Rock 16 (<code>nature</code>)<br/>
+          Pos: <code>(60.06, 14.67, 38.17)</code> | Terrain: <code>[6.39m, 25.2m]</code><br/>
+          <span style="color:#cbd5e1">Located on steep outer hill slope (footprint elevation spans 6.39m to 25.20m; trunk grounded at center 14.67m).</span>
+        </div>
+  </div>
+  <div id="canvas-wrap">
+    <svg width="960" height="960" viewBox="0 0 960 960" style="background:#0f172a;border:1px solid #334155;">
+      <defs>
+        <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+          <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1e293b" stroke-width="0.7" />
+        </pattern>
+      </defs>
+      <rect width="960" height="960" fill="url(#grid)" />
+      <!-- Core [-88, 88] gameplay boundary -->
+      <rect x="216" y="216" width="528" height="528"
+        fill="none" stroke="#38bdf8" stroke-width="1" stroke-dasharray="6,4" />
+      <!-- Origin axes -->
+      <line x1="0" y1="480" x2="960" y2="480" stroke="#334155" stroke-width="1" />
+      <line x1="480" y1="0" x2="480" y2="960" stroke="#334155" stroke-width="1" />
+      <g transform="translate(312,478.5) rotate(0)" data-id="area_parking_plaza" class="map-obj">
+        <rect x="-53.25" y="-33" width="106.5" height="66"
+          fill="#16a34a" fill-opacity="0.25" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_parking_plaza (Collage bus parkng ) | type: ground_area | pos: (-56, 0, -0.5)</title>
+      </g>
+      <g transform="translate(480,150) rotate(-176)" data-id="bldg_main_rotunda" class="map-obj">
+        <rect x="-69" y="-27" width="138" height="54"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#eab308" stroke-width="1.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_main_rotunda (Main Grand Rotunda Complex) | type: building | pos: (0, 1.4, -110) | REVIEW: Structure footprint spans 0.64m of terrain relief (minH=0.76m, centerH=1.40m, maxH=1.40m at foundation Y=1.40m). Located near outer campus boundary at (0.00, 1.40, -110.00) outside the core [-88m, 88m] gameplay arena.</title>
+      </g>
+      <g transform="translate(468,451.47) rotate(-92)" data-id="bldg_west_wing_l1" class="map-obj">
+        <rect x="-11.4" y="-48.75" width="22.8" height="97.5"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_west_wing_l1 (Staffroom, lab , washroom) | type: building | pos: (-4, 1.4, -9.51)</title>
+      </g>
+      <g transform="translate(466.5,492) rotate(-272)" data-id="bldg_west_wing_l2" class="map-obj">
+        <rect x="-11.4" y="-49.5" width="22.8" height="99"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_west_wing_l2 (labs , washroom) | type: building | pos: (-4.5, 1.4, 4)</title>
+      </g>
+      <g transform="translate(489,403.5) rotate(0)" data-id="bldg_east_wing_r1" class="map-obj">
+        <rect x="-27.15" y="-17.25" width="54.3" height="34.5"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_east_wing_r1 (Cafeteria) | type: building | pos: (3, 1.4, -25.5)</title>
+      </g>
+      <g transform="translate(564,399) rotate(0)" data-id="bldg_east_wing_r2" class="map-obj">
+        <rect x="-11.4" y="-30.75" width="22.8" height="61.5"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_east_wing_r2 (Multipurpose Hall) | type: building | pos: (28, 1.4, -27)</title>
+      </g>
+      <g transform="translate(565.5,537) rotate(0)" data-id="bldg_east_wing_r4" class="map-obj">
+        <rect x="-14.4" y="-32.25" width="28.8" height="64.5"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_east_wing_r4 (library) | type: building | pos: (28.5, 1.4, 19)</title>
+      </g>
+      <g transform="translate(507,276.48) rotate(0)" data-id="bldg_guardhouse" class="map-obj">
+        <rect x="-6.9" y="-6.9" width="13.8" height="13.8"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_guardhouse (South Gate Guardhouse) | type: building | pos: (9, 1.4, -67.84)</title>
+      </g>
+      <g transform="translate(543,312) rotate(0)" data-id="bldg_1" class="map-obj">
+        <rect x="-23.25" y="-11.25" width="46.5" height="22.5"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_1 (Office ) | type: building | pos: (21, 1.4, -56)</title>
+      </g>
+      <g transform="translate(595.5,318) rotate(0)" data-id="bldg_2" class="map-obj">
+        <rect x="-12.75" y="-12" width="25.5" height="24"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>bldg_2 (warehouse ig) | type: building | pos: (38.5, 0.3, -54) | FIXED from (38.5, 0.85, -54) | REVIEW: bldg_2 (&quot;warehouse ig&quot;) straddles a 0.98m terrain slope on the eastern plateau edge (terrain drops from 0.86m on the west face to -0.12m on the east face). Set to center foundation height y=0.30m; consider extending the flat plateau east to x=44m in the terrain editor.</title>
+      </g>
+      <g transform="translate(517.5,354) rotate(0)" data-id="bldg_3" class="map-obj">
+        <rect x="-21.75" y="-11.25" width="43.5" height="22.5"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_3 (Washroom 1 ) | type: building | pos: (12.5, 1.4, -42)</title>
+      </g>
+      <g transform="translate(561,463.5) rotate(0)" data-id="bldg_4" class="map-obj">
+        <rect x="-10.5" y="-24" width="21" height="48"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_4 (Pharmacy Lab) | type: building | pos: (27, 1.4, -5.5)</title>
+      </g>
+      <g transform="translate(466.5,534) rotate(-180.75)" data-id="bldg_5" class="map-obj">
+        <rect x="-51.75" y="-12" width="103.5" height="24"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_5 (Computer lab , electronic labs ) | type: building | pos: (-4.5, 1.4, 18)</title>
+      </g>
+      <g transform="translate(490.5,627) rotate(0)" data-id="bldg_6" class="map-obj">
+        <rect x="-78" y="-12" width="156" height="24"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_6 (Classrooms) | type: building | pos: (3.5, 1.4, 49)</title>
+      </g>
+      <g transform="translate(292.5,540) rotate(-180)" data-id="bldg_10" class="map-obj">
+        <rect x="-78" y="-12" width="156" height="24"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_10 (classrooms 4) | type: building | pos: (-62.5, 0, 20)</title>
+      </g>
+      <g transform="translate(291,583.5) rotate(0)" data-id="bldg_11" class="map-obj">
+        <rect x="-78" y="-12" width="156" height="24"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_11 (classrooms 3 ) | type: building | pos: (-63, 0, 34.5)</title>
+      </g>
+      <g transform="translate(289.5,625.5) rotate(0)" data-id="bldg_12" class="map-obj">
+        <rect x="-78" y="-12" width="156" height="24"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_12 (Classrooms 2) | type: building | pos: (-63.5, 0, 48.5)</title>
+      </g>
+      <g transform="translate(466.5,576) rotate(0)" data-id="bldg_15" class="map-obj">
+        <rect x="-51.75" y="-12" width="103.5" height="24"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_15 (Computer lab , electronic labs  Copy) | type: building | pos: (-4.5, 1.4, 32)</title>
+      </g>
+      <g transform="translate(310.5,475.5) rotate(0)" data-id="bus_a_gp62" class="map-obj">
+        <rect x="-3.75" y="-15.75" width="7.5" height="31.5"
+          fill="#ef4444" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bus_a_gp62 (Bus NO 2) | type: vehicle | pos: (-56.5, 0, -1.5)</title>
+      </g>
+      <g transform="translate(346.5,475.5) rotate(-2.29)" data-id="bus_b_gp64" class="map-obj">
+        <rect x="-3.75" y="-15.75" width="7.5" height="31.5"
+          fill="#ef4444" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bus_b_gp64 (Bus NO 1 ) | type: vehicle | pos: (-44.5, 0, -1.5)</title>
+      </g>
+      <g transform="translate(441.3,429) rotate(0)" data-id="veh_33" class="map-obj">
+        <rect x="-2.88" y="-6.68" width="5.76" height="13.35"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_33 (Parked Campus Sedan (Silver) 3) | type: vehicle | pos: (-12.9, 1.29, -17) | FIXED from (-12.9, 1.31, -17)</title>
+      </g>
+      <g transform="translate(409.5,378) rotate(0)" data-id="veh_34" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_34 (Courtyard Scooter / Motorcycle 4) | type: vehicle | pos: (-23.5, 0.66, -34) | FIXED from (-23.5, 0.71, -34)</title>
+      </g>
+      <g transform="translate(428.49,426) rotate(-3)" data-id="veh_35" class="map-obj">
+        <rect x="-3.15" y="-7.35" width="6.3" height="14.7"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_35 (Campus Utility Van (Placeholder) 5) | type: vehicle | pos: (-17.17, 1.16, -18) | FIXED from (-17.17, 1.25, -18) | REVIEW: Parked across courtyard ramp slope (wheel elevations vary by 0.15m; grounded at mean wheel elevation 1.16m without tilting chassis).</title>
+      </g>
+      <g transform="translate(415.5,424.5) rotate(0)" data-id="veh_36" class="map-obj">
+        <rect x="-2.88" y="-6.68" width="5.76" height="13.35"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_36 (Parked Campus Sedan (Navy) 6) | type: vehicle | pos: (-21.5, 0.85, -18.5) | FIXED from (-21.5, 0.94, -18.5) | REVIEW: Parked across courtyard ramp slope (wheel elevations vary by 0.14m; grounded at mean wheel elevation 0.85m without tilting chassis).</title>
+      </g>
+      <g transform="translate(414,439.5) rotate(0)" data-id="light_37" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>light_37 (Campus Streetlight Pole (#ff8a2a) 1) | type: lighting | pos: (-22, 0.88, -13.5) | FIXED from (-22, 0.94, -13.5)</title>
+      </g>
+      <g transform="translate(363,447) rotate(0)" data-id="light_38" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>light_38 (Campus Streetlight Pole (#ff8a2a) 2) | type: lighting | pos: (-39, 0.01, -11)</title>
+      </g>
+      <g transform="translate(364.5,511.5) rotate(0)" data-id="light_39" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>light_39 (Campus Streetlight Pole (#ff8a2a) 3) | type: lighting | pos: (-38.5, 0, 10.5)</title>
+      </g>
+      <g transform="translate(363.33,483) rotate(0)" data-id="light_40" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>light_40 (Campus Streetlight Pole (#ff8a2a) 4) | type: lighting | pos: (-38.89, 0, 1)</title>
+      </g>
+      <g transform="translate(268.5,450) rotate(0)" data-id="prop_42" class="map-obj">
+        <rect x="-3.15" y="-0.97" width="6.3" height="1.95"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_42 (Garden Park Bench 1) | type: prop | pos: (-70.5, 0, -10)</title>
+      </g>
+      <g transform="translate(277.5,450) rotate(0)" data-id="prop_43" class="map-obj">
+        <rect x="-3.15" y="-0.97" width="6.3" height="1.95"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_43 (Garden Park Bench 2) | type: prop | pos: (-67.5, 0, -10)</title>
+      </g>
+      <g transform="translate(286.5,450) rotate(0)" data-id="prop_44" class="map-obj">
+        <rect x="-3.15" y="-0.97" width="6.3" height="1.95"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_44 (Garden Park Bench 3) | type: prop | pos: (-64.5, 0, -10)</title>
+      </g>
+      <g transform="translate(268.5,456) rotate(0)" data-id="prop_45" class="map-obj">
+        <rect x="-3.15" y="-0.97" width="6.3" height="1.95"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_45 (Garden Park Bench 4) | type: prop | pos: (-70.5, 0, -8)</title>
+      </g>
+      <g transform="translate(277.5,456) rotate(0)" data-id="prop_46" class="map-obj">
+        <rect x="-3.15" y="-0.97" width="6.3" height="1.95"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_46 (Garden Park Bench 5) | type: prop | pos: (-67.5, 0, -8)</title>
+      </g>
+      <g transform="translate(286.5,456) rotate(0)" data-id="prop_47" class="map-obj">
+        <rect x="-3.15" y="-0.97" width="6.3" height="1.95"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_47 (Garden Park Bench 6) | type: prop | pos: (-64.5, 0, -8)</title>
+      </g>
+      <g transform="translate(289.5,430.5) rotate(0)" data-id="bldg_51" class="map-obj">
+        <rect x="-6.9" y="-6.9" width="13.8" height="13.8"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_51 (Security Guardhouse 18) | type: building | pos: (-63.5, 0, -16.5)</title>
+      </g>
+      <g transform="translate(367.5,463.5) rotate(0)" data-id="road_52" class="map-obj">
+        <rect x="-0.52" y="-18" width="1.05" height="36"
+          fill="#64748b" fill-opacity="0.78" stroke="#eab308" stroke-width="1.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>road_52 (Stone Road Curb Segment 14) | type: road | pos: (-37.5, 0.03, -5.5) | REVIEW: Only 1 curb segment (road_52 at -37.5, 0.03, -5.5) remains in v1.2.0 and overlaps raised garden bed area_55; 15 road segments from v1.1.0 were removed in v1.2.0. Confirm whether roads are intended to be painted via terrain textures or restored as meshes.</title>
+      </g>
+      <g transform="translate(480,439.35) rotate(0)" data-id="arch_30" class="map-obj">
+        <rect x="-0.67" y="-0.67" width="1.35" height="1.35"
+          fill="#8b5cf6" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>arch_30 (Concrete Structural Pillar 1) | type: architecture | pos: (0, 1.4, -13.55) | FIXED from (0, 1.4, -10)</title>
+      </g>
+      <line x1="480" y1="450" x2="480" y2="439.35" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="480" cy="450" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(468,463.35) rotate(0)" data-id="arch_31" class="map-obj">
+        <rect x="-1.32" y="-0.54" width="2.64" height="1.08"
+          fill="#8b5cf6" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>arch_31 (Exterior Split AC Unit 2) | type: architecture | pos: (-4, 4, -5.55) | FIXED from (0, 1.4, -10)</title>
+      </g>
+      <line x1="480" y1="450" x2="468" y2="463.35" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="480" cy="450" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(492,463.35) rotate(0)" data-id="arch_32" class="map-obj">
+        <rect x="-1.32" y="-0.54" width="2.64" height="1.08"
+          fill="#8b5cf6" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>arch_32 (Exterior Split AC Unit 3) | type: architecture | pos: (4, 4, -5.55) | FIXED from (0, 1.4, -10)</title>
+      </g>
+      <line x1="480" y1="450" x2="492" y2="463.35" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="480" cy="450" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(415.5,379.5) rotate(0)" data-id="veh_37" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_37 (Courtyard Scooter / Motorcycle 7) | type: vehicle | pos: (-21.5, 0.89, -33.5) | FIXED from (-21.5, 0.94, -33.5)</title>
+      </g>
+      <g transform="translate(421.5,379.5) rotate(0)" data-id="veh_38" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_38 (Courtyard Scooter / Motorcycle 8) | type: vehicle | pos: (-19.5, 1.06, -33.5) | FIXED from (-19.5, 1.11, -33.5)</title>
+      </g>
+      <g transform="translate(426,379.5) rotate(0)" data-id="veh_39" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_39 (Courtyard Scooter / Motorcycle 9) | type: vehicle | pos: (-18, 1.15, -33.5) | FIXED from (-18, 1.18, -33.5)</title>
+      </g>
+      <g transform="translate(430.5,379.5) rotate(0)" data-id="veh_40" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_40 (Courtyard Scooter / Motorcycle 10) | type: vehicle | pos: (-16.5, 1.21, -33.5) | FIXED from (-16.5, 1.23, -33.5)</title>
+      </g>
+      <g transform="translate(461.31,431.19) rotate(0)" data-id="veh_41" class="map-obj">
+        <rect x="-2.88" y="-6.68" width="5.76" height="13.35"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_41 (Parked Campus Sedan (Silver) 11) | type: vehicle | pos: (-6.23, 1.32, -16.27) | FIXED from (-6.23, 1.33, -16.27)</title>
+      </g>
+      <g transform="translate(397.5,379.5) rotate(0)" data-id="veh_42" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_42 (Courtyard Scooter / Motorcycle 12) | type: vehicle | pos: (-27.5, 0.24, -33.5) | FIXED from (-27.5, 0.3, -33.5)</title>
+      </g>
+      <g transform="translate(390,381) rotate(0)" data-id="veh_43" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_43 (Courtyard Scooter / Motorcycle 13) | type: vehicle | pos: (-30, 0.11, -33) | FIXED from (-30, 0.15, -33)</title>
+      </g>
+      <g transform="translate(382.5,381) rotate(0)" data-id="veh_44" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>veh_44 (Courtyard Scooter / Motorcycle 14) | type: vehicle | pos: (-32.5, 0.03, -33) | FIXED from (-32.5, 0.05, -33)</title>
+      </g>
+      <g transform="translate(373.5,381) rotate(0)" data-id="veh_45" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>veh_45 (Courtyard Scooter / Motorcycle 15) | type: vehicle | pos: (-35.5, 0.01, -33)</title>
+      </g>
+      <g transform="translate(364.5,381) rotate(0)" data-id="veh_46" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>veh_46 (Courtyard Scooter / Motorcycle 16) | type: vehicle | pos: (-38.5, 0, -33)</title>
+      </g>
+      <g transform="translate(355.5,381) rotate(0)" data-id="veh_47" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>veh_47 (Courtyard Scooter / Motorcycle 17) | type: vehicle | pos: (-41.5, 0, -33)</title>
+      </g>
+      <g transform="translate(346.5,381) rotate(0)" data-id="veh_48" class="map-obj">
+        <rect x="-1.17" y="-2.78" width="2.34" height="5.55"
+          fill="#ef4444" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>veh_48 (Courtyard Scooter / Motorcycle 18) | type: vehicle | pos: (-44.5, 0, -33)</title>
+      </g>
+      <g transform="translate(424.62,334.83) rotate(0)" data-id="area_49" class="map-obj">
+        <rect x="-24" y="-24" width="48" height="48"
+          fill="#16a34a" fill-opacity="0.25" stroke="#eab308" stroke-width="1.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_49 (Green Grass Lawn Area 5) | type: ground_area | pos: (-18.46, 2.13, -48.39) | REVIEW: Flat ground_area patch spans 2.89m of sloped terrain (minH=0.11m, centerH=2.14m, maxH=3.00m at pos.y=2.13m).</title>
+      </g>
+      <g transform="translate(338.67,368.37) rotate(0)" data-id="nat_51" class="map-obj">
+        <rect x="-4.8" y="-4.8" width="9.6" height="9.6"
+          fill="#22c55e" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>nat_51 (Himalayan Pine Tree 1) | type: nature | pos: (-47.11, 0, -37.21)</title>
+      </g>
+      <g transform="translate(363,365.25) rotate(0)" data-id="nat_52" class="map-obj">
+        <rect x="-3.3" y="-3.3" width="6.6" height="6.6"
+          fill="#22c55e" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>nat_52 (Large Overgrown Bush 2) | type: nature | pos: (-39, 0, -38.25)</title>
+      </g>
+      <g transform="translate(429.9,371.28) rotate(0)" data-id="tree_40" class="map-obj">
+        <rect x="-7.5" y="-7.5" width="15" height="15"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_40 (Tree 03) | type: nature | pos: (-16.7, 1.26, -36.24) | FIXED from (-16.7, 1.3, -36.24)</title>
+      </g>
+      <g transform="translate(410.46,368.97) rotate(0)" data-id="tree_41" class="map-obj">
+        <rect x="-7.5" y="-7.5" width="15" height="15"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_41 (Tree 04) | type: nature | pos: (-23.18, 0.8, -37.01) | FIXED from (-23.18, 1.22, -37.01)</title>
+      </g>
+      <g transform="translate(395.79,366.24) rotate(0)" data-id="tree_42" class="map-obj">
+        <rect x="-7.5" y="-7.5" width="15" height="15"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_42 (Tree 05) | type: nature | pos: (-28.07, 0.09, -37.92) | FIXED from (-28.07, 0.24, -37.92)</title>
+      </g>
+      <g transform="translate(365.25,369.45) rotate(0)" data-id="tree_43" class="map-obj">
+        <rect x="-7.5" y="-7.5" width="15" height="15"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_43 (Tree 06) | type: nature | pos: (-38.25, 0, -36.85) | FIXED from (-38.25, 0, -36.85)</title>
+      </g>
+      <g transform="translate(297.87,368.4) rotate(0)" data-id="tree_44" class="map-obj">
+        <rect x="-7.5" y="-7.5" width="15" height="15"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_44 (Tree 07) | type: nature | pos: (-60.71, 0, -37.2) | FIXED from (-60.71, 0, -40.05)</title>
+      </g>
+      <line x1="297.87" y1="359.85" x2="297.87" y2="368.4" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="297.87" cy="359.85" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(373.23,457.71) rotate(0)" data-id="tree_45" class="map-obj">
+        <rect x="-2.1" y="-2.1" width="4.2" height="4.2"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_45 (Bush 08) | type: nature | pos: (-35.59, 0.03, -7.43) | FIXED from (-35.59, 0.04, -7.43)</title>
+      </g>
+      <g transform="translate(367.11,523.2) rotate(0)" data-id="lamp_47" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_47 (Street Lamp 06) | type: lighting | pos: (-37.63, 0, 14.4)</title>
+      </g>
+      <g transform="translate(402.42,579.27) rotate(0)" data-id="lamp_51" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_51 (Outdoor Light 07) | type: lighting | pos: (-25.86, -0.02, 33.09) | FIXED from (-25.86, 0.02, 33.09)</title>
+      </g>
+      <g transform="translate(405.87,533.4) rotate(0)" data-id="lamp_52" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_52 (Outdoor Light 08) | type: lighting | pos: (-24.71, 0.07, 17.8) | FIXED from (-24.71, 0.35, 17.8)</title>
+      </g>
+      <g transform="translate(405.57,490.89) rotate(0)" data-id="lamp_53" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_53 (Outdoor Light 09) | type: lighting | pos: (-24.81, 0.02, 3.63) | FIXED from (-24.81, 0.3, 3.63)</title>
+      </g>
+      <g transform="translate(511.53,553.08) rotate(0)" data-id="lamp_40" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_40 (Outdoor Light 11) | type: lighting | pos: (10.51, 1.33, 24.36) | FIXED from (10.51, 1.35, 24.36)</title>
+      </g>
+      <g transform="translate(516.12,511.05) rotate(0)" data-id="lamp_42" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_42 (Outdoor Light 12) | type: lighting | pos: (12.04, 1.3, 10.35)</title>
+      </g>
+      <g transform="translate(515.22,470.46) rotate(0)" data-id="lamp_43" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_43 (Outdoor Light 13) | type: lighting | pos: (11.74, 1.31, -3.18) | FIXED from (11.74, 1.32, -3.18)</title>
+      </g>
+      <g transform="translate(512.34,430.53) rotate(0)" data-id="lamp_44" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_44 (Outdoor Light 14) | type: lighting | pos: (10.78, 1.3, -16.49)</title>
+      </g>
+      <g transform="translate(553.44,435.12) rotate(0)" data-id="lamp_45" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_45 (Outdoor Light 15) | type: lighting | pos: (24.48, 1.3, -14.96) | FIXED from (24.48, 1.32, -14.96)</title>
+      </g>
+      <g transform="translate(553.17,501.03) rotate(0)" data-id="lamp_46" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_46 (Outdoor Light 16) | type: lighting | pos: (24.39, 1.3, 7.01)</title>
+      </g>
+      <g transform="translate(551.73,573.39) rotate(0)" data-id="lamp_48" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_48 (Outdoor Light 17) | type: lighting | pos: (23.91, 1.33, 31.13) | FIXED from (23.91, 1.36, 31.13)</title>
+      </g>
+      <g transform="translate(571.05,612.75) rotate(0)" data-id="lamp_49" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_49 (Outdoor Light 18) | type: lighting | pos: (30.35, 1.33, 44.25) | FIXED from (29.37, 1.35, 45.07)</title>
+      </g>
+      <line x1="568.11" y1="615.21" x2="571.05" y2="612.75" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="568.11" cy="615.21" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(469.65,601.65) rotate(0)" data-id="area_51" class="map-obj">
+        <rect x="-55.65" y="-6.68" width="111.3" height="13.35"
+          fill="#16a34a" fill-opacity="0.25" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_51 (Garden Area 07) | type: ground_area | pos: (-3.45, 1.3, 40.55)</title>
+      </g>
+      <g transform="translate(468.57,513.15) rotate(-1.5)" data-id="area_53" class="map-obj">
+        <rect x="-45.9" y="-4.65" width="91.8" height="9.3"
+          fill="#16a34a" fill-opacity="0.25" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_53 (Garden Area 07 Copy Copy) | type: ground_area | pos: (-3.81, 1.3, 11.05)</title>
+      </g>
+      <g transform="translate(466.5,471.33) rotate(-2.25)" data-id="area_54" class="map-obj">
+        <rect x="-48.9" y="-4.65" width="97.8" height="9.3"
+          fill="#16a34a" fill-opacity="0.25" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_54 (Garden Area 07 Copy Copy Copy) | type: ground_area | pos: (-4.5, 1.3, -2.89)</title>
+      </g>
+      <g transform="translate(360.81,331.05) rotate(0)" data-id="tree_55" class="map-obj">
+        <rect x="-3.43" y="-27.9" width="6.87" height="55.8"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_55 (Bush 09) | type: nature | pos: (-39.73, 0.68, -49.65) | FIXED from (-39.73, 1.9, -49.18) | REVIEW: Bush 09 (tree_55) is an 18.6m-long hedge spanning a 1.77m slope (north end terrain 0.00m, center 0.68m, south end 1.77m). Grounded at center height y=0.68m; consider splitting into 3 shorter hedge segments so each conforms closely to the hill.</title>
+      </g>
+      <line x1="360.81" y1="332.46" x2="360.81" y2="331.05" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="360.81" cy="332.46" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(555.06,495.45) rotate(-92.25)" data-id="prop_56" class="map-obj">
+        <rect x="-3.15" y="-0.97" width="6.3" height="1.95"
+          fill="#f97316" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>prop_56 (Bench 07) | type: prop | pos: (25.02, 1.3, 5.15) | FIXED from (25.02, 1.33, 5.15)</title>
+      </g>
+      <g transform="translate(520.56,452.1) rotate(-92.25)" data-id="prop_57" class="map-obj">
+        <rect x="-3.15" y="-0.97" width="6.3" height="1.95"
+          fill="#f97316" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>prop_57 (Bench 08) | type: prop | pos: (13.52, 1.36, -9.3) | FIXED from (13.52, 1.37, -9.3)</title>
+      </g>
+      <g transform="translate(520.17,491.07) rotate(-94.5)" data-id="prop_58" class="map-obj">
+        <rect x="-3.15" y="-0.97" width="6.3" height="1.95"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_58 (Bench 09) | type: prop | pos: (13.39, 1.3, 3.69)</title>
+      </g>
+      <g transform="translate(519.03,485.37) rotate(0)" data-id="prop_59" class="map-obj">
+        <rect x="-0.82" y="-0.82" width="1.65" height="1.65"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_59 (Trash Bin 10) | type: prop | pos: (13.01, 1.3, 1.79)</title>
+      </g>
+      <g transform="translate(519.54,446.7) rotate(0)" data-id="prop_60" class="map-obj">
+        <rect x="-0.82" y="-0.82" width="1.65" height="1.65"
+          fill="#f97316" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>prop_60 (Trash Bin 11) | type: prop | pos: (13.18, 1.37, -11.1) | FIXED from (13.18, 1.38, -11.1)</title>
+      </g>
+      <g transform="translate(520.26,523.74) rotate(0)" data-id="prop_61" class="map-obj">
+        <rect x="-0.82" y="-0.82" width="1.65" height="1.65"
+          fill="#f97316" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>prop_61 (Trash Bin 12) | type: prop | pos: (13.42, 1.35, 14.58) | FIXED from (13.42, 1.37, 14.58)</title>
+      </g>
+      <g transform="translate(553.08,432.36) rotate(0)" data-id="prop_62" class="map-obj">
+        <rect x="-0.82" y="-0.82" width="1.65" height="1.65"
+          fill="#f97316" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>prop_62 (Trash Bin 13) | type: prop | pos: (24.36, 1.31, -15.88) | FIXED from (24.36, 1.32, -15.33)</title>
+      </g>
+      <line x1="553.08" y1="434.01" x2="553.08" y2="432.36" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="553.08" cy="434.01" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(513.96,385.08) rotate(0)" data-id="prop_63" class="map-obj">
+        <rect x="-0.82" y="-0.82" width="1.65" height="1.65"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_63 (Trash Bin 14) | type: prop | pos: (11.32, 1.32, -31.64)</title>
+      </g>
+      <g transform="translate(460.41,439.02) rotate(0)" data-id="prop_64" class="map-obj">
+        <rect x="-0.82" y="-0.82" width="1.65" height="1.65"
+          fill="#f97316" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>prop_64 (Trash Bin 15) | type: prop | pos: (-6.53, 1.36, -13.66) | FIXED from (-6.53, 1.37, -13.66)</title>
+      </g>
+      <g transform="translate(365.55,508.41) rotate(0)" data-id="prop_65" class="map-obj">
+        <rect x="-0.82" y="-0.82" width="1.65" height="1.65"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_65 (Trash Bin 16) | type: prop | pos: (-38.15, 0, 9.47)</title>
+      </g>
+      <g transform="translate(295.17,438.84) rotate(0)" data-id="prop_66" class="map-obj">
+        <rect x="-0.82" y="-0.82" width="1.65" height="1.65"
+          fill="#f97316" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>prop_66 (Trash Bin 17) | type: prop | pos: (-61.61, 0, -13.72)</title>
+      </g>
+      <g transform="translate(565.2,365.4) rotate(0)" data-id="tree_51" class="map-obj">
+        <rect x="-9.9" y="-2.67" width="19.8" height="5.34"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_51 (Bush 10) | type: nature | pos: (28.4, 1.37, -38.2) | FIXED from (28.4, 1.4, -38.2)</title>
+      </g>
+      <g transform="translate(553.02,366.03) rotate(0)" data-id="lamp_55" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_55 (Street Lamp 19) | type: lighting | pos: (24.34, 1.36, -37.99) | FIXED from (24.34, 1.39, -37.99)</title>
+      </g>
+      <g transform="translate(537.24,339.54) rotate(0)" data-id="lamp_56" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_56 (Street Lamp 20) | type: lighting | pos: (19.08, 1.33, -46.82) | FIXED from (19.08, 1.35, -46.82)</title>
+      </g>
+      <g transform="translate(499.47,340.65) rotate(0)" data-id="lamp_57" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_57 (Street Lamp 21) | type: lighting | pos: (6.49, 1.35, -46.45) | FIXED from (6.49, 1.37, -46.23)</title>
+      </g>
+      <line x1="499.47" y1="341.31" x2="499.47" y2="340.65" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="499.47" cy="341.31" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(499.14,325.71) rotate(0)" data-id="lamp_58" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_58 (Street Lamp 22) | type: lighting | pos: (6.38, 1.3, -51.43)</title>
+      </g>
+      <g transform="translate(499.23,301.65) rotate(0)" data-id="lamp_59" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_59 (Outdoor Light 23) | type: lighting | pos: (6.41, 1.3, -59.45)</title>
+      </g>
+      <g transform="translate(459.03,385.56) rotate(0)" data-id="lamp_60" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_60 (Street Lamp 24) | type: lighting | pos: (-6.99, 1.32, -31.48) | FIXED from (-6.99, 1.33, -31.48)</title>
+      </g>
+      <g transform="translate(518.1,385.65) rotate(0)" data-id="lamp_61" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_61 (Outdoor Light 25) | type: lighting | pos: (12.7, 1.3, -31.45) | FIXED from (12.61, 1.31, -31.37)</title>
+      </g>
+      <line x1="517.83" y1="385.89" x2="518.1" y2="385.65" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="517.83" cy="385.89" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(539.94,339.54) rotate(0)" data-id="prop_67" class="map-obj">
+        <rect x="-0.82" y="-0.82" width="1.65" height="1.65"
+          fill="#f97316" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>prop_67 (Trash Bin 18) | type: prop | pos: (19.98, 1.35, -46.82) | FIXED from (19.26, 1.36, -46.12)</title>
+      </g>
+      <line x1="537.78" y1="341.64" x2="539.94" y2="339.54" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="537.78" cy="341.64" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(520.98,340.98) rotate(0)" data-id="prop_69" class="map-obj">
+        <rect x="-0.82" y="-0.82" width="1.65" height="1.65"
+          fill="#f97316" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>prop_69 (Trash Bin 19) | type: prop | pos: (13.66, 1.35, -46.34) | FIXED from (13.66, 1.36, -46.34)</title>
+      </g>
+      <g transform="translate(360.09,359.64) rotate(0)" data-id="arch_44" class="map-obj">
+        <rect x="-89.95" y="-0.45" width="179.91" height="0.9"
+          fill="#8b5cf6" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>arch_44 (Wall 05) | type: architecture | pos: (-39.97, 0, -40.12) | FIXED from (-39.97, 1.3, -40.12) | REVIEW: Wall 05 spans across the 0.00m lower campus and 1.30m upper terrace step (x=-69.95 to -9.98). Grounded at y=0.00m so no section floats; consider splitting into two stepped wall segments if a uniform top-of-wall profile is desired.</title>
+      </g>
+      <g transform="translate(247.89,443.88) rotate(-90)" data-id="arch_45" class="map-obj">
+        <rect x="-44.14" y="-0.15" width="88.29" height="0.3"
+          fill="#8b5cf6" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>arch_45 (Wall 06) | type: architecture | pos: (-77.37, 0, -12.04)</title>
+      </g>
+      <g transform="translate(171.06,487.56) rotate(0)" data-id="arch_46" class="map-obj">
+        <rect x="-77.03" y="-0.43" width="154.05" height="0.87"
+          fill="#8b5cf6" fill-opacity="0.78" stroke="#eab308" stroke-width="1.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>arch_46 (Wall 07) | type: architecture | pos: (-102.98, 0, 2.52) | REVIEW: Located near outer campus boundary at (-102.98, 0.00, 2.52) outside the core [-88m, 88m] gameplay arena.</title>
+      </g>
+      <g transform="translate(184.65,582.06) rotate(0)" data-id="area_47" class="map-obj">
+        <rect x="-19.03" y="-56.13" width="38.07" height="112.26"
+          fill="#16a34a" fill-opacity="0.25" stroke="#eab308" stroke-width="1.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_47 (Garden Area 10) | type: ground_area | pos: (-98.45, 0, 34.02) | REVIEW: Located near outer campus boundary at (-98.45, 0.00, 34.02) outside the core [-88m, 88m] gameplay arena.</title>
+      </g>
+      <g transform="translate(138.15,505.35) rotate(0)" data-id="bldg_48" class="map-obj">
+        <rect x="-15" y="-12" width="30" height="24"
+          fill="#3b82f6" fill-opacity="0.78" stroke="#eab308" stroke-width="1.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>bldg_48 (Washroom 2) | type: building | pos: (-113.95, 0, 8.45) | REVIEW: Located near outer campus boundary at (-113.95, 0.00, 8.45) outside the core [-88m, 88m] gameplay arena.</title>
+      </g>
+      <g transform="translate(449.55,309.15) rotate(-90)" data-id="arch_49" class="map-obj">
+        <rect x="-50.76" y="-0.25" width="101.52" height="0.51"
+          fill="#8b5cf6" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>arch_49 (Wall 08) | type: architecture | pos: (-10.15, 1.3, -56.95) | FIXED from (-10.15, 2.94, -56.95) | REVIEW: Wall 08 crosses a 1.47m terrain mound (1.30m at ends to 2.77m at peak). Grounded at y=1.30m to eliminate under-wall gaps.</title>
+      </g>
+      <g transform="translate(427.14,289.05) rotate(0)" data-id="area_50" class="map-obj">
+        <rect x="-21" y="-21" width="42" height="42"
+          fill="#16a34a" fill-opacity="0.25" stroke="#eab308" stroke-width="1.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_50 (Grass 10) | type: ground_area | pos: (-17.62, 2.39, -63.65) | REVIEW: Flat ground_area patch spans 1.20m of sloped terrain (minH=1.80m, centerH=2.39m, maxH=3.00m at pos.y=2.39m).</title>
+      </g>
+      <g transform="translate(367.5,477.12) rotate(-90)" data-id="area_55" class="map-obj">
+        <rect x="-28.65" y="-2.4" width="57.3" height="4.8"
+          fill="#16a34a" fill-opacity="0.25" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_55 (Garden Area 11) | type: ground_area | pos: (-37.5, 0, -0.96)</title>
+      </g>
+      <g transform="translate(414,491.31) rotate(-90)" data-id="area_56" class="map-obj">
+        <rect x="-9.15" y="-2.4" width="18.3" height="4.8"
+          fill="#16a34a" fill-opacity="0.25" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_56 (Garden Area 11 Copy) | type: ground_area | pos: (-22, 1.32, 3.77)</title>
+      </g>
+      <g transform="translate(411.9,537.24) rotate(-90)" data-id="area_57" class="map-obj">
+        <rect x="-9.15" y="-2.4" width="18.3" height="4.8"
+          fill="#16a34a" fill-opacity="0.25" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>area_57 (Garden Area 11 Copy Copy) | type: ground_area | pos: (-22.7, 1.3, 19.08) | FIXED from (-22.48, 1.3, 19.08)</title>
+      </g>
+      <line x1="412.56" y1="537.24" x2="411.9" y2="537.24" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="412.56" cy="537.24" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(412.08,577.5) rotate(-90)" data-id="area_63" class="map-obj">
+        <rect x="-9.15" y="-2.4" width="18.3" height="4.8"
+          fill="#16a34a" fill-opacity="0.25" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_63 (Garden Area 11 Copy Copy Copy) | type: ground_area | pos: (-22.64, 1.22, 32.5)</title>
+      </g>
+      <g transform="translate(409.8,629.31) rotate(-90)" data-id="area_64" class="map-obj">
+        <rect x="-9.15" y="-2.4" width="18.3" height="4.8"
+          fill="#16a34a" fill-opacity="0.25" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>area_64 (Garden Area 11 Copy Copy Copy Copy) | type: ground_area | pos: (-23.4, 1, 49.77) | FIXED from (-23.04, 1.08, 49.77)</title>
+      </g>
+      <line x1="410.88" y1="629.31" x2="409.8" y2="629.31" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="410.88" cy="629.31" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(293.31,561.3) rotate(0)" data-id="area_65" class="map-obj">
+        <rect x="-69.15" y="-4.87" width="138.3" height="9.75"
+          fill="#16a34a" fill-opacity="0.25" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_65 (Garden Area 07 Copy Copy) | type: ground_area | pos: (-62.23, 0, 27.1)</title>
+      </g>
+      <g transform="translate(293.19,604.89) rotate(0)" data-id="area_66" class="map-obj">
+        <rect x="-69.15" y="-4.87" width="138.3" height="9.75"
+          fill="#16a34a" fill-opacity="0.25" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_66 (Garden Area 07 Copy Copy Copy) | type: ground_area | pos: (-62.27, 0, 41.63)</title>
+      </g>
+      <g transform="translate(464.28,554.1) rotate(-1.5)" data-id="area_40" class="map-obj">
+        <rect x="-45.9" y="-4.65" width="91.8" height="9.3"
+          fill="#16a34a" fill-opacity="0.25" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>area_40 (Garden Area 07 Copy Copy Copy) | type: ground_area | pos: (-5.24, 1.3, 24.7)</title>
+      </g>
+      <g transform="translate(429.66,555.06) rotate(0)" data-id="lamp_50" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_50 (Decorative Lamp 24) | type: lighting | pos: (-16.78, 1.3, 25.02)</title>
+      </g>
+      <g transform="translate(344.97,561.48) rotate(0)" data-id="lamp_63" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_63 (Decorative Lamp 27) | type: lighting | pos: (-45.01, 0, 27.16)</title>
+      </g>
+      <g transform="translate(308.52,561.45) rotate(0)" data-id="lamp_64" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_64 (Decorative Lamp 28) | type: lighting | pos: (-57.16, 0, 27.15)</title>
+      </g>
+      <g transform="translate(267.99,561.18) rotate(0)" data-id="lamp_65" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_65 (Decorative Lamp 29) | type: lighting | pos: (-70.67, 0, 27.06)</title>
+      </g>
+      <g transform="translate(234.66,561.66) rotate(0)" data-id="lamp_66" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_66 (Decorative Lamp 30) | type: lighting | pos: (-81.78, 0, 27.22)</title>
+      </g>
+      <g transform="translate(243.06,605.07) rotate(0)" data-id="lamp_67" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_67 (Decorative Lamp 31) | type: lighting | pos: (-78.98, 0, 41.69)</title>
+      </g>
+      <g transform="translate(280.05,605.22) rotate(0)" data-id="lamp_68" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_68 (Decorative Lamp 32) | type: lighting | pos: (-66.65, 0, 41.74)</title>
+      </g>
+      <g transform="translate(320.19,605.28) rotate(0)" data-id="lamp_69" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_69 (Decorative Lamp 33) | type: lighting | pos: (-53.27, 0, 41.76)</title>
+      </g>
+      <g transform="translate(349.5,604.62) rotate(0)" data-id="lamp_70" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_70 (Decorative Lamp 34) | type: lighting | pos: (-43.5, 0, 41.54)</title>
+      </g>
+      <g transform="translate(365.76,604.23) rotate(0)" data-id="lamp_71" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_71 (Outdoor Light 35) | type: lighting | pos: (-38.08, 0, 41.41)</title>
+      </g>
+      <g transform="translate(366.06,561.18) rotate(0)" data-id="lamp_72" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_72 (Outdoor Light 36) | type: lighting | pos: (-37.98, 0, 27.06)</title>
+      </g>
+      <g transform="translate(441.27,472.29) rotate(0)" data-id="lamp_73" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_73 (Decorative Lamp 37) | type: lighting | pos: (-12.91, 1.3, -2.57) | FIXED from (-12.91, 1.31, -2.57)</title>
+      </g>
+      <g transform="translate(477.03,471.06) rotate(0)" data-id="lamp_74" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_74 (Decorative Lamp 38) | type: lighting | pos: (-0.99, 1.3, -2.98)</title>
+      </g>
+      <g transform="translate(502.23,470.19) rotate(0)" data-id="lamp_75" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_75 (Decorative Lamp 39) | type: lighting | pos: (7.41, 1.33, -3.27) | FIXED from (7.41, 1.34, -3.27)</title>
+      </g>
+      <g transform="translate(433.2,514.47) rotate(0)" data-id="lamp_76" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_76 (Decorative Lamp 40) | type: lighting | pos: (-15.6, 1.3, 11.49)</title>
+      </g>
+      <g transform="translate(473.31,513.51) rotate(0)" data-id="lamp_77" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_77 (Decorative Lamp 41) | type: lighting | pos: (-2.23, 1.3, 11.17)</title>
+      </g>
+      <g transform="translate(509.13,512.28) rotate(0)" data-id="lamp_78" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_78 (Decorative Lamp 42) | type: lighting | pos: (9.71, 1.3, 10.76)</title>
+      </g>
+      <g transform="translate(459.27,554.31) rotate(0)" data-id="lamp_79" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#1e293b" stroke-width="0.8" />
+        <circle cx="0" cy="0" r="2.2" fill="#0f172a" />
+        <title>lamp_79 (Decorative Lamp 41) | type: lighting | pos: (-6.91, 1.3, 24.77)</title>
+      </g>
+      <g transform="translate(504.57,553.68) rotate(0)" data-id="lamp_80" class="map-obj">
+        <rect x="-0.75" y="-0.75" width="1.5" height="1.5"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_80 (Decorative Lamp 42) | type: lighting | pos: (8.19, 1.32, 24.56) | FIXED from (8.19, 1.33, 24.56)</title>
+      </g>
+      <g transform="translate(458.88,419.82) rotate(24)" data-id="lamp_81" class="map-obj">
+        <rect x="-1.2" y="-1.8" width="2.4" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_81 (Street Lamp 43) | type: lighting | pos: (-7.04, 1.33, -20.06) | FIXED from (-7.04, 1.34, -20.06)</title>
+      </g>
+      <g transform="translate(466.26,437.28) rotate(-89.25)" data-id="lamp_82" class="map-obj">
+        <rect x="-1.8" y="-1.8" width="3.6" height="3.6"
+          fill="#facc15" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>lamp_82 (Outdoor Light 44) | type: lighting | pos: (-4.58, 1.34, -14.24) | FIXED from (-4.69, 1.35, -14.24)</title>
+      </g>
+      <line x1="465.93" y1="437.28" x2="466.26" y2="437.28" stroke="#f43f5e" stroke-width="2" stroke-dasharray="3,2" />
+         <circle cx="465.93" cy="437.28" r="3" fill="none" stroke="#f43f5e" stroke-width="1.5" />
+      <g transform="translate(538.38,771.03) rotate(0)" data-id="tree_83" class="map-obj">
+        <rect x="-7.5" y="-7.5" width="15" height="15"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_83 (Tree 11) | type: nature | pos: (19.46, 31.33, 97.01) | FIXED from (19.46, 31.33, 97.01) | REVIEW: Located on steep outer hill slope (footprint elevation spans 22.69m to 39.25m; trunk grounded at center 31.33m). Located near outer campus boundary at (19.46, 31.33, 97.01) outside the core [-88m, 88m] gameplay arena.</title>
+      </g>
+      <g transform="translate(551.37,807.6) rotate(0)" data-id="tree_84" class="map-obj">
+        <rect x="-7.5" y="-7.5" width="15" height="15"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_84 (Tree 12) | type: nature | pos: (23.79, 33.3, 109.2) | FIXED from (23.79, 33.3, 109.2) | REVIEW: Located on steep outer hill slope (footprint elevation spans 25.45m to 38.32m; trunk grounded at center 33.30m). Located near outer campus boundary at (23.79, 33.30, 109.20) outside the core [-88m, 88m] gameplay arena.</title>
+      </g>
+      <g transform="translate(551.22,751.62) rotate(0)" data-id="tree_85" class="map-obj">
+        <rect x="-7.5" y="-7.5" width="15" height="15"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_85 (Tree 13) | type: nature | pos: (23.74, 15.06, 90.54) | FIXED from (23.74, 15.06, 90.54) | REVIEW: Located on steep outer hill slope (footprint elevation spans 9.34m to 22.47m; trunk grounded at center 15.06m).</title>
+      </g>
+      <g transform="translate(561.09,791.67) rotate(0)" data-id="tree_86" class="map-obj">
+        <rect x="-7.5" y="-7.5" width="15" height="15"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_86 (Tree 14) | type: nature | pos: (27.03, 21.64, 103.89) | FIXED from (27.03, 21.64, 103.89) | REVIEW: Located on steep outer hill slope (footprint elevation spans 15.00m to 29.40m; trunk grounded at center 21.64m). Located near outer campus boundary at (27.03, 21.64, 103.89) outside the core [-88m, 88m] gameplay arena.</title>
+      </g>
+      <g transform="translate(521.58,723.63) rotate(0)" data-id="tree_87" class="map-obj">
+        <rect x="-7.5" y="-7.5" width="15" height="15"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_87 (Tree 15) | type: nature | pos: (13.86, 17.86, 81.21) | FIXED from (13.86, 17.86, 81.21) | REVIEW: Located on steep outer hill slope (footprint elevation spans 11.43m to 25.09m; trunk grounded at center 17.86m).</title>
+      </g>
+      <g transform="translate(660.18,594.51) rotate(0)" data-id="tree_88" class="map-obj">
+        <rect x="-19.65" y="-1.95" width="39.3" height="3.9"
+          fill="#22c55e" fill-opacity="0.78" stroke="#f43f5e" stroke-width="2.2" />
+        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+        <title>tree_88 (Rock 16) | type: nature | pos: (60.06, 14.67, 38.17) | FIXED from (60.06, 14.68, 38.17) | REVIEW: Located on steep outer hill slope (footprint elevation spans 6.39m to 25.20m; trunk grounded at center 14.67m).</title>
+      </g>
+    </svg>
+  </div>
+</body>
+</html>

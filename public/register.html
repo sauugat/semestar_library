@@ -124,7 +124,14 @@
       box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
     }
     .progressive-section {
+      display: grid !important;
+      gap: 16px !important;
+      width: 100% !important;
       animation: fadeIn 0.25s ease-out;
+    }
+    .progressive-section[style*="display: none"],
+    .progressive-section[style*="display:none"] {
+      display: none !important;
     }
   </style>
 </head>
@@ -621,7 +628,7 @@
         document.getElementById('email').readOnly = true;
 
         // Reveal progressive account creation fields
-        document.getElementById('accountDetailsSection').style.display = 'block';
+        document.getElementById('accountDetailsSection').style.display = 'grid';
         document.getElementById('password').focus();
       } catch (err) {
         showRegisterAlert(err.message || 'Error verifying code.', 'error');
@@ -783,7 +790,7 @@
             }
             document.getElementById('emailVerifiedBadge').style.display = 'inline-flex';
             document.getElementById('verifyEmailBtn').style.display = 'none';
-            document.getElementById('accountDetailsSection').style.display = 'block';
+            document.getElementById('accountDetailsSection').style.display = 'grid';
           }
         }
       } catch {}

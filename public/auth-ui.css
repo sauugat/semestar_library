@@ -237,6 +237,17 @@ html body .auth-card,
   }
 }
 
+.progressive-section {
+  display: grid !important;
+  gap: 16px !important;
+  width: 100% !important;
+}
+
+.progressive-section[style*="display: none"],
+.progressive-section[style*="display:none"] {
+  display: none !important;
+}
+
 /* Labels: 12px, weight 600, uppercase, letter-spacing .04em, color var(--muted), left-aligned */
 .field-label,
 .apple-input-label,

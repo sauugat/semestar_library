@@ -29,10 +29,13 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
         return res.status(400).json({ error: 'Semester must be between 1 and 8.' });
       }
     } else if (context && context.authenticated && (context.role === 'student' || context.role === 'cr')) {
-      if (!context.cohort || !context.cohort.currentSemester || context.academicStatus === 'unassigned') {
+      const semNum = (context.cohort && context.cohort.currentSemester)
+        ? Number(context.cohort.currentSemester)
+        : semesterNumber(context.semester);
+      if (!semNum) {
         return res.set('Cache-Control', 'no-store').json([]);
       }
-      targetSemester = Number(context.cohort.currentSemester);
+      targetSemester = semNum;
     } else {
       targetSemester = req.query.semester === undefined ? null : semesterNumber(req.query.semester);
       if (req.query.semester !== undefined && !targetSemester) {

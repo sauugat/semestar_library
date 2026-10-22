@@ -2555,12 +2555,17 @@
     const ROMAN_MAP = { '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI', '7': 'VII', '8': 'VIII' };
     const NUM_MAP = { 'I': '1', 'II': '2', 'III': '3', 'IV': '4', 'V': '5', 'VI': '6', 'VII': '7', 'VIII': '8' };
 
+    function normalizeSemToken(val) {
+      if (val == null) return '';
+      const raw = String(val).trim().replace(/^(?:semester|sem)\s*/i, '').toUpperCase();
+      return NUM_MAP[raw] || raw;
+    }
+
     function semMatches(a, b) {
       if (!a || !b) return false;
-      const sa = String(a).trim().toUpperCase();
-      const sb = String(b).trim().toUpperCase();
-      if (sa === sb) return true;
-      return (ROMAN_MAP[sa] === sb) || (NUM_MAP[sa] === sb);
+      const na = normalizeSemToken(a);
+      const nb = normalizeSemToken(b);
+      return Boolean(na && nb && na === nb);
     }
 
     function escapeHtml(text) {
@@ -2658,7 +2663,8 @@
       const filtered = allAssignments.filter(a => {
         // Semester match
         if (currentSemesterFilter) {
-          if (!semMatches(a.semester, currentSemesterFilter)) return false;
+          const assignSem = a.semester || a.semester_no || a.semesterNo || '';
+          if (assignSem && !semMatches(assignSem, currentSemesterFilter)) return false;
         }
         // Subject match
         if (currentSubjectFilter) {
@@ -3002,7 +3008,7 @@
       const container = document.getElementById('subjectPillsScroll');
       if (!container || !bar) return;
 
-      const num = NUM_MAP[currentSemesterFilter] || currentSemesterFilter;
+      const num = normalizeSemToken(currentSemesterFilter);
 
       // Do NOT show subject pills when "All Semesters" is selected
       if (!num) {
@@ -3016,7 +3022,7 @@
       let subjectsToShow = [];
 
       if (syllabusData && syllabusData.semesters) {
-        const matchedSem = syllabusData.semesters.find(s => String(s.semester) === String(num));
+        const matchedSem = syllabusData.semesters.find(s => semMatches(s.semester, num));
         if (matchedSem && matchedSem.courses) {
           matchedSem.courses.forEach(c => {
             const name = c.title || c.name || '';
@@ -3027,8 +3033,8 @@
 
       // Also ensure any subjects from actual uploaded assignments in this semester are included
       allAssignments.forEach(a => {
-        const aSem = a.semester ? (NUM_MAP[a.semester] || a.semester) : '';
-        if (String(aSem) === String(num)) {
+        const aSem = a.semester || a.semester_no || a.semesterNo || '';
+        if (!aSem || semMatches(aSem, num)) {
           if (a.subject) {
             const exists = subjectsToShow.some(s => s.name.toLowerCase() === a.subject.toLowerCase());
             if (!exists) {
@@ -3040,8 +3046,8 @@
 
       // Filter assignments count for this semester
       const semAssignments = allAssignments.filter(a => {
-        const aSem = a.semester ? (NUM_MAP[a.semester] || a.semester) : '';
-        return String(aSem) === String(num);
+        const aSem = a.semester || a.semester_no || a.semesterNo || '';
+        return !aSem || semMatches(aSem, num);
       });
 
       container.innerHTML = '';
@@ -3110,7 +3116,12 @@
     }
 
     function resetFilters() {
-      setSemesterFilter('');
+      const isStaff = academicContext && (academicContext.role === 'teacher' || academicContext.role === 'admin');
+      if (!isStaff && academicContext && academicContext.currentSemester) {
+        setSemesterFilter(String(academicContext.currentSemester));
+      } else {
+        setSemesterFilter('');
+      }
       currentSubjectFilter = '';
       currentStatusFilter = '';
       const searchInputEl = document.getElementById('searchInput');
@@ -3225,7 +3236,7 @@
         if (!isStaff && academicContext && academicContext.currentSemester) {
           tabsEl.style.display = 'none';
           const targetSem = String(academicContext.currentSemester);
-          const studentSem = semesters.find(s => s.rawSemester === targetSem || NUM_MAP[s.rawSemester] === targetSem);
+          const studentSem = semesters.find(s => semMatches(s.rawSemester, targetSem));
           if (studentSem) {
             renderSubjectsGrid(studentSem.rawSemester, studentSem.courses);
           } else if (semesters.length > 0) {

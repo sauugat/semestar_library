@@ -1,5 +1,5 @@
 // Semester Library Minimal Safe Service Worker for PWA Installation
-const CACHE_NAME = 'semester-library-static-v20';
+const CACHE_NAME = 'semester-library-static-v21';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
@@ -60,6 +60,7 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/auth') ||
     url.pathname.startsWith('/js/auth') ||
+    url.pathname.startsWith('/academic-context') ||
     url.pathname.startsWith('/logout') ||
     url.pathname.startsWith('/login') ||
     url.pathname.startsWith('/register') ||

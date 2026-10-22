@@ -774,10 +774,15 @@ app.get('/robots.txt', (req, res) => {
 // Serve persistent post images on every instance, including fresh Vercel functions.
 app.use('/uploads/posts', require('./routes/post-images')(db));
 
-// Serve shared auth module at both /auth.js and /js/auth.js
+// Serve shared auth and academic-context modules without stale browser caching
 app.get(['/js/auth.js', '/auth.js'], (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(__dirname, 'public/auth.js'));
+});
+
+app.get('/academic-context.js', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(__dirname, 'public/academic-context.js'));
 });
 
 // Serve static assets securely
@@ -814,7 +819,7 @@ function requireLogin(req, res, next) {
     return next();
   }
   if (req.session && req.session.studentId) {
-    db.get('SELECT studentId, role, name, department, semester, email, avatarUrl, account_status FROM students WHERE studentId = ?', req.session.studentId)
+    db.get('SELECT studentId, role, name, department, semester, cohort_id, email, avatarUrl, account_status FROM students WHERE studentId = ?', req.session.studentId)
       .then(student => {
         if (!student) {
           if (typeof req.session.destroy === 'function') req.session.destroy(() => {});
@@ -1676,7 +1681,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
 
     // Fetch authoritative Neon student profile
     const student = await db.get(
-      `SELECT studentId, username, name, role, department, semester, gender, email, avatarUrl, verification_status, account_status
+      `SELECT studentId, username, name, role, department, semester, cohort_id, gender, email, avatarUrl, verification_status, account_status
        FROM students
        WHERE supabase_uid = ? OR (email IS NOT NULL AND LOWER(email) = ?)`,
       data.user.id, resolvedEmail
@@ -1728,6 +1733,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
         role: student?.role || 'student',
         department: student?.department || 'BIT',
         semester: student?.semester || null,
+        cohortId: student?.cohort_id || student?.cohortId || null,
         gender: student?.gender || null,
         email: student?.email || resolvedEmail,
         verificationStatus: 'verified',

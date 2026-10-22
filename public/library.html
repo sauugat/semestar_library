@@ -3165,10 +3165,12 @@
       if (!h) return;
       const ctx = window.ACADEMIC_CONTEXT;
       if (ctx && ctx.isStudent) {
-        if (ctx.isUnassigned) {
-          h.textContent = 'Academic Library';
-        } else if (ctx.cohort) {
+        if (ctx.cohort) {
           h.textContent = `${ctx.cohort.displayName} Courses`;
+        } else if (ctx.semesterRoman) {
+          h.textContent = `${SEM_MAP[ctx.semesterRoman] || `Semester ${ctx.currentSemester}`} Courses`;
+        } else if (ctx.isUnassigned) {
+          h.textContent = 'Academic Library';
         } else {
           h.textContent = 'Current Semester Courses';
         }
@@ -3765,8 +3767,8 @@
         }
         updateHeaderTitle();
 
-        // Handle unassigned students cleanly
-        if (ctx && ctx.isUnassigned) {
+        // Handle unassigned students cleanly when no semester is resolved
+        if (ctx && ctx.isUnassigned && !ctx.semesterRoman) {
           container.innerHTML = `
             <div class="unassigned-academic-card">
               <h3>Class Not Assigned</h3>

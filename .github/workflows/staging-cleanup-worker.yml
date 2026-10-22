@@ -8,17 +8,32 @@ on:
 
 jobs:
   cleanup-staged-uploads:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
       - name: Trigger Staging Cleanup Worker
+        env:
+          APP_URL: ${{ secrets.PRODUCTION_APP_URL || 'https://semestar-library.vercel.app' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET || secrets.INTERNAL_CRON_SECRET }}
         run: |
+          if [ -z "$CRON_SECRET" ]; then
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "Skipping staged attachment cleanup on pull_request (secrets unavailable)."
+              exit 0
+            fi
+            echo "::error::CRON_SECRET (or INTERNAL_CRON_SECRET) is not configured in repository secrets."
+            exit 1
+          fi
+
           echo "Triggering staged attachment cleanup at $(date -u --iso-8601=seconds)..."
           HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" -X POST \
-            "https://semestar-library.vercel.app/api/internal/posts/cleanup-staging" \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${APP_URL%/}/api/internal/posts/cleanup-staging" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "x-cron-secret: ${CRON_SECRET}" \
             -H "Content-Type: application/json" \
-            -d '{"ttlHours": 24}')
+            -d '{"ttlHours": 24}' \
+            --max-time 30)
           
           echo "Worker Response HTTP Status: $HTTP_STATUS"
           cat response.json

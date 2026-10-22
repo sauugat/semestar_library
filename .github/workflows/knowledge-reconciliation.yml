@@ -9,23 +9,29 @@ on:
 jobs:
   reconcile:
     name: Reconcile Unified Knowledge Index
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
       - name: Trigger Internal Knowledge Worker & Reconciliation
         env:
-          APP_URL: ${{ secrets.PRODUCTION_APP_URL || 'https://semester-library.vercel.app' }}
-          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET }}
+          APP_URL: ${{ secrets.PRODUCTION_APP_URL || 'https://semestar-library.vercel.app' }}
+          INTERNAL_CRON_SECRET: ${{ secrets.INTERNAL_CRON_SECRET || secrets.CRON_SECRET }}
         run: |
           if [ -z "$INTERNAL_CRON_SECRET" ]; then
-            echo "ERROR: INTERNAL_CRON_SECRET is not configured in repository secrets."
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "Skipping knowledge reconciliation on pull_request (secrets unavailable)."
+              exit 0
+            fi
+            echo "::error::INTERNAL_CRON_SECRET (or CRON_SECRET) is not configured in repository secrets."
             exit 1
           fi
 
           echo "Triggering knowledge index reconciliation endpoint..."
-          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "${APP_URL}/api/internal/knowledge/reconcile" \
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "${APP_URL%/}/api/internal/knowledge/reconcile" \
             -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${INTERNAL_CRON_SECRET}" \
             -H "x-cron-secret: ${INTERNAL_CRON_SECRET}" \
             --max-time 30)
 
@@ -36,6 +42,6 @@ jobs:
           echo "Response: $HTTP_BODY"
 
           if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "Failed with HTTP status $HTTP_STATUS"
+            echo "::error::Knowledge reconciliation failed with HTTP status $HTTP_STATUS"
             exit 1
           fi

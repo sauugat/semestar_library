@@ -5256,7 +5256,7 @@ app.get('/api/chat/attachment/:filename', requireLogin, async (req, res) => {
 app.use('/api/notifications', require('./routes/notifications')(db, requireLogin));
 
 function verifyInternalCron(req, res, next) {
-  const secret = process.env.CRON_SECRET;
+  const secret = process.env.CRON_SECRET || process.env.INTERNAL_CRON_SECRET;
   if (!secret && process.env.NODE_ENV !== 'production') {
     return next();
   }

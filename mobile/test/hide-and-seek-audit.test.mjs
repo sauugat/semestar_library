@@ -2043,6 +2043,143 @@ describe('Physics & Controls Audit: Gandaki University 3D Hide-and-Seek', () => 
       sys.toggleInteractableById(mainSwitchboard.id);
       assert.strictEqual(sys.powerStates.campusExteriorLights, true, 'Main switchboard should restore exterior campus lights power state');
     });
+
+    test('9.9 Step 9 Complete 13-Point Interior Overhaul Verification: Representative classroom, nested-mesh raycast, LOS wall occlusion, hinge/axis limits, anti-corruption, restore_campus_power mission prerequisites, hiding control restoration, and multiplayer deduplication', () => {
+      const env = initGameEnvironment();
+      const sys = env.scene.userData.interiorSystem;
+      assert.ok(sys && sys.interactablesById, 'Centralized InteractionRegistry must be exposed on scene.userData.interiorSystem');
+
+      // 1. Representative Classroom (West Wing L1 Room 1) contains functional door, searchable drawer, and working electrical switchboard
+      const repDrawer = sys.interactablesById['drawer-teacher-west-wing-l1-room-1'];
+      const repSwitchboard = sys.interactablesById['switchboard-classroom-west-wing-l1-room-1'];
+      const repLightSwitch = sys.interactablesById['switch-west-wing-l1-room-1'];
+      const repCupboard = sys.interactablesById['cupboard-west-wing-l1-room-1'];
+      const repDoor = sys.interactables.find(it => it.type === 'door' && Math.hypot(it.x - (-7.5), it.z - (-15.6)) < 12.0);
+      assert.ok(repDrawer, 'Representative classroom (West Wing L1 Room 1) must have a searchable teacher desk drawer');
+      assert.ok(repSwitchboard, 'Representative classroom (West Wing L1 Room 1) must have a working classroom electrical switchboard');
+      assert.ok(repLightSwitch, 'Representative classroom (West Wing L1 Room 1) must have a working wall light switch');
+      assert.ok(repCupboard, 'Representative classroom (West Wing L1 Room 1) must have an openable cupboard');
+      assert.ok(repDoor, 'Representative classroom (West Wing L1 Room 1) must have a functional hinged door');
+
+      // Verify nested-mesh raycast lookup resolves child meshes back to the logical interactable record
+      let nestedChildMesh = null;
+      repDrawer.rootMesh.traverse(ch => {
+        if (ch.isMesh && !nestedChildMesh) nestedChildMesh = ch;
+      });
+      assert.ok(nestedChildMesh, 'Representative drawer must contain nested child meshes');
+      const resolvedFromChild = sys.resolveInteractableFromMesh(nestedChildMesh);
+      assert.strictEqual(resolvedFromChild.id, repDrawer.id, 'Nested child mesh must resolve to parent logical interactable ID');
+
+      // 2 & 3. Doors rotate around their hinges, clamp within [minAngleY, maxAngleY], and never trap the player
+      const dRef = repDoor.doorRef;
+      assert.ok(dRef && dRef.pivot, 'Door must have a hinge pivot Group');
+      sys.toggleInteractableById(repDoor.id); // Close door
+      assert.strictEqual(repDoor.isOpen, false);
+      assert.strictEqual(repDoor.collider.enabled, true, 'Closed door collider must be enabled');
+      for (let f = 0; f < 40; f++) env.updatePlayer(1 / 60, f / 60);
+      assert.ok(
+        dRef.currentAngleY >= dRef.minAngleY - 1e-4 && dRef.currentAngleY <= dRef.maxAngleY + 1e-4,
+        `Door hinge angle (${dRef.currentAngleY}) must stay within valid limits [${dRef.minAngleY}, ${dRef.maxAngleY}]`
+      );
+      sys.toggleInteractableById(repDoor.id); // Re-open door so player is never trapped
+      assert.strictEqual(repDoor.isOpen, true);
+      assert.strictEqual(repDoor.collider.enabled, false, 'Opened door collider must disable so player can pass');
+
+      // 4 & 5. Windows and drawers move along correct axes and rapid repeated interactions cannot corrupt state
+      const sampleWin = sys.interactables.find(it => it.type === 'window');
+      const winMinX = Math.min(sampleWin.openX, sampleWin.closedX);
+      const winMaxX = Math.max(sampleWin.openX, sampleWin.closedX);
+      sys.toggleInteractableById(sampleWin.id, { respectCooldown: true });
+      // Rapid second call within cooldown while transitioning must be rejected cleanly
+      const rapidBlocked = sys.toggleInteractableById(sampleWin.id, { respectCooldown: true });
+      assert.strictEqual(rapidBlocked, false, 'Rapid contradictory interaction during transition cooldown must be ignored');
+      for (let f = 0; f < 45; f++) env.updatePlayer(1 / 60, f / 60);
+      assert.ok(
+        sampleWin.currentX >= winMinX - 1e-4 && sampleWin.currentX <= winMaxX + 1e-4,
+        `Window sash X (${sampleWin.currentX}) must remain within [${winMinX}, ${winMaxX}]`
+      );
+      assert.strictEqual(sampleWin.isTransitioning, false, 'Window transition flag must clear once target limit is reached');
+
+      // Check drawer axis & [0, 1] clamping
+      sys.toggleInteractableById(repDrawer.id);
+      for (let f = 0; f < 45; f++) env.updatePlayer(1 / 60, f / 60);
+      assert.ok(repDrawer.currentT >= 0 && repDrawer.currentT <= 1.0, `Drawer progress (${repDrawer.currentT}) must stay clamped in [0, 1]`);
+      const movedDist = Math.hypot(repDrawer.drawerGroup.position.x - repDrawer.closedX, repDrawer.drawerGroup.position.z - repDrawer.closedZ);
+      assert.ok(Math.abs(movedDist - repDrawer.maxSlideDist) <= 0.02, `Drawer should slide ${repDrawer.maxSlideDist}m along its axis, got ${movedDist}`);
+
+      // 6. Line-of-Sight (LOS) & distance validation: interaction is blocked through solid walls
+      const blockedEyePos = { x: repSwitchboard.x, y: repSwitchboard.y + 1.62, z: repSwitchboard.z - 8.5 }; // Outside solid building wall
+      const clearEyePos = { x: repSwitchboard.x + 0.6, y: repSwitchboard.y + 1.62, z: repSwitchboard.z + 0.6 }; // Inside room facing panel
+      assert.strictEqual(sys.hasLineOfSightToInteractable(blockedEyePos, repSwitchboard), false, 'Wall collider must block LOS to interior switchboard from outside');
+      assert.strictEqual(sys.hasLineOfSightToInteractable(clearEyePos, repSwitchboard), true, 'Unobstructed interior position must have valid LOS to switchboard');
+
+      // 7 & 8. Complete `restore_campus_power` mission sequence with strict prerequisite enforcement
+      const m = sys.startMission('restore_campus_power');
+      assert.strictEqual(m.active, true);
+      assert.strictEqual(m.state, 'locate_electrical_room');
+      assert.strictEqual(sys.powerStates.campusExteriorLights, false, 'Starting restore_campus_power must cut campus exterior lights');
+      assert.strictEqual(sys.powerStates.mainCampusGrid, false, 'Starting restore_campus_power must trip main campus grid');
+
+      const gridBreaker = sys.interactables.find(it => it.type === 'switchboard' && it.powerKey === 'mainCampusGrid' && !it.controlsCampusLights);
+      const mainLightBoard = sys.interactables.find(it => it.type === 'switchboard' && it.controlsCampusLights);
+      const fuseRack = sys.interactables.find(it => it.missionItem && it.missionItem.id === 'item_high_voltage_fuse');
+      assert.ok(gridBreaker && mainLightBoard && fuseRack, 'Grid breaker, main lighting switchboard, and fuse storage rack must exist');
+
+      // Out-of-order attempts BEFORE prerequisites are met must fail
+      assert.strictEqual(sys.toggleInteractableById(gridBreaker.id), false, 'Cannot activate grid breaker before locating electrical room and inserting fuse');
+      assert.strictEqual(sys.toggleInteractableById(mainLightBoard.id), false, 'Cannot restore campus lighting circuit before grid breakers are active');
+      assert.strictEqual(sys.insertFuseIntoPanel(gridBreaker.id).ok, false, 'Cannot insert fuse before locating electrical room and obtaining fuse');
+
+      // Step 1: Locate electrical room
+      sys.enterMissionZone('electrical_room');
+      assert.strictEqual(m.electricalRoomLocated, true);
+      assert.strictEqual(m.state, 'obtain_fuse');
+      assert.strictEqual(sys.insertFuseIntoPanel(gridBreaker.id).reason, 'FUSE_REQUIRED', 'Cannot insert fuse before collecting it from container');
+
+      // Step 2: Obtain required fuse from searchable maintenance rack
+      sys.toggleInteractableById(fuseRack.id);
+      assert.strictEqual(m.fuseObtained, true, 'Opening maintenance rack must collect item_high_voltage_fuse');
+      assert.strictEqual(m.state, 'insert_fuse');
+
+      // Step 3: Insert fuse into breaker panel
+      const insertRes = sys.insertFuseIntoPanel(gridBreaker.id);
+      assert.strictEqual(insertRes.ok, true);
+      assert.strictEqual(m.fuseInserted, true);
+      assert.strictEqual(m.state, 'activate_breakers');
+
+      // Step 4: Activate high-voltage grid breakers
+      assert.strictEqual(sys.toggleInteractableById(gridBreaker.id), true, 'Grid breaker must activate once fuse is inserted');
+      assert.strictEqual(m.breakersActivated, true);
+      assert.strictEqual(sys.powerStates.mainCampusGrid, true);
+      assert.strictEqual(m.state, 'restore_circuit');
+      assert.strictEqual(m.completed, false, 'Mission must not complete before lighting circuit switchboard is restored');
+
+      // Step 5 & 6: Restore campus lighting circuit & complete mission
+      assert.strictEqual(sys.toggleInteractableById(mainLightBoard.id), true, 'Main lighting switchboard must activate once grid breaker is ON');
+      assert.strictEqual(sys.powerStates.campusExteriorLights, true, 'Campus exterior lights must be restored');
+      assert.strictEqual(m.circuitRestored, true);
+      assert.strictEqual(m.completed, true, 'restore_campus_power mission must complete when all 5 prerequisites are satisfied');
+      assert.strictEqual(m.state, 'completed');
+
+      // 9 & 10. Hiding/exiting control restoration and Multiplayer state integrity (no duplicate pickups or occupied spot collisions)
+      const dupPickup = sys.collectMissionItem('item_high_voltage_fuse', 'remote_player_2');
+      assert.strictEqual(dupPickup.ok, false, 'Multiplayer store must block duplicate item pickup');
+      assert.strictEqual(dupPickup.reason, 'ALREADY_COLLECTED');
+
+      const sampleSpot = env.interactiveHidingSpots[0];
+      assert.ok(sampleSpot, 'Interactive hiding spot must exist');
+      const hide1 = sys.enterHidingSpot(sampleSpot, 'local_player');
+      assert.strictEqual(hide1.ok, true);
+      assert.strictEqual(env.playerPhysics.isHiding, true);
+      const hideConflict = sys.enterHidingSpot(sampleSpot, 'remote_player_2');
+      assert.strictEqual(hideConflict.ok, false, 'Second player must not be allowed into an already-occupied hiding spot');
+      assert.strictEqual(hideConflict.reason, 'SPOT_OCCUPIED');
+
+      const exitRes = sys.exitHidingSpot('local_player');
+      assert.strictEqual(exitRes.ok, true);
+      assert.strictEqual(env.playerPhysics.isHiding, false, 'Exiting hiding spot must restore player movement controls');
+      assert.strictEqual(env.playerPhysics.currentHidingSpot, null);
+    });
   });
 });
 

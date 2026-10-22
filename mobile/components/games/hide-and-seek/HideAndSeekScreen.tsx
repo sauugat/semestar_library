@@ -430,6 +430,14 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
       } else if (data.type === 'AUTO_STEP_DOWN_QUALITY') {
         if (data.quality) setQuality(data.quality as GraphicsQuality);
         else setQuality('low');
+      } else if (data.type === 'MISSION_ITEM_FOUND') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } else if (data.type === 'POWER_STATE_CHANGED') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } else if (data.type === 'MISSION_UPDATED') {
+        if (data.completed) {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        }
       } else if (data.type === 'SESSION_TELEMETRY_REPORT') {
         console.log('[HideAndSeek 10-Min Telemetry]', JSON.stringify(data));
       } else if (data.type === 'LOG_ERROR') {

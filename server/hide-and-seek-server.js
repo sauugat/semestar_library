@@ -135,6 +135,22 @@ function createRoom(roomCode) {
     secondsRemaining: 120,
     timerInterval: null,
     hidersLeft: 0,
+    // Step 7 Authoritative Gameplay & Mission State Store
+    collectedItems: new Set(),
+    occupiedHidingSpots: new Map(), // spotId -> socketId
+    interactableStates: new Map(),  // interactableId -> { isOpen, isOn, locked }
+    missions: {
+      restore_campus_power: {
+        id: 'restore_campus_power',
+        state: 'locate_electrical_room',
+        electricalRoomLocated: false,
+        fuseObtained: false,
+        fuseInserted: false,
+        breakersActivated: false,
+        circuitRestored: false,
+        completed: false,
+      },
+    },
   };
 }
 
@@ -161,6 +177,7 @@ io.on('connection', (socket) => {
       pitch: 0,
       isCrouching: false,
       isHiding: false,
+      hidingSpotId: null,
       isCaught: false,
       isReady: false,
     };
@@ -207,6 +224,19 @@ io.on('connection', (socket) => {
     room.hidersLeft = playerList.filter((p) => p.role === 'hider').length;
     room.phase = 'GRACE';
     room.secondsRemaining = 15;
+    room.collectedItems.clear();
+    room.occupiedHidingSpots.clear();
+    room.interactableStates.clear();
+    room.missions.restore_campus_power = {
+      id: 'restore_campus_power',
+      state: 'locate_electrical_room',
+      electricalRoomLocated: false,
+      fuseObtained: false,
+      fuseInserted: false,
+      breakersActivated: false,
+      circuitRestored: false,
+      completed: false,
+    };
 
     io.to(room.code).emit('match_started', {
       seekerId: room.seekerId,
@@ -267,6 +297,124 @@ io.on('connection', (socket) => {
     });
   });
 
+  // Authoritative Hiding Spot Occupancy Sync (Prevents 2 players occupying same spot)
+  socket.on('hiding_state_change', ({ spotId, isHiding }) => {
+    const room = rooms.get(socket.roomCode);
+    if (!room) return;
+    const player = room.players.get(socket.id);
+    if (!player) return;
+
+    if (isHiding && spotId) {
+      const currentOccupant = room.occupiedHidingSpots.get(spotId);
+      if (currentOccupant && currentOccupant !== socket.id) {
+        socket.emit('hiding_rejected', { spotId, reason: 'SPOT_OCCUPIED' });
+        return;
+      }
+      if (player.hidingSpotId && player.hidingSpotId !== spotId) {
+        room.occupiedHidingSpots.delete(player.hidingSpotId);
+      }
+      room.occupiedHidingSpots.set(spotId, socket.id);
+      player.isHiding = true;
+      player.hidingSpotId = spotId;
+    } else {
+      if (player.hidingSpotId) {
+        room.occupiedHidingSpots.delete(player.hidingSpotId);
+      }
+      if (spotId && room.occupiedHidingSpots.get(spotId) === socket.id) {
+        room.occupiedHidingSpots.delete(spotId);
+      }
+      player.isHiding = false;
+      player.hidingSpotId = null;
+    }
+
+    io.to(room.code).emit('hiding_state_updated', {
+      playerId: socket.id,
+      spotId: player.hidingSpotId,
+      isHiding: player.isHiding,
+    });
+  });
+
+  // Authoritative Item Pickup Sync (Prevents duplicate pickups across clients)
+  socket.on('pickup_item', ({ itemId }) => {
+    const room = rooms.get(socket.roomCode);
+    if (!room || !itemId) return;
+    if (room.collectedItems.has(itemId)) {
+      socket.emit('pickup_rejected', { itemId, reason: 'ALREADY_COLLECTED' });
+      return;
+    }
+    room.collectedItems.add(itemId);
+    if (itemId === 'item_high_voltage_fuse') {
+      const m = room.missions.restore_campus_power;
+      m.fuseObtained = true;
+      if (m.state === 'obtain_fuse' || m.state === 'locate_electrical_room') {
+        m.state = 'insert_fuse';
+      }
+    }
+    io.to(room.code).emit('item_collected', {
+      itemId,
+      collectedBy: socket.id,
+      collectedItems: Array.from(room.collectedItems),
+    });
+  });
+
+  // Authoritative Interior Object Interaction Sync
+  socket.on('interact_object', ({ interactableId, isOpen, isOn }) => {
+    const room = rooms.get(socket.roomCode);
+    if (!room || !interactableId) return;
+    const nextState = {
+      isOpen: typeof isOpen === 'boolean' ? isOpen : false,
+      isOn: typeof isOn === 'boolean' ? isOn : false,
+      updatedBy: socket.id,
+      updatedAt: Date.now(),
+    };
+    room.interactableStates.set(interactableId, nextState);
+    io.to(room.code).emit('object_state_updated', {
+      interactableId,
+      ...nextState,
+    });
+  });
+
+  // Authoritative Mission Progression Validation (Blocks client-side mission completion exploits)
+  socket.on('mission_step_transition', ({ missionId, step }) => {
+    const room = rooms.get(socket.roomCode);
+    if (!room || missionId !== 'restore_campus_power') return;
+    const m = room.missions.restore_campus_power;
+    if (step === 'locate_electrical_room') {
+      m.electricalRoomLocated = true;
+      if (!m.fuseObtained) m.state = 'obtain_fuse';
+    } else if (step === 'obtain_fuse') {
+      if (!room.collectedItems.has('item_high_voltage_fuse')) {
+        socket.emit('mission_transition_rejected', { missionId, step, reason: 'FUSE_NOT_COLLECTED' });
+        return;
+      }
+      m.fuseObtained = true;
+      m.state = 'insert_fuse';
+    } else if (step === 'insert_fuse') {
+      if (!m.electricalRoomLocated || !m.fuseObtained) {
+        socket.emit('mission_transition_rejected', { missionId, step, reason: 'PREREQUISITES_NOT_MET' });
+        return;
+      }
+      m.fuseInserted = true;
+      m.state = 'activate_breakers';
+    } else if (step === 'activate_breakers') {
+      if (!m.fuseInserted) {
+        socket.emit('mission_transition_rejected', { missionId, step, reason: 'FUSE_NOT_INSERTED' });
+        return;
+      }
+      m.breakersActivated = true;
+      m.state = 'restore_circuit';
+    } else if (step === 'restore_circuit' || step === 'completed') {
+      if (!m.electricalRoomLocated || !m.fuseObtained || !m.fuseInserted || !m.breakersActivated) {
+        socket.emit('mission_transition_rejected', { missionId, step, reason: 'PREREQUISITES_NOT_MET' });
+        return;
+      }
+      m.circuitRestored = true;
+      m.completed = true;
+      m.state = 'completed';
+    }
+    io.to(room.code).emit('mission_state_updated', m);
+  });
+
   // Tag Player with server-authoritative line-of-sight raycast against colliders
   socket.on('tag_player', ({ targetPlayerId }) => {
     const room = rooms.get(socket.roomCode);
@@ -315,6 +463,9 @@ io.on('connection', (socket) => {
     if (!room) return;
 
     const player = room.players.get(socket.id);
+    if (player && player.hidingSpotId) {
+      room.occupiedHidingSpots.delete(player.hidingSpotId);
+    }
     room.players.delete(socket.id);
 
     if (player && player.role === 'hider' && !player.isCaught) {

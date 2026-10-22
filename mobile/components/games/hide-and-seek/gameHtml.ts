@@ -770,41 +770,163 @@ export function getHideAndSeekHtml(): string {
     <div id="joystick-thumb"></div>
   </div>
 
+  <!-- Right-Side Clean Lighting Adjuster Button (Other action buttons hidden as requested) -->
   <div id="action-cluster">
-    <div class="action-row">
-      <div class="touch-btn" id="btn-debug-physics" style="display:flex;" title="Toggle Physics Colliders &amp; Telemetry (P)">
+    <div class="action-row" style="display:none;">
+      <div class="touch-btn" id="btn-debug-physics" style="display:none;" title="Toggle Physics Colliders &amp; Telemetry (P)">
         <svg viewBox="0 0 24 24"><path d="M12 2l-5.5 9h11L12 2zm0 3.84L13.93 9h-3.86L12 5.84zM17.5 13c-2.49 0-4.5 2.01-4.5 4.5s2.01 4.5 4.5 4.5 4.5-2.01 4.5-4.5-2.01-4.5-4.5-4.5zm0 7c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5zM3 21.5h8v-8H3v8zm2-6h4v4H5v-4z"/></svg>
         <span>DEBUG</span>
       </div>
-      <div class="touch-btn" id="btn-flashlight" title="Toggle Flashlight / Hunter Ping (F/Q)">
+      <div class="touch-btn" id="btn-flashlight" style="display:none;" title="Toggle Flashlight / Hunter Ping (F/Q)">
         <svg viewBox="0 0 24 24"><path d="M6 2h12v6l-3 3v11H9V11L6 8V2zm2 2v3.17l3 3V20h2v-9.83l3-3V4H8z"/></svg>
         <span id="btn-flashlight-label">LIGHT</span>
       </div>
-      <div class="touch-btn" id="btn-throw" title="Throw Distraction / Hunter Ability (G)">
+      <div class="touch-btn" id="btn-throw" style="display:none;" title="Throw Distraction / Hunter Ability (G)">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
         <span id="btn-throw-label">THROW (2)</span>
       </div>
-      <div class="touch-btn" id="btn-cam" title="Toggle 1P/3P View (V)">
+      <div class="touch-btn" id="btn-cam" style="display:none;" title="Toggle 1P/3P View (V)">
         <svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 12.5c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
         <span>VIEW</span>
       </div>
-      <div class="touch-btn" id="btn-sprint" title="Sprint / Run (Shift)">
+      <div class="touch-btn" id="btn-sprint" style="display:none;" title="Sprint / Run (Shift)">
         <svg viewBox="0 0 24 24"><path d="M13.5 5.5c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zM9.8 8.9L7 23h2.1l1.8-8 2.1 2v6h2v-7.5l-2.1-2 .6-3C14.8 12 16.8 13 19 13v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1L6 8.3V13h2V9.6l1.8-.7"/></svg>
         <span>SPRINT</span>
       </div>
     </div>
     <div class="action-row">
-      <div class="touch-btn" id="btn-crouch" title="Crouch / Stealth (C)">
+      <div class="touch-btn" id="btn-crouch" style="display:none;" title="Crouch / Stealth (C)">
         <svg viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm4.5 9c-.83 0-1.5-.67-1.5-1.5S15.67 8 16.5 8s1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM6 14.5V10c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v2.5L18 17v5h-2v-4l-3-2.5V22H9v-5.5L7 15v7H5v-7.5z"/></svg>
         <span>CROUCH</span>
       </div>
-      <div class="touch-btn" id="btn-jump" title="Jump (Space)">
+      <div class="touch-btn" id="btn-jump" style="display:none;" title="Jump (Space)">
         <svg viewBox="0 0 24 24"><path d="M12 3l4 4h-3v6h-2V7H8zM5 19h14v2H5z"/></svg>
         <span>JUMP</span>
       </div>
-      <div class="touch-btn primary" id="btn-action" title="Interact / Hide / Repair / Tag (E)">
-        <svg viewBox="0 0 24 24"><path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.5 2.54l2.25 1.5c.8-1.25 1.25-2.73 1.25-4.04 0-4.97-4.03-9-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05C6.03 3 2 7.03 2 12c0 5.52 4.48 10 10 10 2.2 0 4.22-.72 5.86-1.93l-2.06-1.42C14.63 19.55 13.38 19 12 19zm8 2.08l-4.59-3.16A7.94 7.94 0 0 1 12 20c-4.41 0-8-3.59-8-8 0-4.04 3.01-7.39 6.95-7.92L12 1.05C6.54 1.58 2 5.97 2 11.5 2 17.3 6.7 22 12.5 22c2.4 0 4.61-.81 6.38-2.18L21.08 22l1.42-1.42-2.5-1.5z"/></svg>
+      <div class="touch-btn primary" id="btn-action" style="display:none;" title="Interact / Hide / Repair / Tag (E)">
+        <svg viewBox="0 0 24 24"><path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.5 2.54l2.25 1.5c.8-1.25 1.25-2.73 1.25-4.04 0-4.97-4.03-9-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05C6.03 3 2 7.03 2 12c0 5.52 4.48 10 10 10 2.2 0 4.22-.72 5.86-1.93l-2.06-1.42C14.63 19.55 13.38 19 12 19z"/></svg>
         <span id="btn-action-label">HIDE</span>
+      </div>
+      <div class="touch-btn primary" id="btn-lighting-tuner" style="width:68px;height:68px;border-radius:34px;background:rgba(12,18,28,0.92);border:2px solid #f59e0b;color:#fde047;box-shadow:0 0 20px rgba(245,158,11,0.45);" title="Open Live Lighting &amp; Graphics Sliders">
+        <svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+        <span style="font-size:9px;font-weight:900;color:#fef08a;">LIGHTING</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Lighting, Brightness, Fog & Graphics Adjuster Panel -->
+  <div id="live-lighting-tuner-panel" style="position:absolute;top:52px;right:max(18px,env(safe-area-inset-right,18px));width:310px;max-height:calc(100vh - 134px);overflow-y:auto;background:rgba(6,10,18,0.94);border:1.5px solid rgba(245,158,11,0.65);border-radius:14px;padding:10px 12px;z-index:28;display:none;flex-direction:column;gap:7px;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,monospace;box-shadow:0 8px 28px rgba(0,0,0,0.9);pointer-events:auto;touch-action:pan-y;">
+    <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(245,158,11,0.3);padding-bottom:5px;">
+      <span style="font-size:11px;font-weight:900;color:#fde047;letter-spacing:0.8px;">LIVE LIGHTING &amp; GFX TUNER</span>
+      <button id="lt-btn-close" style="background:rgba(239,68,68,0.25);border:1px solid #ef4444;color:#fca5a5;font-size:10px;font-weight:800;padding:2px 8px;border-radius:6px;cursor:pointer;">HIDE</button>
+    </div>
+
+    <!-- 1. Brightness / Exposure -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;">
+        <span style="color:#e2e8f0;">1. Brightness (Exposure)</span>
+        <span id="lt-val-exposure" style="color:#fde047;font-family:monospace;">1.06</span>
+      </div>
+      <input id="lt-slider-exposure" type="range" min="0.30" max="2.60" step="0.02" value="1.06" style="width:100%;accent-color:#f59e0b;" />
+    </div>
+
+    <!-- 2. Streetlamp Strength -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;">
+        <span style="color:#e2e8f0;">2. Streetlamp Strength</span>
+        <span id="lt-val-lamp-int" style="color:#fde047;font-family:monospace;">8.6</span>
+      </div>
+      <input id="lt-slider-lamp-int" type="range" min="0.5" max="25.0" step="0.2" value="8.6" style="width:100%;accent-color:#f59e0b;" />
+    </div>
+
+    <!-- 3. Streetlamp Reach / Distance -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;">
+        <span style="color:#e2e8f0;">3. Streetlamp Reach (m)</span>
+        <span id="lt-val-lamp-dist" style="color:#fde047;font-family:monospace;">18.2m</span>
+      </div>
+      <input id="lt-slider-lamp-dist" type="range" min="4.0" max="38.0" step="0.5" value="18.2" style="width:100%;accent-color:#f59e0b;" />
+    </div>
+
+    <!-- 4. Streetlamp Decay (Falloff) -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;">
+        <span style="color:#e2e8f0;">4. Streetlamp Falloff Decay</span>
+        <span id="lt-val-lamp-decay" style="color:#fde047;font-family:monospace;">1.64</span>
+      </div>
+      <input id="lt-slider-lamp-decay" type="range" min="0.40" max="3.00" step="0.04" value="1.64" style="width:100%;accent-color:#f59e0b;" />
+    </div>
+
+    <!-- 5. Streetlamp Ground Pool & Cone Glow -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;">
+        <span style="color:#e2e8f0;">5. Ground Light Pool &amp; Beam</span>
+        <span id="lt-val-pool-op" style="color:#fde047;font-family:monospace;">0.48</span>
+      </div>
+      <input id="lt-slider-pool-op" type="range" min="0.00" max="1.00" step="0.02" value="0.48" style="width:100%;accent-color:#f59e0b;" />
+    </div>
+
+    <!-- 6. Moonlight Strength -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;">
+        <span style="color:#e2e8f0;">6. Moonlight Strength</span>
+        <span id="lt-val-moon" style="color:#38bdf8;font-family:monospace;">0.46</span>
+      </div>
+      <input id="lt-slider-moon" type="range" min="0.00" max="2.50" step="0.02" value="0.46" style="width:100%;accent-color:#38bdf8;" />
+    </div>
+
+    <!-- 7. Night Ambient & Sky Shadow Fill -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;">
+        <span style="color:#e2e8f0;">7. Night Ambient Shadow Fill</span>
+        <span id="lt-val-amb" style="color:#38bdf8;font-family:monospace;">0.15</span>
+      </div>
+      <input id="lt-slider-amb" type="range" min="0.00" max="1.20" step="0.01" value="0.15" style="width:100%;accent-color:#38bdf8;" />
+    </div>
+
+    <!-- 8. Fog Density -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;">
+        <span style="color:#e2e8f0;">8. Fog Density</span>
+        <span id="lt-val-fog" style="color:#a7f3d0;font-family:monospace;">1.00</span>
+      </div>
+      <input id="lt-slider-fog" type="range" min="0.00" max="2.50" step="0.05" value="1.00" style="width:100%;accent-color:#10b981;" />
+    </div>
+
+    <!-- 9. Flashlight Strength -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;">
+        <span style="color:#e2e8f0;">9. Flashlight Strength</span>
+        <span id="lt-val-flash" style="color:#fde047;font-family:monospace;">11.2</span>
+      </div>
+      <input id="lt-slider-flash" type="range" min="0.0" max="25.0" step="0.5" value="11.2" style="width:100%;accent-color:#f59e0b;" />
+    </div>
+
+    <!-- 10. Edge Vignette Darkness -->
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:700;">
+        <span style="color:#e2e8f0;">10. Dark Edge Vignette</span>
+        <span id="lt-val-vig" style="color:#cbd5e1;font-family:monospace;">0.35</span>
+      </div>
+      <input id="lt-slider-vig" type="range" min="0.00" max="1.00" step="0.05" value="0.35" style="width:100%;accent-color:#94a3b8;" />
+    </div>
+
+    <!-- Quick Graphics & Feature Toggles -->
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;">
+      <button id="lt-btn-flashlight" class="dbg-btn active" style="flex:1;text-align:center;">Flashlight: ON</button>
+      <button id="lt-btn-flicker" class="dbg-btn active" style="flex:1;text-align:center;">Blink: ON</button>
+      <button id="lt-btn-interact" class="dbg-btn" style="flex:1;text-align:center;border-color:#f59e0b;color:#fde047;">Interact (E)</button>
+    </div>
+
+    <!-- Live Copyable Values Readout Box -->
+    <div style="margin-top:2px;padding:6px;background:rgba(15,23,42,0.95);border:1px solid rgba(56,189,248,0.45);border-radius:8px;">
+      <div style="font-size:9px;font-weight:800;color:#38bdf8;margin-bottom:3px;">CURRENT VALUES (SEND OR SCREENSHOT):</div>
+      <div id="lt-summary-box" style="font-family:monospace;font-size:9.5px;line-height:1.35;color:#f8fafc;word-break:break-all;user-select:text;-webkit-user-select:text;">
+        BRT: 1.06 | LAMP: 8.6 | DIST: 18.2 | DECAY: 1.64 | POOL: 0.48 | MOON: 0.46 | AMB: 0.15 | FOG: 1.00 | FLASH: 11.2 | VIG: 0.35
+      </div>
+      <div style="display:flex;gap:6px;margin-top:5px;">
+        <button id="lt-btn-copy" class="dbg-btn" style="flex:1;background:rgba(245,158,11,0.22);border-color:#f59e0b;color:#fde047;font-weight:800;">Copy Values</button>
+        <button id="lt-btn-reset" class="dbg-btn" style="flex:1;">Reset Default</button>
       </div>
     </div>
   </div>
@@ -2281,20 +2403,45 @@ export function getHideAndSeekHtml(): string {
         } catch (e) {}
       }
 
-      playLampBuzz() {
-        if (!EXPLORE_FLAGS.ENABLE_STROBING_AND_BROWNOUTS) return;
+      playLampBuzz(dist = 8.0, isSpark = false) {
         if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        const maxAudioDist = 34.0;
+        if (dist > maxAudioDist) return;
         try {
           const now = this.ctx.currentTime;
+          const distAtten = Math.max(0.05, Math.pow(1.0 - Math.min(1.0, dist / maxAudioDist), 1.55));
+          // 1. Unstable 60Hz/180Hz dying-ballast horror transformer hum + pitch sag
           const osc = this.ctx.createOscillator();
+          const humFilter = this.ctx.createBiquadFilter();
           const gain = this.ctx.createGain();
           osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(110, now);
-          this.scheduleEnvelope(gain.gain, now, 0.032, 0.009, 0.09);
-          osc.connect(gain);
+          osc.frequency.setValueAtTime(isSpark ? 168 : 116, now);
+          osc.frequency.exponentialRampToValueAtTime(isSpark ? 62 : 94, now + (isSpark ? 0.18 : 0.12));
+          humFilter.type = 'bandpass';
+          humFilter.frequency.setValueAtTime(isSpark ? 1150 : 320, now);
+          humFilter.Q.setValueAtTime(4.2, now);
+          const peakVol = (isSpark ? 0.072 : 0.044) * distAtten;
+          this.scheduleEnvelope(gain.gain, now, peakVol, 0.005, isSpark ? 0.18 : 0.12);
+          osc.connect(humFilter);
+          humFilter.connect(gain);
           gain.connect(this.masterGain);
+          if (this.reverbSend) gain.connect(this.reverbSend);
           osc.start(now);
-          osc.stop(now + 0.105);
+          osc.stop(now + (isSpark ? 0.19 : 0.13));
+
+          // 2. Metallic starter-relay clack + high-voltage glass-filament arc crackle in reverb
+          if (isSpark) {
+            const sparkOsc = this.ctx.createOscillator();
+            const sparkGain = this.ctx.createGain();
+            sparkOsc.type = 'square';
+            sparkOsc.frequency.setValueAtTime(2450 + Math.random() * 650, now);
+            sparkOsc.frequency.exponentialRampToValueAtTime(420, now + 0.045);
+            this.scheduleEnvelope(sparkGain.gain, now, 0.042 * distAtten, 0.003, 0.048);
+            sparkOsc.connect(sparkGain);
+            sparkGain.connect(this.masterGain);
+            sparkOsc.start(now);
+            sparkOsc.stop(now + 0.052);
+          }
         } catch (e) {}
       }
 
@@ -3010,67 +3157,58 @@ export function getHideAndSeekHtml(): string {
     }
 
     // Smooth atmospheric warm-amber lantern bloom (NO artificial X-lines, matching Ref 1 & 3)
-    // Step 2: Saturated Orange Halo Sprite with a Smaller Bright Core (Reads Orange, Not White!)
+    // Physically-inspired multi-stage streetlamp bloom (Over-driven white-gold filament core + warm sodium-amber Mie scatter halo)
     function createWarmLampBloomTexture() {
       const c = document.createElement('canvas');
       c.width = 128;
       c.height = 128;
       const ctx = c.getContext('2d');
       const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-      g.addColorStop(0.0, 'rgba(255, 205, 135, 0.92)');
-      g.addColorStop(0.09, 'rgba(255, 138, 42, 0.82)');
-      g.addColorStop(0.32, 'rgba(230, 96, 20, 0.42)');
-      g.addColorStop(0.68, 'rgba(154, 48, 10, 0.12)');
+      g.addColorStop(0.0, 'rgba(255, 252, 235, 1.0)');
+      g.addColorStop(0.14, 'rgba(255, 215, 130, 0.94)');
+      g.addColorStop(0.36, 'rgba(255, 152, 48, 0.62)');
+      g.addColorStop(0.68, 'rgba(210, 88, 18, 0.24)');
       g.addColorStop(1.0, 'rgba(90, 24, 4, 0.0)');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 128, 128);
       return new THREE.CanvasTexture(c);
     }
 
-    // Step 2: Ground Pool Texture — Pure Orange to Transparent (No White Center, Low Opacity so it Never Clips!)
+    // Natural Downward Streetlamp Ground Light Pool (Warm golden-amber center feathering smoothly across the ground below each pole)
     function createRealisticGroundPoolTexture() {
       const c = document.createElement('canvas');
       c.width = 256;
       c.height = 256;
       const ctx = c.getContext('2d');
       const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-      g.addColorStop(0.0, 'rgba(255, 138, 42, 0.72)');
-      g.addColorStop(0.28, 'rgba(224, 92, 22, 0.44)');
-      g.addColorStop(0.60, 'rgba(148, 52, 12, 0.16)');
-      g.addColorStop(0.86, 'rgba(78, 24, 6, 0.04)');
+      g.addColorStop(0.0, 'rgba(255, 204, 112, 0.90)');
+      g.addColorStop(0.26, 'rgba(255, 156, 52, 0.64)');
+      g.addColorStop(0.56, 'rgba(214, 96, 24, 0.30)');
+      g.addColorStop(0.82, 'rgba(120, 44, 10, 0.09)');
       g.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 256, 256);
-
-      // Subtle wet paving joint streaks inside the orange reflection pool
-      ctx.strokeStyle = 'rgba(8, 14, 20, 0.24)';
-      ctx.lineWidth = 1.5;
-      for (let y = 16; y < 240; y += 16) {
-        ctx.beginPath();
-        ctx.moveTo(16, y);
-        ctx.lineTo(240, y);
-        ctx.stroke();
-      }
       return new THREE.CanvasTexture(c);
     }
 
+    // Downward Volumetric Light Cone Texture (Connects the glowing lantern head smoothly all the way down to the ground pool)
     function createVolumetricConeAlphaTexture() {
       const c = document.createElement('canvas');
       c.width = 128;
       c.height = 256;
       const ctx = c.getContext('2d');
       const vg = ctx.createLinearGradient(0, 0, 0, 256);
-      vg.addColorStop(0.0, 'rgba(255, 255, 255, 0.0)');
-      vg.addColorStop(0.08, 'rgba(255, 218, 158, 0.55)');
-      vg.addColorStop(0.45, 'rgba(255, 146, 36, 0.18)');
-      vg.addColorStop(0.84, 'rgba(194, 65, 12, 0.04)');
+      vg.addColorStop(0.0, 'rgba(255, 252, 230, 0.0)');
+      vg.addColorStop(0.05, 'rgba(255, 236, 185, 0.78)');
+      vg.addColorStop(0.32, 'rgba(255, 180, 78, 0.44)');
+      vg.addColorStop(0.68, 'rgba(235, 128, 34, 0.20)');
+      vg.addColorStop(0.92, 'rgba(180, 72, 16, 0.06)');
       vg.addColorStop(1.0, 'rgba(154, 52, 18, 0.0)');
       ctx.fillStyle = vg;
       ctx.fillRect(0, 0, 128, 256);
       return new THREE.CanvasTexture(c);
     }
 
-    // Cool blue-grey ground mist texture (Ref 1 street fog)
     function createGroundMistTexture() {
       const c = document.createElement('canvas');
       c.width = 256;
@@ -3086,21 +3224,20 @@ export function getHideAndSeekHtml(): string {
       return new THREE.CanvasTexture(c);
     }
 
-    // Lantern glass pane texture (warm glowing center with dark iron bevel edges, Ref 1)
     function createLanternGlassTexture() {
       const c = document.createElement('canvas');
       c.width = 128;
       c.height = 192;
       const ctx = c.getContext('2d');
-      const g = ctx.createRadialGradient(64, 96, 6, 64, 96, 92);
-      g.addColorStop(0.0, '#fff9eb');
-      g.addColorStop(0.35, '#ffd175');
-      g.addColorStop(0.75, '#ff8c1a');
-      g.addColorStop(1.0, '#9a3412');
+      const g = ctx.createRadialGradient(64, 96, 4, 64, 96, 94);
+      g.addColorStop(0.0, '#ffffff');
+      g.addColorStop(0.28, '#fff0b8');
+      g.addColorStop(0.65, '#ffb03a');
+      g.addColorStop(1.0, '#c25e14');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 128, 192);
       ctx.strokeStyle = '#11161f';
-      ctx.lineWidth = 10;
+      ctx.lineWidth = 8;
       ctx.strokeRect(0, 0, 128, 192);
       return new THREE.CanvasTexture(c);
     }
@@ -3111,7 +3248,7 @@ export function getHideAndSeekHtml(): string {
     const realisticGroundPoolTex = createRealisticGroundPoolTexture();
     const volumetricConeTex = createVolumetricConeAlphaTexture();
     const groundMistTex = softRoundParticleTex;
-    const lanternGlassTex = warmLampBloomTex;
+    const lanternGlassTex = createLanternGlassTexture();
 
     function createSoftContactShadowTexture() {
       const c = document.createElement('canvas');
@@ -3341,7 +3478,7 @@ export function getHideAndSeekHtml(): string {
         this.renderer.setPixelRatio(targetPR);
 
         this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.toneMappingExposure) || 1.15;
+        this.renderer.toneMappingExposure = 1.06;
         if ('outputColorSpace' in this.renderer && THREE.SRGBColorSpace) {
           this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         } else if ('outputEncoding' in this.renderer && THREE.sRGBEncoding) {
@@ -3359,13 +3496,13 @@ export function getHideAndSeekHtml(): string {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.shadowMap.autoUpdate = true;
 
-        // Requirement 2: Much lower, cooler global ambient & hemisphere fill so rooms stop looking flat!
+        // Natural Night Moonlight + Warm Streetlamp Contrast (Cool silver-blue moon rim so trees/vehicles/ground are readable, never pitch-black silhouettes)
         const lCfg = HORROR_CONFIG.lighting || {};
-        this.baseAmbColor = new THREE.Color(lCfg.ambientColor || 0x162436);
+        this.baseAmbColor = new THREE.Color(0x142236);
         this.targetAmbColor = this.baseAmbColor.clone();
-        this.baseAmbIntensity = lCfg.ambientIntensity || 0.14;
-        this.baseHemiIntensity = lCfg.hemiIntensity || 0.16;
-        this.baseMoonIntensity = lCfg.moonIntensity || 0.58;
+        this.baseAmbIntensity = 0.145;
+        this.baseHemiIntensity = 0.20;
+        this.baseMoonIntensity = 0.46;
 
         this.ambientLight = new THREE.AmbientLight(
           this.baseAmbColor.clone(),
@@ -3374,14 +3511,14 @@ export function getHideAndSeekHtml(): string {
         this.scene.add(this.ambientLight);
 
         this.hemiLight = new THREE.HemisphereLight(
-          lCfg.hemiSkyColor || 0x1e334a,
-          lCfg.hemiGroundColor || 0x070c12,
+          0x243b58,
+          0x0a1018,
           this.baseHemiIntensity
         );
         this.scene.add(this.hemiLight);
 
         this.moonDirLight = new THREE.DirectionalLight(
-          lCfg.moonColor || 0x8eb8d6,
+          0x88b4dc,
           this.baseMoonIntensity
         );
         this.moonDirLight.position.set(-38, 64, -44);
@@ -3404,12 +3541,12 @@ export function getHideAndSeekHtml(): string {
         // Soft-edged spotlight, visible volumetric beam cone, dust motes in beam, battery flicker & realistic falloff
         this.flBaseColor = new THREE.Color(lCfg.flashlightColor || 0xfff1d6);
         this.flLowBattColor = new THREE.Color(lCfg.flashlightLowBatteryColor || 0xffb366);
-        this.flBaseIntensity = lCfg.flashlightIntensity || 9.8;
-        this.flBaseDistance = lCfg.flashlightDistance || 28.0;
+        this.flBaseIntensity = lCfg.flashlightIntensity || 11.2;
+        this.flBaseDistance = lCfg.flashlightDistance || 30.5;
         this.flBaseAngle = lCfg.flashlightAngle || 0.60;
         this.flBasePenumbra = lCfg.flashlightPenumbra || 0.88;
-        this.flBaseDecay = lCfg.flashlightDecay || 1.85;
-        this.flBaseBeamOpacity = lCfg.flashlightBeamOpacity || 0.13;
+        this.flBaseDecay = lCfg.flashlightDecay || 1.80;
+        this.flBaseBeamOpacity = lCfg.flashlightBeamOpacity || 0.145;
 
         this.flashlight = new THREE.SpotLight(
           this.flBaseColor.clone(),
@@ -3439,9 +3576,9 @@ export function getHideAndSeekHtml(): string {
         // Close-range soft peripheral bounce fill so immediate 2-5m around player isn't pitch-black outside cone
         this.flashlightSpill = new THREE.PointLight(
           this.flBaseColor.clone(),
-          lCfg.flashlightSpillIntensity || 1.15,
-          lCfg.flashlightSpillDistance || 6.2,
-          2.0
+          lCfg.flashlightSpillIntensity || 1.32,
+          lCfg.flashlightSpillDistance || 6.8,
+          1.95
         );
         this.flashlightSpill.castShadow = false;
         this.scene.add(this.flashlightSpill);
@@ -4209,20 +4346,21 @@ export function getHideAndSeekHtml(): string {
               map: realisticGroundPoolTex,
               color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
               transparent: true,
-              opacity: isDead ? 0.0 : 0.24,
+              opacity: isDead ? 0.0 : 0.28,
               blending: THREE.AdditiveBlending,
               depthWrite: false,
             }),
           };
         });
 
-        // Phase A Requirement 4: Limit dynamic lights to flashlight + at most 3 nearby PointLights!
-        for (let i = 0; i < 3; i++) {
+        // 8 Downward-Directed Streetlamp PointLights (distance 18.2m, decay 1.64, intensity 8.6) placed at the center of the
+        // downward beam cone (y = baseY + 2.45m) so the ground, vehicles, and walkways beneath each pole are richly illuminated!
+        for (let i = 0; i < 8; i++) {
           const pl = new THREE.PointLight(
-            HORROR_CONFIG.lighting.lampColor || 0xffb35c,
+            0xffa442,
             0,
-            HORROR_CONFIG.lighting.lampDistance || 11.0,
-            HORROR_CONFIG.lighting.lampDecay || 2.0
+            18.2,
+            1.64
           );
           pl.castShadow = false;
           pl.visible = true;
@@ -4230,6 +4368,17 @@ export function getHideAndSeekHtml(): string {
           scene.add(pl);
           this.lightPool.push(pl);
         }
+      }
+
+      _createLampMatSet(blinkProfile) {
+        const base = this.profileMats[blinkProfile] || this.profileMats.steady_warm;
+        return {
+          bulbMat: base.bulbMat.clone(),
+          innerGlowMat: base.innerGlowMat.clone(),
+          outerGlareMat: base.outerGlareMat.clone(),
+          coneMat: base.coneMat.clone(),
+          puddleMat: base.puddleMat.clone(),
+        };
       }
 
       addLamp(x, z, armDir = 1, blinkProfile = 'steady_warm', baseY = undefined) {
@@ -4242,9 +4391,8 @@ export function getHideAndSeekHtml(): string {
         group.userData.noMerge = true;
         const lampIdx = this.lamps.length;
         const lanternY = 4.82;
-        const pMats = this.profileMats[blinkProfile] || this.profileMats.steady_warm;
+        const pMats = this._createLampMatSet(blinkProfile);
 
-        // Add static cast-iron post to InstancedMesh (1 draw call for all streetlamps!)
         if (this._streetLampCount < 64) {
           this._dummy.position.set(x, lampBaseY, z);
           this._dummy.rotation.set(0, 0, 0);
@@ -4262,35 +4410,38 @@ export function getHideAndSeekHtml(): string {
         lanternGlass.userData.noMerge = true;
         group.add(lanternGlass);
 
-        const bulbPos = new THREE.Vector3(x, lampBaseY + lanternY, z);
+        // Position the 3D PointLight at y = lampBaseY + 2.45m (inside the downward volumetric cone rather than above the roof)
+        // so the streetlamp casts strong, natural light onto the road, vehicles, and ground underneath!
+        const bulbPos = new THREE.Vector3(x, lampBaseY + 2.45, z);
 
         const innerGlow = new THREE.Sprite(pMats.innerGlowMat);
         innerGlow.position.set(0, lanternY, 0);
-        innerGlow.scale.set(1.45, 1.45, 1);
+        innerGlow.scale.set(1.98, 1.98, 1);
         group.add(innerGlow);
 
-        const haloScale = HORROR_CONFIG.lighting.lampHaloScale || 2.45;
         const outerGlare = new THREE.Sprite(pMats.outerGlareMat);
         outerGlare.position.set(0, lanternY, 0);
-        outerGlare.scale.set(haloScale, haloScale, 1);
+        outerGlare.scale.set(3.68, 3.68, 1);
         group.add(outerGlare);
 
         const coneMesh = new THREE.Mesh(this.sharedGeos.lampCone, pMats.coneMat);
+        coneMesh.scale.set(1.26, 1.02, 1.26);
         coneMesh.position.set(0, 2.35, 0);
         coneMesh.userData.noMerge = true;
-        coneMesh.visible = !!(activePreset && activePreset.enableLampCones && blinkProfile !== 'dead');
+        coneMesh.visible = (blinkProfile !== 'dead');
         group.add(coneMesh);
 
         const puddle = new THREE.Mesh(this.sharedPoolGeo, pMats.puddleMat);
         puddle.rotation.x = -Math.PI / 2;
-        puddle.position.set(x, lampBaseY + 0.032, z);
+        puddle.scale.set(1.50, 1.50, 1);
+        puddle.position.set(x, lampBaseY + 0.035, z);
         puddle.userData.noMerge = true;
         this.scene.add(puddle);
 
         group.position.set(x, lampBaseY, z);
         this.scene.add(group);
 
-        const seed = Math.abs(x * 1.9 + z * 2.7);
+        const seed = Math.abs(x * 1.9 + z * 2.7) + lampIdx * 1.37;
         this.lamps.push({
           idx: lampIdx,
           isWallSconce: false,
@@ -4301,17 +4452,19 @@ export function getHideAndSeekHtml(): string {
           bulbPos,
           blinkProfile,
           bulbMat: pMats.bulbMat,
+          fixtureMat: null,
           innerGlowMat: pMats.innerGlowMat,
           outerGlareMat: pMats.outerGlareMat,
           coneMat: pMats.coneMat,
           coneMesh,
           puddleMat: pMats.puddleMat,
           puddleMesh: puddle,
-          baseIntensity: HORROR_CONFIG.lighting.lampIntensity || 16.5,
-          currentIntensity: HORROR_CONFIG.lighting.lampIntensity || 16.5,
+          baseIntensity: 8.6,
+          currentIntensity: 8.6,
+          smoothFactor: 1.0,
           seed,
           blinkState: 'steady',
-          stateTimer: 2.8 + (seed % 4.5),
+          stateTimer: 5.5 + (seed % 9.0),
           stutterClock: 0,
         });
         if (typeof addColliderCylinder === 'function' && armDir !== 0) {
@@ -4320,32 +4473,41 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      registerCustomFixture(x, baseY, z, bulbLocalY, poolScale = 1.0, blinkProfile = 'steady_warm') {
+      registerCustomFixture(x, baseY, z, bulbLocalY, poolScale = 1.0, blinkProfile = 'steady_warm', fixtureMat = null) {
         const lampIdx = this.lamps.length;
-        const pMats = this.profileMats[blinkProfile] || this.profileMats.steady_warm;
+        const pMats = this._createLampMatSet(blinkProfile);
         const g = new THREE.Group();
         g.userData.noMerge = true;
         g.position.set(x, baseY, z);
 
         const innerGlow = new THREE.Sprite(pMats.innerGlowMat);
         innerGlow.position.set(0, bulbLocalY, 0);
-        innerGlow.scale.set(1.25 * poolScale, 1.25 * poolScale, 1);
+        innerGlow.scale.set(1.68 * poolScale, 1.68 * poolScale, 1);
         g.add(innerGlow);
 
         const outerGlare = new THREE.Sprite(pMats.outerGlareMat);
         outerGlare.position.set(0, bulbLocalY, 0);
-        outerGlare.scale.set(2.1 * poolScale, 2.1 * poolScale, 1);
+        outerGlare.scale.set(3.05 * poolScale, 3.05 * poolScale, 1);
         g.add(outerGlare);
+
+        const coneMesh = new THREE.Mesh(this.sharedGeos.lampCone, pMats.coneMat);
+        const coneScaleY = Math.max(0.46, bulbLocalY / 4.6);
+        coneMesh.scale.set(poolScale * 1.08, coneScaleY, poolScale * 1.08);
+        coneMesh.position.set(0, bulbLocalY * 0.48, 0);
+        coneMesh.userData.noMerge = true;
+        coneMesh.visible = (blinkProfile !== 'dead');
+        g.add(coneMesh);
 
         const puddle = new THREE.Mesh(this.sharedPoolGeo, pMats.puddleMat);
         puddle.rotation.x = -Math.PI / 2;
-        puddle.scale.set(poolScale, poolScale, 1);
-        puddle.position.set(x, baseY + 0.032, z);
+        puddle.scale.set(poolScale * 1.40, poolScale * 1.40, 1);
+        puddle.position.set(x, baseY + 0.035, z);
         puddle.userData.noMerge = true;
         this.scene.add(puddle);
         this.scene.add(g);
 
-        const seed = Math.abs(x * 1.9 + z * 2.7);
+        const seed = Math.abs(x * 1.9 + z * 2.7) + lampIdx * 1.73;
+        const effectiveLightY = Math.min(2.35, bulbLocalY * 0.65);
         this.lamps.push({
           idx: lampIdx,
           isWallSconce: false,
@@ -4353,20 +4515,22 @@ export function getHideAndSeekHtml(): string {
           y: baseY,
           z,
           group: g,
-          bulbPos: new THREE.Vector3(x, baseY + bulbLocalY, z),
+          bulbPos: new THREE.Vector3(x, baseY + effectiveLightY, z),
           blinkProfile,
           bulbMat: pMats.bulbMat,
+          fixtureMat: fixtureMat,
           innerGlowMat: pMats.innerGlowMat,
           outerGlareMat: pMats.outerGlareMat,
           coneMat: pMats.coneMat,
-          coneMesh: null,
+          coneMesh: coneMesh,
           puddleMat: pMats.puddleMat,
           puddleMesh: puddle,
-          baseIntensity: (HORROR_CONFIG.lighting.lampIntensity || 16.5) * Math.min(1.15, Math.max(0.55, poolScale)),
-          currentIntensity: (HORROR_CONFIG.lighting.lampIntensity || 16.5) * Math.min(1.15, Math.max(0.55, poolScale)),
+          baseIntensity: 6.0 * Math.min(1.25, Math.max(0.65, poolScale)),
+          currentIntensity: 6.0 * Math.min(1.25, Math.max(0.65, poolScale)),
+          smoothFactor: 1.0,
           seed,
           blinkState: 'steady',
-          stateTimer: 2.8 + (seed % 4.5),
+          stateTimer: 5.0 + (seed % 10.0),
           stutterClock: 0,
         });
       }
@@ -4394,12 +4558,12 @@ export function getHideAndSeekHtml(): string {
 
         const innerGlow = new THREE.Sprite(pMats.innerGlowMat);
         innerGlow.position.set(0, 0.16, 0.18);
-        innerGlow.scale.set(1.15, 1.15, 1);
+        innerGlow.scale.set(1.25, 1.25, 1);
         sGroup.add(innerGlow);
 
         const outerGlare = new THREE.Sprite(pMats.outerGlareMat);
         outerGlare.position.set(0, 0.16, 0.18);
-        outerGlare.scale.set(1.9, 1.9, 1);
+        outerGlare.scale.set(2.05, 2.05, 1);
         sGroup.add(outerGlare);
 
         const puddle = new THREE.Mesh(this.sharedPoolGeo, pMats.puddleMat);
@@ -4427,8 +4591,8 @@ export function getHideAndSeekHtml(): string {
           coneMesh: null,
           puddleMat: pMats.puddleMat,
           puddleMesh: puddle,
-          baseIntensity: (HORROR_CONFIG.lighting.lampIntensity || 16.5) * 0.82,
-          currentIntensity: (HORROR_CONFIG.lighting.lampIntensity || 16.5) * 0.82,
+          baseIntensity: (HORROR_CONFIG.lighting.lampIntensity || 16.5) * 0.94,
+          currentIntensity: (HORROR_CONFIG.lighting.lampIntensity || 16.5) * 0.94,
           seed,
           blinkState: 'steady',
           stateTimer: 3.5 + (seed % 5.0),
@@ -4473,155 +4637,187 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      setVisualState(lamp, factor) {
-        lamp.currentIntensity = lamp.baseIntensity * factor;
-        lamp.bulbMat.opacity = Math.max(0.08, 0.88 * factor);
-        lamp.coneMat.opacity = (HORROR_CONFIG.lighting.lampConeOpacity || 0.065) * factor;
-        lamp.innerGlowMat.opacity = Math.min(1.0, 0.62 * factor);
-        lamp.outerGlareMat.opacity = 0.34 * Math.pow(factor, 0.85);
-        lamp.puddleMat.opacity = ((HORROR_CONFIG.grade && HORROR_CONFIG.grade.poolOpacity) || 0.24) * factor;
+      setVisualState(lamp, factor, distFade = 1.0, coneFade = 1.0) {
+        const eff = factor * distFade;
+        const poolOp = (typeof this.customPoolOpacity === 'number') ? this.customPoolOpacity : 0.48;
+        const coneOp = (typeof this.customConeOpacity === 'number') ? this.customConeOpacity : 0.142;
+        lamp.currentIntensity = lamp.baseIntensity * eff;
+        lamp.bulbMat.opacity = Math.max(0.10, 0.99 * eff);
+        lamp.coneMat.opacity = coneOp * factor * coneFade;
+        lamp.innerGlowMat.opacity = Math.min(1.0, 0.92 * eff);
+        lamp.outerGlareMat.opacity = 0.52 * Math.pow(eff, 0.82);
+        lamp.puddleMat.opacity = poolOp * eff;
+
+        if (lamp.fixtureMat) {
+          if (lamp.fixtureMat.emissiveIntensity !== undefined) {
+            lamp.fixtureMat.emissiveIntensity = Math.max(0.06, 2.05 * factor);
+          }
+          if (lamp.fixtureMat.color) {
+            if (factor > 0.65) lamp.fixtureMat.color.setHex(0xfff0b8);
+            else if (factor > 0.18) lamp.fixtureMat.color.setHex(0xd97706);
+            else lamp.fixtureMat.color.setHex(0x111827);
+          }
+        }
 
         if (factor > 0.65) {
-          lamp.bulbMat.color.setHex(HORROR_CONFIG.lighting.lampCoreColor || 0xffe8c2);
-        } else if (factor > 0.20) {
-          lamp.bulbMat.color.setHex(HORROR_CONFIG.lighting.lampColor || 0xffb35c);
+          lamp.bulbMat.color.setHex(0xfff4cc);
+        } else if (factor > 0.18) {
+          lamp.bulbMat.color.setHex(0xf59e0b);
         } else {
-          lamp.bulbMat.color.setHex(0x1e242b);
+          lamp.bulbMat.color.setHex(0x141a22);
         }
       }
 
       update(delta, timeSec, playerPos) {
         let minActiveDistSq = 999999;
-        const maxCullDist = (activePreset && activePreset.cullDistProps) || 50;
-        const maxCullDistSq = maxCullDist * maxCullDist;
+        // Pre-lit across the entire 220m campus horizon so every pole is ALREADY on long before you see or approach it!
+        const maxHorizonDist = 220.0;
+        const maxHorizonDistSq = maxHorizonDist * maxHorizonDist;
         const shaftsAllowed = (typeof exploreTools === 'undefined' || exploreTools.lightShaftsEnabled !== false);
         const powered = this.campusPowerEnabled !== false;
-        const showCones = !!(activePreset && activePreset.enableLampCones) && shaftsAllowed && powered;
-        const stride = (activePreset && activePreset.fakePoolStride) || 1;
-        const allowStrobing = !!EXPLORE_FLAGS.ENABLE_STROBING_AND_BROWNOUTS;
+        const showCones = shaftsAllowed && powered;
 
         for (let i = 0; i < this.lamps.length; i++) {
           const l = this.lamps[i];
           const dSq = (l.x - playerPos.x) ** 2 + (l.z - playerPos.z) ** 2;
-          const inRange = dSq <= maxCullDistSq;
+          const dist = Math.sqrt(dSq);
+          const inRange = dSq <= maxHorizonDistSq;
+
+          // Smooth cubic horizon fade starting at 145m..220m so poles are already glowing across the whole screen
+          const tDist = Math.max(0, Math.min(1, (dist - 145.0) / 75.0));
+          const distFade = inRange ? (1.0 - tDist * tDist * (3.0 - 2.0 * tDist)) : 0.0;
+          const tCone = Math.max(0, Math.min(1, (dist - 125.0) / 75.0));
+          const coneFade = inRange ? (1.0 - tCone * tCone * (3.0 - 2.0 * tCone)) : 0.0;
+
           if (l.group) l.group.visible = inRange;
           if (l.puddleMesh) {
-            l.puddleMesh.visible = inRange && powered && l.blinkProfile !== 'dead' && (stride === 1 || i % stride === 0);
+            l.puddleMesh.visible = inRange && powered && l.blinkProfile !== 'dead';
           }
           if (l.coneMesh) {
-            l.coneMesh.visible = inRange && showCones && l.blinkProfile !== 'dead' && dSq <= 1225;
+            l.coneMesh.visible = inRange && showCones && l.blinkProfile !== 'dead' && coneFade > 0.01;
           }
 
           l.stateTimer -= delta;
-          let factor = 1.0;
+          let targetFactor = 0.96;
 
           const safeFlicker = !!(accessibilitySettings && accessibilitySettings.flickerReduction);
           if (l.blinkProfile === 'dead' || !powered) {
-            factor = 0.0;
-          } else if (!allowStrobing) {
-            factor = 0.96 + Math.sin(timeSec * 1.8 + l.seed) * 0.03;
-            l.blinkState = 'steady';
+            targetFactor = 0.0;
           } else if (l.blinkState === 'power_dip') {
-            factor = safeFlicker
-              ? (0.76 + Math.sin(timeSec * 9.5 + l.seed) * 0.06)
-              : (0.22 + Math.sin(timeSec * 38.0 + l.seed) * 0.08);
+            targetFactor = safeFlicker ? 0.65 : 0.05;
             if (l.stateTimer <= 0) {
               l.blinkState = 'recover';
-              l.stateTimer = 0.22;
+              l.stateTimer = 0.16;
+              if (dist < 34.0) soundEngine.playLampBuzz(dist, true);
             }
           } else if (l.blinkState === 'steady') {
-            factor = 0.92 + Math.sin(timeSec * 2.4 + l.seed) * 0.05;
+            // Strong, natural warm-amber streetlamp emission most of the time, with occasional sharp horror flicker bursts!
+            targetFactor = 0.96 + Math.sin(timeSec * 1.9 + l.seed) * 0.03;
             if (l.stateTimer <= 0) {
+              const roll = Math.random();
               if (l.blinkProfile === 'steady_warm') {
-                l.stateTimer = 4.0 + Math.random() * 5.0;
-              } else {
-                l.blinkState = Math.random() < 0.72 ? 'stutter' : 'brownout';
+                if (roll < 0.28 && !safeFlicker) {
+                  l.blinkState = 'stutter';
+                  l.stateTimer = 0.16 + Math.random() * 0.18;
+                  if (dist < 30.0) soundEngine.playLampBuzz(dist, false);
+                } else {
+                  l.stateTimer = 9.0 + Math.random() * 11.0;
+                }
+              } else if (!safeFlicker) {
+                l.blinkState = roll < 0.68 ? 'stutter' : 'brownout';
                 l.stateTimer = l.blinkState === 'stutter'
-                  ? (0.28 + Math.random() * 0.45)
-                  : (0.45 + Math.random() * 0.65);
+                  ? (0.22 + Math.random() * 0.36)
+                  : (0.28 + Math.random() * 0.42);
+                if (dist < 34.0) soundEngine.playLampBuzz(dist, true);
+              } else {
+                l.stateTimer = 10.0;
               }
             }
           } else if (l.blinkState === 'stutter') {
             if (safeFlicker) {
-              // <= 2 flashes/sec (omega <= 12.56 rad/s) & smaller swing
-              factor = 0.78 + Math.sin(timeSec * 10.5 + l.seed) * 0.10;
+              targetFactor = 0.94;
             } else {
-              const wave = Math.sin(timeSec * 52.0 + l.seed * 3.1) + Math.cos(timeSec * 33.0 + l.seed);
-              factor = wave > 0.15 ? 0.95 : (l.blinkProfile === 'heavy_blink' ? 0.06 : 0.24);
+              const pulse = Math.sin(timeSec * 64.0 + l.seed * 3.7) + Math.cos(timeSec * 41.0 + l.seed * 1.9);
+              targetFactor = pulse > 0.25 ? 1.12 : (pulse > -0.35 ? 0.32 : 0.04);
             }
-            if (Math.random() < 0.025) soundEngine.playLampBuzz();
+            if (dist < 28.0 && Math.random() < 0.06 && !safeFlicker) {
+              soundEngine.playLampBuzz(dist, Math.random() < 0.45);
+            }
+            if (l.stateTimer <= 0) {
+              l.blinkState = 'recover';
+              l.stateTimer = 0.15;
+              if (dist < 32.0 && !safeFlicker) soundEngine.playLampBuzz(dist, true);
+            }
+          } else if (l.blinkState === 'brownout') {
+            targetFactor = safeFlicker ? 0.92 : 0.05;
             if (l.stateTimer <= 0) {
               l.blinkState = 'recover';
               l.stateTimer = 0.18;
-            }
-          } else if (l.blinkState === 'brownout') {
-            factor = safeFlicker
-              ? (0.74 + Math.sin(timeSec * 8.5 + l.seed) * 0.05)
-              : (0.22 + Math.sin(timeSec * 24.0 + l.seed) * 0.06);
-            if (l.stateTimer <= 0) {
-              l.blinkState = 'recover';
-              l.stateTimer = 0.20;
+              if (dist < 34.0 && !safeFlicker) soundEngine.playLampBuzz(dist, true);
             }
           } else if (l.blinkState === 'recover') {
-            factor = 1.0;
+            targetFactor = 1.14;
             if (l.stateTimer <= 0) {
               l.blinkState = 'steady';
-              const baseWait = l.blinkProfile === 'heavy_blink' ? 2.4 : 4.5;
-              l.stateTimer = baseWait + Math.random() * 4.0;
+              const baseWait = l.blinkProfile === 'heavy_blink' ? 5.5 : (l.blinkProfile === 'intermittent' ? 7.5 : 11.0);
+              l.stateTimer = baseWait + Math.random() * 8.0;
             }
           }
 
-          this.setVisualState(l, factor);
+          const prevSmooth = l.smoothFactor !== undefined ? l.smoothFactor : targetFactor;
+          const lerpRate = (l.blinkState === 'stutter' || l.blinkState === 'brownout')
+            ? Math.min(1.0, delta * 38.0)
+            : Math.min(1.0, delta * 14.0);
+          l.smoothFactor = prevSmooth + (targetFactor - prevSmooth) * lerpRate;
+
+          this.setVisualState(l, l.smoothFactor, distFade, coneFade);
           l._lastDistSq = dSq;
 
-          if (factor > 0.1) {
+          if (l.smoothFactor > 0.05) {
             if (dSq < minActiveDistSq) minActiveDistSq = dSq;
           }
         }
 
         this.nearestLampDist = Math.sqrt(minActiveDistSq);
 
-        // Zero per-frame allocation selection of top 3 nearest active lamps
-        let best0 = null, best1 = null, best2 = null;
-        let d0 = Infinity, d1 = Infinity, d2 = Infinity;
-        for (let i = 0; i < this.lamps.length; i++) {
-          const l = this.lamps[i];
-          if (l.blinkProfile === 'dead' || l.currentIntensity <= 0.5) continue;
-          const distSq = l._lastDistSq;
-          if (distSq < d0) {
-            d2 = d1; best2 = best1;
-            d1 = d0; best1 = best0;
-            d0 = distSq; best0 = l;
-          } else if (distSq < d1) {
-            d2 = d1; best2 = best1;
-            d1 = distSq; best1 = l;
-          } else if (distSq < d2) {
-            d2 = distSq; best2 = l;
-          }
-        }
-
-        const activeCount = Math.min(this.lightPool.length, activePreset.maxActiveLampLights || 3);
+        // Assign 8 downward-directed PointLights to the 8 closest poles with smooth cubic distance fade (52m -> 14m)
+        const activeCount = this.lightPool.length;
         const ov = this.indoorOverrideLight;
-        let pickIdx = 0;
-        for (let i = 0; i < this.lightPool.length; i++) {
-          const pl = this.lightPool[i];
-          if (i === 0 && ov && ov.intensity > 0.01) {
+        const usedIndices = [-1, -1, -1, -1, -1, -1, -1, -1];
+        const cfgDist = (typeof this.customLampDistance === 'number') ? this.customLampDistance : 18.2;
+        const cfgDecay = (typeof this.customLampDecay === 'number') ? this.customLampDecay : 1.64;
+        for (let slot = 0; slot < activeCount; slot++) {
+          const pl = this.lightPool[slot];
+          if (slot === 0 && ov && ov.intensity > 0.01) {
             pl.color.setHex(ov.color || 0xb4f0e4);
             pl.position.set(ov.x, ov.y, ov.z);
-            pl.distance = ov.distance || 10.5;
+            pl.distance = ov.distance || 12.5;
             pl.intensity = ov.intensity;
-          } else if (i < activeCount) {
-            const chosenLamp = pickIdx === 0 ? best0 : (pickIdx === 1 ? best1 : best2);
-            pickIdx++;
-            if (chosenLamp) {
-              pl.color.setHex(HORROR_CONFIG.lighting.lampColor || 0xff8a2a);
-              pl.distance = HORROR_CONFIG.lighting.lampDistance || 16.5;
-              pl.position.copy(chosenLamp.bulbPos);
-              pl.intensity = chosenLamp.currentIntensity;
-            } else {
-              pl.intensity = 0;
-              pl.position.set(0, -9999, 0);
+            continue;
+          }
+          let bestLamp = null;
+          let bestDistSq = Infinity;
+          let bestIdx = -1;
+          for (let i = 0; i < this.lamps.length; i++) {
+            if (usedIndices.indexOf(i) !== -1) continue;
+            const l = this.lamps[i];
+            if (l.blinkProfile === 'dead' || l.currentIntensity <= 0.05) continue;
+            if (l._lastDistSq < bestDistSq) {
+              bestDistSq = l._lastDistSq;
+              bestLamp = l;
+              bestIdx = i;
             }
+          }
+          usedIndices[slot] = bestIdx;
+          if (bestLamp && bestDistSq < 2704) {
+            const d = Math.sqrt(bestDistSq);
+            const tPl = Math.max(0, Math.min(1, (52.0 - d) / 38.0));
+            const smoothPoolFalloff = tPl * tPl * (3.0 - 2.0 * tPl);
+            pl.color.setHex(0xffa442);
+            pl.distance = cfgDist;
+            pl.decay = cfgDecay;
+            pl.position.copy(bestLamp.bulbPos);
+            pl.intensity = bestLamp.currentIntensity * smoothPoolFalloff;
           } else {
             pl.intensity = 0;
             pl.position.set(0, -9999, 0);
@@ -4885,28 +5081,20 @@ export function getHideAndSeekHtml(): string {
       if (window.__PROCEDURAL_TEX_CACHE__.has(type)) {
         return window.__PROCEDURAL_TEX_CACHE__.get(type);
       }
-      const dedicatedBumpTypes = {
-        'scuffed-classroom-floor': true,
-        'stained-ceiling-tiles': true,
-        'peeling-paint-wall': true,
-        'worn-wood-grain': true,
-      };
-      const needsBumpCanvas = !!dedicatedBumpTypes[type] || !window.__sharedArchBumpTex;
-      const needsRoughCanvas = !window.__sharedArchRoughTex;
+      const needsBumpCanvas = true;
+      const needsRoughCanvas = true;
 
       const c = document.createElement('canvas');
       c.width = 512;
       c.height = 512;
       const ctx = c.getContext('2d');
 
-      let bumpC = null;
-      let bCtx = _noopCtx;
-      if (needsBumpCanvas) {
-        bumpC = document.createElement('canvas');
-        bumpC.width = 512;
-        bumpC.height = 512;
-        bCtx = bumpC.getContext('2d') || _noopCtx;
-      }
+      const bumpC = document.createElement('canvas');
+      bumpC.width = 512;
+      bumpC.height = 512;
+      const bCtx = bumpC.getContext('2d') || _noopCtx;
+      bCtx.fillStyle = '#808080';
+      bCtx.fillRect(0, 0, 512, 512);
 
       let roughC = null;
       let rCtx = _noopCtx;
@@ -5395,30 +5583,14 @@ export function getHideAndSeekHtml(): string {
           ctx.fillRect(px, py, w, h);
         }
 
-        for (let p = 0; p < 28; p++) {
-          const px = 24 + ((p * 97) % 460);
-          const py = 28 + ((p * 163) % 450);
-          const rx = 14 + (p % 22);
-          const ry = 10 + ((p * 5) % 18);
-
-          ctx.fillStyle = '#9aa6a0';
-          ctx.beginPath();
-          ctx.ellipse(px, py, rx + 2.5, ry + 2.5, (p * 0.4), 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = '#323a3c';
-          ctx.beginPath();
-          ctx.ellipse(px, py, rx, ry, (p * 0.4), 0, Math.PI * 2);
-          ctx.fill();
-
-          bCtx.fillStyle = '#ffffff';
-          bCtx.beginPath();
-          bCtx.ellipse(px, py, rx + 2.5, ry + 2.5, (p * 0.4), 0, Math.PI * 2);
-          bCtx.fill();
-          bCtx.fillStyle = '#242424';
-          bCtx.beginPath();
-          bCtx.ellipse(px, py, rx, ry, (p * 0.4), 0, Math.PI * 2);
-          bCtx.fill();
+        // Fine horizontal architectural plaster courses & subtle micro-grain (no giant oval bubbles)
+        for (let y = 0; y < 512; y += 32) {
+          ctx.fillStyle = 'rgba(28, 36, 34, 0.14)';
+          ctx.fillRect(0, y, 512, 1.5);
+          ctx.fillStyle = 'rgba(210, 220, 215, 0.08)';
+          ctx.fillRect(0, y + 1.5, 512, 1);
+          bCtx.fillStyle = '#686868';
+          bCtx.fillRect(0, y, 512, 1.5);
         }
 
         ctx.strokeStyle = 'rgba(18, 24, 26, 0.65)';
@@ -5577,27 +5749,14 @@ export function getHideAndSeekHtml(): string {
       map.wrapS = THREE.RepeatWrapping;
       map.wrapT = THREE.RepeatWrapping;
 
-      let outBump = null;
-      if (dedicatedBumpTypes[type]) {
-        outBump = new THREE.CanvasTexture(bumpC);
-        outBump.wrapS = THREE.RepeatWrapping;
-        outBump.wrapT = THREE.RepeatWrapping;
-      } else {
-        if (!window.__sharedArchBumpTex && bumpC) {
-          const bTex = new THREE.CanvasTexture(bumpC);
-          bTex.wrapS = THREE.RepeatWrapping;
-          bTex.wrapT = THREE.RepeatWrapping;
-          window.__sharedArchBumpTex = bTex;
-        }
-        outBump = window.__sharedArchBumpTex;
-      }
+      const outBump = new THREE.CanvasTexture(bumpC);
+      outBump.wrapS = THREE.RepeatWrapping;
+      outBump.wrapT = THREE.RepeatWrapping;
 
-      if (!window.__sharedArchRoughTex && roughC) {
-        const rTex = new THREE.CanvasTexture(roughC);
-        rTex.wrapS = THREE.RepeatWrapping;
-        rTex.wrapT = THREE.RepeatWrapping;
-        window.__sharedArchRoughTex = rTex;
-      }
+      const outRough = new THREE.CanvasTexture(roughC);
+      outRough.wrapS = THREE.RepeatWrapping;
+      outRough.wrapT = THREE.RepeatWrapping;
+      window.__sharedArchRoughTex = outRough;
 
       // Requirement 1: Generate procedural textures in chunks across frames behind the loading screen & cache them
       const isHeadlessNode = (typeof navigator !== 'undefined' && navigator.userAgent === 'node');
@@ -6427,11 +6586,11 @@ export function getHideAndSeekHtml(): string {
         opacity: 0.88,
       }),
       campusStucco: new THREE.MeshStandardMaterial({
-        map: peelingPaintTex.map,
-        bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.06,
-        color: 0x626e66,
-        roughness: 0.78,
+        map: stuccoTex.map,
+        bumpMap: stuccoTex.bumpMap,
+        bumpScale: 0.022,
+        color: 0x7a8680,
+        roughness: 0.76,
         side: THREE.DoubleSide,
       }),
       classroomFloor: new THREE.MeshStandardMaterial({
@@ -7031,6 +7190,8 @@ export function getHideAndSeekHtml(): string {
     const rotundaInteriorLights = [];
     const swingingDoors = [];
     const interiorInteractables = [];
+    const interactableRootMeshes = [];
+    const interactablesById = {};
     const missionItemsRegistry = [];
     const collectedMissionItems = [];
     const roomLightSwitchStates = {};
@@ -7042,6 +7203,49 @@ export function getHideAndSeekHtml(): string {
       rotundaPower: true,
       maintenanceBreakerOn: true,
     };
+
+    function markNoMergeRecursive(obj, interactableId = null) {
+      if (!obj) return obj;
+      obj.userData = obj.userData || {};
+      obj.userData.noMerge = true;
+      if (interactableId) {
+        obj.userData.interactableId = interactableId;
+      }
+      if (obj.children && obj.children.length > 0) {
+        for (let i = 0; i < obj.children.length; i++) {
+          markNoMergeRecursive(obj.children[i], interactableId);
+        }
+      }
+      return obj;
+    }
+
+    function registerInteriorInteractable(spec) {
+      if (!spec || !spec.id) return null;
+      const isPowerCtrl = spec.type === 'light_switch' || spec.type === 'switchboard';
+      const normalized = Object.assign({
+        locked: false,
+        requiredItemId: null,
+        isTransitioning: false,
+        lastInteractTime: 0,
+        cooldownMs: 160,
+        interactionCount: 0,
+        state: isPowerCtrl
+          ? (spec.isOn ? 'on' : 'off')
+          : (spec.isOpen ? 'open' : 'closed'),
+        allowedTransitions: isPowerCtrl
+          ? ['on', 'off', 'locked', 'unlocked']
+          : ['open', 'closed', 'locked', 'unlocked'],
+      }, spec);
+      if (normalized.rootMesh) {
+        markNoMergeRecursive(normalized.rootMesh, normalized.id);
+        if (interactableRootMeshes.indexOf(normalized.rootMesh) === -1) {
+          interactableRootMeshes.push(normalized.rootMesh);
+        }
+      }
+      interactablesById[normalized.id] = normalized;
+      interiorInteractables.push(normalized);
+      return normalized;
+    }
 
     /* =========================================================================
        SHARED ELEVATION & CAMPUS LAYOUT SOURCE-OF-TRUTH SYSTEM (STEPS 2 & 3)
@@ -7543,18 +7747,31 @@ export function getHideAndSeekHtml(): string {
       mulV.position.set(0, 0, 0.05);
       wGroup.add(mulV);
 
-      // Openable / Closable Right Sliding Window Sash with Handle Latch
+      // Openable / Closable Right Sliding Window Sash with 4-Bar Hollow Frame & Brass Handle Latch
       const movableSash = new THREE.Group();
       movableSash.position.set(0.38, 0, 0.055);
       movableSash.userData.noMerge = true;
-      const rightPane = new THREE.Mesh(new THREE.PlaneGeometry(0.76, 1.32), paneMat);
+      const rightPane = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 1.28), paneMat);
       rightPane.userData.noMerge = true;
       movableSash.add(rightPane);
-      const sashFrame = new THREE.Mesh(new THREE.BoxGeometry(0.78, 1.34, 0.035), materials.deskSteelFrame);
-      sashFrame.userData.noMerge = true;
-      movableSash.add(sashFrame);
+      const topRail = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.045, 0.04), materials.deskSteelFrame);
+      topRail.position.set(0, 0.65, 0);
+      topRail.userData.noMerge = true;
+      movableSash.add(topRail);
+      const botRail = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.045, 0.04), materials.deskSteelFrame);
+      botRail.position.set(0, -0.65, 0);
+      botRail.userData.noMerge = true;
+      movableSash.add(botRail);
+      const leftStile = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.34, 0.04), materials.deskSteelFrame);
+      leftStile.position.set(-0.37, 0, 0);
+      leftStile.userData.noMerge = true;
+      movableSash.add(leftStile);
+      const rightStile = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.34, 0.04), materials.deskSteelFrame);
+      rightStile.position.set(0.37, 0, 0);
+      rightStile.userData.noMerge = true;
+      movableSash.add(rightStile);
       const latchHandle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.06), materials.brassGajur);
-      latchHandle.position.set(-0.34, 0.0, 0.03);
+      latchHandle.position.set(-0.35, 0.0, 0.03);
       latchHandle.userData.noMerge = true;
       movableSash.add(latchHandle);
       wGroup.add(movableSash);
@@ -7562,13 +7779,15 @@ export function getHideAndSeekHtml(): string {
       scene.add(wGroup);
 
       const winId = 'window-' + (interiorInteractables.length + 1);
+      markNoMergeRecursive(wGroup, winId);
+      interactableRootMeshes.push(wGroup);
       const isAlongX = (facingXDir === 0);
       const winCollider = addColliderBox(new THREE.Box3(
         new THREE.Vector3(wx - (isAlongX ? 0.78 : 0.16), wy - 0.68, wz - (isAlongX ? 0.16 : 0.78)),
         new THREE.Vector3(wx + (isAlongX ? 0.78 : 0.16), wy + 0.68, wz + (isAlongX ? 0.16 : 0.78))
       ), 'window_sash');
 
-      interiorInteractables.push({
+      registerInteriorInteractable({
         id: winId,
         type: 'window',
         name: 'Campus Window Sash',
@@ -7577,7 +7796,9 @@ export function getHideAndSeekHtml(): string {
         z: wz,
         interactRadius: 2.45,
         isOpen: false,
+        state: 'closed',
         sashGroup: movableSash,
+        rootMesh: wGroup,
         closedX: 0.38,
         openX: -0.32,
         currentX: 0.38,
@@ -9022,18 +9243,6 @@ export function getHideAndSeekHtml(): string {
       return THREE.BufferGeometryUtils.mergeBufferGeometries([g1, g2]);
     })();
 
-    function markNoMergeRecursive(obj) {
-      if (!obj) return obj;
-      obj.userData = obj.userData || {};
-      obj.userData.noMerge = true;
-      if (obj.children && obj.children.length > 0) {
-        for (let i = 0; i < obj.children.length; i++) {
-          markNoMergeRecursive(obj.children[i]);
-        }
-      }
-      return obj;
-    }
-
     // Shared Materials for Functional Interior System (Switchboards, Breaker Panels, Drawers, Library Lamps & Bulletins)
     const interiorSystemMats = {
       switchPlateIvory: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.42, metalness: 0.12 }),
@@ -9130,11 +9339,11 @@ export function getHideAndSeekHtml(): string {
       led.position.set(0, 0.075, 0.018);
       swGroup.add(led);
       rockerPivot.rotation.x = initOn ? -0.22 : 0.22;
-      markNoMergeRecursive(swGroup);
+      const swId = 'switch-' + roomId.replace(/\s+/g, '-').toLowerCase();
+      markNoMergeRecursive(swGroup, swId);
       parent.add(swGroup);
 
-      const swId = 'switch-' + roomId.replace(/\s+/g, '-').toLowerCase();
-      interiorInteractables.push({
+      registerInteriorInteractable({
         id: swId,
         type: 'light_switch',
         name: roomId + ' Light Switch',
@@ -9146,6 +9355,7 @@ export function getHideAndSeekHtml(): string {
         interactRadius: 2.35,
         isOpen: initOn,
         isOn: initOn,
+        rootMesh: swGroup,
         rockerPivot: rockerPivot,
         ledMat: ledMat,
       });
@@ -9178,12 +9388,12 @@ export function getHideAndSeekHtml(): string {
           worldZ: worldZ + localZ,
         });
       }
-      markNoMergeRecursive(dGroup);
+      markNoMergeRecursive(dGroup, drawerId);
       parent.add(dGroup);
 
       const fwdX = Math.sin(rotY);
       const fwdZ = Math.cos(rotY);
-      interiorInteractables.push({
+      registerInteriorInteractable({
         id: drawerId,
         type: 'drawer',
         name: label,
@@ -9192,11 +9402,14 @@ export function getHideAndSeekHtml(): string {
         z: worldZ + localZ,
         interactRadius: 2.35,
         isOpen: false,
+        rootMesh: dGroup,
         drawerGroup: dGroup,
+        slideAxis: Math.abs(fwdX) > Math.abs(fwdZ) ? 'x' : 'z',
         closedX: localX,
         closedZ: localZ,
         openX: localX + fwdX * 0.36,
         openZ: localZ + fwdZ * 0.36,
+        maxSlideDist: 0.36,
         currentT: 0,
         targetT: 0,
         missionItem: itemRecord,
@@ -9260,7 +9473,7 @@ export function getHideAndSeekHtml(): string {
           worldZ: worldZ + localZ,
         });
       }
-      markNoMergeRecursive(cGroup);
+      markNoMergeRecursive(cGroup, cupboardId);
       parent.add(cGroup);
 
       const wx = worldX + localX;
@@ -9273,7 +9486,7 @@ export function getHideAndSeekHtml(): string {
         new THREE.Vector3(wx + hw, floorY + 1.92, wz + hd)
       ), 'cupboard');
 
-      interiorInteractables.push({
+      registerInteriorInteractable({
         id: cupboardId,
         type: 'cupboard',
         name: label,
@@ -9282,6 +9495,7 @@ export function getHideAndSeekHtml(): string {
         z: wz,
         interactRadius: 2.45,
         isOpen: false,
+        rootMesh: cGroup,
         leftPivot,
         rightPivot,
         currentT: 0,
@@ -9346,7 +9560,7 @@ export function getHideAndSeekHtml(): string {
         });
       }
 
-      markNoMergeRecursive(rGroup);
+      markNoMergeRecursive(rGroup, rackId);
       parent.add(rGroup);
 
       const wx = worldX + localX;
@@ -9356,7 +9570,7 @@ export function getHideAndSeekHtml(): string {
         new THREE.Vector3(wx + 0.34, floorY + 2.15, wz + 1.15)
       ), 'sliding_rack');
 
-      interiorInteractables.push({
+      registerInteriorInteractable({
         id: rackId,
         type: 'rack',
         name: label,
@@ -9365,6 +9579,7 @@ export function getHideAndSeekHtml(): string {
         z: wz,
         interactRadius: 2.55,
         isOpen: false,
+        rootMesh: rGroup,
         rackGroup: rGroup,
         closedZ: localZ,
         openZ: localZ + 0.78,
@@ -9421,10 +9636,10 @@ export function getHideAndSeekHtml(): string {
       doorPivot.add(hazardDecal);
       pGroup.add(doorPivot);
 
-      markNoMergeRecursive(pGroup);
+      markNoMergeRecursive(pGroup, panelId);
       parent.add(pGroup);
 
-      interiorInteractables.push({
+      registerInteriorInteractable({
         id: panelId,
         type: 'switchboard',
         name: label,
@@ -9436,6 +9651,7 @@ export function getHideAndSeekHtml(): string {
         interactRadius: 2.55,
         isOpen: true,
         isOn: true,
+        rootMesh: pGroup,
         leverPivot: leverPivot,
         doorPivot: doorPivot,
         ledMat: ledMat,
@@ -9444,6 +9660,7 @@ export function getHideAndSeekHtml(): string {
 
     // Helper: Swinging Wooden Door with Frame, Brass Handle, Protruding Room Plaque & Dynamic Open/Closed Collider
     function buildSwingingDoor(parent, x, y, z, openAngleY = 1.05, plaqueMat = materials.gandakiBluePole, doorId = '') {
+      const resolvedId = doorId || ('door-' + (swingingDoors.length + 1));
       const dPivot = new THREE.Group();
       dPivot.userData.noMerge = true;
       dPivot.userData.isSwingingDoor = true;
@@ -9456,6 +9673,7 @@ export function getHideAndSeekHtml(): string {
       leaf.castShadow = false;
       leaf.receiveShadow = true;
       dPivot.add(leaf);
+      markNoMergeRecursive(dPivot, resolvedId);
 
       parent.add(dPivot);
 
@@ -9467,7 +9685,6 @@ export function getHideAndSeekHtml(): string {
       protrudingSign.position.set(x + 0.18, y + 2.24, z + 0.18);
       parent.add(protrudingSign);
 
-      const resolvedId = doorId || ('door-' + (swingingDoors.length + 1));
       const doorCollider = addColliderBox(new THREE.Box3(
         new THREE.Vector3(x - 0.48, y, z - 0.48),
         new THREE.Vector3(x + 0.48, y + 2.25, z + 0.48)
@@ -9477,6 +9694,8 @@ export function getHideAndSeekHtml(): string {
         doorCollider.enabled = false;
       }
 
+      const minAngle = Math.min(0.0, openAngleY);
+      const maxAngle = Math.max(0.0, openAngleY);
       const doorObj = {
         id: resolvedId,
         pivot: dPivot,
@@ -9486,6 +9705,8 @@ export function getHideAndSeekHtml(): string {
         closedAngleY: 0.0,
         ajarAngleY: initAngle,
         openAngleY: openAngleY,
+        minAngleY: minAngle,
+        maxAngleY: maxAngle,
         currentAngleY: initAngle,
         targetAngleY: initAngle,
         isOpen: true,
@@ -9494,7 +9715,7 @@ export function getHideAndSeekHtml(): string {
         collider: doorCollider,
       };
       swingingDoors.push(doorObj);
-      interiorInteractables.push({
+      registerInteriorInteractable({
         id: resolvedId,
         type: 'door',
         name: 'Room Door (' + resolvedId + ')',
@@ -9503,7 +9724,10 @@ export function getHideAndSeekHtml(): string {
         z: z,
         interactRadius: 2.45,
         isOpen: true,
+        rootMesh: dPivot,
         doorRef: doorObj,
+        minAngleY: minAngle,
+        maxAngleY: maxAngle,
         collider: doorCollider,
       });
     }
@@ -9945,7 +10169,7 @@ export function getHideAndSeekHtml(): string {
         cGroup.add(exitBox);
       });
 
-      // 1. Floor Mats, Transom Window Frames, Protruding Room Plaques (`1`, `2`, `3`) & Corridor Pendant Lamps
+      // 1. Floor Mats, Transom Window Frames, Protruding Room Plaques ('1', '2', '3') & Corridor Pendant Lamps
       doorZList.forEach((dz, idx) => {
         const localZ = dz - corridorZ;
         const mat = new THREE.Mesh(step2Geos.floorMat, step2Mats.matRubber);
@@ -10002,7 +10226,8 @@ export function getHideAndSeekHtml(): string {
             worldZ: corridorZ + lockerZ + lz,
           });
         }
-        interiorInteractables.push({
+        markNoMergeRecursive(lPivot, lockerId);
+        registerInteriorInteractable({
           id: lockerId,
           type: 'locker',
           name: zoneName + ' Locker #' + (lIdx + 1),
@@ -10011,6 +10236,7 @@ export function getHideAndSeekHtml(): string {
           z: corridorZ + lockerZ + lz,
           interactRadius: 2.35,
           isOpen: false,
+          rootMesh: lPivot,
           doorPivot: lPivot,
           openSign: wallSignX > 0 ? -1 : 1,
           currentT: 0,
@@ -10353,6 +10579,22 @@ export function getHideAndSeekHtml(): string {
       buildWallMountedFan(cGroup, 3.28, 2.55, 1.2, -Math.PI / 2);
       buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.6, -Math.PI / 2, isNewariStyle);
       buildInteriorWindowCurtains(cGroup, 3.26, 1.92, 1.8, -Math.PI / 2, isNewariStyle);
+
+      // Representative Classroom Sub-Breaker Switchboard Panel (Ensures every classroom—starting with West Wing L1 Room 1—has a functional door, searchable drawer, and working electrical switchboard)
+      buildInteractiveSwitchboardPanel(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        -bcSignX * 3.12,
+        1.42,
+        facingDirZ * -2.55,
+        bcSignX > 0 ? Math.PI / 2 : -Math.PI / 2,
+        'switchboard-classroom-' + unitTitle.replace(/\s+/g, '-').toLowerCase(),
+        unitTitle + ' Classroom Electrical Sub-Panel',
+        'classroomCircuit_' + unitTitle.replace(/\s+/g, '_'),
+        false
+      );
 
       // Teacher Podium & Lecture Desk with Searchable Pull-Out Drawer (Holds Main Switchboard Key in West Wing L1 Room 1!)
       const podiumZ = facingDirZ * -2.1;
@@ -11633,8 +11875,8 @@ export function getHideAndSeekHtml(): string {
           halfW,
           halfD,
           color: mCfg.color || 0xff9838,
-          baseIntensity: mCfg.intensity || 3.8,
-          distance: mCfg.distance || 9.8,
+          baseIntensity: mCfg.intensity || 4.4,
+          distance: mCfg.distance || 11.2,
           seed,
         });
       } else if (mood === 'emergency_red') {
@@ -11662,8 +11904,8 @@ export function getHideAndSeekHtml(): string {
           halfW,
           halfD,
           color: mCfg.color || 0xdc2626,
-          baseIntensity: 2.35,
-          distance: 8.8,
+          baseIntensity: 2.85,
+          distance: 10.2,
           seed,
         });
       } else {
@@ -11672,7 +11914,7 @@ export function getHideAndSeekHtml(): string {
           map: softRadialGlowTex,
           color: (cCfg.warmAccent && cCfg.warmAccent.doorwayGlowColor) || 0xff8a2a,
           transparent: true,
-          opacity: (cCfg.warmAccent && cCfg.warmAccent.doorwayGlowOpacity) || 0.16,
+          opacity: (cCfg.warmAccent && cCfg.warmAccent.doorwayGlowOpacity) || 0.20,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
         });
@@ -11699,8 +11941,8 @@ export function getHideAndSeekHtml(): string {
           halfW,
           halfD,
           color: mCfg.color || (mood === 'moonlight' ? 0x84b6e6 : 0xb4f0e4),
-          baseIntensity: mood === 'dark' ? 0.0 : (mCfg.intensity || 3.2),
-          distance: mCfg.distance || 10.5,
+          baseIntensity: mood === 'dark' ? 0.0 : (mCfg.intensity || 3.8),
+          distance: mCfg.distance || 11.8,
           seed,
         });
       }
@@ -11717,14 +11959,14 @@ export function getHideAndSeekHtml(): string {
         }
       }
       const moodsCfg = HORROR_CONFIG.roomLightMoods || {};
-      const mCfg = moodsCfg[m] || { color: 0xb4f0e4, intensity: 3.6, distance: 10.5 };
+      const mCfg = moodsCfg[m] || { color: 0xb4f0e4, intensity: 4.1, distance: 11.8 };
       for (let i = 0; i < roomMoodFixtures.length; i++) {
         const rf = roomMoodFixtures[i];
         if (rf.roomId === roomId) {
           rf.mood = m;
           rf.color = mCfg.color || 0xb4f0e4;
-          rf.baseIntensity = (m === 'dark') ? 0.0 : (mCfg.intensity || 3.4);
-          rf.distance = mCfg.distance || 10.5;
+          rf.baseIntensity = (m === 'dark') ? 0.0 : (mCfg.intensity || 3.9);
+          rf.distance = mCfg.distance || 11.8;
           if (rf.bulbMat && rf.bulbMat.emissive) {
             rf.bulbMat.emissive.setHex(rf.color);
           }
@@ -12566,28 +12808,79 @@ export function getHideAndSeekHtml(): string {
        1. GROUND AREAS, TERRACE PLATFORM, RETAINING WALLS & ROADS FROM JSON
           Single Source of Truth: /semester-library/gandaki-campus-layout.json
        ========================================================================= */
-    // Step 1: Replace removed grass across lower ground (y = 0.00m) with dark desaturated dirt/gravel
+    // Seamless Organic Dark Night Ground & Asphalt Micro-Grain Textures (Zero 16x16 pixel grid squares!)
+    const naturalGroundTex = createProceduralTexture(1024, 1024, (ctx) => {
+      ctx.fillStyle = '#28302c';
+      ctx.fillRect(0, 0, 1024, 1024);
+      // Soft overlapping organic soil/moss/slate clouds instead of hard pixel squares
+      for (let i = 0; i < 140; i++) {
+        const cx = (i * 173) % 1024;
+        const cy = (i * 289) % 1024;
+        const rad = 64 + (i % 72);
+        const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, rad);
+        if (i % 2 === 0) {
+          g.addColorStop(0.0, 'rgba(56, 66, 60, 0.16)');
+          g.addColorStop(1.0, 'rgba(56, 66, 60, 0.0)');
+        } else {
+          g.addColorStop(0.0, 'rgba(18, 24, 21, 0.18)');
+          g.addColorStop(1.0, 'rgba(18, 24, 21, 0.0)');
+        }
+        ctx.fillStyle = g;
+        ctx.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+      }
+      for (let i = 0; i < 9000; i++) {
+        const gx = (i * 197 + (i % 7) * 13) % 1024;
+        const gy = (i * 353 + (i % 11) * 19) % 1024;
+        ctx.fillStyle = (i % 3 === 0) ? 'rgba(145, 160, 152, 0.05)' : 'rgba(10, 14, 12, 0.08)';
+        ctx.fillRect(gx, gy, 2, 2);
+      }
+    }, 'natural-compound-ground-seamless-1024');
+    naturalGroundTex.wrapS = THREE.RepeatWrapping;
+    naturalGroundTex.wrapT = THREE.RepeatWrapping;
+    naturalGroundTex.repeat.set(1, 1);
+
+    const asphaltRoadTex = createProceduralTexture(512, 512, (ctx) => {
+      ctx.fillStyle = '#141920';
+      ctx.fillRect(0, 0, 512, 512);
+      for (let i = 0; i < 5500; i++) {
+        const ax = (i * 131 + (i % 5) * 7) % 512;
+        const ay = (i * 257 + (i % 9) * 11) % 512;
+        ctx.fillStyle = (i % 2 === 0) ? 'rgba(110, 125, 142, 0.05)' : 'rgba(5, 8, 12, 0.10)';
+        ctx.fillRect(ax, ay, 2, 2);
+      }
+    }, 'campus-asphalt-road-seamless-512');
+    asphaltRoadTex.wrapS = THREE.RepeatWrapping;
+    asphaltRoadTex.wrapT = THREE.RepeatWrapping;
+
+    materials.asphaltRoad = new THREE.MeshStandardMaterial({
+      map: asphaltRoadTex,
+      bumpMap: asphaltRoadTex,
+      bumpScale: 0.010,
+      color: 0x1a2028,
+      roughness: 0.86,
+      metalness: 0.06,
+    });
     materials.lowerGroundDirtGravel = new THREE.MeshStandardMaterial({
-      map: peelingPaintTex.map,
-      bumpMap: peelingPaintTex.bumpMap,
-      bumpScale: 0.06,
-      color: 0x161a1f,
-      roughness: 0.94,
+      map: naturalGroundTex,
+      bumpMap: naturalGroundTex,
+      bumpScale: 0.014,
+      color: 0x1e2522,
+      roughness: 0.92,
       metalness: 0.02,
     });
     materials.terraceConcrete = new THREE.MeshStandardMaterial({
-      map: peelingPaintTex.map,
-      bumpMap: peelingPaintTex.bumpMap,
-      bumpScale: 0.035,
-      color: 0x222830,
-      roughness: 0.86,
-      metalness: 0.04,
+      map: naturalGroundTex,
+      bumpMap: naturalGroundTex,
+      bumpScale: 0.012,
+      color: 0x2c343a,
+      roughness: 0.88,
+      metalness: 0.03,
     });
     materials.retainingRubbleStone = new THREE.MeshStandardMaterial({
       map: riverStoneTex.map,
       bumpMap: riverStoneTex.bumpMap,
-      bumpScale: 0.11,
-      color: 0x262c34,
+      bumpScale: 0.06,
+      color: 0x222930,
       roughness: 0.88,
       metalness: 0.04,
     });
@@ -12602,7 +12895,7 @@ export function getHideAndSeekHtml(): string {
     const tUvAttr = terrainGeo.attributes.uv;
     if (tUvAttr) {
       for (let i = 0; i < tUvAttr.count; i++) {
-        tUvAttr.setXY(i, tUvAttr.getX(i) * 44, tUvAttr.getY(i) * 44);
+        tUvAttr.setXY(i, tUvAttr.getX(i) * 32, tUvAttr.getY(i) * 32);
       }
       tUvAttr.needsUpdate = true;
     }
@@ -12617,35 +12910,37 @@ export function getHideAndSeekHtml(): string {
       tPosAttr.setY(i, h);
       if (h < terrainMinH) terrainMinH = h;
       if (h > terrainMaxH) terrainMaxH = h;
-      // Natural multi-zone vertex tinting matching both Campus Editor & night horror courtyard stone:
-      // - Central campus terrace plateau (1.05m..1.65m): crisp moonlit slate-concrete plaza
-      // - West parking & road level (<= 0.22m, x in [-95, -20]): dark asphalt/gravel
-      // - Outer hills & sculpted mounds (> 1.68m): lush dark Himalayan night grass & mossy ridges
-      let r = 0.88, g = 0.91, b = 0.96;
+      const noise = (Math.sin(vx * 0.11) * Math.cos(vz * 0.11) + Math.sin((vx + vz) * 0.05)) * 0.03;
+      let r = 0.56, g = 0.62, b = 0.58;
       if (h >= 1.02 && h <= 1.66 && vx > -36 && vx < 48 && vz > -142 && vz < 58) {
-        r = 0.94; g = 0.96; b = 1.00;
-      } else if (h <= 0.22 && vx >= -94 && vx <= -24 && vz >= -42 && vz <= 56) {
-        r = 0.72; g = 0.76; b = 0.82;
+        r = 0.64 + noise; g = 0.68 + noise; b = 0.72 + noise;
+      } else if (h <= 0.25 && vx >= -94 && vx <= -24 && vz >= -42 && vz <= 56) {
+        r = 0.46 + noise; g = 0.50 + noise; b = 0.56 + noise;
       } else if (h > 1.68) {
         const hillT = Math.min(1, (h - 1.68) / 8.0);
-        r = 0.52 - 0.10 * hillT;
-        g = 0.76 - 0.08 * hillT;
-        b = 0.58 - 0.10 * hillT;
+        r = 0.34 - 0.05 * hillT + noise;
+        g = 0.54 - 0.07 * hillT + noise;
+        b = 0.38 - 0.05 * hillT + noise;
       } else {
-        r = 0.76; g = 0.82; b = 0.86;
+        r = 0.48 + noise; g = 0.56 + noise; b = 0.50 + noise;
       }
-      tColors[i * 3 + 0] = r;
-      tColors[i * 3 + 1] = g;
-      tColors[i * 3 + 2] = b;
+      tColors[i * 3 + 0] = Math.max(0.18, Math.min(1.0, r));
+      tColors[i * 3 + 1] = Math.max(0.18, Math.min(1.0, g));
+      tColors[i * 3 + 2] = Math.max(0.18, Math.min(1.0, b));
     }
     terrainGeo.setAttribute('color', new THREE.BufferAttribute(tColors, 3));
     tPosAttr.needsUpdate = true;
     terrainGeo.computeVertexNormals();
 
-    const sculptedTerrainMat = materials.terraceConcrete.clone();
-    sculptedTerrainMat.vertexColors = true;
-    sculptedTerrainMat.roughness = 0.84;
-    sculptedTerrainMat.metalness = 0.05;
+    const sculptedTerrainMat = new THREE.MeshStandardMaterial({
+      map: naturalGroundTex,
+      bumpMap: naturalGroundTex,
+      bumpScale: 0.014,
+      color: 0x546066,
+      vertexColors: true,
+      roughness: 0.88,
+      metalness: 0.03,
+    });
 
     const terrainMesh = new THREE.Mesh(terrainGeo, sculptedTerrainMat);
     terrainMesh.name = 'gandaki_sculpted_terrain';
@@ -12663,7 +12958,7 @@ export function getHideAndSeekHtml(): string {
     };
     scene.userData.terrainAudit = window.__TERRAIN_MESH_AUDIT__;
 
-    // Helper: Build Terrain-Conforming Paved Road / Courtyard Ribbon on the Sculpted Heightmap
+    // Helper: Build Terrain-Conforming Paved Road / Walk Ribbon with World-Scaled UVs
     function buildTerrainDrapeRibbon(cx, cz, width, depth, mat, yOffset = 0.028) {
       const segX = Math.max(4, Math.min(32, Math.ceil(width / 2.5)));
       const segZ = Math.max(4, Math.min(32, Math.ceil(depth / 2.5)));
@@ -12671,12 +12966,17 @@ export function getHideAndSeekHtml(): string {
       geo.rotateX(-Math.PI / 2);
       geo.userData.preserveVertexColors = true;
       const pos = geo.attributes.position;
+      const uv = geo.attributes.uv;
       for (let i = 0; i < pos.count; i++) {
         const wx = cx + pos.getX(i);
         const wz = cz + pos.getZ(i);
         pos.setY(i, getTerrainHeightAt(wx, wz) + yOffset);
+        if (uv) {
+          uv.setXY(i, uv.getX(i) * (width / 4.0), uv.getY(i) * (depth / 4.0));
+        }
       }
       pos.needsUpdate = true;
+      if (uv) uv.needsUpdate = true;
       geo.computeVertexNormals();
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(cx, 0, cz);
@@ -12686,10 +12986,9 @@ export function getHideAndSeekHtml(): string {
       scene.add(mesh);
       return mesh;
     }
-    // Main North-South Campus Spine Road & Central Paved Courtyard Ribbons draped cleanly onto the sculpted terrain
-    buildTerrainDrapeRibbon(-29.5, 4.0, 7.6, 108.0, materials.asphaltRoad, 0.026);
-    buildTerrainDrapeRibbon(0.0, -78.0, 14.0, 56.0, materials.interlockingPavers, 0.028);
-    buildTerrainDrapeRibbon(4.0, 5.0, 54.0, 68.0, materials.interlockingPavers, 0.022);
+    // Main North-South Campus Spine Asphalt Road & South Rotunda Approach Walk draped cleanly onto the sculpted terrain
+    buildTerrainDrapeRibbon(-29.5, 4.0, 7.2, 106.0, materials.asphaltRoad, 0.024);
+    buildTerrainDrapeRibbon(0.0, -78.0, 10.5, 54.0, materials.asphaltRoad, 0.026);
 
     // Step 2: Campus Layout JSON Validator & Single-Source-of-Truth Lookup
     function validateAndIndexCampusLayout(layoutDoc) {
@@ -12949,29 +13248,32 @@ export function getHideAndSeekHtml(): string {
 
     // Instantiate Ground Areas, Roads, and All Supported v1.2.0 Campus Objects from HORROR_CONFIG.campusLayout (Single Source of Truth)
     const campusObjectMats = {
-      gardenGrass: materials.foliageGreen,
-      gardenHedge: materials.foliageBush,
-      gardenFlowerYellow: new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.55, metalness: 0.05 }),
-      gardenFlowerPink: new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.55, metalness: 0.05 }),
+      gardenGrass: new THREE.MeshStandardMaterial({ map: grassTex.map, color: 0x1c3d22, roughness: 0.88, metalness: 0.02 }),
+      gardenHedge: new THREE.MeshStandardMaterial({ map: grassTex.map, color: 0x16331c, roughness: 0.86, metalness: 0.02 }),
+      gardenFlowerYellow: new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.55, metalness: 0.05 }),
+      gardenFlowerPink: new THREE.MeshStandardMaterial({ color: 0xe11d48, roughness: 0.55, metalness: 0.05 }),
       treeBark: materials.treeBark,
-      treeFoliageDark: materials.foliageDark,
-      treeFoliageMid: materials.foliageGreen,
-      pineFoliage: materials.foliagePine,
-      carSilver: new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.28, metalness: 0.62 }),
-      carNavy: new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.30, metalness: 0.58 }),
-      vanWhite: new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.34, metalness: 0.32 }),
-      carBumperDark: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.65, metalness: 0.25 }),
-      carCabinGlass: new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.14, metalness: 0.78 }),
-      tireRubber: new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.88, metalness: 0.08 }),
-      alloyRim: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.28, metalness: 0.78 }),
-      headlightLens: new THREE.MeshBasicMaterial({ color: 0xfef08a }),
-      taillightLens: new THREE.MeshBasicMaterial({ color: 0xef4444 }),
-      scooterRed: new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.32, metalness: 0.48 }),
-      scooterBlue: new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.32, metalness: 0.48 }),
-      scooterSeat: new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.76, metalness: 0.08 }),
-      chromeMetal: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.22, metalness: 0.82 }),
-      dustbinGreen: new THREE.MeshStandardMaterial({ color: 0x15803d, roughness: 0.58, metalness: 0.16 }),
-      acBodyMat: new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.48, metalness: 0.35 }),
+      treeFoliageDark: new THREE.MeshStandardMaterial({ map: grassTex.map, color: 0x132b18, roughness: 0.88, metalness: 0.02 }),
+      treeFoliageMid: new THREE.MeshStandardMaterial({ map: grassTex.map, color: 0x1d4024, roughness: 0.85, metalness: 0.02 }),
+      treeFoliageLight: new THREE.MeshStandardMaterial({ map: grassTex.map, color: 0x254f2d, roughness: 0.84, metalness: 0.03 }),
+      pineFoliage: new THREE.MeshStandardMaterial({ map: grassTex.map, color: 0x112e1e, roughness: 0.88, metalness: 0.02 }),
+      carSilver: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.24, metalness: 0.72 }),
+      carNavy: new THREE.MeshStandardMaterial({ color: 0x172554, roughness: 0.26, metalness: 0.68 }),
+      vanWhite: new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.30, metalness: 0.45 }),
+      carBumperDark: new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.62, metalness: 0.30 }),
+      carCabinGlass: new THREE.MeshStandardMaterial({ color: 0x09111e, roughness: 0.12, metalness: 0.85 }),
+      tireRubber: new THREE.MeshStandardMaterial({ color: 0x0f141c, roughness: 0.90, metalness: 0.06 }),
+      alloyRim: new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.25, metalness: 0.82 }),
+      headlightLens: new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xfacc15, emissiveIntensity: 0.45, roughness: 0.20 }),
+      taillightLens: new THREE.MeshStandardMaterial({ color: 0xdc2626, emissive: 0x991b1b, emissiveIntensity: 0.40, roughness: 0.25 }),
+      scooterRed: new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.26, metalness: 0.58 }),
+      scooterBlue: new THREE.MeshStandardMaterial({ color: 0x1e40af, roughness: 0.26, metalness: 0.58 }),
+      scooterGraphite: new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.28, metalness: 0.62 }),
+      scooterSeat: new THREE.MeshStandardMaterial({ color: 0x141619, roughness: 0.72, metalness: 0.08 }),
+      chromeMetal: new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.18, metalness: 0.88 }),
+      dustbinGreen: new THREE.MeshStandardMaterial({ color: 0x14532d, roughness: 0.58, metalness: 0.16 }),
+      acBodyMat: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.48, metalness: 0.38 }),
+      lanternWarmGlass: new THREE.MeshStandardMaterial({ color: 0xffe4a0, emissive: 0xff9d2e, emissiveIntensity: 1.35, roughness: 0.22, metalness: 0.05 }),
       lampWarmBulb: new THREE.MeshBasicMaterial({ color: 0xffdf9a }),
       lampCoolFlood: new THREE.MeshBasicMaterial({ color: 0xe0f2fe }),
     };
@@ -13013,13 +13315,18 @@ export function getHideAndSeekHtml(): string {
         patchGeo.rotateX(-Math.PI / 2);
         patchGeo.userData.preserveVertexColors = true;
         const pAttr = patchGeo.attributes.position;
-        const yOff = isGarden ? 0.048 : (isGrass ? 0.035 : 0.028);
+        const uvAttr = patchGeo.attributes.uv;
+        const yOff = isGarden ? 0.045 : (isGrass ? 0.032 : 0.026);
         for (let vi = 0; vi < pAttr.count; vi++) {
           const lx = pAttr.getX(vi);
           const lz = pAttr.getZ(vi);
           pAttr.setY(vi, localTerrainOffset(lx, lz) + yOff);
+          if (uvAttr) {
+            uvAttr.setXY(vi, uvAttr.getX(vi) * Math.max(1, w / 3.5), uvAttr.getY(vi) * Math.max(1, d / 3.5));
+          }
         }
         pAttr.needsUpdate = true;
+        if (uvAttr) uvAttr.needsUpdate = true;
         patchGeo.computeVertexNormals();
         const surfMat = isGarden || isGrass ? campusObjectMats.gardenGrass : materials.asphaltRoad;
         const surfMesh = new THREE.Mesh(patchGeo, surfMat);
@@ -13035,35 +13342,38 @@ export function getHideAndSeekHtml(): string {
           const bS = localTerrainOffset(0, d * 0.5);
           const bW = localTerrainOffset(-w * 0.5, 0);
           const bE = localTerrainOffset(w * 0.5, 0);
-          addPart(new THREE.BoxGeometry(w, borderH + 0.35, borderT), materials.rotundaWhiteArch, 0, bN + borderH * 0.5 - 0.15, -d * 0.5 + borderT * 0.5);
-          addPart(new THREE.BoxGeometry(w, borderH + 0.35, borderT), materials.rotundaWhiteArch, 0, bS + borderH * 0.5 - 0.15, d * 0.5 - borderT * 0.5);
-          addPart(new THREE.BoxGeometry(borderT, borderH + 0.35, Math.max(0.1, d - borderT * 2)), materials.rotundaWhiteArch, -w * 0.5 + borderT * 0.5, bW + borderH * 0.5 - 0.15, 0);
-          addPart(new THREE.BoxGeometry(borderT, borderH + 0.35, Math.max(0.1, d - borderT * 2)), materials.rotundaWhiteArch, w * 0.5 - borderT * 0.5, bE + borderH * 0.5 - 0.15, 0);
+          addPart(new THREE.BoxGeometry(w, borderH + 0.35, borderT), materials.riverStoneCoping, 0, bN + borderH * 0.5 - 0.15, -d * 0.5 + borderT * 0.5);
+          addPart(new THREE.BoxGeometry(w, borderH + 0.35, borderT), materials.riverStoneCoping, 0, bS + borderH * 0.5 - 0.15, d * 0.5 - borderT * 0.5);
+          addPart(new THREE.BoxGeometry(borderT, borderH + 0.35, Math.max(0.1, d - borderT * 2)), materials.riverStoneCoping, -w * 0.5 + borderT * 0.5, bW + borderH * 0.5 - 0.15, 0);
+          addPart(new THREE.BoxGeometry(borderT, borderH + 0.35, Math.max(0.1, d - borderT * 2)), materials.riverStoneCoping, w * 0.5 - borderT * 0.5, bE + borderH * 0.5 - 0.15, 0);
           [-0.32 * w, 0, 0.32 * w].forEach((bx, bIdx) => {
             const lg = localTerrainOffset(bx, 0);
-            addPart(new THREE.DodecahedronGeometry(0.45, 1), campusObjectMats.gardenHedge, bx, lg + 0.36, 0, 0, bIdx * 0.7, 0, 1.15, 0.85, 1.15);
-            addPart(new THREE.SphereGeometry(0.13, 6, 5), bIdx % 2 === 0 ? campusObjectMats.gardenFlowerYellow : campusObjectMats.gardenFlowerPink, bx, lg + 0.72, 0);
+            addPart(new THREE.DodecahedronGeometry(0.42, 1), campusObjectMats.gardenHedge, bx, lg + 0.32, 0, 0, bIdx * 0.7, 0, 1.20, 0.78, 1.15);
+            addPart(new THREE.DodecahedronGeometry(0.28, 1), campusObjectMats.treeFoliageMid, bx + 0.24, lg + 0.26, 0.14, 0, bIdx + 0.4, 0);
+            addPart(new THREE.SphereGeometry(0.09, 6, 5), bIdx % 2 === 0 ? campusObjectMats.gardenFlowerYellow : campusObjectMats.gardenFlowerPink, bx, lg + 0.62, 0);
           });
         }
         return;
       }
 
       if (obj.type === 'road') {
-        // Terrain-conforming paved road / footpath with crisp white curbs matching Campus Editor
         const subX = Math.max(4, Math.min(28, Math.ceil(w / 2.0)));
         const subZ = Math.max(2, Math.min(12, Math.ceil(d / 2.0)));
         const roadGeo = new THREE.PlaneGeometry(w, d, subX, subZ);
         roadGeo.rotateX(-Math.PI / 2);
         roadGeo.userData.preserveVertexColors = true;
         const rAttr = roadGeo.attributes.position;
+        const rUv = roadGeo.attributes.uv;
         for (let vi = 0; vi < rAttr.count; vi++) {
           const lx = rAttr.getX(vi);
           const lz = rAttr.getZ(vi);
-          rAttr.setY(vi, localTerrainOffset(lx, lz) + 0.036);
+          rAttr.setY(vi, localTerrainOffset(lx, lz) + 0.034);
+          if (rUv) rUv.setXY(vi, rUv.getX(vi) * (w / 2.5), rUv.getY(vi) * (d / 2.5));
         }
         rAttr.needsUpdate = true;
+        if (rUv) rUv.needsUpdate = true;
         roadGeo.computeVertexNormals();
-        const roadMesh = new THREE.Mesh(roadGeo, materials.interlockingPavers);
+        const roadMesh = new THREE.Mesh(roadGeo, materials.asphaltRoad);
         roadMesh.receiveShadow = true;
         roadMesh.castShadow = false;
         roadMesh.userData.noMerge = true;
@@ -13075,8 +13385,8 @@ export function getHideAndSeekHtml(): string {
           const lx = -w * 0.5 + (s + 0.5) * segW;
           const yFront = localTerrainOffset(lx, d * 0.5);
           const yBack = localTerrainOffset(lx, -d * 0.5);
-          addPart(new THREE.BoxGeometry(segW + 0.02, 0.28, 0.14), materials.rotundaWhiteArch, lx, yFront - 0.04, d * 0.5 - 0.07);
-          addPart(new THREE.BoxGeometry(segW + 0.02, 0.28, 0.14), materials.rotundaWhiteArch, lx, yBack - 0.04, -d * 0.5 + 0.07);
+          addPart(new THREE.BoxGeometry(segW + 0.02, 0.26, 0.14), materials.riverStoneCoping, lx, yFront - 0.05, d * 0.5 - 0.07);
+          addPart(new THREE.BoxGeometry(segW + 0.02, 0.26, 0.14), materials.riverStoneCoping, lx, yBack - 0.05, -d * 0.5 + 0.07);
         }
         return;
       }
@@ -13090,7 +13400,8 @@ export function getHideAndSeekHtml(): string {
           addPart(new THREE.BoxGeometry(0.32, 0.38, 0.32), materials.rotundaPlinthConcrete, 0, 0.36, 0);
           addPart(new THREE.CylinderGeometry(0.055, 0.085, h - 0.95, 10), materials.castIronDark, 0, (h - 0.95) * 0.5 + 0.45, 0);
           addPart(new THREE.CylinderGeometry(0.14, 0.10, 0.08, 8), materials.castIronDark, 0, h - 0.52, 0);
-          const glassGlow = addPart(new THREE.CylinderGeometry(0.18, 0.13, 0.36, 4), materials.lanternGlass, 0, h - 0.30, 0, 0, Math.PI / 4, 0);
+          const perLampGlassMat = campusObjectMats.lanternWarmGlass.clone();
+          const glassGlow = addPart(new THREE.CylinderGeometry(0.18, 0.13, 0.36, 4), perLampGlassMat, 0, h - 0.30, 0, 0, Math.PI / 4, 0);
           glassGlow.userData.noMerge = true;
           for (let c = 0; c < 4; c++) {
             const ang = (c * Math.PI) / 2;
@@ -13098,64 +13409,68 @@ export function getHideAndSeekHtml(): string {
           }
           addPart(new THREE.ConeGeometry(0.26, 0.20, 4), materials.castIronDark, 0, h - 0.04, 0, 0, Math.PI / 4, 0);
           addPart(new THREE.SphereGeometry(0.04, 8, 6), materials.castIronDark, 0, h + 0.08, 0);
-          lampFlickerMod.registerCustomFixture(obj.position.x, baseSupportY, obj.position.z, h - 0.30, 0.78, profile);
+          lampFlickerMod.registerCustomFixture(group.position.x, baseSupportY, group.position.z, h - 0.30, 0.85, profile, perLampGlassMat);
         } else if (assetId === 'light_outdoor_flood') {
           // Twin-Head High-Mast Campus Security Floodlight
           addPart(new THREE.BoxGeometry(0.50, 0.65, 0.50), materials.plinthDarkConcrete, 0, -0.05, 0);
-          addPart(new THREE.CylinderGeometry(0.065, 0.11, h - 0.35, 10), materials.gandakiBluePole, 0, (h - 0.35) * 0.5 + 0.25, 0);
+          addPart(new THREE.CylinderGeometry(0.065, 0.11, h - 0.35, 10), materials.castIronDark, 0, (h - 0.35) * 0.5 + 0.25, 0);
           addPart(new THREE.BoxGeometry(0.84, 0.08, 0.10), materials.castIronDark, 0, h - 0.12, 0);
+          const perFloodLensMat = campusObjectMats.lanternWarmGlass.clone();
           [-0.28, 0.28].forEach(fx => {
             addPart(new THREE.BoxGeometry(0.32, 0.22, 0.16), materials.castIronDark, fx, h + 0.02, 0.06, 0.38, 0, 0);
-            const lens = addPart(new THREE.PlaneGeometry(0.28, 0.18), campusObjectMats.lampCoolFlood, fx, h + 0.00, 0.15, 0.38, 0, 0);
+            const lens = addPart(new THREE.PlaneGeometry(0.28, 0.18), perFloodLensMat, fx, h + 0.00, 0.15, 0.38, 0, 0);
             lens.userData.noMerge = true;
           });
-          lampFlickerMod.registerCustomFixture(obj.position.x, baseSupportY, obj.position.z, h - 0.05, 0.98, profile);
+          lampFlickerMod.registerCustomFixture(group.position.x, baseSupportY, group.position.z, h - 0.05, 1.05, profile, perFloodLensMat);
         } else {
-          // Authentic High-End Gandaki Night Streetlight via LampFlicker (Instanced Cast-Iron Post + 4-Sided Lantern + Bloom Halo + Volumetric Light Cone + Ground Pool)
-          lampFlickerMod.addLamp(obj.position.x, obj.position.z, 0, profile, baseSupportY);
-          addColliderCylinder(obj.position.x, obj.position.z, 0.22, baseSupportY, baseSupportY + 4.5);
+          // Authentic High-End Gandaki Night Streetlight via LampFlicker
+          lampFlickerMod.addLamp(group.position.x, group.position.z, 0, profile, baseSupportY);
+          addColliderCylinder(group.position.x, group.position.z, 0.22, baseSupportY, baseSupportY + 4.5);
         }
         return;
       }
 
       if (obj.type === 'nature') {
         if (assetId === 'nat_tree_large') {
-          // Full 5-Dome Organic Broadleaf Canopy + Root Flare + Tapered Bark Trunk + 3 Boughs + Soft Ground Shadow Decal
+          // Multi-Bough Himalayan Broadleaf Tree with 7 Organic Foliage Clusters, Root Buttresses & Soft Ground Shadow
           const trunkH = h * 0.44;
-          addPart(new THREE.CylinderGeometry(0.22, 0.42, 0.65, 8), campusObjectMats.treeBark, 0, 0.18, 0);
-          addPart(new THREE.CylinderGeometry(0.16, 0.28, trunkH, 9), campusObjectMats.treeBark, 0, trunkH * 0.5, 0);
+          addPart(new THREE.CylinderGeometry(0.24, 0.46, 0.72, 9), campusObjectMats.treeBark, 0, 0.20, 0);
+          addPart(new THREE.CylinderGeometry(0.16, 0.30, trunkH, 10), campusObjectMats.treeBark, 0, trunkH * 0.5, 0);
           [
-            [0.28, trunkH * 0.85, 0.12, 0, 0, -0.52],
-            [-0.26, trunkH * 0.82, -0.15, 0.32, 0, 0.48],
-            [0.08, trunkH * 0.88, -0.28, -0.48, 0, 0.12],
+            [0.32, trunkH * 0.85, 0.14, 0, 0, -0.54],
+            [-0.30, trunkH * 0.82, -0.16, 0.32, 0, 0.50],
+            [0.10, trunkH * 0.88, -0.30, -0.48, 0, 0.14],
+            [-0.12, trunkH * 0.86, 0.28, 0.44, 0, -0.18],
           ].forEach(([bx, by, bz, rx, ry, rz]) => {
-            addPart(new THREE.CylinderGeometry(0.06, 0.11, 1.35, 6), campusObjectMats.treeBark, bx, by, bz, rx, ry, rz);
+            addPart(new THREE.CylinderGeometry(0.065, 0.12, 1.45, 7), campusObjectMats.treeBark, bx, by, bz, rx, ry, rz);
           });
-          const rBase = Math.max(w, d) * 0.34;
+          const rBase = Math.max(w, d) * 0.32;
           [
-            [0, h * 0.68, 0, rBase * 1.16, 1.15, 0.90, 1.15, campusObjectMats.treeFoliageMid],
-            [rBase * 0.58, h * 0.60, rBase * 0.34, rBase * 0.86, 1.08, 0.84, 1.05, campusObjectMats.treeFoliageDark],
-            [-rBase * 0.56, h * 0.58, -rBase * 0.32, rBase * 0.88, 1.06, 0.86, 1.10, campusObjectMats.treeFoliageMid],
-            [rBase * 0.24, h * 0.63, -rBase * 0.56, rBase * 0.80, 1.10, 0.84, 1.02, campusObjectMats.treeFoliageDark],
-            [-rBase * 0.28, h * 0.82, rBase * 0.28, rBase * 0.76, 1.05, 0.90, 1.05, campusObjectMats.treeFoliageMid],
+            [0, h * 0.68, 0, rBase * 1.15, 1.18, 0.86, 1.18, campusObjectMats.treeFoliageMid],
+            [rBase * 0.58, h * 0.58, rBase * 0.34, rBase * 0.88, 1.10, 0.82, 1.06, campusObjectMats.treeFoliageDark],
+            [-rBase * 0.56, h * 0.56, -rBase * 0.32, rBase * 0.90, 1.08, 0.84, 1.12, campusObjectMats.treeFoliageMid],
+            [rBase * 0.26, h * 0.62, -rBase * 0.58, rBase * 0.84, 1.12, 0.82, 1.04, campusObjectMats.treeFoliageDark],
+            [-rBase * 0.34, h * 0.60, rBase * 0.54, rBase * 0.82, 1.06, 0.80, 1.08, campusObjectMats.treeFoliageLight],
+            [0, h * 0.84, 0, rBase * 0.82, 1.10, 0.85, 1.10, campusObjectMats.treeFoliageLight],
           ].forEach(([cx, cy, cz, rad, sx, sy, sz, fMat], idx) => {
-            addPart(new THREE.DodecahedronGeometry(rad, 1), fMat, cx, cy, cz, idx * 0.35, idx * 0.8, 0, sx, sy, sz);
+            addPart(new THREE.IcosahedronGeometry(rad, 1), fMat, cx, cy, cz, idx * 0.35, idx * 0.8, 0, sx, sy, sz);
           });
           const tShadow = addPart(new THREE.PlaneGeometry(w * 1.15, d * 1.15), materials.treeShadowDecal, 0, 0.03, 0, -Math.PI / 2, 0, 0);
           tShadow.userData.noMerge = true;
           addColliderCylinder(obj.position.x, obj.position.z, Math.max(0.32, w * 0.09), baseSupportY, baseSupportY + trunkH);
         } else if (assetId === 'nat_tree_pine') {
-          // 4-Tier Himalayan Pine Cones + Bark Trunk + Soft Ground Shadow Decal
+          // 5-Tier Himalayan Deodar / Pine Tree with Layered Needle Cones & Bark Trunk
           const trunkH = h * 0.30;
-          addPart(new THREE.CylinderGeometry(0.14, 0.26, trunkH + 0.4, 8), campusObjectMats.treeBark, 0, trunkH * 0.5, 0);
-          const rMax = Math.max(w, d) * 0.50;
+          addPart(new THREE.CylinderGeometry(0.14, 0.28, trunkH + 0.45, 9), campusObjectMats.treeBark, 0, trunkH * 0.5, 0);
+          const rMax = Math.max(w, d) * 0.48;
           [
-            [h * 0.34, rMax * 1.02, h * 0.34],
-            [h * 0.53, rMax * 0.82, h * 0.30],
-            [h * 0.71, rMax * 0.60, h * 0.26],
-            [h * 0.87, rMax * 0.36, h * 0.22],
+            [h * 0.32, rMax * 1.04, h * 0.32],
+            [h * 0.48, rMax * 0.86, h * 0.28],
+            [h * 0.64, rMax * 0.68, h * 0.25],
+            [h * 0.78, rMax * 0.48, h * 0.22],
+            [h * 0.90, rMax * 0.28, h * 0.18],
           ].forEach(([cy, rad, ch], idx) => {
-            addPart(new THREE.ConeGeometry(rad, ch, 9), idx % 2 === 0 ? campusObjectMats.pineFoliage : campusObjectMats.treeFoliageDark, 0, cy, 0, 0, idx * 0.4, 0);
+            addPart(new THREE.ConeGeometry(rad, ch, 10), idx % 2 === 0 ? campusObjectMats.pineFoliage : campusObjectMats.treeFoliageDark, 0, cy, 0, 0, idx * 0.4, 0);
           });
           const pShadow = addPart(new THREE.PlaneGeometry(w * 1.05, d * 1.05), materials.treeShadowDecal, 0, 0.03, 0, -Math.PI / 2, 0, 0);
           pShadow.userData.noMerge = true;
@@ -13165,15 +13480,15 @@ export function getHideAndSeekHtml(): string {
           addPart(new THREE.DodecahedronGeometry(Math.max(w, d) * 0.28, 1), materials.riverStoneCoping, w * 0.24, h * 0.26, d * 0.18, 0.4, 0.2, 0);
           addColliderCylinder(obj.position.x, obj.position.z, Math.max(0.45, Math.min(w, d) * 0.42), baseSupportY, baseSupportY + h);
         } else {
-          // nat_bush_large / nat_bush_small (Multi-lobe organic shrub cluster)
+          // nat_bush_large / nat_bush_small (Multi-lobe organic dark green foliage shrub cluster)
           const bRad = Math.max(w, d) * 0.34;
           [
-            [0, h * 0.48, 0, bRad * 1.06, campusObjectMats.gardenHedge],
-            [bRad * 0.52, h * 0.40, bRad * 0.25, bRad * 0.78, campusObjectMats.treeFoliageMid],
-            [-bRad * 0.48, h * 0.38, -bRad * 0.25, bRad * 0.80, campusObjectMats.treeFoliageDark],
-            [0, h * 0.42, -bRad * 0.45, bRad * 0.72, campusObjectMats.gardenHedge],
+            [0, h * 0.46, 0, bRad * 1.05, campusObjectMats.gardenHedge],
+            [bRad * 0.50, h * 0.38, bRad * 0.24, bRad * 0.78, campusObjectMats.treeFoliageMid],
+            [-bRad * 0.48, h * 0.36, -bRad * 0.24, bRad * 0.80, campusObjectMats.treeFoliageDark],
+            [0, h * 0.40, -bRad * 0.44, bRad * 0.72, campusObjectMats.treeFoliageLight],
           ].forEach(([bx, by, bz, br, bMat], idx) => {
-            addPart(new THREE.DodecahedronGeometry(br, 1), bMat, bx, by, bz, idx * 0.3, idx * 0.6, 0, 1.15, 0.82, 1.15);
+            addPart(new THREE.IcosahedronGeometry(br, 1), bMat, bx, by, bz, idx * 0.3, idx * 0.6, 0, 1.15, 0.80, 1.15);
           });
         }
         return;
@@ -13181,13 +13496,11 @@ export function getHideAndSeekHtml(): string {
 
       if (obj.type === 'prop') {
         if (assetId === 'prop_dustbin') {
-          // Domed Hooded Campus Waste Bin with Disposal Slot & Pedestal Base
           addPart(new THREE.CylinderGeometry(w * 0.46, w * 0.48, 0.08, 12), materials.castIronDark, 0, 0.04, 0);
           addPart(new THREE.CylinderGeometry(w * 0.44, w * 0.38, h * 0.68, 14), campusObjectMats.dustbinGreen, 0, h * 0.38, 0);
           addPart(new THREE.SphereGeometry(w * 0.44, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), materials.castIronDark, 0, h * 0.72, 0);
           addPart(new THREE.BoxGeometry(w * 0.42, h * 0.12, 0.05), materials.plinthDarkConcrete, 0, h * 0.77, w * 0.36);
         } else {
-          // Slatted Wooden Campus Bench with Cast-Iron Legs, Armrests & Ground Contact Shadow
           const seatY = h * 0.46;
           for (let s = 0; s < 3; s++) {
             addPart(new THREE.BoxGeometry(w * 0.96, 0.045, d * 0.20), materials.carvedSalWood, 0, seatY, (s - 1) * (d * 0.24));
@@ -13208,69 +13521,107 @@ export function getHideAndSeekHtml(): string {
 
       if (obj.type === 'vehicle') {
         if (assetId === 'veh_motorcycle_scooter') {
-          // Detailed Parked Student Scooter (Tires, Alloy Hubs, Main Step-Through Frame, Dual Seat, Front Apron, Handlebars, Mirrors & Headlight)
-          const bodyMat = objIdx % 2 === 0 ? campusObjectMats.scooterRed : campusObjectMats.scooterBlue;
+          // High-Detail Realistic Campus Scooter (Curved Front Apron Fairing, Telescopic Forks, Mudguard, Step-Through Floorboard, Sculpted Engine Side Panels, Contoured Dual Seat, Exhaust Pipe, Kickstand, Mirrors & Instrument Cowl)
+          const paintMats = [campusObjectMats.scooterRed, campusObjectMats.scooterBlue, campusObjectMats.scooterGraphite];
+          const bodyMat = paintMats[objIdx % paintMats.length];
+          const wheelR = 0.21;
           [-d * 0.35, d * 0.35].forEach(wz => {
-            addPart(new THREE.CylinderGeometry(0.22, 0.22, 0.12, 12), campusObjectMats.tireRubber, 0, 0.22, wz, 0, 0, Math.PI / 2);
-            addPart(new THREE.CylinderGeometry(0.12, 0.12, 0.13, 10), campusObjectMats.alloyRim, 0, 0.22, wz, 0, 0, Math.PI / 2);
+            addPart(new THREE.CylinderGeometry(wheelR, wheelR, 0.11, 16), campusObjectMats.tireRubber, 0, wheelR, wz, 0, 0, Math.PI / 2);
+            addPart(new THREE.CylinderGeometry(wheelR * 0.58, wheelR * 0.58, 0.125, 12), campusObjectMats.alloyRim, 0, wheelR, wz, 0, 0, Math.PI / 2);
+            addPart(new THREE.CylinderGeometry(0.04, 0.04, 0.14, 8), materials.castIronDark, 0, wheelR, wz, 0, 0, Math.PI / 2);
           });
-          addPart(new THREE.BoxGeometry(w * 0.62, 0.28, d * 0.56), bodyMat, 0, 0.42, -d * 0.06);
-          addPart(new THREE.BoxGeometry(w * 0.56, 0.12, d * 0.44), campusObjectMats.scooterSeat, 0, 0.62, -d * 0.12);
-          addPart(new THREE.BoxGeometry(w * 0.46, 0.54, 0.14), bodyMat, 0, 0.58, d * 0.26, -0.22, 0, 0);
-          addPart(new THREE.CylinderGeometry(0.024, 0.024, w * 0.94, 8), campusObjectMats.chromeMetal, 0, 0.92, d * 0.22, 0, 0, Math.PI / 2);
-          addPart(new THREE.SphereGeometry(0.08, 8, 6), campusObjectMats.headlightLens, 0, 0.90, d * 0.28);
+          // Front telescopic forks & curved front mudguard
+          [-0.08, 0.08].forEach(fx => {
+            addPart(new THREE.CylinderGeometry(0.022, 0.018, 0.46, 8), campusObjectMats.chromeMetal, fx, 0.38, d * 0.31, -0.24, 0, 0);
+          });
+          addPart(new THREE.CylinderGeometry(0.23, 0.22, 0.15, 12, 1, false, 0, Math.PI), bodyMat, 0, 0.24, d * 0.35, 0, Math.PI / 2, Math.PI / 2);
+          // Flat step-through footboard & lower underbelly pan
+          addPart(new THREE.BoxGeometry(w * 0.52, 0.07, d * 0.36), campusObjectMats.carBumperDark, 0, 0.24, 0.02);
+          // Sculpted rear engine cowl & tapered side panels
+          addPart(new THREE.CylinderGeometry(w * 0.28, w * 0.32, d * 0.46, 12), bodyMat, 0, 0.44, -d * 0.18, Math.PI / 2 - 0.12, 0, 0);
+          // Contoured 2-tier leather saddle seat + rear alloy grab handle
+          addPart(new THREE.CylinderGeometry(w * 0.24, w * 0.26, d * 0.42, 10), campusObjectMats.scooterSeat, 0, 0.61, -d * 0.16, Math.PI / 2 - 0.06, 0, 0);
+          addPart(new THREE.BoxGeometry(w * 0.38, 0.03, 0.14), campusObjectMats.chromeMetal, 0, 0.63, -d * 0.40);
+          // Aerodynamic angled front apron shield + handlebar headlamp nacelle
+          addPart(new THREE.CylinderGeometry(w * 0.20, w * 0.27, 0.56, 10), bodyMat, 0, 0.56, d * 0.25, -0.28, 0, 0);
+          addPart(new THREE.BoxGeometry(w * 0.36, 0.14, 0.16), bodyMat, 0, 0.88, d * 0.20);
+          addPart(new THREE.CylinderGeometry(0.020, 0.020, w * 0.90, 8), campusObjectMats.chromeMetal, 0, 0.90, d * 0.19, 0, 0, Math.PI / 2);
+          [-w * 0.40, w * 0.40].forEach(mx => {
+            addPart(new THREE.CylinderGeometry(0.008, 0.008, 0.14, 6), campusObjectMats.chromeMetal, mx * 0.85, 0.97, d * 0.19, 0, 0, mx > 0 ? -0.25 : 0.25);
+            addPart(new THREE.SphereGeometry(0.038, 8, 6), campusObjectMats.carBumperDark, mx, 1.03, d * 0.19, 0, 0, 0, 1.2, 0.8, 0.4);
+          });
+          // Headlamp, V-DRL, Taillight, Exhaust Muffler & Side Kickstand
+          addPart(new THREE.SphereGeometry(0.065, 10, 8), campusObjectMats.headlightLens, 0, 0.88, d * 0.28, 0, 0, 0, 1.1, 0.9, 0.5);
+          addPart(new THREE.BoxGeometry(0.12, 0.06, 0.04), campusObjectMats.taillightLens, 0, 0.52, -d * 0.42);
+          addPart(new THREE.CylinderGeometry(0.042, 0.035, 0.38, 10), materials.castIronDark, w * 0.28, 0.26, -d * 0.24, Math.PI / 2 - 0.18, 0, 0);
+          addPart(new THREE.CylinderGeometry(0.012, 0.010, 0.26, 6), materials.castIronDark, -w * 0.22, 0.13, -0.02, 0.15, 0, 0.48);
           const sShadow = addPart(new THREE.PlaneGeometry(w * 1.25, d * 1.15), materials.pedestalShadowDecal, 0, 0.025, 0, -Math.PI / 2, 0, 0);
           sShadow.userData.noMerge = true;
-          addColliderOBB(obj.position.x, obj.position.z, w * 0.45, d * 0.45, rotRad, baseSupportY, baseSupportY + h, 'vehicle', obj.id);
+          addColliderOBB(group.position.x, group.position.z, w * 0.45, d * 0.45, rotRad, baseSupportY, baseSupportY + h, 'vehicle', obj.id);
         } else if (assetId === 'veh_parked_van') {
-          // Detailed Utility Van (Lower Body, Upper Cabin, Tinted Windows, Bumpers, 4 Tires + Alloy Rims, Headlights, Taillights & Contact Shadow)
-          addPart(new THREE.BoxGeometry(w * 0.96, h * 0.44, d * 0.96), campusObjectMats.vanWhite, 0, h * 0.34, 0);
-          addPart(new THREE.BoxGeometry(w * 0.90, h * 0.40, d * 0.80), campusObjectMats.vanWhite, 0, h * 0.73, -d * 0.04);
-          addPart(new THREE.BoxGeometry(w * 0.92, h * 0.28, d * 0.72), campusObjectMats.carCabinGlass, 0, h * 0.74, -d * 0.03);
-          addPart(new THREE.BoxGeometry(w * 1.0, 0.16, 0.18), campusObjectMats.carBumperDark, 0, 0.24, d * 0.48);
-          addPart(new THREE.BoxGeometry(w * 1.0, 0.16, 0.18), campusObjectMats.carBumperDark, 0, 0.24, -d * 0.48);
+          // High-Detail Campus Utility Van (Sculpted Lower Body, Sloped Nose & Windshield, Framed Side Windows, Roof Ribs, Bumpers, Grille, Side Mirrors & 4 Alloy Wheels)
+          addPart(new THREE.BoxGeometry(w * 0.96, h * 0.42, d * 0.94), campusObjectMats.vanWhite, 0, h * 0.33, -d * 0.01);
+          addPart(new THREE.BoxGeometry(w * 0.92, h * 0.40, d * 0.78), campusObjectMats.vanWhite, 0, h * 0.72, -d * 0.06);
+          // Sloped front nose & front windshield
+          addPart(new THREE.BoxGeometry(w * 0.90, h * 0.38, 0.18), campusObjectMats.vanWhite, 0, h * 0.68, d * 0.34, -0.36, 0, 0);
+          addPart(new THREE.BoxGeometry(w * 0.84, h * 0.32, 0.06), campusObjectMats.carCabinGlass, 0, h * 0.72, d * 0.38, -0.36, 0, 0);
+          addPart(new THREE.BoxGeometry(w * 0.94, h * 0.26, d * 0.68), campusObjectMats.carCabinGlass, 0, h * 0.73, -d * 0.06);
+          addPart(new THREE.BoxGeometry(w * 1.0, 0.16, 0.20), campusObjectMats.carBumperDark, 0, 0.22, d * 0.46);
+          addPart(new THREE.BoxGeometry(w * 1.0, 0.16, 0.20), campusObjectMats.carBumperDark, 0, 0.22, -d * 0.46);
+          addPart(new THREE.BoxGeometry(w * 0.56, 0.20, 0.05), campusObjectMats.carBumperDark, 0, h * 0.36, d * 0.47);
+          [-w * 0.50, w * 0.50].forEach(mx => {
+            addPart(new THREE.BoxGeometry(0.10, 0.14, 0.08), campusObjectMats.carBumperDark, mx, h * 0.62, d * 0.26);
+          });
           const wheelR = 0.34;
           [[-w * 0.46, d * 0.31], [w * 0.46, d * 0.31], [-w * 0.46, -d * 0.31], [w * 0.46, -d * 0.31]].forEach(([wx, wz]) => {
-            addPart(new THREE.CylinderGeometry(wheelR, wheelR, 0.22, 14), campusObjectMats.tireRubber, wx, wheelR, wz, 0, 0, Math.PI / 2);
-            addPart(new THREE.CylinderGeometry(wheelR * 0.56, wheelR * 0.56, 0.24, 10), campusObjectMats.alloyRim, wx, wheelR, wz, 0, 0, Math.PI / 2);
+            addPart(new THREE.CylinderGeometry(wheelR, wheelR, 0.22, 16), campusObjectMats.tireRubber, wx, wheelR, wz, 0, 0, Math.PI / 2);
+            addPart(new THREE.CylinderGeometry(wheelR * 0.58, wheelR * 0.58, 0.24, 12), campusObjectMats.alloyRim, wx, wheelR, wz, 0, 0, Math.PI / 2);
           });
           [-w * 0.32, w * 0.32].forEach(lx => {
-            addPart(new THREE.BoxGeometry(0.26, 0.14, 0.06), campusObjectMats.headlightLens, lx, h * 0.38, d * 0.48);
-            addPart(new THREE.BoxGeometry(0.24, 0.14, 0.06), campusObjectMats.taillightLens, lx, h * 0.40, -d * 0.48);
+            addPart(new THREE.BoxGeometry(0.24, 0.13, 0.06), campusObjectMats.headlightLens, lx, h * 0.36, d * 0.47);
+            addPart(new THREE.BoxGeometry(0.22, 0.14, 0.06), campusObjectMats.taillightLens, lx, h * 0.38, -d * 0.47);
           });
           const vShadow = addPart(new THREE.PlaneGeometry(w * 1.18, d * 1.12), materials.pedestalShadowDecal, 0, 0.025, 0, -Math.PI / 2, 0, 0);
           vShadow.userData.noMerge = true;
-          addColliderOBB(obj.position.x, obj.position.z, w * 0.47, d * 0.47, rotRad, baseSupportY, baseSupportY + h, 'vehicle', obj.id);
+          addColliderOBB(group.position.x, group.position.z, w * 0.47, d * 0.47, rotRad, baseSupportY, baseSupportY + h, 'vehicle', obj.id);
         } else {
-          // Detailed Sedan (veh_car_sedan_silver & veh_car_sedan_navy: Lower Chassis, Bumpers, Grille, Cabin Roof, Sloped Windshields, 4 Tires + Alloy Rims, Headlights & Taillights)
+          // High-Detail Realistic Sedan (veh_car_sedan_silver & veh_car_sedan_navy: Sculpted Lower Beltline, Sloped Hood, Trunk Deck, Angled A/B/C Pillars, Windshield & Backlight, Side Mirrors, Grille & Alloy Wheels)
           const bodyMat = assetId === 'veh_car_sedan_navy' ? campusObjectMats.carNavy : campusObjectMats.carSilver;
-          addPart(new THREE.BoxGeometry(w * 0.96, h * 0.40, d * 0.96), bodyMat, 0, h * 0.34, 0);
-          addPart(new THREE.BoxGeometry(w * 1.0, 0.15, 0.18), campusObjectMats.carBumperDark, 0, 0.22, d * 0.47);
-          addPart(new THREE.BoxGeometry(w * 1.0, 0.15, 0.18), campusObjectMats.carBumperDark, 0, 0.22, -d * 0.47);
-          addPart(new THREE.BoxGeometry(w * 0.54, 0.18, 0.06), campusObjectMats.carBumperDark, 0, h * 0.34, d * 0.485);
-          addPart(new THREE.BoxGeometry(w * 0.84, h * 0.36, d * 0.50), bodyMat, 0, h * 0.70, -d * 0.04);
-          addPart(new THREE.BoxGeometry(w * 0.86, h * 0.28, d * 0.46), campusObjectMats.carCabinGlass, 0, h * 0.70, -d * 0.04);
-          addPart(new THREE.BoxGeometry(w * 0.80, h * 0.30, 0.08), campusObjectMats.carCabinGlass, 0, h * 0.68, d * 0.22, -0.52, 0, 0);
-          addPart(new THREE.BoxGeometry(w * 0.80, h * 0.28, 0.08), campusObjectMats.carCabinGlass, 0, h * 0.68, -d * 0.30, 0.54, 0, 0);
-          const wheelR = 0.31;
-          [[-w * 0.46, d * 0.31], [w * 0.46, d * 0.31], [-w * 0.46, -d * 0.31], [w * 0.46, -d * 0.31]].forEach(([wx, wz]) => {
-            addPart(new THREE.CylinderGeometry(wheelR, wheelR, 0.22, 14), campusObjectMats.tireRubber, wx, wheelR, wz, 0, 0, Math.PI / 2);
-            addPart(new THREE.CylinderGeometry(wheelR * 0.56, wheelR * 0.56, 0.24, 10), campusObjectMats.alloyRim, wx, wheelR, wz, 0, 0, Math.PI / 2);
+          // Main lower body + sloped hood & rear decklid
+          addPart(new THREE.BoxGeometry(w * 0.96, h * 0.34, d * 0.92), bodyMat, 0, h * 0.31, 0);
+          addPart(new THREE.BoxGeometry(w * 0.92, h * 0.12, d * 0.30), bodyMat, 0, h * 0.46, d * 0.28, 0.12, 0, 0);
+          addPart(new THREE.BoxGeometry(w * 0.90, h * 0.10, d * 0.22), bodyMat, 0, h * 0.46, -d * 0.32, -0.08, 0, 0);
+          // Front & rear dark bumpers + grille + license plates
+          addPart(new THREE.BoxGeometry(w * 0.98, 0.15, 0.18), campusObjectMats.carBumperDark, 0, 0.21, d * 0.45);
+          addPart(new THREE.BoxGeometry(w * 0.98, 0.15, 0.18), campusObjectMats.carBumperDark, 0, 0.21, -d * 0.45);
+          addPart(new THREE.BoxGeometry(w * 0.52, 0.16, 0.05), campusObjectMats.carBumperDark, 0, h * 0.33, d * 0.47);
+          // Tapered greenhouse roof + sloped front windshield + rear backlight + side windows
+          addPart(new THREE.BoxGeometry(w * 0.80, h * 0.08, d * 0.40), bodyMat, 0, h * 0.86, -d * 0.05);
+          addPart(new THREE.BoxGeometry(w * 0.82, h * 0.32, d * 0.42), campusObjectMats.carCabinGlass, 0, h * 0.68, -d * 0.05);
+          addPart(new THREE.BoxGeometry(w * 0.78, h * 0.34, 0.06), campusObjectMats.carCabinGlass, 0, h * 0.68, d * 0.19, -0.58, 0, 0);
+          addPart(new THREE.BoxGeometry(w * 0.76, h * 0.32, 0.06), campusObjectMats.carCabinGlass, 0, h * 0.68, -d * 0.28, 0.58, 0, 0);
+          // Side mirrors & door handles
+          [-w * 0.49, w * 0.49].forEach(mx => {
+            addPart(new THREE.BoxGeometry(0.10, 0.08, 0.12), bodyMat, mx, h * 0.56, d * 0.12);
+          });
+          const wheelR = 0.30;
+          [[-w * 0.46, d * 0.30], [w * 0.46, d * 0.30], [-w * 0.46, -d * 0.30], [w * 0.46, -d * 0.30]].forEach(([wx, wz]) => {
+            addPart(new THREE.CylinderGeometry(wheelR, wheelR, 0.21, 16), campusObjectMats.tireRubber, wx, wheelR, wz, 0, 0, Math.PI / 2);
+            addPart(new THREE.CylinderGeometry(wheelR * 0.58, wheelR * 0.58, 0.23, 12), campusObjectMats.alloyRim, wx, wheelR, wz, 0, 0, Math.PI / 2);
           });
           [-w * 0.32, w * 0.32].forEach(lx => {
-            addPart(new THREE.BoxGeometry(0.24, 0.12, 0.06), campusObjectMats.headlightLens, lx, h * 0.38, d * 0.48);
-            addPart(new THREE.BoxGeometry(0.24, 0.12, 0.06), campusObjectMats.taillightLens, lx, h * 0.40, -d * 0.48);
+            addPart(new THREE.BoxGeometry(0.22, 0.11, 0.05), campusObjectMats.headlightLens, lx, h * 0.35, d * 0.465);
+            addPart(new THREE.BoxGeometry(0.22, 0.11, 0.05), campusObjectMats.taillightLens, lx, h * 0.37, -d * 0.465);
           });
           const cShadow = addPart(new THREE.PlaneGeometry(w * 1.18, d * 1.12), materials.pedestalShadowDecal, 0, 0.025, 0, -Math.PI / 2, 0, 0);
           cShadow.userData.noMerge = true;
-          addColliderOBB(obj.position.x, obj.position.z, w * 0.47, d * 0.47, rotRad, baseSupportY, baseSupportY + h, 'vehicle', obj.id);
+          addColliderOBB(group.position.x, group.position.z, w * 0.47, d * 0.47, rotRad, baseSupportY, baseSupportY + h, 'vehicle', obj.id);
         }
         return;
       }
 
       if (obj.type === 'architecture') {
         if (assetId === 'arch_wall_exterior') {
-          // Segment-sampled exterior rubble-stone boundary wall that follows the sculpted terrain contour without floating gaps
           const segCount = Math.max(4, Math.min(28, Math.ceil(w / 3.0)));
           const segW = w / segCount;
           const skirtDepth = 1.60;
@@ -13280,15 +13631,14 @@ export function getHideAndSeekHtml(): string {
             addPart(new THREE.BoxGeometry(segW + 0.04, h + skirtDepth, d), materials.retainingRubbleStone, lx, ly + (h - skirtDepth) * 0.5, 0);
             addPart(new THREE.BoxGeometry(segW + 0.08, 0.16, d + 0.10), materials.riverStoneCoping, lx, ly + h + 0.08, 0);
           }
-          addColliderOBB(obj.position.x, obj.position.z, w * 0.5, d * 0.5, rotRad, baseSupportY - 1.5, baseSupportY + h + 1.2, 'wall', obj.id);
+          addColliderOBB(group.position.x, group.position.z, w * 0.5, d * 0.5, rotRad, baseSupportY - 1.5, baseSupportY + h + 1.2, 'wall', obj.id);
         } else if (assetId === 'arch_pillar_concrete') {
           const skirtDepth = 1.20;
           addPart(new THREE.BoxGeometry(w * 1.24, 0.28 + skirtDepth, d * 1.24), materials.plinthDarkConcrete, 0, 0.14 - skirtDepth * 0.5, 0);
           addPart(new THREE.BoxGeometry(w, h, d), materials.rotundaWhiteArch, 0, h * 0.5, 0);
           addPart(new THREE.BoxGeometry(w * 1.26, 0.20, d * 1.26), materials.rotundaWhiteArch, 0, h - 0.10, 0);
-          addColliderOBB(obj.position.x, obj.position.z, w * 0.5, d * 0.5, rotRad, baseSupportY - 1.0, baseSupportY + h, 'wall', obj.id);
+          addColliderOBB(group.position.x, group.position.z, w * 0.5, d * 0.5, rotRad, baseSupportY - 1.0, baseSupportY + h, 'wall', obj.id);
         } else if (assetId === 'arch_ac_unit') {
-          // Split AC Outdoor Condenser Unit with Fan Grille & Wall Brackets
           const mountY = Math.max(2.35, obj.position.y - baseSupportY);
           addPart(new THREE.BoxGeometry(w, h, d), campusObjectMats.acBodyMat, 0, mountY + h * 0.5, 0);
           addPart(new THREE.CylinderGeometry(Math.min(w, h) * 0.34, Math.min(w, h) * 0.34, d + 0.04, 12), materials.castIronDark, -w * 0.14, mountY + h * 0.5, 0, Math.PI / 2, 0, 0);
@@ -13302,11 +13652,24 @@ export function getHideAndSeekHtml(): string {
       }
     }
 
+    const buildingFootprintsForClearance = layoutObjects.filter(o => o.type === 'building').map(b => {
+      const isRotated = b.rotation && Math.abs(Math.abs(b.rotation.yDeg || 0) - 90) < 15;
+      const bw = isRotated ? b.dimensions.depth : b.dimensions.width;
+      const bd = isRotated ? b.dimensions.width : b.dimensions.depth;
+      return {
+        id: b.id,
+        cx: b.position.x,
+        cz: b.position.z,
+        minX: b.position.x - bw * 0.5 - 1.85,
+        maxX: b.position.x + bw * 0.5 + 1.85,
+        minZ: b.position.z - bd * 0.5 - 1.85,
+        maxZ: b.position.z + bd * 0.5 + 1.85,
+      };
+    });
+
     layoutObjects.forEach((obj, objIdx) => {
       campusSceneAudit.byAssetId[obj.assetId] = (campusSceneAudit.byAssetId[obj.assetId] || 0) + 1;
       if (obj.type === 'building' || obj.id === 'bus_a_gp62' || obj.id === 'bus_b_gp64') {
-        // Buildings and enterable buses are instantiated by their dedicated architectural builders below
-        // and recorded into campusSceneAudit.
         campusSceneAudit.instantiatedCount++;
         campusSceneAudit.byCategory[obj.type] = (campusSceneAudit.byCategory[obj.type] || 0) + 1;
         campusSceneAudit.instantiatedIds.push(obj.id);
@@ -13322,19 +13685,37 @@ export function getHideAndSeekHtml(): string {
       const h = (obj.dimensions.height || 0.1) * sy;
       const d = (obj.dimensions.depth || 1) * sz;
 
-      const terrainY = getTerrainHeightAt(obj.position.x, obj.position.z);
+      let spawnX = obj.position.x;
+      let spawnZ = obj.position.z;
+      // Prevent garden lamps, streetlights, and benches from clipping inside roofed building verandas
+      if (obj.type === 'lighting' || obj.type === 'prop') {
+        for (let bi = 0; bi < buildingFootprintsForClearance.length; bi++) {
+          const bf = buildingFootprintsForClearance[bi];
+          if (spawnX > bf.minX && spawnX < bf.maxX && spawnZ > bf.minZ && spawnZ < bf.maxZ) {
+            const dLeft = Math.abs(spawnX - bf.minX);
+            const dRight = Math.abs(bf.maxX - spawnX);
+            const dFront = Math.abs(spawnZ - bf.minZ);
+            const dBack = Math.abs(bf.maxZ - spawnZ);
+            const minD = Math.min(dLeft, dRight, dFront, dBack);
+            if (minD === dFront) spawnZ = bf.minZ - 0.65;
+            else if (minD === dBack) spawnZ = bf.maxZ + 0.65;
+            else if (minD === dLeft) spawnX = bf.minX - 0.65;
+            else spawnX = bf.maxX + 0.65;
+          }
+        }
+      }
+
+      const terrainY = getTerrainHeightAt(spawnX, spawnZ);
       let baseSupportY = terrainY;
       if (obj.type === 'vehicle') {
-        // Sample the 4 wheel contact points on the terrain so parked cars/vans/scooters sit level without floating or burying
         const cosR = Math.cos(rotRad), sinR = Math.sin(rotRad);
         const hw = w * 0.42, hd = d * 0.32;
-        const h1 = getTerrainHeightAt(obj.position.x - hw * cosR + hd * sinR, obj.position.z + hw * sinR + hd * cosR);
-        const h2 = getTerrainHeightAt(obj.position.x + hw * cosR + hd * sinR, obj.position.z - hw * sinR + hd * cosR);
-        const h3 = getTerrainHeightAt(obj.position.x - hw * cosR - hd * sinR, obj.position.z + hw * sinR - hd * cosR);
-        const h4 = getTerrainHeightAt(obj.position.x + hw * cosR - hd * sinR, obj.position.z - hw * sinR - hd * cosR);
+        const h1 = getTerrainHeightAt(spawnX - hw * cosR + hd * sinR, spawnZ + hw * sinR + hd * cosR);
+        const h2 = getTerrainHeightAt(spawnX + hw * cosR + hd * sinR, spawnZ - hw * sinR + hd * cosR);
+        const h3 = getTerrainHeightAt(spawnX - hw * cosR - hd * sinR, spawnZ + hw * sinR - hd * cosR);
+        const h4 = getTerrainHeightAt(spawnX + hw * cosR - hd * sinR, spawnZ - hw * sinR - hd * cosR);
         baseSupportY = (h1 + h2 + h3 + h4) * 0.25;
       } else if (typeof obj.position.y === 'number' && Number.isFinite(obj.position.y) && obj.assetId !== 'arch_ac_unit') {
-        // Ground objects flush to the sculpted terrain if their JSON Y is within 0.45m of the terrain surface
         baseSupportY = Math.abs(obj.position.y - terrainY) <= 0.45 ? terrainY : obj.position.y;
       }
 
@@ -13343,7 +13724,7 @@ export function getHideAndSeekHtml(): string {
       objGroup.userData.campusObjectId = obj.id;
       objGroup.userData.campusObjectType = obj.type;
       objGroup.userData.campusAssetId = obj.assetId;
-      objGroup.position.set(obj.position.x, baseSupportY, obj.position.z);
+      objGroup.position.set(spawnX, baseSupportY, spawnZ);
       objGroup.rotation.y = rotRad;
       populateCampusObjectDetail(objGroup, obj, w, h, d, baseSupportY, objIdx);
       scene.add(objGroup);
@@ -17345,9 +17726,9 @@ export function getHideAndSeekHtml(): string {
         dr.pivot.visible = (dDist <= maxDoorDist) && (Math.abs(dr.y - playerPos.y) <= 2.6);
       }
 
-      // 3. Building & Courtyard Sector Distance & Shadow-Caster Culling
-      const maxSectorDist = currentInsideRoom ? Math.min(cullBuilding, 24.0) : (activeBuildingKey ? Math.min(cullBuilding, 32.0) : Math.min(cullBuilding, 54.0));
-      const minLandmarkDist = (HORROR_CONFIG.mainBuilding && HORROR_CONFIG.mainBuilding.minLandmarkCullDist) || 145.0;
+      // 3. Building & Courtyard Sector Distance & Shadow-Caster Culling (Full horizon visibility when outdoors so poles & buildings stay visible across screen!)
+      const maxSectorDist = currentInsideRoom ? Math.min(cullBuilding, 32.0) : (activeBuildingKey ? Math.min(cullBuilding, 85.0) : 185.0);
+      const minLandmarkDist = (HORROR_CONFIG.mainBuilding && HORROR_CONFIG.mainBuilding.minLandmarkCullDist) || 185.0;
       if (typeof mainBuildingEffectsGroup !== 'undefined' && mainBuildingEffectsGroup) {
         mainBuildingEffectsGroup.visible = (currentQuality !== 'fast');
       }
@@ -17383,10 +17764,11 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // 4. Distance-cull exterior lamp groups, puddles, tree shadow decals, corridor fog/mist & non-visible room shafts/gobos
+      // 4. Keep exterior lamp groups, cones & ground light pools visible all the way across the screen (185m horizon)
       const isLowOrFast = (currentQuality === 'low' || currentQuality === 'fast');
       const isFastOnly = (currentQuality === 'fast');
       const isUltraOnly = (currentQuality === 'ultra');
+      const lampsPowered = !lampFlickerMod || lampFlickerMod.campusPowerEnabled !== false;
       if (lampFlickerMod && lampFlickerMod.lamps) {
         const lamps = lampFlickerMod.lamps;
         for (let l = 0; l < lamps.length; l++) {
@@ -17394,9 +17776,9 @@ export function getHideAndSeekHtml(): string {
           const lx = lm.x !== undefined ? lm.x : (lm.bulbPos ? lm.bulbPos.x : 0);
           const lz = lm.z !== undefined ? lm.z : (lm.bulbPos ? lm.bulbPos.z : 0);
           const lDist = Math.hypot(lx - playerPos.x, lz - playerPos.z);
-          const showLamp = currentInsideRoom ? (lDist < 12.0) : (lDist < 34.0);
+          const showLamp = currentInsideRoom ? (lDist < 28.0) : (lDist < 185.0);
           if (lm.group) lm.group.visible = showLamp;
-          if (lm.puddleMesh) lm.puddleMesh.visible = showLamp && lm.blinkProfile !== 'dead';
+          if (lm.puddleMesh) lm.puddleMesh.visible = showLamp && lampsPowered && lm.blinkProfile !== 'dead';
         }
       }
       if (typeof rainPuddles !== 'undefined' && Array.isArray(rainPuddles)) {
@@ -18663,6 +19045,7 @@ export function getHideAndSeekHtml(): string {
         el.closest('#action-prompt') ||
         el.closest('#campus-banner') ||
         el.closest('#physics-debug-hud') ||
+        el.closest('#live-lighting-tuner-panel') ||
         el.closest('#breath-minigame-overlay')
       );
     }
@@ -18899,6 +19282,178 @@ export function getHideAndSeekHtml(): string {
     bindTouchBtn('btn-crouch', toggleCrouch);
     bindTouchBtn('btn-jump', performJump);
     bindTouchBtn('btn-action', performAction);
+
+    // Live Lighting, Brightness, Fog & Graphics Adjuster Panel Bindings
+    (function initLiveLightingTunerPanel() {
+      const panel = document.getElementById('live-lighting-tuner-panel');
+      const closeBtn = document.getElementById('lt-btn-close');
+      const summaryBox = document.getElementById('lt-summary-box');
+      const copyBtn = document.getElementById('lt-btn-copy');
+      const resetBtn = document.getElementById('lt-btn-reset');
+      const flBtn = document.getElementById('lt-btn-flashlight');
+      const flickBtn = document.getElementById('lt-btn-flicker');
+      const actBtn = document.getElementById('lt-btn-interact');
+
+      const defaults = {
+        exposure: 1.06,
+        lampInt: 8.6,
+        lampDist: 18.2,
+        lampDecay: 1.64,
+        poolOp: 0.48,
+        moon: 0.46,
+        amb: 0.15,
+        fog: 1.00,
+        flash: 11.2,
+        vig: 0.35,
+      };
+      const state = Object.assign({}, defaults);
+
+      function togglePanel(force) {
+        if (!panel) return;
+        const isShown = panel.style.display === 'flex';
+        const next = (typeof force === 'boolean') ? force : !isShown;
+        panel.style.display = next ? 'flex' : 'none';
+      }
+
+      bindTouchBtn('btn-lighting-tuner', () => togglePanel());
+      if (closeBtn) closeBtn.addEventListener('click', () => togglePanel(false));
+
+      function applyAllLiveLightingValues() {
+        if (atmosphere && atmosphere.renderer) {
+          atmosphere.renderer.toneMappingExposure = state.exposure;
+        }
+        if (lampFlickerMod) {
+          lampFlickerMod.customLampDistance = state.lampDist;
+          lampFlickerMod.customLampDecay = state.lampDecay;
+          lampFlickerMod.customPoolOpacity = state.poolOp;
+          lampFlickerMod.customConeOpacity = state.poolOp * 0.30;
+          const distScaleRatio = state.lampDist / 18.2;
+          for (let i = 0; i < lampFlickerMod.lamps.length; i++) {
+            const l = lampFlickerMod.lamps[i];
+            if (!l) continue;
+            l.baseIntensity = l.isWallSconce ? (state.lampInt * 1.4) : state.lampInt;
+            if (l.puddleMesh) {
+              const s = 1.50 * Math.max(0.55, Math.min(2.2, distScaleRatio));
+              l.puddleMesh.scale.set(s, s, 1);
+            }
+          }
+        }
+        if (atmosphere) {
+          atmosphere.baseMoonIntensity = state.moon;
+          if (atmosphere.moonDirLight) atmosphere.moonDirLight.intensity = state.moon;
+          atmosphere.baseAmbIntensity = state.amb;
+          atmosphere.baseHemiIntensity = state.amb * 1.35;
+          if (atmosphere.ambientLight) atmosphere.ambientLight.intensity = state.amb;
+          if (atmosphere.hemiLight) atmosphere.hemiLight.intensity = state.amb * 1.35;
+          atmosphere.flBaseIntensity = state.flash;
+          if (atmosphere.flashlight && isFlashlightOn) {
+            atmosphere.flashlight.intensity = state.flash;
+          }
+        }
+        if (typeof exploreTools === 'object' && exploreTools) {
+          exploreTools.fogMultiplier = state.fog;
+          exploreTools.fogEnabled = state.fog > 0.01;
+        }
+        const vigEl = document.getElementById('cinematic-vignette');
+        if (vigEl) vigEl.style.opacity = String(state.vig);
+
+        const setTxt = (id, txt) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = txt;
+        };
+        setTxt('lt-val-exposure', state.exposure.toFixed(2));
+        setTxt('lt-val-lamp-int', state.lampInt.toFixed(1));
+        setTxt('lt-val-lamp-dist', state.lampDist.toFixed(1) + 'm');
+        setTxt('lt-val-lamp-decay', state.lampDecay.toFixed(2));
+        setTxt('lt-val-pool-op', state.poolOp.toFixed(2));
+        setTxt('lt-val-moon', state.moon.toFixed(2));
+        setTxt('lt-val-amb', state.amb.toFixed(2));
+        setTxt('lt-val-fog', state.fog.toFixed(2));
+        setTxt('lt-val-flash', state.flash.toFixed(1));
+        setTxt('lt-val-vig', state.vig.toFixed(2));
+
+        const summary =
+          'BRT: ' + state.exposure.toFixed(2) +
+          ' | LAMP: ' + state.lampInt.toFixed(1) +
+          ' | DIST: ' + state.lampDist.toFixed(1) +
+          ' | DECAY: ' + state.lampDecay.toFixed(2) +
+          ' | POOL: ' + state.poolOp.toFixed(2) +
+          ' | MOON: ' + state.moon.toFixed(2) +
+          ' | AMB: ' + state.amb.toFixed(2) +
+          ' | FOG: ' + state.fog.toFixed(2) +
+          ' | FLASH: ' + state.flash.toFixed(1) +
+          ' | VIG: ' + state.vig.toFixed(2);
+        if (summaryBox) summaryBox.textContent = summary;
+      }
+
+      function bindSlider(sliderId, stateKey) {
+        const sl = document.getElementById(sliderId);
+        if (!sl) return;
+        sl.addEventListener('input', e => {
+          state[stateKey] = Number(e.target.value);
+          applyAllLiveLightingValues();
+        });
+      }
+
+      bindSlider('lt-slider-exposure', 'exposure');
+      bindSlider('lt-slider-lamp-int', 'lampInt');
+      bindSlider('lt-slider-lamp-dist', 'lampDist');
+      bindSlider('lt-slider-lamp-decay', 'lampDecay');
+      bindSlider('lt-slider-pool-op', 'poolOp');
+      bindSlider('lt-slider-moon', 'moon');
+      bindSlider('lt-slider-amb', 'amb');
+      bindSlider('lt-slider-fog', 'fog');
+      bindSlider('lt-slider-flash', 'flash');
+      bindSlider('lt-slider-vig', 'vig');
+
+      if (flBtn) {
+        flBtn.addEventListener('click', () => {
+          toggleFlashlightOrHunterPing();
+          flBtn.classList.toggle('active', isFlashlightOn);
+          flBtn.textContent = 'Flashlight: ' + (isFlashlightOn ? 'ON' : 'OFF');
+        });
+      }
+      if (flickBtn) {
+        flickBtn.addEventListener('click', () => {
+          accessibilitySettings.flickerReduction = !accessibilitySettings.flickerReduction;
+          const blinkOn = !accessibilitySettings.flickerReduction;
+          flickBtn.classList.toggle('active', blinkOn);
+          flickBtn.textContent = 'Blink: ' + (blinkOn ? 'ON' : 'OFF');
+          showToast(blinkOn ? 'Lamp Blinking: ON' : 'Lamp Blinking: OFF (Steady)');
+        });
+      }
+      if (actBtn) {
+        actBtn.addEventListener('click', () => performAction());
+      }
+      if (copyBtn) {
+        copyBtn.addEventListener('click', () => {
+          const txt = summaryBox ? summaryBox.textContent : '';
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(txt).catch(() => {});
+          }
+          sendToReactNative('LIGHTING_TUNER_VALUES', Object.assign({ summary: txt }, state));
+          showToast('Copied Values: ' + txt);
+        });
+      }
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          Object.assign(state, defaults);
+          const syncVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = String(v); };
+          syncVal('lt-slider-exposure', state.exposure);
+          syncVal('lt-slider-lamp-int', state.lampInt);
+          syncVal('lt-slider-lamp-dist', state.lampDist);
+          syncVal('lt-slider-lamp-decay', state.lampDecay);
+          syncVal('lt-slider-pool-op', state.poolOp);
+          syncVal('lt-slider-moon', state.moon);
+          syncVal('lt-slider-amb', state.amb);
+          syncVal('lt-slider-fog', state.fog);
+          syncVal('lt-slider-flash', state.flash);
+          syncVal('lt-slider-vig', state.vig);
+          applyAllLiveLightingValues();
+          showToast('Reset Lighting Sliders to Default');
+        });
+      }
+    })();
 
     // Test Controls & Accessibility UI Event Bindings
     function bindDbgClick(id, fn) {
@@ -19688,12 +20243,131 @@ export function getHideAndSeekHtml(): string {
       return true;
     }
 
+    const interactionRaycaster = new THREE.Raycaster();
+    const _rayOrigin = new THREE.Vector3();
+    const _rayDir = new THREE.Vector3();
+
+    // Configurable Mission State Machine Registry (Step 6: restore_campus_power + extensible missions)
+    const missionsRegistry = {
+      restore_campus_power: {
+        id: 'restore_campus_power',
+        title: 'Restore Campus Power',
+        active: false,
+        state: 'not_started', // 'not_started' | 'locate_electrical_room' | 'obtain_fuse' | 'insert_fuse' | 'activate_breakers' | 'restore_circuit' | 'completed'
+        electricalRoomLocated: false,
+        fuseObtained: false,
+        fuseInserted: false,
+        breakersActivated: false,
+        circuitRestored: false,
+        completed: false,
+        requiredFuseItemId: 'item_high_voltage_fuse',
+        electricalRoomZones: [
+          { id: 'Warehouse B2', minX: 33.5, maxX: 43.5, minZ: -64.5, maxZ: -54.5 },
+          { id: 'Building W4 Room 2', minX: 33.5, maxX: 43.5, minZ: -71.5, maxZ: -54.5 },
+        ],
+      },
+    };
+
+    // Step 7: Authoritative Multiplayer & Local Gameplay State Store (Prevents duplicate pickups, occupied hiding collisions & exploit completions)
+    const multiplayerStateStore = {
+      collectedItemIds: new Set(),
+      occupiedHidingSpots: {}, // spotId -> playerId
+      interactableStates: {},  // id -> { isOpen, isOn, locked, state }
+    };
+
+    function resolveInteractableFromMesh(meshObj) {
+      let curr = meshObj;
+      while (curr) {
+        if (curr.userData && curr.userData.interactableId && interactablesById[curr.userData.interactableId]) {
+          return interactablesById[curr.userData.interactableId];
+        }
+        curr = curr.parent;
+      }
+      return null;
+    }
+
+    function hasLineOfSightToInteractable(eyePos, it) {
+      if (!it) return false;
+      const targetPos = {
+        x: it.x,
+        y: (typeof it.y === 'number' ? it.y : 0) + (it.type === 'window' ? 1.45 : 1.05),
+        z: it.z,
+      };
+      // Temporarily disable target's own collider and door leaf collider during raycast so object does not self-occlude
+      const ownCol = it.collider || (it.doorRef && it.doorRef.collider) || null;
+      const prevEnabled = ownCol ? ownCol.enabled : undefined;
+      if (ownCol) ownCol.enabled = false;
+      const clear = checkTagLineOfSight(eyePos, targetPos, colliders);
+      if (ownCol) ownCol.enabled = prevEnabled;
+      return clear;
+    }
+
+    function raycastInteractableFromCamera(maxDistance = 3.2) {
+      const eyeH = playerPhysics.isCrouching
+        ? ((HORROR_CONFIG.physics && HORROR_CONFIG.physics.crouchEyeHeight) || 0.95)
+        : ((HORROR_CONFIG.physics && HORROR_CONFIG.physics.standingEyeHeight) || 1.62);
+      _rayOrigin.set(playerPhysics.pos.x, (playerPhysics.pos.y || 0) + eyeH, playerPhysics.pos.z);
+      const cp = Math.cos(playerPhysics.pitch || 0);
+      _rayDir.set(
+        -Math.sin(playerPhysics.yaw) * cp,
+        Math.sin(playerPhysics.pitch || 0),
+        -Math.cos(playerPhysics.yaw) * cp
+      ).normalize();
+      interactionRaycaster.set(_rayOrigin, _rayDir);
+      interactionRaycaster.near = 0.05;
+      interactionRaycaster.far = maxDistance;
+      const hits = interactionRaycaster.intersectObjects(interactableRootMeshes, true);
+      for (let i = 0; i < hits.length; i++) {
+        const matched = resolveInteractableFromMesh(hits[i].object);
+        if (matched) {
+          const dist2D = Math.hypot(matched.x - playerPhysics.pos.x, matched.z - playerPhysics.pos.z);
+          if (dist2D <= (matched.interactRadius || 2.55) && hasLineOfSightToInteractable(_rayOrigin, matched)) {
+            return matched;
+          }
+        }
+      }
+      return null;
+    }
+
+    function checkElectricalRoomZones(px, pz) {
+      const m = missionsRegistry.restore_campus_power;
+      if (!m) return false;
+      for (let i = 0; i < m.electricalRoomZones.length; i++) {
+        const z = m.electricalRoomZones[i];
+        if (px >= z.minX && px <= z.maxX && pz >= z.minZ && pz <= z.maxZ) {
+          if (!m.electricalRoomLocated) {
+            m.electricalRoomLocated = true;
+            if (m.active && m.state === 'locate_electrical_room') {
+              m.state = m.fuseObtained ? 'insert_fuse' : 'obtain_fuse';
+              sendToReactNative('MISSION_UPDATED', { ...m });
+            }
+          }
+          return true;
+        }
+      }
+      return false;
+    }
+
     function findNearbyInteriorInteractable() {
-      let best = null;
-      let bestScore = 999;
       const px = playerPhysics.pos.x;
       const py = playerPhysics.pos.y || 0;
       const pz = playerPhysics.pos.z;
+      checkElectricalRoomZones(px, pz);
+
+      const eyeH = playerPhysics.isCrouching
+        ? ((HORROR_CONFIG.physics && HORROR_CONFIG.physics.crouchEyeHeight) || 0.95)
+        : ((HORROR_CONFIG.physics && HORROR_CONFIG.physics.standingEyeHeight) || 1.62);
+      const eyePos = { x: px, y: py + eyeH, z: pz };
+
+      // 1. Check direct Three.js Raycaster hit against nested interactable meshes first
+      const rayHit = raycastInteractableFromCamera(2.85);
+      if (rayHit && Math.abs(py - (rayHit.y || 0)) <= 1.85) {
+        return rayHit;
+      }
+
+      // 2. Fallback to proximity + view-cone check with mandatory Line-of-Sight (LOS) validation
+      let best = null;
+      let bestScore = 999;
       const lookDirX = -Math.sin(playerPhysics.yaw);
       const lookDirZ = -Math.cos(playerPhysics.yaw);
 
@@ -19707,7 +20381,8 @@ export function getHideAndSeekHtml(): string {
         const maxR = it.interactRadius || 2.4;
         if (dist > maxR) continue;
         const dot = dist > 0.05 ? ((dx / dist) * lookDirX + (dz / dist) * lookDirZ) : 1.0;
-        // Prefer objects in front of the player's view cone
+        if (dist > 0.85 && dot < -0.25) continue;
+        if (!hasLineOfSightToInteractable(eyePos, it)) continue;
         const score = dist - dot * 0.65;
         if (score < bestScore) {
           bestScore = score;
@@ -19717,24 +20392,133 @@ export function getHideAndSeekHtml(): string {
       return best;
     }
 
-    function toggleInteriorInteractable(it) {
+    function collectMissionItemAuthoritative(itemRecord, playerId = 'local_player') {
+      if (!itemRecord || !itemRecord.id) return { ok: false, reason: 'INVALID_ITEM' };
+      if (itemRecord.collected || multiplayerStateStore.collectedItemIds.has(itemRecord.id) || collectedMissionItems.indexOf(itemRecord.id) !== -1) {
+        return { ok: false, reason: 'ALREADY_COLLECTED', itemId: itemRecord.id };
+      }
+      itemRecord.discovered = true;
+      itemRecord.collected = true;
+      itemRecord.collectedBy = playerId;
+      if (itemRecord.mesh) itemRecord.mesh.visible = true;
+      multiplayerStateStore.collectedItemIds.add(itemRecord.id);
+      collectedMissionItems.push(itemRecord.id);
+
+      const m = missionsRegistry.restore_campus_power;
+      if (m && itemRecord.id === m.requiredFuseItemId) {
+        m.fuseObtained = true;
+        if (m.active && (m.state === 'obtain_fuse' || m.state === 'locate_electrical_room')) {
+          m.state = m.electricalRoomLocated ? 'insert_fuse' : 'locate_electrical_room';
+          sendToReactNative('MISSION_UPDATED', { ...m });
+        }
+      }
+      soundEngine.playFuseRepairSfx();
+      showToast('Found Mission Item: ' + itemRecord.name + '!');
+      sendToReactNative('MISSION_ITEM_FOUND', { itemId: itemRecord.id, itemName: itemRecord.name, playerId });
+      return { ok: true, itemId: itemRecord.id };
+    }
+
+    function startMission(missionId = 'restore_campus_power') {
+      const m = missionsRegistry[missionId];
+      if (!m) return null;
+      m.active = true;
+      m.electricalRoomLocated = false;
+      m.fuseObtained = collectedMissionItems.indexOf(m.requiredFuseItemId) !== -1;
+      m.fuseInserted = false;
+      m.breakersActivated = false;
+      m.circuitRestored = false;
+      m.completed = false;
+      m.state = 'locate_electrical_room';
+
+      // Cut main grid and campus exterior lighting until the mission sequence restores them
+      interiorPowerStates.mainCampusGrid = false;
+      interiorPowerStates.campusExteriorLights = false;
+      if (lampFlickerMod && lampFlickerMod.setCampusPowerState) {
+        lampFlickerMod.setCampusPowerState(false);
+      }
+      for (let i = 0; i < interiorInteractables.length; i++) {
+        const it = interiorInteractables[i];
+        if (it && it.type === 'switchboard' && (it.powerKey === 'mainCampusGrid' || it.controlsCampusLights)) {
+          it.isOn = false;
+          it.isOpen = false;
+          it.state = 'off';
+          if (it.leverPivot) it.leverPivot.rotation.x = 0.35;
+          if (it.ledMat && it.ledMat.color) it.ledMat.color.setHex(0xef4444);
+        }
+      }
+      sendToReactNative('MISSION_UPDATED', { ...m });
+      return m;
+    }
+
+    function insertFuseIntoPanel(panelId = '') {
+      const m = missionsRegistry.restore_campus_power;
+      if (!m) return { ok: false, reason: 'NO_MISSION' };
+      if (!m.electricalRoomLocated) {
+        return { ok: false, reason: 'ELECTRICAL_ROOM_NOT_LOCATED' };
+      }
+      if (!m.fuseObtained && collectedMissionItems.indexOf(m.requiredFuseItemId) === -1) {
+        return { ok: false, reason: 'FUSE_REQUIRED' };
+      }
+      m.fuseObtained = true;
+      m.fuseInserted = true;
+      if (m.state === 'locate_electrical_room' || m.state === 'obtain_fuse' || m.state === 'insert_fuse') {
+        m.state = 'activate_breakers';
+      }
+      soundEngine.playFuseRepairSfx();
+      showToast('Inserted High-Voltage Cartridge Fuse into Breaker Panel!');
+      sendToReactNative('MISSION_UPDATED', { ...m, panelId });
+      return { ok: true, state: m.state };
+    }
+
+    function toggleInteriorInteractable(it, options = {}) {
       if (!it) return false;
+      const nowMs = Date.now();
+      if (options.respectCooldown && it.isTransitioning && (nowMs - (it.lastInteractTime || 0) < (it.cooldownMs || 160))) {
+        return false;
+      }
+
+      // Check lock & key prerequisite
+      if (it.locked) {
+        if (it.requiredItemId && collectedMissionItems.indexOf(it.requiredItemId) !== -1) {
+          it.locked = false;
+          it.state = 'unlocked';
+          showToast('Unlocked ' + it.name + '!');
+        } else {
+          soundEngine.playDoorCreakSfx();
+          showToast('Locked! Requires ' + (it.requiredItemId || 'Key'));
+          return false;
+        }
+      }
+
+      it.lastInteractTime = nowMs;
+      it.interactionCount = (it.interactionCount || 0) + 1;
+
       if (it.type === 'door' && it.doorRef) {
         const dr = it.doorRef;
         dr.isOpen = !dr.isOpen;
         dr.manuallyClosed = !dr.isOpen;
         dr.holdTimer = dr.isOpen ? 2.5 : 0;
-        dr.targetAngleY = dr.isOpen ? dr.openAngleY : dr.closedAngleY;
+        const minA = typeof dr.minAngleY === 'number' ? dr.minAngleY : Math.min(dr.closedAngleY, dr.openAngleY);
+        const maxA = typeof dr.maxAngleY === 'number' ? dr.maxAngleY : Math.max(dr.closedAngleY, dr.openAngleY);
+        dr.targetAngleY = Math.max(minA, Math.min(maxA, dr.isOpen ? dr.openAngleY : dr.closedAngleY));
         it.isOpen = dr.isOpen;
+        it.state = dr.isOpen ? 'open' : 'closed';
+        it.isTransitioning = true;
         if (dr.collider) dr.collider.enabled = !dr.isOpen;
+        multiplayerStateStore.interactableStates[it.id] = { isOpen: it.isOpen, state: it.state };
         soundEngine.playDoorCreakSfx();
         showToast(dr.isOpen ? ('Opened ' + it.name) : ('Closed ' + it.name));
         return true;
       }
       if (it.type === 'window') {
         it.isOpen = !it.isOpen;
-        it.targetX = it.isOpen ? it.openX : it.closedX;
+        const minX = Math.min(it.openX, it.closedX);
+        const maxX = Math.max(it.openX, it.closedX);
+        it.targetX = Math.max(minX, Math.min(maxX, it.isOpen ? it.openX : it.closedX));
+        it.state = it.isOpen ? 'open' : 'closed';
+        it.isTransitioning = true;
         if (it.collider) it.collider.enabled = !it.isOpen;
+        multiplayerStateStore.interactableStates[it.id] = { isOpen: it.isOpen, state: it.state };
         soundEngine.playDoorCreakSfx();
         showToast(it.isOpen ? 'Window Opened' : 'Window Closed');
         return true;
@@ -19742,17 +20526,49 @@ export function getHideAndSeekHtml(): string {
       if (it.type === 'light_switch') {
         it.isOn = !it.isOn;
         it.isOpen = it.isOn;
+        it.state = it.isOn ? 'on' : 'off';
         roomLightSwitchStates[it.roomId] = it.isOn;
         if (it.rockerPivot) it.rockerPivot.rotation.x = it.isOn ? -0.22 : 0.22;
         if (it.ledMat && it.ledMat.color) it.ledMat.color.setHex(it.isOn ? 0x22c55e : 0xef4444);
         setRoomLightMood(it.roomId, it.isOn ? (it.defaultActiveMood || 'warm_lamp') : 'dark');
+        multiplayerStateStore.interactableStates[it.id] = { isOn: it.isOn, state: it.state };
         soundEngine.playFuseRepairSfx();
         showToast(it.roomId + ' Lights: ' + (it.isOn ? 'ON' : 'OFF'));
         return true;
       }
       if (it.type === 'switchboard') {
+        const m = missionsRegistry.restore_campus_power;
+        // Enforce restore_campus_power mission prerequisites when mission is active
+        if (m && m.active && !m.completed && !it.isOn) {
+          if (it.powerKey === 'mainCampusGrid' && !it.controlsCampusLights) {
+            if (!m.electricalRoomLocated) {
+              showToast('Locate the Electrical Substation Room first!');
+              return false;
+            }
+            if (!m.fuseObtained && collectedMissionItems.indexOf(m.requiredFuseItemId) === -1) {
+              showToast('Missing High-Voltage Cartridge Fuse! Search maintenance racks first.');
+              return false;
+            }
+            if (!m.fuseInserted) {
+              // Automatically insert fuse if options.autoInsertFuse is passed, otherwise require explicit insertFuseIntoPanel step
+              if (options.autoInsertFuse) {
+                insertFuseIntoPanel(it.id);
+              } else {
+                showToast('Insert the High-Voltage Fuse into the panel before throwing the breaker!');
+                return false;
+              }
+            }
+          } else if (it.controlsCampusLights) {
+            if (!m.breakersActivated || !interiorPowerStates.mainCampusGrid) {
+              showToast('Main High-Voltage Grid Breaker is OFF! Activate the grid breaker panel first.');
+              return false;
+            }
+          }
+        }
+
         it.isOn = !it.isOn;
         it.isOpen = it.isOn;
+        it.state = it.isOn ? 'on' : 'off';
         if (it.powerKey) {
           interiorPowerStates[it.powerKey] = it.isOn;
         }
@@ -19762,6 +20578,29 @@ export function getHideAndSeekHtml(): string {
         }
         if (it.leverPivot) it.leverPivot.rotation.x = it.isOn ? -0.35 : 0.35;
         if (it.ledMat && it.ledMat.color) it.ledMat.color.setHex(it.isOn ? 0x22c55e : 0xef4444);
+
+        // Advance restore_campus_power mission state machine on validated switchboard activation
+        if (m && m.active) {
+          if (it.powerKey === 'mainCampusGrid' && !it.controlsCampusLights) {
+            m.breakersActivated = it.isOn;
+            if (it.isOn && m.fuseInserted) {
+              m.state = 'restore_circuit';
+            } else if (!it.isOn && !m.completed) {
+              m.state = 'activate_breakers';
+            }
+          }
+          if (it.controlsCampusLights) {
+            m.circuitRestored = it.isOn && !!interiorPowerStates.mainCampusGrid;
+            if (m.electricalRoomLocated && m.fuseObtained && m.fuseInserted && m.breakersActivated && m.circuitRestored) {
+              m.completed = true;
+              m.state = 'completed';
+              showToast('MISSION COMPLETE: Campus Power & Exterior Lighting Restored!');
+            }
+          }
+          sendToReactNative('MISSION_UPDATED', { ...m });
+        }
+
+        multiplayerStateStore.interactableStates[it.id] = { isOn: it.isOn, state: it.state };
         soundEngine.playFuseRepairSfx();
         showToast(it.name + ': ' + (it.isOn ? 'POWER ON' : 'POWER OFF'));
         sendToReactNative('POWER_STATE_CHANGED', { powerKey: it.powerKey, isOn: it.isOn, powerStates: interiorPowerStates });
@@ -19769,21 +20608,16 @@ export function getHideAndSeekHtml(): string {
       }
       if (it.type === 'drawer' || it.type === 'cupboard' || it.type === 'locker' || it.type === 'rack') {
         it.isOpen = !it.isOpen;
-        it.targetT = it.isOpen ? 1.0 : 0.0;
+        it.targetT = Math.max(0.0, Math.min(1.0, it.isOpen ? 1.0 : 0.0));
+        it.state = it.isOpen ? 'open' : 'closed';
+        it.isTransitioning = true;
         if (it.collider) {
           it.collider.enabled = !it.isOpen;
         }
+        multiplayerStateStore.interactableStates[it.id] = { isOpen: it.isOpen, state: it.state };
         soundEngine.playDoorCreakSfx();
         if (it.isOpen && it.missionItem && !it.missionItem.collected) {
-          it.missionItem.discovered = true;
-          it.missionItem.collected = true;
-          if (it.missionItem.mesh) it.missionItem.mesh.visible = true;
-          if (collectedMissionItems.indexOf(it.missionItem.id) === -1) {
-            collectedMissionItems.push(it.missionItem.id);
-          }
-          soundEngine.playFuseRepairSfx();
-          showToast('Found Mission Item: ' + it.missionItem.name + '!');
-          sendToReactNative('MISSION_ITEM_FOUND', { itemId: it.missionItem.id, itemName: it.missionItem.name });
+          collectMissionItemAuthoritative(it.missionItem, options.playerId || 'local_player');
         } else {
           showToast((it.isOpen ? 'Opened ' : 'Closed ') + it.name);
         }
@@ -19792,17 +20626,183 @@ export function getHideAndSeekHtml(): string {
       return false;
     }
 
+    function enterHidingSpotAuthoritative(spot, playerId = 'local_player', options = {}) {
+      if (!spot || !spot.id) return { ok: false, reason: 'INVALID_SPOT' };
+      const currentOccupant = multiplayerStateStore.occupiedHidingSpots[spot.id];
+      if (currentOccupant && currentOccupant !== playerId) {
+        return { ok: false, reason: 'SPOT_OCCUPIED', occupant: currentOccupant };
+      }
+      if (playerId === 'local_player') {
+        if (!Array.isArray(playerPhysics.stateStack) || playerPhysics.stateStack.length === 0) {
+          playerPhysics.stateStack = [playerPhysics.isCrouching ? 'CROUCHING' : 'STANDING'];
+        } else {
+          playerPhysics.stateStack[playerPhysics.stateStack.length - 1] = playerPhysics.isCrouching ? 'CROUCHING' : 'STANDING';
+        }
+        playerPhysics.savedEntryPos = { x: playerPhysics.pos.x, y: playerPhysics.pos.y, z: playerPhysics.pos.z };
+        playerPhysics.compromisedInHiding = Boolean(options && options.chaserHasLineOfSight);
+        playerPhysics.stateStack.push('HIDING');
+        playerPhysics.isHiding = true;
+        playerPhysics.currentHidingSpot = spot;
+        playerPhysics.hideBaseYaw = playerPhysics.yaw;
+        playerPhysics.pos.set(spot.x, spot.y, spot.z);
+        playerPhysics.vel.set(0, 0, 0);
+        const stOverlay = document.getElementById('stealth-overlay');
+        if (stOverlay) stOverlay.classList.add('active');
+        soundEngine.setMuffled(true);
+      }
+      multiplayerStateStore.occupiedHidingSpots[spot.id] = playerId;
+      return {
+        ok: true,
+        spotId: spot.id,
+        compromised: Boolean(options && options.chaserHasLineOfSight),
+        stackDepth: playerPhysics.stateStack ? playerPhysics.stateStack.length : 1,
+      };
+    }
+
+    function exitHidingSpotAuthoritative(playerId = 'local_player') {
+      const spot = playerPhysics.currentHidingSpot;
+      if (spot && spot.id && multiplayerStateStore.occupiedHidingSpots[spot.id] === playerId) {
+        delete multiplayerStateStore.occupiedHidingSpots[spot.id];
+      }
+      Object.keys(multiplayerStateStore.occupiedHidingSpots).forEach(k => {
+        if (multiplayerStateStore.occupiedHidingSpots[k] === playerId) {
+          delete multiplayerStateStore.occupiedHidingSpots[k];
+        }
+      });
+      let restoredState = 'STANDING';
+      if (playerId === 'local_player') {
+        if (Array.isArray(playerPhysics.stateStack) && playerPhysics.stateStack[playerPhysics.stateStack.length - 1] === 'HIDING') {
+          playerPhysics.stateStack.pop();
+        }
+        restoredState = (Array.isArray(playerPhysics.stateStack) && playerPhysics.stateStack[playerPhysics.stateStack.length - 1]) || 'STANDING';
+        playerPhysics.isCrouching = (restoredState === 'CROUCHING');
+        playerPhysics.isHiding = false;
+        playerPhysics.compromisedInHiding = false;
+        breathMiniGame.active = false;
+        const bmEl = document.getElementById('breath-minigame-overlay');
+        if (bmEl) bmEl.style.display = 'none';
+        if (spot) {
+          const exit = computeSafeHidingExit(spot);
+          playerPhysics.pos.set(exit.x, exit.y, exit.z);
+        }
+        playerPhysics.currentHidingSpot = null;
+        const stOverlay = document.getElementById('stealth-overlay');
+        if (stOverlay) stOverlay.classList.remove('active');
+        soundEngine.setMuffled(false);
+      }
+      return { ok: true, restoredState };
+    }
+
+    function resetMission(missionId = 'restore_campus_power') {
+      const m = missionsRegistry[missionId];
+      if (!m) return { ok: false, reason: 'NO_MISSION' };
+      m.active = false;
+      m.state = 'not_started';
+      m.electricalRoomLocated = false;
+      m.fuseObtained = false;
+      m.fuseInserted = false;
+      m.breakersActivated = false;
+      m.circuitRestored = false;
+      m.completed = false;
+      collectedMissionItems.length = 0;
+      multiplayerStateStore.collectedItemIds.clear();
+      for (let i = 0; i < missionItemsRegistry.length; i++) {
+        missionItemsRegistry[i].discovered = false;
+        missionItemsRegistry[i].collected = false;
+        missionItemsRegistry[i].collectedBy = null;
+      }
+      for (let i = 0; i < interiorInteractables.length; i++) {
+        const it = interiorInteractables[i];
+        if (!it) continue;
+        if (it.missionItem) {
+          it.missionItem.discovered = false;
+          it.missionItem.collected = false;
+          it.missionItem.collectedBy = null;
+        }
+        if (it.type === 'switchboard' && (it.powerKey === 'mainCampusGrid' || it.controlsCampusLights)) {
+          it.isOn = true;
+          it.isOpen = true;
+          it.state = 'on';
+        }
+      }
+      interiorPowerStates.mainCampusGrid = true;
+      interiorPowerStates.campusExteriorLights = true;
+      return { ok: true, state: m.state };
+    }
+
+    function propagateInteriorSound(soundEvent, listenerPos) {
+      if (!soundEvent || !soundEvent.position || !listenerPos) {
+        return { heard: false, perceivedDb: 0, wallHits: 0, distance: Infinity };
+      }
+      const dx = soundEvent.position.x - listenerPos.x;
+      const dy = (soundEvent.position.y || 0) - (listenerPos.y || 0);
+      const dz = soundEvent.position.z - listenerPos.z;
+      const distance = Math.hypot(dx, dy, dz);
+      const distAttenuation = 20 * Math.log10(Math.max(1.0, distance));
+      const hasClearLos = checkTagLineOfSight(
+        { x: listenerPos.x, y: (listenerPos.y || 0) + 1.5, z: listenerPos.z },
+        { x: soundEvent.position.x, y: (soundEvent.position.y || 0) + 1.0, z: soundEvent.position.z },
+        colliders
+      );
+      const wallHits = hasClearLos ? 0 : 1;
+      const wallAttenuation = wallHits * 18.0;
+      const perceivedDb = Math.max(0, (soundEvent.decibels || 0) - distAttenuation - wallAttenuation);
+      const thresholdDb = typeof soundEvent.thresholdDb === 'number' ? soundEvent.thresholdDb : 35.0;
+      return {
+        heard: perceivedDb >= thresholdDb,
+        perceivedDb: Number(perceivedDb.toFixed(2)),
+        wallHits,
+        distance: Number(distance.toFixed(2)),
+      };
+    }
+
     window.__INTERIOR_SYSTEM__ = {
       interactables: interiorInteractables,
+      interactablesById: interactablesById,
+      interactableRootMeshes: interactableRootMeshes,
       missionItems: missionItemsRegistry,
       collectedItems: collectedMissionItems,
       powerStates: interiorPowerStates,
       roomLightStates: roomLightSwitchStates,
+      missions: missionsRegistry,
+      multiplayerStore: multiplayerStateStore,
       findNearbyInteractable: findNearbyInteriorInteractable,
-      toggleInteractableById: function(id) {
+      raycastInteractableFromCamera: raycastInteractableFromCamera,
+      resolveInteractableFromMesh: resolveInteractableFromMesh,
+      hasLineOfSightToInteractable: hasLineOfSightToInteractable,
+      startMission: startMission,
+      resetMission: resetMission,
+      insertFuseIntoPanel: insertFuseIntoPanel,
+      propagateInteriorSound: propagateInteriorSound,
+      enterMissionZone: function(zoneType = 'electrical_room') {
+        if (zoneType === 'electrical_room') {
+          const m = missionsRegistry.restore_campus_power;
+          m.electricalRoomLocated = true;
+          if (m.active && m.state === 'locate_electrical_room') {
+            m.state = m.fuseObtained ? 'insert_fuse' : 'obtain_fuse';
+          }
+          return { ok: true, state: m.state };
+        }
+        return { ok: false };
+      },
+      collectMissionItem: function(itemId, playerId = 'local_player') {
+        for (let i = 0; i < missionItemsRegistry.length; i++) {
+          if (missionItemsRegistry[i].id === itemId) {
+            return collectMissionItemAuthoritative(missionItemsRegistry[i], playerId);
+          }
+        }
+        return { ok: false, reason: 'ITEM_NOT_FOUND' };
+      },
+      enterHidingSpot: enterHidingSpotAuthoritative,
+      exitHidingSpot: exitHidingSpotAuthoritative,
+      toggleInteractableById: function(id, options = {}) {
+        const target = interactablesById[id];
+        if (target) {
+          return toggleInteriorInteractable(target, options);
+        }
         for (let i = 0; i < interiorInteractables.length; i++) {
           if (interiorInteractables[i].id === id) {
-            return toggleInteriorInteractable(interiorInteractables[i]);
+            return toggleInteriorInteractable(interiorInteractables[i], options);
           }
         }
         return false;
@@ -20644,6 +21644,7 @@ export function getHideAndSeekHtml(): string {
         updatePrompts();
       }
       updateCampusZoneBanner();
+      updateSwingingDoors(delta);
     }
 
     const tmpTargetVec = new THREE.Vector3();
@@ -20699,49 +21700,85 @@ export function getHideAndSeekHtml(): string {
             }
           }
         }
+        const minA = typeof door.minAngleY === 'number' ? door.minAngleY : Math.min(door.closedAngleY, door.openAngleY);
+        const maxA = typeof door.maxAngleY === 'number' ? door.maxAngleY : Math.max(door.closedAngleY, door.openAngleY);
+        door.targetAngleY = Math.max(minA, Math.min(maxA, door.targetAngleY));
         const diff = door.targetAngleY - door.currentAngleY;
         if (Math.abs(diff) > 0.002) {
-          door.currentAngleY += diff * Math.min(1.0, 6.5 * delta);
+          door.currentAngleY = Math.max(minA, Math.min(maxA, door.currentAngleY + diff * Math.min(1.0, 9.5 * delta)));
           door.pivot.rotation.y = door.currentAngleY;
+        } else {
+          door.currentAngleY = door.targetAngleY;
+          door.pivot.rotation.y = door.currentAngleY;
+          if (interactablesById[door.id]) interactablesById[door.id].isTransitioning = false;
         }
       }
 
-      // Animate Windows, Drawers, Cupboards, Lockers & Sliding Storage Racks
-      const animRate = Math.min(1.0, 8.0 * delta);
+      // Animate Windows, Drawers, Cupboards, Lockers & Sliding Storage Racks with strict limit clamping
+      const animRate = Math.min(1.0, 10.5 * delta);
       for (let i = 0; i < interiorInteractables.length; i++) {
         const it = interiorInteractables[i];
         if (!it) continue;
         if (it.type === 'window' && it.sashGroup) {
+          const minX = Math.min(it.openX, it.closedX);
+          const maxX = Math.max(it.openX, it.closedX);
+          it.targetX = Math.max(minX, Math.min(maxX, it.targetX));
           const dx = it.targetX - it.currentX;
-          if (Math.abs(dx) > 0.001) {
-            it.currentX += dx * animRate;
+          if (Math.abs(dx) > 0.002) {
+            it.currentX = Math.max(minX, Math.min(maxX, it.currentX + dx * animRate));
             it.sashGroup.position.x = it.currentX;
+          } else {
+            it.currentX = it.targetX;
+            it.sashGroup.position.x = it.currentX;
+            it.isTransitioning = false;
           }
         } else if (it.type === 'drawer' && it.drawerGroup) {
+          it.targetT = Math.max(0.0, Math.min(1.0, it.targetT));
           const dt = it.targetT - it.currentT;
-          if (Math.abs(dt) > 0.001) {
-            it.currentT += dt * animRate;
+          if (Math.abs(dt) > 0.002) {
+            it.currentT = Math.max(0.0, Math.min(1.0, it.currentT + dt * animRate));
             it.drawerGroup.position.x = it.closedX + (it.openX - it.closedX) * it.currentT;
             it.drawerGroup.position.z = it.closedZ + (it.openZ - it.closedZ) * it.currentT;
+          } else {
+            it.currentT = it.targetT;
+            it.drawerGroup.position.x = it.closedX + (it.openX - it.closedX) * it.currentT;
+            it.drawerGroup.position.z = it.closedZ + (it.openZ - it.closedZ) * it.currentT;
+            it.isTransitioning = false;
           }
         } else if (it.type === 'cupboard') {
+          it.targetT = Math.max(0.0, Math.min(1.0, it.targetT));
           const dt = it.targetT - it.currentT;
-          if (Math.abs(dt) > 0.001) {
-            it.currentT += dt * animRate;
+          if (Math.abs(dt) > 0.002) {
+            it.currentT = Math.max(0.0, Math.min(1.0, it.currentT + dt * animRate));
             if (it.leftPivot) it.leftPivot.rotation.y = -1.45 * it.currentT;
             if (it.rightPivot) it.rightPivot.rotation.y = 1.45 * it.currentT;
+          } else {
+            it.currentT = it.targetT;
+            if (it.leftPivot) it.leftPivot.rotation.y = -1.45 * it.currentT;
+            if (it.rightPivot) it.rightPivot.rotation.y = 1.45 * it.currentT;
+            it.isTransitioning = false;
           }
         } else if (it.type === 'locker' && it.doorPivot) {
+          it.targetT = Math.max(0.0, Math.min(1.0, it.targetT));
           const dt = it.targetT - it.currentT;
-          if (Math.abs(dt) > 0.001) {
-            it.currentT += dt * animRate;
+          if (Math.abs(dt) > 0.002) {
+            it.currentT = Math.max(0.0, Math.min(1.0, it.currentT + dt * animRate));
             it.doorPivot.rotation.y = (it.openSign || 1) * 1.42 * it.currentT;
+          } else {
+            it.currentT = it.targetT;
+            it.doorPivot.rotation.y = (it.openSign || 1) * 1.42 * it.currentT;
+            it.isTransitioning = false;
           }
         } else if (it.type === 'rack' && it.rackGroup) {
+          it.targetT = Math.max(0.0, Math.min(1.0, it.targetT));
           const dt = it.targetT - it.currentT;
-          if (Math.abs(dt) > 0.001) {
-            it.currentT += dt * animRate;
+          if (Math.abs(dt) > 0.002) {
+            it.currentT = Math.max(0.0, Math.min(1.0, it.currentT + dt * animRate));
             it.rackGroup.position.z = it.closedZ + (it.openZ - it.closedZ) * it.currentT;
+          } else {
+            it.currentT = it.targetT;
+            it.rackGroup.position.z = it.closedZ + (it.openZ - it.closedZ) * it.currentT;
+            it.isTransitioning = false;
           }
         }
       }

@@ -572,9 +572,9 @@
       if (!res.ok) {
         throw new Error(data.message || 'Could not change email.');
       }
-      targetEmail = cleanNewEmail;
+      targetEmail = newEmail;
       showAlert('Email updated and new verification code sent!', 'success', 'Email Updated');
-      document.getElementById('waitingMaskedEmail').textContent = data.emailMasked || maskEmail(cleanNewEmail);
+      document.getElementById('waitingMaskedEmail').textContent = data.emailMasked || maskEmail(newEmail);
       const inputs = document.querySelectorAll('.otp-digit-input');
       inputs.forEach(inp => { inp.value = ''; });
       toggleChangeEmailForm();

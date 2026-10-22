@@ -728,6 +728,7 @@ app.get(['/login', '/login.html'], (req, res) => {
 });
 
 app.get(['/register', '/register.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
 
@@ -775,6 +776,7 @@ app.use('/uploads/posts', require('./routes/post-images')(db));
 
 // Serve shared auth module at both /auth.js and /js/auth.js
 app.get(['/js/auth.js', '/auth.js'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(__dirname, 'public/auth.js'));
 });
 

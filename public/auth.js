@@ -11,56 +11,101 @@
   let cachedUser = null;
   let userPromise = null;
 
-  async function getSupabase() {
+  async function initSupabaseClient() {
     if (supabaseClient) return supabaseClient;
     if (initPromise) return initPromise;
 
     initPromise = (async () => {
-      // 1. Check if window.supabase CDN library is loaded
-      if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-          script.onload = resolve;
-          script.onerror = () => reject(new Error('Failed to load Supabase SDK from CDN'));
-          document.head.appendChild(script);
-        });
-      }
-
-      // 2. Fetch public configuration from /api/auth/config
-      let url = window.NEXT_PUBLIC_SUPABASE_URL || window.SUPABASE_URL || '';
-      let key = window.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || window.SUPABASE_PUBLISHABLE_KEY || window.SUPABASE_ANON_KEY || '';
-
-      if (!url || !key) {
-        try {
-          const res = await rawFetch('/api/auth/config');
-          if (res.ok) {
-            const cfg = await res.json();
-            url = cfg.url || '';
-            key = cfg.key || '';
-          }
-        } catch (e) {
-          console.warn('[Auth] Failed to fetch /api/auth/config:', e.message);
+      try {
+        // 1. Check if window.supabase CDN library is loaded
+        if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Failed to load Supabase SDK from CDN'));
+            document.head.appendChild(script);
+          });
         }
+
+        // 2. Fetch public configuration from /api/auth/config
+        let url = window.NEXT_PUBLIC_SUPABASE_URL || window.SUPABASE_URL || '';
+        let key = window.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || window.SUPABASE_PUBLISHABLE_KEY || window.SUPABASE_ANON_KEY || '';
+
+        if (!url || !key) {
+          try {
+            const res = await rawFetch('/api/auth/config');
+            if (res.ok) {
+              const cfg = await res.json();
+              url = cfg.url || '';
+              key = cfg.key || '';
+            }
+          } catch (e) {
+            console.warn('[Auth] Failed to fetch /api/auth/config:', e.message);
+          }
+        }
+
+        if (!url || !key) {
+          throw new Error('Supabase URL or Publishable key not configured.');
+        }
+
+        supabaseClient = window.supabase.createClient(url, key, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            storage: window.localStorage,
+          },
+        });
+
+        if (!supabaseClient || !supabaseClient.auth) {
+          supabaseClient = null;
+          throw new Error('Failed to initialize Supabase Auth client.');
+        }
+
+        return supabaseClient;
+      } catch (err) {
+        initPromise = null;
+        throw err;
       }
-
-      if (!url || !key) {
-        throw new Error('Supabase URL or Publishable key not configured.');
-      }
-
-      supabaseClient = window.supabase.createClient(url, key, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true,
-          storage: window.localStorage,
-        },
-      });
-
-      return supabaseClient;
     })();
 
     return initPromise;
+  }
+
+  // Proxy for .auth so both `await SemesterAuth.getSupabase()` and un-awaited `SemesterAuth.getSupabase().auth.signUp(...)` work safely
+  const supabaseAuthProxy = new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        if (supabaseClient && supabaseClient.auth && typeof supabaseClient.auth[prop] === 'function') {
+          return supabaseClient.auth[prop].bind(supabaseClient.auth);
+        }
+        return async function (...args) {
+          const client = await initSupabaseClient();
+          if (!client || !client.auth || typeof client.auth[prop] !== 'function') {
+            throw new Error(`Authentication method "${String(prop)}" is unavailable.`);
+          }
+          return client.auth[prop](...args);
+        };
+      },
+    }
+  );
+
+  function getSupabase() {
+    const promise = supabaseClient ? Promise.resolve(supabaseClient) : initSupabaseClient();
+    if (!promise.auth) {
+      try {
+        Object.defineProperty(promise, 'auth', {
+          value: supabaseClient && supabaseClient.auth ? supabaseClient.auth : supabaseAuthProxy,
+          configurable: true,
+          enumerable: true,
+        });
+      } catch {
+        promise.auth = supabaseClient && supabaseClient.auth ? supabaseClient.auth : supabaseAuthProxy;
+      }
+    }
+    return promise;
   }
 
   async function getSession() {
@@ -880,6 +925,7 @@
 
   // Expose global methods
   window.SemesterAuth = {
+    auth: supabaseAuthProxy,
     getSupabase,
     getSession,
     getUser,

@@ -869,6 +869,17 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           await exec(`ALTER TABLE submission_events ADD COLUMN IF NOT EXISTS questionId INTEGER REFERENCES assignment_questions(id) ON DELETE CASCADE;`);
           await exec(`ALTER TABLE submission_events ADD COLUMN IF NOT EXISTS serverReceivedAt TEXT;`);
           await exec(`ALTER TABLE assignment_questions ADD COLUMN IF NOT EXISTS maxPoints INTEGER DEFAULT 10;`);
+          await exec(`ALTER TABLE files ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;`);
+
+          await exec(`CREATE TABLE IF NOT EXISTS library_custom_chapters (
+            id SERIAL PRIMARY KEY,
+            subject TEXT NOT NULL,
+            semester TEXT,
+            chapter TEXT NOT NULL,
+            created_by TEXT,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(subject, chapter)
+          );`);
 
           await exec(`CREATE TABLE IF NOT EXISTS question_test_cases (
             id SERIAL PRIMARY KEY,
@@ -956,6 +967,20 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
           const qCols = await all(`PRAGMA table_info(assignment_questions)`);
           const qColNames = qCols.map(c => c.name);
           if (!qColNames.includes('maxPoints')) await exec(`ALTER TABLE assignment_questions ADD COLUMN maxPoints INTEGER DEFAULT 10;`);
+
+          const fileCols = await all(`PRAGMA table_info(files)`);
+          const fileColNames = fileCols.map(c => c.name);
+          if (!fileColNames.includes('sort_order')) await exec(`ALTER TABLE files ADD COLUMN sort_order INTEGER DEFAULT 0;`);
+
+          await exec(`CREATE TABLE IF NOT EXISTS library_custom_chapters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject TEXT NOT NULL,
+            semester TEXT,
+            chapter TEXT NOT NULL,
+            created_by TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(subject, chapter)
+          );`);
 
           await exec(`CREATE TABLE IF NOT EXISTS question_test_cases (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

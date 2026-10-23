@@ -7,7 +7,7 @@
 (function (root) {
   'use strict';
 
-  const CACHE_KEY = 'sl_academic_context_cache_v2';
+  const CACHE_KEY = 'sl_academic_context_cache_v3';
   let memoryCache = null;
   let inFlightPromise = null;
 
@@ -26,7 +26,7 @@
     }
     const cleaned = String(val).trim().replace(/^(?:semester|sem)\s*/i, '').toUpperCase();
     const parsed = parseInt(cleaned, 10);
-    if (!isNaN(parsed) && parsed >= 1 && parsed <= 8) {
+    if (!isNaN(parsed) && parsed >= 1 && val <= 8) {
       return parsed;
     }
     const romanIdx = ROMANS.indexOf(cleaned);
@@ -83,7 +83,7 @@
     let currentSem = cohort
       ? Number(cohort.currentSemester || 1)
       : parseSemesterNumber(data.currentSemester || data.semester);
-    const isUnassigned = !cohort || data.academicStatus === 'unassigned';
+    const isUnassigned = isStudent && (!cohort || data.academicStatus === 'unassigned');
 
     return {
       authenticated: true,
@@ -94,7 +94,7 @@
       cohort: cohort,
       currentSemester: currentSem,
       semesterRoman: currentSem ? semNumberToRoman(currentSem) : null,
-      academicStatus: isUnassigned ? 'unassigned' : (cohort?.status || 'active'),
+      academicStatus: isStaff ? 'active' : (isUnassigned ? 'unassigned' : (cohort?.status || 'active')),
       canViewAllCohorts: Boolean(data.canViewAllCohorts || isStaff),
       canManageCohorts: Boolean(data.canManageCohorts || role === 'admin'),
       cohorts: Array.isArray(data.cohorts) ? data.cohorts : [],

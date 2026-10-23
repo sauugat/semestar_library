@@ -2155,6 +2155,213 @@
       stroke: var(--fill-active-text, #0a0a0a) !important;
     }
 
+    /* ==========================================================================
+       CUSTOM STYLED INPUT / PROMPT MODAL (ADD CHAPTER, RENAME SUBJECT / NOTE)
+       ========================================================================== */
+    .custom-prompt-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.48);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 2600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.22s var(--ease-apple), visibility 0.22s ease;
+      padding: 16px;
+    }
+
+    .custom-prompt-overlay.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .custom-prompt-card {
+      background: var(--surface, #ffffff);
+      width: 100%;
+      max-width: 440px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      box-shadow: 0 24px 48px -10px rgba(0, 0, 0, 0.22);
+      padding: 24px;
+      box-sizing: border-box;
+      transform: scale(0.95) translateY(10px);
+      transition: transform 0.25s var(--ease-apple);
+      color: var(--text);
+    }
+
+    .custom-prompt-overlay.open .custom-prompt-card {
+      transform: scale(1) translateY(0);
+    }
+
+    .custom-prompt-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .custom-prompt-head-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .custom-prompt-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #111827;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+
+    [data-theme="dark"] .custom-prompt-icon,
+    body.dark-mode .custom-prompt-icon {
+      background: #262626;
+      border: 1px solid #404040;
+      color: #f5f5f5;
+    }
+
+    .custom-prompt-title {
+      font-size: 16.5px;
+      font-weight: 800;
+      color: var(--text);
+      margin: 0 0 2px;
+      letter-spacing: -0.02em;
+    }
+
+    .custom-prompt-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    .custom-prompt-label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-bottom: 6px;
+    }
+
+    .custom-prompt-input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--bg, #f8f9fa);
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .custom-prompt-input:focus {
+      border-color: #0071e3;
+      background: var(--surface, #ffffff);
+      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+    }
+
+    [data-theme="dark"] .custom-prompt-card,
+    body.dark-mode .custom-prompt-card {
+      background: #161616;
+      border-color: #383838;
+    }
+
+    [data-theme="dark"] .custom-prompt-input,
+    body.dark-mode .custom-prompt-input {
+      background: #1f1f1f;
+      border-color: #3a3a3c;
+      color: #f5f5f5;
+    }
+
+    [data-theme="dark"] .custom-prompt-input:focus,
+    body.dark-mode .custom-prompt-input:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+    }
+
+    .custom-prompt-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ==========================================================================
+       HARD-PRESS / DRAG REORDER & MOVE UP/DOWN CONTROLS FOR NOTES
+       ========================================================================== */
+    .file-drag-handle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 28px;
+      border-radius: 6px;
+      color: var(--text-subtle, #6b7280);
+      cursor: grab;
+      flex-shrink: 0;
+      margin-right: -2px;
+      opacity: 0.7;
+      transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .file-drag-handle:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.06);
+      color: var(--text);
+    }
+
+    [data-theme="dark"] .file-drag-handle:hover,
+    body.dark-mode .file-drag-handle:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .clean-file-item.reordering-active {
+      border-color: #0071e3 !important;
+      box-shadow: 0 12px 28px rgba(0, 113, 227, 0.24) !important;
+      transform: scale(1.015) !important;
+      z-index: 30;
+      position: relative;
+      cursor: grabbing !important;
+      user-select: none !important;
+      touch-action: none !important;
+      background: var(--surface) !important;
+    }
+
+    .btn-file-move {
+      padding: 5px 7px !important;
+      min-width: 26px;
+      justify-content: center;
+    }
+
+    .btn-file-move:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
     /* Toast Notification */
     .lib-toast {
       position: fixed;
@@ -2843,6 +3050,40 @@
     </div>
   </div>
 
+  <!-- STYLED CUSTOM PROMPT / INPUT MODAL (ADD CHAPTER, ADJUST SUBJECT NAME, RENAME NOTE) -->
+  <div class="custom-prompt-overlay" id="customPromptOverlay">
+    <div class="custom-prompt-card" role="dialog" aria-modal="true">
+      <div class="custom-prompt-head">
+        <div class="custom-prompt-head-left">
+          <div class="custom-prompt-icon" id="customPromptIcon">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="custom-prompt-title" id="customPromptTitle">Edit Name</h3>
+            <p class="custom-prompt-sub" id="customPromptSub">Enter the updated name below.</p>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" id="customPromptCloseBtn" title="Close">&times;</button>
+      </div>
+      <form id="customPromptForm" onsubmit="return false;">
+        <label class="custom-prompt-label" id="customPromptLabel" for="customPromptInput">Name</label>
+        <input type="text" class="custom-prompt-input" id="customPromptInput" autocomplete="off" maxlength="120" />
+        <div class="custom-prompt-actions">
+          <button type="button" class="btn-modal-cancel" id="customPromptCancelBtn">Cancel</button>
+          <button type="submit" class="btn-modal-submit" id="customPromptSubmitBtn">
+            <span id="customPromptSubmitText">Save</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- HIDDEN MULTI-FILE INPUT FOR DIRECT CHAPTER UPLOAD -->
+  <input type="file" id="chapterQuickFileInput" multiple hidden />
+
   <!-- Toast Notification -->
   <div id="libToast" class="lib-toast">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -2994,8 +3235,8 @@
       const isTeacher = ctx && ctx.role === 'teacher';
       const assignedSubjects = isTeacher && Array.isArray(ctx.assignedSubjects) ? ctx.assignedSubjects : [];
 
-      if (isTeacher && assignedSubjects.length > 0) {
-        // Sync any renamed assigned subjects into courseMap and filter strictly to assigned subjects
+      if (isTeacher) {
+        // Strictly show ONLY the subjects assigned to this teacher
         const ROMANS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
         const allowedCourses = [];
         const seenCodes = new Set();
@@ -3202,26 +3443,14 @@
       if (!switcher) return;
       const ctx = window.ACADEMIC_CONTEXT;
 
-      // For students/CRs: hide the semester buttons completely!
-      if (ctx && ctx.isStudent) {
+      // For students/CRs and teachers: hide the semester filter bar completely and show only their courses
+      if (ctx && (ctx.isStudent || ctx.role === 'teacher')) {
+        switcher.innerHTML = '';
         switcher.style.display = 'none';
         return;
       }
 
-      // For teachers: show "All Assigned Subjects" and only the semesters where they teach
-      if (ctx && ctx.role === 'teacher') {
-        const ROMANS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
-        const semNums = [...new Set((ctx.assignedSubjects || []).map(s => Number(s.semester)).filter(n => n >= 1 && n <= 8))].sort((a, b) => a - b);
-        switcher.innerHTML = `
-          <button class="sem-btn ${ACTIVE_SEM === 'ALL' ? 'active' : ''}" data-sem="ALL">All Assigned Subjects (${ALL_COURSES.length})</button>
-          ${semNums.map(semNum => {
-            const roman = ROMANS[semNum - 1] || 'I';
-            const isActive = ACTIVE_SEM === roman;
-            return `<button class="sem-btn ${isActive ? 'active' : ''}" data-sem="${roman}">Semester ${semNum}</button>`;
-          }).join('')}
-        `;
-        switcher.style.display = 'flex';
-      } else if (ctx && ctx.isStaff && Array.isArray(ctx.cohorts) && ctx.cohorts.length > 0) {
+      if (ctx && ctx.isStaff && Array.isArray(ctx.cohorts) && ctx.cohorts.length > 0) {
         // For admins: provide cohort-level filtering
         switcher.innerHTML = `
           <button class="sem-btn ${ACTIVE_SEM === 'ALL' ? 'active' : ''}" data-sem="ALL">All Cohorts</button>
@@ -3284,28 +3513,38 @@
 
     let CURRENT_PREVIEW_FILE = null;
 
-    function renderFileActions(f, isSearchResult = false) {
+    function renderFileActions(f, isSearchResult = false, canManageCourse = false, indexInChapter = -1, totalInChapter = 0) {
       const fileBadge = getFileBadge(f.originalName || f.title);
+      const canModify = Boolean(f.canDelete || canManageCourse);
       const viewClickFn = isSearchResult
         ? `openFileFromSearchResult(${f.id}, '${escapeJs(f.subject || '')}', event)`
         : `openInlineFilePreview(${f.id}, event)`;
 
       return `
         <div class="clean-file-actions" onclick="event.stopPropagation();">
-          ${f.canDelete ? `
+          ${canModify ? `
             <label class="file-checkbox-label" onclick="event.stopPropagation();" title="Select note">
               <input type="checkbox" class="file-select-checkbox" data-file-id="${f.id}" data-file-title="${escapeHtml(f.title || f.originalName)}" data-file-type="${fileBadge}" onchange="handleFileSelectionChange()">
               <span class="file-custom-check"></span>
             </label>
+          ` : ''}
+          ${canModify && !isSearchResult && totalInChapter > 1 ? `
+            <button type="button" class="btn-file-action btn-file-view btn-file-move" onclick="moveChapterFileStep(${f.id}, -1, event)" ${indexInChapter === 0 ? 'disabled' : ''} title="Move note up">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+            </button>
+            <button type="button" class="btn-file-action btn-file-view btn-file-move" onclick="moveChapterFileStep(${f.id}, 1, event)" ${indexInChapter === totalInChapter - 1 ? 'disabled' : ''} title="Move note down">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
           ` : ''}
           <button type="button" class="btn-file-action btn-file-view" onclick="${viewClickFn}" title="Read in same page">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             <span>View</span>
           </button>
           <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get" download="${escapeHtml(f.originalName || 'file')}" onclick="return requireLoginForFile(event, ${f.id}, 'download')" title="Download file">Get</a>
-          ${f.canDelete ? `
-            <button type="button" class="btn-file-action btn-file-view" onclick="editLibraryFilePrompt(${f.id}, event)" title="Edit note title or chapter">
-              <span>Edit</span>
+          ${canModify ? `
+            <button type="button" class="btn-file-action btn-file-view" onclick="editLibraryFilePrompt(${f.id}, event)" title="Rename this note">
+              <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <span>Rename</span>
             </button>
             <button type="button" class="btn-file-action btn-file-delete" onclick="deleteLibraryFile(${f.id}, event)" title="Delete this note">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -3852,14 +4091,15 @@
       if (!q) {
         const switcher = document.getElementById('semSwitcher');
         const ctx = window.ACADEMIC_CONTEXT;
-        const isStaff = ctx && ctx.isStaff;
+        const isTeacher = ctx && ctx.role === 'teacher';
+        const isAdmin = ctx && (ctx.role === 'admin' || ctx.canManageCohorts) && !isTeacher;
         if (switcher) {
-          switcher.style.display = isStaff ? 'flex' : 'none';
+          switcher.style.display = isAdmin ? 'flex' : 'none';
         }
         updateHeaderTitle();
 
-        // Handle unassigned students cleanly when no semester is resolved
-        if (ctx && ctx.isUnassigned && !ctx.semesterRoman) {
+        // Handle unassigned students cleanly when no semester is resolved (never for teachers or admins)
+        if (ctx && ctx.isStudent && !isTeacher && !isAdmin && ctx.isUnassigned && !ctx.semesterRoman) {
           container.innerHTML = `
             <div class="unassigned-academic-card">
               <h3>Class Not Assigned</h3>
@@ -3872,12 +4112,12 @@
           return;
         }
 
-        const list = (isStaff && ACTIVE_SEM === 'ALL')
+        const list = (isTeacher || (isAdmin && ACTIVE_SEM === 'ALL'))
           ? ALL_COURSES
           : ALL_COURSES.filter(c => c.rawSemester === ACTIVE_SEM);
 
         if (!list.length) {
-          container.innerHTML = '<p style="color:var(--text-muted); font-size:14px; text-align:center; padding:40px; border:1.5px dashed var(--border); border-radius:16px;">No courses found in this semester.</p>';
+          container.innerHTML = `<p style="color:var(--text-muted); font-size:14px; text-align:center; padding:40px; border:1.5px dashed var(--border); border-radius:16px;">${isTeacher ? 'No assigned subjects found for your account yet.' : 'No courses found in this semester.'}</p>`;
           return;
         }
 
@@ -4145,13 +4385,89 @@
       }
     });
 
-    async function openDrawer(title, autoOpenUnitNum = null, autoOpenFileId = null) {
+    function getLocalCustomChapters(subjectTitle) {
+      try {
+        const raw = localStorage.getItem(`sl_custom_chapters_${(subjectTitle || '').trim().toLowerCase()}`);
+        return raw ? JSON.parse(raw) : [];
+      } catch (_) {
+        return [];
+      }
+    }
+
+    function saveLocalCustomChapter(subjectTitle, chapName) {
+      try {
+        const key = `sl_custom_chapters_${(subjectTitle || '').trim().toLowerCase()}`;
+        const list = getLocalCustomChapters(subjectTitle);
+        if (!list.some(c => c.toLowerCase() === chapName.trim().toLowerCase())) {
+          list.push(chapName.trim());
+          localStorage.setItem(key, JSON.stringify(list));
+        }
+      } catch (_) {}
+    }
+
+    function renameLocalCustomChapter(subjectTitle, oldChap, newChap) {
+      try {
+        const key = `sl_custom_chapters_${(subjectTitle || '').trim().toLowerCase()}`;
+        const list = getLocalCustomChapters(subjectTitle).map(c =>
+          c.toLowerCase() === (oldChap || '').trim().toLowerCase() ? newChap.trim() : c
+        );
+        localStorage.setItem(key, JSON.stringify(list));
+      } catch (_) {}
+    }
+
+    function sortChapterFilesWithSavedOrder(subjectTitle, chapterKey, fileArray) {
+      if (!Array.isArray(fileArray) || fileArray.length <= 1) return fileArray;
+      let localIds = [];
+      try {
+        const raw = localStorage.getItem(`sl_file_order_${(subjectTitle || '').toLowerCase()}::${(chapterKey || '').toLowerCase()}`);
+        if (raw) localIds = JSON.parse(raw).map(id => parseInt(id, 10));
+      } catch (_) {}
+
+      return [...fileArray].sort((a, b) => {
+        if (localIds.length > 0) {
+          const idxA = localIds.indexOf(a.id);
+          const idxB = localIds.indexOf(b.id);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+        }
+        const orderA = Number(a.sort_order || 0);
+        const orderB = Number(b.sort_order || 0);
+        if (orderA > 0 && orderB > 0 && orderA !== orderB) return orderA - orderB;
+        if (orderA > 0 && orderB === 0) return -1;
+        if (orderB > 0 && orderA === 0) return 1;
+        return 0;
+      });
+    }
+
+    function renderChapterFileRowHtml(f, canManageThisCourse, idx, total, chapterKey) {
+      const isActive = CURRENT_PREVIEW_FILE && CURRENT_PREVIEW_FILE.id === f.id;
+      return `
+        <div class="clean-file-item ${isActive ? 'active-viewing' : ''}" data-file-id="${f.id}" data-chapter-key="${escapeHtml(chapterKey)}" onclick="openInlineFilePreview(${f.id}, event)" ${canManageThisCourse && total > 1 ? 'title="Hold (hard press) &amp; drag to rearrange note up or down"' : ''}>
+          <div class="clean-file-left">
+            ${canManageThisCourse && total > 1 ? `
+              <span class="file-drag-handle" title="Hold &amp; drag to rearrange note" onclick="event.stopPropagation();">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+              </span>
+            ` : ''}
+            <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
+            <div style="min-width:0;">
+              <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
+              <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
+            </div>
+          </div>
+          ${renderFileActions(f, false, canManageThisCourse, idx, total)}
+        </div>
+      `;
+    }
+
+    async function openDrawer(title, autoOpenUnitNum = null, autoOpenFileId = null, autoOpenChapterName = null) {
       let course = window.SyllabusHelper.findCourse(SYLLABUS_DATA, title);
       if (!course) {
         course = ALL_COURSES.find(c => (c.title || '').toLowerCase() === title.toLowerCase());
       }
       if (!course) {
-        const rawSem = ACTIVE_SEM || 'I';
+        const rawSem = ( ACTIVE_SEM && ACTIVE_SEM !== 'ALL' ) ? ACTIVE_SEM : 'I';
         course = {
           title: title,
           code: 'COURSE',
@@ -4193,6 +4509,7 @@
           return sName === cTitle || sCode === cCode || (cCode && sCode === cCode);
         });
       }
+      window.CAN_MANAGE_CURRENT_DRAWER_COURSE = canManageThisCourse;
 
       const dUploadBtn = document.getElementById('dUploadBtn');
       if (dUploadBtn) {
@@ -4222,8 +4539,19 @@
       overlay.classList.add('open');
 
       const units = course.contents ? window.SyllabusHelper.parseCourseUnits(course.contents) : [];
-      let files = await safeFetchJson(`/api/library/files?subject=${encodeURIComponent(course.title)}`, []);
-      CURRENT_DRAWER_FILES = files || [];
+      const [files, customChapRes] = await Promise.all([
+        safeFetchJson(`/api/library/files?subject=${encodeURIComponent(course.title)}`, []),
+        safeFetchJson(`/api/library/custom-chapters?subject=${encodeURIComponent(course.title)}`, { chapters: [] })
+      ]);
+      CURRENT_DRAWER_FILES = (files || []).map(f => ({
+        ...f,
+        canDelete: Boolean(f.canDelete || canManageThisCourse)
+      }));
+
+      const savedCustomChapters = [
+        ...((customChapRes && Array.isArray(customChapRes.chapters)) ? customChapRes.chapters.map(c => c.chapter) : []),
+        ...getLocalCustomChapters(course.title)
+      ];
 
       if (autoOpenFileId) {
         openInlineFilePreview(autoOpenFileId);
@@ -4231,14 +4559,17 @@
         closeInlineFilePreview();
       }
 
-      if (!units.length && !files.length) {
+      if (!units.length && !CURRENT_DRAWER_FILES.length && !savedCustomChapters.length) {
         body.innerHTML = `
           <div style="text-align:center; padding:36px 20px; color:var(--text-muted); font-size:13px; border:1.5px dashed var(--border); border-radius:14px; background:var(--surface);">
             <img src="/minecraft-404-voxel-ruby.svg" alt="No study notes" class="empty-voxel-illu" style="max-width:220px; margin:0 auto 14px;">
             <p style="font-weight:700; color:var(--text); font-size:15px; margin:0 0 4px;">No study notes uploaded yet</p>
             <p style="margin:0 0 14px; color:var(--text-muted); font-size:13px;">No study notes uploaded for this course yet.</p>
             ${canManageThisCourse ? `
-              <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}')" class="upload-cta-btn" style="font-size:12px; padding:6px 14px;">+ Upload First Note</button>
+              <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                <button type="button" onclick="addCustomChapterPrompt('${escapeJs(course.title)}', '${course.rawSemester}')" class="btn-file-action btn-file-view" style="font-size:12px; padding:6px 14px; cursor:pointer;">+ Add Chapter</button>
+                <button type="button" onclick="triggerChapterDirectFileUpload('${escapeJs(course.title)}', '${course.rawSemester}', 'General', this, event)" class="upload-cta-btn" style="font-size:12px; padding:6px 14px;">+ Upload First Note</button>
+              </div>
             ` : ''}
           </div>
         `;
@@ -4247,54 +4578,49 @@
 
       let html = '';
       const allocatedIds = new Set();
+      const renderedChapterNamesLower = new Set();
 
       // 1. Standard Syllabus Units (if any)
       units.forEach((u, i) => {
-        const uFiles = files.filter(f => {
+        const unitLabel = `Unit ${u.num}: ${u.title}`;
+        renderedChapterNamesLower.add(unitLabel.toLowerCase());
+
+        const rawUFiles = CURRENT_DRAWER_FILES.filter(f => {
           if (!f.chapter) return false;
           const ch = f.chapter.toLowerCase().trim();
           const matchUnitNum = ch.includes(`unit ${u.num}`) || ch === `unit ${u.num}` || ch.startsWith(`unit ${u.num}:`) || ch.startsWith(`unit ${u.num} `) || ch.startsWith(`unit ${u.num}-`);
           const matchTitle = u.title && u.title.length > 3 && ch.includes(u.title.toLowerCase());
           return matchUnitNum || matchTitle;
         });
-        uFiles.forEach(f => allocatedIds.add(f.id));
+        rawUFiles.forEach(f => allocatedIds.add(f.id));
+        const uFiles = sortChapterFilesWithSavedOrder(course.title, unitLabel, rawUFiles);
 
         const deletableUFiles = uFiles.filter(f => f.canDelete);
-        const isOpen = (autoOpenUnitNum && String(autoOpenUnitNum) === String(u.num)) || (!autoOpenUnitNum && (i === 0 || uFiles.length > 0));
-        const unitLabel = `Unit ${u.num}: ${u.title}`;
+        const isOpen = (autoOpenUnitNum && String(autoOpenUnitNum) === String(u.num)) ||
+          (autoOpenChapterName && autoOpenChapterName.toLowerCase() === unitLabel.toLowerCase()) ||
+          (!autoOpenUnitNum && !autoOpenChapterName && (i === 0 || uFiles.length > 0));
 
         html += `
-          <div class="clean-unit-row ${isOpen ? 'open' : ''}">
+          <div class="clean-unit-row ${isOpen ? 'open' : ''}" data-unit-chapter="${escapeHtml(unitLabel)}">
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>${escapeHtml(unitLabel)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
                 <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${uFiles.length} file${uFiles.length === 1 ? '' : 's'}</span>
                 ${canManageThisCourse && uFiles.length > 0 ? `
-                  <button type="button" class="btn-file-action btn-file-view" style="font-size:11px; padding:3px 8px;" onclick="renameChapterPrompt('${escapeJs(course.title)}', '${escapeJs(uFiles[0].chapter || unitLabel)}', event)" title="Rename or move notes in this chapter">
+                  <button type="button" class="btn-file-action btn-file-view" style="font-size:11px; padding:3px 8px;" onclick="renameChapterPrompt('${escapeJs(course.title)}', '${escapeJs(uFiles[0].chapter || unitLabel)}', event)" title="Rename this chapter">
                     <span>Rename</span>
                   </button>
                 ` : ''}
                 ${deletableUFiles.length > 0 ? `
-                  <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', 'Unit ${u.num}: ${escapeJs(u.title)}', [${deletableUFiles.map(f => f.id).join(',')}], event)" title="Delete all ${deletableUFiles.length} note${deletableUFiles.length > 1 ? 's' : ''} you have in this unit">
+                  <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', 'Unit ${u.num}: ${escapeJs(u.title)}', [${deletableUFiles.map(f => f.id).join(',')}], event)" title="Delete all ${deletableUFiles.length} note${deletableUFiles.length > 1 ? 's' : ''} in this unit">
                     <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                     <span>Delete All (${deletableUFiles.length})</span>
                   </button>
                 ` : ''}
               </div>
             </div>
-            <div class="clean-unit-body">
-              ${uFiles.length ? uFiles.map(f => `
-                <div class="clean-file-item ${CURRENT_PREVIEW_FILE && CURRENT_PREVIEW_FILE.id === f.id ? 'active-viewing' : ''}" data-file-id="${f.id}" onclick="openInlineFilePreview(${f.id}, event)">
-                  <div class="clean-file-left">
-                    <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
-                    <div style="min-width:0;">
-                      <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
-                      <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
-                    </div>
-                  </div>
-                  ${renderFileActions(f)}
-                </div>
-              `).join('') : `
+            <div class="clean-unit-body" data-chapter-list="${escapeHtml(unitLabel)}">
+              ${uFiles.length ? uFiles.map((f, idx) => renderChapterFileRowHtml(f, canManageThisCourse, idx, uFiles.length, unitLabel)).join('') : `
                 <div style="padding:4px 0 6px;">
                   <p style="font-size:12px; color:var(--text-subtle); margin:0;">
                     No notes for this unit yet.
@@ -4302,8 +4628,9 @@
                 </div>
               `}
               ${canManageThisCourse ? `
-                <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                  <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', 'Unit ${u.num}: ${escapeJs(u.title)}')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
+                  <span style="font-size:11px; color:var(--text-subtle);">${uFiles.length > 1 ? 'Tip: Hold &amp; drag a note or use ↑↓ to rearrange' : ''}</span>
+                  <button type="button" onclick="triggerChapterDirectFileUpload('${escapeJs(course.title)}', '${course.rawSemester}', 'Unit ${u.num}: ${escapeJs(u.title)}', this, event)" class="btn-file-action btn-file-view chapter-quick-upload-btn" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
                 </div>
               ` : ''}
             </div>
@@ -4311,7 +4638,7 @@
         `;
       });
 
-      // 2. Custom Chapters / Units (files not matched to standard syllabus units and not General / Lab)
+      // 2. Custom Chapters / Units (files not matched to standard syllabus units and not General / Lab, PLUS saved custom chapters)
       const isGeneralOrLabChapter = (ch) => {
         if (!ch) return true;
         const lower = ch.toLowerCase().trim();
@@ -4322,22 +4649,39 @@
       };
 
       const customChapterMap = new Map();
-      files.forEach(f => {
+      savedCustomChapters.forEach(chap => {
+        const cleanChap = (chap || '').trim();
+        if (!cleanChap || isGeneralOrLabChapter(cleanChap)) return;
+        const matchesSyllabus = units.some(u => {
+          const ch = cleanChap.toLowerCase();
+          return ch.includes(`unit ${u.num}`) || (u.title && u.title.length > 3 && ch.includes(u.title.toLowerCase()));
+        });
+        if (!matchesSyllabus && !renderedChapterNamesLower.has(cleanChap.toLowerCase())) {
+          renderedChapterNamesLower.add(cleanChap.toLowerCase());
+          customChapterMap.set(cleanChap, []);
+        }
+      });
+
+      CURRENT_DRAWER_FILES.forEach(f => {
         if (allocatedIds.has(f.id)) return;
         if (!isGeneralOrLabChapter(f.chapter)) {
           const chapName = (f.chapter || '').trim();
-          if (!customChapterMap.has(chapName)) {
-            customChapterMap.set(chapName, []);
+          let existingKey = Array.from(customChapterMap.keys()).find(k => k.toLowerCase() === chapName.toLowerCase());
+          if (!existingKey) {
+            existingKey = chapName;
+            customChapterMap.set(existingKey, []);
           }
-          customChapterMap.get(chapName).push(f);
+          customChapterMap.get(existingKey).push(f);
           allocatedIds.add(f.id);
         }
       });
 
-      customChapterMap.forEach((cFiles, chapName) => {
+      customChapterMap.forEach((rawCFiles, chapName) => {
+        const cFiles = sortChapterFilesWithSavedOrder(course.title, chapName, rawCFiles);
         const deletableCFiles = cFiles.filter(f => f.canDelete);
+        const isOpen = !autoOpenChapterName || autoOpenChapterName.toLowerCase() === chapName.toLowerCase() || cFiles.length >= 0;
         html += `
-          <div class="clean-unit-row open">
+          <div class="clean-unit-row ${isOpen ? 'open' : ''}" data-unit-chapter="${escapeHtml(chapName)}">
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>${escapeHtml(chapName)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
@@ -4355,22 +4699,18 @@
                 ` : ''}
               </div>
             </div>
-            <div class="clean-unit-body">
-              ${cFiles.map(f => `
-                <div class="clean-file-item ${CURRENT_PREVIEW_FILE && CURRENT_PREVIEW_FILE.id === f.id ? 'active-viewing' : ''}" data-file-id="${f.id}" onclick="openInlineFilePreview(${f.id}, event)">
-                  <div class="clean-file-left">
-                    <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
-                    <div style="min-width:0;">
-                      <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
-                      <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
-                    </div>
-                  </div>
-                  ${renderFileActions(f)}
+            <div class="clean-unit-body" data-chapter-list="${escapeHtml(chapName)}">
+              ${cFiles.length ? cFiles.map((f, idx) => renderChapterFileRowHtml(f, canManageThisCourse, idx, cFiles.length, chapName)).join('') : `
+                <div style="padding:4px 0 6px;">
+                  <p style="font-size:12px; color:var(--text-subtle); margin:0;">
+                    No notes for this chapter yet.
+                  </p>
                 </div>
-              `).join('')}
+              `}
               ${canManageThisCourse ? `
-                <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                  <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', '${escapeJs(chapName)}')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
+                  <span style="font-size:11px; color:var(--text-subtle);">${cFiles.length > 1 ? 'Tip: Hold &amp; drag a note or use ↑↓ to rearrange' : ''}</span>
+                  <button type="button" onclick="triggerChapterDirectFileUpload('${escapeJs(course.title)}', '${course.rawSemester}', '${escapeJs(chapName)}', this, event)" class="btn-file-action btn-file-view chapter-quick-upload-btn" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
                 </div>
               ` : ''}
             </div>
@@ -4379,16 +4719,17 @@
       });
 
       // 3. Lab / Practical files
-      const labFiles = files.filter(f => !allocatedIds.has(f.id) && f.chapter && (f.chapter.toLowerCase().includes('lab') || f.chapter.toLowerCase().includes('practical')));
-      labFiles.forEach(f => allocatedIds.add(f.id));
+      const rawLabFiles = CURRENT_DRAWER_FILES.filter(f => !allocatedIds.has(f.id) && f.chapter && (f.chapter.toLowerCase().includes('lab') || f.chapter.toLowerCase().includes('practical')));
+      rawLabFiles.forEach(f => allocatedIds.add(f.id));
+      const labFiles = sortChapterFilesWithSavedOrder(course.title, 'Lab / Practical', rawLabFiles);
       const deletableLab = labFiles.filter(f => f.canDelete);
       if (labFiles.length) {
         html += `
-          <div class="clean-unit-row open">
+          <div class="clean-unit-row open" data-unit-chapter="Lab / Practical">
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>Lab / Practical Work</span>
               <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${labFiles.length} files</span>
+                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${labFiles.length} file${labFiles.length === 1 ? '' : 's'}</span>
                 ${deletableLab.length > 0 ? `
                   <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', 'Lab / Practical', [${deletableLab.map(f => f.id).join(',')}], event)" title="Delete notes">
                     <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -4397,22 +4738,12 @@
                 ` : ''}
               </div>
             </div>
-            <div class="clean-unit-body">
-              ${labFiles.map(f => `
-                <div class="clean-file-item ${CURRENT_PREVIEW_FILE && CURRENT_PREVIEW_FILE.id === f.id ? 'active-viewing' : ''}" data-file-id="${f.id}" onclick="openInlineFilePreview(${f.id}, event)">
-                  <div class="clean-file-left">
-                    <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
-                    <div style="min-width:0;">
-                      <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
-                      <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
-                    </div>
-                  </div>
-                  ${renderFileActions(f)}
-                </div>
-              `).join('')}
+            <div class="clean-unit-body" data-chapter-list="Lab / Practical">
+              ${labFiles.map((f, idx) => renderChapterFileRowHtml(f, canManageThisCourse, idx, labFiles.length, 'Lab / Practical')).join('')}
               ${canManageThisCourse ? `
-                <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                  <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', 'Lab / Practical')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
+                  <span style="font-size:11px; color:var(--text-subtle);">${labFiles.length > 1 ? 'Tip: Hold &amp; drag a note or use ↑↓ to rearrange' : ''}</span>
+                  <button type="button" onclick="triggerChapterDirectFileUpload('${escapeJs(course.title)}', '${course.rawSemester}', 'Lab / Practical', this, event)" class="btn-file-action btn-file-view chapter-quick-upload-btn" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
                 </div>
               ` : ''}
             </div>
@@ -4421,15 +4752,16 @@
       }
 
       // 4. General / Complete Notes files (any remaining)
-      const general = files.filter(f => !allocatedIds.has(f.id));
+      const rawGeneral = CURRENT_DRAWER_FILES.filter(f => !allocatedIds.has(f.id));
+      const general = sortChapterFilesWithSavedOrder(course.title, 'General', rawGeneral);
       const deletableGeneral = general.filter(f => f.canDelete);
       if (general.length) {
         html += `
-          <div class="clean-unit-row open">
+          <div class="clean-unit-row open" data-unit-chapter="General">
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>Complete Notes / General</span>
               <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${general.length} files</span>
+                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${general.length} file${general.length === 1 ? '' : 's'}</span>
                 ${deletableGeneral.length > 0 ? `
                   <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', 'General', [${deletableGeneral.map(f => f.id).join(',')}], event)" title="Delete notes">
                     <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -4438,22 +4770,12 @@
                 ` : ''}
               </div>
             </div>
-            <div class="clean-unit-body">
-              ${general.map(f => `
-                <div class="clean-file-item ${CURRENT_PREVIEW_FILE && CURRENT_PREVIEW_FILE.id === f.id ? 'active-viewing' : ''}" data-file-id="${f.id}" onclick="openInlineFilePreview(${f.id}, event)">
-                  <div class="clean-file-left">
-                    <div class="clean-file-icon">${getFileBadge(f.originalName || f.title)}</div>
-                    <div style="min-width:0;">
-                      <p class="clean-file-title" title="${escapeHtml(f.title || f.originalName)}">${escapeHtml(f.title || f.originalName)}</p>
-                      <p class="clean-file-meta">By ${escapeHtml(f.uploaderName || 'Student')}</p>
-                    </div>
-                  </div>
-                  ${renderFileActions(f)}
-                </div>
-              `).join('')}
+            <div class="clean-unit-body" data-chapter-list="General">
+              ${general.map((f, idx) => renderChapterFileRowHtml(f, canManageThisCourse, idx, general.length, 'General')).join('')}
               ${canManageThisCourse ? `
-                <div style="display:flex; align-items:center; justify-content:flex-end; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                  <button type="button" onclick="openDirectUploadModal('${escapeJs(course.title)}', '${course.rawSemester}', 'General')" class="btn-file-action btn-file-view" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
+                  <span style="font-size:11px; color:var(--text-subtle);">${general.length > 1 ? 'Tip: Hold &amp; drag a note or use ↑↓ to rearrange' : ''}</span>
+                  <button type="button" onclick="triggerChapterDirectFileUpload('${escapeJs(course.title)}', '${course.rawSemester}', 'General', this, event)" class="btn-file-action btn-file-view chapter-quick-upload-btn" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
                 </div>
               ` : ''}
             </div>
@@ -4462,6 +4784,9 @@
       }
 
       body.innerHTML = html;
+      if (canManageThisCourse) {
+        initChapterFileReordering(course.title);
+      }
     }
 
     function checkUrl() {
@@ -4471,12 +4796,76 @@
     window.addEventListener('hashchange', checkUrl);
 
     // =========================================================================
-    // SUBJECT, CHAPTER & NOTE MANAGEMENT HELPERS FOR TEACHERS & ADMINS
+    // STYLED CUSTOM PROMPT MODAL & CHAPTER / SUBJECT / NOTE ACTIONS
     // =========================================================================
+
+    function showCustomPromptModal({ title = 'Edit Name', subtitle = '', label = 'Name', defaultValue = '', placeholder = '', confirmText = 'Save' }) {
+      return new Promise((resolve) => {
+        const overlayEl = document.getElementById('customPromptOverlay');
+        const titleEl = document.getElementById('customPromptTitle');
+        const subEl = document.getElementById('customPromptSub');
+        const labelEl = document.getElementById('customPromptLabel');
+        const inputEl = document.getElementById('customPromptInput');
+        const submitTextEl = document.getElementById('customPromptSubmitText');
+        const cancelBtn = document.getElementById('customPromptCancelBtn');
+        const closeBtn = document.getElementById('customPromptCloseBtn');
+        const formEl = document.getElementById('customPromptForm');
+
+        titleEl.textContent = title;
+        subEl.textContent = subtitle;
+        labelEl.textContent = label;
+        inputEl.value = defaultValue || '';
+        inputEl.placeholder = placeholder || '';
+        submitTextEl.textContent = confirmText;
+
+        overlayEl.classList.add('open');
+        setTimeout(() => {
+          inputEl.focus();
+          inputEl.select();
+        }, 40);
+
+        function cleanup(val) {
+          overlayEl.classList.remove('open');
+          cancelBtn.removeEventListener('click', onCancel);
+          closeBtn.removeEventListener('click', onCancel);
+          overlayEl.removeEventListener('click', onOverlayClick);
+          formEl.removeEventListener('submit', onSubmit);
+          document.removeEventListener('keydown', onKeyDown);
+          resolve(val);
+        }
+
+        function onCancel() { cleanup(null); }
+        function onOverlayClick(e) { if (e.target === overlayEl) cleanup(null); }
+        function onSubmit(e) {
+          e.preventDefault();
+          cleanup(inputEl.value);
+        }
+        function onKeyDown(e) {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            cleanup(null);
+          }
+        }
+
+        cancelBtn.addEventListener('click', onCancel);
+        closeBtn.addEventListener('click', onCancel);
+        overlayEl.addEventListener('click', onOverlayClick);
+        formEl.addEventListener('submit', onSubmit);
+        document.addEventListener('keydown', onKeyDown);
+      });
+    }
 
     window.renameSubjectPrompt = async function (course) {
       if (!course || !course.title) return;
-      const newName = window.prompt('Adjust Subject Name:', course.title);
+      const newName = await showCustomPromptModal({
+        title: 'Adjust Subject Name',
+        subtitle: 'Update how this subject appears across your curriculum library.',
+        label: 'Subject Name',
+        defaultValue: course.title,
+        placeholder: 'e.g. Data Structure and Algorithms',
+        confirmText: 'Save Name'
+      });
       if (!newName || newName.trim() === '' || newName.trim() === course.title) return;
       try {
         const res = await fetch('/api/library/subjects/rename', {
@@ -4500,10 +4889,31 @@
       }
     };
 
-    window.addCustomChapterPrompt = function (subjectTitle, rawSemester) {
-      const chapName = window.prompt(`Enter new Chapter / Unit name for ${subjectTitle}:`, '');
+    window.addCustomChapterPrompt = async function (subjectTitle, rawSemester) {
+      const chapName = await showCustomPromptModal({
+        title: 'Add New Chapter',
+        subtitle: `Create a new chapter or unit in ${subjectTitle}.`,
+        label: 'Chapter / Unit Name',
+        defaultValue: '',
+        placeholder: 'e.g. Unit 9: Dynamic Programming',
+        confirmText: 'Add Chapter'
+      });
       if (!chapName || !chapName.trim()) return;
-      openDirectUploadModal(subjectTitle, rawSemester, chapName.trim());
+      const cleanChap = chapName.trim();
+      saveLocalCustomChapter(subjectTitle, cleanChap);
+      try {
+        await fetch('/api/library/chapters/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: subjectTitle,
+            semester: SEM_MAP[rawSemester] || rawSemester || '',
+            chapter: cleanChap
+          })
+        });
+      } catch (_) {}
+      showToast(`✅ Chapter "${cleanChap}" added`);
+      await openDrawer(subjectTitle, null, null, cleanChap);
     };
 
     window.renameChapterPrompt = async function (subjectTitle, oldChapter, event) {
@@ -4511,8 +4921,16 @@
         event.stopPropagation();
         event.preventDefault();
       }
-      const newChapter = window.prompt(`Adjust Chapter / Unit name in ${subjectTitle}:`, oldChapter);
+      const newChapter = await showCustomPromptModal({
+        title: 'Rename Chapter',
+        subtitle: `Adjust the chapter or unit name in ${subjectTitle}.`,
+        label: 'Chapter / Unit Name',
+        defaultValue: oldChapter,
+        placeholder: 'Enter chapter name',
+        confirmText: 'Save Chapter'
+      });
       if (!newChapter || !newChapter.trim() || newChapter.trim() === oldChapter) return;
+      const cleanNew = newChapter.trim();
       try {
         const res = await fetch('/api/library/chapters/rename', {
           method: 'POST',
@@ -4520,11 +4938,12 @@
           body: JSON.stringify({
             subject: subjectTitle,
             oldChapter,
-            newChapter: newChapter.trim()
+            newChapter: cleanNew
           })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || 'Could not update chapter name.');
+        renameLocalCustomChapter(subjectTitle, oldChapter, cleanNew);
         showToast(`✅ ${data.message || 'Chapter name updated'}`);
         await refreshLibraryData();
       } catch (err) {
@@ -4542,30 +4961,387 @@
         (ALL_FILES && ALL_FILES.find(x => x.id === id));
       if (!f) return;
 
-      const newTitle = window.prompt('Adjust Note Title:', f.title || f.originalName || '');
-      if (newTitle === null) return;
-      const newChapter = window.prompt('Adjust Chapter / Unit Name:', f.chapter || 'General');
-      if (newChapter === null) return;
+      const currentTitle = f.title || f.originalName || '';
+      const newTitle = await showCustomPromptModal({
+        title: 'Rename Note',
+        subtitle: `Update the display name for this study note in ${f.chapter || f.subject || 'your library'}.`,
+        label: 'Note Name',
+        defaultValue: currentTitle,
+        placeholder: 'Enter note title',
+        confirmText: 'Save Name'
+      });
+      if (newTitle === null || !newTitle.trim() || newTitle.trim() === currentTitle) return;
 
       try {
         const res = await fetch(`/api/files/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            title: newTitle.trim() || f.title,
+            title: newTitle.trim(),
             subject: f.subject,
             semester: f.semester,
-            chapter: newChapter.trim() || 'General'
+            chapter: f.chapter || 'General'
           })
         });
         const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.message || 'Could not update note.');
-        showToast('✅ Note details updated');
+        if (!res.ok) throw new Error(data.message || 'Could not rename note.');
+        f.title = newTitle.trim();
+        showToast('✅ Note renamed successfully');
         await refreshLibraryData();
       } catch (err) {
-        alert(err.message || 'Failed to update note.');
+        alert(err.message || 'Failed to rename note.');
       }
     };
+
+    // =========================================================================
+    // DIRECT CHAPTER FILE PICKER & MULTI-FILE UPLOAD (NO FORM MODAL)
+    // =========================================================================
+
+    let PENDING_CHAPTER_UPLOAD = null;
+    const chapterQuickFileInput = document.getElementById('chapterQuickFileInput');
+
+    window.triggerChapterDirectFileUpload = function (subjectTitle, rawSemester, chapterName, btnEl, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      const academicCtx = window.ACADEMIC_CONTEXT;
+      if (!academicCtx || !academicCtx.authenticated || academicCtx.isStudent || (!academicCtx.isStaff && academicCtx.role !== 'teacher' && academicCtx.role !== 'admin')) {
+        alert('Only teachers and administrators are authorized to upload notes.');
+        return;
+      }
+      const semObj = SEMESTER_LIST.find(s => s.rawSemester.toLowerCase() === String(rawSemester || '').toLowerCase() || s.shortName.toLowerCase() === String(rawSemester || '').toLowerCase());
+      const resolvedSemester = semObj ? semObj.shortName : (SEM_MAP[rawSemester] || rawSemester || 'Semester 1');
+
+      PENDING_CHAPTER_UPLOAD = {
+        subject: subjectTitle,
+        rawSemester: rawSemester,
+        semester: resolvedSemester,
+        chapter: chapterName || 'General',
+        btnEl: btnEl || null
+      };
+
+      if (chapterQuickFileInput) {
+        chapterQuickFileInput.value = '';
+        chapterQuickFileInput.click();
+      }
+    };
+
+    if (chapterQuickFileInput) {
+      chapterQuickFileInput.addEventListener('change', async () => {
+        const files = Array.from(chapterQuickFileInput.files || []);
+        if (!files.length || !PENDING_CHAPTER_UPLOAD) return;
+
+        const { subject, semester, chapter, btnEl } = PENDING_CHAPTER_UPLOAD;
+        const validFiles = files.filter(f => f.size <= 250 * 1024 * 1024);
+        if (!validFiles.length) {
+          alert('Selected file(s) exceed the 250MB limit.');
+          return;
+        }
+
+        const originalBtnHtml = btnEl ? btnEl.innerHTML : '+ Add Note to this Chapter';
+        if (btnEl) {
+          btnEl.disabled = true;
+          btnEl.textContent = `Uploading ${validFiles.length} file${validFiles.length > 1 ? 's' : ''}…`;
+        }
+        showToast(`⏳ Uploading ${validFiles.length} note${validFiles.length > 1 ? 's' : ''} to ${chapter}…`);
+
+        try {
+          let supaClient = null;
+          try {
+            if (window.supabase) {
+              const cfgRes = await fetch('/api/auth/config');
+              if (cfgRes.ok) {
+                const cfg = await cfgRes.json();
+                if (cfg.url && cfg.key) {
+                  supaClient = window.supabase.createClient(cfg.url, cfg.key);
+                }
+              }
+            }
+          } catch (_) {}
+
+          if (supaClient) {
+            const uploadedRecords = [];
+            for (let i = 0; i < validFiles.length; i++) {
+              const file = validFiles[i];
+              if (btnEl) {
+                btnEl.textContent = `Uploading (${i + 1}/${validFiles.length})…`;
+              }
+              const authRes = await fetch('/api/files/authorize-upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  filename: file.name,
+                  size: file.size,
+                  mimeType: file.type || 'application/octet-stream'
+                })
+              });
+              if (authRes.status === 401) {
+                showAuthModal(true);
+                return;
+              }
+              if (!authRes.ok) {
+                const authErr = await authRes.json().catch(() => ({}));
+                throw new Error(authErr.message || 'Server rejected file upload authorization.');
+              }
+              const authData = await authRes.json();
+              const storedName = authData.storedName;
+              const uploadToken = authData.token;
+
+              const { error: upErr } = await supaClient.storage
+                .from('library_files')
+                .upload(storedName, file, { cacheControl: '3600', upsert: false });
+              if (upErr) {
+                throw new Error(`Upload failed: ${upErr.message}`);
+              }
+              const { data: pubData } = supaClient.storage.from('library_files').getPublicUrl(storedName);
+              uploadedRecords.push({
+                storedName,
+                token: uploadToken,
+                originalName: file.name,
+                size: file.size,
+                mimeType: file.type || 'application/octet-stream',
+                publicUrl: pubData ? pubData.publicUrl : ''
+              });
+            }
+
+            const recRes = await fetch('/api/files/record-upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                files: uploadedRecords,
+                title: validFiles.length === 1 ? validFiles[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : '',
+                semester,
+                subject,
+                chapter
+              })
+            });
+            const recData = await recRes.json().catch(() => ({}));
+            if (!recRes.ok) throw new Error(recData.message || 'Failed to save uploaded note metadata.');
+          } else {
+            const fd = new FormData();
+            for (const file of validFiles) {
+              fd.append('files', file);
+            }
+            fd.append('title', validFiles.length === 1 ? validFiles[0].name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ') : '');
+            fd.append('semester', semester);
+            fd.append('subject', subject);
+            fd.append('chapter', chapter);
+
+            const res = await fetch('/api/files/upload', {
+              method: 'POST',
+              body: fd
+            });
+            if (res.status === 401) {
+              showAuthModal(true);
+              return;
+            }
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || 'Upload failed.');
+          }
+
+          showToast(`🎉 ${validFiles.length} note${validFiles.length > 1 ? 's' : ''} uploaded to ${chapter}!`);
+          await refreshLibraryData();
+          await openDrawer(subject, null, null, chapter);
+        } catch (err) {
+          console.error('Direct chapter upload error:', err);
+          alert(err.message || 'Could not upload file(s) to this chapter.');
+        } finally {
+          if (btnEl) {
+            btnEl.disabled = false;
+            btnEl.innerHTML = originalBtnHtml;
+          }
+          PENDING_CHAPTER_UPLOAD = null;
+          chapterQuickFileInput.value = '';
+        }
+      });
+    }
+
+    // =========================================================================
+    // HARD-PRESS (LONG-PRESS) & DRAG / MOVE UP-DOWN FILE REORDERING IN CHAPTER
+    // =========================================================================
+
+    async function persistChapterFileOrder(subjectTitle, chapterKey, orderedFileIds) {
+      if (!orderedFileIds || !orderedFileIds.length) return;
+      try {
+        localStorage.setItem(
+          `sl_file_order_${(subjectTitle || '').toLowerCase()}::${(chapterKey || '').toLowerCase()}`,
+          JSON.stringify(orderedFileIds)
+        );
+      } catch (_) {}
+
+      orderedFileIds.forEach((id, idx) => {
+        const f = CURRENT_DRAWER_FILES && CURRENT_DRAWER_FILES.find(x => x.id === id);
+        if (f) f.sort_order = idx + 1;
+      });
+
+      try {
+        await fetch('/api/library/files/reorder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: subjectTitle,
+            chapter: chapterKey,
+            orderedFileIds
+          })
+        });
+      } catch (err) {
+        console.warn('Could not persist file order to server:', err);
+      }
+    }
+
+    function refreshChapterMoveButtons(chapterContainer) {
+      if (!chapterContainer) return;
+      const items = Array.from(chapterContainer.querySelectorAll('.clean-file-item'));
+      items.forEach((item, idx) => {
+        const moveBtns = item.querySelectorAll('.btn-file-move');
+        if (moveBtns.length === 2) {
+          moveBtns[0].disabled = idx === 0;
+          moveBtns[1].disabled = idx === items.length - 1;
+        }
+      });
+    }
+
+    window.moveChapterFileStep = async function (fileId, direction, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      const itemEl = document.querySelector(`.clean-file-item[data-file-id="${fileId}"]`);
+      if (!itemEl) return;
+      const chapterContainer = itemEl.closest('[data-chapter-list]');
+      if (!chapterContainer) return;
+
+      const items = Array.from(chapterContainer.querySelectorAll('.clean-file-item'));
+      const idx = items.indexOf(itemEl);
+      if (idx === -1) return;
+      const targetIdx = idx + direction;
+      if (targetIdx < 0 || targetIdx >= items.length) return;
+
+      const targetEl = items[targetIdx];
+      if (direction < 0) {
+        chapterContainer.insertBefore(itemEl, targetEl);
+      } else {
+        chapterContainer.insertBefore(targetEl, itemEl);
+      }
+
+      refreshChapterMoveButtons(chapterContainer);
+      const orderedIds = Array.from(chapterContainer.querySelectorAll('.clean-file-item')).map(el => parseInt(el.dataset.fileId, 10));
+      const subjectTitle = CURRENT_DRAWER_COURSE ? CURRENT_DRAWER_COURSE.title : '';
+      const chapterKey = chapterContainer.getAttribute('data-chapter-list') || '';
+      await persistChapterFileOrder(subjectTitle, chapterKey, orderedIds);
+      showToast('✅ Note order updated');
+    };
+
+    function initChapterFileReordering(subjectTitle) {
+      const containers = document.querySelectorAll('#drawerBody [data-chapter-list]');
+      containers.forEach(container => {
+        const chapterKey = container.getAttribute('data-chapter-list') || '';
+        let pressTimer = null;
+        let activeItem = null;
+        let isReordering = false;
+        let startY = 0;
+        let suppressNextClick = false;
+
+        const onPointerDown = (e) => {
+          const item = e.target.closest('.clean-file-item');
+          if (!item || !container.contains(item)) return;
+          // Ignore clicks on action buttons or checkboxes unless it's the drag handle
+          const isHandle = Boolean(e.target.closest('.file-drag-handle'));
+          if (!isHandle && (e.target.closest('.clean-file-actions') || e.target.closest('button') || e.target.closest('a') || e.target.closest('label') || e.target.closest('input'))) {
+            return;
+          }
+
+          const allItems = container.querySelectorAll('.clean-file-item');
+          if (allItems.length <= 1) return;
+
+          startY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+          activeItem = item;
+
+          const activateReorder = () => {
+            if (!activeItem) return;
+            isReordering = true;
+            suppressNextClick = true;
+            activeItem.classList.add('reordering-active');
+            if (navigator.vibrate) {
+              try { navigator.vibrate(15); } catch (_) {}
+            }
+          };
+
+          if (isHandle) {
+            e.preventDefault();
+            activateReorder();
+          } else {
+            // Hard-press (long-press ~240ms) on the note card activates drag reordering
+            pressTimer = setTimeout(activateReorder, 240);
+          }
+        };
+
+        const onPointerMove = (e) => {
+          if (!activeItem) return;
+          const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+          if (!isReordering) {
+            if (Math.abs(clientY - startY) > 8 && pressTimer) {
+              clearTimeout(pressTimer);
+              pressTimer = null;
+            }
+            return;
+          }
+
+          if (e.cancelable) e.preventDefault();
+
+          const siblings = Array.from(container.querySelectorAll('.clean-file-item:not(.reordering-active)'));
+          for (const sibling of siblings) {
+            const rect = sibling.getBoundingClientRect();
+            const midY = rect.top + rect.height / 2;
+            const activeIdx = Array.from(container.children).indexOf(activeItem);
+            const siblingIdx = Array.from(container.children).indexOf(sibling);
+            if (clientY < midY && activeIdx > siblingIdx) {
+              container.insertBefore(activeItem, sibling);
+              break;
+            } else if (clientY > midY && activeIdx < siblingIdx) {
+              container.insertBefore(sibling, activeItem);
+              break;
+            }
+          }
+        };
+
+        const onPointerUp = async () => {
+          if (pressTimer) {
+            clearTimeout(pressTimer);
+            pressTimer = null;
+          }
+          if (isReordering && activeItem) {
+            activeItem.classList.remove('reordering-active');
+            refreshChapterMoveButtons(container);
+            const orderedIds = Array.from(container.querySelectorAll('.clean-file-item')).map(el => parseInt(el.dataset.fileId, 10));
+            isReordering = false;
+            activeItem = null;
+            await persistChapterFileOrder(subjectTitle, chapterKey, orderedIds);
+            showToast('✅ Note order updated');
+            setTimeout(() => { suppressNextClick = false; }, 120);
+          } else {
+            isReordering = false;
+            activeItem = null;
+          }
+        };
+
+        container.addEventListener('click', (e) => {
+          if (suppressNextClick) {
+            e.stopPropagation();
+            e.preventDefault();
+            suppressNextClick = false;
+          }
+        }, true);
+
+        container.addEventListener('mousedown', onPointerDown);
+        container.addEventListener('touchstart', onPointerDown, { passive: false });
+        window.addEventListener('mousemove', onPointerMove, { passive: false });
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+        window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchend', onPointerUp);
+      });
+    }
 
     // =========================================================================
     // DIRECT IN-PLACE UPLOAD MODAL & MULTI-FILE QUEUE SYSTEM

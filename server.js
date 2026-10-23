@@ -3644,7 +3644,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
 
   let query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
-      files.cohort_id, files.semester_no, files.audience_scope,
+      files.cohort_id, files.semester_no, files.audience_scope, COALESCE(files.sort_order, 0) AS sort_order,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
@@ -3652,7 +3652,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
     WHERE ${whereSql}${teacherFeedSql}
-    ORDER BY files.uploadedAt DESC
+    ORDER BY CASE WHEN COALESCE(files.sort_order, 0) > 0 THEN 0 ELSE 1 END ASC, COALESCE(files.sort_order, 0) ASC, files.uploadedAt DESC
   `;
 
   if (limit !== null) {
@@ -4522,10 +4522,87 @@ app.post('/api/library/subjects/rename', requireLogin, async (req, res) => {
     await db.run('UPDATE subjects SET name = ? WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))', newName, oldName);
     await db.run('UPDATE files SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
     await db.run('UPDATE assignments SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
+    try {
+      await db.run('UPDATE library_custom_chapters SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
+    } catch (_) {}
 
     res.json({ success: true, oldName, newName, message: `Subject updated to "${newName}".` });
   } catch (err) {
     res.status(err.status || 400).json({ message: err.message || 'Could not rename subject.' });
+  }
+});
+
+// Create a custom chapter within a subject (Admin or Teacher assigned to that subject)
+app.post('/api/library/chapters/create', requireLogin, async (req, res) => {
+  try {
+    const context = await getAcademicContext(db, req);
+    const callerId = context?.studentId || req.session?.studentId || req.user?.studentId;
+    const isAdminUser = context?.role === 'admin' || (await isStudentAdmin(callerId));
+    const isTeacherUser = context?.role === 'teacher';
+
+    if (!isAdminUser && !isTeacherUser) {
+      return res.status(403).json({ message: 'Only teachers and admins can add chapters.' });
+    }
+
+    const subject = String(req.body?.subject || '').trim();
+    const semester = String(req.body?.semester || '').trim();
+    const chapter = String(req.body?.chapter || '').trim().replace(/\s+/g, ' ');
+
+    if (!subject || !chapter || chapter.length > 120) {
+      return res.status(400).json({ message: 'Please provide a valid chapter name (1–120 characters).' });
+    }
+
+    if (isTeacherUser && !isAdminUser) {
+      const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+      await validateTeacherSubjectAuthorization(db, callerId, subject);
+    }
+
+    try {
+      const existing = await db.get(
+        'SELECT id FROM library_custom_chapters WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND LOWER(TRIM(chapter)) = LOWER(TRIM(?))',
+        subject,
+        chapter
+      );
+      if (!existing) {
+        await db.run(
+          'INSERT INTO library_custom_chapters (subject, semester, chapter, created_by) VALUES (?, ?, ?, ?)',
+          subject,
+          semester || '',
+          chapter,
+          callerId || ''
+        );
+      }
+    } catch (dbErr) {
+      console.warn('Custom chapter insert warning:', dbErr.message);
+    }
+
+    res.json({
+      success: true,
+      subject,
+      chapter,
+      message: `Chapter "${chapter}" added to ${subject}.`
+    });
+  } catch (err) {
+    res.status(err.status || 400).json({ message: err.message || 'Could not add chapter.' });
+  }
+});
+
+// List custom chapters created for a subject
+app.get('/api/library/custom-chapters', async (req, res) => {
+  try {
+    const subject = String(req.query?.subject || '').trim();
+    let rows = [];
+    if (subject) {
+      rows = await db.all(
+        'SELECT id, subject, semester, chapter, created_at FROM library_custom_chapters WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) ORDER BY id ASC',
+        subject
+      );
+    } else {
+      rows = await db.all('SELECT id, subject, semester, chapter, created_at FROM library_custom_chapters ORDER BY id ASC');
+    }
+    res.json({ chapters: rows || [] });
+  } catch (_) {
+    res.json({ chapters: [] });
   }
 });
 
@@ -4560,6 +4637,14 @@ app.post('/api/library/chapters/rename', requireLogin, async (req, res) => {
       subject,
       oldChapter
     );
+    try {
+      await db.run(
+        'UPDATE library_custom_chapters SET chapter = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND LOWER(TRIM(chapter)) = LOWER(TRIM(?))',
+        newChapter,
+        subject,
+        oldChapter
+      );
+    } catch (_) {}
 
     res.json({
       success: true,
@@ -4571,6 +4656,43 @@ app.post('/api/library/chapters/rename', requireLogin, async (req, res) => {
     });
   } catch (err) {
     res.status(err.status || 400).json({ message: err.message || 'Could not rename chapter.' });
+  }
+});
+
+// Reorder files within a subject / chapter (Admin or Teacher assigned to that subject)
+app.post('/api/library/files/reorder', requireLogin, async (req, res) => {
+  try {
+    const context = await getAcademicContext(db, req);
+    const callerId = context?.studentId || req.session?.studentId || req.user?.studentId;
+    const isAdminUser = context?.role === 'admin' || (await isStudentAdmin(callerId));
+    const isTeacherUser = context?.role === 'teacher';
+
+    if (!isAdminUser && !isTeacherUser) {
+      return res.status(403).json({ message: 'Only teachers and admins can reorder library notes.' });
+    }
+
+    const subject = String(req.body?.subject || '').trim();
+    const orderedFileIds = Array.isArray(req.body?.orderedFileIds) ? req.body.orderedFileIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
+
+    if (!orderedFileIds.length) {
+      return res.status(400).json({ message: 'No file IDs provided for reordering.' });
+    }
+
+    if (isTeacherUser && !isAdminUser && subject) {
+      const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+      await validateTeacherSubjectAuthorization(db, callerId, subject);
+    }
+
+    for (let i = 0; i < orderedFileIds.length; i++) {
+      await db.run('UPDATE files SET sort_order = ? WHERE id = ?', i + 1, orderedFileIds[i]);
+    }
+
+    res.json({
+      success: true,
+      message: 'Note order updated.'
+    });
+  } catch (err) {
+    res.status(err.status || 400).json({ message: err.message || 'Could not reorder notes.' });
   }
 });
 
@@ -4587,9 +4709,27 @@ app.get('/api/library/files', async (req, res) => {
     requestedSemester: semester
   });
 
+  let teacherSubjects = [];
+  if (context.role === 'teacher' && studentId) {
+    try {
+      const { getTeacherSubjects } = require('./lib/teacher-service');
+      teacherSubjects = await getTeacherSubjects(db, studentId);
+    } catch (_) {}
+    if ((!teacherSubjects || teacherSubjects.length === 0) && Array.isArray(context.assignedSubjects)) {
+      teacherSubjects = context.assignedSubjects;
+    }
+  }
+  const teacherSubjectSet = new Set(
+    (teacherSubjects || []).flatMap(s => [
+      (s.name || '').trim().toLowerCase(),
+      (s.code || '').trim().toLowerCase(),
+      (s.id || '').trim().toLowerCase()
+    ]).filter(Boolean)
+  );
+
   let query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
-      files.cohort_id, files.semester_no, files.audience_scope,
+      files.cohort_id, files.semester_no, files.audience_scope, COALESCE(files.sort_order, 0) AS sort_order,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
@@ -4609,7 +4749,7 @@ app.get('/api/library/files', async (req, res) => {
     params.push(chapter);
   }
 
-  query += ' ORDER BY files.uploadedAt DESC';
+  query += ' ORDER BY CASE WHEN COALESCE(files.sort_order, 0) > 0 THEN 0 ELSE 1 END ASC, COALESCE(files.sort_order, 0) ASC, files.uploadedAt DESC';
 
   const files = await db.all(query, ...params);
   const processed = files.map(f => ({
@@ -4622,7 +4762,7 @@ app.get('/api/library/files', async (req, res) => {
     audience_scope: f.audience_scope || f.audienceScope || 'cohort',
     uploaderRole: f.uploaderRole || 'student',
     isOfficial: f.uploaderRole === 'admin',
-    canDelete: viewerIsAdmin || f.uploadedBy === req.session.studentId
+    canDelete: viewerIsAdmin || f.uploadedBy === studentId || (context.role === 'teacher' && teacherSubjectSet.has(String(f.subject || '').trim().toLowerCase()))
   }));
 
   res.json(processed);

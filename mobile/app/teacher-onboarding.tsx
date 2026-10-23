@@ -25,7 +25,8 @@ export const TEACHER_ONBOARDING_TOKEN_KEY = 'semester_library_teacher_onboarding
 interface SubjectItem {
   id: string;
   code: string;
-  title: string;
+  name?: string;
+  title?: string;
   semester: number;
 }
 
@@ -221,11 +222,13 @@ export default function TeacherOnboardingScreen() {
   const filteredSubjects = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return subjects;
-    return subjects.filter(
-      (s) =>
-        (s.title && s.title.toLowerCase().includes(q)) ||
+    return subjects.filter((s) => {
+      const label = s.name || s.title || '';
+      return (
+        label.toLowerCase().includes(q) ||
         (s.code && s.code.toLowerCase().includes(q))
-    );
+      );
+    });
   }, [subjects, searchQuery]);
 
   const groupedBySemester = useMemo(() => {
@@ -693,7 +696,7 @@ export default function TeacherOnboardingScreen() {
                                 {sub.code}
                               </Text>
                               <Text variant="xs" color="muted">
-                                {sub.title}
+                                {sub.name || sub.title}
                               </Text>
                             </View>
                           </TouchableOpacity>

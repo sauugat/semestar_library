@@ -1179,7 +1179,10 @@
 
         let subjectsHtml = '—';
         if (teacher.subjects && teacher.subjects.length > 0) {
-          subjectsHtml = teacher.subjects.map(s => `<span class="subject-pill">${escapeHtml(s.code)}</span>`).join('');
+          subjectsHtml = teacher.subjects.map(s => {
+            const subName = s.name || s.title || '';
+            return `<span class="subject-pill" title="${escapeHtml(subName)}">${escapeHtml(s.code)}${subName ? ` — ${escapeHtml(subName)}` : ''}</span>`;
+          }).join('');
         }
 
         const createdAt = item.created_at ? new Date(item.created_at).toLocaleDateString() : '—';
@@ -1580,7 +1583,10 @@
 
         let subjectsList = 'None assigned';
         if (teacher.subjects && teacher.subjects.length > 0) {
-          subjectsList = teacher.subjects.map(s => `${escapeHtml(s.code)}${s.title ? ` (${escapeHtml(s.title)})` : ''}`).join(', ');
+          subjectsList = teacher.subjects.map(s => {
+            const subName = s.name || s.title || '';
+            return `${escapeHtml(s.code)}${subName ? ` (${escapeHtml(subName)})` : ''}`;
+          }).join(', ');
         }
 
         document.getElementById('detailSubtitle').textContent = `Invite: ${escapeHtml(username)}`;

@@ -193,6 +193,60 @@
   };
 
   // Setup Subject Search & Rendering
+  const CANONICAL_SUBJECT_NAMES = {
+    "ELX111": "Basic Electronics",
+    "BSM111": "Mathematics I",
+    "CIT111": "Computer Programming,I (C)",
+    "CIT112": "Basics of IT",
+    "CIT113": "Workshop: Problem Solving and Logic",
+    "BCT111": "Business Communication Technique",
+    "CIT121": "Discrete Mathematics",
+    "CIT122": "Computer Programming II (Java)",
+    "BSM121": "Mathematics II",
+    "ELX121": "Digital Logic",
+    "CIT123": "Web Technology I",
+    "CIT124": "Project I",
+    "CIT214": "Data Structure and Algorithms",
+    "CIT213": "Database Management System",
+    "ELX211": "Microprocessor and Computer Architecture",
+    "BCT211": "Principles of Organization and Management",
+    "CIT212": "Software Engineering",
+    "CIT211": "Web Technology II",
+    "CIT224": "Computer Graphics Technology",
+    "CIT223": "Data Communication and Computer Networks",
+    "CIT222": "Management Information System",
+    "CIT221": "Operating Systems",
+    "BSM221": "Fundamentals of Probability and Statistics",
+    "CIT225": "Project II",
+    "BCT311": "Economics",
+    "CIT311": "Mobile Application Development",
+    "BSM311": "Numerical Methods",
+    "CIT312": "Object Oriented Analysis and Design using UML",
+    "BCT312": "Research Methodology",
+    "BCT313": "Technical Proposal Writing",
+    "CIT323": "Artificial Intelligence",
+    "CIT322": "Digital Forensic Security Technologies",
+    "BCT322": "Financial Accounting",
+    "CIT321": "Human Computer Interface and UI Design",
+    "BCT321": "IT Project Management",
+    "CIT324": "Project III",
+    "CIT413": "Cloud Computing",
+    "CIT411": "Data Mining and Warehousing",
+    "CIT412": "Software Development and Operations (DevOps)",
+    "BCT411": "Technology Entrepreneurship",
+    "CIT414": "Wireless Communication Systems",
+    "CIT421": "Big Data Technologies",
+    "BCT421": "Society, IT and Law",
+    "CIT422": "Internship",
+    "CIT423": "Project IV"
+  };
+
+  function getSubjectDisplayName(sub) {
+    if (!sub) return '';
+    const codeKey = String(sub.code || sub.id || '').trim().toUpperCase();
+    return sub.name || sub.title || CANONICAL_SUBJECT_NAMES[codeKey] || '';
+  }
+
   function setupSubjectSearch() {
     const searchInput = document.getElementById('subjectSearch');
     if (searchInput) {
@@ -208,10 +262,13 @@
 
     let filtered = allSubjects;
     if (query) {
-      filtered = allSubjects.filter(s =>
-        (s.title && s.title.toLowerCase().includes(query)) ||
-        (s.code && s.code.toLowerCase().includes(query))
-      );
+      filtered = allSubjects.filter(s => {
+        const subjectName = getSubjectDisplayName(s);
+        return (
+          (subjectName && subjectName.toLowerCase().includes(query)) ||
+          (s.code && s.code.toLowerCase().includes(query))
+        );
+      });
     }
 
     if (filtered.length === 0) {
@@ -238,11 +295,12 @@
       html += `<div class="semester-group-title">Semester ${sem}</div>`;
       items.forEach(sub => {
         const isChecked = selectedSubjectIds.has(sub.id);
+        const subjectName = getSubjectDisplayName(sub);
         html += `
           <div class="subject-item-row" onclick="toggleSubjectSelection('${sub.id}')">
             <input type="checkbox" id="chk_${sub.id}" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); toggleSubjectSelection('${sub.id}')">
             <label for="chk_${sub.id}" style="cursor: pointer; flex: 1;">
-              <strong>${sub.code}</strong> — ${sub.title}
+              <strong>${sub.code}</strong>${subjectName ? ` — ${subjectName}` : ''}
             </label>
           </div>
         `;
@@ -277,7 +335,9 @@
     let chipsHtml = '';
     selectedSubjectIds.forEach(id => {
       const sub = allSubjects.find(s => s.id === id);
-      const title = sub ? sub.code : id;
+      const subjectName = sub ? getSubjectDisplayName(sub) : (CANONICAL_SUBJECT_NAMES[String(id).toUpperCase()] || '');
+      const code = sub ? sub.code : id;
+      const title = subjectName ? `${code} — ${subjectName}` : code;
       chipsHtml += `
         <span class="subject-chip">
           <span>${title}</span>

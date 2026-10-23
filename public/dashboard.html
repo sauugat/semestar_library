@@ -500,9 +500,9 @@
       padding: 16px !important;
       height: auto !important;
       min-height: auto !important;
-      max-height: 90vh;
-      overflow-y: auto;
-      scrollbar-width: thin;
+      max-height: none !important;
+      overflow: visible !important;
+      overflow-y: visible !important;
       margin: 0 !important;
       border: 0 !important;
       border-bottom: 1px solid var(--border-color) !important;
@@ -523,9 +523,13 @@
       transform: none;
     }
 
-    .post-main {
+    .post-main,
+    .post-body {
       flex: 1;
       min-width: 0;
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
     }
 
     body.dash .feed .post-card .post-header {
@@ -568,8 +572,26 @@
       white-space: normal !important;
       width: 100% !important;
       max-width: 100% !important;
-      height: auto;
-      min-height: auto;
+      height: auto !important;
+      min-height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+      box-sizing: border-box;
+    }
+
+    .post-card .post-content-clamped:not(.expanded) {
+      display: -webkit-box;
+      -webkit-line-clamp: 6;
+      -webkit-box-orient: vertical;
+      overflow: hidden !important;
+    }
+
+    .post-card .post-content-clamped.expanded {
+      display: block !important;
+      -webkit-line-clamp: unset !important;
+      overflow: visible !important;
+      height: auto !important;
+      max-height: none !important;
     }
 
     .post-card .status-post-text {
@@ -578,6 +600,11 @@
       line-height: 1.55;
       width: 100% !important;
       max-width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
 
     .post-card .status-post-text.post-markdown-content {
@@ -585,6 +612,11 @@
       line-height: 1.55;
       width: 100% !important;
       max-width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+      word-break: break-word;
+      overflow-wrap: anywhere;
     }
 
     .post-card .status-post-text.post-markdown-content .md-p {
@@ -5187,9 +5219,9 @@
     }
 
     function togglePostExpand(btn) {
-      const container = btn.closest('.post-content');
-      if (!container) return;
-      const clamped = container.querySelector('.post-content-clamped');
+      const clamped = (btn.previousElementSibling && btn.previousElementSibling.classList.contains('post-content-clamped'))
+        ? btn.previousElementSibling
+        : (btn.closest('.post-card, .post-main, .post-content') || btn.parentElement)?.querySelector('.post-content-clamped');
       if (!clamped) return;
       const isExpanded = clamped.classList.toggle('expanded');
       btn.textContent = isExpanded ? 'Show less' : 'Show more';

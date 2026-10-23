@@ -13078,29 +13078,133 @@ body.dark-mode .notif-item.unread {
     display: none !important;
   }
 
-  /* Header: Hide Semester Library text on mobile (except on Dashboard) */
-  .dash-header:has(.dash-header-nav) .lib-wordmark {
-    display: none !important;
+  /* Header: Two-tier Mobile Layout for Shared Navigation */
+  body.dash .dash-header:has(.dash-header-nav),
+  .dash-header:has(.dash-header-nav) {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding-top: max(10px, env(safe-area-inset-top, 10px)) !important;
+    padding-bottom: 8px !important;
+    padding-left: max(12px, env(safe-area-inset-left, 12px)) !important;
+    padding-right: max(12px, env(safe-area-inset-right, 12px)) !important;
+    row-gap: 8px !important;
+    column-gap: 12px !important;
   }
 
-  /* Header: Clean spacious padding with compact nav bar */
-  body.dash .dash-header,
-  .dash-header {
-    padding: 14px 20px !important;
-    justify-content: space-between !important;
-    gap: 10px !important;
+  /* Wordmark: show brand on top-left */
+  .dash-header:has(.dash-header-nav) .lib-wordmark,
+  body.dash .dash-header:has(.dash-header-nav) .lib-wordmark {
+    display: inline-flex !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1 !important;
+    order: 1 !important;
+    color: #111827 !important;
+    text-decoration: none !important;
+    flex-shrink: 0 !important;
   }
-  
+
+  [data-theme="dark"] .dash-header:has(.dash-header-nav) .lib-wordmark,
+  body.dark-mode .dash-header:has(.dash-header-nav) .lib-wordmark {
+    color: #f5f5f5 !important;
+  }
+
+  /* Actions: show theme toggle + profile/sign-in on top-right */
+  body.dash .dash-header:has(.dash-header-nav) .dash-header-actions,
+  .dash-header:has(.dash-header-nav) .dash-header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    order: 2 !important;
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Navigation: full-width second row using available horizontal space */
+  body.dash .dash-header-nav,
   .dash-header-nav {
-    flex: 1;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding: 2px 4px;
-    -webkit-overflow-scrolling: touch;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    order: 3 !important;
+    width: 100% !important;
+    flex: 0 0 100% !important;
+    gap: 2px !important;
+    padding: 2px 0 !important;
+    margin: 0 !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-behavior: smooth !important;
+    scroll-padding: 0 8px !important;
   }
 
   .dash-header-nav::-webkit-scrollbar {
     display: none !important;
+  }
+
+  /* Clean nav items with comfortable touch targets and no accidental clipping */
+  .header-nav-item {
+    font-size: clamp(11px, 2.9vw, 12px) !important;
+    font-weight: 500 !important;
+    padding: 6px clamp(6px, 1.6vw, 8px) !important;
+    min-height: 32px !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    line-height: 1.2 !important;
+    letter-spacing: -0.015em !important;
+    border-radius: 7px !important;
+    color: rgba(0, 0, 0, 0.65) !important;
+    background: transparent !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .header-nav-item:hover {
+    color: #000000 !important;
+    background: rgba(0, 0, 0, 0.04) !important;
+  }
+
+  [data-theme="dark"] .header-nav-item,
+  body.dark-mode .header-nav-item {
+    color: #a1a1aa !important;
+  }
+
+  [data-theme="dark"] .header-nav-item:hover,
+  body.dark-mode .header-nav-item:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  /* Active page styling - Clear, consistent, premium Apple monochrome pill */
+  .header-nav-item.active {
+    color: #000000 !important;
+    font-weight: 600 !important;
+    background: rgba(0, 0, 0, 0.08) !important;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06) !important;
+    border: none !important;
+  }
+
+  .header-nav-item.active::after {
+    display: none !important;
+  }
+
+  [data-theme="dark"] .header-nav-item.active,
+  body.dark-mode .header-nav-item.active {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    background: rgba(255, 255, 255, 0.14) !important;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
+    border: none !important;
   }
 
   /* Dashboard Greeting Box Optimization for Mobile (Match Desktop Layout, Scaled Down) */

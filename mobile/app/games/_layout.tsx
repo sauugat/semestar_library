@@ -24,8 +24,7 @@ export default function GamesLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Games',
-          headerBackTitle: 'Back',
+          headerShown: false,
         }}
       />
       <Stack.Screen

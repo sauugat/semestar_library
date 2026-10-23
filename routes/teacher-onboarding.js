@@ -216,7 +216,7 @@ router.get('/state', requireOnboardingToken, async (req, res) => {
  */
 router.post('/check-username', requireOnboardingToken, async (req, res) => {
   const desiredUsername = (req.body.username || '').trim();
-  const check = await checkPermanentUsernameAvailability(db, desiredUsername);
+  const check = await checkPermanentUsernameAvailability(db, desiredUsername, req.onboarding?.inviteId || null);
   return res.json(check);
 });
 
@@ -342,6 +342,13 @@ router.post('/finalize', async (req, res) => {
     req.session.studentId = result.teacherId;
     req.session.studentName = result.teacher?.name || result.user?.name;
     req.session.role = 'teacher';
+    await new Promise(resolve => {
+      if (typeof req.session.save === 'function') {
+        req.session.save(() => resolve());
+      } else {
+        resolve();
+      }
+    });
   }
 
   return res.json(result);

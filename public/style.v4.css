@@ -13208,7 +13208,7 @@ body.dark-mode .notif-item.unread {
   }
 
   /* Dashboard Greeting Box Optimization for Mobile (Match Desktop Layout, Scaled Down) */
-  body.dash .dash-hero {
+  body.dash .dash-hero:not(.cl-animated-hero) {
     margin: 16px 12px 0 !important;
     padding: 16px !important;
     gap: 12px !important;

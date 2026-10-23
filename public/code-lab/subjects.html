@@ -95,11 +95,7 @@
       margin: 0;
     }
 
-    @media (max-width: 768px) {
-      .cl-page-wrap {
-        padding: 20px 4vw 80px;
-      }
-    }
+
 
     /* ── Apple Obsidian Hero Island ── */
     body.dash .dash-hero.cl-animated-hero {
@@ -272,20 +268,218 @@
     }
 
     @media (max-width: 768px) {
+      /* Hero Banner / Introductory Card */
       body.dash .dash-hero.cl-animated-hero {
-        margin: 20px 4vw 0;
-        padding: 24px 20px;
-        min-height: 120px;
-        flex-direction: column;
-        align-items: flex-start;
+        margin: 14px 12px 0 !important;
+        padding: 18px 16px !important;
+        min-height: auto !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        gap: 14px !important;
+        border-radius: 18px !important;
+        box-sizing: border-box !important;
       }
-      .cl-page-wrap {
-        padding: 20px 4vw 80px;
+
+      .dash-hero-content {
+        width: 100% !important;
+        min-width: 0 !important;
+        flex: none !important;
+        gap: 3px !important;
       }
+
+      .cl-hero-kicker {
+        font-size: 11px !important;
+        letter-spacing: 0.1em !important;
+        line-height: 1.2 !important;
+        margin-bottom: 2px !important;
+      }
+
+      .cl-hero-title {
+        font-size: 26px !important;
+        line-height: 1.15 !important;
+        word-break: break-word !important;
+      }
+
       .dash-hero-actions {
-        width: 100%;
-        margin-left: 0;
-        justify-content: flex-start;
+        position: static !important;
+        width: 100% !important;
+        margin: 0 !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+      }
+
+      .dash-hero-btn {
+        padding: 8px 15px !important;
+        font-size: 12px !important;
+        border-radius: 980px !important;
+      }
+
+      /* Feed Heading Controls & Filters */
+      body.dash .feed-heading.cl-feed-heading-controls {
+        margin: 16px 12px 0 !important;
+        padding: 0 4px 12px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        border-bottom: 1.5px solid var(--ap-border, rgba(0, 0, 0, 0.08)) !important;
+      }
+
+      .feed-heading.cl-feed-heading-controls h2 {
+        font-size: 12.5px !important;
+        letter-spacing: 0.08em !important;
+        margin: 0 !important;
+        line-height: 1.2 !important;
+      }
+
+      .cl-feed-heading-right {
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 8px !important;
+      }
+
+      .cl-status-pills-row {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        padding-bottom: 0 !important;
+        overflow: visible !important;
+      }
+
+      .cl-status-pill {
+        padding: 5px 12px !important;
+        font-size: 11.5px !important;
+        border-radius: 7px !important;
+        white-space: nowrap !important;
+      }
+
+      /* Semester Dropdown */
+      .cl-dropdown-wrap {
+        position: relative !important;
+        max-width: 100% !important;
+      }
+
+      .cl-dropdown-trigger {
+        padding: 6px 12px !important;
+        font-size: 12px !important;
+        max-width: 100% !important;
+      }
+
+      .cl-dropdown-menu {
+        max-width: calc(100vw - 28px) !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Page Wrap & Subject Selector */
+      .cl-page-wrap {
+        padding: 12px 12px 60px !important;
+      }
+
+      .cl-subject-pills-bar {
+        margin-bottom: 12px !important;
+      }
+
+      .cl-subject-pills-scroll {
+        display: flex !important;
+        gap: 8px !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 2px 0 4px !important;
+      }
+
+      .cl-subject-pill,
+      .cl-sem-pill {
+        padding: 5px 11px !important;
+        font-size: 11.5px !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* Empty State Component */
+      .cl-empty-state {
+        padding: 28px 16px !important;
+        border-radius: 16px !important;
+      }
+
+      .cl-empty-state .empty-voxel-illu {
+        max-width: 140px !important;
+        margin: 0 auto 12px !important;
+      }
+
+      .cl-empty-title {
+        font-size: 15px !important;
+        margin: 0 0 4px !important;
+      }
+
+      .cl-empty-subtext {
+        font-size: 12.5px !important;
+        margin: 0 auto 14px !important;
+        max-width: 280px !important;
+      }
+
+      /* Assignment Post Cards */
+      .assignment-post-card {
+        padding: 16px 14px 14px !important;
+        margin-bottom: 12px !important;
+        border-radius: 16px !important;
+      }
+
+      .post-header {
+        gap: 10px !important;
+        margin-bottom: 10px !important;
+      }
+
+      .post-avatar.assignment-avatar {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 13px !important;
+      }
+
+      .post-title {
+        font-size: 15px !important;
+        margin-bottom: 6px !important;
+      }
+
+      .post-attachment-card {
+        padding: 11px 12px !important;
+        border-radius: 10px !important;
+      }
+
+      .attachment-file-badge {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 10px !important;
+      }
+
+      .attachment-name {
+        font-size: 13px !important;
+      }
+
+      /* Auth Gate Card (When logged out) */
+      .auth-gate-card {
+        margin: 24px auto !important;
+        padding: 32px 20px !important;
+        border-radius: 16px !important;
+      }
+
+      .auth-gate-icon {
+        margin: 0 auto 14px !important;
+      }
+
+      .auth-gate-title {
+        font-size: 19px !important;
+        margin-bottom: 8px !important;
+      }
+
+      .auth-gate-desc {
+        font-size: 13.5px !important;
+        margin-bottom: 20px !important;
       }
     }
 

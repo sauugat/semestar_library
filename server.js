@@ -4525,8 +4525,11 @@ app.post('/api/library/subjects/rename', requireLogin, async (req, res) => {
     try {
       await db.run('UPDATE library_custom_chapters SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
     } catch (_) {}
+    try {
+      await db.run('UPDATE library_chapter_overrides SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
+    } catch (_) {}
 
-    res.json({ success: true, oldName, newName, message: `Subject updated to "${newName}".` });
+    res.json({ success: true, oldName, newName, code, message: 'Subject name updated' });
   } catch (err) {
     res.status(err.status || 400).json({ message: err.message || 'Could not rename subject.' });
   }
@@ -4545,6 +4548,7 @@ app.post('/api/library/chapters/create', requireLogin, async (req, res) => {
     }
 
     const subject = String(req.body?.subject || '').trim();
+    const subjectCode = String(req.body?.subjectCode || req.body?.code || '').trim();
     const semester = String(req.body?.semester || '').trim();
     const chapter = String(req.body?.chapter || '').trim().replace(/\s+/g, ' ');
 
@@ -4554,7 +4558,7 @@ app.post('/api/library/chapters/create', requireLogin, async (req, res) => {
 
     if (isTeacherUser && !isAdminUser) {
       const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
-      await validateTeacherSubjectAuthorization(db, callerId, subject);
+      await validateTeacherSubjectAuthorization(db, callerId, subjectCode || subject);
     }
 
     try {
@@ -4572,6 +4576,12 @@ app.post('/api/library/chapters/create', requireLogin, async (req, res) => {
           callerId || ''
         );
       }
+      // If this chapter was previously marked deleted in overrides, un-delete it
+      await db.run(
+        'DELETE FROM library_chapter_overrides WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND LOWER(TRIM(original_chapter)) = LOWER(TRIM(?)) AND is_deleted = 1',
+        subject,
+        chapter
+      );
     } catch (dbErr) {
       console.warn('Custom chapter insert warning:', dbErr.message);
     }
@@ -4580,33 +4590,48 @@ app.post('/api/library/chapters/create', requireLogin, async (req, res) => {
       success: true,
       subject,
       chapter,
-      message: `Chapter "${chapter}" added to ${subject}.`
+      message: 'Chapter added'
     });
   } catch (err) {
     res.status(err.status || 400).json({ message: err.message || 'Could not add chapter.' });
   }
 });
 
-// List custom chapters created for a subject
+// List custom chapters and chapter overrides for a subject
 app.get('/api/library/custom-chapters', async (req, res) => {
   try {
     const subject = String(req.query?.subject || '').trim();
+    const subjectCode = String(req.query?.code || req.query?.subjectCode || '').trim();
     let rows = [];
+    let overrides = [];
     if (subject) {
       rows = await db.all(
         'SELECT id, subject, semester, chapter, created_at FROM library_custom_chapters WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) ORDER BY id ASC',
         subject
-      );
+      ).catch(() => []);
+      if (subjectCode) {
+        overrides = await db.all(
+          'SELECT original_chapter, new_chapter, is_deleted FROM library_chapter_overrides WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) OR (subject_code IS NOT NULL AND subject_code != \'\' AND UPPER(TRIM(subject_code)) = UPPER(TRIM(?))) ORDER BY id ASC',
+          subject,
+          subjectCode
+        ).catch(() => []);
+      } else {
+        overrides = await db.all(
+          'SELECT original_chapter, new_chapter, is_deleted FROM library_chapter_overrides WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) ORDER BY id ASC',
+          subject
+        ).catch(() => []);
+      }
     } else {
-      rows = await db.all('SELECT id, subject, semester, chapter, created_at FROM library_custom_chapters ORDER BY id ASC');
+      rows = await db.all('SELECT id, subject, semester, chapter, created_at FROM library_custom_chapters ORDER BY id ASC').catch(() => []);
+      overrides = await db.all('SELECT subject, subject_code, original_chapter, new_chapter, is_deleted FROM library_chapter_overrides ORDER BY id ASC').catch(() => []);
     }
-    res.json({ chapters: rows || [] });
+    res.json({ chapters: rows || [], overrides: overrides || [] });
   } catch (_) {
-    res.json({ chapters: [] });
+    res.json({ chapters: [], overrides: [] });
   }
 });
 
-// Rename / adjust a chapter name within a subject (Admin or Teacher assigned to that subject)
+// Rename / adjust a chapter name within a subject (works for both default syllabus units and custom chapters)
 app.post('/api/library/chapters/rename', requireLogin, async (req, res) => {
   try {
     const context = await getAcademicContext(db, req);
@@ -4619,7 +4644,9 @@ app.post('/api/library/chapters/rename', requireLogin, async (req, res) => {
     }
 
     const subject = String(req.body?.subject || '').trim();
+    const subjectCode = String(req.body?.subjectCode || req.body?.code || '').trim();
     const oldChapter = String(req.body?.oldChapter || '').trim();
+    const originalUnitKey = String(req.body?.originalUnitKey || oldChapter).trim();
     const newChapter = String(req.body?.newChapter || '').trim().replace(/\s+/g, ' ');
 
     if (!subject || !oldChapter || !newChapter || newChapter.length > 120) {
@@ -4628,14 +4655,15 @@ app.post('/api/library/chapters/rename', requireLogin, async (req, res) => {
 
     if (isTeacherUser && !isAdminUser) {
       const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
-      await validateTeacherSubjectAuthorization(db, callerId, subject);
+      await validateTeacherSubjectAuthorization(db, callerId, subjectCode || subject);
     }
 
     const result = await db.run(
-      'UPDATE files SET chapter = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND LOWER(TRIM(chapter)) = LOWER(TRIM(?))',
+      'UPDATE files SET chapter = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND (LOWER(TRIM(chapter)) = LOWER(TRIM(?)) OR LOWER(TRIM(chapter)) = LOWER(TRIM(?)))',
       newChapter,
       subject,
-      oldChapter
+      oldChapter,
+      originalUnitKey
     );
     try {
       await db.run(
@@ -4646,16 +4674,144 @@ app.post('/api/library/chapters/rename', requireLogin, async (req, res) => {
       );
     } catch (_) {}
 
+    try {
+      const existingOverride = await db.get(
+        'SELECT id FROM library_chapter_overrides WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND (LOWER(TRIM(original_chapter)) = LOWER(TRIM(?)) OR LOWER(TRIM(new_chapter)) = LOWER(TRIM(?)))',
+        subject,
+        originalUnitKey,
+        oldChapter
+      );
+      if (existingOverride) {
+        await db.run(
+          'UPDATE library_chapter_overrides SET new_chapter = ?, is_deleted = 0, subject_code = COALESCE(NULLIF(?, \'\'), subject_code), updated_by = ? WHERE id = ?',
+          newChapter,
+          subjectCode,
+          callerId || '',
+          existingOverride.id
+        );
+      } else {
+        await db.run(
+          'INSERT INTO library_chapter_overrides (subject_code, subject, original_chapter, new_chapter, is_deleted, updated_by) VALUES (?, ?, ?, ?, 0, ?)',
+          subjectCode || '',
+          subject,
+          originalUnitKey,
+          newChapter,
+          callerId || ''
+        );
+      }
+    } catch (ovErr) {
+      console.warn('Chapter override save warning:', ovErr.message);
+    }
+
     res.json({
       success: true,
       subject,
       oldChapter,
+      originalUnitKey,
       newChapter,
       updatedCount: result?.changes || 0,
-      message: `Chapter updated to "${newChapter}".`
+      message: 'Chapter renamed'
     });
   } catch (err) {
     res.status(err.status || 400).json({ message: err.message || 'Could not rename chapter.' });
+  }
+});
+
+// Delete an entire chapter (both default syllabus units and custom chapters) and any files within it
+app.post('/api/library/chapters/delete', requireLogin, async (req, res) => {
+  try {
+    const context = await getAcademicContext(db, req);
+    const callerId = context?.studentId || req.session?.studentId || req.user?.studentId;
+    const isAdminUser = context?.role === 'admin' || (await isStudentAdmin(callerId));
+    const isTeacherUser = context?.role === 'teacher';
+
+    if (!isAdminUser && !isTeacherUser) {
+      return res.status(403).json({ message: 'Only teachers and admins can delete chapters.' });
+    }
+
+    const subject = String(req.body?.subject || '').trim();
+    const subjectCode = String(req.body?.subjectCode || req.body?.code || '').trim();
+    const chapter = String(req.body?.chapter || '').trim();
+    const originalUnitKey = String(req.body?.originalUnitKey || chapter).trim();
+    const fileIds = Array.isArray(req.body?.fileIds) ? req.body.fileIds.map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
+
+    if (!subject || !chapter) {
+      return res.status(400).json({ message: 'Subject and chapter are required.' });
+    }
+
+    if (isTeacherUser && !isAdminUser) {
+      const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+      await validateTeacherSubjectAuthorization(db, callerId, subjectCode || subject);
+    }
+
+    // 1. Delete files belonging to this chapter
+    let targetFiles = [];
+    if (fileIds.length > 0) {
+      const placeholders = fileIds.map(() => '?').join(',');
+      targetFiles = await db.all(`SELECT * FROM files WHERE id IN (${placeholders})`, ...fileIds);
+    } else {
+      targetFiles = await db.all(
+        'SELECT * FROM files WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND (LOWER(TRIM(chapter)) = LOWER(TRIM(?)) OR LOWER(TRIM(chapter)) = LOWER(TRIM(?)))',
+        subject,
+        chapter,
+        originalUnitKey
+      );
+    }
+
+    for (const file of (targetFiles || [])) {
+      await db.run('DELETE FROM file_likes WHERE fileId = ?', file.id).catch(() => {});
+      await db.run('DELETE FROM file_comments WHERE fileId = ?', file.id).catch(() => {});
+      await db.run('DELETE FROM files WHERE id = ?', file.id).catch(() => {});
+    }
+
+    // 2. Remove from library_custom_chapters if present
+    try {
+      await db.run(
+        'DELETE FROM library_custom_chapters WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND (LOWER(TRIM(chapter)) = LOWER(TRIM(?)) OR LOWER(TRIM(chapter)) = LOWER(TRIM(?)))',
+        subject,
+        chapter,
+        originalUnitKey
+      );
+    } catch (_) {}
+
+    // 3. Record deletion in library_chapter_overrides so default syllabus chapters stay deleted
+    try {
+      const existingOverride = await db.get(
+        'SELECT id FROM library_chapter_overrides WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND (LOWER(TRIM(original_chapter)) = LOWER(TRIM(?)) OR LOWER(TRIM(new_chapter)) = LOWER(TRIM(?)))',
+        subject,
+        originalUnitKey,
+        chapter
+      );
+      if (existingOverride) {
+        await db.run(
+          'UPDATE library_chapter_overrides SET is_deleted = 1, subject_code = COALESCE(NULLIF(?, \'\'), subject_code), updated_by = ? WHERE id = ?',
+          subjectCode,
+          callerId || '',
+          existingOverride.id
+        );
+      } else {
+        await db.run(
+          'INSERT INTO library_chapter_overrides (subject_code, subject, original_chapter, new_chapter, is_deleted, updated_by) VALUES (?, ?, ?, ?, 1, ?)',
+          subjectCode || '',
+          subject,
+          originalUnitKey,
+          chapter,
+          callerId || ''
+        );
+      }
+    } catch (ovErr) {
+      console.warn('Chapter delete override warning:', ovErr.message);
+    }
+
+    res.json({
+      success: true,
+      subject,
+      chapter,
+      deletedFilesCount: (targetFiles || []).length,
+      message: 'Chapter deleted'
+    });
+  } catch (err) {
+    res.status(err.status || 400).json({ message: err.message || 'Could not delete chapter.' });
   }
 });
 

@@ -881,6 +881,18 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             UNIQUE(subject, chapter)
           );`);
 
+          await exec(`CREATE TABLE IF NOT EXISTS library_chapter_overrides (
+            id SERIAL PRIMARY KEY,
+            subject_code TEXT,
+            subject TEXT NOT NULL,
+            original_chapter TEXT NOT NULL,
+            new_chapter TEXT,
+            is_deleted INTEGER DEFAULT 0,
+            updated_by TEXT,
+            updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(subject, original_chapter)
+          );`);
+
           await exec(`CREATE TABLE IF NOT EXISTS question_test_cases (
             id SERIAL PRIMARY KEY,
             questionId INTEGER NOT NULL REFERENCES assignment_questions(id) ON DELETE CASCADE,
@@ -980,6 +992,18 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             created_by TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(subject, chapter)
+          );`);
+
+          await exec(`CREATE TABLE IF NOT EXISTS library_chapter_overrides (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject_code TEXT,
+            subject TEXT NOT NULL,
+            original_chapter TEXT NOT NULL,
+            new_chapter TEXT,
+            is_deleted INTEGER DEFAULT 0,
+            updated_by TEXT,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(subject, original_chapter)
           );`);
 
           await exec(`CREATE TABLE IF NOT EXISTS question_test_cases (

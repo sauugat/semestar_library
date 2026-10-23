@@ -591,23 +591,22 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         }
       } else if (viewerRole === 'teacher') {
         // Teacher visibility:
-        // 1. Posts authored by that teacher (always visible, even if targeting another semester)
-        // 2. Official university notices
-        // 3. Relevant authorized announcements (targeting teacher's semesters or all semesters)
-        // 4. Student posts targeting semesters where teacher has an assigned class (or all semesters)
+        // 1. Posts authored by that teacher (always visible)
+        // 2. Official university admin notices/announcements
+        // 3. Student & CR posts targeting semesters where the teacher has classes (or all semesters)
         // Hidden from teachers:
-        // - Ordinary posts from other teachers
-        // - Student posts unrelated to teacher's assigned semesters
-        // - Student-only posts restricted from teachers (enforced in audience filtering)
+        // - Posts, notes, notices, or assignment posts from other teachers
+        // - Student posts from semesters where the teacher does not teach
+        // - Student-only posts restricted from teachers
         const teacherAssignedSemesters = await getTeacherAssignedSemesters(db, viewerStudentId);
         if (teacherAssignedSemesters.length > 0) {
           const placeholders = teacherAssignedSemesters.map(() => '?').join(',');
           whereConditions.push(`(
             p.user_id = ?
-            OR ((p.type = 'notice' OR p.category = 'notice') AND s.role IN ('admin', 'cr', 'teacher'))
+            OR ((p.type = 'notice' OR p.category = 'notice') AND s.role IN ('admin', 'cr'))
             OR (
               p.category = 'announcement'
-              AND s.role IN ('admin', 'cr', 'teacher')
+              AND s.role IN ('admin', 'cr')
               AND (p.target_all_semesters = 1 OR EXISTS (SELECT 1 FROM post_target_semesters pts_ta WHERE pts_ta.post_id = p.id AND pts_ta.semester IN (${placeholders})))
             )
             OR (
@@ -619,16 +618,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         } else {
           whereConditions.push(`(
             p.user_id = ?
-            OR ((p.type = 'notice' OR p.category = 'notice') AND s.role IN ('admin', 'cr', 'teacher'))
-            OR (
-              p.category = 'announcement'
-              AND s.role IN ('admin', 'cr', 'teacher')
-              AND p.target_all_semesters = 1
-            )
-            OR (
-              (s.role IS NULL OR s.role NOT IN ('teacher', 'admin'))
-              AND p.target_all_semesters = 1
-            )
+            OR ((p.type = 'notice' OR p.category = 'notice') AND s.role = 'admin')
           )`);
           params.push(viewerStudentId);
         }

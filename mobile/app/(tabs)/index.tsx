@@ -698,15 +698,9 @@ function StudentHomeScreenInner() {
       time: new Date(p.created_at).getTime() || 0,
     }));
 
-    // In teachers feeds, don't show file upload of other subjects of any semester.
-    // Only show file uploads of their assigned subjects or uploaded by the teacher.
+    // In teachers feeds, show only notes uploaded by this teacher (not notes from other teachers).
     const eligibleFiles = isTeacher
-      ? files.filter((f) => {
-          if (f.uploadedBy === teacherId) return true;
-          if (!f.subject) return false;
-          const fSub = String(f.subject).toLowerCase().trim();
-          return teacherSubjectTerms.some((term: string) => fSub === term || fSub.includes(term) || term.includes(fSub));
-        })
+      ? files.filter((f) => f.uploadedBy === teacherId)
       : files;
 
     const fileItems: FeedItem[] = feedCategoryFilter === 'all'

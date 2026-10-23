@@ -937,6 +937,45 @@
           .catch(() => { });
 
         initEmojiDrawer();
+        if (data.role === 'teacher' || data.role === 'admin') {
+          fetch('/api/chat/admin/rooms')
+            .then(r => r.ok ? r.json() : [])
+            .then(rooms => {
+              if (!Array.isArray(rooms)) return;
+              let bar = document.getElementById('staffCohortRoomBar');
+              if (!bar) {
+                bar = document.createElement('div');
+                bar.id = 'staffCohortRoomBar';
+                bar.style.cssText = 'display:flex; gap:8px; padding:8px 16px; overflow-x:auto; border-bottom:1px solid var(--border-subtle, rgba(255,255,255,0.08)); background:var(--surface-bg, rgba(18,18,20,0.9)); align-items:center;';
+                const headerEl = document.querySelector('#cohortChatMain .im-header');
+                if (headerEl && headerEl.parentNode) {
+                  headerEl.parentNode.insertBefore(bar, headerEl.nextSibling);
+                }
+              }
+              if (rooms.length === 0 && data.role === 'teacher') {
+                bar.innerHTML = '<span style="font-size:12px; color:var(--text-secondary);">No active class group chats for your assigned semesters.</span>';
+                return;
+              }
+              const renderRoomPills = (activeId) => {
+                bar.innerHTML = rooms.map(rm => {
+                  const isAct = rm.chatGroupId === activeId;
+                  return `<button type="button" data-room-id="${rm.chatGroupId}" style="padding:5px 12px; border-radius:999px; font-size:12px; font-weight:600; cursor:pointer; border:1px solid ${isAct ? '#fafafa' : 'rgba(160,160,170,0.25)'}; background:${isAct ? '#fafafa' : 'transparent'}; color:${isAct ? '#09090b' : 'inherit'}; white-space:nowrap;">${rm.cohortDisplayName} • Sem ${rm.currentSemester}</button>`;
+                }).join('');
+                bar.querySelectorAll('button[data-room-id]').forEach(btn => {
+                  btn.onclick = () => {
+                    const targetId = btn.getAttribute('data-room-id');
+                    renderRoomPills(targetId);
+                    if (roomClient && typeof roomClient.setRoom === 'function') {
+                      void roomClient.setRoom(targetId);
+                    }
+                  };
+                });
+              };
+              const initialRoomId = roomClient?.context()?.chatGroupId || (rooms[0] && rooms[0].chatGroupId);
+              renderRoomPills(initialRoomId);
+            })
+            .catch(() => {});
+        }
         void roomClient.start().then(handleNotificationTarget);
       })
       .catch(() => {

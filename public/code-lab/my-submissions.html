@@ -1853,13 +1853,114 @@
             });
         }
 
-        fetch('/api/code-lab/my-submissions')
-            .then(async res => {
+        async function initMySubmissionsPage() {
+            try {
+                let user = null;
+                try {
+                    const meRes = await fetch('/api/me');
+                    if (meRes.ok) user = await meRes.json();
+                } catch (_) {}
+
+                const isTeacherOrAdmin = user && (user.role === 'teacher' || user.role === 'faculty' || user.role === 'admin');
+                if (isTeacherOrAdmin) {
+                    const heroTitle = document.querySelector('.cl-hero-title');
+                    const feedTitle = document.querySelector('.feed-heading h2');
+                    if (heroTitle) heroTitle.textContent = 'My Assignments & Grading';
+                    if (feedTitle) feedTitle.textContent = 'Your Created Assignments';
+
+                    const assignRes = await fetch('/api/code-lab/my-assignments');
+                    const teacherAssignments = assignRes.ok ? await assignRes.json() : [];
+
+                    let currentTeacherFilter = 'all';
+                    const renderTeacherAssignments = () => {
+                        const listEl = document.getElementById('list');
+                        const totalCount = teacherAssignments.length;
+                        const checkedCount = teacherAssignments.filter(a => Number(a.submissionCount || 0) > 0 && Number(a.checkedStudentCount || 0) >= Number(a.submissionCount || 0)).length;
+                        const pendingCount = teacherAssignments.filter(a => Number(a.submissionCount || 0) > Number(a.checkedStudentCount || 0)).length;
+
+                        document.getElementById('badgeAll').textContent = totalCount;
+                        document.getElementById('badgeChecked').textContent = checkedCount;
+                        document.getElementById('badgePending').textContent = pendingCount;
+                        document.getElementById('filterBar').style.display = 'flex';
+
+                        const filtered = teacherAssignments.filter(a => {
+                            const subCnt = Number(a.submissionCount || 0);
+                            const chkCnt = Number(a.checkedStudentCount || 0);
+                            if (currentTeacherFilter === 'checked') return subCnt > 0 && chkCnt >= subCnt;
+                            if (currentTeacherFilter === 'pending') return subCnt > chkCnt;
+                            return true;
+                        });
+
+                        if (!filtered.length) {
+                            listEl.innerHTML = `
+                                <div class="cl-empty-state">
+                                    <img src="/minecraft-404-voxel-ruby.svg" alt="No assignments" class="empty-voxel-illu" style="max-width: 220px; margin: 0 auto 14px;">
+                                    <div class="cl-empty-title">No Assignments Found</div>
+                                    <p class="cl-empty-desc">Create an assignment from the Assignments page to collect and check student submissions here.</p>
+                                </div>
+                            `;
+                            return;
+                        }
+
+                        listEl.innerHTML = filtered.map(a => {
+                            const qCount = Number(a.questionCount || 0);
+                            const subCount = Number(a.submissionCount || 0);
+                            const chkCount = Number(a.checkedStudentCount || 0);
+                            const pendingStudents = Math.max(0, subCount - chkCount);
+                            const statusBadge = subCount === 0
+                                ? `<span class="cl-status-badge pending">No Submissions Yet</span>`
+                                : (pendingStudents === 0
+                                    ? `<span class="cl-status-badge released">All Checked (${chkCount}/${subCount})</span>`
+                                    : `<span class="cl-status-badge pending">${pendingStudents} Pending Review (${chkCount}/${subCount} Checked)</span>`);
+
+                            return `
+                                <div class="cl-submission-card">
+                                    <div class="cl-card-header">
+                                        <div class="cl-card-header-left">
+                                            <div class="cl-status-strip">
+                                                ${statusBadge}
+                                                ${a.subject ? `<span class="cl-meta-pill">${escapeHtml(a.subject)}</span>` : ''}
+                                                ${a.semester ? `<span class="cl-meta-pill">${escapeHtml(a.semester)}</span>` : ''}
+                                            </div>
+                                            <h2 class="cl-assignment-title">${escapeHtml(a.title)}</h2>
+                                            <div class="cl-assignment-meta">
+                                                <span>${qCount} Question${qCount !== 1 ? 's' : ''}</span>
+                                                <span>· ${subCount} Student${subCount !== 1 ? 's' : ''} Submitted</span>
+                                                <span>· Created ${fmtTime(a.createdAt)}</span>
+                                                ${a.deadline ? `<span>· Due ${fmtTime(a.deadline)}</span>` : ''}
+                                            </div>
+                                        </div>
+                                        <div class="cl-card-header-right" style="display:flex; gap:10px; align-items:center;">
+                                            <a href="/code-lab/submissions.html?id=${a.id}" class="dash-hero-btn primary cl-btn-pro" style="text-decoration:none;">
+                                                <span>Check Submissions (${subCount})</span>
+                                            </a>
+                                            <a href="/code-lab/assignment.html?id=${a.id}" class="cl-editor-btn" style="text-decoration:none;">
+                                                <span>View Assignment</span>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    };
+
+                    document.querySelectorAll('.cl-filter-tab').forEach(tab => {
+                        tab.addEventListener('click', () => {
+                            document.querySelectorAll('.cl-filter-tab').forEach(t => t.classList.remove('active'));
+                            tab.classList.add('active');
+                            currentTeacherFilter = tab.dataset.filter;
+                            renderTeacherAssignments();
+                        });
+                    });
+
+                    renderTeacherAssignments();
+                    return;
+                }
+
+                const res = await fetch('/api/code-lab/my-submissions');
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.message || 'Failed to load submissions.');
-                return data;
-            })
-            .then(subs => {
+                const subs = data;
                 if (!subs || !subs.length) {
                     allGroupedAssignments = [];
                     renderAssignments();
@@ -1935,8 +2036,7 @@
                 });
 
                 renderAssignments();
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error loading submissions:', error);
                 document.getElementById('list').innerHTML = `
                     <div class="cl-empty-state">
@@ -1945,7 +2045,9 @@
                         <p class="cl-empty-desc">${escapeHtml(error.message)}</p>
                     </div>
                 `;
-            });
+            }
+        }
+        initMySubmissionsPage();
     </script>
 </body>
 

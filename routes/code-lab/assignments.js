@@ -447,9 +447,23 @@ router.get('/assignments', async (req, res) => {
 
     const isFeedRequest = req.query.feed === '1' || req.query.context === 'feed';
     const isTeacher = context.role === 'teacher' || context.role === 'faculty';
-    if (isTeacher && isFeedRequest && currentStudentId) {
+    if (isTeacher && currentStudentId && req.query.all !== '1') {
+        // Teachers see only their own assignments on both Dashboard feed and Assignments page
+        whereClauses.length = 0;
+        whereParams.length = 0;
         whereClauses.push('a.createdBy = ?');
         whereParams.push(currentStudentId);
+        if (subject) {
+            whereClauses.push('a.subject = ?');
+            whereParams.push(subject);
+        }
+        if (semester) {
+            const semNum = parseSemesterNumber(semester);
+            if (semNum) {
+                whereClauses.push('(a.semester_no = ? OR a.semester = ? OR a.semester = ?)');
+                whereParams.push(semNum, `Semester ${semNum}`, String(semNum));
+            }
+        }
     }
 
     const mySubSql = currentStudentId
@@ -460,6 +474,7 @@ router.get('/assignments', async (req, res) => {
         a.*, s.name AS teacherName, s.avatarUrl AS avatarUrl, s.avatarUrl AS teacherAvatar,
         (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
         (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
+        (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.released = 1) AS checkedStudentCount,
         ${mySubSql}
     `;
 
@@ -491,20 +506,26 @@ router.get('/assignments', async (req, res) => {
     res.json(enriched);
 });
 
-// ── GET /my-assignments — admin's own assignments ──────────────────────────
+// ── GET /my-assignments — teacher's or admin's own assignments with grading stats ──
 router.get('/my-assignments', requireLogin, async (req, res) => {
-    const admin = await isAdmin(req.session.studentId);
-    if (!admin) {
-        return res.status(403).json({ message: 'Only admins can view this.' });
+    const context = await getAcademicContext(db, req);
+    const callerId = (context && context.studentId) || (req.user && req.user.studentId) || (req.session && req.session.studentId);
+    const admin = await isAdmin(callerId);
+    const isTeacher = context && (context.role === 'teacher' || context.role === 'faculty');
+    if (!admin && !isTeacher) {
+        return res.status(403).json({ message: 'Only teachers and admins can view this.' });
     }
 
     const assignments = await db.all(
-        `SELECT a.*,
-                (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount
+        `SELECT a.*, s.name AS teacherName,
+                (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
+                (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
+                (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.released = 1) AS checkedStudentCount
          FROM assignments a
+         LEFT JOIN students s ON s.studentId = a.createdBy
          WHERE a.createdBy = ?
          ORDER BY a.createdAt DESC`,
-        req.session.studentId
+        callerId
     );
     res.json(assignments.map(a => {
         const pUrl = a.pdfUrl || a.pdfurl || null;

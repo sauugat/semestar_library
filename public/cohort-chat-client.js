@@ -84,13 +84,15 @@
         if(current(stamp)&&active){online=result.members||[];emitOnline();}
       }catch{}
     }
+    let preferredRoomId = options.chatGroupId || '';
     function arm(){cancel(timer);if(active)timer=schedule(()=>{emitOnline();void refresh();},Math.max(1000,Math.min(30000,expiry?expiry-now()-30000:30000)));}
     async function refresh() {
       if(!active)return;if(refreshing)return refreshing;
       refreshing=(async()=>{
         const stamp=generation;lastRefresh=now();
         try {
-          const res=await raw('/api/chat/config');const next=await res.json();
+          const cfgPath = preferredRoomId ? `/api/chat/config?chatGroupId=${encodeURIComponent(preferredRoomId)}` : '/api/chat/config';
+          const res=await raw(cfgPath);const next=await res.json();
           if(stamp!==generation||!active)return;
           if(!res.ok){if([401,403,404].includes(res.status))invalidate();throw new Error(next.message||UNAVAILABLE);}
           if(!next.chatGroupId||!next.cohortId||next.studentId!==options.account||next.roomStatus!=='active'||next.cohortStatus!=='active'||!['MERCURY','VENUS','EARTH','MARS'].includes(next.groupCode)||!Number.isInteger(next.realtimeEpoch)){invalidate();throw new Error(UNAVAILABLE);}
@@ -108,6 +110,7 @@
     return {
       fetch:fetchScoped,refresh,heartbeat,receive:(type,event)=>receive(type,event,generation),
       context:()=>context, generation:()=>generation, current,
+      setRoom(roomId){preferredRoomId=roomId||'';invalidate();return refresh();},
       async exact(room,id) {await refresh();if(!context||room!==context.chatGroupId)throw new Error(UNAVAILABLE);const message=await(await fetchScoped(`/api/chat/groups/${encodeURIComponent(room)}/messages/${id}`)).json();if(message.chatGroupId!==room)throw new Error(UNAVAILABLE);cache.merge([message]);return message;},
       start(){active=true;return refresh();},
       setActive(value){active=value;if(value)return refresh();cancel(timer);disconnect();online=[];emitOnline();},

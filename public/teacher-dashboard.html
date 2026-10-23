@@ -37,7 +37,12 @@
   </script>
 
   <script src="/auth.js?v=3"></script>
-  <script>SemesterAuth.protectPage();</script>
+  <script>
+    if (!new URLSearchParams(window.location.search).get('legacy')) {
+      window.location.replace('/dashboard.html');
+    }
+    SemesterAuth.protectPage();
+  </script>
   <script src="/markdown.js"></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">

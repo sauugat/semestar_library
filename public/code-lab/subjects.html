@@ -4318,6 +4318,19 @@
         createBtn.style.display = isStaff ? 'inline-flex' : 'none';
       }
 
+      if (academicContext && academicContext.role === 'teacher') {
+        const mySubLink = document.querySelector('a[href="/code-lab/my-submissions.html"]');
+        if (mySubLink) {
+          const span = mySubLink.querySelector('span');
+          if (span) span.textContent = 'My Assignments & Check';
+          mySubLink.title = 'View your created assignments and check student submissions';
+        }
+        const statusPills = document.getElementById('feedStatusPills');
+        if (statusPills) {
+          statusPills.style.display = 'none';
+        }
+      }
+
       const semWrap = document.getElementById('semDropdownWrap');
       if (!isStaff) {
         // Students and CRs: hide the manual semester dropdown!

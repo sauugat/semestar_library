@@ -633,9 +633,9 @@
         }
       } catch (_) {}
 
-      showAlert('Account verified! Taking you to your faculty dashboard…', 'success', 'Welcome');
+      showAlert('Account verified! Taking you to your dashboard…', 'success', 'Welcome');
       setTimeout(() => {
-        window.location.href = '/teacher-dashboard.html';
+        window.location.href = '/dashboard.html';
       }, 500);
     } catch (err) {
       showAlert(err.message || 'Verification failed. Please try again.', 'error');

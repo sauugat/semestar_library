@@ -169,7 +169,7 @@ window.doLogin = async function (e) {
 
       const urlParams = new URLSearchParams(window.location.search);
       const redirectParam = urlParams.get('redirect');
-      const roleTarget = (data.user && data.user.role === 'teacher') ? '/teacher-dashboard.html' : '/dashboard.html';
+      const roleTarget = '/dashboard.html';
       setTimeout(() => {
         window.location.href = redirectParam || data.redirect || roleTarget;
       }, 350);

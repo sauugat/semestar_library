@@ -253,6 +253,8 @@ function ChatScreenInner() {
       } else if (isTeacher) {
         // Teacher accounts are not assigned to student class cohorts
         setStudentConfig(null);
+        const rooms = await fetchAdminChatRooms();
+        setAdminRooms(rooms);
       } else {
         const config = await fetchChatConfig();
         setStudentConfig(config);
@@ -372,19 +374,19 @@ function ChatScreenInner() {
   const unifiedItems = useMemo(() => {
     return normalizeUnifiedConversations({
       kyanaConversation: kyanaItem,
-      adminRooms: isAdmin ? adminRooms : undefined,
-      studentConfig: !isAdmin ? studentConfig : null,
+      adminRooms: (isAdmin || isTeacher) ? adminRooms : undefined,
+      studentConfig: !(isAdmin || isTeacher) ? studentConfig : null,
       dmConversations: dmEnabled ? dmConversations : undefined,
     });
-  }, [kyanaItem, isAdmin, adminRooms, studentConfig, dmEnabled, dmConversations]);
+  }, [kyanaItem, isAdmin, isTeacher, adminRooms, studentConfig, dmEnabled, dmConversations]);
 
   const chatOptions = useMemo(
     () => ({
       onNewIncomingMessage: handleNewIncomingMessage,
       authToken: token,
-      selectedChatGroupId: isAdmin ? selectedCohortRoom?.chatGroupId : null,
+      selectedChatGroupId: (isAdmin || isTeacher) ? selectedCohortRoom?.chatGroupId : null,
     }),
-    [handleNewIncomingMessage, token, isAdmin, selectedCohortRoom?.chatGroupId]
+    [handleNewIncomingMessage, token, isAdmin, isTeacher, selectedCohortRoom?.chatGroupId]
   );
 
   // State
@@ -428,20 +430,20 @@ function ChatScreenInner() {
   // Deep-link to target cohort if specified
   useEffect(() => {
     if (targetChatGroupId && !selectedCohortRoom) {
-      if (isAdmin && adminRooms.length > 0) {
+      if ((isAdmin || isTeacher) && adminRooms.length > 0) {
         const match = adminRooms.find(r => r.chatGroupId === targetChatGroupId);
         if (match) {
           const adapted = adaptAdminCohortRoom(match);
           if (adapted) setSelectedCohortRoom(adapted);
         }
-      } else if (!isAdmin && studentConfig) {
+      } else if (!(isAdmin || isTeacher) && studentConfig) {
         if (studentConfig.chatGroupId === targetChatGroupId) {
           const adapted = adaptStudentCohortConfig(studentConfig);
           if (adapted) setSelectedCohortRoom(adapted);
         }
       }
     }
-  }, [targetChatGroupId, isAdmin, selectedCohortRoom, adminRooms, studentConfig]);
+  }, [targetChatGroupId, isAdmin, isTeacher, selectedCohortRoom, adminRooms, studentConfig]);
 
   const handleSelectCohort = useCallback((item: CohortConversationItem) => {
     setSelectedCohortRoom(item);

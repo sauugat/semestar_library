@@ -3602,10 +3602,6 @@
         return res.json();
       })
       .then(data => {
-        if (data && data.role === 'teacher') {
-          window.location.replace('/teacher-dashboard.html');
-          return;
-        }
         window.currentUserData = data;
         const avatarEl = document.getElementById('avatarInitial');
         if (avatarEl) {
@@ -3619,7 +3615,9 @@
         if (heroReal) heroReal.style.display = 'block';
 
         document.getElementById('greetingLine').textContent = `${getGreeting()}, ${data.name}`;
-        document.getElementById('idLine').textContent = `Student ID: ${data.studentId}`;
+        document.getElementById('idLine').textContent = (data.role === 'teacher' || data.role === 'faculty')
+          ? `Faculty: @${data.username || data.studentId}`
+          : `Student ID: ${data.studentId}`;
 
 
         // Populate top right header profile chip
@@ -4642,25 +4640,9 @@
       let filteredAssignments = assignmentList;
 
       if (isTeacher && window.currentUserData) {
-        if (!window.currentUserData.subjects || window.currentUserData.subjects.length === 0) {
-          try {
-            const subRes = await fetch('/api/teacher/subjects');
-            if (subRes.ok) {
-              const subData = await subRes.json();
-              if (Array.isArray(subData.subjects)) window.currentUserData.subjects = subData.subjects;
-            }
-          } catch (_) {}
-        }
         const teacherId = window.currentUserData.studentId;
-        const teacherSubs = (window.currentUserData.subjects || []).flatMap(s => [s.name, s.code, s.title, s.id].filter(Boolean).map(x => String(x).toLowerCase().trim()));
-
-        filteredFiles = files.filter(f => {
-          if (f.uploadedBy === teacherId) return true;
-          if (!f.subject) return false;
-          const fSub = String(f.subject).toLowerCase().trim();
-          return teacherSubs.some(sub => fSub === sub || fSub.includes(sub) || sub.includes(fSub));
-        });
-
+        // Show only notes and assignment posts added by this teacher (never other teachers' notes or assignments)
+        filteredFiles = files.filter(f => f.uploadedBy === teacherId);
         filteredAssignments = assignmentList.filter(a => a.createdBy === teacherId);
       }
 

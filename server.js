@@ -3599,6 +3599,9 @@ app.get('/api/files', requireLogin, async (req, res) => {
   let teacherSubjects = [];
 
   const isTeacher = context.role === 'teacher' || context.role === 'faculty';
+  let whereSql = filter.sql;
+  let whereParams = [...filter.params];
+
   if (isTeacher) {
     const activeTeacherId = req.session?.studentId || context.studentId || req.user?.studentId || req.student?.studentId;
     try {
@@ -3606,26 +3609,30 @@ app.get('/api/files', requireLogin, async (req, res) => {
       teacherSubjects = await getTeacherSubjects(db, activeTeacherId);
     } catch (_) {}
 
-    if ((!teacherSubjects || teacherSubjects.length === 0) && (req.user?.subjects || context.subjects)) {
-      teacherSubjects = req.user?.subjects || context.subjects || [];
+    if ((!teacherSubjects || teacherSubjects.length === 0) && (req.user?.subjects || context.subjects || context.assignedSubjects)) {
+      teacherSubjects = req.user?.subjects || context.subjects || context.assignedSubjects || [];
     }
 
     if (isFeedRequest) {
+      // On dashboard feed: show ONLY notes uploaded by this teacher (do not show other teachers' notes)
+      whereSql = '1=1';
+      whereParams = [];
+      teacherFeedSql = ' AND files.uploadedBy = ?';
+      teacherFeedParams.push(activeTeacherId);
+    } else {
+      // In Library: show files for the teacher's assigned subjects or uploaded by this teacher
       const subTerms = [];
       for (const s of (teacherSubjects || [])) {
         if (s.name) subTerms.push(s.name.trim().toLowerCase());
         if (s.code) subTerms.push(s.code.trim().toLowerCase());
         if (s.title) subTerms.push(s.title.trim().toLowerCase());
       }
-
       if (subTerms.length > 0) {
         const orParts = ['files.uploadedBy = ?'];
         teacherFeedParams.push(activeTeacherId);
         for (const term of subTerms) {
-          orParts.push('LOWER(files.subject) = ?');
+          orParts.push('LOWER(TRIM(files.subject)) = ?');
           teacherFeedParams.push(term);
-          orParts.push('LOWER(files.subject) LIKE ?');
-          teacherFeedParams.push(`%${term}%`);
         }
         teacherFeedSql = ` AND (${orParts.join(' OR ')})`;
       } else {
@@ -3644,7 +3651,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
-    WHERE ${filter.sql}${teacherFeedSql}
+    WHERE ${whereSql}${teacherFeedSql}
     ORDER BY files.uploadedAt DESC
   `;
 
@@ -3653,7 +3660,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
   }
 
   const currentViewerId = req.session?.studentId || context.studentId || req.user?.studentId || req.student?.studentId || null;
-  const queryParams = [currentViewerId, ...filter.params, ...teacherFeedParams];
+  const queryParams = [currentViewerId, ...whereParams, ...teacherFeedParams];
 
   // Parallelize admin verification and files database query
   const [viewerIsAdmin, files] = await Promise.all([
@@ -3679,7 +3686,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
     audience_scope: f.audience_scope || f.audienceScope || 'cohort',
     uploaderRole: f.uploaderRole || 'student',
     isOfficial: f.uploaderRole === 'admin',
-    canDelete: viewerIsAdmin || (context.role === 'teacher' && teacherSubjectSet.has(String(f.subject || '').trim().toLowerCase()))
+    canDelete: viewerIsAdmin || f.uploadedBy === currentViewerId || (context.role === 'teacher' && teacherSubjectSet.has(String(f.subject || '').trim().toLowerCase()))
   }));
 
   res.json(processed);
@@ -4482,6 +4489,89 @@ app.get('/api/library/stats', async (req, res) => {
     GROUP BY semester, subject, chapter
   `, ...filter.params);
   res.json(stats);
+});
+
+// Rename / adjust a subject name (Admin or Teacher assigned to that subject)
+app.post('/api/library/subjects/rename', requireLogin, async (req, res) => {
+  try {
+    const context = await getAcademicContext(db, req);
+    const callerId = context?.studentId || req.session?.studentId || req.user?.studentId;
+    const isAdminUser = context?.role === 'admin' || (await isStudentAdmin(callerId));
+    const isTeacherUser = context?.role === 'teacher';
+
+    if (!isAdminUser && !isTeacherUser) {
+      return res.status(403).json({ message: 'Only teachers and admins can adjust subject names.' });
+    }
+
+    const oldName = String(req.body?.oldName || req.body?.subject || '').trim();
+    const newName = String(req.body?.newName || '').trim().replace(/\s+/g, ' ');
+    const code = String(req.body?.code || '').trim();
+
+    if (!oldName || !newName || newName.length < 2 || newName.length > 120) {
+      return res.status(400).json({ message: 'Please provide a valid subject name (2–120 characters).' });
+    }
+
+    if (isTeacherUser && !isAdminUser) {
+      const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+      await validateTeacherSubjectAuthorization(db, callerId, code || oldName);
+    }
+
+    if (code) {
+      await db.run('UPDATE subjects SET name = ? WHERE UPPER(TRIM(code)) = UPPER(TRIM(?)) OR UPPER(TRIM(id)) = UPPER(TRIM(?))', newName, code, code);
+    }
+    await db.run('UPDATE subjects SET name = ? WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))', newName, oldName);
+    await db.run('UPDATE files SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
+    await db.run('UPDATE assignments SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
+
+    res.json({ success: true, oldName, newName, message: `Subject updated to "${newName}".` });
+  } catch (err) {
+    res.status(err.status || 400).json({ message: err.message || 'Could not rename subject.' });
+  }
+});
+
+// Rename / adjust a chapter name within a subject (Admin or Teacher assigned to that subject)
+app.post('/api/library/chapters/rename', requireLogin, async (req, res) => {
+  try {
+    const context = await getAcademicContext(db, req);
+    const callerId = context?.studentId || req.session?.studentId || req.user?.studentId;
+    const isAdminUser = context?.role === 'admin' || (await isStudentAdmin(callerId));
+    const isTeacherUser = context?.role === 'teacher';
+
+    if (!isAdminUser && !isTeacherUser) {
+      return res.status(403).json({ message: 'Only teachers and admins can adjust chapter names.' });
+    }
+
+    const subject = String(req.body?.subject || '').trim();
+    const oldChapter = String(req.body?.oldChapter || '').trim();
+    const newChapter = String(req.body?.newChapter || '').trim().replace(/\s+/g, ' ');
+
+    if (!subject || !oldChapter || !newChapter || newChapter.length > 120) {
+      return res.status(400).json({ message: 'Please provide valid subject and chapter names.' });
+    }
+
+    if (isTeacherUser && !isAdminUser) {
+      const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+      await validateTeacherSubjectAuthorization(db, callerId, subject);
+    }
+
+    const result = await db.run(
+      'UPDATE files SET chapter = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND LOWER(TRIM(chapter)) = LOWER(TRIM(?))',
+      newChapter,
+      subject,
+      oldChapter
+    );
+
+    res.json({
+      success: true,
+      subject,
+      oldChapter,
+      newChapter,
+      updatedCount: result?.changes || 0,
+      message: `Chapter updated to "${newChapter}".`
+    });
+  } catch (err) {
+    res.status(err.status || 400).json({ message: err.message || 'Could not rename chapter.' });
+  }
 });
 
 // List files with flexible filters (semester, subject, chapter)

@@ -2669,12 +2669,18 @@
             <span style="font-size:12px; font-weight:600; color:var(--text-muted);" id="dCourseMeta">Semester 1 &middot; 3 Credits</span>
           </div>
           <h2 style="font-size:18px; font-weight:800; margin:0 0 12px; color:var(--text);" id="dCourseTitle">Course Title</h2>
-          <div style="display:flex; gap:8px;">
+          <div style="display:flex; flex-wrap:wrap; gap:8px;">
             <button type="button" id="dUploadBtn" class="upload-cta-btn" style="padding:6px 14px; font-size:12px;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
               </svg>
               <span>+ Upload Note</span>
+            </button>
+            <button type="button" id="dAddChapterBtn" class="btn-file-action btn-file-view" style="display:none; padding:6px 12px; font-size:12px; cursor:pointer;" title="Add a new chapter/unit to this subject">
+              <span>+ Add Chapter</span>
+            </button>
+            <button type="button" id="dRenameSubjectBtn" class="btn-file-action btn-file-view" style="display:none; padding:6px 12px; font-size:12px; cursor:pointer;" title="Adjust or rename this subject">
+              <span>Adjust Subject Name</span>
             </button>
           </div>
         </div>
@@ -2984,6 +2990,60 @@
         }
       });
 
+      const ctx = window.ACADEMIC_CONTEXT;
+      const isTeacher = ctx && ctx.role === 'teacher';
+      const assignedSubjects = isTeacher && Array.isArray(ctx.assignedSubjects) ? ctx.assignedSubjects : [];
+
+      if (isTeacher && assignedSubjects.length > 0) {
+        // Sync any renamed assigned subjects into courseMap and filter strictly to assigned subjects
+        const ROMANS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+        const allowedCourses = [];
+        const seenCodes = new Set();
+
+        assignedSubjects.forEach(sub => {
+          const sCode = String(sub.code || sub.id || '').trim().toUpperCase();
+          const sName = String(sub.name || sub.title || '').trim();
+          const sSemNum = Number(sub.semester) || 1;
+          const rawSem = ROMANS[sSemNum - 1] || 'I';
+
+          // Find matching base course by code or name
+          let matched = Array.from(courseMap.values()).find(c =>
+            (sCode && String(c.code || '').trim().toUpperCase() === sCode) ||
+            (sName && String(c.title || '').trim().toLowerCase() === sName.toLowerCase())
+          );
+
+          if (matched) {
+            matched = {
+              ...matched,
+              title: sName || matched.title,
+              code: sCode || matched.code,
+              rawSemester: rawSem,
+              semester: SEM_MAP[rawSem] || `Semester ${sSemNum}`
+            };
+          } else if (sName) {
+            matched = {
+              title: sName,
+              code: sCode || 'COURSE',
+              credit: sub.creditHours || sub.credit_hours || '3',
+              contents: '',
+              rawSemester: rawSem,
+              semester: SEM_MAP[rawSem] || `Semester ${sSemNum}`,
+              year: SEM_MAP[rawSem] || `Semester ${sSemNum}`,
+              semId: `Sem_${rawSem}`,
+              isCustom: true
+            };
+          }
+
+          if (matched && !seenCodes.has((matched.code + '::' + matched.title).toLowerCase())) {
+            seenCodes.add((matched.code + '::' + matched.title).toLowerCase());
+            allowedCourses.push(matched);
+          }
+        });
+
+        ALL_COURSES = allowedCourses;
+        return;
+      }
+
       ALL_COURSES = Array.from(courseMap.values());
     }
 
@@ -3010,6 +3070,15 @@
         const elapsed = Date.now() - startTime;
         if (elapsed < 200) {
           await new Promise(res => setTimeout(res, 200 - elapsed));
+        }
+
+        if (academicCtx && academicCtx.role === 'teacher' && (!academicCtx.assignedSubjects || academicCtx.assignedSubjects.length === 0)) {
+          try {
+            const subRes = await safeFetchJson('/api/teacher/subjects', null);
+            if (subRes && Array.isArray(subRes.subjects)) {
+              academicCtx.assignedSubjects = subRes.subjects;
+            }
+          } catch (_) {}
         }
 
         window.ACADEMIC_CONTEXT = academicCtx;
@@ -3055,7 +3124,10 @@
           if (academicCtx.semesterRoman) {
             ACTIVE_SEM = academicCtx.semesterRoman;
           }
-        } else if (academicCtx.role === 'teacher' || academicCtx.role === 'admin') {
+        } else if (academicCtx.role === 'teacher') {
+          if (uploadBtn) uploadBtn.style.display = 'inline-flex';
+          ACTIVE_SEM = 'ALL';
+        } else if (academicCtx.role === 'admin') {
           if (uploadBtn) uploadBtn.style.display = 'inline-flex';
         }
 
@@ -3087,6 +3159,14 @@
         FILE_STATS = statsRes || [];
         ALL_FILES = filesRes || [];
         if (academicCtx) {
+          if (academicCtx.role === 'teacher' && (!academicCtx.assignedSubjects || academicCtx.assignedSubjects.length === 0)) {
+            try {
+              const subRes = await safeFetchJson('/api/teacher/subjects', null);
+              if (subRes && Array.isArray(subRes.subjects)) {
+                academicCtx.assignedSubjects = subRes.subjects;
+              }
+            } catch (_) {}
+          }
           window.ACADEMIC_CONTEXT = academicCtx;
           if (window.AcademicContext) {
             window.AcademicContext.renderBadge('#academicContextBadge');
@@ -3128,8 +3208,21 @@
         return;
       }
 
-      // For staff (teachers / admins): provide cohort-level filtering
-      if (ctx && ctx.isStaff && Array.isArray(ctx.cohorts) && ctx.cohorts.length > 0) {
+      // For teachers: show "All Assigned Subjects" and only the semesters where they teach
+      if (ctx && ctx.role === 'teacher') {
+        const ROMANS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
+        const semNums = [...new Set((ctx.assignedSubjects || []).map(s => Number(s.semester)).filter(n => n >= 1 && n <= 8))].sort((a, b) => a - b);
+        switcher.innerHTML = `
+          <button class="sem-btn ${ACTIVE_SEM === 'ALL' ? 'active' : ''}" data-sem="ALL">All Assigned Subjects (${ALL_COURSES.length})</button>
+          ${semNums.map(semNum => {
+            const roman = ROMANS[semNum - 1] || 'I';
+            const isActive = ACTIVE_SEM === roman;
+            return `<button class="sem-btn ${isActive ? 'active' : ''}" data-sem="${roman}">Semester ${semNum}</button>`;
+          }).join('')}
+        `;
+        switcher.style.display = 'flex';
+      } else if (ctx && ctx.isStaff && Array.isArray(ctx.cohorts) && ctx.cohorts.length > 0) {
+        // For admins: provide cohort-level filtering
         switcher.innerHTML = `
           <button class="sem-btn ${ACTIVE_SEM === 'ALL' ? 'active' : ''}" data-sem="ALL">All Cohorts</button>
           ${ctx.cohorts.map(c => {
@@ -3211,6 +3304,9 @@
           </button>
           <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get" download="${escapeHtml(f.originalName || 'file')}" onclick="return requireLoginForFile(event, ${f.id}, 'download')" title="Download file">Get</a>
           ${f.canDelete ? `
+            <button type="button" class="btn-file-action btn-file-view" onclick="editLibraryFilePrompt(${f.id}, event)" title="Edit note title or chapter">
+              <span>Edit</span>
+            </button>
             <button type="button" class="btn-file-action btn-file-delete" onclick="deleteLibraryFile(${f.id}, event)" title="Delete this note">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
             </button>
@@ -4104,6 +4200,18 @@
         dUploadBtn.onclick = () => openDirectUploadModal(course.title, course.rawSemester);
       }
 
+      const dAddChapterBtn = document.getElementById('dAddChapterBtn');
+      if (dAddChapterBtn) {
+        dAddChapterBtn.style.display = canManageThisCourse ? 'inline-flex' : 'none';
+        dAddChapterBtn.onclick = () => addCustomChapterPrompt(course.title, course.rawSemester);
+      }
+
+      const dRenameSubjectBtn = document.getElementById('dRenameSubjectBtn');
+      if (dRenameSubjectBtn) {
+        dRenameSubjectBtn.style.display = canManageThisCourse ? 'inline-flex' : 'none';
+        dRenameSubjectBtn.onclick = () => renameSubjectPrompt(course);
+      }
+
       const body = document.getElementById('drawerBody');
       body.innerHTML = `
         <div class="loading-container" style="padding: 40px 10px;">
@@ -4153,13 +4261,19 @@
 
         const deletableUFiles = uFiles.filter(f => f.canDelete);
         const isOpen = (autoOpenUnitNum && String(autoOpenUnitNum) === String(u.num)) || (!autoOpenUnitNum && (i === 0 || uFiles.length > 0));
+        const unitLabel = `Unit ${u.num}: ${u.title}`;
 
         html += `
           <div class="clean-unit-row ${isOpen ? 'open' : ''}">
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
-              <span>Unit ${u.num}: ${escapeHtml(u.title)}</span>
+              <span>${escapeHtml(unitLabel)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
                 <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${uFiles.length} file${uFiles.length === 1 ? '' : 's'}</span>
+                ${canManageThisCourse && uFiles.length > 0 ? `
+                  <button type="button" class="btn-file-action btn-file-view" style="font-size:11px; padding:3px 8px;" onclick="renameChapterPrompt('${escapeJs(course.title)}', '${escapeJs(uFiles[0].chapter || unitLabel)}', event)" title="Rename or move notes in this chapter">
+                    <span>Rename</span>
+                  </button>
+                ` : ''}
                 ${deletableUFiles.length > 0 ? `
                   <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', 'Unit ${u.num}: ${escapeJs(u.title)}', [${deletableUFiles.map(f => f.id).join(',')}], event)" title="Delete all ${deletableUFiles.length} note${deletableUFiles.length > 1 ? 's' : ''} you have in this unit">
                     <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -4228,6 +4342,11 @@
               <span>${escapeHtml(chapName)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
                 <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${cFiles.length} file${cFiles.length === 1 ? '' : 's'}</span>
+                ${canManageThisCourse ? `
+                  <button type="button" class="btn-file-action btn-file-view" style="font-size:11px; padding:3px 8px;" onclick="renameChapterPrompt('${escapeJs(course.title)}', '${escapeJs(chapName)}', event)" title="Rename this chapter">
+                    <span>Rename</span>
+                  </button>
+                ` : ''}
                 ${deletableCFiles.length > 0 ? `
                   <button type="button" class="btn-unit-delete-all" onclick="deleteChapterFiles('${escapeJs(course.title)}', '${escapeJs(chapName)}', [${deletableCFiles.map(f => f.id).join(',')}], event)" title="Delete all ${deletableCFiles.length} note${deletableCFiles.length > 1 ? 's' : ''} in ${escapeHtml(chapName)}">
                     <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -4350,6 +4469,103 @@
       if (h) openDrawer(h);
     }
     window.addEventListener('hashchange', checkUrl);
+
+    // =========================================================================
+    // SUBJECT, CHAPTER & NOTE MANAGEMENT HELPERS FOR TEACHERS & ADMINS
+    // =========================================================================
+
+    window.renameSubjectPrompt = async function (course) {
+      if (!course || !course.title) return;
+      const newName = window.prompt('Adjust Subject Name:', course.title);
+      if (!newName || newName.trim() === '' || newName.trim() === course.title) return;
+      try {
+        const res = await fetch('/api/library/subjects/rename', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            oldName: course.title,
+            newName: newName.trim(),
+            code: course.code && course.code !== 'COURSE' ? course.code : ''
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Could not update subject name.');
+        course.title = data.newName || newName.trim();
+        CURRENT_DRAWER_COURSE = course;
+        showToast(`✅ ${data.message || 'Subject name updated'}`);
+        await refreshLibraryData();
+        openDrawer(course.title);
+      } catch (err) {
+        alert(err.message || 'Failed to update subject name.');
+      }
+    };
+
+    window.addCustomChapterPrompt = function (subjectTitle, rawSemester) {
+      const chapName = window.prompt(`Enter new Chapter / Unit name for ${subjectTitle}:`, '');
+      if (!chapName || !chapName.trim()) return;
+      openDirectUploadModal(subjectTitle, rawSemester, chapName.trim());
+    };
+
+    window.renameChapterPrompt = async function (subjectTitle, oldChapter, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      const newChapter = window.prompt(`Adjust Chapter / Unit name in ${subjectTitle}:`, oldChapter);
+      if (!newChapter || !newChapter.trim() || newChapter.trim() === oldChapter) return;
+      try {
+        const res = await fetch('/api/library/chapters/rename', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: subjectTitle,
+            oldChapter,
+            newChapter: newChapter.trim()
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Could not update chapter name.');
+        showToast(`✅ ${data.message || 'Chapter name updated'}`);
+        await refreshLibraryData();
+      } catch (err) {
+        alert(err.message || 'Failed to update chapter name.');
+      }
+    };
+
+    window.editLibraryFilePrompt = async function (fileId, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      const id = parseInt(fileId, 10);
+      const f = (CURRENT_DRAWER_FILES && CURRENT_DRAWER_FILES.find(x => x.id === id)) ||
+        (ALL_FILES && ALL_FILES.find(x => x.id === id));
+      if (!f) return;
+
+      const newTitle = window.prompt('Adjust Note Title:', f.title || f.originalName || '');
+      if (newTitle === null) return;
+      const newChapter = window.prompt('Adjust Chapter / Unit Name:', f.chapter || 'General');
+      if (newChapter === null) return;
+
+      try {
+        const res = await fetch(`/api/files/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: newTitle.trim() || f.title,
+            subject: f.subject,
+            semester: f.semester,
+            chapter: newChapter.trim() || 'General'
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Could not update note.');
+        showToast('✅ Note details updated');
+        await refreshLibraryData();
+      } catch (err) {
+        alert(err.message || 'Failed to update note.');
+      }
+    };
 
     // =========================================================================
     // DIRECT IN-PLACE UPLOAD MODAL & MULTI-FILE QUEUE SYSTEM

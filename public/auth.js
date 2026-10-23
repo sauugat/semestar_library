@@ -872,7 +872,7 @@
     window.fetch = async function (input, init) {
       const url = typeof input === 'string' ? input : (input && input.url ? input.url : '');
       const isApi = url.startsWith('/api/') || url.includes('/api/');
-      const isPublicAuth = url.includes('/api/auth/login') || url.includes('/api/auth/register') || url.includes('/api/auth/check-availability') || url.includes('/api/auth/config') || url === '/api/login';
+      const isPublicAuth = url.includes('/api/auth/login') || url.includes('/api/auth/register') || url.includes('/api/auth/check-availability') || url.includes('/api/auth/config') || url.includes('/api/teacher/onboarding/') || url === '/api/login';
 
       if (isApi && !isPublicAuth) {
         const hasAuthHeader = init && init.headers && (
@@ -909,6 +909,9 @@
     // Auto-hydrate header on DOM ready for any authenticated page
     const onReady = async () => {
       try {
+        if (window.location.pathname.includes('teacher-onboarding')) {
+          return;
+        }
         const syncUser = getUserSync();
         if (syncUser) {
           window.IS_AUTHENTICATED = true;

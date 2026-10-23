@@ -162,6 +162,18 @@
 
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.success) {
+          try {
+            sessionStorage.removeItem('teacher_onboarding_token');
+            if (data.user) {
+              sessionStorage.setItem('sl_user_cache', JSON.stringify(data.user));
+            }
+            if (typeof SemesterAuth !== 'undefined' && typeof SemesterAuth.syncSession === 'function') {
+              await Promise.race([
+                SemesterAuth.syncSession().catch(() => null),
+                new Promise(r => setTimeout(r, 1200))
+              ]);
+            }
+          } catch (_) {}
           if (data.alreadyActive) {
             showSuccess('Account Already Verified', 'Your permanent faculty account is already active. You can sign in immediately.');
           } else {

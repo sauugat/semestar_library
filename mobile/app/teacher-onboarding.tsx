@@ -125,8 +125,14 @@ export default function TeacherOnboardingScreen() {
           return;
         }
         if (data.status === 'awaiting_email_verification') {
+          const pending = data.state?.pending || {};
           setMaskedEmail(data.emailMasked || '');
-          setTargetEmail(data.email || data.state?.pending?.email || '');
+          setTargetEmail(data.email || pending.email || '');
+          if (pending.name) setName(pending.name);
+          if (pending.username) setUsername(pending.username);
+          if (pending.email) setEmail(pending.email);
+          if (Array.isArray(pending.subjectIds)) setSelectedIds(pending.subjectIds);
+          loadSubjectsList(tokenToUse);
           setCurrentStep(3);
         } else {
           loadSubjectsList(tokenToUse);
@@ -171,7 +177,7 @@ export default function TeacherOnboardingScreen() {
   }, [resendCooldown]);
 
   // Step 1 Validation
-  const handleProceedToSubjects = () => {
+  const handleProceedToSubjects = async () => {
     setErrorMessage(null);
     const cleanName = name.trim().replace(/\s+/g, ' ');
     const cleanUsername = username.trim().toLowerCase();
@@ -202,6 +208,24 @@ export default function TeacherOnboardingScreen() {
     if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match.');
       return;
+    }
+
+    try {
+      const res = await fetch(`${serverUrl}/api/teacher/onboarding/check-username`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${activeToken}`,
+        },
+        body: JSON.stringify({ username: cleanUsername }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.available === false) {
+        setErrorMessage(data.reason || 'That username is already taken. Please choose another.');
+        return;
+      }
+    } catch {
+      // Allow proceeding if offline/network error; submit will validate
     }
 
     setCurrentStep(2);
@@ -275,6 +299,18 @@ export default function TeacherOnboardingScreen() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        const step1ErrorCodes = new Set([
+          'INVALID_NAME',
+          'INVALID_USERNAME',
+          'INVALID_EMAIL',
+          'EMAIL_ALREADY_EXISTS',
+          'EMAIL_COLLISION',
+          'INVALID_PASSWORD',
+          'PASSWORD_MISMATCH',
+        ]);
+        if (data.code && step1ErrorCodes.has(data.code)) {
+          setCurrentStep(1);
+        }
         throw new Error(data.message || 'Onboarding submission failed.');
       }
 
@@ -818,6 +854,14 @@ export default function TeacherOnboardingScreen() {
                 variant="ghost"
                 size="md"
                 onPress={() => setIsChangingEmail(!isChangingEmail)}
+                style={{ borderRadius: radii.md }}
+              />
+
+              <Button
+                title="← Edit Account Details"
+                variant="ghost"
+                size="md"
+                onPress={() => setCurrentStep(1)}
                 style={{ borderRadius: radii.md }}
               />
             </View>

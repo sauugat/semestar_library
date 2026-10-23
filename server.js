@@ -307,7 +307,14 @@ app.use((req, res, next) => {
   // Browser requests (carrying __gu_session cookie) always run sessionMiddleware.
   const hasSessionCookie = Boolean(req.headers.cookie && req.headers.cookie.includes('__gu_session'));
   const authHeader = req.headers['authorization'];
-  if (!hasSessionCookie && authHeader && authHeader.startsWith('Bearer ') && !req.path.startsWith('/api/auth/sync-session') && !req.path.startsWith('/api/auth/register')) {
+  if (
+    !hasSessionCookie &&
+    authHeader &&
+    authHeader.startsWith('Bearer ') &&
+    !req.path.startsWith('/api/auth/sync-session') &&
+    !req.path.startsWith('/api/auth/register') &&
+    !req.path.startsWith('/api/teacher/onboarding/finalize')
+  ) {
     return next();
   }
   sessionMiddleware(req, res, next);
@@ -1026,6 +1033,41 @@ app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
   }
 
   if (!student) {
+    // Check if this is a pending teacher account whose email was verified
+    try {
+      const pendingTeacher = await db.get(
+        'SELECT * FROM teacher_onboarding_pending WHERE LOWER(username) = ? OR LOWER(email) = ?',
+        identifier.toLowerCase(), identifier.toLowerCase()
+      );
+      if (pendingTeacher && pendingTeacher.email) {
+        const { authenticateWithPassword } = require('./lib/supabase');
+        const { data: sbData, error: sbErr } = await authenticateWithPassword({
+          email: pendingTeacher.email.toLowerCase(),
+          password
+        });
+        if (sbErr) {
+          const errLower = (sbErr.message || '').toLowerCase();
+          if (errLower.includes('email not confirmed') || errLower.includes('not confirmed')) {
+            return res.status(403).json({
+              code: 'EMAIL_NOT_CONFIRMED',
+              message: 'Your email address has not been verified yet. Please check your inbox and verify your email before signing in.'
+            });
+          }
+        } else if (sbData && sbData.user) {
+          const { finalizeTeacherOnboarding } = require('./lib/teacher-service');
+          const finRes = await finalizeTeacherOnboarding(db, {
+            supabaseToken: sbData.session?.access_token,
+            supabaseUser: sbData.user
+          });
+          if (finRes && finRes.success) {
+            student = await db.get('SELECT * FROM students WHERE studentId = ?', finRes.teacherId);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  if (!student) {
     try {
       const { isTeacherOnboardingEnabled, verifyTemporaryTeacherCredentials, signOnboardingToken } = require('./lib/teacher-service');
       if (isTeacherOnboardingEnabled()) {
@@ -1592,10 +1634,21 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
     resolvedEmail = identifier.toLowerCase();
   } else {
     // Resolve username or student ID to email server-side
-    const student = await db.get(
+    let student = await db.get(
       'SELECT email FROM students WHERE LOWER(username) = ? OR LOWER(studentId) = ?',
       identifier.toLowerCase(), identifier.toLowerCase()
     );
+    if (!student || !student.email) {
+      try {
+        const pendingByUsername = await db.get(
+          'SELECT email FROM teacher_onboarding_pending WHERE LOWER(username) = ?',
+          identifier.toLowerCase()
+        );
+        if (pendingByUsername && pendingByUsername.email) {
+          student = { email: pendingByUsername.email };
+        }
+      } catch (_) {}
+    }
     if (student && student.email) {
       resolvedEmail = student.email.toLowerCase();
     } else {
@@ -1660,6 +1713,21 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
     // Login successful
     await clearLoginAttempts(ip);
 
+    // Check if this confirmed user has a pending teacher onboarding record to finalize
+    try {
+      const pendingTeacher = await db.get(
+        'SELECT id FROM teacher_onboarding_pending WHERE supabase_uid = ? OR LOWER(email) = ?',
+        data.user.id, resolvedEmail
+      );
+      if (pendingTeacher) {
+        const { finalizeTeacherOnboarding } = require('./lib/teacher-service');
+        await finalizeTeacherOnboarding(db, {
+          supabaseToken: data.session.access_token,
+          supabaseUser: data.user
+        });
+      }
+    } catch (_) {}
+
     // Fetch authoritative Neon student profile
     let student = await db.get(
       `SELECT studentId, username, name, role, department, semester, cohort_id, gender, email, avatarUrl, verification_status, account_status
@@ -1669,7 +1737,8 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
     );
 
     const meta = data.user.user_metadata || {};
-    if (!student) {
+    const isTeacherRoleMeta = String(meta.role || '').toLowerCase() === 'teacher';
+    if (!student && !isTeacherRoleMeta) {
       // Auto-provision student row if Supabase account exists without a local student row
       try {
         const cleanName = String(meta.full_name || meta.name || resolvedEmail.split('@')[0] || 'Student').trim() || 'Student';

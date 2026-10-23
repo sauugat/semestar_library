@@ -65,17 +65,238 @@ html[data-theme] .routine-page .exam-row .exam-date { background: var(--routine-
 html[data-theme] .routine-page .exam-row :is(h2, .date-day, .exam-time) { color: var(--routine-text); }
 html[data-theme] .routine-page .exam-row :is(p, .semester-tag, .date-month, .date-weekday) { color: var(--routine-muted); }
 .routine-page .exam-time { border-left: 0; overflow-wrap: anywhere; }
-@media (max-width: 680px) {
-  .routine-page .routine-admin { padding: 18px; }
-  .routine-page .routine-admin-heading { align-items: flex-start; flex-direction: column; }
-  .routine-page .routine-form-grid { grid-template-columns: 1fr; }
-  .routine-page .exam-info-item { padding: 16px 12px; }
-  .routine-page .exam-info-item strong { font-size: 14px; }
-  html[data-theme] .routine-page .exam-row { grid-template-columns: 94px minmax(0, 1fr); }
-  .routine-page .exam-date { grid-row: span 2; padding: 16px 12px; }
-  .routine-page .exam-details { padding: 16px 14px 6px; }
-  .routine-page .exam-details h2 { font-size: 16px; }
-  .routine-page .exam-time { grid-column: 2; text-align: left; padding: 4px 14px 16px; }
+@media (max-width: 768px) {
+  /* Page container */
+  .routine-page .routine-container {
+    width: calc(100% - 32px);
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px 0 44px;
+  }
+
+  /* Hero Section */
+  .routine-page .routine-heading {
+    max-width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .routine-page .routine-eyebrow {
+    margin: 0 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--routine-muted);
+  }
+
+  .routine-page .routine-heading h1 {
+    margin: 0 0 8px;
+    font-size: clamp(26px, 7vw, 32px);
+    line-height: 1.15;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    word-break: break-word;
+  }
+
+  .routine-page .routine-heading h1 br {
+    display: inline;
+  }
+
+  .routine-page .routine-description {
+    max-width: 100%;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--routine-muted);
+    margin: 0;
+  }
+
+  /* Routine Status Panel (Reflow 3 columns into compact 2-row layout) */
+  .routine-page .exam-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 16px;
+    border-radius: 14px;
+    border: 1px solid var(--routine-line);
+    background: var(--routine-surface);
+    overflow: hidden;
+  }
+
+  .routine-page .exam-info-item {
+    padding: 12px 14px;
+    border-right: 1px solid var(--routine-line);
+    border-bottom: 1px solid var(--routine-line);
+  }
+
+  /* Item 1: Routine (left half of row 1) */
+  .routine-page .exam-info-item:nth-child(1) {
+    grid-column: 1;
+  }
+
+  /* Item 2: Program (right half of row 1) */
+  .routine-page .exam-info-item:nth-child(2) {
+    grid-column: 2;
+    border-right: none;
+  }
+
+  /* Item 3: Semesters (full width of row 2) */
+  .routine-page .exam-info-item:nth-child(3) {
+    grid-column: 1 / -1;
+    border-right: none;
+    border-bottom: none;
+  }
+
+  .routine-page .info-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--routine-muted);
+  }
+
+  .routine-page .exam-info-item strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--routine-text);
+    line-height: 1.35;
+    overflow-wrap: break-word;
+  }
+
+  /* Semester Filters */
+  .routine-page .semester-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .routine-page .semester-btn {
+    padding: 6px 13px;
+    font-size: 12px;
+    border-radius: var(--ap-radius-pill, 980px);
+  }
+
+  /* Schedule Container & Exam Rows */
+  .routine-page .schedule {
+    gap: 10px;
+  }
+
+  html[data-theme] .routine-page .exam-row {
+    grid-template-columns: 88px minmax(0, 1fr);
+    border-radius: 14px;
+    min-height: auto;
+  }
+
+  .routine-page .exam-date {
+    grid-row: span 2;
+    padding: 14px 10px;
+    text-align: center;
+  }
+
+  .routine-page .date-day {
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .routine-page .date-month {
+    margin-top: 3px;
+    font-size: 10.5px;
+  }
+
+  .routine-page .date-weekday {
+    margin-top: 4px;
+    font-size: 11px;
+  }
+
+  .routine-page .exam-details {
+    padding: 12px 14px 4px;
+  }
+
+  .routine-page .semester-tag {
+    font-size: 10px;
+    margin-bottom: 4px;
+  }
+
+  .routine-page .exam-details h2 {
+    font-size: 15px;
+    line-height: 1.3;
+  }
+
+  .routine-page .exam-details p {
+    margin: 3px 0 0;
+    font-size: 12px;
+  }
+
+  .routine-page .exam-time {
+    grid-column: 2;
+    text-align: left;
+    padding: 2px 14px 12px;
+    font-size: 12px;
+  }
+
+  /* Empty State */
+  .routine-page .routine-empty {
+    padding: 24px 16px;
+    font-size: 13.5px;
+  }
+
+  /* Instructions Section */
+  .routine-page .exam-instructions {
+    margin-top: 24px;
+    padding: 20px 18px;
+    border-radius: 16px;
+    border: 1px solid var(--routine-line);
+  }
+
+  .routine-page .instructions-heading span {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  .routine-page .instructions-heading h2 {
+    margin: 4px 0 14px;
+    font-size: 18px;
+    letter-spacing: -0.015em;
+  }
+
+  .routine-page .exam-instructions ol {
+    padding-left: 18px;
+  }
+
+  .routine-page .exam-instructions li {
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 10px;
+    padding-left: 4px;
+  }
+
+  .routine-page .exam-instructions li:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Admin Section */
+  .routine-page .routine-admin {
+    margin-top: 24px;
+    padding: 18px 16px;
+    border-radius: 16px;
+  }
+
+  .routine-page .routine-admin-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .routine-page .routine-admin-heading h2 {
+    font-size: 20px;
+  }
+
+  .routine-page .routine-form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
 
 .routine-page #adminRoutinePanel { scroll-margin-top: 100px; }

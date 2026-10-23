@@ -514,15 +514,25 @@ test('Step 7.12: Historical materials remain intact after subject removal', asyn
   assert.ok(found, 'Historical note must remain present in teacher My Notes workspace');
 });
 
-test('Step 7.13: Existing teacher onboarding flag remains disabled', async () => {
-  assert.equal(isTeacherOnboardingEnabled(), false);
+test('Step 7.13: Teacher onboarding flag can be disabled via TEACHER_ONBOARDING_ENABLED=0', async () => {
+  const prevFlag = process.env.TEACHER_ONBOARDING_ENABLED;
+  process.env.TEACHER_ONBOARDING_ENABLED = '0';
+  try {
+    assert.equal(isTeacherOnboardingEnabled(), false);
 
-  const res = await fetch(`${baseUrl}/api/teacher/onboarding/validate-credentials`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: 'teacher001', password: 'TempPassword!' })
-  });
-  assert.equal(res.status, 503);
-  const data = await res.json();
-  assert.ok(data.message.includes('disabled'));
+    const res = await fetch(`${baseUrl}/api/teacher/onboarding/validate-credentials`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'teacher001', password: 'TempPassword!' })
+    });
+    assert.equal(res.status, 503);
+    const data = await res.json();
+    assert.ok(data.message.includes('disabled'));
+  } finally {
+    if (prevFlag === undefined) {
+      delete process.env.TEACHER_ONBOARDING_ENABLED;
+    } else {
+      process.env.TEACHER_ONBOARDING_ENABLED = prevFlag;
+    }
+  }
 });

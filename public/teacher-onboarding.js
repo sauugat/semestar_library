@@ -71,7 +71,26 @@
         return;
       }
       if (data.status === 'awaiting_email_verification') {
-        targetEmail = data.email || data.state?.pending?.email || '';
+        const pending = data.state?.pending || {};
+        targetEmail = data.email || pending.email || '';
+        if (pending.name || pending.username || pending.email) {
+          step1Data = {
+            name: pending.name || '',
+            username: pending.username || '',
+            email: pending.email || targetEmail,
+            password: ''
+          };
+          const fullNameEl = document.getElementById('fullName');
+          const usernameEl = document.getElementById('username');
+          const emailEl = document.getElementById('recoveryEmail');
+          if (fullNameEl && step1Data.name) fullNameEl.value = step1Data.name;
+          if (usernameEl && step1Data.username) usernameEl.value = step1Data.username;
+          if (emailEl && step1Data.email) emailEl.value = step1Data.email;
+        }
+        if (Array.isArray(pending.subjectIds)) {
+          selectedSubjectIds = new Set(pending.subjectIds);
+        }
+        loadSubjects();
         showAwaitingVerification(data.emailMasked, false);
       } else {
         await loadSubjects();
@@ -84,9 +103,12 @@
 
   function showCompletedState() {
     sessionStorage.removeItem('teacher_onboarding_token');
-    document.getElementById('step1Section').style.display = 'none';
-    document.getElementById('step2Section').style.display = 'none';
-    const waitingScreen = document.getElementById('step3Section');
+    const s1 = document.getElementById('stepSection1');
+    const s2 = document.getElementById('stepSection2');
+    const waitingScreen = document.getElementById('stepSection3');
+    if (s1) s1.style.display = 'none';
+    if (s2) s2.style.display = 'none';
+    if (!waitingScreen) return;
     waitingScreen.style.display = 'block';
     waitingScreen.innerHTML = `
       <div style="text-align: center; padding: 40px 16px;">
@@ -135,7 +157,7 @@
   }
 
   // Step 1 Submission
-  window.handleStep1Submit = function(e) {
+  window.handleStep1Submit = async function(e) {
     e.preventDefault();
     hideAlert();
 
@@ -170,6 +192,35 @@
     if (password !== confirmPassword) {
       showAlert('Passwords do not match.', 'error');
       return;
+    }
+
+    const nextBtn = document.getElementById('step1NextBtn');
+    if (nextBtn) {
+      nextBtn.disabled = true;
+      nextBtn.innerHTML = '<span>Checking…</span>';
+    }
+
+    try {
+      const res = await fetch('/api/teacher/onboarding/check-username', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${onboardingToken}`
+        },
+        body: JSON.stringify({ username })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.available === false) {
+        showAlert(data.reason || 'That username is already taken. Please choose another.', 'error');
+        return;
+      }
+    } catch (err) {
+      console.warn('Username availability check failed:', err);
+    } finally {
+      if (nextBtn) {
+        nextBtn.disabled = false;
+        nextBtn.innerHTML = '<span>Continue to Subjects →</span>';
+      }
     }
 
     step1Data = { name, username, email, password };
@@ -401,6 +452,18 @@
 
       const data = await res.json();
       if (!res.ok) {
+        const step1ErrorCodes = new Set([
+          'INVALID_NAME',
+          'INVALID_USERNAME',
+          'INVALID_EMAIL',
+          'EMAIL_ALREADY_EXISTS',
+          'EMAIL_COLLISION',
+          'INVALID_PASSWORD',
+          'PASSWORD_MISMATCH'
+        ]);
+        if (data.code && step1ErrorCodes.has(data.code)) {
+          goToStep(1);
+        }
         throw new Error(data.message || 'Onboarding submission failed.');
       }
 
@@ -558,6 +621,17 @@
       }
 
       sessionStorage.removeItem('teacher_onboarding_token');
+      try {
+        if (finData.user) {
+          sessionStorage.setItem('sl_user_cache', JSON.stringify(finData.user));
+        }
+        if (window.SemesterAuth && typeof window.SemesterAuth.syncSession === 'function') {
+          await Promise.race([
+            window.SemesterAuth.syncSession().catch(() => null),
+            new Promise(r => setTimeout(r, 1200))
+          ]);
+        }
+      } catch (_) {}
 
       showAlert('Account verified! Taking you to your faculty dashboard…', 'success', 'Welcome');
       setTimeout(() => {

@@ -112,10 +112,12 @@
     waitingScreen.style.display = 'block';
     waitingScreen.innerHTML = `
       <div style="text-align: center; padding: 40px 16px;">
-        <div style="font-size: 40px; margin-bottom: 16px;">✅</div>
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; background: rgba(16, 185, 129, 0.12); color: #10b981; margin-bottom: 16px;">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
         <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Teacher Account Ready</h2>
         <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px; max-width: 380px; margin-left: auto; margin-right: auto; line-height: 1.5;">
-          Your permanent faculty account has been activated! You can now sign in with your new username and password.
+          Your permanent faculty account has been activated. You can now sign in with your username and password.
         </p>
         <a href="/login.html" class="btn btn-primary" style="display: inline-flex; text-decoration: none; padding: 10px 24px;">
           Sign In

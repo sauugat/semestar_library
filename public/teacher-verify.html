@@ -67,13 +67,17 @@
     <img src="logo.jpg" alt="Semester Library" class="auth-logo" style="margin-bottom: 16px;">
 
     <div id="loadingState">
-      <div class="status-icon">⏳</div>
+      <div class="status-icon" style="display:inline-flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:50%; background:rgba(0,0,0,0.05); margin-bottom:14px;">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
       <h1 class="auth-title" style="font-size: 20px; margin-bottom: 8px;">Verifying Account…</h1>
       <p class="auth-subtext">Completing your permanent faculty activation. Please wait a moment.</p>
     </div>
 
     <div id="successState" style="display: none;">
-      <div class="status-icon">✅</div>
+      <div class="status-icon" style="display:inline-flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:50%; background:rgba(16,185,129,0.12); color:#10b981; margin-bottom:14px;">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
       <h1 class="auth-title" style="font-size: 20px; margin-bottom: 8px;" id="successHeading">Teacher Account Ready</h1>
       <p class="auth-subtext" style="margin-bottom: 24px;" id="successMsg">Your email has been verified and your permanent account is active.</p>
       <a href="/login.html" class="btn btn-primary" style="display: inline-flex; text-decoration: none;">
@@ -82,7 +86,9 @@
     </div>
 
     <div id="errorState" style="display: none;">
-      <div class="status-icon">⚠️</div>
+      <div class="status-icon" style="display:inline-flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:50%; background:rgba(239,68,68,0.12); color:#ef4444; margin-bottom:14px;">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
       <h1 class="auth-title" style="font-size: 20px; margin-bottom: 8px;">Verification Incomplete</h1>
       <p class="auth-subtext" style="margin-bottom: 24px; color: var(--danger-color, #ef4444);" id="errorMsg">
         The verification link could not be verified. It may be expired or already used.

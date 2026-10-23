@@ -2310,12 +2310,24 @@
     /* ==========================================================================
        HARD-PRESS / DRAG REORDER & MOVE UP/DOWN CONTROLS FOR NOTES
        ========================================================================== */
+    .clean-unit-body[data-chapter-list],
+    .clean-unit-body[data-chapter-list] .clean-file-item {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    .clean-unit-body[data-chapter-list] .clean-file-item {
+      will-change: transform;
+      transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+
     .file-drag-handle {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 22px;
-      height: 28px;
+      width: 24px;
+      height: 30px;
       border-radius: 6px;
       color: var(--text-subtle, #6b7280);
       cursor: grab;
@@ -2325,12 +2337,17 @@
       transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
       touch-action: none;
       user-select: none;
+      -webkit-user-select: none;
     }
 
     .file-drag-handle:hover {
       opacity: 1;
       background: rgba(0, 0, 0, 0.06);
       color: var(--text);
+    }
+
+    .file-drag-handle:active {
+      cursor: grabbing;
     }
 
     [data-theme="dark"] .file-drag-handle:hover,
@@ -2340,20 +2357,26 @@
 
     .clean-file-item.reordering-active {
       border-color: #0071e3 !important;
-      box-shadow: 0 12px 28px rgba(0, 113, 227, 0.24) !important;
-      transform: scale(1.015) !important;
-      z-index: 30;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.18), 0 0 0 2px rgba(0, 113, 227, 0.22) !important;
+      z-index: 40;
       position: relative;
       cursor: grabbing !important;
       user-select: none !important;
+      -webkit-user-select: none !important;
       touch-action: none !important;
       background: var(--surface) !important;
+      transition: box-shadow 180ms ease, border-color 180ms ease !important;
     }
 
     .btn-file-move {
       padding: 5px 7px !important;
       min-width: 26px;
       justify-content: center;
+      transition: transform 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn-file-move:active:not(:disabled) {
+      transform: scale(0.92);
     }
 
     .btn-file-move:disabled {
@@ -2370,18 +2393,24 @@
       transform: translateX(-50%) translateY(100px);
       background: #111827;
       color: #ffffff;
-      padding: 12px 22px;
+      padding: 11px 20px;
       border-radius: 980px;
-      font-size: 13.5px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
       display: flex;
       align-items: center;
       gap: 9px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       z-index: 3000;
       opacity: 0;
       pointer-events: none;
-      transition: all 0.3s var(--ease-apple);
+      transition: all 0.28s var(--ease-apple);
+      max-width: 90vw;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .lib-toast.show {
@@ -2389,8 +2418,34 @@
       opacity: 1;
     }
 
+    .lib-toast-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
     .lib-toast svg {
       color: #10b981;
+      flex-shrink: 0;
+    }
+
+    .lib-toast.toast-error svg {
+      color: #f87171;
+    }
+
+    .lib-toast-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: toastSpin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes toastSpin {
+      to { transform: rotate(360deg); }
     }
 
     @media (max-width: 768px) {
@@ -3086,10 +3141,12 @@
 
   <!-- Toast Notification -->
   <div id="libToast" class="lib-toast">
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-    <span id="toastMsg">Uploaded successfully!</span>
+    <span id="toastIconWrap" class="lib-toast-icon">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    </span>
+    <span id="toastMsg">Changes saved</span>
   </div>
 
   <div id="minimalAuthToast" class="minimal-auth-toast">
@@ -3926,9 +3983,9 @@
       }));
 
       const confirmed = await showCustomConfirmModal({
-        title: `Delete ${fileList.length} Selected Note${fileList.length > 1 ? 's' : ''}?`,
-        message: `You are about to permanently delete the selected study materials. This action cannot be undone.`,
-        confirmText: `Yes, Delete (${fileList.length})`,
+        title: `Delete ${fileList.length} Selected Note${fileList.length > 1 ? 's' : ''}`,
+        message: `Are you sure you want to permanently remove the selected study materials? This action cannot be undone.`,
+        confirmText: `Delete (${fileList.length})`,
         files: fileList
       });
 
@@ -3959,11 +4016,11 @@
         }
 
         clearSelectedDrawerFiles();
-        showToast(`🗑️ ${data.message || `Deleted ${fileIds.length} notes successfully`}`);
+        showToast(`Deleted ${fileIds.length} ${fileIds.length === 1 ? 'note' : 'notes'}`);
         await refreshLibraryData();
       } catch (err) {
         console.error('Batch delete error:', err);
-        alert(err.message || 'Could not delete selected files. Please try again.');
+        showToast(err.message || 'Could not delete selected files', 'error');
       }
     };
 
@@ -3980,9 +4037,9 @@
       const fileType = getFileBadge(f.originalName || f.title);
 
       const confirmed = await showCustomConfirmModal({
-        title: 'Delete Study Note?',
-        message: 'Are you sure you want to permanently delete this study note? This action cannot be undone.',
-        confirmText: 'Yes, Delete Note',
+        title: 'Delete Study Note',
+        message: 'Are you sure you want to permanently remove this study note? This action cannot be undone.',
+        confirmText: 'Delete Note',
         files: [{ title: fileTitle, type: fileType }]
       });
 
@@ -4010,11 +4067,11 @@
           throw new Error(data.message || 'Failed to delete note');
         }
 
-        showToast('🗑️ Note deleted successfully');
+        showToast('Note deleted');
         await refreshLibraryData();
       } catch (err) {
         console.error('Delete error:', err);
-        alert(err.message || 'Could not delete note. Please try again.');
+        showToast(err.message || 'Could not delete note', 'error');
       }
     };
 
@@ -4037,9 +4094,9 @@
       });
 
       const confirmed = await showCustomConfirmModal({
-        title: `Delete All Notes from ${chapter}?`,
-        message: `You are about to permanently delete all ${fileIds.length} note${fileIds.length > 1 ? 's' : ''} in "${chapter}". This cannot be undone.`,
-        confirmText: `Yes, Delete All (${fileIds.length})`,
+        title: `Delete All Notes in ${chapter}`,
+        message: `Are you sure you want to permanently remove all ${fileIds.length} note${fileIds.length > 1 ? 's' : ''} from "${chapter}"? This action cannot be undone.`,
+        confirmText: `Delete All (${fileIds.length})`,
         files: fileList
       });
 
@@ -4075,11 +4132,11 @@
           throw new Error(data.message || 'Failed to delete chapter notes');
         }
 
-        showToast(`🗑️ ${data.message || `Deleted ${fileIds.length} notes successfully`}`);
+        showToast(`Deleted ${fileIds.length} ${fileIds.length === 1 ? 'note' : 'notes'}`);
         await refreshLibraryData();
       } catch (err) {
         console.error('Delete chapter error:', err);
-        alert(err.message || 'Could not delete chapter notes. Please try again.');
+        showToast(err.message || 'Could not delete chapter notes', 'error');
       }
     };
 
@@ -4629,7 +4686,7 @@
               `}
               ${canManageThisCourse ? `
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                  <span style="font-size:11px; color:var(--text-subtle);">${uFiles.length > 1 ? 'Tip: Hold &amp; drag a note or use ↑↓ to rearrange' : ''}</span>
+                  <span style="font-size:11px; color:var(--text-subtle);">${uFiles.length > 1 ? 'Hold and drag or use arrows to reorder' : ''}</span>
                   <button type="button" onclick="triggerChapterDirectFileUpload('${escapeJs(course.title)}', '${course.rawSemester}', 'Unit ${u.num}: ${escapeJs(u.title)}', this, event)" class="btn-file-action btn-file-view chapter-quick-upload-btn" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
                 </div>
               ` : ''}
@@ -4709,7 +4766,7 @@
               `}
               ${canManageThisCourse ? `
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                  <span style="font-size:11px; color:var(--text-subtle);">${cFiles.length > 1 ? 'Tip: Hold &amp; drag a note or use ↑↓ to rearrange' : ''}</span>
+                  <span style="font-size:11px; color:var(--text-subtle);">${cFiles.length > 1 ? 'Hold and drag or use arrows to reorder' : ''}</span>
                   <button type="button" onclick="triggerChapterDirectFileUpload('${escapeJs(course.title)}', '${course.rawSemester}', '${escapeJs(chapName)}', this, event)" class="btn-file-action btn-file-view chapter-quick-upload-btn" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
                 </div>
               ` : ''}
@@ -4742,7 +4799,7 @@
               ${labFiles.map((f, idx) => renderChapterFileRowHtml(f, canManageThisCourse, idx, labFiles.length, 'Lab / Practical')).join('')}
               ${canManageThisCourse ? `
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                  <span style="font-size:11px; color:var(--text-subtle);">${labFiles.length > 1 ? 'Tip: Hold &amp; drag a note or use ↑↓ to rearrange' : ''}</span>
+                  <span style="font-size:11px; color:var(--text-subtle);">${labFiles.length > 1 ? 'Hold and drag or use arrows to reorder' : ''}</span>
                   <button type="button" onclick="triggerChapterDirectFileUpload('${escapeJs(course.title)}', '${course.rawSemester}', 'Lab / Practical', this, event)" class="btn-file-action btn-file-view chapter-quick-upload-btn" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
                 </div>
               ` : ''}
@@ -4774,7 +4831,7 @@
               ${general.map((f, idx) => renderChapterFileRowHtml(f, canManageThisCourse, idx, general.length, 'General')).join('')}
               ${canManageThisCourse ? `
                 <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding-top:6px; margin-top:4px; border-top:1px dashed rgba(0,0,0,0.06);">
-                  <span style="font-size:11px; color:var(--text-subtle);">${general.length > 1 ? 'Tip: Hold &amp; drag a note or use ↑↓ to rearrange' : ''}</span>
+                  <span style="font-size:11px; color:var(--text-subtle);">${general.length > 1 ? 'Hold and drag or use arrows to reorder' : ''}</span>
                   <button type="button" onclick="triggerChapterDirectFileUpload('${escapeJs(course.title)}', '${course.rawSemester}', 'General', this, event)" class="btn-file-action btn-file-view chapter-quick-upload-btn" style="font-size:11.5px; padding:4px 10px; cursor:pointer;">+ Add Note to this Chapter</button>
                 </div>
               ` : ''}
@@ -4859,12 +4916,12 @@
     window.renameSubjectPrompt = async function (course) {
       if (!course || !course.title) return;
       const newName = await showCustomPromptModal({
-        title: 'Adjust Subject Name',
-        subtitle: 'Update how this subject appears across your curriculum library.',
+        title: 'Edit Subject Name',
+        subtitle: 'Enter the updated name for this subject.',
         label: 'Subject Name',
         defaultValue: course.title,
         placeholder: 'e.g. Data Structure and Algorithms',
-        confirmText: 'Save Name'
+        confirmText: 'Save Changes'
       });
       if (!newName || newName.trim() === '' || newName.trim() === course.title) return;
       try {
@@ -4881,19 +4938,19 @@
         if (!res.ok) throw new Error(data.message || 'Could not update subject name.');
         course.title = data.newName || newName.trim();
         CURRENT_DRAWER_COURSE = course;
-        showToast(`✅ ${data.message || 'Subject name updated'}`);
+        showToast('Subject name updated');
         await refreshLibraryData();
         openDrawer(course.title);
       } catch (err) {
-        alert(err.message || 'Failed to update subject name.');
+        showToast(err.message || 'Failed to update subject name', 'error');
       }
     };
 
     window.addCustomChapterPrompt = async function (subjectTitle, rawSemester) {
       const chapName = await showCustomPromptModal({
-        title: 'Add New Chapter',
-        subtitle: `Create a new chapter or unit in ${subjectTitle}.`,
-        label: 'Chapter / Unit Name',
+        title: 'Add Chapter',
+        subtitle: 'Enter a name for the new chapter or unit.',
+        label: 'Chapter Name',
         defaultValue: '',
         placeholder: 'e.g. Unit 9: Dynamic Programming',
         confirmText: 'Add Chapter'
@@ -4912,7 +4969,7 @@
           })
         });
       } catch (_) {}
-      showToast(`✅ Chapter "${cleanChap}" added`);
+      showToast('Chapter added');
       await openDrawer(subjectTitle, null, null, cleanChap);
     };
 
@@ -4923,11 +4980,11 @@
       }
       const newChapter = await showCustomPromptModal({
         title: 'Rename Chapter',
-        subtitle: `Adjust the chapter or unit name in ${subjectTitle}.`,
-        label: 'Chapter / Unit Name',
+        subtitle: 'Enter the updated name for this chapter.',
+        label: 'Chapter Name',
         defaultValue: oldChapter,
         placeholder: 'Enter chapter name',
-        confirmText: 'Save Chapter'
+        confirmText: 'Save Changes'
       });
       if (!newChapter || !newChapter.trim() || newChapter.trim() === oldChapter) return;
       const cleanNew = newChapter.trim();
@@ -4944,10 +5001,10 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || 'Could not update chapter name.');
         renameLocalCustomChapter(subjectTitle, oldChapter, cleanNew);
-        showToast(`✅ ${data.message || 'Chapter name updated'}`);
+        showToast('Chapter renamed');
         await refreshLibraryData();
       } catch (err) {
-        alert(err.message || 'Failed to update chapter name.');
+        showToast(err.message || 'Failed to update chapter name', 'error');
       }
     };
 
@@ -4964,11 +5021,11 @@
       const currentTitle = f.title || f.originalName || '';
       const newTitle = await showCustomPromptModal({
         title: 'Rename Note',
-        subtitle: `Update the display name for this study note in ${f.chapter || f.subject || 'your library'}.`,
-        label: 'Note Name',
+        subtitle: 'Enter the updated title for this study note.',
+        label: 'Note Title',
         defaultValue: currentTitle,
         placeholder: 'Enter note title',
-        confirmText: 'Save Name'
+        confirmText: 'Save Changes'
       });
       if (newTitle === null || !newTitle.trim() || newTitle.trim() === currentTitle) return;
 
@@ -4986,10 +5043,10 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.message || 'Could not rename note.');
         f.title = newTitle.trim();
-        showToast('✅ Note renamed successfully');
+        showToast('Note renamed');
         await refreshLibraryData();
       } catch (err) {
-        alert(err.message || 'Failed to rename note.');
+        showToast(err.message || 'Failed to rename note', 'error');
       }
     };
 
@@ -5007,7 +5064,7 @@
       }
       const academicCtx = window.ACADEMIC_CONTEXT;
       if (!academicCtx || !academicCtx.authenticated || academicCtx.isStudent || (!academicCtx.isStaff && academicCtx.role !== 'teacher' && academicCtx.role !== 'admin')) {
-        alert('Only teachers and administrators are authorized to upload notes.');
+        showToast('Only teachers and administrators are authorized to upload notes', 'error');
         return;
       }
       const semObj = SEMESTER_LIST.find(s => s.rawSemester.toLowerCase() === String(rawSemester || '').toLowerCase() || s.shortName.toLowerCase() === String(rawSemester || '').toLowerCase());
@@ -5035,16 +5092,16 @@
         const { subject, semester, chapter, btnEl } = PENDING_CHAPTER_UPLOAD;
         const validFiles = files.filter(f => f.size <= 250 * 1024 * 1024);
         if (!validFiles.length) {
-          alert('Selected file(s) exceed the 250MB limit.');
+          showToast('Selected file exceeds the 250 MB size limit', 'error');
           return;
         }
 
         const originalBtnHtml = btnEl ? btnEl.innerHTML : '+ Add Note to this Chapter';
         if (btnEl) {
           btnEl.disabled = true;
-          btnEl.textContent = `Uploading ${validFiles.length} file${validFiles.length > 1 ? 's' : ''}…`;
+          btnEl.textContent = validFiles.length > 1 ? `Uploading ${validFiles.length} files…` : 'Uploading…';
         }
-        showToast(`⏳ Uploading ${validFiles.length} note${validFiles.length > 1 ? 's' : ''} to ${chapter}…`);
+        showToast(`Uploading ${validFiles.length} ${validFiles.length === 1 ? 'file' : 'files'}…`, 'loading');
 
         try {
           let supaClient = null;
@@ -5064,8 +5121,8 @@
             const uploadedRecords = [];
             for (let i = 0; i < validFiles.length; i++) {
               const file = validFiles[i];
-              if (btnEl) {
-                btnEl.textContent = `Uploading (${i + 1}/${validFiles.length})…`;
+              if (btnEl && validFiles.length > 1) {
+                btnEl.textContent = `Uploading ${i + 1} of ${validFiles.length}…`;
               }
               const authRes = await fetch('/api/files/authorize-upload', {
                 method: 'POST',
@@ -5140,12 +5197,12 @@
             if (!res.ok) throw new Error(data.message || 'Upload failed.');
           }
 
-          showToast(`🎉 ${validFiles.length} note${validFiles.length > 1 ? 's' : ''} uploaded to ${chapter}!`);
+          showToast(`${validFiles.length} ${validFiles.length === 1 ? 'file' : 'files'} uploaded`);
           await refreshLibraryData();
           await openDrawer(subject, null, null, chapter);
         } catch (err) {
           console.error('Direct chapter upload error:', err);
-          alert(err.message || 'Could not upload file(s) to this chapter.');
+          showToast(err.message || 'Could not upload file to this chapter', 'error');
         } finally {
           if (btnEl) {
             btnEl.disabled = false;
@@ -5158,8 +5215,39 @@
     }
 
     // =========================================================================
-    // HARD-PRESS (LONG-PRESS) & DRAG / MOVE UP-DOWN FILE REORDERING IN CHAPTER
+    // SMOOTH 60FPS FLIP ANIMATED FILE REORDERING (HARD-PRESS DRAG & ARROWS)
     // =========================================================================
+
+    function animateSwapWithFLIP(container, performMutation, excludeItem = null) {
+      const items = Array.from(container.querySelectorAll('.clean-file-item'));
+      const firstTops = new Map();
+      items.forEach(el => {
+        firstTops.set(el, el.getBoundingClientRect().top);
+      });
+
+      performMutation();
+
+      items.forEach(el => {
+        if (el === excludeItem) return;
+        const firstTop = firstTops.get(el);
+        if (firstTop === undefined) return;
+        const lastTop = el.getBoundingClientRect().top;
+        const deltaY = firstTop - lastTop;
+        if (Math.abs(deltaY) > 1) {
+          el.style.transition = 'none';
+          el.style.transform = `translate3d(0, ${deltaY}px, 0)`;
+          void el.offsetHeight;
+          el.style.transition = 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)';
+          el.style.transform = 'translate3d(0, 0, 0)';
+          setTimeout(() => {
+            if (!el.classList.contains('reordering-active')) {
+              el.style.transition = '';
+              el.style.transform = '';
+            }
+          }, 270);
+        }
+      });
+    }
 
     async function persistChapterFileOrder(subjectTitle, chapterKey, orderedFileIds) {
       if (!orderedFileIds || !orderedFileIds.length) return;
@@ -5219,18 +5307,20 @@
       if (targetIdx < 0 || targetIdx >= items.length) return;
 
       const targetEl = items[targetIdx];
-      if (direction < 0) {
-        chapterContainer.insertBefore(itemEl, targetEl);
-      } else {
-        chapterContainer.insertBefore(targetEl, itemEl);
-      }
+      animateSwapWithFLIP(chapterContainer, () => {
+        if (direction < 0) {
+          chapterContainer.insertBefore(itemEl, targetEl);
+        } else {
+          chapterContainer.insertBefore(targetEl, itemEl);
+        }
+      });
 
       refreshChapterMoveButtons(chapterContainer);
       const orderedIds = Array.from(chapterContainer.querySelectorAll('.clean-file-item')).map(el => parseInt(el.dataset.fileId, 10));
       const subjectTitle = CURRENT_DRAWER_COURSE ? CURRENT_DRAWER_COURSE.title : '';
       const chapterKey = chapterContainer.getAttribute('data-chapter-list') || '';
       await persistChapterFileOrder(subjectTitle, chapterKey, orderedIds);
-      showToast('✅ Note order updated');
+      showToast('Order updated');
     };
 
     function initChapterFileReordering(subjectTitle) {
@@ -5241,12 +5331,16 @@
         let activeItem = null;
         let isReordering = false;
         let startY = 0;
+        let anchorY = 0;
+        let dragOffsetY = 0;
+        let didChangeOrder = false;
         let suppressNextClick = false;
 
         const onPointerDown = (e) => {
+          if (e.type === 'mousedown' && e.button !== 0) return;
           const item = e.target.closest('.clean-file-item');
           if (!item || !container.contains(item)) return;
-          // Ignore clicks on action buttons or checkboxes unless it's the drag handle
+
           const isHandle = Boolean(e.target.closest('.file-drag-handle'));
           if (!isHandle && (e.target.closest('.clean-file-actions') || e.target.closest('button') || e.target.closest('a') || e.target.closest('label') || e.target.closest('input'))) {
             return;
@@ -5255,53 +5349,91 @@
           const allItems = container.querySelectorAll('.clean-file-item');
           if (allItems.length <= 1) return;
 
-          startY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+          const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+          startY = clientY;
+          anchorY = clientY;
+          dragOffsetY = 0;
+          didChangeOrder = false;
           activeItem = item;
 
           const activateReorder = () => {
             if (!activeItem) return;
+            if (window.getSelection) {
+              try { window.getSelection().removeAllRanges(); } catch (_) {}
+            }
             isReordering = true;
             suppressNextClick = true;
             activeItem.classList.add('reordering-active');
+            activeItem.style.transform = 'translate3d(0, 0, 0) scale(1.012)';
             if (navigator.vibrate) {
-              try { navigator.vibrate(15); } catch (_) {}
+              try { navigator.vibrate(12); } catch (_) {}
             }
           };
 
           if (isHandle) {
-            e.preventDefault();
+            if (e.cancelable) e.preventDefault();
             activateReorder();
           } else {
-            // Hard-press (long-press ~240ms) on the note card activates drag reordering
-            pressTimer = setTimeout(activateReorder, 240);
+            pressTimer = setTimeout(activateReorder, 190);
           }
         };
 
         const onPointerMove = (e) => {
           if (!activeItem) return;
-          const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+          const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
           if (!isReordering) {
-            if (Math.abs(clientY - startY) > 8 && pressTimer) {
+            if (Math.abs(clientY - startY) > 7 && pressTimer) {
               clearTimeout(pressTimer);
               pressTimer = null;
+              activeItem = null;
             }
             return;
           }
 
           if (e.cancelable) e.preventDefault();
+          dragOffsetY = clientY - anchorY;
+          activeItem.style.transform = `translate3d(0, ${dragOffsetY}px, 0) scale(1.012)`;
 
-          const siblings = Array.from(container.querySelectorAll('.clean-file-item:not(.reordering-active)'));
-          for (const sibling of siblings) {
-            const rect = sibling.getBoundingClientRect();
-            const midY = rect.top + rect.height / 2;
-            const activeIdx = Array.from(container.children).indexOf(activeItem);
-            const siblingIdx = Array.from(container.children).indexOf(sibling);
-            if (clientY < midY && activeIdx > siblingIdx) {
-              container.insertBefore(activeItem, sibling);
-              break;
-            } else if (clientY > midY && activeIdx < siblingIdx) {
-              container.insertBefore(sibling, activeItem);
-              break;
+          const activeRect = activeItem.getBoundingClientRect();
+          const activeCenterY = activeRect.top + activeRect.height / 2;
+          const items = Array.from(container.querySelectorAll('.clean-file-item'));
+          const activeIdx = items.indexOf(activeItem);
+
+          // Check swap with previous sibling
+          if (activeIdx > 0) {
+            const prevSibling = items[activeIdx - 1];
+            const prevRect = prevSibling.getBoundingClientRect();
+            const prevMidY = prevRect.top + prevRect.height / 2;
+            if (activeCenterY < prevMidY) {
+              const oldNaturalTop = activeRect.top - dragOffsetY;
+              animateSwapWithFLIP(container, () => {
+                container.insertBefore(activeItem, prevSibling);
+              }, activeItem);
+              const newNaturalTop = activeItem.getBoundingClientRect().top - dragOffsetY;
+              anchorY += (newNaturalTop - oldNaturalTop);
+              dragOffsetY = clientY - anchorY;
+              activeItem.style.transform = `translate3d(0, ${dragOffsetY}px, 0) scale(1.012)`;
+              didChangeOrder = true;
+              return;
+            }
+          }
+
+          // Check swap with next sibling
+          if (activeIdx < items.length - 1) {
+            const nextSibling = items[activeIdx + 1];
+            const nextRect = nextSibling.getBoundingClientRect();
+            const nextMidY = nextRect.top + nextRect.height / 2;
+            if (activeCenterY > nextMidY) {
+              const oldNaturalTop = activeRect.top - dragOffsetY;
+              animateSwapWithFLIP(container, () => {
+                container.insertBefore(nextSibling, activeItem);
+              }, activeItem);
+              const newNaturalTop = activeItem.getBoundingClientRect().top - dragOffsetY;
+              anchorY += (newNaturalTop - oldNaturalTop);
+              dragOffsetY = clientY - anchorY;
+              activeItem.style.transform = `translate3d(0, ${dragOffsetY}px, 0) scale(1.012)`;
+              didChangeOrder = true;
+              return;
             }
           }
         };
@@ -5312,14 +5444,25 @@
             pressTimer = null;
           }
           if (isReordering && activeItem) {
-            activeItem.classList.remove('reordering-active');
-            refreshChapterMoveButtons(container);
-            const orderedIds = Array.from(container.querySelectorAll('.clean-file-item')).map(el => parseInt(el.dataset.fileId, 10));
+            const settledItem = activeItem;
             isReordering = false;
             activeItem = null;
-            await persistChapterFileOrder(subjectTitle, chapterKey, orderedIds);
-            showToast('✅ Note order updated');
-            setTimeout(() => { suppressNextClick = false; }, 120);
+
+            settledItem.style.transition = 'transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms ease';
+            settledItem.style.transform = 'translate3d(0, 0, 0) scale(1)';
+            setTimeout(() => {
+              settledItem.classList.remove('reordering-active');
+              settledItem.style.transition = '';
+              settledItem.style.transform = '';
+            }, 225);
+
+            refreshChapterMoveButtons(container);
+            if (didChangeOrder) {
+              const orderedIds = Array.from(container.querySelectorAll('.clean-file-item')).map(el => parseInt(el.dataset.fileId, 10));
+              await persistChapterFileOrder(subjectTitle, chapterKey, orderedIds);
+              showToast('Order updated');
+            }
+            setTimeout(() => { suppressNextClick = false; }, 140);
           } else {
             isReordering = false;
             activeItem = null;
@@ -5366,14 +5509,36 @@
     const directUploadSubmit = document.getElementById('directUploadSubmit');
     const submitBtnText = document.getElementById('submitBtnText');
     const libToast = document.getElementById('libToast');
+    const toastIconWrap = document.getElementById('toastIconWrap');
     const toastMsg = document.getElementById('toastMsg');
+    let toastHideTimer = null;
 
-    function showToast(message) {
-      toastMsg.textContent = message;
+    function showToast(message, type = 'success') {
+      const cleanMsg = String(message || '').replace(/^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\s]+/u, '').trim();
+      toastMsg.textContent = cleanMsg;
+      libToast.classList.remove('toast-error');
+
+      if (toastIconWrap) {
+        if (type === 'loading') {
+          toastIconWrap.innerHTML = '<span class="lib-toast-spinner"></span>';
+        } else if (type === 'error') {
+          libToast.classList.add('toast-error');
+          toastIconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+        } else {
+          toastIconWrap.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12" /></svg>';
+        }
+      }
+
       libToast.classList.add('show');
-      setTimeout(() => {
-        libToast.classList.remove('show');
-      }, 4000);
+      if (toastHideTimer) {
+        clearTimeout(toastHideTimer);
+        toastHideTimer = null;
+      }
+      if (type !== 'loading') {
+        toastHideTimer = setTimeout(() => {
+          libToast.classList.remove('show');
+        }, 3200);
+      }
     }
 
     function formatBytes(bytes) {
@@ -5644,7 +5809,7 @@
     window.openDirectUploadModal = function (prefillSubject = null, prefillSem = null, prefillChapter = null) {
       const academicCtx = window.ACADEMIC_CONTEXT;
       if (!academicCtx || !academicCtx.authenticated || academicCtx.isStudent || (!academicCtx.isStaff && academicCtx.role !== 'teacher' && academicCtx.role !== 'admin')) {
-        alert('Only teachers and administrators are authorized to upload notes.');
+        showToast('Only teachers and administrators are authorized to upload notes', 'error');
         return;
       }
 
@@ -5656,7 +5821,7 @@
           return sName === p || sCode === p || p.includes(sName) || sName.includes(p);
         });
         if (!isAuth) {
-          alert('You are not authorized to upload notes for this subject.');
+          showToast('You are not authorized to upload notes for this subject', 'error');
           return;
         }
       }
@@ -5848,7 +6013,7 @@
           if (!recRes.ok) throw new Error(recData.message || 'Failed to save upload metadata.');
 
           closeDirectUploadModal();
-          showToast(`🎉 ${uploadedRecords.length} file${uploadedRecords.length > 1 ? 's' : ''} uploaded successfully!`);
+          showToast(`${uploadedRecords.length} ${uploadedRecords.length === 1 ? 'file' : 'files'} uploaded`);
           await refreshLibraryData();
         } else {
           // Standard server fallback upload
@@ -5883,7 +6048,7 @@
           if (!res.ok) throw new Error(data.message || 'Upload failed');
 
           closeDirectUploadModal();
-          showToast(`🎉 ${data.message || `${SELECTED_FILES.length} notes uploaded successfully!`}`);
+          showToast(`${SELECTED_FILES.length} ${SELECTED_FILES.length === 1 ? 'file' : 'files'} uploaded`);
           await refreshLibraryData();
         }
       } catch (err) {

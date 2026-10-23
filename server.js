@@ -1295,24 +1295,10 @@ app.post(['/api/auth/register', '/api/auth/finalize-signup'], loginRateLimiter, 
       return res.status(400).json({ message: 'An account with this email address already exists. Log in instead.' });
     }
 
-    // Authoritative cohort resolution
+    // Authoritative cohort resolution (assigns active cohort if one matches, or keeps semester with unassigned cohort)
     const cohortResolution = await resolveActiveCohortForSemester(db, semNum);
-    if (cohortResolution.status === 'NO_MATCH') {
-      return res.status(400).json({
-        message: `No active academic cohort currently matches Semester ${semNum}. Please check your semester selection or contact administration.`
-      });
-    }
-    if (cohortResolution.status === 'AMBIGUOUS') {
-      return res.status(409).json({
-        message: `Multiple active academic cohorts found for Semester ${semNum}. Administrative cohort assignment required.`
-      });
-    }
-    if (!cohortResolution.cohort || !cohortResolution.cohort.id) {
-      return res.status(400).json({ message: 'Unable to resolve academic cohort for selected semester.' });
-    }
-
-    const assignedCohort = cohortResolution.cohort;
-    const assignedCohortId = assignedCohort.id;
+    const assignedCohort = (cohortResolution && cohortResolution.cohort && cohortResolution.cohort.id) ? cohortResolution.cohort : null;
+    const assignedCohortId = assignedCohort ? assignedCohort.id : null;
 
     let studentIdToUse = String(req.body.studentId || cleanUsername).trim();
     const existingId = await db.get('SELECT studentId FROM students WHERE studentId = ?', studentIdToUse);
@@ -1342,18 +1328,20 @@ app.post(['/api/auth/register', '/api/auth/finalize-signup'], loginRateLimiter, 
       );
     }
 
-    await logCohortAudit(db, {
-      action: 'signup_auto_assign',
-      cohortId: assignedCohortId,
-      actorId: studentIdToUse,
-      details: {
-        semester: cleanSem,
-        semesterNo: semNum,
-        slotCode: assignedCohort.slotCode,
-        displayName: assignedCohort.displayName,
-        currentSemester: assignedCohort.currentSemester
-      }
-    });
+    if (assignedCohortId && assignedCohort) {
+      await logCohortAudit(db, {
+        action: 'signup_auto_assign',
+        cohortId: assignedCohortId,
+        actorId: studentIdToUse,
+        details: {
+          semester: cleanSem,
+          semesterNo: semNum,
+          slotCode: assignedCohort.slotCode,
+          displayName: assignedCohort.displayName,
+          currentSemester: assignedCohort.currentSemester
+        }
+      });
+    }
 
     if (req.session) {
       req.session.studentId = studentIdToUse;
@@ -1466,22 +1454,8 @@ app.post(['/api/auth/register', '/api/auth/finalize-signup'], loginRateLimiter, 
 
   // Authoritative cohort resolution (client-provided cohort_id is strictly ignored)
   const cohortResolution = await resolveActiveCohortForSemester(db, semNum);
-  if (cohortResolution.status === 'NO_MATCH') {
-    return res.status(400).json({
-      message: `No active academic cohort currently matches Semester ${semNum}. Please check your semester selection or contact administration.`
-    });
-  }
-  if (cohortResolution.status === 'AMBIGUOUS') {
-    return res.status(409).json({
-      message: `Multiple active academic cohorts found for Semester ${semNum}. Administrative cohort assignment required.`
-    });
-  }
-  if (!cohortResolution.cohort || !cohortResolution.cohort.id) {
-    return res.status(400).json({ message: 'Unable to resolve academic cohort for selected semester.' });
-  }
-
-  const assignedCohort = cohortResolution.cohort;
-  const assignedCohortId = assignedCohort.id;
+  const assignedCohort = (cohortResolution && cohortResolution.cohort && cohortResolution.cohort.id) ? cohortResolution.cohort : null;
+  const assignedCohortId = assignedCohort ? assignedCohort.id : null;
 
   // Resolve verification redirect URL
   const appBaseUrl = process.env.APP_URL || process.env.SITE_URL;
@@ -1554,18 +1528,20 @@ app.post(['/api/auth/register', '/api/auth/finalize-signup'], loginRateLimiter, 
       );
     }
 
-    await logCohortAudit(db, {
-      action: 'signup_auto_assign',
-      cohortId: assignedCohortId,
-      actorId: cleanStudentId,
-      details: {
-        semester: cleanSem,
-        semesterNo: semNum,
-        slotCode: assignedCohort.slotCode,
-        displayName: assignedCohort.displayName,
-        currentSemester: assignedCohort.currentSemester
-      }
-    });
+    if (assignedCohortId && assignedCohort) {
+      await logCohortAudit(db, {
+        action: 'signup_auto_assign',
+        cohortId: assignedCohortId,
+        actorId: cleanStudentId,
+        details: {
+          semester: cleanSem,
+          semesterNo: semNum,
+          slotCode: assignedCohort.slotCode,
+          displayName: assignedCohort.displayName,
+          currentSemester: assignedCohort.currentSemester
+        }
+      });
+    }
   } catch (dbInsertErr) {
     console.error('[Registration DB Insert Error]:', dbInsertErr.message);
     // Rollback orphaned Supabase Auth user if DB insertion failed
@@ -1584,13 +1560,15 @@ app.post(['/api/auth/register', '/api/auth/finalize-signup'], loginRateLimiter, 
     cohortId: assignedCohortId,
     academicContext: {
       role: 'student',
-      academicStatus: 'active',
-      cohort: {
+      academicStatus: assignedCohort ? 'active' : 'unassigned',
+      semester: cleanSem,
+      currentSemester: semNum,
+      cohort: assignedCohort ? {
         id: assignedCohort.id,
         displayName: assignedCohort.displayName,
         currentSemester: assignedCohort.currentSemester,
         slotCode: assignedCohort.slotCode
-      }
+      } : null
     }
   });
 });
@@ -1680,12 +1658,73 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
     await clearLoginAttempts(ip);
 
     // Fetch authoritative Neon student profile
-    const student = await db.get(
+    let student = await db.get(
       `SELECT studentId, username, name, role, department, semester, cohort_id, gender, email, avatarUrl, verification_status, account_status
        FROM students
        WHERE supabase_uid = ? OR (email IS NOT NULL AND LOWER(email) = ?)`,
       data.user.id, resolvedEmail
     );
+
+    const meta = data.user.user_metadata || {};
+    if (!student) {
+      // Auto-provision student row if Supabase account exists without a local student row
+      try {
+        const cleanName = String(meta.full_name || meta.name || resolvedEmail.split('@')[0] || 'Student').trim() || 'Student';
+        let baseUsername = String(meta.username || meta.studentId || meta.student_id || resolvedEmail.split('@')[0].replace(/[^a-zA-Z0-9_.]/g, '') || `user_${data.user.id.slice(0, 8)}`).trim().toLowerCase();
+        if (baseUsername.length < 3) baseUsername = `user_${data.user.id.slice(0, 8)}`.toLowerCase();
+        let cleanUsername = baseUsername;
+        const existingUsername = await db.get('SELECT studentId FROM students WHERE LOWER(username) = ?', cleanUsername);
+        if (existingUsername) {
+          cleanUsername = `${baseUsername.slice(0, 22)}_${crypto.randomBytes(2).toString('hex')}`;
+        }
+        let studentIdToUse = String(meta.studentId || meta.student_id || cleanUsername).trim();
+        const existingId = await db.get('SELECT studentId FROM students WHERE studentId = ?', studentIdToUse);
+        if (existingId) {
+          studentIdToUse = `s_${cleanUsername}_${crypto.randomBytes(3).toString('hex')}`;
+        }
+        const cleanDept = String(meta.department || 'BIT').trim() || 'BIT';
+        const semNum = parseSemesterNumber(meta.semester) || 1;
+        const cleanSem = `Semester ${semNum}`;
+        const cleanGender = meta.gender && String(meta.gender).trim() ? String(meta.gender).trim().toLowerCase() : null;
+        let assignedCohortId = null;
+        try {
+          const cohortRes = await resolveActiveCohortForSemester(db, semNum);
+          if (cohortRes && cohortRes.cohort && cohortRes.cohort.id) {
+            assignedCohortId = cohortRes.cohort.id;
+          }
+        } catch {}
+
+        if (db.isPostgres) {
+          await db.run(
+            `INSERT INTO students (
+              studentId, username, name, email, supabase_uid,
+              department, semester, gender, role, verification_status,
+              passwordHash, cohort_id, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'student', 'verified', 'supabase_auth', $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            studentIdToUse, cleanUsername, cleanName, resolvedEmail, data.user.id,
+            cleanDept, cleanSem, cleanGender, assignedCohortId
+          );
+        } else {
+          await db.run(
+            `INSERT INTO students (
+              studentId, username, name, email, supabase_uid,
+              department, semester, gender, role, verification_status,
+              passwordHash, cohort_id, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'student', 'verified', 'supabase_auth', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            studentIdToUse, cleanUsername, cleanName, resolvedEmail, data.user.id,
+            cleanDept, cleanSem, cleanGender, assignedCohortId
+          );
+        }
+
+        student = await db.get(
+          `SELECT studentId, username, name, role, department, semester, cohort_id, gender, email, avatarUrl, verification_status, account_status
+           FROM students WHERE studentId = ?`,
+          studentIdToUse
+        );
+      } catch (provErr) {
+        console.warn('[Login Auto-Provision Warning]:', provErr.message);
+      }
+    }
 
     if (student && (student.account_status === 'suspended' || student.accountStatus === 'suspended')) {
       return res.status(403).json({
@@ -1705,6 +1744,17 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
         student.verificationStatus = 'verified';
       }
 
+      if (student.role !== 'teacher' && student.role !== 'admin' && !(student.cohort_id || student.cohortId) && student.semester) {
+        try {
+          const cohortRes = await resolveActiveCohortForSemester(db, student.semester);
+          if (cohortRes && cohortRes.cohort && cohortRes.cohort.id) {
+            student.cohort_id = cohortRes.cohort.id;
+            student.cohortId = cohortRes.cohort.id;
+            db.run('UPDATE students SET cohort_id = ? WHERE studentId = ?', cohortRes.cohort.id, sid).catch(() => {});
+          }
+        } catch {}
+      }
+
       if (req.session) {
         req.session.studentId = student.studentId;
         req.session.studentName = student.name;
@@ -1719,6 +1769,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
       }
     }
 
+    const fallbackSemNum = parseSemesterNumber(student?.semester || meta.semester) || 1;
     return res.json({
       session: {
         access_token: data.session.access_token,
@@ -1727,14 +1778,14 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
         expires_in: data.session.expires_in,
       },
       user: {
-        studentId: student?.studentId || null,
-        username: student?.username || null,
-        name: student?.name || data.user.user_metadata?.name || '',
+        studentId: student?.studentId || meta.username || meta.studentId || data.user.id,
+        username: student?.username || meta.username || null,
+        name: student?.name || meta.full_name || meta.name || resolvedEmail.split('@')[0] || '',
         role: student?.role || 'student',
-        department: student?.department || 'BIT',
-        semester: student?.semester || null,
+        department: student?.department || meta.department || 'BIT',
+        semester: (student?.role === 'teacher') ? null : (student?.semester || `Semester ${fallbackSemNum}`),
         cohortId: student?.cohort_id || student?.cohortId || null,
-        gender: student?.gender || null,
+        gender: student?.gender || meta.gender || null,
         email: student?.email || resolvedEmail,
         verificationStatus: 'verified',
       }

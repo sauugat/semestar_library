@@ -3811,10 +3811,14 @@
         return titleMatch || nameMatch || subMatch || chapMatch;
       });
 
-      // 2. Matching Chapters / Units
+      // 2. Matching Chapters / Units (scoped to active semester for students)
+      const ctxSearch = window.ACADEMIC_CONTEXT;
+      const scopedSearchCourses = (ctxSearch && ctxSearch.isStudent && ACTIVE_SEM)
+        ? ALL_COURSES.filter(c => c.rawSemester === ACTIVE_SEM)
+        : ALL_COURSES;
       const matchChapters = [];
       const seenChapters = new Set();
-      ALL_COURSES.forEach(c => {
+      scopedSearchCourses.forEach(c => {
         if (c.contents) {
           const units = window.SyllabusHelper.parseCourseUnits(c.contents);
           units.forEach(u => {
@@ -3841,7 +3845,7 @@
       // Also match any custom chapters from uploaded files
       (ALL_FILES || []).forEach(f => {
         if (f.chapter && f.chapter.toLowerCase().includes(q) && f.subject) {
-          const course = ALL_COURSES.find(c => c.title.toLowerCase() === f.subject.toLowerCase()) || { code: 'COURSE', rawSemester: f.semester || ACTIVE_SEM };
+          const course = scopedSearchCourses.find(c => c.title.toLowerCase() === f.subject.toLowerCase()) || { code: 'COURSE', rawSemester: f.semester || ACTIVE_SEM };
           const key = `${f.subject}::${f.chapter}`;
           if (!seenChapters.has(key)) {
             seenChapters.add(key);
@@ -3858,7 +3862,7 @@
       });
 
       // 3. Matching Courses
-      const matchCourses = ALL_COURSES.filter(c => {
+      const matchCourses = scopedSearchCourses.filter(c => {
         const cTitle = c.title.toLowerCase().includes(q);
         const cCode = c.code && c.code.toLowerCase().includes(q);
         return cTitle || cCode;

@@ -477,16 +477,25 @@
         if (semester) qp.push('semester=' + encodeURIComponent(semester));
         if (qp.length) url += '?' + qp.join('&');
 
-        fetch(url)
-            .then(async res => {
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.message || 'Failed to load.');
-                return data;
-            })
-            .then(assignments => {
+        (async () => {
+            let activeSem = semester;
+            if (!activeSem && window.AcademicContext && typeof window.AcademicContext.getAcademicContext === 'function') {
+                try {
+                    const ctx = await window.AcademicContext.getAcademicContext();
+                    if (ctx && ctx.authenticated && ctx.isStudent && ctx.currentSemester) {
+                        activeSem = String(ctx.currentSemester);
+                    }
+                } catch (_) {}
+            }
+            const res = await fetch(url);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Failed to load.');
+            return { assignments: data, activeSem };
+        })()
+            .then(({ assignments, activeSem }) => {
                 const listEl = document.getElementById('list');
                 subtitleEl.textContent = `${assignments.length} assignment${assignments.length !== 1 ? 's' : ''}` +
-                    (semester ? ` · Semester ${semester}` : '');
+                    (activeSem ? ` · Semester ${activeSem}` : '');
 
                 if (!assignments.length) {
                     listEl.innerHTML = `

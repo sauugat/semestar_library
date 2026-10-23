@@ -719,9 +719,21 @@
       registerBtn.textContent = 'Creating account…';
 
       try {
-        // 1. Update Supabase password to permanent user choice
+        // 1. Update Supabase password and user metadata to permanent user choice
         const supabase = await getSupabaseClientSafe();
-        const { error: pwdErr } = await supabase.auth.updateUser({ password });
+        const { error: pwdErr } = await supabase.auth.updateUser({
+          password,
+          data: {
+            name: fullName,
+            full_name: fullName,
+            username,
+            studentId: username,
+            department,
+            semester,
+            gender: gender || null,
+            role: 'student'
+          }
+        });
         if (pwdErr) {
           showRegisterAlert(pwdErr.message || 'Failed to set account password.', 'error');
           registerBtn.disabled = false;

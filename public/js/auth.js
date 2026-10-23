@@ -163,10 +163,14 @@
         const meta = session.user.user_metadata || {};
         const name = meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Student';
         cachedUser = {
-          studentId: meta.student_id || meta.studentId || session.user.id,
+          studentId: meta.student_id || meta.studentId || meta.username || session.user.id,
+          username: meta.username || null,
           name: name,
           email: session.user.email,
           role: meta.role || 'student',
+          department: meta.department || 'BIT',
+          semester: meta.semester || null,
+          cohortId: meta.cohortId || meta.cohort_id || null,
           avatarUrl: meta.avatar_url || meta.avatarUrl || null
         };
         try { window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser)); } catch {}
@@ -196,10 +200,14 @@
       const meta = session.user.user_metadata || {};
       const name = meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Student';
       cachedUser = {
-        studentId: meta.student_id || meta.studentId || session.user.id,
+        studentId: meta.student_id || meta.studentId || meta.username || session.user.id,
+        username: meta.username || null,
         name: name,
         email: session.user.email,
         role: meta.role || 'student',
+        department: meta.department || 'BIT',
+        semester: meta.semester || null,
+        cohortId: meta.cohortId || meta.cohort_id || null,
         avatarUrl: meta.avatar_url || meta.avatarUrl || null
       };
       if (session.access_token && !cachedAccessToken) {
@@ -232,13 +240,9 @@
    * Resolves currently authenticated user from session & /api/me
    */
   async function getUser(forceRefresh = false) {
-    if (!forceRefresh && cachedUser) return cachedUser;
+    if (!forceRefresh && cachedUser && cachedUser._validated) return cachedUser;
     const syncUser = getUserSync();
-    if (!forceRefresh && syncUser) {
-      if (!window._sl_user_validated) {
-        window._sl_user_validated = true;
-        revalidateUser().catch(() => {});
-      }
+    if (!forceRefresh && syncUser && syncUser._validated) {
       return syncUser;
     }
     if (!forceRefresh && userPromise) return userPromise;
@@ -247,7 +251,7 @@
 
     try {
       const res = await userPromise;
-      return res;
+      return res || syncUser;
     } finally {
       userPromise = null;
     }
@@ -256,6 +260,8 @@
   async function revalidateUser() {
     const session = await getSession();
     if (!session || !session.access_token) {
+      const syncUser = getUserSync();
+      if (syncUser) return syncUser;
       cachedUser = null;
       try { window.sessionStorage.removeItem('sl_user_cache'); } catch {}
       return null;
@@ -268,6 +274,7 @@
       if (res.ok) {
         const data = await res.json();
         if (data && data.studentId) {
+          data._validated = true;
           cachedUser = data;
           try { window.sessionStorage.setItem('sl_user_cache', JSON.stringify(data)); } catch {}
           return data;
@@ -281,10 +288,14 @@
     if (session.user) {
       const meta = session.user.user_metadata || {};
       cachedUser = {
-        studentId: meta.student_id || meta.studentId || session.user.id,
+        studentId: meta.student_id || meta.studentId || meta.username || session.user.id,
+        username: meta.username || null,
         name: meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Student',
         email: session.user.email,
         role: meta.role || 'student',
+        department: meta.department || 'BIT',
+        semester: meta.semester || null,
+        cohortId: meta.cohortId || meta.cohort_id || null,
         avatarUrl: meta.avatar_url || meta.avatarUrl || null
       };
       try { window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser)); } catch {}

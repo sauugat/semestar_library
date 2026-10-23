@@ -112,17 +112,23 @@
     try {
       let user = null;
       if (typeof window.SemesterAuth.getUser === 'function') {
-        user = await window.SemesterAuth.getUser();
-      } else if (typeof window.SemesterAuth.getUserSync === 'function') {
+        user = await window.SemesterAuth.getUser(true).catch(() => null);
+        if (!user) {
+          user = await window.SemesterAuth.getUser().catch(() => null);
+        }
+      }
+      if (!user && typeof window.SemesterAuth.getUserSync === 'function') {
         user = window.SemesterAuth.getUserSync();
       }
       if (user && (user.studentId || user.email || user.name)) {
+        const semNum = parseSemesterNumber(user.semester || user.currentSemester) || 1;
         return normalizeContext({
           authenticated: true,
           role: user.role || 'student',
-          studentId: user.studentId || '',
+          studentId: user.studentId || user.username || '',
           name: user.name || '',
-          semester: user.semester || 'Semester 1',
+          semester: user.semester || `Semester ${semNum}`,
+          currentSemester: semNum,
           cohort: user.cohort || null,
           academicStatus: user.cohort ? 'active' : 'unassigned'
         });

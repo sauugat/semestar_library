@@ -2654,6 +2654,7 @@
       <div id="heroRealText" style="display: none;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
           <p class="dash-greeting-line" id="greetingLine" style="margin:0;"></p>
+          <span id="dashAcademicBadge" class="academic-context-badge" style="display:none;"></span>
         </div>
         <p class="dash-id" id="idLine"></p>
       </div>
@@ -2886,6 +2887,10 @@
         if (!canPostNotice) {
           const noticeOpt = document.querySelector('#composerCategoryMenu [data-value="notice"]');
           if (noticeOpt) noticeOpt.style.display = 'none';
+        }
+
+        if (window.AcademicContext && typeof window.AcademicContext.renderBadge === 'function') {
+          window.AcademicContext.renderBadge('#dashAcademicBadge');
         }
       })
       .catch(() => {

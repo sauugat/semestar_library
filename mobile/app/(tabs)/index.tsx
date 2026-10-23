@@ -34,6 +34,7 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Clipboard from 'expo-clipboard';
 import { useAuth } from '@/context/AuthContext';
+import { useAcademicContext } from '@/hooks/useAcademicContext';
 import { useTheme } from '@/constants/useTheme';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
@@ -560,6 +561,7 @@ function StudentHomeScreenInner() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, token } = useAuth();
+  const { displayLabel } = useAcademicContext();
   const { isAdmin, setAdminMode } = useAdminMode();
   const isStaff = Boolean(isAdmin || user?.isAdmin || user?.role === 'teacher' || user?.role === 'admin');
   const { colors, spacing, radii } = useTheme();
@@ -1719,6 +1721,13 @@ function StudentHomeScreenInner() {
               Semester Library
             </Text>
           </TouchableOpacity>
+          {isStaff && Boolean(displayLabel) && (
+            <View style={[styles.academicBadge, { borderColor: colors.border, backgroundColor: colors.surfaceSubtle }]}>
+              <Text style={[styles.academicBadgeText, { color: colors.textSecondary }]} numberOfLines={1}>
+                {displayLabel}
+              </Text>
+            </View>
+          )}
           {isAdmin && (
             <TouchableOpacity
               onPress={() => void setAdminMode('admin')}

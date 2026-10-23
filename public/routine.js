@@ -243,6 +243,22 @@
     renderFilters();
     renderPublic();
   });
-  renderFilters();
-  loadRoutines().then(checkAdminAccess);
+
+  async function initRoutinePage() {
+    if (window.AcademicContext && typeof window.AcademicContext.getAcademicContext === 'function') {
+      try {
+        const ctx = await window.AcademicContext.getAcademicContext();
+        if (ctx && ctx.authenticated && ctx.isStudent && ctx.currentSemester) {
+          selectedSemester = Number(ctx.currentSemester);
+          const filtersEl = byId('routineFilters');
+          if (filtersEl) filtersEl.hidden = true;
+        }
+      } catch (_) {}
+    }
+    renderFilters();
+    await loadRoutines();
+    await checkAdminAccess();
+  }
+
+  initRoutinePage();
 })();

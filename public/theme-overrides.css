@@ -159,7 +159,7 @@
   ) { color: #f5f5f5 !important; background: #242424 !important; border-color: rgba(255, 255, 255, 0.20) !important; }
 
   html[data-theme="dark"] body :is(
-    .btn-confirm-danger, .batch-btn-delete-action, .cl-btn-pro, .cl-btn-run,
+    .cl-btn-pro, .cl-btn-run,
     .cl-window-run-btn, .cl-create-btn, .cl-modal-btn:not(.cancel),
     .cl-btn-save-grade, .cl-btn-bulk-release, .cl-view-btn.active,
     .cl-mode-tab-btn.active, .cl-seg-btn.active

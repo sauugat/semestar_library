@@ -679,9 +679,9 @@ body.dark-mode .btn-file-get:hover,
 body.dark-mode a.btn-file-get:hover,
 [data-theme="dark"] .btn-file-action.btn-file-get:hover,
 body.dark-mode .btn-file-action.btn-file-get:hover {
-  background: #000000 !important;
+  background: #4b5563 !important;
   color: #ffffff !important;
-  border-color: #000000 !important;
+  border-color: #4b5563 !important;
 }
 
 [data-theme="dark"] .dash-hero-btn:not(.secondary),

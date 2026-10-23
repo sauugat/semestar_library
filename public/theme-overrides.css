@@ -154,7 +154,7 @@
     .btn-modal-cancel, .btn-confirm-cancel, .cl-cancel-btn, .cl-add-btn, .cl-remove-btn,
     .cl-btn-secondary, .cl-btn-glass, .cl-crumb-link, .cl-tool-link, .cl-copy-btn,
     .cl-grade-draft-btn, .cl-mark-all-btn, .preview-action-btn,
-    .preview-mobile-back-btn, .btn-file-view, .btn-file-delete, .btn-unit-delete-all,
+    .preview-mobile-back-btn, .btn-file-view:not(.btn-note-view), .btn-file-delete, .btn-unit-delete-all,
     .batch-btn-toggle, .ag-inspect-btn, .cl-modal-btn.cancel
   ) { color: #f5f5f5 !important; background: #242424 !important; border-color: rgba(255, 255, 255, 0.20) !important; }
 

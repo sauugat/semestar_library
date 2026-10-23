@@ -993,7 +993,7 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      transition: border-color 0.18s ease;
+      transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
       cursor: pointer;
       border: 1px solid transparent;
     }
@@ -1007,22 +1007,16 @@
     .btn-file-view:hover,
     .btn-file-view:focus,
     .btn-file-view:active {
-      background: #f3f4f6 !important;
+      background: #e5e7eb !important;
       color: #111827 !important;
-      border-color: var(--border) !important;
+      border-color: #d1d5db !important;
       outline: none !important;
       box-shadow: none !important;
       transform: none !important;
     }
 
     [data-theme="dark"] .btn-file-view,
-    body.dark-mode .btn-file-view,
-    [data-theme="dark"] .btn-file-view:hover,
-    body.dark-mode .btn-file-view:hover,
-    [data-theme="dark"] .btn-file-view:focus,
-    body.dark-mode .btn-file-view:focus,
-    [data-theme="dark"] .btn-file-view:active,
-    body.dark-mode .btn-file-view:active {
+    body.dark-mode .btn-file-view {
       background: var(--surface) !important;
       color: var(--text) !important;
       border: 1px solid var(--border) !important;
@@ -1031,18 +1025,82 @@
       transform: none !important;
     }
 
+    [data-theme="dark"] .btn-file-view:hover,
+    body.dark-mode .btn-file-view:hover,
+    [data-theme="dark"] .btn-file-view:focus,
+    body.dark-mode .btn-file-view:focus,
+    [data-theme="dark"] .btn-file-view:active,
+    body.dark-mode .btn-file-view:active {
+      background: #3a3a3c !important;
+      color: var(--text) !important;
+      border: 1px solid #52525b !important;
+      outline: none !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    /* View button in notes: Black background, Gray on hover */
+    .btn-file-view.btn-note-view,
+    [data-theme="dark"] .btn-file-view.btn-note-view,
+    body.dark-mode .btn-file-view.btn-note-view {
+      background: #000000 !important;
+      color: #ffffff !important;
+      border: 1px solid #000000 !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    .btn-file-view.btn-note-view *,
+    [data-theme="dark"] .btn-file-view.btn-note-view *,
+    body.dark-mode .btn-file-view.btn-note-view * {
+      color: #ffffff !important;
+      stroke: #ffffff !important;
+    }
+
+    .btn-file-view.btn-note-view:hover,
+    .btn-file-view.btn-note-view:focus,
+    .btn-file-view.btn-note-view:active,
+    [data-theme="dark"] .btn-file-view.btn-note-view:hover,
+    body.dark-mode .btn-file-view.btn-note-view:hover,
+    [data-theme="dark"] .btn-file-view.btn-note-view:focus,
+    body.dark-mode .btn-file-view.btn-note-view:focus,
+    [data-theme="dark"] .btn-file-view.btn-note-view:active,
+    body.dark-mode .btn-file-view.btn-note-view:active {
+      background: #4b5563 !important;
+      color: #ffffff !important;
+      border: 1px solid #4b5563 !important;
+      outline: none !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
+    .btn-file-view.btn-note-view:hover *,
+    [data-theme="dark"] .btn-file-view.btn-note-view:hover *,
+    body.dark-mode .btn-file-view.btn-note-view:hover * {
+      color: #ffffff !important;
+      stroke: #ffffff !important;
+    }
+
     #dRenameSubjectBtn,
     [data-theme="dark"] #dRenameSubjectBtn,
-    body.dark-mode #dRenameSubjectBtn,
+    body.dark-mode #dRenameSubjectBtn {
+      background: #000000 !important;
+      color: #ffffff !important;
+      border: 1px solid #000000 !important;
+      font-weight: 700 !important;
+      outline: none !important;
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
     #dRenameSubjectBtn:hover,
     #dRenameSubjectBtn:focus,
     #dRenameSubjectBtn:active,
     [data-theme="dark"] #dRenameSubjectBtn:hover,
     body.dark-mode #dRenameSubjectBtn:hover {
-      background: #000000 !important;
+      background: #4b5563 !important;
       color: #ffffff !important;
-      border: 1px solid #000000 !important;
-      font-weight: 700 !important;
+      border: 1px solid #4b5563 !important;
       outline: none !important;
       box-shadow: none !important;
       transform: none !important;
@@ -1089,9 +1147,9 @@
     body.dark-mode a.btn-file-get:hover,
     [data-theme="dark"] .btn-file-action.btn-file-get:hover,
     body.dark-mode .btn-file-action.btn-file-get:hover {
-      background: #000000 !important;
+      background: #4b5563 !important;
       color: #ffffff !important;
-      border-color: #000000 !important;
+      border-color: #4b5563 !important;
     }
 
     .btn-file-get:hover *,
@@ -1116,9 +1174,9 @@
     .btn-file-delete:hover,
     .btn-file-delete:focus,
     .btn-file-delete:active {
-      background: #f3f4f6 !important;
+      background: #e5e7eb !important;
       color: #111827 !important;
-      border-color: var(--border) !important;
+      border-color: #d1d5db !important;
       transform: none !important;
     }
 
@@ -1134,27 +1192,33 @@
       border: 1px solid var(--border);
       border-radius: 6px;
       cursor: pointer;
-      transition: border-color 0.2s ease;
+      transition: background 0.2s ease, border-color 0.2s ease;
     }
 
     .btn-unit-delete-all:hover {
-      background: #f3f4f6;
+      background: #e5e7eb;
       color: #111827;
-      border-color: var(--border);
+      border-color: #d1d5db;
       transform: none;
     }
 
     [data-theme="dark"] .btn-file-delete,
     body.dark-mode .btn-file-delete,
     [data-theme="dark"] .btn-unit-delete-all,
-    body.dark-mode .btn-unit-delete-all,
+    body.dark-mode .btn-unit-delete-all {
+      background: var(--bg-surface-raised, #202020) !important;
+      color: var(--text-primary, #f5f5f5) !important;
+      border: 1px solid var(--border-strong, #4a4a4a) !important;
+      transform: none !important;
+    }
+
     [data-theme="dark"] .btn-file-delete:hover,
     body.dark-mode .btn-file-delete:hover,
     [data-theme="dark"] .btn-unit-delete-all:hover,
     body.dark-mode .btn-unit-delete-all:hover {
-      background: var(--bg-surface-raised, #202020) !important;
+      background: #3a3a3c !important;
       color: var(--text-primary, #f5f5f5) !important;
-      border: 1px solid var(--border-strong, #4a4a4a) !important;
+      border: 1px solid #52525b !important;
       transform: none !important;
     }
 
@@ -3828,7 +3892,7 @@
               <span class="file-custom-check"></span>
             </label>
           ` : ''}
-          <button type="button" class="btn-file-action btn-file-view" onclick="${viewClickFn}" title="Read in same page">
+          <button type="button" class="btn-file-action btn-file-view btn-note-view" onclick="${viewClickFn}" title="Read in same page">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             <span>View</span>
           </button>

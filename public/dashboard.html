@@ -1394,14 +1394,15 @@
       padding: 0 0 12px 0 !important;
       margin: 0 !important;
       border: 0 !important;
-      border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08)) !important;
+      border-bottom: none !important;
       background: transparent !important;
       box-shadow: none !important;
     }
 
     [data-theme="dark"] .fb-modal-post-host .post-card,
     body.dark-mode .fb-modal-post-host .post-card {
-      border-bottom-color: rgba(255, 255, 255, 0.09) !important;
+      border: none !important;
+      border-bottom: none !important;
     }
 
     .fb-modal-post-host .post-comments-drawer {
@@ -1490,14 +1491,14 @@
       padding: 8px 12px;
       border-radius: 14px;
       background: var(--bg-secondary, #f0f2f5);
-      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+      border: none !important;
       box-sizing: border-box;
     }
 
     [data-theme="dark"] .post-comment-bubble,
     body.dark-mode .post-comment-bubble {
       background: #202025 !important;
-      border-color: rgba(255, 255, 255, 0.07) !important;
+      border: none !important;
     }
 
     .post-comment-header {
@@ -1709,21 +1710,22 @@
       align-items: flex-end;
       gap: 6px;
       background: var(--bg-secondary, #f0f2f5);
-      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+      border: none !important;
       border-radius: 20px;
       padding: 6px 8px 6px 14px;
       box-sizing: border-box;
-      transition: border-color 0.15s ease, background 0.15s ease;
+      transition: background 0.15s ease;
     }
 
     [data-theme="dark"] .fb-composer-input-pill,
     body.dark-mode .fb-composer-input-pill {
       background: #202025 !important;
-      border-color: rgba(255, 255, 255, 0.12) !important;
+      border: none !important;
     }
 
     .fb-composer-input-pill:focus-within {
-      border-color: var(--text-secondary, #71717a) !important;
+      border: none !important;
+      box-shadow: none !important;
     }
 
     .fb-composer-input-pill .post-comment-textarea {

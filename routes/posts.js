@@ -66,7 +66,7 @@ function getSafeFileExtension(file) {
   if (file.mimetype && imageExtensions[file.mimetype]) return imageExtensions[file.mimetype];
   if (file.mimetype && documentExtensions[file.mimetype]) return documentExtensions[file.mimetype];
   const origExt = path.extname(file.originalname || '').toLowerCase();
-  if (['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.txt', '.zip', '.jpg', '.jpeg', '.png', '.webp'].includes(origExt)) {
+  if (['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.txt', '.zip', '.csv', '.rtf', '.md', '.json', '.jpg', '.jpeg', '.png', '.webp'].includes(origExt)) {
     return origExt;
   }
   return file.mimetype?.startsWith('image/') ? '.jpg' : '.bin';
@@ -148,7 +148,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       }
       const origExt = path.extname(file.originalname || '').toLowerCase();
       const isDoc = (file.mimetype && Boolean(documentExtensions[file.mimetype])) ||
-        ['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.txt', '.zip'].includes(origExt);
+        ['.pdf', '.docx', '.doc', '.pptx', '.ppt', '.xlsx', '.xls', '.txt', '.zip', '.csv', '.rtf', '.md', '.json'].includes(origExt);
       if (isImg || isDoc) return cb(null, true);
       const err = new Error('Please choose an image or document (PDF, Word, PPTX, Excel, TXT, ZIP).');
       err.code = 'INVALID_FILE_TYPE';

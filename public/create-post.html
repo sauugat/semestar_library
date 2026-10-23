@@ -437,12 +437,17 @@
       border-color: var(--border-hover);
     }
 
-    .composer-wysiwyg-editor:empty:before,
-    .composer-wysiwyg-editor[data-empty="true"]:before {
+    .composer-wysiwyg-editor:empty:not(:focus):before,
+    .composer-wysiwyg-editor[data-empty="true"]:not(:focus):before {
       content: attr(data-placeholder);
       color: var(--text-muted);
       pointer-events: none;
       display: block;
+    }
+
+    .composer-wysiwyg-editor:focus:before {
+      display: none !important;
+      content: none !important;
     }
 
     .composer-wysiwyg-editor p {
@@ -1198,11 +1203,7 @@
           <div class="email-header-row email-from-row">
             <span class="email-row-label">FROM :</span>
             <div class="email-row-content">
-              <div class="email-sender-chip">
-                <div class="author-avatar small" id="emailAuthorAvatar">·</div>
-                <span class="email-author-name" id="emailAuthorName">Student</span>
-                <span class="author-role-badge" id="emailAuthorRole">STUDENT</span>
-              </div>
+              <span class="email-author-name" id="emailAuthorName" style="font-weight: 600; font-size: 14px; color: var(--text-main);">Student</span>
             </div>
           </div>
 
@@ -1233,7 +1234,7 @@
                  aria-multiline="true"
                  aria-label="Post body"
                  class="composer-wysiwyg-editor post-markdown-content"
-                 data-placeholder="What's on your mind? Format directly or paste content..."></div>
+                 data-placeholder="What's on your mind?"></div>
             <input type="hidden" id="postContent" name="content">
           </div>
 
@@ -1286,7 +1287,7 @@
 
         <!-- Attachments Toolbar -->
         <input type="file" id="imageInput" accept="image/*" multiple hidden>
-        <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip" multiple hidden>
+        <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.txt,.zip,.csv,.rtf,.md,.json,.jpg,.jpeg,.png,.webp,*/*" multiple hidden>
 
         <div class="attachments-toolbar">
           <button type="button" class="tool-btn" id="addImageBtn">
@@ -2485,8 +2486,14 @@
       fileInput.addEventListener('change', () => {
         const files = Array.from(fileInput.files || []);
         for (const file of files) {
-          if (composerFiles.length >= 5) break;
-          if (file.size > 4 * 1024 * 1024) continue;
+          if (composerFiles.length >= 5) {
+            if (feedback) feedback.textContent = 'Maximum 5 files allowed.';
+            break;
+          }
+          if (file.size > 4 * 1024 * 1024) {
+            if (feedback) feedback.textContent = `File "${file.name}" exceeds the 4 MB limit.`;
+            continue;
+          }
           composerFiles.push(file);
         }
         fileInput.value = '';
@@ -2595,8 +2602,14 @@
           formData.append('files', file);
         });
 
+        const authHeaders = (typeof SemesterAuth !== 'undefined' && SemesterAuth.getAuthHeaders)
+          ? SemesterAuth.getAuthHeaders()
+          : {};
+        delete authHeaders['Content-Type'];
+
         const res = await fetch('/api/posts', {
           method: 'POST',
+          headers: authHeaders,
           body: formData
         });
         const data = await res.json();

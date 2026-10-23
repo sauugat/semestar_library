@@ -449,10 +449,10 @@
     body.dark-mode .skeleton-footer {
       border-top-color: var(--border-color) !important;
     }
-    /* Dashboard layout: feed covers 85% of screen width; posts adjust height accordingly */
+    /* Dashboard layout: feed covers 90% of screen width; posts adjust height accordingly */
     body.dash .feed {
-      width: 85vw !important;
-      max-width: 85vw !important;
+      width: 90vw !important;
+      max-width: 90vw !important;
       margin-left: auto !important;
       margin-right: auto !important;
       padding-left: 0 !important;
@@ -467,15 +467,15 @@
     }
 
     body.dash .dash-hero {
-      width: 85vw !important;
-      max-width: 85vw !important;
+      width: 90vw !important;
+      max-width: 90vw !important;
       margin: 28px auto 0 !important;
       box-sizing: border-box !important;
     }
 
     body.dash .feed-heading {
-      width: 85vw !important;
-      max-width: 85vw !important;
+      width: 90vw !important;
+      max-width: 90vw !important;
       margin: 38px auto 0 !important;
       padding-left: 0 !important;
       padding-right: 0 !important;
@@ -500,7 +500,7 @@
       padding: 16px !important;
       height: auto !important;
       min-height: auto !important;
-      max-height: 85vh;
+      max-height: 90vh;
       overflow-y: auto;
       scrollbar-width: thin;
       margin: 0 !important;
@@ -1262,7 +1262,7 @@
       align-items: center;
       justify-content: center;
       z-index: 9500;
-      padding: 20px 16px;
+      padding: 0;
       box-sizing: border-box;
     }
 
@@ -1271,10 +1271,10 @@
     }
 
     .fb-post-modal-card {
-      width: 85vw;
-      max-width: 85vw;
-      height: auto;
-      max-height: 85dvh;
+      width: 90vw !important;
+      max-width: 90vw !important;
+      height: 90dvh !important;
+      max-height: 90dvh !important;
       background: var(--bg-primary, #ffffff);
       color: var(--text-primary, #111827);
       border: 1px solid var(--border-color, rgba(0, 0, 0, 0.14));
@@ -1289,9 +1289,10 @@
 
     @media (max-width: 768px) {
       .fb-post-modal-card {
-        width: 95vw;
-        max-width: 95vw;
-        max-height: 85dvh;
+        width: 95vw !important;
+        max-width: 95vw !important;
+        height: 94dvh !important;
+        max-height: 94dvh !important;
       }
     }
 
@@ -1380,11 +1381,11 @@
     }
 
     .fb-modal-scroll-body {
-      flex: 1;
+      flex: 1 1 auto;
+      min-height: 0;
       overflow-y: auto;
       padding: 16px 20px 14px;
       scrollbar-width: thin;
-      max-height: calc(85dvh - 56px);
     }
 
     .fb-modal-post-host .post-card {

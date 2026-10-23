@@ -1226,8 +1226,8 @@
     }
 
     .fb-post-modal-card {
-      width: 100%;
-      max-width: 680px;
+      width: 85vw;
+      max-width: 85vw;
       max-height: calc(100dvh - 40px);
       background: var(--bg-primary, #ffffff);
       color: var(--text-primary, #111827);
@@ -1239,6 +1239,13 @@
       overflow: hidden;
       box-sizing: border-box;
       animation: fbModalPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @media (max-width: 768px) {
+      .fb-post-modal-card {
+        width: 95vw;
+        max-width: 95vw;
+      }
     }
 
     @keyframes fbModalPop {
@@ -1350,6 +1357,14 @@
 
     .fb-modal-post-host .post-comments-drawer {
       display: none !important;
+    }
+
+    .fb-modal-post-host .post-content,
+    .fb-modal-post-host .post-content-unclamped,
+    .fb-modal-post-host .post-content-clamped,
+    .fb-modal-post-host .status-post-text,
+    .fb-modal-post-host .status-post-text.post-markdown-content {
+      max-width: 100% !important;
     }
 
     /* Shared Facebook-Inspired Comments Thread & Composer (Modal, Fullscreen & Inline) */
@@ -1585,6 +1600,10 @@
       color: var(--text-muted, #71717a);
       margin-bottom: 6px;
       padding: 0 4px;
+    }
+
+    .fb-composer-mode-banner[hidden] {
+      display: none !important;
     }
 
     .fb-composer-mode-cancel {

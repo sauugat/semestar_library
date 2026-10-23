@@ -112,30 +112,45 @@
 
         [data-theme="dark"] .cl-filter-tab,
         body.dark-mode .cl-filter-tab {
-            background: var(--bg-surface-raised, #202020) !important;
-            border: 1px solid var(--border, #333333) !important;
-            color: var(--text-primary, #f5f5f5) !important;
+            background: #1c1c1e !important;
+            border: 1px solid rgba(255, 255, 255, 0.14) !important;
+            color: #e4e4e7 !important;
+        }
+        [data-theme="dark"] .cl-filter-tab > span:not(.cl-tab-badge),
+        body.dark-mode .cl-filter-tab > span:not(.cl-tab-badge) {
+            color: #e4e4e7 !important;
         }
         [data-theme="dark"] .cl-filter-tab:hover,
         body.dark-mode .cl-filter-tab:hover {
-            border-color: var(--border-strong, #4a4a4a) !important;
+            background: #27272a !important;
+            border-color: rgba(255, 255, 255, 0.28) !important;
+            color: #ffffff !important;
+        }
+        [data-theme="dark"] .cl-filter-tab:hover > span:not(.cl-tab-badge),
+        body.dark-mode .cl-filter-tab:hover > span:not(.cl-tab-badge) {
             color: #ffffff !important;
         }
         [data-theme="dark"] .cl-filter-tab.active,
         body.dark-mode .cl-filter-tab.active {
-            background: var(--fill-active, #f5f5f5) !important;
-            border-color: var(--fill-active, #f5f5f5) !important;
-            color: var(--fill-active-text, #0a0a0a) !important;
+            background: #ffffff !important;
+            border-color: #ffffff !important;
+            color: #09090b !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+        }
+        [data-theme="dark"] .cl-filter-tab.active > span:not(.cl-tab-badge),
+        body.dark-mode .cl-filter-tab.active > span:not(.cl-tab-badge) {
+            color: #09090b !important;
+            font-weight: 700 !important;
         }
         [data-theme="dark"] .cl-tab-badge,
         body.dark-mode .cl-tab-badge {
             background: rgba(255, 255, 255, 0.12) !important;
-            color: var(--text-primary, #f5f5f5) !important;
+            color: #e4e4e7 !important;
         }
         [data-theme="dark"] .cl-filter-tab.active .cl-tab-badge,
         body.dark-mode .cl-filter-tab.active .cl-tab-badge {
-            background: rgba(0, 0, 0, 0.18) !important;
-            color: var(--fill-active-text, #0a0a0a) !important;
+            background: #09090b !important;
+            color: #ffffff !important;
         }
 
         [data-theme="dark"] .cl-report-card,
@@ -595,11 +610,11 @@
             }
         }
 
-        /* ── Defined Filter Tabs (Compact & Modern) ── */
+        /* ── Defined Filter Tabs (Clean & High Contrast in Light + Dark Mode) ── */
         .cl-filter-bar {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             margin-bottom: 20px;
             flex-wrap: wrap;
         }
@@ -607,50 +622,62 @@
         .cl-filter-tab {
             display: inline-flex;
             align-items: center;
-            gap: 4.5px;
-            padding: 3px 9px;
+            gap: 7px;
+            padding: 6px 14px;
             border-radius: 980px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 600;
+            font-family: var(--apple-font);
             cursor: pointer;
-            border: 1px solid var(--cl-border-subtle);
-            background: var(--cl-white);
-            color: var(--cl-gray-dark);
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #334155;
             transition: all 0.18s cubic-bezier(0.25, 1, 0.5, 1);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
-            line-height: 1.35;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            line-height: 1.3;
+        }
+
+        .cl-filter-tab > span:not(.cl-tab-badge) {
+            color: inherit !important;
+            font-size: 12px !important;
+            font-weight: 600 !important;
         }
 
         .cl-filter-tab:hover {
-            border-color: var(--cl-border-strong);
-            color: var(--cl-primary);
-            background: #f8fafc;
+            border-color: #94a3b8;
+            color: #0f172a;
+            background: #f1f5f9;
         }
 
         .cl-filter-tab.active {
-            background: var(--cl-primary);
-            color: var(--cl-white);
-            border-color: var(--cl-primary);
-            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+            background: #0f172a !important;
+            color: #ffffff !important;
+            border-color: #0f172a !important;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+        }
+
+        .cl-filter-tab.active > span:not(.cl-tab-badge) {
+            color: #ffffff !important;
+            font-weight: 700 !important;
         }
 
         .cl-tab-badge {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 14px;
-            height: 14px;
-            padding: 0 3.5px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
             border-radius: 980px;
-            font-size: 9.5px;
-            font-weight: 700;
-            background: rgba(0, 0, 0, 0.07);
-            color: inherit;
+            font-size: 10.5px !important;
+            font-weight: 700 !important;
+            background: #e2e8f0;
+            color: #1e293b !important;
         }
 
         .cl-filter-tab.active .cl-tab-badge {
-            background: rgba(255, 255, 255, 0.22);
-            color: var(--cl-white);
+            background: rgba(255, 255, 255, 0.22) !important;
+            color: #ffffff !important;
         }
 
         /* ── Assignment Report Cards ── */

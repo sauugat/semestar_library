@@ -1721,14 +1721,14 @@ function StudentHomeScreenInner() {
               Semester Library
             </Text>
           </TouchableOpacity>
-          {isStaff && Boolean(displayLabel) && (
+          {false && isStaff && Boolean(displayLabel) && (
             <View style={[styles.academicBadge, { borderColor: colors.border, backgroundColor: colors.surfaceSubtle }]}>
               <Text style={[styles.academicBadgeText, { color: colors.textSecondary }]} numberOfLines={1}>
                 {displayLabel}
               </Text>
             </View>
           )}
-          {isAdmin && (
+          {false && isAdmin && (
             <TouchableOpacity
               onPress={() => void setAdminMode('admin')}
               style={{

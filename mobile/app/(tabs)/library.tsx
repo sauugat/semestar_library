@@ -408,7 +408,7 @@ function StudentLibraryView() {
         <Text style={[styles.headerWordmark, { color: colors.text }]}>
           Semester Library
         </Text>
-        {isStaff && Boolean(displayLabel) && (
+        {false && isStaff && Boolean(displayLabel) && (
           <View
             style={[
               styles.academicBadge,

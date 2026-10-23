@@ -728,7 +728,7 @@
       border-radius: 9999px !important;
       background: var(--bg-surface, var(--bg-primary)) !important;
       border: 1px solid var(--border) !important;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45) !important;
+      box-shadow: none !important;
       overflow: hidden;
     }
 
@@ -736,10 +736,18 @@
     [data-theme="dark"] .bottom-nav {
       background: var(--bg-surface, var(--bg-primary)) !important;
       border-radius: 9999px !important;
+      box-shadow: none !important;
     }
 
-    .bottom-nav .nav-item {
+    .bottom-nav .nav-item,
+    .bottom-nav .nav-item.active,
+    body.dark-mode .bottom-nav .nav-item.active,
+    [data-theme="dark"] .bottom-nav .nav-item.active {
       border-radius: 9999px !important;
+      background: transparent !important;
+      border-color: transparent !important;
+      border-bottom: none !important;
+      box-shadow: none !important;
     }
 
     .post-main,

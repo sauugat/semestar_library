@@ -93,9 +93,11 @@
     }
 
     .lib-page-wrap {
-      max-width: 1180px;
+      width: 100%;
+      max-width: 1440px;
       margin: 0 auto;
-      padding: 24px 20px 0;
+      padding: 32px 5vw 80px;
+      box-sizing: border-box;
     }
 
     /* Minimal Top Bar */
@@ -104,12 +106,12 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      margin-bottom: 22px;
+      margin-bottom: 28px;
       flex-wrap: wrap;
     }
 
     .lib-page-title {
-      font-size: 24px;
+      font-size: 28px;
       font-weight: 800;
       letter-spacing: -0.03em;
       margin: 0;
@@ -197,15 +199,17 @@
     /* Course Cards Minimal Grid with Clear Visible Borders */
     .course-grid-clean {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 18px;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 24px;
     }
 
     .course-card-minimal {
       background: var(--surface);
       border: 1.5px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 22px 24px;
+      border-radius: 20px;
+      padding: 28px 30px;
+      min-height: 195px;
+      box-sizing: border-box;
       box-shadow: var(--shadow-sm);
       cursor: pointer;
       text-decoration: none;
@@ -268,22 +272,22 @@
     }
 
     .course-name-clean {
-      font-size: 17px;
+      font-size: 19px;
       font-weight: 700;
       letter-spacing: -0.02em;
-      margin: 0 0 16px;
+      margin: 6px 0 20px;
       color: var(--text);
-      line-height: 1.35;
+      line-height: 1.38;
     }
 
     .course-card-foot {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 12.5px;
+      font-size: 13px;
       color: var(--text-muted);
       font-weight: 600;
-      padding-top: 14px;
+      padding-top: 16px;
       border-top: 1.5px solid rgba(0, 0, 0, 0.06);
     }
 
@@ -2460,8 +2464,8 @@
     <!-- Top Action Bar -->
     <div class="lib-top-bar">
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <h1 class="lib-page-title" id="libSectionHeader">Library</h1>
-        <div id="academicContextBadge" class="academic-context-badge" style="display:none;"></div>
+        <h1 class="lib-page-title" id="libSectionHeader">Your Courses</h1>
+        <div id="academicContextBadge" class="academic-context-badge" style="display:none !important;"></div>
       </div>
       <div style="display:flex; align-items:center; gap:12px; flex:1; justify-content:flex-end; max-width:620px;">
         <div class="lib-search-pill" style="max-width:380px;">
@@ -3165,19 +3169,11 @@
       if (!h) return;
       const ctx = window.ACADEMIC_CONTEXT;
       if (ctx && ctx.isStudent) {
-        if (ctx.cohort) {
-          h.textContent = `${ctx.cohort.displayName} Courses`;
-        } else if (ctx.semesterRoman) {
-          h.textContent = `${SEM_MAP[ctx.semesterRoman] || `Semester ${ctx.currentSemester}`} Courses`;
-        } else if (ctx.isUnassigned) {
-          h.textContent = 'Academic Library';
-        } else {
-          h.textContent = 'Current Semester Courses';
-        }
+        h.textContent = 'Your Courses';
       } else if (ctx && ctx.isStaff && ACTIVE_SEM === 'ALL') {
-        h.textContent = 'All Courses';
+        h.textContent = 'Your Courses';
       } else {
-        h.textContent = `${SEM_MAP[ACTIVE_SEM] || 'Semester'} Courses`;
+        h.textContent = 'Your Courses';
       }
     }
 
@@ -3996,7 +3992,7 @@
           <div>
             <div class="course-card-head">
               <span class="course-code-badge">${escapeHtml(c.code || 'COURSE')}</span>
-              <span class="course-files-pill ${fileCount ? 'has-files' : ''}">${fileCount ? `${fileCount} notes` : '0 notes'}</span>
+              ${fileCount ? `<span class="course-files-pill has-files">${fileCount} ${fileCount === 1 ? 'note' : 'notes'}</span>` : ''}
             </div>
             <h3 class="course-name-clean">${escapeHtml(c.title)}</h3>
           </div>

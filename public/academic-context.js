@@ -242,11 +242,8 @@
       }
 
       el.className = 'academic-context-badge' + (ctx.isUnassigned ? ' unassigned' : '') + (options.className ? ' ' + options.className : '');
-      el.textContent = ctx.displayLabel || '';
-      el.title = ctx.isUnassigned
-        ? (ctx.currentSemester ? `Active Semester: Semester ${ctx.currentSemester}` : 'Your cohort has not been assigned by university staff yet.')
-        : `Active Class: ${ctx.displayLabel}`;
-      el.style.display = 'inline-flex';
+      el.textContent = '';
+      el.style.display = 'none';
     }).catch(() => {
       el.style.display = 'none';
     });

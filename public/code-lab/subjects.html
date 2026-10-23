@@ -587,9 +587,15 @@
       color: #ffffff;
     }
 
-    body.dark-mode .cl-dropdown-item.active {
-      background: #ffffff;
-      color: #111827;
+    body.dark-mode .cl-dropdown-item.active,
+    [data-theme="dark"] .cl-dropdown-item.active {
+      background: #ffffff !important;
+      color: #111827 !important;
+    }
+
+    body.dark-mode .cl-dropdown-item.active *,
+    [data-theme="dark"] .cl-dropdown-item.active * {
+      color: #111827 !important;
     }
 
     .cl-status-pills-row {
@@ -638,20 +644,19 @@
       border-color: #ffffff;
     }
 
-    /* ── Subject Filter Pills Bar (Below Search Row) ── */
+    /* ── Subject Filter Bar (All Subjects Dropdown) ── */
     .cl-subject-pills-bar {
       margin-bottom: 20px;
       position: relative;
+      z-index: 80;
     }
 
     .cl-subject-pills-scroll {
       display: flex;
-      gap: 7px;
-      overflow-x: auto;
-      padding: 2px 2px 6px;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-      -webkit-overflow-scrolling: touch;
+      align-items: center;
+      gap: 10px;
+      overflow: visible !important;
+      padding: 2px 0 6px;
     }
 
     .cl-subject-pills-scroll::-webkit-scrollbar {
@@ -3010,7 +3015,7 @@
 
       const num = normalizeSemToken(currentSemesterFilter);
 
-      // Do NOT show subject pills when "All Semesters" is selected
+      // Do NOT show subject selector when "All Semesters" is selected
       if (!num) {
         bar.style.display = 'none';
         container.innerHTML = '';
@@ -3044,52 +3049,72 @@
         }
       });
 
-      // Filter assignments count for this semester
-      const semAssignments = allAssignments.filter(a => {
-        const aSem = a.semester || a.semester_no || a.semesterNo || '';
-        return !aSem || semMatches(aSem, num);
-      });
-
       container.innerHTML = '';
 
-      // 1. "All Subjects" pill for this semester
-      const allPill = document.createElement('button');
-      allPill.type = 'button';
-      allPill.className = 'cl-subject-pill' + (!currentSubjectFilter ? ' active' : '');
-      allPill.innerHTML = `
-        <span>All Subjects</span>
-        <span class="pill-count">${semAssignments.length}</span>
+      const dropdownWrap = document.createElement('div');
+      dropdownWrap.className = 'cl-dropdown-wrap';
+      dropdownWrap.id = 'subjectDropdownWrap';
+
+      const activeLabel = currentSubjectFilter || 'All Subjects';
+      const triggerBtn = document.createElement('button');
+      triggerBtn.type = 'button';
+      triggerBtn.className = 'cl-dropdown-trigger';
+      triggerBtn.id = 'subjectDropdownTrigger';
+      triggerBtn.setAttribute('aria-haspopup', 'listbox');
+      triggerBtn.setAttribute('aria-expanded', 'false');
+      triggerBtn.innerHTML = `
+        <span id="subjectDropdownLabel">${escapeHtml(activeLabel)}</span>
+        <svg class="cl-dropdown-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
       `;
-      allPill.addEventListener('click', () => {
+
+      const menu = document.createElement('div');
+      menu.className = 'cl-dropdown-menu';
+      menu.id = 'subjectDropdownMenu';
+      menu.setAttribute('role', 'listbox');
+      menu.style.minWidth = '240px';
+      menu.style.maxHeight = '320px';
+      menu.style.overflowY = 'auto';
+
+      // 1. "All Subjects" option
+      const allItem = document.createElement('div');
+      allItem.className = 'cl-dropdown-item' + (!currentSubjectFilter ? ' active' : '');
+      allItem.innerHTML = `<span>All Subjects</span>`;
+      allItem.addEventListener('click', (e) => {
+        e.stopPropagation();
         currentSubjectFilter = '';
+        dropdownWrap.classList.remove('open');
+        triggerBtn.setAttribute('aria-expanded', 'false');
         renderSubjectFilterPills();
         renderAssignmentsFeed();
       });
-      container.appendChild(allPill);
+      menu.appendChild(allItem);
 
-      // 2. Individual Subject pills (Displays all curriculum subjects for the selected semester)
+      // 2. Individual Subject options in dropdown
       subjectsToShow.forEach(subj => {
-        const count = semAssignments.filter(a => (a.subject || '').toLowerCase() === subj.name.toLowerCase()).length;
-        const isSelected = currentSubjectFilter && currentSubjectFilter.toLowerCase() === subj.name.toLowerCase();
-
-        const pill = document.createElement('button');
-        pill.type = 'button';
-        pill.className = 'cl-subject-pill' + (isSelected ? ' active' : '');
-        pill.innerHTML = `
-          <span>${escapeHtml(subj.name)}</span>
-          ${count > 0 ? `<span class="pill-count">${count}</span>` : ''}
-        `;
-        pill.addEventListener('click', () => {
-          if (isSelected) {
-            currentSubjectFilter = ''; // Toggle off
-          } else {
-            currentSubjectFilter = subj.name;
-          }
+        const isSelected = Boolean(currentSubjectFilter && currentSubjectFilter.toLowerCase() === subj.name.toLowerCase());
+        const item = document.createElement('div');
+        item.className = 'cl-dropdown-item' + (isSelected ? ' active' : '');
+        item.innerHTML = `<span>${escapeHtml(subj.name)}</span>`;
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          currentSubjectFilter = subj.name;
+          dropdownWrap.classList.remove('open');
+          triggerBtn.setAttribute('aria-expanded', 'false');
           renderSubjectFilterPills();
           renderAssignmentsFeed();
         });
-        container.appendChild(pill);
+        menu.appendChild(item);
       });
+
+      triggerBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = dropdownWrap.classList.toggle('open');
+        triggerBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+
+      dropdownWrap.appendChild(triggerBtn);
+      dropdownWrap.appendChild(menu);
+      container.appendChild(dropdownWrap);
     }
 
     function setSemesterFilter(sem) {
@@ -3164,12 +3189,26 @@
           semDropdownWrap.classList.remove('open');
           semDropdownTrigger.setAttribute('aria-expanded', 'false');
         }
+        const subjWrap = document.getElementById('subjectDropdownWrap');
+        const subjTrig = document.getElementById('subjectDropdownTrigger');
+        if (subjWrap && !subjWrap.contains(e.target)) {
+          subjWrap.classList.remove('open');
+          if (subjTrig) subjTrig.setAttribute('aria-expanded', 'false');
+        }
       });
 
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && semDropdownWrap.classList.contains('open')) {
-          semDropdownWrap.classList.remove('open');
-          semDropdownTrigger.setAttribute('aria-expanded', 'false');
+        if (e.key === 'Escape') {
+          if (semDropdownWrap.classList.contains('open')) {
+            semDropdownWrap.classList.remove('open');
+            semDropdownTrigger.setAttribute('aria-expanded', 'false');
+          }
+          const subjWrap = document.getElementById('subjectDropdownWrap');
+          const subjTrig = document.getElementById('subjectDropdownTrigger');
+          if (subjWrap && subjWrap.classList.contains('open')) {
+            subjWrap.classList.remove('open');
+            if (subjTrig) subjTrig.setAttribute('aria-expanded', 'false');
+          }
         }
       });
     }

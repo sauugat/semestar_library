@@ -996,37 +996,125 @@
       border-color: var(--text-secondary, #6b7280);
     }
 
+    /* =========================================================================
+       FACEBOOK-INSPIRED FULL-SCREEN SPLIT THEATER VIEWER & POST COMMENTS MODAL
+       Aligned for Website Dark & Light Themes
+       ========================================================================= */
     .lightbox {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.9);
+      background: rgba(9, 10, 13, 0.96);
       display: flex;
-      align-items: center;
-      justify-content: center;
+      flex-direction: row;
+      align-items: stretch;
+      justify-content: stretch;
       z-index: 10000;
+      overflow: hidden;
+    }
+
+    html[data-theme="light"] .lightbox,
+    body:not(.dark-mode)[data-theme="light"] .lightbox {
+      background: rgba(15, 17, 21, 0.94);
     }
 
     .lightbox.hidden {
-      display: none;
+      display: none !important;
     }
 
-    .lightbox img {
+    .lightbox-stage {
+      flex: 1;
+      min-width: 0;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #050507;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    html[data-theme="light"] .lightbox-stage,
+    body:not(.dark-mode)[data-theme="light"] .lightbox-stage {
+      background: #111216;
+    }
+
+    .lightbox-stage img#lightboxImg {
       width: auto;
       height: auto;
-      max-width: 90vw;
-      max-height: 90vh;
+      max-width: calc(100% - 48px);
+      max-height: calc(100dvh - 48px);
       object-fit: contain;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: center center;
+      cursor: grab;
     }
 
+    .lightbox-stage img#lightboxImg:active {
+      cursor: grabbing;
+    }
+
+    /* Top-left Close (X) Button on Stage */
     .lightbox-close {
       position: absolute;
-      top: 20px;
-      right: 30px;
-      border: 0;
-      background: transparent;
-      font-size: 32px;
-      color: white;
+      top: 16px;
+      left: 18px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(24, 24, 27, 0.78);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      line-height: 1;
       cursor: pointer;
+      z-index: 10002;
+      padding: 0;
+      transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .lightbox-close:hover {
+      background: rgba(39, 39, 42, 0.95);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+
+    /* Top-right Stage Controls (Zoom In, Zoom Out, Expand) */
+    .lightbox-top-controls {
+      position: absolute;
+      top: 16px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 10002;
+    }
+
+    .lightbox-ctrl-btn {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(24, 24, 27, 0.78);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .lightbox-ctrl-btn:hover {
+      background: rgba(39, 39, 42, 0.95);
+      border-color: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
     }
 
     .lightbox-nav-btn {
@@ -1036,8 +1124,8 @@
       width: 44px;
       height: 44px;
       border-radius: 50%;
-      background: rgba(0, 0, 0, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: rgba(24, 24, 27, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       color: #ffffff;
       display: flex;
       align-items: center;
@@ -1049,28 +1137,598 @@
     }
 
     .lightbox-nav-btn:hover {
-      background: rgba(0, 0, 0, 0.85);
+      background: rgba(39, 39, 42, 0.95);
       transform: translateY(-50%) scale(1.08);
     }
 
-    .lightbox-prev { left: 24px; }
-    .lightbox-next { right: 24px; }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
 
     .lightbox-counter {
       position: absolute;
-      bottom: 24px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(24, 24, 27, 0.82);
       color: #ffffff;
       padding: 5px 14px;
       border-radius: 999px;
-      font-size: 13px;
+      font-size: 12.5px;
       font-weight: 600;
-      letter-spacing: 0.5px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      letter-spacing: 0.4px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
       pointer-events: none;
       z-index: 10001;
+    }
+
+    /* Right Sidebar Panel in Fullscreen Split Mode */
+    .lightbox-sidebar {
+      width: 390px;
+      min-width: 350px;
+      max-width: 420px;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary, #ffffff);
+      color: var(--text-primary, #111827);
+      border-left: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+      z-index: 10002;
+      box-sizing: border-box;
+      transition: width 0.22s ease, transform 0.22s ease;
+    }
+
+    [data-theme="dark"] .lightbox-sidebar,
+    body.dark-mode .lightbox-sidebar {
+      background: #141417 !important;
+      color: #f4f4f5 !important;
+      border-left: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .lightbox.sidebar-collapsed .lightbox-sidebar {
+      display: none !important;
+    }
+
+    .lightbox-sidebar-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px 12px;
+      scrollbar-width: thin;
+    }
+
+    .lightbox-post-details {
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+      margin-bottom: 12px;
+    }
+
+    [data-theme="dark"] .lightbox-post-details,
+    body.dark-mode .lightbox-post-details {
+      border-bottom-color: rgba(255, 255, 255, 0.09) !important;
+    }
+
+    /* Facebook-Inspired Centered Post Comments Modal (<Author>'s Post) */
+    .fb-post-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9500;
+      padding: 20px 16px;
+      box-sizing: border-box;
+    }
+
+    .fb-post-modal-overlay.hidden {
+      display: none !important;
+    }
+
+    .fb-post-modal-card {
+      width: 100%;
+      max-width: 680px;
+      max-height: calc(100dvh - 40px);
+      background: var(--bg-primary, #ffffff);
+      color: var(--text-primary, #111827);
+      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.14));
+      border-radius: 16px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.15);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-sizing: border-box;
+      animation: fbModalPop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fbModalPop {
+      from { opacity: 0; transform: scale(0.97) translateY(6px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    [data-theme="dark"] .fb-post-modal-card,
+    body.dark-mode .fb-post-modal-card {
+      background: #141417 !important;
+      color: #f4f4f5 !important;
+      border-color: rgba(255, 255, 255, 0.12) !important;
+    }
+
+    .fb-modal-header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 56px;
+      padding: 12px 56px;
+      border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.09));
+      flex-shrink: 0;
+      box-sizing: border-box;
+    }
+
+    [data-theme="dark"] .fb-modal-header,
+    body.dark-mode .fb-modal-header {
+      border-bottom-color: rgba(255, 255, 255, 0.09) !important;
+    }
+
+    .fb-modal-title {
+      margin: 0;
+      font-size: 16.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary, #111827);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    [data-theme="dark"] .fb-modal-title,
+    body.dark-mode .fb-modal-title {
+      color: #f4f4f5 !important;
+    }
+
+    .fb-modal-close-btn {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+      background: var(--bg-secondary, #f4f4f5);
+      color: var(--text-secondary, #52525b);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    }
+
+    .fb-modal-close-btn:hover {
+      background: var(--border-color, #e4e4e7);
+      color: var(--text-primary, #111827);
+    }
+
+    [data-theme="dark"] .fb-modal-close-btn,
+    body.dark-mode .fb-modal-close-btn {
+      background: #242429 !important;
+      border-color: rgba(255, 255, 255, 0.1) !important;
+      color: #a1a1aa !important;
+    }
+
+    [data-theme="dark"] .fb-modal-close-btn:hover,
+    body.dark-mode .fb-modal-close-btn:hover {
+      background: #2e2e35 !important;
+      color: #ffffff !important;
+    }
+
+    .fb-modal-scroll-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px 14px;
+      scrollbar-width: thin;
+    }
+
+    .fb-modal-post-host .post-card {
+      display: flex;
+      gap: 12px;
+      padding: 0 0 12px 0 !important;
+      margin: 0 !important;
+      border: 0 !important;
+      border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08)) !important;
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    [data-theme="dark"] .fb-modal-post-host .post-card,
+    body.dark-mode .fb-modal-post-host .post-card {
+      border-bottom-color: rgba(255, 255, 255, 0.09) !important;
+    }
+
+    .fb-modal-post-host .post-comments-drawer {
+      display: none !important;
+    }
+
+    /* Shared Facebook-Inspired Comments Thread & Composer (Modal, Fullscreen & Inline) */
+    .fb-comments-filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 10px 0 12px;
+    }
+
+    .fb-comments-filter-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary, #52525b);
+    }
+
+    [data-theme="dark"] .fb-comments-filter-label,
+    body.dark-mode .fb-comments-filter-label {
+      color: #a1a1aa !important;
+    }
+
+    .post-comments-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .post-comment-item {
+      display: flex !important;
+      gap: 10px !important;
+      align-items: flex-start !important;
+      padding: 0 !important;
+      background: transparent !important;
+      border: none !important;
+      border-radius: 0 !important;
+    }
+
+    .post-comment-avatar {
+      width: 32px !important;
+      height: 32px !important;
+      border-radius: 50% !important;
+      background: #27272a !important;
+      color: #ffffff !important;
+      font-weight: 700 !important;
+      font-size: 12px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      flex-shrink: 0 !important;
+      overflow: hidden !important;
+      text-decoration: none !important;
+      border: 1px solid rgba(128, 128, 128, 0.16) !important;
+      margin-top: 2px;
+    }
+
+    .post-comment-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .post-comment-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .post-comment-bubble {
+      display: inline-block;
+      max-width: 100%;
+      padding: 8px 12px;
+      border-radius: 14px;
+      background: var(--bg-secondary, #f0f2f5);
+      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+      box-sizing: border-box;
+    }
+
+    [data-theme="dark"] .post-comment-bubble,
+    body.dark-mode .post-comment-bubble {
+      background: #202025 !important;
+      border-color: rgba(255, 255, 255, 0.07) !important;
+    }
+
+    .post-comment-header {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 2px;
+      flex-wrap: wrap;
+      line-height: 1.3;
+    }
+
+    .post-comment-author {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary, #111827);
+      text-decoration: none;
+    }
+
+    .post-comment-author:hover {
+      text-decoration: underline;
+    }
+
+    [data-theme="dark"] .post-comment-author,
+    body.dark-mode .post-comment-author {
+      color: #f4f4f5 !important;
+    }
+
+    .post-comment-time {
+      font-size: 11.5px;
+      color: var(--text-muted, #71717a);
+    }
+
+    .post-comment-text {
+      font-size: 13.5px;
+      line-height: 1.45;
+      color: var(--text-primary, #18181b);
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+    }
+
+    [data-theme="dark"] .post-comment-text,
+    body.dark-mode .post-comment-text {
+      color: #e4e4e7 !important;
+    }
+
+    .post-comment-reply-mention {
+      font-weight: 600;
+      color: var(--text-primary, #111827);
+      margin-right: 4px;
+    }
+
+    [data-theme="dark"] .post-comment-reply-mention,
+    body.dark-mode .post-comment-reply-mention {
+      color: #ffffff !important;
+    }
+
+    /* Action Row Under Each Comment (Like · Reply · Edit · Delete + Reaction Count) */
+    .post-comment-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
+      padding-left: 6px;
+      font-size: 11.5px;
+      color: var(--text-muted, #71717a);
+    }
+
+    .comment-action-link {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-muted, #71717a);
+      cursor: pointer;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.15s ease;
+    }
+
+    .comment-action-link:hover {
+      color: var(--text-primary, #111827);
+      text-decoration: underline;
+    }
+
+    [data-theme="dark"] .comment-action-link:hover,
+    body.dark-mode .comment-action-link:hover {
+      color: #ffffff !important;
+    }
+
+    .comment-action-link.liked {
+      color: #ef4444 !important;
+      font-weight: 700;
+    }
+
+    .comment-reaction-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: var(--bg-secondary, #f0f2f5);
+      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary, #52525b);
+      margin-left: auto;
+    }
+
+    [data-theme="dark"] .comment-reaction-pill,
+    body.dark-mode .comment-reaction-pill {
+      background: #27272a !important;
+      border-color: rgba(255, 255, 255, 0.1) !important;
+      color: #d4d4d8 !important;
+    }
+
+    .post-comment-replies {
+      margin-left: 16px;
+      border-left: 1.5px solid var(--border-color, rgba(128, 128, 128, 0.22));
+      padding-left: 12px;
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Sticky / Bottom Facebook-Style Comment Composer Bar */
+    .fb-composer-shell {
+      padding: 10px 16px 12px;
+      border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.09));
+      background: var(--bg-primary, #ffffff);
+      flex-shrink: 0;
+    }
+
+    [data-theme="dark"] .fb-composer-shell,
+    body.dark-mode .fb-composer-shell {
+      background: #141417 !important;
+      border-top-color: rgba(255, 255, 255, 0.09) !important;
+    }
+
+    .fb-composer-mode-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: var(--text-muted, #71717a);
+      margin-bottom: 6px;
+      padding: 0 4px;
+    }
+
+    .fb-composer-mode-cancel {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-primary, #111827);
+      cursor: pointer;
+    }
+
+    [data-theme="dark"] .fb-composer-mode-cancel,
+    body.dark-mode .fb-composer-mode-cancel {
+      color: #f4f4f5 !important;
+    }
+
+    .post-comment-composer {
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: flex-end !important;
+      gap: 10px !important;
+      margin: 0 !important;
+      width: 100%;
+    }
+
+    .fb-composer-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #27272a;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 1px solid rgba(128, 128, 128, 0.18);
+      margin-bottom: 2px;
+    }
+
+    .fb-composer-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .fb-composer-input-pill {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      background: var(--bg-secondary, #f0f2f5);
+      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+      border-radius: 20px;
+      padding: 6px 8px 6px 14px;
+      box-sizing: border-box;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    [data-theme="dark"] .fb-composer-input-pill,
+    body.dark-mode .fb-composer-input-pill {
+      background: #202025 !important;
+      border-color: rgba(255, 255, 255, 0.12) !important;
+    }
+
+    .fb-composer-input-pill:focus-within {
+      border-color: var(--text-secondary, #71717a) !important;
+    }
+
+    .fb-composer-input-pill .post-comment-textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 24px !important;
+      max-height: 110px !important;
+      padding: 3px 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      background: transparent !important;
+      color: var(--text-primary, #111827) !important;
+      font-size: 13.5px !important;
+      line-height: 1.4 !important;
+      resize: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    [data-theme="dark"] .fb-composer-input-pill .post-comment-textarea,
+    body.dark-mode .fb-composer-input-pill .post-comment-textarea {
+      color: #f4f4f5 !important;
+      background: transparent !important;
+    }
+
+    .fb-composer-send-btn.post-comment-submit-btn {
+      width: 30px !important;
+      height: 30px !important;
+      min-width: 30px !important;
+      padding: 0 !important;
+      border-radius: 50% !important;
+      border: none !important;
+      background: transparent !important;
+      color: var(--text-primary, #18181b) !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      cursor: pointer !important;
+      flex-shrink: 0;
+      transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease !important;
+    }
+
+    [data-theme="dark"] .fb-composer-send-btn.post-comment-submit-btn,
+    body.dark-mode .fb-composer-send-btn.post-comment-submit-btn {
+      color: #f4f4f5 !important;
+    }
+
+    .fb-composer-send-btn.post-comment-submit-btn:hover:not(:disabled) {
+      background: rgba(128, 128, 128, 0.15) !important;
+      transform: scale(1.06) !important;
+    }
+
+    .fb-composer-send-btn.post-comment-submit-btn:disabled {
+      opacity: 0.35 !important;
+      cursor: not-allowed !important;
+    }
+
+    @media (max-width: 860px) {
+      .lightbox {
+        flex-direction: column;
+      }
+      .lightbox-stage {
+        flex: 1;
+        min-height: 48dvh;
+      }
+      .lightbox-sidebar {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        height: 48dvh;
+        border-left: none;
+        border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+      }
     }
 
     .post-image img[hidden] {
@@ -3768,7 +4426,7 @@
           extra: post.type === 'assignment' ? `<span class="post-submitted-count">${post.submission_count} submitted</span>` : '' }),
         comments: `<div class="post-comments-drawer${isCommentsOpen ? ' open' : ''}" id="comments-drawer-${post.id}">
               <div class="post-comments-header-row">
-                <span class="post-comments-title">Replies</span>
+                <span class="post-comments-title">Most relevant &#9662;</span>
                 <button type="button" class="post-comments-close-btn" onclick="closePostComments(${post.id})" aria-label="Hide replies" title="Hide replies">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                   <span>Hide</span>
@@ -3776,9 +4434,12 @@
               </div>
               <div class="post-comments-list"></div>
               <form class="post-comment-composer" onsubmit="submitPostComment(${post.id}, this, event)" novalidate>
-                <textarea class="post-comment-textarea" placeholder="Post your reply…" rows="2" maxlength="2000"></textarea>
-                <div class="post-comment-composer-actions">
-                  <button type="submit" class="post-comment-submit-btn">Reply</button>
+                <div class="fb-composer-avatar">${typeof getCurrentUserAvatarHtml === 'function' ? getCurrentUserAvatarHtml() : 'S'}</div>
+                <div class="fb-composer-input-pill">
+                  <textarea class="post-comment-textarea" placeholder="${typeof getCurrentUserCommentPlaceholder === 'function' ? getCurrentUserCommentPlaceholder() : 'Write a comment…'}" rows="1" maxlength="2000" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); this.form.requestSubmit();}"></textarea>
+                  <button type="submit" class="post-comment-submit-btn fb-composer-send-btn" title="Send comment" aria-label="Send comment">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                  </button>
                 </div>
               </form>
             </div>`
@@ -4490,8 +5151,28 @@
       document.body.removeChild(el);
     }
 
-    function renderPostCommentItem(c) {
-      const profileUrl = 'profile.html?id=' + encodeURIComponent(c.studentId || c.student_id || '');
+    const postCommentsCache = new Map();
+    let activeCommentComposerState = { postId: null, parentCommentId: null, replyToUserId: null, replyToName: null, editCommentId: null };
+
+    function getCurrentUserAvatarHtml() {
+      const u = window.currentUserData;
+      if (u && u.avatarUrl) {
+        const safe = safePostUrl(u.avatarUrl);
+        if (safe) return `<img src="${safe}" alt="${escapeHtml(u.name || 'Me')}">`;
+      }
+      const initial = (u && u.name) ? u.name.charAt(0).toUpperCase() : 'S';
+      return escapeHtml(initial);
+    }
+
+    function getCurrentUserCommentPlaceholder() {
+      const u = window.currentUserData;
+      return (u && u.name) ? `Comment as ${escapeHtml(u.name)}…` : 'Write a comment…';
+    }
+
+    function renderPostCommentItem(c, postIdOverride) {
+      const postId = postIdOverride || c.postId || c.post_id || activeCommentComposerState.postId || 0;
+      const studentId = c.studentId || c.student_id || c.userId || '';
+      const profileUrl = 'profile.html?id=' + encodeURIComponent(studentId);
       const avatarUrl = safePostUrl(c.avatarUrl || c.avatar_url);
       const avatar = avatarUrl
         ? `<img src="${avatarUrl}" alt="${escapeHtml(c.name || 'User')}" class="comment-avatar-img">`
@@ -4508,25 +5189,49 @@
         roleBadge = `<span class="post-verified-badge post-cr-badge" style="font-size: 9.5px; padding: 1px 5px; line-height: 1.2;">Class Rep</span>`;
       }
 
-      const handleHtml = isSpecial && (c.studentId || c.student_id)
-        ? `<span class="post-student-handle" style="font-size: 12px;">@${escapeHtml(c.studentId || c.student_id)}</span>`
+      const handleHtml = isSpecial && studentId
+        ? `<span class="post-student-handle" style="font-size: 11.5px;">@${escapeHtml(studentId)}</span>`
         : '';
+
+      const replyMention = (c.replyToUser && c.replyToUser.name)
+        ? `<span class="post-comment-reply-mention">@${escapeHtml(c.replyToUser.name)}</span>`
+        : '';
+
+      const liked = Boolean(c.reactedByMe);
+      const reactionCount = Number(c.reactionCount || 0);
+      const rootParentId = c.parentCommentId || c.id;
+      const safeAuthorJs = escapeHtml(JSON.stringify(c.name || 'Student'));
+      const safeStudentIdJs = escapeHtml(JSON.stringify(studentId));
+      const safeContentJs = escapeHtml(JSON.stringify(c.content || ''));
+
+      const actionsBarHtml = (!c.isDeleted && !c.isRemoved && postId) ? `
+        <div class="post-comment-actions-row">
+          <button type="button" class="comment-action-link ${liked ? 'liked' : ''}" onclick="toggleCommentLike(${postId}, ${c.id}, this)">${liked ? 'Liked' : 'Like'}</button>
+          <button type="button" class="comment-action-link" onclick='startCommentReply(${postId}, ${rootParentId}, ${safeStudentIdJs}, ${safeAuthorJs})'>Reply</button>
+          ${c.canEdit ? `<button type="button" class="comment-action-link" onclick='startCommentEdit(${postId}, ${c.id}, ${safeContentJs})'>Edit</button>` : ''}
+          ${c.canDelete ? `<button type="button" class="comment-action-link" onclick="deletePostCommentItem(${postId}, ${c.id})">Delete</button>` : ''}
+          ${reactionCount > 0 ? `<span class="comment-reaction-pill"><svg viewBox="0 0 24 24" width="11" height="11" fill="#ef4444" stroke="none"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span>${reactionCount}</span></span>` : ''}
+        </div>
+      ` : '';
 
       return `
         <div class="post-comment-item" data-comment-id="${c.id}">
           <a href="${profileUrl}" class="post-comment-avatar">${avatar}</a>
           <div class="post-comment-body">
-            <div class="post-comment-header">
-              <a href="${profileUrl}" class="post-comment-author">${escapeHtml(c.name || 'Student')}</a>
-              ${roleBadge}
-              ${handleHtml}
-              <time class="post-comment-time" datetime="${escapeHtml(c.created_at || c.createdAt || '')}">${timeAgo(c.created_at || c.createdAt)}</time>
-              ${c.edited && !c.isDeleted ? '<span style="font-size: 10px; color: var(--text-muted, #86868b); margin-left: 4px;">· edited</span>' : ''}
+            <div class="post-comment-bubble">
+              <div class="post-comment-header">
+                <a href="${profileUrl}" class="post-comment-author">${escapeHtml(c.name || 'Student')}</a>
+                ${roleBadge}
+                ${handleHtml}
+                <time class="post-comment-time" datetime="${escapeHtml(c.created_at || c.createdAt || '')}">&middot; ${timeAgo(c.created_at || c.createdAt)}</time>
+                ${c.edited && !c.isDeleted ? '<span style="font-size: 10.5px; color: var(--text-muted, #86868b);">· Edited</span>' : ''}
+              </div>
+              <p class="post-comment-text" style="${c.isDeleted ? 'font-style: italic; color: var(--text-muted, #86868b);' : ''}">${replyMention}${escapeHtml(c.content || '')}</p>
             </div>
-            <p class="post-comment-text" style="${c.isDeleted ? 'font-style: italic; color: var(--text-muted, #86868b);' : ''}">${escapeHtml(c.content || '')}</p>
+            ${actionsBarHtml}
             ${Array.isArray(c.replies) && c.replies.length > 0 ? `
-              <div class="post-comment-replies" style="margin-left: 20px; border-left: 2px solid var(--border-color, #2c2c2e); padding-left: 10px; margin-top: 8px;">
-                ${c.replies.map(r => renderPostCommentItem(r)).join('')}
+              <div class="post-comment-replies">
+                ${c.replies.map(r => renderPostCommentItem(r, postId)).join('')}
               </div>
             ` : ''}
           </div>
@@ -4534,12 +5239,45 @@
       `;
     }
 
-    function renderPostCommentsList(listEl, comments) {
+    function renderPostCommentsList(listEl, comments, postId) {
+      if (!listEl) return;
       if (!comments || !comments.length) {
         listEl.innerHTML = '<p class="post-comments-empty">No comments yet. Be the first to reply!</p>';
         return;
       }
-      listEl.innerHTML = comments.map(c => renderPostCommentItem(c)).join('');
+      listEl.innerHTML = comments.map(c => renderPostCommentItem(c, postId)).join('');
+    }
+
+    function syncAllCommentListsForPost(postId) {
+      const comments = postCommentsCache.get(Number(postId)) || [];
+      const inlineDrawer = document.getElementById(`comments-drawer-${postId}`);
+      if (inlineDrawer) {
+        inlineDrawer.dataset.loaded = 'true';
+        renderPostCommentsList(inlineDrawer.querySelector('.post-comments-list'), comments, postId);
+      }
+      const modalOverlay = document.getElementById('fbPostModalOverlay');
+      if (modalOverlay && Number(modalOverlay.dataset.postId) === Number(postId)) {
+        renderPostCommentsList(document.getElementById('fbModalCommentsList'), comments, postId);
+      }
+      const lb = document.getElementById('imageLightbox');
+      if (lb && Number(lb.dataset.postId) === Number(postId)) {
+        renderPostCommentsList(document.getElementById('lightboxCommentsList'), comments, postId);
+      }
+    }
+
+    async function loadCommentsForPost(postId, force = false) {
+      const pid = Number(postId);
+      if (!force && postCommentsCache.has(pid)) {
+        syncAllCommentListsForPost(pid);
+        return postCommentsCache.get(pid);
+      }
+      const res = await fetch(`/api/posts/${pid}/comments`);
+      if (!res.ok) throw new Error('Could not load comments');
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.comments || []);
+      postCommentsCache.set(pid, list);
+      syncAllCommentListsForPost(pid);
+      return list;
     }
 
     function closePostComments(postId) {
@@ -4548,46 +5286,147 @@
       if (drawer) {
         drawer.classList.remove('open');
       }
+      closeFbPostModal();
     }
 
     async function togglePostComments(postId, card) {
-      if (!card) card = document.querySelector(`[data-post-id="${postId}"]`);
-      if (!card) return;
-      const drawer = card.querySelector(`#comments-drawer-${postId}`) || card.querySelector('.post-comments-drawer');
-      if (!drawer) return;
+      openFbPostModal(postId, card);
+    }
 
-      const isOpen = openCommentPosts.has(postId) || drawer.classList.contains('open');
-      if (isOpen) {
-        openCommentPosts.delete(postId);
-        drawer.classList.remove('open');
-        return;
+    async function toggleCommentLike(postId, commentId, btn) {
+      if (btn && btn.disabled) return;
+      if (btn) btn.disabled = true;
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments/${commentId}/like`, { method: 'POST' });
+        if (!res.ok) throw new Error('Could not update reaction');
+        await loadCommentsForPost(postId, true);
+      } catch (err) {
+        showToast(escapeHtml(err.message || 'Could not like comment'));
+      } finally {
+        if (btn) btn.disabled = false;
       }
+    }
 
-      openCommentPosts.add(postId);
-      drawer.classList.add('open');
-
-      if (!drawer.dataset.loaded) {
-        const listEl = drawer.querySelector('.post-comments-list');
-        if (listEl) {
-          listEl.innerHTML = '<p class="post-comments-empty" style="text-align: center;">Loading comments…</p>';
-          try {
-            const res = await fetch(`/api/posts/${postId}/comments`);
-            if (!res.ok) throw new Error('Could not load comments');
-            const data = await res.json();
-            drawer.dataset.loaded = 'true';
-            renderPostCommentsList(listEl, Array.isArray(data) ? data : (data.comments || []));
-          } catch (err) {
-            listEl.innerHTML = `<p class="post-comments-empty" style="color: var(--accent-red, #ff453a);">${escapeHtml(err.message)}</p>`;
-          }
+    function updateComposerBannerUI() {
+      const banners = document.querySelectorAll('.fb-composer-mode-banner');
+      banners.forEach(b => {
+        const textEl = b.querySelector('.fb-composer-mode-text');
+        if (activeCommentComposerState.editCommentId) {
+          b.hidden = false;
+          if (textEl) textEl.textContent = 'Editing your comment';
+        } else if (activeCommentComposerState.parentCommentId) {
+          b.hidden = false;
+          if (textEl) textEl.textContent = `Replying to ${activeCommentComposerState.replyToName || 'comment'}`;
+        } else {
+          b.hidden = true;
         }
-      }
+      });
+    }
 
-      const textarea = drawer.querySelector('.post-comment-textarea');
-      if (textarea) textarea.focus();
+    function cancelCommentComposerMode() {
+      activeCommentComposerState = { postId: activeCommentComposerState.postId, parentCommentId: null, replyToUserId: null, replyToName: null, editCommentId: null };
+      updateComposerBannerUI();
+      document.querySelectorAll('.post-comment-textarea').forEach(ta => {
+        if (ta.dataset.wasEditing === '1') {
+          ta.value = '';
+          delete ta.dataset.wasEditing;
+        }
+      });
+    }
+
+    function startCommentReply(postId, parentCommentId, replyToUserId, replyToName) {
+      activeCommentComposerState = {
+        postId: Number(postId),
+        parentCommentId: Number(parentCommentId),
+        replyToUserId: replyToUserId || null,
+        replyToName: replyToName || 'Student',
+        editCommentId: null
+      };
+      updateComposerBannerUI();
+      const lb = document.getElementById('imageLightbox');
+      const modal = document.getElementById('fbPostModalOverlay');
+      let targetTa = null;
+      if (lb && !lb.classList.contains('hidden')) {
+        targetTa = lb.querySelector('.post-comment-textarea');
+      } else if (modal && !modal.classList.contains('hidden')) {
+        targetTa = modal.querySelector('.post-comment-textarea');
+      } else {
+        const drawer = document.getElementById(`comments-drawer-${postId}`);
+        if (drawer) targetTa = drawer.querySelector('.post-comment-textarea');
+      }
+      if (targetTa) targetTa.focus();
+    }
+
+    function startCommentEdit(postId, commentId, currentContent) {
+      activeCommentComposerState = {
+        postId: Number(postId),
+        parentCommentId: null,
+        replyToUserId: null,
+        replyToName: null,
+        editCommentId: Number(commentId)
+      };
+      updateComposerBannerUI();
+      const lb = document.getElementById('imageLightbox');
+      const modal = document.getElementById('fbPostModalOverlay');
+      let targetTa = null;
+      if (lb && !lb.classList.contains('hidden')) {
+        targetTa = lb.querySelector('.post-comment-textarea');
+      } else if (modal && !modal.classList.contains('hidden')) {
+        targetTa = modal.querySelector('.post-comment-textarea');
+      } else {
+        const drawer = document.getElementById(`comments-drawer-${postId}`);
+        if (drawer) targetTa = drawer.querySelector('.post-comment-textarea');
+      }
+      if (targetTa) {
+        targetTa.value = currentContent || '';
+        targetTa.dataset.wasEditing = '1';
+        targetTa.focus();
+      }
+    }
+
+    async function deletePostCommentItem(postId, commentId) {
+      const confirmed = await showAppleConfirmModal({
+        title: 'Delete Comment?',
+        message: 'Are you sure you want to delete this comment?',
+        confirmText: 'Delete',
+        cancelText: 'Cancel',
+        isDanger: true
+      });
+      if (!confirmed) return;
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Could not delete comment');
+        await loadCommentsForPost(postId, true);
+        if (data.comment_count !== undefined) {
+          updatePostCommentCountEverywhere(postId, data.comment_count);
+        }
+        showToast('Comment deleted');
+      } catch (err) {
+        showToast(escapeHtml(err.message || 'Could not delete comment'));
+      }
+    }
+
+    function updatePostCommentCountEverywhere(postId, newCount) {
+      document.querySelectorAll(`[data-post-id="${postId}"] .comment-count`).forEach(el => {
+        el.textContent = newCount;
+      });
+      const lbCount = document.querySelector('#lightboxPostDetails .comment-count');
+      const lb = document.getElementById('imageLightbox');
+      if (lb && Number(lb.dataset.postId) === Number(postId) && lbCount) {
+        lbCount.textContent = newCount;
+      }
+      const postObj = feedItems.find(item => item._feedType === 'post' && Number(item.id) === Number(postId));
+      if (postObj) {
+        postObj.comment_count = newCount;
+        postObj.commentCount = newCount;
+      }
     }
 
     async function submitPostComment(postId, form, event) {
       if (event) event.preventDefault();
+      const pid = Number(postId || form.dataset.postId);
+      if (!pid) return;
       const textarea = form.querySelector('.post-comment-textarea');
       const submitBtn = form.querySelector('.post-comment-submit-btn');
       const content = textarea.value.trim();
@@ -4596,42 +5435,40 @@
       submitBtn.disabled = true;
       textarea.disabled = true;
       try {
-        const res = await fetch(`/api/posts/${postId}/comments`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content })
-        });
+        const isEditing = activeCommentComposerState.postId === pid && activeCommentComposerState.editCommentId;
+        const isReplying = activeCommentComposerState.postId === pid && activeCommentComposerState.parentCommentId;
+        let res;
+        if (isEditing) {
+          res = await fetch(`/api/posts/${pid}/comments/${activeCommentComposerState.editCommentId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+          });
+        } else {
+          const payload = { content };
+          if (isReplying) {
+            payload.parentCommentId = activeCommentComposerState.parentCommentId;
+            if (activeCommentComposerState.replyToUserId) payload.replyToUserId = activeCommentComposerState.replyToUserId;
+          }
+          res = await fetch(`/api/posts/${pid}/comments`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Could not post comment.');
 
         textarea.value = '';
-        openCommentPosts.add(postId);
-        const drawer = form.closest('.post-comments-drawer');
-        if (drawer) drawer.classList.add('open');
-        const listEl = drawer ? drawer.querySelector('.post-comments-list') : null;
-        if (listEl) {
-          drawer.dataset.loaded = 'true';
-          const emptyMsg = listEl.querySelector('.post-comments-empty');
-          if (emptyMsg) emptyMsg.remove();
-          const temp = document.createElement('div');
-          temp.innerHTML = renderPostCommentItem(data.comment);
-          listEl.appendChild(temp.firstElementChild);
+        delete textarea.dataset.wasEditing;
+        cancelCommentComposerMode();
+        await loadCommentsForPost(pid, true);
+        if (data.comment_count !== undefined) {
+          updatePostCommentCountEverywhere(pid, data.comment_count);
         }
-
-        const card = document.querySelector(`[data-post-id="${postId}"]`);
-        if (card) {
-          const countEl = card.querySelector('.comment-count');
-          if (countEl) countEl.textContent = data.comment_count;
-        }
-        const postObj = feedItems.find(item => item._feedType === 'post' && item.id === postId);
-        if (postObj) {
-          postObj.comment_count = data.comment_count;
-          postObj.commentCount = data.comment_count;
-        }
-
-        showToast('Reply posted');
+        showToast(isEditing ? 'Comment updated' : 'Comment posted');
       } catch (err) {
-        showToast(escapeHtml(err.message || 'Failed to post reply'));
+        showToast(escapeHtml(err.message || 'Failed to post comment'));
       } finally {
         submitBtn.disabled = false;
         textarea.disabled = false;
@@ -4852,28 +5689,188 @@
     <span>Login required to access this page. <a href="login.html">Sign In</a></span>
   </div>
 
+  <!-- Facebook-Inspired Centered Post Comments Modal (<Author>'s Post) -->
+  <div id="fbPostModalOverlay" class="fb-post-modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="fbModalTitle" tabindex="-1">
+    <div class="fb-post-modal-card" onclick="event.stopPropagation()">
+      <header class="fb-modal-header">
+        <h3 class="fb-modal-title" id="fbModalTitle">Post</h3>
+        <button type="button" class="fb-modal-close-btn" id="fbModalCloseBtn" aria-label="Close post modal" title="Close">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </header>
+      <div class="fb-modal-scroll-body" id="fbModalScrollBody">
+        <div class="fb-modal-post-host" id="fbModalPostHost"></div>
+        <div class="fb-comments-filter-bar">
+          <span class="fb-comments-filter-label">Most relevant <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg></span>
+        </div>
+        <div class="post-comments-list" id="fbModalCommentsList"></div>
+      </div>
+      <div class="fb-composer-shell">
+        <div class="fb-composer-mode-banner" hidden>
+          <span class="fb-composer-mode-text">Replying to comment</span>
+          <button type="button" class="fb-composer-mode-cancel" onclick="cancelCommentComposerMode()">Cancel</button>
+        </div>
+        <form class="post-comment-composer" id="fbModalCommentForm" onsubmit="submitPostComment(this.dataset.postId, this, event)" novalidate>
+          <div class="fb-composer-avatar" id="fbModalComposerAvatar">S</div>
+          <div class="fb-composer-input-pill">
+            <textarea class="post-comment-textarea" id="fbModalCommentTextarea" placeholder="Write a comment…" rows="1" maxlength="2000" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); this.form.requestSubmit();}"></textarea>
+            <button type="submit" class="post-comment-submit-btn fb-composer-send-btn" title="Send comment" aria-label="Send comment">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Facebook-Inspired Full-Screen Split Theater Mode (#imageLightbox) -->
   <div id="imageLightbox" class="lightbox hidden" role="dialog" aria-modal="true" aria-label="Full image" tabindex="-1">
-    <button type="button" class="lightbox-close" aria-label="Close full image">&times;</button>
-    <button type="button" class="lightbox-nav-btn lightbox-prev" id="lightboxPrev" aria-label="Previous image" style="display: none;">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-    </button>
-    <img id="lightboxImg" alt="">
-    <div id="lightboxCounter" class="lightbox-counter" style="display: none;">1 / 1</div>
-    <button type="button" class="lightbox-nav-btn lightbox-next" id="lightboxNext" aria-label="Next image" style="display: none;">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-    </button>
+    <div class="lightbox-stage" id="lightboxStage">
+      <button type="button" class="lightbox-close" aria-label="Close full image" title="Close (Esc)">&times;</button>
+      <div class="lightbox-top-controls">
+        <button type="button" class="lightbox-ctrl-btn" id="lightboxZoomIn" aria-label="Zoom in" title="Zoom in">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </button>
+        <button type="button" class="lightbox-ctrl-btn" id="lightboxZoomOut" aria-label="Zoom out" title="Zoom out">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+        </button>
+        <button type="button" class="lightbox-ctrl-btn" id="lightboxExpandBtn" aria-label="Toggle full stage" title="Toggle full screen stage">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
+      </div>
+      <button type="button" class="lightbox-nav-btn lightbox-prev" id="lightboxPrev" aria-label="Previous image" style="display: none;">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      </button>
+      <img id="lightboxImg" alt="">
+      <div id="lightboxCounter" class="lightbox-counter" style="display: none;">1 / 1</div>
+      <button type="button" class="lightbox-nav-btn lightbox-next" id="lightboxNext" aria-label="Next image" style="display: none;">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+      </button>
+    </div>
+    <aside class="lightbox-sidebar" id="lightboxSidebar" onclick="event.stopPropagation()">
+      <div class="lightbox-sidebar-scroll">
+        <div class="lightbox-post-details" id="lightboxPostDetails"></div>
+        <div class="fb-comments-filter-bar">
+          <span class="fb-comments-filter-label">Most relevant <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9"/></svg></span>
+        </div>
+        <div class="post-comments-list" id="lightboxCommentsList"></div>
+      </div>
+      <div class="fb-composer-shell">
+        <div class="fb-composer-mode-banner" hidden>
+          <span class="fb-composer-mode-text">Replying to comment</span>
+          <button type="button" class="fb-composer-mode-cancel" onclick="cancelCommentComposerMode()">Cancel</button>
+        </div>
+        <form class="post-comment-composer" id="lightboxCommentForm" onsubmit="submitPostComment(this.dataset.postId, this, event)" novalidate>
+          <div class="fb-composer-avatar" id="lightboxComposerAvatar">S</div>
+          <div class="fb-composer-input-pill">
+            <textarea class="post-comment-textarea" id="lightboxCommentTextarea" placeholder="Write a comment…" rows="1" maxlength="2000" onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault(); this.form.requestSubmit();}"></textarea>
+            <button type="submit" class="post-comment-submit-btn fb-composer-send-btn" title="Send comment" aria-label="Send comment">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+          </div>
+        </form>
+      </div>
+    </aside>
   </div>
   <script>
+    const fbPostModalOverlay = document.getElementById('fbPostModalOverlay');
+    const fbModalTitle = document.getElementById('fbModalTitle');
+    const fbModalPostHost = document.getElementById('fbModalPostHost');
+    const fbModalCommentsList = document.getElementById('fbModalCommentsList');
+    const fbModalCommentForm = document.getElementById('fbModalCommentForm');
+    const fbModalCommentTextarea = document.getElementById('fbModalCommentTextarea');
+    const fbModalComposerAvatar = document.getElementById('fbModalComposerAvatar');
+    const fbModalCloseBtn = document.getElementById('fbModalCloseBtn');
+
+    async function openFbPostModal(postId, card) {
+      const pid = Number(postId);
+      const postObj = feedItems.find(item => item._feedType === 'post' && Number(item.id) === pid);
+      if (!postObj && !card) return;
+
+      cancelCommentComposerMode();
+      activeCommentComposerState.postId = pid;
+      fbPostModalOverlay.dataset.postId = String(pid);
+      fbModalCommentForm.dataset.postId = String(pid);
+
+      const authorName = (postObj && postObj.name) ? postObj.name : (card?.querySelector('.post-author-name')?.textContent || 'Student');
+      fbModalTitle.textContent = `${authorName}'s Post`;
+      fbModalComposerAvatar.innerHTML = getCurrentUserAvatarHtml();
+      fbModalCommentTextarea.placeholder = getCurrentUserCommentPlaceholder();
+
+      if (postObj) {
+        fbModalPostHost.innerHTML = renderFeedPostCard(postObj);
+      } else if (card) {
+        fbModalPostHost.innerHTML = card.outerHTML;
+      }
+
+      fbPostModalOverlay.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      fbModalCommentsList.innerHTML = '<p class="post-comments-empty" style="text-align: center;">Loading comments…</p>';
+
+      try {
+        await loadCommentsForPost(pid);
+      } catch (err) {
+        fbModalCommentsList.innerHTML = `<p class="post-comments-empty" style="color: var(--accent-red, #ff453a);">${escapeHtml(err.message)}</p>`;
+      }
+      setTimeout(() => fbModalCommentTextarea.focus(), 60);
+    }
+
+    function closeFbPostModal() {
+      if (!fbPostModalOverlay || fbPostModalOverlay.classList.contains('hidden')) return;
+      fbPostModalOverlay.classList.add('hidden');
+      fbPostModalOverlay.dataset.postId = '';
+      fbModalPostHost.innerHTML = '';
+      cancelCommentComposerMode();
+      if (imageLightbox.classList.contains('hidden')) {
+        document.body.style.overflow = '';
+      }
+    }
+
+    if (fbModalCloseBtn) fbModalCloseBtn.addEventListener('click', closeFbPostModal);
+    if (fbPostModalOverlay) {
+      fbPostModalOverlay.addEventListener('click', (e) => {
+        if (e.target === fbPostModalOverlay) closeFbPostModal();
+      });
+      fbModalPostHost.addEventListener('click', (event) => {
+        const moreOverlay = event.target.closest('.post-media-more-overlay');
+        if (moreOverlay) {
+          const postMedia = moreOverlay.closest('.post-image');
+          const imgs = postMedia ? Array.from(postMedia.querySelectorAll('img:not([hidden])')) : [];
+          if (imgs.length >= 4) openPostImage(imgs[3]);
+          return;
+        }
+        if (event.target.matches('.post-image img')) openPostImage(event.target);
+      });
+    }
+
     const imageLightbox = document.getElementById('imageLightbox');
+    const lightboxStage = document.getElementById('lightboxStage');
     const lightboxImg = document.getElementById('lightboxImg');
     const lightboxClose = imageLightbox.querySelector('.lightbox-close');
     const lightboxPrev = document.getElementById('lightboxPrev');
     const lightboxNext = document.getElementById('lightboxNext');
     const lightboxCounter = document.getElementById('lightboxCounter');
+    const lightboxZoomIn = document.getElementById('lightboxZoomIn');
+    const lightboxZoomOut = document.getElementById('lightboxZoomOut');
+    const lightboxExpandBtn = document.getElementById('lightboxExpandBtn');
+    const lightboxPostDetails = document.getElementById('lightboxPostDetails');
+    const lightboxCommentsList = document.getElementById('lightboxCommentsList');
+    const lightboxCommentForm = document.getElementById('lightboxCommentForm');
+    const lightboxCommentTextarea = document.getElementById('lightboxCommentTextarea');
+    const lightboxComposerAvatar = document.getElementById('lightboxComposerAvatar');
+
     let lightboxTrigger = null;
     let lightboxPreviousOverflow = '';
     let galleryImages = [];
     let galleryIndex = 0;
+    let lightboxScale = 1;
+
+    function applyLightboxZoom(newScale) {
+      lightboxScale = Math.max(1, Math.min(3.5, Number(newScale) || 1));
+      if (lightboxImg) {
+        lightboxImg.style.transform = lightboxScale === 1 ? 'scale(1)' : `scale(${lightboxScale})`;
+      }
+    }
 
     function updateLightboxNav() {
       if (!lightboxPrev || !lightboxNext || !lightboxCounter) return;
@@ -4894,43 +5891,159 @@
       if (idx < 0) idx = galleryImages.length - 1;
       if (idx >= galleryImages.length) idx = 0;
       galleryIndex = idx;
-      const targetImg = galleryImages[galleryIndex];
-      if (targetImg) {
-        lightboxImg.src = targetImg.currentSrc || targetImg.src;
-        lightboxImg.alt = targetImg.alt || '';
+      applyLightboxZoom(1);
+      const target = galleryImages[galleryIndex];
+      if (target) {
+        lightboxImg.src = typeof target === 'string' ? target : (target.url || target.currentSrc || target.src || '');
+        lightboxImg.alt = target.alt || target.name || '';
       }
       updateLightboxNav();
     }
 
-    function openPostImage(image) {
+    function renderLightboxSidebarPost(post) {
+      if (!lightboxPostDetails || !post) return;
+      const profileUrl = 'profile.html?id=' + encodeURIComponent(post.studentId || '');
+      const avatarUrl = safePostUrl(post.avatarUrl);
+      const avatar = avatarUrl
+        ? `<img src="${avatarUrl}" alt="${escapeHtml(post.name)}" class="post-avatar-img">`
+        : escapeHtml((post.name || 'S').charAt(0).toUpperCase());
+
+      const isSpecialRole = post.role === 'admin' || post.role === 'teacher' || post.role === 'faculty';
+      const isClassRep = post.role === 'cr' || post.role === 'class_rep';
+      let roleBadgeHtml = '';
+      if (post.role === 'admin') {
+        roleBadgeHtml = `<span class="post-verified-badge post-admin-badge"><svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Admin</span>`;
+      } else if (post.role === 'teacher' || post.role === 'faculty') {
+        roleBadgeHtml = `<span class="post-verified-badge post-admin-badge"><svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Teacher</span>`;
+      } else if (isClassRep) {
+        roleBadgeHtml = `<span class="post-verified-badge post-cr-badge"><svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Class Rep</span>`;
+      }
+      const handleHtml = isSpecialRole ? `<span class="post-student-handle">@${escapeHtml(post.studentId)}</span> <span class="post-meta-sep">&middot;</span> ` : '';
+      const cleanContent = (post.content || '').replace(/\n{3,}/g, '\n\n');
+      const contentHtml = cleanContent
+        ? `<div class="status-post-text post-markdown-content" style="margin-top: 8px; font-size: 14px;">${typeof renderPostMarkdown === 'function' ? renderPostMarkdown(cleanContent) : escapeHtml(cleanContent)}</div>`
+        : '';
+      const likeCount = post.like_count ?? post.likeCount ?? 0;
+      const commentCount = post.comment_count ?? post.commentCount ?? 0;
+
+      lightboxPostDetails.innerHTML = `
+        <div style="display:flex; align-items:center; gap:10px;">
+          <a href="${profileUrl}" class="post-avatar" style="width:38px; height:38px; border-radius:50%; flex-shrink:0;">${avatar}</a>
+          <div style="min-width:0; flex:1;">
+            <div style="display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+              <a href="${profileUrl}" class="post-author-name post-author-link" style="font-size:14px; font-weight:700;">${escapeHtml(post.name || 'Student')}</a>
+              ${roleBadgeHtml}
+            </div>
+            <div class="post-meta-row" style="font-size:12px;">${handleHtml}<time class="post-timestamp">${timeAgo(post.created_at)}</time></div>
+          </div>
+        </div>
+        ${contentHtml}
+        ${renderPostActions({
+          liked: post.liked_by_me,
+          likes: likeCount,
+          comments: commentCount,
+          likeAction: `toggleStatusLike(${post.id}, this)`,
+          commentAction: `document.getElementById('lightboxCommentTextarea')?.focus()`,
+          shareAction: `copySharePostLink(${post.id})`
+        })}
+      `;
+    }
+
+    async function openPostImage(image) {
       if (!image || image.hidden) return;
       lightboxTrigger = image;
       lightboxPreviousOverflow = document.body.style.overflow;
+      imageLightbox.classList.remove('sidebar-collapsed');
+
+      const card = image.closest('[data-post-id]');
+      const postId = card ? Number(card.dataset.postId) : Number(fbPostModalOverlay?.dataset.postId || 0);
+      const postObj = postId ? feedItems.find(item => item._feedType === 'post' && Number(item.id) === postId) : null;
 
       const postMedia = image.closest('.post-image');
-      if (postMedia) {
-        galleryImages = Array.from(postMedia.querySelectorAll('img:not([hidden])'));
-        galleryIndex = Math.max(0, galleryImages.indexOf(image));
+      const domImgs = postMedia ? Array.from(postMedia.querySelectorAll('img:not([hidden])')) : [image];
+      const clickedIdx = Math.max(0, domImgs.indexOf(image));
+
+      if (postObj && Array.isArray(postObj.media)) {
+        const allMediaImgs = postObj.media
+          .filter(m => (m.media_type || m.type || 'image').toLowerCase() === 'image')
+          .map(m => ({ url: safePostUrl(m.url), alt: `Photo by ${postObj.name || 'Student'}` }))
+          .filter(m => m.url);
+        if (allMediaImgs.length > 0) {
+          galleryImages = allMediaImgs;
+          galleryIndex = Math.min(clickedIdx, galleryImages.length - 1);
+        } else {
+          galleryImages = domImgs;
+          galleryIndex = clickedIdx;
+        }
       } else {
-        galleryImages = [image];
-        galleryIndex = 0;
+        galleryImages = domImgs;
+        galleryIndex = clickedIdx;
       }
 
       showLightboxIndex(galleryIndex);
       document.body.style.overflow = 'hidden';
       imageLightbox.classList.remove('hidden');
+
+      if (postId && postObj) {
+        imageLightbox.dataset.postId = String(postId);
+        lightboxCommentForm.dataset.postId = String(postId);
+        activeCommentComposerState.postId = postId;
+        lightboxComposerAvatar.innerHTML = getCurrentUserAvatarHtml();
+        lightboxCommentTextarea.placeholder = getCurrentUserCommentPlaceholder();
+        renderLightboxSidebarPost(postObj);
+        lightboxCommentsList.innerHTML = '<p class="post-comments-empty" style="text-align: center;">Loading comments…</p>';
+        loadCommentsForPost(postId).catch(err => {
+          lightboxCommentsList.innerHTML = `<p class="post-comments-empty" style="color: var(--accent-red, #ff453a);">${escapeHtml(err.message)}</p>`;
+        });
+      } else {
+        imageLightbox.dataset.postId = '';
+        imageLightbox.classList.add('sidebar-collapsed');
+      }
+
       lightboxClose.focus();
     }
 
     function closePostImage() {
       imageLightbox.classList.add('hidden');
+      imageLightbox.dataset.postId = '';
       lightboxImg.removeAttribute('src');
+      applyLightboxZoom(1);
       galleryImages = [];
       galleryIndex = 0;
       updateLightboxNav();
-      document.body.style.overflow = lightboxPreviousOverflow;
+      if (!fbPostModalOverlay || fbPostModalOverlay.classList.contains('hidden')) {
+        document.body.style.overflow = lightboxPreviousOverflow;
+      }
       if (lightboxTrigger?.isConnected) lightboxTrigger.focus();
       lightboxTrigger = null;
+    }
+
+    if (lightboxZoomIn) {
+      lightboxZoomIn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        applyLightboxZoom(lightboxScale + 0.4);
+      });
+    }
+    if (lightboxZoomOut) {
+      lightboxZoomOut.addEventListener('click', (e) => {
+        e.stopPropagation();
+        applyLightboxZoom(lightboxScale - 0.4);
+      });
+    }
+    if (lightboxExpandBtn) {
+      lightboxExpandBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        imageLightbox.classList.toggle('sidebar-collapsed');
+      });
+    }
+    if (lightboxStage) {
+      lightboxStage.addEventListener('dblclick', (e) => {
+        if (e.target.closest('button')) return;
+        applyLightboxZoom(lightboxScale > 1 ? 1 : 2.2);
+      });
+      lightboxStage.addEventListener('click', (e) => {
+        if (e.target === lightboxStage) closePostImage();
+      });
     }
 
     document.getElementById('realFiles').addEventListener('click', (event) => {
@@ -4974,13 +6087,14 @@
       if (event.target === imageLightbox) closePostImage();
     });
     document.addEventListener('keydown', (event) => {
-      if (imageLightbox.classList.contains('hidden')) return;
-      if (event.key === 'Escape') closePostImage();
-      if (event.key === 'ArrowLeft' && galleryImages.length > 1) showLightboxIndex(galleryIndex - 1);
-      if (event.key === 'ArrowRight' && galleryImages.length > 1) showLightboxIndex(galleryIndex + 1);
-      if (event.key === 'Tab') {
-        event.preventDefault();
-        lightboxClose.focus();
+      if (!imageLightbox.classList.contains('hidden')) {
+        if (event.key === 'Escape') closePostImage();
+        if (event.key === 'ArrowLeft' && galleryImages.length > 1 && document.activeElement !== lightboxCommentTextarea) showLightboxIndex(galleryIndex - 1);
+        if (event.key === 'ArrowRight' && galleryImages.length > 1 && document.activeElement !== lightboxCommentTextarea) showLightboxIndex(galleryIndex + 1);
+        return;
+      }
+      if (fbPostModalOverlay && !fbPostModalOverlay.classList.contains('hidden')) {
+        if (event.key === 'Escape') closeFbPostModal();
       }
     });
   </script>

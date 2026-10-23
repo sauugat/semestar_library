@@ -59,7 +59,7 @@
       --text: #111827;
       --text-muted: #4b5563;
       --text-subtle: #6b7280;
-      --accent: #0071e3;
+      --accent: #111827;
       --radius-sm: 10px;
       --radius-md: 16px;
       --radius-lg: 22px;
@@ -351,8 +351,7 @@
     }
 
     .course-card-minimal,
-    .clean-file-item,
-    .clean-unit-row {
+    .clean-file-item {
       contain: layout paint;
       transform: translate3d(0, 0, 0);
       backface-visibility: hidden;
@@ -468,17 +467,17 @@
       font-weight: 800;
       padding: 4px 8px;
       border-radius: 6px;
-      background: #2563eb;
+      background: #374151;
       color: #ffffff;
       letter-spacing: 0.03em;
       flex-shrink: 0;
     }
 
-    .preview-badge.pdf { background: #dc2626; }
-    .preview-badge.ppt { background: #d97706; }
-    .preview-badge.doc { background: #2563eb; }
-    .preview-badge.img { background: #059669; }
-    .preview-badge.zip { background: #7c3aed; }
+    .preview-badge.pdf { background: #374151; }
+    .preview-badge.ppt { background: #374151; }
+    .preview-badge.doc { background: #374151; }
+    .preview-badge.img { background: #374151; }
+    .preview-badge.zip { background: #374151; }
 
     .preview-title-wrap {
       min-width: 0;
@@ -535,14 +534,16 @@
     }
 
     .preview-action-btn.primary {
-      background: #0071e3;
-      border-color: #0071e3;
-      color: #ffffff;
+      background: #ffffff;
+      border-color: #ffffff;
+      color: #111827;
     }
 
     .preview-action-btn.primary:hover {
-      background: #0077ed;
-      box-shadow: 0 2px 10px rgba(0, 113, 227, 0.4);
+      background: #e5e7eb;
+      border-color: #e5e7eb;
+      color: #000000;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
     }
 
     .preview-action-btn.close-btn {
@@ -608,7 +609,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #60a5fa;
+      color: #d1d5db;
       margin-bottom: 16px;
     }
 
@@ -899,20 +900,20 @@
     }
 
     .clean-file-item:hover {
-      border-color: #0071e3;
+      border-color: #111827;
       transform: translateY(-1px);
     }
 
     .clean-file-item.active-viewing {
-      border-color: #0071e3;
-      background: #f0f7ff;
-      box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.18);
+      border-color: #111827;
+      background: #f3f4f6;
+      box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.12);
     }
 
     .clean-file-item.active-viewing .btn-file-view {
-      background: #0071e3;
+      background: #111827;
       color: #ffffff;
-      border-color: #0071e3;
+      border-color: #111827;
     }
 
     .clean-file-left {
@@ -1001,10 +1002,14 @@
       border-color: var(--border);
     }
 
-    .btn-file-view:hover {
-      background: #0071e3;
-      color: #ffffff;
-      border-color: #0071e3;
+    .btn-file-view:hover,
+    .btn-file-view:focus,
+    .btn-file-view:active {
+      background: #111827 !important;
+      color: #ffffff !important;
+      border-color: #111827 !important;
+      outline: none !important;
+      box-shadow: none !important;
     }
 
     [data-theme="dark"] .btn-file-view,
@@ -1449,8 +1454,8 @@
 
     .confirm-badge.doc,
     .confirm-badge.docx {
-      background: #dbeafe;
-      color: #1d4ed8;
+      background: #e5e7eb;
+      color: #111827;
     }
 
     .confirm-badge.img {
@@ -1800,8 +1805,8 @@
     }
 
     .badge-doc {
-      background: #dbeafe;
-      color: #1d4ed8;
+      background: #e5e7eb;
+      color: #111827;
     }
 
     .badge-img {
@@ -2273,9 +2278,9 @@
     }
 
     .custom-prompt-input:focus {
-      border-color: #0071e3;
+      border-color: #111827;
       background: var(--surface, #ffffff);
-      box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+      box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.1);
     }
 
     [data-theme="dark"] .custom-prompt-card,
@@ -2293,8 +2298,8 @@
 
     [data-theme="dark"] .custom-prompt-input:focus,
     body.dark-mode .custom-prompt-input:focus {
-      border-color: #60a5fa;
-      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+      border-color: #a3a3a3;
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
     }
 
     .custom-prompt-actions {
@@ -2356,8 +2361,8 @@
     }
 
     .clean-file-item.reordering-active {
-      border-color: #0071e3 !important;
-      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.18), 0 0 0 2px rgba(0, 113, 227, 0.22) !important;
+      border-color: #111827 !important;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.18), 0 0 0 2px rgba(17, 24, 39, 0.18) !important;
       z-index: 40;
       position: relative;
       cursor: grabbing !important;
@@ -2368,12 +2373,34 @@
       transition: box-shadow 180ms ease, border-color 180ms ease !important;
     }
 
+    /* Strict Monochrome Focus/Active Override (No Blue Outlines or Buttons) */
+    .lib-page-wrap button:focus,
+    .lib-page-wrap button:focus-visible,
+    .drawer-overlay button:focus,
+    .drawer-overlay button:focus-visible,
+    .modal-overlay button:focus,
+    .modal-overlay button:focus-visible,
+    .custom-prompt-overlay button:focus,
+    .custom-prompt-overlay button:focus-visible,
+    .custom-confirm-overlay button:focus,
+    .custom-confirm-overlay button:focus-visible {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
     /* ==========================================================================
        CHAPTER 3-DOT MENU & NOTE SELECTION MODE
        ========================================================================== */
     .clean-unit-row {
+      contain: none !important;
+      transform: none !important;
       overflow: visible !important;
       position: relative;
+      z-index: 1;
+    }
+
+    .clean-unit-row.menu-open {
+      z-index: 600 !important;
     }
 
     .clean-unit-head {
@@ -2400,10 +2427,11 @@
       position: relative;
       display: inline-flex;
       align-items: center;
+      z-index: 700;
     }
 
     .chapter-menu-trigger {
-      width: 28px;
+      width: 30px;
       height: 28px;
       border-radius: 7px;
       border: 1px solid transparent;
@@ -2414,38 +2442,51 @@
       justify-content: center;
       cursor: pointer;
       padding: 0;
+      outline: none !important;
+      box-shadow: none !important;
       transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
     }
 
     .chapter-menu-trigger:hover,
+    .chapter-menu-trigger:focus,
     .chapter-menu-wrap.open .chapter-menu-trigger {
-      background: rgba(0, 0, 0, 0.06);
-      color: var(--text);
-      border-color: var(--border);
+      background: #f3f4f6 !important;
+      color: #111827 !important;
+      border-color: rgba(0, 0, 0, 0.15) !important;
+      outline: none !important;
+      box-shadow: none !important;
     }
 
     [data-theme="dark"] .chapter-menu-trigger:hover,
     body.dark-mode .chapter-menu-trigger:hover,
+    [data-theme="dark"] .chapter-menu-trigger:focus,
+    body.dark-mode .chapter-menu-trigger:focus,
     [data-theme="dark"] .chapter-menu-wrap.open .chapter-menu-trigger,
     body.dark-mode .chapter-menu-wrap.open .chapter-menu-trigger {
-      background: rgba(255, 255, 255, 0.08);
-      color: #f5f5f5;
+      background: #2a2a2a !important;
+      color: #f5f5f5 !important;
+      border-color: #48484a !important;
     }
 
     .chapter-dropdown-menu {
       position: absolute;
       top: calc(100% + 6px);
       right: 0;
-      min-width: 188px;
+      min-width: 192px;
       background: var(--surface, #ffffff);
       border: 1.5px solid var(--border);
       border-radius: 12px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+      box-shadow: 0 14px 36px rgba(0, 0, 0, 0.16);
       padding: 5px;
-      z-index: 120;
+      z-index: 999;
       display: none;
       flex-direction: column;
       gap: 2px;
+    }
+
+    .chapter-dropdown-menu.open-upward {
+      top: auto;
+      bottom: calc(100% + 6px);
     }
 
     [data-theme="dark"] .chapter-dropdown-menu,
@@ -2476,35 +2517,38 @@
       gap: 8px;
       transition: background 0.14s ease, color 0.14s ease;
       box-sizing: border-box;
+      outline: none !important;
     }
 
     .chapter-dropdown-item:hover {
-      background: rgba(0, 0, 0, 0.05);
+      background: #f3f4f6;
+      color: #111827;
     }
 
     [data-theme="dark"] .chapter-dropdown-item:hover,
     body.dark-mode .chapter-dropdown-item:hover {
       background: rgba(255, 255, 255, 0.08);
+      color: #f5f5f5;
     }
 
     .chapter-dropdown-item.danger {
-      color: #e11d48;
+      color: #374151;
     }
 
     .chapter-dropdown-item.danger:hover {
-      background: #fff1f2;
-      color: #be123c;
+      background: #e5e7eb;
+      color: #000000;
     }
 
     [data-theme="dark"] .chapter-dropdown-item.danger,
     body.dark-mode .chapter-dropdown-item.danger {
-      color: #fb7185;
+      color: #d4d4d8;
     }
 
     [data-theme="dark"] .chapter-dropdown-item.danger:hover,
     body.dark-mode .chapter-dropdown-item.danger:hover {
-      background: rgba(225, 29, 72, 0.16);
-      color: #fda4af;
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
     }
 
     .chapter-dropdown-divider {
@@ -2521,12 +2565,18 @@
       gap: 10px;
       padding: 8px 12px;
       margin-bottom: 10px;
-      background: rgba(0, 113, 227, 0.06);
-      border: 1px solid rgba(0, 113, 227, 0.2);
+      background: #f3f4f6;
+      border: 1px solid var(--border);
       border-radius: 9px;
       font-size: 12px;
       font-weight: 600;
       color: var(--text);
+    }
+
+    [data-theme="dark"] .chapter-selection-bar,
+    body.dark-mode .chapter-selection-bar {
+      background: #262626;
+      border-color: #404040;
     }
 
     .clean-unit-row.selection-mode .chapter-selection-bar {
@@ -3733,6 +3783,7 @@
     function renderFileActions(f, isSearchResult = false, canManageCourse = false) {
       const fileBadge = getFileBadge(f.originalName || f.title);
       const canModify = Boolean(f.canDelete || canManageCourse);
+      const isTeacher = Boolean(window.ACADEMIC_CONTEXT && window.ACADEMIC_CONTEXT.role === 'teacher');
       const viewClickFn = isSearchResult
         ? `openFileFromSearchResult(${f.id}, '${escapeJs(f.subject || '')}', event)`
         : `openInlineFilePreview(${f.id}, event)`;
@@ -3749,7 +3800,9 @@
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             <span>View</span>
           </button>
-          <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get" download="${escapeHtml(f.originalName || 'file')}" onclick="return requireLoginForFile(event, ${f.id}, 'download')" title="Download file">Get</a>
+          ${!isTeacher ? `
+            <a href="/api/files/${f.id}/download" class="btn-file-action btn-file-get" download="${escapeHtml(f.originalName || 'file')}" onclick="return requireLoginForFile(event, ${f.id}, 'download')" title="Download file">Get</a>
+          ` : ''}
           ${canModify ? `
             <button type="button" class="btn-file-action btn-file-view" onclick="editLibraryFilePrompt(${f.id}, event)" title="Rename this note">
               <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -4527,7 +4580,6 @@
     }
 
     function renderCourseCard(c) {
-      const fileCount = getFileCount(c.title);
       const units = c.contents ? window.SyllabusHelper.parseCourseUnits(c.contents) : [];
       const semLabel = SEM_MAP[c.rawSemester] || c.rawSemester;
 
@@ -4536,7 +4588,6 @@
           <div>
             <div class="course-card-head">
               <span class="course-code-badge">${escapeHtml(c.code || 'COURSE')}</span>
-              ${fileCount ? `<span class="course-files-pill has-files">${fileCount} ${fileCount === 1 ? 'note' : 'notes'}</span>` : ''}
             </div>
             <h3 class="course-name-clean">${escapeHtml(c.title)}</h3>
           </div>
@@ -4708,9 +4759,9 @@
         <div class="chapter-menu-wrap" onclick="event.stopPropagation();">
           <button type="button" class="chapter-menu-trigger" onclick="toggleChapterMenu(event, this)" title="Chapter options" aria-label="Chapter options">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <circle cx="12" cy="5" r="1.8" />
+              <circle cx="5" cy="12" r="1.8" />
               <circle cx="12" cy="12" r="1.8" />
-              <circle cx="12" cy="19" r="1.8" />
+              <circle cx="19" cy="12" r="1.8" />
             </svg>
           </button>
           <div class="chapter-dropdown-menu">
@@ -4756,16 +4807,32 @@
       }
       const wrap = triggerBtn.closest('.chapter-menu-wrap');
       if (!wrap) return;
+      const unitRow = wrap.closest('.clean-unit-row');
+      const menuEl = wrap.querySelector('.chapter-dropdown-menu');
       const wasOpen = wrap.classList.contains('open');
       document.querySelectorAll('.chapter-menu-wrap.open').forEach(el => el.classList.remove('open'));
+      document.querySelectorAll('.clean-unit-row.menu-open').forEach(el => el.classList.remove('menu-open'));
       if (!wasOpen) {
         wrap.classList.add('open');
+        if (unitRow) unitRow.classList.add('menu-open');
+        if (menuEl) {
+          menuEl.classList.remove('open-upward');
+          const drawerBody = document.getElementById('drawerBody');
+          if (drawerBody) {
+            const triggerRect = triggerBtn.getBoundingClientRect();
+            const bodyRect = drawerBody.getBoundingClientRect();
+            if (bodyRect.bottom - triggerRect.bottom < 190 && triggerRect.top - bodyRect.top > 190) {
+              menuEl.classList.add('open-upward');
+            }
+          }
+        }
       }
     };
 
     document.addEventListener('click', (e) => {
       if (!e.target.closest('.chapter-menu-wrap')) {
         document.querySelectorAll('.chapter-menu-wrap.open').forEach(el => el.classList.remove('open'));
+        document.querySelectorAll('.clean-unit-row.menu-open').forEach(el => el.classList.remove('menu-open'));
       }
     });
 
@@ -5024,7 +5091,6 @@
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>${escapeHtml(displayUnitLabel)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${uFiles.length} file${uFiles.length === 1 ? '' : 's'}</span>
                 ${canManageThisCourse ? renderChapterThreeDotMenuHtml(course.title, course.code, displayUnitLabel, originalUnitLabel, uFiles.map(f => f.id)) : ''}
               </div>
             </div>
@@ -5098,7 +5164,6 @@
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>${escapeHtml(chapName)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${cFiles.length} file${cFiles.length === 1 ? '' : 's'}</span>
                 ${canManageThisCourse ? renderChapterThreeDotMenuHtml(course.title, course.code, chapName, chapName, cFiles.map(f => f.id)) : ''}
               </div>
             </div>
@@ -5134,7 +5199,6 @@
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>${escapeHtml(labDisplayLabel)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${labFiles.length} file${labFiles.length === 1 ? '' : 's'}</span>
                 ${canManageThisCourse ? renderChapterThreeDotMenuHtml(course.title, course.code, labDisplayLabel, labOrigKey, labFiles.map(f => f.id)) : ''}
               </div>
             </div>
@@ -5163,7 +5227,6 @@
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>${escapeHtml(genDisplayLabel)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">${general.length} file${general.length === 1 ? '' : 's'}</span>
                 ${canManageThisCourse ? renderChapterThreeDotMenuHtml(course.title, course.code, genDisplayLabel, genOrigKey, general.map(f => f.id)) : ''}
               </div>
             </div>

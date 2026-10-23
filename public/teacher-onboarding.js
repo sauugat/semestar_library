@@ -67,12 +67,12 @@
       const data = await res.json();
       if (data.status === 'completed' || data.completed) {
         sessionStorage.removeItem('teacher_onboarding_token');
-        window.location.href = '/dashboard.html';
+        window.location.href = '/teacher-dashboard.html';
         return;
       }
       if (data.status === 'awaiting_email_verification') {
         targetEmail = data.email || data.state?.pending?.email || '';
-        showAwaitingVerification(data.emailMasked);
+        showAwaitingVerification(data.emailMasked, false);
       } else {
         await loadSubjects();
       }
@@ -413,14 +413,22 @@
     }
   };
 
-  function showAwaitingVerification(maskedEmail) {
+  function showAwaitingVerification(maskedEmail, applyCooldown = true) {
     goToStep(3);
     document.getElementById('waitingMaskedEmail').textContent = maskedEmail || 'your email';
     // Clear any previous OTP digits
     const inputs = document.querySelectorAll('.otp-digit-input');
     inputs.forEach(inp => { inp.value = ''; });
     if (inputs[0]) inputs[0].focus();
-    startResendCooldown(60);
+    if (applyCooldown) {
+      startResendCooldown(60);
+    } else {
+      const btn = document.getElementById('resendBtn');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Resend Code</span>';
+      }
+    }
   }
 
   function setupOtpInputs() {
@@ -489,25 +497,39 @@
     }
 
     try {
-      const supabase = await window.SemesterAuth.getSupabase();
-      let verifyRes = await supabase.auth.verifyOtp({
-        email: targetEmail,
-        token: digits,
-        type: 'email'
-      });
-
-      if (verifyRes.error && (verifyRes.error.message || '').toLowerCase().includes('type')) {
-        verifyRes = await supabase.auth.verifyOtp({
-          email: targetEmail,
-          token: digits,
-          type: 'signup'
-        });
+      const emailToVerify = (targetEmail || step1Data.email || '').trim().toLowerCase();
+      if (!emailToVerify) {
+        showAlert('Missing email address for verification. Please refresh or update your email.', 'error');
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>Verify & Continue</span>';
+        }
+        return;
       }
 
-      if (verifyRes.error || !verifyRes.data?.session?.access_token) {
-        const errMsg = (verifyRes.error?.message || '').toLowerCase();
-        if (errMsg.includes('expired') || verifyRes.error?.code === 'otp_expired') {
-          showAlert('That code has expired. Request a new verification code.', 'error', 'Code Expired');
+      const supabase = await window.SemesterAuth.getSupabase();
+      const otpTypes = ['signup', 'email', 'magiclink', 'email_change'];
+      let verifyRes = null;
+
+      for (const otpType of otpTypes) {
+        const attempt = await supabase.auth.verifyOtp({
+          email: emailToVerify,
+          token: digits,
+          type: otpType
+        });
+        if (!attempt.error && attempt.data?.session?.access_token) {
+          verifyRes = attempt;
+          break;
+        }
+        if (!verifyRes) {
+          verifyRes = attempt;
+        }
+      }
+
+      if (!verifyRes || verifyRes.error || !verifyRes.data?.session?.access_token) {
+        const errMsg = (verifyRes?.error?.message || '').toLowerCase();
+        if (errMsg.includes('expired') || verifyRes?.error?.code === 'otp_expired') {
+          showAlert('That code has expired or does not match. Please check the code or click Resend Code.', 'error', 'Verification Failed');
         } else {
           showAlert('That verification code is incorrect.', 'error', 'Incorrect Code');
         }
@@ -537,9 +559,9 @@
 
       sessionStorage.removeItem('teacher_onboarding_token');
 
-      showAlert('Account verified! Taking you to your dashboard…', 'success', 'Welcome');
+      showAlert('Account verified! Taking you to your faculty dashboard…', 'success', 'Welcome');
       setTimeout(() => {
-        window.location.href = '/dashboard.html';
+        window.location.href = '/teacher-dashboard.html';
       }, 500);
     } catch (err) {
       showAlert(err.message || 'Verification failed. Please try again.', 'error');

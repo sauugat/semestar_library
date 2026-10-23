@@ -417,24 +417,28 @@ export default function TeacherOnboardingScreen() {
 
     try {
       const supabase = await getMobileSupabaseClient(serverUrl);
-      let verifyRes = await supabase.auth.verifyOtp({
-        email: targetEmail,
-        token: code,
-        type: 'email',
-      });
+      const otpTypes: Array<'signup' | 'email' | 'magiclink' | 'email_change'> = ['signup', 'email', 'magiclink', 'email_change'];
+      let verifyRes: any = null;
 
-      if (verifyRes.error && (verifyRes.error.message || '').toLowerCase().includes('type')) {
-        verifyRes = await supabase.auth.verifyOtp({
+      for (const otpType of otpTypes) {
+        const attempt = await supabase.auth.verifyOtp({
           email: targetEmail,
           token: code,
-          type: 'signup',
+          type: otpType,
         });
+        if (!attempt.error && attempt.data?.session?.access_token) {
+          verifyRes = attempt;
+          break;
+        }
+        if (!verifyRes) {
+          verifyRes = attempt;
+        }
       }
 
-      if (verifyRes.error || !verifyRes.data?.session?.access_token) {
-        const errMsg = (verifyRes.error?.message || '').toLowerCase();
-        if (errMsg.includes('expired') || verifyRes.error?.code === 'otp_expired') {
-          setErrorMessage('That code has expired. Request a new verification code.');
+      if (!verifyRes || verifyRes.error || !verifyRes.data?.session?.access_token) {
+        const errMsg = (verifyRes?.error?.message || '').toLowerCase();
+        if (errMsg.includes('expired') || verifyRes?.error?.code === 'otp_expired') {
+          setErrorMessage('That code has expired or does not match. Request a new verification code.');
         } else {
           setErrorMessage('That verification code is incorrect.');
         }

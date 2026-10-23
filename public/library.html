@@ -1084,32 +1084,63 @@
     #dRenameSubjectBtn,
     [data-theme="dark"] #dRenameSubjectBtn,
     body.dark-mode #dRenameSubjectBtn {
-      background: #000000 !important;
-      color: #ffffff !important;
-      border: 1px solid #000000 !important;
-      font-weight: 700 !important;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 7px;
+      background: transparent !important;
+      color: var(--text-muted, #4b5563) !important;
+      border: 1px solid transparent !important;
+      cursor: pointer;
+      flex-shrink: 0;
       outline: none !important;
       box-shadow: none !important;
       transform: none !important;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     }
 
     #dRenameSubjectBtn:hover,
     #dRenameSubjectBtn:focus,
-    #dRenameSubjectBtn:active,
-    [data-theme="dark"] #dRenameSubjectBtn:hover,
-    body.dark-mode #dRenameSubjectBtn:hover {
-      background: #4b5563 !important;
-      color: #ffffff !important;
-      border: 1px solid #4b5563 !important;
+    #dRenameSubjectBtn:active {
+      background: rgba(0, 0, 0, 0.06) !important;
+      color: var(--text, #111827) !important;
+      border: 1px solid var(--border) !important;
       outline: none !important;
       box-shadow: none !important;
       transform: none !important;
     }
 
-    #dRenameSubjectBtn *,
-    [data-theme="dark"] #dRenameSubjectBtn *,
-    body.dark-mode #dRenameSubjectBtn * {
+    [data-theme="dark"] #dRenameSubjectBtn:hover,
+    body.dark-mode #dRenameSubjectBtn:hover,
+    [data-theme="dark"] #dRenameSubjectBtn:focus,
+    body.dark-mode #dRenameSubjectBtn:focus {
+      background: rgba(255, 255, 255, 0.1) !important;
       color: #ffffff !important;
+      border: 1px solid var(--border) !important;
+    }
+
+    #dRenameSubjectBtn svg,
+    [data-theme="dark"] #dRenameSubjectBtn svg,
+    body.dark-mode #dRenameSubjectBtn svg {
+      stroke: currentColor !important;
+      color: inherit !important;
+    }
+
+    .drawer-footer {
+      padding: 12px 22px;
+      border-top: 1.5px solid var(--border);
+      background: var(--surface, #ffffff);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+
+    .drawer-workspace.reading-file .drawer-footer {
+      display: none !important;
     }
 
     .btn-file-get,
@@ -3194,21 +3225,20 @@
             <span class="course-code-badge" id="dCourseCode">BIT101</span>
             <span style="font-size:12px; font-weight:600; color:var(--text-muted);" id="dCourseMeta">Semester 1 &middot; 3 Credits</span>
           </div>
-          <h2 style="font-size:18px; font-weight:800; margin:0 0 12px; color:var(--text);" id="dCourseTitle">Course Title</h2>
-          <div style="display:flex; flex-wrap:wrap; gap:8px;">
-            <button type="button" id="dUploadBtn" class="upload-cta-btn" style="display:none; padding:6px 14px; font-size:12px;">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+          <div style="display:flex; align-items:center; gap:8px; padding-right:36px;">
+            <h2 style="font-size:18px; font-weight:800; margin:0; color:var(--text); line-height:1.3;" id="dCourseTitle">Course Title</h2>
+            <button type="button" id="dRenameSubjectBtn" style="display:none;" title="Edit subject name" aria-label="Edit subject name">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
               </svg>
-              <span>+ Upload Note</span>
-            </button>
-            <button type="button" id="dAddChapterBtn" class="btn-file-action btn-file-view" style="display:none; padding:6px 12px; font-size:12px; cursor:pointer;" title="Add a new chapter/unit to this subject">
-              <span>+ Add Chapter</span>
-            </button>
-            <button type="button" id="dRenameSubjectBtn" class="btn-file-action" style="display:none; padding:6px 12px; font-size:12px; cursor:pointer;" title="Adjust or rename this subject">
-              <span>Adjust Subject Name</span>
             </button>
           </div>
+          <button type="button" id="dUploadBtn" class="upload-cta-btn" style="display:none; margin-top:10px; padding:6px 14px; font-size:12px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+            </svg>
+            <span>+ Upload Note</span>
+          </button>
         </div>
 
         <div class="drawer-body" id="drawerBody">
@@ -3216,6 +3246,12 @@
             <div class="loading-spinner" style="width:28px; height:28px; border-width:2px; margin-bottom:12px;"></div>
             <p>Loading chapters…</p>
           </div>
+        </div>
+
+        <div class="drawer-footer" id="dAddChapterFooter" style="display:none;">
+          <button type="button" id="dAddChapterBtn" class="btn-file-action btn-file-view" style="display:none; padding:8px 16px; font-size:12.5px; font-weight:700; border-radius:8px; cursor:pointer;" title="Add a new chapter/unit to this subject">
+            <span>+ Add Chapter</span>
+          </button>
         </div>
       </div>
     </div>
@@ -5058,6 +5094,11 @@
       if (dUploadBtn) {
         dUploadBtn.style.display = 'none';
         dUploadBtn.onclick = () => openDirectUploadModal(course.title, course.rawSemester);
+      }
+
+      const dAddChapterFooter = document.getElementById('dAddChapterFooter');
+      if (dAddChapterFooter) {
+        dAddChapterFooter.style.display = canManageThisCourse ? 'flex' : 'none';
       }
 
       const dAddChapterBtn = document.getElementById('dAddChapterBtn');

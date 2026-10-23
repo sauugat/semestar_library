@@ -46,9 +46,16 @@ module.exports = function createPostImagesRouter(db) {
       }
       const blob = await db.getFileBlob(req.params.filename);
       if (!blob) return next(); // Existing local uploads remain available through express.static.
-      res.setHeader('Content-Type', blob.mimeType);
+      const lowerName = req.params.filename.toLowerCase();
+      const mimeType = lowerName.endsWith('.pdf')
+        ? 'application/pdf'
+        : (blob.mimeType || 'application/octet-stream');
+      res.setHeader('Content-Type', mimeType);
+      res.setHeader('Content-Disposition', 'inline');
       res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
+      if (lowerName.endsWith('.svg') || lowerName.endsWith('.html')) {
+        res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
+      }
       res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
       res.send(blob.fileData);
     } catch (err) {

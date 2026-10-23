@@ -418,6 +418,7 @@ body.dark-mode span:not([class*="mtk"]):not([class*="token"]):not([class*="cm-"]
 [data-theme="dark"] .post-meta-row, body.dark-mode .post-meta-row,
 [data-theme="dark"] .post-student-handle, body.dark-mode .post-student-handle,
 [data-theme="dark"] .feed-heading > span, body.dark-mode .feed-heading > span,
+[data-theme="dark"] .feed-heading span, body.dark-mode .feed-heading span,
 [data-theme="dark"] .dash-id, body.dark-mode .dash-id,
 [data-theme="dark"] .search-results-heading span, body.dark-mode .search-results-heading span,
 [data-theme="dark"] .student-card-meta, body.dark-mode .student-card-meta,
@@ -7229,10 +7230,16 @@ body.dark-mode button#publishPost:disabled {
   margin: 0;
 }
 
-.feed-heading > span {
-  font-size: 12px;
+.feed-heading > span,
+.feed-heading span {
+  font-size: 11px;
   font-weight: 500;
   color: var(--ap-text-tertiary);
+}
+
+.sl-notif-bell-wrapper,
+#slNotifBellBtn {
+  display: none !important;
 }
 
 .feed {
@@ -7362,18 +7369,21 @@ body.dark-mode .fb-card:hover {
 .post-verified-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: 3px;
+  font-size: 9.5px;
+  line-height: 1.25;
   font-weight: 600;
   letter-spacing: 0.02em;
   background: #f0f0f2;
   color: #1d1d1f;
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 980px;
   border: 1px solid #d2d2d7;
 }
 
 .post-verified-badge svg {
+  width: 9.5px;
+  height: 9.5px;
   color: #1d1d1f;
 }
 
@@ -7997,7 +8007,8 @@ body.dark-mode .post-comments-close-btn:hover {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-top: 10px;
+  margin-bottom: 0;
 }
 
 .post-comment-textarea {
@@ -8054,6 +8065,7 @@ body.dark-mode .post-comments-close-btn:hover {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 10px;
 }
 
 .post-comment-item {
@@ -13143,7 +13155,7 @@ body.dark-mode .notif-item.unread {
 
   .post-author-name { font-size: 15px !important; }
   .post-meta-row { font-size: 12px !important; }
-  .post-verified-badge { font-size: 10.5px !important; padding: 2px 8px !important; }
+  .post-verified-badge { font-size: 9.5px !important; padding: 1px 6px !important; line-height: 1.25 !important; }
   .post-title { font-size: 15.5px !important; margin-bottom: 10px !important; }
   .post-tags-row { display: none !important; }
   

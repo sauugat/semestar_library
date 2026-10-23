@@ -39,7 +39,6 @@
   <script src="/auth.js?v=3"></script>
   <script>SemesterAuth.protectPage();</script>
   <script src="auth-modal.js"></script>
-  <script src="notifications.js"></script>
   <script src="/academic-context.js"></script>
   <script src="/markdown.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -870,35 +869,39 @@
       background: rgba(0, 0, 0, 0.74);
     }
 
-    /* Post File Attachments List */
+    /* Post File Attachments List (Matched to Library Clean File Item) */
     .post-file-attachments {
       margin-top: 10px;
       display: flex;
       flex-direction: column;
-      gap: 7px;
+      gap: 8px;
       max-width: min(100%, 540px);
     }
 
-    .post-attachment-card {
-      background: var(--bg-surface-raised, #fafafa);
-      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
-      border-radius: 10px;
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      text-decoration: none;
-      color: inherit;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-      cursor: pointer;
+    .post-file-attachments .post-attachment-card {
+      background: var(--bg-secondary, #fafafa) !important;
+      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12)) !important;
+      border-radius: 10px !important;
+      padding: 11px 13px !important;
+      margin: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 10px !important;
+      text-decoration: none !important;
+      color: inherit !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease !important;
+      cursor: pointer !important;
+      min-width: 0;
+      width: 100%;
+      box-sizing: border-box;
     }
 
-    .post-attachment-card:hover {
-      transform: translateY(-1px);
-      border-color: var(--text-secondary, #6b7280);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    .post-file-attachments .post-attachment-card:hover {
+      transform: translateY(-1px) !important;
+      border-color: var(--text-secondary, #6b7280) !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
     }
 
     .attachment-main {
@@ -907,24 +910,28 @@
       gap: 10px;
       min-width: 0;
       flex: 1;
+      overflow: hidden;
     }
 
     .attachment-icon-box {
-      width: 36px;
-      height: 36px;
+      width: 34px;
+      height: 34px;
       border-radius: 8px;
+      background: #000000 !important;
+      color: #8e8e93 !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
       flex-shrink: 0;
     }
 
-    .file-icon-pdf { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
-    .file-icon-doc { background: rgba(59, 130, 246, 0.12); color: #2563eb; }
-    .file-icon-ppt { background: rgba(249, 115, 22, 0.12); color: #ea580c; }
-    .file-icon-xls { background: rgba(16, 185, 129, 0.12); color: #059669; }
-    .file-icon-zip { background: rgba(168, 85, 247, 0.12); color: #9333ea; }
-    .file-icon-generic { background: rgba(107, 114, 128, 0.12); color: #4b5563; }
+    .attachment-icon-box span {
+      color: #8e8e93 !important;
+    }
 
     .attachment-text {
       min-width: 0;
@@ -932,71 +939,61 @@
       display: flex;
       flex-direction: column;
       gap: 2px;
+      overflow: hidden;
     }
 
-    .attachment-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-primary, #111827);
+    .post-file-attachments .attachment-name {
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: var(--text-primary, #111827) !important;
+      margin: 0 !important;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    [data-theme="dark"] .attachment-name,
-    body.dark-mode .attachment-name {
+    [data-theme="dark"] .post-file-attachments .attachment-name,
+    body.dark-mode .post-file-attachments .attachment-name {
       color: #f4f4f5 !important;
     }
 
-    .attachment-meta {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      color: var(--text-secondary, #6b7280);
-    }
-
-    .attachment-file-badge {
-      font-size: 9.5px;
-      font-weight: 700;
-      padding: 1px 5px;
-      border-radius: 3px;
-      background: rgba(0, 0, 0, 0.06);
-      color: var(--text-secondary, #4b5563);
-      letter-spacing: 0.4px;
-    }
-
-    [data-theme="dark"] .attachment-file-badge,
-    body.dark-mode .attachment-file-badge {
-      background: rgba(255, 255, 255, 0.1) !important;
-      color: #e4e4e7 !important;
+    .post-file-attachments .attachment-meta {
+      display: flex !important;
+      align-items: center !important;
+      gap: 5px !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      color: var(--text-muted, #6b7280) !important;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .attachment-file-size {
-      color: var(--text-secondary, #71717a);
+      color: var(--text-muted, #71717a);
     }
 
-    .attachment-download-btn {
-      width: 30px;
-      height: 30px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-secondary, #6b7280);
-      flex-shrink: 0;
-      transition: color 0.15s ease, background 0.15s ease;
-    }
-
-    .post-attachment-card:hover .attachment-download-btn {
+    .attachment-open-btn {
+      padding: 5px 11px;
+      border-radius: 7px;
+      font-size: 11.5px;
+      font-weight: 600;
+      background: var(--bg-primary, #f3f4f6);
       color: var(--text-primary, #111827);
-      background: rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border-color, rgba(0, 0, 0, 0.12));
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
     }
 
-    [data-theme="dark"] .post-attachment-card:hover .attachment-download-btn,
-    body.dark-mode .post-attachment-card:hover .attachment-download-btn {
-      color: #ffffff !important;
-      background: rgba(255, 255, 255, 0.1) !important;
+    .post-attachment-card:hover .attachment-open-btn {
+      border-color: var(--text-secondary, #6b7280);
     }
 
     .lightbox {
@@ -2674,7 +2671,7 @@
       <h2 style="margin:0;">Your Feed</h2>
     </div>
     <div style="display: flex; align-items: center; gap: 12px;">
-      <span>Updated just now</span>
+      <span class="feed-updated-text" style="font-size: 11px; font-weight: 500; color: var(--text-muted, #86868b);">Updated just now</span>
     </div>
   </div>
 
@@ -3233,17 +3230,17 @@
 
       if (uploaderRole === 'admin') {
         verifiedBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified System Administrator">
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            <svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
             Admin
           </span>`;
       } else if (uploaderRole === 'teacher' || uploaderRole === 'faculty') {
         verifiedBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified Faculty">
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            <svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
             Teacher
           </span>`;
       } else if (uploaderRole === 'cr' || uploaderRole === 'class_rep') {
         verifiedBadgeHtml = `<span class="post-verified-badge post-cr-badge" title="Official Class Representative">
-            <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+            <svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
             Class Rep
           </span>`;
       }
@@ -3362,7 +3359,7 @@
         kind: 'assignment', id: a.id, className: 'assignment-post-card',
         profileUrl: 'profile.html?id=' + encodeURIComponent(a.createdBy),
         avatar: (a.avatarUrl || a.avatar_url || a.teacherAvatar) ? `<img src="${escapeHtml(a.avatarUrl || a.avatar_url || a.teacherAvatar)}" alt="${escapeHtml(a.teacherName || 'Faculty')}" class="post-avatar-img">` : escapeHtml(initials),
-        name: a.teacherName || 'Faculty Member', badge: '<span class="post-verified-badge post-admin-badge"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Teacher</span>',
+        name: a.teacherName || 'Faculty Member', badge: '<span class="post-verified-badge post-admin-badge"><svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Teacher</span>',
         meta: `<span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span> &middot; <time class="post-timestamp" datetime="${escapeHtml(a.createdAt)}">${timeAgo(a.createdAt)}</time>`,
         controls: deleteBtnHtml,
         body: `
@@ -3582,11 +3579,11 @@
       // PART 1: Role badge - only render if not default student
       let roleBadgeHtml = '';
       if (post.role === 'admin') {
-        roleBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified System Administrator"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Admin</span>`;
+        roleBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified System Administrator"><svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Admin</span>`;
       } else if (post.role === 'teacher' || post.role === 'faculty') {
-        roleBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified Faculty"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Teacher</span>`;
+        roleBadgeHtml = `<span class="post-verified-badge post-admin-badge" title="Verified Faculty"><svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Teacher</span>`;
       } else if (isClassRep) {
-        roleBadgeHtml = `<span class="post-verified-badge post-cr-badge" title="Official Class Representative"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Class Rep</span>`;
+        roleBadgeHtml = `<span class="post-verified-badge post-cr-badge" title="Official Class Representative"><svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Class Rep</span>`;
       }
 
       // PART 1 & 6: Only show @studentID when author's role is admin or teacher, with proper spacing
@@ -3624,9 +3621,12 @@
               size: m.file_size
             });
           } else if (type === 'file') {
+            const rawName = m.file_name || (m.url ? m.url.split('?')[0].split('#')[0].split('/').pop() : '') || 'Attachment';
+            let cleanName = rawName;
+            try { cleanName = decodeURIComponent(rawName); } catch (_) {}
             postFiles.push({
               url: safeUrl,
-              name: m.file_name || m.url.split('/').pop() || 'Attachment',
+              name: cleanName,
               size: m.file_size,
               mime: m.mime_type
             });
@@ -3694,28 +3694,27 @@
         filesHtml = `
           <div class="post-file-attachments">
             ${postFiles.map(file => {
-              const ext = getFileExt(file.name).toUpperCase();
+              const ext = (getFileExt(file.name) || 'FILE').toUpperCase();
               const sizeStr = (typeof formatSize === 'function' && file.size) ? formatSize(file.size) : '';
               return `
-                <a href="${file.url}" target="_blank" rel="noopener noreferrer" class="post-attachment-card" download="${escapeHtml(file.name)}" title="Download ${escapeHtml(file.name)}">
+                <a href="${file.url}" target="_blank" rel="noopener noreferrer" class="post-attachment-card" title="Open ${escapeHtml(file.name)} in browser">
                   <div class="attachment-main">
-                    <div class="attachment-icon-box ${getFileColorClass(ext)}">
-                      ${getFileIconSvg(ext)}
+                    <div class="attachment-icon-box">
+                      <span>${escapeHtml(ext)}</span>
                     </div>
                     <div class="attachment-text">
-                      <span class="attachment-name">${escapeHtml(file.name)}</span>
+                      <span class="attachment-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
                       <div class="attachment-meta">
-                        <span class="attachment-file-badge">${escapeHtml(ext)}</span>
-                        ${sizeStr ? `<span class="attachment-file-size">&middot; ${sizeStr}</span>` : ''}
+                        <span>${escapeHtml(ext)} Document${sizeStr ? ` &middot; ${sizeStr}` : ''}</span>
                       </div>
                     </div>
                   </div>
-                  <div class="attachment-download-btn" aria-hidden="true" title="Download">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                      <polyline points="7 10 12 15 17 10"></polyline>
-                      <line x1="12" y1="15" x2="12" y2="3"></line>
+                  <div class="attachment-open-btn" aria-hidden="true" title="View in browser">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
                     </svg>
+                    <span>View</span>
                   </div>
                 </a>
               `;
@@ -3775,13 +3774,13 @@
                   <span>Hide</span>
                 </button>
               </div>
-              <form class="post-comment-composer" onsubmit="submitPostComment(${post.id}, this, event)">
-                <textarea class="post-comment-textarea" placeholder="Post your reply…" rows="2" maxlength="2000" required></textarea>
+              <div class="post-comments-list"></div>
+              <form class="post-comment-composer" onsubmit="submitPostComment(${post.id}, this, event)" novalidate>
+                <textarea class="post-comment-textarea" placeholder="Post your reply…" rows="2" maxlength="2000"></textarea>
                 <div class="post-comment-composer-actions">
                   <button type="submit" class="post-comment-submit-btn">Reply</button>
                 </div>
               </form>
-              <div class="post-comments-list"></div>
             </div>`
       });
     }
@@ -4502,11 +4501,11 @@
       const isCR = c.role === 'cr' || c.role === 'class_rep';
       let roleBadge = '';
       if (c.role === 'admin') {
-        roleBadge = `<span class="post-verified-badge post-admin-badge" style="font-size: 10px; padding: 1px 6px;">Admin</span>`;
+        roleBadge = `<span class="post-verified-badge post-admin-badge" style="font-size: 9.5px; padding: 1px 5px; line-height: 1.2;">Admin</span>`;
       } else if (c.role === 'teacher' || c.role === 'faculty') {
-        roleBadge = `<span class="post-verified-badge post-admin-badge" style="font-size: 10px; padding: 1px 6px;">Teacher</span>`;
+        roleBadge = `<span class="post-verified-badge post-admin-badge" style="font-size: 9.5px; padding: 1px 5px; line-height: 1.2;">Teacher</span>`;
       } else if (isCR) {
-        roleBadge = `<span class="post-verified-badge post-cr-badge" style="font-size: 10px; padding: 1px 6px;">Class Rep</span>`;
+        roleBadge = `<span class="post-verified-badge post-cr-badge" style="font-size: 9.5px; padding: 1px 5px; line-height: 1.2;">Class Rep</span>`;
       }
 
       const handleHtml = isSpecial && (c.studentId || c.student_id)

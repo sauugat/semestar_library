@@ -43,17 +43,19 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
 
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
 
-  <link rel="stylesheet" href="style.v4.css">
-  <link rel="stylesheet" href="chatbot.css">
-  <link rel="stylesheet" href="auth-modal.css">
-  <link rel="stylesheet" href="/theme-overrides.css">
-  <link rel="stylesheet" href="routine-admin.css">
+  <link rel="stylesheet" href="style.v4.css?v=25">
+  <link rel="stylesheet" href="chatbot.css?v=25">
+  <link rel="stylesheet" href="auth-modal.css?v=25">
+  <link rel="stylesheet" href="/theme-overrides.css?v=25">
+  <link rel="stylesheet" href="routine-admin.css?v=25">
   <script src="/auth.js?v=3"></script>
+  <script src="/js/swr.js?v=25"></script>
   <script src="/academic-context.js"></script>
 </head>
 
@@ -298,7 +300,7 @@
     });
   </script>
 
-  <script src="chatbot.js"></script>
+  <script src="chatbot.js?v=25" defer></script>
 
   <div id="minimalAuthToast" class="minimal-auth-toast">
     <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2.5"
@@ -308,7 +310,7 @@
     </svg>
     <span>Login required to access this page. <a href="login.html">Sign In</a></span>
   </div>
-  <script src="auth-modal.js"></script>
+  <script src="auth-modal.js?v=25" defer></script>
   <!-- PWA Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {

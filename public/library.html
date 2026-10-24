@@ -34,16 +34,18 @@
   </script>
 
   <script src="/auth.js?v=3"></script>
+  <script src="/js/swr.js?v=25"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="style.v4.css">
-  <link rel="stylesheet" href="chatbot.css">
-  <link rel="stylesheet" href="auth-modal.css">
-  <script src="auth-modal.js"></script>
-  <script src="syllabus-helper.js"></script>
+  <link rel="stylesheet" href="style.v4.css?v=25">
+  <link rel="stylesheet" href="chatbot.css?v=25">
+  <link rel="stylesheet" href="auth-modal.css?v=25">
+  <script src="auth-modal.js?v=25" defer></script>
+  <script src="syllabus-helper.js?v=25"></script>
   <script src="/academic-context.js"></script>
   <style>
     /* ==========================================================================
@@ -2955,8 +2957,8 @@
       color: #000000;
     }
   </style>
-  <link rel="stylesheet" href="auth-modal.css">
-  <link rel="stylesheet" href="/theme-overrides.css">
+  <link rel="stylesheet" href="auth-modal.css?v=25">
+  <link rel="stylesheet" href="/theme-overrides.css?v=25">
 </head>
 
 <body class="dash">
@@ -3439,18 +3441,37 @@
   </div>
 
   <script>
-    async function safeFetchJson(url, defaultVal = null) {
+    const libScrollRestore = (typeof window !== 'undefined' && window.SWR && typeof window.SWR.initScrollRestore === 'function')
+      ? window.SWR.initScrollRestore({ key: 'library_list' })
+      : null;
+    let libScrollRestoredOnce = false;
+
+    async function rawFetchJson(url, defaultVal = null) {
+      const res = await fetch(url);
+      if (res.status === 401 || !res.ok) return defaultVal;
+      const ct = res.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        return await res.json();
+      }
+      return defaultVal;
+    }
+
+    async function safeFetchJson(url, defaultVal = null, opts = {}) {
       try {
-        const res = await fetch(url);
-        if (res.status === 401) {
-          return defaultVal;
+        if (typeof window !== 'undefined' && window.SWR && typeof window.SWR.get === 'function') {
+          const swrRes = await window.SWR.get(url, {
+            ttl: opts.ttl || 2 * 60 * 1000,
+            force: Boolean(opts.force),
+            fetcher: () => rawFetchJson(url, defaultVal),
+            onData: (data, meta) => {
+              if (meta && meta.source === 'network' && meta.changed && typeof opts.onUpdate === 'function') {
+                opts.onUpdate(data);
+              }
+            }
+          });
+          return (swrRes && swrRes.data !== undefined && swrRes.data !== null) ? swrRes.data : defaultVal;
         }
-        if (!res.ok) return defaultVal;
-        const ct = res.headers.get('content-type') || '';
-        if (ct.includes('application/json')) {
-          return await res.json();
-        }
-        return defaultVal;
+        return await rawFetchJson(url, defaultVal);
       } catch (e) {
         console.warn(`Safe fetch warning for ${url}:`, e);
         return defaultVal;
@@ -3684,18 +3705,17 @@
       if (switcher) switcher.style.display = 'none';
       if (uploadBtn) uploadBtn.style.display = 'none';
 
-      const startTime = Date.now();
       try {
+        const onBgLibraryUpdate = () => {
+          syncCustomCourses();
+          renderView();
+        };
         const [sData, statsRes, filesRes, academicCtx] = await Promise.all([
-          window.SyllabusHelper.loadSyllabusData(),
-          safeFetchJson('/api/library/stats', []),
-          safeFetchJson('/api/files', []),
+          window.SyllabusHelper.loadSyllabusData(() => { SEMESTER_LIST = window.SyllabusHelper.getFormattedSemesters(SYLLABUS_DATA); onBgLibraryUpdate(); }),
+          safeFetchJson('/api/library/stats', [], { onUpdate: (d) => { FILE_STATS = d || []; onBgLibraryUpdate(); } }),
+          safeFetchJson('/api/files', [], { onUpdate: (d) => { ALL_FILES = d || []; onBgLibraryUpdate(); } }),
           window.AcademicContext ? window.AcademicContext.getAcademicContext() : null
         ]);
-        const elapsed = Date.now() - startTime;
-        if (elapsed < 200) {
-          await new Promise(res => setTimeout(res, 200 - elapsed));
-        }
 
         if (academicCtx && academicCtx.role === 'teacher' && (!academicCtx.assignedSubjects || academicCtx.assignedSubjects.length === 0)) {
           try {
@@ -3768,7 +3788,17 @@
         setupSemSwitcher();
         setupUploadModalControls();
         renderView();
+        if (!libScrollRestoredOnce && libScrollRestore) {
+          libScrollRestoredOnce = true;
+          libScrollRestore.restore();
+        }
         checkUrl();
+        if (window.SWR && typeof window.SWR.registerPageRefresh === 'function') {
+          window.SWR.registerPageRefresh(() => refreshLibraryData({ silent: true }), {
+            endpoints: ['/api/library/stats', '/api/files'],
+            ttl: 2 * 60 * 1000
+          });
+        }
         if (new URLSearchParams(location.search).get('upload') === '1') {
           if (academicCtx.isStaff || academicCtx.role === 'teacher' || academicCtx.role === 'admin') {
             openDirectUploadModal();
@@ -3782,12 +3812,16 @@
       }
     }
 
-    async function refreshLibraryData() {
+    async function refreshLibraryData(opts = {}) {
       try {
+        if (!opts.silent && window.SWR && typeof window.SWR.invalidate === 'function') {
+          window.SWR.invalidate(['/api/library', '/api/files', '/api/posts']);
+        }
+        const forceFetch = !opts.silent;
         const [statsRes, filesRes, academicCtx] = await Promise.all([
-          safeFetchJson('/api/library/stats', []),
-          safeFetchJson('/api/files', []),
-          window.AcademicContext ? window.AcademicContext.getAcademicContext({ force: true }) : null
+          safeFetchJson('/api/library/stats', [], { force: forceFetch }),
+          safeFetchJson('/api/files', [], { force: forceFetch }),
+          window.AcademicContext ? window.AcademicContext.getAcademicContext({ force: forceFetch }) : null
         ]);
         FILE_STATS = statsRes || [];
         ALL_FILES = filesRes || [];
@@ -6747,8 +6781,8 @@
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="chatbot.js"></script>
-  <script src="auth-modal.js"></script>
+  <script src="chatbot.js?v=25" defer></script>
+  <script src="auth-modal.js?v=25" defer></script>
   <!-- PWA Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {

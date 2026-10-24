@@ -193,6 +193,17 @@
           }
         }
       }
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const persistedUser = window.localStorage.getItem('sl_user_cache_v1');
+        if (persistedUser && readStoredSession()) {
+          const parsed = JSON.parse(persistedUser);
+          if (parsed && (parsed.studentId || parsed.email || parsed.name)) {
+            cachedUser = parsed;
+            try { window.sessionStorage.setItem('sl_user_cache', persistedUser); } catch {}
+            return cachedUser;
+          }
+        }
+      }
     } catch {}
 
     const session = readStoredSession();
@@ -214,7 +225,9 @@
         cachedAccessToken = session.access_token;
       }
       try {
-        window.sessionStorage.setItem('sl_user_cache', JSON.stringify(cachedUser));
+        const serialized = JSON.stringify(cachedUser);
+        window.sessionStorage.setItem('sl_user_cache', serialized);
+        window.localStorage.setItem('sl_user_cache_v1', serialized);
       } catch {}
       return cachedUser;
     }
@@ -276,7 +289,11 @@
         if (data && data.studentId) {
           data._validated = true;
           cachedUser = data;
-          try { window.sessionStorage.setItem('sl_user_cache', JSON.stringify(data)); } catch {}
+          try {
+            const serialized = JSON.stringify(data);
+            window.sessionStorage.setItem('sl_user_cache', serialized);
+            window.localStorage.setItem('sl_user_cache_v1', serialized);
+          } catch {}
           return data;
         }
       }
@@ -541,10 +558,14 @@
       cachedUser = null;
       window.IS_AUTHENTICATED = false;
       sessionStorage.clear();
+      if (typeof window !== 'undefined' && window.SWR && typeof window.SWR.clearAll === 'function') {
+        window.SWR.clearAll();
+      }
       if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('sl_user_cache_v1');
         for (let i = window.localStorage.length - 1; i >= 0; i--) {
           const key = window.localStorage.key(i);
-          if (key && (key.startsWith('sb-') || key.includes('auth-token') || key.includes('academic_context'))) {
+          if (key && (key.startsWith('sb-') || key.startsWith('sl_swr:') || key.includes('auth-token') || key.includes('academic_context'))) {
             window.localStorage.removeItem(key);
           }
         }
@@ -905,6 +926,31 @@
         }
       } catch {}
     }, true);
+
+    // Synchronously hydrate <header> as soon as it is parsed into the DOM (zero header flash)
+    try {
+      const earlyUser = getUserSync();
+      if (earlyUser && typeof MutationObserver !== 'undefined' && document.documentElement) {
+        window.IS_AUTHENTICATED = true;
+        const headerObserver = new MutationObserver(() => {
+          const hName = document.getElementById('headerProfileName');
+          const hAvatar = document.getElementById('headerAvatar');
+          if (hName || hAvatar) {
+            initHeader(earlyUser);
+            headerObserver.disconnect();
+          }
+        });
+        headerObserver.observe(document.documentElement, { childList: true, subtree: true });
+        document.addEventListener('DOMContentLoaded', () => headerObserver.disconnect(), { once: true });
+      }
+      // Auto-load shared SWR & instant navigation helper if not yet included
+      if (!window.SWR && document.head && !document.querySelector('script[src*="swr.js"]')) {
+        const swrScript = document.createElement('script');
+        swrScript.src = '/js/swr.js';
+        swrScript.defer = true;
+        document.head.appendChild(swrScript);
+      }
+    } catch {}
 
     // Auto-hydrate header on DOM ready for any authenticated page
     const onReady = async () => {

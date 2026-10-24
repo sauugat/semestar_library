@@ -19,12 +19,14 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.v4.css">
-  <link rel="stylesheet" href="chatbot.css">
-  <link rel="stylesheet" href="auth-modal.css">
-  <link rel="stylesheet" href="/theme-overrides.css">
+  <link rel="stylesheet" href="style.v4.css?v=25">
+  <link rel="stylesheet" href="chatbot.css?v=25">
+  <link rel="stylesheet" href="auth-modal.css?v=25">
+  <link rel="stylesheet" href="/theme-overrides.css?v=25">
   <script src="/auth.js?v=3"></script>
+  <script src="/js/swr.js?v=25"></script>
 </head>
 <body class="dash syllabus-page-body">
 
@@ -67,7 +69,12 @@
 
     <!-- Main Dynamic Content Grid -->
     <section class="syllabus-content-area" id="syllabusGrid">
-      <p class="empty-state">Loading curriculum structure…</p>
+      <div class="syllabus-year-grid" aria-hidden="true">
+        <div class="syllabus-year-card" style="opacity:0.65;"><div style="height:22px;width:45%;background:rgba(128,128,128,0.18);border-radius:6px;margin-bottom:12px;"></div><div style="height:14px;width:85%;background:rgba(128,128,128,0.12);border-radius:6px;"></div></div>
+        <div class="syllabus-year-card" style="opacity:0.65;"><div style="height:22px;width:45%;background:rgba(128,128,128,0.18);border-radius:6px;margin-bottom:12px;"></div><div style="height:14px;width:85%;background:rgba(128,128,128,0.12);border-radius:6px;"></div></div>
+        <div class="syllabus-year-card" style="opacity:0.65;"><div style="height:22px;width:45%;background:rgba(128,128,128,0.18);border-radius:6px;margin-bottom:12px;"></div><div style="height:14px;width:85%;background:rgba(128,128,128,0.12);border-radius:6px;"></div></div>
+        <div class="syllabus-year-card" style="opacity:0.65;"><div style="height:22px;width:45%;background:rgba(128,128,128,0.18);border-radius:6px;margin-bottom:12px;"></div><div style="height:14px;width:85%;background:rgba(128,128,128,0.12);border-radius:6px;"></div></div>
+      </div>
     </section>
 
   </main>
@@ -113,6 +120,26 @@
     let SYLLABUS = null;
 
     async function loadData() {
+      if (window.SWR && typeof window.SWR.get === 'function') {
+        const res = await window.SWR.get('/syllabus-data.json', {
+          ttl: 24 * 60 * 60 * 1000,
+          userScoped: false,
+          fetcher: async () => {
+            const r = await fetch('syllabus-data.json');
+            return r.json();
+          },
+          onData: (data, meta) => {
+            SYLLABUS = data;
+            if (meta && meta.source === 'network' && meta.changed && typeof router === 'function') {
+              router();
+            }
+          }
+        });
+        if (res && res.data) {
+          SYLLABUS = res.data;
+          return SYLLABUS;
+        }
+      }
       if (SYLLABUS) return SYLLABUS;
       const res = await fetch('syllabus-data.json');
       SYLLABUS = await res.json();
@@ -818,7 +845,7 @@
     window.addEventListener('hashchange', route);
     route();
   </script>
-  <script src="chatbot.js"></script>
+  <script src="chatbot.js?v=25" defer></script>
   
   <div id="minimalAuthToast" class="minimal-auth-toast">
     <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2.5" style="opacity: 0.9;">
@@ -827,7 +854,7 @@
     </svg>
     <span>Login required to access this page. <a href="login.html">Sign In</a></span>
   </div>
-  <script src="auth-modal.js"></script>
+  <script src="auth-modal.js?v=25" defer></script>
   <!-- PWA Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {

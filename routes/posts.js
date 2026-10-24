@@ -178,7 +178,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       ? "WHERE deleted_at IS NULL AND (moderation_status IS NULL OR moderation_status = 'active')"
       : "WHERE deleted_at IS NULL";
     return `
-      SELECT p.*, s.name, s.role, s.avatarUrl AS "avatarUrl", s.studentId AS "studentId",
+      SELECT p.*, s.name, s.role,
+        CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId ELSE s.avatarUrl END AS "avatarUrl",
+        s.studentId AS "studentId",
         COALESCE(l.like_count, 0) AS like_count,
         COALESCE(c.comment_count, 0) AS comment_count,
         COALESCE(sub.submission_count, 0) AS submission_count,
@@ -550,8 +552,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const params = [viewerStudentId];
       const whereConditions = [];
 
-      // Server-authoritative academic & cohort filtering
-      const context = await getAcademicContext(db, req);
+      // Server-authoritative academic & cohort filtering + moderation schema check in parallel
+      const [context, modAvail] = await Promise.all([
+        getAcademicContext(db, req),
+        isModerationSchemaAvailable(db)
+      ]);
       const academicFilter = buildAcademicContentFilter(context, {
         tableAlias: 'p',
         requestedCohortId: req.query.cohortId || req.query.cohort_id
@@ -560,7 +565,6 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       params.push(...academicFilter.params);
 
       // Moderation filter: removed posts are hidden from all feeds, search, and list endpoints
-      const modAvail = await isModerationSchemaAvailable(db);
       if (modAvail) {
         whereConditions.push("(p.moderation_status IS NULL OR p.moderation_status = 'active')");
       }
@@ -714,9 +718,16 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         ${whereClause} ORDER BY p.id DESC LIMIT ?`, ...params);
       const hasMore = rows.length > Number(limit);
       const posts = rows.slice(0, Number(limit)).map(row => formatPost(row, req));
-      await attachMediaToPosts(posts);
-      await attachTargetSemestersToPosts(posts);
-      res.setHeader('Cache-Control', 'no-store');
+      await Promise.all([
+        attachMediaToPosts(posts),
+        attachTargetSemestersToPosts(posts)
+      ]);
+      const isPublicOfficialNoticeQuery = !viewerStudentId && type === 'notice' && official === 'true';
+      if (isPublicOfficialNoticeQuery) {
+        res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+      } else {
+        res.setHeader('Cache-Control', 'no-store');
+      }
       res.json({ posts, nextCursor: hasMore ? posts[posts.length - 1].id : null });
     } catch (err) {
       next(err);

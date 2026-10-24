@@ -29,27 +29,53 @@ const isQa = process.env.QA_MODE === 'true';
 const isPostgres = !isTest && !isQa && !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PGHOST);
 const isTurso = !isTest && !isQa && !!(process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL);
 
-let pgPool = null;
-let libsqlClient = null;
+function ensureNeonPoolerUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return rawUrl;
+  if (process.env.NEON_DISABLE_POOLER === '1') return rawUrl;
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.hostname.endsWith('.neon.tech') && parsed.hostname.startsWith('ep-') && !parsed.hostname.includes('-pooler.')) {
+      const dotIdx = parsed.hostname.indexOf('.');
+      if (dotIdx > 0) {
+        parsed.hostname = parsed.hostname.slice(0, dotIdx) + '-pooler' + parsed.hostname.slice(dotIdx);
+        return parsed.toString();
+      }
+    }
+  } catch (_) {
+    return rawUrl.replace(/@(ep-[a-z0-9-]+)(?!-pooler)(\.[^/]+\.neon\.tech)/i, '@$1-pooler$2');
+  }
+  return rawUrl;
+}
+
+let pgPool = globalThis.__semesterLibraryPgPool || null;
+let libsqlClient = globalThis.__semesterLibraryLibsqlClient || null;
 
 if (isPostgres) {
-  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  const rawConnectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  const connectionString = ensureNeonPoolerUrl(rawConnectionString);
   try {
-    const { Pool, neonConfig } = require('@neondatabase/serverless');
-    const ws = require('ws');
-    neonConfig.webSocketConstructor = ws;
-    pgPool = new Pool({
-      connectionString
-    });
-    pgPool.on('connect', (client) => {
-      client.on('error', (err) => {
-        console.warn('[DB Engine]: Neon client connection error (handled):', err?.message || err);
+    if (!pgPool) {
+      const { Pool, neonConfig } = require('@neondatabase/serverless');
+      const ws = require('ws');
+      neonConfig.webSocketConstructor = ws;
+      neonConfig.pipelineConnect = 'password';
+      pgPool = new Pool({
+        connectionString,
+        max: Number(process.env.PG_POOL_MAX) || 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000
       });
-    });
-    pgPool.on('error', (err) => {
-      console.warn('[DB Engine]: Idle client connection terminated/recovering:', err?.message || err);
-    });
-    console.log('[DB Engine]: Connected to PostgreSQL/Neon Database via serverless driver');
+      pgPool.on('connect', (client) => {
+        client.on('error', (err) => {
+          console.warn('[DB Engine]: Neon client connection error (handled):', err?.message || err);
+        });
+      });
+      pgPool.on('error', (err) => {
+        console.warn('[DB Engine]: Idle client connection terminated/recovering:', err?.message || err);
+      });
+      globalThis.__semesterLibraryPgPool = pgPool;
+      console.log('[DB Engine]: Connected to PostgreSQL/Neon Database via pooled serverless driver');
+    }
   } catch (err) {
     console.error('[DB Engine]: PostgreSQL init error:', err.message);
   }
@@ -1211,6 +1237,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       await require('./lib/games-invitations').ensureGameInvitationsSchema({ exec, isPostgres });
       await require('./lib/teacher-service').ensureTeacherSchema({ exec, isPostgres });
       await require('./lib/attendance-service').ensureAttendanceSchema({ exec, isPostgres });
+      await require('./migrations/003-perf-audit-indexes').ensurePerfAuditIndexes(exec);
 
     } catch (err) {
       console.error('[DB Engine]: Schema initialization error:', err);
@@ -1318,6 +1345,7 @@ module.exports = {
   formatRows,
   isPostgres,
   isTurso,
-  pgPool
+  pgPool,
+  ensureNeonPoolerUrl
 };
 

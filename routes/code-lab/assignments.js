@@ -470,11 +470,14 @@ router.get('/assignments', async (req, res) => {
         ? `(SELECT COUNT(DISTINCT COALESCE(sub.questionId, sub.id)) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.studentId = ?) AS mySubmissionCount`
         : `0 AS mySubmissionCount`;
 
+    const releasedCond = db.isPostgres ? 'sg.released = TRUE' : 'sg.released = 1';
+    const avatarExpr = `CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId ELSE s.avatarUrl END`;
+
     const selectFields = `
-        a.*, s.name AS teacherName, s.avatarUrl AS avatarUrl, s.avatarUrl AS teacherAvatar,
+        a.*, s.name AS teacherName, ${avatarExpr} AS avatarUrl, ${avatarExpr} AS teacherAvatar,
         (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
         (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
-        (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.released = 1) AS checkedStudentCount,
+        (SELECT COUNT(DISTINCT sub.studentId) FROM submissions sub JOIN submission_grades sg ON sg.questionId = sub.questionId AND sg.studentId = sub.studentId WHERE sub.assignmentId = a.id AND ${releasedCond}) AS checkedStudentCount,
         ${mySubSql}
     `;
 
@@ -486,11 +489,10 @@ router.get('/assignments', async (req, res) => {
         ORDER BY a.createdAt DESC`;
 
     const params = currentStudentId ? [currentStudentId, ...whereParams] : whereParams;
-    const assignments = await db.all(sql, ...params);
-    let adminUser = false;
-    if (currentStudentId) {
-        adminUser = await isAdmin(currentStudentId);
-    }
+    const [assignments, adminUser] = await Promise.all([
+        db.all(sql, ...params),
+        currentStudentId ? isAdmin(currentStudentId) : Promise.resolve(false)
+    ]);
     const enriched = assignments.map(a => {
         const pUrl = a.pdfUrl || a.pdfurl || null;
         const pName = a.pdfName || a.pdfname || null;
@@ -510,17 +512,18 @@ router.get('/assignments', async (req, res) => {
 router.get('/my-assignments', requireLogin, async (req, res) => {
     const context = await getAcademicContext(db, req);
     const callerId = (context && context.studentId) || (req.user && req.user.studentId) || (req.session && req.session.studentId);
-    const admin = await isAdmin(callerId);
+    const admin = context?.role === 'admin' || (await isAdmin(callerId));
     const isTeacher = context && (context.role === 'teacher' || context.role === 'faculty');
     if (!admin && !isTeacher) {
         return res.status(403).json({ message: 'Only teachers and admins can view this.' });
     }
 
+    const releasedCond = db.isPostgres ? 'sg.released = TRUE' : 'sg.released = 1';
     const assignments = await db.all(
         `SELECT a.*, s.name AS teacherName,
                 (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
                 (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
-                (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.released = 1) AS checkedStudentCount
+                (SELECT COUNT(DISTINCT sub.studentId) FROM submissions sub JOIN submission_grades sg ON sg.questionId = sub.questionId AND sg.studentId = sub.studentId WHERE sub.assignmentId = a.id AND ${releasedCond}) AS checkedStudentCount
          FROM assignments a
          LEFT JOIN students s ON s.studentId = a.createdBy
          WHERE a.createdBy = ?

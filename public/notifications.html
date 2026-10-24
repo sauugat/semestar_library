@@ -7,10 +7,12 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.v4.css">
-  <link rel="stylesheet" href="theme-overrides.css">
+  <link rel="stylesheet" href="style.v4.css?v=25">
+  <link rel="stylesheet" href="theme-overrides.css?v=25">
   <script src="/auth.js?v=3"></script>
+  <script src="/js/swr.js?v=25"></script>
   <style>
     :root {
       --nc-max-width: 680px;
@@ -427,8 +429,23 @@
 
     <!-- Notification List Container -->
     <div id="ncListContainer">
-      <div class="nc-empty" id="ncLoading">
-        <div class="nc-empty-sub">Loading notifications…</div>
+      <div class="nc-list" id="ncLoading" aria-hidden="true">
+        <div class="nc-item" style="pointer-events:none;opacity:0.7;">
+          <div class="nc-avatar-wrapper"><div class="nc-avatar" style="background:rgba(255,255,255,0.08);"></div></div>
+          <div class="nc-content">
+            <div style="height:13px;width:55%;background:rgba(255,255,255,0.12);border-radius:5px;margin-bottom:8px;"></div>
+            <div style="height:11px;width:82%;background:rgba(255,255,255,0.08);border-radius:5px;margin-bottom:6px;"></div>
+            <div style="height:10px;width:24%;background:rgba(255,255,255,0.06);border-radius:5px;"></div>
+          </div>
+        </div>
+        <div class="nc-item" style="pointer-events:none;opacity:0.55;">
+          <div class="nc-avatar-wrapper"><div class="nc-avatar" style="background:rgba(255,255,255,0.08);"></div></div>
+          <div class="nc-content">
+            <div style="height:13px;width:48%;background:rgba(255,255,255,0.12);border-radius:5px;margin-bottom:8px;"></div>
+            <div style="height:11px;width:74%;background:rgba(255,255,255,0.08);border-radius:5px;margin-bottom:6px;"></div>
+            <div style="height:10px;width:20%;background:rgba(255,255,255,0.06);border-radius:5px;"></div>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -540,10 +557,39 @@
       }
 
       // Fetch notifications
-      async function loadNotifications(tab = 'all', cursor = null) {
+      async function loadNotifications(tab = 'all', cursor = null, force = false) {
         currentTab = tab;
+        const url = `/api/notifications?tab=${tab}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
         try {
-          const url = `/api/notifications?tab=${tab}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+          if (!cursor && window.SWR && typeof window.SWR.get === 'function') {
+            await window.SWR.get(url, {
+              ttl: 60 * 1000,
+              force: Boolean(force),
+              fetcher: async () => {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Failed to load notifications');
+                return res.json();
+              },
+              onData: (data, meta) => {
+                if (!data) return;
+                if (meta.source === 'cache' || meta.changed || force) {
+                  notifications = data.items || [];
+                  unseenCount = data.unseenCount || 0;
+                  nextCursor = data.nextCursor;
+                  updateBadgeUI();
+                  renderList();
+                }
+                if (meta.source === 'network' && unseenCount > 0) {
+                  fetch('/api/notifications/seen', { method: 'POST' }).then(() => {
+                    unseenCount = 0;
+                    updateBadgeUI();
+                  }).catch(() => {});
+                }
+              }
+            });
+            return;
+          }
+
           const res = await fetch(url);
           if (!res.ok) throw new Error('Failed to load notifications');
           const data = await res.json();
@@ -660,6 +706,7 @@
             const link = row.getAttribute('data-link');
             try {
               await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+              if (window.SWR) window.SWR.invalidate('/api/notifications');
             } catch {}
             if (link) window.location.href = link;
           });
@@ -686,7 +733,8 @@
         if (action) {
           const endpoint = isRead ? `/api/notifications/${id}/unread` : `/api/notifications/${id}/read`;
           fetch(endpoint, { method: 'POST' }).then(() => {
-            loadNotifications(currentTab);
+            if (window.SWR) window.SWR.invalidate('/api/notifications');
+            loadNotifications(currentTab, null, true);
           });
         }
       }
@@ -708,7 +756,8 @@
       document.getElementById('ncMarkAllReadBtn').addEventListener('click', async () => {
         try {
           await fetch('/api/notifications/read-all', { method: 'POST' });
-          loadNotifications(currentTab);
+          if (window.SWR) window.SWR.invalidate('/api/notifications');
+          loadNotifications(currentTab, null, true);
         } catch {}
       });
 
@@ -773,7 +822,8 @@
           try {
             const event = JSON.parse(e.data);
             if (event.type === 'notification' || event.type === 'badge_update') {
-              loadNotifications(currentTab);
+              if (window.SWR) window.SWR.invalidate('/api/notifications');
+              loadNotifications(currentTab, null, true);
             }
           } catch {}
         };
@@ -781,6 +831,12 @@
 
       // Initial load
       loadNotifications('all');
+      if (window.SWR && typeof window.SWR.registerPageRefresh === 'function') {
+        window.SWR.registerPageRefresh(() => loadNotifications(currentTab), {
+          endpoints: ['/api/notifications?tab=all', '/api/notifications?tab=unread', '/api/notifications?tab=mentions'],
+          ttl: 60 * 1000
+        });
+      }
     })();
   </script>
 </body>

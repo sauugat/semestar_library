@@ -5,7 +5,32 @@
 (function(window) {
   let _syllabusCache = null;
 
-  async function loadSyllabusData() {
+  async function loadSyllabusData(onUpdate) {
+    if (window.SWR && typeof window.SWR.get === 'function') {
+      try {
+        const res = await window.SWR.get('/syllabus-data.json', {
+          ttl: 24 * 60 * 60 * 1000,
+          userScoped: false,
+          fetcher: async () => {
+            const r = await fetch('/syllabus-data.json');
+            if (!r.ok) throw new Error('Failed to load syllabus-data.json');
+            return r.json();
+          },
+          onData: (data, meta) => {
+            if (data) _syllabusCache = data;
+            if (meta && meta.source === 'network' && meta.changed && typeof onUpdate === 'function') {
+              onUpdate(data);
+            }
+          }
+        });
+        if (res && res.data) {
+          _syllabusCache = res.data;
+          return _syllabusCache;
+        }
+      } catch (err) {
+        if (_syllabusCache) return _syllabusCache;
+      }
+    }
     if (_syllabusCache) return _syllabusCache;
     try {
       const res = await fetch('/syllabus-data.json');

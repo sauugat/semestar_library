@@ -1205,16 +1205,27 @@
     }, 1000);
   }
 
-  if (typeof window.addEventListener === 'function') {
-    window.addEventListener('beforeunload', (e) => {
-      if (hasUnsavedChanges()) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    });
+  let beforeUnloadBound = false;
+  function handleBeforeUnload(e) {
+    if (hasUnsavedChanges()) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  }
+  function syncBeforeUnloadListener() {
+    if (typeof window.addEventListener !== 'function') return;
+    const dirty = hasUnsavedChanges();
+    if (dirty && !beforeUnloadBound) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      beforeUnloadBound = true;
+    } else if (!dirty && beforeUnloadBound) {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      beforeUnloadBound = false;
+    }
   }
 
   function render() {
+    syncBeforeUnloadListener();
     const container = state.containerEl;
     if (!container) return;
 

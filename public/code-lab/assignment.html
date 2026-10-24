@@ -1574,7 +1574,8 @@
             fetch('/api/code-lab/events', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ assignmentId: Number(assignmentId), questionId, events: batch })
+                body: JSON.stringify({ assignmentId: Number(assignmentId), questionId, events: batch }),
+                keepalive: true
             }).catch(() => { });
         }
 
@@ -1582,9 +1583,9 @@
             Object.keys(questionState).forEach(qId => flushEvents(Number(qId)));
         }
 
-        // Flush every 10s and on page leave
+        // Flush every 10s and on pagehide (BFCache-friendly replacement for beforeunload)
         setInterval(() => flushAllEvents(), 10000);
-        window.addEventListener('beforeunload', flushAllEvents);
+        window.addEventListener('pagehide', flushAllEvents);
 
         // Tab switch tracking (global — applies to current active question)
         let activeQuestionId = null;

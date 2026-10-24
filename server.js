@@ -743,7 +743,7 @@ app.get(['/login', '/login.html'], (req, res) => {
 });
 
 app.get(['/register', '/register.html'], (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
   res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
 
@@ -800,15 +800,31 @@ app.get('/academic-context.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'public/academic-context.js'));
 });
 
-// Serve static assets securely
+// Serve static assets securely with long-lived cache headers for versioned assets and public JSON
 app.use(express.static(path.join(__dirname, 'public'), {
+  etag: true,
+  lastModified: true,
   setHeaders: (res, filePath) => {
-    // Check the resolved path so encoded URLs cannot bypass protection for uploaded SVGs.
     const postUploads = path.join(__dirname, 'public', 'uploads', 'posts') + path.sep;
     if (filePath.startsWith(postUploads)) {
       res.setHeader('Content-Disposition', 'inline');
       if (!filePath.toLowerCase().endsWith('.pdf')) {
         res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
+      }
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+      return;
+    }
+    const lower = filePath.toLowerCase();
+    if (lower.endsWith('syllabus-data.json')) {
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+    } else if (lower.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    } else if (/\.(css|js|woff2?|ttf|otf|webp|png|jpe?g|gif|svg|ico)$/.test(lower)) {
+      const base = path.basename(lower);
+      if (base === 'sw.js' || base === 'auth.js' || base === 'academic-context.js') {
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+      } else {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
       }
     }
   }
@@ -3593,7 +3609,7 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
 });
 
 app.get('/api/files', requireLogin, async (req, res) => {
-  const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200) : null;
+  const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200) : 100;
   const offset = req.query.offset ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
 
   const context = await getAcademicContext(db, req);
@@ -3606,7 +3622,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
   const isFeedRequest = req.query.feed === '1' || req.query.context === 'feed';
   let teacherFeedSql = '';
   const teacherFeedParams = [];
-  let teacherSubjects = [];
+  let teacherSubjects = Array.isArray(context.assignedSubjects) ? context.assignedSubjects : [];
 
   const isTeacher = context.role === 'teacher' || context.role === 'faculty';
   let whereSql = filter.sql;
@@ -3614,23 +3630,23 @@ app.get('/api/files', requireLogin, async (req, res) => {
 
   if (isTeacher) {
     const activeTeacherId = req.session?.studentId || context.studentId || req.user?.studentId || req.student?.studentId;
-    try {
-      const { getTeacherSubjects } = require('./lib/teacher-service');
-      teacherSubjects = await getTeacherSubjects(db, activeTeacherId);
-    } catch (_) {}
+    if (!teacherSubjects || teacherSubjects.length === 0) {
+      try {
+        const { getTeacherSubjects } = require('./lib/teacher-service');
+        teacherSubjects = await getTeacherSubjects(db, activeTeacherId);
+      } catch (_) {}
+    }
 
     if ((!teacherSubjects || teacherSubjects.length === 0) && (req.user?.subjects || context.subjects || context.assignedSubjects)) {
       teacherSubjects = req.user?.subjects || context.subjects || context.assignedSubjects || [];
     }
 
     if (isFeedRequest) {
-      // On dashboard feed: show ONLY notes uploaded by this teacher (do not show other teachers' notes)
       whereSql = '1=1';
       whereParams = [];
       teacherFeedSql = ' AND files.uploadedBy = ?';
       teacherFeedParams.push(activeTeacherId);
     } else {
-      // In Library: show files for the teacher's assigned subjects or uploaded by this teacher
       const subTerms = [];
       for (const s of (teacherSubjects || [])) {
         if (s.name) subTerms.push(s.name.trim().toLowerCase());
@@ -3655,12 +3671,16 @@ app.get('/api/files', requireLogin, async (req, res) => {
   let query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope, COALESCE(files.sort_order, 0) AS sort_order,
-      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
-      (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
+      students.name AS uploaderName,
+      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId ELSE students.avatarUrl END AS uploaderAvatar,
+      students.role AS uploaderRole,
+      COALESCE(fl.likeCount, 0) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
-      (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
+      COALESCE(fc.commentCount, 0) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
+    LEFT JOIN (SELECT fileId, COUNT(*) AS likeCount FROM file_likes GROUP BY fileId) fl ON fl.fileId = files.id
+    LEFT JOIN (SELECT fileId, COUNT(*) AS commentCount FROM file_comments GROUP BY fileId) fc ON fc.fileId = files.id
     WHERE ${whereSql}${teacherFeedSql}
     ORDER BY CASE WHEN COALESCE(files.sort_order, 0) > 0 THEN 0 ELSE 1 END ASC, COALESCE(files.sort_order, 0) ASC, files.uploadedAt DESC
   `;
@@ -3672,11 +3692,8 @@ app.get('/api/files', requireLogin, async (req, res) => {
   const currentViewerId = req.session?.studentId || context.studentId || req.user?.studentId || req.student?.studentId || null;
   const queryParams = [currentViewerId, ...whereParams, ...teacherFeedParams];
 
-  // Parallelize admin verification and files database query
-  const [viewerIsAdmin, files] = await Promise.all([
-    req.student ? Promise.resolve(req.student.role === 'admin') : isStudentAdmin(currentViewerId),
-    db.all(query, ...queryParams)
-  ]);
+  const viewerIsAdmin = context.role === 'admin' || Boolean(req.student && req.student.role === 'admin') || Boolean(req.user && req.user.role === 'admin');
+  const files = await db.all(query, ...queryParams);
 
   const teacherSubjectSet = new Set(
     (teacherSubjects || []).flatMap(s => [
@@ -4612,29 +4629,30 @@ app.get('/api/library/custom-chapters', async (req, res) => {
   try {
     const subject = String(req.query?.subject || '').trim();
     const subjectCode = String(req.query?.code || req.query?.subjectCode || '').trim();
-    let rows = [];
-    let overrides = [];
+    let rowsPromise;
+    let overridesPromise;
     if (subject) {
-      rows = await db.all(
+      rowsPromise = db.all(
         'SELECT id, subject, semester, chapter, created_at FROM library_custom_chapters WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) ORDER BY id ASC',
         subject
       ).catch(() => []);
       if (subjectCode) {
-        overrides = await db.all(
+        overridesPromise = db.all(
           'SELECT original_chapter, new_chapter, is_deleted FROM library_chapter_overrides WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) OR (subject_code IS NOT NULL AND subject_code != \'\' AND UPPER(TRIM(subject_code)) = UPPER(TRIM(?))) ORDER BY id ASC',
           subject,
           subjectCode
         ).catch(() => []);
       } else {
-        overrides = await db.all(
+        overridesPromise = db.all(
           'SELECT original_chapter, new_chapter, is_deleted FROM library_chapter_overrides WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) ORDER BY id ASC',
           subject
         ).catch(() => []);
       }
     } else {
-      rows = await db.all('SELECT id, subject, semester, chapter, created_at FROM library_custom_chapters ORDER BY id ASC').catch(() => []);
-      overrides = await db.all('SELECT subject, subject_code, original_chapter, new_chapter, is_deleted FROM library_chapter_overrides ORDER BY id ASC').catch(() => []);
+      rowsPromise = db.all('SELECT id, subject, semester, chapter, created_at FROM library_custom_chapters ORDER BY id ASC').catch(() => []);
+      overridesPromise = db.all('SELECT subject, subject_code, original_chapter, new_chapter, is_deleted FROM library_chapter_overrides ORDER BY id ASC').catch(() => []);
     }
+    const [rows, overrides] = await Promise.all([rowsPromise, overridesPromise]);
     res.json({ chapters: rows || [], overrides: overrides || [] });
   } catch (_) {
     res.json({ chapters: [], overrides: [] });
@@ -4865,25 +4883,24 @@ app.post('/api/library/files/reorder', requireLogin, async (req, res) => {
 // List files with flexible filters (semester, subject, chapter)
 app.get('/api/library/files', async (req, res) => {
   const { semester, subject, chapter } = req.query;
-  const studentId = req.session ? req.session.studentId : null;
-  const viewerIsAdmin = studentId ? await isStudentAdmin(studentId) : false;
-
+  const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 200) : 100;
+  const offset = req.query.offset ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
   const context = await getAcademicContext(db, req);
+  const studentId = (req.session && req.session.studentId) || context.studentId || (req.user && req.user.studentId) || null;
+  const viewerIsAdmin = context.role === 'admin' || (studentId && !context.authenticated ? await isStudentAdmin(studentId) : false);
+
   const filter = buildAcademicContentFilter(context, {
     tableAlias: 'files',
     requestedCohortId: req.query.cohortId || req.query.cohort_id,
     requestedSemester: semester
   });
 
-  let teacherSubjects = [];
-  if (context.role === 'teacher' && studentId) {
+  let teacherSubjects = Array.isArray(context.assignedSubjects) ? context.assignedSubjects : [];
+  if (context.role === 'teacher' && studentId && teacherSubjects.length === 0) {
     try {
       const { getTeacherSubjects } = require('./lib/teacher-service');
       teacherSubjects = await getTeacherSubjects(db, studentId);
     } catch (_) {}
-    if ((!teacherSubjects || teacherSubjects.length === 0) && Array.isArray(context.assignedSubjects)) {
-      teacherSubjects = context.assignedSubjects;
-    }
   }
   const teacherSubjectSet = new Set(
     (teacherSubjects || []).flatMap(s => [
@@ -4896,12 +4913,16 @@ app.get('/api/library/files', async (req, res) => {
   let query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope, COALESCE(files.sort_order, 0) AS sort_order,
-      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
-      (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
+      students.name AS uploaderName,
+      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId ELSE students.avatarUrl END AS uploaderAvatar,
+      students.role AS uploaderRole,
+      COALESCE(fl.likeCount, 0) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
-      (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
+      COALESCE(fc.commentCount, 0) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
+    LEFT JOIN (SELECT fileId, COUNT(*) AS likeCount FROM file_likes GROUP BY fileId) fl ON fl.fileId = files.id
+    LEFT JOIN (SELECT fileId, COUNT(*) AS commentCount FROM file_comments GROUP BY fileId) fc ON fc.fileId = files.id
     WHERE ${filter.sql}
   `;
   const params = [studentId || '', ...filter.params];
@@ -4915,7 +4936,7 @@ app.get('/api/library/files', async (req, res) => {
     params.push(chapter);
   }
 
-  query += ' ORDER BY CASE WHEN COALESCE(files.sort_order, 0) > 0 THEN 0 ELSE 1 END ASC, COALESCE(files.sort_order, 0) ASC, files.uploadedAt DESC';
+  query += ` ORDER BY CASE WHEN COALESCE(files.sort_order, 0) > 0 THEN 0 ELSE 1 END ASC, COALESCE(files.sort_order, 0) ASC, files.uploadedAt DESC LIMIT ${limit} OFFSET ${offset}`;
 
   const files = await db.all(query, ...params);
   const processed = files.map(f => ({
@@ -5228,15 +5249,20 @@ const CHAT_ELIGIBILITY_S_SQL = "(COALESCE(s.department, 'BIT') IN ('BIT', 'B.Sc.
 
 app.get('/api/chat/members', requireLogin, async (req, res) => {
   try {
+    const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500) : 200;
+    const offset = req.query.offset ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
     const [members, lastMessages] = await Promise.all([
       db.all(`
-        SELECT s.studentId, s.name, s.username, s.avatarUrl, s.semester, s.department, s.role,
+        SELECT s.studentId, s.name, s.username,
+          CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId ELSE s.avatarUrl END AS avatarUrl,
+          s.semester, s.department, s.role,
           r.lastReadMessageId
         FROM students s
         LEFT JOIN chat_read_receipts r ON r.studentId = s.studentId
         WHERE ${CHAT_ELIGIBILITY_S_SQL}
         ORDER BY s.name ASC
-      `),
+        LIMIT ? OFFSET ?
+      `, limit, offset),
       db.all(`
         SELECT studentId, MAX(createdAt) AS lastMessageAt
         FROM chat_messages
@@ -5913,14 +5939,18 @@ const uploadCover = multer({
 // Helper function to fetch profile with stats and privacy boundary
 async function getStudentProfile(targetStudentId, viewerStudentId) {
   let student = await db.get(`
-    SELECT studentId, username, name, avatarUrl, coverUrl, coverPosition, bio, department, semester, githubUrl, linkedinUrl, role, verification_status, email
+    SELECT studentId, username, name,
+      CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId ELSE avatarUrl END AS avatarUrl,
+      coverUrl, coverPosition, bio, department, semester, cohort_id, githubUrl, linkedinUrl, role, verification_status, email
     FROM students
     WHERE studentId = ?
   `, targetStudentId);
 
   if (!student && targetStudentId) {
     student = await db.get(`
-      SELECT studentId, username, name, avatarUrl, coverUrl, coverPosition, bio, department, semester, githubUrl, linkedinUrl, role, verification_status, email
+      SELECT studentId, username, name,
+        CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId ELSE avatarUrl END AS avatarUrl,
+        coverUrl, coverPosition, bio, department, semester, cohort_id, githubUrl, linkedinUrl, role, verification_status, email
       FROM students
       WHERE LOWER(username) = LOWER(?)
     `, String(targetStudentId));
@@ -5930,55 +5960,47 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
 
   const actualStudentId = student.studentId;
   const isSelf = String(actualStudentId) === String(viewerStudentId);
+  const role = student.role || 'student';
+  const canCreateAssignments = role === 'admin' || role === 'teacher' || role === 'cr' || role === 'class_rep';
 
-  const filesCountRow = await db.get('SELECT COUNT(*) AS c FROM files WHERE uploadedBy = ?', actualStudentId);
-  const filesCount = Number(filesCountRow?.c || filesCountRow?.count || 0);
-
-  const postsCountRow = await db.get('SELECT COUNT(*) AS c FROM posts WHERE user_id = ?', actualStudentId);
-  const postsCount = Number(postsCountRow?.c || postsCountRow?.count || 0);
-
-  let photosCount = 0;
-  try {
-    const photosCountRow = await db.get(`
+  const [statsRow, photosCountRow, subjects] = await Promise.all([
+    db.get(`
+      SELECT
+        (SELECT COUNT(*) FROM files WHERE uploadedBy = ?) AS files_count,
+        (SELECT COUNT(*) FROM posts WHERE user_id = ?) AS posts_count,
+        (SELECT COUNT(*) FROM assignments WHERE createdBy = ?) AS assignments_count,
+        (SELECT COUNT(*) FROM file_likes JOIN files ON files.id = file_likes.fileId WHERE files.uploadedBy = ?) AS likes_received,
+        (SELECT COUNT(*) FROM follows WHERE followingId = ?) AS followers_count,
+        (SELECT COUNT(*) FROM follows WHERE followerId = ?) AS following_count,
+        ${!isSelf ? 'EXISTS(SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?)' : '0'} AS is_following
+    `, ...(isSelf
+      ? [actualStudentId, actualStudentId, targetStudentId, targetStudentId, targetStudentId, targetStudentId]
+      : [actualStudentId, actualStudentId, targetStudentId, targetStudentId, targetStudentId, targetStudentId, viewerStudentId, targetStudentId]
+    )),
+    db.get(`
       SELECT COUNT(*) AS c
       FROM post_media pm
       JOIN posts p ON p.id = pm.post_id
       WHERE p.user_id = ? AND (pm.media_type = 'image' OR pm.mime_type LIKE 'image/%')
-    `, targetStudentId);
-    photosCount = Number(photosCountRow?.c || photosCountRow?.count || 0);
-  } catch (_) {}
+    `, targetStudentId).catch(() => ({ c: 0 })),
+    role === 'teacher'
+      ? (async () => {
+          try {
+            const { getTeacherSubjects } = require('./lib/teacher-service');
+            return await getTeacherSubjects(db, actualStudentId);
+          } catch (_) { return []; }
+        })()
+      : Promise.resolve([])
+  ]);
 
-  let assignmentsCount = 0;
-  try {
-    const assignmentsCountRow = await db.get('SELECT COUNT(*) AS c FROM assignments WHERE createdBy = ?', targetStudentId);
-    assignmentsCount = Number(assignmentsCountRow?.c || assignmentsCountRow?.count || 0);
-  } catch (_) {}
-
-  const likesReceivedRow = await db.get(`
-    SELECT COUNT(*) AS c
-    FROM file_likes
-    JOIN files ON files.id = file_likes.fileId
-    WHERE files.uploadedBy = ?
-  `, targetStudentId);
-  const likesReceived = Number(likesReceivedRow?.c || likesReceivedRow?.count || 0);
-
-  const followersCountRow = await db.get('SELECT COUNT(*) AS c FROM follows WHERE followingId = ?', targetStudentId);
-  const followersCount = Number(followersCountRow?.c || followersCountRow?.count || 0);
-
-  const followingCountRow = await db.get('SELECT COUNT(*) AS c FROM follows WHERE followerId = ?', targetStudentId);
-  const followingCount = Number(followingCountRow?.c || followingCountRow?.count || 0);
-
-  const followCheck = !isSelf && !!(await db.get('SELECT 1 FROM follows WHERE followerId = ? AND followingId = ?', viewerStudentId, targetStudentId));
-  const role = student.role || 'student';
-  const canCreateAssignments = role === 'admin' || role === 'teacher' || role === 'cr' || role === 'class_rep';
-
-  let subjects = [];
-  if (role === 'teacher') {
-    try {
-      const { getTeacherSubjects } = require('./lib/teacher-service');
-      subjects = await getTeacherSubjects(db, actualStudentId);
-    } catch (_) {}
-  }
+  const filesCount = Number(statsRow?.files_count ?? statsRow?.filescount ?? 0);
+  const postsCount = Number(statsRow?.posts_count ?? statsRow?.postscount ?? 0);
+  const photosCount = Number(photosCountRow?.c || photosCountRow?.count || 0);
+  const assignmentsCount = Number(statsRow?.assignments_count ?? statsRow?.assignmentscount ?? 0);
+  const likesReceived = Number(statsRow?.likes_received ?? statsRow?.likesreceived ?? 0);
+  const followersCount = Number(statsRow?.followers_count ?? statsRow?.followerscount ?? 0);
+  const followingCount = Number(statsRow?.following_count ?? statsRow?.followingcount ?? 0);
+  const followCheck = !isSelf && Boolean(statsRow?.is_following ?? statsRow?.isfollowing);
 
   return {
     studentId: student.studentId,
@@ -6301,6 +6323,29 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), asy
   }
 
   res.json({ message: 'Profile picture updated successfully', avatarUrl });
+});
+
+// Serve inline base64 student avatar as binary image with long cache headers
+app.get('/api/avatar/student/:studentId', async (req, res) => {
+  try {
+    const sid = String(req.params.studentId || '').trim();
+    if (!sid) return res.status(404).end();
+    const row = await db.get('SELECT avatarUrl FROM students WHERE studentId = ?', sid);
+    const url = row && (row.avatarUrl || row.avatarurl);
+    if (!url) return res.status(404).end();
+    if (url.startsWith('data:image/')) {
+      const match = /^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/.exec(url);
+      if (!match) return res.status(404).end();
+      const buf = Buffer.from(match[2], 'base64');
+      res.setHeader('Content-Type', match[1]);
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      return res.send(buf);
+    }
+    return res.redirect(302, url);
+  } catch (_) {
+    return res.status(404).end();
+  }
 });
 
 // Serve avatar image safely — only serve files that actually belong to an avatar in students

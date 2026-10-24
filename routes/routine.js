@@ -47,7 +47,8 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
       `SELECT * FROM routine ${targetSemester ? 'WHERE semester = ?' : ''} ORDER BY ${ORDER_BY}`,
       ...(targetSemester ? [targetSemester] : [])
     );
-    res.set('Cache-Control', 'no-store').json(rows);
+    const isPublicRequest = (!context || !context.authenticated) && req.path === '/';
+    res.set('Cache-Control', isPublicRequest ? 'public, s-maxage=60, stale-while-revalidate=300' : 'no-store').json(rows);
   });
 
   router.get('/', list);

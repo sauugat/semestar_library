@@ -19,11 +19,13 @@
   <meta name="theme-color" content="#ffffff">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.v4.css">
-  <link rel="stylesheet" href="auth-modal.css">
-  <link rel="stylesheet" href="/theme-overrides.css">
+  <link rel="stylesheet" href="style.v4.css?v=25">
+  <link rel="stylesheet" href="auth-modal.css?v=25">
+  <link rel="stylesheet" href="/theme-overrides.css?v=25">
   <script src="/auth.js?v=3"></script>
+  <script src="/js/swr.js?v=25"></script>
 </head>
 <body class="dash syllabus-page-body">
   <header class="dash-header">
@@ -57,91 +59,133 @@
     </header>
 
     <section class="syllabus-content-area" id="noticesContainer" style="max-width: 800px;">
-      <div class="detail-section-card" id="noticesLoading">
-        <p class="section-body-text" style="color: var(--text-secondary, #888);">Loading official notices…</p>
+      <div id="noticesLoading">
+        <div class="detail-section-card" style="margin-bottom: 16px;" aria-hidden="true">
+          <div style="height: 18px; width: 55%; background: rgba(128,128,128,0.16); border-radius: 6px; margin-bottom: 12px;"></div>
+          <div style="height: 12px; width: 92%; background: rgba(128,128,128,0.12); border-radius: 6px; margin-bottom: 8px;"></div>
+          <div style="height: 12px; width: 78%; background: rgba(128,128,128,0.12); border-radius: 6px; margin-bottom: 14px;"></div>
+          <div style="height: 11px; width: 32%; background: rgba(128,128,128,0.1); border-radius: 6px;"></div>
+        </div>
+        <div class="detail-section-card" style="margin-bottom: 16px;" aria-hidden="true">
+          <div style="height: 18px; width: 48%; background: rgba(128,128,128,0.16); border-radius: 6px; margin-bottom: 12px;"></div>
+          <div style="height: 12px; width: 88%; background: rgba(128,128,128,0.12); border-radius: 6px; margin-bottom: 8px;"></div>
+          <div style="height: 12px; width: 65%; background: rgba(128,128,128,0.12); border-radius: 6px; margin-bottom: 14px;"></div>
+          <div style="height: 11px; width: 28%; background: rgba(128,128,128,0.1); border-radius: 6px;"></div>
+        </div>
       </div>
     </section>
   </main>
 
   <script>
-    async function loadOfficialNotices() {
+    function renderNoticesData(data) {
       const container = document.getElementById('noticesContainer');
-      try {
-        const res = await fetch('/api/posts?type=notice&official=true');
-        if (res.status === 401) {
-          container.innerHTML = `
-            <div class="detail-section-card">
-              <div class="section-card-header">
-                <h3>Official Notices</h3>
-              </div>
-              <p class="section-body-text" style="color: var(--text-secondary, #888);">
-                Please sign in to view official notices and academic circulars.
-              </p>
+      if (!container) return;
+      if (data && data._unauthorized) {
+        container.innerHTML = `
+          <div class="detail-section-card">
+            <div class="section-card-header">
+              <h3>Official Notices</h3>
             </div>
-          `;
+            <p class="section-body-text" style="color: var(--text-secondary, #888);">
+              Please sign in to view official notices and academic circulars.
+            </p>
+          </div>
+        `;
+        return;
+      }
+      const notices = ((data && data.posts) || []).filter(p => p.type === 'notice');
+      if (notices.length === 0) {
+        container.innerHTML = `
+          <div class="detail-section-card">
+            <div class="section-card-header">
+              <h3>No Notices Available</h3>
+            </div>
+            <p class="section-body-text" style="color: var(--text-secondary, #888);">
+              There are no official notices published at this moment. New announcements from university administration and CRs will appear here.
+            </p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = notices.map(n => {
+        const dateStr = n.created_at ? new Date(n.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+        const authorRole = (n.role || 'official').toUpperCase();
+        const authorName = n.name || 'Administration';
+        return `
+          <div class="detail-section-card" data-notice-id="${n.id}" style="margin-bottom: 20px;">
+            <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: baseline;">
+              <h3>${escapeHtml(n.content.split('\n')[0].substring(0, 100))}</h3>
+              <span style="font-size: 12px; color: var(--text-secondary, #888);">${dateStr}</span>
+            </div>
+            <p class="section-body-text" style="white-space: pre-wrap; margin-top: 12px;">${escapeHtml(n.content)}</p>
+            <div style="margin-top: 14px; font-size: 13px; color: var(--text-secondary, #888);">
+              Published by <strong>${escapeHtml(authorName)}</strong> <span style="background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 2px 8px; border-radius: 999px; font-size: 11px; margin-left: 6px;">${escapeHtml(authorRole)}</span>
+            </div>
+            ${n.attachment_url ? `<div style="margin-top: 12px;"><a href="${encodeURI(n.attachment_url)}" target="_blank" rel="noopener noreferrer" style="color: #6366f1; text-decoration: underline; font-size: 13px;">View Attachment</a></div>` : ''}
+          </div>
+        `;
+      }).join('');
+
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetNoticeId = urlParams.get('id');
+        if (targetNoticeId) {
+          setTimeout(() => {
+            const el = document.querySelector(`[data-notice-id="${targetNoticeId}"]`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease';
+              el.style.borderColor = 'var(--text-primary, #ffffff)';
+              el.style.boxShadow = '0 0 0 2px var(--text-primary, #ffffff)';
+              setTimeout(() => {
+                el.style.borderColor = '';
+                el.style.boxShadow = '';
+              }, 3000);
+            }
+          }, 250);
+        }
+      } catch (_) {}
+    }
+
+    async function loadOfficialNotices(opts = {}) {
+      const container = document.getElementById('noticesContainer');
+      const endpoint = '/api/posts?type=notice&official=true';
+      try {
+        if (window.SWR && typeof window.SWR.get === 'function') {
+          await window.SWR.get(endpoint, {
+            ttl: 5 * 60 * 1000,
+            force: Boolean(opts.force),
+            fetcher: async () => {
+              const res = await fetch(endpoint);
+              if (res.status === 401) return { _unauthorized: true, posts: [] };
+              if (!res.ok) throw new Error('Failed to load notices');
+              return res.json();
+            },
+            onData: (data, meta) => {
+              if (meta.source === 'cache' || meta.changed) {
+                renderNoticesData(data);
+              }
+            }
+          });
+          return;
+        }
+        const res = await fetch(endpoint);
+        if (res.status === 401) {
+          renderNoticesData({ _unauthorized: true, posts: [] });
           return;
         }
         if (!res.ok) throw new Error('Failed to load notices');
         const data = await res.json();
-        const notices = (data.posts || []).filter(p => p.type === 'notice');
-        if (notices.length === 0) {
+        renderNoticesData(data);
+      } catch (err) {
+        if (container) {
           container.innerHTML = `
             <div class="detail-section-card">
-              <div class="section-card-header">
-                <h3>No Notices Available</h3>
-              </div>
-              <p class="section-body-text" style="color: var(--text-secondary, #888);">
-                There are no official notices published at this moment. New announcements from university administration and CRs will appear here.
-              </p>
+              <p class="section-body-text" style="color: #ef4444;">Could not load notices. Please refresh to try again.</p>
             </div>
           `;
-          return;
         }
-
-        container.innerHTML = notices.map(n => {
-          const dateStr = n.created_at ? new Date(n.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
-          const authorRole = (n.role || 'official').toUpperCase();
-          const authorName = n.name || 'Administration';
-          return `
-            <div class="detail-section-card" data-notice-id="${n.id}" style="margin-bottom: 20px;">
-              <div class="section-card-header" style="display: flex; justify-content: space-between; align-items: baseline;">
-                <h3>${escapeHtml(n.content.split('\n')[0].substring(0, 100))}</h3>
-                <span style="font-size: 12px; color: var(--text-secondary, #888);">${dateStr}</span>
-              </div>
-              <p class="section-body-text" style="white-space: pre-wrap; margin-top: 12px;">${escapeHtml(n.content)}</p>
-              <div style="margin-top: 14px; font-size: 13px; color: var(--text-secondary, #888);">
-                Published by <strong>${escapeHtml(authorName)}</strong> <span style="background: rgba(99, 102, 241, 0.15); color: #818cf8; padding: 2px 8px; border-radius: 999px; font-size: 11px; margin-left: 6px;">${escapeHtml(authorRole)}</span>
-              </div>
-              ${n.attachment_url ? `<div style="margin-top: 12px;"><a href="${encodeURI(n.attachment_url)}" target="_blank" rel="noopener noreferrer" style="color: #6366f1; text-decoration: underline; font-size: 13px;">View Attachment</a></div>` : ''}
-            </div>
-          `;
-        }).join('');
-
-        try {
-          const urlParams = new URLSearchParams(window.location.search);
-          const targetNoticeId = urlParams.get('id');
-          if (targetNoticeId) {
-            setTimeout(() => {
-              const el = document.querySelector(`[data-notice-id="${targetNoticeId}"]`);
-              if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.style.transition = 'box-shadow 0.4s ease, border-color 0.4s ease';
-                el.style.borderColor = 'var(--text-primary, #ffffff)';
-                el.style.boxShadow = '0 0 0 2px var(--text-primary, #ffffff)';
-                setTimeout(() => {
-                  el.style.borderColor = '';
-                  el.style.boxShadow = '';
-                }, 3000);
-              }
-            }, 250);
-          }
-        } catch (_) {}
-      } catch (err) {
-        container.innerHTML = `
-          <div class="detail-section-card">
-            <p class="section-body-text" style="color: #ef4444;">Could not load notices. Please refresh to try again.</p>
-          </div>
-        `;
       }
     }
 
@@ -150,7 +194,15 @@
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    window.addEventListener('DOMContentLoaded', loadOfficialNotices);
+    window.addEventListener('DOMContentLoaded', () => {
+      loadOfficialNotices();
+      if (window.SWR && typeof window.SWR.registerPageRefresh === 'function') {
+        window.SWR.registerPageRefresh(() => loadOfficialNotices(), {
+          endpoints: ['/api/posts?type=notice&official=true'],
+          ttl: 5 * 60 * 1000
+        });
+      }
+    });
   </script>
 
 
@@ -165,7 +217,7 @@
       </div>
     </div>
   </footer>
-  <script src="auth-modal.js"></script>
+  <script src="auth-modal.js?v=25" defer></script>
   <!-- PWA Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {

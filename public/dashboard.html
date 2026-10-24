@@ -37,18 +37,25 @@
   </script>
 
   <script src="/auth.js?v=3"></script>
+  <script src="/js/swr.js?v=25"></script>
   <script>SemesterAuth.protectPage();</script>
-  <script src="auth-modal.js"></script>
+  <script src="auth-modal.js?v=25" defer></script>
   <script src="/academic-context.js"></script>
-  <script src="/markdown.js"></script>
+  <script src="/markdown.js?v=25"></script>
+  <link rel="prefetch" href="/library.html">
+  <link rel="prefetch" href="/notices.html">
+  <link rel="prefetch" href="/routine.html">
+  <link rel="prefetch" href="/chat.html">
+  <link rel="prefetch" href="/code-lab/subjects.html">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
   <link
     href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="style.v4.css?v=4.2">
-  <link rel="stylesheet" href="chatbot.css">
-  <link rel="stylesheet" href="auth-modal.css">
+  <link rel="stylesheet" href="style.v4.css?v=25">
+  <link rel="stylesheet" href="chatbot.css?v=25">
+  <link rel="stylesheet" href="auth-modal.css?v=25">
   <style>
     /* Explicitly disable all shine, sheen, sweep, and laser animations */
     .social-post-card::after,
@@ -3318,7 +3325,7 @@
       .post-card .file-actions { margin-left: 52px; }
     }
   </style>
-  <link rel="stylesheet" href="/theme-overrides.css">
+  <link rel="stylesheet" href="/theme-overrides.css?v=25">
   <style>
     /* Divider line between posts in dashboard */
     html:root body.dash .feed #realFiles > :is(.feed-card, .social-post-card, .post-card) {
@@ -3697,6 +3704,7 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Could not update like.');
         updateLike(Boolean(data.liked), data.likeCount);
+        if (typeof window !== 'undefined' && window.SWR) window.SWR.invalidate('/api/files');
       } catch (err) {
         console.error('Like error:', err);
         updateLike(isLiked, currentCount);
@@ -3740,6 +3748,7 @@
         body: JSON.stringify({ text })
       });
       if (!res.ok) return;
+      if (typeof window !== 'undefined' && window.SWR) window.SWR.invalidate('/api/files');
       input.value = '';
       const panel = card.querySelector('.post-comment-drawer, .comment-panel');
       panel.dataset.loaded = '';
@@ -3845,6 +3854,7 @@
         const res = await fetch(`/api/files/${fileId}`, { method: 'DELETE' });
         const data = await res.json();
         if (res.ok) {
+          if (typeof window !== 'undefined' && window.SWR) window.SWR.invalidate(['/api/files', '/api/library']);
           feedItems = feedItems.filter(item => item._feedType !== 'file' || Number(item.id) !== fileId);
           showToast('Post deleted successfully');
           const card = btn.closest('.feed-card');
@@ -4107,6 +4117,7 @@
         const res = await fetch(`/api/code-lab/assignments/${id}`, { method: 'DELETE' });
         const data = await res.json();
         if (res.ok) {
+          if (typeof window !== 'undefined' && window.SWR) window.SWR.invalidate('/api/code-lab/assignments');
           feedItems = feedItems.filter(item => item._feedType !== 'assignment' || Number(item.id) !== id);
           showToast('Assignment deleted successfully');
           const card = btn.closest('.feed-card');
@@ -4558,22 +4569,14 @@
       return response.json();
     }
 
-    async function loadFeed() {
-      if (!window.currentUserData) {
-        try {
-          const meRes = await fetch('/api/me');
-          if (meRes.ok) window.currentUserData = await meRes.json();
-        } catch (_) {}
-      }
-      const isTeacher = window.currentUserData && (window.currentUserData.role === 'teacher' || window.currentUserData.role === 'faculty');
-      const feedQuery = isTeacher ? '?feed=1' : '';
-      const [files, assignments, page] = await Promise.all([
-        fetch('/api/files' + feedQuery).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetch('/api/code-lab/assignments' + feedQuery).then(r => r.ok ? r.json() : []).catch(() => []),
-        fetchPostPage().catch(err => { postFeedMessage.textContent = err.message; return null; })
-      ]);
-      const assignmentList = Array.isArray(assignments) ? assignments : (assignments?.assignments || []);
+    const feedScrollRestore = (typeof window !== 'undefined' && window.SWR && typeof window.SWR.initScrollRestore === 'function')
+      ? window.SWR.initScrollRestore({ key: 'dashboard_feed' })
+      : null;
+    let feedScrollRestoredOnce = false;
 
+    function applyFeedPayload(filesData, assignmentsData, pageData, isTeacher) {
+      const files = Array.isArray(filesData) ? filesData : (filesData?.files || []);
+      const assignmentList = Array.isArray(assignmentsData) ? assignmentsData : (assignmentsData?.assignments || []);
       let filteredFiles = files;
       let filteredAssignments = assignmentList;
 
@@ -4588,15 +4591,86 @@
         ...filteredFiles.map(f => ({ ...f, _feedType: 'file', _feedTime: new Date(f.uploadedAt || f.createdAt || 0).getTime() })),
         ...filteredAssignments.map(a => ({ ...a, _feedType: 'assignment', _feedTime: new Date(a.createdAt || 0).getTime() }))
       ];
-      if (page) {
-        addFeedPosts(page.posts);
-        postsCursor = page.nextCursor;
+      if (pageData && Array.isArray(pageData.posts)) {
+        addFeedPosts(pageData.posts);
+        postsCursor = pageData.nextCursor;
         postsLoaded = true;
       }
       renderFeed();
+      if (!feedScrollRestoredOnce && feedScrollRestore) {
+        feedScrollRestoredOnce = true;
+        feedScrollRestore.restore();
+      }
+    }
+
+    async function loadFeed(opts = {}) {
+      if (!window.currentUserData && typeof SemesterAuth !== 'undefined' && typeof SemesterAuth.getUserSync === 'function') {
+        window.currentUserData = SemesterAuth.getUserSync();
+      }
+      if (!window.currentUserData) {
+        try {
+          const meRes = await fetch('/api/me');
+          if (meRes.ok) window.currentUserData = await meRes.json();
+        } catch (_) {}
+      }
+      const isTeacher = window.currentUserData && (window.currentUserData.role === 'teacher' || window.currentUserData.role === 'faculty');
+      const feedQuery = isTeacher ? '?feed=1' : '';
+      const filesEp = '/api/files' + feedQuery;
+      const assignEp = '/api/code-lab/assignments' + feedQuery;
+      const postsEp = '/api/posts?limit=20';
+
+      if (typeof window !== 'undefined' && window.SWR && typeof window.SWR.get === 'function') {
+        const cachedFiles = window.SWR.peek(filesEp)?.data;
+        const cachedAssign = window.SWR.peek(assignEp)?.data;
+        const cachedPosts = window.SWR.peek(postsEp)?.data;
+        if (cachedPosts || cachedFiles) {
+          applyFeedPayload(cachedFiles || [], cachedAssign || [], cachedPosts || null, isTeacher);
+        }
+        let latestFiles = cachedFiles || [];
+        let latestAssign = cachedAssign || [];
+        let latestPosts = cachedPosts || null;
+        let anyChanged = false;
+        await Promise.all([
+          window.SWR.get(filesEp, {
+            ttl: 2 * 60 * 1000,
+            force: Boolean(opts.force),
+            fetcher: () => fetch(filesEp).then(r => r.ok ? r.json() : []).catch(() => []),
+            onData: (d, m) => { latestFiles = d || []; if (m.changed) anyChanged = true; }
+          }),
+          window.SWR.get(assignEp, {
+            ttl: 2 * 60 * 1000,
+            force: Boolean(opts.force),
+            fetcher: () => fetch(assignEp).then(r => r.ok ? r.json() : []).catch(() => []),
+            onData: (d, m) => { latestAssign = d || []; if (m.changed) anyChanged = true; }
+          }),
+          window.SWR.get(postsEp, {
+            ttl: 60 * 1000,
+            force: Boolean(opts.force),
+            fetcher: () => fetchPostPage().catch(err => { postFeedMessage.textContent = err.message; return null; }),
+            onData: (d, m) => { latestPosts = d; if (m.changed) anyChanged = true; }
+          })
+        ]);
+        if (anyChanged || (!cachedPosts && !cachedFiles)) {
+          applyFeedPayload(latestFiles, latestAssign, latestPosts, isTeacher);
+        }
+        return;
+      }
+
+      const [files, assignments, page] = await Promise.all([
+        fetch(filesEp).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetch(assignEp).then(r => r.ok ? r.json() : []).catch(() => []),
+        fetchPostPage().catch(err => { postFeedMessage.textContent = err.message; return null; })
+      ]);
+      applyFeedPayload(files, assignments, page, isTeacher);
     }
 
     const feedReady = loadFeed();
+    if (typeof window !== 'undefined' && window.SWR && typeof window.SWR.registerPageRefresh === 'function') {
+      window.SWR.registerPageRefresh(() => loadFeed(), {
+        endpoints: ['/api/posts?limit=20', '/api/files'],
+        ttl: 60 * 1000
+      });
+    }
 
     feedReady.then(() => {
       try {
@@ -5055,6 +5129,7 @@
           });
           const data = await response.json();
           if (!response.ok) throw new Error(data.message || 'Could not publish your post.');
+          if (typeof window !== 'undefined' && window.SWR) window.SWR.invalidate('/api/posts');
           addFeedPosts([data]);
           renderFeed();
           content.value = '';
@@ -5105,6 +5180,7 @@
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Could not update like.');
         updateStatusLike(id, data.liked_by_me, data.like_count);
+        if (typeof window !== 'undefined' && window.SWR) window.SWR.invalidate('/api/posts');
       } catch (err) {
         updateStatusLike(id, liked, count);
         showToast(escapeHtml(err.message || 'Could not update like. Please try again.'));
@@ -5129,6 +5205,7 @@
         const response = await fetch(`/api/posts/${id}`, { method: 'DELETE' });
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Could not delete post.');
+        if (typeof window !== 'undefined' && window.SWR) window.SWR.invalidate('/api/posts');
         feedItems = feedItems.filter(item => item._feedType !== 'post' || item.id !== id);
         renderFeed();
         showToast('Post deleted.');
@@ -5419,6 +5496,7 @@
         const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Could not delete comment');
+        if (typeof window !== 'undefined' && window.SWR) window.SWR.invalidate('/api/posts');
         await loadCommentsForPost(postId, true);
         if (data.comment_count !== undefined) {
           updatePostCommentCountEverywhere(postId, data.comment_count);
@@ -5480,6 +5558,7 @@
         }
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Could not post comment.');
+        if (typeof window !== 'undefined' && window.SWR) window.SWR.invalidate('/api/posts');
 
         textarea.value = '';
         delete textarea.dataset.wasEditing;
@@ -5700,7 +5779,7 @@
     if (realFiles) dashObs.observe(realFiles, { childList: true });
     if (searchResults) dashObs.observe(searchResults, { childList: true });
   </script>
-  <script src="chatbot.js"></script>
+  <script src="chatbot.js?v=25" defer></script>
 
   <div id="minimalAuthToast" class="minimal-auth-toast">
     <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2.5"

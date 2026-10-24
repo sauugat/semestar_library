@@ -133,6 +133,7 @@
     status('routineAdminStatus', 'Deleting exam…');
     try {
       await request(`/api/routine/${row.id}`, { method: 'DELETE' });
+      if (window.SWR) window.SWR.invalidate('/api/routine');
       routines = routines.filter(item => item.id !== row.id);
       if (editingId === row.id) resetForm();
       renderPublic();
@@ -177,9 +178,27 @@
       return tr;
     }));
   }
-  async function loadRoutines() {
+  async function loadRoutines(opts = {}) {
     schedule.setAttribute('aria-busy', 'true');
     try {
+      if (window.SWR && typeof window.SWR.get === 'function') {
+        const res = await window.SWR.get('/api/routine', {
+          ttl: 15 * 60 * 1000,
+          userScoped: false,
+          force: Boolean(opts.force),
+          fetcher: () => request('/api/routine'),
+          onData: (rows, meta) => {
+            if (!Array.isArray(rows)) return;
+            if (meta.source === 'cache' || meta.changed) {
+              routines = rows;
+              renderPublic();
+              renderAdmin();
+            }
+          }
+        });
+        if (!Array.isArray(res.data)) throw new Error('Could not read the routine. Please try again.');
+        return;
+      }
       const rows = await request('/api/routine');
       if (!Array.isArray(rows)) throw new Error('Could not read the routine. Please try again.');
       routines = rows;
@@ -227,6 +246,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      if (window.SWR) window.SWR.invalidate('/api/routine');
       routines = id ? routines.map(item => item.id === id ? row : item) : [...routines, row];
       resetForm();
       renderPublic();
@@ -258,6 +278,12 @@
     renderFilters();
     await loadRoutines();
     await checkAdminAccess();
+    if (window.SWR && typeof window.SWR.registerPageRefresh === 'function') {
+      window.SWR.registerPageRefresh(() => loadRoutines(), {
+        endpoints: ['/api/routine'],
+        ttl: 15 * 60 * 1000
+      });
+    }
   }
 
   initRoutinePage();

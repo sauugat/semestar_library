@@ -33,6 +33,7 @@
   </script>
 
   <script src="/auth.js?v=3"></script>
+  <script src="/js/swr.js"></script>
   <script>SemesterAuth.protectPage();</script>
   <script src="/academic-context.js"></script>
   <script src="/markdown.js"></script>
@@ -2590,6 +2591,9 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Could not publish post.');
 
+        if (window.SWR && typeof window.SWR.invalidate === 'function') {
+          window.SWR.invalidate('/api/posts');
+        }
         // Successfully published - redirect back to feed
         window.location.href = '/dashboard.html';
       } catch (err) {

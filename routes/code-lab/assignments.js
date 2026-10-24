@@ -471,7 +471,7 @@ router.get('/assignments', async (req, res) => {
         : `0 AS mySubmissionCount`;
 
     const releasedCond = db.isPostgres ? 'sg.released = TRUE' : 'sg.released = 1';
-    const avatarExpr = `CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId ELSE s.avatarUrl END`;
+    const avatarExpr = `CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) || '-' || SUBSTR(s.avatarUrl, -12) ELSE s.avatarUrl END`;
 
     const selectFields = `
         a.*, s.name AS teacherName, ${avatarExpr} AS avatarUrl, ${avatarExpr} AS teacherAvatar,

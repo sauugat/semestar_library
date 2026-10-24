@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-nativ
 import { Image } from 'expo-image';
 import { useTheme } from '@/constants/useTheme';
 import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
+import { DEFAULT_SERVER_URL } from '@/services/api';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
 
@@ -25,6 +26,17 @@ const SIZE_MAP: Record<AvatarSize, { dimension: number; fontSize: number }> = {
   xxl: { dimension: 80, fontSize: 30 },
 };
 
+export function resolveAvatarUri(url?: string | null, baseUrl: string = DEFAULT_SERVER_URL): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:') || trimmed.startsWith('file:')) {
+    return trimmed;
+  }
+  const cleanBase = (baseUrl || DEFAULT_SERVER_URL).replace(/\/+$/, '');
+  return `${cleanBase}/${trimmed.replace(/^\/+/, '')}`;
+}
+
 export function Avatar({
   url,
   name,
@@ -39,6 +51,7 @@ export function Avatar({
   const [viewerVisible, setViewerVisible] = useState(false);
 
   const { dimension, fontSize } = SIZE_MAP[size];
+  const resolvedUrl = resolveAvatarUri(url);
 
   const getInitials = () => {
     if (!name || !name.trim()) return '?';
@@ -61,9 +74,9 @@ export function Avatar({
   ];
 
   const content = (
-    url && !loadError ? (
+    resolvedUrl && !loadError ? (
       <Image
-        source={{ uri: url }}
+        source={{ uri: resolvedUrl }}
         style={[styles.image, { borderRadius: dimension / 2 }]}
         contentFit="cover"
         transition={150}
@@ -89,12 +102,12 @@ export function Avatar({
   const handlePress = () => {
     if (onPress) {
       onPress();
-    } else if (enableViewer && url && !loadError) {
+    } else if (enableViewer && resolvedUrl && !loadError) {
       setViewerVisible(true);
     }
   };
 
-  const isClickable = Boolean(onPress || (enableViewer && url && !loadError));
+  const isClickable = Boolean(onPress || (enableViewer && resolvedUrl && !loadError));
 
   return (
     <>
@@ -110,10 +123,10 @@ export function Avatar({
         <View style={containerStyle}>{content}</View>
       )}
 
-      {enableViewer && Boolean(url && !loadError) && (
+      {enableViewer && Boolean(resolvedUrl && !loadError) && (
         <FullScreenImageViewer
           visible={viewerVisible}
-          imageUri={url || null}
+          imageUri={resolvedUrl || null}
           imageTitle={viewerTitle || name || 'Profile Photo'}
           onClose={() => setViewerVisible(false)}
         />

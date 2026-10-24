@@ -110,7 +110,7 @@
 
   function buildCacheKey(url, options = {}) {
     const cleanUrl = String(url || '').trim();
-    const scopeUser = (options.public || isPublicEndpoint(cleanUrl))
+    const scopeUser = (options.public === true || options.userScoped === false || isPublicEndpoint(cleanUrl))
       ? 'public'
       : (options.userId || resolveCurrentUserId());
     return `${SWR_VERSION}:${scopeUser}:${cleanUrl}`;
@@ -298,9 +298,9 @@
       onError = null,
       fetcher = null,
       onlyIfStale = false,
-      forceNetwork = false,
       transform = null
     } = options;
+    const forceNetwork = Boolean(options.forceNetwork || options.force);
 
     if (isExcludedUrl(url)) {
       const doFetch = fetcher || (() => fetch(url).then((r) => {
@@ -308,8 +308,8 @@
         return r.json();
       }));
       const fresh = await doFetch();
-      if (typeof onData === 'function') onData(fresh, { fromCache: false, changed: true });
-      return { data: fresh, fromCache: false, changed: true };
+      if (typeof onData === 'function') onData(fresh, { source: 'network', fromCache: false, changed: true });
+      return { data: fresh, source: 'network', fromCache: false, changed: true };
     }
 
     const key = buildCacheKey(url, options);
@@ -330,13 +330,13 @@
     if (cached && cached.data !== undefined) {
       if (typeof onData === 'function') {
         try {
-          onData(cached.data, { fromCache: true, stale: isStale, changed: false });
+          onData(cached.data, { source: 'cache', fromCache: true, stale: isStale, changed: false });
         } catch (err) {
           console.warn('[SWR] Cached render callback error:', err);
         }
       }
       if (onlyIfStale && !isStale && !forceNetwork) {
-        return { data: cached.data, fromCache: true, stale: false, changed: false };
+        return { data: cached.data, source: 'cache', fromCache: true, stale: false, changed: false };
       }
     } else if (typeof onSkeleton === 'function') {
       try {
@@ -376,14 +376,14 @@
         writeCache(key, freshData, freshJson);
 
         if ((!cached || changed) && typeof onData === 'function') {
-          onData(freshData, { fromCache: false, stale: false, changed: Boolean(cached && changed) });
+          onData(freshData, { source: 'network', fromCache: false, stale: false, changed: Boolean(!cached || changed) });
         }
 
-        return { data: freshData, fromCache: false, stale: false, changed };
+        return { data: freshData, source: 'network', fromCache: false, stale: false, changed };
       } catch (err) {
         // Offline or failed fetch: keep cached data on screen!
         if (cached && cached.data !== undefined) {
-          return { data: cached.data, fromCache: true, stale: isStale, changed: false, offlineFallback: true, error: err };
+          return { data: cached.data, source: 'cache', fromCache: true, stale: isStale, changed: false, offlineFallback: true, error: err };
         }
         if (typeof onError === 'function') {
           onError(err);
@@ -489,17 +489,28 @@
   /**
    * Registers a page controller for BFCache (`pageshow` persisted) and Tab Return (`visibilitychange` TTL check).
    */
-  function registerPageRefresh({ urls = [], onRefresh }) {
-    if (typeof onRefresh !== 'function') return;
-    registeredControllers.push({ urls, onRefresh });
+  function registerPageRefresh(arg1, arg2 = {}) {
+    if (typeof arg1 === 'function') {
+      const urls = arg2.endpoints || arg2.urls || [];
+      registeredControllers.push({ urls, ttl: arg2.ttl, onRefresh: arg1 });
+      return;
+    }
+    if (arg1 && typeof arg1 === 'object' && typeof arg1.onRefresh === 'function') {
+      registeredControllers.push({
+        urls: arg1.urls || arg1.endpoints || [],
+        ttl: arg1.ttl,
+        onRefresh: arg1.onRefresh
+      });
+    }
   }
 
   /**
    * Saves and restores scroll position for dashboard feed and library lists on back/forward navigation.
    */
-  function initScrollRestore(pageKey, options = {}) {
-    if (typeof window === 'undefined') return;
-    const storageKey = `sl_scroll_${pageKey || window.location.pathname}`;
+  function initScrollRestore(pageKeyOrOpts, options = {}) {
+    if (typeof window === 'undefined') return null;
+    const resolvedKey = (pageKeyOrOpts && typeof pageKeyOrOpts === 'object') ? pageKeyOrOpts.key : pageKeyOrOpts;
+    const storageKey = `sl_scroll_${resolvedKey || window.location.pathname}`;
     try {
       if ('scrollRestoration' in history) {
         history.scrollRestoration = 'manual';
@@ -552,7 +563,7 @@
       }
     };
 
-    return { saveScroll, restoreScroll };
+    return { save: saveScroll, restore: restoreScroll, saveScroll, restoreScroll };
   }
 
   /**

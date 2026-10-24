@@ -326,7 +326,7 @@ let initDbPromise = null;
 app.use(async (req, res, next) => {
   if (!isDbReady) {
     if (!initDbPromise) {
-      initDbPromise = db.initSchema().then(() => {
+      initDbPromise = (typeof db.verifyStartupReady === 'function' ? db.verifyStartupReady() : db.initSchema()).then(() => {
         isDbReady = true;
       });
     }
@@ -3641,7 +3641,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
       teacherSubjects = req.user?.subjects || context.subjects || context.assignedSubjects || [];
     }
 
-    if (isFeedRequest) {
+    if (isTeacher && isFeedRequest) {
       whereSql = '1=1';
       whereParams = [];
       teacherFeedSql = ' AND files.uploadedBy = ?';
@@ -3657,7 +3657,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
         const orParts = ['files.uploadedBy = ?'];
         teacherFeedParams.push(activeTeacherId);
         for (const term of subTerms) {
-          orParts.push('LOWER(TRIM(files.subject)) = ?');
+          orParts.push('LOWER(files.subject) = ?');
           teacherFeedParams.push(term);
         }
         teacherFeedSql = ` AND (${orParts.join(' OR ')})`;

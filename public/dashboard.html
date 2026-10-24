@@ -4583,7 +4583,10 @@
       if (isTeacher && window.currentUserData) {
         const teacherId = window.currentUserData.studentId;
         // Show only notes and assignment posts added by this teacher (never other teachers' notes or assignments)
-        filteredFiles = files.filter(f => f.uploadedBy === teacherId);
+        filteredFiles = files.filter(f => {
+          if (f.uploadedBy === teacherId) return true;
+          return false;
+        });
         filteredAssignments = assignmentList.filter(a => a.createdBy === teacherId);
       }
 

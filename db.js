@@ -1359,7 +1359,34 @@ async function cleanupExpiredSessions() {
   await cleanupExpiredMobileTokens();
 }
 
-if (process.env.SEMESTER_DB_SKIP_INIT !== '1') {
+
+let startupReadyPromise = null;
+
+/**
+ * Fast startup readiness check (<15ms on warm/pooled connection).
+ * On serverless cold starts (when schema already exists in Postgres), verifies
+ * core tables exist with a single lightweight catalog lookup instead of running
+ * 126 sequential DDL statements. Falls back to initSchema() only if the database is brand-new.
+ */
+async function verifyStartupReady() {
+  if (startupReadyPromise) return startupReadyPromise;
+  startupReadyPromise = (async () => {
+    if (isPostgres && pgPool) {
+      const res = await pgPool.query(
+        "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl"
+      );
+      const row = res.rows && res.rows[0];
+      if (row && row.students_tbl && row.posts_tbl) {
+        return { ready: true, mode: "fast-check" };
+      }
+    }
+    await initSchema();
+    return { ready: true, mode: "full-init" };
+  })();
+  return startupReadyPromise;
+}
+
+if (process.env.SEMESTER_DB_SKIP_INIT !== '1' && !isPostgres) {
   initSchema().catch(err => console.error('[DB Engine]: Schema init fatal error:', err));
 }
 
@@ -1374,6 +1401,7 @@ module.exports = {
   withTransaction,
   close,
   initSchema,
+  verifyStartupReady,
   saveFileBlob,
   getFileBlob,
   deleteFileBlob,

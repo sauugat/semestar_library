@@ -447,7 +447,7 @@ router.get('/assignments', async (req, res) => {
 
     const isFeedRequest = req.query.feed === '1' || req.query.context === 'feed';
     const isTeacher = context.role === 'teacher' || context.role === 'faculty';
-    if (isTeacher && currentStudentId && req.query.all !== '1') {
+    if ((isTeacher && isFeedRequest && currentStudentId) || (isTeacher && currentStudentId && req.query.all !== '1')) {
         // Teachers see only their own assignments on both Dashboard feed and Assignments page
         whereClauses.length = 0;
         whereParams.length = 0;

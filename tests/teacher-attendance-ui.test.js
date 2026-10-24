@@ -582,3 +582,626 @@ test('Step 3.5 Audit Verification: /api/admin/attendance mount route collision f
   assert.ok(viewCode.includes('didApplyInitialSubjectRef'), 'Mobile view must guard initialSubjectId with didApplyInitialSubjectRef');
 });
 
+test('Phase 3B Verification: Teacher Web Google Drive Attendance Backup Card states (Not Configured, Not Connected, Connected, Sync Now, Partial Failure + Retry, Reconnect Required, Disconnect with Confirmation)', async () => {
+  const dashHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'teacher-dashboard.html'), 'utf8');
+  assert.ok(dashHtml.includes('/js/attendance-drive-sync.js'), 'teacher-dashboard.html must load /js/attendance-drive-sync.js');
+  assert.ok(dashHtml.includes('/js/teacher-attendance.js'), 'teacher-dashboard.html must load /js/teacher-attendance.js');
+
+  const WebDriveSync = require('../public/js/attendance-drive-sync');
+  const crypto = require('crypto');
+
+  // Minimal mock Google Drive v3 API for Phase 3B UI test
+  const validToken = 'ya29.a0AfH6SMBx_phase3b_ui_mock_token_123456';
+  const filesById = new Map();
+  let fileIdCounter = 1;
+  let forceFailDailyWorkbook = false;
+  let forceAuthExpired401 = false;
+
+  async function mockDriveFetch(urlStr, options = {}) {
+    const method = String(options.method || 'GET').toUpperCase();
+    const headers = options.headers || {};
+    const authHeader = headers.Authorization || headers.authorization || '';
+
+    if (urlStr.startsWith('https://oauth2.googleapis.com/revoke')) {
+      return { status: 200, ok: true, json: async () => ({ revoked: true }) };
+    }
+
+    if (forceAuthExpired401 && urlStr.includes('/upload/drive/v3/files')) {
+      forceAuthExpired401 = false;
+      return {
+        status: 401,
+        ok: false,
+        json: async () => ({
+          error: {
+            code: 401,
+            message: 'Invalid Credentials',
+            errors: [{ reason: 'authError' }]
+          }
+        })
+      };
+    }
+
+    if (authHeader !== `Bearer ${validToken}`) {
+      return {
+        status: 401,
+        ok: false,
+        json: async () => ({
+          error: { code: 401, message: 'Unauthorized', errors: [{ reason: 'authError' }] }
+        })
+      };
+    }
+
+    const parsed = new URL(urlStr);
+    const pathname = parsed.pathname;
+
+    if (method === 'GET' && pathname === '/drive/v3/about') {
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({ user: { emailAddress: 'prof.alice@gmail.com' } })
+      };
+    }
+
+    if (method === 'GET' && pathname.startsWith('/drive/v3/files/')) {
+      const fId = decodeURIComponent(pathname.slice('/drive/v3/files/'.length));
+      const f = filesById.get(fId);
+      if (!f) return { status: 404, ok: false, json: async () => ({ error: { code: 404 } }) };
+      return { status: 200, ok: true, json: async () => ({ ...f }) };
+    }
+
+    if (method === 'GET' && pathname === '/drive/v3/files') {
+      return { status: 200, ok: true, json: async () => ({ files: [] }) };
+    }
+
+    if (method === 'POST' && pathname === '/drive/v3/files') {
+      const meta = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+      const id = `p3b_folder_${fileIdCounter++}`;
+      const rec = {
+        id,
+        name: meta.name,
+        mimeType: meta.mimeType,
+        parents: meta.parents || [],
+        appProperties: meta.appProperties || {},
+        trashed: false,
+        createdTime: new Date().toISOString()
+      };
+      filesById.set(id, rec);
+      return { status: 200, ok: true, json: async () => ({ ...rec }) };
+    }
+
+    if ((method === 'POST' || method === 'PATCH') && pathname.startsWith('/upload/drive/v3/files')) {
+      const bodyStr = String(options.body || '');
+      if (forceFailDailyWorkbook && bodyStr.includes('"slArtifactType":"daily_workbook"')) {
+        return {
+          status: 503,
+          ok: false,
+          json: async () => ({
+            error: {
+              code: 503,
+              message: `Temporary Drive outage while uploading with ${validToken}`
+            }
+          })
+        };
+      }
+      const id = `p3b_file_${fileIdCounter++}`;
+      const sha256Checksum = crypto.createHash('sha256').update(bodyStr).digest('hex');
+      const rec = {
+        id,
+        name: 'uploaded_artifact',
+        sha256Checksum,
+        trashed: false,
+        createdTime: new Date().toISOString()
+      };
+      filesById.set(id, rec);
+      return { status: 200, ok: true, json: async () => ({ ...rec }) };
+    }
+
+    return { status: 404, ok: false, json: async () => ({}) };
+  }
+
+  const elementsById = new Map();
+  const makeEl = (tag = 'div') => ({
+    tagName: tag.toUpperCase(),
+    id: '',
+    className: '',
+    textContent: '',
+    value: '',
+    style: {},
+    attributes: {},
+    listeners: {},
+    _innerHTML: '',
+    set innerHTML(val) {
+      this._innerHTML = String(val);
+    },
+    get innerHTML() {
+      return this._innerHTML;
+    },
+    setAttribute(k, v) {
+      this.attributes[k] = String(v);
+    },
+    getAttribute(k) {
+      return this.attributes[k] || null;
+    },
+    addEventListener(evt, fn) {
+      this.listeners[evt] = fn;
+    },
+    appendChild() {},
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  });
+
+  const mountEl = makeEl('div');
+  mountEl.id = 'teacherAttendanceMount';
+  elementsById.set('teacherAttendanceMount', mountEl);
+
+  let confirmResult = true;
+  let simulatedGisResponse = {
+    access_token: validToken,
+    expires_in: 3600,
+    scope: 'https://www.googleapis.com/auth/drive.file'
+  };
+
+  const mockGisOAuth2 = {
+    initTokenClient(cfg) {
+      return {
+        requestAccessToken() {
+          cfg.callback(simulatedGisResponse);
+        }
+      };
+    },
+    hasGrantedAllScopes(resp, requiredScope) {
+      return String(resp.scope || '').includes(requiredScope);
+    }
+  };
+
+  const backendAuthFetch = async (url, opts = {}) => {
+    const headers = {
+      ...(opts.headers || {}),
+      Authorization: `Bearer ${teacherAToken}`
+    };
+    return appFetch(`${baseUrl}${url}`, { ...opts, headers });
+  };
+
+  const sandboxWindow = {
+    URLSearchParams,
+    confirm: () => confirmResult,
+    setInterval: () => 1,
+    clearInterval: () => {},
+    google: { accounts: { oauth2: mockGisOAuth2 } },
+    document: {
+      head: { appendChild() {} },
+      getElementById(id) {
+        return elementsById.get(id) || null;
+      },
+      createElement(tag) {
+        return makeEl(tag);
+      },
+      querySelector(sel) {
+        if (sel === '#teacherAttendanceMount') return mountEl;
+        return null;
+      }
+    },
+    SemesterAuth: {
+      authFetch: backendAuthFetch
+    },
+    AttendanceDriveBackup: WebDriveSync
+  };
+  sandboxWindow.window = sandboxWindow;
+
+  const customDriveClient = WebDriveSync.createAttendanceDriveSyncClient({
+    window: sandboxWindow,
+    backendFetch: backendAuthFetch,
+    driveFetch: mockDriveFetch
+  });
+
+  const vm = require('vm');
+  const scriptCode = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'js', 'teacher-attendance.js'),
+    'utf8'
+  );
+  vm.runInNewContext(scriptCode, sandboxWindow);
+
+  const ws = sandboxWindow.TeacherAttendanceWorkspace;
+
+  // 1. Not Configured state: GOOGLE_DRIVE_WEB_CLIENT_ID is unset
+  delete process.env.GOOGLE_DRIVE_WEB_CLIENT_ID;
+  delete process.env.EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID;
+
+  await ws.mount(mountEl, { driveClient: customDriveClient });
+  assert.ok(mountEl.innerHTML.includes('id="slAttDriveBackupCard"'), 'Attendance Backup card must render');
+  assert.ok(mountEl.innerHTML.includes('Not Configured'), 'Must display Not Configured badge');
+  assert.ok(
+    mountEl.innerHTML.includes('Google Drive backup integration has not been configured yet'),
+    'Must explain unconfigured state clearly'
+  );
+  assert.ok(
+    mountEl.innerHTML.includes('data-att-backup-action="connect"') && mountEl.innerHTML.includes('disabled'),
+    'Connect button must be disabled when not configured'
+  );
+
+  // 2. Not Connected state: configure GOOGLE_DRIVE_WEB_CLIENT_ID and reload backup status
+  process.env.GOOGLE_DRIVE_WEB_CLIENT_ID = '1234567890-phase3bweb.apps.googleusercontent.com';
+  await ws.loadBackupStatus();
+
+  assert.ok(mountEl.innerHTML.includes('Not Connected'), 'Must display Not Connected badge when configured but disconnected');
+  assert.ok(mountEl.innerHTML.includes('Connect Google Drive'), 'Must display Connect Google Drive action');
+  assert.ok(mountEl.innerHTML.includes('Pending Backups:'), 'Must display Pending Backups metric');
+
+  // 3. Connect Google Drive: provisions folders, saves metadata, and refreshes UI to Connected state
+  await ws.connectDriveBackup();
+  assert.ok(mountEl.innerHTML.includes('Connected'), 'Must display Connected badge after connecting');
+  assert.ok(mountEl.innerHTML.includes('prof.alice@gmail.com'), 'Must display connected Google account email');
+  assert.ok(mountEl.innerHTML.includes('Sync Now'), 'Must display Sync Now button');
+  assert.ok(mountEl.innerHTML.includes('Disconnect Google Drive'), 'Must display Disconnect Google Drive button');
+
+  // 4. Sync Failure / Partial Success: simulate failure on daily_workbook while snapshot and annual_workbook succeed
+  forceFailDailyWorkbook = true;
+  await ws.syncDriveBackup({ forceRetry: true });
+  forceFailDailyWorkbook = false;
+
+  assert.ok(
+    mountEl.innerHTML.includes('Partial backup sync:') || mountEl.innerHTML.includes('Sync Attention Needed'),
+    'Must report partial backup sync accurately without claiming full success'
+  );
+  assert.ok(
+    mountEl.innerHTML.includes('Snapshot: backed_up') && mountEl.innerHTML.includes('Daily XLSX: failed'),
+    'Must preserve completed artifacts and show per-artifact statuses'
+  );
+  assert.ok(!mountEl.innerHTML.includes(validToken), 'Must never expose OAuth token in UI error message');
+  assert.ok(mountEl.innerHTML.includes('Retry Sync'), 'Must display Retry Sync button after partial failure');
+
+  // 5. Reconnection Required: simulate 401 token expiry on retry
+  forceAuthExpired401 = true;
+  await ws.syncDriveBackup({ forceRetry: true });
+  assert.ok(mountEl.innerHTML.includes('Reconnection Required'), 'Must display Reconnection Required badge on 401 expiry');
+  assert.ok(mountEl.innerHTML.includes('Reconnect Google Drive'), 'Must display Reconnect Google Drive button');
+
+  // 6. Reconnect and finish syncing remaining pending work -> "Everything is up to date"
+  await ws.connectDriveBackup();
+  await ws.syncDriveBackup({ forceRetry: true });
+  assert.ok(
+    mountEl.innerHTML.includes('Everything is up to date') || mountEl.innerHTML.includes('Google Drive backup complete'),
+    'Must report completion when all pending artifacts finish syncing'
+  );
+  assert.equal(ws.getState().backupPendingRuns.length, 0, 'Pending backup runs queue must be empty after full sync');
+
+  // Empty queue Sync Now check
+  await ws.syncDriveBackup({ forceRetry: false });
+  assert.ok(
+    mountEl.innerHTML.includes('Everything is up to date'),
+    'Sync Now on an empty queue must gracefully report Everything is up to date'
+  );
+
+  // 7. Disconnect Google Drive: cancelling confirmation leaves connection active; confirming disconnects after server response
+  confirmResult = false;
+  await ws.disconnectDriveBackup();
+  assert.equal(
+    ws.getState().backupStatusData.connection.connectionStatus,
+    'connected',
+    'Cancelling disconnect confirmation must keep Drive connected'
+  );
+
+  confirmResult = true;
+  await ws.disconnectDriveBackup();
+  assert.equal(
+    ws.getState().backupStatusData.connection.connectionStatus,
+    'disconnected',
+    'Confirming disconnect must update status to disconnected after server confirmation'
+  );
+  assert.ok(mountEl.innerHTML.includes('Not Connected'), 'UI must reflect Not Connected state after disconnect');
+
+  ws.unmount();
+});
+
+test('Phase 3C Verification: Mobile Teacher Google Drive Attendance Backup UI integration, state model, and actions (Not Configured, Not Connected, Connecting/Syncing, Connected, Partial Failure + Retry, Reconnect Required, Disconnect)', async () => {
+  const viewPath = path.join(__dirname, '..', 'mobile', 'components', 'teacher', 'TeacherAttendanceView.tsx');
+  const viewCode = fs.readFileSync(viewPath, 'utf8');
+
+  // 1. Verify TeacherAttendanceView.tsx integrates mobileAttendanceDriveSync, deriveDriveBackupUiModel, and all required testIDs & guards
+  assert.ok(viewCode.includes("from '@/services/attendance-drive-sync'"), 'Must import from @/services/attendance-drive-sync');
+  assert.ok(viewCode.includes('deriveDriveBackupUiModel'), 'Must use deriveDriveBackupUiModel for mobile backup state');
+  assert.ok(viewCode.includes('testID="teacher-drive-backup-card"'), 'Must render teacher-drive-backup-card section');
+  assert.ok(viewCode.includes('testID="btn-connect-drive-backup"'), 'Must render Connect Google Drive button');
+  assert.ok(viewCode.includes('btn-sync-drive-backup'), 'Must render Sync Now button');
+  assert.ok(viewCode.includes('btn-retry-drive-backup'), 'Must render Retry Sync button');
+  assert.ok(viewCode.includes('testID="btn-reconnect-drive-backup"'), 'Must render Reconnect Google Drive button');
+  assert.ok(viewCode.includes('testID="btn-disconnect-drive-backup"'), 'Must render Disconnect Google Drive button');
+  assert.ok(viewCode.includes("'Disconnect Google Drive?'"), 'Must confirm teacher intent before disconnecting');
+  assert.ok(viewCode.includes('isMountedRef'), 'Must guard async updates against unmounted component state');
+  assert.ok(viewCode.includes('isBackupActionInFlightRef'), 'Must block duplicate concurrent connect/sync/disconnect taps');
+
+  // 2. Execute the real TypeScript mobile sync service + deriveDriveBackupUiModel across all Phase 3C states
+  const MobileDriveSync = await import('../mobile/services/attendance-drive-sync-core.ts');
+  const crypto = require('crypto');
+
+  const validToken = 'ya29.a0AfH6SMBx_phase3c_mobile_ui_token_654321';
+  const filesById = new Map();
+  let fileIdCounter = 1;
+  let forceFailDailyWorkbook = false;
+  let forceAuthExpired401 = false;
+
+  async function mockMobileDriveFetch(urlStr, options = {}) {
+    const method = String(options.method || 'GET').toUpperCase();
+    const headers = options.headers || {};
+    const authHeader = headers.Authorization || headers.authorization || '';
+
+    if (urlStr.startsWith('https://oauth2.googleapis.com/revoke')) {
+      return { status: 200, ok: true, json: async () => ({ revoked: true }) };
+    }
+
+    if (urlStr.startsWith('https://oauth2.googleapis.com/token')) {
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({
+          access_token: validToken,
+          refresh_token: '1//0g_phase3c_refresh_token',
+          expires_in: 3600,
+          scope: 'https://www.googleapis.com/auth/drive.file',
+          token_type: 'Bearer'
+        })
+      };
+    }
+
+    if (forceAuthExpired401 && urlStr.includes('/upload/drive/v3/files')) {
+      forceAuthExpired401 = false;
+      return {
+        status: 401,
+        ok: false,
+        json: async () => ({
+          error: { code: 401, message: 'Invalid Credentials', errors: [{ reason: 'authError' }] }
+        })
+      };
+    }
+
+    if (authHeader !== `Bearer ${validToken}`) {
+      return {
+        status: 401,
+        ok: false,
+        json: async () => ({
+          error: { code: 401, message: 'Unauthorized', errors: [{ reason: 'authError' }] }
+        })
+      };
+    }
+
+    const parsed = new URL(urlStr);
+    const pathname = parsed.pathname;
+
+    if (method === 'GET' && pathname === '/drive/v3/about') {
+      return {
+        status: 200,
+        ok: true,
+        json: async () => ({ user: { emailAddress: 'prof.alice.mobile@gmail.com' } })
+      };
+    }
+
+    if (method === 'GET' && pathname.startsWith('/drive/v3/files/')) {
+      const fId = decodeURIComponent(pathname.slice('/drive/v3/files/'.length));
+      const f = filesById.get(fId);
+      if (!f) return { status: 404, ok: false, json: async () => ({ error: { code: 404 } }) };
+      return { status: 200, ok: true, json: async () => ({ ...f }) };
+    }
+
+    if (method === 'GET' && pathname === '/drive/v3/files') {
+      return { status: 200, ok: true, json: async () => ({ files: [] }) };
+    }
+
+    if (method === 'POST' && pathname === '/drive/v3/files') {
+      const meta = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+      const id = `p3c_folder_${fileIdCounter++}`;
+      const rec = {
+        id,
+        name: meta.name,
+        mimeType: meta.mimeType,
+        parents: meta.parents || [],
+        appProperties: meta.appProperties || {},
+        trashed: false,
+        createdTime: new Date().toISOString()
+      };
+      filesById.set(id, rec);
+      return { status: 200, ok: true, json: async () => ({ ...rec }) };
+    }
+
+    if ((method === 'POST' || method === 'PATCH') && pathname.startsWith('/upload/drive/v3/files')) {
+      const bodyStr = String(options.body || '');
+      if (forceFailDailyWorkbook && bodyStr.includes('"slArtifactType":"daily_workbook"')) {
+        return {
+          status: 503,
+          ok: false,
+          json: async () => ({
+            error: {
+              code: 503,
+              message: `Mobile Drive outage with token ${validToken}`
+            }
+          })
+        };
+      }
+      const id = `p3c_file_${fileIdCounter++}`;
+      const sha256Checksum = crypto.createHash('sha256').update(bodyStr).digest('hex');
+      const rec = {
+        id,
+        name: 'mobile_uploaded_artifact',
+        sha256Checksum,
+        trashed: false,
+        createdTime: new Date().toISOString()
+      };
+      filesById.set(id, rec);
+      return { status: 200, ok: true, json: async () => ({ ...rec }) };
+    }
+
+    return { status: 404, ok: false, json: async () => ({}) };
+  }
+
+  const backendAuthFetch = async (url, opts = {}) => {
+    const headers = {
+      ...(opts.headers || {}),
+      Authorization: `Bearer ${teacherAToken}`
+    };
+    return appFetch(`${baseUrl}${url}`, { ...opts, headers });
+  };
+
+  // A. Not Configured State on Mobile (no iOS client ID)
+  delete process.env.GOOGLE_DRIVE_IOS_CLIENT_ID;
+  delete process.env.EXPO_PUBLIC_GOOGLE_DRIVE_IOS_CLIENT_ID;
+
+  const unconfiguredMobileClient = MobileDriveSync.createMobileAttendanceDriveSyncCore({
+    platform: 'ios',
+    iosClientId: null,
+    backendFetch: backendAuthFetch,
+    driveFetch: mockMobileDriveFetch
+  });
+
+  const uncfgStatus = await unconfiguredMobileClient.getStatus();
+  const uncfgModel = MobileDriveSync.deriveDriveBackupUiModel({
+    statusData: uncfgStatus,
+    pendingRuns: []
+  });
+  assert.equal(uncfgModel.uiState, 'not_configured');
+  assert.equal(uncfgModel.badgeLabel, 'NOT CONFIGURED');
+  assert.equal(uncfgModel.canConnect, false, 'Must not show an active Connect button when unconfigured');
+
+  // B. Not Connected State on Mobile (iOS Client ID configured)
+  const iosClientId = '1122334455-phase3cios.apps.googleusercontent.com';
+  const configuredMobileClient = MobileDriveSync.createMobileAttendanceDriveSyncCore({
+    platform: 'ios',
+    iosClientId,
+    backendFetch: backendAuthFetch,
+    driveFetch: mockMobileDriveFetch,
+    openAuthSessionAsync: async (authUrl, redirectUri) => {
+      const parsed = new URL(authUrl);
+      const state = parsed.searchParams.get('state');
+      return {
+        type: 'success',
+        url: `${redirectUri}?code=4/mock_p3c_code&state=${encodeURIComponent(state)}&scope=${encodeURIComponent(MobileDriveSync.DRIVE_FILE_SCOPE)}`
+      };
+    }
+  });
+
+  // Create a new attendance session on threeDaysAgoNepal so there is pending backup work
+  const threeDaysAgoNepal = formatNepalDate(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000));
+  await saveAttendanceSession(db, {
+    actorUserId: 'tea_ui_a',
+    subjectId: 'CIT111',
+    cohortId: cohortMercury.id,
+    sessionDate: threeDaysAgoNepal,
+    records: [
+      { studentId: 'stu_ui_1', status: 'present' },
+      { studentId: 'stu_ui_2', status: 'present' }
+    ]
+  });
+
+  const [notConnStatus, notConnPending] = await Promise.all([
+    configuredMobileClient.getStatus(),
+    configuredMobileClient.listPendingWork()
+  ]);
+  const notConnModel = MobileDriveSync.deriveDriveBackupUiModel({
+    statusData: notConnStatus,
+    pendingRuns: notConnPending.runs
+  });
+  assert.equal(notConnModel.uiState, 'not_connected');
+  assert.equal(notConnModel.badgeLabel, 'NOT CONNECTED');
+  assert.equal(notConnModel.canConnect, true);
+  assert.ok(notConnModel.actionableCount >= 1);
+
+  // C. Connecting / Syncing busy states disable duplicate actions
+  const connectingModel = MobileDriveSync.deriveDriveBackupUiModel({
+    statusData: notConnStatus,
+    pendingRuns: notConnPending.runs,
+    isConnecting: true
+  });
+  assert.equal(connectingModel.uiState, 'connecting');
+  assert.equal(connectingModel.isBusy, true);
+  assert.equal(connectingModel.canConnect, false);
+  assert.equal(connectingModel.canSync, false);
+
+  // D. Connect Google Drive on Mobile -> Connected state
+  await configuredMobileClient.connectGoogleDrive();
+  const [connStatus, connPending] = await Promise.all([
+    configuredMobileClient.getStatus(),
+    configuredMobileClient.listPendingWork()
+  ]);
+  const connModel = MobileDriveSync.deriveDriveBackupUiModel({
+    statusData: connStatus,
+    pendingRuns: connPending.runs
+  });
+  assert.equal(connModel.uiState, 'connected');
+  assert.equal(connModel.badgeLabel, 'CONNECTED');
+  assert.ok(connModel.googleEmail && connModel.googleEmail.includes('@gmail.com'));
+  assert.equal(connModel.canSync, true);
+  assert.equal(connModel.canDisconnect, true);
+
+  // E. Partial Sync Failure + Retry Sync (with token scrubbing)
+  forceFailDailyWorkbook = true;
+  const partialSyncRes = await configuredMobileClient.syncPendingWork({ forceRetry: true });
+  forceFailDailyWorkbook = false;
+  assert.equal(partialSyncRes.synced, false);
+  assert.equal(partialSyncRes.completedArtifacts, 2);
+  assert.equal(partialSyncRes.failedArtifacts, 1);
+
+  const [failedStatus, failedPending] = await Promise.all([
+    configuredMobileClient.getStatus(),
+    configuredMobileClient.listPendingWork()
+  ]);
+  const failedModel = MobileDriveSync.deriveDriveBackupUiModel({
+    statusData: failedStatus,
+    pendingRuns: failedPending.runs,
+    errorMessage: `Partial failure with ${validToken}`
+  });
+  assert.equal(failedModel.uiState, 'attention_needed');
+  assert.equal(failedModel.canRetry, true);
+  assert.ok(!String(failedModel.effectiveErrorMessage).includes(validToken), 'Mobile UI model must scrub OAuth tokens');
+  assert.equal(failedModel.attentionRuns[0].snapshotStatus, 'backed_up');
+  assert.equal(failedModel.attentionRuns[0].dailyWorkbookStatus, 'failed');
+  assert.equal(failedModel.attentionRuns[0].annualWorkbookStatus, 'backed_up');
+
+  // F. 401 Expiry -> Reconnect Required State
+  await configuredMobileClient.clearTokens({ deleteRefreshToken: true });
+  forceAuthExpired401 = true;
+  const expiredSyncRes = await configuredMobileClient.syncPendingWork({ forceRetry: true });
+  assert.equal(expiredSyncRes.reconnectRequired, true);
+
+  const reconnectModel = MobileDriveSync.deriveDriveBackupUiModel({
+    statusData: await configuredMobileClient.getStatus(),
+    pendingRuns: (await configuredMobileClient.listPendingWork()).runs,
+    reconnectRequiredFlag: true
+  });
+  assert.equal(reconnectModel.uiState, 'reconnect_required');
+  assert.equal(reconnectModel.badgeLabel, 'RECONNECT REQUIRED');
+  assert.equal(reconnectModel.canReconnect, true);
+  assert.equal(reconnectModel.canDisconnect, true);
+
+  // G. Reconnect & Retry Sync -> Everything is up to date
+  forceAuthExpired401 = false;
+  await configuredMobileClient.connectGoogleDrive();
+  const fullSyncRes = await configuredMobileClient.syncPendingWork({ forceRetry: true });
+  assert.equal(fullSyncRes.synced, true);
+
+  const [upToDateStatus, upToDatePending] = await Promise.all([
+    configuredMobileClient.getStatus(),
+    configuredMobileClient.listPendingWork()
+  ]);
+  const upToDateModel = MobileDriveSync.deriveDriveBackupUiModel({
+    statusData: upToDateStatus,
+    pendingRuns: upToDatePending.runs
+  });
+  assert.equal(upToDateModel.uiState, 'connected');
+  assert.equal(upToDateModel.actionableCount, 0);
+  assert.ok(upToDateModel.descriptionText.includes('Everything is up to date'));
+
+  // H. Disconnect on Mobile -> Disconnected state
+  const discRes = await configuredMobileClient.disconnectGoogleDrive();
+  assert.equal(discRes.disconnected, true);
+  const afterDiscModel = MobileDriveSync.deriveDriveBackupUiModel({
+    statusData: await configuredMobileClient.getStatus(),
+    pendingRuns: []
+  });
+  assert.equal(afterDiscModel.uiState, 'not_connected');
+  assert.equal(afterDiscModel.canConnect, true);
+});
+
+
+

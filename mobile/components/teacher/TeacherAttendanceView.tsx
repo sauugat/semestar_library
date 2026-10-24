@@ -21,6 +21,11 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { apiFetch } from '@/services/api';
+import {
+  mobileAttendanceDriveSync,
+  deriveDriveBackupUiModel,
+  sanitizeClientErrorMessage,
+} from '@/services/attendance-drive-sync';
 import { resolveAppRole } from '@/utils/roles';
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -239,6 +244,28 @@ export function TeacherAttendanceView({
   // Audit modal state
   const [auditModalSessionId, setAuditModalSessionId] = useState<string | null>(null);
 
+  // Phase 3C — Mobile Teacher Google Drive Attendance Backup state
+  const [backupStatusData, setBackupStatusData] = useState<any | null>(null);
+  const [backupPendingRuns, setBackupPendingRuns] = useState<any[]>([]);
+  const [isLoadingBackupStatus, setIsLoadingBackupStatus] = useState<boolean>(false);
+  const [isBackupConnecting, setIsBackupConnecting] = useState<boolean>(false);
+  const [isBackupSyncing, setIsBackupSyncing] = useState<boolean>(false);
+  const [isBackupDisconnecting, setIsBackupDisconnecting] = useState<boolean>(false);
+  const [backupNoticeMessage, setBackupNoticeMessage] = useState<string | null>(null);
+  const [backupErrorMessage, setBackupErrorMessage] = useState<string | null>(null);
+  const [backupReconnectRequired, setBackupReconnectRequired] = useState<boolean>(false);
+
+  const isMountedRef = useRef<boolean>(true);
+  const isBackupActionInFlightRef = useRef<boolean>(false);
+  const backupStatusReqIdRef = useRef<number>(0);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Live 1-second ticker for 24h edit countdowns
   const [nowTick, setNowTick] = useState<number>(Date.now());
   useEffect(() => {
@@ -247,6 +274,314 @@ export function TeacherAttendanceView({
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const refreshDriveBackupState = useCallback(
+    async ({ preserveMessages = false }: { preserveMessages?: boolean } = {}) => {
+      if (!isAuthorizedStaff || !user?.studentId) return;
+      const reqId = ++backupStatusReqIdRef.current;
+      if (isMountedRef.current) {
+        setIsLoadingBackupStatus(true);
+        if (!preserveMessages) {
+          setBackupErrorMessage(null);
+        }
+      }
+
+      try {
+        const [statusRes, pendingRes] = await Promise.all([
+          mobileAttendanceDriveSync.getStatus().catch(() => null),
+          mobileAttendanceDriveSync.listPendingWork().catch(() => ({ pendingCount: 0, runs: [] })),
+        ]);
+
+        if (!isMountedRef.current || reqId !== backupStatusReqIdRef.current) return;
+
+        if (statusRes) {
+          setBackupStatusData(statusRes);
+          const connStatus = statusRes.connection?.connectionStatus;
+          const reconnectRuns = Number(statusRes.summary?.reconnectRequiredRuns || 0);
+          if (connStatus === 'reconnect_required' || reconnectRuns > 0) {
+            setBackupReconnectRequired(true);
+          } else if (
+            connStatus === 'connected' ||
+            connStatus === 'disconnected' ||
+            connStatus === 'not_configured'
+          ) {
+            setBackupReconnectRequired(false);
+          }
+        }
+
+        if (pendingRes && Array.isArray(pendingRes.runs)) {
+          setBackupPendingRuns(pendingRes.runs);
+        }
+      } catch {
+        // Non-blocking background status check: never disrupt classroom attendance
+      } finally {
+        if (isMountedRef.current && reqId === backupStatusReqIdRef.current) {
+          setIsLoadingBackupStatus(false);
+        }
+      }
+    },
+    [isAuthorizedStaff, user?.studentId]
+  );
+
+  useEffect(() => {
+    if (isAuthorizedStaff && user?.studentId) {
+      refreshDriveBackupState();
+    }
+  }, [isAuthorizedStaff, user?.studentId, refreshDriveBackupState]);
+
+  const handleConnectDriveBackup = useCallback(async () => {
+    if (
+      isBackupActionInFlightRef.current ||
+      isBackupConnecting ||
+      isBackupSyncing ||
+      isBackupDisconnecting
+    ) {
+      return;
+    }
+
+    isBackupActionInFlightRef.current = true;
+    if (isMountedRef.current) {
+      setIsBackupConnecting(true);
+      setBackupErrorMessage(null);
+      setBackupNoticeMessage(null);
+    }
+
+    try {
+      const res: any = await mobileAttendanceDriveSync.connectGoogleDrive();
+      if (!isMountedRef.current) return;
+
+      if (res?.notConfigured || res?.status === 'not_configured') {
+        setIsBackupConnecting(false);
+        await refreshDriveBackupState({ preserveMessages: true });
+        return;
+      }
+
+      setIsBackupConnecting(false);
+      setBackupReconnectRequired(false);
+      setBackupNoticeMessage('Google Drive connected and backup folders verified.');
+      await refreshDriveBackupState({ preserveMessages: true });
+    } catch (err: any) {
+      if (!isMountedRef.current) return;
+      setIsBackupConnecting(false);
+      const errCode = String(err?.code || '');
+      if (errCode === 'OAUTH_CANCELLED') {
+        setBackupErrorMessage('Google Drive sign-in was cancelled before completion.');
+      } else if (errCode === 'OAUTH_SCOPE_MISSING') {
+        setBackupErrorMessage(
+          'Google Drive file permission (drive.file) was not granted. Please reconnect and approve file access.'
+        );
+      } else {
+        setBackupErrorMessage(sanitizeClientErrorMessage(err?.message));
+      }
+      await refreshDriveBackupState({ preserveMessages: true });
+    } finally {
+      isBackupActionInFlightRef.current = false;
+    }
+  }, [
+    isBackupConnecting,
+    isBackupSyncing,
+    isBackupDisconnecting,
+    refreshDriveBackupState,
+  ]);
+
+  const handleSyncDriveBackup = useCallback(
+    async ({ forceRetry = true }: { forceRetry?: boolean } = {}) => {
+      if (
+        isBackupActionInFlightRef.current ||
+        isBackupConnecting ||
+        isBackupSyncing ||
+        isBackupDisconnecting
+      ) {
+        return;
+      }
+
+      isBackupActionInFlightRef.current = true;
+      if (isMountedRef.current) {
+        setIsBackupSyncing(true);
+        setBackupErrorMessage(null);
+        setBackupNoticeMessage(null);
+      }
+
+      try {
+        const syncResult: any = await mobileAttendanceDriveSync.syncPendingWork({
+          forceRetry: Boolean(forceRetry),
+        });
+        if (!isMountedRef.current) return;
+        setIsBackupSyncing(false);
+
+        if (syncResult?.notConfigured || syncResult?.status === 'not_configured') {
+          await refreshDriveBackupState({ preserveMessages: true });
+          return;
+        }
+
+        if (syncResult?.reconnectRequired || syncResult?.status === 'reconnect_required') {
+          setBackupReconnectRequired(true);
+          setBackupErrorMessage(
+            syncResult?.errorMessage
+              ? sanitizeClientErrorMessage(syncResult.errorMessage)
+              : 'Google Drive authorization has expired or requires reconnection. Tap Reconnect Google Drive to sync pending backups.'
+          );
+          await refreshDriveBackupState({ preserveMessages: true });
+          return;
+        }
+
+        const completedCount = Number(syncResult?.completedArtifacts || 0);
+        const failedCount = Number(syncResult?.failedArtifacts || 0);
+        const processedRuns = Number(syncResult?.processedRuns || 0);
+
+        if (failedCount > 0 && completedCount > 0) {
+          setBackupErrorMessage(
+            `Partial backup sync: ${completedCount} artifact${
+              completedCount === 1 ? '' : 's'
+            } backed up, ${failedCount} failed. Completed files are preserved; tap Retry Sync to retry remaining items.`
+          );
+        } else if (failedCount > 0) {
+          const firstErr =
+            syncResult?.errorMessage ||
+            (Array.isArray(syncResult?.runs) &&
+              syncResult.runs
+                .flatMap((r: any) => r.artifacts || [])
+                .find((a: any) => a.errorMessage)?.errorMessage) ||
+            'One or more backup artifacts failed to upload.';
+          setBackupErrorMessage(
+            `Backup sync failed (${failedCount} artifact${
+              failedCount === 1 ? '' : 's'
+            }): ${sanitizeClientErrorMessage(firstErr)}`
+          );
+        } else if (processedRuns === 0 || completedCount === 0) {
+          setBackupNoticeMessage(
+            'Everything is up to date. All attendance revisions are backed up to Google Drive.'
+          );
+        } else {
+          setBackupNoticeMessage(
+            `Google Drive backup complete: ${completedCount} artifact${
+              completedCount === 1 ? '' : 's'
+            } synced across ${processedRuns} revision${processedRuns === 1 ? '' : 's'}.`
+          );
+        }
+
+        await refreshDriveBackupState({ preserveMessages: true });
+      } catch (err: any) {
+        if (!isMountedRef.current) return;
+        setIsBackupSyncing(false);
+        if (err?.reconnectRequired) {
+          setBackupReconnectRequired(true);
+        }
+        setBackupErrorMessage(sanitizeClientErrorMessage(err?.message));
+        await refreshDriveBackupState({ preserveMessages: true });
+      } finally {
+        isBackupActionInFlightRef.current = false;
+      }
+    },
+    [
+      isBackupConnecting,
+      isBackupSyncing,
+      isBackupDisconnecting,
+      refreshDriveBackupState,
+    ]
+  );
+
+  const executeDisconnectDriveBackup = useCallback(async () => {
+    if (
+      isBackupActionInFlightRef.current ||
+      isBackupConnecting ||
+      isBackupSyncing ||
+      isBackupDisconnecting
+    ) {
+      return;
+    }
+
+    isBackupActionInFlightRef.current = true;
+    if (isMountedRef.current) {
+      setIsBackupDisconnecting(true);
+      setBackupErrorMessage(null);
+      setBackupNoticeMessage(null);
+    }
+
+    try {
+      const discRes: any = await mobileAttendanceDriveSync.disconnectGoogleDrive({
+        clearFolders: false,
+      });
+      if (!discRes || !discRes.disconnected) {
+        throw new Error('Server did not confirm Google Drive disconnection.');
+      }
+      if (!isMountedRef.current) return;
+      setIsBackupDisconnecting(false);
+      setBackupReconnectRequired(false);
+      setBackupNoticeMessage(
+        'Google Drive has been disconnected. Attendance records and completed backups remain intact.'
+      );
+      await refreshDriveBackupState({ preserveMessages: true });
+    } catch (err: any) {
+      if (!isMountedRef.current) return;
+      setIsBackupDisconnecting(false);
+      setBackupErrorMessage(`Disconnect failed: ${sanitizeClientErrorMessage(err?.message)}`);
+      await refreshDriveBackupState({ preserveMessages: true });
+    } finally {
+      isBackupActionInFlightRef.current = false;
+    }
+  }, [
+    isBackupConnecting,
+    isBackupSyncing,
+    isBackupDisconnecting,
+    refreshDriveBackupState,
+  ]);
+
+  const handleDisconnectDriveBackup = useCallback(() => {
+    if (
+      isBackupActionInFlightRef.current ||
+      isBackupConnecting ||
+      isBackupSyncing ||
+      isBackupDisconnecting
+    ) {
+      return;
+    }
+    Alert.alert(
+      'Disconnect Google Drive?',
+      'Disconnect your Google Drive account from Attendance Backup? Existing attendance records and files already backed up in your Google Drive will not be deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disconnect',
+          style: 'destructive',
+          onPress: () => {
+            executeDisconnectDriveBackup();
+          },
+        },
+      ]
+    );
+  }, [
+    isBackupConnecting,
+    isBackupSyncing,
+    isBackupDisconnecting,
+    executeDisconnectDriveBackup,
+  ]);
+
+  const backupUiModel = useMemo(
+    () =>
+      deriveDriveBackupUiModel({
+        statusData: backupStatusData,
+        pendingRuns: backupPendingRuns,
+        isLoadingStatus: isLoadingBackupStatus,
+        isConnecting: isBackupConnecting,
+        isSyncing: isBackupSyncing,
+        isDisconnecting: isBackupDisconnecting,
+        noticeMessage: backupNoticeMessage,
+        errorMessage: backupErrorMessage,
+        reconnectRequiredFlag: backupReconnectRequired,
+      }),
+    [
+      backupStatusData,
+      backupPendingRuns,
+      isLoadingBackupStatus,
+      isBackupConnecting,
+      isBackupSyncing,
+      isBackupDisconnecting,
+      backupNoticeMessage,
+      backupErrorMessage,
+      backupReconnectRequired,
+    ]
+  );
 
   const hasUnsavedChanges = useMemo(() => {
     return JSON.stringify(marksByStudentId) !== initialMarksSnapshot;
@@ -579,10 +914,11 @@ export function TeacherAttendanceView({
           : `Attendance updated for ${selectedDate} (${counts.present} Present, ${counts.absent} Absent).`
       );
 
-      // Refresh server-backed roster, session, and history queries
+      // Refresh server-backed roster, session, history, and Google Drive backup queue
       await Promise.all([
         refetchRoster(),
         refetchHistory(),
+        refreshDriveBackupState({ preserveMessages: true }),
         queryClient.invalidateQueries({ queryKey: ['attendance-teacher-context'] }),
       ]);
       setStage('review');
@@ -850,6 +1186,325 @@ export function TeacherAttendanceView({
               </TouchableOpacity>
             </View>
           </Card>
+
+          {/* 1b. Teacher Google Drive Attendance Backup Section */}
+          {appRole === 'teacher' && backupUiModel.visible && (
+            <Card
+              variant="elevated"
+              style={[styles.backupCard, { borderColor: colors.border }]}
+            >
+              <View style={styles.backupHeaderRow} testID="teacher-drive-backup-card">
+                <View style={{ flex: 1, marginRight: 8 }}>
+                  <View style={styles.backupTitleRow}>
+                    <Ionicons
+                      name="cloud-upload-outline"
+                      size={16}
+                      color={colors.text}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text variant="sm" weight="800" style={{ color: colors.text }}>
+                      Attendance Backup
+                    </Text>
+                    <Badge
+                      label={backupUiModel.badgeLabel}
+                      variant={backupUiModel.badgeVariant}
+                      size="sm"
+                      style={{ marginLeft: 8 }}
+                    />
+                  </View>
+                  <Text variant="xs" color="secondary" style={{ marginTop: 4, lineHeight: 17 }}>
+                    {backupUiModel.descriptionText}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Connection Metadata & Counts Row */}
+              {!backupUiModel.isNotConfigured && backupUiModel.uiState !== 'loading' && (
+                <View style={[styles.backupMetaWrap, { borderTopColor: colors.borderSubtle }]}>
+                  <Text variant="xs" color="secondary">
+                    Status:{' '}
+                    <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                      {backupUiModel.isReconnectRequired
+                        ? 'Reconnection Required'
+                        : backupUiModel.isConnected
+                        ? 'Connected'
+                        : 'Disconnected'}
+                    </Text>
+                  </Text>
+                  {backupUiModel.googleEmail ? (
+                    <Text variant="xs" color="secondary">
+                      Account:{' '}
+                      <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                        {backupUiModel.googleEmail}
+                      </Text>
+                    </Text>
+                  ) : null}
+                  {backupUiModel.lastSyncedLabel ? (
+                    <Text variant="xs" color="secondary">
+                      Last Synced:{' '}
+                      <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                        {backupUiModel.lastSyncedLabel}
+                      </Text>
+                    </Text>
+                  ) : null}
+                  <Text variant="xs" color="secondary">
+                    Pending:{' '}
+                    <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                      {backupUiModel.actionableCount}
+                    </Text>
+                    {' • '}Backed Up:{' '}
+                    <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                      {backupUiModel.backedUpCount}
+                    </Text>
+                    {backupUiModel.failedCount > 0 ? (
+                      <>
+                        {' • '}Failed:{' '}
+                        <Text variant="xs" weight="700" style={{ color: '#fca5a5' }}>
+                          {backupUiModel.failedCount}
+                        </Text>
+                      </>
+                    ) : null}
+                  </Text>
+                </View>
+              )}
+
+              {/* Sanitized Error / Notice Banners */}
+              {backupUiModel.effectiveErrorMessage ? (
+                <View style={[styles.backupNoticeBox, styles.errorBanner]}>
+                  <Text variant="xs" weight="600" style={{ color: '#fca5a5' }}>
+                    {backupUiModel.effectiveErrorMessage}
+                  </Text>
+                </View>
+              ) : null}
+
+              {backupUiModel.effectiveNoticeMessage ? (
+                <View style={[styles.backupNoticeBox, styles.successBanner]}>
+                  <Text variant="xs" weight="600" style={{ color: '#86efac' }}>
+                    {backupUiModel.effectiveNoticeMessage}
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Pending / Failed Revision Items */}
+              {!backupUiModel.isNotConfigured && backupUiModel.attentionRuns.length > 0 && (
+                <View style={styles.backupPendingList}>
+                  {backupUiModel.attentionRuns.map((run) => (
+                    <View
+                      key={run.id}
+                      style={[
+                        styles.backupPendingItem,
+                        { backgroundColor: colors.surfaceSubtle, borderColor: colors.border },
+                      ]}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                        <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                          {run.subjectCode}
+                          {run.cohortName ? ` • ${run.cohortName}` : ''} • {run.sessionDate} (v{run.revisionNo})
+                        </Text>
+                      </View>
+                      {run.lastErrorMessage ? (
+                        <Text variant="xs" style={{ color: '#fca5a5', marginTop: 2 }}>
+                          {run.lastErrorMessage}
+                        </Text>
+                      ) : null}
+                      <View style={styles.backupArtPillsRow}>
+                        <View
+                          style={[
+                            styles.backupArtPill,
+                            {
+                              borderColor:
+                                run.snapshotStatus === 'failed' || run.snapshotStatus === 'reconnect_required'
+                                  ? '#ef4444'
+                                  : colors.border,
+                              backgroundColor:
+                                run.snapshotStatus === 'backed_up'
+                                  ? colors.text
+                                  : colors.surfaceRaised,
+                            },
+                          ]}
+                        >
+                          <Text
+                            variant="xs"
+                            weight="600"
+                            style={{
+                              fontSize: 10,
+                              color:
+                                run.snapshotStatus === 'backed_up'
+                                  ? colors.background
+                                  : colors.textSecondary,
+                            }}
+                          >
+                            Snapshot: {run.snapshotStatus}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.backupArtPill,
+                            {
+                              borderColor:
+                                run.dailyWorkbookStatus === 'failed' ||
+                                run.dailyWorkbookStatus === 'reconnect_required'
+                                  ? '#ef4444'
+                                  : colors.border,
+                              backgroundColor:
+                                run.dailyWorkbookStatus === 'backed_up' ||
+                                run.dailyWorkbookStatus === 'superseded'
+                                  ? colors.text
+                                  : colors.surfaceRaised,
+                            },
+                          ]}
+                        >
+                          <Text
+                            variant="xs"
+                            weight="600"
+                            style={{
+                              fontSize: 10,
+                              color:
+                                run.dailyWorkbookStatus === 'backed_up' ||
+                                run.dailyWorkbookStatus === 'superseded'
+                                  ? colors.background
+                                  : colors.textSecondary,
+                            }}
+                          >
+                            Daily XLSX: {run.dailyWorkbookStatus}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.backupArtPill,
+                            {
+                              borderColor:
+                                run.annualWorkbookStatus === 'failed' ||
+                                run.annualWorkbookStatus === 'reconnect_required'
+                                  ? '#ef4444'
+                                  : colors.border,
+                              backgroundColor:
+                                run.annualWorkbookStatus === 'backed_up' ||
+                                run.annualWorkbookStatus === 'superseded'
+                                  ? colors.text
+                                  : colors.surfaceRaised,
+                            },
+                          ]}
+                        >
+                          <Text
+                            variant="xs"
+                            weight="600"
+                            style={{
+                              fontSize: 10,
+                              color:
+                                run.annualWorkbookStatus === 'backed_up' ||
+                                run.annualWorkbookStatus === 'superseded'
+                                  ? colors.background
+                                  : colors.textSecondary,
+                            }}
+                          >
+                            Annual XLSX: {run.annualWorkbookStatus}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Action Buttons Row */}
+              {!backupUiModel.isNotConfigured && (
+                <View style={styles.backupActionsRow}>
+                  {backupUiModel.isBusy ? (
+                    <View
+                      style={[
+                        styles.backupPrimaryBtn,
+                        { backgroundColor: colors.surfaceSubtle, borderColor: colors.border, opacity: 0.7 },
+                      ]}
+                    >
+                      <ActivityIndicator size="small" color={colors.text} style={{ marginRight: 8 }} />
+                      <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                        {isBackupConnecting
+                          ? 'Connecting Google Drive…'
+                          : isBackupSyncing
+                          ? 'Syncing Backups…'
+                          : isBackupDisconnecting
+                          ? 'Disconnecting…'
+                          : 'Loading…'}
+                      </Text>
+                    </View>
+                  ) : backupUiModel.canConnect ? (
+                    <TouchableOpacity
+                      onPress={handleConnectDriveBackup}
+                      style={[styles.backupPrimaryBtn, { backgroundColor: colors.text, borderColor: colors.text }]}
+                      accessibilityRole="button"
+                      accessibilityLabel="Connect Google Drive"
+                      testID="btn-connect-drive-backup"
+                    >
+                      <Ionicons name="logo-google" size={14} color={colors.background} style={{ marginRight: 6 }} />
+                      <Text variant="xs" weight="800" style={{ color: colors.background }}>
+                        Connect Google Drive
+                      </Text>
+                    </TouchableOpacity>
+                  ) : backupUiModel.canReconnect ? (
+                    <>
+                      <TouchableOpacity
+                        onPress={handleConnectDriveBackup}
+                        style={[styles.backupPrimaryBtn, { backgroundColor: colors.text, borderColor: colors.text }]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Reconnect Google Drive"
+                        testID="btn-reconnect-drive-backup"
+                      >
+                        <Ionicons name="refresh" size={14} color={colors.background} style={{ marginRight: 6 }} />
+                        <Text variant="xs" weight="800" style={{ color: colors.background }}>
+                          Reconnect Google Drive
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleDisconnectDriveBackup}
+                        style={[styles.backupSecondaryBtn, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Disconnect Google Drive"
+                        testID="btn-disconnect-drive-backup"
+                      >
+                        <Text variant="xs" weight="700" style={{ color: colors.textSecondary }}>
+                          Disconnect Google Drive
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : backupUiModel.isConnected ? (
+                    <>
+                      <TouchableOpacity
+                        onPress={() =>
+                          handleSyncDriveBackup({ forceRetry: backupUiModel.canRetry })
+                        }
+                        style={[styles.backupPrimaryBtn, { backgroundColor: colors.text, borderColor: colors.text }]}
+                        accessibilityRole="button"
+                        accessibilityLabel={backupUiModel.canRetry ? 'Retry Sync' : 'Sync Now'}
+                        testID={backupUiModel.canRetry ? 'btn-retry-drive-backup' : 'btn-sync-drive-backup'}
+                      >
+                        <Ionicons
+                          name={backupUiModel.canRetry ? 'refresh' : 'sync-outline'}
+                          size={14}
+                          color={colors.background}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text variant="xs" weight="800" style={{ color: colors.background }}>
+                          {backupUiModel.canRetry ? 'Retry Sync' : 'Sync Now'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleDisconnectDriveBackup}
+                        style={[styles.backupSecondaryBtn, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
+                        accessibilityRole="button"
+                        accessibilityLabel="Disconnect Google Drive"
+                        testID="btn-disconnect-drive-backup"
+                      >
+                        <Text variant="xs" weight="700" style={{ color: colors.textSecondary }}>
+                          Disconnect Google Drive
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : null}
+                </View>
+              )}
+            </Card>
+          )}
 
           {/* 2. Stage Tabs: Marking | Review & Submit | History */}
           <View style={styles.stageTabsRow}>
@@ -1761,6 +2416,80 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  backupCard: {
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    backgroundColor: '#121212',
+  },
+  backupHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  backupTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  backupMetaWrap: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: 3,
+  },
+  backupNoticeBox: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  backupPendingList: {
+    marginTop: 10,
+    gap: 8,
+  },
+  backupPendingItem: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  backupArtPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+  },
+  backupArtPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  backupActionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  backupPrimaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 9,
+    borderWidth: 1,
+  },
+  backupSecondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 9,
+    borderWidth: 1,
   },
   historyCard: {
     borderRadius: 12,

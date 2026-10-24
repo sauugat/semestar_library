@@ -470,6 +470,10 @@ function createAttendanceRouter(arg1, arg2) {
           mimeType: workbook.mimeType,
           date: workbook.date,
           sessionCount: workbook.sessionCount,
+          aggregateSessionCount: workbook.aggregateSessionCount,
+          aggregateRevisionSum: workbook.aggregateRevisionSum,
+          aggregateStateHash: workbook.aggregateStateHash,
+          aggregateVersion: workbook.aggregateVersion,
           sessions: workbook.sessions,
           sheetNames: workbook.sheetNames,
           sha256: workbook.sha256,
@@ -482,6 +486,7 @@ function createAttendanceRouter(arg1, arg2) {
       res.setHeader('Content-Disposition', `attachment; filename="${workbook.filename}"`);
       res.setHeader('Content-Length', String(workbook.sizeBytes));
       res.setHeader('X-Workbook-Sha256', workbook.sha256);
+      res.setHeader('X-Workbook-Aggregate-Version', workbook.aggregateVersion);
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).send(workbook.buffer);
     } catch (err) {
@@ -519,6 +524,10 @@ function createAttendanceRouter(arg1, arg2) {
           startDate: workbook.startDate,
           endDate: workbook.endDate,
           sessionCount: workbook.sessionCount,
+          aggregateSessionCount: workbook.aggregateSessionCount,
+          aggregateRevisionSum: workbook.aggregateRevisionSum,
+          aggregateStateHash: workbook.aggregateStateHash,
+          aggregateVersion: workbook.aggregateVersion,
           sessions: workbook.sessions,
           sheetNames: workbook.sheetNames,
           sha256: workbook.sha256,
@@ -531,6 +540,7 @@ function createAttendanceRouter(arg1, arg2) {
       res.setHeader('Content-Disposition', `attachment; filename="${workbook.filename}"`);
       res.setHeader('Content-Length', String(workbook.sizeBytes));
       res.setHeader('X-Workbook-Sha256', workbook.sha256);
+      res.setHeader('X-Workbook-Aggregate-Version', workbook.aggregateVersion);
       res.setHeader('Cache-Control', 'no-store');
       return res.status(200).send(workbook.buffer);
     } catch (err) {

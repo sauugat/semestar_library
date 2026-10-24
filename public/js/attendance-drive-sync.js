@@ -305,21 +305,26 @@
     let cachedOAuthConfig = options.oauthConfig || null;
     let cachedConnection = null;
     let gisLoadPromise = null;
+    let activeAuthPromise = null;
     let activeSyncPromise = null;
     let activeProvisionPromise = null;
 
+    const OWNED_WEB_STORAGE_KEYS = [
+      'sl_attendance_drive_oauth_token',
+      'sl_attendance_drive_refresh_token',
+      'sl_attendance_drive_pkce_state'
+    ];
+
     /**
-     * Purges any accidental Google Drive token keys if any external script ever placed them in web storage.
+     * Purges only keys owned by this feature if they were ever placed in web storage.
+     * Never touches unrelated application localStorage/sessionStorage keys.
      */
     function enforceZeroBrowserTokenStorage() {
       try {
         for (const storage of [win && win.localStorage, win && win.sessionStorage]) {
-          if (!storage || typeof storage.length !== 'number') continue;
-          for (let i = storage.length - 1; i >= 0; i--) {
-            const k = storage.key(i);
-            if (k && /google_drive.*token|gis_access_token|drive_oauth_token/i.test(k)) {
-              storage.removeItem(k);
-            }
+          if (!storage || typeof storage.removeItem !== 'function') continue;
+          for (const ownedKey of OWNED_WEB_STORAGE_KEYS) {
+            storage.removeItem(ownedKey);
           }
         }
       } catch (_) {}
@@ -327,38 +332,69 @@
 
     enforceZeroBrowserTokenStorage();
 
+    function evaluateGoogleOAuthClientId(rawValue, platformLabel = 'Web') {
+      const trimmed = String(rawValue || '').trim();
+      if (!trimmed) {
+        return { configured: false, clientId: null, configError: null };
+      }
+      if (/^(?:your[_-]|replace[_-]|example[_-]|placeholder[_-]|todo|<)/i.test(trimmed)) {
+        return { configured: false, clientId: null, configError: null };
+      }
+      for (const pattern of FORBIDDEN_TOKEN_VALUE_PATTERNS) {
+        if (pattern.test(trimmed)) {
+          return {
+            configured: false,
+            clientId: null,
+            configError: `Invalid ${platformLabel} Google OAuth Client ID: value looks like a secret or token instead of a public "*.apps.googleusercontent.com" Client ID.`
+          };
+        }
+      }
+      if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*\.apps\.googleusercontent\.com$/i.test(trimmed)) {
+        return {
+          configured: false,
+          clientId: null,
+          configError: `Invalid ${platformLabel} Google OAuth Client ID format. Expected "<id>.apps.googleusercontent.com".`
+        };
+      }
+      return { configured: true, clientId: trimmed, configError: null };
+    }
+
     /**
      * Resolves OAuth configuration from explicit options, window globals, or backend `/api/attendance/backup/status`.
      */
     function resolveLocalOAuthConfig(serverOAuth = null) {
-      const envWebId = String(
+      const rawWebId =
         options.webClientId ||
-          (cachedOAuthConfig && cachedOAuthConfig.webClientId) ||
-          (serverOAuth && serverOAuth.webClientId) ||
-          (win && (win.GOOGLE_DRIVE_WEB_CLIENT_ID || win.EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID)) ||
-          ''
-      ).trim();
+        (cachedOAuthConfig && cachedOAuthConfig.webClientId) ||
+        (serverOAuth && serverOAuth.webClientId) ||
+        (win && (win.GOOGLE_DRIVE_WEB_CLIENT_ID || win.EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID)) ||
+        '';
 
-      const envIosId = String(
+      const rawIosId =
         options.iosClientId ||
-          (cachedOAuthConfig && cachedOAuthConfig.iosClientId) ||
-          (serverOAuth && serverOAuth.iosClientId) ||
-          (win && (win.GOOGLE_DRIVE_IOS_CLIENT_ID || win.EXPO_PUBLIC_GOOGLE_DRIVE_IOS_CLIENT_ID)) ||
-          ''
-      ).trim();
+        (cachedOAuthConfig && cachedOAuthConfig.iosClientId) ||
+        (serverOAuth && serverOAuth.iosClientId) ||
+        (win && (win.GOOGLE_DRIVE_IOS_CLIENT_ID || win.EXPO_PUBLIC_GOOGLE_DRIVE_IOS_CLIENT_ID)) ||
+        '';
 
-      const envAndroidId = String(
+      const rawAndroidId =
         options.androidClientId ||
-          (cachedOAuthConfig && cachedOAuthConfig.androidClientId) ||
-          (serverOAuth && serverOAuth.androidClientId) ||
-          (win && (win.GOOGLE_DRIVE_ANDROID_CLIENT_ID || win.EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID)) ||
-          ''
-      ).trim();
+        (cachedOAuthConfig && cachedOAuthConfig.androidClientId) ||
+        (serverOAuth && serverOAuth.androidClientId) ||
+        (win && (win.GOOGLE_DRIVE_ANDROID_CLIENT_ID || win.EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID)) ||
+        '';
 
-      const webConfigured = Boolean(envWebId || (serverOAuth && serverOAuth.webConfigured));
-      const iosConfigured = Boolean(envIosId || (serverOAuth && serverOAuth.iosConfigured));
-      const androidConfigured = Boolean(envAndroidId || (serverOAuth && serverOAuth.androidConfigured));
-      const configured = Boolean(webConfigured);
+      const webEval = evaluateGoogleOAuthClientId(rawWebId, 'Web');
+      const iosEval = evaluateGoogleOAuthClientId(rawIosId, 'iOS');
+      const androidEval = evaluateGoogleOAuthClientId(rawAndroidId, 'Android');
+
+      const webConfigured = Boolean(webEval.configured || (serverOAuth && serverOAuth.webConfigured && !rawWebId));
+      const iosConfigured = Boolean(iosEval.configured || (serverOAuth && serverOAuth.iosConfigured && !rawIosId));
+      const androidConfigured = Boolean(
+        androidEval.configured || (serverOAuth && serverOAuth.androidConfigured && !rawAndroidId)
+      );
+      const configured = Boolean(webEval.configured && webEval.clientId);
+      const configError = webEval.configError || (serverOAuth && serverOAuth.configError) || null;
 
       return {
         platform: 'web',
@@ -367,9 +403,10 @@
         webConfigured,
         iosConfigured,
         androidConfigured,
-        webClientId: envWebId || null,
-        iosClientId: envIosId || null,
-        androidClientId: envAndroidId || null,
+        webClientId: webEval.clientId,
+        iosClientId: iosEval.clientId,
+        androidClientId: androidEval.clientId,
+        configError,
         scope: DRIVE_FILE_SCOPE
       };
     }
@@ -535,6 +572,10 @@
         } catch (_) {}
       }
 
+      if (cfg.configError) {
+        throw createClientError('OAUTH_CONFIG_INVALID', cfg.configError);
+      }
+
       if (!cfg.configured || !cfg.webClientId) {
         return {
           authorized: false,
@@ -562,99 +603,111 @@
         };
       }
 
-      const oauth2 = await ensureGoogleIdentityServicesLoaded();
+      if (activeAuthPromise) {
+        return await activeAuthPromise;
+      }
 
-      return await new Promise((resolve, reject) => {
-        let settled = false;
-        const finishResolve = (val) => {
-          if (settled) return;
-          settled = true;
-          resolve(val);
-        };
-        const finishReject = (err) => {
-          if (settled) return;
-          settled = true;
-          reject(err);
-        };
+      activeAuthPromise = (async () => {
+        const oauth2 = await ensureGoogleIdentityServicesLoaded();
 
-        try {
-          const tokenClient = oauth2.initTokenClient({
-            client_id: cfg.webClientId,
-            scope: DRIVE_FILE_SCOPE,
-            callback: (tokenResponse) => {
-              if (!tokenResponse || tokenResponse.error) {
-                const errType = String((tokenResponse && tokenResponse.error) || 'oauth_error').toLowerCase();
-                if (errType === 'access_denied' || errType === 'user_cancel' || errType.includes('cancel')) {
+        return await new Promise((resolve, reject) => {
+          let settled = false;
+          const finishResolve = (val) => {
+            if (settled) return;
+            settled = true;
+            resolve(val);
+          };
+          const finishReject = (err) => {
+            if (settled) return;
+            settled = true;
+            reject(err);
+          };
+
+          try {
+            const tokenClient = oauth2.initTokenClient({
+              client_id: cfg.webClientId,
+              scope: DRIVE_FILE_SCOPE,
+              callback: (tokenResponse) => {
+                if (!tokenResponse || tokenResponse.error) {
+                  const errType = String((tokenResponse && tokenResponse.error) || 'oauth_error').toLowerCase();
+                  if (errType === 'access_denied' || errType === 'user_cancel' || errType.includes('cancel')) {
+                    finishReject(
+                      createClientError(
+                        'OAUTH_CANCELLED',
+                        tokenResponse.error_description || 'Google Drive authorization was cancelled or denied by the user.'
+                      )
+                    );
+                    return;
+                  }
                   finishReject(
                     createClientError(
-                      'OAUTH_CANCELLED',
-                      tokenResponse.error_description || 'Google Drive authorization was cancelled or denied by the user.'
+                      'OAUTH_AUTHORIZATION_ERROR',
+                      tokenResponse.error_description || `Google OAuth error: ${errType}`
                     )
                   );
                   return;
                 }
-                finishReject(
-                  createClientError(
-                    'OAUTH_AUTHORIZATION_ERROR',
-                    tokenResponse.error_description || `Google OAuth error: ${errType}`
-                  )
-                );
-                return;
-              }
 
-              const grantedScope = String(tokenResponse.scope || '');
-              if (
-                typeof oauth2.hasGrantedAllScopes === 'function' &&
-                !oauth2.hasGrantedAllScopes(tokenResponse, DRIVE_FILE_SCOPE)
-              ) {
-                finishReject(
-                  createClientError(
-                    'OAUTH_SCOPE_MISSING',
-                    'Required Google Drive file permission (drive.file) was not granted.'
-                  )
-                );
-                return;
-              } else if (grantedScope && !grantedScope.includes('drive.file')) {
-                finishReject(
-                  createClientError(
-                    'OAUTH_SCOPE_MISSING',
-                    'Required Google Drive file permission (drive.file) was not granted.'
-                  )
-                );
-                return;
-              }
+                const grantedScope = String(tokenResponse.scope || '');
+                if (
+                  typeof oauth2.hasGrantedAllScopes === 'function' &&
+                  !oauth2.hasGrantedAllScopes(tokenResponse, DRIVE_FILE_SCOPE)
+                ) {
+                  finishReject(
+                    createClientError(
+                      'OAUTH_SCOPE_MISSING',
+                      'Required Google Drive file permission (drive.file) was not granted.'
+                    )
+                  );
+                  return;
+                } else if (grantedScope && !grantedScope.includes('drive.file')) {
+                  finishReject(
+                    createClientError(
+                      'OAUTH_SCOPE_MISSING',
+                      'Required Google Drive file permission (drive.file) was not granted.'
+                    )
+                  );
+                  return;
+                }
 
-              const sessionInfo = setAccessTokenForSession({
-                accessToken: tokenResponse.access_token,
-                expiresInSeconds: Number(tokenResponse.expires_in) || 3600,
-                scope: grantedScope || DRIVE_FILE_SCOPE
-              });
-              finishResolve({
-                authorized: true,
-                notConfigured: false,
-                status: 'authorized',
-                ...sessionInfo
-              });
-            },
-            error_callback: (err) => {
-              const errType = String((err && err.type) || (err && err.message) || 'popup_closed').toLowerCase();
-              if (errType.includes('popup_closed') || errType.includes('cancel')) {
+                const sessionInfo = setAccessTokenForSession({
+                  accessToken: tokenResponse.access_token,
+                  expiresInSeconds: Number(tokenResponse.expires_in) || 3600,
+                  scope: grantedScope || DRIVE_FILE_SCOPE
+                });
+                finishResolve({
+                  authorized: true,
+                  notConfigured: false,
+                  status: 'authorized',
+                  ...sessionInfo
+                });
+              },
+              error_callback: (err) => {
+                const errType = String((err && err.type) || (err && err.message) || 'popup_closed').toLowerCase();
+                if (errType.includes('popup_closed') || errType.includes('cancel')) {
+                  finishReject(
+                    createClientError('OAUTH_CANCELLED', 'Google authorization popup was closed before completing sign-in.')
+                  );
+                  return;
+                }
                 finishReject(
-                  createClientError('OAUTH_CANCELLED', 'Google authorization popup was closed before completing sign-in.')
+                  createClientError('OAUTH_POPUP_ERROR', `Google authorization popup failed: ${errType}`)
                 );
-                return;
               }
-              finishReject(
-                createClientError('OAUTH_POPUP_ERROR', `Google authorization popup failed: ${errType}`)
-              );
-            }
-          });
+            });
 
-          tokenClient.requestAccessToken({ prompt });
-        } catch (initErr) {
-          finishReject(createClientError('OAUTH_INIT_FAILED', initErr.message || 'Failed to initialize Google OAuth.'));
-        }
-      });
+            tokenClient.requestAccessToken({ prompt });
+          } catch (initErr) {
+            finishReject(createClientError('OAUTH_INIT_FAILED', initErr.message || 'Failed to initialize Google OAuth.'));
+          }
+        });
+      })();
+
+      try {
+        return await activeAuthPromise;
+      } finally {
+        activeAuthPromise = null;
+      }
     }
 
     /**
@@ -986,6 +1039,21 @@
     /**
      * Searches a target folder for an existing Drive file by deterministic appProperties or filename.
      */
+    function isCompatibleExistingArtifactFile(meta, { folderId, artifactType, targetScopeKey }) {
+      if (!meta || meta.trashed === true) return false;
+      if (Array.isArray(meta.parents) && meta.parents.length > 0 && folderId && !meta.parents.includes(folderId)) {
+        return false;
+      }
+      const props = meta.appProperties || {};
+      if (props.slArtifactType && props.slArtifactType !== artifactType) {
+        return false;
+      }
+      if (props.slScopeKey && props.slScopeKey !== targetScopeKey) {
+        return false;
+      }
+      return true;
+    }
+
     async function findExistingArtifactFile({
       folderId,
       savedDriveFileId = null,
@@ -993,14 +1061,14 @@
       targetScopeKey,
       driveFileName
     }) {
-      // 1. If the artifact row already recorded a driveFileId, check if it exists and is accessible
+      // 1. If the artifact row already recorded a driveFileId, verify it exists, is not trashed, and matches scope
       if (savedDriveFileId) {
         try {
           const meta = await driveApiRequest(
-            `/files/${encodeURIComponent(savedDriveFileId)}?fields=id,name,mimeType,trashed,sha256Checksum,appProperties`,
+            `/files/${encodeURIComponent(savedDriveFileId)}?fields=id,name,mimeType,trashed,parents,sha256Checksum,appProperties`,
             { method: 'GET' }
           );
-          if (meta && !meta.trashed) {
+          if (isCompatibleExistingArtifactFile(meta, { folderId, artifactType, targetScopeKey })) {
             return meta;
           }
         } catch (err) {
@@ -1022,10 +1090,13 @@
         { method: 'GET' }
       );
       if (propRes && Array.isArray(propRes.files) && propRes.files.length > 0) {
-        return propRes.files[0];
+        const matched = propRes.files.find((f) =>
+          isCompatibleExistingArtifactFile(f, { folderId, artifactType, targetScopeKey })
+        );
+        if (matched) return matched;
       }
 
-      // 3. Fallback search by exact filename inside the target folder
+      // 3. Fallback search by exact filename inside the target folder (only if appProperties do not conflict)
       if (driveFileName) {
         const nameClauses = [
           `'${escapeDriveQueryValue(folderId)}' in parents`,
@@ -1038,11 +1109,57 @@
           { method: 'GET' }
         );
         if (nameRes && Array.isArray(nameRes.files) && nameRes.files.length > 0) {
-          return nameRes.files[0];
+          const matchedByName = nameRes.files.find((f) =>
+            isCompatibleExistingArtifactFile(f, { folderId, artifactType, targetScopeKey })
+          );
+          if (matchedByName) return matchedByName;
         }
       }
 
       return null;
+    }
+
+    /**
+     * Computes or extracts the monotonic aggregate workbook version from a server workbook bundle.
+     */
+    async function extractWorkbookAggregateMeta(wbBundle, fallbackRevisionNo) {
+      const sessions = Array.isArray(wbBundle && wbBundle.sessions) ? wbBundle.sessions : [];
+      const sessionCount = Number(
+        wbBundle && wbBundle.aggregateSessionCount !== undefined
+          ? wbBundle.aggregateSessionCount
+          : wbBundle && wbBundle.sessionCount !== undefined
+          ? wbBundle.sessionCount
+          : sessions.length || 1
+      );
+      const revisionSum = Number(
+        wbBundle && wbBundle.aggregateRevisionSum !== undefined
+          ? wbBundle.aggregateRevisionSum
+          : sessions.length > 0
+          ? sessions.reduce((sum, s) => sum + Number(s.revisionNo || 1), 0)
+          : fallbackRevisionNo
+      );
+      let stateHash = String((wbBundle && wbBundle.aggregateStateHash) || '').toLowerCase();
+      if (!stateHash && sessions.length > 0) {
+        const canonical = JSON.stringify(
+          [...sessions]
+            .sort((a, b) => String(a.sessionId).localeCompare(String(b.sessionId)))
+            .map((s) => ({
+              sessionId: s.sessionId,
+              revisionNo: Number(s.revisionNo || 1),
+              snapshotSha256: String(s.snapshotSha256 || '').toLowerCase()
+            }))
+        );
+        stateHash = await computeSha256Hex(canonical);
+      }
+      const aggregateVersion =
+        (wbBundle && wbBundle.aggregateVersion) ||
+        `${sessionCount}:${revisionSum}:${(stateHash || '').slice(0, 16)}`;
+      return {
+        aggregateSessionCount: sessionCount,
+        aggregateRevisionSum: revisionSum,
+        aggregateStateHash: stateHash,
+        aggregateVersion
+      };
     }
 
     /**
@@ -1054,10 +1171,10 @@
      *   If the file already exists in Drive (e.g. lost completion response on a previous attempt)
      *   and its content hash matches `snapshotSha256`, reuse it without overwriting or creating a duplicate!
      *   Never overwrite an existing historical snapshot file.
-     * - `daily_workbook` / `annual_workbook`: Mutable report files (`daily:<teacherId>:<date>`, `annual:<teacherId>:<year>`).
-     *   If the existing Drive file already has `slArtifactSha256 === artifactSha256`, skip re-uploading bytes and reuse `id`.
-     *   If an existing Drive file has a higher `slRevisionNo` for the same session, refuse to downgrade it.
-     *   Otherwise update the existing file via `PATCH /upload/drive/v3/files/:fileId?uploadType=multipart`.
+     * - `daily_workbook` / `annual_workbook`: Mutable aggregate report files (`daily:<teacherId>:<date>`, `annual:<teacherId>:<year>`).
+     *   Protected by monotonic aggregate version (`slAggregateSessionCount`, `slAggregateRevSum`, `slAggregateStateHash`)
+     *   plus per-session revision check (`slRevisionNo`) so an older queued job or stale worker can never overwrite
+     *   a workbook produced after a newer session or revision in the same date/year scope.
      */
     async function uploadOrReconcileArtifactToDrive({
       artifactMeta,
@@ -1082,6 +1199,7 @@
       let mimeType;
       let contentBytes;
       let artifactSha256;
+      let aggregateMeta = null;
 
       if (artifactType === 'snapshot') {
         folderId = folders.snapshotsFolderId;
@@ -1121,6 +1239,7 @@
           );
         }
         artifactSha256 = computedSha;
+        aggregateMeta = await extractWorkbookAggregateMeta(wbBundle, revisionNo);
       } else if (artifactType === 'annual_workbook') {
         folderId = folders.fullFolderId;
         let wbBundle = runBundle.workbooks && runBundle.workbooks.annual && runBundle.workbooks.annual.bundle;
@@ -1141,6 +1260,7 @@
           );
         }
         artifactSha256 = computedSha;
+        aggregateMeta = await extractWorkbookAggregateMeta(wbBundle, revisionNo);
       } else {
         throw createClientError('INVALID_ARTIFACT_TYPE', `Unsupported artifactType "${artifactType}".`);
       }
@@ -1152,7 +1272,15 @@
         slSessionId: sessionId,
         slRevisionNo: String(revisionNo),
         slSnapshotSha256: snapshotSha256,
-        slArtifactSha256: artifactSha256
+        slArtifactSha256: artifactSha256,
+        ...(aggregateMeta
+          ? {
+              slAggregateSessionCount: String(aggregateMeta.aggregateSessionCount),
+              slAggregateRevSum: String(aggregateMeta.aggregateRevisionSum),
+              slAggregateStateHash: String(aggregateMeta.aggregateStateHash || ''),
+              slAggregateVersion: String(aggregateMeta.aggregateVersion || '')
+            }
+          : {})
       };
 
       const existingFile = await findExistingArtifactFile({
@@ -1185,7 +1313,23 @@
           };
         }
 
-        // Mutable workbook policy: prevent stale revision from overwriting a newer revision of the same session
+        // Mutable aggregate workbook policy:
+        // 1. Check multi-session aggregate version (session count + sum of session revisions across the date/year)
+        if (aggregateMeta) {
+          const existingAggSessionCount = Number(existingProps.slAggregateSessionCount || 0);
+          const existingAggRevSum = Number(existingProps.slAggregateRevSum || 0);
+          if (
+            existingAggSessionCount > aggregateMeta.aggregateSessionCount ||
+            existingAggRevSum > aggregateMeta.aggregateRevisionSum
+          ) {
+            throw createClientError(
+              'STALE_REVISION_WORKBOOK',
+              `Drive workbook already reflects newer aggregate state (sessions=${existingAggSessionCount}, revSum=${existingAggRevSum} vs candidate sessions=${aggregateMeta.aggregateSessionCount}, revSum=${aggregateMeta.aggregateRevisionSum}).`
+            );
+          }
+        }
+
+        // 2. Per-session revision fallback check
         if (
           existingProps.slSessionId === sessionId &&
           existingProps.slRevisionNo &&
@@ -1197,7 +1341,7 @@
           );
         }
 
-        // Lost-completion idempotency: if Drive file already has the exact same content SHA-256, reuse without re-uploading
+        // 3. Lost-completion idempotency: if Drive file already has the exact same content SHA-256, reuse without re-uploading
         if (existingSha === artifactSha256) {
           return {
             driveFileId: existingFile.id,
@@ -1313,6 +1457,12 @@
           const folderRes = await ensureFolderHierarchy();
           folders = folderRes.folders;
         } catch (folderErr) {
+          if (folderErr && folderErr.reconnectRequired) {
+            await callBackendJson('/api/attendance/backup/connection', {
+              method: 'PUT',
+              body: { connectionStatus: 'reconnect_required' }
+            }).catch(() => {});
+          }
           return {
             synced: false,
             status: folderErr.reconnectRequired ? 'reconnect_required' : 'failed',
@@ -1464,17 +1614,20 @@
                 reusedExistingFile: uploaded.reusedExistingFile
               });
             } catch (artErr) {
-              const isReconnectRequired = Boolean(artErr && artErr.reconnectRequired);
-              const errCode = artErr.code || (isReconnectRequired ? 'DRIVE_AUTH_EXPIRED' : 'DRIVE_UPLOAD_FAILED');
+              const errCode = artErr.code || (artErr && artErr.reconnectRequired ? 'DRIVE_AUTH_EXPIRED' : 'DRIVE_UPLOAD_FAILED');
+              const isReconnectRequired = Boolean(
+                (artErr && artErr.reconnectRequired) || errCode === 'DRIVE_RECONNECT_REQUIRED'
+              );
               const errMsg = sanitizeClientErrorMessage(artErr.message);
+              const isServerSupersededOrLeaseConflict =
+                errCode === 'CLAIM_LEASE_EXPIRED' ||
+                errCode === 'STALE_OR_INVALID_CLAIM' ||
+                errCode === 'DRIVE_DISCONNECTED' ||
+                errCode === 'DRIVE_RECONNECT_REQUIRED' ||
+                (errCode === 'STALE_REVISION_WORKBOOK' && Number(artErr.status) === 409);
 
-              // If completion failed because lease expired or revision was superseded on the server, do not overwrite server state
-              if (
-                errCode !== 'CLAIM_LEASE_EXPIRED' &&
-                errCode !== 'STALE_OR_INVALID_CLAIM' &&
-                errCode !== 'STALE_REVISION_WORKBOOK' &&
-                errCode !== 'DRIVE_DISCONNECTED'
-              ) {
+              // Release the server claim lease via /fail unless the server itself already rejected/superseded the lease
+              if (!isServerSupersededOrLeaseConflict) {
                 await callBackendJson(
                   `/api/attendance/backup/runs/${encodeURIComponent(pendingRun.id)}/fail`,
                   {
@@ -1497,6 +1650,10 @@
                 errorCode: errCode,
                 errorMessage: errMsg
               });
+
+              if (errCode === 'DRIVE_DISCONNECTED') {
+                break;
+              }
 
               if (isReconnectRequired) {
                 haltedByAuthExpiry = true;
@@ -1573,6 +1730,8 @@
       ensureFolderHierarchy,
       connectGoogleDrive,
       disconnectGoogleDrive,
+      findExistingArtifactFile,
+      uploadOrReconcileArtifactToDrive,
       syncPendingWork
     };
   }

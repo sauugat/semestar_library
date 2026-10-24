@@ -54,6 +54,18 @@
     auditModalSessionId: null,
     auditLogs: [],
 
+    // Phase 3B — Teacher Google Drive Attendance Backup UI state
+    loadingBackup: false,
+    backupConnecting: false,
+    backupSyncing: false,
+    backupDisconnecting: false,
+    backupStatusData: null,
+    backupPendingRuns: [],
+    backupNoticeMessage: null,
+    backupErrorMessage: null,
+    backupReconnectRequired: false,
+    driveClient: null,
+
     // Live countdown ticker
     countdownTimerId: null,
     containerEl: null
@@ -487,6 +499,111 @@
         color: #fde68a;
         border: 1px solid rgba(245, 158, 11, 0.4);
       }
+      .sl-att-backup-card {
+        background: var(--teach-surface, var(--bg-secondary, #141414));
+        border: 1px solid var(--teach-border, var(--border, #2a2a2a));
+        border-radius: 14px;
+        padding: 18px 22px;
+        margin-bottom: 20px;
+      }
+      .sl-att-backup-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .sl-att-backup-title-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+      }
+      .sl-att-backup-title {
+        font-size: 0.98rem;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: -0.01em;
+      }
+      .sl-att-backup-desc {
+        font-size: 0.83rem;
+        color: var(--teach-text-secondary, #a3a3a3);
+        margin: 0;
+        line-height: 1.45;
+      }
+      .sl-att-backup-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .sl-att-backup-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--teach-border-subtle, #222222);
+        font-size: 0.8rem;
+        color: var(--teach-text-secondary, #a3a3a3);
+      }
+      .sl-att-backup-meta-item strong {
+        color: var(--teach-text-primary, #f5f5f5);
+      }
+      .sl-att-backup-pending-list {
+        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .sl-att-backup-pending-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 10px 14px;
+        border-radius: 9px;
+        background: var(--teach-surface-subtle, #1c1c1c);
+        border: 1px solid var(--teach-border-subtle, #242424);
+        font-size: 0.8rem;
+      }
+      .sl-att-backup-art-pills {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .sl-att-backup-art-pill {
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        border: 1px solid var(--teach-border, #2a2a2a);
+        background: var(--teach-surface, #141414);
+        color: var(--teach-text-secondary, #a3a3a3);
+      }
+      .sl-att-backup-art-pill.backed_up,
+      .sl-att-backup-art-pill.superseded {
+        background: var(--teach-btn-primary-bg, #f5f5f5);
+        color: var(--teach-btn-primary-text, #0a0a0a);
+        border-color: var(--teach-btn-primary-bg, #f5f5f5);
+      }
+      .sl-att-backup-art-pill.failed,
+      .sl-att-backup-art-pill.reconnect_required {
+        border-color: rgba(239, 68, 68, 0.5);
+        color: #fca5a5;
+      }
+      @media (max-width: 768px) {
+        .sl-att-backup-card {
+          padding: 14px 16px;
+        }
+        .sl-att-backup-actions {
+          width: 100%;
+        }
+      }
     `;
     document.head.appendChild(style);
   }
@@ -540,9 +657,11 @@
       state.loadingContext = false;
       render();
 
+      const initialTasks = [loadBackupStatus()];
       if (state.selectedSubjectId && state.selectedCohortId && state.selectedDate) {
-        await Promise.all([loadRoster(), loadHistory()]);
+        initialTasks.push(loadRoster(), loadHistory());
       }
+      await Promise.all(initialTasks);
     } catch (err) {
       state.loadingContext = false;
       state.contextError = err.message || 'Unable to load teacher attendance context.';
@@ -652,6 +771,273 @@
   }
 
   /**
+   * Sanitizes any backup error string before rendering in the UI so OAuth tokens,
+   * refresh tokens, claim tokens, or stack traces are never displayed.
+   */
+  function sanitizeUiBackupError(rawMessage) {
+    if (!rawMessage) return 'Google Drive backup operation failed.';
+    if (
+      window.AttendanceDriveBackup &&
+      typeof window.AttendanceDriveBackup.sanitizeClientErrorMessage === 'function'
+    ) {
+      return window.AttendanceDriveBackup.sanitizeClientErrorMessage(rawMessage);
+    }
+    return String(rawMessage)
+      .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [REDACTED]')
+      .replace(/ya29\.[A-Za-z0-9._-]+/g, '[REDACTED_TOKEN]')
+      .replace(/1\/\/[A-Za-z0-9._-]+/g, '[REDACTED_TOKEN]')
+      .replace(/GOCSPX-[A-Za-z0-9._-]+/g, '[REDACTED_SECRET]')
+      .replace(/\b[0-9a-f]{64}\b/gi, '[REDACTED_HEX]')
+      .split('\n')[0]
+      .trim()
+      .slice(0, 220);
+  }
+
+  function getOrInitDriveClient() {
+    if (state.driveClient) return state.driveClient;
+    if (
+      window.AttendanceDriveBackup &&
+      typeof window.AttendanceDriveBackup.createAttendanceDriveSyncClient === 'function'
+    ) {
+      state.driveClient = window.AttendanceDriveBackup.createAttendanceDriveSyncClient({
+        window,
+        backendFetch: authFetch
+      });
+      return state.driveClient;
+    }
+    if (window.AttendanceDriveBackup && typeof window.AttendanceDriveBackup.getStatus === 'function') {
+      state.driveClient = window.AttendanceDriveBackup;
+      return state.driveClient;
+    }
+    return null;
+  }
+
+  function setDriveClient(customClient) {
+    state.driveClient = customClient || null;
+  }
+
+  /**
+   * Loads authoritative Google Drive backup status and pending backup queue from the backend.
+   */
+  async function loadBackupStatus({ preserveMessages = false } = {}) {
+    state.loadingBackup = true;
+    if (!preserveMessages) {
+      state.backupErrorMessage = null;
+    }
+    render();
+
+    try {
+      const client = getOrInitDriveClient();
+      let statusData = null;
+      if (client && typeof client.getStatus === 'function') {
+        statusData = await client.getStatus();
+      } else {
+        const res = await authFetch('/api/attendance/backup/status');
+        if (res.ok) {
+          statusData = await res.json();
+        }
+      }
+
+      if (statusData) {
+        state.backupStatusData = statusData;
+        const connStatus = statusData.connection && statusData.connection.connectionStatus;
+        const reconnectRuns = Number(
+          statusData.summary && statusData.summary.reconnectRequiredRuns
+            ? statusData.summary.reconnectRequiredRuns
+            : 0
+        );
+        if (connStatus === 'reconnect_required' || reconnectRuns > 0) {
+          state.backupReconnectRequired = true;
+        } else if (connStatus === 'connected' || connStatus === 'disconnected' || connStatus === 'not_configured') {
+          state.backupReconnectRequired = false;
+        }
+      }
+
+      const pendingRes = await authFetch('/api/attendance/backup/pending');
+      if (pendingRes && pendingRes.ok) {
+        const pendingData = await pendingRes.json().catch(() => ({}));
+        state.backupPendingRuns = Array.isArray(pendingData.runs) ? pendingData.runs : [];
+      }
+    } catch (_) {
+      // Keep existing backup status if background fetch fails
+    } finally {
+      state.loadingBackup = false;
+      render();
+    }
+  }
+
+  /**
+   * Initiates interactive Google Drive OAuth connection & folder provisioning via AttendanceDriveBackup.
+   */
+  async function connectDriveBackup() {
+    if (state.backupConnecting || state.backupSyncing || state.backupDisconnecting) return;
+
+    const oauthCfg = state.backupStatusData && state.backupStatusData.oauth;
+    if (oauthCfg && !oauthCfg.configured) {
+      state.backupErrorMessage = 'Google Drive integration has not been configured for this environment yet.';
+      render();
+      return;
+    }
+
+    const client = getOrInitDriveClient();
+    if (!client || typeof client.connectGoogleDrive !== 'function') {
+      state.backupErrorMessage = 'Google Drive backup client is not loaded.';
+      render();
+      return;
+    }
+
+    state.backupConnecting = true;
+    state.backupErrorMessage = null;
+    state.backupNoticeMessage = null;
+    render();
+
+    try {
+      const res = await client.connectGoogleDrive({ userGesture: true });
+      if (res && (res.notConfigured || res.status === 'not_configured')) {
+        state.backupConnecting = false;
+        await loadBackupStatus({ preserveMessages: true });
+        return;
+      }
+
+      state.backupConnecting = false;
+      state.backupReconnectRequired = false;
+      state.backupNoticeMessage = 'Google Drive connected and backup folders verified.';
+      await loadBackupStatus({ preserveMessages: true });
+    } catch (err) {
+      state.backupConnecting = false;
+      const errCode = (err && err.code) || '';
+      if (errCode === 'OAUTH_CANCELLED') {
+        state.backupErrorMessage = 'Google Drive sign-in was cancelled before completion.';
+      } else if (errCode === 'OAUTH_SCOPE_MISSING') {
+        state.backupErrorMessage = 'Google Drive file permission (drive.file) was not granted. Please reconnect and approve file access.';
+      } else {
+        state.backupErrorMessage = sanitizeUiBackupError(err && err.message);
+      }
+      await loadBackupStatus({ preserveMessages: true });
+    }
+  }
+
+  /**
+   * Runs the client-side Google Drive backup worker for pending or retryable attendance revisions.
+   */
+  async function syncDriveBackup({ forceRetry = true } = {}) {
+    if (state.backupConnecting || state.backupSyncing || state.backupDisconnecting) return;
+
+    const client = getOrInitDriveClient();
+    if (!client || typeof client.syncPendingWork !== 'function') {
+      state.backupErrorMessage = 'Google Drive backup sync client is not available.';
+      render();
+      return;
+    }
+
+    state.backupSyncing = true;
+    state.backupErrorMessage = null;
+    state.backupNoticeMessage = null;
+    render();
+
+    try {
+      await loadBackupStatus({ preserveMessages: true });
+      state.backupSyncing = true;
+      render();
+
+      const syncResult = await client.syncPendingWork({ forceRetry: Boolean(forceRetry) });
+      state.backupSyncing = false;
+
+      if (syncResult && (syncResult.notConfigured || syncResult.status === 'not_configured')) {
+        await loadBackupStatus({ preserveMessages: true });
+        return;
+      }
+
+      if (syncResult && (syncResult.reconnectRequired || syncResult.status === 'reconnect_required')) {
+        state.backupReconnectRequired = true;
+        state.backupErrorMessage =
+          sanitizeUiBackupError(syncResult.errorMessage) !== 'Google Drive operation failed.' && syncResult.errorMessage
+            ? sanitizeUiBackupError(syncResult.errorMessage)
+            : 'Google Drive authorization has expired or requires reconnection. Please reconnect Google Drive to sync pending backups.';
+        await loadBackupStatus({ preserveMessages: true });
+        return;
+      }
+
+      const completedCount = Number((syncResult && syncResult.completedArtifacts) || 0);
+      const failedCount = Number((syncResult && syncResult.failedArtifacts) || 0);
+      const processedRuns = Number((syncResult && syncResult.processedRuns) || 0);
+
+      if (failedCount > 0 && completedCount > 0) {
+        state.backupErrorMessage = `Partial backup sync: ${completedCount} artifact${completedCount === 1 ? '' : 's'} backed up, ${failedCount} failed. Completed files are preserved; click Retry Sync to retry remaining items.`;
+      } else if (failedCount > 0) {
+        const firstErr =
+          (syncResult && syncResult.errorMessage) ||
+          (Array.isArray(syncResult && syncResult.runs) &&
+            syncResult.runs
+              .flatMap((r) => r.artifacts || [])
+              .find((a) => a.errorMessage)?.errorMessage) ||
+          'One or more backup artifacts failed to upload.';
+        state.backupErrorMessage = `Backup sync failed (${failedCount} artifact${failedCount === 1 ? '' : 's'}): ${sanitizeUiBackupError(firstErr)}`;
+      } else if (processedRuns === 0 || completedCount === 0) {
+        state.backupNoticeMessage = 'Everything is up to date. All attendance revisions are backed up to Google Drive.';
+      } else {
+        state.backupNoticeMessage = `Google Drive backup complete: ${completedCount} artifact${completedCount === 1 ? '' : 's'} synced across ${processedRuns} revision${processedRuns === 1 ? '' : 's'}.`;
+      }
+
+      await loadBackupStatus({ preserveMessages: true });
+    } catch (err) {
+      state.backupSyncing = false;
+      if (err && err.reconnectRequired) {
+        state.backupReconnectRequired = true;
+      }
+      state.backupErrorMessage = sanitizeUiBackupError(err && err.message);
+      await loadBackupStatus({ preserveMessages: true });
+    }
+  }
+
+  /**
+   * Disconnects the teacher's Google Drive connection after confirmation.
+   * Reflects disconnected status only after the backend confirms the action.
+   */
+  async function disconnectDriveBackup() {
+    if (state.backupConnecting || state.backupSyncing || state.backupDisconnecting) return;
+
+    const confirmed = window.confirm(
+      'Disconnect your Google Drive account from Attendance Backup? Existing attendance records and files already backed up in your Google Drive will not be deleted.'
+    );
+    if (!confirmed) return;
+
+    state.backupDisconnecting = true;
+    state.backupErrorMessage = null;
+    state.backupNoticeMessage = null;
+    render();
+
+    try {
+      const client = getOrInitDriveClient();
+      if (client && typeof client.disconnectGoogleDrive === 'function') {
+        const discRes = await client.disconnectGoogleDrive({ clearFolders: false });
+        if (!discRes || !discRes.disconnected) {
+          throw new Error('Server did not confirm Google Drive disconnection.');
+        }
+      } else {
+        const res = await authFetch('/api/attendance/backup/disconnect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ clearFolders: false })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.disconnected) {
+          throw new Error(data.message || 'Failed to disconnect Google Drive.');
+        }
+      }
+
+      state.backupDisconnecting = false;
+      state.backupReconnectRequired = false;
+      state.backupNoticeMessage = 'Google Drive has been disconnected. Attendance records and completed backups remain intact.';
+      await loadBackupStatus({ preserveMessages: true });
+    } catch (err) {
+      state.backupDisconnecting = false;
+      state.backupErrorMessage = `Disconnect failed: ${sanitizeUiBackupError(err && err.message)}`;
+      await loadBackupStatus({ preserveMessages: true });
+    }
+  }
+
+  /**
    * Marks the current or specified student as 'present' or 'absent'
    */
   function markStudent(studentId, status, autoAdvance = true) {
@@ -751,8 +1137,8 @@
         ? `Attendance submitted for ${state.selectedDate} (${counts.present} Present, ${counts.absent} Absent).`
         : `Attendance updated for ${state.selectedDate} (${counts.present} Present, ${counts.absent} Absent).`;
 
-      // Refresh server-backed roster/session and history
-      await Promise.all([loadRoster(), loadHistory()]);
+      // Refresh server-backed roster/session, history, and backup queue
+      await Promise.all([loadRoster(), loadHistory(), loadBackupStatus({ preserveMessages: true })]);
       state.stage = 'review';
       render();
     } catch (err) {
@@ -971,6 +1357,9 @@
           </div>
         </div>
 
+        <!-- Teacher Google Drive Attendance Backup Card -->
+        ${renderDriveBackupCard()}
+
         <!-- Stage Navigation Switcher -->
         <div class="sl-att-stage-tabs" role="tablist" aria-label="Attendance workflow stages">
           <button
@@ -1040,6 +1429,322 @@
     `;
 
     bindEvents(container);
+  }
+
+  function formatBackupTimestamp(isoStr) {
+    if (!isoStr) return null;
+    const d = new Date(isoStr);
+    if (!Number.isFinite(d.getTime())) return String(isoStr);
+    return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  }
+
+  function renderDriveBackupCard() {
+    const statusData = state.backupStatusData;
+    if (statusData && statusData.canManageConnection === false) {
+      return '';
+    }
+
+    const isBusy = Boolean(state.backupConnecting || state.backupSyncing || state.backupDisconnecting);
+
+    if (!statusData && state.loadingBackup) {
+      return `
+        <section class="sl-att-backup-card" id="slAttDriveBackupCard" aria-label="Attendance Backup">
+          <div class="sl-att-backup-top">
+            <div>
+              <div class="sl-att-backup-title-row">
+                <h3 class="sl-att-backup-title">Attendance Backup (Google Drive)</h3>
+                <span class="sl-att-badge">Loading…</span>
+              </div>
+              <p class="sl-att-backup-desc">Checking your Google Drive backup configuration and pending queue…</p>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    const oauth = (statusData && statusData.oauth) || { configured: false, status: 'not_configured' };
+    const connection = (statusData && statusData.connection) || {
+      connected: false,
+      connectionStatus: oauth.configured ? 'disconnected' : 'not_configured',
+      googleEmail: null,
+      lastSyncedAt: null,
+      lastErrorCode: null,
+      lastErrorMessage: null
+    };
+    const summary = (statusData && statusData.summary) || {
+      totalRuns: 0,
+      pendingRuns: 0,
+      inProgressRuns: 0,
+      failedRuns: 0,
+      reconnectRequiredRuns: 0,
+      backedUpRuns: 0,
+      actionableRuns: 0
+    };
+
+    const pendingRuns = Array.isArray(state.backupPendingRuns) ? state.backupPendingRuns : [];
+    const actionableCount =
+      summary.actionableRuns !== undefined
+        ? Number(summary.actionableRuns)
+        : Number(summary.pendingRuns || 0) + Number(summary.failedRuns || 0) + Number(summary.reconnectRequiredRuns || 0);
+    const failedCount = Number(summary.failedRuns || 0);
+    const backedUpCount = Number(summary.backedUpRuns || 0);
+    const inProgressCount = Number(summary.inProgressRuns || 0);
+
+    const isNotConfigured = !oauth.configured || connection.connectionStatus === 'not_configured';
+    const isReconnectRequired =
+      !isNotConfigured &&
+      (connection.connectionStatus === 'reconnect_required' ||
+        Number(summary.reconnectRequiredRuns || 0) > 0 ||
+        Boolean(state.backupReconnectRequired));
+    const isConnected = !isNotConfigured && !isReconnectRequired && connection.connectionStatus === 'connected';
+    const isNotConnected = !isNotConfigured && !isReconnectRequired && !isConnected;
+
+    let badgeLabel = 'Not Connected';
+    let badgeClass = '';
+    let descriptionText = '';
+    let actionsHtml = '';
+
+    if (state.backupConnecting) {
+      badgeLabel = 'Connecting…';
+      badgeClass = 'present';
+      descriptionText = 'Authorizing your Google Drive account and verifying attendance backup folders…';
+      actionsHtml = `
+        <button type="button" class="teach-btn teach-btn-primary" disabled aria-busy="true">
+          Connecting…
+        </button>
+      `;
+    } else if (state.backupSyncing) {
+      badgeLabel = 'Syncing…';
+      badgeClass = 'present';
+      descriptionText = 'Uploading pending attendance snapshots and Excel (.xlsx) workbooks to your Google Drive…';
+      actionsHtml = `
+        <button type="button" class="teach-btn teach-btn-primary" disabled aria-busy="true">
+          Syncing Backups…
+        </button>
+        <button type="button" class="teach-btn teach-btn-secondary" disabled>
+          Disconnect Google Drive
+        </button>
+      `;
+    } else if (state.backupDisconnecting) {
+      badgeLabel = 'Disconnecting…';
+      badgeClass = '';
+      descriptionText = 'Disconnecting your Google Drive account and releasing active sync leases…';
+      actionsHtml = `
+        <button type="button" class="teach-btn teach-btn-secondary" disabled aria-busy="true">
+          Disconnecting…
+        </button>
+      `;
+    } else if (isNotConfigured) {
+      badgeLabel = 'Not Configured';
+      badgeClass = '';
+      descriptionText =
+        'Google Drive backup integration has not been configured yet. Classroom attendance submission, 24-hour teacher edits, and session history continue to work normally.';
+      actionsHtml = `
+        <button
+          type="button"
+          class="teach-btn teach-btn-secondary"
+          data-att-backup-action="connect"
+          disabled
+          aria-disabled="true"
+        >
+          Connect Google Drive
+        </button>
+      `;
+    } else if (isReconnectRequired) {
+      badgeLabel = 'Reconnection Required';
+      badgeClass = 'absent';
+      descriptionText =
+        'Your Google Drive authorization has expired or been revoked. Reconnect your Google Drive account to resume syncing pending attendance backups. Already completed backup files are preserved.';
+      actionsHtml = `
+        <button
+          type="button"
+          class="teach-btn teach-btn-primary"
+          data-att-backup-action="reconnect"
+          ${isBusy ? 'disabled' : ''}
+        >
+          Reconnect Google Drive
+        </button>
+        <button
+          type="button"
+          class="teach-btn teach-btn-secondary"
+          data-att-backup-action="disconnect"
+          ${isBusy ? 'disabled' : ''}
+        >
+          Disconnect Google Drive
+        </button>
+      `;
+    } else if (isConnected) {
+      if (failedCount > 0) {
+        badgeLabel = 'Sync Attention Needed';
+        badgeClass = 'unmarked';
+        descriptionText =
+          'One or more attendance backup artifacts failed to upload. Already completed artifacts are preserved; retry syncing to finish the remaining items.';
+      } else {
+        badgeLabel = 'Connected';
+        badgeClass = 'present';
+        descriptionText =
+          actionableCount === 0 && pendingRuns.length === 0
+            ? 'Everything is up to date. Immutable JSON snapshots and Excel (.xlsx) workbooks are synced to your Google Drive.'
+            : `${actionableCount || pendingRuns.length} attendance backup revision${(actionableCount || pendingRuns.length) === 1 ? ' is' : 's are'} ready to sync to your Google Drive.`;
+      }
+      actionsHtml = `
+        <button
+          type="button"
+          class="teach-btn teach-btn-primary"
+          data-att-backup-action="${failedCount > 0 ? 'retry-sync' : 'sync'}"
+          ${isBusy ? 'disabled' : ''}
+        >
+          ${failedCount > 0 ? 'Retry Sync' : 'Sync Now'}
+        </button>
+        <button
+          type="button"
+          class="teach-btn teach-btn-secondary"
+          data-att-backup-action="disconnect"
+          ${isBusy ? 'disabled' : ''}
+        >
+          Disconnect Google Drive
+        </button>
+      `;
+    } else if (isNotConnected) {
+      badgeLabel = 'Not Connected';
+      badgeClass = '';
+      descriptionText =
+        'Connect your personal Google Drive to back up immutable JSON attendance snapshots and daily/annual Excel (.xlsx) workbooks under your own account.';
+      actionsHtml = `
+        <button
+          type="button"
+          class="teach-btn teach-btn-primary"
+          data-att-backup-action="connect"
+          ${isBusy ? 'disabled' : ''}
+        >
+          Connect Google Drive
+        </button>
+      `;
+    }
+
+    const lastSyncedFormatted = formatBackupTimestamp(connection.lastSyncedAt);
+    const serverErrText =
+      !state.backupErrorMessage && ((oauth && oauth.configError) || connection.lastErrorMessage)
+        ? sanitizeUiBackupError((oauth && oauth.configError) || connection.lastErrorMessage)
+        : null;
+    const effectiveErrorMessage = state.backupErrorMessage || serverErrText;
+
+    const attentionRuns = pendingRuns.slice(0, 5);
+
+    return `
+      <section class="sl-att-backup-card" id="slAttDriveBackupCard" aria-label="Attendance Backup">
+        <div class="sl-att-backup-top">
+          <div style="flex: 1; min-width: 240px;">
+            <div class="sl-att-backup-title-row">
+              <h3 class="sl-att-backup-title">Attendance Backup</h3>
+              <span class="sl-att-badge ${badgeClass}" data-att-backup-state="${escapeHtml(connection.connectionStatus || 'not_configured')}">
+                ${escapeHtml(badgeLabel)}
+              </span>
+            </div>
+            <p class="sl-att-backup-desc">${escapeHtml(descriptionText)}</p>
+          </div>
+          <div class="sl-att-backup-actions">
+            ${actionsHtml}
+          </div>
+        </div>
+
+        ${
+          !isNotConfigured
+            ? `
+          <div class="sl-att-backup-meta-row">
+            <span class="sl-att-backup-meta-item">
+              Drive Status: <strong>${escapeHtml(isReconnectRequired ? 'Reconnection Required' : isConnected ? 'Connected' : 'Disconnected')}</strong>
+            </span>
+            ${
+              connection.googleEmail
+                ? `<span class="sl-att-backup-meta-item">Account: <strong>${escapeHtml(connection.googleEmail)}</strong></span>`
+                : ''
+            }
+            ${
+              lastSyncedFormatted
+                ? `<span class="sl-att-backup-meta-item">Last Synced: <strong>${escapeHtml(lastSyncedFormatted)}</strong></span>`
+                : isConnected || isReconnectRequired
+                ? `<span class="sl-att-backup-meta-item">Last Synced: <strong>Not synced yet</strong></span>`
+                : ''
+            }
+            <span class="sl-att-backup-meta-item">
+              Pending Backups: <strong>${actionableCount}</strong>
+            </span>
+            <span class="sl-att-backup-meta-item">
+              Backed Up: <strong>${backedUpCount}</strong>
+            </span>
+            ${
+              failedCount > 0
+                ? `<span class="sl-att-backup-meta-item">Failed: <strong>${failedCount}</strong></span>`
+                : ''
+            }
+            ${
+              inProgressCount > 0
+                ? `<span class="sl-att-backup-meta-item">In Progress: <strong>${inProgressCount}</strong></span>`
+                : ''
+            }
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          effectiveErrorMessage
+            ? `
+          <div class="sl-att-banner error" role="alert" style="margin-top: 12px; margin-bottom: 0;">
+            <span>${escapeHtml(effectiveErrorMessage)}</span>
+            ${
+              !isBusy && (isConnected || isReconnectRequired)
+                ? `<button type="button" class="teach-btn teach-btn-secondary" style="padding: 5px 12px; font-size: 0.78rem;" data-att-backup-action="${isReconnectRequired ? 'reconnect' : 'retry-sync'}">${isReconnectRequired ? 'Reconnect' : 'Retry'}</button>`
+                : ''
+            }
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          state.backupNoticeMessage && !effectiveErrorMessage
+            ? `
+          <div class="sl-att-banner success" role="status" style="margin-top: 12px; margin-bottom: 0;">
+            <span>${escapeHtml(state.backupNoticeMessage)}</span>
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          !isNotConfigured && attentionRuns.length > 0
+            ? `
+          <div class="sl-att-backup-pending-list" aria-label="Pending attendance backup items">
+            ${attentionRuns
+              .map((run) => {
+                const snapStatus = run.snapshotStatus || 'pending';
+                const dailyStatus = run.dailyWorkbookStatus || 'pending';
+                const annualStatus = run.annualWorkbookStatus || 'pending';
+                const runErr = run.lastErrorMessage ? sanitizeUiBackupError(run.lastErrorMessage) : null;
+                return `
+                  <div class="sl-att-backup-pending-item">
+                    <div>
+                      <strong>${escapeHtml(run.subjectCode || run.subjectId || 'Subject')}${run.cohortName ? ' · ' + escapeHtml(run.cohortName) : ''}</strong>
+                      <span> &middot; ${escapeHtml(run.sessionDate || '')} (v${Number(run.revisionNo || 1)})</span>
+                      ${runErr ? `<div style="color: #fca5a5; font-size: 0.75rem; margin-top: 2px;">${escapeHtml(runErr)}</div>` : ''}
+                    </div>
+                    <div class="sl-att-backup-art-pills">
+                      <span class="sl-att-backup-art-pill ${escapeHtml(snapStatus)}">Snapshot: ${escapeHtml(snapStatus)}</span>
+                      <span class="sl-att-backup-art-pill ${escapeHtml(dailyStatus)}">Daily XLSX: ${escapeHtml(dailyStatus)}</span>
+                      <span class="sl-att-backup-art-pill ${escapeHtml(annualStatus)}">Annual XLSX: ${escapeHtml(annualStatus)}</span>
+                    </div>
+                  </div>
+                `;
+              })
+              .join('')}
+          </div>
+        `
+            : ''
+        }
+      </section>
+    `;
   }
 
   function renderSummaryBoxes(counts) {
@@ -1551,6 +2256,22 @@
     if (closeAuditBtn) {
       closeAuditBtn.addEventListener('click', closeAuditModal);
     }
+
+    container.querySelectorAll('[data-att-backup-action]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn.disabled) return;
+        const action = btn.getAttribute('data-att-backup-action');
+        if (action === 'connect' || action === 'reconnect') {
+          connectDriveBackup();
+        } else if (action === 'sync') {
+          syncDriveBackup({ forceRetry: false });
+        } else if (action === 'retry-sync') {
+          syncDriveBackup({ forceRetry: true });
+        } else if (action === 'disconnect') {
+          disconnectDriveBackup();
+        }
+      });
+    });
   }
 
   function unmount() {
@@ -1562,6 +2283,9 @@
    */
   async function mount(containerOrSelector, options = {}) {
     injectStyles();
+    if (options && options.driveClient) {
+      state.driveClient = options.driveClient;
+    }
     const el =
       typeof containerOrSelector === 'string'
         ? document.querySelector(containerOrSelector)
@@ -1590,6 +2314,11 @@
     loadTeacherContext,
     loadRoster,
     loadHistory,
+    loadBackupStatus,
+    connectDriveBackup,
+    syncDriveBackup,
+    disconnectDriveBackup,
+    setDriveClient,
     markStudent,
     submitAttendance,
     hasUnsavedChanges,

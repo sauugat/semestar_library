@@ -168,10 +168,13 @@ function createMockGoogleDriveEnvironment({
         bodySection = bodySection.slice(0, -2);
       }
 
-      if (/application\/json/i.test(rawHeaders)) {
-        try {
-          metadata = JSON.parse(bodySection.trim());
-        } catch (_) {}
+      if (/Content-Type:\s*application\/json/i.test(rawHeaders)) {
+        const metaParsed = JSON.parse(bodySection.trim());
+        if (metaParsed && (metaParsed.appProperties || metaParsed.parents || metaParsed.mimeType)) {
+          metadata = metaParsed;
+        } else {
+          contentBytes = Buffer.from(bodySection, 'utf8');
+        }
       } else if (/Content-Transfer-Encoding:\s*base64/i.test(rawHeaders)) {
         contentBytes = Buffer.from(bodySection.trim(), 'base64');
       } else {
@@ -478,14 +481,36 @@ function createMockGoogleDriveEnvironment({
     };
   }
 
+  let forceFailUploadStatus = null;
+
   return {
     filesById,
     requestLog,
     uploadHistory,
     revokedTokens,
-    driveFetch,
+    driveFetch: async (urlStr, options = {}) => {
+      if (forceFailUploadStatus && String(urlStr).includes('/upload/drive/v3/files')) {
+        const st = forceFailUploadStatus;
+        forceFailUploadStatus = null;
+        return {
+          status: st,
+          ok: false,
+          json: async () => ({
+            error: {
+              code: st,
+              message: st === 401 ? 'Invalid Credentials' : `Simulated upload error ${st}`,
+              errors: [{ reason: st === 401 ? 'authError' : 'backendError' }]
+            }
+          })
+        };
+      }
+      return driveFetch(urlStr, options);
+    },
     setForceNextStatus(st) {
       forceNextStatus = st;
+    },
+    setForceFailUploadStatus(st) {
+      forceFailUploadStatus = st;
     },
     setForceFailArtifactType(artType) {
       forceFailArtifactType = artType;
@@ -710,6 +735,26 @@ test('Phase 3A Test 1: Missing OAuth Client IDs report Not Configured safely wit
   assert.equal(saveData.created, true);
   assert.equal(saveData.backupRevision.revisionNo, 1);
   assert.equal(saveData.backupRevision.backupStatus, 'pending');
+
+  // Verify placeholder values (e.g. from .env.example) safely report Not Configured without error
+  process.env.GOOGLE_DRIVE_WEB_CLIENT_ID = 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com';
+  const placeholderStatus = await client.getStatus();
+  assert.equal(placeholderStatus.oauth.configured, false);
+  assert.equal(placeholderStatus.oauth.status, 'not_configured');
+  assert.equal(placeholderStatus.oauth.configError, null);
+
+  // Verify malformed non-placeholder values report Not Configured + actionable configError and throw OAUTH_CONFIG_INVALID on auth attempt
+  process.env.GOOGLE_DRIVE_WEB_CLIENT_ID = 'not-a-valid-google-client-id';
+  const malformedStatus = await client.getStatus();
+  assert.equal(malformedStatus.oauth.configured, false);
+  assert.match(malformedStatus.oauth.configError, /Invalid Web Google OAuth Client ID format/);
+  await assert.rejects(
+    async () => {
+      await client.requestAuthorization({ userGesture: true });
+    },
+    (err) => err && err.code === 'OAUTH_CONFIG_INVALID'
+  );
+  delete process.env.GOOGLE_DRIVE_WEB_CLIENT_ID;
 });
 
 // ============================================================================
@@ -894,8 +939,10 @@ test('Phase 3A Test 3: Idempotent folder creation, saved-ID reuse across devices
   assert.equal(prov2.resolution.full, 'saved_id');
   assert.equal(prov2.resolution.snapshots, 'saved_id');
 
-  // 3. If teacher disconnects with clearFolders=true (wiping DB folder IDs) and reconnects, client searches Drive and reuses existing folders instead of creating duplicates!
+  // 3. If teacher disconnects with clearFolders=true (wiping DB folder IDs) and reconnects with a fresh token, client searches Drive and reuses existing folders instead of creating duplicates!
   await device1Client.disconnectGoogleDrive({ clearFolders: true });
+  assert.ok(mockDrive.revokedTokens.has(validToken), 'Disconnect must revoke the previous OAuth token');
+  mockDrive.revokedTokens.clear();
   device1Client.setAccessTokenForSession({ accessToken: validToken, expiresInSeconds: 3600 });
 
   const provAfterClear = await device1Client.ensureFolderHierarchy();
@@ -1119,17 +1166,26 @@ test('Phase 3A Test 5: Partial artifact failure preserves completed siblings; to
   assert.equal(byType1.get('daily_workbook').status, 'failed');
   assert.ok(!String(byType1.get('daily_workbook').lastErrorMessage).includes(validToken), 'Token must be scrubbed from failure message');
 
-  // 2. Simulate 401 token expiry on the next Drive call
-  mockDrive.setForceNextStatus(401);
+  // 2. Simulate 401 token expiry on the next Drive upload call (after folder check)
+  mockDrive.setForceFailArtifactType(null);
+  mockDrive.setForceFailUploadStatus(401);
+
   const authExpiredSync = await client.syncPendingWork({ forceRetry: true });
   assert.equal(authExpiredSync.synced, false);
   assert.equal(authExpiredSync.reconnectRequired, true);
   assert.equal(authExpiredSync.status, 'reconnect_required');
   assert.equal(client.hasValidAccessToken(), false, 'Expired token must be cleared from memory');
 
-  // Server connection status is now 'reconnect_required', and claiming while in 'reconnect_required' is blocked with 409 DRIVE_RECONNECT_REQUIRED
+  // Server connection status and artifact status are now 'reconnect_required', and claiming while in 'reconnect_required' is blocked with 409 DRIVE_RECONNECT_REQUIRED
   const statusAfterExpiry = await client.getStatus();
   assert.equal(statusAfterExpiry.connection.connectionStatus, 'reconnect_required');
+
+  const artCheckAfterExpiry = await appFetch(`${baseUrl}/api/attendance/backup/runs/${runId}/artifacts`, {
+    headers: { Authorization: `Bearer ${teacherAToken}` }
+  });
+  const artDataAfterExpiry = await artCheckAfterExpiry.json();
+  const byTypeAfterExpiry = new Map(artDataAfterExpiry.artifacts.map((a) => [a.artifactType, a]));
+  assert.equal(byTypeAfterExpiry.get('daily_workbook').status, 'reconnect_required');
 
   const blockedClaimRes = await appFetch(`${baseUrl}/api/attendance/backup/runs/${runId}/claim`, {
     method: 'POST',
@@ -1169,7 +1225,7 @@ test('Phase 3A Test 5: Partial artifact failure preserves completed siblings; to
 // ============================================================================
 
 test('Phase 3A Test 6: Mobile OAuth 2.0 Authorization Code with PKCE (S256), platform client IDs, reverse-client-ID redirect URI, SecureStore refresh, and mobile sync worker', async () => {
-  const MobileDriveSync = await import('../mobile/services/attendance-drive-sync.ts');
+  const MobileDriveSync = await import('../mobile/services/attendance-drive-sync-core.ts');
 
   const validToken = 'ya29.a0AfH6SMBx_mobile_pkce_valid_token_987654';
   const mockDrive = createMockGoogleDriveEnvironment({ validAccessToken: validToken });
@@ -1213,7 +1269,7 @@ test('Phase 3A Test 6: Mobile OAuth 2.0 Authorization Code with PKCE (S256), pla
   const iosClientId = '9988776655-iosfaculty.apps.googleusercontent.com';
   const expectedIosRedirectUri = 'com.googleusercontent.apps.9988776655-iosfaculty:/oauthredirect';
 
-  const mobileClient = MobileDriveSync.createMobileAttendanceDriveSyncClient({
+  const mobileClient = MobileDriveSync.createMobileAttendanceDriveSyncCore({
     platform: 'ios',
     iosClientId,
     androidClientId: '9988776655-androidfaculty.apps.googleusercontent.com',
@@ -1283,3 +1339,476 @@ test('Phase 3A Test 6: Mobile OAuth 2.0 Authorization Code with PKCE (S256), pla
   assert.equal(mobileSyncRes.completedArtifacts, 3);
   assert.equal(mobileClient.hasValidAccessToken(), true, 'Access token was refreshed via SecureStore refresh_token');
 });
+
+// ============================================================================
+// 7. MULTI-SESSION AGGREGATE WORKBOOK FRESHNESS, SNAPSHOT CONFLICT & SCOPED MATCHING
+// ============================================================================
+
+test('Phase 3A Test 7: Aggregate workbook revision safety across multiple sessions, immutable snapshot conflict protection, and scoped existing file matching', async () => {
+  process.env.GOOGLE_DRIVE_WEB_CLIENT_ID = '1234567890-webtest.apps.googleusercontent.com';
+  const validToken = 'ya29.a0AfH6SMBx_mock_valid_teacher_drive_token_123456';
+  const mockDrive = createMockGoogleDriveEnvironment({ validAccessToken: validToken });
+
+  const threeDaysAgoNepal = formatNepalDate(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000));
+
+  // Create Session 1 (CIT111) on threeDaysAgoNepal (v1)
+  const s1Res = await appFetch(`${baseUrl}/api/attendance/sessions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      subjectId: 'CIT111',
+      cohortId: cohortMercury.id,
+      sessionDate: threeDaysAgoNepal,
+      records: [
+        { studentId: 'stu_p3a_1', status: 'present' },
+        { studentId: 'stu_p3a_2', status: 'present' }
+      ]
+    })
+  });
+  assert.equal(s1Res.status, 201);
+  const s1Data = await s1Res.json();
+  const s1RunId = s1Data.backupRevision.id;
+
+  // Fetch the 1-session workbook bundle BEFORE Session 2 is created (simulating a stale worker that fetched early)
+  const staleBundleRes = await appFetch(
+    `${baseUrl}/api/attendance/backup/runs/${s1RunId}/artifacts?includePayloads=1`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  const staleRunBundle = await staleBundleRes.json();
+  assert.equal(staleRunBundle.workbooks.daily.bundle.aggregateSessionCount, 1);
+  assert.equal(staleRunBundle.workbooks.daily.bundle.aggregateRevisionSum, 1);
+
+  // Now create Session 2 (BSM111) on the SAME date (threeDaysAgoNepal) and edit it to v2!
+  const s2Res = await appFetch(`${baseUrl}/api/attendance/sessions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      subjectId: 'BSM111',
+      cohortId: cohortMercury.id,
+      sessionDate: threeDaysAgoNepal,
+      records: [
+        { studentId: 'stu_p3a_1', status: 'present' },
+        { studentId: 'stu_p3a_2', status: 'absent' }
+      ]
+    })
+  });
+  assert.equal(s2Res.status, 201);
+  const s2SessionId = (await s2Res.json()).session.id;
+
+  const s2EditRes = await appFetch(`${baseUrl}/api/attendance/sessions/${s2SessionId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      reason: 'Update BSM111 to v2 on same date',
+      records: [
+        { studentId: 'stu_p3a_1', status: 'absent' },
+        { studentId: 'stu_p3a_2', status: 'absent' }
+      ]
+    })
+  });
+  assert.equal(s2EditRes.status, 200);
+  const s2V2RunId = (await s2EditRes.json()).backupRevision.id;
+
+  const client = WebDriveSync.createAttendanceDriveSyncClient({
+    clientId: 'worker_aggregate_workbook_test',
+    backendFetch: createAuthenticatedBackendFetch(teacherAToken),
+    driveFetch: mockDrive.driveFetch
+  });
+  client.setAccessTokenForSession({ accessToken: validToken, expiresInSeconds: 3600 });
+  const prov = await client.ensureFolderHierarchy();
+
+  // Sync Session 2 (v2) first so the Daily Workbook in Drive now contains BOTH sessions (aggregateSessionCount=2, aggregateRevisionSum=3)
+  const syncS2 = await client.syncPendingWork({ sessionId: s2SessionId, forceRetry: true });
+  assert.equal(syncS2.synced, true);
+
+  const dailyFileInDrive = [...mockDrive.filesById.values()].find(
+    (f) =>
+      f.appProperties &&
+      f.appProperties.slArtifactType === 'daily_workbook' &&
+      f.appProperties.slScopeKey === `daily:tea_p3a_id:${threeDaysAgoNepal}`
+  );
+  assert.ok(dailyFileInDrive, 'Daily workbook for threeDaysAgoNepal must exist in Drive');
+  assert.equal(dailyFileInDrive.appProperties.slAggregateSessionCount, '2');
+  assert.equal(dailyFileInDrive.appProperties.slAggregateRevSum, '3');
+  const newerWorkbookSha = dailyFileInDrive.sha256Checksum;
+
+  // Scenario 9 (Multi-Session Aggregate Stale Workbook Guard):
+  // If a stale worker attempts to upload the old 1-session workbook bundle (`aggregateSessionCount=1, aggregateRevisionSum=1`)
+  // over the existing 2-session Drive workbook (`slAggregateSessionCount=2, slAggregateRevSum=3`), it MUST be rejected with STALE_REVISION_WORKBOOK!
+  await assert.rejects(
+    async () => {
+      await client.uploadOrReconcileArtifactToDrive({
+        artifactMeta: staleRunBundle.artifacts.find((a) => a.artifactType === 'daily_workbook'),
+        claimedItem: { artifactType: 'daily_workbook', driveFileName: staleRunBundle.workbooks.daily.filename },
+        runBundle: staleRunBundle,
+        folders: prov.folders
+      });
+    },
+    (err) => err && err.code === 'STALE_REVISION_WORKBOOK'
+  );
+  assert.equal(
+    dailyFileInDrive.sha256Checksum,
+    newerWorkbookSha,
+    'Newer multi-session Drive workbook must NEVER be overwritten by a stale 1-session bundle'
+  );
+
+  // When Session 1's run is synced normally (fetching the fresh aggregate bundle from server), it sees the identical 2-session SHA-256 and reuses the Drive file without re-uploading!
+  const syncS1 = await client.syncPendingWork({ sessionId: s1Data.session.id, forceRetry: true });
+  assert.equal(syncS1.synced, true);
+  const s1RunSummary = syncS1.runs.find((r) => r.runId === s1RunId);
+  const s1DailyOutcome = s1RunSummary.artifacts.find((a) => a.artifactType === 'daily_workbook');
+  assert.equal(s1DailyOutcome.status, 'backed_up');
+  assert.equal(s1DailyOutcome.reusedExistingFile, true);
+
+  // Scenario 7 (Immutable Snapshot Hash Conflict):
+  // If an existing snapshot file in Drive has the same scopeKey (`session:<id>:v1`) but a tampered/conflicting SHA-256,
+  // uploadOrReconcileArtifactToDrive MUST refuse to overwrite it and throw IMMUTABLE_SNAPSHOT_CONFLICT.
+  const s1SnapFile = [...mockDrive.filesById.values()].find(
+    (f) =>
+      f.appProperties &&
+      f.appProperties.slArtifactType === 'snapshot' &&
+      f.appProperties.slScopeKey === `session:${s1Data.session.id}:v1`
+  );
+  assert.ok(s1SnapFile);
+  const originalSnapSha = s1SnapFile.appProperties.slArtifactSha256;
+  s1SnapFile.appProperties.slArtifactSha256 = 'f'.repeat(64);
+
+  await assert.rejects(
+    async () => {
+      await client.uploadOrReconcileArtifactToDrive({
+        artifactMeta: staleRunBundle.artifacts.find((a) => a.artifactType === 'snapshot'),
+        claimedItem: { artifactType: 'snapshot', driveFileName: staleRunBundle.snapshot.filename },
+        runBundle: staleRunBundle,
+        folders: prov.folders
+      });
+    },
+    (err) => err && err.code === 'IMMUTABLE_SNAPSHOT_CONFLICT'
+  );
+  s1SnapFile.appProperties.slArtifactSha256 = originalSnapSha;
+
+  // Defect 2 Verification (Scoped Existing File Matching):
+  // Place a decoy file in the Daily Attendance folder with the same filename `Attendance_Daily_${threeDaysAgoNepal}.xlsx`
+  // but belonging to a DIFFERENT scope (`daily:other_teacher:${threeDaysAgoNepal}`).
+  // Verify findExistingArtifactFile ignores the wrong-scope file and selects only the file with matching `slScopeKey`.
+  mockDrive.filesById.set('decoy_wrong_scope_file', {
+    id: 'decoy_wrong_scope_file',
+    name: `Attendance_Daily_${threeDaysAgoNepal}.xlsx`,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    parents: [prov.folders.dailyFolderId],
+    appProperties: {
+      slApp: 'semester_library',
+      slArtifactType: 'daily_workbook',
+      slScopeKey: `daily:other_teacher:${threeDaysAgoNepal}`
+    },
+    trashed: false,
+    createdTime: '2020-01-01T00:00:00.000Z'
+  });
+
+  const matchedFile = await client.findExistingArtifactFile({
+    folderId: prov.folders.dailyFolderId,
+    savedDriveFileId: 'decoy_wrong_scope_file',
+    artifactType: 'daily_workbook',
+    targetScopeKey: `daily:tea_p3a_id:${threeDaysAgoNepal}`,
+    driveFileName: `Attendance_Daily_${threeDaysAgoNepal}.xlsx`
+  });
+  assert.equal(matchedFile.id, dailyFileInDrive.id, 'Must reject decoy file with mismatched slScopeKey even if passed as savedDriveFileId');
+});
+
+// ============================================================================
+// 8. WORKER CRASH RECOVERY, TWO-CLIENT CONTENTION, STALE LEASE & IN-FLIGHT DISCONNECT
+// ============================================================================
+
+test('Phase 3A Test 8: Worker crash before completion, two-client concurrent claim contention, stale lease expiration in flight, and in-flight upload followed by disconnect/reconnect', async () => {
+  process.env.GOOGLE_DRIVE_WEB_CLIENT_ID = '1234567890-webtest.apps.googleusercontent.com';
+  const validToken = 'ya29.a0AfH6SMBx_mock_valid_teacher_drive_token_123456';
+  const mockDrive = createMockGoogleDriveEnvironment({ validAccessToken: validToken });
+
+  const fourDaysAgoNepal = formatNepalDate(new Date(Date.now() - 4 * 24 * 60 * 60 * 1000));
+  const saveRes = await appFetch(`${baseUrl}/api/attendance/sessions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      subjectId: 'CIT111',
+      cohortId: cohortMercury.id,
+      sessionDate: fourDaysAgoNepal,
+      records: [
+        { studentId: 'stu_p3a_1', status: 'present' },
+        { studentId: 'stu_p3a_2', status: 'absent' }
+      ]
+    })
+  });
+  assert.equal(saveRes.status, 201);
+  const saveData = await saveRes.json();
+  const sessionId = saveData.session.id;
+  const runId = saveData.backupRevision.id;
+
+  const clientA = WebDriveSync.createAttendanceDriveSyncClient({
+    clientId: 'worker_client_A',
+    backendFetch: createAuthenticatedBackendFetch(teacherAToken),
+    driveFetch: mockDrive.driveFetch
+  });
+  clientA.setAccessTokenForSession({ accessToken: validToken, expiresInSeconds: 3600 });
+  const prov = await clientA.ensureFolderHierarchy();
+
+  // Scenario 4 & 5: Two clients attempt the same run; Client A claims with a short 1000ms lease
+  const claimARes = await appFetch(`${baseUrl}/api/attendance/backup/runs/${runId}/claim`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      clientId: 'worker_client_A',
+      leaseDurationMs: 1000,
+      revisionNo: 1,
+      snapshotSha256: saveData.backupRevision.snapshotSha256
+    })
+  });
+  assert.equal(claimARes.status, 200);
+  const claimAData = await claimARes.json();
+  assert.equal(claimAData.claimed, true);
+  assert.equal(claimAData.claimedArtifacts.length, 3);
+
+  // Client B attempts to claim the same run while Client A's lease is active -> rejected with 409 CLAIM_CONFLICT
+  const claimBWhileActiveRes = await appFetch(`${baseUrl}/api/attendance/backup/runs/${runId}/claim`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      clientId: 'worker_client_B',
+      leaseDurationMs: 60000,
+      revisionNo: 1,
+      snapshotSha256: saveData.backupRevision.snapshotSha256
+    })
+  });
+  assert.equal(claimBWhileActiveRes.status, 409);
+  const claimBWhileActiveData = await claimBWhileActiveRes.json();
+  assert.equal(claimBWhileActiveData.code, 'CLAIM_LEASE_ACTIVE');
+
+  // Scenario 3: Client A uploads the snapshot to Google Drive, then "crashes" before calling /complete!
+  const bundleRes = await appFetch(
+    `${baseUrl}/api/attendance/backup/runs/${runId}/artifacts?includePayloads=1`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  const runBundle = await bundleRes.json();
+  const snapClaimA = claimAData.claimedArtifacts.find((a) => a.artifactType === 'snapshot');
+
+  const uploadedByCrashedWorker = await clientA.uploadOrReconcileArtifactToDrive({
+    artifactMeta: runBundle.artifacts.find((a) => a.artifactType === 'snapshot'),
+    claimedItem: snapClaimA,
+    runBundle,
+    folders: prov.folders
+  });
+  assert.equal(uploadedByCrashedWorker.reusedExistingFile, false);
+
+  // Wait 1100ms for Client A's 1000ms lease to expire
+  await new Promise((r) => setTimeout(r, 1100));
+
+  // Scenario 5: Client A wakes up after lease expiry and tries to call /complete with its expired lease -> rejected with 409 CLAIM_LEASE_EXPIRED
+  const expiredCompleteRes = await appFetch(`${baseUrl}/api/attendance/backup/runs/${runId}/complete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      artifactType: 'snapshot',
+      claimToken: snapClaimA.claimToken,
+      revisionNo: 1,
+      snapshotSha256: saveData.backupRevision.snapshotSha256,
+      driveFileId: uploadedByCrashedWorker.driveFileId,
+      driveFileName: uploadedByCrashedWorker.driveFileName,
+      artifactSha256: uploadedByCrashedWorker.artifactSha256
+    })
+  });
+  assert.equal(expiredCompleteRes.status, 409);
+  assert.equal((await expiredCompleteRes.json()).code, 'CLAIM_LEASE_EXPIRED');
+
+  // Step 6: In-flight upload followed by teacher disconnect before completion:
+  // Suppose teacher disconnects right now while artifacts are still uncompleted.
+  await clientA.disconnectGoogleDrive();
+  mockDrive.revokedTokens.clear();
+
+  // Attempting to complete while disconnected is rejected with 409 DRIVE_DISCONNECTED
+  const completeWhileDisconnectedRes = await appFetch(`${baseUrl}/api/attendance/backup/runs/${runId}/complete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      artifactType: 'snapshot',
+      claimToken: snapClaimA.claimToken,
+      revisionNo: 1,
+      snapshotSha256: saveData.backupRevision.snapshotSha256,
+      driveFileId: uploadedByCrashedWorker.driveFileId,
+      driveFileName: uploadedByCrashedWorker.driveFileName,
+      artifactSha256: uploadedByCrashedWorker.artifactSha256
+    })
+  });
+  assert.equal(completeWhileDisconnectedRes.status, 409);
+  assert.equal((await completeWhileDisconnectedRes.json()).code, 'DRIVE_DISCONNECTED');
+
+  // Now Client B reconnects and runs syncPendingWork:
+  // It claims the run (rotating claimToken), discovers the snapshot already uploaded by crashed Client A via appProperties,
+  // reuses `uploadedByCrashedWorker.driveFileId` without re-uploading, and completes all 3 artifacts!
+  const clientB = WebDriveSync.createAttendanceDriveSyncClient({
+    clientId: 'worker_client_B',
+    backendFetch: createAuthenticatedBackendFetch(teacherAToken),
+    driveFetch: mockDrive.driveFetch
+  });
+  clientB.setAccessTokenForSession({ accessToken: validToken, expiresInSeconds: 3600 });
+  await clientB.ensureFolderHierarchy();
+
+  const syncBRes = await clientB.syncPendingWork({ sessionId, forceRetry: true });
+  assert.equal(syncBRes.synced, true);
+  assert.equal(syncBRes.status, 'backed_up');
+  const runSummaryB = syncBRes.runs.find((r) => r.runId === runId);
+  const snapOutcomeB = runSummaryB.artifacts.find((a) => a.artifactType === 'snapshot');
+  assert.equal(snapOutcomeB.driveFileId, uploadedByCrashedWorker.driveFileId);
+  assert.equal(snapOutcomeB.reusedExistingFile, true, 'Client B must reconcile the file uploaded before crash/disconnect without re-uploading');
+});
+
+// ============================================================================
+// 9. WEB STORAGE SCOPING & MOBILE PKCE CSRF STATE / EXPIRY / REPLAY HARDENING
+// ============================================================================
+
+test('Phase 3A Test 9: Web storage cleanup preserves unrelated keys; Mobile PKCE enforces CSRF state match, TTL expiration, missing-code rejection, and single-flight auth coalescing', async () => {
+  // 1. Web storage cleanup must NEVER delete unrelated application keys
+  const fakeLocal = new Map([
+    ['semester_library_theme', 'dark'],
+    ['google_drive_unrelated_app_pref', 'keep_me'],
+    ['sl_attendance_drive_oauth_token', 'ya29.should_be_removed']
+  ]);
+  const makeStorage = (map) => ({
+    get length() {
+      return map.size;
+    },
+    key(idx) {
+      return [...map.keys()][idx] || null;
+    },
+    getItem(k) {
+      return map.get(k) || null;
+    },
+    setItem(k, v) {
+      map.set(k, String(v));
+    },
+    removeItem(k) {
+      map.delete(k);
+    }
+  });
+
+  const mockDrive = createMockGoogleDriveEnvironment();
+  WebDriveSync.createAttendanceDriveSyncClient({
+    window: {
+      localStorage: makeStorage(fakeLocal),
+      sessionStorage: makeStorage(new Map())
+    },
+    backendFetch: createAuthenticatedBackendFetch(teacherAToken),
+    driveFetch: mockDrive.driveFetch
+  });
+
+  assert.equal(fakeLocal.get('semester_library_theme'), 'dark', 'Unrelated app storage key must be preserved');
+  assert.equal(fakeLocal.get('google_drive_unrelated_app_pref'), 'keep_me', 'Unrelated google_drive preference key must not be deleted');
+  assert.equal(fakeLocal.has('sl_attendance_drive_oauth_token'), false, 'Feature-owned token key must be purged');
+
+  // 2. Mobile PKCE CSRF state mismatch, TTL expiration, and missing code handling
+  const MobileDriveSync = await import('../mobile/services/attendance-drive-sync-core.ts');
+  let clockMs = Date.now();
+  let redirectBehavior = 'state_mismatch';
+  let openAuthCallCount = 0;
+
+  const mobileClient = MobileDriveSync.createMobileAttendanceDriveSyncCore({
+    platform: 'android',
+    androidClientId: '4455667788-androidtest.apps.googleusercontent.com',
+    now: () => clockMs,
+    driveFetch: mockDrive.driveFetch,
+    backendFetch: createAuthenticatedBackendFetch(teacherAToken),
+    openAuthSessionAsync: async (authUrl, redirectUri) => {
+      openAuthCallCount += 1;
+      const parsed = new URL(authUrl);
+      const state = parsed.searchParams.get('state');
+
+      if (redirectBehavior === 'state_mismatch') {
+        return {
+          type: 'success',
+          url: `${redirectUri}?code=4/mock_code&state=wrong_tampered_state`
+        };
+      }
+      if (redirectBehavior === 'expired_ttl') {
+        // Advance clock by 11 minutes (> 10 minute PKCE_STATE_TTL_MS) before browser returns
+        clockMs += 11 * 60 * 1000;
+        return {
+          type: 'success',
+          url: `${redirectUri}?code=4/mock_code&state=${encodeURIComponent(state)}`
+        };
+      }
+      if (redirectBehavior === 'missing_code') {
+        return {
+          type: 'success',
+          url: `${redirectUri}?state=${encodeURIComponent(state)}`
+        };
+      }
+      await new Promise((r) => setTimeout(r, 20));
+      return {
+        type: 'success',
+        url: `${redirectUri}?code=4/mock_valid_code&state=${encodeURIComponent(state)}&scope=${encodeURIComponent(MobileDriveSync.DRIVE_FILE_SCOPE)}`
+      };
+    }
+  });
+
+  assert.equal(
+    mobileClient.resolveOAuthConfig().redirectUri,
+    'com.googleusercontent.apps.4455667788-androidtest:/oauthredirect'
+  );
+
+  redirectBehavior = 'state_mismatch';
+  await assert.rejects(
+    async () => {
+      await mobileClient.requestAuthorization();
+    },
+    (err) => err && err.code === 'OAUTH_STATE_MISMATCH'
+  );
+
+  redirectBehavior = 'expired_ttl';
+  await assert.rejects(
+    async () => {
+      await mobileClient.requestAuthorization();
+    },
+    (err) => err && err.code === 'OAUTH_STATE_EXPIRED'
+  );
+
+  redirectBehavior = 'missing_code';
+  await assert.rejects(
+    async () => {
+      await mobileClient.requestAuthorization();
+    },
+    (err) => err && err.code === 'OAUTH_CODE_MISSING'
+  );
+
+  // Concurrent requestAuthorization calls coalesce into a single interactive browser session
+  redirectBehavior = 'valid';
+  const beforeCalls = openAuthCallCount;
+  const [auth1, auth2] = await Promise.all([
+    mobileClient.requestAuthorization({ prompt: 'consent' }),
+    mobileClient.requestAuthorization({ prompt: 'consent' })
+  ]);
+  assert.equal(auth1.authorized, true);
+  assert.equal(auth2.authorized, true);
+  assert.equal(openAuthCallCount - beforeCalls, 1, 'Concurrent requestAuthorization calls must coalesce into 1 browser session');
+});
+

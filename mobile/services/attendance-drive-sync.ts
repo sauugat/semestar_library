@@ -38,11 +38,14 @@ import {
   generatePkceChallengePair,
   buildNativeGoogleRedirectUri,
   createMobileAttendanceDriveSyncCore,
+  formatDriveBackupTimestamp,
+  deriveDriveBackupUiModel,
   type BackupArtifactType,
   type DriveOAuthConfigStatus,
   type DriveFoldersMetadata,
   type SecureTokenStoreAdapter,
   type MobileDriveSyncClientOptions,
+  type DriveBackupUiModelInput,
 } from './attendance-drive-sync-core.ts';
 
 export {
@@ -70,12 +73,21 @@ export {
   generatePkceChallengePair,
   buildNativeGoogleRedirectUri,
   createMobileAttendanceDriveSyncCore,
+  formatDriveBackupTimestamp,
+  deriveDriveBackupUiModel,
   type BackupArtifactType,
   type DriveOAuthConfigStatus,
   type DriveFoldersMetadata,
   type SecureTokenStoreAdapter,
   type MobileDriveSyncClientOptions,
+  type DriveBackupUiModelInput,
 };
+
+if (typeof (WebBrowser as any)?.maybeCompleteAuthSession === 'function') {
+  try {
+    (WebBrowser as any).maybeCompleteAuthSession();
+  } catch {}
+}
 
 export function createMobileAttendanceDriveSyncClient(options: MobileDriveSyncClientOptions = {}) {
   const defaultPlatform: 'ios' | 'android' | 'web' =

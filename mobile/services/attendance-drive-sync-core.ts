@@ -48,6 +48,7 @@ export interface DriveOAuthConfigStatus {
   webClientId: string | null;
   iosClientId: string | null;
   androidClientId: string | null;
+  configError: string | null;
   scope: string;
 }
 
@@ -517,7 +518,7 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
   const rawBackendFetch =
     options.backendFetch ||
     ((endpoint: string, init?: RequestInit) => fetch(endpoint, init));
-  const openAuthSession =
+  const openAuthSession: (authUrl: string, redirectUri: string) => Promise<{ type: string; url?: string }> =
     options.openAuthSessionAsync ||
     (async () => ({ type: 'cancel' }));
   const secureStore = options.secureStore || noopSecureStore;
@@ -527,6 +528,8 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     options.clientIdTag ||
     `mobile_${currentPlatform}_sync_${Math.random().toString(36).slice(2, 10)}`;
 
+  const PKCE_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes max PKCE/state transaction window
+
   // Short-lived access token kept strictly in memory (never AsyncStorage or localStorage)
   let inMemoryToken: {
     accessToken: string;
@@ -534,56 +537,98 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     scope: string;
   } | null = null;
 
+  // Single-use in-flight PKCE + CSRF state transaction
+  let pendingAuthTransaction: {
+    state: string;
+    codeVerifier: string;
+    createdAtMs: number;
+    expiresAtMs: number;
+    consumed: boolean;
+  } | null = null;
+
   let cachedOAuthConfig: DriveOAuthConfigStatus | null = null;
   let cachedConnection: any = null;
+  let activeAuthPromise: Promise<any> | null = null;
   let activeSyncPromise: Promise<any> | null = null;
   let activeProvisionPromise: Promise<any> | null = null;
+
+  function evaluateGoogleOAuthClientId(rawValue: unknown, platformLabel: string) {
+    const trimmed = String(rawValue || '').trim();
+    if (!trimmed) {
+      return { configured: false, clientId: null as string | null, configError: null as string | null };
+    }
+    if (/^(?:your[_-]|replace[_-]|example[_-]|placeholder[_-]|todo|<)/i.test(trimmed)) {
+      return { configured: false, clientId: null as string | null, configError: null as string | null };
+    }
+    for (const pattern of FORBIDDEN_TOKEN_VALUE_PATTERNS) {
+      if (pattern.test(trimmed)) {
+        return {
+          configured: false,
+          clientId: null as string | null,
+          configError: `Invalid ${platformLabel} Google OAuth Client ID: value looks like a secret or token instead of a public "*.apps.googleusercontent.com" Client ID.`,
+        };
+      }
+    }
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*\.apps\.googleusercontent\.com$/i.test(trimmed)) {
+      return {
+        configured: false,
+        clientId: null as string | null,
+        configError: `Invalid ${platformLabel} Google OAuth Client ID format. Expected "<id>.apps.googleusercontent.com".`,
+      };
+    }
+    return { configured: true, clientId: trimmed, configError: null as string | null };
+  }
 
   function resolveOAuthConfig(serverOAuth: any = null): DriveOAuthConfigStatus {
     const extra = options.extraConfig || {};
     const envObj = (typeof process !== 'undefined' && process.env) ? process.env : ({} as Record<string, string | undefined>);
 
-    const webClientId = String(
+    const rawWebId =
       options.webClientId ||
-        envObj.EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID ||
-        envObj.GOOGLE_DRIVE_WEB_CLIENT_ID ||
-        extra.googleDriveWebClientId ||
-        serverOAuth?.webClientId ||
-        ''
-    ).trim();
+      envObj.EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID ||
+      envObj.GOOGLE_DRIVE_WEB_CLIENT_ID ||
+      extra.googleDriveWebClientId ||
+      serverOAuth?.webClientId ||
+      '';
 
-    const iosClientId = String(
+    const rawIosId =
       options.iosClientId ||
-        envObj.EXPO_PUBLIC_GOOGLE_DRIVE_IOS_CLIENT_ID ||
-        envObj.GOOGLE_DRIVE_IOS_CLIENT_ID ||
-        extra.googleDriveIosClientId ||
-        serverOAuth?.iosClientId ||
-        ''
-    ).trim();
+      envObj.EXPO_PUBLIC_GOOGLE_DRIVE_IOS_CLIENT_ID ||
+      envObj.GOOGLE_DRIVE_IOS_CLIENT_ID ||
+      extra.googleDriveIosClientId ||
+      serverOAuth?.iosClientId ||
+      '';
 
-    const androidClientId = String(
+    const rawAndroidId =
       options.androidClientId ||
-        envObj.EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID ||
-        envObj.GOOGLE_DRIVE_ANDROID_CLIENT_ID ||
-        extra.googleDriveAndroidClientId ||
-        serverOAuth?.androidClientId ||
-        ''
-    ).trim();
+      envObj.EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID ||
+      envObj.GOOGLE_DRIVE_ANDROID_CLIENT_ID ||
+      extra.googleDriveAndroidClientId ||
+      serverOAuth?.androidClientId ||
+      '';
 
-    const webConfigured = Boolean(webClientId || serverOAuth?.webConfigured);
-    const iosConfigured = Boolean(iosClientId || serverOAuth?.iosConfigured);
-    const androidConfigured = Boolean(androidClientId || serverOAuth?.androidConfigured);
+    const webEval = evaluateGoogleOAuthClientId(rawWebId, 'Web');
+    const iosEval = evaluateGoogleOAuthClientId(rawIosId, 'iOS');
+    const androidEval = evaluateGoogleOAuthClientId(rawAndroidId, 'Android');
+
+    const webConfigured = Boolean(webEval.configured || (serverOAuth?.webConfigured && !rawWebId));
+    const iosConfigured = Boolean(iosEval.configured || (serverOAuth?.iosConfigured && !rawIosId));
+    const androidConfigured = Boolean(androidEval.configured || (serverOAuth?.androidConfigured && !rawAndroidId));
 
     let activeClientId: string | null = null;
+    let configError: string | null = null;
     if (currentPlatform === 'ios') {
-      activeClientId = iosClientId || null;
+      activeClientId = iosEval.clientId;
+      configError = iosEval.configError;
     } else if (currentPlatform === 'android') {
-      activeClientId = androidClientId || null;
+      activeClientId = androidEval.clientId;
+      configError = androidEval.configError;
     } else {
-      activeClientId = webClientId || null;
+      activeClientId = webEval.clientId;
+      configError = webEval.configError;
     }
 
-    const configured = Boolean(activeClientId);
+    const configured = Boolean(activeClientId && !configError);
     const redirectUri = activeClientId
       ? buildNativeGoogleRedirectUri(activeClientId, appScheme)
       : null;
@@ -597,9 +642,10 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
       androidConfigured,
       activeClientId,
       redirectUri,
-      webClientId: webClientId || null,
-      iosClientId: iosClientId || null,
-      androidClientId: androidClientId || null,
+      webClientId: webEval.clientId,
+      iosClientId: iosEval.clientId,
+      androidClientId: androidEval.clientId,
+      configError: configError || serverOAuth?.configError || null,
       scope: DRIVE_FILE_SCOPE,
     };
   }
@@ -702,6 +748,17 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     };
   }
 
+  async function listPendingWork(sessionId: string | null = null) {
+    const pendingQuery = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : '';
+    const pendingData = await callBackendJson(`/api/attendance/backup/pending${pendingQuery}`, {
+      method: 'GET',
+    });
+    return {
+      pendingCount: Number(pendingData?.pendingCount ?? (Array.isArray(pendingData?.runs) ? pendingData.runs.length : 0)),
+      runs: Array.isArray(pendingData?.runs) ? pendingData.runs : [],
+    };
+  }
+
   async function refreshAccessTokenFromSecureStore(): Promise<boolean> {
     const cfg = resolveOAuthConfig(cachedOAuthConfig);
     if (!cfg.configured || !cfg.activeClientId) return false;
@@ -756,11 +813,15 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
 
   async function requestAuthorization({ prompt = 'consent' }: { prompt?: string } = {}) {
     let cfg = resolveOAuthConfig(cachedOAuthConfig);
-    if (!cfg.activeClientId) {
+    if (!cfg.activeClientId && !cfg.configError) {
       try {
         const statusData = await getStatus();
         cfg = statusData.oauth;
       } catch {}
+    }
+
+    if (cfg.configError) {
+      throw new DriveSyncError('OAUTH_CONFIG_INVALID', cfg.configError);
     }
 
     if (!cfg.configured || !cfg.activeClientId || !cfg.redirectUri) {
@@ -783,105 +844,151 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
       };
     }
 
-    const pkce = await generatePkceChallengePair();
-    const authParams = new URLSearchParams({
-      client_id: cfg.activeClientId,
-      redirect_uri: cfg.redirectUri,
-      response_type: 'code',
-      scope: DRIVE_FILE_SCOPE,
-      code_challenge: pkce.codeChallenge,
-      code_challenge_method: pkce.codeChallengeMethod,
-      state: pkce.state,
-      access_type: 'offline',
-      ...(prompt ? { prompt } : {}),
-    });
-
-    const authUrl = `${GOOGLE_OAUTH_AUTH_URL}?${authParams.toString()}`;
-    const sessionResult = await openAuthSession(authUrl, cfg.redirectUri);
-
-    if (!sessionResult || sessionResult.type !== 'success' || !sessionResult.url) {
-      throw new DriveSyncError(
-        'OAUTH_CANCELLED',
-        'Google Drive authorization was cancelled or dismissed by the user.'
-      );
+    if (activeAuthPromise) {
+      return await activeAuthPromise;
     }
 
-    let parsedRedirect: URL;
-    try {
-      parsedRedirect = new URL(sessionResult.url);
-    } catch {
-      throw new DriveSyncError('OAUTH_REDIRECT_INVALID', 'Received invalid redirect URL from Google OAuth.');
-    }
+    activeAuthPromise = (async () => {
+      const pkce = await generatePkceChallengePair();
+      const startedAtMs = nowFn();
+      pendingAuthTransaction = {
+        state: pkce.state,
+        codeVerifier: pkce.codeVerifier,
+        createdAtMs: startedAtMs,
+        expiresAtMs: startedAtMs + PKCE_STATE_TTL_MS,
+        consumed: false,
+      };
 
-    const errorParam = parsedRedirect.searchParams.get('error');
-    if (errorParam) {
-      const errDesc = parsedRedirect.searchParams.get('error_description') || errorParam;
-      if (errorParam === 'access_denied' || errorParam.includes('cancel')) {
-        throw new DriveSyncError('OAUTH_CANCELLED', errDesc);
+      const authParams = new URLSearchParams({
+        client_id: cfg.activeClientId!,
+        redirect_uri: cfg.redirectUri!,
+        response_type: 'code',
+        scope: DRIVE_FILE_SCOPE,
+        code_challenge: pkce.codeChallenge,
+        code_challenge_method: pkce.codeChallengeMethod,
+        state: pkce.state,
+        access_type: 'offline',
+        ...(prompt ? { prompt } : {}),
+      });
+
+      const authUrl = `${GOOGLE_OAUTH_AUTH_URL}?${authParams.toString()}`;
+      let sessionResult: { type: string; url?: string };
+      try {
+        sessionResult = await openAuthSession(authUrl, cfg.redirectUri!);
+      } catch (sessionErr: any) {
+        pendingAuthTransaction = null;
+        throw new DriveSyncError(
+          'OAUTH_SESSION_ERROR',
+          sessionErr?.message || 'Google Drive browser authentication session failed.'
+        );
       }
-      throw new DriveSyncError('OAUTH_AUTHORIZATION_ERROR', errDesc);
+
+      // Consume and clear the single-use PKCE transaction immediately upon return from browser
+      const activeTx = pendingAuthTransaction;
+      pendingAuthTransaction = null;
+
+      if (!sessionResult || sessionResult.type !== 'success' || !sessionResult.url) {
+        throw new DriveSyncError(
+          'OAUTH_CANCELLED',
+          'Google Drive authorization was cancelled or dismissed by the user.'
+        );
+      }
+
+      if (!activeTx || activeTx.consumed) {
+        throw new DriveSyncError('OAUTH_STATE_REPLAYED', 'OAuth authorization state was already consumed.');
+      }
+      activeTx.consumed = true;
+
+      if (nowFn() > activeTx.expiresAtMs) {
+        throw new DriveSyncError(
+          'OAUTH_STATE_EXPIRED',
+          'Google Drive authorization session expired before completion. Please try again.'
+        );
+      }
+
+      let parsedRedirect: URL;
+      try {
+        parsedRedirect = new URL(sessionResult.url);
+      } catch {
+        throw new DriveSyncError('OAUTH_REDIRECT_INVALID', 'Received invalid redirect URL from Google OAuth.');
+      }
+
+      const errorParam = parsedRedirect.searchParams.get('error');
+      if (errorParam) {
+        const errDesc = parsedRedirect.searchParams.get('error_description') || errorParam;
+        if (errorParam === 'access_denied' || errorParam.includes('cancel')) {
+          throw new DriveSyncError('OAUTH_CANCELLED', errDesc);
+        }
+        throw new DriveSyncError('OAUTH_AUTHORIZATION_ERROR', errDesc);
+      }
+
+      const returnedState = parsedRedirect.searchParams.get('state');
+      if (!returnedState || returnedState !== activeTx.state) {
+        throw new DriveSyncError('OAUTH_STATE_MISMATCH', 'OAuth state parameter mismatch.');
+      }
+
+      const authCode = parsedRedirect.searchParams.get('code');
+      if (!authCode || !authCode.trim()) {
+        throw new DriveSyncError('OAUTH_CODE_MISSING', 'Authorization code missing from OAuth redirect.');
+      }
+
+      const tokenParams = new URLSearchParams({
+        client_id: cfg.activeClientId!,
+        code: authCode.trim(),
+        code_verifier: activeTx.codeVerifier,
+        grant_type: 'authorization_code',
+        redirect_uri: cfg.redirectUri!,
+      });
+
+      const tokenRes = await rawDriveFetch(GOOGLE_OAUTH_TOKEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        body: tokenParams.toString(),
+      });
+
+      const tokenJson = await tokenRes.json().catch(() => ({}));
+      if (!tokenRes.ok || !tokenJson.access_token) {
+        throw new DriveSyncError(
+          'OAUTH_TOKEN_EXCHANGE_FAILED',
+          tokenJson.error_description || tokenJson.error || 'Failed to exchange Google OAuth code for token.'
+        );
+      }
+
+      const grantedScope = String(tokenJson.scope || '');
+      if (grantedScope && !grantedScope.includes('drive.file')) {
+        throw new DriveSyncError(
+          'OAUTH_SCOPE_MISSING',
+          'Required Google Drive file permission (drive.file) was not granted.'
+        );
+      }
+
+      const sessionInfo = setAccessTokenForSession({
+        accessToken: tokenJson.access_token,
+        expiresInSeconds: Number(tokenJson.expires_in) || 3600,
+        scope: grantedScope || DRIVE_FILE_SCOPE,
+      });
+
+      if (tokenJson.refresh_token && typeof tokenJson.refresh_token === 'string') {
+        await secureStore
+          .setItemAsync(SECURE_STORE_REFRESH_TOKEN_KEY, tokenJson.refresh_token.trim())
+          .catch(() => {});
+      }
+
+      return {
+        notConfigured: false,
+        status: 'authorized' as const,
+        ...sessionInfo,
+      };
+    })();
+
+    try {
+      return await activeAuthPromise;
+    } finally {
+      activeAuthPromise = null;
     }
-
-    const returnedState = parsedRedirect.searchParams.get('state');
-    if (returnedState !== pkce.state) {
-      throw new DriveSyncError('OAUTH_STATE_MISMATCH', 'OAuth state parameter mismatch.');
-    }
-
-    const authCode = parsedRedirect.searchParams.get('code');
-    if (!authCode || !authCode.trim()) {
-      throw new DriveSyncError('OAUTH_CODE_MISSING', 'Authorization code missing from OAuth redirect.');
-    }
-
-    const tokenParams = new URLSearchParams({
-      client_id: cfg.activeClientId,
-      code: authCode.trim(),
-      code_verifier: pkce.codeVerifier,
-      grant_type: 'authorization_code',
-      redirect_uri: cfg.redirectUri,
-    });
-
-    const tokenRes = await rawDriveFetch(GOOGLE_OAUTH_TOKEN_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        Accept: 'application/json',
-      },
-      body: tokenParams.toString(),
-    });
-
-    const tokenJson = await tokenRes.json().catch(() => ({}));
-    if (!tokenRes.ok || !tokenJson.access_token) {
-      throw new DriveSyncError(
-        'OAUTH_TOKEN_EXCHANGE_FAILED',
-        tokenJson.error_description || tokenJson.error || 'Failed to exchange Google OAuth code for token.'
-      );
-    }
-
-    const grantedScope = String(tokenJson.scope || '');
-    if (grantedScope && !grantedScope.includes('drive.file')) {
-      throw new DriveSyncError(
-        'OAUTH_SCOPE_MISSING',
-        'Required Google Drive file permission (drive.file) was not granted.'
-      );
-    }
-
-    const sessionInfo = setAccessTokenForSession({
-      accessToken: tokenJson.access_token,
-      expiresInSeconds: Number(tokenJson.expires_in) || 3600,
-      scope: grantedScope || DRIVE_FILE_SCOPE,
-    });
-
-    if (tokenJson.refresh_token && typeof tokenJson.refresh_token === 'string') {
-      await secureStore
-        .setItemAsync(SECURE_STORE_REFRESH_TOKEN_KEY, tokenJson.refresh_token.trim())
-        .catch(() => {});
-    }
-
-    return {
-      notConfigured: false,
-      status: 'authorized' as const,
-      ...sessionInfo,
-    };
   }
 
   async function ensureValidAccessTokenOrRefresh(): Promise<boolean> {
@@ -1213,6 +1320,28 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     return disconnectResult;
   }
 
+  function isCompatibleExistingArtifactFile(
+    meta: any,
+    {
+      folderId,
+      artifactType,
+      targetScopeKey,
+    }: { folderId: string; artifactType: BackupArtifactType; targetScopeKey: string }
+  ): boolean {
+    if (!meta || meta.trashed === true) return false;
+    if (Array.isArray(meta.parents) && meta.parents.length > 0 && folderId && !meta.parents.includes(folderId)) {
+      return false;
+    }
+    const props = meta.appProperties || {};
+    if (props.slArtifactType && props.slArtifactType !== artifactType) {
+      return false;
+    }
+    if (props.slScopeKey && props.slScopeKey !== targetScopeKey) {
+      return false;
+    }
+    return true;
+  }
+
   async function findExistingArtifactFile({
     folderId,
     savedDriveFileId = null,
@@ -1229,10 +1358,10 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     if (savedDriveFileId) {
       try {
         const meta = await driveApiRequest(
-          `/files/${encodeURIComponent(savedDriveFileId)}?fields=id,name,mimeType,trashed,sha256Checksum,appProperties`,
+          `/files/${encodeURIComponent(savedDriveFileId)}?fields=id,name,mimeType,trashed,parents,sha256Checksum,appProperties`,
           { method: 'GET' }
         );
-        if (meta && !meta.trashed) {
+        if (isCompatibleExistingArtifactFile(meta, { folderId, artifactType, targetScopeKey })) {
           return meta;
         }
       } catch (err: any) {
@@ -1253,7 +1382,10 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
       { method: 'GET' }
     );
     if (Array.isArray(propRes?.files) && propRes.files.length > 0) {
-      return propRes.files[0];
+      const matched = propRes.files.find((f: any) =>
+        isCompatibleExistingArtifactFile(f, { folderId, artifactType, targetScopeKey })
+      );
+      if (matched) return matched;
     }
 
     if (driveFileName) {
@@ -1268,11 +1400,53 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
         { method: 'GET' }
       );
       if (Array.isArray(nameRes?.files) && nameRes.files.length > 0) {
-        return nameRes.files[0];
+        const matchedByName = nameRes.files.find((f: any) =>
+          isCompatibleExistingArtifactFile(f, { folderId, artifactType, targetScopeKey })
+        );
+        if (matchedByName) return matchedByName;
       }
     }
 
     return null;
+  }
+
+  async function extractWorkbookAggregateMeta(wbBundle: any, fallbackRevisionNo: number) {
+    const sessions = Array.isArray(wbBundle?.sessions) ? wbBundle.sessions : [];
+    const sessionCount = Number(
+      wbBundle?.aggregateSessionCount !== undefined
+        ? wbBundle.aggregateSessionCount
+        : wbBundle?.sessionCount !== undefined
+        ? wbBundle.sessionCount
+        : sessions.length || 1
+    );
+    const revisionSum = Number(
+      wbBundle?.aggregateRevisionSum !== undefined
+        ? wbBundle.aggregateRevisionSum
+        : sessions.length > 0
+        ? sessions.reduce((sum: number, s: any) => sum + Number(s.revisionNo || 1), 0)
+        : fallbackRevisionNo
+    );
+    let stateHash = String(wbBundle?.aggregateStateHash || '').toLowerCase();
+    if (!stateHash && sessions.length > 0) {
+      const canonical = JSON.stringify(
+        [...sessions]
+          .sort((a: any, b: any) => String(a.sessionId).localeCompare(String(b.sessionId)))
+          .map((s: any) => ({
+            sessionId: s.sessionId,
+            revisionNo: Number(s.revisionNo || 1),
+            snapshotSha256: String(s.snapshotSha256 || '').toLowerCase(),
+          }))
+      );
+      stateHash = await computeSha256Hex(canonical);
+    }
+    const aggregateVersion =
+      wbBundle?.aggregateVersion || `${sessionCount}:${revisionSum}:${(stateHash || '').slice(0, 16)}`;
+    return {
+      aggregateSessionCount: sessionCount,
+      aggregateRevisionSum: revisionSum,
+      aggregateStateHash: stateHash,
+      aggregateVersion,
+    };
   }
 
   async function uploadOrReconcileArtifactToDrive({
@@ -1303,6 +1477,12 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     let mimeType: string;
     let contentBytes: Uint8Array;
     let artifactSha256: string;
+    let aggregateMeta: {
+      aggregateSessionCount: number;
+      aggregateRevisionSum: number;
+      aggregateStateHash: string;
+      aggregateVersion: string;
+    } | null = null;
 
     if (artifactType === 'snapshot') {
       folderId = folders.snapshotsFolderId;
@@ -1342,6 +1522,7 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
         );
       }
       artifactSha256 = computedSha;
+      aggregateMeta = await extractWorkbookAggregateMeta(wbBundle, revisionNo);
     } else if (artifactType === 'annual_workbook') {
       folderId = folders.fullFolderId;
       let wbBundle = runBundle.workbooks?.annual?.bundle;
@@ -1362,11 +1543,12 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
         );
       }
       artifactSha256 = computedSha;
+      aggregateMeta = await extractWorkbookAggregateMeta(wbBundle, revisionNo);
     } else {
       throw new DriveSyncError('INVALID_ARTIFACT_TYPE', `Unsupported artifactType "${artifactType}".`);
     }
 
-    const appProperties = {
+    const appProperties: Record<string, string> = {
       slApp: 'semester_library',
       slArtifactType: artifactType,
       slScopeKey: targetScopeKey,
@@ -1374,6 +1556,14 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
       slRevisionNo: String(revisionNo),
       slSnapshotSha256: snapshotSha256,
       slArtifactSha256: artifactSha256,
+      ...(aggregateMeta
+        ? {
+            slAggregateSessionCount: String(aggregateMeta.aggregateSessionCount),
+            slAggregateRevSum: String(aggregateMeta.aggregateRevisionSum),
+            slAggregateStateHash: String(aggregateMeta.aggregateStateHash || ''),
+            slAggregateVersion: String(aggregateMeta.aggregateVersion || ''),
+          }
+        : {}),
     };
 
     const existingFile = await findExistingArtifactFile({
@@ -1403,6 +1593,20 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
           artifactSha256,
           reusedExistingFile: true,
         };
+      }
+
+      if (aggregateMeta) {
+        const existingAggSessionCount = Number(existingProps.slAggregateSessionCount || 0);
+        const existingAggRevSum = Number(existingProps.slAggregateRevSum || 0);
+        if (
+          existingAggSessionCount > aggregateMeta.aggregateSessionCount ||
+          existingAggRevSum > aggregateMeta.aggregateRevisionSum
+        ) {
+          throw new DriveSyncError(
+            'STALE_REVISION_WORKBOOK',
+            `Drive workbook already reflects newer aggregate state (sessions=${existingAggSessionCount}, revSum=${existingAggRevSum} vs candidate sessions=${aggregateMeta.aggregateSessionCount}, revSum=${aggregateMeta.aggregateRevisionSum}).`
+          );
+        }
       }
 
       if (
@@ -1530,6 +1734,12 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
         const folderRes = await ensureFolderHierarchy();
         folders = folderRes.folders;
       } catch (folderErr: any) {
+        if (folderErr?.reconnectRequired) {
+          await callBackendJson('/api/attendance/backup/connection', {
+            method: 'PUT',
+            body: JSON.stringify({ connectionStatus: 'reconnect_required' }),
+          }).catch(() => {});
+        }
         return {
           synced: false,
           status: folderErr?.reconnectRequired ? ('reconnect_required' as const) : ('failed' as const),
@@ -1679,16 +1889,19 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
               reusedExistingFile: uploaded.reusedExistingFile,
             });
           } catch (artErr: any) {
-            const isReconnectRequired = Boolean(artErr?.reconnectRequired);
-            const errCode = artErr?.code || (isReconnectRequired ? 'DRIVE_AUTH_EXPIRED' : 'DRIVE_UPLOAD_FAILED');
+            const errCode = artErr?.code || (artErr?.reconnectRequired ? 'DRIVE_AUTH_EXPIRED' : 'DRIVE_UPLOAD_FAILED');
+            const isReconnectRequired = Boolean(
+              artErr?.reconnectRequired || errCode === 'DRIVE_RECONNECT_REQUIRED'
+            );
             const errMsg = sanitizeClientErrorMessage(artErr?.message);
+            const isServerSupersededOrLeaseConflict =
+              errCode === 'CLAIM_LEASE_EXPIRED' ||
+              errCode === 'STALE_OR_INVALID_CLAIM' ||
+              errCode === 'DRIVE_DISCONNECTED' ||
+              errCode === 'DRIVE_RECONNECT_REQUIRED' ||
+              (errCode === 'STALE_REVISION_WORKBOOK' && Number(artErr?.status) === 409);
 
-            if (
-              errCode !== 'CLAIM_LEASE_EXPIRED' &&
-              errCode !== 'STALE_OR_INVALID_CLAIM' &&
-              errCode !== 'STALE_REVISION_WORKBOOK' &&
-              errCode !== 'DRIVE_DISCONNECTED'
-            ) {
+            if (!isServerSupersededOrLeaseConflict) {
               await callBackendJson(
                 `/api/attendance/backup/runs/${encodeURIComponent(pendingRun.id)}/fail`,
                 {
@@ -1711,6 +1924,10 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
               errorCode: errCode,
               errorMessage: errMsg,
             });
+
+            if (errCode === 'DRIVE_DISCONNECTED') {
+              break;
+            }
 
             if (isReconnectRequired) {
               haltedByAuthExpiry = true;
@@ -1775,6 +1992,7 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     SUBFOLDER_DEFINITIONS,
     resolveOAuthConfig,
     getStatus,
+    listPendingWork,
     hasValidAccessToken,
     setAccessTokenForSession,
     clearTokens,
@@ -1782,6 +2000,242 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     ensureFolderHierarchy,
     connectGoogleDrive,
     disconnectGoogleDrive,
+    findExistingArtifactFile,
+    uploadOrReconcileArtifactToDrive,
     syncPendingWork,
+  };
+}
+
+export interface DriveBackupUiModelInput {
+  statusData: any | null;
+  pendingRuns?: any[];
+  isLoadingStatus?: boolean;
+  isConnecting?: boolean;
+  isSyncing?: boolean;
+  isDisconnecting?: boolean;
+  noticeMessage?: string | null;
+  errorMessage?: string | null;
+  reconnectRequiredFlag?: boolean;
+}
+
+export function formatDriveBackupTimestamp(isoStr: string | null | undefined): string | null {
+  if (!isoStr) return null;
+  const d = new Date(isoStr);
+  if (!Number.isFinite(d.getTime())) return String(isoStr);
+  return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+}
+
+/**
+ * Derives the presentation state for the Mobile Teacher Google Drive Attendance Backup Card
+ * strictly from authoritative server status, pending runs, and active operation flags.
+ */
+export function deriveDriveBackupUiModel({
+  statusData,
+  pendingRuns = [],
+  isLoadingStatus = false,
+  isConnecting = false,
+  isSyncing = false,
+  isDisconnecting = false,
+  noticeMessage = null,
+  errorMessage = null,
+  reconnectRequiredFlag = false,
+}: DriveBackupUiModelInput) {
+  if (statusData && statusData.canManageConnection === false) {
+    return {
+      visible: false,
+      uiState: 'hidden' as const,
+      badgeLabel: '',
+      badgeVariant: 'neutral' as const,
+      descriptionText: '',
+      isBusy: false,
+      canConnect: false,
+      canSync: false,
+      canRetry: false,
+      canReconnect: false,
+      canDisconnect: false,
+      googleEmail: null,
+      lastSyncedLabel: null,
+      actionableCount: 0,
+      backedUpCount: 0,
+      failedCount: 0,
+      inProgressCount: 0,
+      effectiveErrorMessage: null,
+      effectiveNoticeMessage: null,
+      attentionRuns: [],
+    };
+  }
+
+  const isBusy = Boolean(isConnecting || isSyncing || isDisconnecting);
+
+  if (!statusData && isLoadingStatus) {
+    return {
+      visible: true,
+      uiState: 'loading' as const,
+      badgeLabel: 'LOADING',
+      badgeVariant: 'neutral' as const,
+      descriptionText: 'Checking your Google Drive backup configuration and pending queue…',
+      isBusy: true,
+      canConnect: false,
+      canSync: false,
+      canRetry: false,
+      canReconnect: false,
+      canDisconnect: false,
+      googleEmail: null,
+      lastSyncedLabel: null,
+      actionableCount: 0,
+      backedUpCount: 0,
+      failedCount: 0,
+      inProgressCount: 0,
+      effectiveErrorMessage: null,
+      effectiveNoticeMessage: null,
+      attentionRuns: [],
+    };
+  }
+
+  const oauth = statusData?.oauth || { configured: false, status: 'not_configured' };
+  const connection = statusData?.connection || {
+    connected: false,
+    connectionStatus: oauth.configured ? 'disconnected' : 'not_configured',
+    googleEmail: null,
+    lastSyncedAt: null,
+    lastErrorCode: null,
+    lastErrorMessage: null,
+  };
+  const summary = statusData?.summary || {
+    totalRuns: 0,
+    pendingRuns: 0,
+    inProgressRuns: 0,
+    failedRuns: 0,
+    reconnectRequiredRuns: 0,
+    backedUpRuns: 0,
+    actionableRuns: 0,
+  };
+
+  const safePendingRuns = Array.isArray(pendingRuns) ? pendingRuns : [];
+  const actionableCount =
+    summary.actionableRuns !== undefined
+      ? Number(summary.actionableRuns)
+      : Number(summary.pendingRuns || 0) + Number(summary.failedRuns || 0) + Number(summary.reconnectRequiredRuns || 0);
+  const failedCount = Number(summary.failedRuns || 0);
+  const backedUpCount = Number(summary.backedUpRuns || 0);
+  const inProgressCount = Number(summary.inProgressRuns || 0);
+
+  const isNotConfigured = !oauth.configured || connection.connectionStatus === 'not_configured';
+  const isReconnectRequired =
+    !isNotConfigured &&
+    (connection.connectionStatus === 'reconnect_required' ||
+      Number(summary.reconnectRequiredRuns || 0) > 0 ||
+      Boolean(reconnectRequiredFlag));
+  const isConnected = !isNotConfigured && !isReconnectRequired && connection.connectionStatus === 'connected';
+
+  let uiState:
+    | 'connecting'
+    | 'syncing'
+    | 'disconnecting'
+    | 'not_configured'
+    | 'reconnect_required'
+    | 'attention_needed'
+    | 'connected'
+    | 'not_connected' = 'not_connected';
+  let badgeLabel = 'NOT CONNECTED';
+  let badgeVariant: 'neutral' | 'official' | 'warning' | 'error' = 'neutral';
+  let descriptionText = '';
+
+  if (isConnecting) {
+    uiState = 'connecting';
+    badgeLabel = 'CONNECTING…';
+    badgeVariant = 'official';
+    descriptionText = 'Authorizing your Google Drive account and verifying attendance backup folders…';
+  } else if (isSyncing) {
+    uiState = 'syncing';
+    badgeLabel = 'SYNCING…';
+    badgeVariant = 'official';
+    descriptionText = 'Uploading pending attendance snapshots and Excel (.xlsx) workbooks to your Google Drive…';
+  } else if (isDisconnecting) {
+    uiState = 'disconnecting';
+    badgeLabel = 'DISCONNECTING…';
+    badgeVariant = 'neutral';
+    descriptionText = 'Disconnecting your Google Drive account and releasing active sync leases…';
+  } else if (isNotConfigured) {
+    uiState = 'not_configured';
+    badgeLabel = 'NOT CONFIGURED';
+    badgeVariant = 'neutral';
+    descriptionText =
+      'Google Drive backup has not been configured for this platform yet. Classroom attendance taking, editing, and history continue normally.';
+  } else if (isReconnectRequired) {
+    uiState = 'reconnect_required';
+    badgeLabel = 'RECONNECT REQUIRED';
+    badgeVariant = 'error';
+    descriptionText =
+      'Your Google Drive authorization has expired or been revoked. Reconnect Google Drive to resume syncing pending backups. Completed files are preserved.';
+  } else if (isConnected) {
+    if (failedCount > 0) {
+      uiState = 'attention_needed';
+      badgeLabel = 'SYNC ATTENTION';
+      badgeVariant = 'warning';
+      descriptionText =
+        'One or more backup artifacts failed to upload. Already completed files are preserved; tap Retry Sync to finish remaining items.';
+    } else {
+      uiState = 'connected';
+      badgeLabel = 'CONNECTED';
+      badgeVariant = 'official';
+      descriptionText =
+        actionableCount === 0 && safePendingRuns.length === 0
+          ? 'Everything is up to date. Immutable JSON snapshots and Excel (.xlsx) workbooks are synced to your Google Drive.'
+          : `${actionableCount || safePendingRuns.length} attendance backup revision${(actionableCount || safePendingRuns.length) === 1 ? ' is' : 's are'} ready to sync to your Google Drive.`;
+    }
+  } else {
+    uiState = 'not_connected';
+    badgeLabel = 'NOT CONNECTED';
+    badgeVariant = 'neutral';
+    descriptionText =
+      'Connect your personal Google Drive to back up immutable JSON attendance snapshots and daily/annual Excel (.xlsx) workbooks under your own account.';
+  }
+
+  const lastSyncedFormatted = formatDriveBackupTimestamp(connection.lastSyncedAt);
+  const serverErrText =
+    !errorMessage && (oauth.configError || connection.lastErrorMessage)
+      ? sanitizeClientErrorMessage(oauth.configError || connection.lastErrorMessage)
+      : null;
+  const effectiveErrorMessage = errorMessage ? sanitizeClientErrorMessage(errorMessage) : serverErrText;
+  const effectiveNoticeMessage = !effectiveErrorMessage && noticeMessage ? String(noticeMessage) : null;
+
+  const attentionRuns = safePendingRuns.slice(0, 5).map((run: any) => ({
+    id: run.id,
+    sessionId: run.sessionId,
+    subjectCode: run.subjectCode || run.subjectId || 'Subject',
+    cohortName: run.cohortName || null,
+    sessionDate: run.sessionDate || '',
+    revisionNo: Number(run.revisionNo || 1),
+    snapshotStatus: run.snapshotStatus || 'pending',
+    dailyWorkbookStatus: run.dailyWorkbookStatus || 'pending',
+    annualWorkbookStatus: run.annualWorkbookStatus || 'pending',
+    lastErrorMessage: run.lastErrorMessage ? sanitizeClientErrorMessage(run.lastErrorMessage) : null,
+  }));
+
+  return {
+    visible: true,
+    uiState,
+    badgeLabel,
+    badgeVariant,
+    descriptionText,
+    isBusy,
+    isNotConfigured,
+    isReconnectRequired,
+    isConnected,
+    canConnect: !isBusy && !isNotConfigured && uiState === 'not_connected',
+    canSync: !isBusy && isConnected && failedCount === 0,
+    canRetry: !isBusy && isConnected && failedCount > 0,
+    canReconnect: !isBusy && isReconnectRequired,
+    canDisconnect: !isBusy && (isConnected || isReconnectRequired),
+    googleEmail: connection.googleEmail || null,
+    lastSyncedLabel: lastSyncedFormatted || (isConnected || isReconnectRequired ? 'Not synced yet' : null),
+    actionableCount,
+    backedUpCount,
+    failedCount,
+    inProgressCount,
+    effectiveErrorMessage,
+    effectiveNoticeMessage,
+    attentionRuns,
   };
 }

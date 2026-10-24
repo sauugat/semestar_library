@@ -167,6 +167,116 @@
     updateToggleButtons(isDark);
   }
 
+  function initHeaderNavAnimation() {
+    const nav = document.querySelector('.dash-header-nav');
+    if (!nav || nav._slAnimBound) return;
+    nav._slAnimBound = true;
+
+    const items = Array.from(nav.querySelectorAll('.header-nav-item'));
+    if (!items.length) return;
+
+    const activeItem = nav.querySelector('.header-nav-item.active');
+    let slider = nav.querySelector('.dash-nav-slider');
+    if (!slider) {
+      slider = document.createElement('span');
+      slider.className = 'dash-nav-slider';
+      slider.setAttribute('aria-hidden', 'true');
+      nav.appendChild(slider);
+    }
+
+    function setSliderToElement(el, animate) {
+      if (!el || !slider) return;
+      const navRect = nav.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const left = elRect.left - navRect.left;
+      const width = elRect.width;
+      if (!animate) {
+        slider.style.transition = 'none';
+      } else {
+        slider.style.transition =
+          'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), width 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease';
+      }
+      slider.style.width = `${width}px`;
+      slider.style.transform = `translate3d(${left}px, 0, 0)`;
+      slider.style.opacity = '1';
+      if (!animate) {
+        void slider.offsetWidth;
+        slider.style.transition = '';
+      }
+    }
+
+    nav.classList.add('has-js-slider');
+
+    let prevData = null;
+    try {
+      const raw = sessionStorage.getItem('sl_nav_prev_rect');
+      if (raw) {
+        prevData = JSON.parse(raw);
+        sessionStorage.removeItem('sl_nav_prev_rect');
+      }
+    } catch (e) {}
+
+    if (activeItem) {
+      if (prevData && typeof prevData.left === 'number' && typeof prevData.width === 'number' && Date.now() - (prevData.ts || 0) < 4000) {
+        if (document.body) {
+          document.body.classList.add('sl-nav-transitioning');
+        }
+        slider.style.transition = 'none';
+        slider.style.width = `${prevData.width}px`;
+        slider.style.transform = `translate3d(${prevData.left}px, 0, 0)`;
+        slider.style.opacity = '1';
+        void slider.offsetWidth;
+        requestAnimationFrame(() => {
+          setSliderToElement(activeItem, true);
+        });
+      } else {
+        setSliderToElement(activeItem, false);
+      }
+    } else {
+      slider.style.opacity = '0';
+    }
+
+    items.forEach((item) => {
+      item.addEventListener('mouseenter', () => {
+        setSliderToElement(item, true);
+      });
+      item.addEventListener('click', () => {
+        const navRect = nav.getBoundingClientRect();
+        const currentEl = activeItem || item;
+        const curRect = currentEl.getBoundingClientRect();
+        try {
+          sessionStorage.setItem(
+            'sl_nav_prev_rect',
+            JSON.stringify({
+              left: curRect.left - navRect.left,
+              width: curRect.width,
+              ts: Date.now()
+            })
+          );
+        } catch (e) {}
+        items.forEach((el) => el.classList.remove('active'));
+        item.classList.add('active');
+        setSliderToElement(item, true);
+      });
+    });
+
+    nav.addEventListener('mouseleave', () => {
+      const currentActive = nav.querySelector('.header-nav-item.active');
+      if (currentActive) {
+        setSliderToElement(currentActive, true);
+      } else if (slider) {
+        slider.style.opacity = '0';
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      const currentActive = nav.querySelector('.header-nav-item.active');
+      if (currentActive) {
+        setSliderToElement(currentActive, false);
+      }
+    });
+  }
+
   // Initial immediate application
   const activeTheme = resolveTheme();
   applyTheme(activeTheme);
@@ -176,10 +286,12 @@
     document.addEventListener('DOMContentLoaded', () => {
       applyTheme(resolveTheme());
       mountToggleButtons();
+      initHeaderNavAnimation();
     });
   } else {
     applyTheme(resolveTheme());
     mountToggleButtons();
+    initHeaderNavAnimation();
   }
 
   // Listen to OS system preference changes (only if user hasn't explicitly set localStorage)

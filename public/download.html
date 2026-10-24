@@ -25,13 +25,23 @@
   <meta name="theme-color" content="#0b0c0e">
   <meta name="color-scheme" content="dark">
 
+  <script src="/theme.js"></script>
   <!-- Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.v4.css">
   <link rel="stylesheet" href="/home.css?v=9">
   <link rel="stylesheet" href="/home-motion.css?v=9">
+  <link rel="stylesheet" href="/theme-overrides.css">
   <script src="/auth.js?v=3"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.SemesterAuth && typeof window.SemesterAuth.initHeader === 'function') {
+        window.SemesterAuth.initHeader();
+      }
+    });
+  </script>
 
   <style>
     :root {
@@ -572,7 +582,7 @@
   </style>
 </head>
 
-<body class="home-page">
+<body class="home-page dash">
   <a class="home-skip" href="#main">Skip to content</a>
 
   <!-- SVG Defs -->
@@ -589,15 +599,31 @@
     </defs>
   </svg>
 
-  <!-- Sticky Homepage Navigation -->
-  <header class="home-header">
-    <div class="home-wrap home-header-inner">
-      <a href="/" class="home-brand" aria-label="Semester Library home">
-        <span>Semester Library</span>
+  <header class="dash-header">
+    <a href="/dashboard.html" class="lib-wordmark">Semester Library</a>
+
+    <nav class="dash-header-nav">
+      <a href="/dashboard.html" class="header-nav-item">Feed</a>
+      <a href="/library.html" class="header-nav-item">Library</a>
+      <a href="/code-lab/subjects.html" class="header-nav-item">Assignments</a>
+      <a href="/routine.html" class="header-nav-item">Routine</a>
+      <a href="/attendance.html" class="header-nav-item">Attendance</a>
+      <a href="/chat.html" class="header-nav-item">Chat</a>
+      <a href="/chatbot.html" class="header-nav-item">Kyana AI</a>
+      <a href="/download.html" class="header-nav-item active">App</a>
+    </nav>
+
+    <div class="dash-header-actions">
+      <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-toggle-track">
+          <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </span>
+      </button>
+      <a href="/profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
       </a>
-      <div class="home-header-actions">
-        <a href="https://expo.dev/artifacts/eas/YbEkcxnJpoBqhhRvx629v8FchO1U2zYHqWgaO61sYtE.apk" class="home-signin">Download APK</a>
-      </div>
     </div>
   </header>
 

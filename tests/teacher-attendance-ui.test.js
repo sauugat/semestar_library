@@ -1,4 +1,3 @@
-'use strict';
 
 const os = require('os');
 const path = require('path');
@@ -57,9 +56,9 @@ async function appFetch(urlOrPath, options = {}) {
     bodyBuf = Buffer.isBuffer(options.body)
       ? options.body
       : Buffer.from(
-          typeof options.body === 'string' ? options.body : JSON.stringify(options.body),
-          'utf8'
-        );
+        typeof options.body === 'string' ? options.body : JSON.stringify(options.body),
+        'utf8'
+      );
     if (!headers['content-length']) {
       headers['content-length'] = String(bodyBuf.length);
     }
@@ -68,7 +67,7 @@ async function appFetch(urlOrPath, options = {}) {
   return new Promise((resolve, reject) => {
     const reqSocket = new PassThrough();
     reqSocket.remoteAddress = '127.0.0.1';
-    reqSocket.destroy = () => {};
+    reqSocket.destroy = () => { };
 
     const req = new http.IncomingMessage(reqSocket);
     req.method = method;
@@ -156,7 +155,7 @@ test.before(async () => {
       server.unref?.();
       server.once('error', () => finish(true));
       const timer = setTimeout(() => {
-        try { server.close(); } catch (_) {}
+        try { server.close(); } catch (_) { }
         finish(true);
       }, 250);
       server.listen(0, '127.0.0.1', () => {
@@ -228,12 +227,12 @@ test.after(async () => {
   if (server && server.listening) {
     await new Promise(resolve => server.close(resolve));
   }
-  await db.close().catch(() => {});
+  await db.close().catch(() => { });
   try {
     if (fs.existsSync(testDbPath)) {
       fs.unlinkSync(testDbPath);
     }
-  } catch (_) {}
+  } catch (_) { }
 });
 
 test('Step 3 Verification 1: Web Teacher Attendance module & Teacher Dashboard entry points exist and consume exact Step 2 API paths', () => {
@@ -327,7 +326,7 @@ test('Step 3 Verification 3: Interactive Web Teacher Attendance state machine (M
       addEventListener(evt, fn) {
         this.listeners[evt] = fn;
       },
-      appendChild() {},
+      appendChild() { },
       querySelector() {
         return null;
       },
@@ -348,9 +347,9 @@ test('Step 3 Verification 3: Interactive Web Teacher Attendance state machine (M
     URLSearchParams,
     confirm: () => true,
     setInterval: () => 1,
-    clearInterval: () => {},
+    clearInterval: () => { },
     document: {
-      head: { appendChild() {} },
+      head: { appendChild() { } },
       getElementById(id) {
         return elementsById.get(id) || null;
       },
@@ -725,7 +724,7 @@ test('Phase 3B Verification: Teacher Web Google Drive Attendance Backup Card sta
     addEventListener(evt, fn) {
       this.listeners[evt] = fn;
     },
-    appendChild() {},
+    appendChild() { },
     querySelector() {
       return null;
     },
@@ -770,10 +769,10 @@ test('Phase 3B Verification: Teacher Web Google Drive Attendance Backup Card sta
     URLSearchParams,
     confirm: () => confirmResult,
     setInterval: () => 1,
-    clearInterval: () => {},
+    clearInterval: () => { },
     google: { accounts: { oauth2: mockGisOAuth2 } },
     document: {
-      head: { appendChild() {} },
+      head: { appendChild() { } },
       getElementById(id) {
         return elementsById.get(id) || null;
       },

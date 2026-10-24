@@ -2970,6 +2970,7 @@
       <a href="library.html" class="header-nav-item active">Library</a>
       <a href="/code-lab/subjects.html" class="header-nav-item">Assignments</a>
       <a href="routine.html" class="header-nav-item">Routine</a>
+      <a href="attendance.html" class="header-nav-item">Attendance</a>
       <a href="chat.html" class="header-nav-item">Chat</a>
       <a href="chatbot.html" class="header-nav-item">Kyana AI</a>
       <a href="download.html" class="header-nav-item">App</a>
@@ -3012,6 +3013,20 @@
           </svg>
           <span>Upload Notes</span>
         </button>
+        <a href="/attendance.html" class="upload-cta-btn" id="studentAttendanceBtn" style="display:none; text-decoration:none;" title="View My Attendance Summary">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </svg>
+          <span>My Attendance</span>
+        </a>
+        <a href="/teacher-dashboard.html?view=attendance" class="upload-cta-btn" id="teacherAttendanceBtn" style="display:none; text-decoration:none;" title="Open Teacher Attendance Workspace">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
+            <path d="M9 11l3 3L22 4" />
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+          </svg>
+          <span>Attendance</span>
+        </a>
       </div>
     </div>
 
@@ -3728,17 +3743,25 @@
           window.AcademicContext.renderBadge('#academicContextBadge');
         }
 
+        const teacherAttBtn = document.getElementById('teacherAttendanceBtn');
+        const studentAttBtn = document.getElementById('studentAttendanceBtn');
         // Student experience: strictly hide upload notes button, set active semester to their semester
         if (academicCtx.isStudent) {
           if (uploadBtn) uploadBtn.style.display = 'none';
+          if (teacherAttBtn) teacherAttBtn.style.display = 'none';
+          if (studentAttBtn) studentAttBtn.style.display = 'inline-flex';
           if (academicCtx.semesterRoman) {
             ACTIVE_SEM = academicCtx.semesterRoman;
           }
         } else if (academicCtx.role === 'teacher') {
           if (uploadBtn) uploadBtn.style.display = 'none';
+          if (teacherAttBtn) teacherAttBtn.style.display = 'inline-flex';
+          if (studentAttBtn) studentAttBtn.style.display = 'none';
           ACTIVE_SEM = 'ALL';
         } else if (academicCtx.role === 'admin') {
           if (uploadBtn) uploadBtn.style.display = 'inline-flex';
+          if (teacherAttBtn) teacherAttBtn.style.display = 'none';
+          if (studentAttBtn) studentAttBtn.style.display = 'none';
         }
 
         syncCustomCourses();

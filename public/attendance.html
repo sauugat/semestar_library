@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <script src="/theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Attendance — Semester Library</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.jpg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semester Library">
+  <meta name="theme-color" content="#ffffff">
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        if (t === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <script src="/auth.js?v=3"></script>
+  <script>
+    SemesterAuth.protectPage();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.v4.css">
+  <link rel="stylesheet" href="chatbot.css">
+  <link rel="stylesheet" href="auth-modal.css">
+  <link rel="stylesheet" href="/theme-overrides.css">
+  <script src="/academic-context.js"></script>
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: rgba(0, 0, 0, 0.13);
+      --text: #111827;
+      --text-muted: #4b5563;
+    }
+
+    [data-theme="dark"],
+    body.dark-mode {
+      --bg: var(--bg-base, #0a0a0a);
+      --surface: var(--bg-surface-raised, #18181b);
+      --border: #2e2e32;
+      --text: var(--text-primary, #f5f5f5);
+      --text-muted: var(--text-secondary, #a1a1aa);
+    }
+
+    body.dash {
+      background: var(--bg);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .att-page-wrap {
+      width: 100%;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 32px 5vw 96px;
+      box-sizing: border-box;
+    }
+
+    .att-page-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .att-page-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body class="dash">
+
+  <header class="dash-header">
+    <a href="dashboard.html" class="lib-wordmark">Semester Library</a>
+
+    <nav class="dash-header-nav">
+      <a href="dashboard.html" class="header-nav-item">Feed</a>
+      <a href="library.html" class="header-nav-item">Library</a>
+      <a href="/code-lab/subjects.html" class="header-nav-item">Assignments</a>
+      <a href="routine.html" class="header-nav-item">Routine</a>
+      <a href="attendance.html" class="header-nav-item active">Attendance</a>
+      <a href="chat.html" class="header-nav-item">Chat</a>
+      <a href="chatbot.html" class="header-nav-item">Kyana AI</a>
+      <a href="download.html" class="header-nav-item">App</a>
+    </nav>
+
+    <div class="dash-header-actions">
+      <button type="button" class="theme-toggle-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+        <span class="theme-toggle-track">
+          <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </span>
+      </button>
+      <a href="profile.html" class="dash-profile-chip" title="View Profile">
+        <div class="dash-profile-avatar" id="headerAvatar">·</div>
+        <span class="dash-profile-label" id="headerProfileName">Profile</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="att-page-wrap">
+    <div class="att-page-head">
+      <div>
+        <h1 class="att-page-title">My Attendance</h1>
+        <p style="margin:4px 0 0; font-size:0.9rem; color:var(--text-muted);">
+          Track your semester attendance percentage, subject-wise session counts, and eligibility status.
+        </p>
+      </div>
+    </div>
+
+    <div id="studentAttendanceMount"></div>
+  </main>
+
+  <script src="/js/student-attendance.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const user = await SemesterAuth.getUser();
+        if (!user) {
+          window.location.replace('/login.html');
+          return;
+        }
+        SemesterAuth.initHeader(user);
+        const role = String(user.role || 'student').trim().toLowerCase();
+
+        // Direct-route role protection:
+        // Teachers are redirected to their Teacher Attendance Workspace.
+        // Admins see a styled staff redirect card rather than attempting a student-only query.
+        if (role === 'teacher' || role === 'faculty') {
+          window.location.replace('/teacher-dashboard.html?view=attendance');
+          return;
+        }
+
+        if (role === 'admin') {
+          if (window.StudentAttendanceDashboard && typeof window.StudentAttendanceDashboard.injectStyles === 'function') {
+            window.StudentAttendanceDashboard.injectStyles();
+          }
+          const mountEl = document.getElementById('studentAttendanceMount');
+          if (mountEl) {
+            mountEl.innerHTML = `
+              <div class="stu-att-root">
+                <div class="stu-att-card" style="text-align:center; padding:40px 24px;">
+                  <div style="font-size:1.12rem; font-weight:800; margin-bottom:8px;">Administrator Account Detected</div>
+                  <div style="font-size:0.88rem; color:var(--text-muted); max-width:500px; margin:0 auto 18px; line-height:1.5;">
+                    This page displays personal attendance summaries for enrolled student and CR accounts. Use the Faculty Attendance Workspace or Admin Dashboard to manage class attendance.
+                  </div>
+                  <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
+                    <a href="/teacher-dashboard.html?view=attendance" class="stu-att-btn">Open Attendance Workspace</a>
+                    <a href="/admin-dashboard.html" class="stu-att-btn">Admin Dashboard</a>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+          return;
+        }
+
+        if (window.StudentAttendanceDashboard) {
+          await window.StudentAttendanceDashboard.mount('#studentAttendanceMount');
+        }
+      } catch (err) {
+        window.location.replace('/login.html');
+      }
+    });
+  </script>
+</body>
+
+</html>

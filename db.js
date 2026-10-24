@@ -139,7 +139,60 @@ const camelMap = {
   audience_scope: 'audienceScope', audiencescope: 'audienceScope',
   started_at: 'startedAt', startedat: 'startedAt',
   ended_at: 'endedAt', endedat: 'endedAt',
-  promoted_by: 'promotedBy', promotedby: 'promotedBy'
+  promoted_by: 'promotedBy', promotedby: 'promotedBy',
+  subject_id: 'subjectId', subjectid: 'subjectId',
+  teacher_id: 'teacherId', teacherid: 'teacherId',
+  recorded_by_user_id: 'recordedByUserId', recordedbyuserid: 'recordedByUserId',
+  session_date: 'sessionDate', sessiondate: 'sessionDate',
+  submitted_at: 'submittedAt',
+  session_id: 'sessionId', sessionid: 'sessionId',
+  student_id: 'studentId',
+  marked_by: 'markedBy', markedby: 'markedBy',
+  actor_user_id: 'actorUserId', actoruserid: 'actorUserId',
+  actor_role: 'actorRole', actorrole: 'actorRole',
+  setting_key: 'settingKey', settingkey: 'settingKey',
+  setting_value: 'settingValue', settingvalue: 'settingValue',
+  updated_by: 'updatedBy', updatedby: 'updatedBy',
+  latest_revision_no: 'latestRevisionNo', latestrevisionno: 'latestRevisionNo',
+  revision_no: 'revisionNo', revisionno: 'revisionNo',
+  audit_log_id: 'auditLogId', auditlogid: 'auditLogId',
+  previous_snapshot_sha256: 'previousSnapshotSha256', previoussnapshotsha256: 'previousSnapshotSha256',
+  snapshot_sha256: 'snapshotSha256', snapshotsha256: 'snapshotSha256',
+  snapshot_payload: 'snapshotPayload', snapshotpayload: 'snapshotPayload',
+  backup_status: 'backupStatus', backupstatus: 'backupStatus',
+  snapshot_status: 'snapshotStatus', snapshotstatus: 'snapshotStatus',
+  daily_workbook_status: 'dailyWorkbookStatus', dailyworkbookstatus: 'dailyWorkbookStatus',
+  annual_workbook_status: 'annualWorkbookStatus', annualworkbookstatus: 'annualWorkbookStatus',
+  snapshot_drive_file_id: 'snapshotDriveFileId', snapshotdrivefileid: 'snapshotDriveFileId',
+  daily_drive_file_id: 'dailyDriveFileId', dailydrivefileid: 'dailyDriveFileId',
+  annual_drive_file_id: 'annualDriveFileId', annualdrivefileid: 'annualDriveFileId',
+  attempt_count: 'attemptCount', attemptcount: 'attemptCount',
+  last_error_code: 'lastErrorCode', lasterrorcode: 'lastErrorCode',
+  last_error_message: 'lastErrorMessage', lasterrormessage: 'lastErrorMessage',
+  claimed_by_client_id: 'claimedByClientId', claimedbyclientid: 'claimedByClientId',
+  lease_expires_at: 'leaseExpiresAt', leaseexpiresat: 'leaseExpiresAt',
+  last_attempt_at: 'lastAttemptAt', lastattemptat: 'lastAttemptAt',
+  next_retry_at: 'nextRetryAt', nextretryat: 'nextRetryAt',
+  backed_up_at: 'backedUpAt', backedupat: 'backedUpAt',
+  google_email: 'googleEmail', googleemail: 'googleEmail',
+  root_folder_id: 'rootFolderId', rootfolderid: 'rootFolderId',
+  root_folder_name: 'rootFolderName', rootfoldername: 'rootFolderName',
+  daily_folder_id: 'dailyFolderId', dailyfolderid: 'dailyFolderId',
+  full_folder_id: 'fullFolderId', fullfolderid: 'fullFolderId',
+  snapshots_folder_id: 'snapshotsFolderId', snapshotsfolderid: 'snapshotsFolderId',
+  connection_status: 'connectionStatus', connectionstatus: 'connectionStatus',
+  last_synced_at: 'lastSyncedAt', lastsyncedat: 'lastSyncedAt',
+  run_id: 'runId', runid: 'runId',
+  artifact_type: 'artifactType', artifacttype: 'artifactType',
+  target_scope_key: 'targetScopeKey', targetscopekey: 'targetScopeKey',
+  artifact_sha256: 'artifactSha256', artifactsha256: 'artifactSha256',
+  drive_file_id: 'driveFileId', drivefileid: 'driveFileId',
+  drive_file_name: 'driveFileName', drivefilename: 'driveFileName',
+  mime_type: 'mimeType',
+  max_attempts: 'maxAttempts', maxattempts: 'maxAttempts',
+  claim_token: 'claimToken', claimtoken: 'claimToken',
+  claimed_at: 'claimedAt', claimedat: 'claimedAt',
+  completed_at: 'completedAt', completedat: 'completedAt'
 };
 
 function formatRow(row) {
@@ -209,7 +262,7 @@ async function run(sql, ...params) {
     const hasReturning = /RETURNING/i.test(sql);
 
     if (isInsert && !hasReturning) {
-      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_submissions', 'mobile_tokens', 'login_attempts', 'student_device_tokens', 'student_notification_preferences', 'push_receipt_tickets', 'cohort_audit_logs', 'admin_audit_logs', 'dm_participants', 'dm_blocks', 'dm_message_deletions', 'dm_rate_limits'];
+      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_submissions', 'mobile_tokens', 'login_attempts', 'student_device_tokens', 'student_notification_preferences', 'push_receipt_tickets', 'cohort_audit_logs', 'admin_audit_logs', 'dm_participants', 'dm_blocks', 'dm_message_deletions', 'dm_rate_limits', 'attendance_settings', 'teacher_drive_connections'];
       const isNoIdTable = noIdTables.some(tbl => new RegExp(`INSERT\\s+INTO\\s+${tbl}\\b`, 'i').test(sql));
       if (!isNoIdTable) {
         pgSql += ' RETURNING id';
@@ -1157,6 +1210,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       await require('./lib/academic-context').ensureAcademicCohortSchema({ exec, run, all, isPostgres });
       await require('./lib/games-invitations').ensureGameInvitationsSchema({ exec, isPostgres });
       await require('./lib/teacher-service').ensureTeacherSchema({ exec, isPostgres });
+      await require('./lib/attendance-service').ensureAttendanceSchema({ exec, isPostgres });
 
     } catch (err) {
       console.error('[DB Engine]: Schema initialization error:', err);

@@ -448,6 +448,24 @@ function StudentLibraryView() {
           <Ionicons name="search-outline" size={18} color={colors.textSecondary} />
         </TouchableOpacity>
 
+        {!isStaff && (
+          <TouchableOpacity
+            onPress={() => router.push('/attendance' as any)}
+            style={[
+              styles.headerActionBtn,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="View my attendance"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="checkbox-outline" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+
         {isStaff && (
           <TouchableOpacity
             onPress={() => setUploadModalOpen(true)}

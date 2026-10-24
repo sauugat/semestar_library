@@ -317,18 +317,33 @@ export function TeacherMaterialsView() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={() => handleOpenUpload()}
-          style={[styles.uploadButton, { backgroundColor: colors.text, borderColor: colors.border }]}
-          accessibilityRole="button"
-          accessibilityLabel="Upload note"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="cloud-upload-outline" size={16} color={colors.background} style={{ marginRight: 6 }} />
-          <Text variant="xs" weight="700" style={{ color: colors.background }}>
-            Upload
-          </Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => router.push('/attendance' as any)}
+            style={[styles.uploadButton, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}
+            accessibilityRole="button"
+            accessibilityLabel="Open classroom attendance"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="checkbox-outline" size={16} color={colors.text} style={{ marginRight: 5 }} />
+            <Text variant="xs" weight="700" style={{ color: colors.text }}>
+              Attendance
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => handleOpenUpload()}
+            style={[styles.uploadButton, { backgroundColor: colors.text, borderColor: colors.border }]}
+            accessibilityRole="button"
+            accessibilityLabel="Upload note"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="cloud-upload-outline" size={16} color={colors.background} style={{ marginRight: 6 }} />
+            <Text variant="xs" weight="700" style={{ color: colors.background }}>
+              Upload
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 2. Top Segmented Tab Switcher */}
@@ -603,7 +618,27 @@ export function TeacherMaterialsView() {
 
                   <View style={[styles.cardDivider, { backgroundColor: colors.borderSubtle }]} />
 
-                  <View style={styles.cardActionsRow}>
+                  <View style={[styles.cardActionsRow, { flexWrap: 'wrap' }]}>
+                    <TouchableOpacity
+                      style={[styles.cardActionBtn, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border, borderWidth: 1 }]}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/attendance',
+                          params: {
+                            subjectId: String(subject.id || subject.code),
+                            subjectCode: subject.code || '',
+                          },
+                        } as any)
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={`Take attendance for ${subTitle}`}
+                    >
+                      <Ionicons name="checkbox-outline" size={14} color={colors.text} style={{ marginRight: 5 }} />
+                      <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                        Attendance
+                      </Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                       style={[styles.cardActionBtn, { backgroundColor: colors.surfaceSubtle }]}
                       onPress={() => {

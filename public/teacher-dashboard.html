@@ -38,9 +38,12 @@
 
   <script src="/auth.js?v=3"></script>
   <script>
-    if (!new URLSearchParams(window.location.search).get('legacy')) {
-      window.location.replace('/dashboard.html');
-    }
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      if (!params.get('legacy') && !params.get('view') && !params.get('subject')) {
+        window.location.replace('/dashboard.html');
+      }
+    })();
     SemesterAuth.protectPage();
   </script>
   <script src="/markdown.js"></script>
@@ -910,6 +913,13 @@
         </svg>
         My Materials
       </button>
+      <button type="button" class="teach-tab-btn" id="tabAttendanceBtn" onclick="switchView('attendance')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4"></path>
+          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+        </svg>
+        Attendance
+      </button>
     </div>
 
     <!-- Header Actions -->
@@ -1095,6 +1105,23 @@
 
     </section>
 
+    <!-- VIEW 3: CLASSROOM ATTENDANCE WORKSPACE -->
+    <section class="teach-view" id="viewAttendance">
+      <div class="teach-section-header" style="margin-top: 0;">
+        <div>
+          <h2 class="teach-section-title">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 11l3 3L22 4"></path>
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+            </svg>
+            Classroom Attendance
+          </h2>
+          <p class="teach-section-desc">Mark daily student attendance for your assigned subjects and active cohorts, review roster counts, and track 24-hour edit windows.</p>
+        </div>
+      </div>
+      <div id="teacherAttendanceMount"></div>
+    </section>
+
   </main>
 
   <!-- Upload Note Modal -->
@@ -1215,11 +1242,33 @@
     }
 
     // View Navigation
-    function switchView(viewName) {
+    function switchView(viewName, options = {}) {
+      if (viewName !== 'attendance' && window.TeacherAttendanceWorkspace && window.TeacherAttendanceWorkspace.hasUnsavedChanges()) {
+        if (!window.confirm('You have unsaved attendance selections. Discard unsaved changes?')) {
+          return;
+        }
+        if (typeof window.TeacherAttendanceWorkspace.discardUnsavedChanges === 'function') {
+          window.TeacherAttendanceWorkspace.discardUnsavedChanges();
+        }
+      }
+      if (viewName !== 'attendance' && window.TeacherAttendanceWorkspace && typeof window.TeacherAttendanceWorkspace.unmount === 'function') {
+        window.TeacherAttendanceWorkspace.unmount();
+      }
       document.getElementById('viewFeed').classList.toggle('active', viewName === 'feed');
       document.getElementById('viewMaterials').classList.toggle('active', viewName === 'materials');
+      const attView = document.getElementById('viewAttendance');
+      if (attView) attView.classList.toggle('active', viewName === 'attendance');
       document.getElementById('tabFeedBtn').classList.toggle('active', viewName === 'feed');
       document.getElementById('tabMaterialsBtn').classList.toggle('active', viewName === 'materials');
+      const attTab = document.getElementById('tabAttendanceBtn');
+      if (attTab) attTab.classList.toggle('active', viewName === 'attendance');
+      if (viewName === 'attendance' && window.TeacherAttendanceWorkspace) {
+        window.TeacherAttendanceWorkspace.mount('#teacherAttendanceMount', options);
+      }
+    }
+
+    function openAttendanceForSubject(subjectKey) {
+      switchView('attendance', { subjectKey });
     }
 
     // Initialize Dashboard
@@ -1319,9 +1368,12 @@
             <h4 class="teach-sub-name">${escapeHtml(s.name)}</h4>
             <div class="teach-sub-meta">${s.creditHours ? s.creditHours + ' Credit Hours &middot; ' : ''}${escapeHtml(s.department || 'BIT / BCA')}</div>
           </div>
-          <div class="teach-sub-action">
-            <button type="button" class="teach-btn teach-btn-secondary" style="width: 100%; font-size: 0.8rem;" onclick="filterMaterialsBySubject('${escapeHtml(s.code || s.name)}')">
-              View Materials &rarr;
+          <div class="teach-sub-action" style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="teach-btn teach-btn-secondary" style="flex: 1; font-size: 0.8rem;" onclick="filterMaterialsBySubject('${escapeHtml(s.code || s.name)}')">
+              Materials
+            </button>
+            <button type="button" class="teach-btn teach-btn-primary" style="flex: 1; font-size: 0.8rem;" onclick="openAttendanceForSubject('${escapeHtml(s.code || s.id || s.name)}')">
+              Take Attendance
             </button>
           </div>
         </div>
@@ -1699,8 +1751,15 @@
     }
 
     // Start on DOM ready
-    document.addEventListener('DOMContentLoaded', initDashboard);
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initDashboard();
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('view') === 'attendance' || params.get('subject')) {
+        switchView('attendance', { subjectKey: params.get('subject') || null });
+      }
+    });
   </script>
+  <script src="/js/teacher-attendance.js"></script>
 </body>
 
 </html>

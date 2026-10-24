@@ -630,6 +630,18 @@ app.get('/routine', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'routine.html'));
 });
 
+app.get(['/attendance', '/attendance.html'], async (req, res) => {
+  const sessionStudentId = req.session?.studentId || req.user?.studentId;
+  if (sessionStudentId) {
+    const user = await db.get('SELECT role FROM students WHERE studentId = ?', sessionStudentId);
+    const role = user ? String(user.role || '').trim().toLowerCase() : '';
+    if (role === 'teacher' || role === 'faculty') {
+      return res.redirect('/teacher-dashboard.html?view=attendance');
+    }
+  }
+  res.sendFile(path.join(__dirname, 'public', 'attendance.html'));
+});
+
 app.get('/about', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'about.html'));
 });
@@ -898,6 +910,8 @@ app.use('/api/comments', require('./routes/comments')(db, requireLogin));
 app.use('/api/admin', require('./routes/admin-dashboard')(db, requireLogin));
 app.use('/api/admin', require('./routes/admin-teachers')(db, requireLogin));
 app.use('/api/admin', require('./routes/admin-cohorts')(db, requireLogin));
+app.use('/api/attendance', require('./routes/attendance')(db, requireLogin));
+app.use('/api/admin/attendance', require('./routes/attendance')(db, requireLogin));
 app.use('/api/teacher/onboarding', require('./routes/teacher-onboarding'));
 
 // Direct Messaging Router (Feature flag DM_ENABLED or controlled tester allowlist DM_TEST_USER_IDS)

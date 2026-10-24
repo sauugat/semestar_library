@@ -40,7 +40,12 @@
   <script>
     (function () {
       var params = new URLSearchParams(window.location.search);
-      if (!params.get('legacy') && !params.get('view') && !params.get('subject')) {
+      if (!params.get('legacy')) {
+        if (params.get('view') === 'attendance' || params.get('subject')) {
+          var qs = params.get('subject') ? ('?subject=' + encodeURIComponent(params.get('subject'))) : '';
+          window.location.replace('/attendance.html' + qs);
+          return;
+        }
         window.location.replace('/dashboard.html');
       }
     })();

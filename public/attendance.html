@@ -49,15 +49,50 @@
       --border: rgba(0, 0, 0, 0.13);
       --text: #111827;
       --text-muted: #4b5563;
+      --teach-bg: #f8f9fa;
+      --teach-surface: #ffffff;
+      --teach-surface-subtle: #f3f4f6;
+      --teach-surface-hover: #e5e7eb;
+      --teach-border: rgba(0, 0, 0, 0.13);
+      --teach-border-subtle: rgba(0, 0, 0, 0.08);
+      --teach-text-primary: #111827;
+      --teach-text-secondary: #4b5563;
+      --teach-text-tertiary: #6b7280;
+      --teach-badge-bg: #f3f4f6;
+      --teach-badge-text: #111827;
+      --teach-btn-primary-bg: #111827;
+      --teach-btn-primary-text: #ffffff;
+      --teach-btn-secondary-bg: #f3f4f6;
+      --teach-btn-secondary-text: #111827;
+      --teach-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --teach-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.06);
     }
 
     [data-theme="dark"],
+    html.dark,
     body.dark-mode {
       --bg: var(--bg-base, #0a0a0a);
       --surface: var(--bg-surface-raised, #18181b);
       --border: #2e2e32;
       --text: var(--text-primary, #f5f5f5);
       --text-muted: var(--text-secondary, #a1a1aa);
+      --teach-bg: var(--bg-base, #0a0a0a);
+      --teach-surface: var(--bg-surface-raised, #18181b);
+      --teach-surface-subtle: #1c1c1c;
+      --teach-surface-hover: #242424;
+      --teach-border: #2e2e32;
+      --teach-border-subtle: #242424;
+      --teach-text-primary: var(--text-primary, #f5f5f5);
+      --teach-text-secondary: var(--text-secondary, #a1a1aa);
+      --teach-text-tertiary: #71717a;
+      --teach-badge-bg: #27272a;
+      --teach-badge-text: #f4f4f5;
+      --teach-btn-primary-bg: #f5f5f5;
+      --teach-btn-primary-text: #0a0a0a;
+      --teach-btn-secondary-bg: #27272a;
+      --teach-btn-secondary-text: #f4f4f5;
+      --teach-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --teach-shadow-md: 0 6px 20px rgba(0, 0, 0, 0.4);
     }
 
     body.dash {
@@ -89,6 +124,100 @@
       font-weight: 800;
       letter-spacing: -0.03em;
       margin: 0;
+    }
+
+    .teach-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+
+    .teach-btn-primary {
+      background: var(--teach-btn-primary-bg);
+      color: var(--teach-btn-primary-text);
+      border-color: var(--teach-btn-primary-bg);
+    }
+
+    .teach-btn-primary:hover:not(:disabled) {
+      opacity: 0.9;
+    }
+
+    .teach-btn-secondary {
+      background: var(--teach-btn-secondary-bg);
+      color: var(--teach-btn-secondary-text);
+      border-color: var(--teach-border);
+    }
+
+    .teach-btn-secondary:hover:not(:disabled) {
+      background: var(--teach-surface-hover);
+    }
+
+    .teach-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .teach-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .teach-modal-overlay.open {
+      display: flex;
+    }
+
+    .teach-modal-card {
+      background: var(--teach-surface);
+      border: 1px solid var(--teach-border);
+      border-radius: 16px;
+      max-width: 520px;
+      width: 100%;
+      padding: 28px;
+      box-shadow: var(--teach-shadow-md);
+      position: relative;
+    }
+
+    .teach-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .teach-modal-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+
+    .teach-modal-close {
+      background: transparent;
+      border: none;
+      font-size: 1.2rem;
+      color: var(--teach-text-secondary);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
     }
   </style>
 </head>
@@ -126,17 +255,20 @@
   <main class="att-page-wrap">
     <div class="att-page-head">
       <div>
-        <h1 class="att-page-title">My Attendance</h1>
-        <p style="margin:4px 0 0; font-size:0.9rem; color:var(--text-muted);">
+        <h1 class="att-page-title" id="attPageTitle">My Attendance</h1>
+        <p id="attPageSubtitle" style="margin:4px 0 0; font-size:0.9rem; color:var(--text-muted);">
           Track your semester attendance percentage, subject-wise session counts, and eligibility status.
         </p>
       </div>
     </div>
 
     <div id="studentAttendanceMount"></div>
+    <div id="teacherAttendanceMount" style="display:none;"></div>
   </main>
 
   <script src="/js/student-attendance.js"></script>
+  <script src="/js/attendance-drive-sync.js"></script>
+  <script src="/js/teacher-attendance.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       try {
@@ -147,12 +279,26 @@
         }
         SemesterAuth.initHeader(user);
         const role = String(user.role || 'student').trim().toLowerCase();
+        const params = new URLSearchParams(window.location.search);
+        const subjectKey = params.get('subject') || params.get('subjectId') || null;
 
-        // Direct-route role protection:
-        // Teachers are redirected to their Teacher Attendance Workspace.
-        // Admins see a styled staff redirect card rather than attempting a student-only query.
+        // Teachers open the attendance workspace directly on this page (same layout as students, with subject selector & attendance marking).
         if (role === 'teacher' || role === 'faculty') {
-          window.location.replace('/teacher-dashboard.html?view=attendance');
+          const titleEl = document.getElementById('attPageTitle');
+          const subEl = document.getElementById('attPageSubtitle');
+          const stuMount = document.getElementById('studentAttendanceMount');
+          const teaMount = document.getElementById('teacherAttendanceMount');
+          if (titleEl) titleEl.textContent = 'Attendance';
+          if (subEl) {
+            subEl.textContent = 'Choose your assigned subject and cohort to mark daily attendance or review past sessions.';
+          }
+          if (stuMount) stuMount.style.display = 'none';
+          if (teaMount) {
+            teaMount.style.display = 'block';
+            if (window.TeacherAttendanceWorkspace) {
+              await window.TeacherAttendanceWorkspace.mount('#teacherAttendanceMount', { subjectKey });
+            }
+          }
           return;
         }
 
@@ -167,10 +313,9 @@
                 <div class="stu-att-card" style="text-align:center; padding:40px 24px;">
                   <div style="font-size:1.12rem; font-weight:800; margin-bottom:8px;">Administrator Account Detected</div>
                   <div style="font-size:0.88rem; color:var(--text-muted); max-width:500px; margin:0 auto 18px; line-height:1.5;">
-                    This page displays personal attendance summaries for enrolled student and CR accounts. Use the Faculty Attendance Workspace or Admin Dashboard to manage class attendance.
+                    This page displays personal attendance summaries for enrolled student and CR accounts. Use the Admin Dashboard to manage class attendance.
                   </div>
                   <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
-                    <a href="/teacher-dashboard.html?view=attendance" class="stu-att-btn">Open Attendance Workspace</a>
                     <a href="/admin-dashboard.html" class="stu-att-btn">Admin Dashboard</a>
                   </div>
                 </div>

@@ -401,8 +401,9 @@ test('Step 4 Verification 1, 9, 10: Web & Mobile student attendance entry points
   assert.ok(!mobileStudentView.includes('/api/attendance/admin'));
   assert.ok(!mobileStudentView.includes('/api/admin/attendance'));
 
-  // Verify direct-route protection in public/attendance.html redirects teachers to /teacher-dashboard.html?view=attendance
-  assert.ok(webHtml.includes('/teacher-dashboard.html?view=attendance'));
+  // Verify role-aware mounting in public/attendance.html mounts TeacherAttendanceWorkspace directly on /attendance.html for teachers
+  assert.ok(webHtml.includes('TeacherAttendanceWorkspace'));
+  assert.ok(webHtml.includes('/js/teacher-attendance.js'));
 });
 
 test('Step 4 Verification 2: Cross-student query attempts and non-student role calls to GET /api/attendance/my-summary are rejected', async () => {

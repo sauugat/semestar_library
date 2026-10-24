@@ -630,15 +630,7 @@ app.get('/routine', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'routine.html'));
 });
 
-app.get(['/attendance', '/attendance.html'], async (req, res) => {
-  const sessionStudentId = req.session?.studentId || req.user?.studentId;
-  if (sessionStudentId) {
-    const user = await db.get('SELECT role FROM students WHERE studentId = ?', sessionStudentId);
-    const role = user ? String(user.role || '').trim().toLowerCase() : '';
-    if (role === 'teacher' || role === 'faculty') {
-      return res.redirect('/teacher-dashboard.html?view=attendance');
-    }
-  }
+app.get(['/attendance', '/attendance.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'attendance.html'));
 });
 

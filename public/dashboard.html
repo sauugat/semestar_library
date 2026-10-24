@@ -1997,477 +1997,6 @@
       pointer-events: none;
     }
 
-    /* ============================================================
-       DASHBOARD SEARCH ICON BUTTONS (HEADER + BOTTOM-RIGHT FAB)
-       & ANIMATED FULL-SCREEN SEARCH PAGE OVERLAY
-       ============================================================ */
-    :root {
-      --dash-cherry: #e11d48;
-      --dash-cherry-soft: rgba(225, 29, 72, 0.12);
-      --dash-cherry-glow: rgba(225, 29, 72, 0.28);
-      --dash-cherry-grad: linear-gradient(135deg, #e11d48 0%, #fb7185 100%);
-      --search-origin-x: 92vw;
-      --search-origin-y: 88vh;
-    }
-
-    [data-theme="dark"],
-    body.dark-mode {
-      --dash-cherry: #f43f5e;
-      --dash-cherry-soft: rgba(244, 63, 94, 0.16);
-      --dash-cherry-glow: rgba(244, 63, 94, 0.34);
-      --dash-cherry-grad: linear-gradient(135deg, #f43f5e 0%, #fb7185 60%, #fda4af 100%);
-    }
-
-    .search-header-btn {
-      position: relative;
-    }
-
-    .search-header-btn:hover {
-      border-color: var(--dash-cherry) !important;
-      color: var(--dash-cherry) !important;
-      box-shadow: 0 0 0 3px var(--dash-cherry-soft) !important;
-    }
-
-    /* Bottom-Right Floating Search Action Button */
-    .dash-search-fab {
-      position: fixed;
-      right: max(24px, env(safe-area-inset-right, 24px));
-      bottom: max(24px, env(safe-area-inset-bottom, 24px));
-      z-index: 1200;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 9px;
-      height: 52px;
-      padding: 0 20px;
-      border-radius: 999px;
-      border: 1.5px solid rgba(244, 63, 94, 0.42);
-      background: rgba(18, 18, 23, 0.88);
-      backdrop-filter: blur(18px) saturate(180%);
-      -webkit-backdrop-filter: blur(18px) saturate(180%);
-      color: #ffffff;
-      font-size: 13.5px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      text-decoration: none;
-      cursor: pointer;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06), 0 4px 18px var(--dash-cherry-glow);
-      transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, border-color 0.22s ease, background 0.22s ease;
-      user-select: none;
-    }
-
-    html[data-theme="light"] .dash-search-fab,
-    body:not(.dark-mode):not([data-theme="dark"]) .dash-search-fab {
-      background: rgba(255, 255, 255, 0.92);
-      color: #111113;
-      border-color: rgba(225, 29, 72, 0.32);
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12), 0 4px 16px var(--dash-cherry-soft);
-    }
-
-    .dash-search-fab:hover {
-      transform: translateY(-3px) scale(1.04);
-      border-color: var(--dash-cherry);
-      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4), 0 0 22px var(--dash-cherry-glow);
-    }
-
-    .dash-search-fab:active {
-      transform: scale(0.94);
-    }
-
-    .dash-search-fab-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: var(--dash-cherry-grad);
-      color: #ffffff;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    .dash-search-fab:hover .dash-search-fab-icon {
-      transform: rotate(-14deg) scale(1.1);
-    }
-
-    @keyframes searchBtnLaunchPulse {
-      0% { transform: scale(1) rotate(0deg); }
-      45% { transform: scale(0.86) rotate(-25deg); }
-      100% { transform: scale(1.18) rotate(12deg); }
-    }
-
-    .is-search-launching svg,
-    .is-search-launching .dash-search-fab-icon {
-      animation: searchBtnLaunchPulse 0.36s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    /* Full-Screen Animated Search Page Overlay */
-    .campus-search-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 2500;
-      background: var(--bg-primary, #09090b);
-      color: var(--text-primary, #f4f4f6);
-      display: flex;
-      flex-direction: column;
-      opacity: 0;
-      pointer-events: none;
-      visibility: hidden;
-      clip-path: circle(0px at var(--search-origin-x, 92vw) var(--search-origin-y, 88vh));
-      transition:
-        clip-path 0.54s cubic-bezier(0.22, 1, 0.36, 1),
-        opacity 0.28s ease,
-        visibility 0.54s;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-
-    html[data-theme="light"] .campus-search-overlay {
-      background: #f6f6f9;
-      color: #111113;
-    }
-
-    .campus-search-overlay.open {
-      opacity: 1;
-      pointer-events: auto;
-      visibility: visible;
-      clip-path: circle(150vmax at var(--search-origin-x, 92vw) var(--search-origin-y, 88vh));
-    }
-
-    .cso-ambient-aura {
-      position: fixed;
-      top: -110px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(820px, 94vw);
-      height: 220px;
-      background: radial-gradient(ellipse at center, var(--dash-cherry-soft) 0%, transparent 72%);
-      filter: blur(26px);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    .cso-header {
-      position: sticky;
-      top: 0;
-      z-index: 20;
-      background: rgba(15, 15, 20, 0.84);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
-      border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-      padding: 14px 20px;
-    }
-
-    html[data-theme="light"] .cso-header {
-      background: rgba(255, 255, 255, 0.88);
-      border-bottom-color: rgba(0, 0, 0, 0.08);
-    }
-
-    .cso-header-inner {
-      max-width: 980px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .cso-back-btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      height: 42px;
-      padding: 0 14px;
-      border-radius: 999px;
-      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.14));
-      background: var(--bg-secondary, #16161c);
-      color: var(--text-primary, #f4f4f6);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.2s ease, border-color 0.2s ease;
-      flex-shrink: 0;
-    }
-
-    html[data-theme="light"] .cso-back-btn {
-      background: #ffffff;
-      color: #111113;
-      border-color: rgba(0, 0, 0, 0.12);
-    }
-
-    .cso-back-btn:hover {
-      border-color: var(--dash-cherry);
-      transform: translateX(-2px);
-    }
-
-    .cso-input-pill {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      height: 46px;
-      padding: 0 14px 0 16px;
-      border-radius: 999px;
-      background: var(--bg-secondary, #16161c);
-      border: 1.5px solid var(--border-color, rgba(255, 255, 255, 0.16));
-      transition: border-color 0.22s ease, box-shadow 0.22s ease;
-    }
-
-    html[data-theme="light"] .cso-input-pill {
-      background: #ffffff;
-      border-color: rgba(0, 0, 0, 0.16);
-    }
-
-    .cso-input-pill:focus-within {
-      border-color: var(--dash-cherry);
-      box-shadow: 0 0 0 4px var(--dash-cherry-soft);
-    }
-
-    .cso-search-icon {
-      color: var(--dash-cherry);
-      display: inline-flex;
-      margin-right: 10px;
-      flex-shrink: 0;
-    }
-
-    .cso-clear-btn {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      border: none;
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--text-secondary, #a1a1aa);
-      cursor: pointer;
-      padding: 0;
-      margin-left: 6px;
-    }
-
-    html[data-theme="light"] .cso-clear-btn {
-      background: rgba(0, 0, 0, 0.08);
-      color: #52525b;
-    }
-
-    .cso-clear-btn.visible {
-      display: inline-flex;
-    }
-
-    .cso-clear-btn:hover {
-      background: var(--dash-cherry);
-      color: #ffffff;
-    }
-
-    .cso-controls {
-      max-width: 980px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 14px 20px 0;
-      position: relative;
-      z-index: 2;
-    }
-
-    .cso-tabs {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      overflow-x: auto;
-      scrollbar-width: none;
-      padding-bottom: 4px;
-    }
-
-    .cso-tabs::-webkit-scrollbar {
-      display: none;
-    }
-
-    .cso-tab {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 14px;
-      border-radius: 999px;
-      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
-      background: var(--bg-secondary, #16161c);
-      color: var(--text-secondary, #a1a1aa);
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: all 0.2s ease;
-    }
-
-    html[data-theme="light"] .cso-tab {
-      background: #ffffff;
-      color: #52525b;
-      border-color: rgba(0, 0, 0, 0.1);
-    }
-
-    .cso-tab.active {
-      background: var(--dash-cherry);
-      border-color: var(--dash-cherry);
-      color: #ffffff;
-      box-shadow: 0 4px 14px var(--dash-cherry-glow);
-    }
-
-    .cso-tab-badge {
-      padding: 1px 6px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-    html[data-theme="light"] .cso-tab:not(.active) .cso-tab-badge {
-      background: rgba(0, 0, 0, 0.07);
-    }
-
-    /* Visual Match Breakdown Chart Bar */
-    .cso-chart-box {
-      margin-top: 12px;
-      padding: 12px 16px;
-      border-radius: 14px;
-      background: var(--bg-secondary, #16161c);
-      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-      display: none;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    html[data-theme="light"] .cso-chart-box {
-      background: #ffffff;
-      border-color: rgba(0, 0, 0, 0.09);
-    }
-
-    .cso-chart-box.visible {
-      display: flex;
-    }
-
-    .cso-chart-track {
-      height: 7px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.08);
-      overflow: hidden;
-      display: flex;
-      gap: 2px;
-    }
-
-    html[data-theme="light"] .cso-chart-track {
-      background: rgba(0, 0, 0, 0.07);
-    }
-
-    .cso-chart-seg {
-      height: 100%;
-      border-radius: 999px;
-      transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .cso-chart-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      font-size: 11.5px;
-      color: var(--text-muted, #8e8e93);
-    }
-
-    .cso-body {
-      max-width: 980px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 18px 20px 80px;
-      position: relative;
-      z-index: 2;
-    }
-
-    .cso-discovery-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 12px;
-      margin-top: 10px;
-    }
-
-    .cso-suggest-card {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 15px;
-      border-radius: 16px;
-      background: var(--bg-secondary, #16161c);
-      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-      color: inherit;
-      text-align: left;
-      cursor: pointer;
-      transition: transform 0.22s ease, border-color 0.22s ease;
-    }
-
-    html[data-theme="light"] .cso-suggest-card {
-      background: #ffffff;
-      border-color: rgba(0, 0, 0, 0.09);
-    }
-
-    .cso-suggest-card:hover {
-      transform: translateY(-2px);
-      border-color: var(--dash-cherry);
-    }
-
-    .cso-suggest-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
-      background: var(--dash-cherry-soft);
-      color: var(--dash-cherry);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .cso-recent-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 10px;
-      margin-bottom: 24px;
-    }
-
-    .cso-recent-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 7px 13px;
-      border-radius: 999px;
-      background: var(--bg-secondary, #16161c);
-      border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
-      color: inherit;
-      font-size: 12.5px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: border-color 0.18s ease, transform 0.18s ease;
-    }
-
-    html[data-theme="light"] .cso-recent-chip {
-      background: #ffffff;
-      border-color: rgba(0, 0, 0, 0.1);
-    }
-
-    .cso-recent-chip:hover {
-      border-color: var(--dash-cherry);
-      transform: translateY(-1px);
-    }
-
-    @keyframes csoCardStagger {
-      0% { opacity: 0; transform: translateY(12px) scale(0.985); }
-      100% { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    #searchResults .search-student-card,
-    #searchResults .search-subject-card,
-    #searchResults .feed-card,
-    #searchResults .assignment-post-card,
-    #searchResults .post-card {
-      animation: csoCardStagger 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
-    }
-
     /* Create Post Modal Dialog */
     .post-modal-overlay {
       position: fixed;
@@ -3828,12 +3357,6 @@
     </nav>
 
     <div class="dash-header-actions">
-      <a href="/search" class="create-post-header-btn search-header-btn" id="openSearchHeaderBtn" aria-label="Search Campus" title="Search users, notes, subjects &amp; assignments (/ or ⌘K)">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-      </a>
       <a href="/create-post" class="create-post-header-btn" id="openPostModalBtn" aria-label="Create Post" title="Create a post">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -3864,159 +3387,6 @@
       </a>
     </div>
   </header>
-
-  <!-- Bottom-Right Floating Search Action Button -->
-  <a href="/search" class="dash-search-fab" id="dashSearchFabBtn" aria-label="Open Campus Search" title="Search users, notes, subjects &amp; assignments (/ or ⌘K)">
-    <span class="dash-search-fab-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
-    </span>
-    <span>Search</span>
-  </a>
-
-  <!-- Animated Full-Screen Search Page Overlay -->
-  <div class="campus-search-overlay" id="campusSearchOverlay" role="dialog" aria-modal="true" aria-label="Search Campus">
-    <div class="cso-ambient-aura" aria-hidden="true"></div>
-    <header class="cso-header">
-      <div class="cso-header-inner">
-        <button type="button" class="cso-back-btn" id="csoCloseBtn" aria-label="Close search">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-          <span>Back</span>
-        </button>
-
-        <div class="cso-input-pill">
-          <span class="cso-search-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-          </span>
-          <input
-            type="text"
-            id="headerSearchInput"
-            class="header-search-input"
-            placeholder="Search classmates, notes, subjects, code lab assignments, posts..."
-            autocomplete="off"
-          >
-          <button type="button" class="cso-clear-btn" id="csoClearInputBtn" aria-label="Clear search query">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-
-        <a href="/search.html" class="cso-back-btn" id="csoFullPageLink" title="Open standalone search page" style="text-decoration:none;">
-          <span>Full Page</span>
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <line x1="10" y1="14" x2="21" y2="3"></line>
-          </svg>
-        </a>
-      </div>
-    </header>
-
-    <div class="cso-controls">
-      <div class="cso-tabs" id="csoFilterTabs" role="tablist">
-        <button type="button" class="cso-tab active" data-filter="all" role="tab" aria-selected="true">
-          <span>All</span>
-          <span class="cso-tab-badge" id="csoCountAll">0</span>
-        </button>
-        <button type="button" class="cso-tab" data-filter="files" role="tab" aria-selected="false">
-          <span>Notes &amp; Files</span>
-          <span class="cso-tab-badge" id="csoCountFiles">0</span>
-        </button>
-        <button type="button" class="cso-tab" data-filter="students" role="tab" aria-selected="false">
-          <span>Users &amp; Classmates</span>
-          <span class="cso-tab-badge" id="csoCountStudents">0</span>
-        </button>
-        <button type="button" class="cso-tab" data-filter="assignments" role="tab" aria-selected="false">
-          <span>Assignments</span>
-          <span class="cso-tab-badge" id="csoCountAssignments">0</span>
-        </button>
-        <button type="button" class="cso-tab" data-filter="subjects" role="tab" aria-selected="false">
-          <span>Subjects</span>
-          <span class="cso-tab-badge" id="csoCountSubjects">0</span>
-        </button>
-        <button type="button" class="cso-tab" data-filter="posts" role="tab" aria-selected="false">
-          <span>Posts &amp; Notices</span>
-          <span class="cso-tab-badge" id="csoCountPosts">0</span>
-        </button>
-      </div>
-
-      <div class="cso-chart-box" id="csoChartBox">
-        <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;font-weight:600;">
-          <span id="csoChartTitle">Match Breakdown</span>
-          <span id="csoChartQueryLabel" style="color:var(--dash-cherry);"></span>
-        </div>
-        <div class="cso-chart-track" id="csoChartTrack"></div>
-        <div class="cso-chart-legend" id="csoChartLegend"></div>
-      </div>
-    </div>
-
-    <div class="cso-body">
-      <div id="csoDiscoverySection">
-        <div id="csoRecentWrap" style="display:none;">
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <span style="font-size:11.5px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted,#8e8e93);">Recent Searches</span>
-            <button type="button" id="csoClearRecentBtn" style="background:none;border:none;color:var(--dash-cherry);font-size:12px;font-weight:700;cursor:pointer;">Clear all</button>
-          </div>
-          <div class="cso-recent-chips" id="csoRecentChips"></div>
-        </div>
-
-        <span style="font-size:11.5px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted,#8e8e93);display:block;margin-bottom:8px;">Quick Categories</span>
-        <div class="cso-discovery-grid">
-          <button type="button" class="cso-suggest-card" data-cso-query="Notes" data-cso-filter="files">
-            <div class="cso-suggest-icon">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            </div>
-            <div>
-              <div style="font-size:14px;font-weight:700;">Notes &amp; Study Files</div>
-              <div style="font-size:12px;color:var(--text-muted,#8e8e93);">Chapter PDFs, slides &amp; past papers</div>
-            </div>
-          </button>
-
-          <button type="button" class="cso-suggest-card" data-cso-query="a" data-cso-filter="students">
-            <div class="cso-suggest-icon">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            </div>
-            <div>
-              <div style="font-size:14px;font-weight:700;">Users &amp; Classmates</div>
-              <div style="font-size:12px;color:var(--text-muted,#8e8e93);">Students, class reps &amp; faculty</div>
-            </div>
-          </button>
-
-          <button type="button" class="cso-suggest-card" data-cso-query="Lab" data-cso-filter="assignments">
-            <div class="cso-suggest-icon">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-            </div>
-            <div>
-              <div style="font-size:14px;font-weight:700;">Code Lab Assignments</div>
-              <div style="font-size:12px;color:var(--text-muted,#8e8e93);">Programming tasks &amp; lab problems</div>
-            </div>
-          </button>
-
-          <button type="button" class="cso-suggest-card" data-cso-query="C" data-cso-filter="subjects">
-            <div class="cso-suggest-icon">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            </div>
-            <div>
-              <div style="font-size:14px;font-weight:700;">Subjects &amp; Courses</div>
-              <div style="font-size:12px;color:var(--text-muted,#8e8e93);">Course curriculum &amp; units</div>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      <div id="csoSearchResultsHost"></div>
-    </div>
-  </div>
 
   <section class="dash-hero">
     <div class="dash-avatar skeleton-box skeleton-avatar" id="avatarInitial" style="color: transparent;">·</div>
@@ -6146,174 +5516,17 @@
       }
     });
 
-    // --- Search Logic & Animated Search Page Overlay ---
+    // --- Search Logic ---
     const searchInput = document.getElementById('headerSearchInput');
     const searchResults = document.getElementById('searchResults');
-    const csoSearchResultsHost = document.getElementById('csoSearchResultsHost');
-    const campusSearchOverlay = document.getElementById('campusSearchOverlay');
-    const openSearchHeaderBtn = document.getElementById('openSearchHeaderBtn');
-    const dashSearchFabBtn = document.getElementById('dashSearchFabBtn');
-    const csoCloseBtn = document.getElementById('csoCloseBtn');
-    const csoClearInputBtn = document.getElementById('csoClearInputBtn');
-    const csoFilterTabs = document.getElementById('csoFilterTabs');
-    const csoDiscoverySection = document.getElementById('csoDiscoverySection');
-    const csoRecentWrap = document.getElementById('csoRecentWrap');
-    const csoRecentChips = document.getElementById('csoRecentChips');
-    const csoClearRecentBtn = document.getElementById('csoClearRecentBtn');
-    const csoChartBox = document.getElementById('csoChartBox');
-    const csoChartTrack = document.getElementById('csoChartTrack');
-    const csoChartLegend = document.getElementById('csoChartLegend');
-    const csoChartTitle = document.getElementById('csoChartTitle');
-    const csoChartQueryLabel = document.getElementById('csoChartQueryLabel');
-    const csoFullPageLink = document.getElementById('csoFullPageLink');
     const realFiles = document.getElementById('realFiles');
     const demoNotes = document.getElementById('demoNotes');
     const dashHero = document.querySelector('.dash-hero');
     const feedHeading = document.querySelector('.feed-heading');
 
-    const RECENT_SEARCHES_KEY = '@semlib_recent_searches';
     let searchTimeout = null;
     let searchAbortController = null;
     let searchRequestId = 0;
-    let activeSearchFilter = 'all';
-    let latestSearchData = null;
-    let latestSearchQuery = '';
-
-    function getRecentSearches() {
-      try {
-        const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
-        const parsed = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed) ? parsed.slice(0, 8) : [];
-      } catch {
-        return [];
-      }
-    }
-
-    function saveRecentSearch(term) {
-      const cleaned = String(term || '').trim();
-      if (cleaned.length < 2) return;
-      try {
-        const next = [cleaned, ...getRecentSearches().filter(x => x.toLowerCase() !== cleaned.toLowerCase())].slice(0, 8);
-        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
-        renderRecentSearchChips();
-      } catch {}
-    }
-
-    function renderRecentSearchChips() {
-      if (!csoRecentWrap || !csoRecentChips) return;
-      const list = getRecentSearches();
-      if (!list.length) {
-        csoRecentWrap.style.display = 'none';
-        csoRecentChips.innerHTML = '';
-        return;
-      }
-      csoRecentWrap.style.display = 'block';
-      csoRecentChips.innerHTML = list.map(term => `
-        <button type="button" class="cso-recent-chip" data-recent-term="${escapeHtml(term)}">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <span>${escapeHtml(term)}</span>
-        </button>
-      `).join('');
-    }
-
-    if (csoRecentChips) {
-      csoRecentChips.addEventListener('click', (e) => {
-        const chip = e.target.closest('[data-recent-term]');
-        if (!chip || !searchInput) return;
-        const term = chip.getAttribute('data-recent-term') || '';
-        searchInput.value = term;
-        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-      });
-    }
-
-    if (csoClearRecentBtn) {
-      csoClearRecentBtn.addEventListener('click', () => {
-        try { localStorage.removeItem(RECENT_SEARCHES_KEY); } catch {}
-        renderRecentSearchChips();
-      });
-    }
-
-    document.querySelectorAll('[data-cso-query]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const q = btn.getAttribute('data-cso-query') || '';
-        const filter = btn.getAttribute('data-cso-filter') || 'all';
-        setSearchFilter(filter);
-        if (searchInput) {
-          searchInput.value = q;
-          searchInput.focus();
-          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-      });
-    });
-
-    function openCampusSearchOverlay(triggerEl, e) {
-      if (e) e.preventDefault();
-      if (!campusSearchOverlay) return;
-
-      let originX = Math.round(window.innerWidth * 0.9);
-      let originY = Math.round(window.innerHeight * 0.88);
-      if (triggerEl && typeof triggerEl.getBoundingClientRect === 'function') {
-        const rect = triggerEl.getBoundingClientRect();
-        if (rect.width > 0 && rect.height > 0) {
-          originX = Math.round(rect.left + rect.width / 2);
-          originY = Math.round(rect.top + rect.height / 2);
-        }
-        triggerEl.classList.add('is-search-launching');
-        setTimeout(() => triggerEl.classList.remove('is-search-launching'), 420);
-      }
-
-      document.documentElement.style.setProperty('--search-origin-x', originX + 'px');
-      document.documentElement.style.setProperty('--search-origin-y', originY + 'px');
-      try {
-        sessionStorage.setItem('sl_search_origin', JSON.stringify({ x: originX, y: originY }));
-      } catch {}
-
-      renderRecentSearchChips();
-      campusSearchOverlay.classList.add('open');
-      document.body.style.overflow = 'hidden';
-      setTimeout(() => {
-        if (searchInput) searchInput.focus();
-      }, 120);
-    }
-
-    function closeCampusSearchOverlay() {
-      if (!campusSearchOverlay || !campusSearchOverlay.classList.contains('open')) return;
-      campusSearchOverlay.classList.remove('open');
-      document.body.style.overflow = '';
-    }
-
-    if (openSearchHeaderBtn) {
-      openSearchHeaderBtn.addEventListener('click', (e) => openCampusSearchOverlay(openSearchHeaderBtn, e));
-    }
-    if (dashSearchFabBtn) {
-      dashSearchFabBtn.addEventListener('click', (e) => openCampusSearchOverlay(dashSearchFabBtn, e));
-    }
-    if (csoCloseBtn) {
-      csoCloseBtn.addEventListener('click', closeCampusSearchOverlay);
-    }
-    if (csoClearInputBtn && searchInput) {
-      csoClearInputBtn.addEventListener('click', () => {
-        searchInput.value = '';
-        searchInput.focus();
-        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-      });
-    }
-
-    document.addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        openCampusSearchOverlay(dashSearchFabBtn || openSearchHeaderBtn);
-        return;
-      }
-      if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes((document.activeElement && document.activeElement.tagName) || '') && !(document.activeElement && document.activeElement.isContentEditable)) {
-        e.preventDefault();
-        openCampusSearchOverlay(dashSearchFabBtn || openSearchHeaderBtn);
-        return;
-      }
-      if (e.key === 'Escape' && campusSearchOverlay && campusSearchOverlay.classList.contains('open')) {
-        closeCampusSearchOverlay();
-      }
-    });
 
     function renderSubjectCard(s) {
       return `
@@ -6338,8 +5551,6 @@
       let badgeHtml = '';
       if (s.role === 'admin') {
         badgeHtml = `<span class="post-verified-badge post-admin-badge" title="System Administrator">Admin</span>`;
-      } else if (s.role === 'teacher' || s.role === 'faculty') {
-        badgeHtml = `<span class="post-verified-badge post-admin-badge" title="Faculty">Teacher</span>`;
       } else if (s.role === 'cr' || s.role === 'class_rep') {
         badgeHtml = `<span class="post-verified-badge post-cr-badge" title="Class Representative">Class Rep</span>`;
       }
@@ -6353,8 +5564,8 @@
               ${badgeHtml}
             </div>
             <div class="student-card-meta">
-              <span>@${escapeHtml(s.username || s.studentId)}</span>
-              &middot; <span>${escapeHtml(s.role === 'teacher' ? 'Faculty' : (s.semester || 'Semester 1'))}</span>
+              <span>@${escapeHtml(s.studentId)}</span>
+              &middot; <span>${escapeHtml(s.semester || 'Semester 1')}</span>
               &middot; <span>${s.filesCount || s.filescount || 0} upload${(s.filesCount || s.filescount) == 1 ? '' : 's'}</span>
             </div>
           </div>
@@ -6362,141 +5573,9 @@
       `;
     }
 
-    function updateSearchStatsAndChart(data, q) {
-      const filesCount = (data.files && data.files.length) || 0;
-      const studentsCount = (data.students && data.students.length) || 0;
-      const assignmentsCount = (data.assignments && data.assignments.length) || 0;
-      const subjectsCount = (data.subjects && data.subjects.length) || 0;
-      const postsCount = (data.posts && data.posts.length) || 0;
-      const total = filesCount + studentsCount + assignmentsCount + subjectsCount + postsCount;
-
-      const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-      setTxt('csoCountAll', total);
-      setTxt('csoCountFiles', filesCount);
-      setTxt('csoCountStudents', studentsCount);
-      setTxt('csoCountAssignments', assignmentsCount);
-      setTxt('csoCountSubjects', subjectsCount);
-      setTxt('csoCountPosts', postsCount);
-
-      if (!csoChartBox || !csoChartTrack || !csoChartLegend) return;
-      if (!q || total === 0) {
-        csoChartBox.classList.remove('visible');
-        return;
-      }
-      csoChartBox.classList.add('visible');
-      if (csoChartTitle) csoChartTitle.textContent = `${total} match${total === 1 ? '' : 'es'} across campus`;
-      if (csoChartQueryLabel) csoChartQueryLabel.textContent = `"${q}"`;
-
-      const segs = [
-        { label: 'Notes & Files', count: filesCount, color: '#f43f5e' },
-        { label: 'Users', count: studentsCount, color: '#3b82f6' },
-        { label: 'Assignments', count: assignmentsCount, color: '#fbbf24' },
-        { label: 'Subjects', count: subjectsCount, color: '#34d399' },
-        { label: 'Posts', count: postsCount, color: '#a78bfa' }
-      ].filter(s => s.count > 0);
-
-      csoChartTrack.innerHTML = segs.map(s => {
-        const pct = Math.max(6, Math.round((s.count / total) * 100));
-        return `<div class="cso-chart-seg" style="width:${pct}%;background:${s.color};" title="${s.label}: ${s.count}"></div>`;
-      }).join('');
-
-      csoChartLegend.innerHTML = segs.map(s => `
-        <span style="display:inline-flex;align-items:center;gap:5px;font-weight:600;">
-          <span style="width:7px;height:7px;border-radius:50%;background:${s.color};display:inline-block;"></span>
-          <span>${s.label} (${s.count})</span>
-        </span>
-      `).join('');
-    }
-
-    function buildFilteredSearchHtml(data, q) {
-      const showAssignments = activeSearchFilter === 'all' || activeSearchFilter === 'assignments';
-      const showStudents = activeSearchFilter === 'all' || activeSearchFilter === 'students';
-      const showSubjects = activeSearchFilter === 'all' || activeSearchFilter === 'subjects';
-      const showFiles = activeSearchFilter === 'all' || activeSearchFilter === 'files';
-      const showPosts = activeSearchFilter === 'all' || activeSearchFilter === 'posts';
-
-      let html = '<div class="search-results-heading"><h2>Search Results</h2><span>For "' + escapeHtml(q) + '"</span></div>';
-      let hasShownAny = false;
-
-      if (showStudents && data.students && data.students.length > 0) {
-        hasShownAny = true;
-        html += '<h3 class="search-section-title">Students &amp; Classmates</h3>';
-        html += '<div class="search-students-grid">';
-        html += data.students.map(renderStudentCard).join('');
-        html += '</div>';
-      }
-
-      if (showSubjects && data.subjects && data.subjects.length > 0) {
-        hasShownAny = true;
-        html += '<h3 class="search-section-title">Subjects</h3>';
-        html += '<div class="search-subjects-grid">';
-        html += data.subjects.map(renderSubjectCard).join('');
-        html += '</div>';
-      }
-
-      if (showAssignments && data.assignments && data.assignments.length > 0) {
-        hasShownAny = true;
-        html += '<h3 class="search-section-title">Code Lab Assignments</h3>';
-        html += data.assignments.map(renderAssignmentPost).join('');
-      }
-
-      if (showFiles && data.files && data.files.length > 0) {
-        hasShownAny = true;
-        html += '<h3 class="search-section-title">Files &amp; Notes</h3>';
-        html += data.files.map(renderPost).join('');
-      }
-
-      if (showPosts && data.posts && data.posts.length > 0) {
-        hasShownAny = true;
-        html += '<h3 class="search-section-title">Posts &amp; Notices</h3>';
-        html += data.posts.map(p => typeof renderFeedPostCard === 'function' ? renderFeedPostCard(p) : '').join('');
-      }
-
-      if (!hasShownAny) {
-        html += `
-          <div class="empty-search-state" style="text-align:center; padding:36px 16px;">
-            <img src="/minecraft-404-voxel-ruby.svg" alt="No results found" class="empty-voxel-illu" style="max-width: 230px; margin: 0 auto 14px;">
-            <p style="font-size:15px; font-weight:700; color:var(--text-primary,#111827); margin:0 0 4px;">No results found</p>
-            <p style="font-size:13px; color:var(--text-tertiary,#86868b); margin:0;">No assignments, students, files, subjects, or posts found matching your query.</p>
-          </div>
-        `;
-      }
-
-      return html;
-    }
-
-    function setSearchFilter(filter) {
-      activeSearchFilter = filter || 'all';
-      if (csoFilterTabs) {
-        csoFilterTabs.querySelectorAll('.cso-tab').forEach(tab => {
-          const active = tab.getAttribute('data-filter') === activeSearchFilter;
-          tab.classList.toggle('active', active);
-          tab.setAttribute('aria-selected', active ? 'true' : 'false');
-        });
-      }
-      if (latestSearchData && latestSearchQuery) {
-        const html = buildFilteredSearchHtml(latestSearchData, latestSearchQuery);
-        if (csoSearchResultsHost) csoSearchResultsHost.innerHTML = html;
-        if (searchResults) searchResults.innerHTML = html;
-        setTimeout(initDashboardCardPhysics, 50);
-      }
-    }
-
-    if (csoFilterTabs) {
-      csoFilterTabs.addEventListener('click', (e) => {
-        const tab = e.target.closest('.cso-tab');
-        if (!tab) return;
-        setSearchFilter(tab.getAttribute('data-filter') || 'all');
-      });
-    }
-
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         const q = e.target.value.trim();
-        if (csoClearInputBtn) csoClearInputBtn.classList.toggle('visible', q.length > 0);
-        if (csoFullPageLink) {
-          csoFullPageLink.href = q ? ('/search.html?q=' + encodeURIComponent(q)) : '/search.html';
-        }
         clearTimeout(searchTimeout);
         if (searchAbortController) {
           try { searchAbortController.abort(); } catch {}
@@ -6505,13 +5584,9 @@
 
         if (!q) {
           searchRequestId++;
-          latestSearchData = null;
-          latestSearchQuery = '';
-          updateSearchStatsAndChart({}, '');
-          if (csoDiscoverySection) csoDiscoverySection.style.display = 'block';
-          if (csoSearchResultsHost) csoSearchResultsHost.innerHTML = '';
+          // Restore default view
           searchResults.style.display = 'none';
-          dashHero.style.display = 'flex';
+          dashHero.style.display = 'flex'; // .dash-hero is flex
           feedHeading.style.display = 'flex';
           const composerSec = document.getElementById('postComposerSection');
           if (composerSec) composerSec.hidden = false;
@@ -6520,8 +5595,6 @@
           if (demoNotes) demoNotes.style.display = 'block';
           return;
         }
-
-        if (csoDiscoverySection) csoDiscoverySection.style.display = 'none';
 
         searchTimeout = setTimeout(async () => {
           const thisReqId = ++searchRequestId;
@@ -6534,32 +5607,60 @@
             const data = await res.json();
             if (thisReqId !== searchRequestId) return;
 
-            latestSearchData = data;
-            latestSearchQuery = q;
-            saveRecentSearch(q);
-            updateSearchStatsAndChart(data, q);
+            dashHero.style.display = 'none';
+            feedHeading.style.display = 'none';
+            const composerSec = document.getElementById('postComposerSection');
+            if (composerSec) composerSec.hidden = true;
+            document.getElementById('postPagination').hidden = true;
+            realFiles.style.display = 'none';
+            if (demoNotes) demoNotes.style.display = 'none';
 
-            const html = buildFilteredSearchHtml(data, q);
-            if (csoSearchResultsHost) {
-              csoSearchResultsHost.innerHTML = html;
+            searchResults.style.display = 'block';
+
+            let html = '<div class="search-results-heading"><h2>Search Results</h2><span>For "' + escapeHtml(q) + '"</span></div>';
+
+            if (data.assignments && data.assignments.length > 0) {
+              html += '<h3 class="search-section-title">Code Lab Assignments</h3>';
+              html += data.assignments.map(renderAssignmentPost).join('');
             }
-            if (!campusSearchOverlay || !campusSearchOverlay.classList.contains('open')) {
-              dashHero.style.display = 'none';
-              feedHeading.style.display = 'none';
-              const composerSec = document.getElementById('postComposerSection');
-              if (composerSec) composerSec.hidden = true;
-              document.getElementById('postPagination').hidden = true;
-              realFiles.style.display = 'none';
-              if (demoNotes) demoNotes.style.display = 'none';
-              searchResults.style.display = 'block';
-              searchResults.innerHTML = html;
+
+            if (data.students && data.students.length > 0) {
+              html += '<h3 class="search-section-title">Students & Classmates</h3>';
+              html += '<div class="search-students-grid">';
+              html += data.students.map(renderStudentCard).join('');
+              html += '</div>';
             }
+
+            if (data.subjects && data.subjects.length > 0) {
+              html += '<h3 class="search-section-title">Subjects</h3>';
+              html += '<div class="search-subjects-grid">';
+              html += data.subjects.map(renderSubjectCard).join('');
+              html += '</div>';
+            }
+
+            if (data.files && data.files.length > 0) {
+              html += '<h3 class="search-section-title">Files & Notes</h3>';
+              html += data.files.map(renderPost).join('');
+            }
+
+            const hasResults = (data.assignments && data.assignments.length > 0) || (data.students && data.students.length > 0) || (data.subjects && data.subjects.length > 0) || (data.files && data.files.length > 0);
+            if (!hasResults) {
+              html += `
+                <div class="empty-search-state" style="text-align:center; padding:36px 16px;">
+                  <img src="/minecraft-404-voxel-ruby.svg" alt="No results found" class="empty-voxel-illu" style="max-width: 230px; margin: 0 auto 14px;">
+                  <p style="font-size:15px; font-weight:700; color:var(--text-primary,#111827); margin:0 0 4px;">No results found</p>
+                  <p style="font-size:13px; color:var(--text-tertiary,#86868b); margin:0;">No assignments, students, files, or subjects found matching your query.</p>
+                </div>
+              `;
+            }
+
+            searchResults.innerHTML = html;
             setTimeout(initDashboardCardPhysics, 50);
           } catch (err) {
             if (err && err.name === 'AbortError') return;
             console.error("Search error:", err);
           }
-        }, 240);
+        }, 300);
       });
     }
 

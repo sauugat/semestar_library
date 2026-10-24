@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <script src="/theme.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Search Campus — Semester Library</title>
+
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/logo.jpg">
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semester Library">
+  <meta name="theme-color" content="#09090b">
+
+  <!-- Anti-flash inline script -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme');
+        if (!t) {
+          t = 'dark';
+          try { localStorage.setItem('theme', 'dark'); } catch (e) { }
+        }
+        var d = t === 'dark';
+        document.documentElement.setAttribute('data-theme', t);
+        if (d) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) { }
+    })();
+  </script>
+
+  <script src="/auth.js?v=3"></script>
+  <script>SemesterAuth.protectPage();</script>
+  <script src="/academic-context.js"></script>
+  <script src="/markdown.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.v4.css?v=4.2">
+  <link rel="stylesheet" href="/theme-overrides.css">
+
+  <style>
+    :root {
+      --sp-bg: #f6f6f9;
+      --sp-surface: #ffffff;
+      --sp-surface-raised: #f1f1f5;
+      --sp-surface-glass: rgba(255, 255, 255, 0.86);
+      --sp-border: rgba(0, 0, 0, 0.09);
+      --sp-border-strong: rgba(0, 0, 0, 0.18);
+      --sp-text: #111113;
+      --sp-text-secondary: #52525b;
+      --sp-text-muted: #71717a;
+      --sp-cherry: #e11d48;
+      --sp-cherry-soft: rgba(225, 29, 72, 0.10);
+      --sp-cherry-glow: rgba(225, 29, 72, 0.24);
+      --sp-cherry-gradient: linear-gradient(135deg, #e11d48 0%, #fb7185 100%);
+      --sp-blue: #2563eb;
+      --sp-emerald: #10b981;
+      --sp-amber: #f59e0b;
+      --sp-violet: #8b5cf6;
+      --OriginX: 92vw;
+      --OriginY: 88vh;
+    }
+
+    [data-theme="dark"],
+    body.dark-mode {
+      --sp-bg: #09090b;
+      --sp-surface: #121216;
+      --sp-surface-raised: #1a1a20;
+      --sp-surface-glass: rgba(18, 18, 22, 0.84);
+      --sp-border: rgba(255, 255, 255, 0.09);
+      --sp-border-strong: rgba(255, 255, 255, 0.20);
+      --sp-text: #f4f4f6;
+      --sp-text-secondary: #a1a1aa;
+      --sp-text-muted: #71717a;
+      --sp-cherry: #f43f5e;
+      --sp-cherry-soft: rgba(244, 63, 94, 0.14);
+      --sp-cherry-glow: rgba(244, 63, 94, 0.30);
+      --sp-cherry-gradient: linear-gradient(135deg, #f43f5e 0%, #fb7185 50%, #fda4af 100%);
+      --sp-blue: #3b82f6;
+      --sp-emerald: #34d399;
+      --sp-amber: #fbbf24;
+      --sp-violet: #a78bfa;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body.search-page-body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: var(--sp-bg);
+      color: var(--sp-text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Smooth Button-Origin Radial Reveal Animation */
+    @keyframes searchPageReveal {
+      0% {
+        clip-path: circle(24px at var(--OriginX, 92vw) var(--OriginY, 88vh));
+        opacity: 0.4;
+        transform: scale(0.985);
+      }
+      60% {
+        opacity: 1;
+      }
+      100% {
+        clip-path: circle(150vmax at var(--OriginX, 92vw) var(--OriginY, 88vh));
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes searchPageExit {
+      0% {
+        clip-path: circle(150vmax at var(--OriginX, 92vw) var(--OriginY, 88vh));
+        opacity: 1;
+        transform: scale(1);
+      }
+      100% {
+        clip-path: circle(20px at var(--OriginX, 92vw) var(--OriginY, 88vh));
+        opacity: 0;
+        transform: scale(0.97);
+      }
+    }
+
+    .search-page-shell {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      animation: searchPageReveal 0.56s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      will-change: clip-path, transform, opacity;
+    }
+
+    .search-page-shell.is-closing {
+      animation: searchPageExit 0.34s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    /* Ambient Top Cherry Aura */
+    .search-ambient-glow {
+      position: fixed;
+      top: -120px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(860px, 95vw);
+      height: 240px;
+      background: radial-gradient(ellipse at center, var(--sp-cherry-soft) 0%, transparent 72%);
+      pointer-events: none;
+      z-index: 0;
+      filter: blur(28px);
+    }
+
+    /* Sticky Glass Search Header */
+    .sp-header {
+      position: sticky;
+      top: 0;
+      z-index: 60;
+      background: var(--sp-surface-glass);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--sp-border);
+      padding: 14px 20px;
+    }
+
+    .sp-header-inner {
+      max-width: 980px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sp-back-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 42px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid var(--sp-border);
+      background: var(--sp-surface);
+      color: var(--sp-text);
+      font-size: 13.5px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .sp-back-btn:hover {
+      border-color: var(--sp-cherry);
+      background: var(--sp-surface-raised);
+      transform: translateX(-2px);
+    }
+
+    .sp-search-bar-wrap {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 46px;
+      background: var(--sp-surface);
+      border: 1.5px solid var(--sp-border-strong);
+      border-radius: 999px;
+      padding: 0 14px 0 16px;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+    }
+
+    .sp-search-bar-wrap:focus-within {
+      border-color: var(--sp-cherry);
+      box-shadow: 0 0 0 4px var(--sp-cherry-soft), 0 8px 24px rgba(0, 0, 0, 0.14);
+    }
+
+    .sp-search-icon {
+      color: var(--sp-cherry);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      flex-shrink: 0;
+      animation: searchIconPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes searchIconPop {
+      0% { transform: scale(0.5) rotate(-35deg); opacity: 0; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+
+    .sp-search-input {
+      flex: 1;
+      border: none !important;
+      outline: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--sp-text) !important;
+      font-size: 15px;
+      font-weight: 500;
+      width: 100%;
+      padding: 0;
+    }
+
+    .sp-search-input::placeholder {
+      color: var(--sp-text-muted);
+    }
+
+    .sp-clear-btn {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: none;
+      background: var(--sp-surface-raised);
+      color: var(--sp-text-secondary);
+      cursor: pointer;
+      padding: 0;
+      margin-left: 6px;
+      transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    }
+
+    .sp-clear-btn.visible {
+      display: inline-flex;
+    }
+
+    .sp-clear-btn:hover {
+      background: var(--sp-cherry);
+      color: #ffffff;
+      transform: scale(1.08);
+    }
+
+    .sp-kbd-hint {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--sp-text-muted);
+      background: var(--sp-surface-raised);
+      border: 1px solid var(--sp-border);
+      border-radius: 6px;
+      padding: 3px 7px;
+      margin-left: 8px;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    /* Filter Tabs & Chart Summary Bar */
+    .sp-controls-wrap {
+      max-width: 980px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 14px 20px 0;
+      position: relative;
+      z-index: 2;
+    }
+
+    .sp-filter-tabs {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 6px;
+    }
+
+    .sp-filter-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .sp-tab-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 15px;
+      border-radius: 999px;
+      border: 1px solid var(--sp-border);
+      background: var(--sp-surface);
+      color: var(--sp-text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .sp-tab-pill:hover {
+      border-color: var(--sp-border-strong);
+      color: var(--sp-text);
+      transform: translateY(-1px);
+    }
+
+    .sp-tab-pill.active {
+      background: var(--sp-cherry);
+      border-color: var(--sp-cherry);
+      color: #ffffff;
+      box-shadow: 0 4px 14px var(--sp-cherry-glow);
+    }
+
+    .sp-tab-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 18px;
+      padding: 0 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--sp-surface-raised);
+      color: var(--sp-text-secondary);
+    }
+
+    .sp-tab-pill.active .sp-tab-count {
+      background: rgba(255, 255, 255, 0.22);
+      color: #ffffff;
+    }
+
+    /* Visual Match Breakdown Chart Bar */
+    .sp-chart-card {
+      margin-top: 12px;
+      padding: 14px 18px;
+      border-radius: 16px;
+      background: var(--sp-surface);
+      border: 1px solid var(--sp-border);
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      animation: cardSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .sp-chart-card.visible {
+      display: flex;
+    }
+
+    .sp-chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--sp-text-secondary);
+    }
+
+    .sp-chart-bar {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--sp-surface-raised);
+      overflow: hidden;
+      display: flex;
+      gap: 2px;
+    }
+
+    .sp-chart-seg {
+      height: 100%;
+      transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+      border-radius: 999px;
+    }
+
+    .sp-chart-legend {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 11.5px;
+      color: var(--sp-text-muted);
+    }
+
+    .sp-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    .sp-legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* Main Content Container */
+    .sp-main {
+      flex: 1;
+      max-width: 980px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 20px 20px 80px;
+      position: relative;
+      z-index: 2;
+    }
+
+    @keyframes cardSlideUp {
+      0% {
+        opacity: 0;
+        transform: translateY(14px) scale(0.985);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .sp-section {
+      margin-bottom: 30px;
+      animation: cardSlideUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .sp-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .sp-section-title {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--sp-text-muted);
+      margin: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sp-section-title::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--sp-cherry);
+      display: inline-block;
+    }
+
+    /* Recent Searches Chips */
+    .sp-recent-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .sp-recent-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 13px;
+      border-radius: 999px;
+      background: var(--sp-surface);
+      border: 1px solid var(--sp-border);
+      color: var(--sp-text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .sp-recent-chip:hover {
+      border-color: var(--sp-cherry);
+      background: var(--sp-cherry-soft);
+      transform: translateY(-1px);
+    }
+
+    .sp-recent-remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--sp-text-muted);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .sp-recent-remove:hover {
+      background: rgba(225, 29, 72, 0.2);
+      color: var(--sp-cherry);
+    }
+
+    /* Suggested Category Bento Cards */
+    .sp-suggest-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+    }
+
+    .sp-suggest-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      border-radius: 16px;
+      background: var(--sp-surface);
+      border: 1px solid var(--sp-border);
+      cursor: pointer;
+      text-align: left;
+      color: var(--sp-text);
+      transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.24s ease;
+    }
+
+    .sp-suggest-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--sp-cherry);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.14);
+    }
+
+    .sp-suggest-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--sp-cherry-soft);
+      color: var(--sp-cherry);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sp-suggest-info h4 {
+      margin: 0 0 3px;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--sp-text);
+    }
+
+    .sp-suggest-info p {
+      margin: 0;
+      font-size: 12.5px;
+      color: var(--sp-text-muted);
+    }
+
+    /* Result Cards Grid & Items */
+    .sp-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 12px;
+    }
+
+    .sp-cards-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sp-item-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: var(--sp-surface);
+      border: 1px solid var(--sp-border);
+      text-decoration: none;
+      color: var(--sp-text);
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.22s ease;
+      animation: cardSlideUp 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation-delay: calc(var(--card-idx, 0) * 35ms);
+    }
+
+    .sp-item-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--sp-cherry);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    .sp-avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--sp-cherry-gradient);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .sp-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .sp-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--sp-surface-raised);
+      border: 1px solid var(--sp-border);
+      color: var(--sp-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .sp-icon-box.is-cherry {
+      background: var(--sp-cherry-soft);
+      color: var(--sp-cherry);
+      border-color: rgba(244, 63, 94, 0.25);
+    }
+
+    .sp-card-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .sp-card-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .sp-card-title {
+      margin: 0;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--sp-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sp-role-badge {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--sp-cherry-soft);
+      color: var(--sp-cherry);
+      letter-spacing: 0.04em;
+    }
+
+    .sp-card-meta {
+      margin-top: 4px;
+      font-size: 12.5px;
+      color: var(--sp-text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .sp-tag-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--sp-surface-raised);
+      border: 1px solid var(--sp-border);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--sp-text-secondary);
+    }
+
+    .sp-card-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .sp-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--sp-border);
+      background: var(--sp-surface-raised);
+      color: var(--sp-text);
+      transition: all 0.18s ease;
+    }
+
+    .sp-action-btn:hover {
+      border-color: var(--sp-cherry);
+      color: var(--sp-cherry);
+    }
+
+    .sp-action-btn.primary {
+      background: var(--sp-cherry);
+      border-color: var(--sp-cherry);
+      color: #ffffff;
+    }
+
+    .sp-action-btn.primary:hover {
+      opacity: 0.92;
+      color: #ffffff;
+    }
+
+    .sp-empty-state {
+      text-align: center;
+      padding: 56px 20px;
+      background: var(--sp-surface);
+      border: 1px solid var(--sp-border);
+      border-radius: 20px;
+      animation: cardSlideUp 0.35s ease;
+    }
+
+    @media (max-width: 640px) {
+      .sp-header {
+        padding: 10px 12px;
+      }
+      .sp-back-btn span {
+        display: none;
+      }
+      .sp-back-btn {
+        padding: 0 11px;
+      }
+      .sp-kbd-hint {
+        display: none;
+      }
+      .sp-main {
+        padding: 16px 12px 70px;
+      }
+    }
+  </style>
+</head>
+
+<body class="search-page-body">
+  <div class="search-ambient-glow" aria-hidden="true"></div>
+
+  <div class="search-page-shell" id="searchPageShell">
+    <header class="sp-header">
+      <div class="sp-header-inner">
+        <a href="/dashboard.html" class="sp-back-btn" id="spBackBtn" aria-label="Back to Dashboard">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Dashboard</span>
+        </a>
+
+        <div class="sp-search-bar-wrap">
+          <span class="sp-search-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input
+            type="text"
+            id="headerSearchInput"
+            class="sp-search-input"
+            placeholder="Search classmates, notes, subjects, code lab assignments, posts..."
+            autocomplete="off"
+            autofocus
+          >
+          <button type="button" class="sp-clear-btn" id="spClearBtn" aria-label="Clear search">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+          <span class="sp-kbd-hint">ESC</span>
+        </div>
+
+        <button type="button" class="theme-toggle-btn dash-theme-btn" id="themeToggleBtn" aria-label="Toggle theme" title="Toggle theme">
+          <span class="theme-toggle-track">
+            <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg class="theme-icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </span>
+        </button>
+      </div>
+    </header>
+
+    <div class="sp-controls-wrap">
+      <div class="sp-filter-tabs" id="spFilterTabs" role="tablist" aria-label="Search Categories">
+        <button type="button" class="sp-tab-pill active" data-filter="all" role="tab" aria-selected="true">
+          <span>All Results</span>
+          <span class="sp-tab-count" id="countAll">0</span>
+        </button>
+        <button type="button" class="sp-tab-pill" data-filter="files" role="tab" aria-selected="false">
+          <span>Notes &amp; Files</span>
+          <span class="sp-tab-count" id="countFiles">0</span>
+        </button>
+        <button type="button" class="sp-tab-pill" data-filter="students" role="tab" aria-selected="false">
+          <span>Users &amp; Classmates</span>
+          <span class="sp-tab-count" id="countStudents">0</span>
+        </button>
+        <button type="button" class="sp-tab-pill" data-filter="assignments" role="tab" aria-selected="false">
+          <span>Assignments</span>
+          <span class="sp-tab-count" id="countAssignments">0</span>
+        </button>
+        <button type="button" class="sp-tab-pill" data-filter="subjects" role="tab" aria-selected="false">
+          <span>Subjects</span>
+          <span class="sp-tab-count" id="countSubjects">0</span>
+        </button>
+        <button type="button" class="sp-tab-pill" data-filter="posts" role="tab" aria-selected="false">
+          <span>Posts &amp; Notices</span>
+          <span class="sp-tab-count" id="countPosts">0</span>
+        </button>
+      </div>
+
+      <!-- Visual Result Distribution Chart Bar -->
+      <div class="sp-chart-card" id="spChartCard">
+        <div class="sp-chart-header">
+          <span id="spChartSummaryText">Showing matches across campus</span>
+          <span id="spChartQueryTag" style="color: var(--sp-cherry);"></span>
+        </div>
+        <div class="sp-chart-bar" id="spChartBar"></div>
+        <div class="sp-chart-legend" id="spChartLegend"></div>
+      </div>
+    </div>
+
+    <main class="sp-main">
+      <!-- Discovery / Empty Query View -->
+      <div id="spDiscoveryView">
+        <section class="sp-section" id="spRecentSection" style="display: none;">
+          <div class="sp-section-header">
+            <h2 class="sp-section-title">Recent Searches</h2>
+            <button type="button" id="spClearRecentBtn" style="background:none;border:none;color:var(--sp-cherry);font-size:12px;font-weight:700;cursor:pointer;">Clear all</button>
+          </div>
+          <div class="sp-recent-grid" id="spRecentList"></div>
+        </section>
+
+        <section class="sp-section">
+          <div class="sp-section-header">
+            <h2 class="sp-section-title">Explore Campus Everything</h2>
+          </div>
+          <div class="sp-suggest-grid">
+            <button type="button" class="sp-suggest-card" data-suggest-query="Notes" data-suggest-filter="files">
+              <div class="sp-suggest-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </div>
+              <div class="sp-suggest-info">
+                <h4>Notes &amp; Study Files</h4>
+                <p>Chapter PDFs, slides, past papers &amp; lab manuals</p>
+              </div>
+            </button>
+
+            <button type="button" class="sp-suggest-card" data-suggest-query="a" data-suggest-filter="students">
+              <div class="sp-suggest-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div class="sp-suggest-info">
+                <h4>Users &amp; Classmates</h4>
+                <p>Find students, class reps, teachers &amp; profiles</p>
+              </div>
+            </button>
+
+            <button type="button" class="sp-suggest-card" data-suggest-query="Lab" data-suggest-filter="assignments">
+              <div class="sp-suggest-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              </div>
+              <div class="sp-suggest-info">
+                <h4>Code Lab Assignments</h4>
+                <p>Programming tasks, lab questions &amp; submissions</p>
+              </div>
+            </button>
+
+            <button type="button" class="sp-suggest-card" data-suggest-query="C" data-suggest-filter="subjects">
+              <div class="sp-suggest-icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              </div>
+              <div class="sp-suggest-info">
+                <h4>Subjects &amp; Courses</h4>
+                <p>Browse semester subjects &amp; chapter collections</p>
+              </div>
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <!-- Live Search Results Container -->
+      <div id="searchResults" style="display: none;"></div>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const RECENT_KEY = '@semlib_recent_searches';
+      const shell = document.getElementById('searchPageShell');
+      const searchInput = document.getElementById('headerSearchInput');
+      const clearBtn = document.getElementById('spClearBtn');
+      const backBtn = document.getElementById('spBackBtn');
+      const discoveryView = document.getElementById('spDiscoveryView');
+      const searchResults = document.getElementById('searchResults');
+      const recentSection = document.getElementById('spRecentSection');
+      const recentList = document.getElementById('spRecentList');
+      const clearRecentBtn = document.getElementById('spClearRecentBtn');
+      const filterTabs = document.getElementById('spFilterTabs');
+      const chartCard = document.getElementById('spChartCard');
+      const chartBar = document.getElementById('spChartBar');
+      const chartLegend = document.getElementById('spChartLegend');
+      const chartSummaryText = document.getElementById('spChartSummaryText');
+      const chartQueryTag = document.getElementById('spChartQueryTag');
+
+      // Apply button-origin coordinates if passed from dashboard click
+      try {
+        const rawOrigin = sessionStorage.getItem('sl_search_origin');
+        if (rawOrigin) {
+          const parsed = JSON.parse(rawOrigin);
+          if (parsed && typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+            document.documentElement.style.setProperty('--OriginX', parsed.x + 'px');
+            document.documentElement.style.setProperty('--OriginY', parsed.y + 'px');
+          }
+        }
+      } catch (e) { }
+
+      let activeFilter = 'all';
+      let lastData = null;
+      let lastQuery = '';
+      let searchTimeout = null;
+      let searchAbortController = null;
+      let searchRequestId = 0;
+
+      function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function formatSize(bytes) {
+        const b = Number(bytes) || 0;
+        if (b < 1024) return b + ' B';
+        if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+        return (b / (1024 * 1024)).toFixed(1) + ' MB';
+      }
+
+      function getFileExt(name) {
+        const m = String(name || '').match(/\.([a-zA-Z0-9]+)$/);
+        return m ? m[1].toUpperCase() : 'FILE';
+      }
+
+      function getRecentSearches() {
+        try {
+          const raw = localStorage.getItem(RECENT_KEY);
+          const list = raw ? JSON.parse(raw) : [];
+          return Array.isArray(list) ? list.slice(0, 8) : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveRecentSearch(term) {
+        const t = String(term || '').trim();
+        if (t.length < 2) return;
+        try {
+          const prev = getRecentSearches().filter(item => item.toLowerCase() !== t.toLowerCase());
+          const next = [t, ...prev].slice(0, 8);
+          localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+          renderRecentSearches();
+        } catch (e) { }
+      }
+
+      function removeRecentSearch(term) {
+        try {
+          const next = getRecentSearches().filter(item => item !== term);
+          localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+          renderRecentSearches();
+        } catch (e) { }
+      }
+
+      function renderRecentSearches() {
+        const list = getRecentSearches();
+        if (!list.length) {
+          recentSection.style.display = 'none';
+          recentList.innerHTML = '';
+          return;
+        }
+        recentSection.style.display = 'block';
+        recentList.innerHTML = list.map(term => `
+          <div class="sp-recent-chip" data-recent-term="${escapeHtml(term)}">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>${escapeHtml(term)}</span>
+            <button type="button" class="sp-recent-remove" data-remove-term="${escapeHtml(term)}" aria-label="Remove ${escapeHtml(term)}">&times;</button>
+          </div>
+        `).join('');
+      }
+
+      recentList.addEventListener('click', (e) => {
+        const rmBtn = e.target.closest('[data-remove-term]');
+        if (rmBtn) {
+          e.stopPropagation();
+          removeRecentSearch(rmBtn.getAttribute('data-remove-term'));
+          return;
+        }
+        const chip = e.target.closest('[data-recent-term]');
+        if (chip) {
+          const term = chip.getAttribute('data-recent-term');
+          searchInput.value = term;
+          triggerSearch(term);
+        }
+      });
+
+      if (clearRecentBtn) {
+        clearRecentBtn.addEventListener('click', () => {
+          try { localStorage.removeItem(RECENT_KEY); } catch (e) { }
+          renderRecentSearches();
+        });
+      }
+
+      document.querySelectorAll('[data-suggest-query]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const q = btn.getAttribute('data-suggest-query') || '';
+          const filter = btn.getAttribute('data-suggest-filter') || 'all';
+          setActiveFilter(filter);
+          searchInput.value = q;
+          searchInput.focus();
+          triggerSearch(q);
+        });
+      });
+
+      function setActiveFilter(filter) {
+        activeFilter = filter;
+        filterTabs.querySelectorAll('.sp-tab-pill').forEach(btn => {
+          const isMatch = btn.getAttribute('data-filter') === filter;
+          btn.classList.toggle('active', isMatch);
+          btn.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+        });
+        if (lastData && lastQuery) {
+          renderSearchResults(lastData, lastQuery);
+        }
+      }
+
+      filterTabs.addEventListener('click', (e) => {
+        const pill = e.target.closest('.sp-tab-pill');
+        if (!pill) return;
+        setActiveFilter(pill.getAttribute('data-filter') || 'all');
+      });
+
+      function updateCountsAndChart(data, q) {
+        const filesCount = (data.files && data.files.length) || 0;
+        const studentsCount = (data.students && data.students.length) || 0;
+        const assignmentsCount = (data.assignments && data.assignments.length) || 0;
+        const subjectsCount = (data.subjects && data.subjects.length) || 0;
+        const postsCount = (data.posts && data.posts.length) || 0;
+        const total = filesCount + studentsCount + assignmentsCount + subjectsCount + postsCount;
+
+        document.getElementById('countAll').textContent = total;
+        document.getElementById('countFiles').textContent = filesCount;
+        document.getElementById('countStudents').textContent = studentsCount;
+        document.getElementById('countAssignments').textContent = assignmentsCount;
+        document.getElementById('countSubjects').textContent = subjectsCount;
+        document.getElementById('countPosts').textContent = postsCount;
+
+        if (!q || total === 0) {
+          chartCard.classList.remove('visible');
+          return;
+        }
+
+        chartCard.classList.add('visible');
+        chartSummaryText.textContent = `${total} result${total === 1 ? '' : 's'} found across campus`;
+        chartQueryTag.textContent = `"${q}"`;
+
+        const segments = [
+          { label: 'Notes & Files', count: filesCount, color: 'var(--sp-cherry)' },
+          { label: 'Users', count: studentsCount, color: 'var(--sp-blue)' },
+          { label: 'Assignments', count: assignmentsCount, color: 'var(--sp-amber)' },
+          { label: 'Subjects', count: subjectsCount, color: 'var(--sp-emerald)' },
+          { label: 'Posts', count: postsCount, color: 'var(--sp-violet)' }
+        ].filter(s => s.count > 0);
+
+        chartBar.innerHTML = segments.map(s => {
+          const pct = Math.max(6, Math.round((s.count / total) * 100));
+          return `<div class="sp-chart-seg" style="width:${pct}%; background:${s.color};" title="${s.label}: ${s.count}"></div>`;
+        }).join('');
+
+        chartLegend.innerHTML = segments.map(s => `
+          <span class="sp-legend-item">
+            <span class="sp-legend-dot" style="background:${s.color};"></span>
+            <span>${s.label} (${s.count})</span>
+          </span>
+        `).join('');
+      }
+
+      function renderStudentCard(s, idx) {
+        const initial = (s.name || 'S').charAt(0).toUpperCase();
+        const avatarHtml = s.avatarUrl
+          ? `<img src="${escapeHtml(s.avatarUrl)}" alt="${escapeHtml(s.name)}">`
+          : initial;
+        let roleBadge = '';
+        if (s.role === 'admin') roleBadge = `<span class="sp-role-badge">Admin</span>`;
+        else if (s.role === 'teacher' || s.role === 'faculty') roleBadge = `<span class="sp-role-badge">Teacher</span>`;
+        else if (s.role === 'cr' || s.role === 'class_rep') roleBadge = `<span class="sp-role-badge">Class Rep</span>`;
+
+        return `
+          <a href="profile.html?id=${encodeURIComponent(s.studentId)}" class="sp-item-card search-student-card" style="--card-idx:${idx}">
+            <div class="sp-avatar">${avatarHtml}</div>
+            <div class="sp-card-body">
+              <div class="sp-card-title-row">
+                <h4 class="sp-card-title">${escapeHtml(s.name)}</h4>
+                ${roleBadge}
+              </div>
+              <div class="sp-card-meta">
+                <span>@${escapeHtml(s.username || s.studentId)}</span>
+                <span>&middot;</span>
+                <span>${escapeHtml(s.role === 'teacher' ? 'Faculty' : (s.semester || 'Semester 1'))}</span>
+                <span>&middot;</span>
+                <span>${Number(s.filesCount || s.filescount || 0)} upload${Number(s.filesCount || s.filescount || 0) === 1 ? '' : 's'}</span>
+              </div>
+            </div>
+          </a>
+        `;
+      }
+
+      function renderSubjectCard(s, idx) {
+        return `
+          <a href="library.html?subject=${encodeURIComponent(s.subject)}" class="sp-item-card search-subject-card" style="--card-idx:${idx}">
+            <div class="sp-icon-box is-cherry">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </div>
+            <div class="sp-card-body">
+              <h4 class="sp-card-title">${escapeHtml(s.subject)}</h4>
+              <div class="sp-card-meta">
+                <span>${Number(s.fileCount || 0)} file${Number(s.fileCount || 0) === 1 ? '' : 's'}</span>
+                <span>&middot;</span>
+                <span>${Number(s.chapterCount || 0)} chapter${Number(s.chapterCount || 0) === 1 ? '' : 's'}</span>
+              </div>
+            </div>
+          </a>
+        `;
+      }
+
+      function renderAssignmentCard(a, idx) {
+        const qCount = Number(a.questionCount || 0);
+        const subCount = Number(a.submissionCount || 0);
+        const mySub = Number(a.mySubmissionCount || 0);
+        const statusText = (mySub > 0 && mySub >= qCount && qCount > 0)
+          ? 'Submitted'
+          : (mySub > 0 ? `${mySub}/${qCount} Done` : 'Solve');
+
+        return `
+          <div class="sp-item-card" style="--card-idx:${idx}">
+            <div class="sp-icon-box is-cherry">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            </div>
+            <div class="sp-card-body">
+              <div class="sp-card-title-row">
+                <h4 class="sp-card-title">${escapeHtml(a.title)}</h4>
+                ${a.subject ? `<span class="sp-tag-pill">${escapeHtml(a.subject)}</span>` : ''}
+              </div>
+              <div class="sp-card-meta">
+                <span>By ${escapeHtml(a.teacherName || a.createdBy || 'Instructor')}</span>
+                <span>&middot;</span>
+                <span>${qCount} question${qCount === 1 ? '' : 's'}</span>
+                <span>&middot;</span>
+                <span>${subCount} submission${subCount === 1 ? '' : 's'}</span>
+              </div>
+            </div>
+            <div class="sp-card-actions">
+              <a href="/code-lab/assignment.html?id=${encodeURIComponent(a.id)}" class="sp-action-btn primary">${escapeHtml(statusText)}</a>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderFileCard(f, idx) {
+        const ext = getFileExt(f.originalName);
+        return `
+          <div class="sp-item-card" style="--card-idx:${idx}">
+            <div class="sp-icon-box">${escapeHtml(ext)}</div>
+            <div class="sp-card-body">
+              <div class="sp-card-title-row">
+                <h4 class="sp-card-title">${escapeHtml(f.title || f.originalName)}</h4>
+                ${f.subject ? `<span class="sp-tag-pill">${escapeHtml(f.subject)}</span>` : ''}
+                ${f.chapter ? `<span class="sp-tag-pill">${escapeHtml(f.chapter)}</span>` : ''}
+              </div>
+              <div class="sp-card-meta">
+                <span>${formatSize(f.sizeBytes)}</span>
+                <span>&middot;</span>
+                <span>By ${escapeHtml(f.uploaderName || f.uploadedBy || 'Student')}</span>
+                ${f.semester ? `<span>&middot; ${escapeHtml(f.semester)}</span>` : ''}
+              </div>
+            </div>
+            <div class="sp-card-actions">
+              <a href="/api/files/${encodeURIComponent(f.id)}/view" target="_blank" rel="noopener" class="sp-action-btn">View</a>
+              <a href="/api/files/${encodeURIComponent(f.id)}/download" class="sp-action-btn primary">Get</a>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderPostCard(p, idx) {
+        const snippet = String(p.content || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+        return `
+          <a href="dashboard.html?post=${encodeURIComponent(p.id)}" class="sp-item-card" style="--card-idx:${idx}">
+            <div class="sp-icon-box">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div class="sp-card-body">
+              <div class="sp-card-title-row">
+                <h4 class="sp-card-title">${escapeHtml(p.title || snippet || 'Campus Post')}</h4>
+                ${p.type === 'notice' || p.category === 'notice' ? `<span class="sp-role-badge">Notice</span>` : ''}
+              </div>
+              <div class="sp-card-meta">
+                <span>By ${escapeHtml(p.name || p.studentId || 'Student')}</span>
+                ${snippet && p.title ? `<span>&middot; ${escapeHtml(snippet)}</span>` : ''}
+              </div>
+            </div>
+          </a>
+        `;
+      }
+
+      function renderSearchResults(data, q) {
+        const showFiles = activeFilter === 'all' || activeFilter === 'files';
+        const showStudents = activeFilter === 'all' || activeFilter === 'students';
+        const showAssignments = activeFilter === 'all' || activeFilter === 'assignments';
+        const showSubjects = activeFilter === 'all' || activeFilter === 'subjects';
+        const showPosts = activeFilter === 'all' || activeFilter === 'posts';
+
+        let html = '';
+        let idx = 0;
+
+        if (showStudents && data.students && data.students.length > 0) {
+          html += `<section class="sp-section"><div class="sp-section-header"><h3 class="sp-section-title">Users &amp; Classmates (${data.students.length})</h3></div><div class="sp-cards-grid">${data.students.map(s => renderStudentCard(s, idx++)).join('')}</div></section>`;
+        }
+
+        if (showSubjects && data.subjects && data.subjects.length > 0) {
+          html += `<section class="sp-section"><div class="sp-section-header"><h3 class="sp-section-title">Subjects (${data.subjects.length})</h3></div><div class="sp-cards-grid">${data.subjects.map(s => renderSubjectCard(s, idx++)).join('')}</div></section>`;
+        }
+
+        if (showAssignments && data.assignments && data.assignments.length > 0) {
+          html += `<section class="sp-section"><div class="sp-section-header"><h3 class="sp-section-title">Code Lab Assignments (${data.assignments.length})</h3></div><div class="sp-cards-stack">${data.assignments.map(a => renderAssignmentCard(a, idx++)).join('')}</div></section>`;
+        }
+
+        if (showFiles && data.files && data.files.length > 0) {
+          html += `<section class="sp-section"><div class="sp-section-header"><h3 class="sp-section-title">Notes &amp; Files (${data.files.length})</h3></div><div class="sp-cards-stack">${data.files.map(f => renderFileCard(f, idx++)).join('')}</div></section>`;
+        }
+
+        if (showPosts && data.posts && data.posts.length > 0) {
+          html += `<section class="sp-section"><div class="sp-section-header"><h3 class="sp-section-title">Posts &amp; Notices (${data.posts.length})</h3></div><div class="sp-cards-stack">${data.posts.map(p => renderPostCard(p, idx++)).join('')}</div></section>`;
+        }
+
+        if (!html) {
+          html = `
+            <div class="sp-empty-state">
+              <img src="/minecraft-404-voxel-ruby.svg" alt="No results found" style="max-width: 180px; margin: 0 auto 14px; display: block;">
+              <h3 style="margin:0 0 6px; font-size:16px; font-weight:700;">No matching results found</h3>
+              <p style="margin:0; font-size:13.5px; color:var(--sp-text-muted);">No users, notes, subjects, assignments, or posts matched "${escapeHtml(q)}".</p>
+            </div>
+          `;
+        }
+
+        searchResults.innerHTML = html;
+      }
+
+      function triggerSearch(rawQuery) {
+        const q = String(rawQuery || '').trim();
+        clearBtn.classList.toggle('visible', q.length > 0);
+        clearTimeout(searchTimeout);
+        if (searchAbortController) {
+          try { searchAbortController.abort(); } catch (e) { }
+          searchAbortController = null;
+        }
+
+        if (!q) {
+          searchRequestId++;
+          lastQuery = '';
+          lastData = null;
+          searchResults.style.display = 'none';
+          discoveryView.style.display = 'block';
+          updateCountsAndChart({}, '');
+          return;
+        }
+
+        discoveryView.style.display = 'none';
+        searchResults.style.display = 'block';
+
+        searchTimeout = setTimeout(async () => {
+          const thisReqId = ++searchRequestId;
+          searchAbortController = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          try {
+            const fetchOpts = searchAbortController ? { signal: searchAbortController.signal } : {};
+            const res = await (window.SemesterAuth && typeof window.SemesterAuth.authFetch === 'function'
+              ? window.SemesterAuth.authFetch('/api/search?q=' + encodeURIComponent(q), fetchOpts)
+              : fetch('/api/search?q=' + encodeURIComponent(q), fetchOpts));
+            if (thisReqId !== searchRequestId || !res.ok) return;
+            const data = await res.json();
+            if (thisReqId !== searchRequestId) return;
+
+            lastQuery = q;
+            lastData = data;
+            saveRecentSearch(q);
+            updateCountsAndChart(data, q);
+            renderSearchResults(data, q);
+          } catch (err) {
+            if (err && err.name === 'AbortError') return;
+            console.error('Search error:', err);
+          }
+        }, 220);
+      }
+
+      searchInput.addEventListener('input', (e) => {
+        triggerSearch(e.target.value);
+      });
+
+      clearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        searchInput.focus();
+        triggerSearch('');
+      });
+
+      function closeWithAnimation(e) {
+        if (e) e.preventDefault();
+        shell.classList.add('is-closing');
+        setTimeout(() => {
+          window.location.href = '/dashboard.html';
+        }, 280);
+      }
+
+      backBtn.addEventListener('click', closeWithAnimation);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (searchInput.value) {
+            searchInput.value = '';
+            triggerSearch('');
+          } else {
+            closeWithAnimation();
+          }
+        }
+      });
+
+      renderRecentSearches();
+
+      // Support ?q= query parameter on initial load
+      const params = new URLSearchParams(window.location.search);
+      const initialQ = params.get('q');
+      if (initialQ) {
+        searchInput.value = initialQ;
+        triggerSearch(initialQ);
+      }
+    })();
+  </script>
+</body>
+
+</html>

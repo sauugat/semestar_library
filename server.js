@@ -614,6 +614,10 @@ app.get(['/create-post', '/create-post.html', '/new-post'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'create-post.html'));
 });
 
+app.get(['/search', '/search.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'search.html'));
+});
+
 app.get('/files', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'files.html'));
 });
@@ -4972,14 +4976,14 @@ app.get('/api/search', requireLogin, async (req, res) => {
     LIMIT 20
   `;
 
-  // Search students (by studentId, name, department)
+  // Search students (by studentId, username, name, department, semester)
   const studentsQuery = `
-    SELECT studentId, name, avatarUrl, role, department, semester, bio,
+    SELECT studentId, username, name, avatarUrl, role, department, semester, bio,
       (SELECT COUNT(*) FROM files WHERE files.uploadedBy = students.studentId) AS filesCount
     FROM students
-    WHERE LOWER(studentId) LIKE LOWER(?) OR LOWER(name) LIKE LOWER(?)
-    ORDER BY (role = 'admin') DESC, (role = 'cr') DESC, name ASC
-    LIMIT 10
+    WHERE LOWER(studentId) LIKE LOWER(?) OR LOWER(name) LIKE LOWER(?) OR LOWER(COALESCE(username, '')) LIKE LOWER(?) OR LOWER(COALESCE(department, '')) LIKE LOWER(?) OR LOWER(COALESCE(semester, '')) LIKE LOWER(?)
+    ORDER BY (role = 'admin') DESC, (role = 'teacher') DESC, (role = 'cr') DESC, name ASC
+    LIMIT 15
   `;
 
   // Search assignments (by title, subject, semester, createdBy, teacher name)
@@ -4995,15 +4999,40 @@ app.get('/api/search', requireLogin, async (req, res) => {
     LIMIT 15
   `;
 
+  // Search feed posts & notices (by title, content, subject, author name/studentId)
+  const postFilter = buildAcademicContentFilter(context, { tableAlias: 'p' });
+  const postsQuery = `
+    SELECT p.id, p.user_id AS studentId, p.title, p.content, p.type, p.category, p.subject, p.semester, p.created_at,
+      s.name, s.avatarUrl, s.role,
+      (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS like_count,
+      (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comment_count
+    FROM posts p
+    JOIN students s ON s.studentId = p.user_id
+    WHERE (${postFilter.sql}) AND (LOWER(COALESCE(p.title, '')) LIKE LOWER(?) OR LOWER(COALESCE(p.content, '')) LIKE LOWER(?) OR LOWER(COALESCE(p.subject, '')) LIKE LOWER(?) OR LOWER(p.user_id) LIKE LOWER(?) OR LOWER(s.name) LIKE LOWER(?))
+    ORDER BY p.created_at DESC
+    LIMIT 15
+  `;
+
   // Execute independent search queries in parallel to minimize WAN latency
-  const [files, subjects, students, assignments] = await Promise.all([
+  const [files, subjects, students, assignments, posts] = await Promise.all([
     db.all(filesQuery, currentStudentId || '', ...fileFilter.params, likeQuery, likeQuery, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery),
     db.all(subjectsQuery, ...fileFilter.params, likeQuery),
-    db.all(studentsQuery, cleanLikeQuery, cleanLikeQuery),
+    db.all(studentsQuery, cleanLikeQuery, cleanLikeQuery, cleanLikeQuery, likeQuery, likeQuery).catch(() =>
+      db.all(
+        `SELECT studentId, name, avatarUrl, role, department, semester, bio,
+          (SELECT COUNT(*) FROM files WHERE files.uploadedBy = students.studentId) AS filesCount
+         FROM students
+         WHERE LOWER(studentId) LIKE LOWER(?) OR LOWER(name) LIKE LOWER(?)
+         ORDER BY (role = 'admin') DESC, (role = 'cr') DESC, name ASC
+         LIMIT 10`,
+        cleanLikeQuery, cleanLikeQuery
+      )
+    ),
     db.all(assignmentsQuery, currentStudentId || '', ...assignmentFilter.params, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery).catch(err => {
       console.error('Assignment search error:', err);
       return [];
-    })
+    }),
+    db.all(postsQuery, ...postFilter.params, likeQuery, likeQuery, likeQuery, cleanLikeQuery, cleanLikeQuery).catch(() => [])
   ]);
 
   const processedFiles = (files || []).map(f => ({
@@ -5019,7 +5048,7 @@ app.get('/api/search', requireLogin, async (req, res) => {
     canDelete: viewerIsAdmin || f.uploadedBy === (req.session?.studentId || req.user?.studentId)
   }));
 
-  res.json({ files: processedFiles, subjects, students, assignments });
+  res.json({ files: processedFiles, subjects, students, assignments, posts: posts || [] });
 });
 
 // ============================================================

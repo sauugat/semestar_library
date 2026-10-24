@@ -6,7 +6,7 @@
 // - Includes versioned update flow + emergency kill-switch flag (SW_DISABLED)
 // =============================================================================
 
-const SW_VERSION = 'v25';
+const SW_VERSION = 'v26';
 const SW_DISABLED = false; // Emergency kill-switch flag: set to true to self-unregister and purge caches
 const SHELL_CACHE = `semester-library-shell-${SW_VERSION}`;
 const PAGE_CACHE = `semester-library-pages-${SW_VERSION}`;
@@ -32,25 +32,7 @@ const APP_SHELL_ASSETS = [
 function isExcludedFromSwCache(url) {
   const p = url.pathname;
   if (
-    p.startsWith('/api/auth') ||
-    p.startsWith('/api/login') ||
-    p.startsWith('/api/logout') ||
-    p.startsWith('/api/me') ||
-    p.startsWith('/api/profile') ||
-    p.startsWith('/api/academic-context') ||
-    p.startsWith('/api/chat') ||
-    p.startsWith('/api/dm') ||
-    p.startsWith('/api/notifications') ||
-    p.startsWith('/api/files') ||
-    p.startsWith('/api/library') ||
-    p.startsWith('/api/posts') ||
-    p.startsWith('/api/code-lab') ||
-    p.startsWith('/api/admin') ||
-    p.startsWith('/api/teacher') ||
-    p.startsWith('/api/routine') ||
-    p.startsWith('/api/attendance') ||
-    p.startsWith('/api/search') ||
-    p.startsWith('/api/students') ||
+    p.startsWith('/api/') ||
     p.startsWith('/uploads/') ||
     p.startsWith('/auth') ||
     p.startsWith('/js/auth') ||

@@ -3560,9 +3560,10 @@
         if (heroReal) heroReal.style.display = 'block';
 
         document.getElementById('greetingLine').textContent = `${getGreeting()}, ${data.name}`;
+        const isValidId = data.studentId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(data.studentId).trim());
         document.getElementById('idLine').textContent = (data.role === 'teacher' || data.role === 'faculty')
           ? `Faculty: @${data.username || data.studentId}`
-          : `Student ID: ${data.studentId}`;
+          : (isValidId ? `Student ID: ${data.studentId}` : (data.name || 'Student'));
 
 
         // Populate top right header profile chip
@@ -4528,7 +4529,9 @@
       });
       container.replaceChildren(fragment);
       if (!visibleItems.length) {
-        if (currentFeedCategoryFilter && currentFeedCategoryFilter !== 'all') {
+        if (!postsLoaded) {
+          container.innerHTML = `<div class="post-feed-empty"><p>Could not load posts</p><p>${escapeHtml(postFeedMessage.textContent || 'Check your connection and try again.')}</p><button type="button" class="apple-nav-btn" onclick="loadFeed({ force: true })" style="margin-top:10px;">Retry</button></div>`;
+        } else if (currentFeedCategoryFilter && currentFeedCategoryFilter !== 'all') {
           container.innerHTML = `<div class="post-feed-empty"><p>No ${escapeHtml(currentFeedCategoryFilter)} posts found</p><p>Share a post in this category or switch back to All Posts.</p></div>`;
         } else {
           container.innerHTML = `<div class="post-feed-empty"><p>No posts shared yet</p><p>Share a status above or upload notes in Library.</p></div>`;

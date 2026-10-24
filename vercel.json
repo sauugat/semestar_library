@@ -3,20 +3,20 @@
   "regions": ["iad1"],
   "headers": [
     {
+      "source": "/((?:js/)?(?:auth|academic-context|sw|swr)\\.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/(.*)\\.(css|js|woff2|woff|ttf|webp|png|jpg|jpeg|svg|ico)",
       "headers": [
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/(auth|academic-context|sw)\\.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
         }
       ]
     },

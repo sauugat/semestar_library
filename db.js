@@ -124,9 +124,26 @@ if (isPostgres) {
 
 function toPostgresSql(sql) {
   let idx = 1;
-  return sql
-    .replace(/datetime\('now'\)/gi, 'CURRENT_TIMESTAMP')
-    .replace(/\?/g, () => `$${idx++}`);
+  let inString = false;
+  let out = '';
+  const transformed = sql.replace(/datetime\('now'\)/gi, 'CURRENT_TIMESTAMP');
+  for (let i = 0; i < transformed.length; i++) {
+    const ch = transformed[i];
+    if (ch === "'") {
+      if (inString && transformed[i + 1] === "'") {
+        out += "''";
+        i++;
+        continue;
+      }
+      inString = !inString;
+      out += ch;
+    } else if (ch === '?' && !inString) {
+      out += `$${idx++}`;
+    } else {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 function normalizeParams(params) {
@@ -453,16 +470,22 @@ async function initSchema() {
     const originalPool = pgPool;
     try {
       if (isPostgres && pgDirectConnectionString) {
-        const { Pool } = require("@neondatabase/serverless");
-        directPool = new Pool({
-          connectionString: pgDirectConnectionString,
-          max: 1,
-          idleTimeoutMillis: 10000,
-          connectionTimeoutMillis: 15000
-        });
-        directPool.on("error", () => {});
-        activeMigrationPool = directPool;
-        pgPool = directPool;
+        try {
+          const { Pool } = require("@neondatabase/serverless");
+          directPool = new Pool({
+            connectionString: pgDirectConnectionString,
+            max: 1,
+            idleTimeoutMillis: 10000,
+            connectionTimeoutMillis: 15000
+          });
+          directPool.on("error", () => {});
+          activeMigrationPool = directPool;
+          pgPool = directPool;
+        } catch (poolErr) {
+          console.warn('[DB Engine]: Direct migration pool unavailable, using pooled connection:', poolErr?.message || poolErr);
+          directPool = null;
+          pgPool = originalPool;
+        }
       }
       if (isPostgres) {
         await exec(`
@@ -1272,7 +1295,9 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       await require('./migrations/003-perf-audit-indexes').ensurePerfAuditIndexes(exec);
 
     } catch (err) {
-      console.error('[DB Engine]: Schema initialization error:', err);
+      initPromise = null;
+      console.error('[DB Engine FATAL]: Schema initialization and migrations failed:', err);
+      throw err;
     } finally {
       if (directPool) {
         pgPool = originalPool;
@@ -1371,17 +1396,23 @@ let startupReadyPromise = null;
 async function verifyStartupReady() {
   if (startupReadyPromise) return startupReadyPromise;
   startupReadyPromise = (async () => {
-    if (isPostgres && pgPool) {
-      const res = await pgPool.query(
-        "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl"
-      );
-      const row = res.rows && res.rows[0];
-      if (row && row.students_tbl && row.posts_tbl) {
-        return { ready: true, mode: "fast-check" };
+    try {
+      if (isPostgres && pgPool) {
+        const res = await pgPool.query(
+          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl"
+        );
+        const row = res.rows && res.rows[0];
+        if (row && row.students_tbl && row.posts_tbl) {
+          return { ready: true, mode: "fast-check" };
+        }
       }
+      await initSchema();
+      return { ready: true, mode: "full-init" };
+    } catch (err) {
+      startupReadyPromise = null;
+      console.error('[DB Engine FATAL]: Startup readiness verification failed:', err);
+      throw err;
     }
-    await initSchema();
-    return { ready: true, mode: "full-init" };
   })();
   return startupReadyPromise;
 }
@@ -1414,6 +1445,7 @@ module.exports = {
   pgPool,
   pgDirectConnectionString,
   ensureNeonPoolerUrl,
-  ensureNeonDirectUrl
+  ensureNeonDirectUrl,
+  toPostgresSql
 };
 

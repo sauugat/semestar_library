@@ -15,7 +15,7 @@
 (function (root) {
   'use strict';
 
-  const SWR_VERSION = 'sl_swr_v2';
+  const SWR_VERSION = 'sl_swr_v3';
   const OLD_PREFIX = 'sl_swr_';
   const IDB_NAME = 'semester_library_swr_db';
   const IDB_STORE = 'swr_entries';
@@ -268,14 +268,17 @@
   }
 
   /**
-   * Prunes any outdated SWR versions from localStorage on startup
+   * Prunes any outdated SWR versions and old user caches from localStorage on startup
    */
   function pruneOldVersions() {
     try {
       if (!root.localStorage) return;
       for (let i = root.localStorage.length - 1; i >= 0; i--) {
         const k = root.localStorage.key(i);
-        if (k && k.startsWith(OLD_PREFIX) && !k.startsWith(SWR_VERSION + ':')) {
+        if (k && (
+          (k.startsWith('sl_swr_') && !k.startsWith(SWR_VERSION + ':')) ||
+          (k.startsWith('sl_user_cache_') && k !== 'sl_user_cache_v2')
+        )) {
           root.localStorage.removeItem(k);
         }
       }
@@ -369,6 +372,11 @@
 
         if (typeof transform === 'function') {
           freshData = transform(freshData);
+        }
+
+        // Never cache null, undefined, or error responses as valid data
+        if (freshData === null || freshData === undefined || (freshData && (freshData.error || (freshData.message && !freshData.posts && !Array.isArray(freshData))))) {
+          throw new Error('Invalid or empty response payload');
         }
 
         const freshJson = stableStringify(freshData);

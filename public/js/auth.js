@@ -180,27 +180,46 @@
     return null;
   }
 
+  function isUuid(str) {
+    return typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+  }
+
+  function isValidCachedUser(u) {
+    if (!u || typeof u !== 'object') return false;
+    if (!u.studentId || isUuid(u.studentId)) return false;
+    if (!u.name || typeof u.name !== 'string') return false;
+    return true;
+  }
+
   function getUserSync() {
-    if (cachedUser) return cachedUser;
+    if (cachedUser) {
+      if (isValidCachedUser(cachedUser)) return cachedUser;
+      cachedUser = null;
+    }
     try {
       if (typeof window !== 'undefined' && window.sessionStorage) {
         const storedUser = window.sessionStorage.getItem('sl_user_cache');
         if (storedUser) {
           const parsed = JSON.parse(storedUser);
-          if (parsed && (parsed.studentId || parsed.email || parsed.name)) {
+          if (isValidCachedUser(parsed)) {
             cachedUser = parsed;
             return cachedUser;
+          } else {
+            window.sessionStorage.removeItem('sl_user_cache');
           }
         }
       }
       if (typeof window !== 'undefined' && window.localStorage) {
-        const persistedUser = window.localStorage.getItem('sl_user_cache_v1');
+        window.localStorage.removeItem('sl_user_cache_v1');
+        const persistedUser = window.localStorage.getItem('sl_user_cache_v2');
         if (persistedUser && readStoredSession()) {
           const parsed = JSON.parse(persistedUser);
-          if (parsed && (parsed.studentId || parsed.email || parsed.name)) {
+          if (isValidCachedUser(parsed)) {
             cachedUser = parsed;
             try { window.sessionStorage.setItem('sl_user_cache', persistedUser); } catch {}
             return cachedUser;
+          } else {
+            window.localStorage.removeItem('sl_user_cache_v2');
           }
         }
       }
@@ -209,9 +228,14 @@
     const session = readStoredSession();
     if (session && session.user) {
       const meta = session.user.user_metadata || {};
+      const candidateId = meta.student_id || meta.studentId;
+      const validStudentId = (candidateId && !isUuid(candidateId)) ? candidateId : null;
+      if (!validStudentId) {
+        return null;
+      }
       const name = meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Student';
       cachedUser = {
-        studentId: meta.student_id || meta.studentId || meta.username || session.user.id,
+        studentId: validStudentId,
         username: meta.username || null,
         name: name,
         email: session.user.email,
@@ -227,7 +251,7 @@
       try {
         const serialized = JSON.stringify(cachedUser);
         window.sessionStorage.setItem('sl_user_cache', serialized);
-        window.localStorage.setItem('sl_user_cache_v1', serialized);
+        window.localStorage.setItem('sl_user_cache_v2', serialized);
       } catch {}
       return cachedUser;
     }
@@ -286,13 +310,13 @@
       });
       if (res.ok) {
         const data = await res.json();
-        if (data && data.studentId) {
+        if (isValidCachedUser(data)) {
           data._validated = true;
           cachedUser = data;
           try {
             const serialized = JSON.stringify(data);
             window.sessionStorage.setItem('sl_user_cache', serialized);
-            window.localStorage.setItem('sl_user_cache_v1', serialized);
+            window.localStorage.setItem('sl_user_cache_v2', serialized);
           } catch {}
           return data;
         }
@@ -304,8 +328,13 @@
     // Fallback to metadata from session
     if (session.user) {
       const meta = session.user.user_metadata || {};
+      const candidateId = meta.student_id || meta.studentId;
+      const validStudentId = (candidateId && !isUuid(candidateId)) ? candidateId : null;
+      if (!validStudentId) {
+        return null;
+      }
       cachedUser = {
-        studentId: meta.student_id || meta.studentId || meta.username || session.user.id,
+        studentId: validStudentId,
         username: meta.username || null,
         name: meta.full_name || meta.name || session.user.email?.split('@')[0] || 'Student',
         email: session.user.email,
@@ -563,9 +592,10 @@
       }
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem('sl_user_cache_v1');
+        window.localStorage.removeItem('sl_user_cache_v2');
         for (let i = window.localStorage.length - 1; i >= 0; i--) {
           const key = window.localStorage.key(i);
-          if (key && (key.startsWith('sb-') || key.startsWith('sl_swr:') || key.includes('auth-token') || key.includes('academic_context'))) {
+          if (key && (key.startsWith('sb-') || key.startsWith('sl_swr:') || key.startsWith('sl_user_cache_') || key.includes('auth-token') || key.includes('academic_context'))) {
             window.localStorage.removeItem(key);
           }
         }
@@ -823,8 +853,12 @@
       }
 
       const idLine = document.getElementById('idLine');
-      if (idLine && user.studentId) {
-        idLine.textContent = `Student ID: ${user.studentId}`;
+      if (idLine && user.studentId && !isUuid(user.studentId)) {
+        if (user.role === 'teacher' || user.role === 'faculty') {
+          idLine.textContent = `Faculty: @${user.username || user.studentId}`;
+        } else {
+          idLine.textContent = `Student ID: ${user.studentId}`;
+        }
       }
 
       const avatarEl = document.getElementById('avatarInitial');

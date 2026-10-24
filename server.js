@@ -326,14 +326,19 @@ let initDbPromise = null;
 app.use(async (req, res, next) => {
   if (!isDbReady) {
     if (!initDbPromise) {
-      initDbPromise = (typeof db.verifyStartupReady === 'function' ? db.verifyStartupReady() : db.initSchema()).then(() => {
-        isDbReady = true;
-      });
+      initDbPromise = (typeof db.verifyStartupReady === 'function' ? db.verifyStartupReady() : db.initSchema())
+        .then(() => {
+          isDbReady = true;
+        })
+        .catch((err) => {
+          initDbPromise = null;
+          throw err;
+        });
     }
     try {
       await initDbPromise;
     } catch (err) {
-      return res.status(503).json({ message: 'Database initialization in progress. Please retry.' });
+      return res.status(503).json({ message: 'Database initialization in progress or failed. Please retry.' });
     }
   }
   next();

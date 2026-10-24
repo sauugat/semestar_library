@@ -159,7 +159,9 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
   router.use(requireLogin);
   router.use(async (req, res, next) => {
     try {
-      if (typeof db.initSchema === 'function') {
+      if (typeof db.verifyStartupReady === 'function') {
+        await db.verifyStartupReady();
+      } else if (typeof db.initSchema === 'function') {
         await db.initSchema();
       }
       const callerId = req.student?.studentId || req.user?.studentId || req.session?.studentId;

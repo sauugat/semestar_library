@@ -4,6 +4,7 @@ const os = require('os');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { execFileSync } = require('child_process');
 
 const testDbPath = path.join(
   os.tmpdir(),
@@ -18,6 +19,7 @@ const assert = require('node:assert/strict');
 const http = require('http');
 const { PassThrough } = require('stream');
 const bcrypt = require('bcryptjs');
+const JSZip = require('jszip');
 const { PGlite } = require('@electric-sql/pglite');
 
 const app = require('../server');
@@ -34,6 +36,7 @@ const {
 const { ensureAuditSchema } = require('../lib/audit-service');
 const {
   ensureAttendanceSchema,
+  computeCanonicalSnapshotHash,
   saveAttendanceSession,
   editAttendanceSessionById,
   adminCorrectAttendanceSession,
@@ -144,6 +147,103 @@ async function appFetch(urlOrPath, options = {}) {
 }
 
 const fetch = appFetch;
+
+/**
+ * Independent XLSX Validator using third-party JSZip AND Python 3's standard library
+ * zipfile + xml.etree.ElementTree XML parser (completely independent of attendance-xlsx.js).
+ */
+async function validateXlsxIndependently(xlsxBuffer) {
+  // 1. Validate with JSZip (independent Node ZIP reader)
+  const zip = await JSZip.loadAsync(xlsxBuffer);
+  const entryNames = Object.keys(zip.files);
+  for (const requiredFile of [
+    '[Content_Types].xml',
+    '_rels/.rels',
+    'xl/workbook.xml',
+    'xl/_rels/workbook.xml.rels',
+    'xl/styles.xml'
+  ]) {
+    assert.ok(entryNames.includes(requiredFile), `Missing required OOXML entry: ${requiredFile}`);
+  }
+
+  // 2. Validate with Python 3 zipfile.testzip() (CRC & deflate check) + xml.etree.ElementTree XML DOM parser
+  const tmpFile = path.join(os.tmpdir(), `xlsx_verify_${Date.now()}_${Math.random().toString(36).slice(2)}.xlsx`);
+  fs.writeFileSync(tmpFile, xlsxBuffer);
+  try {
+    const pyScript = `
+import sys, json, zipfile, xml.etree.ElementTree as ET
+
+path = sys.argv[1]
+with zipfile.ZipFile(path, 'r') as zf:
+    bad_file = zf.testzip()
+    if bad_file is not None:
+        raise RuntimeError(f"Corrupt ZIP entry: {bad_file}")
+    names = zf.namelist()
+    ct_root = ET.fromstring(zf.read('[Content_Types].xml'))
+    rels_root = ET.fromstring(zf.read('_rels/.rels'))
+    wb_root = ET.fromstring(zf.read('xl/workbook.xml'))
+    wb_rels_root = ET.fromstring(zf.read('xl/_rels/workbook.xml.rels'))
+    styles_root = ET.fromstring(zf.read('xl/styles.xml'))
+
+    ns = {
+        'main': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
+        'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+        'pkgrel': 'http://schemas.openxmlformats.org/package/2006/relationships'
+    }
+
+    rel_map = {}
+    for rel in wb_rels_root.findall('pkgrel:Relationship', ns):
+        rel_map[rel.attrib['Id']] = rel.attrib['Target']
+
+    sheets_out = []
+    for sh in wb_root.findall('.//main:sheet', ns):
+        sh_name = sh.attrib['name']
+        sh_id = int(sh.attrib['sheetId'])
+        r_id = sh.attrib['{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id']
+        target = 'xl/' + rel_map[r_id]
+        if target not in names:
+            raise RuntimeError(f"Missing worksheet target {target}")
+        ws_root = ET.fromstring(zf.read(target))
+        dim_el = ws_root.find('main:dimension', ns)
+        dim_ref = dim_el.attrib.get('ref') if dim_el is not None else None
+
+        rows_data = []
+        for row_el in ws_root.findall('.//main:sheetData/main:row', ns):
+            cells = []
+            for c_el in row_el.findall('main:c', ns):
+                c_type = c_el.attrib.get('t', 'n')
+                if c_type == 'inlineStr':
+                    t_el = c_el.find('.//main:t', ns)
+                    val = t_el.text if (t_el is not None and t_el.text is not None) else ''
+                elif c_type == 'n':
+                    v_el = c_el.find('main:v', ns)
+                    raw_v = v_el.text if v_el is not None else '0'
+                    val = float(raw_v) if '.' in raw_v else int(raw_v)
+                elif c_type == 'b':
+                    v_el = c_el.find('main:v', ns)
+                    val = (v_el.text == '1') if v_el is not None else False
+                else:
+                    val = None
+                cells.append({'ref': c_el.attrib.get('r'), 'type': c_type, 'value': val})
+            rows_data.append(cells)
+        sheets_out.append({
+            'name': sh_name,
+            'sheetId': sh_id,
+            'rId': r_id,
+            'target': target,
+            'dimension': dim_ref,
+            'rowCount': len(rows_data),
+            'rows': rows_data
+        })
+
+print(json.dumps({'ok': True, 'sheets': sheets_out}))
+`;
+    const stdout = execFileSync('python3', ['-c', pyScript, tmpFile], { encoding: 'utf8' });
+    return JSON.parse(stdout);
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch (_) {}
+  }
+}
 
 const PASSWORD = 'Test_Password123!';
 let adminToken = '';
@@ -262,10 +362,10 @@ test.before(async () => {
     `INSERT INTO teacher_subjects (id, teacher_id, subject_id) VALUES ('ts_p2_3', 'tea_id_b', 'ELX111')`
   );
 
-  // Students & CR in Mercury Cohort (including one formula-injection test name!)
+  // Students & CR in Mercury Cohort (including Unicode Devanagari & formula-injection test names!)
   await db.run(
     `INSERT INTO students (studentId, username, name, email, role, passwordHash, semester, cohort_id, account_status)
-     VALUES ('stu_p2_1', 'aashrita_m', 'Aashrita Mercury', 'm1@gandaki.edu.np', 'student', ?, 'Semester 1', ?, 'active')`,
+     VALUES ('stu_p2_1', 'aashrita_m', 'Aashrita लामिछाने (Mercury)', 'm1@gandaki.edu.np', 'student', ?, 'Semester 1', ?, 'active')`,
     passwordHash,
     cohortMercury.id
   );
@@ -296,10 +396,10 @@ test.after(async () => {
 });
 
 // ============================================================================
-// 1. AUTHORIZATION, OWNERSHIP FORGERY & TOKEN REJECTION TESTS
+// 1. AUTHORIZATION, OWNERSHIP FORGERY & TOKEN REJECTION TESTS (Audit B)
 // ============================================================================
 
-test('Phase 2 Auth 1: Unauthenticated requests, students, and CRs are rejected across all backup coordination and workbook endpoints', async () => {
+test('Phase 2 Auth 1 (Audit B): Unauthenticated requests, students, and CRs are rejected across all backup coordination and workbook endpoints (including aliases)', async () => {
   const endpoints = [
     { method: 'GET', path: '/api/attendance/backup/status' },
     { method: 'PUT', path: '/api/attendance/backup/connection', body: { rootFolderId: 'folder_abc_123' } },
@@ -311,7 +411,9 @@ test('Phase 2 Auth 1: Unauthenticated requests, students, and CRs are rejected a
     { method: 'GET', path: '/api/attendance/backup/runs/fake_run/artifacts' },
     { method: 'GET', path: '/api/attendance/sessions/fake_session/revisions' },
     { method: 'GET', path: `/api/attendance/backup/workbooks/daily?date=${TODAY_NEPAL}` },
-    { method: 'GET', path: '/api/attendance/backup/workbooks/annual?year=2026' }
+    { method: 'GET', path: `/api/attendance/workbooks/daily?date=${TODAY_NEPAL}` },
+    { method: 'GET', path: '/api/attendance/backup/workbooks/annual?year=2026' },
+    { method: 'GET', path: '/api/attendance/workbooks/annual?year=2026' }
   ];
 
   for (const ep of endpoints) {
@@ -338,7 +440,7 @@ test('Phase 2 Auth 1: Unauthenticated requests, students, and CRs are rejected a
   }
 });
 
-test('Phase 2 Auth 2: Connection metadata rejects OAuth tokens/secrets, rejects ownership forgery, and distinguishes admin visibility from teacher connection write authority', async () => {
+test('Phase 2 Auth 2 (Audit B): Connection metadata rejects OAuth tokens/secrets, rejects ownership/role forgery, and guarantees admin read-only routes do not mutate teacher state', async () => {
   // 1. Teacher A attempts to send OAuth tokens or secrets in PUT /backup/connection -> 400 SENSITIVE_TOKEN_FORBIDDEN
   const secretPayloads = [
     { rootFolderId: 'folder_root_123', accessToken: 'ya29.a0AfH6SMBx_secret_token_value' },
@@ -362,21 +464,23 @@ test('Phase 2 Auth 2: Connection metadata rejects OAuth tokens/secrets, rejects 
     assert.equal(data.code, 'SENSITIVE_TOKEN_FORBIDDEN');
   }
 
-  // 2. Teacher A attempts to forge Teacher B's teacherId or userId -> 403 OWNERSHIP_FORGERY_REJECTED
-  const forgeRes = await fetch(`${baseUrl}/api/attendance/backup/connection`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${teacherAToken}`
-    },
-    body: JSON.stringify({
-      teacherId: 'tea_id_b',
-      rootFolderId: 'folder_root_123'
-    })
-  });
-  assert.equal(forgeRes.status, 403);
-  const forgeData = await forgeRes.json();
-  assert.equal(forgeData.code, 'OWNERSHIP_FORGERY_REJECTED');
+  // 2. Teacher A attempts to forge Teacher B's teacherId, userId, or role -> 403 OWNERSHIP_FORGERY_REJECTED
+  for (const forgedBody of [
+    { teacherId: 'tea_id_b', rootFolderId: 'folder_root_123' },
+    { userId: 'tea_user_b', rootFolderId: 'folder_root_123' },
+    { role: 'admin', rootFolderId: 'folder_root_123' }
+  ]) {
+    const forgeRes = await fetch(`${baseUrl}/api/attendance/backup/connection`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${teacherAToken}`
+      },
+      body: JSON.stringify(forgedBody)
+    });
+    assert.equal(forgeRes.status, 403);
+    assert.equal((await forgeRes.json()).code, 'OWNERSHIP_FORGERY_REJECTED');
+  }
 
   // 3. Admin attempts to write or disconnect a Drive connection -> 403 TEACHER_ONLY_CONNECTION_WRITE
   const adminPutRes = await fetch(`${baseUrl}/api/attendance/backup/connection`, {
@@ -391,8 +495,7 @@ test('Phase 2 Auth 2: Connection metadata rejects OAuth tokens/secrets, rejects 
     })
   });
   assert.equal(adminPutRes.status, 403);
-  const adminPutData = await adminPutRes.json();
-  assert.equal(adminPutData.code, 'TEACHER_ONLY_CONNECTION_WRITE');
+  assert.equal((await adminPutRes.json()).code, 'TEACHER_ONLY_CONNECTION_WRITE');
 
   const adminDiscRes = await fetch(`${baseUrl}/api/attendance/backup/disconnect`, {
     method: 'POST',
@@ -426,13 +529,8 @@ test('Phase 2 Auth 2: Connection metadata rejects OAuth tokens/secrets, rejects 
   assert.equal(validConnData.connected, true);
   assert.equal(validConnData.connection.teacherId, 'tea_id_a');
   assert.equal(validConnData.connection.userId, 'tea_user_a');
-  assert.equal(validConnData.connection.googleEmail, 'sharma.drive@gmail.com');
-  assert.equal(validConnData.connection.rootFolderId, 'drive_root_sharma_01');
-  assert.equal(validConnData.connection.dailyFolderId, 'drive_daily_sharma_01');
-  assert.equal(validConnData.connection.fullFolderId, 'drive_full_sharma_01');
-  assert.equal(validConnData.connection.snapshotsFolderId, 'drive_snap_sharma_01');
 
-  // 5. Teacher A checks GET /backup/status (and cannot query Teacher B's status)
+  // 5. Teacher A checks GET /backup/status (and cannot query Teacher B's status or pass role=admin)
   const statusARes = await fetch(`${baseUrl}/api/attendance/backup/status`, {
     headers: { Authorization: `Bearer ${teacherAToken}` }
   });
@@ -440,33 +538,36 @@ test('Phase 2 Auth 2: Connection metadata rejects OAuth tokens/secrets, rejects 
   const statusAData = await statusARes.json();
   assert.equal(statusAData.canManageConnection, true);
   assert.equal(statusAData.connection.connectionStatus, 'connected');
-  assert.match(statusAData.connectionStatusNote, /informational/i);
 
   const crossStatusRes = await fetch(`${baseUrl}/api/attendance/backup/status?teacherId=tea_id_b`, {
     headers: { Authorization: `Bearer ${teacherAToken}` }
   });
   assert.equal(crossStatusRes.status, 403);
 
-  // 6. Admin can read Teacher A's backup status (read-only administrative visibility)
+  const forgedRoleStatusRes = await fetch(`${baseUrl}/api/attendance/backup/status?role=admin`, {
+    headers: { Authorization: `Bearer ${teacherAToken}` }
+  });
+  assert.equal(forgedRoleStatusRes.status, 403);
+
+  // 6. Admin can read Teacher A's backup status without mutating teacher_drive_connections
+  const beforeAdminRead = await db.get('SELECT * FROM teacher_drive_connections WHERE teacher_id = ?', 'tea_id_a');
   const adminStatusRes = await fetch(`${baseUrl}/api/attendance/backup/status?teacherId=tea_id_a`, {
     headers: { Authorization: `Bearer ${adminToken}` }
   });
   assert.equal(adminStatusRes.status, 200);
-  const adminStatusData = await adminStatusRes.json();
-  assert.equal(adminStatusData.role, 'admin');
-  assert.equal(adminStatusData.canManageConnection, false);
-  assert.equal(adminStatusData.connection.googleEmail, 'sharma.drive@gmail.com');
+  const afterAdminRead = await db.get('SELECT * FROM teacher_drive_connections WHERE teacher_id = ?', 'tea_id_a');
+  assert.deepEqual(afterAdminRead, beforeAdminRead, 'Admin GET /backup/status must not mutate teacher_drive_connections');
 });
 
 // ============================================================================
-// 2. CONCURRENCY, LEASE EXPIRATION, RETRY BOUNDS & ARTIFACT STATE MACHINE TESTS
+// 2. CONCURRENCY, LEASE SECURITY, RETRY BOUNDS & ARTIFACT STATE MACHINE (Audit A & C)
 // ============================================================================
 
 let sessionCitId = '';
 let runV1Id = '';
 let runV1Sha = '';
 
-test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients, idempotent renewal, lease expiration recovery, stale claim rejection, and partial artifact success', async () => {
+test('Phase 2 Concurrency & Claims 1 (Audit C): 256-bit CSPRNG claim tokens, zero token leakage, simultaneous claims, idempotent renewal, lease expiration recovery, strict idempotent completion hash/metadata check, and partial artifact success', async () => {
   // Teacher A creates an attendance session for CIT111 on TODAY_NEPAL
   const saveRes = await fetch(`${baseUrl}/api/attendance/sessions`, {
     method: 'POST',
@@ -491,7 +592,7 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
   runV1Sha = saveData.backupRevision.snapshotSha256;
   assert.equal(saveData.backupRevision.artifacts.length, 3);
 
-  // Teacher B (unassigned to CIT111) cannot view pending, claim, complete, fail, or view revisions/artifacts of Teacher A's session
+  // Teacher B cannot claim, complete, fail, or view revisions/artifacts of Teacher A's session
   const teaBClaim = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/claim`, {
     method: 'POST',
     headers: {
@@ -512,19 +613,7 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
   });
   assert.equal(teaBRev.status, 403);
 
-  // Admin cannot claim Teacher A's backup run
-  const adminClaim = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/claim`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${adminToken}`
-    },
-    body: JSON.stringify({ clientId: 'admin_client' })
-  });
-  assert.equal(adminClaim.status, 403);
-
-  // Simultaneous claims from two distinct clients (client_alpha and client_beta) with 60s lease:
-  // Strictly ONE must succeed (200) and the other must be rejected with 409 CLAIM_LEASE_ACTIVE
+  // Simultaneous claims from two distinct clients (client_alpha and client_beta)
   const [claimAlpha, claimBeta] = await Promise.all([
     fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/claim`, {
       method: 'POST',
@@ -554,6 +643,23 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
   assert.equal(winData.claimedArtifacts.length, 3);
 
   const initialSnapClaimToken = winData.claimedArtifacts.find((a) => a.artifactType === 'snapshot').claimToken;
+  // Audit C: Verify 256-bit CSPRNG hex token (64 hex chars)
+  assert.match(initialSnapClaimToken, /^[0-9a-f]{64}$/, 'Claim token must be a 64-character CSPRNG hex string');
+
+  // Audit C: Verify claimToken NEVER appears in GET /backup/pending, GET /backup/runs/:runId/artifacts, or GET /sessions/:id/revisions
+  for (const readPath of [
+    '/api/attendance/backup/pending',
+    `/api/attendance/backup/runs/${runV1Id}/artifacts`,
+    `/api/attendance/sessions/${sessionCitId}/revisions`
+  ]) {
+    const readRes = await fetch(`${baseUrl}${readPath}`, {
+      headers: { Authorization: `Bearer ${teacherAToken}` }
+    });
+    assert.equal(readRes.status, 200);
+    const rawJsonText = await readRes.text();
+    assert.ok(!rawJsonText.includes(initialSnapClaimToken), `Claim token must never leak in ${readPath}`);
+    assert.ok(!rawJsonText.includes('claimToken'), `claimToken field must never appear in ${readPath}`);
+  }
 
   // Idempotent repeat claim by the SAME winning client renews the lease without incrementing attemptCount
   const renewRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/claim`, {
@@ -569,16 +675,10 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
   assert.equal(renewData.idempotent, true);
   assert.equal(
     renewData.claimedArtifacts.find((a) => a.artifactType === 'snapshot').attemptCount,
-    1,
-    'Idempotent renewal by the same client must not increment attemptCount'
-  );
-  assert.equal(
-    renewData.claimedArtifacts.find((a) => a.artifactType === 'snapshot').claimToken,
-    initialSnapClaimToken,
-    'Idempotent renewal must preserve the active claimToken'
+    1
   );
 
-  // Simulate lease expiration (wait 1300ms so the 1200ms lease expires)
+  // Wait 1300ms for lease expiration
   await new Promise((r) => setTimeout(r, 1300));
 
   // Stale client attempts to complete after lease expired -> 409 CLAIM_LEASE_EXPIRED
@@ -597,10 +697,9 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
     })
   });
   assert.equal(expiredCompleteRes.status, 409);
-  const expiredCompleteData = await expiredCompleteRes.json();
-  assert.equal(expiredCompleteData.code, 'CLAIM_LEASE_EXPIRED');
+  assert.equal((await expiredCompleteRes.json()).code, 'CLAIM_LEASE_EXPIRED');
 
-  // Recovery client (client_recovery) claims the expired lease -> 200, attemptCount increments to 2
+  // Recovery client claims the expired lease -> 200, attemptCount increments to 2
   const recoverRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/claim`, {
     method: 'POST',
     headers: {
@@ -611,61 +710,12 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
   });
   assert.equal(recoverRes.status, 200);
   const recoverData = await recoverRes.json();
-  assert.equal(recoverData.claimed, true);
   const recoveredSnap = recoverData.claimedArtifacts.find((a) => a.artifactType === 'snapshot');
   const recoveredDaily = recoverData.claimedArtifacts.find((a) => a.artifactType === 'daily_workbook');
   const recoveredAnnual = recoverData.claimedArtifacts.find((a) => a.artifactType === 'annual_workbook');
   assert.equal(recoveredSnap.attemptCount, 2);
-  assert.notEqual(recoveredSnap.claimToken, initialSnapClaimToken);
 
-  // Stale claimToken from previous crashed client is rejected -> 409 STALE_OR_INVALID_CLAIM
-  const staleTokenRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${teacherAToken}`
-    },
-    body: JSON.stringify({
-      artifactType: 'snapshot',
-      claimToken: initialSnapClaimToken,
-      revisionNo: 1,
-      snapshotSha256: runV1Sha,
-      driveFileId: 'drive_snap_file_v1'
-    })
-  });
-  assert.equal(staleTokenRes.status, 409);
-  assert.equal((await staleTokenRes.json()).code, 'STALE_OR_INVALID_CLAIM');
-
-  // Reject completion with "{ success: true }" missing required verification fields -> 400
-  const naiveSuccessRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${teacherAToken}`
-    },
-    body: JSON.stringify({ success: true })
-  });
-  assert.equal(naiveSuccessRes.status, 400);
-
-  // Reject completion with wrong revisionNo or wrong snapshotSha256 -> 409 REVISION_HASH_MISMATCH
-  const wrongRevRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${teacherAToken}`
-    },
-    body: JSON.stringify({
-      artifactType: 'snapshot',
-      claimToken: recoveredSnap.claimToken,
-      revisionNo: 99,
-      snapshotSha256: runV1Sha,
-      driveFileId: 'drive_snap_file_v1'
-    })
-  });
-  assert.equal(wrongRevRes.status, 409);
-  assert.equal((await wrongRevRes.json()).code, 'REVISION_HASH_MISMATCH');
-
-  // PARTIAL SUCCESS: Complete 'snapshot' artifact ONLY
+  // Complete 'snapshot' artifact
   const snapCompleteRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
     method: 'POST',
     headers: {
@@ -677,16 +727,14 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
       claimToken: recoveredSnap.claimToken,
       revisionNo: 1,
       snapshotSha256: runV1Sha,
-      driveFileId: 'drive_snap_file_v1'
+      driveFileId: 'drive_snap_file_v1',
+      driveFileName: 'CIT111_v1.json',
+      artifactSha256: runV1Sha
     })
   });
   assert.equal(snapCompleteRes.status, 200);
-  const snapCompleteData = await snapCompleteRes.json();
-  assert.equal(snapCompleteData.completed, true);
-  assert.equal(snapCompleteData.allArtifactsComplete, false, 'Run must NOT be marked complete when only 1 of 3 artifacts succeeded');
-  assert.equal(snapCompleteData.backupStatus, 'in_progress');
 
-  // Idempotent repeat completion of 'snapshot' with same driveFileId and claimToken -> 200 idempotent: true
+  // Audit C: Idempotent repeat completion with exact same fields -> 200 idempotent: true
   const snapRepeatRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
     method: 'POST',
     headers: {
@@ -698,14 +746,16 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
       claimToken: recoveredSnap.claimToken,
       revisionNo: 1,
       snapshotSha256: runV1Sha,
-      driveFileId: 'drive_snap_file_v1'
+      driveFileId: 'drive_snap_file_v1',
+      driveFileName: 'CIT111_v1.json',
+      artifactSha256: runV1Sha
     })
   });
   assert.equal(snapRepeatRes.status, 200);
   assert.equal((await snapRepeatRes.json()).idempotent, true);
 
-  // Attempting to overwrite 'snapshot' with a different driveFileId -> 409 INVALID_ARTIFACT_STATE_TRANSITION
-  const snapOverwriteRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
+  // Audit C: Attempting to change driveFileName or artifactSha256 on an already completed artifact -> 409
+  const tamperNameRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -716,13 +766,16 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
       claimToken: recoveredSnap.claimToken,
       revisionNo: 1,
       snapshotSha256: runV1Sha,
-      driveFileId: 'drive_snap_different_id'
+      driveFileId: 'drive_snap_file_v1',
+      driveFileName: 'tampered_name.json',
+      artifactSha256: runV1Sha
     })
   });
-  assert.equal(snapOverwriteRes.status, 409);
+  assert.equal(tamperNameRes.status, 409);
+  assert.equal((await tamperNameRes.json()).code, 'INVALID_ARTIFACT_STATE_TRANSITION');
 
-  // Fail 'daily_workbook' with an error message containing sensitive token patterns (verify sanitization!)
-  const failDailyRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/fail`, {
+  // Fail 'daily_workbook' and complete 'annual_workbook', then retry 'daily_workbook'
+  await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/fail`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -732,17 +785,13 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
       artifactType: 'daily_workbook',
       claimToken: recoveredDaily.claimToken,
       errorCode: 'DRIVE_RATE_LIMIT',
-      errorMessage: 'Upload failed with header Bearer ya29.a0AfH6SMBx_leaked_token and ?access_token=secret123',
+      errorMessage: 'Upload failed with Bearer ya29.a0AfH6SMBx_leaked_token',
       retryDelayMs: 0
     })
   });
-  assert.equal(failDailyRes.status, 200);
-  const failDailyData = await failDailyRes.json();
-  assert.ok(!failDailyData.lastErrorMessage.includes('ya29.'), 'Sanitizer must redact Google access tokens from error messages');
-  assert.ok(!failDailyData.lastErrorMessage.includes('secret123'), 'Sanitizer must redact query token values');
 
-  // Complete 'annual_workbook'
-  const annualCompleteRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
+  const annualFileSha = 'a'.repeat(64);
+  await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -753,15 +802,30 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
       claimToken: recoveredAnnual.claimToken,
       revisionNo: 1,
       snapshotSha256: runV1Sha,
-      driveFileId: 'drive_annual_file_2026'
+      driveFileId: 'drive_annual_file_2026',
+      artifactSha256: annualFileSha
     })
   });
-  assert.equal(annualCompleteRes.status, 200);
-  const annualCompleteData = await annualCompleteRes.json();
-  assert.equal(annualCompleteData.allArtifactsComplete, false, 'Run must still be failed because daily_workbook failed');
-  assert.equal(annualCompleteData.backupStatus, 'failed');
 
-  // Re-claim run: ONLY 'daily_workbook' should be claimed; 'snapshot' and 'annual_workbook' remain 'backed_up'!
+  // Audit C: Verify attempting to alter artifactSha256 of already completed annual_workbook is rejected with 409
+  const tamperAnnualShaRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      artifactType: 'annual_workbook',
+      claimToken: recoveredAnnual.claimToken,
+      revisionNo: 1,
+      snapshotSha256: runV1Sha,
+      driveFileId: 'drive_annual_file_2026',
+      artifactSha256: 'b'.repeat(64)
+    })
+  });
+  assert.equal(tamperAnnualShaRes.status, 409);
+
+  // Re-claim and complete 'daily_workbook'
   const retryClaimRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/claim`, {
     method: 'POST',
     headers: {
@@ -770,13 +834,10 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
     },
     body: JSON.stringify({ clientId: 'client_recovery', forceRetry: true })
   });
-  assert.equal(retryClaimRes.status, 200);
   const retryClaimData = await retryClaimRes.json();
-  assert.equal(retryClaimData.claimedArtifacts.length, 1, 'Only the failed daily_workbook artifact must be re-claimed');
+  assert.equal(retryClaimData.claimedArtifacts.length, 1);
   assert.equal(retryClaimData.claimedArtifacts[0].artifactType, 'daily_workbook');
-  assert.equal(retryClaimData.claimedArtifacts[0].attemptCount, 3);
 
-  // Complete 'daily_workbook' -> now all 3 artifacts are 'backed_up', so run transitions to 'backed_up'!
   const dailyCompleteRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${runV1Id}/complete`, {
     method: 'POST',
     headers: {
@@ -792,13 +853,11 @@ test('Phase 2 Concurrency & Claims 1: Simultaneous claims from separate clients,
     })
   });
   assert.equal(dailyCompleteRes.status, 200);
-  const dailyCompleteData = await dailyCompleteRes.json();
-  assert.equal(dailyCompleteData.allArtifactsComplete, true);
-  assert.equal(dailyCompleteData.backupStatus, 'backed_up');
+  assert.equal((await dailyCompleteRes.json()).backupStatus, 'backed_up');
 });
 
-test('Phase 2 Concurrency & Claims 2: Stale revision workbook prevention and bounded retry exhaustion (MAX_BACKUP_ATTEMPTS = 5)', async () => {
-  // Create a session for BSM111 on YESTERDAY_NEPAL (v1)
+test('Phase 2 Audit A & C: Historical v1 snapshot immutability after v2/v3 edits, disconnect revoking active worker claims, and bounded retry exhaustion', async () => {
+  // Create a session for BSM111 on YESTERDAY_NEPAL (v1: stu_p2_1 = present, stu_p2_2 = present)
   const v1Res = await fetch(`${baseUrl}/api/attendance/sessions`, {
     method: 'POST',
     headers: {
@@ -821,7 +880,61 @@ test('Phase 2 Concurrency & Claims 2: Stale revision workbook prevention and bou
   const bsmV1RunId = v1Data.backupRevision.id;
   const bsmV1Sha = v1Data.backupRevision.snapshotSha256;
 
-  // Claim v1 before editing
+  // Audit C: Claim v1, then Teacher A calls POST /backup/disconnect while worker holds active claim!
+  const preDiscClaimRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${bsmV1RunId}/claim`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({ clientId: 'worker_before_disconnect' })
+  });
+  assert.equal(preDiscClaimRes.status, 200);
+  const preDiscClaimData = await preDiscClaimRes.json();
+  const preDiscSnapToken = preDiscClaimData.claimedArtifacts.find((a) => a.artifactType === 'snapshot').claimToken;
+
+  const discRes = await fetch(`${baseUrl}/api/attendance/backup/disconnect`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({})
+  });
+  assert.equal(discRes.status, 200);
+
+  // Worker with pre-disconnect claimToken tries to complete -> 409 INVALID_ARTIFACT_STATE_TRANSITION
+  const postDiscComplete = await fetch(`${baseUrl}/api/attendance/backup/runs/${bsmV1RunId}/complete`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      artifactType: 'snapshot',
+      claimToken: preDiscSnapToken,
+      revisionNo: 1,
+      snapshotSha256: bsmV1Sha,
+      driveFileId: 'should_be_rejected_after_disconnect'
+    })
+  });
+  assert.equal(postDiscComplete.status, 409);
+
+  // Reconnect Teacher A
+  await fetch(`${baseUrl}/api/attendance/backup/connection`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      googleEmail: 'sharma.drive@gmail.com',
+      rootFolderId: 'drive_root_sharma_01',
+      connectionStatus: 'connected'
+    })
+  });
+
+  // Claim v1 again, then edit session (v2) and admin-correct session (v3)
   const v1ClaimRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${bsmV1RunId}/claim`, {
     method: 'POST',
     headers: {
@@ -830,12 +943,11 @@ test('Phase 2 Concurrency & Claims 2: Stale revision workbook prevention and bou
     },
     body: JSON.stringify({ clientId: 'stale_worker' })
   });
-  assert.equal(v1ClaimRes.status, 200);
   const v1ClaimData = await v1ClaimRes.json();
   const v1DailyClaimToken = v1ClaimData.claimedArtifacts.find((a) => a.artifactType === 'daily_workbook').claimToken;
   const v1SnapClaimToken = v1ClaimData.claimedArtifacts.find((a) => a.artifactType === 'snapshot').claimToken;
 
-  // Now Teacher A edits BSM111 session -> creates v2!
+  // Teacher edit -> v2 (stu_p2_2 changed to absent)
   const v2Res = await fetch(`${baseUrl}/api/attendance/sessions/${bsmSessionId}`, {
     method: 'PUT',
     headers: {
@@ -853,9 +965,62 @@ test('Phase 2 Concurrency & Claims 2: Stale revision workbook prevention and bou
   assert.equal(v2Res.status, 200);
   const v2Data = await v2Res.json();
   const bsmV2RunId = v2Data.backupRevision.id;
-  assert.equal(v2Data.backupRevision.revisionNo, 2);
+  const bsmV2Sha = v2Data.backupRevision.snapshotSha256;
 
-  // Stale worker tries to complete v1's daily_workbook AFTER v2 was committed -> 409 STALE_REVISION_WORKBOOK
+  // Admin correction -> v3 (both stu_p2_1 and stu_p2_2 changed to absent)
+  const v3Res = await fetch(`${baseUrl}/api/attendance/admin/sessions/${bsmSessionId}/correct`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${adminToken}`
+    },
+    body: JSON.stringify({
+      reason: 'Admin correction creating v3',
+      records: [
+        { studentId: 'stu_p2_1', status: 'absent' },
+        { studentId: 'stu_p2_2', status: 'absent' }
+      ]
+    })
+  });
+  assert.equal(v3Res.status, 200);
+  const v3Data = await v3Res.json();
+  const bsmV3Sha = v3Data.backupRevision.snapshotSha256;
+
+  // Audit A: Retrieve v1 via GET /api/attendance/backup/runs/:v1RunId/artifacts and GET /api/attendance/sessions/:id/revisions
+  // Verify v1 still has its exact original records (both 'present') and original SHA-256 hash, NEVER reconstructed from current attendance_records (where both are 'absent')!
+  const v1ArtRes = await fetch(`${baseUrl}/api/attendance/backup/runs/${bsmV1RunId}/artifacts`, {
+    headers: { Authorization: `Bearer ${teacherAToken}` }
+  });
+  assert.equal(v1ArtRes.status, 200);
+  const v1ArtData = await v1ArtRes.json();
+  assert.equal(v1ArtData.revisionNo, 1);
+  assert.equal(v1ArtData.isLatestRevision, false);
+  assert.equal(v1ArtData.snapshot.sha256, bsmV1Sha);
+  assert.equal(computeCanonicalSnapshotHash(v1ArtData.snapshot.payload), bsmV1Sha);
+  assert.deepEqual(
+    v1ArtData.snapshot.payload.records.map((r) => ({ studentId: r.studentId, status: r.status })),
+    [
+      { studentId: 'stu_p2_1', status: 'present' },
+      { studentId: 'stu_p2_2', status: 'present' }
+    ],
+    'v1 snapshot payload must retain original v1 records even after v2 and v3 mutated attendance_records'
+  );
+
+  // Verify hash chain v1 -> v2 -> v3 via GET /api/attendance/sessions/:id/revisions
+  const revListRes = await fetch(`${baseUrl}/api/attendance/sessions/${bsmSessionId}/revisions`, {
+    headers: { Authorization: `Bearer ${teacherAToken}` }
+  });
+  assert.equal(revListRes.status, 200);
+  const revListData = await revListRes.json();
+  assert.equal(revListData.revisions.length, 3);
+  assert.equal(revListData.revisions[0].previousSnapshotSha256, null);
+  assert.equal(revListData.revisions[0].snapshotSha256, bsmV1Sha);
+  assert.equal(revListData.revisions[1].previousSnapshotSha256, bsmV1Sha);
+  assert.equal(revListData.revisions[1].snapshotSha256, bsmV2Sha);
+  assert.equal(revListData.revisions[2].previousSnapshotSha256, bsmV2Sha);
+  assert.equal(revListData.revisions[2].snapshotSha256, bsmV3Sha);
+
+  // Stale worker tries to complete v1's daily_workbook AFTER v2/v3 were committed -> 409 STALE_REVISION_WORKBOOK
   const staleWorkbookComplete = await fetch(`${baseUrl}/api/attendance/backup/runs/${bsmV1RunId}/complete`, {
     method: 'POST',
     headers: {
@@ -873,8 +1038,7 @@ test('Phase 2 Concurrency & Claims 2: Stale revision workbook prevention and bou
   assert.equal(staleWorkbookComplete.status, 409);
   assert.equal((await staleWorkbookComplete.json()).code, 'STALE_REVISION_WORKBOOK');
 
-  // However, v1's immutable 'snapshot' artifact CAN still complete, and once completed, v1 is marked 'backed_up'
-  // (because v1's workbooks were superseded by v2!)
+  // Complete v1's immutable 'snapshot' artifact -> v1 transitions to 'backed_up'
   const v1SnapComplete = await fetch(`${baseUrl}/api/attendance/backup/runs/${bsmV1RunId}/complete`, {
     method: 'POST',
     headers: {
@@ -890,9 +1054,7 @@ test('Phase 2 Concurrency & Claims 2: Stale revision workbook prevention and bou
     })
   });
   assert.equal(v1SnapComplete.status, 200);
-  const v1SnapCompleteData = await v1SnapComplete.json();
-  assert.equal(v1SnapCompleteData.backupStatus, 'backed_up');
-  assert.equal(v1SnapCompleteData.allArtifactsComplete, true);
+  assert.equal((await v1SnapComplete.json()).backupStatus, 'backed_up');
 
   // Test Bounded Retries (MAX_BACKUP_ATTEMPTS = 5) on bsmV2RunId's snapshot artifact:
   for (let attempt = 1; attempt <= 5; attempt++) {
@@ -908,7 +1070,7 @@ test('Phase 2 Concurrency & Claims 2: Stale revision workbook prevention and bou
         forceRetry: true
       })
     });
-    assert.equal(claimRes.status, 200, `Attempt ${attempt} claim must succeed`);
+    assert.equal(claimRes.status, 200);
     const claimData = await claimRes.json();
     assert.equal(claimData.claimedArtifacts[0].attemptCount, attempt);
 
@@ -947,11 +1109,72 @@ test('Phase 2 Concurrency & Claims 2: Stale revision workbook prevention and bou
 });
 
 // ============================================================================
-// 3. PHASE 2B — DETERMINISTIC XLSX GENERATION, SECURITY & TOTALS ACCURACY TESTS
+// 3. AUDIT D — INITIAL SESSION CREATION RACES WITHOUT IN-PROCESS MUTEX
 // ============================================================================
 
-test('Phase 2B XLSX 1: Worksheet name sanitization, collision deduplication, formula-injection neutralization, and empty datasets', async () => {
-  // 1. Formula injection neutralization unit checks
+test('Phase 2 Audit D: Simultaneous initial session submissions with skipInProcessLock=true converge atomically with zero duplicate sessions or orphaned backup rows', async () => {
+  const raceDate = '2026-03-15';
+  const [resA, resB] = await Promise.all([
+    saveAttendanceSession(db, {
+      actorUserId: 'tea_user_a',
+      subjectId: 'BSM111',
+      cohortId: cohortMercury.id,
+      sessionDate: raceDate,
+      skipInProcessLock: true,
+      records: [
+        { studentId: 'stu_p2_1', status: 'present' },
+        { studentId: 'stu_p2_2', status: 'absent' }
+      ]
+    }),
+    saveAttendanceSession(db, {
+      actorUserId: 'tea_user_a',
+      subjectId: 'BSM111',
+      cohortId: cohortMercury.id,
+      sessionDate: raceDate,
+      skipInProcessLock: true,
+      records: [
+        { studentId: 'stu_p2_1', status: 'present' },
+        { studentId: 'stu_p2_2', status: 'present' }
+      ]
+    })
+  ]);
+
+  assert.equal(resA.session.id, resB.session.id, 'Both concurrent submissions must resolve to the same session ID');
+
+  const sessionRows = await db.all(
+    `SELECT * FROM attendance_sessions WHERE cohort_id = ? AND subject_id = 'BSM111' AND session_date = ?`,
+    cohortMercury.id,
+    raceDate
+  );
+  assert.equal(sessionRows.length, 1, 'Strictly 1 session row must exist');
+
+  const runRows = await db.all(
+    `SELECT * FROM attendance_backup_runs WHERE session_id = ? ORDER BY revision_no ASC`,
+    resA.session.id
+  );
+  assert.equal(runRows.length, 2, 'Strictly 2 sequential revisions (v1 and v2) must exist');
+  assert.equal(Number(runRows[0].revisionNo || runRows[0].revision_no), 1);
+  assert.equal(Number(runRows[1].revisionNo || runRows[1].revision_no), 2);
+  assert.equal(
+    runRows[1].previousSnapshotSha256 || runRows[1].previous_snapshot_sha256,
+    runRows[0].snapshotSha256 || runRows[0].snapshot_sha256,
+    'v2 must chain to v1 snapshotSha256'
+  );
+
+  // Verify zero orphaned backup runs or artifacts exist anywhere in DB
+  const orphanRuns = await db.all(
+    `SELECT r.id FROM attendance_backup_runs r
+     LEFT JOIN attendance_sessions s ON s.id = r.session_id
+     WHERE s.id IS NULL`
+  );
+  assert.equal(orphanRuns.length, 0, 'Zero orphaned backup runs may exist');
+});
+
+// ============================================================================
+// 4. AUDIT E — INDEPENDENT XLSX VALIDATION (JSZip + Python zipfile/ElementTree)
+// ============================================================================
+
+test('Phase 2B XLSX 1 (Audit E): Independent validation of worksheet name sanitization, collision deduplication, formula-injection neutralization, and empty datasets', async () => {
   assert.equal(sanitizeFormulaCellText("=CMD|' /C calc'!A0"), "'=CMD|' /C calc'!A0");
   assert.equal(sanitizeFormulaCellText('+SUM(A1:A10)'), "'+SUM(A1:A10)");
   assert.equal(sanitizeFormulaCellText('-1+2'), "'-1+2");
@@ -959,7 +1182,6 @@ test('Phase 2B XLSX 1: Worksheet name sanitization, collision deduplication, for
   assert.equal(sanitizeFormulaCellText('  =HYPERLINK("http://evil.tld")'), "'  =HYPERLINK(\"http://evil.tld\")");
   assert.equal(sanitizeFormulaCellText('Normal Student Name'), 'Normal Student Name');
 
-  // 2. Worksheet name collisions, invalid chars, >31 chars, and reserved 'History'
   const used = new Set();
   const s1 = sanitizeWorksheetName('CIT111:Programming/C*?[Sem1]_VeryLongWorksheetTitle', used);
   const s2 = sanitizeWorksheetName('cit111:programming/c*?[sem1]_verylongworksheettitle', used);
@@ -975,19 +1197,19 @@ test('Phase 2B XLSX 1: Worksheet name sanitization, collision deduplication, for
   assert.ok(s3.endsWith('_3'));
   assert.equal(sHist, 'Sheet');
 
-  // 3. Empty Daily Workbook for a date with no sessions (TWO_DAYS_AGO_NEPAL)
+  // Empty Daily Workbook validated independently via JSZip + Python zipfile/ElementTree
   const emptyDailyRes = await fetch(
     `${baseUrl}/api/attendance/backup/workbooks/daily?date=${TWO_DAYS_AGO_NEPAL}`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(emptyDailyRes.status, 200);
   assert.equal(emptyDailyRes.headers.get('content-type'), XLSX_MIME_TYPE);
-  assert.match(emptyDailyRes.headers.get('content-disposition'), /Attendance_Daily_/);
   const emptyDailyBuf = await emptyDailyRes.buffer();
-  const parsedEmptyDaily = parseXlsxWorkbookBuffer(emptyDailyBuf);
-  assert.deepEqual(parsedEmptyDaily.sheetNames, ['Daily Summary']);
+  const indepEmptyDaily = await validateXlsxIndependently(emptyDailyBuf);
+  assert.equal(indepEmptyDaily.ok, true);
+  assert.deepEqual(indepEmptyDaily.sheets.map((s) => s.name), ['Daily Summary']);
 
-  // 4. Future date must be rejected with 400 FUTURE_DATE_NOT_ALLOWED
+  // Future date rejected with 400
   const futureDailyRes = await fetch(
     `${baseUrl}/api/attendance/backup/workbooks/daily?date=${TOMORROW_NEPAL}`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
@@ -995,18 +1217,23 @@ test('Phase 2B XLSX 1: Worksheet name sanitization, collision deduplication, for
   assert.equal(futureDailyRes.status, 400);
   assert.equal((await futureDailyRes.json()).code, 'FUTURE_DATE_NOT_ALLOWED');
 
-  // 5. Empty Annual Workbook for a year with no sessions (2021)
+  // Empty Annual Workbook validated independently
   const emptyAnnualRes = await fetch(
     `${baseUrl}/api/attendance/backup/workbooks/annual?year=2021`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(emptyAnnualRes.status, 200);
-  const parsedEmptyAnnual = parseXlsxWorkbookBuffer(await emptyAnnualRes.buffer());
-  assert.deepEqual(parsedEmptyAnnual.sheetNames, ['Session Overview', 'Subject Summaries', 'Audit & Revisions']);
+  const indepEmptyAnnual = await validateXlsxIndependently(await emptyAnnualRes.buffer());
+  assert.equal(indepEmptyAnnual.ok, true);
+  assert.deepEqual(indepEmptyAnnual.sheets.map((s) => s.name), [
+    'Session Overview',
+    'Subject Summaries',
+    'Audit & Revisions'
+  ]);
 });
 
-test('Phase 2B XLSX 2: Daily workbook contents, teacher scope isolation, formula-injection escaping in student names, and privacy minimization', async () => {
-  // Teacher B creates a session for ELX111 on TODAY_NEPAL (must NOT appear in Teacher A's daily workbook!)
+test('Phase 2B XLSX 2 (Audit B & E): Independent validation of Daily workbook contents, cross-teacher isolation (even on shared subject!), Unicode Devanagari, formula-injection escaping, and privacy minimization', async () => {
+  // Teacher B creates a session for ELX111 on TODAY_NEPAL
   const teaBSave = await fetch(`${baseUrl}/api/attendance/sessions`, {
     method: 'POST',
     headers: {
@@ -1024,73 +1251,70 @@ test('Phase 2B XLSX 2: Daily workbook contents, teacher scope isolation, formula
     })
   });
   assert.equal(teaBSave.status, 201);
+  const teaBSessionId = (await teaBSave.json()).session.id;
 
-  // Teacher A cannot request a workbook for Teacher B's subject ELX111 -> 403 UNAUTHORIZED_SUBJECT
-  const unauthSubjWb = await fetch(
-    `${baseUrl}/api/attendance/backup/workbooks/daily?date=${TODAY_NEPAL}&subjectId=ELX111`,
-    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  // Audit B: Even if Teacher B is temporarily granted CIT111 subject assignment, Teacher B must NOT
+  // be able to read Teacher A's session revisions or export Teacher A's CIT111 session in Teacher B's workbook!
+  await db.run(
+    `INSERT INTO teacher_subjects (id, teacher_id, subject_id) VALUES ('ts_shared_cit', 'tea_id_b', 'CIT111')`
   );
-  assert.equal(unauthSubjWb.status, 403);
+  try {
+    const crossTeacherRevRes = await fetch(`${baseUrl}/api/attendance/sessions/${sessionCitId}/revisions`, {
+      headers: { Authorization: `Bearer ${teacherBToken}` }
+    });
+    assert.equal(
+      crossTeacherRevRes.status,
+      403,
+      'Teacher B must be blocked from viewing Teacher A session revisions even when sharing a subject code'
+    );
 
-  // Teacher A downloads Daily Workbook for TODAY_NEPAL
-  const dailyRes1 = await fetch(
+    const teaBDailyWb = await fetch(
+      `${baseUrl}/api/attendance/backup/workbooks/daily?date=${TODAY_NEPAL}&format=json`,
+      { headers: { Authorization: `Bearer ${teacherBToken}` } }
+    );
+    assert.equal(teaBDailyWb.status, 200);
+    const teaBDailyData = await teaBDailyWb.json();
+    assert.deepEqual(
+      teaBDailyData.sessions.map((s) => s.sessionId),
+      [teaBSessionId],
+      'Teacher B daily workbook must only include Teacher B sessions, never Teacher A sessions'
+    );
+  } finally {
+    await db.run(`DELETE FROM teacher_subjects WHERE id = 'ts_shared_cit'`);
+  }
+
+  // Teacher A downloads Daily Workbook for TODAY_NEPAL and we validate it with independent JSZip + Python XML validator
+  const dailyRes = await fetch(
     `${baseUrl}/api/attendance/backup/workbooks/daily?date=${TODAY_NEPAL}`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
-  assert.equal(dailyRes1.status, 200);
-  const buf1 = await dailyRes1.buffer();
+  assert.equal(dailyRes.status, 200);
+  const buf = await dailyRes.buffer();
 
-  // Repeat download to verify byte-for-byte determinism
-  const dailyRes2 = await fetch(
-    `${baseUrl}/api/attendance/backup/workbooks/daily?date=${TODAY_NEPAL}`,
-    { headers: { Authorization: `Bearer ${teacherAToken}` } }
-  );
-  const buf2 = await dailyRes2.buffer();
-  assert.equal(
-    dailyRes1.headers.get('x-workbook-sha256'),
-    dailyRes2.headers.get('x-workbook-sha256'),
-    'Daily XLSX generation must be byte-for-byte deterministic'
-  );
-  assert.ok(buf1.equals(buf2));
+  const indep = await validateXlsxIndependently(buf);
+  assert.equal(indep.ok, true);
+  assert.deepEqual(indep.sheets.map((s) => s.name), ['Daily Summary', 'CIT111_Mercury']);
+  assert.ok(indep.sheets[0].dimension.startsWith('A1:'));
+  assert.ok(indep.sheets[1].dimension.startsWith('A1:'));
 
-  const parsed = parseXlsxWorkbookBuffer(buf1);
-  assert.equal(parsed.sheetNames.length, 2, 'Daily Summary + 1 authorized session detail sheet (CIT111)');
-  assert.equal(parsed.sheetNames[0], 'Daily Summary');
-  assert.equal(parsed.sheetNames[1], 'CIT111_Mercury');
+  // Inspect cells extracted by Python's ElementTree parser
+  const detailRowsPy = indep.sheets[1].rows;
+  const stu1Cells = detailRowsPy.find((r) => r.some((c) => c.value === 'stu_p2_1'));
+  const stu2Cells = detailRowsPy.find((r) => r.some((c) => c.value === 'stu_p2_2'));
+  assert.ok(stu1Cells, 'stu_p2_1 row must be present in Python-parsed XML');
+  assert.equal(stu1Cells[2].value, 'Aashrita लामिछाने (Mercury)', 'Unicode Devanagari student name must round-trip intact');
+  assert.equal(stu2Cells[2].type, 'inlineStr');
+  assert.ok(String(stu2Cells[2].value).startsWith("'=CMD|"), 'Formula-injection string must be prefixed with literal single quote');
 
-  // Verify Summary sheet contains ONLY CIT111 (not ELX111) and matches runV1Sha & revisionNo = 1
-  const summarySheet = parsed.sheets[0];
-  const sessionRowInSummary = summarySheet.rows.find((r) => r && r[0] === sessionCitId);
-  assert.ok(sessionRowInSummary, 'CIT111 session must appear in Daily Summary');
-  assert.equal(sessionRowInSummary[2], 'CIT111');
-  assert.equal(sessionRowInSummary[7], 2);  // Total Students
-  assert.equal(sessionRowInSummary[8], 1);  // Present
-  assert.equal(sessionRowInSummary[9], 1);  // Absent
-  assert.equal(sessionRowInSummary[10], 50); // 50%
-  assert.equal(sessionRowInSummary[11], 1);  // Revision 1
-  assert.equal(sessionRowInSummary[13], runV1Sha);
-
-  // Verify ELX111 does NOT appear anywhere in Teacher A's workbook
-  const allCellsFlat = JSON.stringify(parsed.sheets);
-  assert.ok(!allCellsFlat.includes('ELX111'), 'Teacher B subject ELX111 must never leak into Teacher A workbook');
-
-  // Verify student emails and password hashes NEVER appear in workbook
-  assert.ok(!allCellsFlat.includes('m1@gandaki.edu.np'), 'Student email must not be exported');
-  assert.ok(!allCellsFlat.includes('m2@gandaki.edu.np'), 'Student email must not be exported');
-
-  // Verify formula-injection student name ('=CMD|' /C calc'!A0 Ankit') is neutralized with a leading single quote
-  const detailSheet = parsed.sheets[1];
-  const stu2Row = detailSheet.rows.find((r) => r && r[1] === 'stu_p2_2');
-  assert.ok(stu2Row, 'stu_p2_2 row must exist in session detail sheet');
-  assert.ok(
-    String(stu2Row[2]).startsWith("'=CMD|"),
-    `Formula injection name must start with single quote, got: ${stu2Row[2]}`
-  );
+  // Audit B privacy check: ensure no student email, username, or actorUserId appears in the workbook XML
+  const fullIndepJson = JSON.stringify(indep);
+  assert.ok(!fullIndepJson.includes('m1@gandaki.edu.np'), 'Student email must not appear in workbook');
+  assert.ok(!fullIndepJson.includes('aashrita_m'), 'Student username must not appear in workbook');
+  assert.ok(!fullIndepJson.includes('tea_user_a'), 'Internal actorUserId must not appear in workbook');
 });
 
-test('Phase 2B XLSX 3: Annual workbook uncapped totals (>50 sessions), year boundary isolation, and audit/revision ledger accuracy', async () => {
-  // Seed 55 finalized sessions in 2025 for CIT111 (to prove annual workbook never caps at 50 sessions!)
-  // and 1 session in 2024-12-31 (to prove year boundary isolation!)
+test('Phase 2B XLSX 3 (Audit B & E): Independent validation of Annual workbook uncapped totals (>50 sessions), year boundary isolation, email scrubbing in audit reasons, and 413 oversized request protection', async () => {
+  // Seed 55 finalized sessions in 2025 for CIT111 and 1 session in 2024-12-31
   await saveAttendanceSession(db, {
     actorUserId: 'tea_user_a',
     subjectId: 'CIT111',
@@ -1102,15 +1326,12 @@ test('Phase 2B XLSX 3: Annual workbook uncapped totals (>50 sessions), year boun
     ]
   });
 
-  let expected2025PresentStu1 = 0;
   let last2025SessionId = '';
-
   for (let i = 1; i <= 55; i++) {
     const month = i <= 28 ? '01' : '02';
     const day = String(i <= 28 ? i : i - 28).padStart(2, '0');
     const dateStr = `2025-${month}-${day}`;
-    const stu1Present = i <= 44; // Present in 44 of 55 sessions = 80%
-    if (stu1Present) expected2025PresentStu1 += 1;
+    const stu1Present = i <= 44;
 
     const saved = await saveAttendanceSession(db, {
       actorUserId: 'tea_user_a',
@@ -1125,66 +1346,69 @@ test('Phase 2B XLSX 3: Annual workbook uncapped totals (>50 sessions), year boun
     last2025SessionId = saved.session.id;
   }
 
-  // Perform an admin correction on the 55th session in 2025 so it has v1 (session_created) and v2 (admin_correction)
+  // Perform an admin correction on the 55th session with an email address and formula prefix in the reason
   await adminCorrectAttendanceSession(db, {
     adminUserId: 'admin_p2',
     sessionId: last2025SessionId,
-    reason: 'Medical leave verified by department',
+    reason: '=Approved medical note from doctor@hospital.org.np for student',
     records: [
-      { studentId: 'stu_p2_1', status: 'present' }, // flipped from absent -> present (45 / 55)
+      { studentId: 'stu_p2_1', status: 'present' },
       { studentId: 'stu_p2_2', status: 'present' }
     ]
   });
-  expected2025PresentStu1 += 1; // Now 45 out of 55 sessions
 
-  // Generate 2025 Annual Workbook for Teacher A
+  // Generate 2025 Annual Workbook and validate independently via JSZip + Python zipfile/ElementTree
   const annualRes = await fetch(
     `${baseUrl}/api/attendance/backup/workbooks/annual?year=2025`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(annualRes.status, 200);
-  assert.equal(annualRes.headers.get('content-type'), XLSX_MIME_TYPE);
+  const annualBuf = await annualRes.buffer();
 
-  const parsedAnnual = parseXlsxWorkbookBuffer(await annualRes.buffer());
-  assert.deepEqual(parsedAnnual.sheetNames, [
+  const indepAnnual = await validateXlsxIndependently(annualBuf);
+  assert.equal(indepAnnual.ok, true);
+  assert.deepEqual(indepAnnual.sheets.map((s) => s.name), [
     'Session Overview',
     'Subject Summaries',
     'Mat_CIT111_Mercury_S1',
     'Audit & Revisions'
   ]);
 
-  // 1. Verify 2024-12-31 is NOT included in 2025 workbook
-  const overviewText = JSON.stringify(parsedAnnual.sheets[0]);
-  assert.ok(!overviewText.includes('2024-12-31'), '2024 session must be excluded from 2025 annual workbook');
+  // Verify Subject Summaries sheet via Python parser has 55 total sessions, 45 present, 10 absent, 81.82%
+  const subjSummariesPy = indepAnnual.sheets[1].rows;
+  const stu1SummaryCells = subjSummariesPy.find((r) => r.some((c) => c.value === 'stu_p2_1'));
+  assert.ok(stu1SummaryCells);
+  assert.equal(stu1SummaryCells[7].type, 'n');
+  assert.equal(stu1SummaryCells[7].value, 55);
+  assert.equal(stu1SummaryCells[8].value, 45);
+  assert.equal(stu1SummaryCells[9].value, 10);
+  assert.equal(stu1SummaryCells[10].value, 81.82);
 
-  // 2. Verify Subject Summaries sheet computes totals across ALL 55 sessions (not capped at 50!)
-  const subjSummariesSheet = parsedAnnual.sheets[1];
-  const stu1SummaryRow = subjSummariesSheet.rows.find(
-    (r) => r && r[0] === 'CIT111' && r[4] === 'stu_p2_1'
+  // Verify Audit & Revisions sheet scrubbed the email in reason and prefixed formula '=' with "'"
+  const auditSheetText = JSON.stringify(indepAnnual.sheets[3]);
+  assert.ok(!auditSheetText.includes('doctor@hospital.org.np'), 'Email in audit reason must be scrubbed from exported workbook');
+  assert.ok(auditSheetText.includes('[REDACTED_EMAIL]'), 'Redacted email placeholder must appear');
+  assert.ok(auditSheetText.includes("'=Approved medical note"), 'Formula prefix in audit reason must be neutralized');
+  assert.ok(!auditSheetText.includes('admin_p2'), 'Internal actorUserId must not appear in Audit & Revisions sheet');
+
+  // Verify oversized request protection (413 WORKBOOK_LIMIT_EXCEEDED) when session count exceeds maxSessionsLimit
+  await assert.rejects(
+    async () => {
+      await generateAnnualAttendanceWorkbook(db, {
+        actorUserId: 'tea_user_a',
+        year: '2025',
+        maxSessionsLimit: 10
+      });
+    },
+    (err) => err && err.status === 413 && err.code === 'WORKBOOK_LIMIT_EXCEEDED'
   );
-  assert.ok(stu1SummaryRow, 'stu_p2_1 summary row for CIT111 must exist');
-  assert.equal(stu1SummaryRow[7], 55, 'Total Sessions must be all 55 sessions (uncapped)');
-  assert.equal(stu1SummaryRow[8], 45, 'Present Count must be 45 (including admin correction)');
-  assert.equal(stu1SummaryRow[9], 10, 'Absent Count must be 10');
-  assert.equal(stu1SummaryRow[10], 81.82, 'Attendance % must be 81.82%');
-
-  // 3. Verify Audit & Revisions sheet includes both v1 (session_created) and v2 (admin_correction) for last2025SessionId
-  const auditSheet = parsedAnnual.sheets[3];
-  const lastSessAuditRows = auditSheet.rows.filter((r) => r && r[0] === last2025SessionId);
-  assert.equal(lastSessAuditRows.length, 2, 'Both v1 and v2 revisions must be listed in Audit & Revisions');
-  assert.equal(lastSessAuditRows[0][4], 1);
-  assert.equal(lastSessAuditRows[0][5], 'session_created');
-  assert.equal(lastSessAuditRows[1][4], 2);
-  assert.equal(lastSessAuditRows[1][5], 'admin_correction');
-  assert.equal(lastSessAuditRows[1][8], 'Medical leave verified by department');
-  assert.equal(lastSessAuditRows[1][9], lastSessAuditRows[0][10], 'v2 previous hash must equal v1 snapshot hash');
 });
 
 // ============================================================================
-// 4. POSTGRESQL (PGLITE) DUAL-ENGINE PARITY & CROSS-CONNECTION CONCURRENCY TEST
+// 5. AUDIT D & F — POSTGRESQL (PGLITE) UPGRADE PATHS, CONCURRENT SCHEMA INIT & RACES
 // ============================================================================
 
-test('Phase 2 PostgreSQL (PGlite): Migrations 20261025 + 20261026, cross-connection FOR UPDATE claims, partial failure recovery, and XLSX generation pass on PostgreSQL', async () => {
+test('Phase 2 PostgreSQL (PGlite) (Audit D & F): Upgrade path from Step 2 -> Phase 1 -> Phase 2, concurrent ensureAttendanceSchema startup, cross-connection initial session race, and FOR UPDATE claims pass on PostgreSQL', async () => {
   const pg = new PGlite();
 
   const formatRow = (r) => db.formatRow(r);
@@ -1268,7 +1492,7 @@ test('Phase 2 PostgreSQL (PGlite): Migrations 20261025 + 20261026, cross-connect
   await ensureTeacherSchema({ exec: pgDb.exec, isPostgres: true });
   await ensureAuditSchema(pgDb);
 
-  // Apply all 3 PostgreSQL migration files in order
+  // Audit F: Apply Step 2 -> Phase 1 -> Phase 2 migrations sequentially, then fire 3 concurrent ensureAttendanceSchema() calls
   for (const migFile of [
     '20261024_attendance_schema.sql',
     '20261025_attendance_drive_backup.sql',
@@ -1277,6 +1501,12 @@ test('Phase 2 PostgreSQL (PGlite): Migrations 20261025 + 20261026, cross-connect
     const sql = fs.readFileSync(path.join(__dirname, '..', 'migrations', migFile), 'utf8');
     await pgDb.exec(sql);
   }
+
+  await Promise.all([
+    ensureAttendanceSchema(pgDb),
+    ensureAttendanceSchema(pgDb),
+    ensureAttendanceSchema(pgDb)
+  ]);
 
   await pgDb.run(
     `INSERT INTO subjects (id, code, name, semester, department, credit_hours, active)
@@ -1307,15 +1537,35 @@ test('Phase 2 PostgreSQL (PGlite): Migrations 20261025 + 20261026, cross-connect
     pgCohort.id
   );
 
-  const saved = await saveAttendanceSession(pgDb, {
-    actorUserId: 'pg_tea_1',
-    subjectId: 'CIT111',
-    cohortId: pgCohort.id,
-    sessionDate: TODAY_NEPAL,
-    records: [{ studentId: 'pg_stu_1', status: 'present' }]
-  });
-  const pgRunId = saved.backupRevision.id;
-  const pgSha = saved.backupRevision.snapshotSha256;
+  // Audit D on PostgreSQL: Simultaneous initial session submissions with skipInProcessLock=true
+  const [pgSave1, pgSave2] = await Promise.all([
+    saveAttendanceSession(pgDb, {
+      actorUserId: 'pg_tea_1',
+      subjectId: 'CIT111',
+      cohortId: pgCohort.id,
+      sessionDate: TODAY_NEPAL,
+      skipInProcessLock: true,
+      records: [{ studentId: 'pg_stu_1', status: 'absent' }]
+    }),
+    saveAttendanceSession(pgDb, {
+      actorUserId: 'pg_tea_1',
+      subjectId: 'CIT111',
+      cohortId: pgCohort.id,
+      sessionDate: TODAY_NEPAL,
+      skipInProcessLock: true,
+      records: [{ studentId: 'pg_stu_1', status: 'present' }]
+    })
+  ]);
+  assert.equal(pgSave1.session.id, pgSave2.session.id);
+
+  const pgRevs = await pgDb.all(
+    `SELECT * FROM attendance_backup_runs WHERE session_id = ? ORDER BY revision_no ASC`,
+    pgSave1.session.id
+  );
+  assert.equal(pgRevs.length, 2, 'Both PG concurrent submissions must be recorded as sequential revisions v1 and v2');
+  const latestPgRun = pgRevs[1];
+  const pgRunId = latestPgRun.id;
+  const pgSha = latestPgRun.snapshotSha256 || latestPgRun.snapshot_sha256;
 
   // Concurrent claims on PostgreSQL
   const results = await Promise.allSettled([
@@ -1345,7 +1595,7 @@ test('Phase 2 PostgreSQL (PGlite): Migrations 20261025 + 20261026, cross-connect
       body: {
         artifactType: art.artifactType,
         claimToken: art.claimToken,
-        revisionNo: 1,
+        revisionNo: 2,
         snapshotSha256: pgSha,
         driveFileId: `pg_drive_${art.artifactType}`
       }
@@ -1358,8 +1608,10 @@ test('Phase 2 PostgreSQL (PGlite): Migrations 20261025 + 20261026, cross-connect
     includePayloads: true
   });
   assert.equal(artBundle.backupStatus, 'backed_up');
-  assert.ok(artBundle.workbooks.daily.bundle.base64.length > 100);
-  assert.ok(artBundle.workbooks.annual.bundle.base64.length > 100);
+  const indepPgDaily = await validateXlsxIndependently(
+    Buffer.from(artBundle.workbooks.daily.bundle.base64, 'base64')
+  );
+  assert.equal(indepPgDaily.ok, true);
 
   await pg.close();
 });

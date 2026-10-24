@@ -12,6 +12,7 @@ const {
   getAttendanceSessionAuditLogs,
   listAttendanceSessions,
   getStudentAttendanceSummary,
+  assertNoForbiddenSecrets,
   getTeacherDriveBackupStatus,
   upsertTeacherDriveConnection,
   disconnectTeacherDriveConnection,
@@ -258,6 +259,7 @@ function createAttendanceRouter(arg1, arg2) {
    */
   router.get('/sessions/:id/revisions', requireLogin, async (req, res) => {
     try {
+      assertNoForbiddenSecrets(req.query, 'revisions query parameters');
       const callerId = resolveCallerId(req);
       const result = await getSessionBackupRevisionsAuthorized(db, {
         actorUserId: callerId,
@@ -279,14 +281,17 @@ function createAttendanceRouter(arg1, arg2) {
    */
   router.get('/backup/status', requireLogin, async (req, res) => {
     try {
+      assertNoForbiddenSecrets(req.query, 'backup status query parameters');
       const callerId = resolveCallerId(req);
       const requestedTeacherId = req.query.teacherId || req.query.teacher_id || null;
-      const requestedUserId = req.query.userId || req.query.user_id || req.query.studentId || null;
+      const requestedUserId = req.query.userId || req.query.user_id || req.query.studentId || req.query.student_id || null;
+      const requestedRole = req.query.role || null;
 
       const status = await getTeacherDriveBackupStatus(db, {
         actorUserId: callerId,
         requestedTeacherId,
-        requestedUserId
+        requestedUserId,
+        requestedRole
       });
       return res.json(status);
     } catch (err) {
@@ -334,15 +339,18 @@ function createAttendanceRouter(arg1, arg2) {
    */
   router.get('/backup/pending', requireLogin, async (req, res) => {
     try {
+      assertNoForbiddenSecrets(req.query, 'pending backup query parameters');
       const callerId = resolveCallerId(req);
       const requestedTeacherId = req.query.teacherId || req.query.teacher_id || null;
-      const requestedUserId = req.query.userId || req.query.user_id || req.query.studentId || null;
+      const requestedUserId = req.query.userId || req.query.user_id || req.query.studentId || req.query.student_id || null;
+      const requestedRole = req.query.role || null;
       const sessionId = req.query.sessionId || req.query.session_id || null;
 
       const result = await listPendingBackupWork(db, {
         actorUserId: callerId,
         requestedTeacherId,
         requestedUserId,
+        requestedRole,
         sessionId
       });
       return res.json(result);
@@ -411,6 +419,7 @@ function createAttendanceRouter(arg1, arg2) {
    */
   router.get('/backup/runs/:runId/artifacts', requireLogin, async (req, res) => {
     try {
+      assertNoForbiddenSecrets(req.query, 'backup artifacts query parameters');
       const callerId = resolveCallerId(req);
       const includePayloads =
         req.query.includePayloads === '1' ||
@@ -435,12 +444,14 @@ function createAttendanceRouter(arg1, arg2) {
 
   const handleDailyWorkbook = async (req, res) => {
     try {
+      assertNoForbiddenSecrets(req.query, 'daily workbook query parameters');
       const callerId = resolveCallerId(req);
       const date = req.query.date || req.query.sessionDate || req.query.session_date || null;
       const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject || null;
       const cohortId = req.query.cohortId || req.query.cohort_id || req.query.cohort || null;
       const requestedTeacherId = req.query.teacherId || req.query.teacher_id || null;
-      const requestedUserId = req.query.userId || req.query.user_id || req.query.studentId || null;
+      const requestedUserId = req.query.userId || req.query.user_id || req.query.studentId || req.query.student_id || null;
+      const requestedRole = req.query.role || null;
       const format = String(req.query.format || '').trim().toLowerCase();
 
       const workbook = await generateDailyAttendanceWorkbook(db, {
@@ -449,7 +460,8 @@ function createAttendanceRouter(arg1, arg2) {
         subjectId,
         cohortId,
         requestedTeacherId,
-        requestedUserId
+        requestedUserId,
+        requestedRole
       });
 
       if (format === 'json') {
@@ -479,12 +491,14 @@ function createAttendanceRouter(arg1, arg2) {
 
   const handleAnnualWorkbook = async (req, res) => {
     try {
+      assertNoForbiddenSecrets(req.query, 'annual workbook query parameters');
       const callerId = resolveCallerId(req);
       const year = req.query.year || null;
       const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject || null;
       const cohortId = req.query.cohortId || req.query.cohort_id || req.query.cohort || null;
       const requestedTeacherId = req.query.teacherId || req.query.teacher_id || null;
-      const requestedUserId = req.query.userId || req.query.user_id || req.query.studentId || null;
+      const requestedUserId = req.query.userId || req.query.user_id || req.query.studentId || req.query.student_id || null;
+      const requestedRole = req.query.role || null;
       const format = String(req.query.format || '').trim().toLowerCase();
 
       const workbook = await generateAnnualAttendanceWorkbook(db, {
@@ -493,7 +507,8 @@ function createAttendanceRouter(arg1, arg2) {
         subjectId,
         cohortId,
         requestedTeacherId,
-        requestedUserId
+        requestedUserId,
+        requestedRole
       });
 
       if (format === 'json') {

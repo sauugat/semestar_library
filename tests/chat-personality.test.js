@@ -1,4 +1,4 @@
-npx  const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert/strict');
 const { styleLookupReply, toneInstructions } = require('../lib/chat-personality');
 const { handleChat } = require('../ai-assistant');

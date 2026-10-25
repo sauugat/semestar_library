@@ -11,6 +11,8 @@ const {
   adminCorrectAttendanceSession,
   getAttendanceSessionAuditLogs,
   listAttendanceSessions,
+  getMonthlyAttendanceRegister,
+  exportMonthlyAttendanceCsv,
   getStudentAttendanceSummary,
   assertNoForbiddenSecrets,
   getTeacherDriveBackupStatus,
@@ -234,6 +236,45 @@ function createAttendanceRouter(arg1, arg2) {
       return sendAttendanceError(res, err, 'Failed to load attendance sessions.');
     }
   });
+
+  /**
+   * 5b. GET /api/attendance/monthly (and /api/attendance/matrix)
+   * Allowed: authorized teacher and admin.
+   * Returns the numbered monthly attendance matrix and per-student detailed attendance history.
+   */
+  const handleMonthlyRegister = async (req, res) => {
+    try {
+      const callerId = resolveCallerId(req);
+      const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject || null;
+      const cohortId = req.query.cohortId || req.query.cohort_id || req.query.cohort || null;
+      const month = req.query.month || req.query.yearMonth || req.query.year_month || null;
+      const format = String(req.query.format || '').trim().toLowerCase();
+
+      const result = await getMonthlyAttendanceRegister(db, {
+        actorUserId: callerId,
+        subjectId,
+        cohortId,
+        month
+      });
+
+      if (format === 'csv') {
+        const csvContent = exportMonthlyAttendanceCsv(result);
+        const safeSubj = String((result.subject && result.subject.code) || 'Subject').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeCohort = String((result.cohort && result.cohort.displayName) || 'Cohort').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const filename = `Attendance_${safeSubj}_${safeCohort}_${result.month}.csv`;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).send(csvContent);
+      }
+
+      return res.json(result);
+    } catch (err) {
+      return sendAttendanceError(res, err, 'Failed to load monthly attendance register.');
+    }
+  };
+  router.get('/monthly', requireLogin, handleMonthlyRegister);
+  router.get('/matrix', requireLogin, handleMonthlyRegister);
 
   /**
    * 6. GET /api/attendance/sessions/:id/audit

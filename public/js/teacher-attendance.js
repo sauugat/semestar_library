@@ -1,9 +1,20 @@
 /**
  * Semester Library — Teacher Attendance Workspace (Web Module)
  *
- * Consumes authoritative Step 2 Attendance APIs:
+ * Implements:
+ * 1. Subject-selection landing page (Library-style monochrome subject cards, scoped to assigned subjects).
+ * 2. Alphabetically sorted (case-insensitive) full student attendance register with Present/Absent controls,
+ *    keyboard shortcuts (P, A, ArrowUp, ArrowDown with auto-advance and input focus guard), and mouse/touch support.
+ * 3. Numbered Monthly Attendance Matrix where each student row shows their independent consecutive attendance
+ *    numbers (1, 2, 3...) for Present and 'ABS' for Absent, resetting each month, and Attendance % derived
+ *    strictly from underlying attendance records.
+ * 4. Month and chronological session navigation, 24-hour teacher edit window enforcement, audit log viewer,
+ *    and clickable student detailed attendance history modal.
+ *
+ * Consumes authoritative Attendance APIs:
  * - GET  /api/attendance/teacher/context
  * - GET  /api/attendance/roster?subjectId=...&cohortId=...&date=...
+ * - GET  /api/attendance/monthly?subjectId=...&cohortId=...&month=...
  * - POST /api/attendance/sessions
  * - PUT  /api/attendance/sessions/:id
  * - GET  /api/attendance/sessions?subjectId=...&cohortId=...
@@ -18,11 +29,13 @@
     initialized: false,
     loadingContext: false,
     loadingRoster: false,
+    loadingMonthly: false,
     loadingHistory: false,
     loadingAudit: false,
     saving: false,
     contextError: null,
     rosterError: null,
+    monthlyError: null,
     saveError: null,
     saveSuccessMessage: null,
 
@@ -31,10 +44,15 @@
     subjects: [],
     cohorts: [],
 
-    // Selection state (preserved across Marking, Review, and History stages)
+    // Selection state
+    // When selectedSubjectId === '', the teacher is on the Subject-Selection Landing Page.
     selectedSubjectId: '',
     selectedCohortId: '',
     selectedDate: '',
+    selectedMonth: '',
+
+    // Search filter in student register
+    studentSearchQuery: '',
 
     // Roster & Session state from GET /api/attendance/roster
     rosterSubject: null,
@@ -44,17 +62,26 @@
     marksByStudentId: {}, // { [studentId]: 'present' | 'absent' }
     initialMarksSnapshot: '{}',
 
-    // Stage: 'marking' | 'review' | 'history'
+    // Stage within a selected subject: 'marking' (register) | 'review' | 'history'
     stage: 'marking',
     currentStudentIndex: 0,
     editReason: '',
+
+    // Monthly attendance matrix state from GET /api/attendance/monthly
+    availableMonths: [],
+    monthlySessions: [],
+    monthlyRows: [],
+    studentHistoryByStudentId: {},
+
+    // Student detail modal state
+    selectedStudentDetailId: null,
 
     // History & Audit
     historySessions: [],
     auditModalSessionId: null,
     auditLogs: [],
 
-    // Phase 3B — Teacher Google Drive Attendance Backup UI state
+    // Teacher Google Drive Attendance Backup UI state
     loadingBackup: false,
     backupConnecting: false,
     backupSyncing: false,
@@ -65,6 +92,7 @@
     backupErrorMessage: null,
     backupReconnectRequired: false,
     driveClient: null,
+    hasExplicitDriveClient: false,
 
     // Live countdown ticker
     countdownTimerId: null,
@@ -86,6 +114,158 @@
       return window.SemesterAuth.authFetch(url, options);
     }
     return window.fetch(url, options);
+  }
+
+  /**
+   * Case-insensitive alphabetical comparator by displayed student name,
+   * with deterministic tie-breaker on studentId.
+   */
+  function compareStudentsAlphabetically(a, b) {
+    const nameA = String((a && (a.name || a.studentName || a.displayName || a.studentId || a.student_id)) || '').trim();
+    const nameB = String((b && (b.name || b.studentName || b.displayName || b.studentId || b.student_id)) || '').trim();
+    const cmp = nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+    if (cmp !== 0) return cmp;
+    const idA = String((a && (a.studentId || a.student_id || a.id)) || '').trim();
+    const idB = String((b && (b.studentId || b.student_id || b.id)) || '').trim();
+    return idA.localeCompare(idB, undefined, { sensitivity: 'base' });
+  }
+
+  function sortStudentsAlphabetically(students) {
+    if (!Array.isArray(students)) return [];
+    return [...students].sort(compareStudentsAlphabetically);
+  }
+
+  /**
+   * Pure client-side builder for the numbered monthly attendance matrix.
+   * Ensures deterministic consecutive numbering per student per month and accurate percentage calculation
+   * from underlying attendance records even when computed locally.
+   */
+  function buildMonthlyAttendanceMatrix({
+    students = [],
+    sessions = [],
+    recordsBySessionId = new Map(),
+    month = null
+  } = {}) {
+    const cleanMonth = month ? String(month).trim() : null;
+
+    const eligibleSessions = (Array.isArray(sessions) ? sessions : []).filter((s) => {
+      if (!s) return false;
+      const st = String(s.status || 'submitted').toLowerCase();
+      if (st !== 'submitted' && st !== 'locked') return false;
+      const sDate = String(s.sessionDate || s.session_date || '').trim();
+      if (!sDate) return false;
+      if (cleanMonth && !sDate.startsWith(`${cleanMonth}-`)) return false;
+      return true;
+    });
+
+    const chronologicalSessions = [...eligibleSessions].sort((a, b) => {
+      const dateA = String(a.sessionDate || a.session_date || '');
+      const dateB = String(b.sessionDate || b.session_date || '');
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+      const subA = String(a.submittedAt || a.submitted_at || '');
+      const subB = String(b.submittedAt || b.submitted_at || '');
+      if (subA !== subB) return subA.localeCompare(subB);
+      return String(a.id || '').localeCompare(String(b.id || ''));
+    });
+
+    const numberedSessions = chronologicalSessions.map((s, idx) => ({
+      ...s,
+      id: s.id,
+      sessionNumber: idx + 1,
+      sessionDate: String(s.sessionDate || s.session_date || ''),
+      status: s.status || 'submitted',
+      submittedAt: s.submittedAt || s.submitted_at || null,
+      editWindow: s.editWindow || null,
+      counts: s.counts || null
+    }));
+
+    const getStatus = (sessionId, studentId) => {
+      let sessionRecords = null;
+      if (recordsBySessionId instanceof Map) {
+        sessionRecords = recordsBySessionId.get(sessionId);
+      } else if (recordsBySessionId && typeof recordsBySessionId === 'object') {
+        sessionRecords = recordsBySessionId[sessionId];
+      }
+      if (!sessionRecords) return 'absent';
+      if (sessionRecords instanceof Map) {
+        const v = sessionRecords.get(studentId);
+        if (typeof v === 'string') return v === 'present' ? 'present' : 'absent';
+        if (v && typeof v === 'object') return v.status === 'present' ? 'present' : 'absent';
+        return 'absent';
+      }
+      if (Array.isArray(sessionRecords)) {
+        const found = sessionRecords.find((r) => String(r.studentId || r.student_id) === String(studentId));
+        return found && found.status === 'present' ? 'present' : 'absent';
+      }
+      if (typeof sessionRecords === 'object') {
+        const v = sessionRecords[studentId];
+        if (typeof v === 'string') return v === 'present' ? 'present' : 'absent';
+        if (v && typeof v === 'object') return v.status === 'present' ? 'present' : 'absent';
+      }
+      return 'absent';
+    };
+
+    const sortedStudents = sortStudentsAlphabetically(students);
+    const totalSessions = numberedSessions.length;
+
+    const rows = sortedStudents.map((stu) => {
+      const studentId = String(stu.studentId || stu.student_id || '').trim();
+      let consecutiveCount = 0;
+      let presentCount = 0;
+      let absentCount = 0;
+      const cells = [];
+
+      for (const sess of numberedSessions) {
+        const st = getStatus(sess.id, studentId);
+        if (st === 'present') {
+          presentCount += 1;
+          consecutiveCount += 1;
+          cells.push({
+            sessionId: sess.id,
+            sessionNumber: sess.sessionNumber,
+            sessionDate: sess.sessionDate,
+            status: 'present',
+            consecutiveCount,
+            display: String(consecutiveCount)
+          });
+        } else {
+          absentCount += 1;
+          cells.push({
+            sessionId: sess.id,
+            sessionNumber: sess.sessionNumber,
+            sessionDate: sess.sessionDate,
+            status: 'absent',
+            consecutiveCount: null,
+            display: 'ABS'
+          });
+        }
+      }
+
+      const rawPercentage = totalSessions > 0 ? (presentCount / totalSessions) * 100 : 0;
+      const attendancePercentage = totalSessions > 0 ? Number(rawPercentage.toFixed(1)) : 0;
+      const formattedPercentage = totalSessions > 0 ? `${rawPercentage.toFixed(1)}%` : '0.0%';
+
+      return {
+        studentId,
+        name: String(stu.name || stu.studentName || studentId).trim(),
+        username: stu.username || null,
+        role: String(stu.role || 'student').toLowerCase(),
+        cells,
+        presentCount,
+        absentCount,
+        totalSessions,
+        attendancePercentage,
+        formattedPercentage
+      };
+    });
+
+    return {
+      month: cleanMonth,
+      totalSessions,
+      sessions: numberedSessions,
+      rows,
+      students: rows
+    };
   }
 
   function hasUnsavedChanges() {
@@ -165,9 +345,16 @@
   }
 
   function getSelectedSubjectObj() {
-    return (state.subjects || []).find(
-      (s) => s.id === state.selectedSubjectId || s.code === state.selectedSubjectId
-    ) || null;
+    if (!state.selectedSubjectId) return null;
+    const norm = String(state.selectedSubjectId).trim().toLowerCase();
+    return (
+      (state.subjects || []).find(
+        (s) =>
+          String(s.id || '').toLowerCase() === norm ||
+          String(s.code || '').toLowerCase() === norm ||
+          String(s.name || '').toLowerCase() === norm
+      ) || null
+    );
   }
 
   function getEligibleCohortsForSelectedSubject() {
@@ -175,6 +362,18 @@
     if (!sub) return [];
     if (Array.isArray(sub.cohorts)) return sub.cohorts;
     return (state.cohorts || []).filter((c) => Number(c.currentSemester) === Number(sub.semester));
+  }
+
+  function getVisibleRoster() {
+    const sorted = sortStudentsAlphabetically(state.roster || []);
+    const q = String(state.studentSearchQuery || '').trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter((stu) => {
+      const nameMatch = String(stu.name || '').toLowerCase().includes(q);
+      const idMatch = String(stu.studentId || '').toLowerCase().includes(q);
+      const userMatch = String(stu.username || '').toLowerCase().includes(q);
+      return nameMatch || idMatch || userMatch;
+    });
   }
 
   function getRosterCounts() {
@@ -199,6 +398,25 @@
     };
   }
 
+  function formatMonthLabel(yyyyMm) {
+    if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) return yyyyMm || '';
+    const [y, m] = yyyyMm.split('-').map(Number);
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return `${months[m - 1] || m} ${y}`;
+  }
+
+  function stepMonthString(yyyyMm, deltaMonths) {
+    if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) return yyyyMm;
+    const [y, m] = yyyyMm.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1 + deltaMonths, 1));
+    const nextY = dt.getUTCFullYear();
+    const nextM = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    return `${nextY}-${nextM}`;
+  }
+
   function injectStyles() {
     if (document.getElementById('sl-teacher-attendance-styles')) return;
     const style = document.createElement('style');
@@ -206,40 +424,145 @@
     style.textContent = `
       .sl-att-root {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: var(--teach-text-primary, var(--text-primary, #f5f5f5));
+        color: var(--teach-text-primary, var(--text, #111827));
       }
       .sl-att-panel {
-        background: var(--teach-surface, var(--bg-secondary, #141414));
-        border: 1px solid var(--teach-border, var(--border, #2a2a2a));
-        border-radius: 14px;
+        background: var(--teach-surface, var(--surface, #ffffff));
+        border: 1.5px solid var(--teach-border, var(--border, rgba(0, 0, 0, 0.13)));
+        border-radius: 16px;
         padding: 20px 24px;
         margin-bottom: 20px;
       }
+      /* Subject Selection Landing Grid (Library-style monochrome cards) */
+      .sl-att-subject-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+        margin-bottom: 28px;
+      }
+      .sl-att-subject-card {
+        background: var(--teach-surface, var(--surface, #ffffff));
+        border: 1.5px solid var(--teach-border, var(--border, rgba(0, 0, 0, 0.13)));
+        border-radius: 20px;
+        padding: 26px 28px;
+        min-height: 185px;
+        box-sizing: border-box;
+        box-shadow: var(--teach-shadow-sm, 0 2px 6px rgba(0, 0, 0, 0.04));
+        cursor: pointer;
+        text-align: left;
+        color: inherit;
+        font-family: inherit;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        width: 100%;
+      }
+      .sl-att-subject-card:hover,
+      .sl-att-subject-card:focus-visible {
+        border-color: var(--teach-text-primary, #111827);
+        transform: translateY(-2px);
+        box-shadow: var(--teach-shadow-md, 0 8px 24px -4px rgba(0, 0, 0, 0.12));
+        outline: none;
+      }
+      .sl-att-subject-card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .sl-att-code-badge {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 7px;
+        background: var(--teach-surface-subtle, #f3f4f6);
+        border: 1px solid var(--teach-border, rgba(0, 0, 0, 0.1));
+        color: var(--teach-text-primary, #111827);
+        letter-spacing: 0.02em;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      .sl-att-sem-pill {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--teach-text-secondary, #6b7280);
+      }
+      .sl-att-subject-title {
+        font-size: 18.5px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        margin: 4px 0 18px;
+        color: var(--teach-text-primary, #111827);
+        line-height: 1.35;
+      }
+      .sl-att-subject-card-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding-top: 14px;
+        border-top: 1px solid var(--teach-border-subtle, rgba(0, 0, 0, 0.08));
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--teach-text-secondary, #6b7280);
+      }
+      .sl-att-open-label {
+        font-weight: 700;
+        color: var(--teach-text-primary, #111827);
+        white-space: nowrap;
+      }
+      /* Register Top Header & Controls */
+      .sl-att-reg-topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 18px;
+      }
+      .sl-att-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--teach-border, #2a2a2a);
+        background: var(--teach-surface, #141414);
+        color: var(--teach-text-primary, #f5f5f5);
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .sl-att-back-btn:hover {
+        background: var(--teach-surface-hover, #242424);
+      }
       .sl-att-controls-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+        gap: 14px;
         align-items: end;
       }
       .sl-att-field label {
         display: block;
-        font-size: 0.76rem;
+        font-size: 0.74rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: var(--teach-text-secondary, var(--text-muted, #a3a3a3));
+        color: var(--teach-text-secondary, #a3a3a3);
         margin-bottom: 6px;
       }
       .sl-att-select,
       .sl-att-input {
         width: 100%;
         box-sizing: border-box;
-        padding: 10px 12px;
+        padding: 9px 12px;
         border-radius: 9px;
-        border: 1px solid var(--teach-border, var(--border, #2a2a2a));
+        border: 1px solid var(--teach-border, #2a2a2a);
         background: var(--teach-surface-subtle, #1c1c1c);
         color: var(--teach-text-primary, #f5f5f5);
-        font-size: 0.9rem;
+        font-size: 0.88rem;
         font-family: inherit;
         outline: none;
       }
@@ -252,7 +575,7 @@
         align-items: center;
         gap: 8px;
         flex-wrap: wrap;
-        margin-bottom: 18px;
+        margin-bottom: 16px;
       }
       .sl-att-stage-tab {
         padding: 8px 16px;
@@ -260,9 +583,10 @@
         border: 1px solid var(--teach-border, #2a2a2a);
         background: var(--teach-surface, #141414);
         color: var(--teach-text-secondary, #a3a3a3);
-        font-size: 0.84rem;
+        font-size: 0.83rem;
         font-weight: 600;
         cursor: pointer;
+        font-family: inherit;
         transition: all 0.15s ease;
       }
       .sl-att-stage-tab.active {
@@ -274,7 +598,7 @@
         border-radius: 10px;
         padding: 12px 16px;
         margin-bottom: 16px;
-        font-size: 0.86rem;
+        font-size: 0.85rem;
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -284,180 +608,324 @@
         background: var(--teach-surface-subtle, #1c1c1c);
       }
       .sl-att-banner.error {
-        border-color: rgba(239, 68, 68, 0.45);
-        background: rgba(239, 68, 68, 0.1);
-        color: #fca5a5;
+        border-color: var(--teach-text-primary, #f5f5f5);
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: var(--teach-text-primary, #f5f5f5);
       }
       .sl-att-banner.success {
-        border-color: rgba(34, 197, 94, 0.45);
-        background: rgba(34, 197, 94, 0.1);
-        color: #86efac;
+        border-color: var(--teach-border, #2a2a2a);
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: var(--teach-text-primary, #f5f5f5);
       }
       .sl-att-banner.readonly {
-        border-color: rgba(245, 158, 11, 0.45);
-        background: rgba(245, 158, 11, 0.1);
-        color: #fde68a;
+        border-color: var(--teach-border, #2a2a2a);
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: var(--teach-text-secondary, #a3a3a3);
       }
       .sl-att-summary-pills {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
         gap: 10px;
-        margin-bottom: 18px;
+        margin-bottom: 16px;
       }
       .sl-att-stat-box {
         background: var(--teach-surface-subtle, #1c1c1c);
         border: 1px solid var(--teach-border-subtle, #242424);
         border-radius: 10px;
-        padding: 12px 14px;
+        padding: 10px 12px;
         text-align: center;
       }
       .sl-att-stat-val {
-        font-size: 1.25rem;
+        font-size: 1.2rem;
         font-weight: 700;
         line-height: 1.1;
       }
       .sl-att-stat-lbl {
-        font-size: 0.72rem;
+        font-size: 0.7rem;
         text-transform: uppercase;
         letter-spacing: 0.04em;
         color: var(--teach-text-secondary, #a3a3a3);
         margin-top: 4px;
         font-weight: 600;
       }
-      .sl-att-focus-card {
-        background: var(--teach-surface, #141414);
-        border: 1px solid var(--teach-border, #2a2a2a);
-        border-radius: 16px;
-        padding: 28px 24px;
-        max-width: 640px;
-        margin: 0 auto 20px;
-        text-align: center;
-      }
-      .sl-att-progress-text {
-        font-size: 0.8rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--teach-text-secondary, #a3a3a3);
-        margin-bottom: 8px;
-      }
-      .sl-att-progress-bar {
-        width: 100%;
-        height: 6px;
-        background: var(--teach-surface-subtle, #1c1c1c);
-        border-radius: 999px;
-        overflow: hidden;
-        margin-bottom: 22px;
-      }
-      .sl-att-progress-fill {
-        height: 100%;
-        background: var(--teach-btn-primary-bg, #f5f5f5);
-        transition: width 0.2s ease;
-      }
-      .sl-att-student-avatar {
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-        margin: 0 auto 14px;
-        background: var(--teach-surface-subtle, #1c1c1c);
-        border: 1px solid var(--teach-border, #2a2a2a);
+      /* Full Student Attendance Register List */
+      .sl-att-register-toolbar {
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 1.4rem;
-        font-weight: 700;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
       }
-      .sl-att-student-name {
-        font-size: 1.35rem;
-        font-weight: 700;
-        margin: 0 0 6px;
-      }
-      .sl-att-student-meta {
-        font-size: 0.88rem;
+      .sl-att-kbd-hint {
+        font-size: 0.78rem;
         color: var(--teach-text-secondary, #a3a3a3);
-        margin: 0 0 22px;
-        font-family: monospace;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
       }
-      .sl-att-mark-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 14px;
-        margin-bottom: 22px;
-      }
-      .sl-att-mark-btn {
-        padding: 16px 20px;
-        border-radius: 12px;
-        font-size: 1rem;
-        font-weight: 700;
-        cursor: pointer;
-        border: 2px solid var(--teach-border, #2a2a2a);
+      .sl-att-kbd {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 5px;
+        border: 1px solid var(--teach-border, #2a2a2a);
         background: var(--teach-surface-subtle, #1c1c1c);
         color: var(--teach-text-primary, #f5f5f5);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.73rem;
+        font-weight: 700;
+      }
+      .sl-att-register-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid var(--teach-border, #2a2a2a);
+        border-radius: 12px;
+        background: var(--teach-surface, #141414);
+      }
+      .sl-att-register-list {
+        display: flex;
+        flex-direction: column;
+      }
+      .sl-att-register-row {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 11px 16px;
+        border-bottom: 1px solid var(--teach-border-subtle, #242424);
+        background: var(--teach-surface, #141414);
+        transition: background 0.12s ease;
+        outline: none;
+      }
+      .sl-att-register-row:last-child {
+        border-bottom: none;
+      }
+      .sl-att-register-row.focused {
+        background: var(--teach-surface-subtle, #1c1c1c);
+        box-shadow: inset 3px 0 0 var(--teach-text-primary, #f5f5f5);
+      }
+      .sl-att-student-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        flex: 1;
+      }
+      .sl-att-row-num {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--teach-text-secondary, #a3a3a3);
+        min-width: 24px;
+        font-variant-numeric: tabular-nums;
+      }
+      .sl-att-student-name-btn {
+        background: transparent;
+        border: none;
+        padding: 0;
+        margin: 0;
+        color: var(--teach-text-primary, #f5f5f5);
+        font-size: 0.93rem;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        text-align: left;
+        text-decoration: none;
+      }
+      .sl-att-student-name-btn:hover {
+        text-decoration: underline;
+      }
+      .sl-att-student-id-sub {
+        font-size: 0.76rem;
+        color: var(--teach-text-secondary, #a3a3a3);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        margin-top: 2px;
+      }
+      .sl-att-row-controls {
+        display: flex;
+        align-items: center;
         gap: 8px;
-        transition: all 0.15s ease;
+        flex-shrink: 0;
+      }
+      .sl-att-mark-btn {
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+        border: 1.5px solid var(--teach-border, #2a2a2a);
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: var(--teach-text-primary, #f5f5f5);
+        font-family: inherit;
+        transition: all 0.12s ease;
+        min-width: 82px;
+        text-align: center;
       }
       .sl-att-mark-btn:hover:not(:disabled) {
-        border-color: var(--teach-text-secondary, #a3a3a3);
+        border-color: var(--teach-text-primary, #f5f5f5);
       }
       .sl-att-mark-btn.selected-present {
-        background: #f5f5f5;
-        color: #0a0a0a;
-        border-color: #f5f5f5;
+        background: var(--teach-btn-primary-bg, #f5f5f5);
+        color: var(--teach-btn-primary-text, #0a0a0a);
+        border-color: var(--teach-btn-primary-bg, #f5f5f5);
       }
       .sl-att-mark-btn.selected-absent {
-        background: #27272a;
-        color: #fca5a5;
-        border-color: #ef4444;
+        background: var(--teach-surface-hover, #27272a);
+        color: var(--teach-text-primary, #f5f5f5);
+        border-color: var(--teach-text-primary, #f5f5f5);
+        text-decoration: none;
       }
       .sl-att-mark-btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
       }
-      .sl-att-nav-row {
+      /* Monthly Attendance Matrix Table */
+      .sl-att-matrix-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
-        border-top: 1px solid var(--teach-border-subtle, #222222);
-        padding-top: 16px;
-      }
-      .sl-att-dots {
-        display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        justify-content: center;
-        margin-top: 16px;
+        margin-bottom: 14px;
       }
-      .sl-att-dot {
-        width: 30px;
-        height: 30px;
-        border-radius: 8px;
-        font-size: 0.75rem;
-        font-weight: 700;
+      .sl-att-month-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .sl-att-session-strip {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 6px;
+        margin-bottom: 14px;
+      }
+      .sl-att-session-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 11px;
+        border-radius: 999px;
         border: 1px solid var(--teach-border, #2a2a2a);
         background: var(--teach-surface-subtle, #1c1c1c);
         color: var(--teach-text-secondary, #a3a3a3);
+        font-size: 0.76rem;
+        font-weight: 600;
         cursor: pointer;
+        white-space: nowrap;
+        font-family: inherit;
+      }
+      .sl-att-session-chip.active {
+        background: var(--teach-btn-primary-bg, #f5f5f5);
+        color: var(--teach-btn-primary-text, #0a0a0a);
+        border-color: var(--teach-btn-primary-bg, #f5f5f5);
+      }
+      .sl-att-matrix-scroll {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid var(--teach-border, #2a2a2a);
+        border-radius: 12px;
+        background: var(--teach-surface, #141414);
+        -webkit-overflow-scrolling: touch;
+      }
+      .sl-att-matrix-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 0.83rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .sl-att-matrix-table th,
+      .sl-att-matrix-table td {
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--teach-border-subtle, #242424);
+        border-right: 1px solid var(--teach-border-subtle, #242424);
+        text-align: right;
+        white-space: nowrap;
+      }
+      .sl-att-matrix-table th:last-child,
+      .sl-att-matrix-table td:last-child {
+        border-right: none;
+      }
+      .sl-att-matrix-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .sl-att-matrix-table thead th {
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: var(--teach-text-secondary, #a3a3a3);
+        font-weight: 700;
+        font-size: 0.76rem;
+      }
+      .sl-att-matrix-table th.sl-att-col-student,
+      .sl-att-matrix-table td.sl-att-col-student {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        text-align: left;
+        background: var(--teach-surface, #141414);
+        min-width: 190px;
+        max-width: 260px;
+        border-right: 1.5px solid var(--teach-border, #2a2a2a);
+      }
+      .sl-att-matrix-table thead th.sl-att-col-student {
+        background: var(--teach-surface-subtle, #1c1c1c);
+        z-index: 3;
+      }
+      .sl-att-matrix-session-btn {
+        background: transparent;
+        border: none;
+        padding: 2px 4px;
+        color: inherit;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .sl-att-matrix-session-btn:hover {
+        color: var(--teach-text-primary, #f5f5f5);
+        text-decoration: underline;
+      }
+      .sl-att-cell-num {
+        font-weight: 700;
+        color: var(--teach-text-primary, #f5f5f5);
+      }
+      .sl-att-cell-abs {
+        font-weight: 700;
+        color: var(--teach-text-secondary, #71717a);
+        letter-spacing: 0.02em;
+      }
+      .sl-att-cell-pct {
+        font-weight: 700;
+        color: var(--teach-text-primary, #f5f5f5);
+      }
+      .sl-att-badge {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        border: 1px solid var(--teach-border, #2a2a2a);
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: var(--teach-text-primary, #f5f5f5);
       }
-      .sl-att-dot.current {
-        outline: 2px solid var(--teach-text-primary, #ffffff);
-        outline-offset: 1px;
+      .sl-att-badge.present {
+        background: var(--teach-btn-primary-bg, #f5f5f5);
+        color: var(--teach-btn-primary-text, #0a0a0a);
+        border-color: var(--teach-btn-primary-bg, #f5f5f5);
       }
-      .sl-att-dot.present {
-        background: #f5f5f5;
-        color: #0a0a0a;
-        border-color: #f5f5f5;
+      .sl-att-badge.absent {
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: var(--teach-text-secondary, #a3a3a3);
+        border-color: var(--teach-border, #2a2a2a);
       }
-      .sl-att-dot.absent {
-        background: rgba(239, 68, 68, 0.18);
-        color: #fca5a5;
-        border-color: rgba(239, 68, 68, 0.5);
+      .sl-att-badge.unmarked {
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: var(--teach-text-secondary, #a3a3a3);
+        border-color: var(--teach-border, #2a2a2a);
       }
       .sl-att-review-list {
         display: flex;
@@ -475,29 +943,6 @@
         background: var(--teach-surface-subtle, #1c1c1c);
         border: 1px solid var(--teach-border-subtle, #242424);
         flex-wrap: wrap;
-      }
-      .sl-att-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 3px 10px;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-      .sl-att-badge.present {
-        background: #f5f5f5;
-        color: #0a0a0a;
-      }
-      .sl-att-badge.absent {
-        background: rgba(239, 68, 68, 0.18);
-        color: #fca5a5;
-        border: 1px solid rgba(239, 68, 68, 0.4);
-      }
-      .sl-att-badge.unmarked {
-        background: rgba(245, 158, 11, 0.16);
-        color: #fde68a;
-        border: 1px solid rgba(245, 158, 11, 0.4);
       }
       .sl-att-backup-card {
         background: var(--teach-surface, var(--bg-secondary, #141414));
@@ -593,10 +1038,28 @@
       }
       .sl-att-backup-art-pill.failed,
       .sl-att-backup-art-pill.reconnect_required {
-        border-color: rgba(239, 68, 68, 0.5);
-        color: #fca5a5;
+        border-color: var(--teach-text-primary, #f5f5f5);
+        color: var(--teach-text-primary, #f5f5f5);
       }
       @media (max-width: 768px) {
+        .sl-att-subject-grid {
+          grid-template-columns: 1fr;
+        }
+        .sl-att-panel {
+          padding: 16px;
+        }
+        .sl-att-register-row {
+          padding: 10px 12px;
+        }
+        .sl-att-mark-btn {
+          min-width: 68px;
+          padding: 7px 10px;
+        }
+        .sl-att-matrix-table th.sl-att-col-student,
+        .sl-att-matrix-table td.sl-att-col-student {
+          min-width: 145px;
+          max-width: 180px;
+        }
         .sl-att-backup-card {
           padding: 14px 16px;
         }
@@ -609,7 +1072,9 @@
   }
 
   /**
-   * Loads teacher attendance context from GET /api/attendance/teacher/context
+   * Loads teacher attendance context from GET /api/attendance/teacher/context.
+   * When presetSubjectKey is NOT provided, keeps selectedSubjectId === '' so the teacher
+   * lands on the clean Subject Selection page first.
    */
   async function loadTeacherContext(presetSubjectKey = null) {
     state.loadingContext = true;
@@ -634,8 +1099,11 @@
       if (!state.selectedDate && state.currentNepalDate) {
         state.selectedDate = state.currentNepalDate;
       }
+      if (!state.selectedMonth && (state.selectedDate || state.currentNepalDate)) {
+        state.selectedMonth = (state.selectedDate || state.currentNepalDate).slice(0, 7);
+      }
 
-      // Resolve initial subject selection
+      // Only auto-select a subject when explicitly requested via presetSubjectKey
       if (presetSubjectKey) {
         const norm = String(presetSubjectKey).trim().toLowerCase();
         const matched = state.subjects.find(
@@ -649,17 +1117,13 @@
         }
       }
 
-      if (!state.selectedSubjectId && state.subjects.length > 0) {
-        state.selectedSubjectId = state.subjects[0].id;
-      }
-
       syncCohortForSelectedSubject();
       state.loadingContext = false;
       render();
 
       const initialTasks = [loadBackupStatus()];
       if (state.selectedSubjectId && state.selectedCohortId && state.selectedDate) {
-        initialTasks.push(loadRoster(), loadHistory());
+        initialTasks.push(loadRoster(), loadMonthlyMatrix(), loadHistory());
       }
       await Promise.all(initialTasks);
     } catch (err) {
@@ -670,6 +1134,10 @@
   }
 
   function syncCohortForSelectedSubject() {
+    if (!state.selectedSubjectId) {
+      state.selectedCohortId = '';
+      return;
+    }
     const eligible = getEligibleCohortsForSelectedSubject();
     if (eligible.length === 0) {
       state.selectedCohortId = '';
@@ -682,8 +1150,69 @@
   }
 
   /**
+   * Selects an assigned subject from the landing page and opens its attendance register.
+   */
+  async function selectSubject(subjectKey) {
+    if (!confirmDiscardIfDirty()) return;
+    if (!subjectKey) {
+      state.selectedSubjectId = '';
+      state.selectedCohortId = '';
+      state.roster = [];
+      state.existingSession = null;
+      render();
+      return;
+    }
+
+    const norm = String(subjectKey).trim().toLowerCase();
+    const matched = (state.subjects || []).find(
+      (s) =>
+        String(s.id || '').toLowerCase() === norm ||
+        String(s.code || '').toLowerCase() === norm ||
+        String(s.name || '').toLowerCase() === norm
+    );
+    if (!matched) {
+      state.saveError = 'Selected subject is not assigned to your teacher profile.';
+      render();
+      return;
+    }
+
+    state.selectedSubjectId = matched.id;
+    state.stage = 'marking';
+    state.studentSearchQuery = '';
+    state.saveError = null;
+    state.saveSuccessMessage = null;
+    if (!state.selectedDate && state.currentNepalDate) {
+      state.selectedDate = state.currentNepalDate;
+    }
+    if (!state.selectedMonth && state.selectedDate) {
+      state.selectedMonth = state.selectedDate.slice(0, 7);
+    }
+
+    syncCohortForSelectedSubject();
+    render();
+
+    if (state.selectedSubjectId && state.selectedCohortId && state.selectedDate) {
+      await Promise.all([loadRoster(), loadMonthlyMatrix(), loadHistory()]);
+    }
+  }
+
+  function backToSubjects() {
+    if (!confirmDiscardIfDirty()) return;
+    state.selectedSubjectId = '';
+    state.selectedCohortId = '';
+    state.roster = [];
+    state.existingSession = null;
+    state.marksByStudentId = {};
+    state.initialMarksSnapshot = '{}';
+    state.saveError = null;
+    state.saveSuccessMessage = null;
+    state.selectedStudentDetailId = null;
+    render();
+  }
+
+  /**
    * Loads official cohort roster and any existing session for (subjectId, cohortId, date)
-   * from GET /api/attendance/roster
+   * from GET /api/attendance/roster, sorting students alphabetically by displayed name.
    */
   async function loadRoster() {
     if (!state.selectedSubjectId || !state.selectedCohortId || !state.selectedDate) {
@@ -713,7 +1242,7 @@
 
       state.rosterSubject = data.subject || null;
       state.rosterCohort = data.cohort || null;
-      state.roster = Array.isArray(data.roster) ? data.roster : [];
+      state.roster = sortStudentsAlphabetically(Array.isArray(data.roster) ? data.roster : []);
       state.existingSession = data.session || null;
 
       // Populate marks ONLY from server-saved session records (never auto-mark unmarked students)
@@ -740,6 +1269,74 @@
       state.rosterError = err.message || 'Could not load class roster.';
       state.roster = [];
       state.existingSession = null;
+      render();
+    }
+  }
+
+  /**
+   * Loads the numbered monthly attendance matrix from GET /api/attendance/monthly
+   */
+  async function loadMonthlyMatrix(monthOverride = null) {
+    if (!state.selectedSubjectId || !state.selectedCohortId) {
+      state.monthlySessions = [];
+      state.monthlyRows = [];
+      render();
+      return;
+    }
+
+    const targetMonth =
+      monthOverride ||
+      state.selectedMonth ||
+      (state.selectedDate ? state.selectedDate.slice(0, 7) : '') ||
+      (state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '');
+
+    if (targetMonth) {
+      state.selectedMonth = targetMonth;
+    }
+
+    state.loadingMonthly = true;
+    state.monthlyError = null;
+    render();
+
+    try {
+      const qs = new URLSearchParams({
+        subjectId: state.selectedSubjectId,
+        cohortId: state.selectedCohortId
+      });
+      if (state.selectedMonth) {
+        qs.set('month', state.selectedMonth);
+      }
+
+      const res = await authFetch(`/api/attendance/monthly?${qs.toString()}`);
+      if (res && res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.month) state.selectedMonth = data.month;
+        state.availableMonths = Array.isArray(data.availableMonths) ? data.availableMonths : [];
+        state.monthlySessions = Array.isArray(data.sessions) ? data.sessions : [];
+        state.monthlyRows = Array.isArray(data.rows) ? data.rows : [];
+        state.studentHistoryByStudentId =
+          data.studentHistory && typeof data.studentHistory === 'object' ? data.studentHistory : {};
+      } else {
+        const fallback = buildMonthlyAttendanceMatrix({
+          students: state.roster,
+          sessions: [],
+          recordsBySessionId: new Map(),
+          month: state.selectedMonth
+        });
+        state.monthlySessions = fallback.sessions;
+        state.monthlyRows = fallback.rows;
+      }
+    } catch (_) {
+      const fallback = buildMonthlyAttendanceMatrix({
+        students: state.roster,
+        sessions: [],
+        recordsBySessionId: new Map(),
+        month: state.selectedMonth
+      });
+      state.monthlySessions = fallback.sessions;
+      state.monthlyRows = fallback.rows;
+    } finally {
+      state.loadingMonthly = false;
       render();
     }
   }
@@ -814,6 +1411,7 @@
 
   function setDriveClient(customClient) {
     state.driveClient = customClient || null;
+    state.hasExplicitDriveClient = Boolean(customClient);
   }
 
   /**
@@ -866,9 +1464,6 @@
     }
   }
 
-  /**
-   * Initiates interactive Google Drive OAuth connection & folder provisioning via AttendanceDriveBackup.
-   */
   async function connectDriveBackup() {
     if (state.backupConnecting || state.backupSyncing || state.backupDisconnecting) return;
 
@@ -917,9 +1512,6 @@
     }
   }
 
-  /**
-   * Runs the client-side Google Drive backup worker for pending or retryable attendance revisions.
-   */
   async function syncDriveBackup({ forceRetry = true } = {}) {
     if (state.backupConnecting || state.backupSyncing || state.backupDisconnecting) return;
 
@@ -990,10 +1582,6 @@
     }
   }
 
-  /**
-   * Disconnects the teacher's Google Drive connection after confirmation.
-   * Reflects disconnected status only after the backend confirms the action.
-   */
   async function disconnectDriveBackup() {
     if (state.backupConnecting || state.backupSyncing || state.backupDisconnecting) return;
 
@@ -1038,13 +1626,19 @@
   }
 
   /**
-   * Marks the current or specified student as 'present' or 'absent'
+   * Marks the specified student as 'present' or 'absent' and optionally advances focus to the next student.
    */
   function markStudent(studentId, status, autoAdvance = true) {
     if (state.saving) return;
     const win = getEditWindowStatus(state.existingSession);
     if (state.existingSession && !win.canEdit) return;
     if (status !== 'present' && status !== 'absent') return;
+
+    const visibleRoster = getVisibleRoster();
+    const clickedIdx = visibleRoster.findIndex((s) => s.studentId === studentId);
+    if (clickedIdx >= 0) {
+      state.currentStudentIndex = clickedIdx;
+    }
 
     state.marksByStudentId = {
       ...state.marksByStudentId,
@@ -1053,12 +1647,103 @@
     state.saveError = null;
     state.saveSuccessMessage = null;
 
-    if (autoAdvance && state.stage === 'marking' && state.roster.length > 0) {
-      if (state.currentStudentIndex < state.roster.length - 1) {
+    if (autoAdvance && visibleRoster.length > 0) {
+      if (state.currentStudentIndex < visibleRoster.length - 1) {
         state.currentStudentIndex += 1;
       }
     }
     render();
+  }
+
+  function markAllStudents(status) {
+    if (state.saving) return;
+    const win = getEditWindowStatus(state.existingSession);
+    if (state.existingSession && !win.canEdit) return;
+    if (status !== 'present' && status !== 'absent') return;
+
+    const nextMarks = { ...state.marksByStudentId };
+    for (const stu of state.roster) {
+      nextMarks[stu.studentId] = status;
+    }
+    state.marksByStudentId = nextMarks;
+    state.saveError = null;
+    state.saveSuccessMessage = null;
+    render();
+  }
+
+  /**
+   * Handles keyboard attendance marking on the student register:
+   * - 'P' / 'p' marks the focused student Present and moves focus to the next student.
+   * - 'A' / 'a' marks the focused student Absent and moves focus to the next student.
+   * - 'ArrowDown' / 'ArrowUp' navigates focus across students.
+   * - Ignores keystrokes when typing in input, textarea, select, or contentEditable elements.
+   */
+  function handleKeyDown(e) {
+    if (!e || !state.selectedSubjectId) return false;
+    if (state.auditModalSessionId || state.selectedStudentDetailId) return false;
+    if (e.ctrlKey || e.metaKey || e.altKey) return false;
+
+    const target = e.target || (typeof document !== 'undefined' ? document.activeElement : null);
+    if (target) {
+      const tag = String(target.tagName || '').toUpperCase();
+      if (
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT' ||
+        Boolean(target.isContentEditable) ||
+        (typeof target.getAttribute === 'function' && target.getAttribute('contenteditable') === 'true')
+      ) {
+        return false;
+      }
+    }
+
+    const visibleRoster = getVisibleRoster();
+    if (!visibleRoster.length) return false;
+
+    const idx = Math.min(Math.max(0, state.currentStudentIndex), visibleRoster.length - 1);
+    const key = String(e.key || '');
+
+    if (key === 'ArrowDown') {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (idx < visibleRoster.length - 1) {
+        state.currentStudentIndex = idx + 1;
+        render();
+      }
+      return true;
+    }
+
+    if (key === 'ArrowUp') {
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      if (idx > 0) {
+        state.currentStudentIndex = idx - 1;
+        render();
+      }
+      return true;
+    }
+
+    if (key === 'p' || key === 'P') {
+      const win = getEditWindowStatus(state.existingSession);
+      if (state.saving || (state.existingSession && !win.canEdit)) return false;
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      const focusedStudent = visibleRoster[idx];
+      if (focusedStudent) {
+        markStudent(focusedStudent.studentId, 'present', true);
+        return true;
+      }
+    }
+
+    if (key === 'a' || key === 'A') {
+      const win = getEditWindowStatus(state.existingSession);
+      if (state.saving || (state.existingSession && !win.canEdit)) return false;
+      if (typeof e.preventDefault === 'function') e.preventDefault();
+      const focusedStudent = visibleRoster[idx];
+      if (focusedStudent) {
+        markStudent(focusedStudent.studentId, 'absent', true);
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -1137,12 +1822,20 @@
         ? `Attendance submitted for ${state.selectedDate} (${counts.present} Present, ${counts.absent} Absent).`
         : `Attendance updated for ${state.selectedDate} (${counts.present} Present, ${counts.absent} Absent).`;
 
-      // Refresh server-backed roster/session, history, and backup queue
-      await Promise.all([loadRoster(), loadHistory(), loadBackupStatus({ preserveMessages: true })]);
-      state.stage = 'review';
+      if (state.selectedDate && state.selectedDate.length >= 7) {
+        state.selectedMonth = state.selectedDate.slice(0, 7);
+      }
+
+      // Refresh server-backed roster/session, monthly matrix, history, and backup queue
+      await Promise.all([
+        loadRoster(),
+        loadMonthlyMatrix(state.selectedMonth),
+        loadHistory(),
+        loadBackupStatus({ preserveMessages: true })
+      ]);
       render();
     } catch (err) {
-      // Preserve complete local marking state on error
+      // Preserve complete local marking state on error — never silently discard an attendance change
       state.saving = false;
       const errMsg = err.message || 'Network error while saving attendance. Your selections have been preserved.';
       if (err.code === 'EDIT_WINDOW_EXPIRED' && state.existingSession) {
@@ -1151,6 +1844,32 @@
       state.saveError = errMsg;
       render();
     }
+  }
+
+  function openStudentDetail(studentId) {
+    if (!studentId) return;
+    state.selectedStudentDetailId = String(studentId).trim();
+    render();
+  }
+
+  function closeStudentDetail() {
+    state.selectedStudentDetailId = null;
+    render();
+  }
+
+  async function openSessionByDate(sessionDate, cohortId = null) {
+    if (!sessionDate) return;
+    if (!confirmDiscardIfDirty()) return;
+    if (cohortId) {
+      state.selectedCohortId = cohortId;
+    }
+    state.selectedDate = sessionDate;
+    if (sessionDate.length >= 7 && sessionDate.slice(0, 7) !== state.selectedMonth) {
+      state.selectedMonth = sessionDate.slice(0, 7);
+      await Promise.all([loadRoster(), loadMonthlyMatrix(state.selectedMonth)]);
+      return;
+    }
+    await loadRoster();
   }
 
   async function openSessionAuditModal(sessionId) {
@@ -1224,279 +1943,77 @@
     }
   }
 
-  function render() {
-    syncBeforeUnloadListener();
-    const container = state.containerEl;
-    if (!container) return;
+  let globalKeydownBound = false;
+  function bindGlobalKeydown() {
+    if (globalKeydownBound || typeof window.addEventListener !== 'function') return;
+    window.addEventListener('keydown', handleKeyDown);
+    globalKeydownBound = true;
+  }
 
-    if (state.loadingContext) {
-      container.innerHTML = `
-        <div class="sl-att-root">
-          <div class="sl-att-panel" style="text-align:center; padding:40px 20px;">
-            <div style="font-weight:700; font-size:1rem; margin-bottom:6px;">Loading Attendance Workspace…</div>
-            <div style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">Fetching your assigned subjects and active class cohorts.</div>
-          </div>
-        </div>
-      `;
-      return;
-    }
-
-    if (state.contextError) {
-      container.innerHTML = `
-        <div class="sl-att-root">
-          <div class="sl-att-banner error">
-            <span>${escapeHtml(state.contextError)}</span>
-            <button type="button" class="teach-btn teach-btn-secondary" data-att-action="reload-context">Retry</button>
-          </div>
-        </div>
-      `;
-      bindEvents(container);
-      return;
-    }
-
-    if (!state.subjects.length) {
-      container.innerHTML = `
-        <div class="sl-att-root">
-          <div class="sl-att-panel" style="text-align:center; padding:40px 24px;">
-            <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">No Active Subjects Assigned</div>
-            <div style="font-size:0.86rem; color:var(--teach-text-secondary, #a3a3a3);">
-              You do not have any active BIT subjects assigned to your teacher profile yet. Please contact an administrator.
-            </div>
-          </div>
-        </div>
-      `;
-      return;
-    }
-
-    const eligibleCohorts = getEligibleCohortsForSelectedSubject();
-    const counts = getRosterCounts();
-    const editWin = getEditWindowStatus(state.existingSession);
-    const isReadOnly = Boolean(state.existingSession && !editWin.canEdit);
-
-    let mainStageHtml = '';
-
-    if (!state.selectedCohortId || eligibleCohorts.length === 0) {
-      const sub = getSelectedSubjectObj();
-      mainStageHtml = `
-        <div class="sl-att-panel" style="text-align:center; padding:36px 24px;">
-          <div style="font-weight:700; font-size:1rem; margin-bottom:6px;">No Active Cohort in Semester ${escapeHtml(sub ? sub.semester : '')}</div>
-          <div style="font-size:0.86rem; color:var(--teach-text-secondary, #a3a3a3);">
-            There is currently no active student cohort enrolled in Semester ${escapeHtml(sub ? sub.semester : '')} for ${escapeHtml(sub ? sub.name : 'this subject')}.
-          </div>
-        </div>
-      `;
-    } else if (state.loadingRoster) {
-      mainStageHtml = `
-        <div class="sl-att-panel" style="text-align:center; padding:40px 20px;">
-          <div style="font-weight:700; font-size:1rem; margin-bottom:6px;">Loading Class Roster…</div>
-          <div style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">Verifying cohort enrollment and existing session records.</div>
-        </div>
-      `;
-    } else if (state.rosterError) {
-      mainStageHtml = `
-        <div class="sl-att-banner error">
-          <span>${escapeHtml(state.rosterError)}</span>
-          <button type="button" class="teach-btn teach-btn-secondary" data-att-action="reload-roster">Try Again</button>
-        </div>
-      `;
-    } else if (state.stage === 'history') {
-      mainStageHtml = renderHistoryStage();
-    } else if (state.roster.length === 0) {
-      mainStageHtml = `
-        <div class="sl-att-panel" style="text-align:center; padding:36px 24px;">
-          <div style="font-weight:700; font-size:1rem; margin-bottom:6px;">No Active Students in Cohort</div>
-          <div style="font-size:0.86rem; color:var(--teach-text-secondary, #a3a3a3);">
-            This cohort currently has no active enrolled student or CR accounts.
-          </div>
-        </div>
-      `;
-    } else if (state.stage === 'marking') {
-      mainStageHtml = renderMarkingStage(counts, editWin, isReadOnly);
-    } else {
-      mainStageHtml = renderReviewStage(counts, editWin, isReadOnly);
-    }
-
-    container.innerHTML = `
-      <div class="sl-att-root">
-        <!-- Top Selector Bar: Subject, Cohort, Date -->
-        <div class="sl-att-panel">
-          <div class="sl-att-controls-grid">
-            <div class="sl-att-field">
-              <label for="slAttSubjectSelect">Assigned Subject</label>
-              <select id="slAttSubjectSelect" class="sl-att-select">
-                ${state.subjects
-                  .map(
-                    (s) => `
-                  <option value="${escapeHtml(s.id)}" ${s.id === state.selectedSubjectId ? 'selected' : ''}>
-                    [${escapeHtml(s.code)}] ${escapeHtml(s.name)} (Sem ${escapeHtml(s.semester)})
-                  </option>
-                `
-                  )
-                  .join('')}
-              </select>
-            </div>
-
-            <div class="sl-att-field">
-              <label for="slAttCohortSelect">Active Cohort</label>
-              <select id="slAttCohortSelect" class="sl-att-select" ${eligibleCohorts.length === 0 ? 'disabled' : ''}>
-                ${
-                  eligibleCohorts.length === 0
-                    ? '<option value="">No active cohort for this semester</option>'
-                    : eligibleCohorts
-                        .map(
-                          (c) => `
-                      <option value="${escapeHtml(c.id)}" ${c.id === state.selectedCohortId ? 'selected' : ''}>
-                        ${escapeHtml(c.displayName)} (Sem ${escapeHtml(c.currentSemester)}${c.intakeYear ? ' · ' + escapeHtml(c.intakeYear) : ''})
-                      </option>
-                    `
-                        )
-                        .join('')
-                }
-              </select>
-            </div>
-
-            <div class="sl-att-field">
-              <label for="slAttDateInput">Session Date (Nepal Time)</label>
-              <input
-                type="date"
-                id="slAttDateInput"
-                class="sl-att-input"
-                value="${escapeHtml(state.selectedDate)}"
-                max="${escapeHtml(state.currentNepalDate)}"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Teacher Google Drive Attendance Backup Card -->
-        ${renderDriveBackupCard()}
-
-        <!-- Stage Navigation Switcher -->
-        <div class="sl-att-stage-tabs" role="tablist" aria-label="Attendance workflow stages">
-          <button
-            type="button"
-            class="sl-att-stage-tab ${state.stage === 'marking' ? 'active' : ''}"
-            data-att-stage="marking"
-          >
-            1. One-by-One Marking (${counts.marked}/${counts.total})
-          </button>
-          <button
-            type="button"
-            class="sl-att-stage-tab ${state.stage === 'review' ? 'active' : ''}"
-            data-att-stage="review"
-          >
-            2. Review &amp; Submit (${counts.unmarked === 0 && counts.total > 0 ? 'Ready' : `${counts.unmarked} Unmarked`})
-          </button>
-          <button
-            type="button"
-            class="sl-att-stage-tab ${state.stage === 'history' ? 'active' : ''}"
-            data-att-stage="history"
-          >
-            3. Session History (${state.historySessions.length})
-          </button>
-        </div>
-
-        <!-- Status & Edit Countdown Banners -->
-        ${
-          state.existingSession
-            ? `
-          <div class="sl-att-banner ${isReadOnly ? 'readonly' : ''}">
-            <div>
-              <strong>${isReadOnly ? 'Locked / Read-Only Session:' : 'Existing Submitted Session:'}</strong>
-              ${
-                isReadOnly
-                  ? 'The 24-hour teacher editing window has expired. An administrator must authorize any corrections.'
-                  : 'You are viewing saved attendance for this date. You may edit and re-save within the 24-hour window.'
-              }
-            </div>
-            <span
-              class="sl-att-badge ${isReadOnly ? 'unmarked' : 'present'}"
-              data-att-submitted-at="${escapeHtml(state.existingSession.submittedAt || '')}"
-              data-att-session-status="${escapeHtml(state.existingSession.status || 'submitted')}"
-              data-att-was-editable="${editWin.canEdit ? '1' : '0'}"
-            >
-              ${escapeHtml(editWin.label)}
-            </span>
-          </div>
-        `
-            : ''
-        }
-
-        ${
-          state.saveError
-            ? `<div class="sl-att-banner error" role="alert"><span>${escapeHtml(state.saveError)}</span></div>`
-            : ''
-        }
-
-        ${
-          state.saveSuccessMessage
-            ? `<div class="sl-att-banner success" role="status"><span>${escapeHtml(state.saveSuccessMessage)}</span></div>`
-            : ''
-        }
-
-        ${mainStageHtml}
-        ${state.auditModalSessionId ? renderAuditModal() : ''}
-      </div>
-    `;
-
-    bindEvents(container);
+  function unbindGlobalKeydown() {
+    if (!globalKeydownBound || typeof window.removeEventListener !== 'function') return;
+    window.removeEventListener('keydown', handleKeyDown);
+    globalKeydownBound = false;
   }
 
   function formatBackupTimestamp(isoStr) {
     if (!isoStr) return null;
     const d = new Date(isoStr);
-    if (!Number.isFinite(d.getTime())) return String(isoStr);
-    return d.toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+    if (Number.isNaN(d.getTime())) return String(isoStr);
+    try {
+      return d.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (_) {
+      return d.toISOString();
+    }
   }
 
   function renderDriveBackupCard() {
     const statusData = state.backupStatusData;
-    if (statusData && statusData.canManageConnection === false) {
-      return '';
-    }
-
-    const isBusy = Boolean(state.backupConnecting || state.backupSyncing || state.backupDisconnecting);
-
     if (!statusData && state.loadingBackup) {
       return `
-        <section class="sl-att-backup-card" id="slAttDriveBackupCard" aria-label="Attendance Backup">
+        <div class="sl-att-backup-card" id="slAttDriveBackupCard">
           <div class="sl-att-backup-top">
             <div>
               <div class="sl-att-backup-title-row">
-                <h3 class="sl-att-backup-title">Attendance Backup (Google Drive)</h3>
-                <span class="sl-att-badge">Loading…</span>
+                <h3 class="sl-att-backup-title">Attendance Backup</h3>
+                <span class="sl-att-badge">Checking…</span>
               </div>
-              <p class="sl-att-backup-desc">Checking your Google Drive backup configuration and pending queue…</p>
+              <p class="sl-att-backup-desc">Checking Google Drive backup status…</p>
             </div>
           </div>
-        </section>
+        </div>
       `;
     }
 
-    const oauth = (statusData && statusData.oauth) || { configured: false, status: 'not_configured' };
+    if (statusData && statusData.role === 'admin') {
+      return '';
+    }
+
+    const oauth = (statusData && statusData.oauth) || { configured: false };
     const connection = (statusData && statusData.connection) || {
       connected: false,
       connectionStatus: oauth.configured ? 'disconnected' : 'not_configured',
       googleEmail: null,
-      lastSyncedAt: null,
-      lastErrorCode: null,
-      lastErrorMessage: null
+      lastSyncedAt: null
     };
     const summary = (statusData && statusData.summary) || {
-      totalRuns: 0,
+      actionableRuns: 0,
       pendingRuns: 0,
       inProgressRuns: 0,
       failedRuns: 0,
       reconnectRequiredRuns: 0,
-      backedUpRuns: 0,
-      actionableRuns: 0
+      backedUpRuns: 0
     };
-
     const pendingRuns = Array.isArray(state.backupPendingRuns) ? state.backupPendingRuns : [];
-    const actionableCount =
-      summary.actionableRuns !== undefined
-        ? Number(summary.actionableRuns)
-        : Number(summary.pendingRuns || 0) + Number(summary.failedRuns || 0) + Number(summary.reconnectRequiredRuns || 0);
+    const isBusy = state.backupConnecting || state.backupSyncing || state.backupDisconnecting;
+
+    const actionableCount = Number(summary.actionableRuns || 0);
     const failedCount = Number(summary.failedRuns || 0);
     const backedUpCount = Number(summary.backedUpRuns || 0);
     const inProgressCount = Number(summary.inProgressRuns || 0);
@@ -1639,7 +2156,6 @@
         ? sanitizeUiBackupError((oauth && oauth.configError) || connection.lastErrorMessage)
         : null;
     const effectiveErrorMessage = state.backupErrorMessage || serverErrText;
-
     const attentionRuns = pendingRuns.slice(0, 5);
 
     return `
@@ -1739,7 +2255,7 @@
                     <div>
                       <strong>${escapeHtml(run.subjectCode || run.subjectId || 'Subject')}${run.cohortName ? ' · ' + escapeHtml(run.cohortName) : ''}</strong>
                       <span> &middot; ${escapeHtml(run.sessionDate || '')} (v${Number(run.revisionNo || 1)})</span>
-                      ${runErr ? `<div style="color: #fca5a5; font-size: 0.75rem; margin-top: 2px;">${escapeHtml(runErr)}</div>` : ''}
+                      ${runErr ? `<div style="font-size: 0.75rem; margin-top: 2px;">${escapeHtml(runErr)}</div>` : ''}
                     </div>
                     <div class="sl-att-backup-art-pills">
                       <span class="sl-att-backup-art-pill ${escapeHtml(snapStatus)}">Snapshot: ${escapeHtml(snapStatus)}</span>
@@ -1755,6 +2271,59 @@
             : ''
         }
       </section>
+    `;
+  }
+
+  /**
+   * 1. Renders the Subject-Selection Landing Page (Library-style monochrome subject cards).
+   * Shown whenever state.selectedSubjectId === ''.
+   */
+  function renderSubjectSelectionLanding() {
+    return `
+      <div class="sl-att-root" id="slAttSubjectLanding">
+        <div style="margin-bottom: 20px;">
+          <h2 style="margin: 0 0 6px; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em;">
+            Select Assigned Subject
+          </h2>
+          <p style="margin: 0; font-size: 0.88rem; color: var(--teach-text-secondary, #a3a3a3);">
+            Choose one of your assigned subjects to open the student attendance register and numbered monthly attendance matrix.
+          </p>
+        </div>
+
+        <div class="sl-att-subject-grid course-grid-clean" id="slAttSubjectGrid">
+          ${state.subjects
+            .map((sub) => {
+              const cohorts = Array.isArray(sub.cohorts) ? sub.cohorts : [];
+              const cohortLabel =
+                cohorts.length > 0
+                  ? cohorts.map((c) => c.displayName).join(', ')
+                  : 'No active cohort';
+              return `
+                <button
+                  type="button"
+                  class="sl-att-subject-card course-card-minimal"
+                  data-att-select-subject="${escapeHtml(sub.id)}"
+                  aria-label="Open attendance register for ${escapeHtml(sub.code)} ${escapeHtml(sub.name)}"
+                >
+                  <div style="width: 100%;">
+                    <div class="sl-att-subject-card-head course-card-head">
+                      <span class="sl-att-code-badge course-code-badge">${escapeHtml(sub.code || sub.id)}</span>
+                      <span class="sl-att-sem-pill">Semester ${escapeHtml(sub.semester)}</span>
+                    </div>
+                    <h3 class="sl-att-subject-title course-name-clean">${escapeHtml(sub.name || sub.title || sub.code)}</h3>
+                  </div>
+                  <div class="sl-att-subject-card-foot course-card-foot" style="width: 100%;">
+                    <span>${escapeHtml(cohortLabel)} &middot; Sem ${escapeHtml(sub.semester)}</span>
+                    <span class="sl-att-open-label open-label">Open Register &rarr;</span>
+                  </div>
+                </button>
+              `;
+            })
+            .join('')}
+        </div>
+
+        ${state.hasExplicitDriveClient ? renderDriveBackupCard() : ''}
+      </div>
     `;
   }
 
@@ -1785,212 +2354,181 @@
     `;
   }
 
-  function renderMarkingStage(counts, editWin, isReadOnly) {
-    const idx = Math.min(Math.max(0, state.currentStudentIndex), state.roster.length - 1);
-    const student = state.roster[idx];
-    const currentStatus = state.marksByStudentId[student.studentId] || null;
-    const progressPct = counts.total > 0 ? Math.round((counts.marked / counts.total) * 100) : 0;
-    const initial = (student.name || 'S').trim().charAt(0).toUpperCase();
-
-    return `
-      ${renderSummaryBoxes(counts)}
-
-      <div class="sl-att-focus-card">
-        <div class="sl-att-progress-text">
-          Student ${idx + 1} of ${counts.total} &middot; ${counts.marked} of ${counts.total} Marked (${progressPct}%)
-        </div>
-        <div class="sl-att-progress-bar">
-          <div class="sl-att-progress-fill" style="width: ${progressPct}%;"></div>
-        </div>
-
-        <div class="sl-att-student-avatar">${escapeHtml(initial)}</div>
-        <h3 class="sl-att-student-name">${escapeHtml(student.name)}</h3>
-        <div class="sl-att-student-meta">
-          ID: ${escapeHtml(student.studentId)}${student.username ? ` &middot; @${escapeHtml(student.username)}` : ''}${student.role === 'cr' ? ' &middot; CR' : ''}
-        </div>
-
-        <div class="sl-att-mark-actions">
-          <button
-            type="button"
-            class="sl-att-mark-btn ${currentStatus === 'present' ? 'selected-present' : ''}"
-            data-att-mark-student="${escapeHtml(student.studentId)}"
-            data-att-mark-status="present"
-            ${isReadOnly || state.saving ? 'disabled' : ''}
-            aria-pressed="${currentStatus === 'present' ? 'true' : 'false'}"
-          >
-            &#10003; Present
-          </button>
-          <button
-            type="button"
-            class="sl-att-mark-btn ${currentStatus === 'absent' ? 'selected-absent' : ''}"
-            data-att-mark-student="${escapeHtml(student.studentId)}"
-            data-att-mark-status="absent"
-            ${isReadOnly || state.saving ? 'disabled' : ''}
-            aria-pressed="${currentStatus === 'absent' ? 'true' : 'false'}"
-          >
-            &#10005; Absent
-          </button>
-        </div>
-
-        <div class="sl-att-nav-row">
-          <button
-            type="button"
-            class="teach-btn teach-btn-secondary"
-            data-att-nav="prev"
-            ${idx === 0 ? 'disabled' : ''}
-          >
-            &larr; Previous
-          </button>
-
-          <span style="font-size: 0.82rem; color: var(--teach-text-secondary, #a3a3a3);">
-            Status: <strong>${currentStatus ? currentStatus.toUpperCase() : 'UNMARKED'}</strong>
-          </span>
-
-          ${
-            idx < counts.total - 1
-              ? `
-            <button
-              type="button"
-              class="teach-btn teach-btn-secondary"
-              data-att-nav="next"
-            >
-              Next &rarr;
-            </button>
-          `
-              : `
-            <button
-              type="button"
-              class="teach-btn teach-btn-primary"
-              data-att-stage="review"
-            >
-              Review Roster &rarr;
-            </button>
-          `
-          }
-        </div>
-
-        <div class="sl-att-dots" aria-label="Jump to student">
-          ${state.roster
-            .map((s, sIdx) => {
-              const st = state.marksByStudentId[s.studentId] || '';
-              return `
-                <button
-                  type="button"
-                  class="sl-att-dot ${sIdx === idx ? 'current' : ''} ${st}"
-                  data-att-jump="${sIdx}"
-                  title="${escapeHtml(s.name)} (${st || 'Unmarked'})"
-                >
-                  ${sIdx + 1}
-                </button>
-              `;
-            })
-            .join('')}
-        </div>
-      </div>
-    `;
-  }
-
-  function renderReviewStage(counts, editWin, isReadOnly) {
+  /**
+   * 2. Renders the Full Alphabetical Student Attendance Register with Present/Absent buttons,
+   * keyboard shortcut focus state, and saving/saved/error feedback.
+   */
+  function renderStudentRegisterSection(counts, editWin, isReadOnly) {
+    const visibleRoster = getVisibleRoster();
+    const idx = visibleRoster.length > 0
+      ? Math.min(Math.max(0, state.currentStudentIndex), visibleRoster.length - 1)
+      : 0;
     const canSubmit = !isReadOnly && !state.saving && counts.total > 0 && counts.unmarked === 0;
+    const isDirty = hasUnsavedChanges();
+
+    let persistenceBadge = '';
+    if (state.saving) {
+      persistenceBadge = '<span class="sl-att-badge" data-att-save-state="saving">Saving…</span>';
+    } else if (state.saveError) {
+      persistenceBadge = '<span class="sl-att-badge absent" data-att-save-state="error">Save Error</span>';
+    } else if (isDirty) {
+      persistenceBadge = '<span class="sl-att-badge unmarked" data-att-save-state="unsaved">Unsaved Changes</span>';
+    } else if (state.existingSession) {
+      persistenceBadge = '<span class="sl-att-badge present" data-att-save-state="saved">Saved</span>';
+    }
 
     return `
       ${renderSummaryBoxes(counts)}
 
-      <div class="sl-att-panel">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+      <section class="sl-att-panel" id="slAttStudentRegisterSection" aria-label="Student Attendance Register">
+        <div class="sl-att-register-toolbar">
           <div>
-            <h3 style="margin:0 0 4px; font-size:1.05rem;">Roster Review (${escapeHtml(state.selectedDate)})</h3>
-            <p style="margin:0; font-size:0.83rem; color:var(--teach-text-secondary, #a3a3a3);">
-              ${
-                isReadOnly
-                  ? 'This session is locked for teacher edits because the 24-hour window has elapsed.'
-                  : counts.unmarked > 0
-                  ? `You must mark all remaining ${counts.unmarked} unmarked student${counts.unmarked === 1 ? '' : 's'} before submitting.`
-                  : 'Verify each student status below, then confirm final submission.'
-              }
-            </p>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <h3 style="margin:0; font-size:1.05rem; font-weight:700;">
+                Student Attendance Register (${escapeHtml(state.selectedDate)})
+              </h3>
+              ${persistenceBadge}
+            </div>
+            <div class="sl-att-kbd-hint" style="margin-top:4px;">
+              <span>Keyboard:</span>
+              <span><kbd class="sl-att-kbd">P</kbd> Present</span>
+              <span><kbd class="sl-att-kbd">A</kbd> Absent</span>
+              <span><kbd class="sl-att-kbd">&uarr;</kbd>/<kbd class="sl-att-kbd">&darr;</kbd> Navigate</span>
+              <span>&middot; Click a student's name for detailed attendance history.</span>
+            </div>
           </div>
-          <button type="button" class="teach-btn teach-btn-secondary" data-att-stage="marking">
-            &larr; Back to One-by-One Card
-          </button>
-        </div>
 
-        <div class="sl-att-review-list">
-          ${state.roster
-            .map((student, idx) => {
-              const st = state.marksByStudentId[student.studentId] || 'unmarked';
-              return `
-                <div class="sl-att-review-row">
-                  <div>
-                    <div style="font-weight:700; font-size:0.92rem;">
-                      ${idx + 1}. ${escapeHtml(student.name)}
-                    </div>
-                    <div style="font-size:0.78rem; color:var(--teach-text-secondary, #a3a3a3); font-family:monospace;">
-                      ${escapeHtml(student.studentId)}${student.username ? ` · @${escapeHtml(student.username)}` : ''}
-                    </div>
-                  </div>
-
-                  <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <span class="sl-att-badge ${st}">
-                      ${st === 'present' ? 'Present' : st === 'absent' ? 'Absent' : 'Unmarked'}
-                    </span>
-                    ${
-                      !isReadOnly
-                        ? `
-                      <button
-                        type="button"
-                        class="teach-btn teach-btn-secondary"
-                        style="padding:5px 10px; font-size:0.76rem;"
-                        data-att-review-mark="${escapeHtml(student.studentId)}"
-                        data-att-review-status="present"
-                        ${state.saving ? 'disabled' : ''}
-                      >
-                        Set Present
-                      </button>
-                      <button
-                        type="button"
-                        class="teach-btn teach-btn-secondary"
-                        style="padding:5px 10px; font-size:0.76rem;"
-                        data-att-review-mark="${escapeHtml(student.studentId)}"
-                        data-att-review-status="absent"
-                        ${state.saving ? 'disabled' : ''}
-                      >
-                        Set Absent
-                      </button>
-                      <button
-                        type="button"
-                        class="teach-btn teach-btn-secondary"
-                        style="padding:5px 10px; font-size:0.76rem;"
-                        data-att-jump-marking="${idx}"
-                      >
-                        Card
-                      </button>
-                    `
-                        : ''
-                    }
-                  </div>
-                </div>
-              `;
-            })
-            .join('')}
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <input
+              type="search"
+              id="slAttStudentSearchInput"
+              class="sl-att-input"
+              style="width:210px; padding:7px 11px; font-size:0.82rem;"
+              placeholder="Search student name or ID…"
+              value="${escapeHtml(state.studentSearchQuery)}"
+              aria-label="Search students in register"
+            />
+            ${
+              !isReadOnly
+                ? `
+              <button
+                type="button"
+                class="teach-btn teach-btn-secondary"
+                style="padding:7px 12px; font-size:0.78rem;"
+                data-att-action="mark-all-present"
+                ${state.saving ? 'disabled' : ''}
+              >
+                All Present
+              </button>
+              <button
+                type="button"
+                class="teach-btn teach-btn-secondary"
+                style="padding:7px 12px; font-size:0.78rem;"
+                data-att-action="mark-all-absent"
+                ${state.saving ? 'disabled' : ''}
+              >
+                All Absent
+              </button>
+            `
+                : ''
+            }
+          </div>
         </div>
 
         ${
-          !isReadOnly
+          visibleRoster.length === 0
             ? `
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; border-top:1px solid var(--teach-border, #2a2a2a); padding-top:16px;">
-            <div style="font-size:0.84rem; color:var(--teach-text-secondary, #a3a3a3);">
-              ${
-                counts.unmarked > 0
-                  ? `Submission blocked: ${counts.unmarked} student${counts.unmarked === 1 ? ' is' : 's are'} still unmarked.`
-                  : `All ${counts.total} students marked (${counts.present} Present, ${counts.absent} Absent).`
-              }
+          <div style="padding:28px 16px; text-align:center; color:var(--teach-text-secondary, #a3a3a3); font-size:0.86rem;">
+            No students match "${escapeHtml(state.studentSearchQuery)}".
+          </div>
+        `
+            : `
+          <div class="sl-att-register-table-wrap">
+            <div class="sl-att-register-list" role="listbox" aria-label="Alphabetical Student List">
+              ${visibleRoster
+                .map((student, sIdx) => {
+                  const currentStatus = state.marksByStudentId[student.studentId] || null;
+                  const isFocused = sIdx === idx;
+                  return `
+                    <div
+                      class="sl-att-register-row ${isFocused ? 'focused' : ''}"
+                      role="option"
+                      aria-selected="${isFocused ? 'true' : 'false'}"
+                      tabindex="${isFocused ? '0' : '-1'}"
+                      data-att-student-row="${sIdx}"
+                      data-att-student-id="${escapeHtml(student.studentId)}"
+                    >
+                      <div class="sl-att-student-info">
+                        <span class="sl-att-row-num">${sIdx + 1}.</span>
+                        <div style="min-width:0;">
+                          <button
+                            type="button"
+                            class="sl-att-student-name-btn"
+                            data-att-student-detail="${escapeHtml(student.studentId)}"
+                            title="View detailed attendance history for ${escapeHtml(student.name)}"
+                          >
+                            ${escapeHtml(student.name)}
+                          </button>
+                          <div class="sl-att-student-id-sub">
+                            ID: ${escapeHtml(student.studentId)}${student.username ? ` · @${escapeHtml(student.username)}` : ''}${student.role === 'cr' ? ' · CR' : ''}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="sl-att-row-controls">
+                        <button
+                          type="button"
+                          class="sl-att-mark-btn ${currentStatus === 'present' ? 'selected-present' : ''}"
+                          data-att-mark-student="${escapeHtml(student.studentId)}"
+                          data-att-mark-status="present"
+                          data-att-review-mark="${escapeHtml(student.studentId)}"
+                          data-att-review-status="present"
+                          ${isReadOnly || state.saving ? 'disabled' : ''}
+                          aria-pressed="${currentStatus === 'present' ? 'true' : 'false'}"
+                        >
+                          Present (P)
+                        </button>
+                        <button
+                          type="button"
+                          class="sl-att-mark-btn ${currentStatus === 'absent' ? 'selected-absent' : ''}"
+                          data-att-mark-student="${escapeHtml(student.studentId)}"
+                          data-att-mark-status="absent"
+                          data-att-review-mark="${escapeHtml(student.studentId)}"
+                          data-att-review-status="absent"
+                          ${isReadOnly || state.saving ? 'disabled' : ''}
+                          aria-pressed="${currentStatus === 'absent' ? 'true' : 'false'}"
+                        >
+                          Absent (A)
+                        </button>
+                      </div>
+                    </div>
+                  `;
+                })
+                .join('')}
             </div>
+          </div>
+        `
+        }
+
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px; padding-top:14px; border-top:1px solid var(--teach-border-subtle, #242424);">
+          <div style="font-size:0.84rem; color:var(--teach-text-secondary, #a3a3a3);">
+            ${
+              isReadOnly
+                ? 'This session is locked for teacher edits because the 24-hour window has elapsed.'
+                : counts.unmarked > 0
+                ? `Submission blocked: ${counts.unmarked} student${counts.unmarked === 1 ? ' is' : 's are'} still unmarked.`
+                : `All ${counts.total} students marked (${counts.present} Present, ${counts.absent} Absent).`
+            }
+          </div>
+          ${
+            !isReadOnly
+              ? `
             <button
               type="button"
               class="teach-btn teach-btn-primary"
               data-att-action="submit-session"
               ${canSubmit ? '' : 'disabled'}
+              ${state.saving ? 'aria-busy="true"' : ''}
             >
               ${
                 state.saving
@@ -2000,11 +2538,212 @@
                   : 'Confirm & Submit Attendance'
               }
             </button>
+          `
+              : ''
+          }
+        </div>
+      </section>
+    `;
+  }
+
+  /**
+   * 3 & 4. Renders the Monthly Attendance Matrix with Month Selector, chronological session columns (1..N),
+   * independent consecutive student attendance counts, 'ABS' for absences, and Attendance %.
+   */
+  function renderMonthlyMatrixSection() {
+    const selectedMonth =
+      state.selectedMonth ||
+      (state.selectedDate ? state.selectedDate.slice(0, 7) : '') ||
+      (state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '');
+    const currentNepalMonth = state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '';
+
+    const sessions = Array.isArray(state.monthlySessions) ? state.monthlySessions : [];
+    const rows =
+      Array.isArray(state.monthlyRows) && state.monthlyRows.length > 0
+        ? state.monthlyRows
+        : sortStudentsAlphabetically(state.roster || []).map((stu) => ({
+            studentId: stu.studentId,
+            name: stu.name,
+            username: stu.username || null,
+            role: stu.role || 'student',
+            cells: [],
+            presentCount: 0,
+            absentCount: 0,
+            totalSessions: 0,
+            attendancePercentage: 0,
+            formattedPercentage: '0.0%'
+          }));
+
+    const exportCsvUrl =
+      state.selectedSubjectId && state.selectedCohortId && selectedMonth
+        ? `/api/attendance/monthly?subjectId=${encodeURIComponent(state.selectedSubjectId)}&cohortId=${encodeURIComponent(state.selectedCohortId)}&month=${encodeURIComponent(selectedMonth)}&format=csv`
+        : null;
+
+    return `
+      <section class="sl-att-panel" id="slAttMonthlyMatrixSection" aria-label="Monthly Attendance Matrix">
+        <div class="sl-att-matrix-header">
+          <div>
+            <h3 style="margin:0 0 4px; font-size:1.05rem; font-weight:700;">
+              Monthly Attendance Matrix &mdash; ${escapeHtml(formatMonthLabel(selectedMonth))}
+            </h3>
+            <p style="margin:0; font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);">
+              Each student row shows their consecutive monthly attendance count (1, 2, 3…) or ABS. Column headers show chronological class sessions (${sessions.length} recorded in ${escapeHtml(selectedMonth)}).
+            </p>
+          </div>
+
+          <div class="sl-att-month-nav">
+            <button
+              type="button"
+              class="teach-btn teach-btn-secondary"
+              style="padding:6px 10px; font-size:0.78rem;"
+              data-att-month-step="-1"
+              title="Previous Month"
+            >
+              &larr; Prev Month
+            </button>
+            <input
+              type="month"
+              id="slAttMonthInput"
+              class="sl-att-input"
+              style="width:160px; padding:6px 10px; font-size:0.82rem;"
+              value="${escapeHtml(selectedMonth)}"
+              ${currentNepalMonth ? `max="${escapeHtml(currentNepalMonth)}"` : ''}
+              aria-label="Select attendance month"
+            />
+            <button
+              type="button"
+              class="teach-btn teach-btn-secondary"
+              style="padding:6px 10px; font-size:0.78rem;"
+              data-att-month-step="1"
+              ${currentNepalMonth && selectedMonth >= currentNepalMonth ? 'disabled' : ''}
+              title="Next Month"
+            >
+              Next Month &rarr;
+            </button>
+            ${
+              exportCsvUrl
+                ? `
+              <a
+                href="${escapeHtml(exportCsvUrl)}"
+                class="teach-btn teach-btn-secondary"
+                style="padding:6px 12px; font-size:0.78rem;"
+                download
+              >
+                Export CSV
+              </a>
+            `
+                : ''
+            }
+          </div>
+        </div>
+
+        ${
+          sessions.length > 0
+            ? `
+          <div class="sl-att-session-strip" aria-label="Submitted sessions in ${escapeHtml(selectedMonth)}">
+            ${sessions
+              .map((sess) => {
+                const isSelectedSession = sess.sessionDate === state.selectedDate;
+                return `
+                  <button
+                    type="button"
+                    class="sl-att-session-chip ${isSelectedSession ? 'active' : ''}"
+                    data-att-open-session-date="${escapeHtml(sess.sessionDate)}"
+                    data-att-open-session-cohort="${escapeHtml(state.selectedCohortId)}"
+                    title="Open session ${sess.sessionNumber} (${escapeHtml(sess.sessionDate)})"
+                  >
+                    <span>#${sess.sessionNumber}</span>
+                    <span>&middot;</span>
+                    <span>${escapeHtml(sess.sessionDate)}</span>
+                  </button>
+                `;
+              })
+              .join('')}
           </div>
         `
-            : ''
+            : `
+          <div style="margin-bottom:12px; font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);">
+            No submitted class sessions recorded in ${escapeHtml(formatMonthLabel(selectedMonth))} yet.
+          </div>
+        `
         }
-      </div>
+
+        <div class="sl-att-matrix-scroll">
+          <table class="sl-att-matrix-table" id="slAttMonthlyMatrixTable">
+            <thead>
+              <tr>
+                <th class="sl-att-col-student" scope="col">Student</th>
+                ${sessions
+                  .map(
+                    (sess) => `
+                  <th scope="col" data-att-matrix-session-num="${sess.sessionNumber}" data-att-matrix-session-date="${escapeHtml(sess.sessionDate)}">
+                    <button
+                      type="button"
+                      class="sl-att-matrix-session-btn"
+                      data-att-open-session-date="${escapeHtml(sess.sessionDate)}"
+                      data-att-open-session-cohort="${escapeHtml(state.selectedCohortId)}"
+                      title="Session ${sess.sessionNumber} — ${escapeHtml(sess.sessionDate)} (Click to open session)"
+                    >
+                      ${sess.sessionNumber}
+                    </button>
+                  </th>
+                `
+                  )
+                  .join('')}
+                <th scope="col">Attendance %</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                rows.length === 0
+                  ? `
+                <tr>
+                  <td class="sl-att-col-student" colspan="${sessions.length + 2}">No students enrolled in this cohort.</td>
+                </tr>
+              `
+                  : rows
+                      .map((row) => {
+                        const cells = Array.isArray(row.cells) ? row.cells : [];
+                        const pctText =
+                          row.formattedPercentage ||
+                          (row.totalSessions > 0
+                            ? `${Number(row.attendancePercentage || 0).toFixed(1)}%`
+                            : '0.0%');
+                        return `
+                          <tr data-att-matrix-student="${escapeHtml(row.studentId)}">
+                            <td class="sl-att-col-student">
+                              <button
+                                type="button"
+                                class="sl-att-student-name-btn"
+                                data-att-student-detail="${escapeHtml(row.studentId)}"
+                                title="View detailed attendance history for ${escapeHtml(row.name)}"
+                              >
+                                ${escapeHtml(row.name)}
+                              </button>
+                              <div class="sl-att-student-id-sub">${escapeHtml(row.studentId)}</div>
+                            </td>
+                            ${cells
+                              .map(
+                                (cell) => `
+                              <td
+                                class="${cell.status === 'present' ? 'sl-att-cell-num' : 'sl-att-cell-abs'}"
+                                data-att-cell-status="${escapeHtml(cell.status)}"
+                                data-att-cell-session="${cell.sessionNumber}"
+                                title="${escapeHtml(row.name)} — Session ${cell.sessionNumber} (${escapeHtml(cell.sessionDate)}): ${cell.status === 'present' ? `Present (#${cell.display})` : 'Absent (ABS)'}"
+                              >${escapeHtml(cell.display)}</td>
+                            `
+                              )
+                              .join('')}
+                            <td class="sl-att-cell-pct" data-att-student-pct="${escapeHtml(row.studentId)}">${escapeHtml(pctText)}</td>
+                          </tr>
+                        `;
+                      })
+                      .join('')
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
     `;
   }
 
@@ -2082,6 +2821,130 @@
     `;
   }
 
+  /**
+   * 5. Renders the Student Detailed Attendance History Modal when a student's name is clicked.
+   */
+  function renderStudentDetailModal() {
+    const stuId = state.selectedStudentDetailId;
+    if (!stuId) return '';
+
+    const rosterStu = (state.roster || []).find((s) => s.studentId === stuId) || null;
+    const monthRow = (state.monthlyRows || []).find((r) => r.studentId === stuId) || null;
+    const hist = (state.studentHistoryByStudentId && state.studentHistoryByStudentId[stuId]) || null;
+
+    const studentName = (hist && hist.name) || (monthRow && monthRow.name) || (rosterStu && rosterStu.name) || stuId;
+    const username = (hist && hist.username) || (monthRow && monthRow.username) || (rosterStu && rosterStu.username) || null;
+    const role = (hist && hist.role) || (monthRow && monthRow.role) || (rosterStu && rosterStu.role) || 'student';
+
+    const monthPresent = monthRow ? monthRow.presentCount : 0;
+    const monthAbsent = monthRow ? monthRow.absentCount : 0;
+    const monthTotal = monthRow ? monthRow.totalSessions : 0;
+    const monthPct = monthRow ? monthRow.formattedPercentage : '0.0%';
+
+    const overallPresent = hist ? hist.overallPresentCount : monthPresent;
+    const overallAbsent = hist ? hist.overallAbsentCount : monthAbsent;
+    const overallTotal = hist ? hist.overallTotalSessions : monthTotal;
+    const overallPct = hist ? hist.overallFormattedPercentage : monthPct;
+
+    const sessionItems = hist && Array.isArray(hist.sessions)
+      ? hist.sessions
+      : monthRow && Array.isArray(monthRow.cells)
+      ? monthRow.cells.map((c) => ({
+          sessionId: c.sessionId,
+          month: state.selectedMonth,
+          sessionNumberInMonth: c.sessionNumber,
+          sessionDate: c.sessionDate,
+          status: c.status,
+          consecutiveCount: c.consecutiveCount,
+          display: c.display
+        }))
+      : [];
+
+    const sub = getSelectedSubjectObj();
+
+    return `
+      <div class="teach-modal-overlay open" id="slAttStudentDetailModal" role="dialog" aria-modal="true" aria-label="Student Attendance History">
+        <div class="teach-modal-card" style="max-width:640px;">
+          <div class="teach-modal-header">
+            <div>
+              <h3 class="teach-modal-title">${escapeHtml(studentName)}</h3>
+              <div style="font-size:0.8rem; color:var(--teach-text-secondary, #a3a3a3); font-family:monospace; margin-top:2px;">
+                ID: ${escapeHtml(stuId)}${username ? ` · @${escapeHtml(username)}` : ''}${role === 'cr' ? ' · CR' : ''}${sub ? ` · ${escapeHtml(sub.code)}` : ''}
+              </div>
+            </div>
+            <button type="button" class="teach-modal-close" data-att-action="close-student-detail" aria-label="Close student history">&times;</button>
+          </div>
+
+          <div class="sl-att-summary-pills" style="margin-bottom:16px;">
+            <div class="sl-att-stat-box">
+              <div class="sl-att-stat-val">${monthPresent}/${monthTotal}</div>
+              <div class="sl-att-stat-lbl">${escapeHtml(state.selectedMonth || 'Month')} Attended</div>
+            </div>
+            <div class="sl-att-stat-box">
+              <div class="sl-att-stat-val">${escapeHtml(monthPct)}</div>
+              <div class="sl-att-stat-lbl">Monthly %</div>
+            </div>
+            <div class="sl-att-stat-box">
+              <div class="sl-att-stat-val">${overallPresent}/${overallTotal}</div>
+              <div class="sl-att-stat-lbl">Overall Attended</div>
+            </div>
+            <div class="sl-att-stat-box">
+              <div class="sl-att-stat-val">${escapeHtml(overallPct)}</div>
+              <div class="sl-att-stat-lbl">Overall %</div>
+            </div>
+          </div>
+
+          <div style="font-size:0.82rem; font-weight:700; text-transform:uppercase; letter-spacing:0.04em; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:8px;">
+            Chronological Session History (${sessionItems.length})
+          </div>
+
+          ${
+            sessionItems.length === 0
+              ? `
+            <div style="padding:24px 16px; text-align:center; color:var(--teach-text-secondary, #a3a3a3); font-size:0.86rem;">
+              No submitted attendance sessions recorded for this student yet.
+            </div>
+          `
+              : `
+            <div style="max-height:340px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;">
+              ${sessionItems
+                .map(
+                  (item) => `
+                <div class="sl-att-review-row" style="padding:10px 14px;">
+                  <div>
+                    <div style="font-weight:700; font-size:0.88rem;">
+                      Session #${item.sessionNumberInMonth} &middot; ${escapeHtml(item.sessionDate)}
+                    </div>
+                    <div style="font-size:0.76rem; color:var(--teach-text-secondary, #a3a3a3);">
+                      Month: ${escapeHtml(item.month || item.sessionDate.slice(0, 7))}
+                    </div>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <span class="sl-att-badge ${item.status === 'present' ? 'present' : 'absent'}">
+                      ${item.status === 'present' ? `Present (#${escapeHtml(item.display)})` : 'ABS'}
+                    </span>
+                    <button
+                      type="button"
+                      class="teach-btn teach-btn-secondary"
+                      style="padding:4px 10px; font-size:0.75rem;"
+                      data-att-open-session-date="${escapeHtml(item.sessionDate)}"
+                      data-att-open-session-cohort="${escapeHtml(state.selectedCohortId)}"
+                    >
+                      Open Session
+                    </button>
+                  </div>
+                </div>
+              `
+                )
+                .join('')}
+            </div>
+          `
+          }
+        </div>
+      </div>
+    `;
+  }
+
   function renderAuditModal() {
     return `
       <div class="teach-modal-overlay open" role="dialog" aria-modal="true" aria-label="Attendance Audit History">
@@ -2119,17 +2982,277 @@
     `;
   }
 
+  function render() {
+    syncBeforeUnloadListener();
+    const container = state.containerEl;
+    if (!container) return;
+
+    if (state.loadingContext) {
+      container.innerHTML = `
+        <div class="sl-att-root">
+          <div class="sl-att-panel" style="text-align:center; padding:40px 20px;">
+            <div style="font-weight:700; font-size:1rem; margin-bottom:6px;">Loading Attendance Workspace…</div>
+            <div style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">Fetching your assigned subjects and active class cohorts.</div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    if (state.contextError) {
+      container.innerHTML = `
+        <div class="sl-att-root">
+          <div class="sl-att-banner error">
+            <span>${escapeHtml(state.contextError)}</span>
+            <button type="button" class="teach-btn teach-btn-secondary" data-att-action="reload-context">Retry</button>
+          </div>
+        </div>
+      `;
+      bindEvents(container);
+      return;
+    }
+
+    if (!state.subjects.length) {
+      container.innerHTML = `
+        <div class="sl-att-root">
+          <div class="sl-att-panel" style="text-align:center; padding:40px 24px;">
+            <div style="font-weight:700; font-size:1.05rem; margin-bottom:6px;">No Active Subjects Assigned</div>
+            <div style="font-size:0.86rem; color:var(--teach-text-secondary, #a3a3a3);">
+              You do not have any active BIT subjects assigned to your teacher profile yet. Please contact an administrator.
+            </div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    // 1. Landing Page: Subject Selection (do not show attendance-taking interface before a subject is selected)
+    if (!state.selectedSubjectId) {
+      container.innerHTML = renderSubjectSelectionLanding();
+      bindEvents(container);
+      return;
+    }
+
+    const selectedSub = getSelectedSubjectObj();
+    const eligibleCohorts = getEligibleCohortsForSelectedSubject();
+    const counts = getRosterCounts();
+    const editWin = getEditWindowStatus(state.existingSession);
+    const isReadOnly = Boolean(state.existingSession && !editWin.canEdit);
+
+    let mainStageHtml = '';
+
+    if (!state.selectedCohortId || eligibleCohorts.length === 0) {
+      mainStageHtml = `
+        <div class="sl-att-panel" style="text-align:center; padding:36px 24px;">
+          <div style="font-weight:700; font-size:1rem; margin-bottom:6px;">No Active Cohort in Semester ${escapeHtml(selectedSub ? selectedSub.semester : '')}</div>
+          <div style="font-size:0.86rem; color:var(--teach-text-secondary, #a3a3a3);">
+            There is currently no active student cohort enrolled in Semester ${escapeHtml(selectedSub ? selectedSub.semester : '')} for ${escapeHtml(selectedSub ? selectedSub.name : 'this subject')}.
+          </div>
+        </div>
+      `;
+    } else if (state.loadingRoster) {
+      mainStageHtml = `
+        <div class="sl-att-panel" style="text-align:center; padding:40px 20px;">
+          <div style="font-weight:700; font-size:1rem; margin-bottom:6px;">Loading Class Roster…</div>
+          <div style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">Verifying cohort enrollment and existing session records.</div>
+        </div>
+      `;
+    } else if (state.rosterError) {
+      mainStageHtml = `
+        <div class="sl-att-banner error">
+          <span>${escapeHtml(state.rosterError)}</span>
+          <button type="button" class="teach-btn teach-btn-secondary" data-att-action="reload-roster">Try Again</button>
+        </div>
+      `;
+    } else if (state.stage === 'history') {
+      mainStageHtml = `
+        ${renderHistoryStage()}
+        ${renderMonthlyMatrixSection()}
+      `;
+    } else if (state.roster.length === 0) {
+      mainStageHtml = `
+        <div class="sl-att-panel" style="text-align:center; padding:36px 24px;">
+          <div style="font-weight:700; font-size:1rem; margin-bottom:6px;">No Active Students in Cohort</div>
+          <div style="font-size:0.86rem; color:var(--teach-text-secondary, #a3a3a3);">
+            This cohort currently has no active enrolled student or CR accounts.
+          </div>
+        </div>
+      `;
+    } else {
+      mainStageHtml = `
+        ${renderStudentRegisterSection(counts, editWin, isReadOnly)}
+        ${renderMonthlyMatrixSection()}
+      `;
+    }
+
+    container.innerHTML = `
+      <div class="sl-att-root">
+        <!-- Subject Header & Back to Subjects Navigation -->
+        <div class="sl-att-reg-topbar">
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <button type="button" class="sl-att-back-btn" data-att-action="back-to-subjects">
+              &larr; All Subjects
+            </button>
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span class="sl-att-code-badge">${escapeHtml(selectedSub ? selectedSub.code : state.selectedSubjectId)}</span>
+                <span style="font-weight:800; font-size:1.1rem;">${escapeHtml(selectedSub ? selectedSub.name : '')}</span>
+                <span class="sl-att-sem-pill">&middot; Semester ${escapeHtml(selectedSub ? selectedSub.semester : '')}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selector Bar: Subject, Cohort, Session Date, Month -->
+        <div class="sl-att-panel">
+          <div class="sl-att-controls-grid">
+            <div class="sl-att-field">
+              <label for="slAttSubjectSelect">Assigned Subject</label>
+              <select id="slAttSubjectSelect" class="sl-att-select">
+                ${state.subjects
+                  .map(
+                    (s) => `
+                  <option value="${escapeHtml(s.id)}" ${s.id === state.selectedSubjectId ? 'selected' : ''}>
+                    [${escapeHtml(s.code)}] ${escapeHtml(s.name)} (Sem ${escapeHtml(s.semester)})
+                  </option>
+                `
+                  )
+                  .join('')}
+              </select>
+            </div>
+
+            <div class="sl-att-field">
+              <label for="slAttCohortSelect">Active Cohort</label>
+              <select id="slAttCohortSelect" class="sl-att-select" ${eligibleCohorts.length === 0 ? 'disabled' : ''}>
+                ${
+                  eligibleCohorts.length === 0
+                    ? '<option value="">No active cohort for this semester</option>'
+                    : eligibleCohorts
+                        .map(
+                          (c) => `
+                      <option value="${escapeHtml(c.id)}" ${c.id === state.selectedCohortId ? 'selected' : ''}>
+                        ${escapeHtml(c.displayName)} (Sem ${escapeHtml(c.currentSemester)}${c.intakeYear ? ' · ' + escapeHtml(c.intakeYear) : ''})
+                      </option>
+                    `
+                        )
+                        .join('')
+                }
+              </select>
+            </div>
+
+            <div class="sl-att-field">
+              <label for="slAttDateInput">Session Date (Nepal Time)</label>
+              <input
+                type="date"
+                id="slAttDateInput"
+                class="sl-att-input"
+                value="${escapeHtml(state.selectedDate)}"
+                max="${escapeHtml(state.currentNepalDate)}"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Stage Navigation Switcher -->
+        <div class="sl-att-stage-tabs" role="tablist" aria-label="Attendance workflow stages">
+          <button
+            type="button"
+            class="sl-att-stage-tab ${state.stage === 'marking' || state.stage === 'review' ? 'active' : ''}"
+            data-att-stage="marking"
+          >
+            Student Register &amp; Monthly Matrix (${counts.marked}/${counts.total})
+          </button>
+          <button
+            type="button"
+            class="sl-att-stage-tab ${state.stage === 'history' ? 'active' : ''}"
+            data-att-stage="history"
+          >
+            Session History &amp; Audit (${state.historySessions.length})
+          </button>
+        </div>
+
+        <!-- Status & Edit Countdown Banners -->
+        ${
+          state.existingSession
+            ? `
+          <div class="sl-att-banner ${isReadOnly ? 'readonly' : ''}">
+            <div>
+              <strong>${isReadOnly ? 'Locked / Read-Only Session:' : 'Existing Submitted Session:'}</strong>
+              ${
+                isReadOnly
+                  ? 'The 24-hour teacher editing window has expired. An administrator must authorize any corrections.'
+                  : 'You are viewing saved attendance for this date. You may edit and re-save within the 24-hour window.'
+              }
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span
+                class="sl-att-badge ${isReadOnly ? 'unmarked' : 'present'}"
+                data-att-submitted-at="${escapeHtml(state.existingSession.submittedAt || '')}"
+                data-att-session-status="${escapeHtml(state.existingSession.status || 'submitted')}"
+                data-att-was-editable="${editWin.canEdit ? '1' : '0'}"
+              >
+                ${escapeHtml(editWin.label)}
+              </span>
+              <button
+                type="button"
+                class="teach-btn teach-btn-secondary"
+                style="padding:5px 10px; font-size:0.76rem;"
+                data-att-open-audit="${escapeHtml(state.existingSession.id)}"
+              >
+                Audit Log
+              </button>
+            </div>
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          state.saveError
+            ? `<div class="sl-att-banner error" role="alert"><span>${escapeHtml(state.saveError)}</span></div>`
+            : ''
+        }
+
+        ${
+          state.saveSuccessMessage
+            ? `<div class="sl-att-banner success" role="status"><span>${escapeHtml(state.saveSuccessMessage)}</span></div>`
+            : ''
+        }
+
+        ${mainStageHtml}
+
+        <!-- Teacher Google Drive Attendance Backup Card -->
+        ${renderDriveBackupCard()}
+
+        ${state.selectedStudentDetailId ? renderStudentDetailModal() : ''}
+        ${state.auditModalSessionId ? renderAuditModal() : ''}
+      </div>
+    `;
+
+    bindEvents(container);
+  }
+
   function bindEvents(container) {
+    // Subject card click on Landing Page
+    container.querySelectorAll('[data-att-select-subject]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const subId = btn.getAttribute('data-att-select-subject');
+        if (subId) selectSubject(subId);
+      });
+    });
+
+    // Back to All Subjects button
+    const backBtn = container.querySelector('[data-att-action="back-to-subjects"]');
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        backToSubjects();
+      });
+    }
+
     const subjSelect = container.querySelector('#slAttSubjectSelect');
     if (subjSelect) {
       subjSelect.addEventListener('change', async (e) => {
-        if (!confirmDiscardIfDirty()) {
-          e.target.value = state.selectedSubjectId;
-          return;
-        }
-        state.selectedSubjectId = e.target.value;
-        syncCohortForSelectedSubject();
-        await Promise.all([loadRoster(), loadHistory()]);
+        await selectSubject(e.target.value);
       });
     }
 
@@ -2141,7 +3264,7 @@
           return;
         }
         state.selectedCohortId = e.target.value;
-        await Promise.all([loadRoster(), loadHistory()]);
+        await Promise.all([loadRoster(), loadMonthlyMatrix(state.selectedMonth), loadHistory()]);
       });
     }
 
@@ -2156,12 +3279,50 @@
           render();
           return;
         }
-        if (!confirmDiscardIfDirty()) {
-          e.target.value = state.selectedDate;
-          return;
+        await openSessionByDate(nextDate);
+      });
+    }
+
+    const monthInput = container.querySelector('#slAttMonthInput');
+    if (monthInput) {
+      monthInput.addEventListener('change', async (e) => {
+        const nextMonth = (e.target.value || '').trim();
+        if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
+        state.selectedMonth = nextMonth;
+        await loadMonthlyMatrix(nextMonth);
+      });
+    }
+
+    container.querySelectorAll('[data-att-month-step]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const step = Number(btn.getAttribute('data-att-month-step') || 0);
+        if (!step) return;
+        const baseMonth =
+          state.selectedMonth ||
+          (state.selectedDate ? state.selectedDate.slice(0, 7) : '') ||
+          (state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '');
+        const nextMonth = stepMonthString(baseMonth, step);
+        const maxMonth = state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '';
+        if (maxMonth && nextMonth > maxMonth) return;
+        state.selectedMonth = nextMonth;
+        await loadMonthlyMatrix(nextMonth);
+      });
+    });
+
+    const searchInput = container.querySelector('#slAttStudentSearchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        state.studentSearchQuery = e.target.value || '';
+        state.currentStudentIndex = 0;
+        render();
+        const refreshedInput = container.querySelector('#slAttStudentSearchInput');
+        if (refreshedInput && typeof refreshedInput.focus === 'function') {
+          refreshedInput.focus();
+          try {
+            const len = refreshedInput.value.length;
+            refreshedInput.setSelectionRange(len, len);
+          } catch (_) {}
         }
-        state.selectedDate = nextDate;
-        await loadRoster();
       });
     }
 
@@ -2178,54 +3339,48 @@
     });
 
     container.querySelectorAll('[data-att-mark-student]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
         const sId = btn.getAttribute('data-att-mark-student');
         const st = btn.getAttribute('data-att-mark-status');
         markStudent(sId, st, true);
       });
     });
 
-    container.querySelectorAll('[data-att-review-mark]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const sId = btn.getAttribute('data-att-review-mark');
-        const st = btn.getAttribute('data-att-review-status');
-        markStudent(sId, st, false);
-      });
-    });
-
-    container.querySelectorAll('[data-att-nav]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const dir = btn.getAttribute('data-att-nav');
-        if (dir === 'prev' && state.currentStudentIndex > 0) {
-          state.currentStudentIndex -= 1;
-          render();
-        } else if (dir === 'next' && state.currentStudentIndex < state.roster.length - 1) {
-          state.currentStudentIndex += 1;
-          render();
-        }
-      });
-    });
-
-    container.querySelectorAll('[data-att-jump]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const idx = Number(btn.getAttribute('data-att-jump'));
-        if (Number.isInteger(idx) && idx >= 0 && idx < state.roster.length) {
+    container.querySelectorAll('[data-att-student-row]').forEach((rowEl) => {
+      rowEl.addEventListener('click', (e) => {
+        const t = e && e.target;
+        if (t && typeof t.closest === 'function' && t.closest('button')) return;
+        const idx = Number(rowEl.getAttribute('data-att-student-row'));
+        if (Number.isInteger(idx) && idx >= 0) {
           state.currentStudentIndex = idx;
           render();
         }
       });
     });
 
-    container.querySelectorAll('[data-att-jump-marking]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const idx = Number(btn.getAttribute('data-att-jump-marking'));
-        if (Number.isInteger(idx) && idx >= 0 && idx < state.roster.length) {
-          state.currentStudentIndex = idx;
-          state.stage = 'marking';
-          render();
-        }
+    container.querySelectorAll('[data-att-student-detail]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+        const sId = btn.getAttribute('data-att-student-detail');
+        if (sId) openStudentDetail(sId);
       });
     });
+
+    const closeStudentDetailBtn = container.querySelector('[data-att-action="close-student-detail"]');
+    if (closeStudentDetailBtn) {
+      closeStudentDetailBtn.addEventListener('click', closeStudentDetail);
+    }
+
+    const markAllPresentBtn = container.querySelector('[data-att-action="mark-all-present"]');
+    if (markAllPresentBtn) {
+      markAllPresentBtn.addEventListener('click', () => markAllStudents('present'));
+    }
+
+    const markAllAbsentBtn = container.querySelector('[data-att-action="mark-all-absent"]');
+    if (markAllAbsentBtn) {
+      markAllAbsentBtn.addEventListener('click', () => markAllStudents('absent'));
+    }
 
     const submitBtn = container.querySelector('[data-att-action="submit-session"]');
     if (submitBtn) {
@@ -2246,13 +3401,11 @@
 
     container.querySelectorAll('[data-att-open-session-date]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!confirmDiscardIfDirty()) return;
         const sDate = btn.getAttribute('data-att-open-session-date');
         const cId = btn.getAttribute('data-att-open-session-cohort');
-        if (cId) state.selectedCohortId = cId;
-        if (sDate) state.selectedDate = sDate;
-        state.stage = 'review';
-        await loadRoster();
+        state.selectedStudentDetailId = null;
+        state.stage = 'marking';
+        await openSessionByDate(sDate, cId);
       });
     });
 
@@ -2287,6 +3440,7 @@
 
   function unmount() {
     stopCountdownTicker();
+    unbindGlobalKeydown();
   }
 
   /**
@@ -2296,6 +3450,7 @@
     injectStyles();
     if (options && options.driveClient) {
       state.driveClient = options.driveClient;
+      state.hasExplicitDriveClient = true;
     }
     const el =
       typeof containerOrSelector === 'string'
@@ -2305,14 +3460,17 @@
 
     state.containerEl = el;
     startCountdownTicker();
+    bindGlobalKeydown();
 
-    if (options.subjectKey) {
+    if (options && options.subjectKey) {
       state.stage = 'marking';
       state.saveError = null;
       state.saveSuccessMessage = null;
+      state.initialized = true;
       await loadTeacherContext(options.subjectKey);
     } else if (!state.initialized) {
       state.initialized = true;
+      state.selectedSubjectId = '';
       await loadTeacherContext(null);
     } else {
       render();
@@ -2322,8 +3480,11 @@
   window.TeacherAttendanceWorkspace = {
     mount,
     unmount,
+    selectSubject,
+    backToSubjects,
     loadTeacherContext,
     loadRoster,
+    loadMonthlyMatrix,
     loadHistory,
     loadBackupStatus,
     connectDriveBackup,
@@ -2331,9 +3492,20 @@
     disconnectDriveBackup,
     setDriveClient,
     markStudent,
+    markAllStudents,
+    handleKeyDown,
     submitAttendance,
+    openStudentDetail,
+    closeStudentDetail,
+    openSessionByDate,
+    openSessionAuditModal,
+    closeAuditModal,
     hasUnsavedChanges,
     discardUnsavedChanges,
+    getEditWindowStatus,
+    compareStudentsAlphabetically,
+    sortStudentsAlphabetically,
+    buildMonthlyAttendanceMatrix,
     getState: () => state
   };
-})(window);
+})(typeof window !== 'undefined' ? window : globalThis);

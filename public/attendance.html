@@ -282,7 +282,7 @@
         const params = new URLSearchParams(window.location.search);
         const subjectKey = params.get('subject') || params.get('subjectId') || null;
 
-        // Teachers open the attendance workspace directly on this page (same layout as students, with subject selector & attendance marking).
+        // Teachers open the attendance workspace directly on this page (starting with subject selection unless a subject query param is provided).
         if (role === 'teacher' || role === 'faculty') {
           const titleEl = document.getElementById('attPageTitle');
           const subEl = document.getElementById('attPageSubtitle');
@@ -290,7 +290,7 @@
           const teaMount = document.getElementById('teacherAttendanceMount');
           if (titleEl) titleEl.textContent = 'Attendance';
           if (subEl) {
-            subEl.textContent = 'Choose your assigned subject and cohort to mark daily attendance or review past sessions.';
+            subEl.textContent = 'Select an assigned subject to open the student attendance register and numbered monthly attendance matrix.';
           }
           if (stuMount) stuMount.style.display = 'none';
           if (teaMount) {

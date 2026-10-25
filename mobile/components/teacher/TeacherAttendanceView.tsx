@@ -794,7 +794,18 @@ export function TeacherAttendanceView({
     enabled: Boolean(auditModalSessionId),
   });
 
-  const roster = useMemo(() => rosterData?.roster || [], [rosterData?.roster]);
+  const roster = useMemo(() => {
+    const raw = rosterData?.roster || [];
+    return [...raw].sort((a, b) => {
+      const nameA = String(a?.name || a?.studentId || '').trim();
+      const nameB = String(b?.name || b?.studentId || '').trim();
+      const cmp = nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+      if (cmp !== 0) return cmp;
+      return String(a?.studentId || '').localeCompare(String(b?.studentId || ''), undefined, {
+        sensitivity: 'base',
+      });
+    });
+  }, [rosterData?.roster]);
   const existingSession = rosterData?.session || null;
   const editWindowInfo = useMemo(
     () => computeLiveEditWindow(existingSession, nowTick),

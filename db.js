@@ -252,7 +252,13 @@ const camelMap = {
   max_attempts: 'maxAttempts', maxattempts: 'maxAttempts',
   claim_token: 'claimToken', claimtoken: 'claimToken',
   claimed_at: 'claimedAt', claimedat: 'claimedAt',
-  completed_at: 'completedAt', completedat: 'completedAt'
+  completed_at: 'completedAt', completedat: 'completedAt',
+  exam_type: 'examType', examtype: 'examType',
+  max_marks: 'maxMarks', maxmarks: 'maxMarks',
+  obtained_marks: 'obtainedMarks', obtainedmarks: 'obtainedMarks',
+  published_at: 'publishedAt', publishedat: 'publishedAt',
+  published_by: 'publishedBy', publishedby: 'publishedBy',
+  created_by: 'createdBy', createdby: 'createdBy'
 };
 
 function formatRow(row) {
@@ -1292,6 +1298,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       await require('./lib/games-invitations').ensureGameInvitationsSchema({ exec, isPostgres });
       await require('./lib/teacher-service').ensureTeacherSchema({ exec, isPostgres });
       await require('./lib/attendance-service').ensureAttendanceSchema({ exec, isPostgres });
+      await require('./lib/marks-service').ensureMarksSchema({ exec, isPostgres });
       await require('./migrations/003-perf-audit-indexes').ensurePerfAuditIndexes(exec);
 
     } catch (err) {

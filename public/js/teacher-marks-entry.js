@@ -1,0 +1,1753 @@
+/**
+ * Semester Library — Teacher Marks Entry Workspace (Web Module)
+ *
+ * Implements the end-to-end teacher Marks Entry workflow:
+ *   Marks Entry -> Select Subject -> Select Exam Type -> Enter Marks -> Save Draft -> Publish Results
+ *
+ * Supported Exam Types (exact labels):
+ *   1. Mid-Term Exam
+ *   2. Pre-Board Exam
+ *   3. Final Exam
+ *
+ * Consumes authoritative Marks APIs:
+ * - GET  /api/marks/teacher/context
+ * - GET  /api/marks/roster?subjectId=...&examType=...
+ * - POST /api/marks/config
+ * - POST /api/marks/draft
+ * - POST /api/marks/publish
+ * - PUT  /api/marks/published
+ * - GET  /api/marks/audit?subjectId=...&examType=...
+ */
+(function (window) {
+  'use strict';
+
+  const EXAM_TYPES = [
+    'Mid-Term Exam',
+    'Pre-Board Exam',
+    'Final Exam'
+  ];
+
+  const state = {
+    initialized: false,
+    loadingContext: false,
+    loadingRoster: false,
+    savingConfig: false,
+    savingDraft: false,
+    publishing: false,
+    loadingAudit: false,
+
+    contextError: null,
+    rosterError: null,
+    actionError: null,
+    actionSuccessMessage: null,
+
+    // Context from GET /api/marks/teacher/context
+    role: 'teacher',
+    userId: '',
+    userName: '',
+    subjects: [],
+    cohorts: [],
+
+    // Selection state
+    selectedSubjectId: '',
+    selectedCohortId: '',
+    selectedExamType: 'Mid-Term Exam',
+
+    // Roster & Exam state from GET /api/marks/roster
+    rosterSubject: null,
+    rosterCohort: null,
+    examConfig: null,
+    configsByExamType: {},
+    students: [],
+    summary: null,
+
+    // Form state
+    maxMarksInput: '',
+    initialMaxMarksSnapshot: '',
+    marksByStudentId: {}, // { [studentId]: string }
+    initialMarksSnapshot: '{}',
+    validationErrorsByStudentId: {},
+    maxMarksValidationError: null,
+
+    // Filter & Search state
+    studentSearchQuery: '',
+    statusFilter: 'ALL', // 'ALL' | 'MISSING' | 'DRAFT' | 'PUBLISHED'
+
+    // Published results editing guard
+    isEditingPublished: false,
+    editReason: '',
+
+    // Audit modal state
+    auditModalOpen: false,
+    auditLogs: [],
+
+    containerEl: null,
+    beforeUnloadBound: false
+  };
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function authFetch(url, options = {}) {
+    if (window.SemesterAuth && typeof window.SemesterAuth.authFetch === 'function') {
+      return window.SemesterAuth.authFetch(url, options);
+    }
+    return window.fetch(url, options);
+  }
+
+  function calculatePercentage(obtainedRaw, maxRaw) {
+    if (obtainedRaw === null || obtainedRaw === undefined || String(obtainedRaw).trim() === '') {
+      return null;
+    }
+    const obt = Number(obtainedRaw);
+    const max = Number(maxRaw);
+    if (!Number.isFinite(obt) || !Number.isFinite(max) || max <= 0 || obt < 0 || obt > max) {
+      return null;
+    }
+    return Math.round(((obt / max) * 100) * 100) / 100;
+  }
+
+  function formatPercentage(pct) {
+    if (pct === null || pct === undefined || !Number.isFinite(Number(pct))) return '—';
+    const num = Number(pct);
+    return Number.isInteger(num) ? `${num}%` : `${num.toFixed(2).replace(/\.?0+$/, '')}%`;
+  }
+
+  function formatTimestamp(isoStr) {
+    if (!isoStr) return '—';
+    try {
+      const dt = new Date(isoStr);
+      if (Number.isNaN(dt.getTime())) return String(isoStr);
+      return dt.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (_) {
+      return String(isoStr);
+    }
+  }
+
+  function hasUnsavedChanges() {
+    const currentMarksJson = JSON.stringify(state.marksByStudentId || {});
+    const marksDirty = currentMarksJson !== state.initialMarksSnapshot;
+    const maxDirty = String(state.maxMarksInput || '').trim() !== String(state.initialMaxMarksSnapshot || '').trim();
+    return marksDirty || maxDirty;
+  }
+
+  function discardUnsavedChanges() {
+    try {
+      state.marksByStudentId = JSON.parse(state.initialMarksSnapshot || '{}');
+    } catch (_) {
+      state.marksByStudentId = {};
+    }
+    state.maxMarksInput = state.initialMaxMarksSnapshot;
+    state.validationErrorsByStudentId = {};
+    state.maxMarksValidationError = null;
+    state.actionError = null;
+    state.isEditingPublished = false;
+    state.editReason = '';
+  }
+
+  function confirmDiscardIfDirty() {
+    if (!hasUnsavedChanges()) return true;
+    if (typeof window.confirm === 'function') {
+      const ok = window.confirm('You have unsaved marks changes. Discard unsaved changes?');
+      if (ok) discardUnsavedChanges();
+      return ok;
+    }
+    discardUnsavedChanges();
+    return true;
+  }
+
+  function validateMaxMarksValue(rawVal) {
+    const trimmed = String(rawVal === null || rawVal === undefined ? '' : rawVal).trim();
+    if (!trimmed) {
+      return { valid: false, value: null, error: 'Maximum marks is required.' };
+    }
+    if (!/^[+-]?\d+(\.\d+)?$/.test(trimmed)) {
+      return { valid: false, value: null, error: 'Maximum marks must be a valid number.' };
+    }
+    const num = Number(trimmed);
+    if (!Number.isFinite(num) || num <= 0) {
+      return { valid: false, value: null, error: 'Maximum marks must be greater than zero.' };
+    }
+    if (num > 10000) {
+      return { valid: false, value: null, error: 'Maximum marks cannot exceed 10,000.' };
+    }
+    return { valid: true, value: Math.round(num * 100) / 100, error: null };
+  }
+
+  function validateStudentMarkValue(rawVal, maxMarksNum) {
+    const trimmed = String(rawVal === null || rawVal === undefined ? '' : rawVal).trim();
+    if (trimmed === '') {
+      return { valid: true, isMissing: true, value: null, error: null };
+    }
+    if (!/^[+-]?\d+(\.\d+)?$/.test(trimmed)) {
+      return { valid: false, isMissing: false, value: null, error: 'Enter a valid numeric mark.' };
+    }
+    const num = Number(trimmed);
+    if (!Number.isFinite(num)) {
+      return { valid: false, isMissing: false, value: null, error: 'Invalid numeric value.' };
+    }
+    if (num < 0) {
+      return { valid: false, isMissing: false, value: null, error: 'Obtained marks cannot be negative.' };
+    }
+    if (maxMarksNum !== null && Number.isFinite(maxMarksNum) && maxMarksNum > 0 && num > maxMarksNum) {
+      return {
+        valid: false,
+        isMissing: false,
+        value: null,
+        error: `Cannot exceed maximum marks (${maxMarksNum}).`
+      };
+    }
+    return { valid: true, isMissing: false, value: Math.round(num * 100) / 100, error: null };
+  }
+
+  function runAllClientValidations() {
+    const maxCheck = validateMaxMarksValue(state.maxMarksInput);
+    state.maxMarksValidationError = maxCheck.error;
+    const maxVal = maxCheck.valid ? maxCheck.value : null;
+
+    const studentErrors = {};
+    let hasStudentError = false;
+
+    for (const stu of state.students) {
+      const rawMark = state.marksByStudentId[stu.studentId];
+      const markCheck = validateStudentMarkValue(rawMark, maxVal);
+      if (!markCheck.valid) {
+        studentErrors[stu.studentId] = markCheck.error;
+        hasStudentError = true;
+      }
+    }
+
+    state.validationErrorsByStudentId = studentErrors;
+    return {
+      valid: maxCheck.valid && !hasStudentError,
+      maxMarks: maxVal,
+      hasStudentError
+    };
+  }
+
+  function getSelectedSubjectObj() {
+    if (!state.selectedSubjectId) return null;
+    const norm = String(state.selectedSubjectId).trim().toLowerCase();
+    return (
+      (state.subjects || []).find(
+        (s) =>
+          String(s.id || '').toLowerCase() === norm ||
+          String(s.code || '').toLowerCase() === norm ||
+          String(s.name || '').toLowerCase() === norm
+      ) || state.rosterSubject || null
+    );
+  }
+
+  function getLiveTableMetrics() {
+    const maxCheck = validateMaxMarksValue(state.maxMarksInput);
+    const effectiveMax = maxCheck.valid
+      ? maxCheck.value
+      : (state.examConfig && state.examConfig.configured ? Number(state.examConfig.maxMarks) : null);
+
+    let totalStudents = state.students.length;
+    let enteredCount = 0;
+    let missingCount = 0;
+    let draftCount = 0;
+    let publishedCount = 0;
+    let sumPct = 0;
+    let pctCount = 0;
+
+    for (const stu of state.students) {
+      const rawVal = state.marksByStudentId[stu.studentId];
+      const trimmed = rawVal !== undefined && rawVal !== null ? String(rawVal).trim() : '';
+      if (trimmed === '') {
+        missingCount += 1;
+      } else {
+        enteredCount += 1;
+        if (stu.entryStatus === 'published') {
+          publishedCount += 1;
+        } else {
+          draftCount += 1;
+        }
+        const pct = calculatePercentage(trimmed, effectiveMax);
+        if (pct !== null) {
+          sumPct += pct;
+          pctCount += 1;
+        }
+      }
+    }
+
+    return {
+      totalStudents,
+      enteredCount,
+      missingCount,
+      draftCount,
+      publishedCount,
+      effectiveMax,
+      averagePercentage: pctCount > 0 ? Math.round((sumPct / pctCount) * 100) / 100 : null
+    };
+  }
+
+  function getFilteredStudents() {
+    const query = String(state.studentSearchQuery || '').trim().toLowerCase();
+    const filter = state.statusFilter || 'ALL';
+
+    return (state.students || []).filter((stu) => {
+      if (query) {
+        const nameMatch = String(stu.name || '').toLowerCase().includes(query);
+        const idMatch = String(stu.studentId || '').toLowerCase().includes(query);
+        const userMatch = String(stu.username || '').toLowerCase().includes(query);
+        if (!nameMatch && !idMatch && !userMatch) return false;
+      }
+
+      const rawVal = state.marksByStudentId[stu.studentId];
+      const hasEnteredVal = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '';
+      const effectiveStatus = !hasEnteredVal
+        ? 'MISSING'
+        : stu.entryStatus === 'published'
+        ? 'PUBLISHED'
+        : 'DRAFT';
+
+      if (filter === 'MISSING' && effectiveStatus !== 'MISSING') return false;
+      if (filter === 'DRAFT' && effectiveStatus !== 'DRAFT') return false;
+      if (filter === 'PUBLISHED' && effectiveStatus !== 'PUBLISHED') return false;
+      return true;
+    });
+  }
+
+  function injectStyles() {
+    if (window.document.getElementById('sl-teacher-marks-styles')) return;
+    const style = window.document.createElement('style');
+    style.id = 'sl-teacher-marks-styles';
+    style.textContent = `
+      .sl-marks-root {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--teach-text-primary, var(--text, #111827));
+      }
+      .sl-marks-panel {
+        background: var(--teach-surface, var(--surface, #ffffff));
+        border: 1.5px solid var(--teach-border, var(--border, rgba(0, 0, 0, 0.13)));
+        border-radius: 16px;
+        padding: 22px 24px;
+        margin-bottom: 20px;
+      }
+      .sl-marks-subject-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+        margin-bottom: 28px;
+      }
+      .sl-marks-subject-card {
+        background: var(--teach-surface, var(--surface, #ffffff));
+        border: 1.5px solid var(--teach-border, var(--border, rgba(0, 0, 0, 0.13)));
+        border-radius: 20px;
+        padding: 24px 26px;
+        min-height: 195px;
+        box-sizing: border-box;
+        box-shadow: var(--teach-shadow-sm, 0 2px 6px rgba(0, 0, 0, 0.04));
+        cursor: pointer;
+        text-align: left;
+        color: inherit;
+        font-family: inherit;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        width: 100%;
+      }
+      .sl-marks-subject-card:hover,
+      .sl-marks-subject-card:focus-visible {
+        border-color: var(--teach-text-primary, #111827);
+        transform: translateY(-2px);
+        box-shadow: var(--teach-shadow-md, 0 8px 24px -4px rgba(0, 0, 0, 0.12));
+        outline: none;
+      }
+      .sl-marks-code-badge {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 7px;
+        background: var(--teach-surface-subtle, #f3f4f6);
+        border: 1px solid var(--teach-border, rgba(0, 0, 0, 0.1));
+        color: var(--teach-text-primary, #111827);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+      .sl-marks-exam-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .sl-marks-exam-tab {
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1.5px solid var(--teach-border, #2a2a2a);
+        background: var(--teach-surface, #141414);
+        color: var(--teach-text-secondary, #a3a3a3);
+        font-family: inherit;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.15s ease;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .sl-marks-exam-tab:hover {
+        border-color: var(--teach-text-primary, #f5f5f5);
+        color: var(--teach-text-primary, #f5f5f5);
+      }
+      .sl-marks-exam-tab.active {
+        background: var(--teach-btn-primary-bg, #f5f5f5);
+        color: var(--teach-btn-primary-text, #0a0a0a);
+        border-color: var(--teach-btn-primary-bg, #f5f5f5);
+      }
+      .sl-marks-exam-tab-title {
+        font-size: 0.92rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+      }
+      .sl-marks-exam-tab-meta {
+        font-size: 0.75rem;
+        font-weight: 600;
+        opacity: 0.82;
+      }
+      .sl-marks-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+      .sl-marks-stat-card {
+        background: var(--teach-surface-subtle, #1c1c1c);
+        border: 1px solid var(--teach-border-subtle, #242424);
+        border-radius: 12px;
+        padding: 13px 14px;
+      }
+      .sl-marks-stat-val {
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1.15;
+      }
+      .sl-marks-stat-lbl {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--teach-text-secondary, #a3a3a3);
+        margin-top: 4px;
+      }
+      .sl-marks-config-bar {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 16px 18px;
+        border-radius: 12px;
+        background: var(--teach-surface-subtle, #1c1c1c);
+        border: 1px solid var(--teach-border, #2a2a2a);
+        margin-bottom: 18px;
+      }
+      .sl-marks-input,
+      .sl-marks-select {
+        box-sizing: border-box;
+        padding: 9px 12px;
+        border-radius: 9px;
+        border: 1.5px solid var(--teach-border, #2a2a2a);
+        background: var(--teach-surface, #141414);
+        color: var(--teach-text-primary, #f5f5f5);
+        font-size: 0.9rem;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.15s ease;
+      }
+      .sl-marks-input:focus,
+      .sl-marks-select:focus {
+        border-color: var(--teach-text-primary, #ffffff);
+      }
+      .sl-marks-input.invalid {
+        border-color: #ef4444 !important;
+      }
+      .sl-marks-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+        border: 1.5px solid var(--teach-border, #2a2a2a);
+        border-radius: 14px;
+        background: var(--teach-surface, #141414);
+        -webkit-overflow-scrolling: touch;
+      }
+      .sl-marks-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .sl-marks-table th,
+      .sl-marks-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--teach-border-subtle, #242424);
+        text-align: left;
+        vertical-align: middle;
+      }
+      .sl-marks-table th {
+        font-size: 0.74rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--teach-text-secondary, #a3a3a3);
+        background: var(--teach-surface-subtle, #1c1c1c);
+        white-space: nowrap;
+      }
+      .sl-marks-table tr:last-child td {
+        border-bottom: none;
+      }
+      .sl-marks-table tr.missing-row {
+        background: rgba(128, 128, 128, 0.03);
+      }
+      .sl-marks-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        border: 1px solid var(--teach-border, #2a2a2a);
+        white-space: nowrap;
+      }
+      .sl-marks-badge.published {
+        background: var(--teach-btn-primary-bg, #f5f5f5);
+        color: var(--teach-btn-primary-text, #0a0a0a);
+        border-color: var(--teach-btn-primary-bg, #f5f5f5);
+      }
+      .sl-marks-badge.draft {
+        background: var(--teach-surface-subtle, #27272a);
+        color: var(--teach-text-primary, #f5f5f5);
+        border-color: var(--teach-border, #3f3f46);
+      }
+      .sl-marks-badge.missing {
+        background: transparent;
+        color: var(--teach-text-secondary, #a3a3a3);
+        border-style: dashed;
+      }
+      .sl-marks-banner {
+        border-radius: 12px;
+        padding: 13px 16px;
+        margin-bottom: 16px;
+        font-size: 0.86rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        border: 1.5px solid var(--teach-border, #2a2a2a);
+        background: var(--teach-surface-subtle, #1c1c1c);
+      }
+      .sl-marks-banner.error {
+        border-color: #ef4444;
+      }
+      .sl-marks-actions-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--teach-border-subtle, #242424);
+      }
+      .sl-marks-filter-pill {
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--teach-border, #2a2a2a);
+        background: transparent;
+        color: var(--teach-text-secondary, #a3a3a3);
+        font-size: 0.76rem;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .sl-marks-filter-pill.active {
+        background: var(--teach-btn-primary-bg, #f5f5f5);
+        color: var(--teach-btn-primary-text, #0a0a0a);
+        border-color: var(--teach-btn-primary-bg, #f5f5f5);
+      }
+      @media (max-width: 768px) {
+        .sl-marks-panel {
+          padding: 16px 14px;
+        }
+        .sl-marks-exam-tabs {
+          grid-template-columns: 1fr;
+        }
+        .sl-marks-table th,
+        .sl-marks-table td {
+          padding: 10px 10px;
+        }
+      }
+    `;
+    window.document.head.appendChild(style);
+  }
+
+  async function loadContext() {
+    state.loadingContext = true;
+    state.contextError = null;
+    render();
+
+    try {
+      const res = await authFetch('/api/marks/teacher/context');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to load Marks Entry context.');
+      }
+
+      state.role = data.role || 'teacher';
+      state.userId = data.userId || '';
+      state.userName = data.name || '';
+      state.subjects = Array.isArray(data.subjects) ? data.subjects : [];
+      state.cohorts = Array.isArray(data.cohorts) ? data.cohorts : [];
+      state.loadingContext = false;
+      render();
+    } catch (err) {
+      state.loadingContext = false;
+      state.contextError = err.message || 'Unable to load authorized subjects.';
+      render();
+    }
+  }
+
+  async function loadRoster() {
+    if (!state.selectedSubjectId) {
+      render();
+      return;
+    }
+
+    state.loadingRoster = true;
+    state.rosterError = null;
+    state.actionError = null;
+    render();
+
+    try {
+      const params = new window.URLSearchParams();
+      params.set('subjectId', state.selectedSubjectId);
+      params.set('examType', state.selectedExamType);
+      if (state.selectedCohortId) {
+        params.set('cohortId', state.selectedCohortId);
+      }
+
+      const res = await authFetch(`/api/marks/roster?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to load student marks register.');
+      }
+
+      applyRosterDataToState(data);
+      state.loadingRoster = false;
+      render();
+    } catch (err) {
+      state.loadingRoster = false;
+      state.rosterError = err.message || 'Failed to load student marks register.';
+      render();
+    }
+  }
+
+  function applyRosterDataToState(data) {
+    state.rosterSubject = data.subject || null;
+    state.rosterCohort = data.cohort || null;
+    state.examConfig = data.examConfig || null;
+    state.configsByExamType = data.configsByExamType || {};
+    state.students = Array.isArray(data.students) ? data.students : [];
+    state.summary = data.summary || null;
+
+    const maxVal = state.examConfig && state.examConfig.configured && state.examConfig.maxMarks !== null
+      ? String(state.examConfig.maxMarks)
+      : '';
+    state.maxMarksInput = maxVal;
+    state.initialMaxMarksSnapshot = maxVal;
+
+    const marksMap = {};
+    for (const stu of state.students) {
+      marksMap[stu.studentId] =
+        stu.obtainedMarks !== null && stu.obtainedMarks !== undefined
+          ? String(stu.obtainedMarks)
+          : '';
+    }
+    state.marksByStudentId = marksMap;
+    state.initialMarksSnapshot = JSON.stringify(marksMap);
+    state.validationErrorsByStudentId = {};
+    state.maxMarksValidationError = null;
+    state.isEditingPublished = false;
+  }
+
+  async function selectSubject(subjectId, examType = null) {
+    if (!confirmDiscardIfDirty()) return;
+    state.selectedSubjectId = subjectId ? String(subjectId).trim() : '';
+    state.selectedCohortId = '';
+    if (examType && EXAM_TYPES.includes(examType)) {
+      state.selectedExamType = examType;
+    }
+    state.actionSuccessMessage = null;
+    state.actionError = null;
+    state.studentSearchQuery = '';
+    state.statusFilter = 'ALL';
+
+    if (!state.selectedSubjectId) {
+      render();
+      return;
+    }
+    await loadRoster();
+  }
+
+  async function selectExamType(examType) {
+    if (!EXAM_TYPES.includes(examType)) return;
+    if (state.selectedExamType === examType) return;
+    if (!confirmDiscardIfDirty()) return;
+    state.selectedExamType = examType;
+    state.actionSuccessMessage = null;
+    state.actionError = null;
+    state.isEditingPublished = false;
+    await loadRoster();
+  }
+
+  function setMaxMarksInput(val) {
+    state.maxMarksInput = String(val === null || val === undefined ? '' : val);
+    runAllClientValidations();
+  }
+
+  function setStudentMark(studentId, rawVal) {
+    const isLockedPublished =
+      state.summary &&
+      state.summary.isPublished &&
+      !state.isEditingPublished;
+    if (isLockedPublished) return;
+
+    state.marksByStudentId[studentId] = rawVal === null || rawVal === undefined ? '' : String(rawVal);
+    runAllClientValidations();
+  }
+
+  async function saveExamConfig() {
+    if (!state.selectedSubjectId) return;
+    const maxCheck = validateMaxMarksValue(state.maxMarksInput);
+    state.maxMarksValidationError = maxCheck.error;
+    if (!maxCheck.valid) {
+      state.actionError = maxCheck.error;
+      render();
+      return;
+    }
+
+    state.savingConfig = true;
+    state.actionError = null;
+    state.actionSuccessMessage = null;
+    render();
+
+    try {
+      const res = await authFetch('/api/marks/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subjectId: state.selectedSubjectId,
+          examType: state.selectedExamType,
+          maxMarks: maxCheck.value
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to update exam configuration.');
+      }
+
+      state.examConfig = data.config || state.examConfig;
+      if (data.config && data.config.maxMarks) {
+        state.maxMarksInput = String(data.config.maxMarks);
+        state.initialMaxMarksSnapshot = String(data.config.maxMarks);
+      }
+      state.savingConfig = false;
+      state.actionSuccessMessage = `Maximum marks configured to ${maxCheck.value} for ${state.selectedExamType}.`;
+      runAllClientValidations();
+      render();
+    } catch (err) {
+      state.savingConfig = false;
+      state.actionError = err.message || 'Failed to save exam configuration.';
+      render();
+    }
+  }
+
+  function buildRecordsPayload() {
+    return (state.students || []).map((stu) => {
+      const raw = state.marksByStudentId[stu.studentId];
+      const trimmed = raw !== undefined && raw !== null ? String(raw).trim() : '';
+      return {
+        studentId: stu.studentId,
+        obtainedMarks: trimmed === '' ? null : Number(trimmed)
+      };
+    });
+  }
+
+  async function saveDraft() {
+    if (!state.selectedSubjectId) return;
+    const validation = runAllClientValidations();
+    if (!validation.valid) {
+      state.actionError = state.maxMarksValidationError || 'Please fix validation errors in the marks table before saving.';
+      render();
+      return;
+    }
+
+    state.savingDraft = true;
+    state.actionError = null;
+    state.actionSuccessMessage = null;
+    render();
+
+    try {
+      const records = buildRecordsPayload();
+      const res = await authFetch('/api/marks/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subjectId: state.selectedSubjectId,
+          examType: state.selectedExamType,
+          cohortId: state.selectedCohortId || null,
+          maxMarks: validation.maxMarks,
+          records,
+          editPublished: state.isEditingPublished,
+          reason: state.editReason || null
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to save draft marks.');
+      }
+
+      applyRosterDataToState(data);
+      state.savingDraft = false;
+      state.actionSuccessMessage = `Draft marks saved for ${state.selectedExamType}.`;
+      await refreshSubjectCardsInBackground();
+      render();
+    } catch (err) {
+      state.savingDraft = false;
+      state.actionError = err.message || 'Failed to save draft marks.';
+      render();
+    }
+  }
+
+  async function publishResults() {
+    if (!state.selectedSubjectId) return;
+    const validation = runAllClientValidations();
+    if (!validation.valid) {
+      state.actionError = state.maxMarksValidationError || 'Please fix validation errors before publishing results.';
+      render();
+      return;
+    }
+
+    const metrics = getLiveTableMetrics();
+    if (metrics.enteredCount === 0) {
+      state.actionError = 'Please enter marks for at least one student before publishing results.';
+      render();
+      return;
+    }
+
+    state.publishing = true;
+    state.actionError = null;
+    state.actionSuccessMessage = null;
+    render();
+
+    try {
+      const records = buildRecordsPayload();
+      const res = await authFetch('/api/marks/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subjectId: state.selectedSubjectId,
+          examType: state.selectedExamType,
+          cohortId: state.selectedCohortId || null,
+          maxMarks: validation.maxMarks,
+          records,
+          reason: state.editReason || `Published ${state.selectedExamType} results`
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to publish results.');
+      }
+
+      applyRosterDataToState(data);
+      state.publishing = false;
+      state.actionSuccessMessage = `${state.selectedExamType} results published (${data.summary ? data.summary.publishedCount : metrics.enteredCount} students).`;
+      await refreshSubjectCardsInBackground();
+      render();
+    } catch (err) {
+      state.publishing = false;
+      state.actionError = err.message || 'Failed to publish results.';
+      render();
+    }
+  }
+
+  async function savePublishedEdits() {
+    if (!state.selectedSubjectId) return;
+    const validation = runAllClientValidations();
+    if (!validation.valid) {
+      state.actionError = state.maxMarksValidationError || 'Please fix validation errors before saving published changes.';
+      render();
+      return;
+    }
+
+    state.savingDraft = true;
+    state.actionError = null;
+    state.actionSuccessMessage = null;
+    render();
+
+    try {
+      const records = buildRecordsPayload();
+      const res = await authFetch('/api/marks/published', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subjectId: state.selectedSubjectId,
+          examType: state.selectedExamType,
+          cohortId: state.selectedCohortId || null,
+          maxMarks: validation.maxMarks,
+          records,
+          editPublished: true,
+          publish: true,
+          reason: state.editReason || `Authorized update to published ${state.selectedExamType} results`
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'Failed to update published results.');
+      }
+
+      applyRosterDataToState(data);
+      state.savingDraft = false;
+      state.isEditingPublished = false;
+      state.editReason = '';
+      state.actionSuccessMessage = `Published ${state.selectedExamType} marks updated and recorded in the audit log.`;
+      await refreshSubjectCardsInBackground();
+      render();
+    } catch (err) {
+      state.savingDraft = false;
+      state.actionError = err.message || 'Failed to update published results.';
+      render();
+    }
+  }
+
+  async function openAuditModal() {
+    if (!state.selectedSubjectId) return;
+    state.auditModalOpen = true;
+    state.loadingAudit = true;
+    render();
+
+    try {
+      const params = new window.URLSearchParams({
+        subjectId: state.selectedSubjectId,
+        examType: state.selectedExamType
+      });
+      const res = await authFetch(`/api/marks/audit?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      state.auditLogs = Array.isArray(data.logs) ? data.logs : [];
+      state.loadingAudit = false;
+      render();
+    } catch (_) {
+      state.auditLogs = [];
+      state.loadingAudit = false;
+      render();
+    }
+  }
+
+  function closeAuditModal() {
+    state.auditModalOpen = false;
+    render();
+  }
+
+  async function refreshSubjectCardsInBackground() {
+    try {
+      const res = await authFetch('/api/marks/teacher/context');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.subjects)) {
+          state.subjects = data.subjects;
+        }
+      }
+    } catch (_) {}
+  }
+
+  function renderSubjectLanding() {
+    if (state.loadingContext) {
+      return `
+        <div class="sl-marks-panel" style="text-align:center; padding:48px 24px;">
+          <div style="font-size:1.05rem; font-weight:700; margin-bottom:6px;">Loading Authorized Subjects…</div>
+          <div style="font-size:0.86rem; color:var(--teach-text-secondary, #a3a3a3);">
+            Fetching your assigned courses and exam configurations.
+          </div>
+        </div>
+      `;
+    }
+
+    if (state.contextError) {
+      return `
+        <div class="sl-marks-panel" role="alert" style="text-align:center; padding:40px 24px;">
+          <div style="font-size:1.08rem; font-weight:800; margin-bottom:8px;">Could Not Load Subjects</div>
+          <div style="font-size:0.88rem; color:var(--teach-text-secondary, #a3a3a3); max-width:460px; margin:0 auto 18px;">
+            ${escapeHtml(state.contextError)}
+          </div>
+          <button type="button" class="teach-btn teach-btn-primary" data-marks-action="retry-context">Retry</button>
+        </div>
+      `;
+    }
+
+    if (!state.subjects.length) {
+      return `
+        <div class="sl-marks-panel" style="text-align:center; padding:48px 24px;" id="slMarksSubjectLanding">
+          <div style="font-size:1.1rem; font-weight:800; margin-bottom:8px;">No Subjects Assigned</div>
+          <div style="font-size:0.88rem; color:var(--teach-text-secondary, #a3a3a3); max-width:480px; margin:0 auto;">
+            Your faculty account does not have any active subjects assigned yet. Contact an administrator to assign your teaching subjects.
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div id="slMarksSubjectLanding">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+          <div>
+            <h2 style="margin:0 0 4px; font-size:1.2rem; font-weight:800; letter-spacing:-0.02em;">
+              Select a Subject for Marks Entry
+            </h2>
+            <p style="margin:0; font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">
+              Choose one of your authorized subjects to configure exam maximum marks, save draft marks, or publish results.
+            </p>
+          </div>
+        </div>
+
+        <div class="sl-marks-subject-grid">
+          ${state.subjects
+            .map((sub) => {
+              const exams = Array.isArray(sub.exams) ? sub.exams : [];
+              return `
+                <button
+                  type="button"
+                  class="sl-marks-subject-card"
+                  data-marks-select-subject="${escapeHtml(sub.id)}"
+                >
+                  <div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px;">
+                      <span class="sl-marks-code-badge">${escapeHtml(sub.code || sub.id)}</span>
+                      <span style="font-size:12px; font-weight:700; color:var(--teach-text-secondary, #a3a3a3);">
+                        Semester ${escapeHtml(sub.semester)}
+                      </span>
+                    </div>
+                    <div style="font-size:1.12rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:14px; line-height:1.35;">
+                      ${escapeHtml(sub.name)}
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
+                      ${exams
+                        .map((ex) => {
+                          const statusLabel =
+                            ex.status === 'published'
+                              ? `Published (${ex.publishedCount})`
+                              : ex.status === 'draft'
+                              ? `Draft${ex.maxMarks ? ' · Max ' + ex.maxMarks : ''}`
+                              : 'Not Started';
+                          return `
+                            <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.78rem; color:var(--teach-text-secondary, #a3a3a3);">
+                              <span>${escapeHtml(ex.examType)}</span>
+                              <strong style="color:var(--teach-text-primary, #f5f5f5);">${escapeHtml(statusLabel)}</strong>
+                            </div>
+                          `;
+                        })
+                        .join('')}
+                    </div>
+                  </div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding-top:12px; border-top:1px solid var(--teach-border-subtle, rgba(128,128,128,0.15)); font-size:0.8rem; font-weight:700;">
+                    <span style="color:var(--teach-text-secondary, #a3a3a3);">${escapeHtml(sub.department || 'BIT')}</span>
+                    <span>Open Marks Entry &rarr;</span>
+                  </div>
+                </button>
+              `;
+            })
+            .join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderWorkspace() {
+    const selectedSubj = getSelectedSubjectObj();
+    const metrics = getLiveTableMetrics();
+    const filteredStudents = getFilteredStudents();
+    const isPublished = Boolean(state.summary && state.summary.isPublished);
+    const isLockedPublished = isPublished && !state.isEditingPublished;
+    const dirty = hasUnsavedChanges();
+
+    return `
+      <div id="slMarksEntrySection">
+        <!-- Top Navigation & Subject Switcher -->
+        <div class="sl-marks-panel" style="padding:16px 20px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+              <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="back-to-subjects">
+                &larr; All Subjects
+              </button>
+              <div>
+                <div style="font-size:0.74rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--teach-text-secondary, #a3a3a3);">
+                  ${selectedSubj ? `${escapeHtml(selectedSubj.code)} · Semester ${escapeHtml(selectedSubj.semester)}` : 'Subject Marks Register'}
+                </div>
+                <h2 style="margin:2px 0 0; font-size:1.25rem; font-weight:800; letter-spacing:-0.02em;">
+                  ${selectedSubj ? escapeHtml(selectedSubj.name) : ''}
+                </h2>
+              </div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <label for="slMarksSubjectSwitch" style="font-size:0.75rem; font-weight:700; color:var(--teach-text-secondary, #a3a3a3);">
+                Subject:
+              </label>
+              <select id="slMarksSubjectSwitch" class="sl-marks-select" data-marks-field="subject-select" style="min-width:220px;">
+                ${state.subjects
+                  .map(
+                    (s) => `
+                  <option value="${escapeHtml(s.id)}" ${String(s.id) === String(state.selectedSubjectId) ? 'selected' : ''}>
+                    [${escapeHtml(s.code)}] ${escapeHtml(s.name)} (Sem ${escapeHtml(s.semester)})
+                  </option>
+                `
+                  )
+                  .join('')}
+              </select>
+              <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="open-audit">
+                Audit Log
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Exam Selection Tabs (Mid-Term Exam, Pre-Board Exam, Final Exam) -->
+        <div class="sl-marks-exam-tabs" role="tablist" aria-label="Select Exam Type">
+          ${EXAM_TYPES.map((examType) => {
+            const isActive = state.selectedExamType === examType;
+            const cfg = state.configsByExamType && state.configsByExamType[examType];
+            const metaText = cfg && cfg.configured
+              ? `Max Marks: ${cfg.maxMarks}`
+              : 'Max Marks Not Configured';
+            return `
+              <button
+                type="button"
+                role="tab"
+                aria-selected="${isActive ? 'true' : 'false'}"
+                class="sl-marks-exam-tab ${isActive ? 'active' : ''}"
+                data-marks-select-exam="${escapeHtml(examType)}"
+              >
+                <span class="sl-marks-exam-tab-title">${escapeHtml(examType)}</span>
+                <span class="sl-marks-exam-tab-meta">${escapeHtml(metaText)}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
+
+        ${
+          state.loadingRoster
+            ? `
+          <div class="sl-marks-panel" style="text-align:center; padding:44px 24px;">
+            <div style="font-size:1.02rem; font-weight:700; margin-bottom:6px;">
+              Loading ${escapeHtml(state.selectedExamType)} Register…
+            </div>
+            <div style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">
+              Fetching enrolled students, exam configuration, and saved marks.
+            </div>
+          </div>
+        `
+            : state.rosterError
+            ? `
+          <div class="sl-marks-panel" role="alert" style="text-align:center; padding:40px 24px;">
+            <div style="font-size:1.05rem; font-weight:800; margin-bottom:8px;">Could Not Load Marks Register</div>
+            <div style="font-size:0.88rem; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:16px;">
+              ${escapeHtml(state.rosterError)}
+            </div>
+            <button type="button" class="teach-btn teach-btn-primary" data-marks-action="retry-roster">Retry</button>
+          </div>
+        `
+            : `
+          <div class="sl-marks-panel">
+            <!-- Feedback Banners -->
+            ${
+              state.actionError
+                ? `
+              <div class="sl-marks-banner error" role="alert">
+                <div><strong>Validation / Save Error:</strong> ${escapeHtml(state.actionError)}</div>
+              </div>
+            `
+                : ''
+            }
+            ${
+              state.actionSuccessMessage
+                ? `
+              <div class="sl-marks-banner" role="status">
+                <div><strong>Success:</strong> ${escapeHtml(state.actionSuccessMessage)}</div>
+              </div>
+            `
+                : ''
+            }
+
+            <!-- Published Lock / Authorized Edit Banner -->
+            ${
+              isPublished
+                ? `
+              <div class="sl-marks-banner">
+                <div>
+                  <span class="sl-marks-badge published" style="margin-right:8px;">Published</span>
+                  ${
+                    isLockedPublished
+                      ? `Results for <strong>${escapeHtml(state.selectedExamType)}</strong> are published and visible to students. Click <strong>Edit Published Marks</strong> to make an audited correction.`
+                      : `<strong>Authorized Edit Mode Active:</strong> Changes to published marks will be tracked in the audit log.`
+                  }
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  ${
+                    isLockedPublished
+                      ? `
+                    <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="enable-published-edit">
+                      Edit Published Marks
+                    </button>
+                  `
+                      : `
+                    <input
+                      type="text"
+                      class="sl-marks-input"
+                      placeholder="Reason for editing published marks (optional)…"
+                      value="${escapeHtml(state.editReason)}"
+                      data-marks-field="edit-reason"
+                      style="min-width:240px;"
+                    />
+                    <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="cancel-published-edit">
+                      Cancel Edit
+                    </button>
+                  `
+                  }
+                </div>
+              </div>
+            `
+                : ''
+            }
+
+            <!-- Exam Configuration Bar -->
+            <div class="sl-marks-config-bar">
+              <div style="flex:1; min-width:220px;">
+                <div style="font-size:0.76rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:4px;">
+                  Exam Configuration &middot; ${escapeHtml(state.selectedExamType)}
+                </div>
+                <div style="font-size:0.84rem; color:var(--teach-text-secondary, #a3a3a3);">
+                  Set the maximum marks for this exam (must be greater than 0). Percentage is calculated as (Obtained / Maximum) &times; 100.
+                </div>
+              </div>
+
+              <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+                <div>
+                  <label for="slMarksMaxInput" style="display:block; font-size:0.74rem; font-weight:700; text-transform:uppercase; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:5px;">
+                    Maximum Marks
+                  </label>
+                  <input
+                    id="slMarksMaxInput"
+                    type="number"
+                    min="1"
+                    step="any"
+                    class="sl-marks-input ${state.maxMarksValidationError ? 'invalid' : ''}"
+                    placeholder="e.g. 50 or 100"
+                    value="${escapeHtml(state.maxMarksInput)}"
+                    data-marks-field="max-marks"
+                    ${isLockedPublished ? 'disabled' : ''}
+                    style="width:150px;"
+                  />
+                </div>
+                <button
+                  type="button"
+                  class="teach-btn teach-btn-secondary"
+                  data-marks-action="save-config"
+                  ${isLockedPublished || state.savingConfig ? 'disabled' : ''}
+                >
+                  ${state.savingConfig ? 'Saving…' : 'Save Max Marks'}
+                </button>
+              </div>
+            </div>
+
+            <!-- Live Summary Metrics -->
+            <div class="sl-marks-stats-grid">
+              <div class="sl-marks-stat-card">
+                <div class="sl-marks-stat-val">${metrics.totalStudents}</div>
+                <div class="sl-marks-stat-lbl">Enrolled Students</div>
+              </div>
+              <div class="sl-marks-stat-card">
+                <div class="sl-marks-stat-val">${metrics.enteredCount}</div>
+                <div class="sl-marks-stat-lbl">Marks Entered</div>
+              </div>
+              <div class="sl-marks-stat-card">
+                <div class="sl-marks-stat-val">${metrics.missingCount}</div>
+                <div class="sl-marks-stat-lbl">Missing Marks</div>
+              </div>
+              <div class="sl-marks-stat-card">
+                <div class="sl-marks-stat-val">${metrics.effectiveMax !== null ? metrics.effectiveMax : 'Not Set'}</div>
+                <div class="sl-marks-stat-lbl">Maximum Marks</div>
+              </div>
+              <div class="sl-marks-stat-card">
+                <div class="sl-marks-stat-val">${formatPercentage(metrics.averagePercentage)}</div>
+                <div class="sl-marks-stat-lbl">Average %</div>
+              </div>
+              <div class="sl-marks-stat-card">
+                <div class="sl-marks-stat-val" style="font-size:1.05rem;">
+                  ${isPublished ? 'Published' : metrics.enteredCount > 0 ? 'Draft' : 'Not Started'}
+                </div>
+                <div class="sl-marks-stat-lbl">Exam Status</div>
+              </div>
+            </div>
+
+            <!-- Search & Status Filter Toolbar -->
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+              <input
+                type="search"
+                class="sl-marks-input"
+                placeholder="Search student by name or roll / ID…"
+                value="${escapeHtml(state.studentSearchQuery)}"
+                data-marks-field="student-search"
+                style="min-width:250px; flex:1; max-width:380px;"
+              />
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                ${[
+                  { id: 'ALL', label: `All (${metrics.totalStudents})` },
+                  { id: 'MISSING', label: `Missing (${metrics.missingCount})` },
+                  { id: 'DRAFT', label: `Draft (${metrics.draftCount})` },
+                  { id: 'PUBLISHED', label: `Published (${metrics.publishedCount})` }
+                ]
+                  .map(
+                    (f) => `
+                  <button
+                    type="button"
+                    class="sl-marks-filter-pill ${state.statusFilter === f.id ? 'active' : ''}"
+                    data-marks-status-filter="${f.id}"
+                  >
+                    ${escapeHtml(f.label)}
+                  </button>
+                `
+                  )
+                  .join('')}
+              </div>
+            </div>
+
+            <!-- Student Marks Entry Table -->
+            ${
+              state.students.length === 0
+                ? `
+              <div style="text-align:center; padding:36px 20px; border:1px dashed var(--teach-border, #2a2a2a); border-radius:12px;">
+                <div style="font-weight:700; margin-bottom:6px;">No Enrolled Students Found</div>
+                <div style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">
+                  No active students are currently enrolled in Semester ${escapeHtml(selectedSubj ? selectedSubj.semester : '')}.
+                </div>
+              </div>
+            `
+                : filteredStudents.length === 0
+                ? `
+              <div style="text-align:center; padding:32px 20px; border:1px dashed var(--teach-border, #2a2a2a); border-radius:12px;">
+                <div style="font-weight:700; margin-bottom:4px;">No Matching Students</div>
+                <div style="font-size:0.84rem; color:var(--teach-text-secondary, #a3a3a3);">
+                  Try clearing your search or status filter.
+                </div>
+              </div>
+            `
+                : `
+              <div class="sl-marks-table-wrap">
+                <table class="sl-marks-table" id="slMarksEntryTable">
+                  <thead>
+                    <tr>
+                      <th style="width:48px;">#</th>
+                      <th>Student Name</th>
+                      <th>Roll No / Student ID</th>
+                      <th style="width:170px;">Obtained Marks</th>
+                      <th style="width:130px;">Maximum Marks</th>
+                      <th style="width:120px;">Percentage</th>
+                      <th style="width:150px;">Entry Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${filteredStudents
+                      .map((stu, idx) => {
+                        const rawMark = state.marksByStudentId[stu.studentId] ?? '';
+                        const trimmed = String(rawMark).trim();
+                        const isMissing = trimmed === '';
+                        const rowError = state.validationErrorsByStudentId[stu.studentId] || null;
+                        const pct = !isMissing && !rowError
+                          ? calculatePercentage(trimmed, metrics.effectiveMax)
+                          : null;
+
+                        let badgeClass = 'missing';
+                        let badgeText = 'Missing Marks';
+                        if (!isMissing) {
+                          if (stu.entryStatus === 'published' && String(stu.obtainedMarks ?? '') === trimmed) {
+                            badgeClass = 'published';
+                            badgeText = 'Published';
+                          } else if (stu.entryStatus === 'published') {
+                            badgeClass = 'draft';
+                            badgeText = 'Edited (Unsaved)';
+                          } else if (stu.entryStatus === 'draft' && String(stu.obtainedMarks ?? '') === trimmed) {
+                            badgeClass = 'draft';
+                            badgeText = 'Saved Draft';
+                          } else {
+                            badgeClass = 'draft';
+                            badgeText = 'Draft (Unsaved)';
+                          }
+                        }
+
+                        return `
+                          <tr class="${isMissing ? 'missing-row' : ''}" data-student-row="${escapeHtml(stu.studentId)}">
+                            <td style="color:var(--teach-text-secondary, #a3a3a3); font-weight:600;">${idx + 1}</td>
+                            <td>
+                              <div style="font-weight:700;">${escapeHtml(stu.name)}</div>
+                              ${
+                                stu.cohortName
+                                  ? `<div style="font-size:0.74rem; color:var(--teach-text-secondary, #a3a3a3);">${escapeHtml(stu.cohortName)} Cohort</div>`
+                                  : ''
+                              }
+                            </td>
+                            <td style="font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.83rem;">
+                              ${escapeHtml(stu.rollNumber || stu.studentId)}
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                ${metrics.effectiveMax !== null ? `max="${escapeHtml(metrics.effectiveMax)}"` : ''}
+                                step="any"
+                                class="sl-marks-input ${rowError ? 'invalid' : ''}"
+                                placeholder="Missing"
+                                value="${escapeHtml(rawMark)}"
+                                data-marks-student-input="${escapeHtml(stu.studentId)}"
+                                ${isLockedPublished ? 'disabled' : ''}
+                                style="width:130px;"
+                              />
+                              ${
+                                rowError
+                                  ? `<div style="font-size:0.72rem; color:#ef4444; margin-top:4px; font-weight:600;">${escapeHtml(rowError)}</div>`
+                                  : ''
+                              }
+                            </td>
+                            <td style="font-weight:700;">
+                              ${metrics.effectiveMax !== null ? escapeHtml(metrics.effectiveMax) : '—'}
+                            </td>
+                            <td style="font-weight:800;">
+                              ${formatPercentage(pct)}
+                            </td>
+                            <td>
+                              <span class="sl-marks-badge ${badgeClass}" data-student-status="${escapeHtml(stu.studentId)}">
+                                ${escapeHtml(badgeText)}
+                              </span>
+                            </td>
+                          </tr>
+                        `;
+                      })
+                      .join('')}
+                  </tbody>
+                </table>
+              </div>
+            `
+            }
+
+            <!-- Bottom Actions Bar -->
+            <div class="sl-marks-actions-bar">
+              <div style="font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);">
+                ${
+                  dirty
+                    ? '<strong>Unsaved changes present.</strong> Save as a draft or publish when ready.'
+                    : metrics.missingCount > 0
+                    ? `${metrics.missingCount} student(s) currently have missing marks.`
+                    : 'All enrolled students have marks recorded.'
+                }
+              </div>
+
+              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                ${
+                  dirty
+                    ? `
+                  <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="discard-changes">
+                    Discard Changes
+                  </button>
+                `
+                    : ''
+                }
+                ${
+                  isPublished && state.isEditingPublished
+                    ? `
+                  <button
+                    type="button"
+                    class="teach-btn teach-btn-primary"
+                    data-marks-action="save-published-edits"
+                    ${state.savingDraft ? 'disabled' : ''}
+                  >
+                    ${state.savingDraft ? 'Saving Changes…' : 'Save Published Changes'}
+                  </button>
+                `
+                    : `
+                  <button
+                    type="button"
+                    class="teach-btn teach-btn-secondary"
+                    data-marks-action="save-draft"
+                    ${isLockedPublished || state.savingDraft || state.publishing ? 'disabled' : ''}
+                  >
+                    ${state.savingDraft ? 'Saving Draft…' : 'Save Draft'}
+                  </button>
+                  <button
+                    type="button"
+                    class="teach-btn teach-btn-primary"
+                    data-marks-action="publish-results"
+                    ${isLockedPublished || state.savingDraft || state.publishing ? 'disabled' : ''}
+                  >
+                    ${state.publishing ? 'Publishing…' : 'Publish Results'}
+                  </button>
+                `
+                }
+              </div>
+            </div>
+          </div>
+        `
+        }
+
+        ${renderAuditModal()}
+      </div>
+    `;
+  }
+
+  function renderAuditModal() {
+    if (!state.auditModalOpen) return '';
+    return `
+      <div class="teach-modal-overlay open" id="slMarksAuditModal" role="dialog" aria-modal="true" aria-label="Marks Audit Log">
+        <div class="teach-modal-card" style="max-width:640px; max-height:80vh; overflow-y:auto;">
+          <div class="teach-modal-header">
+            <h3 class="teach-modal-title">Marks Audit History &middot; ${escapeHtml(state.selectedExamType)}</h3>
+            <button type="button" class="teach-modal-close" data-marks-action="close-audit" aria-label="Close">&times;</button>
+          </div>
+          ${
+            state.loadingAudit
+              ? `<div style="padding:24px; text-align:center;">Loading audit trail…</div>`
+              : state.auditLogs.length === 0
+              ? `<div style="padding:24px; text-align:center; color:var(--teach-text-secondary, #a3a3a3);">No audit entries recorded yet for this subject and exam.</div>`
+              : `
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  ${state.auditLogs
+                    .map(
+                      (log) => `
+                    <div style="padding:12px 14px; border-radius:10px; border:1px solid var(--teach-border, #2a2a2a); background:var(--teach-surface-subtle, #1c1c1c);">
+                      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;">
+                        <strong style="font-size:0.85rem;">${escapeHtml(log.action)}</strong>
+                        <span style="font-size:0.75rem; color:var(--teach-text-secondary, #a3a3a3);">${escapeHtml(formatTimestamp(log.createdAt))}</span>
+                      </div>
+                      <div style="font-size:0.8rem; color:var(--teach-text-secondary, #a3a3a3);">
+                        By: <strong>${escapeHtml(log.actorName || log.actorUserId)}</strong> (${escapeHtml(log.actorRole)})
+                        ${log.reason ? `&middot; Reason: ${escapeHtml(log.reason)}` : ''}
+                      </div>
+                    </div>
+                  `
+                    )
+                    .join('')}
+                </div>
+              `
+          }
+        </div>
+      </div>
+    `;
+  }
+
+  function render() {
+    const container = state.containerEl;
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="sl-marks-root">
+        ${state.selectedSubjectId ? renderWorkspace() : renderSubjectLanding()}
+      </div>
+    `;
+
+    bindEvents(container);
+  }
+
+  function bindEvents(container) {
+    if (!container || typeof container.querySelectorAll !== 'function') return;
+
+    container.querySelectorAll('[data-marks-select-subject]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const subjId = btn.getAttribute('data-marks-select-subject');
+        selectSubject(subjId);
+      });
+    });
+
+    container.querySelectorAll('[data-marks-select-exam]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const exam = btn.getAttribute('data-marks-select-exam');
+        selectExamType(exam);
+      });
+    });
+
+    const subjSelect = container.querySelector('[data-marks-field="subject-select"]');
+    if (subjSelect) {
+      subjSelect.addEventListener('change', (e) => {
+        const nextSubj = e.target.value;
+        if (!confirmDiscardIfDirty()) {
+          e.target.value = state.selectedSubjectId;
+          return;
+        }
+        selectSubject(nextSubj, state.selectedExamType);
+      });
+    }
+
+    const maxInput = container.querySelector('[data-marks-field="max-marks"]');
+    if (maxInput) {
+      maxInput.addEventListener('input', (e) => {
+        setMaxMarksInput(e.target.value);
+      });
+    }
+
+    const searchInput = container.querySelector('[data-marks-field="student-search"]');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        state.studentSearchQuery = e.target.value;
+        const pos = e.target.selectionStart;
+        render();
+        const nextSearch = container.querySelector('[data-marks-field="student-search"]');
+        if (nextSearch) {
+          nextSearch.focus();
+          try {
+            nextSearch.setSelectionRange(pos, pos);
+          } catch (_) {}
+        }
+      });
+    }
+
+    const reasonInput = container.querySelector('[data-marks-field="edit-reason"]');
+    if (reasonInput) {
+      reasonInput.addEventListener('input', (e) => {
+        state.editReason = e.target.value;
+      });
+    }
+
+    container.querySelectorAll('[data-marks-status-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.statusFilter = btn.getAttribute('data-marks-status-filter') || 'ALL';
+        render();
+      });
+    });
+
+    const markInputs = Array.from(container.querySelectorAll('[data-marks-student-input]'));
+    markInputs.forEach((input, idx) => {
+      input.addEventListener('input', (e) => {
+        const sId = input.getAttribute('data-marks-student-input');
+        setStudentMark(sId, e.target.value);
+      });
+      input.addEventListener('change', () => {
+        render();
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          const next = markInputs[idx + 1];
+          if (next) next.focus();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          const prev = markInputs[idx - 1];
+          if (prev) prev.focus();
+        }
+      });
+    });
+
+    const bindAction = (actionName, handler) => {
+      container.querySelectorAll(`[data-marks-action="${actionName}"]`).forEach((btn) => {
+        btn.addEventListener('click', handler);
+      });
+    };
+
+    bindAction('retry-context', () => loadContext());
+    bindAction('retry-roster', () => loadRoster());
+    bindAction('back-to-subjects', () => selectSubject(''));
+    bindAction('save-config', () => saveExamConfig());
+    bindAction('save-draft', () => saveDraft());
+    bindAction('publish-results', () => publishResults());
+    bindAction('save-published-edits', () => savePublishedEdits());
+    bindAction('discard-changes', () => {
+      discardUnsavedChanges();
+      render();
+    });
+    bindAction('enable-published-edit', () => {
+      state.isEditingPublished = true;
+      render();
+    });
+    bindAction('cancel-published-edit', () => {
+      discardUnsavedChanges();
+      render();
+    });
+    bindAction('open-audit', () => openAuditModal());
+    bindAction('close-audit', () => closeAuditModal());
+  }
+
+  async function mount(containerOrSelector, options = {}) {
+    injectStyles();
+    const el =
+      typeof containerOrSelector === 'string'
+        ? window.document.querySelector(containerOrSelector)
+        : containerOrSelector;
+    if (!el) return;
+
+    state.containerEl = el;
+
+    if (!state.beforeUnloadBound && typeof window.addEventListener === 'function') {
+      state.beforeUnloadBound = true;
+      window.addEventListener('beforeunload', (e) => {
+        if (hasUnsavedChanges()) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
+    }
+
+    if (options.examType && EXAM_TYPES.includes(options.examType)) {
+      state.selectedExamType = options.examType;
+    }
+
+    await loadContext();
+
+    if (options.subjectKey) {
+      const match = (state.subjects || []).find(
+        (s) =>
+          String(s.id).toLowerCase() === String(options.subjectKey).toLowerCase() ||
+          String(s.code).toLowerCase() === String(options.subjectKey).toLowerCase()
+      );
+      if (match) {
+        state.selectedSubjectId = match.id;
+        await loadRoster();
+      }
+    }
+  }
+
+  function unmount() {
+    state.containerEl = null;
+  }
+
+  window.TeacherMarksEntryWorkspace = {
+    EXAM_TYPES,
+    mount,
+    unmount,
+    loadContext,
+    loadRoster,
+    selectSubject,
+    selectExamType,
+    setMaxMarksInput,
+    setStudentMark,
+    saveExamConfig,
+    saveDraft,
+    publishResults,
+    savePublishedEdits,
+    openAuditModal,
+    closeAuditModal,
+    hasUnsavedChanges,
+    discardUnsavedChanges,
+    calculatePercentage,
+    getState: () => state
+  };
+})(window);

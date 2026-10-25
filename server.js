@@ -643,6 +643,14 @@ app.get(['/attendance', '/attendance.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'attendance.html'));
 });
 
+app.get(['/marks-entry', '/marks-entry.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'marks-entry.html'));
+});
+
+app.get(['/results', '/results.html'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'results.html'));
+});
+
 app.get('/about', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'about.html'));
 });
@@ -834,7 +842,9 @@ app.use(express.static(path.join(__dirname, 'public'), {
         base === 'academic-context.js' ||
         base === 'teacher-attendance.js' ||
         base === 'student-attendance.js' ||
-        base === 'attendance-drive-sync.js'
+        base === 'attendance-drive-sync.js' ||
+        base === 'teacher-marks-entry.js' ||
+        base === 'student-results.js'
       ) {
         res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
       } else {
@@ -938,6 +948,9 @@ app.use('/api/admin', require('./routes/admin-teachers')(db, requireLogin));
 app.use('/api/admin', require('./routes/admin-cohorts')(db, requireLogin));
 app.use('/api/attendance', require('./routes/attendance')(db, requireLogin));
 app.use('/api/admin/attendance', require('./routes/attendance')(db, requireLogin));
+app.use('/api/marks', require('./routes/marks')(db, requireLogin));
+app.use('/api/results', require('./routes/marks')(db, requireLogin));
+app.use('/api/admin/marks', require('./routes/marks')(db, requireLogin));
 app.use('/api/teacher/onboarding', require('./routes/teacher-onboarding'));
 
 // Direct Messaging Router (Feature flag DM_ENABLED or controlled tester allowlist DM_TEST_USER_IDS)

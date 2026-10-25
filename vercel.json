@@ -3,7 +3,7 @@
   "regions": ["iad1"],
   "headers": [
     {
-      "source": "/((?:js/)?(?:auth|auth-modal|academic-context|sw|swr|teacher-attendance|student-attendance|attendance-drive-sync)\\.js)",
+      "source": "/((?:js/)?(?:auth|auth-modal|academic-context|sw|swr|teacher-attendance|student-attendance|attendance-drive-sync|teacher-marks-entry|student-results)\\.js)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -21,7 +21,7 @@
       ]
     },
     {
-      "source": "/((?:js/)?(?:auth|auth-modal|academic-context|sw|swr|teacher-attendance|student-attendance|attendance-drive-sync)\\.js)",
+      "source": "/((?:js/)?(?:auth|auth-modal|academic-context|sw|swr|teacher-attendance|student-attendance|attendance-drive-sync|teacher-marks-entry|student-results)\\.js)",
       "headers": [
         {
           "key": "Cache-Control",

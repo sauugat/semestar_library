@@ -95,18 +95,20 @@
 
     .lib-page-wrap {
       width: 100%;
-      max-width: 1440px;
-      margin: 0 auto;
-      padding: 32px 5vw 80px;
+      max-width: none;
+      margin: 0;
+      padding: 28px 6vw 80px;
       box-sizing: border-box;
     }
 
     /* Apple Obsidian Black Hero Box for Library */
     .lib-top-bar.dash-hero.cl-animated-hero {
       position: relative;
-      margin: 0 0 28px;
-      padding: 34px 40px;
-      min-height: 148px;
+      width: 100%;
+      max-width: none;
+      margin: 0 0 28px !important;
+      padding: 34px 40px !important;
+      min-height: 148px !important;
       background: #0d0d0f !important;
       border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
       border-radius: var(--ap-radius-hero, 26px);
@@ -239,7 +241,11 @@
     }
 
     @media (max-width: 768px) {
+      .lib-page-wrap {
+        padding: 14px 12px 60px !important;
+      }
       .lib-top-bar.dash-hero.cl-animated-hero {
+        margin: 0 0 16px !important;
         padding: 18px 16px !important;
         min-height: auto !important;
         flex-direction: column !important;

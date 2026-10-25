@@ -60,9 +60,11 @@
   <style>
     body.dash .dash-hero.cl-animated-hero {
       position: relative;
-      margin: 0 0 28px;
-      padding: 34px 40px;
-      min-height: 148px;
+      width: auto !important;
+      max-width: none !important;
+      margin: 28px 6vw 0 !important;
+      padding: 34px 40px !important;
+      min-height: 148px !important;
       background: #0d0d0f !important;
       border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
       border-radius: var(--ap-radius-hero, 26px);
@@ -119,10 +121,7 @@
       line-height: 1.05;
     }
     .dash-hero .routine-description {
-      color: rgba(255, 255, 255, 0.72) !important;
-      font-size: 13.5px;
-      margin: 6px 0 0;
-      line-height: 1.45;
+      display: none !important;
     }
     .dash-hero-actions {
       position: relative;
@@ -176,6 +175,7 @@
     }
     @media (max-width: 768px) {
       body.dash .dash-hero.cl-animated-hero {
+        margin: 14px 12px 0 !important;
         padding: 18px 16px !important;
         min-height: auto !important;
         flex-direction: column !important;
@@ -236,38 +236,38 @@
   </header>
 
 
-  <main class="routine-container">
+  <!-- APPLE OBSIDIAN HERO BOX -->
+  <section class="dash-hero cl-animated-hero" id="routineHeroBanner">
+    <div class="dash-hero-content">
+      <p class="routine-eyebrow cl-hero-kicker">
+        BIT · EXAMINATION ROUTINE
+      </p>
+      <h1 class="cl-hero-title">Examination Schedule</h1>
+      <p class="routine-description">
+        Examination schedule for BIT students. Select your semester to view examination dates and subjects.
+      </p>
+    </div>
 
-    <!-- APPLE OBSIDIAN HERO BOX -->
-    <section class="dash-hero cl-animated-hero routine-heading" id="routineHeroBanner">
-      <div class="dash-hero-content">
-        <p class="routine-eyebrow cl-hero-kicker">
-          BIT · EXAMINATION ROUTINE
-        </p>
-        <h1 class="cl-hero-title">Examination Schedule</h1>
-        <p class="routine-description">
-          Examination schedule for BIT students. Select your semester to view examination dates and subjects.
-        </p>
-      </div>
-
-      <div class="dash-hero-actions">
-        <div class="exam-info">
-          <div class="exam-info-item">
-            <span class="info-label">Routine</span>
-            <strong id="routineYears">—</strong>
-          </div>
-          <div class="exam-info-item">
-            <span class="info-label">Program</span>
-            <strong>BIT</strong>
-          </div>
-          <div class="exam-info-item">
-            <span class="info-label">Semesters</span>
-            <strong id="routineSemesters">—</strong>
-          </div>
+    <div class="dash-hero-actions">
+      <div class="exam-info">
+        <div class="exam-info-item">
+          <span class="info-label">Routine</span>
+          <strong id="routineYears">—</strong>
         </div>
-        <a href="#adminRoutinePanel" class="routine-btn" id="routineAdminLink" hidden>Manage routine</a>
+        <div class="exam-info-item">
+          <span class="info-label">Program</span>
+          <strong>BIT</strong>
+        </div>
+        <div class="exam-info-item">
+          <span class="info-label">Semesters</span>
+          <strong id="routineSemesters">—</strong>
+        </div>
       </div>
-    </section>
+      <a href="#adminRoutinePanel" class="routine-btn" id="routineAdminLink" hidden>Manage routine</a>
+    </div>
+  </section>
+
+  <main class="routine-container">
 
 
     <!-- Filters include all semesters, even when no exam has been published. -->

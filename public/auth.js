@@ -619,12 +619,17 @@
       if (typeof window !== 'undefined' && window.SWR && typeof window.SWR.clearAll === 'function') {
         window.SWR.clearAll();
       }
+      if (typeof window !== 'undefined' && window.dmClient && typeof window.dmClient.clearAccountData === 'function') {
+        window.dmClient.clearAccountData();
+      }
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.removeItem('sl_user_cache_v1');
         window.localStorage.removeItem('sl_user_cache_v2');
+        window.localStorage.removeItem('kyana_chat_sessions_v1');
+        window.localStorage.removeItem('kyana_active_session_id');
         for (let i = window.localStorage.length - 1; i >= 0; i--) {
           const key = window.localStorage.key(i);
-          if (key && (key.startsWith('sb-') || key.startsWith('sl_swr:') || key.startsWith('sl_user_cache_') || key.includes('auth-token') || key.includes('academic_context'))) {
+          if (key && (key.startsWith('sb-') || key.startsWith('sl_swr:') || key.startsWith('sl_user_cache_') || key.startsWith('kyana_chat_sessions_') || key.includes('auth-token') || key.includes('academic_context'))) {
             window.localStorage.removeItem(key);
           }
         }

@@ -5,6 +5,7 @@ import { clearChatDb } from '@/services/chat-db';
 import { disconnectChatRealtime } from '@/services/chat-realtime';
 import { clearAllDmCache } from '@/services/dm-db';
 import { disconnectAllDmRealtime } from '@/services/dm-realtime';
+import { clearCachedKyanaMessages } from '@/services/kyana-db';
 import { invalidateChatSession, beginChatSession } from '@/services/chat-session';
 import { clearAppQueryCache } from '@/services/query-client';
 import { getAutoDetectedServerUrl, getBaseUrl, isTrustedServerUrl, DEFAULT_SERVER_URL, addSuspensionListener } from '@/services/api';
@@ -99,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       disconnectAllDmRealtime();
       await clearChatDb({ preservePending: true });
       await clearAllDmCache();
+      await clearCachedKyanaMessages();
       await clearAppQueryCache();
       setToken(null);
       setUser(null);
@@ -181,6 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 disconnectAllDmRealtime();
                 await clearChatDb({ preservePending: true });
                 await clearAllDmCache();
+                await clearCachedKyanaMessages();
                 await clearAppQueryCache();
                 if (isMounted) {
                   setToken(null);
@@ -244,6 +247,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         disconnectAllDmRealtime();
         await clearChatDb();
         await clearAllDmCache();
+        await clearCachedKyanaMessages();
         await clearAppQueryCache();
         await SecureStore.setItemAsync(TOKEN_KEY, data.token);
         if (data.user) {
@@ -479,6 +483,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       disconnectAllDmRealtime();
       await clearChatDb();
       await clearAllDmCache();
+      await clearCachedKyanaMessages();
       await clearAppQueryCache();
       resetNotificationNavigationState();
     } catch (e) {
@@ -511,6 +516,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       SecureStore.deleteItemAsync(USER_KEY),
       clearChatDb(),
       clearAllDmCache(),
+      clearCachedKyanaMessages(),
       SecureStore.setItemAsync(SERVER_URL_KEY, sanitized),
     ]);
 
@@ -525,6 +531,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     disconnectAllDmRealtime();
     await clearChatDb();
     await clearAllDmCache();
+    await clearCachedKyanaMessages();
     await clearAppQueryCache();
     await SecureStore.setItemAsync(TOKEN_KEY, newToken);
     if (newUser) {

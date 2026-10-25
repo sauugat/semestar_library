@@ -3,7 +3,7 @@ const path = require('path');
 
 // --- 1. Environment Variables Loader (.env) ---
 function loadEnvSafely() {
-  if (process.env.QA_MODE === 'true') return;
+  if (process.env.QA_MODE === 'true' || process.env.NODE_ENV === 'test') return;
   try {
     const envPath = path.join(__dirname, '.env');
     if (fs.existsSync(envPath)) {

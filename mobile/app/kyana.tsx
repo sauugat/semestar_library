@@ -39,7 +39,6 @@ import {
   type KyanaResourceCard,
 } from '@/services/kyana';
 import {
-  saveCachedKyanaMessages,
   clearCachedKyanaMessages,
 } from '@/services/kyana-db';
 
@@ -204,7 +203,6 @@ export default function KyanaChatScreen() {
             const data = await fetchKyanaConversationMessages(activeConv.id);
             if (isMounted && data?.messages) {
               setMessages(data.messages);
-              await saveCachedKyanaMessages(studentId, activeConv.id, data.messages);
             }
           } catch (_) {}
         }
@@ -287,13 +285,7 @@ export default function KyanaChatScreen() {
           status: 'sent',
         };
 
-        setMessages(prev => {
-          const updated = [...prev, assistantMsg];
-          if (conversation?.id) {
-            void saveCachedKyanaMessages(studentId, conversation.id, updated);
-          }
-          return updated;
-        });
+        setMessages(prev => [...prev, assistantMsg]);
 
         if (finalResponse.conversationId && (!conversation || conversation.id !== finalResponse.conversationId)) {
           setConversation(prev =>

@@ -7,7 +7,8 @@ const ID = '005-direct-messaging-schema';
  * Supports PostgreSQL (Neon) and SQLite (disposable test fixtures).
  */
 async function migrateDirectMessaging(db, { disposable = false } = {}) {
-  if (process.env.NODE_ENV !== 'test' && !disposable && process.env.DM_MIGRATION_ALLOWED !== '1') {
+  const { isVerifiedQaEnvironment } = require('../lib/qa-guard');
+  if (process.env.NODE_ENV !== 'test' && !disposable && process.env.DM_MIGRATION_ALLOWED !== '1' && !isVerifiedQaEnvironment()) {
     throw new Error('Direct messaging migration requires explicit authorization or test environment');
   }
 

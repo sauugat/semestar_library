@@ -1,5 +1,6 @@
 const express = require('express');
-if (process.env.COHORT_CHAT_LOCAL === '1' && process.env.NODE_ENV !== 'test') {
+const { isVerifiedQaEnvironment } = require('./lib/qa-guard');
+if (process.env.COHORT_CHAT_LOCAL === '1' && process.env.NODE_ENV !== 'test' && !isVerifiedQaEnvironment()) {
   throw new Error('COHORT_CHAT_LOCAL requires NODE_ENV=test');
 }
 

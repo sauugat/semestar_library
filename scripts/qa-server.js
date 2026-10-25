@@ -13,6 +13,7 @@
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
+const crypto = require('crypto');
 
 // 1. Enforce isolated QA environment variables BEFORE importing db or server
 if (!process.env.QA_MODE) process.env.QA_MODE = 'true';
@@ -21,26 +22,23 @@ if (!process.env.DB_PATH) process.env.DB_PATH = path.join(__dirname, '..', 'data
 if (!process.env.EXPO_PUSH_DISABLED) process.env.EXPO_PUSH_DISABLED = 'true';
 if (!process.env.TEACHER_ONBOARDING_ENABLED) process.env.TEACHER_ONBOARDING_ENABLED = 'false';
 if (!process.env.DM_ENABLED) process.env.DM_ENABLED = 'false';
+if (!process.env.COHORT_CHAT_LOCAL) process.env.COHORT_CHAT_LOCAL = '1';
+if (!process.env.DM_TEST_USER_IDS) {
+  process.env.DM_TEST_USER_IDS = '99000001,99000002,99000003,99000004';
+}
 if (!process.env.GAMES_TICKET_SECRET) {
-  process.env.GAMES_TICKET_SECRET = 'a4e77ce00af1a3ed954c7b0a5b370eb07ed6bbac2e212be20bd3587136014f5b';
+  process.env.GAMES_TICKET_SECRET = crypto.randomBytes(32).toString('hex');
 }
 
-// Strip any external/production secrets from memory to prevent accidental calls
-delete process.env.DATABASE_URL;
-delete process.env.POSTGRES_URL;
-delete process.env.PGHOST;
-delete process.env.SUPABASE_URL;
-delete process.env.NEXT_PUBLIC_SUPABASE_URL;
-delete process.env.SUPABASE_ANON_KEY;
-delete process.env.SUPABASE_SECRET_KEY;
+// 2. Run fail-closed QA safety guard BEFORE importing any module or stripping unsafe env vars
+const { assertSafeQaEnvironment } = require('../lib/qa-guard');
+assertSafeQaEnvironment();
+
+// Strip any external AI or optional keys from memory after guard passes
 delete process.env.GROQ_API_KEY;
 delete process.env.GEMINI_API_KEY;
 delete process.env.DEEPSEEK_API_KEY;
 delete process.env.OPENROUTER_API_KEY;
-
-// 2. Run fail-closed QA safety guard
-const { assertSafeQaEnvironment } = require('../lib/qa-guard');
-assertSafeQaEnvironment();
 
 const db = require('../db');
 const { seedQa } = require('./seed-qa');

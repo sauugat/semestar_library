@@ -221,7 +221,7 @@ test('8. Push Notifications: Outbound batch is mocked safely in QA mode', async 
 // SECTION 3: SEED SCRIPT IDEMPOTENCY & TEST ACCOUNTS
 // ====================================================================
 
-test('9. Seed Idempotency: Re-running seedQa does not duplicate or fail', async () => {
+test('9. Seed Idempotency: Re-running seedQa does not duplicate or fail and creates complete chat & DM schema', async () => {
   await assert.doesNotReject(async () => {
     await seedQa(db);
   });
@@ -231,6 +231,65 @@ test('9. Seed Idempotency: Re-running seedQa does not duplicate or fail', async 
 
   const subjectsCount = await db.get("SELECT COUNT(*) AS c FROM subjects WHERE id LIKE 'sub_cs%'");
   assert.equal(Number(subjectsCount.c), 3, 'Must have exactly 3 canonical QA subjects');
+
+  // Verify cohort chat columns and tables
+  const chatCols = (await db.all('PRAGMA table_info(chat_messages)')).map(c => c.name);
+  assert.ok(chatCols.includes('chat_group_id'), 'chat_messages must have chat_group_id');
+  assert.ok(chatCols.includes('client_id'), 'chat_messages must have client_id');
+
+  const tables = (await db.all("SELECT name FROM sqlite_master WHERE type='table'")).map(r => r.name);
+  for (const requiredTable of [
+    'chat_send_keys',
+    'chat_realtime_outbox',
+    'chat_group_slots',
+    'dm_conversations',
+    'dm_participants',
+    'dm_messages',
+    'dm_message_deletions',
+    'dm_blocks',
+    'dm_reports',
+    'dm_rate_limits',
+    'dm_realtime_outbox',
+  ]) {
+    assert.ok(tables.includes(requiredTable), `Seeded QA database must contain table ${requiredTable}`);
+  }
+});
+
+test('9b. QA Guard & Gates: NODE_ENV=production + QA_MODE=true refuses, and non-local DB/Supabase URLs refuse', async () => {
+  const { isVerifiedQaEnvironment } = require('../lib/qa-guard');
+  const { migrateCohortChat } = require('../migrations/002-cohort-chat');
+
+  // NODE_ENV=production + QA_MODE=true must refuse
+  assert.throws(
+    () => assertSafeQaEnvironment({ QA_MODE: 'true', NODE_ENV: 'production', DB_PATH: '/tmp/qa.db' }),
+    (err) => err.code === 'QA_GUARD_VIOLATION'
+  );
+  assert.equal(isVerifiedQaEnvironment({ QA_MODE: 'true', NODE_ENV: 'production', DB_PATH: '/tmp/qa.db' }), false);
+
+  // Remote DB_PATH or non-local Supabase URL must refuse
+  assert.throws(
+    () => assertSafeQaEnvironment({ QA_MODE: 'true', NODE_ENV: 'qa', DB_PATH: 'postgres://localhost:5432/db' }),
+    (err) => err.code === 'QA_GUARD_VIOLATION'
+  );
+  assert.throws(
+    () => assertSafeQaEnvironment({ QA_MODE: 'true', NODE_ENV: 'qa', COHORT_SUPABASE_URL: 'https://proj.supabase.co' }),
+    (err) => err.code === 'QA_GUARD_VIOLATION'
+  );
+
+  // Restore verified QA environment state for current process
+  assertSafeQaEnvironment(process.env);
+
+  // Verify migrateCohortChat throws when NODE_ENV=production even if QA_MODE=true
+  const prevNodeEnv = process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV = 'production';
+    await assert.rejects(
+      () => migrateCohortChat(db, { disposable: true }),
+      /Phase 2A migration requires NODE_ENV=test/
+    );
+  } finally {
+    process.env.NODE_ENV = prevNodeEnv;
+  }
 });
 
 // ====================================================================

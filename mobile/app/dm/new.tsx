@@ -98,11 +98,15 @@ export default function NewDmScreen() {
     setStarting(true);
     Keyboard.dismiss();
     try {
-      const { conversation } = await createOrGetDmConversation(targetUser.studentId);
+      const data = await createOrGetDmConversation(targetUser.studentId);
+      const convId = data?.conversation?.id || data?.conversationId;
+      if (!convId) {
+        throw new Error('Could not start conversation');
+      }
       router.replace({
         pathname: '/dm/[id]',
         params: {
-          id: conversation.id,
+          id: convId,
           peerName: targetUser.name,
           peerRole: targetUser.role,
           peerAvatar: targetUser.avatarUrl || '',

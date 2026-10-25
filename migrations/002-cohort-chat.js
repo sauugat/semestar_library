@@ -1,11 +1,12 @@
 'use strict';
 const { randomUUID } = require('node:crypto');
+const { isVerifiedQaEnvironment } = require('../lib/qa-guard');
 const ID = '002-cohort-chat-local';
 const CODES = ['MERCURY', 'VENUS', 'EARTH', 'MARS'];
 
 // Explicitly invoked on disposable fixtures only; never imported by initSchema.
 async function migrateCohortChat(db, { disposable = false } = {}) {
-  if (!disposable || process.env.NODE_ENV !== 'test') throw new Error('Phase 2A migration requires NODE_ENV=test and an explicit disposable fixture');
+  if (!disposable || (process.env.NODE_ENV !== 'test' && !isVerifiedQaEnvironment())) throw new Error('Phase 2A migration requires NODE_ENV=test and an explicit disposable fixture');
   return db.withTransaction(async tx => {
     if (tx.isPostgres) await tx.get('SELECT pg_advisory_xact_lock(741002)');
     await tx.exec('CREATE TABLE IF NOT EXISTS schema_migrations (id TEXT PRIMARY KEY, applied_at TEXT DEFAULT CURRENT_TIMESTAMP)');

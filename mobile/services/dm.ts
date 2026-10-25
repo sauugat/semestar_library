@@ -63,6 +63,10 @@ export interface DmRealtimeConfig {
 export interface DmSyncDelta {
   conversationId: string;
   peerLastReadMessageId: number;
+  readCursor?: {
+    callerLastReadMessageId: number;
+    peerLastReadMessageId: number;
+  };
   messages: DmMessage[];
   edits: { messageId: number; text: string; editedAt: string }[];
   deletions: { messageId: number; deletedAt: string }[];
@@ -91,7 +95,7 @@ export async function fetchDmConversations(limit = 40, offset = 0): Promise<DmCo
   }));
 }
 
-export async function createOrGetDmConversation(targetUserId: string): Promise<{ conversation: DmConversationItem; isNew: boolean }> {
+export async function createOrGetDmConversation(targetUserId: string): Promise<{ conversation: DmConversationItem; conversationId?: string; isNew: boolean }> {
   const res = await apiFetch('/api/dm/conversations', {
     method: 'POST',
     body: JSON.stringify({ targetUserId }),
@@ -100,7 +104,28 @@ export async function createOrGetDmConversation(targetUserId: string): Promise<{
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || 'Failed to start conversation');
   }
-  return await res.json();
+  const data = await res.json();
+  const rawConv = data.conversation || {
+    id: data.conversationId,
+    participant: data.participant,
+    isBlocked: Boolean(data.isBlockedByCaller || data.isBlockedByPeer),
+    isBlockedByCaller: Boolean(data.isBlockedByCaller),
+    isBlockedByPeer: Boolean(data.isBlockedByPeer),
+  };
+  const conversation: DmConversationItem = {
+    ...rawConv,
+    id: rawConv.id || data.conversationId,
+    unreadCount: Number(rawConv.unreadCount || 0),
+    blocked: Boolean(rawConv.blocked ?? rawConv.isBlocked),
+    blockedByMe: Boolean(rawConv.blockedByMe ?? rawConv.isBlockedByCaller),
+    blockedByPeer: Boolean(rawConv.blockedByPeer ?? rawConv.isBlockedByPeer),
+  };
+  return {
+    ...data,
+    conversation,
+    conversationId: conversation.id,
+    isNew: Boolean(data.isNew),
+  };
 }
 
 export async function searchDmUsers(query: string, limit = 20): Promise<DmParticipant[]> {
@@ -174,7 +199,18 @@ export async function editDmMessage(
     throw new Error(err.message || 'Failed to edit message');
   }
   const data = await res.json();
-  return data.message;
+  if (data?.message) {
+    return data.message;
+  }
+  return {
+    id: Number(data?.messageId ?? messageId),
+    conversationId,
+    senderId: '',
+    text: data?.text ?? text,
+    isEdited: true,
+    editedAt: data?.editedAt || new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  };
 }
 
 export async function deleteDmMessage(
@@ -299,5 +335,12 @@ export async function syncDmConversation(
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || 'Failed to sync conversation');
   }
-  return await res.json();
+  const data = await res.json();
+  const peerLastReadMessageId = Number(
+    data?.readCursor?.peerLastReadMessageId ?? data?.peerLastReadMessageId ?? 0
+  );
+  return {
+    ...data,
+    peerLastReadMessageId,
+  };
 }

@@ -3,9 +3,9 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 
-// Load environment variables if .env exists (shielded when isolated QA mode is active)
+// Load environment variables if .env exists (shielded when isolated QA or test mode is active)
 try {
-  if (process.env.QA_MODE !== 'true') {
+  if (process.env.QA_MODE !== 'true' && process.env.NODE_ENV !== 'test') {
     const envPath = path.join(__dirname, '.env');
     if (fs.existsSync(envPath)) {
       const content = fs.readFileSync(envPath, 'utf8');
@@ -23,6 +23,30 @@ try {
     }
   }
 } catch (e) { }
+
+if (process.env.NODE_ENV === 'test') {
+  const { isProductionDatabaseUrl, isProductionSupabaseUrl } = require('./lib/qa-guard');
+  const remoteDbVars = [
+    process.env.DATABASE_URL,
+    process.env.POSTGRES_URL,
+    process.env.DIRECT_URL,
+    process.env.DATABASE_URL_UNPOOLED,
+    process.env.POSTGRES_URL_NON_POOLING,
+    process.env.PGHOST,
+    process.env.TURSO_DATABASE_URL,
+    process.env.LIBSQL_URL,
+  ];
+  const remoteSupaVars = [
+    process.env.SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.COHORT_SUPABASE_URL,
+    process.env.COHORT_REALTIME_SUPABASE_URL,
+    process.env.DM_SUPABASE_URL,
+  ];
+  if (remoteDbVars.some(u => isProductionDatabaseUrl(u)) || remoteSupaVars.some(u => isProductionSupabaseUrl(u))) {
+    throw new Error('[Test Safety Guard]: Remote Postgres/Supabase URL detected while NODE_ENV=test. Refusing to initialize db.js.');
+  }
+}
 
 const isTest = process.env.NODE_ENV === 'test';
 const isQa = process.env.QA_MODE === 'true';

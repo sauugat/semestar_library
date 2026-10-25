@@ -2,13 +2,15 @@
 
 const fs = require('fs');
 const path = require('path');
-for (const envFile of ['.env.local', '.env']) {
-  const fullPath = path.resolve(process.cwd(), envFile);
-  if (fs.existsSync(fullPath)) {
-    try { process.loadEnvFile(fullPath); } catch (_) {}
+if (process.env.KYANA_LIVE_TEST === '1') {
+  for (const envFile of ['.env.local', '.env']) {
+    const fullPath = path.resolve(process.cwd(), envFile);
+    if (fs.existsSync(fullPath)) {
+      try { process.loadEnvFile(fullPath); } catch (_) {}
+    }
   }
+  process.env.ENABLE_LIVE_GEMINI_IN_TESTS = 'true';
 }
-process.env.ENABLE_LIVE_GEMINI_IN_TESTS = 'true';
 
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');

@@ -186,7 +186,7 @@ function DmConversation() {
   const [selectedActionMessage, setSelectedActionMessage] = useState<DmMessage | null>(null);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [reportModalVisible, setReportModalVisible] = useState(false);
-  const [reportReason, setReportReason] = useState('HARASSMENT');
+  const [reportReason, setReportReason] = useState('harassment');
   const [reportDescription, setReportDescription] = useState('');
   const [submittingReport, setSubmittingReport] = useState(false);
 
@@ -503,10 +503,18 @@ function DmConversation() {
       setSending(true);
       try {
         const updated = await editDmMessage(conversationId, msgId, text);
+        const mergedMsg: DmMessage = {
+          ...editingMessage,
+          ...(updated || {}),
+          id: msgId,
+          text: updated?.text ?? text,
+          isEdited: true,
+          editedAt: updated?.editedAt || new Date().toISOString(),
+        };
         setMessages((prev) =>
-          prev.map((m) => (m.id === msgId ? updated : m))
+          prev.map((m) => (m.id === msgId ? { ...m, ...mergedMsg, senderId: m.senderId || mergedMsg.senderId, createdAt: m.createdAt || mergedMsg.createdAt } : m))
         );
-        void updateCachedDmMessage(currentUserId, conversationId, updated);
+        void updateCachedDmMessage(currentUserId, conversationId, mergedMsg);
         setEditingMessage(null);
         setInputText('');
       } catch (err: any) {
@@ -742,7 +750,7 @@ function DmConversation() {
   const handleOpenReportModal = () => {
     setSettingsModalVisible(false);
     setSelectedActionMessage(null);
-    setReportReason('HARASSMENT');
+    setReportReason('harassment');
     setReportDescription('');
     setReportModalVisible(true);
   };
@@ -1421,7 +1429,7 @@ function DmConversation() {
               Select a reason for this report:
             </Text>
 
-            {(['HARASSMENT', 'SPAM', 'INAPPROPRIATE', 'OTHER'] as const).map((reason) => (
+            {(['harassment', 'spam', 'inappropriate_content', 'other'] as const).map((reason) => (
               <TouchableOpacity
                 key={reason}
                 style={[

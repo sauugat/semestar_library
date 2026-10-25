@@ -86,6 +86,10 @@
       this.lastTypingSentAt = 0;
       this.realtimeChannel = null;
       this.supabaseClient = null;
+      this.realtimeTimer = null;
+      this.realtimeRetry = 0;
+      this.realtimeAttempt = 0;
+      this.seenEventIds = new Set();
       this.peerLastReadMessageId = 0;
       this.isOnline = navigator.onLine !== false;
 
@@ -412,7 +416,12 @@
         const res = await fetch('/api/dm/conversations?limit=40', { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to load conversations');
         const data = await res.json();
-        this.conversations = data.conversations || [];
+        this.conversations = (data.conversations || []).map(c => ({
+          ...c,
+          blocked: Boolean(c.blocked ?? c.isBlocked ?? (c.isBlockedByCaller || c.isBlockedByPeer)),
+          blockedByMe: Boolean(c.blockedByMe ?? c.isBlockedByCaller),
+          blockedByPeer: Boolean(c.blockedByPeer ?? c.isBlockedByPeer),
+        }));
         this.renderConversationList(this.conversations);
         this.updateTotalUnreadBadge();
       } catch (err) {
@@ -554,6 +563,9 @@
         return this.selectConversation(convId);
       }
 
+      conv.blocked = Boolean(conv.blocked ?? conv.isBlocked ?? (conv.isBlockedByCaller || conv.isBlockedByPeer));
+      conv.blockedByMe = Boolean(conv.blockedByMe ?? conv.isBlockedByCaller);
+      conv.blockedByPeer = Boolean(conv.blockedByPeer ?? conv.isBlockedByPeer);
       this.activeConversation = conv;
       this.peerLastReadMessageId = Number(conv.participant?.lastReadMessageId || 0);
 
@@ -669,6 +681,72 @@
       }
     }
 
+    // --- Outbox Persistence (origin::studentId::conversationId) ---
+    getOutboxKey(convId) {
+      if (!this.currentUser || !this.currentUser.studentId || !convId) return null;
+      const origin = (root.location && root.location.origin) ? root.location.origin : (root.location && root.location.protocol && root.location.host ? `${root.location.protocol}//${root.location.host}` : 'http://localhost');
+      return `${origin}::${this.currentUser.studentId}::${convId}`;
+    }
+
+    readOutbox(convId) {
+      const key = this.getOutboxKey(convId);
+      if (!key || !root.localStorage) return [];
+      try {
+        const raw = root.localStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    writeOutbox(convId, items) {
+      const key = this.getOutboxKey(convId);
+      if (!key || !root.localStorage) return;
+      try {
+        if (!items || items.length === 0) {
+          root.localStorage.removeItem(key);
+        } else {
+          root.localStorage.setItem(key, JSON.stringify(items));
+        }
+      } catch {}
+    }
+
+    saveOutboxMessage(convId, msg) {
+      if (!convId || !msg || !msg.clientId) return;
+      const list = this.readOutbox(convId);
+      const idx = list.findIndex(m => m.clientId === msg.clientId);
+      if (idx !== -1) list[idx] = msg;
+      else list.push(msg);
+      this.writeOutbox(convId, list);
+    }
+
+    removeOutboxMessage(convId, clientId) {
+      if (!convId || !clientId) return;
+      const list = this.readOutbox(convId).filter(m => m.clientId !== clientId);
+      this.writeOutbox(convId, list);
+    }
+
+    mergeOutboxWithMessages(convId, serverMessages) {
+      const base = Array.isArray(serverMessages) ? serverMessages.slice() : [];
+      const outbox = this.readOutbox(convId);
+      if (!outbox.length) return base;
+      const confirmedClientIds = new Set(base.map(m => m.clientId).filter(Boolean));
+      const remainingOutbox = [];
+      for (const item of outbox) {
+        if (item.clientId && confirmedClientIds.has(item.clientId)) {
+          continue;
+        }
+        const restored = { ...item, status: this.pendingSends.has(item.clientId) ? 'pending' : 'failed', isOptimistic: true };
+        remainingOutbox.push(restored);
+        if (!base.some(m => m.clientId === restored.clientId || m.id === restored.id)) {
+          base.push(restored);
+        }
+      }
+      this.writeOutbox(convId, remainingOutbox);
+      return base;
+    }
+
     // --- Message History ---
     async loadMessages(convId) {
       if (this.isLoadingMessages) return;
@@ -687,13 +765,20 @@
         const res = await fetch(`/api/dm/conversations/${encodeURIComponent(convId)}/messages?limit=40`, { cache: 'no-store' });
         if (!res.ok) throw new Error('Failed to load message history');
         const data = await res.json();
-        this.messages = data.messages || [];
+        this.messages = this.mergeOutboxWithMessages(convId, data.messages || []);
         this.hasMore = Boolean(data.hasMore);
+        if (typeof data.peerLastReadMessageId === 'number' && data.peerLastReadMessageId > this.peerLastReadMessageId) {
+          this.peerLastReadMessageId = data.peerLastReadMessageId;
+        }
         this.renderTimeline();
         this.scrollToBottom(false);
       } catch (err) {
         console.error('[DM] Messages fetch error:', err);
-        if (el.timeline) {
+        const outboxOnly = this.mergeOutboxWithMessages(convId, []);
+        if (outboxOnly.length > 0) {
+          this.messages = outboxOnly;
+          this.renderTimeline();
+        } else if (el.timeline) {
           el.timeline.innerHTML = `
             <div class="dm-empty-inbox">
               <div class="dm-empty-title">Error loading messages</div>
@@ -800,13 +885,36 @@
       if (isSamePrev) rowClass += ' same-prev';
       if (isSameNext) rowClass += ' same-next';
 
-      // Read status (Seen vs Sent)
+      const isFailed = msg.status === 'failed';
+      const isPending = msg.status === 'pending';
+      if (isFailed) rowClass += ' failed';
+      if (isPending) rowClass += ' pending';
+
+      // Read status (Seen vs Sent vs Pending vs Failed)
       let readReceiptHtml = '';
       if (isSelf && !isDeleted) {
-        const isSeen = Number(this.peerLastReadMessageId) >= Number(msg.id);
-        readReceiptHtml = isSeen
-          ? `<span class="dm-read-status seen" title="Seen">✓✓</span>`
-          : `<span class="dm-read-status sent" title="Sent">✓</span>`;
+        if (isFailed) {
+          readReceiptHtml = `<span class="dm-read-status failed" title="Failed to send">!</span>`;
+        } else if (isPending) {
+          readReceiptHtml = `<span class="dm-read-status pending" title="Sending">…</span>`;
+        } else {
+          const isSeen = Number(this.peerLastReadMessageId) >= Number(msg.id);
+          readReceiptHtml = isSeen
+            ? `<span class="dm-read-status seen" title="Seen">✓✓</span>`
+            : `<span class="dm-read-status sent" title="Sent">✓</span>`;
+        }
+      }
+
+      let failedActionsHtml = '';
+      if (isSelf && isFailed && msg.clientId) {
+        const safeClientId = escapeHtml(msg.clientId);
+        failedActionsHtml = `
+          <div class="dm-failed-actions">
+            <span class="dm-failed-label">Failed to send</span>
+            <button type="button" class="dm-retry-btn" onclick="window.dmClient.retryFailedMessage('${safeClientId}')">Retry</button>
+            <button type="button" class="dm-discard-btn" onclick="window.dmClient.discardFailedMessage('${safeClientId}')">Discard</button>
+          </div>
+        `;
       }
 
       // Reply Quote Block
@@ -824,7 +932,7 @@
 
       // Actions Menu (Hover/Tap)
       let actionsHtml = '';
-      if (!isDeleted) {
+      if (!isDeleted && !isFailed && !isPending) {
         actionsHtml = `
           <div class="dm-msg-actions">
             <button type="button" class="dm-action-btn" title="Reply" onclick="window.dmClient.startReply(${msg.id})">
@@ -852,16 +960,17 @@
         : `${replyQuoteHtml}<span class="dm-bubble-text">${escapeHtml(msg.text)}</span>`;
 
       return `
-        <div class="dm-msg-row ${rowClass}" id="dmMsgRow_${msg.id}" data-msg-id="${msg.id}">
+        <div class="dm-msg-row ${rowClass}" id="dmMsgRow_${msg.id}" data-msg-id="${msg.id}" data-client-id="${escapeHtml(msg.clientId || '')}">
           <div class="dm-msg-bubble-wrap">
             ${actionsHtml}
-            <div class="dm-bubble ${isDeleted ? 'deleted' : ''}">
+            <div class="dm-bubble ${isDeleted ? 'deleted' : ''} ${isFailed ? 'failed' : ''}">
               ${bubbleContent}
               <div class="dm-bubble-meta">
                 ${isEdited && !isDeleted ? `<span class="dm-edited-tag">(edited)</span>` : ''}
                 <span>${escapeHtml(formatTime(msg.createdAt))}</span>
                 ${readReceiptHtml}
               </div>
+              ${failedActionsHtml}
             </div>
           </div>
         </div>
@@ -965,6 +1074,7 @@
         senderName: this.currentUser.name,
         clientId,
         text: rawText,
+        replyToId,
         replyTo: this.replyingTo ? {
           id: this.replyingTo.id,
           text: this.replyingTo.text,
@@ -974,7 +1084,11 @@
         deletedForAll: false,
         createdAt: new Date().toISOString(),
         isOptimistic: true,
+        status: 'pending',
       };
+
+      // Persist to outbox before network dispatch
+      this.saveOutboxMessage(convId, optimisticMsg);
 
       // Render optimistic message immediately
       this.messages.push(optimisticMsg);
@@ -987,14 +1101,28 @@
       if (el.sendBtn) el.sendBtn.disabled = true;
       this.cancelComposerContext();
 
+      return this.dispatchOutboxMessage(convId, optimisticMsg);
+    }
+
+    async dispatchOutboxMessage(convId, optimisticMsg) {
+      const clientId = optimisticMsg.clientId;
+      if (!clientId || this.pendingSends.has(clientId)) return;
+      this.pendingSends.set(clientId, { optimisticMsg, timestamp: Date.now() });
+
+      optimisticMsg.status = 'pending';
+      this.saveOutboxMessage(convId, optimisticMsg);
+      if (this.activeConversation && this.activeConversation.id === convId) {
+        this.renderTimeline();
+      }
+
       try {
         const res = await fetch(`/api/dm/conversations/${encodeURIComponent(convId)}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             clientId,
-            text: rawText,
-            replyToId,
+            text: optimisticMsg.text,
+            replyToId: optimisticMsg.replyToId ?? (optimisticMsg.replyTo ? optimisticMsg.replyTo.id : null),
           }),
         });
 
@@ -1004,28 +1132,55 @@
         }
 
         const data = await res.json();
-        const serverMsg = data.message;
+        const serverMsg = { ...(data.message || {}), status: 'sent' };
 
-        // Replace optimistic message with confirmed server message
-        const idx = this.messages.findIndex(m => m.clientId === clientId || m.id === optimisticMsg.id);
-        if (idx !== -1) {
-          this.messages[idx] = serverMsg;
-        } else {
-          this.messages.push(serverMsg);
+        this.removeOutboxMessage(convId, clientId);
+
+        if (this.activeConversation && this.activeConversation.id === convId) {
+          const idx = this.messages.findIndex(m => m.clientId === clientId || m.id === optimisticMsg.id);
+          if (idx !== -1) {
+            this.messages[idx] = serverMsg;
+          } else {
+            this.messages.push(serverMsg);
+          }
+          this.renderTimeline();
         }
 
-        // Re-render to finalize confirmed server ID and state
-        this.renderTimeline();
-
-        // Update conversation list preview
         this.updateConversationPreview(convId, serverMsg);
       } catch (err) {
         console.error('[DM] Send message failure:', err);
-        // Rollback optimistic message on failure
-        this.messages = this.messages.filter(m => m.clientId !== clientId && m.id !== optimisticMsg.id);
-        this.renderTimeline();
-        alert(err.message || 'Could not send message. Please try again.');
+        // Do NOT delete message on network error; mark failed so user can Retry or Discard
+        const idx = this.messages.findIndex(m => m.clientId === clientId || m.id === optimisticMsg.id);
+        const existing = idx !== -1 ? this.messages[idx] : optimisticMsg;
+        if (typeof existing.id !== 'number') {
+          const failedMsg = { ...existing, status: 'failed', isOptimistic: true };
+          if (idx !== -1) {
+            this.messages[idx] = failedMsg;
+          }
+          this.saveOutboxMessage(convId, failedMsg);
+          if (this.activeConversation && this.activeConversation.id === convId) {
+            this.renderTimeline();
+          }
+        }
+      } finally {
+        this.pendingSends.delete(clientId);
       }
+    }
+
+    async retryFailedMessage(clientId) {
+      if (!this.activeConversation || !clientId) return;
+      const convId = this.activeConversation.id;
+      const msg = this.messages.find(m => m.clientId === clientId);
+      if (!msg) return;
+      return this.dispatchOutboxMessage(convId, msg);
+    }
+
+    discardFailedMessage(clientId) {
+      if (!this.activeConversation || !clientId) return;
+      const convId = this.activeConversation.id;
+      this.removeOutboxMessage(convId, clientId);
+      this.messages = this.messages.filter(m => m.clientId !== clientId);
+      this.renderTimeline();
     }
 
     startReply(msgId) {
@@ -1086,9 +1241,17 @@
 
         if (!res.ok) throw new Error('Edit failed');
         const data = await res.json();
-        const updated = data.message;
+        const updated = data?.message || (data && (data.text !== undefined || data.editedAt !== undefined) ? {
+          ...msg,
+          id: Number(data.messageId ?? msg.id),
+          text: data.text ?? newText,
+          isEdited: true,
+          editedAt: data.editedAt || new Date().toISOString(),
+        } : null);
         const idx = this.messages.findIndex(m => m.id === msg.id);
-        if (idx !== -1) this.messages[idx] = updated;
+        if (idx !== -1 && updated) {
+          this.messages[idx] = { ...this.messages[idx], ...updated };
+        }
         this.renderTimeline();
       } catch (err) {
         console.error('[DM] Edit message error:', err);
@@ -1435,10 +1598,11 @@
         }
 
         const data = await res.json();
-        const conv = data.conversation;
+        const convId = data?.conversation?.id || data?.conversationId;
+        if (!convId) throw new Error('Could not start conversation');
 
         await this.loadConversations();
-        await this.selectConversation(conv.id);
+        await this.selectConversation(convId);
       } catch (err) {
         console.error('[DM] Start conversation error:', err);
         alert(err.message || 'Could not start conversation.');
@@ -1484,28 +1648,73 @@
     }
 
     // --- Supabase Realtime Integration ---
-    async subscribeRealtime(conversationId) {
-      this.unsubscribeRealtime();
+    scheduleRealtimeReconnect(conversationId, ms) {
+      if (this.realtimeTimer) {
+        clearTimeout(this.realtimeTimer);
+        this.realtimeTimer = null;
+      }
+      if (!this.activeConversation || this.activeConversation.id !== conversationId) return;
+      this.realtimeTimer = setTimeout(() => {
+        this.realtimeTimer = null;
+        if (this.activeConversation && this.activeConversation.id === conversationId) {
+          return this.subscribeRealtime(conversationId, { isReconnect: true });
+        }
+      }, ms);
+    }
+
+    async subscribeRealtime(conversationId, options = {}) {
+      if (!options.isReconnect) {
+        this.realtimeRetry = 0;
+      }
+      if (this.realtimeTimer) {
+        clearTimeout(this.realtimeTimer);
+        this.realtimeTimer = null;
+      }
+      if (this.realtimeChannel && this.supabaseClient) {
+        try {
+          if (typeof this.supabaseClient.removeAllChannels === 'function') {
+            await this.supabaseClient.removeAllChannels();
+          } else {
+            await this.supabaseClient.removeChannel(this.realtimeChannel);
+          }
+        } catch {}
+      }
+      this.realtimeChannel = null;
+      this.supabaseClient = null;
 
       if (!root.supabase || typeof root.supabase.createClient !== 'function') {
         console.warn('[DM] Supabase client library not found on page.');
         return;
       }
 
+      const attempt = ++this.realtimeAttempt;
+      const isCurrent = () => attempt === this.realtimeAttempt && (!this.activeConversation || this.activeConversation.id === conversationId);
+
       try {
         const res = await fetch(`/api/dm/conversations/${encodeURIComponent(conversationId)}/realtime-config`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Realtime config fetch failed');
+        if (!res.ok) {
+          const err = new Error('Realtime config fetch failed');
+          err.status = res.status;
+          throw err;
+        }
         const config = await res.json();
+        if (!isCurrent()) return;
 
-        // Create or reuse scoped client
         const supabaseTargetUrl = config.supabaseUrl || config.url;
-        const supabaseAuthToken = config.token || config.key;
-        this.supabaseClient = root.supabase.createClient(supabaseTargetUrl, supabaseAuthToken, {
-          auth: { credentials: { persistSession: false, autoRefreshToken: false } },
-          realtime: { params: { apikey: supabaseAuthToken } }
+        const supabaseAnonKey = config.key;
+        const localClient = root.supabase.createClient(supabaseTargetUrl, supabaseAnonKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
         });
+        this.supabaseClient = localClient;
+        if (localClient.realtime && typeof localClient.realtime.setAuth === 'function') {
+          await localClient.realtime.setAuth(config.token);
+        }
+        if (!isCurrent()) {
+          try { await localClient.removeAllChannels?.(); } catch {}
+          return;
+        }
 
-        const channel = this.supabaseClient.channel(config.topic, {
+        const channel = localClient.channel(config.topic, {
           config: {
             broadcast: { self: false, ack: false },
             private: true,
@@ -1514,62 +1723,133 @@
 
         // 1. New Message
         channel.on('broadcast', { event: 'dm:message:new' }, (payload) => {
-          this.handleRealtimeNewMessage(payload.payload || payload);
+          if (isCurrent()) this.handleRealtimeNewMessage(payload?.payload || payload);
         });
 
         // 2. Edited Message
         channel.on('broadcast', { event: 'dm:message:edited' }, (payload) => {
-          this.handleRealtimeEditedMessage(payload.payload || payload);
+          if (isCurrent()) this.handleRealtimeEditedMessage(payload?.payload || payload);
         });
 
         // 3. Deleted Message
         channel.on('broadcast', { event: 'dm:message:deleted' }, (payload) => {
-          this.handleRealtimeDeletedMessage(payload.payload || payload);
+          if (isCurrent()) this.handleRealtimeDeletedMessage(payload?.payload || payload);
         });
 
         // 4. Read Receipt Update
         channel.on('broadcast', { event: 'dm:read:updated' }, (payload) => {
-          this.handleRealtimeReadReceipt(payload.payload || payload);
+          if (isCurrent()) this.handleRealtimeReadReceipt(payload?.payload || payload);
         });
 
         // 5. Ephemeral Typing Indicator
         channel.on('broadcast', { event: 'dm:typing' }, (payload) => {
-          this.handleRealtimeTyping(payload.payload || payload);
+          if (isCurrent()) this.handleRealtimeTyping(payload?.payload || payload);
         });
 
         channel.subscribe((status) => {
-          this.updateConnectionStatus(status === 'SUBSCRIBED');
+          if (!isCurrent()) return;
+          const isSubscribed = status === 'SUBSCRIBED';
+          this.updateConnectionStatus(isSubscribed);
+          if (isSubscribed) {
+            this.realtimeRetry = 0;
+            const expiresAtMs = Date.parse(config.expiresAt || config.expiry || '');
+            const renewDelay = Number.isFinite(expiresAtMs)
+              ? Math.max(1000, expiresAtMs - Date.now() - 30000)
+              : 90000;
+            this.scheduleRealtimeReconnect(conversationId, renewDelay);
+            this.syncActiveConversation();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            const backoffMs = Math.min(30000, 1000 * Math.pow(2, Math.min(this.realtimeRetry++, 5)));
+            this.scheduleRealtimeReconnect(conversationId, backoffMs);
+          }
         });
 
         this.realtimeChannel = channel;
       } catch (err) {
-        console.warn('[DM Realtime] Subscription error:', err.message);
+        if (!isCurrent()) return;
+        console.warn('[DM Realtime] Subscription error:', err && err.status ? err.status : 'network');
         this.updateConnectionStatus(false);
+        if (!err || ![401, 403, 404].includes(err.status)) {
+          const backoffMs = Math.min(30000, 1000 * Math.pow(2, Math.min(this.realtimeRetry++, 5)));
+          this.scheduleRealtimeReconnect(conversationId, backoffMs);
+        }
       }
     }
 
     unsubscribeRealtime() {
+      this.realtimeAttempt++;
+      if (this.realtimeTimer) {
+        clearTimeout(this.realtimeTimer);
+        this.realtimeTimer = null;
+      }
       if (this.realtimeChannel && this.supabaseClient) {
         try {
           this.supabaseClient.removeChannel(this.realtimeChannel);
         } catch {}
       }
       this.realtimeChannel = null;
+      this.supabaseClient = null;
+    }
+
+    handleIncomingMessage(event) {
+      return this.handleRealtimeNewMessage(event);
     }
 
     handleRealtimeNewMessage(event) {
-      if (!event || !event.message) return;
-      const msg = event.message;
-      const convId = event.conversationId;
+      if (!event) return;
+      const rawMsg = event.message || (event.messageId !== undefined || event.id !== undefined ? {
+        id: Number(event.messageId ?? event.id),
+        messageId: Number(event.messageId ?? event.id),
+        eventId: event.eventId || null,
+        conversationId: event.conversationId,
+        senderId: event.senderId,
+        clientId: event.clientId || null,
+        text: event.text,
+        replyToId: event.replyToId ?? null,
+        replyTo: event.replyTo || null,
+        createdAt: event.createdAt,
+        isEdited: Boolean(event.isEdited),
+        deletedForAll: Boolean(event.deletedForAll),
+      } : null);
+      if (!rawMsg) return;
+
+      const eventId = event.eventId || rawMsg.eventId || null;
+      if (eventId) {
+        if (this.seenEventIds.has(eventId)) return;
+        this.seenEventIds.add(eventId);
+      }
+
+      const msgId = rawMsg.id !== undefined ? Number(rawMsg.id) : (rawMsg.messageId !== undefined ? Number(rawMsg.messageId) : rawMsg.id);
+      const msg = {
+        ...rawMsg,
+        id: msgId,
+        eventId,
+      };
+      const convId = event.conversationId || msg.conversationId;
 
       // Update conversation list preview
       this.updateConversationPreview(convId, msg);
 
       // If active conversation matches
       if (this.activeConversation && this.activeConversation.id === convId) {
-        // Deduplicate against optimistic or already rendered message
-        const exists = this.messages.some(m => m.id === msg.id || (msg.clientId && m.clientId === msg.clientId));
-        if (!exists) {
+        // Deduplicate by eventId, messageId/id, and clientId
+        const existingIdx = this.messages.findIndex(m =>
+          (eventId && m.eventId && m.eventId === eventId) ||
+          (msg.id !== undefined && msg.id !== null && Number(m.id) === Number(msg.id)) ||
+          (msg.clientId && m.clientId === msg.clientId)
+        );
+        if (existingIdx !== -1) {
+          this.messages[existingIdx] = {
+            ...this.messages[existingIdx],
+            ...msg,
+            isOptimistic: false,
+            status: 'sent',
+          };
+          if (typeof this.removeOutboxMessage === 'function' && msg.clientId) {
+            this.removeOutboxMessage(convId, msg.clientId);
+          }
+          this.renderTimeline();
+        } else {
           this.messages.push(msg);
           this.renderTimeline();
           this.scrollToBottom(true);
@@ -1620,9 +1900,10 @@
 
     handleRealtimeReadReceipt(event) {
       if (!event || !this.activeConversation || this.activeConversation.id !== event.conversationId) return;
-      if (event.readerId === this.currentUser.studentId) return;
+      const reader = event.studentId || event.readerId;
+      if (reader === this.currentUser.studentId) return;
 
-      this.peerLastReadMessageId = Number(event.lastReadMessageId || 0);
+      this.peerLastReadMessageId = Math.max(this.peerLastReadMessageId, Number(event.lastReadMessageId || 0));
       this.renderTimeline();
     }
 
@@ -1706,10 +1987,17 @@
 
         // Reconcile new messages
         if (delta.messages && delta.messages.length > 0) {
-          const existingIds = new Set(this.messages.map(m => m.id));
           for (const m of delta.messages) {
-            if (!existingIds.has(m.id)) {
+            const idx = this.messages.findIndex(x => x.id === m.id || (m.clientId && x.clientId === m.clientId));
+            if (idx !== -1) {
+              if (typeof this.messages[idx].id !== 'number') {
+                this.messages[idx] = { ...m, status: 'sent' };
+                if (m.clientId) this.removeOutboxMessage(convId, m.clientId);
+                updated = true;
+              }
+            } else {
               this.messages.push(m);
+              if (m.clientId) this.removeOutboxMessage(convId, m.clientId);
               updated = true;
             }
           }
@@ -1740,8 +2028,9 @@
         }
 
         // Reconcile read receipts
-        if (delta.peerLastReadMessageId && delta.peerLastReadMessageId > this.peerLastReadMessageId) {
-          this.peerLastReadMessageId = delta.peerLastReadMessageId;
+        const peerReadId = Number(delta?.readCursor?.peerLastReadMessageId ?? delta?.peerLastReadMessageId ?? 0);
+        if (peerReadId > this.peerLastReadMessageId) {
+          this.peerLastReadMessageId = peerReadId;
           updated = true;
         }
 
@@ -1758,10 +2047,35 @@
       if (this.cacheKey) {
         try { localStorage.removeItem(this.cacheKey); } catch {}
       }
+      try {
+        if (root.localStorage) {
+          const origin = (root.location && root.location.origin) ? root.location.origin : (root.location && root.location.protocol && root.location.host ? `${root.location.protocol}//${root.location.host}` : 'http://localhost');
+          const studentId = this.currentUser && this.currentUser.studentId ? this.currentUser.studentId : null;
+          const convIds = new Set((this.conversations || []).map(c => c && c.id).filter(Boolean));
+          if (this.activeConversation && this.activeConversation.id) convIds.add(this.activeConversation.id);
+          if (studentId) {
+            for (const cid of convIds) {
+              root.localStorage.removeItem(`${origin}::${studentId}::${cid}`);
+            }
+            const prefix = `${origin}::${studentId}::`;
+            if (typeof root.localStorage.length === 'number' && typeof root.localStorage.key === 'function') {
+              const keysToDelete = [];
+              for (let i = 0; i < root.localStorage.length; i++) {
+                const k = root.localStorage.key(i);
+                if (k && k.startsWith(prefix)) keysToDelete.push(k);
+              }
+              keysToDelete.forEach(k => root.localStorage.removeItem(k));
+            }
+          }
+        }
+      } catch {}
       this.unsubscribeRealtime();
+      this.pendingSends.clear();
+      this.seenEventIds.clear();
       this.conversations = [];
       this.messages = [];
       this.activeConversation = null;
+      this.currentUser = null;
     }
   }
 

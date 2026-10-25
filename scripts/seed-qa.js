@@ -15,12 +15,16 @@
  * - All artificial data: zero production records copied.
  */
 
+const path = require('path');
 const bcrypt = require('bcryptjs');
 const { assertSafeQaEnvironment } = require('../lib/qa-guard');
 const { ensureAcademicCohortSchema } = require('../lib/academic-context');
 const { ensureTeacherSchema } = require('../lib/teacher-service');
 const { ensurePostsSchema } = require('../lib/posts');
 const { ensureAuditSchema } = require('../lib/audit-service');
+const { migrateCohortChat } = require('../migrations/002-cohort-chat');
+const { cohortChatSupportSchema } = require('../migrations/cohort-chat-support-schema');
+const { migrateDirectMessaging } = require('../migrations/005-direct-messaging-schema');
 
 const QA_PASSWORD_HASHES = {
   admin: bcrypt.hashSync('QaAdmin123!', 10),
@@ -67,7 +71,20 @@ async function seedQa(db) {
   });
   await ensureAuditSchema(db);
 
+  // Run cohort chat and DM migrations idempotently
+  await migrateCohortChat(db, { disposable: true });
+  const supportSql = cohortChatSupportSchema({ idempotent: true })
+    .split(';')
+    .map(s => s.trim())
+    .filter(s => s && !/^ALTER\s+TABLE\s+push_notification_outbox/i.test(s))
+    .join(';\n');
+  if (supportSql) {
+    await db.exec(supportSql + ';');
+  }
+  await migrateDirectMessaging(db, { disposable: true });
+
   console.log('[QA Seed]: Seeding academic cohorts and chat rooms...');
+  const nowStamp = new Date().toISOString();
   // Seed Cohort
   await upsertRecord(db, 'cohorts', 'id', {
     id: 'qa-cohort-mercury',
@@ -77,7 +94,8 @@ async function seedQa(db) {
     intake_year: 2025,
     current_semester: 1,
     status: 'active',
-    version: 1
+    version: 1,
+    created_at: nowStamp
   });
 
   // Seed Chat Group for Cohort
@@ -87,7 +105,8 @@ async function seedQa(db) {
     kind: 'cohort',
     status: 'active',
     realtime_epoch: 1,
-    projection_status: 'ready'
+    projection_status: 'ready',
+    created_at: nowStamp
   });
 
   // Seed Chat Group Slot
@@ -265,6 +284,55 @@ async function seedQa(db) {
     metadata: '{"environment":"local_qa"}'
   });
 
+  // Seed synthetic numeric QA accounts for DM_TEST_USER_IDS (obviously fake numeric IDs 99000001-99000004)
+  await upsertRecord(db, 'students', 'studentId', {
+    studentId: '99000001',
+    username: 'qa_admin_num',
+    name: 'QA Numeric Admin',
+    passwordHash: QA_PASSWORD_HASHES.admin,
+    role: 'admin',
+    department: 'BIT',
+    semester: 'Semester 1',
+    account_status: 'active',
+    verification_status: 'verified'
+  });
+  await upsertRecord(db, 'students', 'studentId', {
+    studentId: '99000002',
+    username: 'qa_student_num',
+    name: 'QA Numeric Student',
+    passwordHash: QA_PASSWORD_HASHES.student,
+    role: 'student',
+    department: 'BIT',
+    semester: 'Semester 1',
+    cohort_id: 'qa-cohort-mercury',
+    account_status: 'active',
+    verification_status: 'verified'
+  });
+  await upsertRecord(db, 'students', 'studentId', {
+    studentId: '99000003',
+    username: 'qa_cr_num',
+    name: 'QA Numeric CR',
+    passwordHash: QA_PASSWORD_HASHES.cr,
+    role: 'cr',
+    department: 'BIT',
+    semester: 'Semester 1',
+    cohort_id: 'qa-cohort-mercury',
+    account_status: 'active',
+    verification_status: 'verified'
+  });
+  await upsertRecord(db, 'students', 'studentId', {
+    studentId: '99000004',
+    username: 'qa_teacher_num',
+    email: 'qa_teacher_num@test.local',
+    name: 'QA Numeric Teacher',
+    passwordHash: QA_PASSWORD_HASHES.teacher,
+    role: 'teacher',
+    department: 'BIT',
+    semester: 'Semester 1',
+    account_status: 'active',
+    verification_status: 'verified'
+  });
+
   console.log('\n======================================================');
   console.log(' ✔ DISPOSABLE LOCAL QA DATA SEEDED SUCCESSFULLY');
   console.log('======================================================');
@@ -277,12 +345,16 @@ async function seedQa(db) {
 }
 
 if (require.main === module) {
-  // When executed directly, ensure QA environment flags default safely
+  // When executed directly, ensure QA environment flags default safely BEFORE importing db
   if (!process.env.QA_MODE) process.env.QA_MODE = 'true';
   if (!process.env.NODE_ENV) process.env.NODE_ENV = 'qa';
+  if (!process.env.DB_PATH) process.env.DB_PATH = path.join(__dirname, '..', 'database.qa.db');
   if (!process.env.EXPO_PUSH_DISABLED) process.env.EXPO_PUSH_DISABLED = 'true';
   if (!process.env.TEACHER_ONBOARDING_ENABLED) process.env.TEACHER_ONBOARDING_ENABLED = 'false';
   if (!process.env.DM_ENABLED) process.env.DM_ENABLED = 'false';
+  if (!process.env.COHORT_CHAT_LOCAL) process.env.COHORT_CHAT_LOCAL = '1';
+
+  assertSafeQaEnvironment();
 
   const db = require('../db');
   seedQa(db)

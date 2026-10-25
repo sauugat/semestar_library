@@ -97,21 +97,41 @@ export async function saveCachedKyanaMessages(
 }
 
 export async function clearCachedKyanaMessages(
-  accountId: string,
-  conversationId: string
+  accountId?: string,
+  conversationId?: string
 ): Promise<void> {
-  if (!accountId || !conversationId) return;
-
-  const memKey = `${accountId}:${conversationId}`;
-  memoryMessages.delete(memKey);
+  if (!accountId && !conversationId) {
+    memoryMessages.clear();
+  } else if (accountId && !conversationId) {
+    const prefix = `${accountId}:`;
+    for (const key of memoryMessages.keys()) {
+      if (key.startsWith(prefix)) {
+        memoryMessages.delete(key);
+      }
+    }
+  } else if (accountId && conversationId) {
+    const memKey = `${accountId}:${conversationId}`;
+    memoryMessages.delete(memKey);
+  } else {
+    return;
+  }
 
   writeQueue = writeQueue.then(async () => {
     try {
       const db = await getKyanaDatabase();
-      await db.runAsync(
-        'DELETE FROM kyana_messages_cache_v1 WHERE account_id = ? AND conversation_id = ?',
-        [accountId, conversationId]
-      );
+      if (!accountId && !conversationId) {
+        await db.runAsync('DELETE FROM kyana_messages_cache_v1');
+      } else if (accountId && !conversationId) {
+        await db.runAsync(
+          'DELETE FROM kyana_messages_cache_v1 WHERE account_id = ?',
+          [accountId]
+        );
+      } else if (accountId && conversationId) {
+        await db.runAsync(
+          'DELETE FROM kyana_messages_cache_v1 WHERE account_id = ? AND conversation_id = ?',
+          [accountId, conversationId]
+        );
+      }
     } catch (err) {
       console.warn('[Kyana Cache] Clear messages error:', err);
     }
@@ -119,3 +139,4 @@ export async function clearCachedKyanaMessages(
 
   await writeQueue;
 }
+

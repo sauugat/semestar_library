@@ -162,7 +162,7 @@ describe('Step 4B: React Native Private Messaging Mobile UI & Services', () => {
 
     assert.ok(content.includes('reportDm'), 'Must call reportDm API');
     assert.ok(content.includes('reportModalVisible'), 'Must support report modal');
-    assert.ok(content.includes('HARASSMENT'), 'Must provide report categories');
+    assert.ok(content.includes("'harassment'"), 'Must provide lowercase report categories');
   });
 
   // 16. Notification deep links

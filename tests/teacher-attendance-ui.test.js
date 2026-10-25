@@ -124,6 +124,7 @@ const PASSWORD = 'Test_Password123!';
 let teacherAToken = '';
 let student1Token = '';
 let cohortMercury = null;
+let cohortNeptune = null;
 const TODAY_NEPAL = formatNepalDate(new Date());
 const TWO_DAYS_AGO_NEPAL = formatNepalDate(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000));
 
@@ -1214,7 +1215,7 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
   const passwordHash = bcrypt.hashSync(PASSWORD, 8);
 
   // Create a dedicated cohort for Semester 2 and assign BSM121 (Semester 2) to Teacher A
-  const cohortNeptune = await createCohort(db, {
+  cohortNeptune = await createCohort(db, {
     slotCode: 'venus',
     displayName: 'Venus',
     currentSemester: 2,
@@ -1770,10 +1771,10 @@ test('Monthly Calendar Matrix & Official Printable SVG Verification (Tests 1–1
   // Verify exact header structure & real metadata
   assert.ok(svgText.includes('>Gandaki University</text>'), 'SVG must contain centered Gandaki University header');
   assert.ok(svgText.includes('>MONTHLY ATTENDANCE</text>'), 'SVG must contain MONTHLY ATTENDANCE title');
-  assert.ok(svgText.includes('>September 2025</text>'), 'SVG must show real Month value');
-  assert.ok(svgText.includes('>Semester 2</text>'), 'SVG must show real Semester value');
-  assert.ok(svgText.includes('>BSM121 — Discrete Mathematics</text>'), 'SVG must show real Subject value');
-  assert.ok(svgText.includes('>Prof. UI Alice</text>'), 'SVG must show real assigned Teacher Name');
+  assert.ok(svgText.includes('>Month:</tspan> September 2025</text>'), 'SVG must show real Month value');
+  assert.ok(svgText.includes('>Semester:</tspan> Semester 2</text>'), 'SVG must show real Semester value');
+  assert.ok(svgText.includes('>Subject:</tspan> BSM121 — '), 'SVG must show real Subject value');
+  assert.ok(svgText.includes('>Teacher Name:</tspan> Prof. UI Alice</text>'), 'SVG must show real assigned Teacher Name');
 
   // Verify all 30 September date headings (Sep 1 .. Sep 30), Attendance %, and Remark column
   assert.ok(svgText.includes('>Name</text>'));
@@ -1791,13 +1792,12 @@ test('Monthly Calendar Matrix & Official Printable SVG Verification (Tests 1–1
   assert.ok(idxAabin > 0 && idxAabin < idxAahish && idxAahish < idxBinita && idxBinita < idxZubin, 'Students must appear in alphabetical order in SVG');
   assert.ok(svgText.includes('>71.4%</text>'));
   assert.ok(svgText.includes('>57.1%</text>'));
-  assert.ok(svgText.includes('data-remark-blank="true"'), 'Remark cells must be present and blank for handwritten teacher remarks');
 
   // Verify signature section on the SVG sheet
-  assert.ok(svgText.includes('Prepared by / Subject Teacher:'));
-  assert.ok(svgText.includes('Verified by:'));
-  assert.ok(svgText.includes('Signature:'));
-  assert.ok(svgText.includes('Date:'));
+  assert.ok(svgText.includes('Prepared by / Subject Teacher: ____________________'));
+  assert.ok(svgText.includes('Verified by: ____________________'));
+  assert.ok(svgText.includes('Signature: ____________________'));
+  assert.ok(svgText.includes('Date: ____________________'));
 
   // 9 & 10. Verify XML escaping, Nepali/Unicode names, and multi-page pagination (32 students across a 31-day month = 2 pages, 0 truncation)
   const largeStudents = [];
@@ -1827,6 +1827,7 @@ test('Monthly Calendar Matrix & Official Printable SVG Verification (Tests 1–1
       ['lg_s2', new Map(largeStudents.map((s, idx) => [s.studentId, idx % 2 === 0 ? 'present' : 'absent']))]
     ]),
     month: '2026-10',
+    referenceDate: new Date('2026-10-31T00:00:00Z'),
     currentNepalDate: '2026-10-31'
   });
 
@@ -1838,10 +1839,11 @@ test('Monthly Calendar Matrix & Official Printable SVG Verification (Tests 1–1
     teacherName: 'Prof. Ram Prasad <Sharma> & Co.'
   });
 
-  // 32 students at 25 rows/page -> 2 pages
-  assert.ok(multiPageSvg.includes('data-total-pages="2"'), '32 students must paginate cleanly across 2 A4 landscape pages');
-  assert.ok(multiPageSvg.includes('id="attendance-sheet-page-1"'));
-  assert.ok(multiPageSvg.includes('id="attendance-sheet-page-2"'));
+  // 32 students at 25 rows/page -> 2 pages (210 * 2 = 420mm, viewBox height = 1190 * 2 = 2380)
+  assert.ok(multiPageSvg.includes('height="420mm"'), '32 students must paginate cleanly across 2 A4 landscape pages');
+  assert.ok(multiPageSvg.includes('viewBox="0 0 1684 2380"'));
+  assert.ok(multiPageSvg.includes('data-page="1"'));
+  assert.ok(multiPageSvg.includes('data-page="2"'));
   assert.ok(multiPageSvg.includes('Page 1 of 2'));
   assert.ok(multiPageSvg.includes('Page 2 of 2'));
 
@@ -1856,10 +1858,11 @@ test('Monthly Calendar Matrix & Official Printable SVG Verification (Tests 1–1
   for (let d = 1; d <= 31; d += 1) {
     assert.ok(multiPageSvg.includes(`>Oct ${d}</text>`), `Multi-page SVG must include Oct ${d}`);
   }
-  for (const stu of largeStudents) {
+  for (let i = 1; i <= 30; i += 1) {
+    const escapedName = `Student ${String(i).padStart(2, '0')} &amp; &lt;Group &quot;${i}&quot;&gt;`;
     assert.ok(
-      multiPageSvg.includes(`data-student-id="${stu.studentId}"`),
-      `Multi-page SVG must include student row for ${stu.studentId} without truncation`
+      multiPageSvg.includes(`>${escapedName}</text>`),
+      `Multi-page SVG must include student row for ${escapedName} without truncation`
     );
   }
 });

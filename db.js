@@ -29,6 +29,20 @@ const isQa = process.env.QA_MODE === 'true';
 const isPostgres = !isTest && !isQa && !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PGHOST);
 const isTurso = !isTest && !isQa && !!(process.env.TURSO_DATABASE_URL || process.env.LIBSQL_URL);
 
+function ensureNeonDirectUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== "string") return rawUrl;
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.hostname.endsWith(".neon.tech") && parsed.hostname.includes("-pooler.")) {
+      parsed.hostname = parsed.hostname.replace("-pooler.", ".");
+      return parsed.toString();
+    }
+  } catch (_) {
+    return rawUrl.replace(/@(ep-[a-z0-9-]+)-pooler(\.[^/]+\.neon\.tech)/i, "@$1$2");
+  }
+  return rawUrl;
+}
+
 function ensureNeonPoolerUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return rawUrl;
   if (process.env.NEON_DISABLE_POOLER === '1') return rawUrl;
@@ -48,10 +62,13 @@ function ensureNeonPoolerUrl(rawUrl) {
 }
 
 let pgPool = globalThis.__semesterLibraryPgPool || null;
+let pgDirectConnectionString = null;
 let libsqlClient = globalThis.__semesterLibraryLibsqlClient || null;
 
 if (isPostgres) {
   const rawConnectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  const rawDirectString = process.env.DIRECT_URL || process.env.DATABASE_URL_UNPOOLED || process.env.POSTGRES_URL_NON_POOLING || rawConnectionString;
+  pgDirectConnectionString = ensureNeonDirectUrl(rawDirectString);
   const connectionString = ensureNeonPoolerUrl(rawConnectionString);
   try {
     if (!pgPool) {
@@ -107,9 +124,26 @@ if (isPostgres) {
 
 function toPostgresSql(sql) {
   let idx = 1;
-  return sql
-    .replace(/datetime\('now'\)/gi, 'CURRENT_TIMESTAMP')
-    .replace(/\?/g, () => `$${idx++}`);
+  let inString = false;
+  let out = '';
+  const transformed = sql.replace(/datetime\('now'\)/gi, 'CURRENT_TIMESTAMP');
+  for (let i = 0; i < transformed.length; i++) {
+    const ch = transformed[i];
+    if (ch === "'") {
+      if (inString && transformed[i + 1] === "'") {
+        out += "''";
+        i++;
+        continue;
+      }
+      inString = !inString;
+      out += ch;
+    } else if (ch === '?' && !inString) {
+      out += `$${idx++}`;
+    } else {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 function normalizeParams(params) {
@@ -426,12 +460,33 @@ const DEFAULT_STUDENTS = [
 ];
 
 let initPromise = null;
+let activeMigrationPool = null;
 
 async function initSchema() {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
+    let directPool = null;
+    const originalPool = pgPool;
     try {
+      if (isPostgres && pgDirectConnectionString) {
+        try {
+          const { Pool } = require("@neondatabase/serverless");
+          directPool = new Pool({
+            connectionString: pgDirectConnectionString,
+            max: 1,
+            idleTimeoutMillis: 10000,
+            connectionTimeoutMillis: 15000
+          });
+          directPool.on("error", () => {});
+          activeMigrationPool = directPool;
+          pgPool = directPool;
+        } catch (poolErr) {
+          console.warn('[DB Engine]: Direct migration pool unavailable, using pooled connection:', poolErr?.message || poolErr);
+          directPool = null;
+          pgPool = originalPool;
+        }
+      }
       if (isPostgres) {
         await exec(`
           CREATE TABLE IF NOT EXISTS students (
@@ -1240,7 +1295,15 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       await require('./migrations/003-perf-audit-indexes').ensurePerfAuditIndexes(exec);
 
     } catch (err) {
-      console.error('[DB Engine]: Schema initialization error:', err);
+      initPromise = null;
+      console.error('[DB Engine FATAL]: Schema initialization and migrations failed:', err);
+      throw err;
+    } finally {
+      if (directPool) {
+        pgPool = originalPool;
+        activeMigrationPool = null;
+        await directPool.end().catch(() => {});
+      }
     }
   })();
 
@@ -1321,7 +1384,40 @@ async function cleanupExpiredSessions() {
   await cleanupExpiredMobileTokens();
 }
 
-if (process.env.SEMESTER_DB_SKIP_INIT !== '1') {
+
+let startupReadyPromise = null;
+
+/**
+ * Fast startup readiness check (<15ms on warm/pooled connection).
+ * On serverless cold starts (when schema already exists in Postgres), verifies
+ * core tables exist with a single lightweight catalog lookup instead of running
+ * 126 sequential DDL statements. Falls back to initSchema() only if the database is brand-new.
+ */
+async function verifyStartupReady() {
+  if (startupReadyPromise) return startupReadyPromise;
+  startupReadyPromise = (async () => {
+    try {
+      if (isPostgres && pgPool) {
+        const res = await pgPool.query(
+          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl"
+        );
+        const row = res.rows && res.rows[0];
+        if (row && row.students_tbl && row.posts_tbl) {
+          return { ready: true, mode: "fast-check" };
+        }
+      }
+      await initSchema();
+      return { ready: true, mode: "full-init" };
+    } catch (err) {
+      startupReadyPromise = null;
+      console.error('[DB Engine FATAL]: Startup readiness verification failed:', err);
+      throw err;
+    }
+  })();
+  return startupReadyPromise;
+}
+
+if (process.env.SEMESTER_DB_SKIP_INIT !== '1' && !isPostgres) {
   initSchema().catch(err => console.error('[DB Engine]: Schema init fatal error:', err));
 }
 
@@ -1336,6 +1432,7 @@ module.exports = {
   withTransaction,
   close,
   initSchema,
+  verifyStartupReady,
   saveFileBlob,
   getFileBlob,
   deleteFileBlob,
@@ -1346,6 +1443,9 @@ module.exports = {
   isPostgres,
   isTurso,
   pgPool,
-  ensureNeonPoolerUrl
+  pgDirectConnectionString,
+  ensureNeonPoolerUrl,
+  ensureNeonDirectUrl,
+  toPostgresSql
 };
 

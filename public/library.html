@@ -33,8 +33,8 @@
     })();
   </script>
 
-  <script src="/auth.js?v=3"></script>
-  <script src="/js/swr.js?v=25"></script>
+  <script src="/auth.js?v=27"></script>
+  <script src="/js/swr.js?v=27"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
@@ -44,7 +44,7 @@
   <link rel="stylesheet" href="style.v4.css?v=25">
   <link rel="stylesheet" href="chatbot.css?v=25">
   <link rel="stylesheet" href="auth-modal.css?v=25">
-  <script src="auth-modal.js?v=25" defer></script>
+  <script src="auth-modal.js?v=27" defer></script>
   <script src="syllabus-helper.js?v=25"></script>
   <script src="/academic-context.js"></script>
   <style>
@@ -3598,10 +3598,7 @@
         SemesterAuth.initHeader(p);
       } else {
         window.IS_AUTHENTICATED = false;
-        const profileChip = document.querySelector('.dash-profile-chip');
-        if (profileChip) {
-          profileChip.outerHTML = `<a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
-        }
+        SemesterAuth.initHeader(null);
       }
     }).catch(() => {
       window.IS_AUTHENTICATED = false;
@@ -6887,7 +6884,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="chatbot.js?v=25" defer></script>
-  <script src="auth-modal.js?v=25" defer></script>
+  <script src="auth-modal.js?v=27" defer></script>
   <!-- PWA Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {

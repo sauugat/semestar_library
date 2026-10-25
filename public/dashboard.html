@@ -36,10 +36,10 @@
     })();
   </script>
 
-  <script src="/auth.js?v=3"></script>
-  <script src="/js/swr.js?v=25"></script>
+  <script src="/auth.js?v=27"></script>
+  <script src="/js/swr.js?v=27"></script>
   <script>SemesterAuth.protectPage();</script>
-  <script src="auth-modal.js?v=25" defer></script>
+  <script src="auth-modal.js?v=27" defer></script>
   <script src="/academic-context.js"></script>
   <script src="/markdown.js?v=25"></script>
   <link rel="prefetch" href="/library.html">
@@ -3560,21 +3560,26 @@
         if (heroReal) heroReal.style.display = 'block';
 
         document.getElementById('greetingLine').textContent = `${getGreeting()}, ${data.name}`;
+        const isValidId = data.studentId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(data.studentId).trim());
         document.getElementById('idLine').textContent = (data.role === 'teacher' || data.role === 'faculty')
           ? `Faculty: @${data.username || data.studentId}`
-          : `Student ID: ${data.studentId}`;
+          : (isValidId ? `Student ID: ${data.studentId}` : (data.name || 'Student'));
 
+        if (window.SemesterAuth && typeof window.SemesterAuth.initHeader === 'function') {
+          window.SemesterAuth.initHeader(data);
+        }
 
         // Populate top right header profile chip
         const headerAvatar = document.getElementById('headerAvatar');
         const headerName = document.getElementById('headerProfileName');
         if (headerName) headerName.textContent = data.name.split(' ')[0];
-        if (headerAvatar) headerAvatar.textContent = data.name.charAt(0).toUpperCase();
+        if (headerAvatar && !data.avatarUrl) headerAvatar.textContent = data.name.charAt(0).toUpperCase();
 
         // Fetch avatar if uploaded
         fetch('/api/profile').then(r => r.ok ? r.json() : null).then(p => {
-          if (p && p.avatarUrl && headerAvatar) {
-            headerAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
+          const curAvatar = document.getElementById('headerAvatar');
+          if (p && p.avatarUrl && curAvatar) {
+            curAvatar.innerHTML = `<img src="${p.avatarUrl}" alt="${p.name}">`;
           }
         }).catch(() => { });
 
@@ -4528,7 +4533,9 @@
       });
       container.replaceChildren(fragment);
       if (!visibleItems.length) {
-        if (currentFeedCategoryFilter && currentFeedCategoryFilter !== 'all') {
+        if (!postsLoaded) {
+          container.innerHTML = `<div class="post-feed-empty"><p>Could not load posts</p><p>${escapeHtml(postFeedMessage.textContent || 'Check your connection and try again.')}</p><button type="button" class="apple-nav-btn" onclick="loadFeed({ force: true })" style="margin-top:10px;">Retry</button></div>`;
+        } else if (currentFeedCategoryFilter && currentFeedCategoryFilter !== 'all') {
           container.innerHTML = `<div class="post-feed-empty"><p>No ${escapeHtml(currentFeedCategoryFilter)} posts found</p><p>Share a post in this category or switch back to All Posts.</p></div>`;
         } else {
           container.innerHTML = `<div class="post-feed-empty"><p>No posts shared yet</p><p>Share a status above or upload notes in Library.</p></div>`;
@@ -4583,7 +4590,10 @@
       if (isTeacher && window.currentUserData) {
         const teacherId = window.currentUserData.studentId;
         // Show only notes and assignment posts added by this teacher (never other teachers' notes or assignments)
-        filteredFiles = files.filter(f => f.uploadedBy === teacherId);
+        filteredFiles = files.filter(f => {
+          if (f.uploadedBy === teacherId) return true;
+          return false;
+        });
         filteredAssignments = assignmentList.filter(a => a.createdBy === teacherId);
       }
 
@@ -4597,7 +4607,7 @@
         postsLoaded = true;
       }
       renderFeed();
-      if (!feedScrollRestoredOnce && feedScrollRestore) {
+      if (!feedScrollRestoredOnce && feedScrollRestore && typeof feedScrollRestore.restore === 'function') {
         feedScrollRestoredOnce = true;
         feedScrollRestore.restore();
       }
@@ -4623,8 +4633,8 @@
         const cachedFiles = window.SWR.peek(filesEp)?.data;
         const cachedAssign = window.SWR.peek(assignEp)?.data;
         const cachedPosts = window.SWR.peek(postsEp)?.data;
-        if (cachedPosts || cachedFiles) {
-          applyFeedPayload(cachedFiles || [], cachedAssign || [], cachedPosts || null, isTeacher);
+        if (cachedPosts && Array.isArray(cachedPosts.posts)) {
+          applyFeedPayload(cachedFiles || [], cachedAssign || [], cachedPosts, isTeacher);
         }
         let latestFiles = cachedFiles || [];
         let latestAssign = cachedAssign || [];
@@ -4636,21 +4646,23 @@
             force: Boolean(opts.force),
             fetcher: () => fetch(filesEp).then(r => r.ok ? r.json() : []).catch(() => []),
             onData: (d, m) => { latestFiles = d || []; if (m.changed) anyChanged = true; }
-          }),
+          }).catch(() => {}),
           window.SWR.get(assignEp, {
             ttl: 2 * 60 * 1000,
             force: Boolean(opts.force),
             fetcher: () => fetch(assignEp).then(r => r.ok ? r.json() : []).catch(() => []),
             onData: (d, m) => { latestAssign = d || []; if (m.changed) anyChanged = true; }
-          }),
+          }).catch(() => {}),
           window.SWR.get(postsEp, {
             ttl: 60 * 1000,
             force: Boolean(opts.force),
-            fetcher: () => fetchPostPage().catch(err => { postFeedMessage.textContent = err.message; return null; }),
+            fetcher: () => fetchPostPage(),
             onData: (d, m) => { latestPosts = d; if (m.changed) anyChanged = true; }
+          }).catch(err => {
+            postFeedMessage.textContent = err.message || 'Could not load posts. Please try again.';
           })
         ]);
-        if (anyChanged || (!cachedPosts && !cachedFiles)) {
+        if (anyChanged || !postsLoaded || (!cachedPosts && !cachedFiles)) {
           applyFeedPayload(latestFiles, latestAssign, latestPosts, isTeacher);
         }
         return;

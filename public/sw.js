@@ -32,30 +32,10 @@ const APP_SHELL_ASSETS = [
 function isExcludedFromSwCache(url) {
   const p = url.pathname;
   if (
-    p.startsWith('/api/auth') ||
-    p.startsWith('/api/login') ||
-    p.startsWith('/api/logout') ||
-    p.startsWith('/api/me') ||
-    p.startsWith('/api/profile') ||
-    p.startsWith('/api/academic-context') ||
-    p.startsWith('/api/chat') ||
-    p.startsWith('/api/dm') ||
-    p.startsWith('/api/notifications') ||
-    p.startsWith('/api/files') ||
-    p.startsWith('/api/library') ||
-    p.startsWith('/api/posts') ||
-    p.startsWith('/api/code-lab') ||
-    p.startsWith('/api/admin') ||
-    p.startsWith('/api/teacher') ||
-    p.startsWith('/api/attendance') ||
-    p.startsWith('/api/search') ||
-    p.startsWith('/api/students') ||
+    p.startsWith('/api/') ||
     p.startsWith('/uploads/') ||
     p.startsWith('/auth') ||
     p.startsWith('/js/auth') ||
-    p.startsWith('/js/teacher-attendance') ||
-    p.startsWith('/js/student-attendance') ||
-    p.startsWith('/js/attendance-drive-sync') ||
     p.startsWith('/academic-context') ||
     p.startsWith('/login') ||
     p.startsWith('/register') ||
@@ -79,7 +59,12 @@ function isAppShellAsset(url) {
 
 function isPublicDataEndpoint(url) {
   const p = url.pathname;
-  return p === '/syllabus-data.json' || p === '/api/routine';
+  return p === '/syllabus-data.json';
+}
+
+function isNetworkFirstScript(url) {
+  const p = url.pathname;
+  return p === '/chatbot.js' || p === '/routine.js';
 }
 
 self.addEventListener('install', (event) => {
@@ -144,7 +129,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // 2. Network-first for HTML documents & public non-user data (/syllabus-data.json, /api/routine)
-  if (req.mode === 'navigate' || url.pathname.endsWith('.html') || isPublicDataEndpoint(url)) {
+  if (req.mode === 'navigate' || url.pathname.endsWith('.html') || isPublicDataEndpoint(url) || isNetworkFirstScript(url)) {
     // Do not cache chat.html shell if realtime session state is active
     if (url.pathname === '/chat.html' || url.pathname === '/chat') return;
 
@@ -152,10 +137,12 @@ self.addEventListener('fetch', (event) => {
       fetch(req)
         .then((networkRes) => {
           if (networkRes && networkRes.ok && (networkRes.type === 'basic' || networkRes.type === 'cors')) {
+            if (typeof networkRes.clone === 'function' && typeof event.waitUntil === 'function') {
             const clone = networkRes.clone();
             event.waitUntil(
               caches.open(PAGE_CACHE).then((cache) => cache.put(req, clone)).catch(() => {})
             );
+          }
           }
           return networkRes;
         })

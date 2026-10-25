@@ -326,14 +326,19 @@ let initDbPromise = null;
 app.use(async (req, res, next) => {
   if (!isDbReady) {
     if (!initDbPromise) {
-      initDbPromise = db.initSchema().then(() => {
-        isDbReady = true;
-      });
+      initDbPromise = (typeof db.verifyStartupReady === 'function' ? db.verifyStartupReady() : db.initSchema())
+        .then(() => {
+          isDbReady = true;
+        })
+        .catch((err) => {
+          initDbPromise = null;
+          throw err;
+        });
     }
     try {
       await initDbPromise;
     } catch (err) {
-      return res.status(503).json({ message: 'Database initialization in progress. Please retry.' });
+      return res.status(503).json({ message: 'Database initialization in progress or failed. Please retry.' });
     }
   }
   next();
@@ -823,7 +828,9 @@ app.use(express.static(path.join(__dirname, 'public'), {
       const base = path.basename(lower);
       if (
         base === 'sw.js' ||
+        base === 'swr.js' ||
         base === 'auth.js' ||
+        base === 'auth-modal.js' ||
         base === 'academic-context.js' ||
         base === 'teacher-attendance.js' ||
         base === 'student-attendance.js' ||
@@ -3648,7 +3655,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
       teacherSubjects = req.user?.subjects || context.subjects || context.assignedSubjects || [];
     }
 
-    if (isFeedRequest) {
+    if (isTeacher && isFeedRequest) {
       whereSql = '1=1';
       whereParams = [];
       teacherFeedSql = ' AND files.uploadedBy = ?';
@@ -3679,7 +3686,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope, COALESCE(files.sort_order, 0) AS sort_order,
       students.name AS uploaderName,
-      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId ELSE students.avatarUrl END AS uploaderAvatar,
+      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) || '-' || SUBSTR(students.avatarUrl, -12) ELSE students.avatarUrl END AS uploaderAvatar,
       students.role AS uploaderRole,
       COALESCE(fl.likeCount, 0) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
@@ -4921,7 +4928,7 @@ app.get('/api/library/files', async (req, res) => {
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope, COALESCE(files.sort_order, 0) AS sort_order,
       students.name AS uploaderName,
-      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId ELSE students.avatarUrl END AS uploaderAvatar,
+      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) || '-' || SUBSTR(students.avatarUrl, -12) ELSE students.avatarUrl END AS uploaderAvatar,
       students.role AS uploaderRole,
       COALESCE(fl.likeCount, 0) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
@@ -5261,7 +5268,7 @@ app.get('/api/chat/members', requireLogin, async (req, res) => {
     const [members, lastMessages] = await Promise.all([
       db.all(`
         SELECT s.studentId, s.name, s.username,
-          CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId ELSE s.avatarUrl END AS avatarUrl,
+          CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) || '-' || SUBSTR(s.avatarUrl, -12) ELSE s.avatarUrl END AS avatarUrl,
           s.semester, s.department, s.role,
           r.lastReadMessageId
         FROM students s
@@ -5947,7 +5954,7 @@ const uploadCover = multer({
 async function getStudentProfile(targetStudentId, viewerStudentId) {
   let student = await db.get(`
     SELECT studentId, username, name,
-      CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId ELSE avatarUrl END AS avatarUrl,
+      CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId || '?v=' || LENGTH(avatarUrl) || '-' || SUBSTR(avatarUrl, -12) ELSE avatarUrl END AS avatarUrl,
       coverUrl, coverPosition, bio, department, semester, cohort_id, githubUrl, linkedinUrl, role, verification_status, email
     FROM students
     WHERE studentId = ?
@@ -5956,7 +5963,7 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
   if (!student && targetStudentId) {
     student = await db.get(`
       SELECT studentId, username, name,
-        CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId ELSE avatarUrl END AS avatarUrl,
+        CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId || '?v=' || LENGTH(avatarUrl) || '-' || SUBSTR(avatarUrl, -12) ELSE avatarUrl END AS avatarUrl,
         coverUrl, coverPosition, bio, department, semester, cohort_id, githubUrl, linkedinUrl, role, verification_status, email
       FROM students
       WHERE LOWER(username) = LOWER(?)

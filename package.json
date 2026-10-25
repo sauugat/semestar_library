@@ -19,7 +19,8 @@
     "sync": "node scripts/auto-sync.js --once",
     "auto-sync": "node scripts/auto-sync.js",
     "qa:server": "node scripts/qa-server.js",
-    "qa:seed": "node scripts/seed-qa.js"
+    "qa:seed": "node scripts/seed-qa.js",
+    "migrate": "node scripts/migrate-schema.js"
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",

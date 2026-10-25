@@ -53,7 +53,7 @@ module.exports = function createPostImagesRouter(db) {
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Disposition', 'inline');
       res.setHeader('X-Content-Type-Options', 'nosniff');
-      if (lowerName.endsWith('.svg') || lowerName.endsWith('.html')) {
+      if (!lowerName.endsWith('.pdf')) {
         res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
       }
       res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');

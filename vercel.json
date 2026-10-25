@@ -3,6 +3,15 @@
   "regions": ["iad1"],
   "headers": [
     {
+      "source": "/((?:js/)?(?:auth|auth-modal|academic-context|sw|swr|teacher-attendance|student-attendance|attendance-drive-sync)\\.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/(.*)\\.(css|js|woff2|woff|ttf|webp|png|jpg|jpeg|svg|ico)",
       "headers": [
         {
@@ -12,7 +21,7 @@
       ]
     },
     {
-      "source": "/(auth|academic-context|sw|js/teacher-attendance|js/student-attendance|js/attendance-drive-sync)\\.js",
+      "source": "/((?:js/)?(?:auth|auth-modal|academic-context|sw|swr|teacher-attendance|student-attendance|attendance-drive-sync)\\.js)",
       "headers": [
         {
           "key": "Cache-Control",

@@ -318,14 +318,14 @@ function syncHeaderProfile() {
         // If an auth token is in storage, do not prematurely wipe the chip
         const hasToken = Object.keys(localStorage || {}).some(k => k.startsWith('sb-') || k.includes('auth-token'));
         if (!hasToken) {
-          profileChip.outerHTML = `<a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+          profileChip.outerHTML = `<a href="/login.html" class="apple-nav-btn dash-signin-chip" style="text-decoration:none; display:inline-flex; align-items:center; height:32px; padding:0 14px; font-size:12px; font-weight:600; border-radius:980px;">Sign In</a>`;
         }
       }
     })
     .catch(() => {
       const hasToken = Object.keys(localStorage || {}).some(k => k.startsWith('sb-') || k.includes('auth-token'));
       if (!hasToken) {
-        profileChip.outerHTML = `<a href="/login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
+        profileChip.outerHTML = `<a href="/login.html" class="apple-nav-btn dash-signin-chip" style="text-decoration:none; display:inline-flex; align-items:center; height:32px; padding:0 14px; font-size:12px; font-weight:600; border-radius:980px;">Sign In</a>`;
       }
     });
 }

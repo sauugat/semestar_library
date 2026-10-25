@@ -25,8 +25,8 @@
   <link rel="stylesheet" href="chatbot.css?v=25">
   <link rel="stylesheet" href="auth-modal.css?v=25">
   <link rel="stylesheet" href="/theme-overrides.css?v=25">
-  <script src="/auth.js?v=3"></script>
-  <script src="/js/swr.js?v=25"></script>
+  <script src="/auth.js?v=27"></script>
+  <script src="/js/swr.js?v=27"></script>
 </head>
 <body class="dash syllabus-page-body">
 
@@ -100,10 +100,7 @@
         SemesterAuth.initHeader(user);
       } else {
         window.IS_AUTHENTICATED = false;
-        const chip = document.querySelector('.dash-profile-chip');
-        if (chip) {
-          chip.outerHTML = `<a href="login.html" class="nav-cta-btn apple-nav-btn">Sign In</a>`;
-        }
+        SemesterAuth.initHeader(null);
       }
     }).catch(() => {
       window.IS_AUTHENTICATED = false;
@@ -854,7 +851,7 @@
     </svg>
     <span>Login required to access this page. <a href="login.html">Sign In</a></span>
   </div>
-  <script src="auth-modal.js?v=25" defer></script>
+  <script src="auth-modal.js?v=27" defer></script>
   <!-- PWA Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {

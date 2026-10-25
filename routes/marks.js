@@ -21,16 +21,49 @@ function resolveCallerId(req) {
   );
 }
 
-function sendMarksError(res, err, fallbackMessage = 'Marks & Results operation failed.') {
-  const status = Number(err && (err.status || err.statusCode)) || 500;
-  const isProd = process.env.NODE_ENV === 'production';
-  const safeMessage = status >= 500 && isProd ? fallbackMessage : (err && err.message) || fallbackMessage;
-  const payload = {
-    error: (err && err.code) || (status === 401 ? 'UNAUTHENTICATED' : status === 403 ? 'FORBIDDEN' : 'MARKS_ERROR'),
-    code: (err && err.code) || undefined,
+/**
+ * Classifies errors into structured HTTP responses and records sanitized server-side diagnostics
+ * without ever exposing database internals, credentials, or session tokens.
+ */
+function sendMarksError(res, err, fallbackMessage = 'Marks & Results operation failed.', contextMeta = {}) {
+  const rawStatus = Number(err && (err.status || err.statusCode));
+  const status = rawStatus >= 400 && rawStatus < 600 ? rawStatus : 500;
+  const code =
+    (err && err.code && typeof err.code === 'string' && !/^[0-9A-Z]{5}$/.test(err.code))
+      ? err.code
+      : status === 401
+      ? 'UNAUTHENTICATED'
+      : status === 403
+      ? 'FORBIDDEN'
+      : status === 404
+      ? 'NOT_FOUND'
+      : status === 400
+      ? 'INVALID_REQUEST'
+      : 'DATABASE_ERROR';
+
+  if (status >= 500) {
+    console.error('[Marks API Diagnostic]:', {
+      operation: contextMeta.operation || 'marks_operation',
+      actorUserId: contextMeta.actorUserId || null,
+      subjectId: contextMeta.subjectId || null,
+      examType: contextMeta.examType || null,
+      errorCode: (err && err.code) || 'INTERNAL_ERROR',
+      errorMessage: (err && err.message) || 'Unknown error'
+    });
+  }
+
+  let safeMessage = fallbackMessage;
+  if (status < 500 && err && err.message) {
+    safeMessage = err.message;
+  } else if (status >= 500) {
+    safeMessage = fallbackMessage;
+  }
+
+  return res.status(status).json({
+    error: code,
+    code,
     message: safeMessage
-  };
-  return res.status(status).json(payload);
+  });
 }
 
 function createMarksRouter(arg1, arg2) {
@@ -49,7 +82,7 @@ function createMarksRouter(arg1, arg2) {
   const requireAdminRole = async (req, res, next) => {
     const callerId = resolveCallerId(req);
     if (!callerId) {
-      return res.status(401).json({ error: 'UNAUTHENTICATED', message: 'Authentication required. Please sign in.' });
+      return res.status(401).json({ error: 'UNAUTHENTICATED', code: 'UNAUTHENTICATED', message: 'Authentication required. Please sign in.' });
     }
     try {
       const user = await db.get(
@@ -57,15 +90,15 @@ function createMarksRouter(arg1, arg2) {
         callerId
       );
       if (!user || (user.account_status || user.accountStatus || 'active') === 'suspended') {
-        return res.status(403).json({ error: 'ACCOUNT_SUSPENDED', message: 'Forbidden: Account is suspended or invalid.' });
+        return res.status(403).json({ error: 'ACCOUNT_SUSPENDED', code: 'ACCOUNT_SUSPENDED', message: 'Forbidden: Account is suspended or invalid.' });
       }
       if (String(user.role || '').toLowerCase() !== 'admin') {
-        return res.status(403).json({ error: 'FORBIDDEN', message: 'Forbidden: Administrator access required.' });
+        return res.status(403).json({ error: 'FORBIDDEN', code: 'FORBIDDEN', message: 'Forbidden: Administrator access required.' });
       }
       req.adminStudentId = user.studentId || user.studentid;
       next();
     } catch (err) {
-      return res.status(500).json({ error: 'AUTH_ERROR', message: 'Authorization check failed.' });
+      return res.status(500).json({ error: 'AUTH_ERROR', code: 'AUTH_ERROR', message: 'Authorization check failed.' });
     }
   };
 
@@ -104,12 +137,15 @@ function createMarksRouter(arg1, arg2) {
    * Returns authorized subjects, exam types, and exam status overview.
    */
   const handleGetContext = async (req, res) => {
+    const callerId = resolveCallerId(req);
     try {
-      const callerId = resolveCallerId(req);
       const context = await getTeacherMarksContext(db, { actorUserId: callerId });
       return res.json(context);
     } catch (err) {
-      return sendMarksError(res, err, 'Failed to load teacher marks entry context.');
+      return sendMarksError(res, err, 'Failed to load teacher marks entry context.', {
+        operation: 'getTeacherMarksContext',
+        actorUserId: callerId
+      });
     }
   };
 
@@ -123,10 +159,10 @@ function createMarksRouter(arg1, arg2) {
    * Query: subjectId, examType (optional)
    */
   const handleGetConfig = async (req, res) => {
+    const callerId = resolveCallerId(req);
+    const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject;
+    const examType = req.query.examType || req.query.exam_type || req.query.exam || null;
     try {
-      const callerId = resolveCallerId(req);
-      const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject;
-      const examType = req.query.examType || req.query.exam_type || req.query.exam || null;
       const result = await getExamConfiguration(db, {
         actorUserId: callerId,
         subjectId,
@@ -134,7 +170,12 @@ function createMarksRouter(arg1, arg2) {
       });
       return res.json(result);
     } catch (err) {
-      return sendMarksError(res, err, 'Failed to load exam configuration.');
+      return sendMarksError(res, err, 'Failed to load exam configuration.', {
+        operation: 'getExamConfiguration',
+        actorUserId: callerId,
+        subjectId,
+        examType
+      });
     }
   };
 
@@ -148,18 +189,17 @@ function createMarksRouter(arg1, arg2) {
    * Body: { subjectId, examType, maxMarks, reason }
    */
   const handleUpsertConfig = async (req, res) => {
+    const callerId = resolveCallerId(req);
+    const body = req.body || {};
+    const subjectId = body.subjectId || body.subject_id || body.subject || req.query.subjectId;
+    const examType = body.examType || body.exam_type || body.exam || req.query.examType;
+    const maxMarks =
+      body.maxMarks !== undefined
+        ? body.maxMarks
+        : body.max_marks !== undefined
+        ? body.max_marks
+        : body.maximumMarks;
     try {
-      const callerId = resolveCallerId(req);
-      const body = req.body || {};
-      const subjectId = body.subjectId || body.subject_id || body.subject || req.query.subjectId;
-      const examType = body.examType || body.exam_type || body.exam || req.query.examType;
-      const maxMarks =
-        body.maxMarks !== undefined
-          ? body.maxMarks
-          : body.max_marks !== undefined
-          ? body.max_marks
-          : body.maximumMarks;
-
       const result = await upsertExamConfiguration(db, {
         actorUserId: callerId,
         subjectId,
@@ -169,7 +209,12 @@ function createMarksRouter(arg1, arg2) {
       });
       return res.status(result.created ? 201 : 200).json(result);
     } catch (err) {
-      return sendMarksError(res, err, 'Failed to save exam configuration.');
+      return sendMarksError(res, err, 'Failed to save exam configuration.', {
+        operation: 'upsertExamConfiguration',
+        actorUserId: callerId,
+        subjectId,
+        examType
+      });
     }
   };
 
@@ -186,12 +231,11 @@ function createMarksRouter(arg1, arg2) {
    * Query: subjectId, examType, cohortId (optional)
    */
   const handleGetRoster = async (req, res) => {
+    const callerId = resolveCallerId(req);
+    const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject;
+    const examType = req.query.examType || req.query.exam_type || req.query.exam || null;
+    const cohortId = req.query.cohortId || req.query.cohort_id || req.query.cohort || null;
     try {
-      const callerId = resolveCallerId(req);
-      const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject;
-      const examType = req.query.examType || req.query.exam_type || req.query.exam || null;
-      const cohortId = req.query.cohortId || req.query.cohort_id || req.query.cohort || null;
-
       const result = await getSubjectMarksRoster(db, {
         actorUserId: callerId,
         subjectId,
@@ -200,7 +244,17 @@ function createMarksRouter(arg1, arg2) {
       });
       return res.json(result);
     } catch (err) {
-      return sendMarksError(res, err, 'Failed to load enrolled students and marks register.');
+      return sendMarksError(
+        res,
+        err,
+        `Unable to load the student marks register${subjectId ? ' for ' + String(subjectId).trim() : ''}. Please retry.`,
+        {
+          operation: 'getSubjectMarksRoster',
+          actorUserId: callerId,
+          subjectId,
+          examType
+        }
+      );
     }
   };
 
@@ -213,28 +267,28 @@ function createMarksRouter(arg1, arg2) {
    * Saves draft marks (or edits marks) for a subject and exam type.
    */
   const handleSaveMarks = (options = {}) => async (req, res) => {
-    try {
-      const callerId = resolveCallerId(req);
-      const body = req.body || {};
-      const subjectId = body.subjectId || body.subject_id || body.subject;
-      const examType = body.examType || body.exam_type || body.exam;
-      const cohortId = body.cohortId || body.cohort_id || body.cohort || null;
-      const maxMarks =
-        body.maxMarks !== undefined
-          ? body.maxMarks
-          : body.max_marks !== undefined
-          ? body.max_marks
-          : body.maximumMarks;
-      const records = Array.isArray(body.records)
-        ? body.records
-        : Array.isArray(body.marks)
-        ? body.marks
-        : Array.isArray(body.students)
-        ? body.students
-        : [];
-      const publish = Boolean(options.publish || body.publish === true || body.status === 'published');
-      const editPublished = Boolean(options.editPublished || body.editPublished === true);
+    const callerId = resolveCallerId(req);
+    const body = req.body || {};
+    const subjectId = body.subjectId || body.subject_id || body.subject;
+    const examType = body.examType || body.exam_type || body.exam;
+    const cohortId = body.cohortId || body.cohort_id || body.cohort || null;
+    const maxMarks =
+      body.maxMarks !== undefined
+        ? body.maxMarks
+        : body.max_marks !== undefined
+        ? body.max_marks
+        : body.maximumMarks;
+    const records = Array.isArray(body.records)
+      ? body.records
+      : Array.isArray(body.marks)
+      ? body.marks
+      : Array.isArray(body.students)
+      ? body.students
+      : [];
+    const publish = Boolean(options.publish || body.publish === true || body.status === 'published');
+    const editPublished = Boolean(options.editPublished || body.editPublished === true);
 
+    try {
       const result = await saveStudentMarks(db, {
         actorUserId: callerId,
         subjectId,
@@ -248,7 +302,12 @@ function createMarksRouter(arg1, arg2) {
       });
       return res.status(200).json(result);
     } catch (err) {
-      return sendMarksError(res, err, 'Failed to save student marks.');
+      return sendMarksError(res, err, 'Failed to save student marks.', {
+        operation: 'saveStudentMarks',
+        actorUserId: callerId,
+        subjectId,
+        examType
+      });
     }
   };
 
@@ -262,26 +321,26 @@ function createMarksRouter(arg1, arg2) {
    * Publishes results for a subject and exam type.
    */
   const handlePublishResults = async (req, res) => {
-    try {
-      const callerId = resolveCallerId(req);
-      const body = req.body || {};
-      const subjectId = body.subjectId || body.subject_id || body.subject;
-      const examType = body.examType || body.exam_type || body.exam;
-      const cohortId = body.cohortId || body.cohort_id || body.cohort || null;
-      const maxMarks =
-        body.maxMarks !== undefined
-          ? body.maxMarks
-          : body.max_marks !== undefined
-          ? body.max_marks
-          : body.maximumMarks;
-      const records = Array.isArray(body.records)
-        ? body.records
-        : Array.isArray(body.marks)
-        ? body.marks
-        : Array.isArray(body.students)
-        ? body.students
-        : undefined;
+    const callerId = resolveCallerId(req);
+    const body = req.body || {};
+    const subjectId = body.subjectId || body.subject_id || body.subject;
+    const examType = body.examType || body.exam_type || body.exam;
+    const cohortId = body.cohortId || body.cohort_id || body.cohort || null;
+    const maxMarks =
+      body.maxMarks !== undefined
+        ? body.maxMarks
+        : body.max_marks !== undefined
+        ? body.max_marks
+        : body.maximumMarks;
+    const records = Array.isArray(body.records)
+      ? body.records
+      : Array.isArray(body.marks)
+      ? body.marks
+      : Array.isArray(body.students)
+      ? body.students
+      : undefined;
 
+    try {
       const result = await publishSubjectResults(db, {
         actorUserId: callerId,
         subjectId,
@@ -293,7 +352,12 @@ function createMarksRouter(arg1, arg2) {
       });
       return res.status(200).json(result);
     } catch (err) {
-      return sendMarksError(res, err, 'Failed to publish exam results.');
+      return sendMarksError(res, err, 'Failed to publish exam results.', {
+        operation: 'publishSubjectResults',
+        actorUserId: callerId,
+        subjectId,
+        examType
+      });
     }
   };
 
@@ -313,10 +377,10 @@ function createMarksRouter(arg1, arg2) {
    * Returns audit history for marks & configuration changes on a subject/exam.
    */
   router.get('/audit', requireLogin, async (req, res) => {
+    const callerId = resolveCallerId(req);
+    const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject;
+    const examType = req.query.examType || req.query.exam_type || req.query.exam || null;
     try {
-      const callerId = resolveCallerId(req);
-      const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject;
-      const examType = req.query.examType || req.query.exam_type || req.query.exam || null;
       const result = await getSubjectMarksAuditLogs(db, {
         actorUserId: callerId,
         subjectId,
@@ -324,7 +388,12 @@ function createMarksRouter(arg1, arg2) {
       });
       return res.json(result);
     } catch (err) {
-      return sendMarksError(res, err, 'Failed to load marks audit logs.');
+      return sendMarksError(res, err, 'Failed to load marks audit logs.', {
+        operation: 'getSubjectMarksAuditLogs',
+        actorUserId: callerId,
+        subjectId,
+        examType
+      });
     }
   });
 
@@ -334,8 +403,8 @@ function createMarksRouter(arg1, arg2) {
    * Strictly returns ONLY the authenticated student's own published results.
    */
   const handleGetStudentResults = async (req, res) => {
+    const callerId = resolveCallerId(req);
     try {
-      const callerId = resolveCallerId(req);
       enforceStudentSelfIsolation(req, callerId);
 
       const semesterFilter = req.query.semester || req.query.semesterNo || req.query.semester_no || null;
@@ -345,7 +414,10 @@ function createMarksRouter(arg1, arg2) {
       });
       return res.json(results);
     } catch (err) {
-      return sendMarksError(res, err, 'Failed to load published results.');
+      return sendMarksError(res, err, 'Failed to load published results.', {
+        operation: 'getStudentPublishedResults',
+        actorUserId: callerId
+      });
     }
   };
 

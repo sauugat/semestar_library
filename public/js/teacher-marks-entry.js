@@ -631,6 +631,7 @@
 
     state.loadingRoster = true;
     state.rosterError = null;
+    state.rosterErrorCode = null;
     state.actionError = null;
     render();
 
@@ -645,7 +646,10 @@
       const res = await authFetch(`/api/marks/roster?${params.toString()}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.message || 'Failed to load student marks register.');
+        const err = new Error(data.message || 'Failed to load student marks register.');
+        err.code = data.code || (res.status === 403 ? 'FORBIDDEN' : res.status === 400 ? 'INVALID_REQUEST' : 'ROSTER_LOAD_FAILED');
+        err.status = res.status;
+        throw err;
       }
 
       applyRosterDataToState(data);
@@ -653,6 +657,7 @@
       render();
     } catch (err) {
       state.loadingRoster = false;
+      state.rosterErrorCode = err.code || null;
       state.rosterError = err.message || 'Failed to load student marks register.';
       render();
     }
@@ -763,6 +768,12 @@
       }
 
       state.examConfig = data.config || state.examConfig;
+      if (data.config) {
+        state.configsByExamType = {
+          ...(state.configsByExamType || {}),
+          [state.selectedExamType]: data.config
+        };
+      }
       if (data.config && data.config.maxMarks) {
         state.maxMarksInput = String(data.config.maxMarks);
         state.initialMaxMarksSnapshot = String(data.config.maxMarks);
@@ -770,6 +781,7 @@
       state.savingConfig = false;
       state.actionSuccessMessage = `Maximum marks configured to ${maxCheck.value} for ${state.selectedExamType}.`;
       runAllClientValidations();
+      await refreshSubjectCardsInBackground();
       render();
     } catch (err) {
       state.savingConfig = false;
@@ -1163,7 +1175,15 @@
             : state.rosterError
             ? `
           <div class="sl-marks-panel" role="alert" style="text-align:center; padding:40px 24px;">
-            <div style="font-size:1.05rem; font-weight:800; margin-bottom:8px;">Could Not Load Marks Register</div>
+            <div style="font-size:1.05rem; font-weight:800; margin-bottom:8px;">
+              ${
+                state.rosterErrorCode === 'UNAUTHORIZED_SUBJECT' || state.rosterErrorCode === 'FORBIDDEN'
+                  ? 'Subject Access Restricted'
+                  : state.rosterErrorCode === 'INVALID_REQUEST' || state.rosterErrorCode === 'INVALID_EXAM_TYPE'
+                  ? 'Invalid Marks Register Request'
+                  : 'Could Not Load Marks Register'
+              }
+            </div>
             <div style="font-size:0.88rem; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:16px;">
               ${escapeHtml(state.rosterError)}
             </div>
@@ -1187,6 +1207,20 @@
                 ? `
               <div class="sl-marks-banner" role="status">
                 <div><strong>Success:</strong> ${escapeHtml(state.actionSuccessMessage)}</div>
+              </div>
+            `
+                : ''
+            }
+
+            <!-- Missing Exam Configuration Prompt Banner (non-blocking) -->
+            ${
+              !state.examConfig || !state.examConfig.configured
+                ? `
+              <div class="sl-marks-banner" id="slMarksConfigPromptBanner" role="status">
+                <div>
+                  <span class="sl-marks-badge missing" style="margin-right:8px;">Configuration Needed</span>
+                  <strong>Maximum Marks Not Configured Yet:</strong> Enter a positive maximum mark value for <strong>${escapeHtml(state.selectedExamType)}</strong> below. The student marks register is loaded and ready for entry.
+                </div>
               </div>
             `
                 : ''

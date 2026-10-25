@@ -1028,3 +1028,215 @@ test('7. PostgreSQL (PGlite) Migration Compatibility, Uniqueness Constraints, an
   assert.ok(cssText.includes('@media (max-width:480px)'), 'style.v4.css must include mobile media query for .dash-header-nav');
 });
 
+test('8. Regression: CIT214 (Semester 3) & CIT223 (Semester 4) Roster Loading when Exam Max Marks are Unconfigured, Empty Roster, and Lazy Schema Self-Healing', async () => {
+  const { PGlite } = require('@electric-sql/pglite');
+  const { createTransactionAdapter } = require('../lib/db-transaction');
+  const {
+    getTeacherMarksContext,
+    getSubjectMarksRoster,
+    saveStudentMarks
+  } = require('../lib/marks-service');
+
+  // 1. Simulate the exact production scenario where Postgres fast-check skipped initSchema()
+  //    so students, subjects, teachers, teacher_subjects exist, but exam_configurations / student_marks
+  //    were not yet created when the teacher opens Marks Entry and selects CIT214 or CIT223.
+  const pg = new PGlite();
+  const formatRow = (r) => db.formatRow(r);
+  const formatRows = (rs) => db.formatRows(rs);
+
+  function createPgAdapter(client) {
+    const adapter = createTransactionAdapter(
+      {
+        query: async (sql, args) => {
+          const res = args && args.length > 0 ? await client.query(sql, args) : await client.query(sql);
+          return { rows: res.rows, rowCount: res.affectedRows };
+        }
+      },
+      true,
+      formatRow,
+      formatRows
+    );
+    adapter.isPostgres = true;
+    adapter.exec = async (sql) => {
+      if (client.exec) return await client.exec(sql);
+      return await client.query(sql);
+    };
+    return adapter;
+  }
+
+  const pgDb = createPgAdapter(pg);
+  pgDb.withTransaction = async (fn) => {
+    return await pg.transaction(async (tx) => {
+      return await fn(createPgAdapter(tx));
+    });
+  };
+
+  await pgDb.exec(`
+    CREATE TABLE students (
+      studentId TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      username TEXT,
+      email TEXT,
+      role TEXT DEFAULT 'student',
+      department TEXT DEFAULT 'BIT',
+      semester TEXT DEFAULT 'Semester 1',
+      cohort_id TEXT,
+      avatarUrl TEXT,
+      account_status VARCHAR(32) NOT NULL DEFAULT 'active',
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE posts (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES students(studentId),
+      content TEXT NOT NULL DEFAULT '',
+      type TEXT NOT NULL DEFAULT 'status',
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE files (
+      id SERIAL PRIMARY KEY,
+      storedName TEXT NOT NULL,
+      originalName TEXT NOT NULL,
+      title TEXT,
+      subject TEXT,
+      semester TEXT,
+      uploadedBy TEXT NOT NULL REFERENCES students(studentId),
+      uploadedAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE assignments (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      subject TEXT,
+      semester TEXT,
+      deadline TIMESTAMPTZ,
+      createdBy TEXT NOT NULL REFERENCES students(studentId),
+      createdAt TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await ensureAcademicCohortSchema({
+    exec: pgDb.exec,
+    run: pgDb.run,
+    all: pgDb.all,
+    isPostgres: true
+  });
+  await ensureTeacherSchema({ exec: pgDb.exec, isPostgres: true });
+  await ensureAuditSchema(pgDb);
+  await seedCanonicalSubjects(pgDb);
+
+  const cohortSem3 = await createCohort(pgDb, {
+    slotCode: 'mars',
+    displayName: 'Mars',
+    currentSemester: 3,
+    intakeYear: 2025
+  });
+
+  // Create teacher assigned to CIT214 (Semester 3, Data Structure and Algorithms)
+  // and CIT223 (Semester 4, Data Communication and Computer Networks)
+  await pgDb.run(
+    `INSERT INTO students (studentId, username, name, role, department, account_status)
+     VALUES ('tea_cit_1', 'tea_cit_1', 'Prof. CIT Teacher', 'teacher', 'BIT', 'active')`
+  );
+  await pgDb.run(
+    `INSERT INTO teachers (id, user_id, designation, status)
+     VALUES ('tea_rec_cit_1', 'tea_cit_1', 'Lecturer', 'active')`
+  );
+  await pgDb.run(
+    `INSERT INTO teacher_subjects (id, teacher_id, subject_id) VALUES ('ts_cit_214', 'tea_rec_cit_1', 'CIT214')`
+  );
+  await pgDb.run(
+    `INSERT INTO teacher_subjects (id, teacher_id, subject_id) VALUES ('ts_cit_223', 'tea_rec_cit_1', 'CIT223')`
+  );
+
+  // Enroll 2 students in Semester 3 (for CIT214) and 0 students in Semester 4 (for CIT223 empty roster check)
+  await pgDb.run(
+    `INSERT INTO students (studentId, username, name, role, semester, cohort_id, account_status)
+     VALUES ('25030001', 'stu_s3_1', 'Sagar SemThree', 'student', 'Semester 3', ?, 'active')`,
+    cohortSem3.id
+  );
+  await pgDb.run(
+    `INSERT INTO students (studentId, username, name, role, semester, cohort_id, account_status)
+     VALUES ('25030002', 'stu_s3_2', 'Salina SemThree', 'student', 'Semester 3', ?, 'active')`,
+    cohortSem3.id
+  );
+
+  // Notice: ensureMarksSchema(pgDb) was NOT called upfront!
+  // Calling getTeacherMarksContext and getSubjectMarksRoster must auto-initialize the marks schema and succeed!
+  const teacherCtx = await getTeacherMarksContext(pgDb, { actorUserId: 'tea_cit_1' });
+  assert.deepEqual(
+    teacherCtx.subjects.map((s) => s.code).sort(),
+    ['CIT214', 'CIT223']
+  );
+
+  // Selecting CIT214 (Semester 3, Data Structure and Algorithms) when Max Marks are NOT configured:
+  const cit214Roster = await getSubjectMarksRoster(pgDb, {
+    actorUserId: 'tea_cit_1',
+    subjectId: 'CIT214',
+    examType: 'Mid-Term Exam'
+  });
+  assert.equal(cit214Roster.subject.code, 'CIT214');
+  assert.equal(cit214Roster.subject.semester, 3);
+  assert.equal(cit214Roster.examConfig.configured, false);
+  assert.equal(cit214Roster.examConfig.maxMarks, null);
+  assert.equal(cit214Roster.students.length, 2);
+  assert.equal(cit214Roster.students[0].studentId, '25030001');
+  assert.equal(cit214Roster.students[1].studentId, '25030002');
+  assert.equal(cit214Roster.summary.missingCount, 2);
+
+  // Selecting CIT223 (Semester 4, Data Communication and Computer Networks) with an EMPTY student roster and unconfigured Max Marks:
+  const cit223Roster = await getSubjectMarksRoster(pgDb, {
+    actorUserId: 'tea_cit_1',
+    subjectId: 'CIT223',
+    examType: 'Mid-Term Exam'
+  });
+  assert.equal(cit223Roster.subject.code, 'CIT223');
+  assert.equal(cit223Roster.subject.semester, 4);
+  assert.equal(cit223Roster.examConfig.configured, false);
+  assert.equal(cit223Roster.students.length, 0);
+  assert.equal(cit223Roster.summary.totalStudents, 0);
+
+  // Saving draft marks on CIT214 with maxMarks supplied inline
+  const savedCit214 = await saveStudentMarks(pgDb, {
+    actorUserId: 'tea_cit_1',
+    subjectId: 'CIT214',
+    examType: 'Mid-Term Exam',
+    maxMarks: 30,
+    records: [
+      { studentId: '25030001', obtainedMarks: 27 },
+      { studentId: '25030002', obtainedMarks: 24 }
+    ]
+  });
+  assert.equal(savedCit214.examConfig.configured, true);
+  assert.equal(savedCit214.examConfig.maxMarks, 30);
+  assert.equal(savedCit214.summary.draftCount, 2);
+
+  await pg.close();
+
+  // 2. Also verify via HTTP route & TeacherMarksEntryWorkspace UI that selecting an unconfigured subject
+  //    displays the non-blocking configuration prompt ("Maximum Marks Not Configured Yet") while keeping the student register table accessible
+  await db.run(
+    `INSERT INTO teacher_subjects (id, teacher_id, subject_id) VALUES ('ts_mr_a_cit214', 'tea_id_mr_a', 'CIT214')`
+  );
+  await db.run(
+    `INSERT INTO teacher_subjects (id, teacher_id, subject_id) VALUES ('ts_mr_a_cit223', 'tea_id_mr_a', 'CIT223')`
+  );
+
+  const unconfigHttpRes = await appFetch(
+    `${baseUrl}/api/marks/roster?subjectId=CIT214&examType=${encodeURIComponent('Mid-Term Exam')}`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(unconfigHttpRes.status, 200);
+  const unconfigHttpData = await unconfigHttpRes.json();
+  assert.equal(unconfigHttpData.subject.code, 'CIT214');
+  assert.equal(unconfigHttpData.examConfig.configured, false);
+
+  const emptyCit223Res = await appFetch(
+    `${baseUrl}/api/marks/roster?subjectId=CIT223&examType=${encodeURIComponent('Mid-Term Exam')}`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(emptyCit223Res.status, 200);
+  const emptyCit223Data = await emptyCit223Res.json();
+  assert.equal(emptyCit223Data.subject.code, 'CIT223');
+  assert.equal(emptyCit223Data.students.length, 0);
+});
+
+

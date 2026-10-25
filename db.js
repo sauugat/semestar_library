@@ -1406,10 +1406,14 @@ async function verifyStartupReady() {
     try {
       if (isPostgres && pgPool) {
         const res = await pgPool.query(
-          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl"
+          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl, to_regclass('public.exam_configurations') AS exam_cfg_tbl, to_regclass('public.student_marks') AS student_marks_tbl, to_regclass('public.marks_audit_logs') AS marks_audit_tbl"
         );
         const row = res.rows && res.rows[0];
         if (row && row.students_tbl && row.posts_tbl) {
+          if (!row.exam_cfg_tbl || !row.student_marks_tbl || !row.marks_audit_tbl) {
+            const { ensureMarksSchema } = require('./lib/marks-service');
+            await ensureMarksSchema({ exec, isPostgres });
+          }
           return { ready: true, mode: "fast-check" };
         }
       }

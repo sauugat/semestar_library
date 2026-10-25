@@ -97,13 +97,16 @@ async function appFetch(urlOrPath, options = {}) {
         );
       }
       origEnd(chunk, encoding, cb);
-      const rawText = Buffer.concat(resChunks).toString('utf8');
+      const rawBuffer = Buffer.concat(resChunks);
+      const rawText = rawBuffer.toString('utf8');
       resolve({
         status: res.statusCode || 200,
         ok: (res.statusCode || 200) >= 200 && (res.statusCode || 200) < 300,
         headers: {
           get: (name) => res.getHeader(name.toLowerCase()) || null
         },
+        buffer: async () => rawBuffer,
+        arrayBuffer: async () => rawBuffer.buffer.slice(rawBuffer.byteOffset, rawBuffer.byteOffset + rawBuffer.byteLength),
         text: async () => rawText,
         json: async () => (rawText ? JSON.parse(rawText) : null)
       });
@@ -1237,6 +1240,269 @@ test('8. Regression: CIT214 (Semester 3) & CIT223 (Semester 4) Roster Loading wh
   const emptyCit223Data = await emptyCit223Res.json();
   assert.equal(emptyCit223Data.subject.code, 'CIT223');
   assert.equal(emptyCit223Data.students.length, 0);
+});
+
+test('9. University Results Portal: Semester Filtering, Exam-Type Filtering, Academic Summary Accuracy, Unpublished Exam Slots, and Empty/Error States', async () => {
+  const resultsHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'results.html'), 'utf8');
+  assert.ok(resultsHtml.includes('Academic Results'), 'results.html must display Academic Results title');
+  assert.ok(
+    resultsHtml.includes('Published examination results'),
+    'results.html must explain that the page contains published examination results'
+  );
+  assert.ok(resultsHtml.includes('class="dash-header-nav"'), 'results.html must preserve shared header navigation');
+
+  await appFetch(`${baseUrl}/api/marks/publish`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherBToken}`
+    },
+    body: JSON.stringify({
+      subjectId: 'CIT121',
+      examType: 'Mid-Term Exam',
+      maxMarks: 50,
+      records: [{ studentId: '25020101', obtainedMarks: 44 }]
+    })
+  });
+
+  const sem1Res = await appFetch(`${baseUrl}/api/results/my-results?semester=1`, {
+    headers: { Authorization: `Bearer ${student1Token}` }
+  });
+  assert.equal(sem1Res.status, 200);
+  const sem1Data = await sem1Res.json();
+  assert.equal(sem1Data.semesters.length, 1);
+  const sem1 = sem1Data.semesters[0];
+  assert.equal(sem1.semesterNo, 1);
+  assert.equal(sem1.summary.publishedSubjectsCount, 2);
+  assert.equal(sem1.summary.publishedExamsCount, 3);
+  assert.equal(sem1.summary.totalObtainedMarks, 125);
+  assert.equal(sem1.summary.totalMaxMarks, 150);
+  assert.equal(sem1.summary.overallPercentage, 83.33);
+  assert.equal(sem1.summary.isPartiallyPublished, true);
+
+  const cit111Subj = sem1.subjects.find((s) => s.code === 'CIT111');
+  assert.ok(cit111Subj);
+  assert.equal(cit111Subj.examSlots.length, 3);
+  const finalSlot = cit111Subj.examSlots.find((s) => s.examType === 'Final Exam');
+  assert.equal(finalSlot.isPublished, false);
+  assert.equal(finalSlot.obtainedMarks, null, 'Unpublished exam must not expose draft marks or imply zero');
+  assert.equal(finalSlot.publicationStatus, 'Not Yet Available');
+
+  const makeEl = (tag = 'div') => ({
+    tagName: tag.toUpperCase(),
+    id: '',
+    className: '',
+    textContent: '',
+    value: '',
+    style: {},
+    attributes: {},
+    listeners: {},
+    _innerHTML: '',
+    set innerHTML(val) {
+      this._innerHTML = String(val);
+    },
+    get innerHTML() {
+      return this._innerHTML;
+    },
+    setAttribute(k, v) {
+      this.attributes[k] = String(v);
+    },
+    getAttribute(k) {
+      return this.attributes[k] || null;
+    },
+    addEventListener(evt, fn) {
+      this.listeners[evt] = fn;
+    },
+    appendChild() {},
+    removeChild() {},
+    click() {},
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  });
+
+  let shouldFailFetch = false;
+  const studentMount = makeEl('div');
+  const studentWindow = {
+    URLSearchParams,
+    Blob: global.Blob,
+    URL: {
+      createObjectURL: () => 'blob:mock-pdf-url',
+      revokeObjectURL: () => {}
+    },
+    document: {
+      head: { appendChild() {} },
+      body: { appendChild() {}, removeChild() {} },
+      getElementById: () => null,
+      createElement: (tag) => makeEl(tag),
+      querySelector: () => studentMount
+    },
+    SemesterAuth: {
+      authFetch: async (url, opts = {}) => {
+        if (shouldFailFetch) {
+          throw new Error('Network connection interrupted. Please check your connection.');
+        }
+        return appFetch(`${baseUrl}${url}`, {
+          ...opts,
+          headers: { ...(opts.headers || {}), Authorization: `Bearer ${student1Token}` }
+        });
+      }
+    }
+  };
+  studentWindow.window = studentWindow;
+
+  const studentScript = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'js', 'student-results.js'),
+    'utf8'
+  );
+  vm.runInNewContext(studentScript, studentWindow);
+  const sDashboard = studentWindow.StudentResultsDashboard;
+
+  await sDashboard.mount(studentMount);
+  assert.ok(studentMount.innerHTML.includes('Published Results Summary'));
+  assert.ok(studentMount.innerHTML.includes('125 / 150'), 'Must display aggregated published marks 125 / 150');
+  assert.ok(studentMount.innerHTML.includes('83.33%'), 'Must display overall percentage 83.33%');
+  assert.ok(studentMount.innerHTML.includes('Not Yet Available'), 'Must indicate unpublished exam is Not Yet Available');
+  assert.ok(!studentMount.innerHTML.includes('>88<'), 'Must never display draft Final Exam score 88');
+  assert.ok(studentMount.innerHTML.includes('Download Report Card (Sem 1)'));
+
+  sDashboard.selectExamType('Pre-Board Exam');
+  assert.ok(studentMount.innerHTML.includes('CIT111'));
+  assert.ok(studentMount.innerHTML.includes('75%'));
+  assert.ok(!studentMount.innerHTML.includes('BSM111'));
+
+  sDashboard.selectExamType('ALL');
+  assert.ok(studentMount.innerHTML.includes('CIT111'));
+  assert.ok(studentMount.innerHTML.includes('BSM111'));
+
+  sDashboard.selectSemester('2');
+  assert.ok(studentMount.innerHTML.includes('No Published Results for Semester 2'));
+  const pdfAttemptEmptySem = await sDashboard.downloadReportCard();
+  assert.equal(pdfAttemptEmptySem, false);
+  assert.ok(studentMount.innerHTML.includes('No published examination results are available for Semester 2'));
+
+  sDashboard.selectSemester('1');
+  const pdfSuccess = await sDashboard.downloadReportCard();
+  assert.equal(pdfSuccess, true);
+  assert.ok(studentMount.innerHTML.includes('Report card for Semester 1 downloaded'));
+
+  shouldFailFetch = true;
+  await sDashboard.loadResults();
+  assert.ok(studentMount.innerHTML.includes('Could Not Load Academic Results'));
+  assert.ok(studentMount.innerHTML.includes('Network connection interrupted'));
+
+  shouldFailFetch = false;
+  await sDashboard.loadResults();
+  assert.ok(studentMount.innerHTML.includes('125 / 150'));
+});
+
+test('10. Downloadable A4 PDF Report Card: Binary PDF Validity, pdfjs-dist Parsing, Long Subject Wrapping, and Security Isolation', async () => {
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const { generateStudentReportCardPdf, wrapTextLines, A4_WIDTH, A4_HEIGHT } = require('../lib/results-pdf');
+
+  const pdfRes = await appFetch(`${baseUrl}/api/results/report-card?semester=1`, {
+    headers: { Authorization: `Bearer ${student1Token}` }
+  });
+  assert.equal(pdfRes.status, 200);
+  assert.equal(pdfRes.headers.get('content-type'), 'application/pdf');
+  const disposition = pdfRes.headers.get('content-disposition') || '';
+  assert.ok(
+    disposition.includes('Gandaki_University_Academic_Result_Report_Semester_1_26020301.pdf'),
+    `Expected semester-specific filename in Content-Disposition, got: ${disposition}`
+  );
+
+  const ab = await pdfRes.arrayBuffer();
+  const pdfBuffer = Buffer.from(ab);
+  assert.ok(pdfBuffer.length > 1000, 'PDF buffer must be non-trivial');
+  assert.equal(pdfBuffer.slice(0, 8).toString('utf8'), '%PDF-1.4', 'Must begin with %PDF-1.4 header');
+  assert.ok(pdfBuffer.toString('utf8').trimEnd().endsWith('%%EOF'), 'Must end with %%EOF trailer');
+
+  const pdfDoc = await getDocument({ data: new Uint8Array(pdfBuffer), useSystemFonts: true }).promise;
+  assert.equal(pdfDoc.numPages, 1);
+  const page1 = await pdfDoc.getPage(1);
+  const viewport = page1.getViewport({ scale: 1 });
+  assert.ok(Math.abs(viewport.width - A4_WIDTH) < 1, 'Page width must match A4 portrait width');
+  assert.ok(Math.abs(viewport.height - A4_HEIGHT) < 1, 'Page height must match A4 portrait height');
+
+  const textContent = await page1.getTextContent();
+  const extractedText = textContent.items.map((item) => item.str).join(' ');
+
+  assert.ok(extractedText.includes('GANDAKI UNIVERSITY'));
+  assert.ok(extractedText.includes('SEMESTER LIBRARY'));
+  assert.ok(extractedText.includes('ACADEMIC RESULT REPORT'));
+  assert.ok(extractedText.includes('Aashrita Lamichhane'));
+  assert.ok(extractedText.includes('26020301'));
+  assert.ok(extractedText.includes('Semester 1'));
+  assert.ok(extractedText.includes('CIT111'));
+  assert.ok(extractedText.includes('BSM111'));
+  assert.ok(extractedText.includes('95%'));
+  assert.ok(extractedText.includes('75%'));
+  assert.ok(extractedText.includes('84%'));
+  assert.ok(extractedText.includes('125 / 150'));
+  assert.ok(extractedText.includes('83.33%'));
+  assert.ok(extractedText.includes('Unpublished or draft examination marks are excluded'));
+  assert.ok(extractedText.includes('not an official university transcript'));
+  assert.ok(!extractedText.includes('Ankit Bhandari'));
+  assert.ok(!extractedText.includes('Sujan SemTwo'));
+
+  const wrappedLines = wrapTextLines(
+    'Advanced Data Communication, Distributed Computer Networks, and Cloud Infrastructure Engineering',
+    160,
+    8.5,
+    true
+  );
+  assert.ok(wrappedLines.length >= 2, 'Long subject names must wrap across multiple lines');
+
+  const manySubjects = Array.from({ length: 12 }, (_, idx) => ({
+    subjectId: `SUBJ${idx + 1}`,
+    code: `CIT3${String(idx + 1).padStart(2, '0')}`,
+    name: `Advanced University Subject ${idx + 1} with Extended Curriculum Title for A4 Wrapping Verification`,
+    semesterNo: 3,
+    exams: [
+      { examType: 'Mid-Term Exam', obtainedMarks: 20, maxMarks: 25, percentage: 80, percentageAvailable: true, status: 'published' },
+      { examType: 'Pre-Board Exam', obtainedMarks: 40, maxMarks: 50, percentage: 80, percentageAvailable: true, status: 'published' },
+      { examType: 'Final Exam', obtainedMarks: 80, maxMarks: 100, percentage: 80, percentageAvailable: true, status: 'published' }
+    ]
+  }));
+  const multiPageBuf = generateStudentReportCardPdf({
+    student: { studentId: '26020301', rollNumber: '26020301', name: 'Aashrita Lamichhane', department: 'BIT' },
+    semesterData: { semesterNo: 3, semesterLabel: 'Semester 3', subjects: manySubjects }
+  });
+  const multiPageDoc = await getDocument({ data: new Uint8Array(multiPageBuf), useSystemFonts: true }).promise;
+  assert.ok(multiPageDoc.numPages >= 2, '12 subjects (36 exam rows) must paginate cleanly across 2+ A4 pages');
+
+  for (const forbiddenUrl of [
+    `${baseUrl}/api/results/report-card?semester=1&studentId=26020302`,
+    `${baseUrl}/api/results/report-card?semester=1&userId=26020302`,
+    `${baseUrl}/api/results/student/26020302/report-card?semester=1`
+  ]) {
+    const crossPdfRes = await appFetch(forbiddenUrl, {
+      headers: { Authorization: `Bearer ${student1Token}` }
+    });
+    assert.equal(crossPdfRes.status, 403);
+    const crossPdfData = await crossPdfRes.json();
+    assert.equal(crossPdfData.code, 'CROSS_STUDENT_ACCESS_DENIED');
+  }
+
+  const teacherPdfRes = await appFetch(`${baseUrl}/api/results/report-card?semester=1`, {
+    headers: { Authorization: `Bearer ${teacherAToken}` }
+  });
+  assert.equal(teacherPdfRes.status, 403);
+
+  const emptySemPdfRes = await appFetch(`${baseUrl}/api/results/report-card?semester=8`, {
+    headers: { Authorization: `Bearer ${student1Token}` }
+  });
+  assert.equal(emptySemPdfRes.status, 404);
+  assert.equal((await emptySemPdfRes.json()).code, 'NO_PUBLISHED_RESULTS_FOR_SEMESTER');
+
+  const badSemPdfRes = await appFetch(`${baseUrl}/api/results/report-card?semester=99`, {
+    headers: { Authorization: `Bearer ${student1Token}` }
+  });
+  assert.equal(badSemPdfRes.status, 400);
+  assert.equal((await badSemPdfRes.json()).code, 'INVALID_SEMESTER');
 });
 
 

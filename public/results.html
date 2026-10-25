@@ -5,7 +5,7 @@
   <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Results — Semester Library</title>
+  <title>Academic Results — Semester Library</title>
 
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/logo.jpg">
@@ -46,7 +46,9 @@
     :root {
       --bg: #f8f9fa;
       --surface: #ffffff;
-      --border: rgba(0, 0, 0, 0.13);
+      --surface-subtle: #f3f4f6;
+      --border: rgba(0, 0, 0, 0.14);
+      --border-strong: rgba(0, 0, 0, 0.24);
       --text: #111827;
       --text-muted: #4b5563;
     }
@@ -55,8 +57,10 @@
     html.dark,
     body.dark-mode {
       --bg: var(--bg-base, #0a0a0a);
-      --surface: var(--bg-surface-raised, #18181b);
-      --border: #2e2e32;
+      --surface: var(--bg-surface-raised, #141416);
+      --surface-subtle: #1c1c1f;
+      --border: #2a2a2e;
+      --border-strong: #3f3f46;
       --text: var(--text-primary, #f5f5f5);
       --text-muted: var(--text-secondary, #a1a1aa);
     }
@@ -70,102 +74,77 @@
 
     .res-page-wrap {
       width: 100%;
-      max-width: none;
-      margin: 0;
-      padding: 28px 6vw 96px;
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 24px 96px;
       box-sizing: border-box;
     }
 
-    .res-page-head.dash-hero,
-    body.dash .res-page-head.dash-hero.cl-animated-hero {
-      position: relative;
+    .res-page-head {
       width: 100%;
-      max-width: none;
-      margin: 0 0 28px !important;
-      padding: 34px 40px !important;
-      min-height: 148px !important;
-      background: #0d0d0f !important;
-      border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
-      border-radius: var(--ap-radius-hero, 26px);
-      box-shadow: none !important;
+      margin: 0 0 22px;
+      padding: 26px 28px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 18px;
       box-sizing: border-box;
-      color: #fff;
-      overflow: hidden;
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      gap: 28px;
+      align-items: flex-start;
+      gap: 20px;
       flex-wrap: wrap;
-      transform: none !important;
-      transition: border-color 0.35s ease;
-    }
-
-    .res-page-head.dash-hero:hover,
-    body.dash .res-page-head.dash-hero.cl-animated-hero:hover {
-      transform: none !important;
-      border-color: rgba(255, 255, 255, 0.32) !important;
-      box-shadow: none !important;
-    }
-
-    .res-page-head.dash-hero::before,
-    .res-page-head.dash-hero::after {
-      display: none !important;
-      content: none !important;
     }
 
     .res-hero-copy {
-      position: relative;
-      z-index: 3;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      gap: 5px;
+      gap: 6px;
       min-width: 0;
       flex: 1;
     }
 
     .res-hero-kicker {
-      font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
-      font-size: 13.5px;
+      font-size: 0.74rem;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: rgba(255, 255, 255, 0.82);
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
       line-height: 1.2;
       margin: 0;
     }
 
     .res-page-title {
-      font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
-      font-size: clamp(30px, 3.8vw, 48px);
+      font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: clamp(1.65rem, 2.6vw, 2.15rem);
       font-weight: 800;
-      letter-spacing: -0.02em;
-      line-height: 1.05;
+      letter-spacing: -0.025em;
+      line-height: 1.15;
       margin: 0;
-      color: #ffffff;
+      color: var(--text);
+    }
+
+    .res-page-subtitle {
+      margin: 2px 0 0;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: var(--text-muted);
+      max-width: 680px;
     }
 
     @media (max-width: 768px) {
       .res-page-wrap {
-        padding: 14px 12px 60px !important;
+        padding: 14px 12px 64px !important;
       }
-      .res-page-head.dash-hero,
-      body.dash .res-page-head.dash-hero.cl-animated-hero {
+      .res-page-head {
         margin: 0 0 16px !important;
         padding: 18px 16px !important;
-        min-height: auto !important;
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 14px !important;
-        border-radius: 18px !important;
-      }
-      .res-hero-kicker {
-        font-size: 11px !important;
-        letter-spacing: 0.1em !important;
+        border-radius: 14px !important;
       }
       .res-page-title {
-        font-size: 26px !important;
-        line-height: 1.15 !important;
+        font-size: 1.45rem !important;
+      }
+      .res-page-subtitle {
+        font-size: 0.84rem !important;
       }
     }
   </style>
@@ -204,17 +183,20 @@
   </header>
 
   <main class="res-page-wrap">
-    <section class="res-page-head dash-hero cl-animated-hero" id="resHeroBanner">
+    <section class="res-page-head" id="resHeroBanner" aria-label="Academic Results Header">
       <div class="res-hero-copy">
-        <span class="res-hero-kicker" id="resHeroKicker">ACADEMIC EXAMINATION RECORD</span>
-        <h1 class="res-page-title" id="resPageTitle">Results</h1>
+        <span class="res-hero-kicker" id="resHeroKicker">GANDAKI UNIVERSITY &middot; SEMESTER LIBRARY</span>
+        <h1 class="res-page-title" id="resPageTitle">Academic Results</h1>
+        <p class="res-page-subtitle" id="resPageSubtitle">
+          Published examination results and subject-wise academic performance for your enrolled semesters.
+        </p>
       </div>
     </section>
 
     <div id="studentResultsMount"></div>
   </main>
 
-  <script src="/js/student-results.js?v=1"></script>
+  <script src="/js/student-results.js?v=2"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       try {
@@ -242,7 +224,7 @@
                     This page displays personal published exam results for enrolled student and CR accounts. Use the Marks Entry workspace to configure exams, enter marks, and publish results.
                   </div>
                   <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
-                    <a href="/marks-entry.html" class="stu-res-btn">Open Marks Entry</a>
+                    <a href="/marks-entry.html" class="stu-res-btn stu-res-btn-primary">Open Marks Entry</a>
                   </div>
                 </div>
               </div>

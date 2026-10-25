@@ -9,7 +9,8 @@ const {
   saveStudentMarks,
   publishSubjectResults,
   getSubjectMarksAuditLogs,
-  getStudentPublishedResults
+  getStudentPublishedResults,
+  generateStudentSemesterReportCard
 } = require('../lib/marks-service');
 
 function resolveCallerId(req) {
@@ -425,6 +426,51 @@ function createMarksRouter(arg1, arg2) {
   router.get('/my-summary', requireLogin, handleGetStudentResults);
   router.get('/student', requireLogin, handleGetStudentResults);
   router.get('/student/:studentId', requireLogin, handleGetStudentResults);
+
+  /**
+   * 10. GET /api/results/report-card (and /api/marks/report-card, /api/results/my-results/pdf)
+   * Allowed: student and CR.
+   * Generates a print-ready A4 PDF Report Card strictly for the authenticated student's
+   * selected semester using only published examination results.
+   */
+  const handleDownloadReportCard = async (req, res) => {
+    const callerId = resolveCallerId(req);
+    const semester =
+      req.query.semester ||
+      req.query.semesterNo ||
+      req.query.semester_no ||
+      req.params.semester ||
+      null;
+    try {
+      enforceStudentSelfIsolation(req, callerId);
+
+      const report = await generateStudentSemesterReportCard(db, {
+        studentUserId: callerId,
+        semester
+      });
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
+      res.setHeader('Content-Length', String(report.pdfBuffer.length));
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      return res.status(200).end(report.pdfBuffer);
+    } catch (err) {
+      return sendMarksError(
+        res,
+        err,
+        'Unable to generate the PDF report card right now. Please try again.',
+        {
+          operation: 'generateStudentSemesterReportCard',
+          actorUserId: callerId
+        }
+      );
+    }
+  };
+
+  router.get('/report-card', requireLogin, handleDownloadReportCard);
+  router.get('/report-card/pdf', requireLogin, handleDownloadReportCard);
+  router.get('/my-results/pdf', requireLogin, handleDownloadReportCard);
+  router.get('/student/:studentId/report-card', requireLogin, handleDownloadReportCard);
 
   /**
    * Root handlers on /api/marks and /api/results:

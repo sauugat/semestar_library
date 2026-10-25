@@ -69,6 +69,12 @@
 
     // Monthly attendance matrix state from GET /api/attendance/monthly
     availableMonths: [],
+    monthlyCalendarDates: [],
+    monthlyMonthLabel: '',
+    monthlyDateRangeLabel: '',
+    monthlyTeacherName: '',
+    monthlySemesterLabel: '',
+    monthlySubjectLabel: '',
     monthlySessions: [],
     monthlyRows: [],
     studentHistoryByStudentId: {},
@@ -140,11 +146,50 @@
    * Ensures deterministic consecutive numbering per student per month and accurate percentage calculation
    * from underlying attendance records even when computed locally.
    */
+  function formatShortDateLabel(yyyyMmDd) {
+    if (!yyyyMmDd || !/^\d{4}-\d{2}-\d{2}$/.test(yyyyMmDd)) return String(yyyyMmDd || '');
+    const [, m, d] = String(yyyyMmDd).split('-').map(Number);
+    const shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${shortMonths[m - 1] || m} ${d}`;
+  }
+
+  function buildApplicableCalendarDatesForMonth(monthStr, currentNepalDateOverride = null) {
+    const cleanMonth = monthStr ? String(monthStr).trim() : '';
+    if (!/^\d{4}-\d{2}$/.test(cleanMonth)) return [];
+    const todayNepal = String(currentNepalDateOverride || state.currentNepalDate || '').trim();
+    const [year, month] = cleanMonth.split('-').map(Number);
+    const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+
+    let endDay = daysInMonth;
+    if (todayNepal && /^\d{4}-\d{2}-\d{2}$/.test(todayNepal)) {
+      const todayMonth = todayNepal.slice(0, 7);
+      if (cleanMonth > todayMonth) {
+        return [];
+      }
+      if (cleanMonth === todayMonth) {
+        const currentDay = Number(todayNepal.slice(8, 10));
+        endDay = Math.min(daysInMonth, Math.max(0, currentDay));
+      }
+    }
+
+    const dates = [];
+    for (let day = 1; day <= endDay; day += 1) {
+      const dateStr = `${cleanMonth}-${String(day).padStart(2, '0')}`;
+      dates.push({
+        date: dateStr,
+        dayOfMonth: day,
+        label: formatShortDateLabel(dateStr)
+      });
+    }
+    return dates;
+  }
+
   function buildMonthlyAttendanceMatrix({
     students = [],
     sessions = [],
     recordsBySessionId = new Map(),
-    month = null
+    month = null,
+    currentNepalDate = null
   } = {}) {
     const cleanMonth = month ? String(month).trim() : null;
 
@@ -173,11 +218,43 @@
       id: s.id,
       sessionNumber: idx + 1,
       sessionDate: String(s.sessionDate || s.session_date || ''),
+      dateLabel: formatShortDateLabel(String(s.sessionDate || s.session_date || '')),
       status: s.status || 'submitted',
       submittedAt: s.submittedAt || s.submitted_at || null,
       editWindow: s.editWindow || null,
       counts: s.counts || null
     }));
+
+    const sessionByDate = new Map();
+    for (const sess of numberedSessions) {
+      sessionByDate.set(sess.sessionDate, sess);
+    }
+
+    let calendarDates = [];
+    if (cleanMonth && /^\d{4}-\d{2}$/.test(cleanMonth)) {
+      calendarDates = buildApplicableCalendarDatesForMonth(cleanMonth, currentNepalDate).map((d) => {
+        const sess = sessionByDate.get(d.date) || null;
+        return {
+          date: d.date,
+          dayOfMonth: d.dayOfMonth,
+          label: d.label,
+          hasSession: Boolean(sess),
+          sessionId: sess ? sess.id : null,
+          sessionNumber: sess ? sess.sessionNumber : null,
+          status: sess ? sess.status : null
+        };
+      });
+    } else {
+      calendarDates = numberedSessions.map((sess) => ({
+        date: sess.sessionDate,
+        dayOfMonth: Number(String(sess.sessionDate).slice(8, 10)) || sess.sessionNumber,
+        label: formatShortDateLabel(sess.sessionDate),
+        hasSession: true,
+        sessionId: sess.id,
+        sessionNumber: sess.sessionNumber,
+        status: sess.status
+      }));
+    }
 
     const getStatus = (sessionId, studentId) => {
       let sessionRecords = null;
@@ -213,33 +290,60 @@
       let consecutiveCount = 0;
       let presentCount = 0;
       let absentCount = 0;
-      const cells = [];
+      const sessionCells = [];
+      const sessionCellByDate = new Map();
 
       for (const sess of numberedSessions) {
         const st = getStatus(sess.id, studentId);
         if (st === 'present') {
           presentCount += 1;
           consecutiveCount += 1;
-          cells.push({
+          const cell = {
+            date: sess.sessionDate,
+            dateLabel: sess.dateLabel,
+            hasSession: true,
             sessionId: sess.id,
             sessionNumber: sess.sessionNumber,
             sessionDate: sess.sessionDate,
             status: 'present',
             consecutiveCount,
             display: String(consecutiveCount)
-          });
+          };
+          sessionCells.push(cell);
+          sessionCellByDate.set(sess.sessionDate, cell);
         } else {
           absentCount += 1;
-          cells.push({
+          const cell = {
+            date: sess.sessionDate,
+            dateLabel: sess.dateLabel,
+            hasSession: true,
             sessionId: sess.id,
             sessionNumber: sess.sessionNumber,
             sessionDate: sess.sessionDate,
             status: 'absent',
             consecutiveCount: null,
             display: 'ABS'
-          });
+          };
+          sessionCells.push(cell);
+          sessionCellByDate.set(sess.sessionDate, cell);
         }
       }
+
+      const cells = calendarDates.map((calDate) => {
+        const sessCell = sessionCellByDate.get(calDate.date);
+        if (sessCell) return sessCell;
+        return {
+          date: calDate.date,
+          dateLabel: calDate.label,
+          hasSession: false,
+          sessionId: null,
+          sessionNumber: null,
+          sessionDate: calDate.date,
+          status: 'no_session',
+          consecutiveCount: null,
+          display: '-'
+        };
+      });
 
       const rawPercentage = totalSessions > 0 ? (presentCount / totalSessions) * 100 : 0;
       const attendancePercentage = totalSessions > 0 ? Number(rawPercentage.toFixed(1)) : 0;
@@ -251,6 +355,8 @@
         username: stu.username || null,
         role: String(stu.role || 'student').toLowerCase(),
         cells,
+        dateCells: cells,
+        sessionCells,
         presentCount,
         absentCount,
         totalSessions,
@@ -261,7 +367,11 @@
 
     return {
       month: cleanMonth,
+      monthLabel: cleanMonth ? formatMonthLabel(cleanMonth) : '',
       totalSessions,
+      totalCalendarDays: calendarDates.length,
+      calendarDates,
+      dates: calendarDates,
       sessions: numberedSessions,
       rows,
       students: rows
@@ -896,6 +1006,12 @@
         color: var(--teach-text-secondary, #71717a);
         letter-spacing: 0.02em;
       }
+      .sl-att-cell-dash {
+        font-weight: 500;
+        color: var(--teach-text-secondary, #71717a);
+        opacity: 0.65;
+        text-align: center;
+      }
       .sl-att-cell-pct {
         font-weight: 700;
         color: var(--teach-text-primary, #f5f5f5);
@@ -1278,6 +1394,7 @@
    */
   async function loadMonthlyMatrix(monthOverride = null) {
     if (!state.selectedSubjectId || !state.selectedCohortId) {
+      state.monthlyCalendarDates = [];
       state.monthlySessions = [];
       state.monthlyRows = [];
       render();
@@ -1311,7 +1428,16 @@
       if (res && res.ok) {
         const data = await res.json().catch(() => ({}));
         if (data.month) state.selectedMonth = data.month;
+        if (data.currentNepalDate) state.currentNepalDate = data.currentNepalDate;
         state.availableMonths = Array.isArray(data.availableMonths) ? data.availableMonths : [];
+        state.monthlyCalendarDates = Array.isArray(data.calendarDates)
+          ? data.calendarDates
+          : buildApplicableCalendarDatesForMonth(state.selectedMonth, state.currentNepalDate);
+        state.monthlyMonthLabel = data.monthLabel || formatMonthLabel(state.selectedMonth);
+        state.monthlyDateRangeLabel = data.dateRangeLabel || '';
+        state.monthlyTeacherName = data.teacherName || (data.teacher && data.teacher.name) || '';
+        state.monthlySemesterLabel = data.semesterLabel || '';
+        state.monthlySubjectLabel = data.subjectLabel || '';
         state.monthlySessions = Array.isArray(data.sessions) ? data.sessions : [];
         state.monthlyRows = Array.isArray(data.rows) ? data.rows : [];
         state.studentHistoryByStudentId =
@@ -1321,8 +1447,10 @@
           students: state.roster,
           sessions: [],
           recordsBySessionId: new Map(),
-          month: state.selectedMonth
+          month: state.selectedMonth,
+          currentNepalDate: state.currentNepalDate
         });
+        state.monthlyCalendarDates = fallback.calendarDates;
         state.monthlySessions = fallback.sessions;
         state.monthlyRows = fallback.rows;
       }
@@ -1331,13 +1459,58 @@
         students: state.roster,
         sessions: [],
         recordsBySessionId: new Map(),
-        month: state.selectedMonth
+        month: state.selectedMonth,
+        currentNepalDate: state.currentNepalDate
       });
+      state.monthlyCalendarDates = fallback.calendarDates;
       state.monthlySessions = fallback.sessions;
       state.monthlyRows = fallback.rows;
     } finally {
       state.loadingMonthly = false;
       render();
+    }
+  }
+
+  async function downloadMonthlySvg() {
+    const selectedMonth =
+      state.selectedMonth ||
+      (state.selectedDate ? state.selectedDate.slice(0, 7) : '') ||
+      (state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '');
+    if (!state.selectedSubjectId || !state.selectedCohortId || !selectedMonth) return null;
+    const qs = new URLSearchParams({
+      subjectId: state.selectedSubjectId,
+      cohortId: state.selectedCohortId,
+      month: selectedMonth,
+      format: 'svg'
+    });
+    const url = `/api/attendance/monthly?${qs.toString()}`;
+    try {
+      const res = await authFetch(url);
+      if (!res || !res.ok) return null;
+      const svgText = await res.text();
+      if (typeof window.Blob === 'function' && window.URL && typeof window.URL.createObjectURL === 'function') {
+        const blob = new window.Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.setAttribute(
+          'download',
+          `gandaki_monthly_attendance_${state.selectedSubjectId}_${selectedMonth}.svg`
+        );
+        if (document.body && typeof document.body.appendChild === 'function') {
+          document.body.appendChild(link);
+        }
+        if (typeof link.click === 'function') link.click();
+        if (link.parentNode && typeof link.parentNode.removeChild === 'function') {
+          link.parentNode.removeChild(link);
+        }
+        if (typeof window.URL.revokeObjectURL === 'function') {
+          window.URL.revokeObjectURL(blobUrl);
+        }
+      }
+      return svgText;
+    } catch (_) {
+      return null;
     }
   }
 
@@ -2502,8 +2675,8 @@
   }
 
   /**
-   * 3 & 4. Renders the Monthly Attendance Matrix with Month Selector, chronological session columns (1..N),
-   * independent consecutive student attendance counts, 'ABS' for absences, and Attendance %.
+   * 3 & 4. Renders the Monthly Attendance Matrix with Month Selector, calendar date columns (1st through today or end of past month),
+   * independent consecutive student attendance counts, 'ABS' for absences, '-' for non-session dates, Attendance %, and Download SVG.
    */
   function renderMonthlyMatrixSection() {
     const selectedMonth =
@@ -2513,6 +2686,28 @@
     const currentNepalMonth = state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '';
 
     const sessions = Array.isArray(state.monthlySessions) ? state.monthlySessions : [];
+    const sessionByDate = new Map(sessions.map((s) => [s.sessionDate, s]));
+
+    const calendarDates =
+      Array.isArray(state.monthlyCalendarDates) && state.monthlyCalendarDates.length > 0
+        ? state.monthlyCalendarDates
+        : buildApplicableCalendarDatesForMonth(selectedMonth, state.currentNepalDate).map((d) => {
+            const sess = sessionByDate.get(d.date) || null;
+            return {
+              ...d,
+              hasSession: Boolean(sess),
+              sessionId: sess ? sess.id : null,
+              sessionNumber: sess ? sess.sessionNumber : null,
+              status: sess ? sess.status : null
+            };
+          });
+
+    const dateRangeLabel =
+      state.monthlyDateRangeLabel ||
+      (calendarDates.length > 0
+        ? `${calendarDates[0].label} – ${calendarDates[calendarDates.length - 1].label}, ${selectedMonth.slice(0, 4)}`
+        : formatMonthLabel(selectedMonth));
+
     const rows =
       Array.isArray(state.monthlyRows) && state.monthlyRows.length > 0
         ? state.monthlyRows
@@ -2521,13 +2716,28 @@
             name: stu.name,
             username: stu.username || null,
             role: stu.role || 'student',
-            cells: [],
+            cells: calendarDates.map((calDate) => ({
+              date: calDate.date,
+              dateLabel: calDate.label,
+              hasSession: false,
+              sessionId: null,
+              sessionNumber: null,
+              sessionDate: calDate.date,
+              status: 'no_session',
+              consecutiveCount: null,
+              display: '-'
+            })),
             presentCount: 0,
             absentCount: 0,
             totalSessions: 0,
             attendancePercentage: 0,
             formattedPercentage: '0.0%'
           }));
+
+    const exportSvgUrl =
+      state.selectedSubjectId && state.selectedCohortId && selectedMonth
+        ? `/api/attendance/monthly?subjectId=${encodeURIComponent(state.selectedSubjectId)}&cohortId=${encodeURIComponent(state.selectedCohortId)}&month=${encodeURIComponent(selectedMonth)}&format=svg`
+        : null;
 
     const exportCsvUrl =
       state.selectedSubjectId && state.selectedCohortId && selectedMonth
@@ -2541,8 +2751,8 @@
             <h3 style="margin:0 0 4px; font-size:1.05rem; font-weight:700;">
               Monthly Attendance Matrix &mdash; ${escapeHtml(formatMonthLabel(selectedMonth))}
             </h3>
-            <p style="margin:0; font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);">
-              Each student row shows their consecutive monthly attendance count (1, 2, 3…) or ABS. Column headers show chronological class sessions (${sessions.length} recorded in ${escapeHtml(selectedMonth)}).
+            <p style="margin:0; font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);" data-att-date-range="${escapeHtml(dateRangeLabel)}">
+              Date Range: <strong>${escapeHtml(dateRangeLabel)}</strong> &middot; ${sessions.length} submitted session${sessions.length === 1 ? '' : 's'} &middot; Consecutive counts (1, 2, 3…), ABS, or - for dates without a session.
             </p>
           </div>
 
@@ -2576,12 +2786,28 @@
               Next Month &rarr;
             </button>
             ${
+              exportSvgUrl
+                ? `
+              <a
+                href="${escapeHtml(exportSvgUrl)}"
+                id="slAttDownloadSvgBtn"
+                data-att-action="download-svg"
+                class="teach-btn teach-btn-primary"
+                style="padding:6px 12px; font-size:0.78rem; text-decoration:none;"
+                download="gandaki_monthly_attendance_${escapeHtml(state.selectedSubjectId)}_${escapeHtml(selectedMonth)}.svg"
+              >
+                Download SVG
+              </a>
+            `
+                : ''
+            }
+            ${
               exportCsvUrl
                 ? `
               <a
                 href="${escapeHtml(exportCsvUrl)}"
                 class="teach-btn teach-btn-secondary"
-                style="padding:6px 12px; font-size:0.78rem;"
+                style="padding:6px 12px; font-size:0.78rem; text-decoration:none;"
                 download
               >
                 Export CSV
@@ -2627,23 +2853,30 @@
           <table class="sl-att-matrix-table" id="slAttMonthlyMatrixTable">
             <thead>
               <tr>
-                <th class="sl-att-col-student" scope="col">Student</th>
-                ${sessions
-                  .map(
-                    (sess) => `
-                  <th scope="col" data-att-matrix-session-num="${sess.sessionNumber}" data-att-matrix-session-date="${escapeHtml(sess.sessionDate)}">
-                    <button
-                      type="button"
-                      class="sl-att-matrix-session-btn"
-                      data-att-open-session-date="${escapeHtml(sess.sessionDate)}"
-                      data-att-open-session-cohort="${escapeHtml(state.selectedCohortId)}"
-                      title="Session ${sess.sessionNumber} — ${escapeHtml(sess.sessionDate)} (Click to open session)"
-                    >
-                      ${sess.sessionNumber}
-                    </button>
-                  </th>
-                `
-                  )
+                <th class="sl-att-col-student" scope="col">Name</th>
+                ${calendarDates
+                  .map((calDate) => {
+                    if (calDate.hasSession) {
+                      return `
+                        <th scope="col" data-att-matrix-date="${escapeHtml(calDate.date)}" data-att-matrix-session-num="${calDate.sessionNumber}" data-att-matrix-session-date="${escapeHtml(calDate.date)}">
+                          <button
+                            type="button"
+                            class="sl-att-matrix-session-btn"
+                            data-att-open-session-date="${escapeHtml(calDate.date)}"
+                            data-att-open-session-cohort="${escapeHtml(state.selectedCohortId)}"
+                            title="${escapeHtml(calDate.label)} (${escapeHtml(calDate.date)}) — Session #${calDate.sessionNumber} (Click to open session)"
+                          >
+                            ${escapeHtml(calDate.label)}
+                          </button>
+                        </th>
+                      `;
+                    }
+                    return `
+                      <th scope="col" data-att-matrix-date="${escapeHtml(calDate.date)}" title="${escapeHtml(calDate.label)} (${escapeHtml(calDate.date)}) — No submitted session">
+                        ${escapeHtml(calDate.label)}
+                      </th>
+                    `;
+                  })
                   .join('')}
                 <th scope="col">Attendance %</th>
               </tr>
@@ -2653,7 +2886,7 @@
                 rows.length === 0
                   ? `
                 <tr>
-                  <td class="sl-att-col-student" colspan="${sessions.length + 2}">No students enrolled in this cohort.</td>
+                  <td class="sl-att-col-student" colspan="${calendarDates.length + 2}">No students enrolled in this cohort.</td>
                 </tr>
               `
                   : rows
@@ -2678,16 +2911,29 @@
                               <div class="sl-att-student-id-sub">${escapeHtml(row.studentId)}</div>
                             </td>
                             ${cells
-                              .map(
-                                (cell) => `
-                              <td
-                                class="${cell.status === 'present' ? 'sl-att-cell-num' : 'sl-att-cell-abs'}"
-                                data-att-cell-status="${escapeHtml(cell.status)}"
-                                data-att-cell-session="${cell.sessionNumber}"
-                                title="${escapeHtml(row.name)} — Session ${cell.sessionNumber} (${escapeHtml(cell.sessionDate)}): ${cell.status === 'present' ? `Present (#${cell.display})` : 'Absent (ABS)'}"
-                              >${escapeHtml(cell.display)}</td>
-                            `
-                              )
+                              .map((cell) => {
+                                const cellClass =
+                                  cell.status === 'present'
+                                    ? 'sl-att-cell-num'
+                                    : cell.status === 'absent'
+                                      ? 'sl-att-cell-abs'
+                                      : 'sl-att-cell-dash';
+                                const cellTitle =
+                                  cell.status === 'present'
+                                    ? `${row.name} — ${cell.dateLabel || cell.sessionDate}: Present (#${cell.display})`
+                                    : cell.status === 'absent'
+                                      ? `${row.name} — ${cell.dateLabel || cell.sessionDate}: Absent (ABS)`
+                                      : `${row.name} — ${cell.dateLabel || cell.sessionDate}: No submitted session (-)`;
+                                return `
+                                  <td
+                                    class="${cellClass}"
+                                    data-att-cell-date="${escapeHtml(cell.date || cell.sessionDate)}"
+                                    data-att-cell-status="${escapeHtml(cell.status)}"
+                                    ${cell.sessionNumber ? `data-att-cell-session="${cell.sessionNumber}"` : ''}
+                                    title="${escapeHtml(cellTitle)}"
+                                  >${escapeHtml(cell.display)}</td>
+                                `;
+                              })
                               .join('')}
                             <td class="sl-att-cell-pct" data-att-student-pct="${escapeHtml(row.studentId)}">${escapeHtml(pctText)}</td>
                           </tr>
@@ -3336,6 +3582,7 @@
     loadTeacherContext,
     loadRoster,
     loadMonthlyMatrix,
+    downloadMonthlySvg,
     loadHistory,
     loadBackupStatus,
     connectDriveBackup,
@@ -3356,6 +3603,7 @@
     getEditWindowStatus,
     compareStudentsAlphabetically,
     sortStudentsAlphabetically,
+    buildApplicableCalendarDatesForMonth,
     buildMonthlyAttendanceMatrix,
     getState: () => state
   };

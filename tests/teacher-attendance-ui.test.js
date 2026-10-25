@@ -1268,15 +1268,16 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
     'Students must be sorted alphabetically by displayed name, case-insensitively'
   );
 
-  // 7a. Test Zero-Session Handling in GET /api/attendance/monthly (no division by zero)
+  // 7a. Test Zero-Session Handling in GET /api/attendance/monthly (no division by zero, all 31 August calendar dates display '-')
   const zeroMonthRes = await appFetch(
-    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-08`,
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2025-08`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(zeroMonthRes.status, 200);
   const zeroMonthJson = await zeroMonthRes.json();
   assert.equal(zeroMonthJson.totalSessions, 0);
   assert.equal(zeroMonthJson.sessions.length, 0);
+  assert.equal(zeroMonthJson.calendarDates.length, 31);
   assert.deepEqual(
     zeroMonthJson.rows.map((r) => r.name),
     ['Aabin Thapa', 'Aahish Rana', 'binita Gurung', 'Zubin KC']
@@ -1287,21 +1288,23 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
     assert.equal(row.absentCount, 0);
     assert.equal(row.attendancePercentage, 0);
     assert.equal(row.formattedPercentage, '0.0%');
-    assert.deepEqual(row.cells, []);
+    assert.deepEqual(row.sessionCells, []);
+    assert.equal(row.cells.length, 31);
+    assert.ok(row.cells.every((c) => c.display === '-' && c.status === 'no_session'));
   }
 
-  // 4, 5, 7b, 8. Record 7 actual class sessions in September 2026 (including out-of-order insertion to verify chronological column ordering)
+  // 4, 5, 7b, 8. Record 7 actual class sessions in September 2025 (including out-of-order insertion to verify chronological column ordering)
   // Prompt illustrative pattern:
   // Aabin Thapa:  1 | 2 | ABS | 3 | 4 | ABS | 5 -> 5/7 = 71.4%
   // Aahish Rana:  ABS | 1 | 2 | ABS | 3 | ABS | 4 -> 4/7 = 57.1%
   const septSessionsSpec = [
-    { date: '2026-09-02', aabin: 'present', aahish: 'absent', binita: 'present', zubin: 'absent' },
-    { date: '2026-09-05', aabin: 'present', aahish: 'present', binita: 'present', zubin: 'absent' },
-    { date: '2026-09-09', aabin: 'absent',  aahish: 'present', binita: 'present', zubin: 'absent' },
-    { date: '2026-09-12', aabin: 'present', aahish: 'absent',  binita: 'present', zubin: 'absent' },
-    { date: '2026-09-16', aabin: 'present', aahish: 'present', binita: 'present', zubin: 'absent' },
-    { date: '2026-09-20', aabin: 'absent',  aahish: 'absent',  binita: 'present', zubin: 'absent' },
-    { date: '2026-09-25', aabin: 'present', aahish: 'present', binita: 'present', zubin: 'absent' }
+    { date: '2025-09-02', aabin: 'present', aahish: 'absent', binita: 'present', zubin: 'absent' },
+    { date: '2025-09-05', aabin: 'present', aahish: 'present', binita: 'present', zubin: 'absent' },
+    { date: '2025-09-09', aabin: 'absent',  aahish: 'present', binita: 'present', zubin: 'absent' },
+    { date: '2025-09-12', aabin: 'present', aahish: 'absent',  binita: 'present', zubin: 'absent' },
+    { date: '2025-09-16', aabin: 'present', aahish: 'present', binita: 'present', zubin: 'absent' },
+    { date: '2025-09-20', aabin: 'absent',  aahish: 'absent',  binita: 'present', zubin: 'absent' },
+    { date: '2025-09-25', aabin: 'present', aahish: 'present', binita: 'present', zubin: 'absent' }
   ];
 
   // Insert sessions (insert session 2 before session 1 to test chronological sorting)
@@ -1323,7 +1326,7 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
   }
 
   const septMatrixRes = await appFetch(
-    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-09`,
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2025-09`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(septMatrixRes.status, 200);
@@ -1331,23 +1334,30 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
 
   // Verify chronological session ordering (1..7) and real session dates retained separately
   assert.equal(septMatrix.totalSessions, 7);
+  assert.equal(septMatrix.calendarDates.length, 30, 'Past month September must include all 30 calendar days');
   assert.deepEqual(
     septMatrix.sessions.map((s) => s.sessionNumber),
     [1, 2, 3, 4, 5, 6, 7]
   );
   assert.deepEqual(
     septMatrix.sessions.map((s) => s.sessionDate),
-    ['2026-09-02', '2026-09-05', '2026-09-09', '2026-09-12', '2026-09-16', '2026-09-20', '2026-09-25']
+    ['2025-09-02', '2025-09-05', '2025-09-09', '2025-09-12', '2025-09-16', '2025-09-20', '2025-09-25']
   );
 
-  // Verify Aabin Thapa row: 1 | 2 | ABS | 3 | 4 | ABS | 5 -> 71.4%
+  // Verify Aabin Thapa row: 1 | 2 | ABS | 3 | 4 | ABS | 5 -> 71.4% (with '-' on non-session calendar dates)
   const aabinRow = septMatrix.rows.find((r) => r.studentId === 'stu_nep_1');
   assert.ok(aabinRow);
   assert.deepEqual(
-    aabinRow.cells.map((c) => c.display),
+    aabinRow.sessionCells.map((c) => c.display),
     ['1', '2', 'ABS', '3', '4', 'ABS', '5'],
-    'Aabin Thapa row must display exact consecutive attendance count and ABS for absences'
+    'Aabin Thapa sessionCells must display exact consecutive attendance count and ABS for absences'
   );
+  assert.equal(aabinRow.cells.length, 30);
+  assert.equal(aabinRow.cells[0].display, '-', 'Sept 1 (no session) must display -');
+  assert.equal(aabinRow.cells[1].display, '1', 'Sept 2 (Session 1) must display 1');
+  assert.equal(aabinRow.cells[2].display, '-', 'Sept 3 (no session) must display -');
+  assert.equal(aabinRow.cells[4].display, '2', 'Sept 5 (Session 2) must display 2');
+  assert.equal(aabinRow.cells[8].display, 'ABS', 'Sept 9 (Session 3) must display ABS');
   assert.equal(aabinRow.presentCount, 5);
   assert.equal(aabinRow.absentCount, 2);
   assert.equal(aabinRow.totalSessions, 7);
@@ -1358,7 +1368,7 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
   const aahishRow = septMatrix.rows.find((r) => r.studentId === 'stu_nep_2');
   assert.ok(aahishRow);
   assert.deepEqual(
-    aahishRow.cells.map((c) => c.display),
+    aahishRow.sessionCells.map((c) => c.display),
     ['ABS', '1', '2', 'ABS', '3', 'ABS', '4'],
     'Aahish Rana row must display independent consecutive attendance count starting at 1 on session 2'
   );
@@ -1370,19 +1380,19 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
 
   // Verify binita Gurung (all 7 present -> 1..7, 100.0%) and Zubin KC (all 7 absent -> ABS..ABS, 0.0%)
   const binitaRow = septMatrix.rows.find((r) => r.studentId === 'stu_nep_b');
-  assert.deepEqual(binitaRow.cells.map((c) => c.display), ['1', '2', '3', '4', '5', '6', '7']);
+  assert.deepEqual(binitaRow.sessionCells.map((c) => c.display), ['1', '2', '3', '4', '5', '6', '7']);
   assert.equal(binitaRow.formattedPercentage, '100.0%');
 
   const zubinRow = septMatrix.rows.find((r) => r.studentId === 'stu_nep_z');
-  assert.deepEqual(zubinRow.cells.map((c) => c.display), ['ABS', 'ABS', 'ABS', 'ABS', 'ABS', 'ABS', 'ABS']);
+  assert.deepEqual(zubinRow.sessionCells.map((c) => c.display), ['ABS', 'ABS', 'ABS', 'ABS', 'ABS', 'ABS', 'ABS']);
   assert.equal(zubinRow.formattedPercentage, '0.0%');
 
-  // 6. Test Monthly Numbering Reset at the Beginning of a New Month (October 2026)
+  // 6. Test Monthly Numbering Reset at the Beginning of a New Month (October 2025)
   await saveAttendanceSession(db, {
     actorUserId: 'tea_ui_a',
     subjectId: 'BSM121',
     cohortId: cohortNeptune.id,
-    sessionDate: '2026-10-03',
+    sessionDate: '2025-10-03',
     records: [
       { studentId: 'stu_nep_1', status: 'present' },
       { studentId: 'stu_nep_2', status: 'absent' },
@@ -1392,21 +1402,24 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
   });
 
   const octMatrixRes = await appFetch(
-    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-10`,
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2025-10`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(octMatrixRes.status, 200);
   const octMatrix = await octMatrixRes.json();
   assert.equal(octMatrix.totalSessions, 1);
   assert.equal(octMatrix.sessions[0].sessionNumber, 1);
-  assert.equal(octMatrix.sessions[0].sessionDate, '2026-10-03');
+  assert.equal(octMatrix.sessions[0].sessionDate, '2025-10-03');
 
   const octAabin = octMatrix.rows.find((r) => r.studentId === 'stu_nep_1');
   assert.deepEqual(
-    octAabin.cells.map((c) => c.display),
+    octAabin.sessionCells.map((c) => c.display),
     ['1'],
     'Consecutive attendance count must reset to 1 at the start of a new month (not continue at 6)'
   );
+  assert.equal(octAabin.cells[0].display, '-');
+  assert.equal(octAabin.cells[1].display, '-');
+  assert.equal(octAabin.cells[2].display, '1');
   assert.equal(octAabin.formattedPercentage, '100.0%');
 
   // 8. When a new submitted session is added in October, append the next session column in chronological order
@@ -1414,7 +1427,7 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
     actorUserId: 'tea_ui_a',
     subjectId: 'BSM121',
     cohortId: cohortNeptune.id,
-    sessionDate: '2026-10-10',
+    sessionDate: '2025-10-10',
     records: [
       { studentId: 'stu_nep_1', status: 'absent' },
       { studentId: 'stu_nep_2', status: 'present' },
@@ -1424,16 +1437,16 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
   });
 
   const octMatrixAfterAddRes = await appFetch(
-    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-10`,
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2025-10`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   const octMatrixAfterAdd = await octMatrixAfterAddRes.json();
   assert.equal(octMatrixAfterAdd.totalSessions, 2);
   assert.deepEqual(octMatrixAfterAdd.sessions.map((s) => s.sessionNumber), [1, 2]);
-  assert.deepEqual(octMatrixAfterAdd.sessions.map((s) => s.sessionDate), ['2026-10-03', '2026-10-10']);
+  assert.deepEqual(octMatrixAfterAdd.sessions.map((s) => s.sessionDate), ['2025-10-03', '2025-10-10']);
 
   const octAabinAfter2 = octMatrixAfterAdd.rows.find((r) => r.studentId === 'stu_nep_1');
-  assert.deepEqual(octAabinAfter2.cells.map((c) => c.display), ['1', 'ABS']);
+  assert.deepEqual(octAabinAfter2.sessionCells.map((c) => c.display), ['1', 'ABS']);
   assert.equal(octAabinAfter2.formattedPercentage, '50.0%');
 
   // Legitimate update within 24h window recalculates consecutive numbers and percentage
@@ -1441,7 +1454,7 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
     actorUserId: 'tea_ui_a',
     subjectId: 'BSM121',
     cohortId: cohortNeptune.id,
-    sessionDate: '2026-10-10',
+    sessionDate: '2025-10-10',
     reason: 'Aabin was present in lab',
     records: [
       { studentId: 'stu_nep_1', status: 'present' },
@@ -1453,12 +1466,12 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
 
   const octMatrixUpdated = await (
     await appFetch(
-      `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-10`,
+      `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2025-10`,
       { headers: { Authorization: `Bearer ${teacherAToken}` } }
     )
   ).json();
   const octAabinUpdated = octMatrixUpdated.rows.find((r) => r.studentId === 'stu_nep_1');
-  assert.deepEqual(octAabinUpdated.cells.map((c) => c.display), ['1', '2']);
+  assert.deepEqual(octAabinUpdated.sessionCells.map((c) => c.display), ['1', '2']);
   assert.equal(octAabinUpdated.formattedPercentage, '100.0%');
   assert.ok(octSession2.session.id);
 
@@ -1472,7 +1485,7 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
   assert.deepEqual(rawStatuses, ['absent', 'present'], 'Stored database records must remain strictly present/absent');
 
   const csvRes = await appFetch(
-    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-09&format=csv`,
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2025-09&format=csv`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(csvRes.status, 200);
@@ -1489,14 +1502,14 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
   // 10. Verify permissions on /api/attendance/monthly:
   // - Student token is rejected with 403
   const stuMonthlyRes = await appFetch(
-    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-09`,
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2025-09`,
     { headers: { Authorization: `Bearer ${student1Token}` } }
   );
   assert.equal(stuMonthlyRes.status, 403, 'Students must not access teacher monthly register endpoint');
 
   // - Teacher A requesting unassigned subject (ELX111) is rejected with 403
   const unauthSubjRes = await appFetch(
-    `${baseUrl}/api/attendance/monthly?subjectId=ELX111&cohortId=${cohortMercury.id}&month=2026-09`,
+    `${baseUrl}/api/attendance/monthly?subjectId=ELX111&cohortId=${cohortMercury.id}&month=2025-09`,
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(unauthSubjRes.status, 403, 'Teacher must not access monthly register for unassigned subject');
@@ -1591,15 +1604,17 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
   assert.ok(mountEl.innerHTML.includes('data-att-select-subject="BSM121"'));
   assert.ok(!mountEl.innerHTML.includes('id="slAttMonthlyMatrixTable"'));
 
-  // Select BSM121 and switch to September 2026 to inspect the rendered monthly matrix
+  // Select BSM121 and switch to September 2025 to inspect the rendered monthly matrix
   await ws.selectSubject('BSM121');
-  await ws.loadMonthlyMatrix('2026-09');
+  await ws.loadMonthlyMatrix('2025-09');
   assert.ok(mountEl.innerHTML.includes('71.4%'), 'Matrix DOM must display 71.4% for Aabin Thapa');
   assert.ok(mountEl.innerHTML.includes('57.1%'), 'Matrix DOM must display 57.1% for Aahish Rana');
   assert.ok(mountEl.innerHTML.includes('>ABS<'), 'Matrix DOM must display ABS for absences');
+  assert.ok(mountEl.innerHTML.includes('>-<'), 'Matrix DOM must display - for calendar dates without a submitted session');
+  assert.ok(mountEl.innerHTML.includes('Download SVG'), 'Matrix DOM must include Download SVG action');
 
-  // Test Keyboard Shortcuts on a fresh session date (2026-10-15)
-  await ws.openSessionByDate('2026-10-15');
+  // Test Keyboard Shortcuts on a fresh session date (2025-10-15)
+  await ws.openSessionByDate('2025-10-15');
   const st = ws.getState();
   assert.equal(st.currentStudentIndex, 0);
   assert.deepEqual(
@@ -1642,6 +1657,211 @@ test('Redesign Verification (Tests 1–11): Subject-selection landing page, case
   assert.equal(st.selectedStudentDetailId, null);
 
   ws.unmount();
+});
+
+test('Monthly Calendar Matrix & Official Printable SVG Verification (Tests 1–10): Calendar date range generation (current month through today in Nepal time, past months full length, future months empty), "-" on non-session dates, consecutive numbering & ABS, percentage from submitted sessions only, SVG structure/metadata/columns/remarks/signatures, XML escaping & Nepali Unicode safety, and multi-page large cohort pagination without truncation', async () => {
+  const {
+    buildApplicableCalendarDatesForMonth,
+    buildMonthlyAttendanceMatrix,
+    exportMonthlyAttendanceSvg
+  } = require('../lib/attendance-service');
+
+  // 1. Current-month date column generation stopping at today's date in Nepal local time
+  // e.g., when today in Nepal time is October 25, 2026 ('2026-10-25'), October 2026 has Oct 1 .. Oct 25
+  const octCurrentDates = buildApplicableCalendarDatesForMonth('2026-10', {
+    currentNepalDate: '2026-10-25'
+  });
+  assert.equal(octCurrentDates.length, 25, 'Current month on Oct 25 must contain exactly 25 calendar date columns');
+  assert.equal(octCurrentDates[0].date, '2026-10-01');
+  assert.equal(octCurrentDates[0].label, 'Oct 1');
+  assert.equal(octCurrentDates[24].date, '2026-10-25');
+  assert.equal(octCurrentDates[24].label, 'Oct 25');
+
+  // Future month relative to current Nepal date must not generate future attendance dates
+  const novFutureDates = buildApplicableCalendarDatesForMonth('2026-11', {
+    currentNepalDate: '2026-10-25'
+  });
+  assert.equal(novFutureDates.length, 0, 'Future month must not display future dates as if they have occurred');
+
+  // 2. Past-month date column generation including all calendar days (28, 29, 30, 31)
+  const feb2026Dates = buildApplicableCalendarDatesForMonth('2026-02', { currentNepalDate: '2026-10-25' });
+  assert.equal(feb2026Dates.length, 28, 'Past non-leap February must have 28 days');
+  const feb2024Dates = buildApplicableCalendarDatesForMonth('2024-02', { currentNepalDate: '2026-10-25' });
+  assert.equal(feb2024Dates.length, 29, 'Past leap February must have 29 days');
+  const sept2026Dates = buildApplicableCalendarDatesForMonth('2026-09', { currentNepalDate: '2026-10-25' });
+  assert.equal(sept2026Dates.length, 30, 'Past September must have 30 days');
+  const aug2026Dates = buildApplicableCalendarDatesForMonth('2026-08', { currentNepalDate: '2026-10-25' });
+  assert.equal(aug2026Dates.length, 31, 'Past August must have 31 days');
+
+  // 3, 4, 6, 7. Verify exact illustrative scenario from prompt:
+  // Oct 1 .. Oct 6 (with today = 2026-10-06)
+  // Sessions held on Oct 1, Oct 2, Oct 3, Oct 5, Oct 6 (NO session on Oct 4 -> '-')
+  // Aabin Thapa: Oct 1 (P->1), Oct 2 (P->2), Oct 3 (A->ABS), Oct 4 (-), Oct 5 (P->3), Oct 6 (P->4) -> 4/5 = 80.0%
+  // Aahish Rana: Oct 1 (A->ABS), Oct 2 (P->1), Oct 3 (P->2), Oct 4 (-), Oct 5 (A->ABS), Oct 6 (P->3) -> 3/5 = 60.0%
+  const sampleStudents = [
+    { studentId: 'stu_2', name: 'Aahish Rana' },
+    { studentId: 'stu_1', name: 'Aabin Thapa' }
+  ];
+  const sampleSessions = [
+    { id: 's1', sessionDate: '2026-10-01', status: 'submitted' },
+    { id: 's2', sessionDate: '2026-10-02', status: 'submitted' },
+    { id: 's3', sessionDate: '2026-10-03', status: 'submitted' },
+    { id: 's5', sessionDate: '2026-10-05', status: 'submitted' },
+    { id: 's6', sessionDate: '2026-10-06', status: 'submitted' }
+  ];
+  const sampleRecords = new Map([
+    ['s1', new Map([['stu_1', 'present'], ['stu_2', 'absent']])],
+    ['s2', new Map([['stu_1', 'present'], ['stu_2', 'present']])],
+    ['s3', new Map([['stu_1', 'absent'],  ['stu_2', 'present']])],
+    ['s5', new Map([['stu_1', 'present'], ['stu_2', 'absent']])],
+    ['s6', new Map([['stu_1', 'present'], ['stu_2', 'present']])]
+  ]);
+
+  const oct6Matrix = buildMonthlyAttendanceMatrix({
+    students: sampleStudents,
+    sessions: sampleSessions,
+    recordsBySessionId: sampleRecords,
+    month: '2026-10',
+    currentNepalDate: '2026-10-06'
+  });
+
+  assert.deepEqual(
+    oct6Matrix.calendarDates.map((d) => d.label),
+    ['Oct 1', 'Oct 2', 'Oct 3', 'Oct 4', 'Oct 5', 'Oct 6']
+  );
+  assert.equal(oct6Matrix.calendarDates[3].hasSession, false, 'Oct 4 must be marked hasSession: false');
+  assert.deepEqual(
+    oct6Matrix.rows.map((r) => r.name),
+    ['Aabin Thapa', 'Aahish Rana'],
+    'Students must be sorted alphabetically'
+  );
+  assert.deepEqual(
+    oct6Matrix.rows[0].cells.map((c) => c.display),
+    ['1', '2', 'ABS', '-', '3', '4'],
+    'Aabin Thapa must display 1 | 2 | ABS | - | 3 | 4 across Oct 1..Oct 6'
+  );
+  assert.equal(
+    oct6Matrix.rows[0].formattedPercentage,
+    '80.0%',
+    'Aabin Thapa percentage must be 4/5 = 80.0% (excluding Oct 4 which had no session)'
+  );
+  assert.deepEqual(
+    oct6Matrix.rows[1].cells.map((c) => c.display),
+    ['ABS', '1', '2', '-', 'ABS', '3'],
+    'Aahish Rana must display ABS | 1 | 2 | - | ABS | 3 across Oct 1..Oct 6'
+  );
+  assert.equal(oct6Matrix.rows[1].formattedPercentage, '60.0%');
+
+  // 8. End-to-end API SVG Export verification (GET /api/attendance/monthly?format=svg)
+  const svgRes = await appFetch(
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2025-09&format=svg`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(svgRes.status, 200);
+  assert.match(String(svgRes.headers.get('content-type') || ''), /image\/svg\+xml/i);
+  const svgText = await svgRes.text();
+
+  // Verify standalone SVG root, A4 landscape attributes, and monochrome vector structure
+  assert.ok(svgText.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n<svg '));
+  assert.ok(svgText.includes('xmlns="http://www.w3.org/2000/svg"'));
+  assert.ok(svgText.includes('width="297mm"'));
+  assert.ok(svgText.includes('viewBox="0 0 1684 1190"'));
+
+  // Verify exact header structure & real metadata
+  assert.ok(svgText.includes('>Gandaki University</text>'), 'SVG must contain centered Gandaki University header');
+  assert.ok(svgText.includes('>MONTHLY ATTENDANCE</text>'), 'SVG must contain MONTHLY ATTENDANCE title');
+  assert.ok(svgText.includes('>September 2025</text>'), 'SVG must show real Month value');
+  assert.ok(svgText.includes('>Semester 2</text>'), 'SVG must show real Semester value');
+  assert.ok(svgText.includes('>BSM121 — Discrete Mathematics</text>'), 'SVG must show real Subject value');
+  assert.ok(svgText.includes('>Prof. UI Alice</text>'), 'SVG must show real assigned Teacher Name');
+
+  // Verify all 30 September date headings (Sep 1 .. Sep 30), Attendance %, and Remark column
+  assert.ok(svgText.includes('>Name</text>'));
+  for (let d = 1; d <= 30; d += 1) {
+    assert.ok(svgText.includes(`>Sep ${d}</text>`), `SVG must include date column header Sep ${d}`);
+  }
+  assert.ok(svgText.includes('>Attendance %</text>'));
+  assert.ok(svgText.includes('>Remark</text>'));
+
+  // Verify alphabetical student rows and percentages in SVG
+  const idxAabin = svgText.indexOf('>Aabin Thapa</text>');
+  const idxAahish = svgText.indexOf('>Aahish Rana</text>');
+  const idxBinita = svgText.indexOf('>binita Gurung</text>');
+  const idxZubin = svgText.indexOf('>Zubin KC</text>');
+  assert.ok(idxAabin > 0 && idxAabin < idxAahish && idxAahish < idxBinita && idxBinita < idxZubin, 'Students must appear in alphabetical order in SVG');
+  assert.ok(svgText.includes('>71.4%</text>'));
+  assert.ok(svgText.includes('>57.1%</text>'));
+  assert.ok(svgText.includes('data-remark-blank="true"'), 'Remark cells must be present and blank for handwritten teacher remarks');
+
+  // Verify signature section on the SVG sheet
+  assert.ok(svgText.includes('Prepared by / Subject Teacher:'));
+  assert.ok(svgText.includes('Verified by:'));
+  assert.ok(svgText.includes('Signature:'));
+  assert.ok(svgText.includes('Date:'));
+
+  // 9 & 10. Verify XML escaping, Nepali/Unicode names, and multi-page pagination (32 students across a 31-day month = 2 pages, 0 truncation)
+  const largeStudents = [];
+  for (let i = 1; i <= 30; i += 1) {
+    largeStudents.push({
+      studentId: `stu_lg_${String(i).padStart(2, '0')}`,
+      name: `Student ${String(i).padStart(2, '0')} & <Group "${i}">`
+    });
+  }
+  largeStudents.push({
+    studentId: 'stu_lg_nepali',
+    name: 'आरम्भ थापा (Aarambha)'
+  });
+  largeStudents.push({
+    studentId: 'stu_lg_quote',
+    name: "O'Connor & Sons <Lab>"
+  });
+
+  const largeMatrix = buildMonthlyAttendanceMatrix({
+    students: largeStudents,
+    sessions: [
+      { id: 'lg_s1', sessionDate: '2026-10-01', status: 'submitted' },
+      { id: 'lg_s2', sessionDate: '2026-10-25', status: 'submitted' }
+    ],
+    recordsBySessionId: new Map([
+      ['lg_s1', new Map(largeStudents.map((s) => [s.studentId, 'present']))],
+      ['lg_s2', new Map(largeStudents.map((s, idx) => [s.studentId, idx % 2 === 0 ? 'present' : 'absent']))]
+    ]),
+    month: '2026-10',
+    currentNepalDate: '2026-10-31'
+  });
+
+  const multiPageSvg = exportMonthlyAttendanceSvg({
+    ...largeMatrix,
+    monthLabel: 'October 2026',
+    semesterLabel: 'Semester 3',
+    subjectLabel: 'CIT214 — Data Structure & Algorithms',
+    teacherName: 'Prof. Ram Prasad <Sharma> & Co.'
+  });
+
+  // 32 students at 25 rows/page -> 2 pages
+  assert.ok(multiPageSvg.includes('data-total-pages="2"'), '32 students must paginate cleanly across 2 A4 landscape pages');
+  assert.ok(multiPageSvg.includes('id="attendance-sheet-page-1"'));
+  assert.ok(multiPageSvg.includes('id="attendance-sheet-page-2"'));
+  assert.ok(multiPageSvg.includes('Page 1 of 2'));
+  assert.ok(multiPageSvg.includes('Page 2 of 2'));
+
+  // Verify XML special characters are escaped properly and Nepali Unicode is preserved
+  assert.ok(multiPageSvg.includes('Prof. Ram Prasad &lt;Sharma&gt; &amp; Co.'), 'Teacher name XML characters must be escaped');
+  assert.ok(multiPageSvg.includes('CIT214 — Data Structure &amp; Algorithms'), 'Subject XML characters must be escaped');
+  assert.ok(multiPageSvg.includes('O&apos;Connor &amp; Sons &lt;Lab&gt;'), 'Student name XML characters must be escaped');
+  assert.ok(multiPageSvg.includes('आरम्भ थापा (Aarambha)'), 'Nepali Devanagari student name must be preserved in UTF-8 SVG');
+  assert.ok(multiPageSvg.includes('Noto Sans Devanagari'), 'SVG font stack must include Devanagari-safe font fallback');
+
+  // Verify all 31 October date columns and all 32 student rows are present in the SVG without truncation
+  for (let d = 1; d <= 31; d += 1) {
+    assert.ok(multiPageSvg.includes(`>Oct ${d}</text>`), `Multi-page SVG must include Oct ${d}`);
+  }
+  for (const stu of largeStudents) {
+    assert.ok(
+      multiPageSvg.includes(`data-student-id="${stu.studentId}"`),
+      `Multi-page SVG must include student row for ${stu.studentId} without truncation`
+    );
+  }
 });
 
 

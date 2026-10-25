@@ -13,6 +13,7 @@ const {
   listAttendanceSessions,
   getMonthlyAttendanceRegister,
   exportMonthlyAttendanceCsv,
+  exportMonthlyAttendanceSvg,
   getStudentAttendanceSummary,
   assertNoForbiddenSecrets,
   getTeacherDriveBackupStatus,
@@ -240,7 +241,8 @@ function createAttendanceRouter(arg1, arg2) {
   /**
    * 5b. GET /api/attendance/monthly (and /api/attendance/matrix)
    * Allowed: authorized teacher and admin.
-   * Returns the numbered monthly attendance matrix and per-student detailed attendance history.
+   * Returns the numbered monthly attendance matrix and per-student detailed attendance history,
+   * or exports as standalone printable SVG (?format=svg) or CSV (?format=csv).
    */
   const handleMonthlyRegister = async (req, res) => {
     try {
@@ -257,10 +259,20 @@ function createAttendanceRouter(arg1, arg2) {
         month
       });
 
+      const safeSubj = String((result.subject && result.subject.code) || 'Subject').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeCohort = String((result.cohort && result.cohort.displayName) || 'Cohort').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      if (format === 'svg') {
+        const svgContent = exportMonthlyAttendanceSvg(result);
+        const filename = `Attendance_${safeSubj}_${safeCohort}_${result.month}.svg`;
+        res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).send(svgContent);
+      }
+
       if (format === 'csv') {
         const csvContent = exportMonthlyAttendanceCsv(result);
-        const safeSubj = String((result.subject && result.subject.code) || 'Subject').replace(/[^a-zA-Z0-9_-]/g, '_');
-        const safeCohort = String((result.cohort && result.cohort.displayName) || 'Cohort').replace(/[^a-zA-Z0-9_-]/g, '_');
         const filename = `Attendance_${safeSubj}_${safeCohort}_${result.month}.csv`;
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -275,6 +287,10 @@ function createAttendanceRouter(arg1, arg2) {
   };
   router.get('/monthly', requireLogin, handleMonthlyRegister);
   router.get('/matrix', requireLogin, handleMonthlyRegister);
+  router.get('/monthly/svg', requireLogin, (req, res) => {
+    req.query.format = 'svg';
+    return handleMonthlyRegister(req, res);
+  });
 
   /**
    * 6. GET /api/attendance/sessions/:id/audit

@@ -1047,9 +1047,6 @@ export function TeacherAttendanceView({
         >
           {/* 1. Subject, Cohort, and Date Selector Card */}
           <Card variant="elevated" style={[styles.selectorCard, { borderColor: colors.border }]}>
-            <Text variant="xs" weight="700" color="secondary" style={styles.sectionLabel}>
-              ASSIGNED SUBJECT
-            </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}

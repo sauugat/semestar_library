@@ -2491,33 +2491,6 @@
     `;
   }
 
-  function renderSummaryBoxes(counts) {
-    return `
-      <div class="sl-att-summary-pills">
-        <div class="sl-att-stat-box">
-          <div class="sl-att-stat-val">${counts.total}</div>
-          <div class="sl-att-stat-lbl">Total Roster</div>
-        </div>
-        <div class="sl-att-stat-box">
-          <div class="sl-att-stat-val">${counts.marked}</div>
-          <div class="sl-att-stat-lbl">Marked</div>
-        </div>
-        <div class="sl-att-stat-box">
-          <div class="sl-att-stat-val">${counts.present}</div>
-          <div class="sl-att-stat-lbl">Present</div>
-        </div>
-        <div class="sl-att-stat-box">
-          <div class="sl-att-stat-val">${counts.absent}</div>
-          <div class="sl-att-stat-lbl">Absent</div>
-        </div>
-        <div class="sl-att-stat-box">
-          <div class="sl-att-stat-val">${counts.unmarked}</div>
-          <div class="sl-att-stat-lbl">Unmarked</div>
-        </div>
-      </div>
-    `;
-  }
-
   /**
    * 2. Renders the Full Alphabetical Student Attendance Register with Present/Absent buttons,
    * keyboard shortcut focus state, and saving/saved/error feedback.
@@ -2542,8 +2515,6 @@
     }
 
     return `
-      ${renderSummaryBoxes(counts)}
-
       <section class="sl-att-panel" id="slAttStudentRegisterSection" aria-label="Student Attendance Register">
         <div class="sl-att-register-toolbar">
           <div>
@@ -2552,13 +2523,6 @@
                 Student Attendance Register (${escapeHtml(state.selectedDate)})
               </h3>
               ${persistenceBadge}
-            </div>
-            <div class="sl-att-kbd-hint" style="margin-top:4px;">
-              <span>Keyboard:</span>
-              <span><kbd class="sl-att-kbd">P</kbd> Present</span>
-              <span><kbd class="sl-att-kbd">A</kbd> Absent</span>
-              <span><kbd class="sl-att-kbd">&uarr;</kbd>/<kbd class="sl-att-kbd">&darr;</kbd> Navigate</span>
-              <span>&middot; Click a student's name for detailed attendance history.</span>
             </div>
           </div>
 
@@ -2784,12 +2748,9 @@
       <section class="sl-att-panel" id="slAttMonthlyMatrixSection" aria-label="Monthly Attendance Matrix">
         <div class="sl-att-matrix-header">
           <div>
-            <h3 style="margin:0 0 4px; font-size:1.05rem; font-weight:700;">
+            <h3 style="margin:0; font-size:1.05rem; font-weight:700;">
               Monthly Attendance Matrix &mdash; ${escapeHtml(formatMonthLabel(selectedMonth))}
             </h3>
-            <p style="margin:0; font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);" data-att-date-range="${escapeHtml(dateRangeLabel)}">
-              Date Range: <strong>${escapeHtml(dateRangeLabel)}</strong> &middot; ${sessions.length} submitted session${sessions.length === 1 ? '' : 's'} &middot; Consecutive counts (1, 2, 3…), ABS, or - for dates without a session.
-            </p>
           </div>
 
           <div class="sl-att-month-nav">
@@ -3353,109 +3314,6 @@
         ${
           state.saveSuccessMessage
             ? `<div class="sl-att-banner success" role="status"><span>${escapeHtml(state.saveSuccessMessage)}</span></div>`
-            : ''
-        }
-
-        <!-- Selector Bar: Subject, Cohort, Session Date -->
-        <div class="sl-att-panel">
-          <div class="sl-att-controls-grid">
-            <div class="sl-att-field">
-              <select id="slAttSubjectSelect" class="sl-att-select" aria-label="Select subject">
-                ${state.subjects
-                  .map(
-                    (s) => `
-                  <option value="${escapeHtml(s.id)}" ${s.id === state.selectedSubjectId ? 'selected' : ''}>
-                    [${escapeHtml(s.code)}] ${escapeHtml(s.name)} (Sem ${escapeHtml(s.semester)})
-                  </option>
-                `
-                  )
-                  .join('')}
-              </select>
-            </div>
-
-            <div class="sl-att-field">
-              <label for="slAttCohortSelect">Active Cohort</label>
-              <select id="slAttCohortSelect" class="sl-att-select" ${eligibleCohorts.length === 0 ? 'disabled' : ''}>
-                ${
-                  eligibleCohorts.length === 0
-                    ? '<option value="">No active cohort for this semester</option>'
-                    : eligibleCohorts
-                        .map(
-                          (c) => `
-                      <option value="${escapeHtml(c.id)}" ${c.id === state.selectedCohortId ? 'selected' : ''}>
-                        ${escapeHtml(c.displayName)} (Sem ${escapeHtml(c.currentSemester)}${c.intakeYear ? ' · ' + escapeHtml(c.intakeYear) : ''})
-                      </option>
-                    `
-                        )
-                        .join('')
-                }
-              </select>
-            </div>
-
-            <div class="sl-att-field">
-              <label for="slAttDateInput">Session Date (Nepal Time)</label>
-              <input
-                type="date"
-                id="slAttDateInput"
-                class="sl-att-input"
-                value="${escapeHtml(state.selectedDate)}"
-                max="${escapeHtml(state.currentNepalDate)}"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Stage Navigation Switcher -->
-        <div class="sl-att-stage-tabs" role="tablist" aria-label="Attendance workflow stages">
-          <button
-            type="button"
-            class="sl-att-stage-tab ${state.stage === 'marking' || state.stage === 'review' ? 'active' : ''}"
-            data-att-stage="marking"
-          >
-            Student Register &amp; Monthly Matrix (${counts.marked}/${counts.total})
-          </button>
-          <button
-            type="button"
-            class="sl-att-stage-tab ${state.stage === 'history' ? 'active' : ''}"
-            data-att-stage="history"
-          >
-            Session History &amp; Audit (${state.historySessions.length})
-          </button>
-        </div>
-
-        <!-- Status & Edit Countdown Banners -->
-        ${
-          state.existingSession
-            ? `
-          <div class="sl-att-banner ${isReadOnly ? 'readonly' : ''}">
-            <div>
-              <strong>${isReadOnly ? 'Locked / Read-Only Session:' : 'Existing Submitted Session:'}</strong>
-              ${
-                isReadOnly
-                  ? 'The 24-hour teacher editing window has expired. An administrator must authorize any corrections.'
-                  : 'You are viewing saved attendance for this date. You may edit and re-save within the 24-hour window.'
-              }
-            </div>
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span
-                class="sl-att-badge ${isReadOnly ? 'unmarked' : 'present'}"
-                data-att-submitted-at="${escapeHtml(state.existingSession.submittedAt || '')}"
-                data-att-session-status="${escapeHtml(state.existingSession.status || 'submitted')}"
-                data-att-was-editable="${editWin.canEdit ? '1' : '0'}"
-              >
-                ${escapeHtml(editWin.label)}
-              </span>
-              <button
-                type="button"
-                class="teach-btn teach-btn-secondary"
-                style="padding:5px 10px; font-size:0.76rem;"
-                data-att-open-audit="${escapeHtml(state.existingSession.id)}"
-              >
-                Audit Log
-              </button>
-            </div>
-          </div>
-        `
             : ''
         }
 

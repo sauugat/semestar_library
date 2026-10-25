@@ -391,16 +391,25 @@ test('Step 3 Verification 3: Interactive Web Teacher Attendance state machine (M
   const ws = sandboxWindow.TeacherAttendanceWorkspace;
   assert.ok(ws, 'TeacherAttendanceWorkspace must attach to window');
 
-  // 1 & 2: Mount workspace -> loads authorized subjects (CIT111), active cohort (Mercury), and roster (stu_ui_1, stu_ui_2)
+  // 1 & 2: Mount workspace without subjectKey -> lands on Subject-Selection Landing Page first (no register shown yet)
   await ws.mount(mountEl);
   const st = ws.getState();
 
   assert.equal(st.subjects.length, 1);
   assert.equal(st.subjects[0].code, 'CIT111');
+  assert.equal(st.selectedSubjectId, '', 'Must start on Subject-Selection Landing Page before a subject is selected');
+  assert.ok(mountEl.innerHTML.includes('id="slAttSubjectLanding"'), 'Must render subject selection landing view');
+  assert.ok(mountEl.innerHTML.includes('data-att-select-subject="CIT111"'), 'Must render assigned subject card');
+  assert.ok(!mountEl.innerHTML.includes('id="slAttStudentRegisterSection"'), 'Must NOT show attendance-taking interface before a subject is selected');
+
+  // Teacher clicks / selects assigned subject CIT111 -> opens student attendance register and monthly matrix
+  await ws.selectSubject('CIT111');
   assert.equal(st.selectedSubjectId, 'CIT111');
   assert.equal(st.selectedCohortId, cohortMercury.id);
   assert.equal(st.selectedDate, TODAY_NEPAL);
   assert.equal(st.roster.length, 2);
+  assert.ok(mountEl.innerHTML.includes('id="slAttStudentRegisterSection"'), 'Must render student attendance register after selecting subject');
+  assert.ok(mountEl.innerHTML.includes('id="slAttMonthlyMatrixTable"'), 'Must render monthly attendance matrix table after selecting subject');
 
   // Initially unmarked (never auto-marked Present or Absent)
   assert.equal(Object.keys(st.marksByStudentId).length, 0);
@@ -411,7 +420,7 @@ test('Step 3 Verification 3: Interactive Web Teacher Attendance state machine (M
   assert.match(st.saveError, /unmarked/i);
   assert.equal(st.existingSession, null);
 
-  // 3: Mark Student 1 as Present -> auto-advances to Student 2 (index 1)
+  // 3: Mark Student 1 as Present -> auto-advances focus to Student 2 (index 1)
   ws.markStudent('stu_ui_1', 'present', true);
   assert.equal(st.marksByStudentId['stu_ui_1'], 'present');
   assert.equal(st.currentStudentIndex, 1);
@@ -426,7 +435,7 @@ test('Step 3 Verification 3: Interactive Web Teacher Attendance state machine (M
   ws.markStudent('stu_ui_2', 'present', true);
   assert.equal(st.marksByStudentId['stu_ui_2'], 'present');
 
-  // 5: Review stage HTML displays accurate counts (Total: 2, Marked: 2, Present: 1, Absent: 1, Unmarked: 0)
+  // 5: Register HTML displays accurate counts (Total: 2, Marked: 2, Present: 1, Absent: 1, Unmarked: 0)
   st.stage = 'review';
   await ws.mount(mountEl);
   assert.ok(mountEl.innerHTML.includes('All 2 students marked (1 Present, 1 Absent)'));
@@ -446,7 +455,7 @@ test('Step 3 Verification 3: Interactive Web Teacher Attendance state machine (M
   assert.ok(st.existingSession && st.existingSession.id, 'Server-backed session must be loaded after save');
 
   // 8: Existing editable session loads correctly and can be edited within 24h
-  assert.ok(mountEl.innerHTML.includes('Editable for'));
+  assert.ok(mountEl.innerHTML.includes('data-att-save-state="saved"'));
   ws.markStudent('stu_ui_1', 'present', false);
   await ws.submitAttendance();
   assert.ok(st.saveSuccessMessage.includes('Attendance updated'));
@@ -469,8 +478,7 @@ test('Step 3 Verification 3: Interactive Web Teacher Attendance state machine (M
   st.selectedDate = TWO_DAYS_AGO_NEPAL;
   await ws.loadRoster();
   assert.ok(st.existingSession);
-  assert.ok(mountEl.innerHTML.includes('Locked / Read-Only Session'));
-  assert.ok(mountEl.innerHTML.includes('24h edit window expired (Read-Only)'));
+  assert.ok(mountEl.innerHTML.includes('This session is locked for teacher edits because the 24-hour window has elapsed.'));
 
   // Attempting to mark or submit on an expired session is blocked
   ws.markStudent('stu_ui_2', 'present', false);
@@ -1200,6 +1208,440 @@ test('Phase 3C Verification: Mobile Teacher Google Drive Attendance Backup UI in
   });
   assert.equal(afterDiscModel.uiState, 'not_connected');
   assert.equal(afterDiscModel.canConnect, true);
+});
+
+test('Redesign Verification (Tests 1–11): Subject-selection landing page, case-insensitive alphabetical ordering, keyboard marking (P/A/Arrows + input guard), independent consecutive monthly numbering, ABS non-increment, monthly reset, percentage & zero-session handling, chronological session order, student detail modal, permissions, and historical/export integrity', async () => {
+  const passwordHash = bcrypt.hashSync(PASSWORD, 8);
+
+  // Create a dedicated cohort for Semester 2 and assign BSM121 (Semester 2) to Teacher A
+  const cohortNeptune = await createCohort(db, {
+    slotCode: 'venus',
+    displayName: 'Venus',
+    currentSemester: 2,
+    intakeYear: 2026
+  });
+
+  await db.run(
+    `INSERT INTO subjects (id, code, name, semester, department, credit_hours, active)
+     VALUES ('BSM121', 'BSM121', 'Discrete Mathematics', 2, 'BIT', 3, 1)
+     ON CONFLICT (id) DO NOTHING`
+  );
+  await db.run(
+    `INSERT INTO teacher_subjects (id, teacher_id, subject_id)
+     VALUES ('ts_ui_bsm121', 'tea_ui_id_a', 'BSM121')
+     ON CONFLICT (id) DO NOTHING`
+  );
+
+  // Seed students in deliberately unsorted order with mixed case names to test case-insensitive alphabetical sorting:
+  // Zubin, binita, Aahish Rana, Aabin Thapa
+  const neptuneStudents = [
+    { id: 'stu_nep_z', username: 'zubin_n', name: 'Zubin KC', role: 'student' },
+    { id: 'stu_nep_b', username: 'binita_n', name: 'binita Gurung', role: 'cr' },
+    { id: 'stu_nep_2', username: 'aahish_n', name: 'Aahish Rana', role: 'student' },
+    { id: 'stu_nep_1', username: 'aabin_n', name: 'Aabin Thapa', role: 'student' }
+  ];
+
+  for (const s of neptuneStudents) {
+    await db.run(
+      `INSERT INTO students (studentId, username, name, email, role, passwordHash, semester, cohort_id, account_status)
+       VALUES (?, ?, ?, ?, ?, ?, 'Semester 2', ?, 'active')`,
+      s.id,
+      s.username,
+      s.name,
+      `${s.id}@gandaki.edu.np`,
+      s.role,
+      passwordHash,
+      cohortNeptune.id
+    );
+  }
+
+  // 1. Test Case-Insensitive Alphabetical Student Ordering in GET /api/attendance/roster and GET /api/attendance/monthly
+  const rosterRes = await appFetch(
+    `${baseUrl}/api/attendance/roster?subjectId=BSM121&cohortId=${cohortNeptune.id}&date=2026-09-01`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(rosterRes.status, 200);
+  const rosterJson = await rosterRes.json();
+  assert.deepEqual(
+    rosterJson.roster.map((s) => s.name),
+    ['Aabin Thapa', 'Aahish Rana', 'binita Gurung', 'Zubin KC'],
+    'Students must be sorted alphabetically by displayed name, case-insensitively'
+  );
+
+  // 7a. Test Zero-Session Handling in GET /api/attendance/monthly (no division by zero)
+  const zeroMonthRes = await appFetch(
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-08`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(zeroMonthRes.status, 200);
+  const zeroMonthJson = await zeroMonthRes.json();
+  assert.equal(zeroMonthJson.totalSessions, 0);
+  assert.equal(zeroMonthJson.sessions.length, 0);
+  assert.deepEqual(
+    zeroMonthJson.rows.map((r) => r.name),
+    ['Aabin Thapa', 'Aahish Rana', 'binita Gurung', 'Zubin KC']
+  );
+  for (const row of zeroMonthJson.rows) {
+    assert.equal(row.totalSessions, 0);
+    assert.equal(row.presentCount, 0);
+    assert.equal(row.absentCount, 0);
+    assert.equal(row.attendancePercentage, 0);
+    assert.equal(row.formattedPercentage, '0.0%');
+    assert.deepEqual(row.cells, []);
+  }
+
+  // 4, 5, 7b, 8. Record 7 actual class sessions in September 2026 (including out-of-order insertion to verify chronological column ordering)
+  // Prompt illustrative pattern:
+  // Aabin Thapa:  1 | 2 | ABS | 3 | 4 | ABS | 5 -> 5/7 = 71.4%
+  // Aahish Rana:  ABS | 1 | 2 | ABS | 3 | ABS | 4 -> 4/7 = 57.1%
+  const septSessionsSpec = [
+    { date: '2026-09-02', aabin: 'present', aahish: 'absent', binita: 'present', zubin: 'absent' },
+    { date: '2026-09-05', aabin: 'present', aahish: 'present', binita: 'present', zubin: 'absent' },
+    { date: '2026-09-09', aabin: 'absent',  aahish: 'present', binita: 'present', zubin: 'absent' },
+    { date: '2026-09-12', aabin: 'present', aahish: 'absent',  binita: 'present', zubin: 'absent' },
+    { date: '2026-09-16', aabin: 'present', aahish: 'present', binita: 'present', zubin: 'absent' },
+    { date: '2026-09-20', aabin: 'absent',  aahish: 'absent',  binita: 'present', zubin: 'absent' },
+    { date: '2026-09-25', aabin: 'present', aahish: 'present', binita: 'present', zubin: 'absent' }
+  ];
+
+  // Insert sessions (insert session 2 before session 1 to test chronological sorting)
+  const insertionOrder = [1, 0, 2, 3, 4, 5, 6];
+  for (const idx of insertionOrder) {
+    const spec = septSessionsSpec[idx];
+    await saveAttendanceSession(db, {
+      actorUserId: 'tea_ui_a',
+      subjectId: 'BSM121',
+      cohortId: cohortNeptune.id,
+      sessionDate: spec.date,
+      records: [
+        { studentId: 'stu_nep_1', status: spec.aabin },
+        { studentId: 'stu_nep_2', status: spec.aahish },
+        { studentId: 'stu_nep_b', status: spec.binita },
+        { studentId: 'stu_nep_z', status: spec.zubin }
+      ]
+    });
+  }
+
+  const septMatrixRes = await appFetch(
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-09`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(septMatrixRes.status, 200);
+  const septMatrix = await septMatrixRes.json();
+
+  // Verify chronological session ordering (1..7) and real session dates retained separately
+  assert.equal(septMatrix.totalSessions, 7);
+  assert.deepEqual(
+    septMatrix.sessions.map((s) => s.sessionNumber),
+    [1, 2, 3, 4, 5, 6, 7]
+  );
+  assert.deepEqual(
+    septMatrix.sessions.map((s) => s.sessionDate),
+    ['2026-09-02', '2026-09-05', '2026-09-09', '2026-09-12', '2026-09-16', '2026-09-20', '2026-09-25']
+  );
+
+  // Verify Aabin Thapa row: 1 | 2 | ABS | 3 | 4 | ABS | 5 -> 71.4%
+  const aabinRow = septMatrix.rows.find((r) => r.studentId === 'stu_nep_1');
+  assert.ok(aabinRow);
+  assert.deepEqual(
+    aabinRow.cells.map((c) => c.display),
+    ['1', '2', 'ABS', '3', '4', 'ABS', '5'],
+    'Aabin Thapa row must display exact consecutive attendance count and ABS for absences'
+  );
+  assert.equal(aabinRow.presentCount, 5);
+  assert.equal(aabinRow.absentCount, 2);
+  assert.equal(aabinRow.totalSessions, 7);
+  assert.equal(aabinRow.attendancePercentage, 71.4);
+  assert.equal(aabinRow.formattedPercentage, '71.4%');
+
+  // Verify Aahish Rana row: ABS | 1 | 2 | ABS | 3 | ABS | 4 -> 57.1%
+  const aahishRow = septMatrix.rows.find((r) => r.studentId === 'stu_nep_2');
+  assert.ok(aahishRow);
+  assert.deepEqual(
+    aahishRow.cells.map((c) => c.display),
+    ['ABS', '1', '2', 'ABS', '3', 'ABS', '4'],
+    'Aahish Rana row must display independent consecutive attendance count starting at 1 on session 2'
+  );
+  assert.equal(aahishRow.presentCount, 4);
+  assert.equal(aahishRow.absentCount, 3);
+  assert.equal(aahishRow.totalSessions, 7);
+  assert.equal(aahishRow.attendancePercentage, 57.1);
+  assert.equal(aahishRow.formattedPercentage, '57.1%');
+
+  // Verify binita Gurung (all 7 present -> 1..7, 100.0%) and Zubin KC (all 7 absent -> ABS..ABS, 0.0%)
+  const binitaRow = septMatrix.rows.find((r) => r.studentId === 'stu_nep_b');
+  assert.deepEqual(binitaRow.cells.map((c) => c.display), ['1', '2', '3', '4', '5', '6', '7']);
+  assert.equal(binitaRow.formattedPercentage, '100.0%');
+
+  const zubinRow = septMatrix.rows.find((r) => r.studentId === 'stu_nep_z');
+  assert.deepEqual(zubinRow.cells.map((c) => c.display), ['ABS', 'ABS', 'ABS', 'ABS', 'ABS', 'ABS', 'ABS']);
+  assert.equal(zubinRow.formattedPercentage, '0.0%');
+
+  // 6. Test Monthly Numbering Reset at the Beginning of a New Month (October 2026)
+  await saveAttendanceSession(db, {
+    actorUserId: 'tea_ui_a',
+    subjectId: 'BSM121',
+    cohortId: cohortNeptune.id,
+    sessionDate: '2026-10-03',
+    records: [
+      { studentId: 'stu_nep_1', status: 'present' },
+      { studentId: 'stu_nep_2', status: 'absent' },
+      { studentId: 'stu_nep_b', status: 'present' },
+      { studentId: 'stu_nep_z', status: 'present' }
+    ]
+  });
+
+  const octMatrixRes = await appFetch(
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-10`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(octMatrixRes.status, 200);
+  const octMatrix = await octMatrixRes.json();
+  assert.equal(octMatrix.totalSessions, 1);
+  assert.equal(octMatrix.sessions[0].sessionNumber, 1);
+  assert.equal(octMatrix.sessions[0].sessionDate, '2026-10-03');
+
+  const octAabin = octMatrix.rows.find((r) => r.studentId === 'stu_nep_1');
+  assert.deepEqual(
+    octAabin.cells.map((c) => c.display),
+    ['1'],
+    'Consecutive attendance count must reset to 1 at the start of a new month (not continue at 6)'
+  );
+  assert.equal(octAabin.formattedPercentage, '100.0%');
+
+  // 8. When a new submitted session is added in October, append the next session column in chronological order
+  const octSession2 = await saveAttendanceSession(db, {
+    actorUserId: 'tea_ui_a',
+    subjectId: 'BSM121',
+    cohortId: cohortNeptune.id,
+    sessionDate: '2026-10-10',
+    records: [
+      { studentId: 'stu_nep_1', status: 'absent' },
+      { studentId: 'stu_nep_2', status: 'present' },
+      { studentId: 'stu_nep_b', status: 'present' },
+      { studentId: 'stu_nep_z', status: 'absent' }
+    ]
+  });
+
+  const octMatrixAfterAddRes = await appFetch(
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-10`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  const octMatrixAfterAdd = await octMatrixAfterAddRes.json();
+  assert.equal(octMatrixAfterAdd.totalSessions, 2);
+  assert.deepEqual(octMatrixAfterAdd.sessions.map((s) => s.sessionNumber), [1, 2]);
+  assert.deepEqual(octMatrixAfterAdd.sessions.map((s) => s.sessionDate), ['2026-10-03', '2026-10-10']);
+
+  const octAabinAfter2 = octMatrixAfterAdd.rows.find((r) => r.studentId === 'stu_nep_1');
+  assert.deepEqual(octAabinAfter2.cells.map((c) => c.display), ['1', 'ABS']);
+  assert.equal(octAabinAfter2.formattedPercentage, '50.0%');
+
+  // Legitimate update within 24h window recalculates consecutive numbers and percentage
+  await saveAttendanceSession(db, {
+    actorUserId: 'tea_ui_a',
+    subjectId: 'BSM121',
+    cohortId: cohortNeptune.id,
+    sessionDate: '2026-10-10',
+    reason: 'Aabin was present in lab',
+    records: [
+      { studentId: 'stu_nep_1', status: 'present' },
+      { studentId: 'stu_nep_2', status: 'present' },
+      { studentId: 'stu_nep_b', status: 'present' },
+      { studentId: 'stu_nep_z', status: 'absent' }
+    ]
+  });
+
+  const octMatrixUpdated = await (
+    await appFetch(
+      `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-10`,
+      { headers: { Authorization: `Bearer ${teacherAToken}` } }
+    )
+  ).json();
+  const octAabinUpdated = octMatrixUpdated.rows.find((r) => r.studentId === 'stu_nep_1');
+  assert.deepEqual(octAabinUpdated.cells.map((c) => c.display), ['1', '2']);
+  assert.equal(octAabinUpdated.formattedPercentage, '100.0%');
+  assert.ok(octSession2.session.id);
+
+  // 11. Verify underlying attendance_records in database still store 'present'/'absent' (never renumbered or modified)
+  // and CSV export uses underlying records for accurate totals and percentages
+  const rawDbRecords = await db.all(
+    `SELECT DISTINCT status FROM attendance_records WHERE session_id = ?`,
+    octSession2.session.id
+  );
+  const rawStatuses = rawDbRecords.map((r) => r.status).sort();
+  assert.deepEqual(rawStatuses, ['absent', 'present'], 'Stored database records must remain strictly present/absent');
+
+  const csvRes = await appFetch(
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-09&format=csv`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(csvRes.status, 200);
+  const csvText = await csvRes.text();
+  assert.ok(
+    csvText.includes('stu_nep_1,Aabin Thapa,1,2,ABS,3,4,ABS,5,5,2,7,71.4%'),
+    'CSV export must include consecutive display cells and accurate underlying totals (5 attended, 2 absent, 7 total, 71.4%)'
+  );
+  assert.ok(
+    csvText.includes('stu_nep_2,Aahish Rana,ABS,1,2,ABS,3,ABS,4,4,3,7,57.1%'),
+    'CSV export must include accurate underlying totals for Aahish Rana (4 attended, 3 absent, 7 total, 57.1%)'
+  );
+
+  // 10. Verify permissions on /api/attendance/monthly:
+  // - Student token is rejected with 403
+  const stuMonthlyRes = await appFetch(
+    `${baseUrl}/api/attendance/monthly?subjectId=BSM121&cohortId=${cohortNeptune.id}&month=2026-09`,
+    { headers: { Authorization: `Bearer ${student1Token}` } }
+  );
+  assert.equal(stuMonthlyRes.status, 403, 'Students must not access teacher monthly register endpoint');
+
+  // - Teacher A requesting unassigned subject (ELX111) is rejected with 403
+  const unauthSubjRes = await appFetch(
+    `${baseUrl}/api/attendance/monthly?subjectId=ELX111&cohortId=${cohortMercury.id}&month=2026-09`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(unauthSubjRes.status, 403, 'Teacher must not access monthly register for unassigned subject');
+
+  // 2, 3, 5 (UI): Test Keyboard Shortcuts (P, A, ArrowDown, ArrowUp), Input Guard, Monthly Matrix DOM, and Student Detail Modal
+  const makeEl = (tag = 'div') => ({
+    tagName: tag.toUpperCase(),
+    id: '',
+    className: '',
+    textContent: '',
+    value: '',
+    style: {},
+    attributes: {},
+    listeners: {},
+    _innerHTML: '',
+    set innerHTML(val) {
+      this._innerHTML = String(val);
+    },
+    get innerHTML() {
+      return this._innerHTML;
+    },
+    setAttribute(k, v) {
+      this.attributes[k] = String(v);
+    },
+    getAttribute(k) {
+      return this.attributes[k] || null;
+    },
+    addEventListener(evt, fn) {
+      this.listeners[evt] = fn;
+    },
+    removeEventListener(evt) {
+      delete this.listeners[evt];
+    },
+    appendChild() {},
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  });
+
+  const mountEl = makeEl('div');
+  mountEl.id = 'teacherAttendanceMount';
+
+  const sandboxWindow = {
+    URLSearchParams,
+    confirm: () => true,
+    setInterval: () => 1,
+    clearInterval: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    document: {
+      activeElement: null,
+      head: { appendChild() {} },
+      getElementById(id) {
+        return id === 'teacherAttendanceMount' ? mountEl : null;
+      },
+      createElement(tag) {
+        return makeEl(tag);
+      },
+      querySelector(sel) {
+        if (sel === '#teacherAttendanceMount') return mountEl;
+        return null;
+      }
+    },
+    SemesterAuth: {
+      authFetch: async (url, opts = {}) => {
+        const headers = {
+          ...(opts.headers || {}),
+          Authorization: `Bearer ${teacherAToken}`
+        };
+        return appFetch(`${baseUrl}${url}`, { ...opts, headers });
+      }
+    }
+  };
+  sandboxWindow.window = sandboxWindow;
+
+  const vm = require('vm');
+  const scriptCode = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'js', 'teacher-attendance.js'),
+    'utf8'
+  );
+  vm.runInNewContext(scriptCode, sandboxWindow);
+
+  const ws = sandboxWindow.TeacherAttendanceWorkspace;
+  await ws.mount(mountEl);
+
+  // Verify landing page shows both assigned subjects (CIT111 and BSM121) and no attendance register yet
+  assert.equal(ws.getState().selectedSubjectId, '');
+  assert.ok(mountEl.innerHTML.includes('data-att-select-subject="CIT111"'));
+  assert.ok(mountEl.innerHTML.includes('data-att-select-subject="BSM121"'));
+  assert.ok(!mountEl.innerHTML.includes('id="slAttMonthlyMatrixTable"'));
+
+  // Select BSM121 and switch to September 2026 to inspect the rendered monthly matrix
+  await ws.selectSubject('BSM121');
+  await ws.loadMonthlyMatrix('2026-09');
+  assert.ok(mountEl.innerHTML.includes('71.4%'), 'Matrix DOM must display 71.4% for Aabin Thapa');
+  assert.ok(mountEl.innerHTML.includes('57.1%'), 'Matrix DOM must display 57.1% for Aahish Rana');
+  assert.ok(mountEl.innerHTML.includes('>ABS<'), 'Matrix DOM must display ABS for absences');
+
+  // Test Keyboard Shortcuts on a fresh session date (2026-10-15)
+  await ws.openSessionByDate('2026-10-15');
+  const st = ws.getState();
+  assert.equal(st.currentStudentIndex, 0);
+  assert.deepEqual(
+    Array.from(st.roster, (s) => s.name),
+    ['Aabin Thapa', 'Aahish Rana', 'binita Gurung', 'Zubin KC']
+  );
+
+  // Guard: Pressing 'P' or 'A' while focused inside a search <input> must NOT mark any student
+  const searchInputTarget = { tagName: 'INPUT', getAttribute: () => null };
+  const ignoredKeyResult = ws.handleKeyDown({ key: 'P', target: searchInputTarget, preventDefault() {} });
+  assert.equal(ignoredKeyResult, false, 'Keyboard shortcut must not trigger while typing in an input');
+  assert.equal(st.marksByStudentId['stu_nep_1'], undefined);
+  assert.equal(st.currentStudentIndex, 0);
+
+  // Pressing 'P' outside input marks student 0 (Aabin Thapa) Present and auto-advances focus to student 1 (Aahish Rana)
+  const pResult = ws.handleKeyDown({ key: 'P', target: { tagName: 'DIV' }, preventDefault() {} });
+  assert.equal(pResult, true);
+  assert.equal(st.marksByStudentId['stu_nep_1'], 'present');
+  assert.equal(st.currentStudentIndex, 1, 'Focus must auto-advance to index 1 after pressing P');
+
+  // Pressing 'A' marks student 1 (Aahish Rana) Absent and auto-advances focus to student 2 (binita Gurung)
+  const aResult = ws.handleKeyDown({ key: 'a', target: { tagName: 'DIV' }, preventDefault() {} });
+  assert.equal(aResult, true);
+  assert.equal(st.marksByStudentId['stu_nep_2'], 'absent');
+  assert.equal(st.currentStudentIndex, 2, 'Focus must auto-advance to index 2 after pressing A');
+
+  // Pressing ArrowUp moves focus back to index 1; ArrowDown moves focus back to index 2
+  ws.handleKeyDown({ key: 'ArrowUp', target: { tagName: 'DIV' }, preventDefault() {} });
+  assert.equal(st.currentStudentIndex, 1);
+  ws.handleKeyDown({ key: 'ArrowDown', target: { tagName: 'DIV' }, preventDefault() {} });
+  assert.equal(st.currentStudentIndex, 2);
+
+  // Clicking a student's name opens their detailed attendance history modal
+  ws.openStudentDetail('stu_nep_1');
+  assert.equal(st.selectedStudentDetailId, 'stu_nep_1');
+  assert.ok(mountEl.innerHTML.includes('id="slAttStudentDetailModal"'), 'Student detail modal must open');
+  assert.ok(mountEl.innerHTML.includes('Aabin Thapa'), 'Student detail modal must show student name');
+  assert.ok(mountEl.innerHTML.includes('Chronological Session History'), 'Student detail modal must show session history');
+  ws.closeStudentDetail();
+  assert.equal(st.selectedStudentDetailId, null);
+
+  ws.unmount();
 });
 
 

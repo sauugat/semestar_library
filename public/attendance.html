@@ -290,7 +290,8 @@
           const teaMount = document.getElementById('teacherAttendanceMount');
           if (titleEl) titleEl.textContent = 'Attendance';
           if (subEl) {
-            subEl.textContent = 'Select an assigned subject to open the student attendance register and numbered monthly attendance matrix.';
+            subEl.textContent = '';
+            subEl.style.display = 'none';
           }
           if (stuMount) stuMount.style.display = 'none';
           if (teaMount) {

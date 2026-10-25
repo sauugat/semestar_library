@@ -57,6 +57,139 @@
   <script src="/auth.js?v=3"></script>
   <script src="/js/swr.js?v=25"></script>
   <script src="/academic-context.js"></script>
+  <style>
+    body.dash .dash-hero.cl-animated-hero {
+      position: relative;
+      margin: 0 0 28px;
+      padding: 34px 40px;
+      min-height: 148px;
+      background: #0d0d0f !important;
+      border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
+      border-radius: var(--ap-radius-hero, 26px);
+      box-shadow: none !important;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+      overflow: hidden;
+      transform: none !important;
+      transition: border-color 0.35s ease;
+      flex-wrap: wrap;
+    }
+    body.dash .dash-hero.cl-animated-hero:hover {
+      transform: none !important;
+      border-color: rgba(255, 255, 255, 0.32) !important;
+      box-shadow: none !important;
+    }
+    body.dash .dash-hero::before,
+    body.dash .dash-hero::after {
+      display: none !important;
+      content: none !important;
+    }
+    .dash-hero-content {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      min-width: 0;
+      flex: 1;
+    }
+    .cl-hero-kicker,
+    .dash-hero .routine-eyebrow {
+      font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      font-size: 13.5px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.82) !important;
+      line-height: 1.2;
+      margin: 0;
+    }
+    .cl-hero-title,
+    .dash-hero h1 {
+      font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      font-size: clamp(30px, 3.8vw, 48px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #ffffff !important;
+      margin: 0;
+      line-height: 1.05;
+    }
+    .dash-hero .routine-description {
+      color: rgba(255, 255, 255, 0.72) !important;
+      font-size: 13.5px;
+      margin: 6px 0 0;
+      line-height: 1.45;
+    }
+    .dash-hero-actions {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .dash-hero .exam-info {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 0;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .dash-hero .exam-info-item {
+      padding: 10px 18px;
+      border-right: 1px solid rgba(255, 255, 255, 0.14) !important;
+      color: #ffffff !important;
+    }
+    .dash-hero .exam-info-item:last-child {
+      border-right: none !important;
+    }
+    .dash-hero .exam-info-item .info-label {
+      display: block;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.65) !important;
+      margin-bottom: 2px;
+    }
+    .dash-hero .exam-info-item strong {
+      color: #ffffff !important;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .dash-hero .routine-btn {
+      background: #ffffff !important;
+      color: #09090b !important;
+      border: 1.5px solid #ffffff !important;
+      border-radius: 980px !important;
+      padding: 9px 18px !important;
+      font-size: 12.5px !important;
+      font-weight: 600 !important;
+      text-decoration: none;
+    }
+    @media (max-width: 768px) {
+      body.dash .dash-hero.cl-animated-hero {
+        padding: 18px 16px !important;
+        min-height: auto !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 14px !important;
+        border-radius: 18px !important;
+      }
+      .dash-hero .exam-info {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+  </style>
 </head>
 
 <body class="routine-page dash">
@@ -105,42 +238,35 @@
 
   <main class="routine-container">
 
-    <!-- HEADER -->
-    <section class="routine-heading">
-
-      <p class="routine-eyebrow">
-        BIT · EXAMINATION ROUTINE
-      </p>
-
-      <h1>Examination<br>Schedule.</h1>
-
-      <p class="routine-description">
-        Examination schedule for BIT students.
-        Select your semester to view the examination dates and subjects.
-      </p>
-      <a href="#adminRoutinePanel" class="routine-btn" id="routineAdminLink" hidden>Manage routine</a>
-
-    </section>
-
-
-    <!-- EXAM INFO -->
-    <section class="exam-info">
-
-      <div class="exam-info-item">
-        <span class="info-label">Routine</span>
-        <strong id="routineYears">—</strong>
+    <!-- APPLE OBSIDIAN HERO BOX -->
+    <section class="dash-hero cl-animated-hero routine-heading" id="routineHeroBanner">
+      <div class="dash-hero-content">
+        <p class="routine-eyebrow cl-hero-kicker">
+          BIT · EXAMINATION ROUTINE
+        </p>
+        <h1 class="cl-hero-title">Examination Schedule</h1>
+        <p class="routine-description">
+          Examination schedule for BIT students. Select your semester to view examination dates and subjects.
+        </p>
       </div>
 
-      <div class="exam-info-item">
-        <span class="info-label">Program</span>
-        <strong>BIT</strong>
+      <div class="dash-hero-actions">
+        <div class="exam-info">
+          <div class="exam-info-item">
+            <span class="info-label">Routine</span>
+            <strong id="routineYears">—</strong>
+          </div>
+          <div class="exam-info-item">
+            <span class="info-label">Program</span>
+            <strong>BIT</strong>
+          </div>
+          <div class="exam-info-item">
+            <span class="info-label">Semesters</span>
+            <strong id="routineSemesters">—</strong>
+          </div>
+        </div>
+        <a href="#adminRoutinePanel" class="routine-btn" id="routineAdminLink" hidden>Manage routine</a>
       </div>
-
-      <div class="exam-info-item">
-        <span class="info-label">Semesters</span>
-        <strong id="routineSemesters">—</strong>
-      </div>
-
     </section>
 
 

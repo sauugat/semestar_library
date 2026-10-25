@@ -101,48 +101,112 @@
       box-sizing: border-box;
     }
 
-    /* Minimal Top Bar */
-    .lib-top-bar {
+    /* Apple Obsidian Black Hero Box for Library */
+    .lib-top-bar.dash-hero.cl-animated-hero {
+      position: relative;
+      margin: 0 0 28px;
+      padding: 34px 40px;
+      min-height: 148px;
+      background: #0d0d0f !important;
+      border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
+      border-radius: var(--ap-radius-hero, 26px);
+      box-shadow: none !important;
+      box-sizing: border-box;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 28px;
+      gap: 28px;
+      overflow: hidden;
+      transform: none !important;
+      transition: border-color 0.35s ease;
       flex-wrap: wrap;
     }
 
-    .lib-page-title {
-      font-size: 28px;
+    .lib-top-bar.dash-hero.cl-animated-hero:hover {
+      transform: none !important;
+      border-color: rgba(255, 255, 255, 0.32) !important;
+      box-shadow: none !important;
+    }
+
+    .lib-top-bar.dash-hero::before,
+    .lib-top-bar.dash-hero::after {
+      display: none !important;
+      content: none !important;
+    }
+
+    .dash-hero-content {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .cl-hero-kicker {
+      font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      font-size: 13.5px;
       font-weight: 800;
-      letter-spacing: -0.03em;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.82) !important;
+      line-height: 1.2;
       margin: 0;
-      color: var(--text);
+    }
+
+    .lib-page-title,
+    .cl-hero-title {
+      font-family: 'Plus Jakarta Sans', 'Outfit', -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      font-size: clamp(30px, 3.8vw, 48px);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin: 0;
+      color: #ffffff !important;
+      line-height: 1.05;
+    }
+
+    .dash-hero-actions {
+      position: relative;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      justify-content: flex-end;
+      max-width: 640px;
+      flex-wrap: wrap;
     }
 
     .lib-search-pill {
       position: relative;
       flex: 1;
-      max-width: 440px;
-      min-width: 260px;
+      max-width: 360px;
+      min-width: 240px;
     }
 
     .lib-search-pill input {
       width: 100%;
-      padding: 11px 16px 11px 40px;
+      padding: 10px 16px 10px 40px;
       border-radius: 980px;
-      border: 1.5px solid var(--border);
-      background: var(--surface);
+      border: 1.5px solid rgba(255, 255, 255, 0.24) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
       font-size: 13.5px;
       font-family: inherit;
-      color: var(--text);
+      color: #ffffff !important;
       outline: none;
-      box-shadow: var(--shadow-sm);
+      box-sizing: border-box;
       transition: all 0.2s ease;
     }
 
+    .lib-search-pill input::placeholder {
+      color: rgba(255, 255, 255, 0.6) !important;
+    }
+
     .lib-search-pill input:focus {
-      border-color: #111827;
-      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+      border-color: #ffffff !important;
+      background: rgba(255, 255, 255, 0.14) !important;
     }
 
     .lib-search-pill svg {
@@ -150,8 +214,47 @@
       left: 14px;
       top: 50%;
       transform: translateY(-50%);
-      color: var(--text-subtle);
+      color: rgba(255, 255, 255, 0.72) !important;
       pointer-events: none;
+    }
+
+    .lib-top-bar .upload-cta-btn {
+      background: #ffffff !important;
+      color: #09090b !important;
+      border: 1.5px solid #ffffff !important;
+      border-radius: 980px;
+      padding: 9px 18px;
+      font-size: 12.5px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .lib-top-bar .upload-cta-btn *,
+    .lib-top-bar .upload-cta-btn svg {
+      color: #09090b !important;
+      stroke: #09090b !important;
+    }
+
+    @media (max-width: 768px) {
+      .lib-top-bar.dash-hero.cl-animated-hero {
+        padding: 18px 16px !important;
+        min-height: auto !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 14px !important;
+        border-radius: 18px !important;
+      }
+      .dash-hero-actions {
+        max-width: 100% !important;
+        justify-content: flex-start !important;
+      }
+      .lib-search-pill {
+        max-width: 100% !important;
+        width: 100% !important;
+      }
     }
 
     /* Segmented Semester Filter with Full "Semester X" Text */
@@ -2995,14 +3098,17 @@
   <!-- Clean Minimal Container -->
   <main class="lib-page-wrap">
 
-    <!-- Top Action Bar -->
-    <div class="lib-top-bar">
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-        <h1 class="lib-page-title" id="libSectionHeader">Your Courses</h1>
-        <div id="academicContextBadge" class="academic-context-badge" style="display:none !important;"></div>
+    <!-- Apple Obsidian Hero Box -->
+    <section class="lib-top-bar dash-hero cl-animated-hero" id="libHeroBanner">
+      <div class="dash-hero-content">
+        <span class="cl-hero-kicker">COURSE MATERIALS</span>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <h1 class="lib-page-title cl-hero-title" id="libSectionHeader">Library</h1>
+          <div id="academicContextBadge" class="academic-context-badge" style="display:none !important;"></div>
+        </div>
       </div>
-      <div style="display:flex; align-items:center; gap:12px; flex:1; justify-content:flex-end; max-width:620px;">
-        <div class="lib-search-pill" style="max-width:380px;">
+      <div class="dash-hero-actions">
+        <div class="lib-search-pill">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
             <circle cx="11" cy="11" r="8" />
             <path d="M21 21l-4.35-4.35" />
@@ -3030,7 +3136,7 @@
           <span>Attendance</span>
         </a>
       </div>
-    </div>
+    </section>
 
     <!-- Segmented Semester Tabs (Full "Semester X" labels) -->
     <div class="sem-switcher" id="semSwitcher" style="display:none;">
@@ -3914,14 +4020,7 @@
     function updateHeaderTitle() {
       const h = document.getElementById('libSectionHeader');
       if (!h) return;
-      const ctx = window.ACADEMIC_CONTEXT;
-      if (ctx && ctx.isStudent) {
-        h.textContent = 'Your Courses';
-      } else if (ctx && ctx.isStaff && ACTIVE_SEM === 'ALL') {
-        h.textContent = 'Your Courses';
-      } else {
-        h.textContent = 'Your Courses';
-      }
+      h.textContent = 'Library';
     }
 
     let CURRENT_DRAWER_FILES = [];

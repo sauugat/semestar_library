@@ -920,6 +920,56 @@
       if (heroSkeleton) heroSkeleton.style.display = 'none';
       if (heroReal) heroReal.style.display = 'block';
 
+      // Role-based navigation items in .dash-header-nav (Teacher: Marks Entry, Student: Results)
+      const userRole = String(user.role || 'student').trim().toLowerCase();
+      const isTeacherRole = userRole === 'teacher' || userRole === 'faculty';
+      const isStudentRole = userRole === 'student' || userRole === 'cr' || userRole === 'class_rep';
+      const currentPath = (window.location && window.location.pathname) ? window.location.pathname.toLowerCase() : '';
+
+      document.querySelectorAll('.dash-header-nav').forEach(nav => {
+        let marksItem = nav.querySelector('[data-role-nav="teacher"], a[href*="marks-entry.html"]');
+        let resultsItem = nav.querySelector('[data-role-nav="student"], a[href*="results.html"]');
+        const attItem = nav.querySelector('a[href*="attendance.html"]');
+        const useRootPrefix = attItem && (attItem.getAttribute('href') || '').startsWith('/');
+
+        if (!marksItem) {
+          marksItem = document.createElement('a');
+          marksItem.href = useRootPrefix ? '/marks-entry.html' : 'marks-entry.html';
+          marksItem.className = 'header-nav-item';
+          marksItem.setAttribute('data-role-nav', 'teacher');
+          marksItem.textContent = 'Marks Entry';
+          if (attItem && attItem.nextSibling) {
+            nav.insertBefore(marksItem, attItem.nextSibling);
+          } else {
+            nav.appendChild(marksItem);
+          }
+        }
+
+        if (!resultsItem) {
+          resultsItem = document.createElement('a');
+          resultsItem.href = useRootPrefix ? '/results.html' : 'results.html';
+          resultsItem.className = 'header-nav-item';
+          resultsItem.setAttribute('data-role-nav', 'student');
+          resultsItem.textContent = 'Results';
+          const refNode = marksItem.nextSibling || (attItem ? attItem.nextSibling : null);
+          if (refNode) {
+            nav.insertBefore(resultsItem, refNode);
+          } else {
+            nav.appendChild(resultsItem);
+          }
+        }
+
+        marksItem.style.display = isTeacherRole ? '' : 'none';
+        resultsItem.style.display = isStudentRole ? '' : 'none';
+
+        if (currentPath.includes('marks-entry')) {
+          marksItem.classList.add('active');
+        }
+        if (currentPath.includes('/results')) {
+          resultsItem.classList.add('active');
+        }
+      });
+
       // Bind logout buttons
       const logoutElements = document.querySelectorAll('#logoutBtn, #accountLogoutBtn, .dash-logout, [data-action="logout"]');
       logoutElements.forEach(btn => {

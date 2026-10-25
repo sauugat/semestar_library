@@ -41,6 +41,11 @@
     (function () {
       var params = new URLSearchParams(window.location.search);
       if (!params.get('legacy')) {
+        if (params.get('view') === 'marks' || params.get('view') === 'marks-entry') {
+          var mqs = params.get('subject') ? ('?subject=' + encodeURIComponent(params.get('subject'))) : '';
+          window.location.replace('/marks-entry.html' + mqs);
+          return;
+        }
         if (params.get('view') === 'attendance' || params.get('subject')) {
           var qs = params.get('subject') ? ('?subject=' + encodeURIComponent(params.get('subject'))) : '';
           window.location.replace('/attendance.html' + qs);
@@ -925,6 +930,15 @@
         </svg>
         Attendance
       </button>
+      <a href="/marks-entry.html" class="teach-tab-btn" id="tabMarksEntryBtn" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+        </svg>
+        Marks Entry
+      </a>
     </div>
 
     <!-- Header Actions -->

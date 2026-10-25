@@ -3082,6 +3082,8 @@
       <a href="/code-lab/subjects.html" class="header-nav-item">Assignments</a>
       <a href="routine.html" class="header-nav-item">Routine</a>
       <a href="attendance.html" class="header-nav-item">Attendance</a>
+      <a href="marks-entry.html" class="header-nav-item" id="navMarksEntryItem" data-role-nav="teacher" style="display:none;">Marks Entry</a>
+      <a href="results.html" class="header-nav-item" id="navResultsItem" data-role-nav="student">Results</a>
       <a href="chat.html" class="header-nav-item">Chat</a>
       <a href="chatbot.html" class="header-nav-item">Kyana AI</a>
       <a href="download.html" class="header-nav-item">App</a>
@@ -3134,12 +3136,26 @@
           </svg>
           <span>My Attendance</span>
         </a>
+        <a href="/results.html" class="upload-cta-btn" id="studentResultsBtn" style="display:none; text-decoration:none;" title="View My Published Results">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span>Results</span>
+        </a>
         <a href="/attendance.html" class="upload-cta-btn" id="teacherAttendanceBtn" style="display:none; text-decoration:none;" title="Open Attendance">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
             <path d="M9 11l3 3L22 4" />
             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
           </svg>
           <span>Attendance</span>
+        </a>
+        <a href="/marks-entry.html" class="upload-cta-btn" id="teacherMarksEntryBtn" style="display:none; text-decoration:none;" title="Open Marks Entry">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+          </svg>
+          <span>Marks Entry</span>
         </a>
       </div>
     </section>
@@ -3874,23 +3890,31 @@
 
         const teacherAttBtn = document.getElementById('teacherAttendanceBtn');
         const studentAttBtn = document.getElementById('studentAttendanceBtn');
+        const teacherMarksBtn = document.getElementById('teacherMarksEntryBtn');
+        const studentResBtn = document.getElementById('studentResultsBtn');
         // Student experience: strictly hide upload notes button, set active semester to their semester
         if (academicCtx.isStudent) {
           if (uploadBtn) uploadBtn.style.display = 'none';
           if (teacherAttBtn) teacherAttBtn.style.display = 'none';
+          if (teacherMarksBtn) teacherMarksBtn.style.display = 'none';
           if (studentAttBtn) studentAttBtn.style.display = 'inline-flex';
+          if (studentResBtn) studentResBtn.style.display = 'inline-flex';
           if (academicCtx.semesterRoman) {
             ACTIVE_SEM = academicCtx.semesterRoman;
           }
         } else if (academicCtx.role === 'teacher') {
           if (uploadBtn) uploadBtn.style.display = 'none';
           if (teacherAttBtn) teacherAttBtn.style.display = 'inline-flex';
+          if (teacherMarksBtn) teacherMarksBtn.style.display = 'inline-flex';
           if (studentAttBtn) studentAttBtn.style.display = 'none';
+          if (studentResBtn) studentResBtn.style.display = 'none';
           ACTIVE_SEM = 'ALL';
         } else if (academicCtx.role === 'admin') {
           if (uploadBtn) uploadBtn.style.display = 'inline-flex';
           if (teacherAttBtn) teacherAttBtn.style.display = 'none';
+          if (teacherMarksBtn) teacherMarksBtn.style.display = 'none';
           if (studentAttBtn) studentAttBtn.style.display = 'none';
+          if (studentResBtn) studentResBtn.style.display = 'none';
         }
 
         syncCustomCourses();

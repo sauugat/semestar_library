@@ -1867,5 +1867,199 @@ test('Monthly Calendar Matrix & Official Printable SVG Verification (Tests 1–1
   }
 });
 
+test('Subject-Scoped Google Drive Folder & Daily/Monthly XLSX Verification: Attendance (<Subject Name>) with only 2 subfolders (Daily Attendance & Monthly Attendance), <YYYY-MM-DD>.xlsx with Present/Absent, and <MonthName>.xlsx with 1..end-of-month columns (1, 2, ABS, -)', async () => {
+  const { parseXlsxWorkbookBuffer } = require('../lib/attendance-xlsx');
+  const WebDriveSync = require('../public/js/attendance-drive-sync');
+  const crypto = require('crypto');
+
+  const venusRow = await db.get(`SELECT id FROM cohorts WHERE slot_code = 'venus'`);
+  assert.ok(venusRow && venusRow.id);
+
+  // 1. Verify Subject Daily Attendance XLSX (e.g., 2025-10-03.xlsx)
+  const dailyRes = await appFetch(
+    `${baseUrl}/api/attendance/backup/workbooks/subject-daily?subjectId=BSM121&cohortId=${venusRow.id}&date=2025-10-03&format=json`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(dailyRes.status, 200);
+  const dailyJson = await dailyRes.json();
+  assert.equal(dailyJson.filename, '2025-10-03.xlsx');
+  assert.ok(dailyJson.subjectFolderName.startsWith('Attendance ('));
+
+  const dailyParsed = parseXlsxWorkbookBuffer(Buffer.from(dailyJson.base64, 'base64'));
+  assert.deepEqual(dailyParsed.sheetNames, ['Daily Attendance']);
+  const dailyRows = dailyParsed.sheets[0].rows;
+  assert.equal(dailyRows[0][0], 'Gandaki University');
+  assert.equal(dailyRows[1][0], 'Daily Attendance');
+  assert.equal(dailyRows[2][0], 'Subject');
+  assert.equal(dailyRows[3][0], 'Semester');
+  assert.equal(dailyRows[3][1], 'Semester 2');
+  assert.equal(dailyRows[4][0], 'Date');
+  assert.equal(dailyRows[4][1], '2025-10-03');
+  assert.equal(dailyRows[5][0], 'Teacher Name');
+  assert.equal(dailyRows[5][1], 'Prof. UI Alice');
+  assert.deepEqual(dailyRows[7], ['SN', 'Student Name', 'Attendance', 'Remarks']);
+
+  // On 2025-10-03: Aabin Thapa (Present), Aahish Rana (Absent), binita Gurung (Present), Zubin KC (Present)
+  assert.deepEqual(dailyRows[8], [1, 'Aabin Thapa', 'Present']);
+  assert.deepEqual(dailyRows[9], [2, 'Aahish Rana', 'Absent']);
+  assert.deepEqual(dailyRows[10], [3, 'binita Gurung', 'Present']);
+  assert.deepEqual(dailyRows[11], [4, 'Zubin KC', 'Present']);
+
+  // 2. Verify Subject Monthly Attendance XLSX (e.g., September.xlsx for 2025-09)
+  const monthlyRes = await appFetch(
+    `${baseUrl}/api/attendance/backup/workbooks/monthly?subjectId=BSM121&cohortId=${venusRow.id}&month=2025-09&format=json`,
+    { headers: { Authorization: `Bearer ${teacherAToken}` } }
+  );
+  assert.equal(monthlyRes.status, 200);
+  const monthlyJson = await monthlyRes.json();
+  assert.equal(monthlyJson.filename, 'September.xlsx');
+  assert.equal(monthlyJson.daysInMonth, 30);
+
+  const monthlyParsed = parseXlsxWorkbookBuffer(Buffer.from(monthlyJson.base64, 'base64'));
+  assert.deepEqual(monthlyParsed.sheetNames, ['September']);
+  const mRows = monthlyParsed.sheets[0].rows;
+  assert.equal(mRows[0][0], 'Gandaki University');
+  assert.equal(mRows[1][0], 'Monthly Attendance');
+  assert.equal(mRows[2][0], 'Subject');
+  assert.equal(mRows[3][0], 'Semester');
+  assert.equal(mRows[3][1], 'Semester 2');
+  assert.equal(mRows[4][0], 'Month');
+  assert.equal(mRows[4][1], 'September 2025');
+  assert.equal(mRows[5][0], 'Teacher Name');
+  assert.equal(mRows[5][1], 'Prof. UI Alice');
+
+  // Table header: SN | Student Name | 1 | 2 | ... | 30 | Percentage | Remark
+  const expectedHeader = [
+    'SN',
+    'Student Name',
+    ...Array.from({ length: 30 }, (_, i) => String(i + 1)),
+    'Percentage',
+    'Remark'
+  ];
+  assert.deepEqual(mRows[7], expectedHeader);
+
+  // Verify Aabin Thapa row in September.xlsx:
+  // Sessions on Sep 2 (1), Sep 5 (2), Sep 9 (ABS), Sep 12 (3), Sep 16 (4), Sep 20 (ABS), Sep 25 (5), all other days '-' -> 71.4%
+  const aabinMonthlyRow = mRows[8];
+  assert.equal(aabinMonthlyRow[0], 1);
+  assert.equal(aabinMonthlyRow[1], 'Aabin Thapa');
+  assert.equal(aabinMonthlyRow[2], '-'); // Day 1
+  assert.equal(aabinMonthlyRow[3], 1);   // Day 2
+  assert.equal(aabinMonthlyRow[4], '-'); // Day 3
+  assert.equal(aabinMonthlyRow[6], 2);   // Day 5
+  assert.equal(aabinMonthlyRow[10], 'ABS'); // Day 9
+  assert.equal(aabinMonthlyRow[13], 3);  // Day 12
+  assert.equal(aabinMonthlyRow[17], 4);  // Day 16
+  assert.equal(aabinMonthlyRow[21], 'ABS'); // Day 20
+  assert.equal(aabinMonthlyRow[26], 5);  // Day 25
+  assert.equal(aabinMonthlyRow[31], '-'); // Day 30
+  assert.equal(aabinMonthlyRow[32], '71.4%'); // Percentage
+
+  // 3. Verify Google Drive Subject Folder Hierarchy & Sync creates ONLY 2 subfolders inside Attendance (<Subject Name>):
+  //    - Daily Attendance -> 2025-10-10.xlsx
+  //    - Monthly Attendance -> October.xlsx
+  const validToken = 'ya29.a0AfH6SMBx_subject_drive_test_token_999';
+  const driveFilesById = new Map();
+  let nextId = 1;
+
+  async function mockSubjectDriveFetch(urlStr, options = {}) {
+    const method = String(options.method || 'GET').toUpperCase();
+    const parsed = new URL(urlStr);
+    const pathname = parsed.pathname;
+
+    if (method === 'GET' && pathname === '/drive/v3/files') {
+      const q = parsed.searchParams.get('q') || '';
+      const matched = [...driveFilesById.values()].filter((f) => {
+        if (f.trashed) return false;
+        const nameMatch = /name\s*=\s*'([^']+)'/.exec(q);
+        if (nameMatch && f.name !== nameMatch[1]) return false;
+        const parentMatch = /'([^']+)'\s+in\s+parents/.exec(q);
+        if (parentMatch && (!Array.isArray(f.parents) || !f.parents.includes(parentMatch[1]))) return false;
+        return true;
+      });
+      return { status: 200, ok: true, json: async () => ({ files: matched }) };
+    }
+
+    if (method === 'POST' && pathname === '/drive/v3/files') {
+      const meta = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+      const id = `subj_folder_${nextId++}`;
+      const rec = {
+        id,
+        name: meta.name,
+        mimeType: meta.mimeType,
+        parents: meta.parents || [],
+        appProperties: meta.appProperties || {},
+        trashed: false,
+        createdTime: new Date().toISOString()
+      };
+      driveFilesById.set(id, rec);
+      return { status: 200, ok: true, json: async () => ({ ...rec }) };
+    }
+
+    if ((method === 'POST' || method === 'PATCH') && pathname.startsWith('/upload/drive/v3/files')) {
+      const bodyStr = String(options.body || '');
+      const nameMatch = /"name"\s*:\s*"([^"]+)"/.exec(bodyStr);
+      const parentsMatch = /"parents"\s*:\s*\[\s*"([^"]+)"\s*\]/.exec(bodyStr);
+      const id = pathname.includes('/files/')
+        ? decodeURIComponent(pathname.slice('/upload/drive/v3/files/'.length))
+        : `subj_file_${nextId++}`;
+      const sha256Checksum = crypto.createHash('sha256').update(bodyStr).digest('hex');
+      const existing = driveFilesById.get(id) || {};
+      const rec = {
+        ...existing,
+        id,
+        name: nameMatch ? nameMatch[1] : existing.name || 'workbook.xlsx',
+        parents: parentsMatch ? [parentsMatch[1]] : existing.parents || [],
+        sha256Checksum,
+        trashed: false,
+        createdTime: existing.createdTime || new Date().toISOString()
+      };
+      driveFilesById.set(id, rec);
+      return { status: 200, ok: true, json: async () => ({ ...rec }) };
+    }
+
+    return { status: 200, ok: true, json: async () => ({}) };
+  }
+
+  const driveClient = WebDriveSync.createAttendanceDriveSyncClient({
+    backendFetch: async (pathStr, opts = {}) => {
+      const headers = {
+        ...(opts.headers || {}),
+        Authorization: `Bearer ${teacherAToken}`
+      };
+      return appFetch(`${baseUrl}${pathStr}`, { ...opts, headers });
+    },
+    driveFetch: mockSubjectDriveFetch
+  });
+  driveClient.setAccessTokenForSession({ accessToken: validToken, expiresInSeconds: 3600 });
+
+  const syncRes = await driveClient.syncSubjectAttendanceToDrive({
+    subjectId: 'BSM121',
+    cohortId: venusRow.id,
+    date: '2025-10-10',
+    month: '2025-10'
+  });
+
+  assert.equal(syncRes.synced, true);
+  assert.ok(syncRes.subjectFolderName.startsWith('Attendance ('));
+
+  // Verify folders created in Drive: 1 subject root folder + strictly 2 subfolders (Daily Attendance and Monthly Attendance)
+  const createdFolders = [...driveFilesById.values()].filter(
+    (f) => f.mimeType === 'application/vnd.google-apps.folder'
+  );
+  assert.equal(createdFolders.length, 3, 'Must create 1 subject root folder and strictly 2 subfolders');
+  const rootFolder = createdFolders.find((f) => f.id === syncRes.folders.rootFolderId);
+  const childFolders = createdFolders.filter((f) => Array.isArray(f.parents) && f.parents.includes(rootFolder.id));
+  assert.equal(childFolders.length, 2, 'Inside Attendance (<Subject Name>) there must be only 2 folders');
+  assert.deepEqual(
+    childFolders.map((f) => f.name).sort(),
+    ['Daily Attendance', 'Monthly Attendance']
+  );
+
+  // Verify files uploaded inside Daily Attendance and Monthly Attendance
+  assert.equal(syncRes.dailyFile.driveFileName, '2025-10-10.xlsx');
+  assert.equal(syncRes.monthlyFile.driveFileName, 'October.xlsx');
+});
+
 
 

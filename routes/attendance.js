@@ -26,7 +26,9 @@ const {
   getBackupRunArtifacts,
   getSessionBackupRevisionsAuthorized,
   generateDailyAttendanceWorkbook,
-  generateAnnualAttendanceWorkbook
+  generateAnnualAttendanceWorkbook,
+  generateSubjectDailyAttendanceWorkbook,
+  generateSubjectMonthlyAttendanceWorkbook
 } = require('../lib/attendance-service');
 
 function resolveCallerId(req) {
@@ -605,8 +607,122 @@ function createAttendanceRouter(arg1, arg2) {
     }
   };
 
+  const handleSubjectDailyWorkbook = async (req, res) => {
+    try {
+      assertNoForbiddenSecrets(req.query, 'subject daily workbook query parameters');
+      const callerId = resolveCallerId(req);
+      const date = req.query.date || req.query.sessionDate || req.query.session_date || null;
+      const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject || null;
+      const cohortId = req.query.cohortId || req.query.cohort_id || req.query.cohort || null;
+      const requestedTeacherId = req.query.teacherId || req.query.teacher_id || null;
+      const requestedUserId = req.query.userId || req.query.user_id || req.query.studentId || req.query.student_id || null;
+      const requestedRole = req.query.role || null;
+      const format = String(req.query.format || '').trim().toLowerCase();
+
+      const workbook = await generateSubjectDailyAttendanceWorkbook(db, {
+        actorUserId: callerId,
+        subjectId,
+        cohortId,
+        date,
+        requestedTeacherId,
+        requestedUserId,
+        requestedRole
+      });
+
+      if (format === 'json') {
+        return res.json({
+          filename: workbook.filename,
+          mimeType: workbook.mimeType,
+          date: workbook.date,
+          subjectId: workbook.subjectId,
+          subjectCode: workbook.subjectCode,
+          subjectName: workbook.subjectName,
+          subjectFolderName: workbook.subjectFolderName,
+          semester: workbook.semester,
+          teacherName: workbook.teacherName,
+          studentCount: workbook.studentCount,
+          hasSubmittedSession: workbook.hasSubmittedSession,
+          sessionId: workbook.sessionId,
+          sheetNames: workbook.sheetNames,
+          sha256: workbook.sha256,
+          sizeBytes: workbook.sizeBytes,
+          base64: workbook.buffer.toString('base64')
+        });
+      }
+
+      res.setHeader('Content-Type', workbook.mimeType);
+      res.setHeader('Content-Disposition', `attachment; filename="${workbook.filename}"`);
+      res.setHeader('Content-Length', String(workbook.sizeBytes));
+      res.setHeader('X-Workbook-Sha256', workbook.sha256);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).send(workbook.buffer);
+    } catch (err) {
+      return sendAttendanceError(res, err, 'Failed to generate subject daily attendance workbook.');
+    }
+  };
+
+  const handleSubjectMonthlyWorkbook = async (req, res) => {
+    try {
+      assertNoForbiddenSecrets(req.query, 'subject monthly workbook query parameters');
+      const callerId = resolveCallerId(req);
+      const month = req.query.month || req.query.yyyyMm || null;
+      const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject || null;
+      const cohortId = req.query.cohortId || req.query.cohort_id || req.query.cohort || null;
+      const requestedTeacherId = req.query.teacherId || req.query.teacher_id || null;
+      const requestedUserId = req.query.userId || req.query.user_id || req.query.studentId || req.query.student_id || null;
+      const requestedRole = req.query.role || null;
+      const format = String(req.query.format || '').trim().toLowerCase();
+
+      const workbook = await generateSubjectMonthlyAttendanceWorkbook(db, {
+        actorUserId: callerId,
+        subjectId,
+        cohortId,
+        month,
+        requestedTeacherId,
+        requestedUserId,
+        requestedRole
+      });
+
+      if (format === 'json') {
+        return res.json({
+          filename: workbook.filename,
+          mimeType: workbook.mimeType,
+          month: workbook.month,
+          monthName: workbook.monthName,
+          monthDisplay: workbook.monthDisplay,
+          daysInMonth: workbook.daysInMonth,
+          subjectId: workbook.subjectId,
+          subjectCode: workbook.subjectCode,
+          subjectName: workbook.subjectName,
+          subjectFolderName: workbook.subjectFolderName,
+          semester: workbook.semester,
+          teacherName: workbook.teacherName,
+          totalSessions: workbook.totalSessions,
+          studentCount: workbook.studentCount,
+          sheetNames: workbook.sheetNames,
+          sha256: workbook.sha256,
+          sizeBytes: workbook.sizeBytes,
+          base64: workbook.buffer.toString('base64')
+        });
+      }
+
+      res.setHeader('Content-Type', workbook.mimeType);
+      res.setHeader('Content-Disposition', `attachment; filename="${workbook.filename}"`);
+      res.setHeader('Content-Length', String(workbook.sizeBytes));
+      res.setHeader('X-Workbook-Sha256', workbook.sha256);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).send(workbook.buffer);
+    } catch (err) {
+      return sendAttendanceError(res, err, 'Failed to generate subject monthly attendance workbook.');
+    }
+  };
+
   router.get('/backup/workbooks/daily', requireLogin, handleDailyWorkbook);
   router.get('/workbooks/daily', requireLogin, handleDailyWorkbook);
+  router.get('/backup/workbooks/subject-daily', requireLogin, handleSubjectDailyWorkbook);
+  router.get('/workbooks/subject-daily', requireLogin, handleSubjectDailyWorkbook);
+  router.get('/backup/workbooks/monthly', requireLogin, handleSubjectMonthlyWorkbook);
+  router.get('/workbooks/monthly', requireLogin, handleSubjectMonthlyWorkbook);
   router.get('/backup/workbooks/annual', requireLogin, handleAnnualWorkbook);
   router.get('/workbooks/annual', requireLogin, handleAnnualWorkbook);
 

@@ -33,6 +33,18 @@
     full: { key: 'fullFolderId', name: 'Full Attendance', role: 'full_folder' },
     snapshots: { key: 'snapshotsFolderId', name: 'Immutable Snapshots', role: 'snapshots_folder' }
   };
+  const SUBJECT_SUBFOLDER_DEFINITIONS = {
+    daily: { key: 'dailyFolderId', name: 'Daily Attendance', role: 'subject_daily_folder' },
+    monthly: { key: 'monthlyFolderId', name: 'Monthly Attendance', role: 'subject_monthly_folder' }
+  };
+
+  function formatSubjectRootFolderName(subjectName) {
+    const clean = String(subjectName || 'Subject')
+      .replace(/[\u0000-\u001F/\\]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim() || 'Subject';
+    return `Attendance (${clean})`;
+  }
 
   const FORBIDDEN_SECRET_KEYS = new Set([
     'accesstoken',
@@ -1713,10 +1725,234 @@
       }
     }
 
+    /**
+     * Provisions or reuses the subject-scoped Google Drive folder hierarchy:
+     *   Attendance (<Subject Name>)/
+     *     ├── Daily Attendance/
+     *     └── Monthly Attendance/
+     * Strictly creates ONLY these 2 subfolders inside the subject folder.
+     */
+    async function ensureSubjectFolderHierarchy({ subjectId = null, subjectCode = null, subjectName = '' } = {}) {
+      const displaySubject = String(subjectName || subjectCode || subjectId || 'Subject').trim();
+      const rootFolderName = formatSubjectRootFolderName(displaySubject);
+      const subjectKey = String(subjectId || subjectCode || displaySubject).trim();
+
+      const rootFolder = await resolveOrCreateFolder({
+        savedFolderId: null,
+        name: rootFolderName,
+        parentId: null,
+        folderRole: `subject_root_${subjectKey}`
+      });
+
+      const dailyFolder = await resolveOrCreateFolder({
+        savedFolderId: null,
+        name: SUBJECT_SUBFOLDER_DEFINITIONS.daily.name,
+        parentId: rootFolder.id,
+        folderRole: SUBJECT_SUBFOLDER_DEFINITIONS.daily.role
+      });
+
+      const monthlyFolder = await resolveOrCreateFolder({
+        savedFolderId: null,
+        name: SUBJECT_SUBFOLDER_DEFINITIONS.monthly.name,
+        parentId: rootFolder.id,
+        folderRole: SUBJECT_SUBFOLDER_DEFINITIONS.monthly.role
+      });
+
+      return {
+        subjectFolderName: rootFolderName,
+        folders: {
+          rootFolderId: rootFolder.id,
+          rootFolderName,
+          dailyFolderId: dailyFolder.id,
+          monthlyFolderId: monthlyFolder.id
+        },
+        resolution: {
+          root: rootFolder.source,
+          daily: dailyFolder.source,
+          monthly: monthlyFolder.source
+        }
+      };
+    }
+
+    /**
+     * Uploads or updates a workbook file (`<YYYY-MM-DD>.xlsx` in `Daily Attendance` or `<MonthName>.xlsx` in `Monthly Attendance`)
+     * inside `Attendance (<Subject Name>)`.
+     */
+    async function uploadSubjectWorkbookToDriveFolder({
+      folderId,
+      driveFileName,
+      artifactType,
+      targetScopeKey,
+      wbBundle
+    }) {
+      const mimeType = (wbBundle && wbBundle.mimeType) || XLSX_MIME_TYPE;
+      const contentBytes = base64ToBytes(wbBundle.base64);
+      const computedSha = await computeSha256Hex(contentBytes);
+      if (wbBundle.sha256 && computedSha !== String(wbBundle.sha256).toLowerCase()) {
+        throw createClientError(
+          'WORKBOOK_INTEGRITY_MISMATCH',
+          `Workbook SHA-256 mismatch for ${driveFileName}.`
+        );
+      }
+
+      const appProperties = {
+        slApp: 'semester_library',
+        slArtifactType: artifactType,
+        slScopeKey: targetScopeKey,
+        slArtifactSha256: computedSha
+      };
+
+      const existingFile = await findExistingArtifactFile({
+        folderId,
+        savedDriveFileId: null,
+        artifactType,
+        targetScopeKey,
+        driveFileName
+      });
+
+      if (existingFile && existingFile.id) {
+        const existingProps = existingFile.appProperties || {};
+        const existingSha = String(
+          existingProps.slArtifactSha256 || existingFile.sha256Checksum || ''
+        ).toLowerCase();
+        if (existingSha === computedSha) {
+          return {
+            driveFileId: existingFile.id,
+            driveFileName: existingFile.name || driveFileName,
+            artifactSha256: computedSha,
+            reusedExistingFile: true
+          };
+        }
+
+        const patchMultipart = buildMultipartRelatedBody(
+          {
+            name: driveFileName,
+            appProperties
+          },
+          contentBytes,
+          mimeType
+        );
+
+        const updatedFile = await driveApiRequest(
+          `${DRIVE_UPLOAD_BASE}/files/${encodeURIComponent(existingFile.id)}?uploadType=multipart&fields=id,name,sha256Checksum,appProperties`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': patchMultipart.contentType },
+            body: patchMultipart.body
+          }
+        );
+
+        return {
+          driveFileId: updatedFile.id || existingFile.id,
+          driveFileName: updatedFile.name || driveFileName,
+          artifactSha256: computedSha,
+          reusedExistingFile: false
+        };
+      }
+
+      const createMultipart = buildMultipartRelatedBody(
+        {
+          name: driveFileName,
+          mimeType,
+          parents: [folderId],
+          appProperties
+        },
+        contentBytes,
+        mimeType
+      );
+
+      const createdFile = await driveApiRequest(
+        `${DRIVE_UPLOAD_BASE}/files?uploadType=multipart&fields=id,name,sha256Checksum,appProperties`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': createMultipart.contentType },
+          body: createMultipart.body
+        }
+      );
+
+      return {
+        driveFileId: createdFile.id,
+        driveFileName: createdFile.name || driveFileName,
+        artifactSha256: computedSha,
+        reusedExistingFile: false
+      };
+    }
+
+    /**
+     * Synchronizes a subject's Daily (`<YYYY-MM-DD>.xlsx`) and Monthly (`<MonthName>.xlsx`) workbooks
+     * directly into `Attendance (<Subject Name>)/Daily Attendance` and `Attendance (<Subject Name>)/Monthly Attendance`.
+     */
+    async function syncSubjectAttendanceToDrive({
+      subjectId,
+      cohortId = null,
+      subjectName = '',
+      date = null,
+      month = null
+    } = {}) {
+      if (!subjectId) {
+        throw createClientError('MISSING_SUBJECT_ID', 'subjectId is required to sync subject attendance to Google Drive.');
+      }
+      if (!hasValidAccessToken()) {
+        return {
+          synced: false,
+          status: 'reconnect_required',
+          reconnectRequired: true
+        };
+      }
+
+      const dailyQs = new URLSearchParams({ subjectId: String(subjectId) });
+      if (cohortId) dailyQs.set('cohortId', String(cohortId));
+      if (date) dailyQs.set('date', String(date));
+      const dailyBundle = await callBackendWorkbookJson(`/api/attendance/backup/workbooks/subject-daily?${dailyQs.toString()}`);
+
+      const effectiveMonth = month || (dailyBundle.date ? String(dailyBundle.date).slice(0, 7) : '');
+      const monthlyQs = new URLSearchParams({ subjectId: String(subjectId) });
+      if (cohortId) monthlyQs.set('cohortId', String(cohortId));
+      if (effectiveMonth) monthlyQs.set('month', String(effectiveMonth));
+      const monthlyBundle = await callBackendWorkbookJson(`/api/attendance/backup/workbooks/monthly?${monthlyQs.toString()}`);
+
+      const resolvedSubjName = subjectName || dailyBundle.subjectName || monthlyBundle.subjectName || subjectId;
+      const hierarchy = await ensureSubjectFolderHierarchy({
+        subjectId,
+        subjectCode: dailyBundle.subjectCode || subjectId,
+        subjectName: resolvedSubjName
+      });
+
+      const dailyFile = await uploadSubjectWorkbookToDriveFolder({
+        folderId: hierarchy.folders.dailyFolderId,
+        driveFileName: dailyBundle.filename || `${dailyBundle.date}.xlsx`,
+        artifactType: 'subject_daily_workbook',
+        targetScopeKey: `subject_daily:${subjectId}:${dailyBundle.date}`,
+        wbBundle: dailyBundle
+      });
+
+      const monthlyFile = await uploadSubjectWorkbookToDriveFolder({
+        folderId: hierarchy.folders.monthlyFolderId,
+        driveFileName: monthlyBundle.filename || `${monthlyBundle.monthName}.xlsx`,
+        artifactType: 'subject_monthly_workbook',
+        targetScopeKey: `subject_monthly:${subjectId}:${monthlyBundle.month}`,
+        wbBundle: monthlyBundle
+      });
+
+      return {
+        synced: true,
+        status: 'backed_up',
+        subjectId,
+        subjectName: resolvedSubjName,
+        subjectFolderName: hierarchy.subjectFolderName,
+        folders: hierarchy.folders,
+        resolution: hierarchy.resolution,
+        dailyFile,
+        monthlyFile
+      };
+    }
+
     return {
       DRIVE_FILE_SCOPE,
       DEFAULT_ROOT_FOLDER_NAME,
       SUBFOLDER_DEFINITIONS,
+      SUBJECT_SUBFOLDER_DEFINITIONS,
+      formatSubjectRootFolderName,
       sanitizeClientErrorMessage,
       assertNoSecretsInBackendPayload,
       serializeCanonicalJson,
@@ -1728,11 +1964,13 @@
       clearAccessToken,
       requestAuthorization,
       ensureFolderHierarchy,
+      ensureSubjectFolderHierarchy,
       connectGoogleDrive,
       disconnectGoogleDrive,
       findExistingArtifactFile,
       uploadOrReconcileArtifactToDrive,
-      syncPendingWork
+      syncPendingWork,
+      syncSubjectAttendanceToDrive
     };
   }
 
@@ -1743,6 +1981,8 @@
     DRIVE_FILE_SCOPE,
     DEFAULT_ROOT_FOLDER_NAME,
     SUBFOLDER_DEFINITIONS,
+    SUBJECT_SUBFOLDER_DEFINITIONS,
+    formatSubjectRootFolderName,
     sanitizeClientErrorMessage,
     assertNoSecretsInBackendPayload,
     serializeCanonicalJson,

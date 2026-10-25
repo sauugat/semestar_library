@@ -821,7 +821,14 @@ app.use(express.static(path.join(__dirname, 'public'), {
       res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
     } else if (/\.(css|js|woff2?|ttf|otf|webp|png|jpe?g|gif|svg|ico)$/.test(lower)) {
       const base = path.basename(lower);
-      if (base === 'sw.js' || base === 'auth.js' || base === 'academic-context.js') {
+      if (
+        base === 'sw.js' ||
+        base === 'auth.js' ||
+        base === 'academic-context.js' ||
+        base === 'teacher-attendance.js' ||
+        base === 'student-attendance.js' ||
+        base === 'attendance-drive-sync.js'
+      ) {
         res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
       } else {
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');

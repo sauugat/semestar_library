@@ -12,7 +12,7 @@
       ]
     },
     {
-      "source": "/(auth|academic-context|sw)\\.js",
+      "source": "/(auth|academic-context|sw|js/teacher-attendance|js/student-attendance|js/attendance-drive-sync)\\.js",
       "headers": [
         {
           "key": "Cache-Control",

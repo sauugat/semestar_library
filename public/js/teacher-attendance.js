@@ -2006,6 +2006,29 @@
         loadHistory(),
         loadBackupStatus({ preserveMessages: true })
       ]);
+
+      // Automatically sync subject folder Attendance (<Subject Name>) with Daily Attendance (<date>.xlsx)
+      // and Monthly Attendance (<Month>.xlsx) when Google Drive has an active authorization token
+      try {
+        const driveClient = getOrInitDriveClient();
+        if (
+          driveClient &&
+          typeof driveClient.hasValidAccessToken === 'function' &&
+          driveClient.hasValidAccessToken() &&
+          typeof driveClient.syncSubjectAttendanceToDrive === 'function' &&
+          state.selectedSubjectId
+        ) {
+          const subObj = getSelectedSubjectObj();
+          await driveClient.syncSubjectAttendanceToDrive({
+            subjectId: state.selectedSubjectId,
+            cohortId: state.selectedCohortId,
+            subjectName: (subObj && subObj.name) || (state.rosterSubject && state.rosterSubject.name) || state.selectedSubjectId,
+            date: state.selectedDate,
+            month: state.selectedMonth
+          });
+        }
+      } catch (_) {}
+
       render();
     } catch (err) {
       // Preserve complete local marking state on error — never silently discard an attendance change

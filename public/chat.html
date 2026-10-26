@@ -367,12 +367,20 @@
                     <span class="dm-role-badge" id="dmPeerRoleBadge" style="display: none;">STUDENT</span>
                   </div>
                   <div class="dm-peer-status">
+                    <span class="dm-status-dot" id="dmPeerStatusDot" aria-hidden="true"></span>
                     <span id="dmPeerStatusText"></span>
                   </div>
                 </div>
               </div>
 
               <div class="dm-header-actions">
+                <button type="button" class="dm-icon-btn" id="dmInfoToggleBtn" title="Conversation details" aria-label="Conversation details">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                  </svg>
+                </button>
                 <button type="button" class="dm-icon-btn" id="dmHeaderMenuBtn" title="Options" aria-label="Conversation options">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="12" cy="12" r="1"></circle>
@@ -389,60 +397,104 @@
               </div>
             </header>
 
-            <!-- Message Timeline -->
-            <main class="dm-timeline" id="dmTimeline" aria-label="Private message thread">
-              <div class="dm-timeline-loader" id="dmTimelineLoader" style="display: none;">
-                <span>Loading earlier messages...</span>
-              </div>
-            </main>
-
-            <!-- Composer Area -->
-            <footer class="dm-composer-wrap" id="dmComposerWrap">
-              <!-- Blocked Notice Banner -->
-              <div class="dm-blocked-banner" id="dmBlockedBanner" style="display: none;">
-                <span>You cannot reply to this conversation.</span>
-                <button type="button" class="dm-btn-secondary" id="dmUnblockBtn" style="padding: 4px 10px; font-size: 12px;">Unblock</button>
-              </div>
-
-              <!-- Reply / Edit Context Preview Bar -->
-              <div class="dm-composer-context-bar" id="dmComposerContextBar" style="display: none;">
-                <div class="dm-composer-context-left">
-                  <span class="dm-composer-context-title" id="dmComposerContextTitle">Replying</span>
-                  <span class="dm-composer-context-snippet" id="dmComposerContextSnippet">Preview...</span>
+            <div class="dm-main-body">
+              <div class="dm-thread-column">
+                <div class="dm-timeline-loader" id="dmTimelineLoader" style="display: none;">
+                  <span>Loading earlier messages...</span>
                 </div>
-                <button type="button" class="dm-action-btn" id="dmComposerContextCancelBtn" title="Cancel" aria-label="Cancel">
+                <!-- Message Timeline -->
+                <main class="dm-timeline" id="dmTimeline" aria-label="Private message thread"></main>
+
+                <!-- Inline Typing Indicator -->
+                <div class="dm-typing-indicator" id="dmTypingIndicator" role="status" aria-live="polite" style="display: none;">
+                  <div class="typing-dots"><span></span><span></span><span></span></div>
+                  <span id="dmTypingIndicatorText">Typing...</span>
+                </div>
+
+                <!-- Floating Scroll-to-Bottom / New Message Indicator -->
+                <button type="button" class="dm-scroll-bottom-btn" id="dmScrollBottomBtn" aria-label="Jump to latest messages" style="display: none;">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <polyline points="19 12 12 19 5 12"></polyline>
                   </svg>
+                  <span class="dm-scroll-unread" id="dmScrollUnreadBadge" style="display: none;">New</span>
                 </button>
+
+                <!-- Composer Area -->
+                <footer class="dm-composer-wrap" id="dmComposerWrap">
+                  <!-- Blocked Notice Banner -->
+                  <div class="dm-blocked-banner" id="dmBlockedBanner" style="display: none;">
+                    <span>You cannot reply to this conversation.</span>
+                    <button type="button" class="dm-btn-secondary" id="dmUnblockBtn" style="padding: 4px 10px; font-size: 12px;">Unblock</button>
+                  </div>
+
+                  <!-- Reply / Edit Context Preview Bar -->
+                  <div class="dm-composer-context-bar" id="dmComposerContextBar" style="display: none;">
+                    <div class="dm-composer-context-left">
+                      <span class="dm-composer-context-title" id="dmComposerContextTitle">Replying</span>
+                      <span class="dm-composer-context-snippet" id="dmComposerContextSnippet">Preview...</span>
+                    </div>
+                    <button type="button" class="dm-action-btn" id="dmComposerContextCancelBtn" title="Cancel" aria-label="Cancel">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+
+                  <!-- Main Input Row -->
+                  <div class="dm-composer-bar">
+                    <button type="button" class="dm-action-btn" id="dmEmojiToggleBtn" title="Emoji" aria-label="Choose emoji" style="width: 28px; height: 28px;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                        <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                        <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                      </svg>
+                    </button>
+                    <textarea id="dmTextarea" class="dm-composer-textarea" rows="1" maxlength="2000" placeholder="Write a message... (Shift+Enter for newline)" aria-label="Message text"></textarea>
+                    <span class="dm-char-counter" id="dmCharCounter" style="display: none;">0/2000</span>
+                    <button type="button" class="dm-send-btn" id="dmSendBtn" title="Send" aria-label="Send message" disabled>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                      </svg>
+                    </button>
+                  </div>
+
+                  <!-- Emoji Drawer -->
+                  <div class="dm-emoji-drawer" id="dmEmojiDrawer" role="region" aria-label="Emoji picker">
+                    <!-- Emojis populated dynamically -->
+                  </div>
+                </footer>
               </div>
 
-              <!-- Main Input Row -->
-              <div class="dm-composer-bar">
-                <button type="button" class="dm-action-btn" id="dmEmojiToggleBtn" title="Emoji" aria-label="Choose emoji" style="width: 28px; height: 28px;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
-                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
-                  </svg>
-                </button>
-                <textarea id="dmTextarea" class="dm-composer-textarea" rows="1" maxlength="2000" placeholder="Write a message... (Shift+Enter for newline)" aria-label="Message text"></textarea>
-                <span class="dm-char-counter" id="dmCharCounter" style="display: none;">0/2000</span>
-                <button type="button" class="dm-send-btn" id="dmSendBtn" title="Send" aria-label="Send message" disabled>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                  </svg>
-                </button>
-              </div>
-
-              <!-- Emoji Drawer -->
-              <div class="dm-emoji-drawer" id="dmEmojiDrawer" role="region" aria-label="Emoji picker">
-                <!-- Emojis populated dynamically -->
-              </div>
-            </footer>
+              <!-- Optional Contextual Info Panel -->
+              <aside class="dm-context-panel" id="dmContextPanel" aria-label="Participant details">
+                <div class="dm-context-header">
+                  <span class="dm-context-title">Details</span>
+                  <button type="button" class="dm-icon-btn" id="dmContextPanelCloseBtn" aria-label="Close details">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </div>
+                <div class="dm-context-profile">
+                  <div id="dmContextPeerAvatar"></div>
+                  <h4 class="dm-context-name" id="dmContextPeerName">Participant</h4>
+                  <div class="dm-context-meta" id="dmContextPeerUsername"></div>
+                  <span class="dm-role-badge" id="dmContextPeerRole">STUDENT</span>
+                </div>
+                <div class="dm-context-actions">
+                  <a href="profile.html" class="dm-btn-secondary" id="dmContextProfileLink">View Profile</a>
+                  <button type="button" class="dm-btn-secondary" onclick="window.dmClient.openClearModal()">Clear Conversation</button>
+                  <button type="button" class="dm-btn-secondary" onclick="window.dmClient.openReportModal()">Report Conversation</button>
+                  <button type="button" class="dm-btn-danger" onclick="window.dmClient.openBlockModal()">Block / Unblock</button>
+                </div>
+              </aside>
+            </div>
+            <div class="dm-toast" id="dmErrorToast" role="status" aria-live="polite"></div>
           </div>
         </div>
       </div>
@@ -904,7 +956,25 @@
             filterMembersList(document.getElementById('memberFilterInput').value);
           },
           onEvent: (type, p) => {
-            if (type === 'new_message') { const isNew = !document.getElementById('msg-row-'+p.id); const near=isNearBottom(); renderMessages([p]); if(near)scrollToBottom(true,false);else if(isNew&&p.studentId!==currentStudent.studentId){unreadCount++;updateUnreadBadge();} }
+            if (type === 'new_message') {
+              const isNew = !document.getElementById('msg-row-'+p.id);
+              const near = isNearBottom();
+              if (p.studentId) {
+                const typer = activeTypers.get(p.studentId);
+                if (typer) clearTimeout(typer.timer);
+                activeTypers.delete(p.studentId);
+                updateTypingUI();
+              }
+              renderMessages([p]);
+              if (Number(p.id) > lastMessageId) lastMessageId = Number(p.id);
+              if (near) {
+                scrollToBottom(true, false);
+                markAsRead(lastMessageId);
+              } else if (isNew && p.studentId !== currentStudent.studentId) {
+                unreadCount++;
+                updateUnreadBadge();
+              }
+            }
             if (type === 'delete_message') removeMessageElement(p.messageId);
             if (type === 'reaction_update') updateReactionUI(p.messageId,p.studentId,p.emoji,p.action);
             if (type === 'typing') handleTypingEvent(p);
@@ -1032,6 +1102,7 @@
       const signature=JSON.stringify([text,file?.name,file?.size,file?.lastModified,currentReplyToId]);
       if (!pendingSend || pendingSend.signature!==signature) pendingSend={signature,clientId:crypto.randomUUID(),chatGroupId:roomClient.context().chatGroupId};
       if(pendingSend.chatGroupId!==roomClient.context().chatGroupId)return showError('This conversation is no longer available.');
+      lastTypingSent = 0;
       isSending = true;
       sendBtn.disabled = true;
 
@@ -1385,16 +1456,27 @@
 
     // Typing Event Handler
     function handleTypingEvent(data) {
-      if (!currentStudent || String(data.studentId) === String(currentStudent.studentId)) return;
+      if (!currentStudent || !data || String(data.studentId) === String(currentStudent.studentId)) return;
 
       if (activeTypers.has(data.studentId)) {
         clearTimeout(activeTypers.get(data.studentId).timer);
+      }
+      if (data.isTyping === false) {
+        activeTypers.delete(data.studentId);
+        updateTypingUI();
+        return;
+      }
+      const remainingMs = data.expiresAt ? Date.parse(data.expiresAt) - Date.now() : new Date(data.timestamp).getTime() + 4000 - Date.now();
+      if (remainingMs <= 0) {
+        activeTypers.delete(data.studentId);
+        updateTypingUI();
+        return;
       }
 
       const timer = setTimeout(() => {
         activeTypers.delete(data.studentId);
         updateTypingUI();
-      }, Math.max(0, Math.min(4000, data.expiresAt ? Date.parse(data.expiresAt)-Date.now() : new Date(data.timestamp).getTime()+4000-Date.now())));
+      }, Math.max(200, Math.min(4000, remainingMs)));
 
       activeTypers.set(data.studentId, { name: data.name || 'Someone', timer });
       updateTypingUI();

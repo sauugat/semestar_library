@@ -4,7 +4,9 @@
   const local = value => {
     const url=new URL(value);
     if(url.username||url.password||url.search||url.hash||url.pathname!=='/')return false;
-    return ['https://semestar-library.vercel.app','https://ahcccqsyvpxacnsttzeh.supabase.co'].includes(url.origin)||/^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(url.hostname);
+    const sameOrigin = typeof root?.location?.origin === 'string' && root.location.origin === url.origin;
+    const isSupabase = url.protocol === 'https:' && /^[a-z0-9-]+\.supabase\.co$/i.test(url.hostname);
+    return sameOrigin||isSupabase||['https://semestar-library.vercel.app','https://ahcccqsyvpxacnsttzeh.supabase.co'].includes(url.origin)||/^(localhost|127\.0\.0\.1|\[::1\]|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/.test(url.hostname);
   };
   function createCohortClient(options) {
     const transport=options.fetch, now=options.now||Date.now;

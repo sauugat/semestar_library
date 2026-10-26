@@ -778,4 +778,153 @@ describe('Step 4A: Website Private Messaging UI Tests (All 20 Required Scenarios
     assert.match(chatHtml, /cohortChatMain/, 'Cohort chat main container must be preserved');
   });
 
+  // Test 21: Failed send preservation and idempotent retry without duplication
+  test('21. Failed send preserves optimistic message as failed and retries with identical clientId', async () => {
+    let attempts = 0;
+    const clientIdsUsed = [];
+    const ctx = createTestContext(async (url, opts) => {
+      if (url.includes('/messages') && opts?.method === 'POST') {
+        attempts++;
+        const body = JSON.parse(opts.body);
+        clientIdsUsed.push(body.clientId);
+        if (attempts === 1) {
+          return {
+            ok: false,
+            status: 503,
+            json: async () => ({ message: 'Temporary server outage' }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            message: {
+              id: 777,
+              conversationId: 'conv_1',
+              senderId: currentUser.studentId,
+              clientId: body.clientId,
+              text: body.text,
+              createdAt: new Date().toISOString(),
+            },
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    await ctx.client.init(currentUser);
+    ctx.client.activeConversation = { id: 'conv_1', participant: { studentId: 'peer_1', name: 'Bob' } };
+    ctx.elements.dmTextarea.value = 'Resilient message';
+
+    // First send fails
+    await ctx.client.sendMessage();
+    assert.equal(ctx.client.messages.length, 1, 'Failed message must not disappear');
+    assert.equal(ctx.client.messages[0].status, 'failed', 'Failed message must be marked as failed');
+    assert.match(ctx.elements.dmTimeline.innerHTML, /Failed to send/, 'Timeline should render Failed to send');
+
+    // Retry failed message
+    const failedClientId = ctx.client.messages[0].clientId;
+    await ctx.client.retryMessage(failedClientId);
+
+    assert.equal(attempts, 2, 'Should have sent 2 requests');
+    assert.equal(clientIdsUsed[0], clientIdsUsed[1], 'Retry must reuse identical clientId for idempotency');
+    assert.equal(ctx.client.messages.length, 1, 'Retry must reconcile into single message without duplicates');
+    assert.equal(ctx.client.messages[0].id, 777, 'Canonical message ID should be reconciled');
+    assert.equal(ctx.client.messages[0].status, 'sent', 'Message status should transition to sent');
+  });
+
+  // Test 22: Switching conversations during an outstanding history request prevents cross-chat message leak
+  test('22. Switching conversations during an in-flight loadMessages discards stale response', async () => {
+    let resolveConvA;
+    const convAPromise = new Promise(r => { resolveConvA = r; });
+
+    const ctx = createTestContext(async (url) => {
+      if (url.includes('/conversations/conv_A/messages')) {
+        await convAPromise;
+        return {
+          ok: true,
+          json: async () => ({
+            messages: [{ id: 1, conversationId: 'conv_A', senderId: 'peer_A', text: 'Secret from A' }],
+          }),
+        };
+      }
+      if (url.includes('/conversations/conv_B/messages')) {
+        return {
+          ok: true,
+          json: async () => ({
+            messages: [{ id: 2, conversationId: 'conv_B', senderId: 'peer_B', text: 'Hello from B' }],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    await ctx.client.init(currentUser);
+    ctx.client.conversations = [
+      { id: 'conv_A', participant: { studentId: 'peer_A', name: 'User A' } },
+      { id: 'conv_B', participant: { studentId: 'peer_B', name: 'User B' } },
+    ];
+
+    // Start selecting conv_A (in-flight)
+    const selectAPromise = ctx.client.selectConversation('conv_A');
+    // Immediately switch to conv_B before conv_A resolves
+    await ctx.client.selectConversation('conv_B');
+    // Now resolve conv_A's slow response
+    resolveConvA();
+    await selectAPromise;
+
+    assert.equal(ctx.client.activeConversation.id, 'conv_B', 'Active conversation must be conv_B');
+    assert.equal(ctx.client.messages.length, 1, 'Should only contain conv_B message');
+    assert.equal(ctx.client.messages[0].text, 'Hello from B', 'Must never display conv_A messages under conv_B header');
+  });
+
+  // Test 23: Typing indicator stops on send and peer typing clears when peer message arrives
+  test('23. Typing indicator stops on send and peer typing clears immediately on incoming message', async () => {
+    const typingPayloads = [];
+    const ctx = createTestContext(async (url, opts) => {
+      if (url.includes('/typing') && opts?.method === 'POST') {
+        typingPayloads.push(JSON.parse(opts.body));
+        return { ok: true, json: async () => ({ ok: true }) };
+      }
+      if (url.includes('/messages') && opts?.method === 'POST') {
+        const body = JSON.parse(opts.body);
+        return {
+          ok: true,
+          json: async () => ({
+            message: { id: 801, conversationId: 'conv_1', senderId: currentUser.studentId, clientId: body.clientId, text: body.text },
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    await ctx.client.init(currentUser);
+    ctx.client.activeConversation = { id: 'conv_1', participant: { studentId: 'peer_1', name: 'Bob', username: 'bob' } };
+
+    // User types -> emits isTyping: true
+    ctx.elements.dmTextarea.value = 'Typing now';
+    ctx.client.handleTextareaInput();
+    assert.equal(typingPayloads.length, 1);
+    assert.equal(typingPayloads[0].isTyping, true);
+
+    // User sends message -> immediately emits isTyping: false
+    await ctx.client.sendMessage();
+    assert.equal(typingPayloads.length, 2);
+    assert.equal(typingPayloads[1].isTyping, false);
+
+    // Peer starts typing -> shows Typing...
+    ctx.client.handleRealtimeTyping({ conversationId: 'conv_1', studentId: 'peer_1', isTyping: true });
+    assert.equal(ctx.elements.dmPeerStatusText.textContent, 'Typing...');
+
+    // Peer message arrives -> immediately clears Typing...
+    ctx.client.handleRealtimeNewMessage({
+      eventId: 'evt-peer-msg-1',
+      conversationId: 'conv_1',
+      messageId: 802,
+      senderId: 'peer_1',
+      text: 'Finished typing!',
+      createdAt: new Date().toISOString(),
+    });
+    assert.notEqual(ctx.elements.dmPeerStatusText.textContent, 'Typing...', 'Peer typing must clear immediately when message arrives');
+  });
+
 });

@@ -200,6 +200,13 @@
             <span class="follow-text">Follow</span>
           </button>
 
+          <button id="messageUserBtn" class="profile-secondary-btn" style="display:none;" onclick="openDirectMessageWithUser()" title="Send Direct Message">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Message
+          </button>
+
           <button class="profile-secondary-btn" onclick="copyProfileLink()" title="Share Profile">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -598,12 +605,15 @@
       // Action Buttons
       const editBtn = document.getElementById('editProfileBtn');
       const followBtn = document.getElementById('followBtn');
+      const messageUserBtn = document.getElementById('messageUserBtn');
       if (p.isSelf) {
         editBtn.style.display = 'inline-flex';
         followBtn.style.display = 'none';
+        if (messageUserBtn) messageUserBtn.style.display = 'none';
       } else {
         editBtn.style.display = 'none';
         followBtn.style.display = 'inline-flex';
+        if (messageUserBtn) messageUserBtn.style.display = 'inline-flex';
         updateFollowButton(p.isFollowing);
       }
 
@@ -639,6 +649,12 @@
       } catch (err) {
         console.error('Follow toggle error:', err);
       }
+    }
+
+    function openDirectMessageWithUser(targetStudentId) {
+      const targetId = targetStudentId || (currentProfile && currentProfile.studentId);
+      if (!targetId) return;
+      window.location.href = `chat.html?tab=dm&user=${encodeURIComponent(targetId)}`;
     }
 
     // Handle Live Avatar Upload
@@ -968,9 +984,14 @@
                 <span class="classmate-sub">@${escapeHtml(c.studentId)} &middot; ${escapeHtml(c.department || 'BIT')}</span>
                 <span class="classmate-files-count">${c.filesCount || 0} shared ${c.filesCount === 1 ? 'file' : 'files'}</span>
               </div>
-              <button class="classmate-follow-btn ${c.isFollowing ? 'following' : ''}" onclick="toggleFollowClassmate('${c.studentId}', this)">
-                ${c.isFollowing ? 'Following' : 'Follow'}
-              </button>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <button class="classmate-follow-btn" style="padding:6px 10px;" onclick="openDirectMessageWithUser('${escapeHtml(c.studentId)}')" title="Message ${escapeHtml(c.name)}">
+                  Message
+                </button>
+                <button class="classmate-follow-btn ${c.isFollowing ? 'following' : ''}" onclick="toggleFollowClassmate('${c.studentId}', this)">
+                  ${c.isFollowing ? 'Following' : 'Follow'}
+                </button>
+              </div>
             </div>
           `;
         }).join('');

@@ -40,13 +40,21 @@ export function captureChatSession() {
 }
 export const isCurrentChatSession = (s: ChatSession) => s.generation === session.generation && chatScope(s) !== '' && chatScope(s) === chatScope();
 export function assertCurrentChatSession(s: ChatSession) { if (!isCurrentChatSession(s)) throw new Error(CHAT_UNAVAILABLE); }
-import { isQaMode } from './api';
+
+function isQaEnvironment(): boolean {
+  return typeof process !== 'undefined' && Boolean(
+    process.env?.EXPO_PUBLIC_QA_MODE === 'true' ||
+    process.env?.EXPO_PUBLIC_QA_MODE === '1' ||
+    process.env?.QA_MODE === 'true' ||
+    process.env?.QA_MODE === '1'
+  );
+}
 
 export function assertLocalChatServer(server: string) {
   if (!server || typeof server !== 'string') throw new Error('Invalid chat server.');
   const url = new URL(server.trim());
   if (url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error('Invalid chat server.');
-  if (isQaMode()) {
+  if (isQaEnvironment()) {
     if (url.origin.includes('supabase.co') || url.hostname.endsWith('.vercel.app')) {
       throw new Error('Connecting to production chat servers is forbidden in QA mode.');
     }

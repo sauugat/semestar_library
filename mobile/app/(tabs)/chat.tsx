@@ -47,7 +47,7 @@ import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
 import { UnifiedChatInbox } from "@/components/chat/UnifiedChatInbox";
-import { fetchDmStatus, fetchDmConversations, type DmConversationItem as RawDmItem } from "@/services/dm";
+import { fetchDmStatus, fetchDmConversations, createOrGetDmConversation, type DmConversationItem as RawDmItem } from "@/services/dm";
 import { getCachedDmConversations, saveCachedDmConversations } from "@/services/dm-db";
 import {
   normalizeUnifiedConversations,
@@ -411,10 +411,11 @@ function ChatScreenInner() {
     roomGeneration,
   } = useClassChat(selectedCohortRoom ? user?.studentId : undefined, serverUrl, chatOptions);
 
-  const { targetMessageId, targetChatGroupId, dmConversationId } = useLocalSearchParams<{
+  const { targetMessageId, targetChatGroupId, dmConversationId, directStudentId } = useLocalSearchParams<{
     targetMessageId?: string;
     targetChatGroupId?: string;
     dmConversationId?: string;
+    directStudentId?: string;
   }>();
 
   // Handle incoming DM deep-link navigation
@@ -426,6 +427,40 @@ function ChatScreenInner() {
       });
     }
   }, [dmConversationId, targetMessageId, router]);
+
+  // Handle profile directStudentId deep-link inference
+  useEffect(() => {
+    if (!directStudentId || !user?.studentId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { conversation, conversationId } = await createOrGetDmConversation(directStudentId);
+        if (cancelled) return;
+        const convId = conversation?.id || conversationId;
+        const peer = conversation?.participant;
+        router.setParams({ directStudentId: '' } as any);
+        if (convId) {
+          router.push({
+            pathname: '/dm/[id]',
+            params: {
+              id: convId,
+              peerId: peer?.studentId || directStudentId,
+              peerName: peer?.name || 'Conversation',
+              peerRole: peer?.role || 'student',
+              peerAvatar: peer?.avatarUrl || '',
+            },
+          });
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          Alert.alert('Cannot Start Chat', err?.message || 'Could not open conversation.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [directStudentId, user?.studentId, router]);
 
   // Deep-link to target cohort if specified
   useEffect(() => {
@@ -457,6 +492,7 @@ function ChatScreenInner() {
         peerId: item.peerId,
         peerName: item.title,
         peerRole: item.peerRole,
+        peerAvatar: item.peerAvatarUrl || '',
         peerAvatarUrl: item.peerAvatarUrl || '',
       },
     });

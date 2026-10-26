@@ -29,6 +29,7 @@ import { ChatMessage, ChatReadReceipt } from '@/services/chat';
 import { parseChatDate, formatFileSubtitle, formatFileExtension } from '@/services/chat-state';
 import { formatMessageTime as safeFormatTime, formatChatDateSeparator as safeFormatSeparator } from '@/utils/date';
 
+// Monochrome dark surface tokens aligned with colors.surfaceRaised (#2c2c2e) and colors.surfaceSubtle (#1c1c1e)
 const imageDimensionsCache = new Map<string, { width: number; height: number }>();
 
 function getFileIcon(

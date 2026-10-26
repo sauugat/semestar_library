@@ -33,6 +33,7 @@ import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
 import { EditPostModal } from '@/components/EditPostModal';
 import { apiFetch, getBaseUrl } from '@/services/api';
 import { Post, deletePost, toggleLike } from '@/services/posts';
+import { createOrGetDmConversation } from '@/services/dm';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const COVER_HEIGHT = Math.min(210, Math.round(SCREEN_WIDTH * 0.52));
@@ -136,10 +137,11 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [assignmentsError, setAssignmentsError] = useState(false);
 
-  // Follow state for other student
+  // Follow & direct message state for other student
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [isStartingChat, setIsStartingChat] = useState(false);
 
   // Image upload in-flight
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -859,11 +861,35 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
                     title="Message"
                     variant="outline"
                     size="sm"
-                    onPress={() => {
-                      router.push({
-                        pathname: '/chat',
-                        params: { directStudentId: profile?.studentId },
-                      } as any);
+                    loading={isStartingChat}
+                    onPress={async () => {
+                      if (!profile?.studentId || isStartingChat) return;
+                      setIsStartingChat(true);
+                      try {
+                        const res = await createOrGetDmConversation(profile.studentId);
+                        const convId = res.conversation?.id || res.conversationId;
+                        if (convId) {
+                          router.push({
+                            pathname: '/dm/[id]',
+                            params: {
+                              id: convId,
+                              peerId: profile.studentId,
+                              peerName: profile.name || 'Student',
+                              peerRole: profile.role || 'student',
+                              peerAvatar: profile.avatarUrl || '',
+                            },
+                          } as any);
+                        } else {
+                          router.push({
+                            pathname: '/chat',
+                            params: { directStudentId: profile.studentId },
+                          } as any);
+                        }
+                      } catch (err: any) {
+                        Alert.alert('Cannot Open Chat', err?.message || 'Could not start conversation with this user.');
+                      } finally {
+                        setIsStartingChat(false);
+                      }
                     }}
                     leftIcon={<Ionicons name="chatbubble-outline" size={14} color={colors.text} />}
                     style={{ borderRadius: radii.full }}

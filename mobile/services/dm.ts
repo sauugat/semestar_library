@@ -91,7 +91,7 @@ export async function fetchDmConversations(limit = 40, offset = 0): Promise<DmCo
   }));
 }
 
-export async function createOrGetDmConversation(targetUserId: string): Promise<{ conversation: DmConversationItem; isNew: boolean }> {
+export async function createOrGetDmConversation(targetUserId: string): Promise<{ conversation: DmConversationItem; conversationId: string; isNew: boolean }> {
   const res = await apiFetch('/api/dm/conversations', {
     method: 'POST',
     body: JSON.stringify({ targetUserId }),
@@ -100,7 +100,39 @@ export async function createOrGetDmConversation(targetUserId: string): Promise<{
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || 'Failed to start conversation');
   }
-  return await res.json();
+  const data = await res.json();
+  const convId = data.conversation?.id || data.conversationId || data.id;
+  const participant = data.conversation?.participant || data.participant || { studentId: targetUserId, name: 'User', role: 'student' };
+  const conversation: DmConversationItem = data.conversation ? {
+    ...data.conversation,
+    id: convId,
+    participant,
+    unreadCount: Number(data.conversation.unreadCount || 0),
+    isMuted: Boolean(data.conversation.isMuted),
+    isBlocked: Boolean(data.conversation.isBlocked ?? data.isBlockedByCaller ?? data.isBlockedByPeer),
+    isBlockedByCaller: Boolean(data.conversation.isBlockedByCaller ?? data.isBlockedByCaller),
+    isBlockedByPeer: Boolean(data.conversation.isBlockedByPeer ?? data.isBlockedByPeer),
+    blocked: Boolean(data.conversation.blocked ?? data.isBlockedByCaller ?? data.isBlockedByPeer),
+    blockedByMe: Boolean(data.conversation.blockedByMe ?? data.isBlockedByCaller),
+    blockedByPeer: Boolean(data.conversation.blockedByPeer ?? data.isBlockedByPeer),
+  } : {
+    id: convId,
+    participant,
+    unreadCount: 0,
+    isMuted: false,
+    isBlocked: Boolean(data.isBlockedByCaller || data.isBlockedByPeer),
+    isBlockedByCaller: Boolean(data.isBlockedByCaller),
+    isBlockedByPeer: Boolean(data.isBlockedByPeer),
+    blocked: Boolean(data.isBlockedByCaller || data.isBlockedByPeer),
+    blockedByMe: Boolean(data.isBlockedByCaller),
+    blockedByPeer: Boolean(data.isBlockedByPeer),
+  };
+  return {
+    ...data,
+    conversationId: convId,
+    conversation,
+    isNew: Boolean(data.isNew),
+  };
 }
 
 export async function searchDmUsers(query: string, limit = 20): Promise<DmParticipant[]> {
@@ -174,7 +206,17 @@ export async function editDmMessage(
     throw new Error(err.message || 'Failed to edit message');
   }
   const data = await res.json();
-  return data.message;
+  if (data.message) return data.message;
+  return {
+    id: Number(data.messageId || messageId),
+    conversationId,
+    senderId: '',
+    text: data.text ?? text,
+    isEdited: true,
+    editedAt: data.editedAt || new Date().toISOString(),
+    deletedForAll: false,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 export async function deleteDmMessage(

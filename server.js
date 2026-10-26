@@ -877,7 +877,7 @@ function requireLogin(req, res, next) {
     return next();
   }
   if (req.session && req.session.studentId) {
-    db.get('SELECT studentId, role, name, department, semester, cohort_id, email, avatarUrl, account_status FROM students WHERE studentId = ?', req.session.studentId)
+    db.get('SELECT studentId, role, name, username, department, semester, cohort_id, email, avatarUrl, account_status, COALESCE(verification_status, \'unverified\') AS verification_status, supabase_uid FROM students WHERE studentId = ?', req.session.studentId)
       .then(student => {
         if (!student) {
           if (typeof req.session.destroy === 'function') req.session.destroy(() => {});

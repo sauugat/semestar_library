@@ -126,6 +126,7 @@ function DmConversation() {
     peerName?: string;
     peerRole?: string;
     peerAvatar?: string;
+    peerAvatarUrl?: string;
     peerId?: string;
     targetMessageId?: string;
   }>();
@@ -133,6 +134,7 @@ function DmConversation() {
   const conversationId = params.id;
   const activeRef = useRef(false);
   const nearBottomRef = useRef(true);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const messagesRef = useRef<DmMessage[]>([]);
   const loadInFlight = useRef(false);
   const sendsInFlight = useRef(new Set<string>());
@@ -158,7 +160,7 @@ function DmConversation() {
     id: params.peerId || '',
     name: params.peerName || 'Conversation',
     role: params.peerRole || 'Student',
-    avatarUrl: params.peerAvatar || null,
+    avatarUrl: params.peerAvatar || params.peerAvatarUrl || null,
   });
 
   const [conversation, setConversation] = useState<DmConversationItem | null>(null);
@@ -503,10 +505,18 @@ function DmConversation() {
       setSending(true);
       try {
         const updated = await editDmMessage(conversationId, msgId, text);
+        const mergedEdit: DmMessage = {
+          ...editingMessage,
+          ...updated,
+          id: msgId,
+          senderId: editingMessage.senderId || currentUserId,
+          text: updated.text ?? text,
+          isEdited: true,
+        };
         setMessages((prev) =>
-          prev.map((m) => (m.id === msgId ? updated : m))
+          prev.map((m) => (m.id === msgId ? mergedEdit : m))
         );
-        void updateCachedDmMessage(currentUserId, conversationId, updated);
+        void updateCachedDmMessage(currentUserId, conversationId, mergedEdit);
         setEditingMessage(null);
         setInputText('');
       } catch (err: any) {
@@ -1018,50 +1028,61 @@ function DmConversation() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
 
-        {/* Peer Avatar */}
-        <View style={styles.headerAvatarContainer}>
-          {peerInfo.avatarUrl ? (
-            <Image
-              source={{ uri: peerInfo.avatarUrl }}
-              style={styles.headerAvatar}
-              contentFit="cover"
-            />
-          ) : (
-            <View
-              style={[
-                styles.headerAvatar,
-                styles.avatarFallback,
-                { backgroundColor: colors.surfaceRaised },
-              ]}
-            >
-              <Text variant="sm" weight="700" style={{ color: colors.text }}>
-                {getInitials(peerInfo.name)}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Peer Name & Subtitle (Role / Typing) */}
-        <View style={styles.headerTitleGroup}>
-          <View style={styles.headerNameRow}>
-            <Text variant="md" weight="700" numberOfLines={1} style={{ color: colors.text }}>
-              {peerInfo.name}
-            </Text>
-            <View style={[styles.roleBadge, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}>
-              <Text variant="xs" weight="600" style={{ color: Monochrome.textSecondary }}>
-                {peerInfo.role}
-              </Text>
-            </View>
+        {/* Peer Avatar & Profile Link */}
+        <TouchableOpacity
+          activeOpacity={0.75}
+          disabled={!peerInfo.id}
+          onPress={() => {
+            if (peerInfo.id) {
+              router.push({ pathname: '/user/[id]', params: { id: peerInfo.id } } as any);
+            }
+          }}
+          style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+        >
+          <View style={styles.headerAvatarContainer}>
+            {peerInfo.avatarUrl ? (
+              <Image
+                source={{ uri: peerInfo.avatarUrl }}
+                style={styles.headerAvatar}
+                contentFit="cover"
+              />
+            ) : (
+              <View
+                style={[
+                  styles.headerAvatar,
+                  styles.avatarFallback,
+                  { backgroundColor: colors.surfaceRaised },
+                ]}
+              >
+                <Text variant="sm" weight="700" style={{ color: colors.text }}>
+                  {getInitials(peerInfo.name)}
+                </Text>
+              </View>
+            )}
           </View>
 
-          {peerIsTyping ? (
-            <Text variant="xs" weight="600" style={styles.typingIndicator}>
-              typing...
-            </Text>
-          ) : !realtimeConnected ? (
-            <Text variant="xs" style={{ color: Monochrome.textSecondary }}>Live updates unavailable · checking periodically</Text>
-          ) : null}
-        </View>
+          {/* Peer Name & Subtitle (Role / Typing) */}
+          <View style={styles.headerTitleGroup}>
+            <View style={styles.headerNameRow}>
+              <Text variant="md" weight="700" numberOfLines={1} style={{ color: colors.text }}>
+                {peerInfo.name}
+              </Text>
+              <View style={[styles.roleBadge, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}>
+                <Text variant="xs" weight="600" style={{ color: Monochrome.textSecondary }}>
+                  {peerInfo.role}
+                </Text>
+              </View>
+            </View>
+
+            {peerIsTyping ? (
+              <Text variant="xs" weight="600" style={styles.typingIndicator}>
+                typing...
+              </Text>
+            ) : !realtimeConnected ? (
+              <Text variant="xs" style={{ color: Monochrome.textSecondary }}>Live updates unavailable · checking periodically</Text>
+            ) : null}
+          </View>
+        </TouchableOpacity>
 
         {/* Conversation Settings Button */}
         <TouchableOpacity
@@ -1106,33 +1127,77 @@ function DmConversation() {
             </Text>
           </View>
         ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            renderItem={renderMessageItem}
-            keyExtractor={(item) => item.clientId ? `${item.senderId}:${item.clientId}` : String(item.id)}
-            inverted
-            scrollEventThrottle={100}
-            onScroll={event => {
-              nearBottomRef.current = event.nativeEvent.contentOffset.y < 80;
-              if (nearBottomRef.current) markIncomingRead(messagesRef.current);
-            }}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
-            onScrollToIndexFailed={({ averageItemLength, index }) => {
-              flatListRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: true });
-            }}
-            onEndReached={loadOlderMessages}
-            onEndReachedThreshold={0.3}
-            ListFooterComponent={
-              loadingOlder ? (
-                <View style={{ paddingVertical: 12 }}>
-                  <ActivityIndicator size="small" color={Monochrome.textSecondary} />
-                </View>
-              ) : null
-            }
-            contentContainerStyle={styles.listContent}
-            keyboardDismissMode="on-drag"
-          />
+          <View style={{ flex: 1 }}>
+            <FlatList
+              ref={flatListRef}
+              data={messages}
+              renderItem={renderMessageItem}
+              keyExtractor={(item) => item.clientId ? `${item.senderId}:${item.clientId}` : String(item.id)}
+              inverted
+              scrollEventThrottle={64}
+              onScroll={event => {
+                const offsetY = event.nativeEvent.contentOffset.y;
+                nearBottomRef.current = offsetY < 80;
+                setShowScrollToBottom(offsetY > 220);
+                if (nearBottomRef.current) markIncomingRead(messagesRef.current);
+              }}
+              maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 80 }}
+              onScrollToIndexFailed={({ averageItemLength, index }) => {
+                flatListRef.current?.scrollToOffset({ offset: averageItemLength * index, animated: true });
+              }}
+              onEndReached={loadOlderMessages}
+              onEndReachedThreshold={0.3}
+              ListHeaderComponent={
+                peerIsTyping ? (
+                  <View style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 8 }}>
+                    <View style={{ alignSelf: 'flex-start', backgroundColor: Monochrome.incomingBubble, borderColor: Monochrome.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 }}>
+                      <Text variant="xs" weight="500" style={{ color: '#10b981' }}>
+                        {peerInfo.name} is typing…
+                      </Text>
+                    </View>
+                  </View>
+                ) : null
+              }
+              ListFooterComponent={
+                loadingOlder ? (
+                  <View style={{ paddingVertical: 12 }}>
+                    <ActivityIndicator size="small" color={Monochrome.textSecondary} />
+                  </View>
+                ) : null
+              }
+              contentContainerStyle={styles.listContent}
+              keyboardDismissMode="on-drag"
+            />
+            {showScrollToBottom && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => {
+                  flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+                  setShowScrollToBottom(false);
+                }}
+                style={{
+                  position: 'absolute',
+                  right: 16,
+                  bottom: 14,
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: Monochrome.surfaceElevated,
+                  borderColor: Monochrome.border,
+                  borderWidth: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: '#000',
+                  shadowOpacity: 0.35,
+                  shadowRadius: 6,
+                  elevation: 4,
+                }}
+                accessibilityLabel="Scroll to latest messages"
+              >
+                <Ionicons name="chevron-down" size={20} color={colors.text} />
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </KeyboardContentBoundary>
 

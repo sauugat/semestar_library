@@ -136,13 +136,16 @@
         }
       });
 
-      // Check URL parameters for direct conversation navigation
+      // Check URL parameters for direct conversation or user profile message navigation
       const params = new URLSearchParams(window.location.search);
       const tab = params.get('tab');
       const convId = params.get('conversationId') || params.get('dm');
-      if (tab === 'dm' || convId) {
+      const targetUser = params.get('user') || params.get('directStudentId') || params.get('targetUserId');
+      if (tab === 'dm' || convId || targetUser) {
         this.switchMode('dm');
-        if (convId) {
+        if (targetUser) {
+          await this.startConversationWithUser(targetUser);
+        } else if (convId) {
           await this.loadConversations();
           this.selectConversationById(convId);
         }
@@ -613,13 +616,25 @@
       if (el.noConvPlaceholder) el.noConvPlaceholder.style.display = 'none';
       if (el.activeChatWrap) el.activeChatWrap.style.display = 'flex';
 
-      if (el.peerName) el.peerName.textContent = peer.name || 'Conversation';
+      if (el.peerName) {
+        el.peerName.textContent = peer.name || 'Conversation';
+        if (peer.studentId) {
+          el.peerName.style.cursor = 'pointer';
+          el.peerName.title = 'View Profile';
+          el.peerName.onclick = () => { window.location.href = `profile.html?id=${encodeURIComponent(peer.studentId)}`; };
+        }
+      }
 
       if (el.peerAvatar) {
         if (peer.avatarUrl) {
           el.peerAvatar.innerHTML = `<img src="${escapeHtml(peer.avatarUrl)}" class="dm-avatar-small" alt="${escapeHtml(peer.name)}" />`;
         } else {
           el.peerAvatar.innerHTML = `<div class="dm-avatar-small">${escapeHtml(getInitials(peer.name))}</div>`;
+        }
+        if (peer.studentId) {
+          el.peerAvatar.style.cursor = 'pointer';
+          el.peerAvatar.title = 'View Profile';
+          el.peerAvatar.onclick = () => { window.location.href = `profile.html?id=${encodeURIComponent(peer.studentId)}`; };
         }
       }
 
@@ -1086,7 +1101,12 @@
 
         if (!res.ok) throw new Error('Edit failed');
         const data = await res.json();
-        const updated = data.message;
+        const updated = data.message || {
+          ...msg,
+          text: data.text || newText,
+          isEdited: true,
+          editedAt: data.editedAt || new Date().toISOString(),
+        };
         const idx = this.messages.findIndex(m => m.id === msg.id);
         if (idx !== -1) this.messages[idx] = updated;
         this.renderTimeline();
@@ -1435,10 +1455,11 @@
         }
 
         const data = await res.json();
-        const conv = data.conversation;
+        const convId = data.conversation?.id || data.conversationId || data.id;
+        if (!convId) throw new Error('Could not resolve conversation');
 
         await this.loadConversations();
-        await this.selectConversation(conv.id);
+        await this.selectConversation(convId);
       } catch (err) {
         console.error('[DM] Start conversation error:', err);
         alert(err.message || 'Could not start conversation.');
@@ -1497,13 +1518,16 @@
         if (!res.ok) throw new Error('Realtime config fetch failed');
         const config = await res.json();
 
-        // Create or reuse scoped client
+        // Create or reuse scoped client with public anon key and scoped realtime JWT
         const supabaseTargetUrl = config.supabaseUrl || config.url;
-        const supabaseAuthToken = config.token || config.key;
-        this.supabaseClient = root.supabase.createClient(supabaseTargetUrl, supabaseAuthToken, {
-          auth: { credentials: { persistSession: false, autoRefreshToken: false } },
-          realtime: { params: { apikey: supabaseAuthToken } }
+        const supabaseAnonKey = config.key || config.anonKey || config.token;
+        this.supabaseClient = root.supabase.createClient(supabaseTargetUrl, supabaseAnonKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+          realtime: { params: { apikey: supabaseAnonKey } }
         });
+        if (config.token && this.supabaseClient.realtime && typeof this.supabaseClient.realtime.setAuth === 'function') {
+          await this.supabaseClient.realtime.setAuth(config.token);
+        }
 
         const channel = this.supabaseClient.channel(config.topic, {
           config: {
@@ -1558,9 +1582,19 @@
     }
 
     handleRealtimeNewMessage(event) {
-      if (!event || !event.message) return;
-      const msg = event.message;
-      const convId = event.conversationId;
+      if (!event) return;
+      const msg = event.message || (event.messageId ? {
+        id: Number(event.messageId),
+        conversationId: event.conversationId,
+        senderId: event.senderId,
+        clientId: event.clientId || null,
+        text: event.text,
+        replyToId: event.replyToId || null,
+        replyTo: event.replyTo || null,
+        createdAt: event.createdAt || new Date().toISOString(),
+      } : null);
+      if (!msg) return;
+      const convId = event.conversationId || msg.conversationId;
 
       // Update conversation list preview
       this.updateConversationPreview(convId, msg);
@@ -1620,7 +1654,8 @@
 
     handleRealtimeReadReceipt(event) {
       if (!event || !this.activeConversation || this.activeConversation.id !== event.conversationId) return;
-      if (event.readerId === this.currentUser.studentId) return;
+      const readerId = event.readerId || event.studentId;
+      if (readerId === this.currentUser.studentId) return;
 
       this.peerLastReadMessageId = Number(event.lastReadMessageId || 0);
       this.renderTimeline();
@@ -1740,8 +1775,9 @@
         }
 
         // Reconcile read receipts
-        if (delta.peerLastReadMessageId && delta.peerLastReadMessageId > this.peerLastReadMessageId) {
-          this.peerLastReadMessageId = delta.peerLastReadMessageId;
+        const syncedPeerRead = Number(delta.peerLastReadMessageId || delta.readCursor?.peerLastReadMessageId || 0);
+        if (syncedPeerRead > this.peerLastReadMessageId) {
+          this.peerLastReadMessageId = syncedPeerRead;
           updated = true;
         }
 

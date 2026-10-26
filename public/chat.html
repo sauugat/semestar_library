@@ -911,7 +911,15 @@
             if (type === 'pin_message') void loadPinnedMessage();
             if (type === 'read_receipt') { readReceiptsMap[p.studentId]=Math.max(readReceiptsMap[p.studentId]||0,p.lastReadMessageId);updateReadReceiptsUI(); }
           },
-          onError: error => showError(error.message),
+          onError: error => {
+            showError(error.message);
+            if (!roomClient?.context()) {
+              const loadingEl = document.getElementById('loadingNotice');
+              if (loadingEl) {
+                loadingEl.innerHTML = `<span class="im-loading-text" style="color:#a1a1aa;">${error.message || 'Could not load messages.'}</span><button type="button" onclick="if(window.roomClient){document.getElementById('loadingNotice').innerHTML='<div class=\\'im-loading-spinner\\'></div><span class=\\'im-loading-text\\'>Loading messages...</span>';window.roomClient.refresh();}" style="margin-top:8px;padding:6px 14px;border-radius:999px;border:1px solid rgba(255,255,255,0.18);background:#1f1f22;color:#fafafa;font-size:12px;font-weight:600;cursor:pointer;">Retry</button>`;
+              }
+            }
+          },
         });
         // Same-tab Auth changes do not emit a storage event in this document.
         // Stop immediately; a fresh page/account must validate before hydration.

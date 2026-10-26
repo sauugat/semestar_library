@@ -953,7 +953,11 @@ app.use('/api/results', require('./routes/marks')(db, requireLogin));
 app.use('/api/admin/marks', require('./routes/marks')(db, requireLogin));
 app.use('/api/teacher/onboarding', require('./routes/teacher-onboarding'));
 
-// Direct Messaging Router (Feature flag DM_ENABLED or controlled tester allowlist DM_TEST_USER_IDS)
+// Direct Messaging Router (Enabled by default in runtime unless explicitly disabled via DM_ENABLED=false/0)
+if (process.env.NODE_ENV !== 'test') {
+  if (process.env.DM_ENABLED === undefined) process.env.DM_ENABLED = 'true';
+  if (process.env.DM_ALLOW_SYNTHETIC_UID === undefined) process.env.DM_ALLOW_SYNTHETIC_UID = 'true';
+}
 const { isDmEnabled, isDmAllowedForUser, getDmTestUserIds } = require('./lib/dm-config');
 app.get('/api/dm-status', (req, res) => {
   // Canonical identity strictly from authenticated mobile bearer token (req.user/student) or website session (req.session)

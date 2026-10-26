@@ -1077,15 +1077,21 @@ svg {
    Composer & Input Bar
    ========================================================================== */
 
+#staffCohortRoomBar {
+  flex-shrink: 0;
+  z-index: 15;
+}
+
 .im-composer {
+  width: 100%;
   padding: 12px 24px 16px;
   flex-shrink: 0;
-  background: rgba(14, 17, 23, 0.90);
+  background: rgba(14, 17, 23, 0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border-subtle);
   position: relative;
-  z-index: 12;
+  z-index: 20;
 }
 
 .im-composer-inner {

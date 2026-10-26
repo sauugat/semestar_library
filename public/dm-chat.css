@@ -135,10 +135,9 @@
    ========================================================================== */
 
 .dm-main {
-  flex: 1;
+  flex: 1 1 0%;
   display: flex;
   min-height: 0;
-  height: 100%;
   background: var(--msg-bg, #0e1117);
   position: relative;
   overflow: hidden;

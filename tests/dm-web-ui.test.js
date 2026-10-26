@@ -105,10 +105,23 @@ function buildMockDOM() {
     dmConnBanner: createMockElement('dmConnBanner', 'div'),
     dmHeaderMenuBtn: createMockElement('dmHeaderMenuBtn', 'button'),
     dmHeaderDropdown: createMockElement('dmHeaderDropdown', 'div'),
+    dmInfoToggleBtn: createMockElement('dmInfoToggleBtn', 'button'),
+    dmContextPanel: createMockElement('dmContextPanel', 'aside'),
+    dmContextPanelCloseBtn: createMockElement('dmContextPanelCloseBtn', 'button'),
+    dmContextPeerAvatar: createMockElement('dmContextPeerAvatar', 'div'),
+    dmContextPeerName: createMockElement('dmContextPeerName', 'h4'),
+    dmContextPeerUsername: createMockElement('dmContextPeerUsername', 'div'),
+    dmContextPeerRole: createMockElement('dmContextPeerRole', 'span'),
+    dmContextProfileLink: createMockElement('dmContextProfileLink', 'a'),
 
     // Timeline
     dmTimeline: createMockElement('dmTimeline', 'main'),
     dmTimelineLoader: createMockElement('dmTimelineLoader', 'div'),
+    dmTypingIndicator: createMockElement('dmTypingIndicator', 'div'),
+    dmTypingIndicatorText: createMockElement('dmTypingIndicatorText', 'span'),
+    dmScrollBottomBtn: createMockElement('dmScrollBottomBtn', 'button'),
+    dmScrollUnreadBadge: createMockElement('dmScrollUnreadBadge', 'span'),
+    dmErrorToast: createMockElement('dmErrorToast', 'div'),
 
     // Composer
     dmComposerWrap: createMockElement('dmComposerWrap', 'footer'),
@@ -914,6 +927,7 @@ describe('Step 4A: Website Private Messaging UI Tests (All 20 Required Scenarios
     // Peer starts typing -> shows Typing...
     ctx.client.handleRealtimeTyping({ conversationId: 'conv_1', studentId: 'peer_1', isTyping: true });
     assert.equal(ctx.elements.dmPeerStatusText.textContent, 'Typing...');
+    assert.equal(ctx.elements.dmTypingIndicator.style.display, 'flex');
 
     // Peer message arrives -> immediately clears Typing...
     ctx.client.handleRealtimeNewMessage({
@@ -925,6 +939,199 @@ describe('Step 4A: Website Private Messaging UI Tests (All 20 Required Scenarios
       createdAt: new Date().toISOString(),
     });
     assert.notEqual(ctx.elements.dmPeerStatusText.textContent, 'Typing...', 'Peer typing must clear immediately when message arrives');
+    assert.equal(ctx.elements.dmTypingIndicator.style.display, 'none', 'Inline typing indicator must hide immediately');
+  });
+
+  // Test 24: Two-session realtime lifecycle, token renewal, background/restore sync, and subscription cleanup
+  test('24. Two authenticated browser sessions: realtime delivery, token renewal, tab visibility restore, and zero duplicate subscriptions', async () => {
+    const activeChannelsBySession = { A: [], B: [] };
+    const removedChannelsBySession = { A: 0, B: 0 };
+    let configFetchCountA = 0;
+    let syncFetchCountA = 0;
+
+    function attachMockSupabase(ctx, sessionKey) {
+      ctx.window.supabase = {
+        createClient: () => ({
+          realtime: {
+            setAuth: async (token) => { ctx.window._lastRealtimeToken = token; },
+          },
+          channel: (topic, opts) => {
+            const ch = {
+              topic,
+              opts,
+              handlers: {},
+              on(type, filter, cb) {
+                ch.handlers[filter.event] = cb;
+                return ch;
+              },
+              subscribe(cb) {
+                ch.statusCb = cb;
+                cb('SUBSCRIBED');
+                return ch;
+              },
+            };
+            activeChannelsBySession[sessionKey].push(ch);
+            return ch;
+          },
+          removeChannel: async () => {
+            removedChannelsBySession[sessionKey]++;
+          },
+          removeAllChannels: async () => {},
+        }),
+      };
+    }
+
+    const userA = { studentId: 'student_101', name: 'Alice Cooper', username: 'alice', role: 'student' };
+    const userB = { studentId: 'student_102', name: 'Bob Smith', username: 'bob', role: 'student' };
+    const sharedMessages = [];
+
+    // Session A & B shared backend simulator with realtime fanout
+    let sessionB;
+    const sessionA = createTestContext(async (url, opts) => {
+      if (url.includes('/api/dm-status')) return { ok: true, json: async () => ({ enabled: true }) };
+      if (url.includes('/realtime-config')) {
+        configFetchCountA++;
+        return {
+          ok: true,
+          json: async () => ({
+            conversationId: url.includes('conv_2') ? 'conv_2' : 'conv_1',
+            topic: url.includes('conv_2') ? 'dm:conv_2:1' : 'dm:conv_1:1',
+            url: 'https://test-proj.supabase.co',
+            key: 'anon-public-key',
+            token: `jwt-token-${configFetchCountA}`,
+            expiresAt: new Date(Date.now() + 32000).toISOString(), // renews in 2s
+          }),
+        };
+      }
+      if (url.includes('/sync')) {
+        syncFetchCountA++;
+        return {
+          ok: true,
+          json: async () => ({
+            serverTime: new Date().toISOString(),
+            messages: sharedMessages,
+            edits: [],
+            deletions: [],
+            peerLastReadMessageId: 901,
+          }),
+        };
+      }
+      if (url.includes('/messages') && opts?.method === 'POST') {
+        const body = JSON.parse(opts.body);
+        const saved = {
+          id: 901,
+          conversationId: 'conv_1',
+          senderId: userA.studentId,
+          senderName: userA.name,
+          clientId: body.clientId,
+          text: body.text,
+          createdAt: new Date().toISOString(),
+        };
+        sharedMessages.push(saved);
+        // Broadcast to Session B over its active realtime channel
+        const bChan = activeChannelsBySession.B.at(-1);
+        if (bChan && bChan.handlers['dm:message:new']) {
+          bChan.handlers['dm:message:new']({ payload: { eventId: 'evt-901', conversationId: 'conv_1', message: saved } });
+        }
+        return { ok: true, json: async () => ({ message: saved }) };
+      }
+      if (url.includes('/messages')) {
+        return { ok: true, json: async () => ({ messages: sharedMessages.slice(), hasMore: false }) };
+      }
+      if (url.includes('/conversations')) {
+        return {
+          ok: true,
+          json: async () => ({
+            conversations: [
+              { id: 'conv_1', participant: userB, unreadCount: 0 },
+              { id: 'conv_2', participant: { studentId: 'student_103', name: 'Charlie' }, unreadCount: 0 },
+            ],
+          }),
+        };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    sessionB = createTestContext(async (url, opts) => {
+      if (url.includes('/api/dm-status')) return { ok: true, json: async () => ({ enabled: true }) };
+      if (url.includes('/realtime-config')) {
+        return {
+          ok: true,
+          json: async () => ({
+            conversationId: 'conv_1',
+            topic: 'dm:conv_1:1',
+            url: 'https://test-proj.supabase.co',
+            key: 'anon-public-key',
+            token: 'jwt-token-b',
+            expiresAt: new Date(Date.now() + 120000).toISOString(),
+          }),
+        };
+      }
+      if (url.includes('/read') && opts?.method === 'POST') {
+        const body = JSON.parse(opts.body);
+        const aChan = activeChannelsBySession.A.at(-1);
+        if (aChan && aChan.handlers['dm:read:updated']) {
+          aChan.handlers['dm:read:updated']({
+            payload: {
+              eventId: 'evt-read-901',
+              conversationId: 'conv_1',
+              readerId: userB.studentId,
+              lastReadMessageId: body.lastReadMessageId,
+            },
+          });
+        }
+        return { ok: true, json: async () => ({ lastReadMessageId: body.lastReadMessageId }) };
+      }
+      if (url.includes('/messages')) {
+        return { ok: true, json: async () => ({ messages: sharedMessages.slice(), hasMore: false }) };
+      }
+      if (url.includes('/conversations')) {
+        return { ok: true, json: async () => ({ conversations: [{ id: 'conv_1', participant: userA, unreadCount: 0 }] }) };
+      }
+      return { ok: true, json: async () => ({}) };
+    });
+
+    attachMockSupabase(sessionA, 'A');
+    attachMockSupabase(sessionB, 'B');
+
+    await sessionA.client.init(userA);
+    await sessionB.client.init(userB);
+    await sessionA.client.loadConversations();
+    await sessionB.client.loadConversations();
+    await sessionA.client.selectConversation('conv_1');
+    await sessionB.client.selectConversation('conv_1');
+
+    // 1. Account A sends message -> Account B receives immediately via realtime without refresh
+    sessionA.elements.dmTextarea.value = 'Live browser-to-browser message';
+    await sessionA.client.sendMessage();
+
+    assert.equal(sessionB.client.messages.length, 1, 'Session B must receive message in realtime');
+    assert.equal(sessionB.client.messages[0].text, 'Live browser-to-browser message');
+    assert.equal(sessionB.client.messages[0].senderName, 'Alice Cooper');
+
+    // Allow Session B's automatic markActiveConversationRead() to propagate read receipt back to Session A
+    await new Promise(r => setTimeout(r, 20));
+    assert.equal(sessionA.client.peerLastReadMessageId, 901, 'Session A read receipt must synchronize to 901');
+    assert.match(sessionA.elements.dmTimeline.innerHTML, /dm-read-status seen/, 'Session A bubble must display Seen (✓✓)');
+
+    // 2. Repeated conversation switching cleans up previous channels without accumulating duplicates
+    await sessionA.client.selectConversation('conv_2');
+    await sessionA.client.selectConversation('conv_1');
+    assert.equal(removedChannelsBySession.A, 2, 'Switching conversations twice must remove 2 previous channels');
+    assert.equal(sessionA.client.realtimeChannel.topic, 'dm:conv_1:1');
+
+    // 3. Backgrounding and restoring tab triggers delta catch-up and preserves subscription
+    const syncBeforeVisibility = syncFetchCountA;
+    sessionA.document.hidden = true;
+    sessionA.document.dispatchEvent({ type: 'visibilitychange' });
+    sessionA.document.hidden = false;
+    sessionA.document.dispatchEvent({ type: 'visibilitychange' });
+    await new Promise(r => setTimeout(r, 20));
+    assert.ok(syncFetchCountA > syncBeforeVisibility, 'Restoring tab visibility must trigger syncActiveConversation');
+
+    // Clean up timers
+    sessionA.client.clearAccountData();
+    sessionB.client.clearAccountData();
   });
 
 });

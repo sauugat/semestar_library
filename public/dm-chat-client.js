@@ -2071,7 +2071,8 @@
     }
 
     // --- Supabase Realtime Integration (With Token Renewal & Reconnect Backoff) ---
-    async subscribeRealtime(conversationId) {
+    async subscribeRealtime(conversationId, options = {}) {
+      const isRenewal = Boolean(options.isRenewal && this.realtimeConnected);
       this.unsubscribeRealtime();
 
       if (!root.supabase || typeof root.supabase.createClient !== 'function') {
@@ -2107,7 +2108,7 @@
         if (!isCurrent()) return;
 
         const supabaseTargetUrl = config.supabaseUrl || config.url;
-        const supabaseAnonKey = config.key || config.anonKey || config.token;
+        const supabaseAnonKey = config.key || config.anonKey;
         if (!supabaseTargetUrl || !supabaseAnonKey) {
           throw new Error('Incomplete realtime configuration');
         }
@@ -2180,12 +2181,12 @@
               clearTimeout(this.realtimeRenewalTimer);
               const renewInMs = Math.max(2000, expMs - Date.now() - 30000);
               this.realtimeRenewalTimer = setTimeout(() => {
-                if (isCurrent()) void this.subscribeRealtime(conversationId);
+                if (isCurrent()) void this.subscribeRealtime(conversationId, { isRenewal: true });
               }, renewInMs);
             }
 
-            // Reconcile any events missed during handshake
-            if (!this.isLoadingMessages) {
+            // Reconcile any events missed during handshake or outage
+            if (!this.isLoadingMessages && !isRenewal) {
               void this.syncActiveConversation();
             }
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
@@ -2409,7 +2410,7 @@
         }
         clearTimeout(this.peerTypingTimeout);
         const ttlMs = event.expiresAt
-          ? Math.min(4500, Math.max(500, Date.parse(event.expiresAt) - Date.now()))
+          ? Math.min(4500, Math.max(50, Date.parse(event.expiresAt) - Date.now()))
           : 4000;
         this.peerTypingTimeout = setTimeout(() => {
           this.clearPeerTyping();
@@ -2424,8 +2425,13 @@
       if (conv && msg) {
         const prevTime = parseIsoDate(conv.lastMessageAt || conv.lastMessage?.createdAt || 0).getTime() || 0;
         const msgTime = parseIsoDate(msg.createdAt || new Date().toISOString()).getTime() || Date.now();
+        const msgIdNum = Number(msg.id);
+        const prevIdNum = Number(conv.lastMessage?.id || 0);
+        const isNewerOrEqualId = (Number.isFinite(msgIdNum) && Number.isFinite(prevIdNum) && prevIdNum > 0)
+          ? msgIdNum >= prevIdNum
+          : true;
         // Prevent older realtime event from overwriting newer conversation preview
-        if (msgTime >= prevTime || !conv.lastMessage || Number(msg.id) >= Number(conv.lastMessage.id || 0)) {
+        if (!conv.lastMessage || (msgTime >= prevTime && isNewerOrEqualId) || (Number.isFinite(msgIdNum) && Number.isFinite(prevIdNum) && msgIdNum > prevIdNum)) {
           conv.lastMessage = msg;
           conv.lastMessageAt = msg.createdAt || new Date().toISOString();
         }

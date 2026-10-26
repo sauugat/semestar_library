@@ -837,12 +837,14 @@
   gap: 10px;
   max-width: 76%;
   position: relative;
-  animation: dmMsgSlideIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: dmMsgSlideIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity;
 }
 
 .dm-msg-row.self {
   align-self: flex-end;
   flex-direction: row-reverse;
+  animation: dmMsgSlideInSelf 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dm-msg-row.peer {
@@ -1378,10 +1380,59 @@
 @keyframes dmMsgSlideIn {
   0% {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(10px) scale(0.98);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dmMsgSlideInSelf {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) translateX(4px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) translateX(0) scale(1);
+  }
+}
+
+@keyframes dmBubbleFlash {
+  0% {
+    outline: 2px solid var(--accent, #3b82f6);
+    outline-offset: 3px;
+    box-shadow: 0 0 24px rgba(59, 130, 246, 0.55);
+    transform: scale(1.02);
+  }
+  25% {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+    transform: scale(1.01);
+  }
+  60% {
+    outline: 2px solid rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+    transform: scale(1);
+  }
+  100% {
+    outline: 2px solid transparent;
+    outline-offset: 0;
+    box-shadow: none;
+    transform: scale(1);
+  }
+}
+
+@keyframes dmSendReadySpring {
+  0% {
+    transform: scale(0.82);
+  }
+  60% {
+    transform: scale(1.16);
+  }
+  100% {
+    transform: scale(1.02);
   }
 }

@@ -75,13 +75,22 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
+  padding: 0;
   background: var(--bg-canvas);
   color: var(--text-primary);
   font: 14px/1.55 var(--sf);
-  height: 100dvh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
   overflow: hidden;
   text-rendering: optimizeLegibility;
 }
@@ -157,8 +166,8 @@ svg {
 .im-app {
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  height: 100dvh;
+  width: 100%;
+  height: 100%;
   max-width: 100%;
   margin: 0 auto;
   background: var(--bg-canvas);
@@ -168,12 +177,12 @@ svg {
 
 .chat-main {
   min-width: 0;
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   position: relative;
   background: var(--bg-base);
-  height: 100%;
   overflow: hidden;
 }
 

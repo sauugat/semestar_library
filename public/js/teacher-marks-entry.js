@@ -69,6 +69,14 @@
     validationErrorsByStudentId: {},
     maxMarksValidationError: null,
 
+    // Student absent tracking
+    absentByStudentId: {}, // { [studentId]: boolean }
+    initialAbsentSnapshot: '{}',
+
+    // Missing marks warning modal state on publish
+    missingMarksModalOpen: false,
+    missingStudentsForModal: [],
+
     // Filter & Search state
     studentSearchQuery: '',
     statusFilter: 'ALL', // 'ALL' | 'MISSING' | 'DRAFT' | 'PUBLISHED'
@@ -120,7 +128,10 @@
     return Number.isInteger(num) ? `${num}%` : `${num.toFixed(2).replace(/\.?0+$/, '')}%`;
   }
 
-  function renderPassFail(pct) {
+  function renderPassFail(pct, isAbsent = false) {
+    if (isAbsent) {
+      return '<span style="font-weight:700; color:#ef4444;">Fail</span>';
+    }
     if (pct === null || pct === undefined || !Number.isFinite(Number(pct))) {
       return '<span style="color:var(--teach-text-secondary, #a3a3a3); font-weight:600;">—</span>';
     }
@@ -150,7 +161,9 @@
     const currentMarksJson = JSON.stringify(state.marksByStudentId || {});
     const marksDirty = currentMarksJson !== state.initialMarksSnapshot;
     const maxDirty = String(state.maxMarksInput || '').trim() !== String(state.initialMaxMarksSnapshot || '').trim();
-    return marksDirty || maxDirty;
+    const currentAbsentJson = JSON.stringify(state.absentByStudentId || {});
+    const absentDirty = currentAbsentJson !== state.initialAbsentSnapshot;
+    return marksDirty || maxDirty || absentDirty;
   }
 
   function discardUnsavedChanges() {
@@ -159,12 +172,19 @@
     } catch (_) {
       state.marksByStudentId = {};
     }
+    try {
+      state.absentByStudentId = JSON.parse(state.initialAbsentSnapshot || '{}');
+    } catch (_) {
+      state.absentByStudentId = {};
+    }
     state.maxMarksInput = state.initialMaxMarksSnapshot;
     state.validationErrorsByStudentId = {};
     state.maxMarksValidationError = null;
     state.actionError = null;
     state.isEditingPublished = false;
     state.editReason = '';
+    state.missingMarksModalOpen = false;
+    state.missingStudentsForModal = [];
   }
 
   function confirmDiscardIfDirty() {
@@ -231,6 +251,8 @@
     let hasStudentError = false;
 
     for (const stu of state.students) {
+      const isAbsent = Boolean(state.absentByStudentId && state.absentByStudentId[stu.studentId]);
+      if (isAbsent) continue;
       const rawMark = state.marksByStudentId[stu.studentId];
       const markCheck = validateStudentMarkValue(rawMark, maxVal);
       if (!markCheck.valid) {
@@ -275,9 +297,18 @@
     let pctCount = 0;
 
     for (const stu of state.students) {
+      const isAbsent = Boolean(state.absentByStudentId && state.absentByStudentId[stu.studentId]);
       const rawVal = state.marksByStudentId[stu.studentId];
       const trimmed = rawVal !== undefined && rawVal !== null ? String(rawVal).trim() : '';
-      if (trimmed === '') {
+
+      if (isAbsent) {
+        enteredCount += 1;
+        if (stu.entryStatus === 'published') {
+          publishedCount += 1;
+        } else {
+          draftCount += 1;
+        }
+      } else if (trimmed === '') {
         missingCount += 1;
       } else {
         enteredCount += 1;
@@ -317,8 +348,9 @@
         if (!nameMatch && !idMatch && !userMatch) return false;
       }
 
+      const isAbsent = Boolean(state.absentByStudentId && state.absentByStudentId[stu.studentId]);
       const rawVal = state.marksByStudentId[stu.studentId];
-      const hasEnteredVal = rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '';
+      const hasEnteredVal = isAbsent || (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '');
       const effectiveStatus = !hasEnteredVal
         ? 'MISSING'
         : stu.entryStatus === 'published'
@@ -329,6 +361,15 @@
       if (filter === 'DRAFT' && effectiveStatus !== 'DRAFT') return false;
       if (filter === 'PUBLISHED' && effectiveStatus !== 'PUBLISHED') return false;
       return true;
+    });
+  }
+
+  function getMissingStudents() {
+    return (state.students || []).filter((stu) => {
+      const isAbsent = Boolean(state.absentByStudentId && state.absentByStudentId[stu.studentId]);
+      if (isAbsent) return false;
+      const raw = state.marksByStudentId[stu.studentId];
+      return raw === undefined || raw === null || String(raw).trim() === '';
     });
   }
 
@@ -548,6 +589,38 @@
         color: var(--teach-text-secondary, #a3a3a3);
         border-style: dashed;
       }
+      .sl-marks-badge.absent {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.35);
+      }
+      .sl-marks-absent-btn {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 5px 9px;
+        border-radius: 7px;
+        border: 1px solid var(--teach-border, #333333);
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: var(--teach-text-secondary, #a3a3a3);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+        user-select: none;
+        line-height: 1.2;
+      }
+      .sl-marks-absent-btn:hover:not([disabled]) {
+        border-color: #ef4444;
+        color: #ef4444;
+      }
+      .sl-marks-absent-btn.active {
+        background: #ef4444;
+        color: #ffffff;
+        border-color: #ef4444;
+      }
+      .sl-marks-absent-btn[disabled] {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
       .sl-marks-banner {
         border-radius: 12px;
         padding: 13px 16px;
@@ -687,16 +760,22 @@
     state.initialMaxMarksSnapshot = maxVal;
 
     const marksMap = {};
+    const absentMap = {};
     for (const stu of state.students) {
       marksMap[stu.studentId] =
         stu.obtainedMarks !== null && stu.obtainedMarks !== undefined
           ? String(stu.obtainedMarks)
           : '';
+      absentMap[stu.studentId] = Boolean(stu.isAbsent || stu.is_absent);
     }
     state.marksByStudentId = marksMap;
     state.initialMarksSnapshot = JSON.stringify(marksMap);
+    state.absentByStudentId = absentMap;
+    state.initialAbsentSnapshot = JSON.stringify(absentMap);
     state.validationErrorsByStudentId = {};
     state.maxMarksValidationError = null;
+    state.missingMarksModalOpen = false;
+    state.missingStudentsForModal = [];
     if (options.resetEditingPublished !== false) {
       state.isEditingPublished = false;
     }
@@ -750,6 +829,23 @@
     runAllClientValidations();
   }
 
+  function setStudentAbsent(studentId, isAbsent) {
+    const isLockedPublished =
+      Boolean(state.summary && (state.summary.isPublished || state.summary.hasPublishedMarks)) &&
+      !state.isEditingPublished;
+    if (isLockedPublished) return;
+
+    const boolVal = Boolean(isAbsent);
+    state.absentByStudentId[studentId] = boolVal;
+    if (boolVal) {
+      state.marksByStudentId[studentId] = '';
+      delete state.validationErrorsByStudentId[studentId];
+    }
+    runAllClientValidations();
+    updateStudentRowLive(studentId);
+    triggerAutoSaveMarks();
+  }
+
   function setStudentMark(studentId, rawVal) {
     const isLockedPublished =
       state.summary &&
@@ -765,6 +861,7 @@
       : null;
     if (effectiveMax === null || effectiveMax <= 0) return;
 
+    state.absentByStudentId[studentId] = false;
     state.marksByStudentId[studentId] = rawVal === null || rawVal === undefined ? '' : String(rawVal);
     runAllClientValidations();
   }
@@ -836,11 +933,13 @@
 
   function buildRecordsPayload() {
     return (state.students || []).map((stu) => {
+      const isAbsent = Boolean(state.absentByStudentId && state.absentByStudentId[stu.studentId]);
       const raw = state.marksByStudentId[stu.studentId];
       const trimmed = raw !== undefined && raw !== null ? String(raw).trim() : '';
       return {
         studentId: stu.studentId,
-        obtainedMarks: trimmed === '' ? null : Number(trimmed)
+        obtainedMarks: isAbsent || trimmed === '' ? null : Number(trimmed),
+        isAbsent
       };
     });
   }
@@ -916,7 +1015,8 @@
     if (!validation.valid) return;
 
     const currentMarksJson = JSON.stringify(state.marksByStudentId || {});
-    if (currentMarksJson === state.initialMarksSnapshot) return;
+    const currentAbsentJson = JSON.stringify(state.absentByStudentId || {});
+    if (currentMarksJson === state.initialMarksSnapshot && currentAbsentJson === state.initialAbsentSnapshot) return;
 
     const statusBar = state.containerEl ? state.containerEl.querySelector('#slMarksStatusBar') : null;
     if (statusBar) statusBar.textContent = 'Saving marks automatically…';
@@ -983,18 +1083,24 @@
       td.textContent = effectiveMax !== null ? String(effectiveMax) : '—';
     });
     state.containerEl.querySelectorAll('[data-marks-student-input]').forEach((inp) => {
+      const sId = inp.getAttribute('data-marks-student-input');
+      const isAbsent = Boolean(state.absentByStudentId && state.absentByStudentId[sId]);
       if (effectiveMax !== null && effectiveMax > 0) {
         inp.setAttribute('max', String(effectiveMax));
-        inp.setAttribute('placeholder', 'Missing');
-        if (!isLockedPublished) {
-          inp.removeAttribute('disabled');
+        if (isAbsent) {
+          inp.setAttribute('placeholder', 'Absent');
+          inp.setAttribute('disabled', 'disabled');
+        } else {
+          inp.setAttribute('placeholder', 'Missing');
+          if (!isLockedPublished) {
+            inp.removeAttribute('disabled');
+          }
         }
       } else {
         inp.removeAttribute('max');
         inp.setAttribute('placeholder', 'Enter max marks first');
         inp.setAttribute('disabled', 'disabled');
       }
-      const sId = inp.getAttribute('data-marks-student-input');
       updateStudentRowLive(sId);
     });
 
@@ -1013,26 +1119,62 @@
     const row = state.containerEl.querySelector(`[data-student-row="${studentId}"]`);
     if (!row) return;
 
+    const isAbsent = Boolean(state.absentByStudentId && state.absentByStudentId[studentId]);
     const rawMark = state.marksByStudentId[studentId] ?? '';
     const trimmed = String(rawMark).trim();
-    const isMissing = trimmed === '';
+    const isMissing = !isAbsent && trimmed === '';
     const maxCheck = validateMaxMarksValue(state.maxMarksInput);
     const effectiveMax = maxCheck.valid
       ? maxCheck.value
       : state.examConfig && state.examConfig.configured
       ? Number(state.examConfig.maxMarks)
       : null;
+    const hasConfiguredMax = effectiveMax !== null && effectiveMax > 0;
+    const isLockedPublished = Boolean(state.summary && (state.summary.isPublished || state.summary.hasPublishedMarks)) && !state.isEditingPublished;
 
-    const markCheck = validateStudentMarkValue(rawMark, effectiveMax);
+    const markCheck = isAbsent ? { valid: true, error: null } : validateStudentMarkValue(rawMark, effectiveMax);
     const rowError = markCheck.valid ? null : markCheck.error;
-    const pct = !isMissing && !rowError ? calculatePercentage(trimmed, effectiveMax) : null;
+    const pct = !isAbsent && !isMissing && !rowError ? calculatePercentage(trimmed, effectiveMax) : null;
 
     const input = row.querySelector('[data-marks-student-input]');
     if (input) {
-      if (rowError) {
-        input.classList.add('invalid');
-      } else {
+      if (isAbsent) {
+        input.value = '';
+        input.setAttribute('placeholder', 'Absent');
+        input.setAttribute('disabled', 'disabled');
+        input.style.opacity = '0.6';
+        input.style.background = 'rgba(239, 68, 68, 0.06)';
         input.classList.remove('invalid');
+      } else {
+        input.setAttribute('placeholder', !hasConfiguredMax ? 'Enter max marks first' : 'Missing');
+        input.style.opacity = '';
+        input.style.background = '';
+        if (!hasConfiguredMax || isLockedPublished) {
+          input.setAttribute('disabled', 'disabled');
+        } else {
+          input.removeAttribute('disabled');
+        }
+        if (rowError) {
+          input.classList.add('invalid');
+        } else {
+          input.classList.remove('invalid');
+        }
+      }
+    }
+
+    const absentBtn = row.querySelector('[data-marks-absent-btn]');
+    if (absentBtn) {
+      if (isAbsent) {
+        absentBtn.classList.add('active');
+        absentBtn.setAttribute('title', 'Click to unmark absent');
+      } else {
+        absentBtn.classList.remove('active');
+        absentBtn.setAttribute('title', 'Mark student as absent');
+      }
+      if (!hasConfiguredMax || isLockedPublished) {
+        absentBtn.setAttribute('disabled', 'disabled');
+      } else {
+        absentBtn.removeAttribute('disabled');
       }
     }
 
@@ -1051,13 +1193,17 @@
 
     const pctCell = row.querySelector('[data-marks-pct-col]');
     if (pctCell) {
-      pctCell.innerHTML = renderPassFail(pct);
+      pctCell.innerHTML = renderPassFail(pct, isAbsent);
     }
 
     const badge = row.querySelector('[data-student-status]');
     if (badge) {
       const stu = (state.students || []).find((s) => s.studentId === studentId);
-      if (isMissing) {
+      if (isAbsent) {
+        badge.className = 'sl-marks-badge absent';
+        badge.textContent = 'Absent';
+        row.classList.remove('missing-row');
+      } else if (isMissing) {
         badge.className = 'sl-marks-badge missing';
         badge.textContent = 'Missing Marks';
         row.classList.add('missing-row');
@@ -1082,7 +1228,7 @@
     if (pubBtn) pubBtn.textContent = `Published (${metrics.publishedCount})`;
   }
 
-  async function publishResults() {
+  async function publishResults(options = {}) {
     if (!state.selectedSubjectId) return;
     const validation = runAllClientValidations();
     if (!validation.valid) {
@@ -1093,11 +1239,21 @@
 
     const metrics = getLiveTableMetrics();
     if (metrics.enteredCount === 0) {
-      state.actionError = 'Please enter marks for at least one student before publishing results.';
+      state.actionError = 'Please enter marks or mark absent for at least one student before publishing results.';
       render();
       return;
     }
 
+    const missing = getMissingStudents();
+    if (missing.length > 0 && !options.force) {
+      state.missingStudentsForModal = missing;
+      state.missingMarksModalOpen = true;
+      render();
+      return;
+    }
+
+    state.missingMarksModalOpen = false;
+    state.missingStudentsForModal = [];
     state.publishing = true;
     state.actionError = null;
     state.actionSuccessMessage = null;
@@ -1531,7 +1687,7 @@
                         <th style="width:48px;">#</th>
                         <th>Student Name</th>
                         <th>Roll No / Student ID</th>
-                        <th style="width:170px;">Obtained Marks</th>
+                        <th style="width:190px;">Obtained Marks</th>
                         <th style="width:130px;">Maximum Marks</th>
                         <th style="width:130px;">Pass / Fail</th>
                         <th style="width:150px;">Entry Status</th>
@@ -1540,16 +1696,19 @@
                     <tbody>
                       ${filteredStudents
                         .map((stu, idx) => {
+                          const isAbsent = Boolean(state.absentByStudentId && state.absentByStudentId[stu.studentId]);
                           const rawMark = state.marksByStudentId[stu.studentId] ?? '';
                           const trimmed = String(rawMark).trim();
-                          const isMissing = trimmed === '';
-                          const rowError = state.validationErrorsByStudentId[stu.studentId] || null;
-                          const pct = !isMissing && !rowError
+                          const isMissing = !isAbsent && trimmed === '';
+                          const rowError = isAbsent ? null : (state.validationErrorsByStudentId[stu.studentId] || null);
+                          const pct = !isAbsent && !isMissing && !rowError
                             ? calculatePercentage(trimmed, metrics.effectiveMax)
                             : null;
 
-                          const badgeClass = isMissing ? 'missing' : 'published';
-                          const badgeText = isMissing
+                          const badgeClass = isAbsent ? 'absent' : (isMissing ? 'missing' : 'published');
+                          const badgeText = isAbsent
+                            ? 'Absent'
+                            : isMissing
                             ? 'Missing Marks'
                             : stu.entryStatus === 'published' && String(stu.obtainedMarks ?? '') === trimmed
                             ? 'Published'
@@ -1564,19 +1723,30 @@
                               <td style="font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.83rem;">
                                 ${escapeHtml(stu.rollNumber || stu.studentId)}
                               </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  ${metrics.effectiveMax !== null ? `max="${escapeHtml(metrics.effectiveMax)}"` : ''}
-                                  step="any"
-                                  class="sl-marks-input ${rowError ? 'invalid' : ''}"
-                                  placeholder="${!hasConfiguredMax ? 'Enter max marks first' : 'Missing'}"
-                                  value="${escapeHtml(rawMark)}"
-                                  data-marks-student-input="${escapeHtml(stu.studentId)}"
-                                  ${!hasConfiguredMax ? 'disabled' : ''}
-                                  style="width:130px;"
-                                />
+                              <td style="white-space:nowrap;">
+                                <div style="display:inline-flex; align-items:center; gap:8px;">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    ${metrics.effectiveMax !== null ? `max="${escapeHtml(metrics.effectiveMax)}"` : ''}
+                                    step="any"
+                                    class="sl-marks-input ${rowError ? 'invalid' : ''}"
+                                    placeholder="${isAbsent ? 'Absent' : (!hasConfiguredMax ? 'Enter max marks first' : 'Missing')}"
+                                    value="${isAbsent ? '' : escapeHtml(rawMark)}"
+                                    data-marks-student-input="${escapeHtml(stu.studentId)}"
+                                    ${!hasConfiguredMax || isAbsent || isLockedPublished ? 'disabled' : ''}
+                                    style="width:90px; ${isAbsent ? 'opacity:0.6; background:rgba(239,68,68,0.06);' : ''}"
+                                  />
+                                  <button
+                                    type="button"
+                                    class="sl-marks-absent-btn ${isAbsent ? 'active' : ''}"
+                                    data-marks-absent-btn="${escapeHtml(stu.studentId)}"
+                                    title="${isAbsent ? 'Click to unmark absent' : 'Mark student as absent'}"
+                                    ${!hasConfiguredMax || isLockedPublished ? 'disabled' : ''}
+                                  >
+                                    Absent
+                                  </button>
+                                </div>
                                 ${
                                   rowError
                                     ? `<div class="sl-marks-row-error" style="font-size:0.72rem; color:#ef4444; margin-top:4px; font-weight:600;">${escapeHtml(rowError)}</div>`
@@ -1587,7 +1757,7 @@
                                 ${metrics.effectiveMax !== null ? escapeHtml(metrics.effectiveMax) : '—'}
                               </td>
                               <td style="font-weight:800;" data-marks-pct-col>
-                                ${renderPassFail(pct)}
+                                ${renderPassFail(pct, isAbsent)}
                               </td>
                               <td>
                                 <span class="sl-marks-badge ${badgeClass}" data-student-status="${escapeHtml(stu.studentId)}">
@@ -1636,6 +1806,71 @@
         }
 
         ${renderAuditModal()}
+        ${renderMissingMarksModal()}
+      </div>
+    `;
+  }
+
+  function renderMissingMarksModal() {
+    if (!state.missingMarksModalOpen) return '';
+    const missingList = state.missingStudentsForModal || [];
+    return `
+      <div class="teach-modal-overlay open" id="slMissingMarksModal" role="dialog" aria-modal="true" aria-label="Missing Marks Warning">
+        <div class="teach-modal-card" style="max-width:520px; box-sizing:border-box;">
+          <div class="teach-modal-header" style="border-bottom:1px solid var(--teach-border, #2a2a2a); padding-bottom:14px; margin-bottom:16px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:rgba(239,68,68,0.15); color:#ef4444; font-size:1.05rem; font-weight:800;">!</span>
+              <h3 class="teach-modal-title" style="margin:0; font-size:1.1rem; font-weight:800;">
+                Missing Marks Notice
+              </h3>
+            </div>
+            <button type="button" class="teach-modal-close" data-marks-action="close-missing-modal" aria-label="Close">&times;</button>
+          </div>
+
+          <div style="font-size:0.9rem; line-height:1.5; margin-bottom:14px;">
+            Marks are missing for <strong>${missingList.length}</strong> student${missingList.length === 1 ? '' : 's'} in <strong>${escapeHtml(state.selectedExamType)}</strong>:
+          </div>
+
+          <div style="max-height:220px; overflow-y:auto; border:1px solid var(--teach-border, #2a2a2a); border-radius:10px; background:var(--teach-surface-subtle, #181818); padding:12px 14px; margin-bottom:18px;">
+            <ul style="margin:0; padding-left:18px; font-size:0.86rem; line-height:1.6;">
+              ${missingList
+                .map(
+                  (stu) => `
+                <li style="margin-bottom:4px;">
+                  <strong>${escapeHtml(stu.name)}</strong>
+                  <span style="color:var(--teach-text-secondary, #a3a3a3); font-family:ui-monospace, monospace; font-size:0.82rem; margin-left:6px;">
+                    (${escapeHtml(stu.rollNumber || stu.studentId)})
+                  </span>
+                </li>
+              `
+                )
+                .join('')}
+            </ul>
+          </div>
+
+          <div style="font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:20px; line-height:1.4;">
+            You can return to the table to enter marks or mark students as absent, or publish anyway for the entered students.
+          </div>
+
+          <div style="display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap;">
+            <button
+              type="button"
+              class="teach-btn teach-btn-secondary"
+              data-marks-action="modal-edit-result"
+              style="padding:9px 18px; font-weight:700;"
+            >
+              Edit Result
+            </button>
+            <button
+              type="button"
+              class="teach-btn teach-btn-primary"
+              data-marks-action="modal-publish-anyway"
+              style="padding:9px 18px; font-weight:700; background:#ef4444; border-color:#ef4444; color:#ffffff;"
+            >
+              Publish Anyway
+            </button>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -1864,6 +2099,14 @@
       });
     });
 
+    container.querySelectorAll('[data-marks-absent-btn]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const sId = btn.getAttribute('data-marks-absent-btn');
+        const currentAbsent = Boolean(state.absentByStudentId && state.absentByStudentId[sId]);
+        setStudentAbsent(sId, !currentAbsent);
+      });
+    });
+
     const bindAction = (actionName, handler) => {
       container.querySelectorAll(`[data-marks-action="${actionName}"]`).forEach((btn) => {
         btn.addEventListener('click', handler);
@@ -1876,6 +2119,17 @@
     bindAction('save-config', () => saveExamConfig());
     bindAction('save-draft', () => saveDraft());
     bindAction('publish-results', () => publishResults());
+    bindAction('modal-edit-result', () => {
+      state.missingMarksModalOpen = false;
+      render();
+    });
+    bindAction('close-missing-modal', () => {
+      state.missingMarksModalOpen = false;
+      render();
+    });
+    bindAction('modal-publish-anyway', () => {
+      publishResults({ force: true });
+    });
     bindAction('save-published-edits', () => savePublishedEdits());
     bindAction('discard-changes', () => {
       discardUnsavedChanges();
@@ -1963,6 +2217,7 @@
     selectExamType,
     setMaxMarksInput,
     setStudentMark,
+    setStudentAbsent,
     saveExamConfig,
     saveDraft,
     publishResults,

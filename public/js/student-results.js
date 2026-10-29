@@ -1154,14 +1154,19 @@
                                           `;
                                         }
 
-                                        const isMissing = Boolean(
+                                        const isAbsent = Boolean(
+                                          slot.isAbsent || slot.status === 'Absent' || slot.publicationStatus === 'Absent'
+                                        );
+                                        const isMissing = !isAbsent && Boolean(
                                           slot.isMissing || slot.obtainedMarks === null || slot.obtainedMarks === undefined
                                         );
-                                        const pctText = isMissing
+                                        const pctText = isAbsent
+                                          ? 'Fail'
+                                          : isMissing
                                           ? 'Missing Marks'
                                           : formatPercentage(slot.percentage, slot.percentageAvailable);
                                         const barWidth =
-                                          !isMissing && Number.isFinite(Number(slot.percentage))
+                                          !isAbsent && !isMissing && Number.isFinite(Number(slot.percentage))
                                             ? Math.max(0, Math.min(100, Number(slot.percentage)))
                                             : 0;
 
@@ -1170,7 +1175,9 @@
                                             <td style="font-weight:700;">${escapeHtml(slot.examType)}</td>
                                             <td style="font-weight:800;">
                                               ${
-                                                isMissing
+                                                isAbsent
+                                                  ? '<span style="color:#ef4444; font-weight:700;">Absent</span>'
+                                                  : isMissing
                                                   ? '<span style="color:var(--text-muted, #a1a1aa);">Missing</span>'
                                                   : escapeHtml(formatNumber(slot.obtainedMarks))
                                               }
@@ -1178,9 +1185,9 @@
                                             <td>${escapeHtml(formatNumber(slot.maxMarks))}</td>
                                             <td>
                                               <div style="display:flex; align-items:center; gap:10px;">
-                                                <strong style="min-width:50px;">${escapeHtml(pctText)}</strong>
+                                                <strong style="min-width:50px; ${isAbsent ? 'color:#ef4444;' : ''}">${escapeHtml(pctText)}</strong>
                                                 ${
-                                                  !isMissing
+                                                  !isMissing && !isAbsent
                                                     ? `
                                                   <div class="stu-res-progress-track" aria-hidden="true">
                                                     <div class="stu-res-progress-fill" style="width:${barWidth}%;"></div>
@@ -1191,7 +1198,9 @@
                                               </div>
                                             </td>
                                             <td>
-                                              <span class="stu-res-badge published">Published</span>
+                                              <span class="stu-res-badge ${isAbsent ? 'absent' : 'published'}" style="${isAbsent ? 'background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);' : ''}">
+                                                ${isAbsent ? 'Absent' : 'Published'}
+                                              </span>
                                               ${
                                                 slot.publishedAt
                                                   ? `<span style="font-size:0.74rem; color:var(--text-muted, #a1a1aa); margin-left:6px;">${escapeHtml(formatDateDisplay(slot.publishedAt))}</span>`

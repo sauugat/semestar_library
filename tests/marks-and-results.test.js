@@ -1505,4 +1505,181 @@ test('10. Downloadable A4 PDF Report Card: Binary PDF Validity, pdfjs-dist Parsi
   assert.equal((await badSemPdfRes.json()).code, 'INVALID_SEMESTER');
 });
 
+test('11. Absent Student Handling & Missing Marks Warning Modal on Publish', async () => {
+  // 1. Configure and verify Absent Student via API
+  const draftRes = await appFetch(`${baseUrl}/api/marks/draft`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      subjectId: 'CIT111',
+      examType: 'Pre-Board Exam',
+      maxMarks: 50,
+      records: [
+        { studentId: '26020301', obtainedMarks: 45, isAbsent: false },
+        { studentId: '26020302', obtainedMarks: null, isAbsent: true }
+      ]
+    })
+  });
+  assert.equal(draftRes.status, 200);
+  const draftData = await draftRes.json();
+  assert.equal(draftData.summary.enteredCount, 2);
+  assert.equal(draftData.summary.missingCount, 0);
+
+  const stu1Draft = draftData.students.find((s) => s.studentId === '26020301');
+  const stu2Draft = draftData.students.find((s) => s.studentId === '26020302');
+  assert.equal(stu1Draft.obtainedMarks, 45);
+  assert.equal(stu1Draft.isAbsent, false);
+  assert.equal(stu2Draft.obtainedMarks, null);
+  assert.equal(stu2Draft.isAbsent, true);
+  assert.equal(stu2Draft.entryStatus, 'absent');
+  assert.equal(stu2Draft.isMissing, false);
+
+  // 2. Test Frontend Workspace missing marks pop-up modal and absent toggle
+  const makeEl = (tag = 'div') => ({
+    tagName: tag.toUpperCase(),
+    id: '',
+    className: '',
+    textContent: '',
+    value: '',
+    style: {},
+    attributes: {},
+    listeners: {},
+    _innerHTML: '',
+    set innerHTML(val) {
+      this._innerHTML = val;
+    },
+    get innerHTML() {
+      return this._innerHTML;
+    },
+    setAttribute(k, v) {
+      this.attributes[k] = String(v);
+    },
+    getAttribute(k) {
+      return this.attributes[k] || null;
+    },
+    removeAttribute(k) {
+      delete this.attributes[k];
+    },
+    classList: {
+      _classes: new Set(),
+      add(c) {
+        this._classes.add(c);
+      },
+      remove(c) {
+        this._classes.delete(c);
+      },
+      contains(c) {
+        return this._classes.has(c);
+      }
+    },
+    appendChild() {},
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  });
+
+  const teacherMount = makeEl('div');
+  const teacherWindow = {
+    URLSearchParams,
+    confirm: () => true,
+    addEventListener() {},
+    document: {
+      head: { appendChild() {} },
+      getElementById: () => null,
+      createElement: (tag) => makeEl(tag),
+      querySelector: () => teacherMount
+    },
+    SemesterAuth: {
+      authFetch: (url, opts = {}) =>
+        appFetch(`${baseUrl}${url}`, {
+          ...opts,
+          headers: { ...(opts.headers || {}), Authorization: `Bearer ${teacherAToken}` }
+        })
+    }
+  };
+  teacherWindow.window = teacherWindow;
+
+  const teacherScript = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'js', 'teacher-marks-entry.js'),
+    'utf8'
+  );
+  vm.runInNewContext(teacherScript, teacherWindow);
+
+  const tWorkspace = teacherWindow.TeacherMarksEntryWorkspace;
+  await tWorkspace.mount(teacherMount, { subjectKey: 'CIT111', examType: 'Final Exam' });
+  tWorkspace.setMaxMarksInput('50');
+
+  // Case A: Missing student mark triggers modal on publish
+  tWorkspace.setStudentMark('26020301', '40');
+  // 26020302 has no mark and is not absent
+  assert.equal(tWorkspace.getState().absentByStudentId['26020302'], false);
+  await tWorkspace.publishResults();
+
+  // Pop-up modal opened instead of publishing
+  assert.equal(tWorkspace.getState().missingMarksModalOpen, true);
+  assert.equal(tWorkspace.getState().missingStudentsForModal.length, 1);
+  assert.equal(tWorkspace.getState().missingStudentsForModal[0].studentId, '26020302');
+  assert.ok(teacherMount.innerHTML.includes('Missing Marks Notice'));
+  assert.ok(teacherMount.innerHTML.includes('Edit Result'));
+  assert.ok(teacherMount.innerHTML.includes('Publish Anyway'));
+
+  // Case B: Mark the missing student as Absent, then publish succeeds cleanly
+  tWorkspace.setStudentAbsent('26020302', true);
+  assert.equal(tWorkspace.getState().absentByStudentId['26020302'], true);
+  assert.equal(tWorkspace.getState().marksByStudentId['26020302'], '');
+
+  await tWorkspace.publishResults();
+  assert.equal(tWorkspace.getState().missingMarksModalOpen, false);
+  assert.ok(teacherMount.innerHTML.includes('Marks Published'));
+
+  // 3. Verify student published result for the absent student (26020302)
+  const stu2Res = await (
+    await appFetch(`${baseUrl}/api/results/my-results`, {
+      headers: { Authorization: `Bearer ${student2Token}` }
+    })
+  ).json();
+  const stu2FinalExam = stu2Res.results.find((r) => r.examType === 'Final Exam' && r.subjectCode === 'CIT111');
+  assert.ok(stu2FinalExam, 'Absent student final exam result should be present');
+  assert.equal(stu2FinalExam.isAbsent, true);
+  assert.equal(stu2FinalExam.passFail, 'Fail');
+  assert.equal(stu2FinalExam.publicationStatus, 'Absent');
+
+  // 4. Verify student dashboard renders absent badges and Fail
+  const studentMount = makeEl('div');
+  const studentWindow = {
+    URLSearchParams,
+    document: {
+      head: { appendChild() {} },
+      getElementById: () => null,
+      createElement: (tag) => makeEl(tag),
+      querySelector: () => studentMount
+    },
+    SemesterAuth: {
+      authFetch: (url, opts = {}) =>
+        appFetch(`${baseUrl}${url}`, {
+          ...opts,
+          headers: { ...(opts.headers || {}), Authorization: `Bearer ${student2Token}` }
+        })
+    }
+  };
+  studentWindow.window = studentWindow;
+
+  const studentScript = fs.readFileSync(
+    path.join(__dirname, '..', 'public', 'js', 'student-results.js'),
+    'utf8'
+  );
+  vm.runInNewContext(studentScript, studentWindow);
+
+  const sDashboard = studentWindow.StudentResultsDashboard;
+  await sDashboard.mount(studentMount);
+  assert.ok(studentMount.innerHTML.includes('Absent'));
+  assert.ok(studentMount.innerHTML.includes('Fail'));
+});
+
 

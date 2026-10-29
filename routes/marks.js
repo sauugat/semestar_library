@@ -312,10 +312,10 @@ function createMarksRouter(arg1, arg2) {
     }
   };
 
-  router.post('/draft', requireLogin, handleSaveMarks({ publish: false }));
-  router.put('/draft', requireLogin, handleSaveMarks({ publish: false }));
-  router.post('/save', requireLogin, handleSaveMarks({ publish: false }));
-  router.put('/save', requireLogin, handleSaveMarks({ publish: false }));
+  router.post('/draft', requireLogin, handleSaveMarks({ publish: false, editPublished: true }));
+  router.put('/draft', requireLogin, handleSaveMarks({ publish: false, editPublished: true }));
+  router.post('/save', requireLogin, handleSaveMarks({ publish: false, editPublished: true }));
+  router.put('/save', requireLogin, handleSaveMarks({ publish: false, editPublished: true }));
 
   /**
    * 6. POST / PUT /api/marks/publish
@@ -369,9 +369,9 @@ function createMarksRouter(arg1, arg2) {
    * 7. PUT / PATCH / POST /api/marks/published (and /api/marks/edit-published)
    * Authorized editing of already-published marks with audit tracking.
    */
-  router.put('/published', requireLogin, handleSaveMarks({ editPublished: true }));
-  router.patch('/published', requireLogin, handleSaveMarks({ editPublished: true }));
-  router.post('/edit-published', requireLogin, handleSaveMarks({ editPublished: true }));
+  router.put('/published', requireLogin, handleSaveMarks({ editPublished: true, publish: true }));
+  router.patch('/published', requireLogin, handleSaveMarks({ editPublished: true, publish: true }));
+  router.post('/edit-published', requireLogin, handleSaveMarks({ editPublished: true, publish: true }));
 
   /**
    * 8. GET /api/marks/audit

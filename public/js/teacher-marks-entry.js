@@ -663,7 +663,7 @@
     }
   }
 
-  function applyRosterDataToState(data) {
+  function applyRosterDataToState(data, options = {}) {
     state.rosterSubject = data.subject || null;
     state.rosterCohort = data.cohort || null;
     state.examConfig = data.examConfig || null;
@@ -688,7 +688,9 @@
     state.initialMarksSnapshot = JSON.stringify(marksMap);
     state.validationErrorsByStudentId = {};
     state.maxMarksValidationError = null;
-    state.isEditingPublished = false;
+    if (options.resetEditingPublished !== false) {
+      state.isEditingPublished = false;
+    }
   }
 
   async function selectSubject(subjectId, examType = null) {
@@ -745,6 +747,14 @@
       state.summary.isPublished &&
       !state.isEditingPublished;
     if (isLockedPublished) return;
+
+    const maxCheck = validateMaxMarksValue(state.maxMarksInput);
+    const effectiveMax = maxCheck.valid
+      ? maxCheck.value
+      : state.examConfig && state.examConfig.configured
+      ? Number(state.examConfig.maxMarks)
+      : null;
+    if (effectiveMax === null || effectiveMax <= 0) return;
 
     state.marksByStudentId[studentId] = rawVal === null || rawVal === undefined ? '' : String(rawVal);
     runAllClientValidations();
@@ -864,7 +874,7 @@
         throw new Error(data.message || 'Failed to save draft marks.');
       }
 
-      applyRosterDataToState(data);
+      applyRosterDataToState(data, { resetEditingPublished: false });
       state.savingDraft = false;
       if (!silent) {
         state.actionSuccessMessage = `Draft marks saved for ${state.selectedExamType}.`;
@@ -949,7 +959,13 @@
 
   function updateMaxMarksInView() {
     if (!state.containerEl) return;
-    const effectiveMax = state.examConfig && state.examConfig.maxMarks ? Number(state.examConfig.maxMarks) : null;
+    const maxCheck = validateMaxMarksValue(state.maxMarksInput);
+    const effectiveMax = maxCheck.valid
+      ? maxCheck.value
+      : state.examConfig && state.examConfig.maxMarks
+      ? Number(state.examConfig.maxMarks)
+      : null;
+    const isLockedPublished = Boolean(state.summary && (state.summary.isPublished || state.summary.hasPublishedMarks)) && !state.isEditingPublished;
     const activeTab = state.containerEl.querySelector('.sl-marks-exam-tab.active .sl-marks-exam-tab-meta');
     if (activeTab) {
       activeTab.textContent = effectiveMax !== null ? `Max Marks: ${effectiveMax}` : 'Max Marks Not Configured';
@@ -958,14 +974,38 @@
       td.textContent = effectiveMax !== null ? String(effectiveMax) : '—';
     });
     state.containerEl.querySelectorAll('[data-marks-student-input]').forEach((inp) => {
-      if (effectiveMax !== null) {
+      if (effectiveMax !== null && effectiveMax > 0) {
         inp.setAttribute('max', String(effectiveMax));
+        inp.setAttribute('placeholder', 'Missing');
+        if (!isLockedPublished) {
+          inp.removeAttribute('disabled');
+        }
       } else {
         inp.removeAttribute('max');
+        inp.setAttribute('placeholder', 'Enter max marks first');
+        inp.setAttribute('disabled', 'disabled');
       }
       const sId = inp.getAttribute('data-marks-student-input');
       updateStudentRowLive(sId);
     });
+
+    const maxNotice = state.containerEl.querySelector('#slMarksNoMaxNotice');
+    if (maxNotice) {
+      maxNotice.style.display = effectiveMax !== null && effectiveMax > 0 ? 'none' : 'block';
+    }
+    const statusBar = state.containerEl.querySelector('#slMarksStatusBar');
+    if (statusBar && (!effectiveMax || effectiveMax <= 0)) {
+      statusBar.textContent = 'Please enter Maximum Marks first.';
+    }
+
+    const pubBtn = state.containerEl.querySelector('[data-marks-action="publish-results"]');
+    if (pubBtn && !isLockedPublished) {
+      if (effectiveMax !== null && effectiveMax > 0 && !state.publishing && !state.savingDraft) {
+        pubBtn.removeAttribute('disabled');
+      } else {
+        pubBtn.setAttribute('disabled', 'disabled');
+      }
+    }
   }
 
   function updateStudentRowLive(studentId) {
@@ -1129,7 +1169,7 @@
         throw new Error(data.message || 'Failed to update published results.');
       }
 
-      applyRosterDataToState(data);
+      applyRosterDataToState(data, { resetEditingPublished: false });
       state.savingDraft = false;
       state.isEditingPublished = false;
       state.editReason = '';
@@ -1268,8 +1308,11 @@
     const selectedSubj = getSelectedSubjectObj();
     const metrics = getLiveTableMetrics();
     const filteredStudents = getFilteredStudents();
-    const isPublished = Boolean(state.summary && state.summary.isPublished);
+    const isPublished = Boolean(
+      state.summary && (state.summary.isPublished || state.summary.hasPublishedMarks)
+    );
     const isLockedPublished = isPublished && !state.isEditingPublished;
+    const hasConfiguredMax = metrics.effectiveMax !== null && metrics.effectiveMax > 0;
     const dirty = hasUnsavedChanges();
 
     return `
@@ -1366,38 +1409,32 @@
                 : ''
             }
 
-            <!-- Published Lock / Authorized Edit Banner -->
+            <!-- Published Status & Edit Marks Bar -->
             ${
               isPublished
                 ? `
-              <div class="sl-marks-banner">
-                <div>
-                  <span class="sl-marks-badge published" style="margin-right:8px;">Published</span>
-                  ${
-                    isLockedPublished
-                      ? `Results for <strong>${escapeHtml(state.selectedExamType)}</strong> are published and visible to students. Click <strong>Edit Published Marks</strong> to make an audited correction.`
-                      : `<strong>Authorized Edit Mode Active:</strong> Changes to published marks will be tracked in the audit log.`
-                  }
+              <div class="sl-marks-banner" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:12px 18px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span class="sl-marks-badge published" style="font-size:0.84rem; padding:4px 14px; font-weight:700;">Marks Published</span>
+                  <span style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">
+                    ${
+                      isLockedPublished
+                        ? `Results for ${escapeHtml(state.selectedExamType)} are published.`
+                        : `Editing mode active. Marks are saved online and will update for students when published.`
+                    }
+                  </span>
                 </div>
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <div>
                   ${
                     isLockedPublished
                       ? `
                     <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="enable-published-edit">
-                      Edit Published Marks
+                      Edit Marks
                     </button>
                   `
                       : `
-                    <input
-                      type="text"
-                      class="sl-marks-input"
-                      placeholder="Reason for editing published marks (optional)…"
-                      value="${escapeHtml(state.editReason)}"
-                      data-marks-field="edit-reason"
-                      style="min-width:240px;"
-                    />
                     <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="cancel-published-edit">
-                      Cancel Edit
+                      Done Editing
                     </button>
                   `
                   }
@@ -1415,6 +1452,9 @@
                 </div>
                 <div style="font-size:0.84rem; color:var(--teach-text-secondary, #a3a3a3);">
                   Set the maximum marks for this exam (must be greater than 0). Percentage is calculated as (Obtained / Maximum) &times; 100.
+                </div>
+                <div id="slMarksNoMaxNotice" style="display:${hasConfiguredMax ? 'none' : 'block'}; margin-top:6px; font-size:0.82rem; font-weight:600; color:#eab308;">
+                  Please enter Maximum Marks to enable student marks entry.
                 </div>
               </div>
 
@@ -1546,10 +1586,10 @@
                                 ${metrics.effectiveMax !== null ? `max="${escapeHtml(metrics.effectiveMax)}"` : ''}
                                 step="any"
                                 class="sl-marks-input ${rowError ? 'invalid' : ''}"
-                                placeholder="Missing"
+                                placeholder="${!hasConfiguredMax ? 'Enter max marks first' : 'Missing'}"
                                 value="${escapeHtml(rawMark)}"
                                 data-marks-student-input="${escapeHtml(stu.studentId)}"
-                                ${isLockedPublished ? 'disabled' : ''}
+                                ${isLockedPublished || !hasConfiguredMax ? 'disabled' : ''}
                                 style="width:130px;"
                               />
                               ${
@@ -1583,7 +1623,9 @@
             <div class="sl-marks-actions-bar">
               <div style="font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);" id="slMarksStatusBar">
                 ${
-                  state.savingDraft
+                  !hasConfiguredMax
+                    ? 'Please enter Maximum Marks first.'
+                    : state.savingDraft
                     ? 'Saving marks automatically…'
                     : metrics.missingCount > 0
                     ? `${metrics.missingCount} student(s) currently have missing marks.`
@@ -1592,29 +1634,14 @@
               </div>
 
               <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                ${
-                  isPublished && state.isEditingPublished
-                    ? `
-                  <button
-                    type="button"
-                    class="teach-btn teach-btn-primary"
-                    data-marks-action="save-published-edits"
-                    ${state.savingDraft ? 'disabled' : ''}
-                  >
-                    ${state.savingDraft ? 'Saving Changes…' : 'Save Published Changes'}
-                  </button>
-                `
-                    : `
-                  <button
-                    type="button"
-                    class="teach-btn teach-btn-primary"
-                    data-marks-action="publish-results"
-                    ${isLockedPublished || state.savingDraft || state.publishing ? 'disabled' : ''}
-                  >
-                    ${state.publishing ? 'Publishing…' : 'Publish Results'}
-                  </button>
-                `
-                }
+                <button
+                  type="button"
+                  class="teach-btn teach-btn-primary"
+                  data-marks-action="publish-results"
+                  ${isLockedPublished || !hasConfiguredMax || state.savingDraft || state.publishing ? 'disabled' : ''}
+                >
+                  ${state.publishing ? 'Publishing…' : 'Publish Results'}
+                </button>
               </div>
             </div>
           </div>
@@ -1732,6 +1759,7 @@
     if (maxInput) {
       maxInput.addEventListener('input', (e) => {
         setMaxMarksInput(e.target.value);
+        updateMaxMarksInView();
         if (maxMarksSaveTimer) clearTimeout(maxMarksSaveTimer);
         const check = validateMaxMarksValue(e.target.value);
         if (check.valid) {
@@ -1870,8 +1898,15 @@
       state.isEditingPublished = true;
       render();
     });
-    bindAction('cancel-published-edit', () => {
-      discardUnsavedChanges();
+    bindAction('cancel-published-edit', async () => {
+      if (marksAutoSaveTimer) {
+        clearTimeout(marksAutoSaveTimer);
+        marksAutoSaveTimer = null;
+      }
+      if (hasUnsavedChanges()) {
+        await saveDraft(true);
+      }
+      state.isEditingPublished = false;
       render();
     });
     bindAction('open-audit', () => openAuditModal());

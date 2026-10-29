@@ -1409,241 +1409,247 @@
                 : ''
             }
 
-            <!-- Published Status & Edit Marks Bar -->
             ${
-              isPublished
+              isLockedPublished
                 ? `
-              <div class="sl-marks-banner" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:12px 18px;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                  <span class="sl-marks-badge published" style="font-size:0.84rem; padding:4px 14px; font-weight:700;">Marks Published</span>
-                  <span style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">
-                    ${
-                      isLockedPublished
-                        ? `Results for ${escapeHtml(state.selectedExamType)} are published.`
-                        : `Editing mode active. Marks are saved online and will update for students when published.`
-                    }
+              <!-- Published View: Only show "Marks Published", result summary text, and "Edit Marks" button -->
+              <div class="sl-marks-banner" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:18px 20px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <span class="sl-marks-badge published" style="font-size:0.86rem; padding:4px 14px; font-weight:700;">Marks Published</span>
+                  <span style="font-size:0.9rem; color:var(--teach-text-secondary, #a3a3a3);">
+                    Results for ${escapeHtml(state.selectedExamType)} are published.
                   </span>
                 </div>
                 <div>
-                  ${
-                    isLockedPublished
-                      ? `
-                    <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="enable-published-edit">
-                      Edit Marks
-                    </button>
-                  `
-                      : `
-                    <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="cancel-published-edit">
-                      Done Editing
-                    </button>
-                  `
-                  }
-                </div>
-              </div>
-            `
-                : ''
-            }
-
-            <!-- Exam Configuration Bar -->
-            <div class="sl-marks-config-bar">
-              <div style="flex:1; min-width:220px;">
-                <div style="font-size:0.76rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:4px;">
-                  Exam Configuration &middot; ${escapeHtml(state.selectedExamType)}
-                </div>
-                <div style="font-size:0.84rem; color:var(--teach-text-secondary, #a3a3a3);">
-                  Set the maximum marks for this exam (must be greater than 0). Percentage is calculated as (Obtained / Maximum) &times; 100.
-                </div>
-                <div id="slMarksNoMaxNotice" style="display:${hasConfiguredMax ? 'none' : 'block'}; margin-top:6px; font-size:0.82rem; font-weight:600; color:#eab308;">
-                  Please enter Maximum Marks to enable student marks entry.
-                </div>
-              </div>
-
-              <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
-                <div>
-                  <label for="slMarksMaxInput" style="display:block; font-size:0.74rem; font-weight:700; text-transform:uppercase; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:5px;">
-                    Maximum Marks
-                  </label>
-                  <div style="display:flex; align-items:center; gap:8px;">
-                    <input
-                      id="slMarksMaxInput"
-                      type="number"
-                      min="1"
-                      step="any"
-                      class="sl-marks-input ${state.maxMarksValidationError ? 'invalid' : ''}"
-                      placeholder="e.g. 50 or 100"
-                      value="${escapeHtml(state.maxMarksInput)}"
-                      data-marks-field="max-marks"
-                      ${isLockedPublished ? 'disabled' : ''}
-                      style="width:150px;"
-                    />
-                    <span id="slMarksMaxSaveStatus" style="font-size:0.75rem; font-weight:600; color:var(--teach-text-secondary, #a3a3a3); min-width:44px;"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Search & Status Filter Toolbar -->
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
-              <input
-                type="search"
-                class="sl-marks-input"
-                placeholder="Search student by name or roll / ID…"
-                value="${escapeHtml(state.studentSearchQuery)}"
-                data-marks-field="student-search"
-                style="min-width:250px; flex:1; max-width:380px;"
-              />
-              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                ${[
-                  { id: 'ALL', label: `All (${metrics.totalStudents})` },
-                  { id: 'MISSING', label: `Missing (${metrics.missingCount})` },
-                  { id: 'PUBLISHED', label: `Published (${metrics.publishedCount})` }
-                ]
-                  .map(
-                    (f) => `
-                  <button
-                    type="button"
-                    class="sl-marks-filter-pill ${state.statusFilter === f.id ? 'active' : ''}"
-                    data-marks-status-filter="${f.id}"
-                  >
-                    ${escapeHtml(f.label)}
+                  <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="enable-published-edit">
+                    Edit Marks
                   </button>
-                `
-                  )
-                  .join('')}
-              </div>
-            </div>
-
-            <!-- Student Marks Entry Table -->
-            ${
-              state.students.length === 0
-                ? `
-              <div style="text-align:center; padding:36px 20px; border:1px dashed var(--teach-border, #2a2a2a); border-radius:12px;">
-                <div style="font-weight:700; margin-bottom:6px;">No Enrolled Students Found</div>
-                <div style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">
-                  No active students are currently enrolled in Semester ${escapeHtml(selectedSubj ? selectedSubj.semester : '')}.
-                </div>
-              </div>
-            `
-                : filteredStudents.length === 0
-                ? `
-              <div style="text-align:center; padding:32px 20px; border:1px dashed var(--teach-border, #2a2a2a); border-radius:12px;">
-                <div style="font-weight:700; margin-bottom:4px;">No Matching Students</div>
-                <div style="font-size:0.84rem; color:var(--teach-text-secondary, #a3a3a3);">
-                  Try clearing your search or status filter.
                 </div>
               </div>
             `
                 : `
-              <div class="sl-marks-table-wrap">
-                <table class="sl-marks-table" id="slMarksEntryTable">
-                  <thead>
-                    <tr>
-                      <th style="width:48px;">#</th>
-                      <th>Student Name</th>
-                      <th>Roll No / Student ID</th>
-                      <th style="width:170px;">Obtained Marks</th>
-                      <th style="width:130px;">Maximum Marks</th>
-                      <th style="width:120px;">Percentage</th>
-                      <th style="width:150px;">Entry Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${filteredStudents
-                      .map((stu, idx) => {
-                        const rawMark = state.marksByStudentId[stu.studentId] ?? '';
-                        const trimmed = String(rawMark).trim();
-                        const isMissing = trimmed === '';
-                        const rowError = state.validationErrorsByStudentId[stu.studentId] || null;
-                        const pct = !isMissing && !rowError
-                          ? calculatePercentage(trimmed, metrics.effectiveMax)
-                          : null;
+              <!-- Editing Mode or Unpublished View -->
+              ${
+                isPublished
+                  ? `
+                <div class="sl-marks-banner" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:12px 18px;">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="sl-marks-badge published" style="font-size:0.84rem; padding:4px 14px; font-weight:700;">Marks Published</span>
+                    <span style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">
+                      Editing mode active. Marks are saved online and will update for students when published.
+                    </span>
+                  </div>
+                  <div>
+                    <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="cancel-published-edit">
+                      Done Editing
+                    </button>
+                  </div>
+                </div>
+              `
+                  : ''
+              }
 
-                        const badgeClass = isMissing ? 'missing' : 'published';
-                        const badgeText = isMissing
-                          ? 'Missing Marks'
-                          : stu.entryStatus === 'published' && String(stu.obtainedMarks ?? '') === trimmed
-                          ? 'Published'
-                          : 'Saved';
+              <!-- Exam Configuration Bar -->
+              <div class="sl-marks-config-bar">
+                <div style="flex:1; min-width:220px;">
+                  <div style="font-size:0.76rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:4px;">
+                    Exam Configuration &middot; ${escapeHtml(state.selectedExamType)}
+                  </div>
+                  <div style="font-size:0.84rem; color:var(--teach-text-secondary, #a3a3a3);">
+                    Set the maximum marks for this exam (must be greater than 0). Percentage is calculated as (Obtained / Maximum) &times; 100.
+                  </div>
+                  <div id="slMarksNoMaxNotice" style="display:${hasConfiguredMax ? 'none' : 'block'}; margin-top:6px; font-size:0.82rem; font-weight:600; color:#eab308;">
+                    Please enter Maximum Marks to enable student marks entry.
+                  </div>
+                </div>
 
-                        return `
-                          <tr class="${isMissing ? 'missing-row' : ''}" data-student-row="${escapeHtml(stu.studentId)}">
-                            <td style="color:var(--teach-text-secondary, #a3a3a3); font-weight:600;">${idx + 1}</td>
-                            <td>
-                              <div style="font-weight:700;">${escapeHtml(stu.name)}</div>
-                              ${
-                                stu.cohortName
-                                  ? `<div style="font-size:0.74rem; color:var(--teach-text-secondary, #a3a3a3);">${escapeHtml(stu.cohortName)} Cohort</div>`
-                                  : ''
-                              }
-                            </td>
-                            <td style="font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.83rem;">
-                              ${escapeHtml(stu.rollNumber || stu.studentId)}
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                min="0"
-                                ${metrics.effectiveMax !== null ? `max="${escapeHtml(metrics.effectiveMax)}"` : ''}
-                                step="any"
-                                class="sl-marks-input ${rowError ? 'invalid' : ''}"
-                                placeholder="${!hasConfiguredMax ? 'Enter max marks first' : 'Missing'}"
-                                value="${escapeHtml(rawMark)}"
-                                data-marks-student-input="${escapeHtml(stu.studentId)}"
-                                ${isLockedPublished || !hasConfiguredMax ? 'disabled' : ''}
-                                style="width:130px;"
-                              />
-                              ${
-                                rowError
-                                  ? `<div class="sl-marks-row-error" style="font-size:0.72rem; color:#ef4444; margin-top:4px; font-weight:600;">${escapeHtml(rowError)}</div>`
-                                  : ''
-                              }
-                            </td>
-                            <td style="font-weight:700;" data-marks-max-col>
-                              ${metrics.effectiveMax !== null ? escapeHtml(metrics.effectiveMax) : '—'}
-                            </td>
-                            <td style="font-weight:800;" data-marks-pct-col>
-                              ${formatPercentage(pct)}
-                            </td>
-                            <td>
-                              <span class="sl-marks-badge ${badgeClass}" data-student-status="${escapeHtml(stu.studentId)}">
-                                ${escapeHtml(badgeText)}
-                              </span>
-                            </td>
-                          </tr>
-                        `;
-                      })
-                      .join('')}
-                  </tbody>
-                </table>
+                <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+                  <div>
+                    <label for="slMarksMaxInput" style="display:block; font-size:0.74rem; font-weight:700; text-transform:uppercase; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:5px;">
+                      Maximum Marks
+                    </label>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <input
+                        id="slMarksMaxInput"
+                        type="number"
+                        min="1"
+                        step="any"
+                        class="sl-marks-input ${state.maxMarksValidationError ? 'invalid' : ''}"
+                        placeholder="e.g. 50 or 100"
+                        value="${escapeHtml(state.maxMarksInput)}"
+                        data-marks-field="max-marks"
+                        style="width:150px;"
+                      />
+                      <span id="slMarksMaxSaveStatus" style="font-size:0.75rem; font-weight:600; color:var(--teach-text-secondary, #a3a3a3); min-width:44px;"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Search & Status Filter Toolbar -->
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;">
+                <input
+                  type="search"
+                  class="sl-marks-input"
+                  placeholder="Search student by name or roll / ID…"
+                  value="${escapeHtml(state.studentSearchQuery)}"
+                  data-marks-field="student-search"
+                  style="min-width:250px; flex:1; max-width:380px;"
+                />
+                <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                  ${[
+                    { id: 'ALL', label: `All (${metrics.totalStudents})` },
+                    { id: 'MISSING', label: `Missing (${metrics.missingCount})` },
+                    { id: 'PUBLISHED', label: `Published (${metrics.publishedCount})` }
+                  ]
+                    .map(
+                      (f) => `
+                    <button
+                      type="button"
+                      class="sl-marks-filter-pill ${state.statusFilter === f.id ? 'active' : ''}"
+                      data-marks-status-filter="${f.id}"
+                    >
+                      ${escapeHtml(f.label)}
+                    </button>
+                  `
+                    )
+                    .join('')}
+                </div>
+              </div>
+
+              <!-- Student Marks Entry Table -->
+              ${
+                state.students.length === 0
+                  ? `
+                <div style="text-align:center; padding:36px 20px; border:1px dashed var(--teach-border, #2a2a2a); border-radius:12px;">
+                  <div style="font-weight:700; margin-bottom:6px;">No Enrolled Students Found</div>
+                  <div style="font-size:0.85rem; color:var(--teach-text-secondary, #a3a3a3);">
+                    No active students are currently enrolled in Semester ${escapeHtml(selectedSubj ? selectedSubj.semester : '')}.
+                  </div>
+                </div>
+              `
+                  : filteredStudents.length === 0
+                  ? `
+                <div style="text-align:center; padding:32px 20px; border:1px dashed var(--teach-border, #2a2a2a); border-radius:12px;">
+                  <div style="font-weight:700; margin-bottom:4px;">No Matching Students</div>
+                  <div style="font-size:0.84rem; color:var(--teach-text-secondary, #a3a3a3);">
+                    Try clearing your search or status filter.
+                  </div>
+                </div>
+              `
+                  : `
+                <div class="sl-marks-table-wrap">
+                  <table class="sl-marks-table" id="slMarksEntryTable">
+                    <thead>
+                      <tr>
+                        <th style="width:48px;">#</th>
+                        <th>Student Name</th>
+                        <th>Roll No / Student ID</th>
+                        <th style="width:170px;">Obtained Marks</th>
+                        <th style="width:130px;">Maximum Marks</th>
+                        <th style="width:120px;">Percentage</th>
+                        <th style="width:150px;">Entry Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${filteredStudents
+                        .map((stu, idx) => {
+                          const rawMark = state.marksByStudentId[stu.studentId] ?? '';
+                          const trimmed = String(rawMark).trim();
+                          const isMissing = trimmed === '';
+                          const rowError = state.validationErrorsByStudentId[stu.studentId] || null;
+                          const pct = !isMissing && !rowError
+                            ? calculatePercentage(trimmed, metrics.effectiveMax)
+                            : null;
+
+                          const badgeClass = isMissing ? 'missing' : 'published';
+                          const badgeText = isMissing
+                            ? 'Missing Marks'
+                            : stu.entryStatus === 'published' && String(stu.obtainedMarks ?? '') === trimmed
+                            ? 'Published'
+                            : 'Saved';
+
+                          return `
+                            <tr class="${isMissing ? 'missing-row' : ''}" data-student-row="${escapeHtml(stu.studentId)}">
+                              <td style="color:var(--teach-text-secondary, #a3a3a3); font-weight:600;">${idx + 1}</td>
+                              <td>
+                                <div style="font-weight:700;">${escapeHtml(stu.name)}</div>
+                                ${
+                                  stu.cohortName
+                                    ? `<div style="font-size:0.74rem; color:var(--teach-text-secondary, #a3a3a3);">${escapeHtml(stu.cohortName)} Cohort</div>`
+                                    : ''
+                                }
+                              </td>
+                              <td style="font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.83rem;">
+                                ${escapeHtml(stu.rollNumber || stu.studentId)}
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  ${metrics.effectiveMax !== null ? `max="${escapeHtml(metrics.effectiveMax)}"` : ''}
+                                  step="any"
+                                  class="sl-marks-input ${rowError ? 'invalid' : ''}"
+                                  placeholder="${!hasConfiguredMax ? 'Enter max marks first' : 'Missing'}"
+                                  value="${escapeHtml(rawMark)}"
+                                  data-marks-student-input="${escapeHtml(stu.studentId)}"
+                                  ${!hasConfiguredMax ? 'disabled' : ''}
+                                  style="width:130px;"
+                                />
+                                ${
+                                  rowError
+                                    ? `<div class="sl-marks-row-error" style="font-size:0.72rem; color:#ef4444; margin-top:4px; font-weight:600;">${escapeHtml(rowError)}</div>`
+                                    : ''
+                                }
+                              </td>
+                              <td style="font-weight:700;" data-marks-max-col>
+                                ${metrics.effectiveMax !== null ? escapeHtml(metrics.effectiveMax) : '—'}
+                              </td>
+                              <td style="font-weight:800;" data-marks-pct-col>
+                                ${formatPercentage(pct)}
+                              </td>
+                              <td>
+                                <span class="sl-marks-badge ${badgeClass}" data-student-status="${escapeHtml(stu.studentId)}">
+                                  ${escapeHtml(badgeText)}
+                                </span>
+                              </td>
+                            </tr>
+                          `;
+                        })
+                        .join('')}
+                    </tbody>
+                  </table>
+                </div>
+              `
+              }
+
+              <!-- Bottom Actions Bar -->
+              <div class="sl-marks-actions-bar">
+                <div style="font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);" id="slMarksStatusBar">
+                  ${
+                    !hasConfiguredMax
+                      ? 'Please enter Maximum Marks first.'
+                      : state.savingDraft
+                      ? 'Saving marks automatically…'
+                      : metrics.missingCount > 0
+                      ? `${metrics.missingCount} student(s) currently have missing marks.`
+                      : 'All enrolled students have marks recorded and saved.'
+                  }
+                </div>
+
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                  <button
+                    type="button"
+                    class="teach-btn teach-btn-primary"
+                    data-marks-action="publish-results"
+                    ${!hasConfiguredMax || state.savingDraft || state.publishing ? 'disabled' : ''}
+                  >
+                    ${state.publishing ? 'Publishing…' : 'Publish Results'}
+                  </button>
+                </div>
               </div>
             `
             }
-
-            <!-- Bottom Actions Bar -->
-            <div class="sl-marks-actions-bar">
-              <div style="font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);" id="slMarksStatusBar">
-                ${
-                  !hasConfiguredMax
-                    ? 'Please enter Maximum Marks first.'
-                    : state.savingDraft
-                    ? 'Saving marks automatically…'
-                    : metrics.missingCount > 0
-                    ? `${metrics.missingCount} student(s) currently have missing marks.`
-                    : 'All enrolled students have marks recorded and saved.'
-                }
-              </div>
-
-              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <button
-                  type="button"
-                  class="teach-btn teach-btn-primary"
-                  data-marks-action="publish-results"
-                  ${isLockedPublished || !hasConfiguredMax || state.savingDraft || state.publishing ? 'disabled' : ''}
-                >
-                  ${state.publishing ? 'Publishing…' : 'Publish Results'}
-                </button>
-              </div>
-            </div>
           </div>
         `
         }

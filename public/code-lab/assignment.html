@@ -1772,7 +1772,7 @@
             });
 
             // If PDF assignment, add "+ Add Question" button to tab bar
-            if (assignment.pdfUrl) {
+            if (assignment.pdfUrl || assignment.pdfurl || assignment.pdfName || assignment.pdfname) {
                 const addBtn = document.createElement('button');
                 addBtn.type = 'button';
                 addBtn.className = 'cl-tab-add-btn';
@@ -1909,7 +1909,7 @@
         function createQuestionTabAndPanel(q, i, isFirst = false, assignment = null) {
             const tabBar = document.getElementById('tabBar');
             const panels = document.getElementById('panels');
-            const hasPdf = !!(assignment && assignment.pdfUrl);
+            const hasPdf = !!(assignment && (assignment.pdfUrl || assignment.pdfurl || assignment.pdfName || assignment.pdfname));
 
             const displayTitle = (q.userSubmission && q.userSubmission.questionTitle) || q.title || `Question ${q.questionNumber}`;
 
@@ -2120,7 +2120,7 @@
             }
 
             try {
-                const lang = (assignment.questions && assignment.questions[0]?.language) || 'c';
+                const lang = (activeQuestionId && questionState[activeQuestionId]?.language) || (assignment.questions && assignment.questions[0]?.language) || assignment.language || 'c';
                 const res = await fetch(`/api/code-lab/assignments/${assignment.id}/student-questions`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

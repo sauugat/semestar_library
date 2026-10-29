@@ -709,7 +709,7 @@ router.post('/questions/:questionId/submissions', requireLogin, async (req, res)
 
     try {
         // Look up assignment and language from question
-        const question = await db.get('SELECT assignmentId, language FROM assignment_questions WHERE id = ?', questionId);
+        const question = await db.get('SELECT assignmentId, language, title, questionNumber FROM assignment_questions WHERE id = ?', questionId);
         if (!question) {
             return res.status(404).json({ message: 'Question not found.' });
         }
@@ -722,6 +722,7 @@ router.post('/questions/:questionId/submissions', requireLogin, async (req, res)
 
         const now = new Date().toISOString();
         const safeTitle = (questionTitle && typeof questionTitle === 'string' && questionTitle.trim()) ? questionTitle.trim() : null;
+        const finalTitle = safeTitle || (question && question.title) || (question ? `Question ${question.questionNumber}` : 'Question');
 
         // Check for test cases and evaluate server-side
         const testCases = await db.all('SELECT * FROM question_test_cases WHERE questionId = ? ORDER BY id ASC', questionId);
@@ -743,7 +744,7 @@ router.post('/questions/:questionId/submissions', requireLogin, async (req, res)
                 testResults = excluded.testResults,
                 questionTitle = COALESCE(excluded.questionTitle, submissions.questionTitle),
                 submittedAt = excluded.submittedAt
-        `, question.assignmentId, questionId, req.session.studentId, code, stdout || '', stderr || '', testResultsJson, safeTitle || null, now);
+        `, question.assignmentId, questionId, req.session.studentId, code, stdout || '', stderr || '', testResultsJson, finalTitle, now);
 
         // Note: Students retain their custom question title in their submission record,
         // but shared assignment_questions.title is preserved to protect all other students.
@@ -773,12 +774,7 @@ router.post('/assignments/:id/student-questions', requireLogin, async (req, res)
             return res.status(404).json({ message: 'Assignment not found.' });
         }
 
-        const isAdminUser = context.role === 'admin' || (await isAdmin(req.session.studentId));
         const isTeacher = context.role === 'teacher';
-
-        if (!isAdminUser && !isTeacher) {
-            return res.status(403).json({ message: 'Only teachers and admins can add questions.' });
-        }
 
         if (isTeacher) {
             const { validateTeacherSubjectAuthorization } = require('../../lib/teacher-service');
@@ -790,8 +786,8 @@ router.post('/assignments/:id/student-questions', requireLogin, async (req, res)
         }
 
         const { title, language } = req.body;
-        const countRow = await db.get('SELECT COUNT(*) AS cnt FROM assignment_questions WHERE assignmentId = ?', assignmentId);
-        const nextQNum = (Number(countRow?.cnt) || 0) + 1;
+        const countRow = await db.get('SELECT COALESCE(MAX(questionNumber), 0) AS maxQ FROM assignment_questions WHERE assignmentId = ?', assignmentId);
+        const nextQNum = (Number(countRow?.maxq ?? countRow?.maxQ) || 0) + 1;
         const qTitle = (title && typeof title === 'string' && title.trim()) ? title.trim() : `Question ${nextQNum}`;
         const qLang = language || assignment.language || 'c';
         const now = new Date().toISOString();

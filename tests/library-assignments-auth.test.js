@@ -534,3 +534,106 @@ test('Scenario 13: Regressions checked (student submissions, browsing, admin acc
   });
   assert.ok(adminAssign.status === 200 || adminAssign.status === 201, 'Admin can create assignment for any subject');
 });
+
+test('Scenario 14: Student can add questions to PDF assignment and submit code with custom question title', async () => {
+  // 1. Teacher Alpha creates a PDF assignment for Semester 3 subject BCT211
+  const createPdfAssignRes = await fetch(`${baseUrl}/api/code-lab/assignments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${teacherAToken}`
+    },
+    body: JSON.stringify({
+      title: 'Lab Sheet 1 - PDF Assignment',
+      subject: 'BCT211',
+      semester: '3',
+      pdfUrl: '/api/code-lab/pdf/lab_sheet_1.pdf',
+      pdfName: 'lab_sheet_1.pdf'
+    })
+  });
+  assert.ok(createPdfAssignRes.status === 200 || createPdfAssignRes.status === 201, 'Teacher creates PDF assignment');
+  const assignData = await createPdfAssignRes.json();
+  const assignmentId = assignData.id || assignData.assignmentId;
+  assert.ok(assignmentId, 'Assignment ID must be returned');
+
+  // Verify initial question 1 was generated
+  const getAssignRes = await fetch(`${baseUrl}/api/code-lab/assignments/${assignmentId}`, {
+    headers: { 'Authorization': `Bearer ${studentToken}` }
+  });
+  assert.equal(getAssignRes.status, 200);
+  const getAssignData = await getAssignRes.json();
+  assert.equal(getAssignData.questions.length, 1);
+  const q1 = getAssignData.questions[0];
+
+  // 2. Student adds question slot (POST /student-questions)
+  const addQRes = await fetch(`${baseUrl}/api/code-lab/assignments/${assignmentId}/student-questions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${studentToken}`
+    },
+    body: JSON.stringify({ language: 'c', title: 'Problem 2: Matrix Multiplication' })
+  });
+  assert.equal(addQRes.status, 200, 'Student should be allowed to add question slot for PDF assignment');
+  const addQData = await addQRes.json();
+  assert.equal(addQData.success, true);
+  assert.ok(addQData.question && addQData.question.id);
+  assert.equal(addQData.question.questionNumber, 2);
+  const q2 = addQData.question;
+
+  // 3. Student submits code for Question 1 with custom question title (POST /questions/:id/submissions)
+  const subQ1Res = await fetch(`${baseUrl}/api/code-lab/questions/${q1.id}/submissions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${studentToken}`
+    },
+    body: JSON.stringify({
+      code: '#include <stdio.h>\nint main() { printf("Hello Q1\\n"); return 0; }',
+      stdout: 'Hello Q1\n',
+      stderr: '',
+      questionTitle: 'Q1: Pointer Basics'
+    })
+  });
+  assert.equal(subQ1Res.status, 200, 'Student code submission for Q1 must succeed without ReferenceError');
+  const subQ1Data = await subQ1Res.json();
+  assert.equal(subQ1Data.message, 'Submitted successfully');
+  assert.equal(subQ1Data.questionTitle, 'Q1: Pointer Basics');
+
+  // 4. Student submits code for newly added Question 2
+  const subQ2Res = await fetch(`${baseUrl}/api/code-lab/questions/${q2.id}/submissions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${studentToken}`
+    },
+    body: JSON.stringify({
+      code: '#include <stdio.h>\nint main() { printf("Hello Q2\\n"); return 0; }',
+      stdout: 'Hello Q2\n',
+      stderr: '',
+      questionTitle: 'Problem 2: Matrix Multiplication'
+    })
+  });
+  assert.equal(subQ2Res.status, 200, 'Student code submission for Q2 must succeed');
+  const subQ2Data = await subQ2Res.json();
+  assert.equal(subQ2Data.message, 'Submitted successfully');
+  assert.equal(subQ2Data.questionTitle, 'Problem 2: Matrix Multiplication');
+
+  // 5. Verify assignment details return both questions and both student submissions with custom titles
+  const reGetAssignRes = await fetch(`${baseUrl}/api/code-lab/assignments/${assignmentId}`, {
+    headers: { 'Authorization': `Bearer ${studentToken}` }
+  });
+  assert.equal(reGetAssignRes.status, 200);
+  const reGetData = await reGetAssignRes.json();
+  assert.equal(reGetData.questions.length, 2);
+
+  const reQ1 = reGetData.questions.find(q => q.id === q1.id);
+  assert.ok(reQ1 && reQ1.userSubmission);
+  assert.equal(reQ1.userSubmission.questionTitle, 'Q1: Pointer Basics');
+  assert.ok(reQ1.userSubmission.code.includes('Hello Q1'));
+
+  const reQ2 = reGetData.questions.find(q => q.id === q2.id);
+  assert.ok(reQ2 && reQ2.userSubmission);
+  assert.equal(reQ2.userSubmission.questionTitle, 'Problem 2: Matrix Multiplication');
+  assert.ok(reQ2.userSubmission.code.includes('Hello Q2'));
+});

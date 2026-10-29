@@ -120,6 +120,17 @@
     return Number.isInteger(num) ? `${num}%` : `${num.toFixed(2).replace(/\.?0+$/, '')}%`;
   }
 
+  function renderPassFail(pct) {
+    if (pct === null || pct === undefined || !Number.isFinite(Number(pct))) {
+      return '<span style="color:var(--teach-text-secondary, #a3a3a3); font-weight:600;">—</span>';
+    }
+    const isPass = Number(pct) >= 45;
+    const color = isPass ? '#22c55e' : '#ef4444';
+    const bg = isPass ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+    const border = isPass ? 'rgba(34, 197, 94, 0.28)' : 'rgba(239, 68, 68, 0.28)';
+    return `<span style="display:inline-block; padding:3px 12px; border-radius:6px; font-weight:800; font-size:0.8rem; color:${color}; background:${bg}; border:1px solid ${border}; text-transform:uppercase; letter-spacing:0.04em;">${isPass ? 'Pass' : 'Fail'}</span>`;
+  }
+
   function formatTimestamp(isoStr) {
     if (!isoStr) return '—';
     try {
@@ -989,15 +1000,6 @@
       updateStudentRowLive(sId);
     });
 
-    const maxNotice = state.containerEl.querySelector('#slMarksNoMaxNotice');
-    if (maxNotice) {
-      maxNotice.style.display = effectiveMax !== null && effectiveMax > 0 ? 'none' : 'block';
-    }
-    const statusBar = state.containerEl.querySelector('#slMarksStatusBar');
-    if (statusBar && (!effectiveMax || effectiveMax <= 0)) {
-      statusBar.textContent = 'Please enter Maximum Marks first.';
-    }
-
     const pubBtn = state.containerEl.querySelector('[data-marks-action="publish-results"]');
     if (pubBtn && !isLockedPublished) {
       if (effectiveMax !== null && effectiveMax > 0 && !state.publishing && !state.savingDraft) {
@@ -1051,7 +1053,7 @@
 
     const pctCell = row.querySelector('[data-marks-pct-col]');
     if (pctCell) {
-      pctCell.textContent = formatPercentage(pct);
+      pctCell.innerHTML = renderPassFail(pct);
     }
 
     const badge = row.querySelector('[data-student-status]');
@@ -1450,39 +1452,25 @@
               }
 
               <!-- Exam Configuration Bar -->
-              <div class="sl-marks-config-bar">
-                <div style="flex:1; min-width:220px;">
-                  <div style="font-size:0.76rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:4px;">
-                    Exam Configuration &middot; ${escapeHtml(state.selectedExamType)}
-                  </div>
-                  <div style="font-size:0.84rem; color:var(--teach-text-secondary, #a3a3a3);">
-                    Set the maximum marks for this exam (must be greater than 0). Percentage is calculated as (Obtained / Maximum) &times; 100.
-                  </div>
-                  <div id="slMarksNoMaxNotice" style="display:${hasConfiguredMax ? 'none' : 'block'}; margin-top:6px; font-size:0.82rem; font-weight:600; color:#eab308;">
-                    Please enter Maximum Marks to enable student marks entry.
-                  </div>
+              <div class="sl-marks-config-bar" style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+                <div style="font-size:0.8rem; font-weight:800; text-transform:uppercase; letter-spacing:0.04em;">
+                  Exam Configuration &middot; ${escapeHtml(state.selectedExamType)}
                 </div>
 
-                <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap;">
-                  <div>
-                    <label for="slMarksMaxInput" style="display:block; font-size:0.74rem; font-weight:700; text-transform:uppercase; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:5px;">
-                      Maximum Marks
-                    </label>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                      <input
-                        id="slMarksMaxInput"
-                        type="number"
-                        min="1"
-                        step="any"
-                        class="sl-marks-input ${state.maxMarksValidationError ? 'invalid' : ''}"
-                        placeholder="e.g. 50 or 100"
-                        value="${escapeHtml(state.maxMarksInput)}"
-                        data-marks-field="max-marks"
-                        style="width:150px;"
-                      />
-                      <span id="slMarksMaxSaveStatus" style="font-size:0.75rem; font-weight:600; color:var(--teach-text-secondary, #a3a3a3); min-width:44px;"></span>
-                    </div>
-                  </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <input
+                    id="slMarksMaxInput"
+                    type="number"
+                    min="1"
+                    step="any"
+                    class="sl-marks-input ${state.maxMarksValidationError ? 'invalid' : ''}"
+                    placeholder=""
+                    value="${escapeHtml(state.maxMarksInput)}"
+                    data-marks-field="max-marks"
+                    aria-label="Maximum Marks"
+                    style="width:130px;"
+                  />
+                  <span id="slMarksMaxSaveStatus" style="font-size:0.75rem; font-weight:600; color:var(--teach-text-secondary, #a3a3a3); min-width:44px;"></span>
                 </div>
               </div>
 
@@ -1547,7 +1535,7 @@
                         <th>Roll No / Student ID</th>
                         <th style="width:170px;">Obtained Marks</th>
                         <th style="width:130px;">Maximum Marks</th>
-                        <th style="width:120px;">Percentage</th>
+                        <th style="width:130px;">Pass / Fail</th>
                         <th style="width:150px;">Entry Status</th>
                       </tr>
                     </thead>
@@ -1574,11 +1562,6 @@
                               <td style="color:var(--teach-text-secondary, #a3a3a3); font-weight:600;">${idx + 1}</td>
                               <td>
                                 <div style="font-weight:700;">${escapeHtml(stu.name)}</div>
-                                ${
-                                  stu.cohortName
-                                    ? `<div style="font-size:0.74rem; color:var(--teach-text-secondary, #a3a3a3);">${escapeHtml(stu.cohortName)} Cohort</div>`
-                                    : ''
-                                }
                               </td>
                               <td style="font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:0.83rem;">
                                 ${escapeHtml(stu.rollNumber || stu.studentId)}
@@ -1606,7 +1589,7 @@
                                 ${metrics.effectiveMax !== null ? escapeHtml(metrics.effectiveMax) : '—'}
                               </td>
                               <td style="font-weight:800;" data-marks-pct-col>
-                                ${formatPercentage(pct)}
+                                ${renderPassFail(pct)}
                               </td>
                               <td>
                                 <span class="sl-marks-badge ${badgeClass}" data-student-status="${escapeHtml(stu.studentId)}">
@@ -1628,7 +1611,7 @@
                 <div style="font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);" id="slMarksStatusBar">
                   ${
                     !hasConfiguredMax
-                      ? 'Please enter Maximum Marks first.'
+                      ? ''
                       : state.savingDraft
                       ? 'Saving marks automatically…'
                       : metrics.missingCount > 0

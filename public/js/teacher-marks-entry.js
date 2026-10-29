@@ -126,9 +126,7 @@
     }
     const isPass = Number(pct) >= 45;
     const color = isPass ? '#22c55e' : '#ef4444';
-    const bg = isPass ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)';
-    const border = isPass ? 'rgba(34, 197, 94, 0.28)' : 'rgba(239, 68, 68, 0.28)';
-    return `<span style="display:inline-block; padding:3px 12px; border-radius:6px; font-weight:800; font-size:0.8rem; color:${color}; background:${bg}; border:1px solid ${border}; text-transform:uppercase; letter-spacing:0.04em;">${isPass ? 'Pass' : 'Fail'}</span>`;
+    return `<span style="font-weight:700; color:${color};">${isPass ? 'Pass' : 'Fail'}</span>`;
   }
 
   function formatTimestamp(isoStr) {

@@ -1023,6 +1023,21 @@ test('7. PostgreSQL (PGlite) Migration Compatibility, Uniqueness Constraints, an
   assert.equal(pgRes.results[0].maxMarks, 25);
   assert.equal(pgRes.results[0].percentage, 88);
 
+  // Verify atomic publish on PostgreSQL with records (including an absent student)
+  await publishSubjectResults(pgDb, {
+    actorUserId: 'pg_tea_1',
+    subjectId: 'CIT111',
+    examType: 'Final Exam',
+    maxMarks: 50,
+    records: [{ studentId: 'pg_stu_1', obtainedMarks: null, isAbsent: true }]
+  });
+  const pgResFinal = await getStudentPublishedResults(pgDb, { studentUserId: 'pg_stu_1' });
+  const finalExam = pgResFinal.results.find((r) => r.examType === 'Final Exam');
+  assert.ok(finalExam, 'PG published absent final exam result must exist');
+  assert.equal(finalExam.isAbsent, true);
+  assert.equal(finalExam.passFail, 'Fail');
+  assert.equal(finalExam.publicationStatus, 'Absent');
+
   await pg.close();
 
   // Verify responsive mobile CSS rules in style.v4.css keep .dash-header-nav visible on mobile & desktop

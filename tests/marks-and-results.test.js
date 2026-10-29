@@ -1506,7 +1506,7 @@ test('10. Downloadable A4 PDF Report Card: Binary PDF Validity, pdfjs-dist Parsi
 });
 
 test('11. Absent Student Handling & Missing Marks Warning Modal on Publish', async () => {
-  // 1. Configure and verify Absent Student via API
+  // 1. Configure and verify Absent Student via API on BSM111 Pre-Board Exam
   const draftRes = await appFetch(`${baseUrl}/api/marks/draft`, {
     method: 'POST',
     headers: {
@@ -1514,7 +1514,7 @@ test('11. Absent Student Handling & Missing Marks Warning Modal on Publish', asy
       Authorization: `Bearer ${teacherAToken}`
     },
     body: JSON.stringify({
-      subjectId: 'CIT111',
+      subjectId: 'BSM111',
       examType: 'Pre-Board Exam',
       maxMarks: 50,
       records: [
@@ -1612,13 +1612,15 @@ test('11. Absent Student Handling & Missing Marks Warning Modal on Publish', asy
   vm.runInNewContext(teacherScript, teacherWindow);
 
   const tWorkspace = teacherWindow.TeacherMarksEntryWorkspace;
-  await tWorkspace.mount(teacherMount, { subjectKey: 'CIT111', examType: 'Final Exam' });
+  await tWorkspace.mount(teacherMount, { subjectKey: 'BSM111', examType: 'Pre-Board Exam' });
   tWorkspace.setMaxMarksInput('50');
 
   // Case A: Missing student mark triggers modal on publish
   tWorkspace.setStudentMark('26020301', '40');
-  // 26020302 has no mark and is not absent
+  // Student 26020302 was absent from previous draft, toggle it off so it's missing
+  tWorkspace.setStudentAbsent('26020302', false);
   assert.equal(tWorkspace.getState().absentByStudentId['26020302'], false);
+  assert.equal(tWorkspace.getState().marksByStudentId['26020302'], '');
   await tWorkspace.publishResults();
 
   // Pop-up modal opened instead of publishing
@@ -1644,11 +1646,11 @@ test('11. Absent Student Handling & Missing Marks Warning Modal on Publish', asy
       headers: { Authorization: `Bearer ${student2Token}` }
     })
   ).json();
-  const stu2FinalExam = stu2Res.results.find((r) => r.examType === 'Final Exam' && r.subjectCode === 'CIT111');
-  assert.ok(stu2FinalExam, 'Absent student final exam result should be present');
-  assert.equal(stu2FinalExam.isAbsent, true);
-  assert.equal(stu2FinalExam.passFail, 'Fail');
-  assert.equal(stu2FinalExam.publicationStatus, 'Absent');
+  const stu2PreBoard = stu2Res.results.find((r) => r.examType === 'Pre-Board Exam' && r.subjectCode === 'BSM111');
+  assert.ok(stu2PreBoard, 'Absent student pre-board exam result should be present');
+  assert.equal(stu2PreBoard.isAbsent, true);
+  assert.equal(stu2PreBoard.passFail, 'Fail');
+  assert.equal(stu2PreBoard.publicationStatus, 'Absent');
 
   // 4. Verify student dashboard renders absent badges and Fail
   const studentMount = makeEl('div');

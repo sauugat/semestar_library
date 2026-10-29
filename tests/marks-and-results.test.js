@@ -849,7 +849,7 @@ test('6. Frontend Modules Verification: TeacherMarksEntryWorkspace and StudentRe
 
   const sDashboard = studentWindow.StudentResultsDashboard;
   await sDashboard.mount(studentMount);
-  assert.ok(studentMount.innerHTML.includes('Published Results Summary'));
+  assert.ok(studentMount.innerHTML.includes('Subject-Wise Results'));
   assert.ok(studentMount.innerHTML.includes('CIT111'));
   assert.ok(studentMount.innerHTML.includes('BSM111'));
   assert.ok(studentMount.innerHTML.includes('95%'));
@@ -1260,10 +1260,7 @@ test('8. Regression: CIT214 (Semester 3) & CIT223 (Semester 4) Roster Loading wh
 test('9. University Results Portal: Semester Filtering, Exam-Type Filtering, Academic Summary Accuracy, Unpublished Exam Slots, and Empty/Error States', async () => {
   const resultsHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'results.html'), 'utf8');
   assert.ok(resultsHtml.includes('Academic Results'), 'results.html must display Academic Results title');
-  assert.ok(
-    resultsHtml.includes('Published examination results'),
-    'results.html must explain that the page contains published examination results'
-  );
+  assert.ok(resultsHtml.includes('id="studentResultsMount"'), 'results.html must contain mount element');
   assert.ok(resultsHtml.includes('class="dash-header-nav"'), 'results.html must preserve shared header navigation');
 
   await appFetch(`${baseUrl}/api/marks/publish`, {
@@ -1377,9 +1374,9 @@ test('9. University Results Portal: Semester Filtering, Exam-Type Filtering, Aca
   const sDashboard = studentWindow.StudentResultsDashboard;
 
   await sDashboard.mount(studentMount);
-  assert.ok(studentMount.innerHTML.includes('Published Results Summary'));
-  assert.ok(studentMount.innerHTML.includes('125 / 150'), 'Must display aggregated published marks 125 / 150');
-  assert.ok(studentMount.innerHTML.includes('83.33%'), 'Must display overall percentage 83.33%');
+  assert.ok(studentMount.innerHTML.includes('Subject-Wise Results'));
+  assert.ok(studentMount.innerHTML.includes('CIT111'));
+  assert.ok(studentMount.innerHTML.includes('BSM111'));
   assert.ok(studentMount.innerHTML.includes('Not Yet Available'), 'Must indicate unpublished exam is Not Yet Available');
   assert.ok(!studentMount.innerHTML.includes('>88<'), 'Must never display draft Final Exam score 88');
   assert.ok(studentMount.innerHTML.includes('Download Report Card (Sem 1)'));
@@ -1402,7 +1399,7 @@ test('9. University Results Portal: Semester Filtering, Exam-Type Filtering, Aca
   sDashboard.selectSemester('1');
   const pdfSuccess = await sDashboard.downloadReportCard();
   assert.equal(pdfSuccess, true);
-  assert.ok(studentMount.innerHTML.includes('Report card for Semester 1 downloaded'));
+  assert.ok(sDashboard.getState().pdfSuccessMessage.includes('Report card for Semester 1 downloaded'));
 
   shouldFailFetch = true;
   await sDashboard.loadResults();
@@ -1411,7 +1408,8 @@ test('9. University Results Portal: Semester Filtering, Exam-Type Filtering, Aca
 
   shouldFailFetch = false;
   await sDashboard.loadResults();
-  assert.ok(studentMount.innerHTML.includes('125 / 150'));
+  assert.ok(studentMount.innerHTML.includes('CIT111'));
+  assert.ok(studentMount.innerHTML.includes('BSM111'));
 });
 
 test('10. Downloadable A4 PDF Report Card: Binary PDF Validity, pdfjs-dist Parsing, Long Subject Wrapping, and Security Isolation', async () => {

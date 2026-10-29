@@ -342,10 +342,19 @@
     <div id="teacherMarksEntryMount"></div>
   </main>
 
-  <script src="/js/teacher-marks-entry.js?v=1"></script>
+  <script src="/js/teacher-marks-entry.js?v=2"></script>
   <script>
     document.addEventListener('DOMContentLoaded', async () => {
       try {
+        const params = new URLSearchParams(window.location.search);
+        const subjectKey = params.get('subject') || params.get('subjectId') || null;
+        const examType = params.get('exam') || params.get('examType') || null;
+
+        if (subjectKey) {
+          const hero = document.getElementById('marksHeroBanner');
+          if (hero) hero.style.setProperty('display', 'none', 'important');
+        }
+
         const user = await SemesterAuth.getUser();
         if (!user) {
           window.location.replace('/login.html?redirect=/marks-entry.html');
@@ -369,10 +378,6 @@
           }
           return;
         }
-
-        const params = new URLSearchParams(window.location.search);
-        const subjectKey = params.get('subject') || params.get('subjectId') || null;
-        const examType = params.get('exam') || params.get('examType') || null;
 
         if (window.TeacherMarksEntryWorkspace && mountEl) {
           await window.TeacherMarksEntryWorkspace.mount(mountEl, { subjectKey, examType });

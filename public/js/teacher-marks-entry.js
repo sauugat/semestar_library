@@ -350,7 +350,7 @@
         border: 1.5px solid var(--teach-border, var(--border, rgba(0, 0, 0, 0.13)));
         border-radius: 20px;
         padding: 24px 26px;
-        min-height: 195px;
+        min-height: 160px;
         box-sizing: border-box;
         box-shadow: var(--teach-shadow-sm, 0 2px 6px rgba(0, 0, 0, 0.04));
         cursor: pointer;
@@ -703,6 +703,19 @@
     state.studentSearchQuery = '';
     state.statusFilter = 'ALL';
 
+    if (typeof window !== 'undefined' && window.location && window.history && typeof window.history.replaceState === 'function') {
+      try {
+        const url = new window.URL(window.location.href);
+        if (state.selectedSubjectId) {
+          url.searchParams.set('subject', state.selectedSubjectId);
+        } else {
+          url.searchParams.delete('subject');
+          url.searchParams.delete('subjectId');
+        }
+        window.history.replaceState({}, '', url.toString());
+      } catch (_) {}
+    }
+
     if (!state.selectedSubjectId) {
       render();
       return;
@@ -1039,7 +1052,6 @@
         <div class="sl-marks-subject-grid">
           ${state.subjects
             .map((sub) => {
-              const exams = Array.isArray(sub.exams) ? sub.exams : [];
               return `
                 <button
                   type="button"
@@ -1055,24 +1067,6 @@
                     </div>
                     <div style="font-size:1.12rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:14px; line-height:1.35;">
                       ${escapeHtml(sub.name)}
-                    </div>
-                    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:16px;">
-                      ${exams
-                        .map((ex) => {
-                          const statusLabel =
-                            ex.status === 'published'
-                              ? `Published (${ex.publishedCount})`
-                              : ex.status === 'draft'
-                              ? `Draft${ex.maxMarks ? ' · Max ' + ex.maxMarks : ''}`
-                              : 'Not Started';
-                          return `
-                            <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.78rem; color:var(--teach-text-secondary, #a3a3a3);">
-                              <span>${escapeHtml(ex.examType)}</span>
-                              <strong style="color:var(--teach-text-primary, #f5f5f5);">${escapeHtml(statusLabel)}</strong>
-                            </div>
-                          `;
-                        })
-                        .join('')}
                     </div>
                   </div>
                   <div style="display:flex; align-items:center; justify-content:space-between; padding-top:12px; border-top:1px solid var(--teach-border-subtle, rgba(128,128,128,0.15)); font-size:0.8rem; font-weight:700;">
@@ -1304,36 +1298,6 @@
                 >
                   ${state.savingConfig ? 'Saving…' : 'Save Max Marks'}
                 </button>
-              </div>
-            </div>
-
-            <!-- Live Summary Metrics -->
-            <div class="sl-marks-stats-grid">
-              <div class="sl-marks-stat-card">
-                <div class="sl-marks-stat-val">${metrics.totalStudents}</div>
-                <div class="sl-marks-stat-lbl">Enrolled Students</div>
-              </div>
-              <div class="sl-marks-stat-card">
-                <div class="sl-marks-stat-val">${metrics.enteredCount}</div>
-                <div class="sl-marks-stat-lbl">Marks Entered</div>
-              </div>
-              <div class="sl-marks-stat-card">
-                <div class="sl-marks-stat-val">${metrics.missingCount}</div>
-                <div class="sl-marks-stat-lbl">Missing Marks</div>
-              </div>
-              <div class="sl-marks-stat-card">
-                <div class="sl-marks-stat-val">${metrics.effectiveMax !== null ? metrics.effectiveMax : 'Not Set'}</div>
-                <div class="sl-marks-stat-lbl">Maximum Marks</div>
-              </div>
-              <div class="sl-marks-stat-card">
-                <div class="sl-marks-stat-val">${formatPercentage(metrics.averagePercentage)}</div>
-                <div class="sl-marks-stat-lbl">Average %</div>
-              </div>
-              <div class="sl-marks-stat-card">
-                <div class="sl-marks-stat-val" style="font-size:1.05rem;">
-                  ${isPublished ? 'Published' : metrics.enteredCount > 0 ? 'Draft' : 'Not Started'}
-                </div>
-                <div class="sl-marks-stat-lbl">Exam Status</div>
               </div>
             </div>
 
@@ -1590,7 +1554,27 @@
     `;
   }
 
+  function updateHeroBannerVisibility() {
+    if (typeof window === 'undefined' || !window.document || typeof window.document.getElementById !== 'function') return;
+    const hero = window.document.getElementById('marksHeroBanner');
+    if (!hero) return;
+    if (state.selectedSubjectId) {
+      if (hero.style && typeof hero.style.setProperty === 'function') {
+        hero.style.setProperty('display', 'none', 'important');
+      } else {
+        hero.style.display = 'none';
+      }
+    } else {
+      if (hero.style && typeof hero.style.removeProperty === 'function') {
+        hero.style.removeProperty('display');
+      } else {
+        hero.style.display = '';
+      }
+    }
+  }
+
   function render() {
+    updateHeroBannerVisibility();
     const container = state.containerEl;
     if (!container) return;
 
@@ -1761,6 +1745,16 @@
 
   function unmount() {
     state.containerEl = null;
+    if (typeof window !== 'undefined' && window.document && typeof window.document.getElementById === 'function') {
+      const hero = window.document.getElementById('marksHeroBanner');
+      if (hero && hero.style) {
+        if (typeof hero.style.removeProperty === 'function') {
+          hero.style.removeProperty('display');
+        } else {
+          hero.style.display = '';
+        }
+      }
+    }
   }
 
   window.TeacherMarksEntryWorkspace = {

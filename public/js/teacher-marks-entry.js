@@ -750,20 +750,24 @@
     runAllClientValidations();
   }
 
-  async function saveExamConfig() {
-    if (!state.selectedSubjectId) return;
+  async function saveExamConfig(silent = false) {
+    if (!state.selectedSubjectId) return false;
     const maxCheck = validateMaxMarksValue(state.maxMarksInput);
     state.maxMarksValidationError = maxCheck.error;
     if (!maxCheck.valid) {
-      state.actionError = maxCheck.error;
-      render();
-      return;
+      if (!silent) {
+        state.actionError = maxCheck.error;
+        render();
+      }
+      return false;
     }
 
     state.savingConfig = true;
-    state.actionError = null;
-    state.actionSuccessMessage = null;
-    render();
+    if (!silent) {
+      state.actionError = null;
+      state.actionSuccessMessage = null;
+      render();
+    }
 
     try {
       const res = await authFetch('/api/marks/config', {
@@ -792,14 +796,22 @@
         state.initialMaxMarksSnapshot = String(data.config.maxMarks);
       }
       state.savingConfig = false;
-      state.actionSuccessMessage = `Maximum marks configured to ${maxCheck.value} for ${state.selectedExamType}.`;
       runAllClientValidations();
-      await refreshSubjectCardsInBackground();
-      render();
+      if (!silent) {
+        state.actionSuccessMessage = `Maximum marks configured to ${maxCheck.value} for ${state.selectedExamType}.`;
+        await refreshSubjectCardsInBackground();
+        render();
+      } else {
+        await refreshSubjectCardsInBackground();
+      }
+      return true;
     } catch (err) {
       state.savingConfig = false;
-      state.actionError = err.message || 'Failed to save exam configuration.';
-      render();
+      if (!silent) {
+        state.actionError = err.message || 'Failed to save exam configuration.';
+        render();
+      }
+      return false;
     }
   }
 
@@ -814,19 +826,23 @@
     });
   }
 
-  async function saveDraft() {
-    if (!state.selectedSubjectId) return;
+  async function saveDraft(silent = false) {
+    if (!state.selectedSubjectId) return false;
     const validation = runAllClientValidations();
     if (!validation.valid) {
-      state.actionError = state.maxMarksValidationError || 'Please fix validation errors in the marks table before saving.';
-      render();
-      return;
+      if (!silent) {
+        state.actionError = state.maxMarksValidationError || 'Please fix validation errors in the marks table before saving.';
+        render();
+      }
+      return false;
     }
 
     state.savingDraft = true;
-    state.actionError = null;
-    state.actionSuccessMessage = null;
-    render();
+    if (!silent) {
+      state.actionError = null;
+      state.actionSuccessMessage = null;
+      render();
+    }
 
     try {
       const records = buildRecordsPayload();
@@ -850,14 +866,180 @@
 
       applyRosterDataToState(data);
       state.savingDraft = false;
-      state.actionSuccessMessage = `Draft marks saved for ${state.selectedExamType}.`;
-      await refreshSubjectCardsInBackground();
-      render();
+      if (!silent) {
+        state.actionSuccessMessage = `Draft marks saved for ${state.selectedExamType}.`;
+        await refreshSubjectCardsInBackground();
+        render();
+      } else {
+        await refreshSubjectCardsInBackground();
+      }
+      return true;
     } catch (err) {
       state.savingDraft = false;
-      state.actionError = err.message || 'Failed to save draft marks.';
-      render();
+      if (!silent) {
+        state.actionError = err.message || 'Failed to save draft marks.';
+        render();
+      }
+      return false;
     }
+  }
+
+  let marksAutoSaveTimer = null;
+  let maxMarksSaveTimer = null;
+
+  async function triggerAutoSaveMarks() {
+    if (marksAutoSaveTimer) {
+      clearTimeout(marksAutoSaveTimer);
+      marksAutoSaveTimer = null;
+    }
+    if (!state.selectedSubjectId) return;
+    const validation = runAllClientValidations();
+    if (!validation.valid) return;
+
+    const currentMarksJson = JSON.stringify(state.marksByStudentId || {});
+    if (currentMarksJson === state.initialMarksSnapshot) return;
+
+    const statusBar = state.containerEl ? state.containerEl.querySelector('#slMarksStatusBar') : null;
+    if (statusBar) statusBar.textContent = 'Saving marks automatically…';
+
+    const success = await saveDraft(true);
+    if (statusBar) {
+      const metrics = getLiveTableMetrics();
+      if (success) {
+        statusBar.textContent =
+          metrics.missingCount > 0
+            ? `${metrics.missingCount} student(s) currently have missing marks.`
+            : 'All enrolled students have marks recorded and saved.';
+      } else {
+        statusBar.textContent = 'Auto-save failed. Check connection.';
+      }
+    }
+  }
+
+  async function triggerAutoSaveMaxMarks() {
+    if (maxMarksSaveTimer) {
+      clearTimeout(maxMarksSaveTimer);
+      maxMarksSaveTimer = null;
+    }
+    const val = state.maxMarksInput;
+    const check = validateMaxMarksValue(val);
+    const statusEl = state.containerEl ? state.containerEl.querySelector('#slMarksMaxSaveStatus') : null;
+
+    if (!check.valid) {
+      state.maxMarksValidationError = check.error;
+      const input = state.containerEl ? state.containerEl.querySelector('#slMarksMaxInput') : null;
+      if (input) input.classList.add('invalid');
+      if (statusEl) statusEl.textContent = '';
+      return;
+    }
+
+    if (statusEl) statusEl.textContent = 'Saving…';
+
+    const success = await saveExamConfig(true);
+    if (statusEl) {
+      statusEl.textContent = success ? 'Saved' : '';
+      if (success) {
+        setTimeout(() => {
+          if (statusEl && statusEl.textContent === 'Saved') statusEl.textContent = '';
+        }, 2000);
+      }
+    }
+    updateMaxMarksInView();
+  }
+
+  function updateMaxMarksInView() {
+    if (!state.containerEl) return;
+    const effectiveMax = state.examConfig && state.examConfig.maxMarks ? Number(state.examConfig.maxMarks) : null;
+    const activeTab = state.containerEl.querySelector('.sl-marks-exam-tab.active .sl-marks-exam-tab-meta');
+    if (activeTab) {
+      activeTab.textContent = effectiveMax !== null ? `Max Marks: ${effectiveMax}` : 'Max Marks Not Configured';
+    }
+    state.containerEl.querySelectorAll('[data-marks-max-col]').forEach((td) => {
+      td.textContent = effectiveMax !== null ? String(effectiveMax) : '—';
+    });
+    state.containerEl.querySelectorAll('[data-marks-student-input]').forEach((inp) => {
+      if (effectiveMax !== null) {
+        inp.setAttribute('max', String(effectiveMax));
+      } else {
+        inp.removeAttribute('max');
+      }
+      const sId = inp.getAttribute('data-marks-student-input');
+      updateStudentRowLive(sId);
+    });
+  }
+
+  function updateStudentRowLive(studentId) {
+    if (!state.containerEl) return;
+    const row = state.containerEl.querySelector(`[data-student-row="${studentId}"]`);
+    if (!row) return;
+
+    const rawMark = state.marksByStudentId[studentId] ?? '';
+    const trimmed = String(rawMark).trim();
+    const isMissing = trimmed === '';
+    const maxCheck = validateMaxMarksValue(state.maxMarksInput);
+    const effectiveMax = maxCheck.valid
+      ? maxCheck.value
+      : state.examConfig && state.examConfig.configured
+      ? Number(state.examConfig.maxMarks)
+      : null;
+
+    const markCheck = validateStudentMarkValue(rawMark, effectiveMax);
+    const rowError = markCheck.valid ? null : markCheck.error;
+    const pct = !isMissing && !rowError ? calculatePercentage(trimmed, effectiveMax) : null;
+
+    const input = row.querySelector('[data-marks-student-input]');
+    if (input) {
+      if (rowError) {
+        input.classList.add('invalid');
+      } else {
+        input.classList.remove('invalid');
+      }
+    }
+
+    let errDiv = row.querySelector('.sl-marks-row-error');
+    if (rowError) {
+      if (!errDiv) {
+        errDiv = window.document.createElement('div');
+        errDiv.className = 'sl-marks-row-error';
+        errDiv.style.cssText = 'font-size:0.72rem; color:#ef4444; margin-top:4px; font-weight:600;';
+        if (input && input.parentElement) input.parentElement.appendChild(errDiv);
+      }
+      errDiv.textContent = rowError;
+    } else if (errDiv) {
+      errDiv.remove();
+    }
+
+    const pctCell = row.querySelector('[data-marks-pct-col]');
+    if (pctCell) {
+      pctCell.textContent = formatPercentage(pct);
+    }
+
+    const badge = row.querySelector('[data-student-status]');
+    if (badge) {
+      const stu = (state.students || []).find((s) => s.studentId === studentId);
+      if (isMissing) {
+        badge.className = 'sl-marks-badge missing';
+        badge.textContent = 'Missing Marks';
+        row.classList.add('missing-row');
+      } else {
+        badge.className = 'sl-marks-badge published';
+        badge.textContent = stu && stu.entryStatus === 'published' && String(stu.obtainedMarks ?? '') === trimmed ? 'Published' : 'Saved';
+        row.classList.remove('missing-row');
+      }
+    }
+
+    updateFilterCountsInToolbar();
+  }
+
+  function updateFilterCountsInToolbar() {
+    if (!state.containerEl) return;
+    const metrics = getLiveTableMetrics();
+    const allBtn = state.containerEl.querySelector('[data-marks-status-filter="ALL"]');
+    if (allBtn) allBtn.textContent = `All (${metrics.totalStudents})`;
+    const missingBtn = state.containerEl.querySelector('[data-marks-status-filter="MISSING"]');
+    if (missingBtn) missingBtn.textContent = `Missing (${metrics.missingCount})`;
+    const pubBtn = state.containerEl.querySelector('[data-marks-status-filter="PUBLISHED"]');
+    if (pubBtn) pubBtn.textContent = `Published (${metrics.publishedCount})`;
   }
 
   async function publishResults() {
@@ -1092,41 +1274,19 @@
 
     return `
       <div id="slMarksEntrySection">
-        <!-- Top Navigation & Subject Switcher -->
+        <!-- Top Navigation -->
         <div class="sl-marks-panel" style="padding:16px 20px;">
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
-            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-              <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="back-to-subjects">
-                &larr; All Subjects
-              </button>
-              <div>
-                <div style="font-size:0.74rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--teach-text-secondary, #a3a3a3);">
-                  ${selectedSubj ? `${escapeHtml(selectedSubj.code)} · Semester ${escapeHtml(selectedSubj.semester)}` : 'Subject Marks Register'}
-                </div>
-                <h2 style="margin:2px 0 0; font-size:1.25rem; font-weight:800; letter-spacing:-0.02em;">
-                  ${selectedSubj ? escapeHtml(selectedSubj.name) : ''}
-                </h2>
+          <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+            <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="back-to-subjects">
+              &larr; All Subjects
+            </button>
+            <div>
+              <div style="font-size:0.74rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--teach-text-secondary, #a3a3a3);">
+                ${selectedSubj ? `${escapeHtml(selectedSubj.code)} · Semester ${escapeHtml(selectedSubj.semester)}` : 'Subject Marks Register'}
               </div>
-            </div>
-
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-              <label for="slMarksSubjectSwitch" style="font-size:0.75rem; font-weight:700; color:var(--teach-text-secondary, #a3a3a3);">
-                Subject:
-              </label>
-              <select id="slMarksSubjectSwitch" class="sl-marks-select" data-marks-field="subject-select" style="min-width:220px;">
-                ${state.subjects
-                  .map(
-                    (s) => `
-                  <option value="${escapeHtml(s.id)}" ${String(s.id) === String(state.selectedSubjectId) ? 'selected' : ''}>
-                    [${escapeHtml(s.code)}] ${escapeHtml(s.name)} (Sem ${escapeHtml(s.semester)})
-                  </option>
-                `
-                  )
-                  .join('')}
-              </select>
-              <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="open-audit">
-                Audit Log
-              </button>
+              <h2 style="margin:2px 0 0; font-size:1.25rem; font-weight:800; letter-spacing:-0.02em;">
+                ${selectedSubj ? escapeHtml(selectedSubj.name) : ''}
+              </h2>
             </div>
           </div>
         </div>
@@ -1206,20 +1366,6 @@
                 : ''
             }
 
-            <!-- Missing Exam Configuration Prompt Banner (non-blocking) -->
-            ${
-              !state.examConfig || !state.examConfig.configured
-                ? `
-              <div class="sl-marks-banner" id="slMarksConfigPromptBanner" role="status">
-                <div>
-                  <span class="sl-marks-badge missing" style="margin-right:8px;">Configuration Needed</span>
-                  <strong>Maximum Marks Not Configured Yet:</strong> Enter a positive maximum mark value for <strong>${escapeHtml(state.selectedExamType)}</strong> below. The student marks register is loaded and ready for entry.
-                </div>
-              </div>
-            `
-                : ''
-            }
-
             <!-- Published Lock / Authorized Edit Banner -->
             ${
               isPublished
@@ -1277,27 +1423,22 @@
                   <label for="slMarksMaxInput" style="display:block; font-size:0.74rem; font-weight:700; text-transform:uppercase; color:var(--teach-text-secondary, #a3a3a3); margin-bottom:5px;">
                     Maximum Marks
                   </label>
-                  <input
-                    id="slMarksMaxInput"
-                    type="number"
-                    min="1"
-                    step="any"
-                    class="sl-marks-input ${state.maxMarksValidationError ? 'invalid' : ''}"
-                    placeholder="e.g. 50 or 100"
-                    value="${escapeHtml(state.maxMarksInput)}"
-                    data-marks-field="max-marks"
-                    ${isLockedPublished ? 'disabled' : ''}
-                    style="width:150px;"
-                  />
+                  <div style="display:flex; align-items:center; gap:8px;">
+                    <input
+                      id="slMarksMaxInput"
+                      type="number"
+                      min="1"
+                      step="any"
+                      class="sl-marks-input ${state.maxMarksValidationError ? 'invalid' : ''}"
+                      placeholder="e.g. 50 or 100"
+                      value="${escapeHtml(state.maxMarksInput)}"
+                      data-marks-field="max-marks"
+                      ${isLockedPublished ? 'disabled' : ''}
+                      style="width:150px;"
+                    />
+                    <span id="slMarksMaxSaveStatus" style="font-size:0.75rem; font-weight:600; color:var(--teach-text-secondary, #a3a3a3); min-width:44px;"></span>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  class="teach-btn teach-btn-secondary"
-                  data-marks-action="save-config"
-                  ${isLockedPublished || state.savingConfig ? 'disabled' : ''}
-                >
-                  ${state.savingConfig ? 'Saving…' : 'Save Max Marks'}
-                </button>
               </div>
             </div>
 
@@ -1315,7 +1456,6 @@
                 ${[
                   { id: 'ALL', label: `All (${metrics.totalStudents})` },
                   { id: 'MISSING', label: `Missing (${metrics.missingCount})` },
-                  { id: 'DRAFT', label: `Draft (${metrics.draftCount})` },
                   { id: 'PUBLISHED', label: `Published (${metrics.publishedCount})` }
                 ]
                   .map(
@@ -1378,23 +1518,12 @@
                           ? calculatePercentage(trimmed, metrics.effectiveMax)
                           : null;
 
-                        let badgeClass = 'missing';
-                        let badgeText = 'Missing Marks';
-                        if (!isMissing) {
-                          if (stu.entryStatus === 'published' && String(stu.obtainedMarks ?? '') === trimmed) {
-                            badgeClass = 'published';
-                            badgeText = 'Published';
-                          } else if (stu.entryStatus === 'published') {
-                            badgeClass = 'draft';
-                            badgeText = 'Edited (Unsaved)';
-                          } else if (stu.entryStatus === 'draft' && String(stu.obtainedMarks ?? '') === trimmed) {
-                            badgeClass = 'draft';
-                            badgeText = 'Saved Draft';
-                          } else {
-                            badgeClass = 'draft';
-                            badgeText = 'Draft (Unsaved)';
-                          }
-                        }
+                        const badgeClass = isMissing ? 'missing' : 'published';
+                        const badgeText = isMissing
+                          ? 'Missing Marks'
+                          : stu.entryStatus === 'published' && String(stu.obtainedMarks ?? '') === trimmed
+                          ? 'Published'
+                          : 'Saved';
 
                         return `
                           <tr class="${isMissing ? 'missing-row' : ''}" data-student-row="${escapeHtml(stu.studentId)}">
@@ -1425,14 +1554,14 @@
                               />
                               ${
                                 rowError
-                                  ? `<div style="font-size:0.72rem; color:#ef4444; margin-top:4px; font-weight:600;">${escapeHtml(rowError)}</div>`
+                                  ? `<div class="sl-marks-row-error" style="font-size:0.72rem; color:#ef4444; margin-top:4px; font-weight:600;">${escapeHtml(rowError)}</div>`
                                   : ''
                               }
                             </td>
-                            <td style="font-weight:700;">
+                            <td style="font-weight:700;" data-marks-max-col>
                               ${metrics.effectiveMax !== null ? escapeHtml(metrics.effectiveMax) : '—'}
                             </td>
-                            <td style="font-weight:800;">
+                            <td style="font-weight:800;" data-marks-pct-col>
                               ${formatPercentage(pct)}
                             </td>
                             <td>
@@ -1452,26 +1581,17 @@
 
             <!-- Bottom Actions Bar -->
             <div class="sl-marks-actions-bar">
-              <div style="font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);">
+              <div style="font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);" id="slMarksStatusBar">
                 ${
-                  dirty
-                    ? '<strong>Unsaved changes present.</strong> Save as a draft or publish when ready.'
+                  state.savingDraft
+                    ? 'Saving marks automatically…'
                     : metrics.missingCount > 0
                     ? `${metrics.missingCount} student(s) currently have missing marks.`
-                    : 'All enrolled students have marks recorded.'
+                    : 'All enrolled students have marks recorded and saved.'
                 }
               </div>
 
               <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                ${
-                  dirty
-                    ? `
-                  <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="discard-changes">
-                    Discard Changes
-                  </button>
-                `
-                    : ''
-                }
                 ${
                   isPublished && state.isEditingPublished
                     ? `
@@ -1485,14 +1605,6 @@
                   </button>
                 `
                     : `
-                  <button
-                    type="button"
-                    class="teach-btn teach-btn-secondary"
-                    data-marks-action="save-draft"
-                    ${isLockedPublished || state.savingDraft || state.publishing ? 'disabled' : ''}
-                  >
-                    ${state.savingDraft ? 'Saving Draft…' : 'Save Draft'}
-                  </button>
                   <button
                     type="button"
                     class="teach-btn teach-btn-primary"
@@ -1620,6 +1732,33 @@
     if (maxInput) {
       maxInput.addEventListener('input', (e) => {
         setMaxMarksInput(e.target.value);
+        if (maxMarksSaveTimer) clearTimeout(maxMarksSaveTimer);
+        const check = validateMaxMarksValue(e.target.value);
+        if (check.valid) {
+          maxInput.classList.remove('invalid');
+          maxMarksSaveTimer = setTimeout(() => {
+            triggerAutoSaveMaxMarks();
+          }, 600);
+        } else {
+          maxInput.classList.add('invalid');
+        }
+      });
+      maxInput.addEventListener('change', () => {
+        triggerAutoSaveMaxMarks();
+      });
+      maxInput.addEventListener('blur', () => {
+        triggerAutoSaveMaxMarks();
+      });
+      maxInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          triggerAutoSaveMaxMarks();
+          const firstMarkInput = container.querySelector('[data-marks-student-input]:not([disabled])');
+          if (firstMarkInput) {
+            firstMarkInput.focus();
+            if (typeof firstMarkInput.select === 'function') firstMarkInput.select();
+          }
+        }
       });
     }
 
@@ -1654,23 +1793,58 @@
     });
 
     const markInputs = Array.from(container.querySelectorAll('[data-marks-student-input]'));
-    markInputs.forEach((input, idx) => {
+    markInputs.forEach((input) => {
       input.addEventListener('input', (e) => {
         const sId = input.getAttribute('data-marks-student-input');
         setStudentMark(sId, e.target.value);
+        updateStudentRowLive(sId);
+
+        if (marksAutoSaveTimer) clearTimeout(marksAutoSaveTimer);
+        marksAutoSaveTimer = setTimeout(() => {
+          triggerAutoSaveMarks();
+        }, 500);
       });
+
       input.addEventListener('change', () => {
-        render();
+        const sId = input.getAttribute('data-marks-student-input');
+        setStudentMark(sId, input.value);
+        updateStudentRowLive(sId);
+        triggerAutoSaveMarks();
       });
+
+      input.addEventListener('blur', () => {
+        triggerAutoSaveMarks();
+      });
+
       input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === 'ArrowDown') {
+        if (e.key === 'Enter') {
           e.preventDefault();
-          const next = markInputs[idx + 1];
-          if (next) next.focus();
+          const sId = input.getAttribute('data-marks-student-input');
+          setStudentMark(sId, input.value);
+          updateStudentRowLive(sId);
+          triggerAutoSaveMarks();
+
+          const allInputs = Array.from(container.querySelectorAll('[data-marks-student-input]:not([disabled])'));
+          const currentIdx = allInputs.indexOf(input);
+          if (currentIdx !== -1 && currentIdx + 1 < allInputs.length) {
+            const next = allInputs[currentIdx + 1];
+            next.focus();
+            if (typeof next.select === 'function') next.select();
+          }
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          const allInputs = Array.from(container.querySelectorAll('[data-marks-student-input]:not([disabled])'));
+          const currentIdx = allInputs.indexOf(input);
+          if (currentIdx !== -1 && currentIdx + 1 < allInputs.length) {
+            allInputs[currentIdx + 1].focus();
+          }
         } else if (e.key === 'ArrowUp') {
           e.preventDefault();
-          const prev = markInputs[idx - 1];
-          if (prev) prev.focus();
+          const allInputs = Array.from(container.querySelectorAll('[data-marks-student-input]:not([disabled])'));
+          const currentIdx = allInputs.indexOf(input);
+          if (currentIdx > 0) {
+            allInputs[currentIdx - 1].focus();
+          }
         }
       });
     });

@@ -355,6 +355,13 @@
         color: var(--text-muted, #a1a1aa);
         border: 1px dashed var(--border, #3f3f46);
       }
+      .stu-res-badge.absent {
+        background: transparent;
+        color: #ef4444;
+        border: none;
+        padding: 0;
+        font-weight: 700;
+      }
       .stu-res-btn {
         display: inline-flex;
         align-items: center;
@@ -1198,7 +1205,7 @@
                                               </div>
                                             </td>
                                             <td>
-                                              <span class="stu-res-badge ${isAbsent ? 'absent' : 'published'}" style="${isAbsent ? 'background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);' : ''}">
+                                              <span class="stu-res-badge ${isAbsent ? 'absent' : 'published'}" style="${isAbsent ? 'background:transparent; color:#ef4444; border:none; padding:0; font-weight:700;' : ''}">
                                                 ${isAbsent ? 'Absent' : 'Published'}
                                               </span>
                                               ${

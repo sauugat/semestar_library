@@ -590,32 +590,35 @@
         border-style: dashed;
       }
       .sl-marks-badge.absent {
-        background: rgba(239, 68, 68, 0.15);
+        background: transparent;
         color: #ef4444;
-        border: 1px solid rgba(239, 68, 68, 0.35);
+        border: none;
+        padding: 0;
+        font-weight: 700;
       }
       .sl-marks-absent-btn {
-        font-size: 0.72rem;
+        font-size: 0.74rem;
         font-weight: 700;
-        padding: 5px 9px;
-        border-radius: 7px;
-        border: 1px solid var(--teach-border, #333333);
-        background: var(--teach-surface-subtle, #1c1c1c);
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: none;
+        background: transparent;
         color: var(--teach-text-secondary, #a3a3a3);
         cursor: pointer;
         transition: all 0.15s ease;
         white-space: nowrap;
         user-select: none;
         line-height: 1.2;
+        text-decoration: underline;
       }
       .sl-marks-absent-btn:hover:not([disabled]) {
-        border-color: #ef4444;
         color: #ef4444;
       }
       .sl-marks-absent-btn.active {
-        background: #ef4444;
-        color: #ffffff;
-        border-color: #ef4444;
+        background: transparent;
+        color: var(--teach-text-secondary, #a3a3a3);
+        border: none;
+        text-decoration: underline;
       }
       .sl-marks-absent-btn[disabled] {
         opacity: 0.35;
@@ -1137,15 +1140,31 @@
     const pct = !isAbsent && !isMissing && !rowError ? calculatePercentage(trimmed, effectiveMax) : null;
 
     const input = row.querySelector('[data-marks-student-input]');
+    let absentLabel = row.querySelector('.sl-marks-absent-label');
     if (input) {
       if (isAbsent) {
         input.value = '';
-        input.setAttribute('placeholder', 'Absent');
+        input.style.display = 'none';
         input.setAttribute('disabled', 'disabled');
-        input.style.opacity = '0.6';
-        input.style.background = 'rgba(239, 68, 68, 0.06)';
         input.classList.remove('invalid');
+        if (!absentLabel) {
+          absentLabel = window.document.createElement('span');
+          absentLabel.className = 'sl-marks-absent-label';
+          absentLabel.style.cssText = 'color:#ef4444; font-weight:700; display:inline-block; border:none; background:transparent; padding:0;';
+          absentLabel.textContent = 'Absent';
+          if (input.parentElement && typeof input.parentElement.insertBefore === 'function') {
+            input.parentElement.insertBefore(absentLabel, input);
+          } else if (input.parentElement && typeof input.parentElement.appendChild === 'function') {
+            input.parentElement.appendChild(absentLabel);
+          }
+        } else {
+          absentLabel.style.display = 'inline-block';
+        }
       } else {
+        input.style.display = '';
+        if (absentLabel) {
+          absentLabel.style.display = 'none';
+        }
         input.setAttribute('placeholder', !hasConfiguredMax ? 'Enter max marks first' : 'Missing');
         input.style.opacity = '';
         input.style.background = '';
@@ -1166,9 +1185,11 @@
     if (absentBtn) {
       if (isAbsent) {
         absentBtn.classList.add('active');
+        absentBtn.textContent = '(Unmark)';
         absentBtn.setAttribute('title', 'Click to unmark absent');
       } else {
         absentBtn.classList.remove('active');
+        absentBtn.textContent = 'Absent';
         absentBtn.setAttribute('title', 'Mark student as absent');
       }
       if (!hasConfiguredMax || isLockedPublished) {
@@ -1202,14 +1223,29 @@
       if (isAbsent) {
         badge.className = 'sl-marks-badge absent';
         badge.textContent = 'Absent';
+        badge.style.border = 'none';
+        badge.style.background = 'transparent';
+        badge.style.padding = '0';
+        badge.style.color = '#ef4444';
+        badge.style.fontWeight = '700';
         row.classList.remove('missing-row');
       } else if (isMissing) {
         badge.className = 'sl-marks-badge missing';
         badge.textContent = 'Missing Marks';
+        badge.style.border = '';
+        badge.style.background = '';
+        badge.style.padding = '';
+        badge.style.color = '';
+        badge.style.fontWeight = '';
         row.classList.add('missing-row');
       } else {
         badge.className = 'sl-marks-badge published';
         badge.textContent = stu && stu.entryStatus === 'published' && String(stu.obtainedMarks ?? '') === trimmed ? 'Published' : 'Saved';
+        badge.style.border = '';
+        badge.style.background = '';
+        badge.style.padding = '';
+        badge.style.color = '';
+        badge.style.fontWeight = '';
         row.classList.remove('missing-row');
       }
     }
@@ -1725,17 +1761,18 @@
                               </td>
                               <td style="white-space:nowrap;">
                                 <div style="display:inline-flex; align-items:center; gap:8px;">
+                                  ${isAbsent ? `<span class="sl-marks-absent-label" style="color:#ef4444; font-weight:700; display:inline-block; border:none; background:transparent; padding:0;">Absent</span>` : ''}
                                   <input
                                     type="number"
                                     min="0"
                                     ${metrics.effectiveMax !== null ? `max="${escapeHtml(metrics.effectiveMax)}"` : ''}
                                     step="any"
                                     class="sl-marks-input ${rowError ? 'invalid' : ''}"
-                                    placeholder="${isAbsent ? 'Absent' : (!hasConfiguredMax ? 'Enter max marks first' : 'Missing')}"
+                                    placeholder="${!hasConfiguredMax ? 'Enter max marks first' : 'Missing'}"
                                     value="${isAbsent ? '' : escapeHtml(rawMark)}"
                                     data-marks-student-input="${escapeHtml(stu.studentId)}"
                                     ${!hasConfiguredMax || isAbsent || isLockedPublished ? 'disabled' : ''}
-                                    style="width:90px; ${isAbsent ? 'opacity:0.6; background:rgba(239,68,68,0.06);' : ''}"
+                                    style="width:90px; ${isAbsent ? 'display:none;' : ''}"
                                   />
                                   <button
                                     type="button"
@@ -1744,7 +1781,7 @@
                                     title="${isAbsent ? 'Click to unmark absent' : 'Mark student as absent'}"
                                     ${!hasConfiguredMax || isLockedPublished ? 'disabled' : ''}
                                   >
-                                    Absent
+                                    ${isAbsent ? '(Unmark)' : 'Absent'}
                                   </button>
                                 </div>
                                 ${
@@ -1760,7 +1797,7 @@
                                 ${renderPassFail(pct, isAbsent)}
                               </td>
                               <td>
-                                <span class="sl-marks-badge ${badgeClass}" data-student-status="${escapeHtml(stu.studentId)}">
+                                <span class="sl-marks-badge ${badgeClass}" data-student-status="${escapeHtml(stu.studentId)}" style="${isAbsent ? 'border:none; background:transparent; padding:0; color:#ef4444; font-weight:700;' : ''}">
                                   ${escapeHtml(badgeText)}
                                 </span>
                               </td>

@@ -705,6 +705,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
         Cohorts
       </button>
+      <button type="button" class="nav-tab-btn" data-tab="advertisements" role="tab">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        Advertisements
+      </button>
       <button type="button" class="nav-tab-btn" data-tab="activity" role="tab">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         Activity
@@ -1466,6 +1470,89 @@
       </div>
     </section>
 
+    <!-- TAB 9: ADVERTISEMENT MANAGEMENT -->
+    <section class="admin-view-section" id="view-advertisements">
+      <div class="notice-box info">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        <div>
+          <strong>In-Feed Advertising System:</strong> Create, publish, pause, and monitor sponsored feed advertisements across the mobile application and website dashboard. Deactivating an advertisement immediately removes it from new feed responses.
+        </div>
+      </div>
+
+      <div class="kpi-grid" style="margin-bottom:20px;">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Campaigns</div>
+          <div class="kpi-value" id="ad-kpi-total">0</div>
+          <div class="kpi-sub">All created ads</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Active Campaigns</div>
+          <div class="kpi-value" id="ad-kpi-active">0</div>
+          <div class="kpi-sub">Eligible for in-feed delivery</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Impressions</div>
+          <div class="kpi-value" id="ad-kpi-impressions">0</div>
+          <div class="kpi-sub">Deduplicated views</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total CTA Clicks</div>
+          <div class="kpi-value" id="ad-kpi-clicks">0</div>
+          <div class="kpi-sub" id="ad-kpi-ctr">0% CTR</div>
+        </div>
+      </div>
+
+      <div class="table-container-card">
+        <div class="table-toolbar">
+          <div class="table-filters" style="display:flex; gap:8px; flex-wrap:wrap;">
+            <select class="filter-select" id="adsFilterStatus" onchange="loadAdvertisementsData()">
+              <option value="all">All Statuses</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Paused / Inactive</option>
+            </select>
+            <input type="text" class="search-box-input" id="adsSearchInput" placeholder="Search advertiser or headline..." onkeydown="if(event.key==='Enter') loadAdvertisementsData()">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="loadAdvertisementsData()">Filter</button>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <a href="/create-post.html?mode=advertisement" class="btn btn-secondary btn-sm" style="text-decoration:none;">Open Composer</a>
+            <button type="button" class="btn btn-primary btn-sm" onclick="openAdvertisementModal()">+ Create Advertisement</button>
+          </div>
+        </div>
+
+        <div class="data-table-wrap">
+          <table class="admin-data-table" id="advertisementsTable">
+            <thead>
+              <tr>
+                <th>Advertiser</th>
+                <th>Advertisement Preview</th>
+                <th>CTA & Destination</th>
+                <th>Status</th>
+                <th>Schedule (Start / End)</th>
+                <th>Impressions</th>
+                <th>CTA Clicks</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="advertisementsTableBody">
+              <tr><td colspan="9" class="loading-state">Loading advertisements...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADVERTISEMENT CREATE / EDIT MODAL -->
+    <div class="admin-modal-backdrop" id="advertisementManageModal" role="dialog" aria-modal="true" aria-labelledby="adModalTitle">
+      <div class="admin-modal-dialog" style="max-width:600px;">
+        <div class="admin-modal-header">
+          <h3 id="adModalTitle">Create Advertisement</h3>
+          <button type="button" class="admin-modal-close" onclick="closeAdvertisementModal()" aria-label="Close dialog">&times;</button>
+        </div>
+        <div id="adModalBody"></div>
+      </div>
+    </div>
+
     <!-- USER SUSPENSION & REACTIVATION MODAL (Strictly Monochrome Grayscale) -->
     <div class="admin-modal-backdrop" id="userManageModal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
       <div class="admin-modal-dialog">
@@ -1563,6 +1650,7 @@
           loadUnclassifiedData(1);
         }
         if (tabId === 'content') loadContentData(1);
+        if (tabId === 'advertisements') loadAdvertisementsData();
         if (tabId === 'activity') loadActivityData(1);
       }
     }
@@ -3465,10 +3553,269 @@
         .replace(/'/g, '&#39;');
     }
 
+    // 9. Advertisement Management Functions
+    let cachedAdminAds = [];
+
+    async function loadAdvertisementsData() {
+      const tbody = document.getElementById('advertisementsTableBody');
+      const status = document.getElementById('adsFilterStatus')?.value || 'all';
+      const search = document.getElementById('adsSearchInput')?.value.trim() || '';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="loading-state">Loading advertisements...</td></tr>';
+
+      try {
+        const qs = new URLSearchParams();
+        if (status && status !== 'all') qs.set('status', status);
+        if (search) qs.set('search', search);
+        const res = await fetch('/api/advertisements/manage' + (qs.toString() ? '?' + qs.toString() : ''));
+        if (!res.ok) throw new Error('Failed to load advertisements.');
+        const data = await res.json();
+        const ads = Array.isArray(data.advertisements) ? data.advertisements : [];
+        cachedAdminAds = ads;
+        const summary = data.summary || {};
+
+        const elTotal = document.getElementById('ad-kpi-total');
+        const elActive = document.getElementById('ad-kpi-active');
+        const elImpr = document.getElementById('ad-kpi-impressions');
+        const elClicks = document.getElementById('ad-kpi-clicks');
+        const elCtr = document.getElementById('ad-kpi-ctr');
+        if (elTotal) elTotal.textContent = Number(summary.total || 0).toLocaleString();
+        if (elActive) elActive.textContent = Number(summary.active || 0).toLocaleString();
+        if (elImpr) elImpr.textContent = Number(summary.totalImpressions || 0).toLocaleString();
+        if (elClicks) elClicks.textContent = Number(summary.totalClicks || 0).toLocaleString();
+        if (elCtr) elCtr.textContent = `${Number(summary.overallCtr || 0).toFixed(2)}% CTR`;
+
+        if (!tbody) return;
+        if (ads.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No advertisements found. Click "+ Create Advertisement" to launch a sponsored campaign.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = ads.map(ad => {
+          const isActive = Number(ad.is_active) === 1 && ad.status === 'active';
+          const statusBadge = isActive
+            ? '<span class="tag-badge tag-official">ACTIVE</span>'
+            : `<span class="tag-badge tag-restricted">${escapeHtml(String(ad.status || 'INACTIVE').toUpperCase())}</span>`;
+          const startStr = ad.start_date ? new Date(ad.start_date).toLocaleDateString() : 'Immediate';
+          const endStr = ad.end_date ? new Date(ad.end_date).toLocaleDateString() : 'No expiry';
+          const createdStr = ad.created_at ? new Date(ad.created_at).toLocaleDateString() : '—';
+          const logoHtml = ad.advertiser_logo_url
+            ? `<img src="${escapeHtml(ad.advertiser_logo_url)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--border-color);">`
+            : `<div class="user-avatar-sm">${escapeHtml((ad.advertiser_name || 'A').charAt(0).toUpperCase())}</div>`;
+          const mediaThumb = ad.media_url
+            ? (ad.media_type === 'video'
+                ? `<span class="tag-badge">VIDEO</span>`
+                : `<img src="${escapeHtml(ad.media_url)}" alt="" style="width:44px;height:32px;object-fit:cover;border-radius:4px;border:1px solid var(--border-color);flex-shrink:0;">`)
+            : '';
+
+          return `
+            <tr>
+              <td>
+                <div class="user-cell">
+                  ${logoHtml}
+                  <div class="user-cell-info">
+                    <span class="user-cell-name">${escapeHtml(ad.advertiser_name)}</span>
+                    <span class="user-cell-sub">#${ad.id} &middot; Sponsored</span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div style="display:flex;align-items:center;gap:10px;max-width:280px;">
+                  ${mediaThumb}
+                  <div style="min-width:0;">
+                    ${ad.headline ? `<div style="font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ad.headline)}</div>` : ''}
+                    <div style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ad.primary_text)}</div>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div style="font-size:12px;font-weight:600;">${escapeHtml(ad.cta_label || 'Learn More')}</div>
+                <a href="${escapeHtml(ad.destination_url)}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:var(--text-secondary);max-width:160px;display:inline-block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(ad.destination_url)}</a>
+              </td>
+              <td>${statusBadge}</td>
+              <td style="font-size:12px;color:var(--text-secondary);">${escapeHtml(startStr)} &rarr; ${escapeHtml(endStr)}</td>
+              <td><strong>${Number(ad.impression_count || 0).toLocaleString()}</strong></td>
+              <td><strong>${Number(ad.click_count || 0).toLocaleString()}</strong> <span style="font-size:11px;color:var(--text-muted);">(${Number(ad.ctr || 0).toFixed(1)}%)</span></td>
+              <td style="font-size:12px;color:var(--text-secondary);">${escapeHtml(createdStr)}</td>
+              <td>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="openAdvertisementModal(${ad.id})">Edit</button>
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAdvertisementStatus(${ad.id}, '${isActive ? 'paused' : 'active'}')">${isActive ? 'Pause' : 'Activate'}</button>
+                  <button type="button" class="btn btn-danger btn-sm" onclick="deleteAdvertisementRecord(${ad.id})">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function closeAdvertisementModal() {
+      const m = document.getElementById('advertisementManageModal');
+      if (m) m.classList.remove('open');
+    }
+
+    function openAdvertisementModal(adId = null) {
+      const modal = document.getElementById('advertisementManageModal');
+      const title = document.getElementById('adModalTitle');
+      const body = document.getElementById('adModalBody');
+      if (!modal || !body) return;
+
+      const existing = adId ? cachedAdminAds.find(a => Number(a.id) === Number(adId)) : null;
+      if (title) title.textContent = existing ? `Edit Advertisement #${existing.id}` : 'Create Advertisement';
+      const startVal = existing && existing.start_date ? String(existing.start_date).slice(0, 10) : '';
+      const endVal = existing && existing.end_date ? String(existing.end_date).slice(0, 10) : '';
+      const statusVal = existing ? (existing.is_active === 1 && existing.status === 'active' ? 'active' : (existing.status || 'inactive')) : 'active';
+
+      body.innerHTML = `
+        <form id="adminAdForm" onsubmit="event.preventDefault(); submitAdminAdvertisement(${existing ? existing.id : 'null'});">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Advertiser / Brand Name *</label>
+              <input type="text" id="modalAdAdvertiser" class="search-box-input" style="width:100%;" value="${escapeHtml(existing?.advertiser_name || '')}" required>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">CTA Button Label *</label>
+              <input type="text" id="modalAdCta" class="search-box-input" style="width:100%;" value="${escapeHtml(existing?.cta_label || 'Learn More')}" required>
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Primary Advertisement Text *</label>
+            <textarea id="modalAdPrimaryText" class="search-box-input" style="width:100%;height:76px;resize:vertical;" required>${escapeHtml(existing?.primary_text || '')}</textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Headline (Optional)</label>
+              <input type="text" id="modalAdHeadline" class="search-box-input" style="width:100%;" value="${escapeHtml(existing?.headline || '')}">
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Destination URL (https://) *</label>
+              <input type="url" id="modalAdDestUrl" class="search-box-input" style="width:100%;" value="${escapeHtml(existing?.destination_url || '')}" placeholder="https://example.com" required>
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Description (Optional)</label>
+            <input type="text" id="modalAdDescription" class="search-box-input" style="width:100%;" value="${escapeHtml(existing?.description || '')}">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div>
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">${existing ? 'Replace Creative (Optional)' : 'Creative Image or Video *'}</label>
+              <input type="file" id="modalAdCreativeFile" accept="image/*,video/mp4,video/webm,video/quicktime" class="search-box-input" style="width:100%;padding:6px;" ${existing ? '' : 'required'}>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Advertiser Logo (Optional)</label>
+              <input type="file" id="modalAdLogoFile" accept="image/*" class="search-box-input" style="width:100%;padding:6px;">
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+            <div>
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Status</label>
+              <select id="modalAdStatus" class="filter-select" style="width:100%;">
+                <option value="active" ${statusVal === 'active' ? 'selected' : ''}>Active</option>
+                <option value="paused" ${statusVal === 'paused' ? 'selected' : ''}>Paused</option>
+                <option value="inactive" ${statusVal === 'inactive' ? 'selected' : ''}>Inactive</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">Start Date</label>
+              <input type="date" id="modalAdStart" class="search-box-input" style="width:100%;" value="${escapeHtml(startVal)}">
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px;">End Date</label>
+              <input type="date" id="modalAdEnd" class="search-box-input" style="width:100%;" value="${escapeHtml(endVal)}">
+            </div>
+          </div>
+          <div id="modalAdError" style="display:none;color:var(--accent-red);font-size:12.5px;margin-bottom:12px;"></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="closeAdvertisementModal()">Cancel</button>
+            <button type="submit" class="admin-modal-btn-action" id="btnSubmitAdminAd">${existing ? 'Save Changes' : 'Publish Advertisement'}</button>
+          </div>
+        </form>
+      `;
+      modal.classList.add('open');
+    }
+
+    async function submitAdminAdvertisement(adId = null) {
+      const errBox = document.getElementById('modalAdError');
+      const btn = document.getElementById('btnSubmitAdminAd');
+      if (errBox) errBox.style.display = 'none';
+
+      const fd = new FormData();
+      fd.append('advertiser_name', document.getElementById('modalAdAdvertiser')?.value.trim() || '');
+      fd.append('cta_label', document.getElementById('modalAdCta')?.value.trim() || 'Learn More');
+      fd.append('primary_text', document.getElementById('modalAdPrimaryText')?.value.trim() || '');
+      fd.append('headline', document.getElementById('modalAdHeadline')?.value.trim() || '');
+      fd.append('destination_url', document.getElementById('modalAdDestUrl')?.value.trim() || '');
+      fd.append('description', document.getElementById('modalAdDescription')?.value.trim() || '');
+      const statusVal = document.getElementById('modalAdStatus')?.value || 'active';
+      fd.append('status', statusVal);
+      fd.append('is_active', statusVal === 'active' ? '1' : '0');
+      fd.append('start_date', document.getElementById('modalAdStart')?.value || '');
+      fd.append('end_date', document.getElementById('modalAdEnd')?.value || '');
+
+      const creativeInput = document.getElementById('modalAdCreativeFile');
+      if (creativeInput && creativeInput.files && creativeInput.files[0]) {
+        fd.append('creative', creativeInput.files[0]);
+      }
+      const logoInput = document.getElementById('modalAdLogoFile');
+      if (logoInput && logoInput.files && logoInput.files[0]) {
+        fd.append('logo', logoInput.files[0]);
+      }
+
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+      try {
+        const url = adId ? `/api/advertisements/${adId}` : '/api/advertisements';
+        const method = adId ? 'PUT' : 'POST';
+        const res = await fetch(url, { method, body: fd });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Could not save advertisement.');
+        closeAdvertisementModal();
+        loadAdvertisementsData();
+      } catch (err) {
+        if (errBox) { errBox.textContent = err.message; errBox.style.display = 'block'; }
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = adId ? 'Save Changes' : 'Publish Advertisement'; }
+      }
+    }
+
+    async function toggleAdvertisementStatus(adId, nextStatus) {
+      try {
+        const res = await fetch(`/api/advertisements/${adId}/status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: nextStatus, is_active: nextStatus === 'active' })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || 'Could not update advertisement status.');
+        }
+        loadAdvertisementsData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function deleteAdvertisementRecord(adId) {
+      if (!confirm('Delete this advertisement permanently?')) return;
+      try {
+        const res = await fetch(`/api/advertisements/${adId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || 'Could not delete advertisement.');
+        }
+        loadAdvertisementsData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
     // Startup initialization: only load overview initially (Step 10 Performance)
     document.addEventListener('DOMContentLoaded', () => {
       state.loadedTabs.add('overview');
       loadOverview();
+      const urlTab = new URLSearchParams(window.location.search).get('tab');
+      if (urlTab) switchTab(urlTab);
     });
   </script>
 </body>

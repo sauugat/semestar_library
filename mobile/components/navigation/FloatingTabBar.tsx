@@ -10,6 +10,7 @@ import {
   PanResponder,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Monochrome } from '@/constants/theme';
@@ -30,7 +31,9 @@ export interface BottomTabBarProps {
     routes: { key: string; name: string }[];
   };
   descriptors: Record<string, { options?: any }>;
-  navigation: any;
+  navigation?: any;
+  emitter?: any;
+  navigateToTab?: (routeKey: string) => void;
   insets?: {
     top: number;
     bottom: number;
@@ -204,9 +207,12 @@ export function FloatingTabBar({
   state,
   descriptors,
   navigation,
+  emitter,
+  navigateToTab,
   pagerRef,
   registerPagerScrollListener,
 }: BottomTabBarProps) {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const { user, serverUrl } = useAuth();
@@ -391,21 +397,40 @@ export function FloatingTabBar({
   const handleTabSelect = (targetIndex: number) => {
     const clampedIndex = Math.min(4, Math.max(0, targetIndex));
     const targetTab = currentTabConfigs[clampedIndex] || TAB_CONFIGS[clampedIndex];
-    const isAlreadyFocused = state.index === clampedIndex;
+    const isAlreadyFocused = state?.index === clampedIndex;
 
     // Smoothly scroll native pager to target tab
     if (pagerRef?.current) {
       pagerRef.current.setPage(clampedIndex);
     }
 
-    const event = navigation.emit({
-      type: 'tabPress',
-      target: state.routes[clampedIndex]?.key || targetTab.name,
-      canPreventDefault: true,
-    });
+    const targetRouteKey = state?.routes?.[clampedIndex]?.key || targetTab.name;
+
+    // Safely emit tabPress event across React Navigation 6/7 and Expo Router SDK 58
+    let event: any = undefined;
+    if (typeof navigation?.emit === 'function') {
+      event = navigation.emit({
+        type: 'tabPress',
+        target: targetRouteKey,
+        canPreventDefault: true,
+      });
+    } else if (typeof emitter?.emit === 'function') {
+      event = emitter.emit({
+        type: 'tabPress',
+        target: targetRouteKey,
+        canPreventDefault: true,
+      });
+    }
 
     if (!isAlreadyFocused && !(event as any)?.defaultPrevented) {
-      navigation.navigate(targetTab.name);
+      if (typeof navigateToTab === 'function' && state?.routes?.[clampedIndex]?.key) {
+        navigateToTab(state.routes[clampedIndex].key);
+      } else if (typeof navigation?.navigate === 'function') {
+        navigation.navigate(targetTab.name);
+      } else if (router) {
+        const routePath = targetTab.name === 'index' ? '/(tabs)' : `/(tabs)/${targetTab.name}`;
+        router.navigate(routePath as any);
+      }
     }
   };
 

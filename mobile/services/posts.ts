@@ -1,5 +1,6 @@
 import { api, apiFetch, ApiError, getBaseUrl } from './api';
 import { LibraryFile, toggleFileLike } from './library';
+import { Advertisement } from './advertisements';
 import { normalizeUploadFile, validateFileSize, RawFileAsset } from '../utils/file-upload';
 
 export type { LibraryFile };
@@ -117,6 +118,12 @@ export interface PostComment {
 export interface PostsResponse {
   posts: Post[];
   nextCursor: number | null;
+  advertisements?: Advertisement[];
+  eligibleAdvertisements?: Advertisement[];
+  feedItems?: any[];
+  adPlacements?: any[];
+  placedAdIds?: number[];
+  feedSeed?: string;
 }
 
 export interface ToggleLikeResult {
@@ -136,7 +143,8 @@ export async function getPosts(
   cursor?: number | null,
   limit: number = 20,
   type?: 'status' | 'assignment' | 'notice',
-  category?: string
+  category?: string,
+  options?: { seed?: string; excludeAdIds?: number[] }
 ): Promise<PostsResponse> {
   const query = new URLSearchParams();
   query.append('limit', String(limit));
@@ -149,11 +157,23 @@ export async function getPosts(
   if (category && category !== 'all') {
     query.append('category', category);
   }
+  if (options?.seed) {
+    query.append('seed', options.seed);
+  }
+  if (options?.excludeAdIds && options.excludeAdIds.length > 0) {
+    query.append('excludeAdIds', options.excludeAdIds.join(','));
+  }
 
   const res = await api.get<PostsResponse>(`/api/posts?${query.toString()}`);
   return {
     posts: Array.isArray(res.posts) ? res.posts : [],
     nextCursor: res.nextCursor ?? null,
+    advertisements: Array.isArray(res.advertisements) ? res.advertisements : [],
+    eligibleAdvertisements: Array.isArray(res.eligibleAdvertisements) ? res.eligibleAdvertisements : [],
+    feedItems: Array.isArray(res.feedItems) ? res.feedItems : [],
+    adPlacements: Array.isArray(res.adPlacements) ? res.adPlacements : [],
+    placedAdIds: Array.isArray(res.placedAdIds) ? res.placedAdIds : [],
+    feedSeed: res.feedSeed,
   };
 }
 

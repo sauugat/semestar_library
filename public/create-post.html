@@ -1042,6 +1042,67 @@
       color: #ef4444;
       text-align: right;
     }
+
+    /* Admin Publishing Mode Switcher (Regular Post vs Advertisement) */
+    .publish-mode-switcher {
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: var(--input-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 5px;
+      margin-bottom: 22px;
+    }
+    .publish-mode-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 14px;
+      border-radius: 7px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+    .publish-mode-btn:hover {
+      color: var(--text-main);
+    }
+    .publish-mode-btn.active {
+      background: var(--card-bg);
+      color: var(--text-main);
+      border-color: var(--border-strong);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    .ad-form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .ad-media-preview-box {
+      margin-top: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--input-bg);
+      max-height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ad-media-preview-box img,
+    .ad-media-preview-box video {
+      width: 100%;
+      max-height: 260px;
+      object-fit: contain;
+      display: block;
+    }
   </style>
 </head>
 
@@ -1075,8 +1136,20 @@
   <main class="create-page-main">
     <div class="composer-card">
       <div class="composer-header">
-        <h1 class="composer-title">Create Post</h1>
-        <p class="composer-subtitle">Share an update, notes, or announcement with your semester</p>
+        <h1 class="composer-title" id="composerMainTitle">Create Post</h1>
+        <p class="composer-subtitle" id="composerMainSubtitle">Share an update, notes, or announcement with your semester</p>
+      </div>
+
+      <!-- Admin Publishing Mode Selector (Visible only to Administrators) -->
+      <div class="publish-mode-switcher" id="publishModeSwitcher" role="tablist" aria-label="Publishing Mode">
+        <button type="button" class="publish-mode-btn active" id="modeRegularPostBtn" data-mode="post" role="tab" aria-selected="true">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <span>Regular Post</span>
+        </button>
+        <button type="button" class="publish-mode-btn" id="modeAdvertisementBtn" data-mode="advertisement" role="tab" aria-selected="false">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <span>Advertisement</span>
+        </button>
       </div>
 
       <!-- Author Strip -->
@@ -1321,6 +1394,90 @@
 
         <p id="formFeedback" class="feedback-message" role="status" aria-live="polite"></p>
       </form>
+
+      <!-- Admin Advertisement Composer Form (Shown when Advertisement mode is selected) -->
+      <form id="advertisementComposerForm" style="display: none;">
+        <div class="ad-form-grid">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="adAdvertiserName">Advertiser / Brand Name *</label>
+            <input type="text" id="adAdvertiserName" class="composer-input" maxlength="120" placeholder="e.g. GitHub Education" required>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="adCtaLabel">CTA Button Label *</label>
+            <input type="text" id="adCtaLabel" class="composer-input" maxlength="60" value="Learn More" placeholder="e.g. Learn More, Apply Now, Sign Up" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="adPrimaryText">Primary Advertisement Text *</label>
+          <textarea id="adPrimaryText" class="composer-textarea" style="min-height:110px;" maxlength="5000" placeholder="Write the primary sponsored post text..." required></textarea>
+        </div>
+
+        <div class="ad-form-grid">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="adHeadline">Headline <span class="label-optional">(Optional)</span></label>
+            <input type="text" id="adHeadline" class="composer-input" maxlength="200" placeholder="Short callout headline below creative">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="adDestinationUrl">Destination URL *</label>
+            <input type="url" id="adDestinationUrl" class="composer-input" placeholder="https://example.com" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="adDescription">Description <span class="label-optional">(Optional)</span></label>
+          <input type="text" id="adDescription" class="composer-input" maxlength="500" placeholder="Supporting description text">
+        </div>
+
+        <div class="ad-form-grid">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Creative Media (Image or Video) *</label>
+            <input type="file" id="adCreativeInput" accept="image/*,video/mp4,video/webm,video/quicktime" hidden>
+            <button type="button" class="tool-btn" id="adChooseCreativeBtn" style="width:100%; justify-content:center; padding:11px 14px;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span id="adCreativeBtnLabel">Upload Image or Video Creative</span>
+            </button>
+            <div class="ad-media-preview-box" id="adCreativePreviewBox" style="display:none;"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Advertiser Logo <span class="label-optional">(Optional)</span></label>
+            <input type="file" id="adLogoInput" accept="image/*" hidden>
+            <button type="button" class="tool-btn" id="adChooseLogoBtn" style="width:100%; justify-content:center; padding:11px 14px;">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
+              <span id="adLogoBtnLabel">Upload Brand Logo</span>
+            </button>
+            <div class="ad-media-preview-box" id="adLogoPreviewBox" style="display:none; max-height:90px;"></div>
+          </div>
+        </div>
+
+        <div class="ad-form-grid">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="adStatusSelect">Publication Status</label>
+            <select id="adStatusSelect" class="composer-input">
+              <option value="active">Active (Publish immediately)</option>
+              <option value="inactive">Inactive / Draft</option>
+              <option value="paused">Paused</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="adStartDate">Start Date <span class="label-optional">(Optional)</span></label>
+            <input type="date" id="adStartDate" class="composer-input">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="adEndDate">End Date <span class="label-optional">(Optional)</span></label>
+            <input type="date" id="adEndDate" class="composer-input">
+          </div>
+        </div>
+
+        <div class="composer-footer-row">
+          <a href="/admin-dashboard.html?tab=advertisements" class="tool-btn" style="text-decoration:none;">Manage All Ads</a>
+          <div class="composer-actions-bar">
+            <a href="/dashboard.html" class="cancel-btn">Cancel</a>
+            <button type="submit" class="submit-post-btn" id="submitAdBtn">Publish Advertisement</button>
+          </div>
+        </div>
+        <p id="adFormFeedback" class="feedback-message" role="status" aria-live="polite"></p>
+      </form>
     </div>
   </main>
 
@@ -1352,6 +1509,43 @@
     let composerFiles = [];
     let canPostNotice = false;
     let canSelectAudience = false;
+    let canCreateAdvertisement = false;
+    let publishingMode = 'post';
+    let adCreativeFile = null;
+    let adLogoFile = null;
+
+    const publishModeSwitcher = document.getElementById('publishModeSwitcher');
+    const modeRegularPostBtn = document.getElementById('modeRegularPostBtn');
+    const modeAdvertisementBtn = document.getElementById('modeAdvertisementBtn');
+    const standalonePostForm = document.getElementById('standalonePostForm');
+    const advertisementComposerForm = document.getElementById('advertisementComposerForm');
+    const composerMainTitle = document.getElementById('composerMainTitle');
+    const composerMainSubtitle = document.getElementById('composerMainSubtitle');
+
+    function setPublishingMode(mode) {
+      if (mode === 'advertisement' && !canCreateAdvertisement) return;
+      publishingMode = mode;
+      const isAd = mode === 'advertisement';
+      if (modeRegularPostBtn) {
+        modeRegularPostBtn.classList.toggle('active', !isAd);
+        modeRegularPostBtn.setAttribute('aria-selected', String(!isAd));
+      }
+      if (modeAdvertisementBtn) {
+        modeAdvertisementBtn.classList.toggle('active', isAd);
+        modeAdvertisementBtn.setAttribute('aria-selected', String(isAd));
+      }
+      if (standalonePostForm) standalonePostForm.style.display = isAd ? 'none' : 'block';
+      if (advertisementComposerForm) advertisementComposerForm.style.display = isAd ? 'block' : 'none';
+      if (composerMainTitle) composerMainTitle.textContent = isAd ? 'Create Sponsored Advertisement' : 'Create Post';
+      if (composerMainSubtitle) {
+        composerMainSubtitle.textContent = isAd
+          ? 'Publish an in-feed sponsored campaign across mobile and website feeds'
+          : 'Share an update, notes, or announcement with your semester';
+      }
+    }
+
+    if (modeRegularPostBtn) modeRegularPostBtn.addEventListener('click', () => setPublishingMode('post'));
+    if (modeAdvertisementBtn) modeAdvertisementBtn.addEventListener('click', () => setPublishingMode('advertisement'));
 
     // Load User and Meta Info
     Promise.all([
@@ -1368,13 +1562,23 @@
         if (emailNameEl) emailNameEl.textContent = userName;
       }
 
+      const userRole = (userData?.role || 'student').toLowerCase();
       if (metaData) {
         canPostNotice = Boolean(metaData.canPostNotice);
         canSelectAudience = Boolean(metaData.canSelectAudience);
+        canCreateAdvertisement = Boolean(metaData.canCreateAdvertisement) || userRole === 'admin';
       } else if (userData) {
-        const role = (userData.role || 'student').toLowerCase();
-        canPostNotice = ['admin', 'superadmin', 'teacher', 'faculty'].includes(role);
-        canSelectAudience = ['student', 'cr'].includes(role) || userData.isCR;
+        canPostNotice = ['admin', 'superadmin', 'teacher', 'faculty'].includes(userRole);
+        canSelectAudience = ['student', 'cr'].includes(userRole) || userData.isCR;
+        canCreateAdvertisement = userRole === 'admin';
+      }
+
+      if (publishModeSwitcher) {
+        publishModeSwitcher.style.display = canCreateAdvertisement ? 'grid' : 'none';
+      }
+      const urlMode = new URLSearchParams(window.location.search).get('mode');
+      if (canCreateAdvertisement && (urlMode === 'advertisement' || urlMode === 'ad')) {
+        setPublishingMode('advertisement');
       }
 
       // Hide Notice if not authorized
@@ -2602,6 +2806,123 @@
         submitBtn.textContent = 'Post';
       }
     });
+
+    // Advertisement Creative & Logo Picker + Submit Handler
+    const adCreativeInput = document.getElementById('adCreativeInput');
+    const adChooseCreativeBtn = document.getElementById('adChooseCreativeBtn');
+    const adCreativeBtnLabel = document.getElementById('adCreativeBtnLabel');
+    const adCreativePreviewBox = document.getElementById('adCreativePreviewBox');
+    const adLogoInput = document.getElementById('adLogoInput');
+    const adChooseLogoBtn = document.getElementById('adChooseLogoBtn');
+    const adLogoBtnLabel = document.getElementById('adLogoBtnLabel');
+    const adLogoPreviewBox = document.getElementById('adLogoPreviewBox');
+
+    if (adChooseCreativeBtn && adCreativeInput) {
+      adChooseCreativeBtn.addEventListener('click', () => adCreativeInput.click());
+      adCreativeInput.addEventListener('change', () => {
+        const f = adCreativeInput.files && adCreativeInput.files[0];
+        if (!f) return;
+        adCreativeFile = f;
+        if (adCreativeBtnLabel) adCreativeBtnLabel.textContent = f.name;
+        if (adCreativePreviewBox) {
+          adCreativePreviewBox.style.display = 'flex';
+          const url = URL.createObjectURL(f);
+          if (f.type.startsWith('video/')) {
+            adCreativePreviewBox.innerHTML = `<video src="${url}" controls muted playsinline></video>`;
+          } else {
+            adCreativePreviewBox.innerHTML = `<img src="${url}" alt="Ad creative preview">`;
+          }
+        }
+      });
+    }
+
+    if (adChooseLogoBtn && adLogoInput) {
+      adChooseLogoBtn.addEventListener('click', () => adLogoInput.click());
+      adLogoInput.addEventListener('change', () => {
+        const f = adLogoInput.files && adLogoInput.files[0];
+        if (!f) return;
+        adLogoFile = f;
+        if (adLogoBtnLabel) adLogoBtnLabel.textContent = f.name;
+        if (adLogoPreviewBox) {
+          adLogoPreviewBox.style.display = 'flex';
+          const url = URL.createObjectURL(f);
+          adLogoPreviewBox.innerHTML = `<img src="${url}" alt="Brand logo preview" style="max-height:72px; width:auto;">`;
+        }
+      });
+    }
+
+    if (advertisementComposerForm) {
+      advertisementComposerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const adFeedback = document.getElementById('adFormFeedback');
+        const submitAdBtn = document.getElementById('submitAdBtn');
+        if (adFeedback) adFeedback.textContent = '';
+
+        const advertiserName = document.getElementById('adAdvertiserName')?.value.trim();
+        const primaryText = document.getElementById('adPrimaryText')?.value.trim();
+        const headline = document.getElementById('adHeadline')?.value.trim();
+        const description = document.getElementById('adDescription')?.value.trim();
+        const ctaLabel = document.getElementById('adCtaLabel')?.value.trim() || 'Learn More';
+        const destinationUrl = document.getElementById('adDestinationUrl')?.value.trim();
+        const statusVal = document.getElementById('adStatusSelect')?.value || 'active';
+        const startDate = document.getElementById('adStartDate')?.value || '';
+        const endDate = document.getElementById('adEndDate')?.value || '';
+
+        if (!advertiserName || !primaryText || !destinationUrl) {
+          if (adFeedback) adFeedback.textContent = 'Advertiser name, primary text, and destination URL are required.';
+          return;
+        }
+        if (!adCreativeFile) {
+          if (adFeedback) adFeedback.textContent = 'Please select an image or video creative for this advertisement.';
+          return;
+        }
+
+        if (submitAdBtn) {
+          submitAdBtn.disabled = true;
+          submitAdBtn.textContent = 'Publishing…';
+        }
+
+        try {
+          const fd = new FormData();
+          fd.append('advertiser_name', advertiserName);
+          fd.append('primary_text', primaryText);
+          if (headline) fd.append('headline', headline);
+          if (description) fd.append('description', description);
+          fd.append('cta_label', ctaLabel);
+          fd.append('destination_url', destinationUrl);
+          fd.append('status', statusVal);
+          fd.append('is_active', statusVal === 'active' ? '1' : '0');
+          if (startDate) fd.append('start_date', startDate);
+          if (endDate) fd.append('end_date', endDate);
+          fd.append('creative', adCreativeFile);
+          if (adLogoFile) fd.append('logo', adLogoFile);
+
+          const authHeaders = (typeof SemesterAuth !== 'undefined' && SemesterAuth.getAuthHeaders)
+            ? SemesterAuth.getAuthHeaders()
+            : {};
+          delete authHeaders['Content-Type'];
+
+          const res = await fetch('/api/advertisements', {
+            method: 'POST',
+            headers: authHeaders,
+            body: fd
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Could not publish advertisement.');
+
+          if (window.SWR && typeof window.SWR.invalidate === 'function') {
+            window.SWR.invalidate('/api/posts');
+          }
+          window.location.href = '/dashboard.html';
+        } catch (err) {
+          if (adFeedback) adFeedback.textContent = err.message || 'Failed to publish advertisement.';
+          if (submitAdBtn) {
+            submitAdBtn.disabled = false;
+            submitAdBtn.textContent = 'Publish Advertisement';
+          }
+        }
+      });
+    }
   </script>
 </body>
 

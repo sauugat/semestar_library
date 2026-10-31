@@ -75,6 +75,13 @@ import { EditPostModal } from '@/components/EditPostModal';
 import { PostFileAttachments } from '@/components/PostFileAttachments';
 import { CommentItem } from '@/components/CommentItem';
 import { PostCard } from '@/components/PostCard';
+import { SponsoredAdCard } from '@/components/SponsoredAdCard';
+import {
+  Advertisement,
+  interleaveFeedWithAds,
+  createAdvertisement,
+  getFeedSessionKey,
+} from '@/services/advertisements';
 import { RawFileAsset } from '@/utils/file-upload';
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -199,7 +206,8 @@ type FeedAssignment = {
 export type FeedItem =
   | { feedType: 'assignment'; assignment: FeedAssignment; time: number }
   | { feedType: 'post'; post: Post; time: number }
-  | { feedType: 'file'; file: LibraryFile; time: number };
+  | { feedType: 'file'; file: LibraryFile; time: number }
+  | { feedType: 'advertisement'; advertisement: Advertisement; time: number };
 
 function formatRelativeTime(dateString: unknown): string {
   return formatTimeAgo(dateString);
@@ -591,6 +599,8 @@ function StudentHomeScreenInner() {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [files, setFiles] = useState<LibraryFile[]>([]);
+  const [eligibleAds, setEligibleAds] = useState<Advertisement[]>([]);
+  const [feedSessionSeed] = useState<string>(() => getFeedSessionKey());
   const [nextCursor, setNextCursor] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -640,7 +650,7 @@ function StudentHomeScreenInner() {
     queryFn: async () => {
       const feedQuery = isTeacherUser ? '?feed=1' : '';
       const [postsRes, filesRes, assignmentsRes] = await Promise.all([
-        getPosts(null, 20),
+        getPosts(null, 20, undefined, undefined, { seed: feedSessionSeed }),
         getFeedFiles(feedQuery),
         apiFetch(`/api/code-lab/assignments${feedQuery}`)
           .then(async response => (response.ok ? ((await response.json()) as FeedAssignment[]) : []))
@@ -650,6 +660,7 @@ function StudentHomeScreenInner() {
         posts: postsRes.posts,
         files: filesRes,
         assignments: assignmentsRes,
+        eligibleAdvertisements: postsRes.eligibleAdvertisements || postsRes.advertisements || [],
         nextCursor: postsRes.nextCursor,
         fetchedAt: new Date(),
       };
@@ -664,6 +675,7 @@ function StudentHomeScreenInner() {
       setPosts(feedData.posts);
       setFiles(feedData.files);
       setAssignments(feedData.assignments || []);
+      setEligibleAds((feedData as any).eligibleAdvertisements || []);
       setNextCursor(feedData.nextCursor);
       setLastFetchedAt(feedData.fetchedAt);
     }
@@ -725,13 +737,15 @@ function StudentHomeScreenInner() {
         }))
       : [];
 
-    return [...postItems, ...fileItems, ...assignmentItems].sort((a, b) => {
+    const organicSorted = [...postItems, ...fileItems, ...assignmentItems].sort((a, b) => {
       if (b.time !== a.time) return b.time - a.time;
-      const bId = b.feedType === 'post' ? b.post.id : b.feedType === 'file' ? b.file.id : b.assignment.id;
-      const aId = a.feedType === 'post' ? a.post.id : a.feedType === 'file' ? a.file.id : a.assignment.id;
+      const bId = b.feedType === 'post' ? b.post.id : b.feedType === 'file' ? b.file.id : (b as any).assignment.id;
+      const aId = a.feedType === 'post' ? a.post.id : a.feedType === 'file' ? a.file.id : (a as any).assignment.id;
       return bId - aId;
     });
-  }, [posts, files, assignments, feedCategoryFilter, user, fetchedTeacherSubjects]);
+
+    return interleaveFeedWithAds(organicSorted, eligibleAds, { seed: feedSessionSeed });
+  }, [posts, files, assignments, eligibleAds, feedSessionSeed, feedCategoryFilter, user, fetchedTeacherSubjects]);
 
   // Post Comments bottom-sheet state
   const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(null);
@@ -1060,8 +1074,20 @@ function StudentHomeScreenInner() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
-  // Create Post Composer states
+  // Create Post Composer states (supports Regular Post & Admin Advertisement modes)
   const [composerOpen, setComposerOpen] = useState(false);
+  const [publishingMode, setPublishingMode] = useState<'post' | 'advertisement'>('post');
+  const [adAdvertiserName, setAdAdvertiserName] = useState('');
+  const [adPrimaryText, setAdPrimaryText] = useState('');
+  const [adHeadline, setAdHeadline] = useState('');
+  const [adDescription, setAdDescription] = useState('');
+  const [adCtaLabel, setAdCtaLabel] = useState('Learn More');
+  const [adDestinationUrl, setAdDestinationUrl] = useState('');
+  const [adIsActive, setAdIsActive] = useState(true);
+  const [adStartDate, setAdStartDate] = useState('');
+  const [adEndDate, setAdEndDate] = useState('');
+  const [adCreativeAsset, setAdCreativeAsset] = useState<any | null>(null);
+  const [adLogoAsset, setAdLogoAsset] = useState<any | null>(null);
   const [postTitle, setPostTitle] = useState('');
   const [postContent, setPostContent] = useState('');
   const [postCategory, setPostCategory] = useState<string>('general');
@@ -1174,7 +1200,7 @@ function StudentHomeScreenInner() {
     setLoadingMore(true);
 
     try {
-      const res = await getPosts(nextCursor, 20);
+      const res = await getPosts(nextCursor, 20, undefined, undefined, { seed: feedSessionSeed });
       setPosts((prev) => {
         const existingIds = new Set(prev.map((p) => p.id));
         const newPosts = res.posts.filter((p) => !existingIds.has(p.id));
@@ -1548,7 +1574,100 @@ function StudentHomeScreenInner() {
     }
   };
 
+  const handlePickAdCreative = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images', 'videos'],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      const a = result.assets[0];
+      setAdCreativeAsset({
+        uri: a.uri,
+        name: a.fileName || `ad_creative_${Date.now()}.${a.type === 'video' ? 'mp4' : 'jpg'}`,
+        type: a.mimeType || (a.type === 'video' ? 'video/mp4' : 'image/jpeg'),
+      });
+    }
+  };
+
+  const handlePickAdLogo = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets?.[0]) {
+      const a = result.assets[0];
+      setAdLogoAsset({
+        uri: a.uri,
+        name: a.fileName || `ad_logo_${Date.now()}.jpg`,
+        type: a.mimeType || 'image/jpeg',
+      });
+    }
+  };
+
   const handlePublishPost = async () => {
+    if (publishingMode === 'advertisement') {
+      if (userRole !== 'admin') {
+        setComposerError('Only administrators can publish advertisements.');
+        return;
+      }
+      if (!adAdvertiserName.trim()) {
+        setComposerError('Advertiser / brand name is required.');
+        return;
+      }
+      if (!adPrimaryText.trim()) {
+        setComposerError('Primary advertisement text is required.');
+        return;
+      }
+      if (!adCreativeAsset) {
+        setComposerError('Please select an image or video creative.');
+        return;
+      }
+      if (!adDestinationUrl.trim()) {
+        setComposerError('Destination URL is required.');
+        return;
+      }
+      setSubmittingPost(true);
+      setComposerError(null);
+      try {
+        const createdAd = await createAdvertisement({
+          advertiser_name: adAdvertiserName.trim(),
+          primary_text: adPrimaryText.trim(),
+          headline: adHeadline.trim() || null,
+          description: adDescription.trim() || null,
+          cta_label: adCtaLabel.trim() || 'Learn More',
+          destination_url: adDestinationUrl.trim(),
+          status: adIsActive ? 'active' : 'inactive',
+          is_active: adIsActive,
+          start_date: adStartDate.trim() || null,
+          end_date: adEndDate.trim() || null,
+          creativeFile: adCreativeAsset,
+          logoFile: adLogoAsset,
+        });
+        if (createdAd && createdAd.is_active === 1) {
+          setEligibleAds((prev) => [createdAd, ...prev]);
+        }
+        setAdAdvertiserName('');
+        setAdPrimaryText('');
+        setAdHeadline('');
+        setAdDescription('');
+        setAdCtaLabel('Learn More');
+        setAdDestinationUrl('');
+        setAdIsActive(true);
+        setAdStartDate('');
+        setAdEndDate('');
+        setAdCreativeAsset(null);
+        setAdLogoAsset(null);
+        setPublishingMode('post');
+        setComposerOpen(false);
+        showToast('Advertisement published');
+      } catch (err: any) {
+        setComposerError(err.message || 'Could not publish advertisement.');
+      } finally {
+        setSubmittingPost(false);
+      }
+      return;
+    }
+
     const hasText = Boolean(postContent.trim());
     const hasAttachments = composerAttachments.length > 0;
     if (!hasText && !hasAttachments) {
@@ -2380,6 +2499,15 @@ function StudentHomeScreenInner() {
         </Card>
       );
     }
+    if (item.feedType === 'advertisement') {
+      return (
+        <SponsoredAdCard
+          advertisement={item.advertisement}
+          getFullImageUrl={getFullImageUrl}
+          sessionKey={feedSessionSeed}
+        />
+      );
+    }
     if (item.feedType === 'file') {
       return renderFileItem(item.file);
     }
@@ -2470,7 +2598,7 @@ function StudentHomeScreenInner() {
         <FlatList
           ref={feedRef}
           data={feedItems}
-          keyExtractor={(item) => (item.feedType === 'post' ? `post-${item.post.id}` : item.feedType === 'file' ? `file-${item.file.id}` : `assignment-${item.assignment.id}`)}
+          keyExtractor={(item) => (item.feedType === 'post' ? `post-${item.post.id}` : item.feedType === 'file' ? `file-${item.file.id}` : item.feedType === 'advertisement' ? `ad-${item.advertisement.id}` : `assignment-${item.assignment.id}`)}
           renderItem={renderFeedItem}
           ListHeaderComponent={renderFeedHeader}
           ListEmptyComponent={renderEmpty}
@@ -2521,17 +2649,21 @@ function StudentHomeScreenInner() {
                 <Ionicons name="close" size={22} color={colors.text} />
               </TouchableOpacity>
 
-              <Text variant="md" weight="700" color="primary">Create Post</Text>
+              <Text variant="md" weight="700" color="primary">
+                {publishingMode === 'advertisement' ? 'Create Advertisement' : 'Create Post'}
+              </Text>
 
               <Button
-                title={submittingPost ? 'Posting...' : 'Post'}
+                title={submittingPost ? 'Publishing...' : (publishingMode === 'advertisement' ? 'Publish Ad' : 'Post')}
                 size="sm"
                 variant="primary"
                 loading={submittingPost}
                 disabled={
-                  (!postContent.trim() && composerAttachments.length === 0) ||
-                  composerAttachments.some((a) => a.status === 'uploading' || a.status === 'error') ||
-                  submittingPost
+                  publishingMode === 'advertisement'
+                    ? (!adAdvertiserName.trim() || !adPrimaryText.trim() || !adDestinationUrl.trim() || !adCreativeAsset || submittingPost)
+                    : ((!postContent.trim() && composerAttachments.length === 0) ||
+                       composerAttachments.some((a) => a.status === 'uploading' || a.status === 'error') ||
+                       submittingPost)
                 }
                 onPress={handlePublishPost}
                 style={{ minWidth: 68 }}
@@ -2593,6 +2725,52 @@ function StudentHomeScreenInner() {
               keyboardShouldPersistTaps="handled"
               clearance={24}
             >
+              {/* Admin Publishing Mode Selector (Regular Post vs Advertisement) */}
+              {userRole === 'admin' && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    backgroundColor: colors.surfaceRaised,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                    borderRadius: radii.md,
+                    padding: 4,
+                    marginBottom: spacing.md,
+                    gap: 6,
+                  }}
+                  testID="composer-publishing-mode-toggle"
+                >
+                  <TouchableOpacity
+                    onPress={() => setPublishingMode('post')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: radii.sm,
+                      alignItems: 'center',
+                      backgroundColor: publishingMode === 'post' ? colors.surface : 'transparent',
+                    }}
+                  >
+                    <Text variant="xs" weight="700" style={{ color: publishingMode === 'post' ? colors.text : colors.textSecondary }}>
+                      Regular Post
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setPublishingMode('advertisement')}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 8,
+                      borderRadius: radii.sm,
+                      alignItems: 'center',
+                      backgroundColor: publishingMode === 'advertisement' ? colors.surface : 'transparent',
+                    }}
+                  >
+                    <Text variant="xs" weight="700" style={{ color: publishingMode === 'advertisement' ? colors.text : colors.textSecondary }}>
+                      Advertisement
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               {/* Author & Post Type Row */}
               <View style={styles.modalAuthorRow}>
                 <Avatar
@@ -2606,10 +2784,113 @@ function StudentHomeScreenInner() {
                     {user?.name || 'Student'}
                   </Text>
                   <Caption color="muted">
-                    {user?.role ? user.role.toUpperCase() : 'STUDENT'} • Public to campus
+                    {user?.role ? user.role.toUpperCase() : 'STUDENT'} • {publishingMode === 'advertisement' ? 'Sponsored Feed Campaign' : 'Public to campus'}
                   </Caption>
                 </View>
               </View>
+
+              {publishingMode === 'advertisement' && userRole === 'admin' ? (
+                <View style={{ gap: spacing.sm, marginTop: spacing.xs }}>
+                  {composerError && (
+                    <View style={[styles.errorBox, { borderColor: colors.borderStrong, borderRadius: radii.md }]}>
+                      <Ionicons name="alert-circle-outline" size={16} color={colors.text} style={{ marginRight: 6 }} />
+                      <Text variant="xs" color="primary" style={{ flex: 1 }}>{composerError}</Text>
+                    </View>
+                  )}
+                  <TextInput
+                    placeholder="Advertiser / Brand Name *"
+                    placeholderTextColor={colors.textMuted}
+                    value={adAdvertiserName}
+                    onChangeText={setAdAdvertiserName}
+                    style={[styles.titleInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 10 }]}
+                  />
+                  <TextInput
+                    placeholder="Primary Advertisement Text *"
+                    placeholderTextColor={colors.textMuted}
+                    value={adPrimaryText}
+                    onChangeText={setAdPrimaryText}
+                    multiline
+                    style={[styles.contentInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, padding: spacing.md, minHeight: 100, textAlignVertical: 'top' }]}
+                  />
+                  <TextInput
+                    placeholder="Headline (Optional)"
+                    placeholderTextColor={colors.textMuted}
+                    value={adHeadline}
+                    onChangeText={setAdHeadline}
+                    style={[styles.titleInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 10 }]}
+                  />
+                  <TextInput
+                    placeholder="Description (Optional)"
+                    placeholderTextColor={colors.textMuted}
+                    value={adDescription}
+                    onChangeText={setAdDescription}
+                    style={[styles.titleInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 10 }]}
+                  />
+                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                    <TextInput
+                      placeholder="CTA Button Label *"
+                      placeholderTextColor={colors.textMuted}
+                      value={adCtaLabel}
+                      onChangeText={setAdCtaLabel}
+                      style={[styles.titleInput, { flex: 1, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 10 }]}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setAdIsActive(!adIsActive)}
+                      style={[styles.selectorButton, { flex: 1, backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: radii.md, paddingHorizontal: spacing.sm, paddingVertical: 10, borderWidth: 1, justifyContent: 'center', alignItems: 'center' }]}
+                    >
+                      <Text variant="xs" weight="700" style={{ color: colors.text }}>
+                        {adIsActive ? 'Status: Active' : 'Status: Inactive'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <TextInput
+                    placeholder="Destination URL (https://...) *"
+                    placeholderTextColor={colors.textMuted}
+                    value={adDestinationUrl}
+                    onChangeText={setAdDestinationUrl}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                    style={[styles.titleInput, { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 10 }]}
+                  />
+                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                    <TextInput
+                      placeholder="Start Date (YYYY-MM-DD)"
+                      placeholderTextColor={colors.textMuted}
+                      value={adStartDate}
+                      onChangeText={setAdStartDate}
+                      style={[styles.titleInput, { flex: 1, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 10 }]}
+                    />
+                    <TextInput
+                      placeholder="End Date (YYYY-MM-DD)"
+                      placeholderTextColor={colors.textMuted}
+                      value={adEndDate}
+                      onChangeText={setAdEndDate}
+                      style={[styles.titleInput, { flex: 1, color: colors.text, backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 10 }]}
+                    />
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                    <TouchableOpacity
+                      onPress={handlePickAdCreative}
+                      style={[styles.attachPhotoBtn, { flex: 1, backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: radii.md, justifyContent: 'center' }]}
+                    >
+                      <Ionicons name="image-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                      <Text variant="xs" weight="600" color="primary">
+                        {adCreativeAsset ? 'Creative Selected' : 'Select Creative *'}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handlePickAdLogo}
+                      style={[styles.attachPhotoBtn, { flex: 1, backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: radii.md, justifyContent: 'center' }]}
+                    >
+                      <Ionicons name="person-circle-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                      <Text variant="xs" weight="600" color="primary">
+                        {adLogoAsset ? 'Logo Selected' : 'Brand Logo'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <>
 
               {/* Title Input (Hidden for General posts) */}
               {postCategory !== 'general' && (
@@ -3081,6 +3362,8 @@ function StudentHomeScreenInner() {
                   </TouchableOpacity>
                 )}
               </View>
+              </>
+              )}
             </KeyboardAwareForm>
 
             <SelectionSheet

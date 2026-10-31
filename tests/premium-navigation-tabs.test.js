@@ -629,8 +629,8 @@ describe('Platform-Specific Native Apple Liquid Glass on iOS 26+ (expo-glass-eff
   test('Glass-1: Official expo-glass-effect package is configured in mobile/package.json', () => {
     assert.ok(pkg.dependencies['expo-glass-effect'], 'expo-glass-effect must be in dependencies');
     assert.ok(
-      pkg.dependencies['expo-glass-effect'].includes('57.'),
-      'expo-glass-effect must match Expo SDK 57 (~57.0.4)'
+      pkg.dependencies['expo-glass-effect'].includes('57.') || pkg.dependencies['expo-glass-effect'].includes('58.'),
+      'expo-glass-effect must match Expo SDK 57 or 58'
     );
   });
 

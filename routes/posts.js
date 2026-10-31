@@ -30,6 +30,11 @@ const {
   isContentReportsAvailable
 } = require('../lib/posts');
 const {
+  ensureAdvertisementsSchema,
+  getEligibleAdvertisements,
+  interleaveAdvertisements
+} = require('../lib/advertisements');
+const {
   getAcademicContext,
   buildAcademicContentFilter,
   resolvePublishScope,
@@ -232,7 +237,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       try {
         const inPosts = await db.get('SELECT COUNT(*) AS c FROM posts WHERE attachment_url = ? OR attachment_url = ?', fullUrl, altUrl);
         const inMedia = await db.get('SELECT COUNT(*) AS c FROM post_media WHERE url = ? OR url = ?', fullUrl, altUrl);
-        if ((Number(inPosts?.c || 0) + Number(inMedia?.c || 0)) === 0) {
+        const inAds = await db.get('SELECT COUNT(*) AS c FROM advertisements WHERE media_url = ? OR media_url = ? OR advertiser_logo_url = ? OR advertiser_logo_url = ?', fullUrl, altUrl, fullUrl, altUrl).catch(() => ({ c: 0 }));
+        if ((Number(inPosts?.c || 0) + Number(inMedia?.c || 0) + Number(inAds?.c || 0)) === 0) {
           await db.deleteFileBlob(filename);
           await removeUploadedImage(path.join(uploadDir, filename));
           try {
@@ -525,6 +531,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     const userRole = req.postUser?.role || 'student';
     const canPostNotice = ['admin', 'cr', 'teacher'].includes(userRole);
     const canSelectAudience = ['student', 'cr'].includes(userRole) || (!['admin', 'teacher'].includes(userRole));
+    const canCreateAdvertisement = userRole === 'admin';
     res.setHeader('Cache-Control', 'private, no-cache');
     res.json({
       categories: VALID_POST_CATEGORIES.map(cat => ({
@@ -537,7 +544,8 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       visibilities: VALID_POST_VISIBILITIES,
       defaultVisibility: DEFAULT_POST_VISIBILITY,
       canPostNotice,
-      canSelectAudience
+      canSelectAudience,
+      canCreateAdvertisement
     });
   });
 
@@ -724,8 +732,60 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
         attachMediaToPosts(posts),
         attachTargetSemestersToPosts(posts)
       ]);
+
+      let eligibleAds = [];
+      const isAuthorFeed = Boolean(targetAuthor);
+      const isModerationFeed = Boolean(isModerationView);
+      const disableAds = req.query.includeAds === 'false' || req.query.includeAds === '0' || isAuthorFeed || isModerationFeed;
+      if (!disableAds) {
+        try {
+          await ensureAdvertisementsSchema(db);
+          eligibleAds = await getEligibleAdvertisements(db);
+        } catch (_) {
+          eligibleAds = [];
+        }
+      }
+
+      const rawExclude = req.query.excludeAdIds || req.query.seenAdIds || '';
+      const excludeAdIds = String(rawExclude)
+        .split(',')
+        .map(s => Number(s.trim()))
+        .filter(n => Number.isInteger(n) && n > 0);
+      const baseSeed = String(req.query.seed || req.query.feedSeed || req.headers['x-feed-session'] || req.sessionID || viewerStudentId || 'anon');
+      const paginationSessionKey = `${viewerStudentId || 'anon'}::${baseSeed}::${category || 'all'}::${type || 'all'}`;
+      const placement = interleaveAdvertisements(posts, eligibleAds, {
+        seed: baseSeed,
+        excludeAdIds,
+        paginationSessionKey,
+        isFirstPage: before === undefined
+      });
+
+      const hasAdParams = Boolean(
+        req.query.seed !== undefined ||
+        req.query.feedSeed !== undefined ||
+        req.query.includeAds !== undefined ||
+        req.query.excludeAdIds !== undefined ||
+        req.query.seenAdIds !== undefined
+      );
+
       res.setHeader('Cache-Control', 'private, no-store');
-      res.json({ posts, nextCursor: hasMore ? posts[posts.length - 1].id : null });
+      if (eligibleAds.length === 0 && !hasAdParams && posts.length === 0) {
+        return res.json({
+          posts,
+          nextCursor: hasMore ? posts[posts.length - 1].id : null
+        });
+      }
+
+      res.json({
+        posts,
+        nextCursor: hasMore ? posts[posts.length - 1].id : null,
+        advertisements: placement.adPlacements.map(p => p.advertisement),
+        eligibleAdvertisements: eligibleAds,
+        feedItems: placement.feedItems,
+        adPlacements: placement.adPlacements,
+        placedAdIds: placement.placedAdIds,
+        feedSeed: placement.seed
+      });
     } catch (err) {
       next(err);
     }
@@ -815,11 +875,12 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       const fileUrl = `/uploads/posts/${filename}`;
       const altUrl = `uploads/posts/${filename}`;
 
-      // Only delete if NOT referenced by any post or post_media
+      // Only delete if NOT referenced by any post, post_media, or advertisement
       const inPosts = await db.get('SELECT COUNT(*) AS c FROM posts WHERE attachment_url = ? OR attachment_url = ?', fileUrl, altUrl);
       const inMedia = await db.get('SELECT COUNT(*) AS c FROM post_media WHERE url = ? OR url = ?', fileUrl, altUrl);
+      const inAds = await db.get('SELECT COUNT(*) AS c FROM advertisements WHERE media_url = ? OR media_url = ? OR advertiser_logo_url = ? OR advertiser_logo_url = ?', fileUrl, altUrl, fileUrl, altUrl).catch(() => ({ c: 0 }));
 
-      if ((Number(inPosts?.c || 0) + Number(inMedia?.c || 0)) > 0) {
+      if ((Number(inPosts?.c || 0) + Number(inMedia?.c || 0) + Number(inAds?.c || 0)) > 0) {
         return res.status(409).json({ message: 'Cannot delete attachment that is in use by an active post.' });
       }
 

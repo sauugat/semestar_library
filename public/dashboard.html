@@ -3880,6 +3880,9 @@
     }
 
     function renderPost(post) {
+      if (post.type === 'advertisement' || post._feedType === 'advertisement' || post.feedItemType === 'advertisement' || post.isSponsored) {
+        return renderSponsoredAdCard(post);
+      }
       if (post.type === 'assignment' || post._feedType === 'assignment') {
         return renderAssignmentPost(post);
       }
@@ -4503,14 +4506,229 @@
     }
 
     let currentFeedCategoryFilter = 'all';
+    let eligibleFeedAds = [];
+    const feedSessionSeed = 'web_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+    const sessionRecordedImpressions = new Set();
+
+    function hashAdSeed(str) {
+      const s = String(str || 'semester-library-default-seed');
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+
+    function createAdRng(seedStr) {
+      let a = hashAdSeed(seedStr) || 1;
+      return function () {
+        let t = (a += 0x6D2B79F5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function shuffleAdsWithSeed(list, seedStr) {
+      const copy = Array.isArray(list) ? [...list] : [];
+      if (copy.length <= 1) return copy;
+      const rng = createAdRng(seedStr);
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        const tmp = copy[i];
+        copy[i] = copy[j];
+        copy[j] = tmp;
+      }
+      return copy;
+    }
+
+    function isAdEligibleNow(ad) {
+      if (!ad) return false;
+      const active = Number(ad.is_active ?? (ad.isActive ? 1 : 0)) === 1;
+      const status = String(ad.status || '').toLowerCase();
+      if (!active || status !== 'active') return false;
+      const nowMs = Date.now();
+      if (ad.start_date) {
+        const s = new Date(ad.start_date).getTime();
+        if (!isNaN(s) && nowMs < s) return false;
+      }
+      if (ad.end_date) {
+        const e = new Date(ad.end_date).getTime();
+        if (!isNaN(e) && nowMs > e) return false;
+      }
+      return true;
+    }
+
+    // Authoritative, idempotent in-feed placement: inserts 1 ad after every 2-3 organic items,
+    // never at index 0, never consecutive, never duplicating ads across pagination or rerenders.
+    function interleaveAdvertisementsIntoFeed(organicItems, rawAds, seed) {
+      const cleanOrganic = (Array.isArray(organicItems) ? organicItems : []).filter(
+        item => !(item && (item._feedType === 'advertisement' || item.feedItemType === 'advertisement' || item.type === 'advertisement' || item.isSponsored === true))
+      );
+      if (cleanOrganic.length === 0) return [];
+      const seenIds = new Set();
+      const validAds = [];
+      (Array.isArray(rawAds) ? rawAds : []).forEach(ad => {
+        if (!ad || !ad.id) return;
+        const id = Number(ad.id);
+        if (seenIds.has(id)) return;
+        if (!isAdEligibleNow(ad)) return;
+        seenIds.add(id);
+        validAds.push({ ...ad, id, _feedType: 'advertisement', feedItemType: 'advertisement', isSponsored: true });
+      });
+      if (validAds.length === 0) return cleanOrganic;
+
+      const shuffled = shuffleAdsWithSeed(validAds, `${seed}:ads`);
+      const intervalRng = createAdRng(`${seed}:intervals`);
+      const out = [];
+      let adIdx = 0;
+      let organicSinceLastAd = 0;
+      let nextGap = intervalRng() < 0.5 ? 2 : 3;
+
+      for (let i = 0; i < cleanOrganic.length; i++) {
+        out.push(cleanOrganic[i]);
+        organicSinceLastAd++;
+        if (organicSinceLastAd >= nextGap && adIdx < shuffled.length) {
+          out.push(shuffled[adIdx++]);
+          organicSinceLastAd = 0;
+          nextGap = intervalRng() < 0.5 ? 2 : 3;
+        }
+      }
+      return out;
+    }
+
+    function recordSponsoredImpression(adId) {
+      const numId = Number(adId);
+      if (!numId || numId <= 0) return;
+      const dedupeKey = `${feedSessionSeed}:${numId}`;
+      if (sessionRecordedImpressions.has(dedupeKey)) return;
+      sessionRecordedImpressions.add(dedupeKey);
+      fetch(`/api/advertisements/${numId}/impression`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionKey: feedSessionSeed })
+      }).catch(() => {});
+    }
+
+    window.handleSponsoredAdClick = function (adId, destUrl, event) {
+      if (event) event.stopPropagation();
+      const numId = Number(adId);
+      if (numId > 0) {
+        fetch(`/api/advertisements/${numId}/click`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionKey: feedSessionSeed })
+        }).catch(() => {});
+      }
+      const safeDest = safePostUrl(destUrl);
+      if (safeDest && (safeDest.startsWith('http://') || safeDest.startsWith('https://'))) {
+        window.open(safeDest, '_blank', 'noopener,noreferrer');
+      }
+    };
+
+    let adImpressionObserver = null;
+    function observeSponsoredCards(container) {
+      if (!container) return;
+      const adCards = container.querySelectorAll('.sponsored-ad-card[data-advertisement-id]');
+      if (!adCards.length) return;
+      if (typeof IntersectionObserver !== 'undefined') {
+        if (!adImpressionObserver) {
+          adImpressionObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting) {
+                const id = entry.target.getAttribute('data-advertisement-id');
+                if (id) recordSponsoredImpression(id);
+                adImpressionObserver.unobserve(entry.target);
+              }
+            });
+          }, { threshold: 0.35 });
+        }
+        adCards.forEach(card => {
+          const id = card.getAttribute('data-advertisement-id');
+          if (id && !sessionRecordedImpressions.has(`${feedSessionSeed}:${id}`)) {
+            adImpressionObserver.observe(card);
+          }
+        });
+      } else {
+        adCards.forEach(card => {
+          const id = card.getAttribute('data-advertisement-id');
+          if (id) recordSponsoredImpression(id);
+        });
+      }
+    }
+
+    function renderSponsoredAdCard(ad) {
+      const advertiserName = ad.advertiser_name || ad.advertiserName || 'Sponsored Partner';
+      const logoUrl = safePostUrl(ad.advertiser_logo_url || ad.advertiserLogoUrl);
+      const initial = (advertiserName || 'S').charAt(0).toUpperCase();
+      const avatarHtml = logoUrl
+        ? `<img src="${logoUrl}" alt="${escapeHtml(advertiserName)}" class="post-avatar-img">`
+        : escapeHtml(initial);
+      const mediaUrl = safePostUrl(ad.media_url || ad.mediaUrl);
+      const mediaType = (ad.media_type || ad.mediaType || 'image').toLowerCase();
+      const primaryText = (ad.primary_text || ad.primaryText || '').trim();
+      const headline = (ad.headline || '').trim();
+      const description = (ad.description || '').trim();
+      const ctaLabel = (ad.cta_label || ad.ctaLabel || 'Learn More').trim();
+      const destUrl = (ad.destination_url || ad.destinationUrl || '').trim();
+      let domainLabel = '';
+      try {
+        domainLabel = new URL(destUrl).hostname.replace(/^www\./i, '');
+      } catch (_) {}
+
+      const mediaHtml = mediaUrl
+        ? (mediaType === 'video'
+            ? `<div class="post-image sponsored-ad-media" style="margin-top:10px;border-radius:10px;overflow:hidden;border:1px solid var(--border-color);background:#000;">
+                <video src="${mediaUrl}" controls playsinline preload="metadata" style="width:100%;max-height:480px;display:block;object-fit:contain;"></video>
+               </div>`
+            : `<div class="post-image sponsored-ad-media" style="margin-top:10px;border-radius:10px;overflow:hidden;border:1px solid var(--border-color);cursor:pointer;" onclick="handleSponsoredAdClick(${Number(ad.id)}, '${escapeHtml(destUrl)}', event)">
+                <img src="${mediaUrl}" alt="${escapeHtml(headline || advertiserName)}" loading="lazy" decoding="async" style="width:100%;height:auto;max-height:520px;object-fit:cover;display:block;">
+               </div>`)
+        : '';
+
+      return `
+        <article class="feed-card social-post-card post-card sponsored-ad-card" data-advertisement-id="${Number(ad.id)}">
+          <div class="post-avatar" aria-hidden="true">${avatarHtml}</div>
+          <div class="post-main post-body">
+            <header class="post-header">
+              <div class="post-user-info">
+                <div class="post-author-row">
+                  <span class="post-author-name">${escapeHtml(advertiserName)}</span>
+                  <span class="post-monochrome-badge sponsored-badge" style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;border:1px solid var(--border-color);background:var(--surface-raised, rgba(255,255,255,0.06));letter-spacing:0.3px;">
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    Sponsored
+                  </span>
+                </div>
+                <div class="post-meta-row"><span class="post-timestamp">Sponsored Promotion</span></div>
+              </div>
+            </header>
+            ${primaryText ? `<div class="post-content-unclamped" style="margin-top:6px;"><div class="status-post-text post-markdown-content">${typeof renderPostMarkdown === 'function' ? renderPostMarkdown(primaryText) : escapeHtml(primaryText)}</div></div>` : ''}
+            ${mediaHtml}
+            <div class="sponsored-cta-bar" style="margin-top:10px;padding:12px 14px;border-radius:10px;border:1px solid var(--border-color);background:var(--surface-raised, rgba(255,255,255,0.04));display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:160px;cursor:pointer;" onclick="handleSponsoredAdClick(${Number(ad.id)}, '${escapeHtml(destUrl)}', event)">
+                ${domainLabel ? `<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:0.4px;color:var(--text-muted, #8e8e93);margin-bottom:2px;">${escapeHtml(domainLabel)}</div>` : ''}
+                <div style="font-size:14px;font-weight:700;color:var(--text-primary, #f4f4f6);">${escapeHtml(headline || advertiserName)}</div>
+                ${description ? `<div style="font-size:12.5px;color:var(--text-secondary, #a1a1aa);margin-top:2px;">${escapeHtml(description)}</div>` : ''}
+              </div>
+              <button type="button" class="sponsored-cta-btn" onclick="handleSponsoredAdClick(${Number(ad.id)}, '${escapeHtml(destUrl)}', event)" style="padding:8px 16px;border-radius:8px;background:var(--text-primary, #f4f4f6);color:var(--bg-primary, #09090b);border:none;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;">
+                <span>${escapeHtml(ctaLabel)}</span>
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </button>
+            </div>
+          </div>
+        </article>`;
+    }
 
     function renderFeed() {
       const container = document.getElementById('realFiles');
+      // Keep feedItems strictly organic; interleave active ads deterministically at render time
+      feedItems = feedItems.filter(item => item._feedType !== 'advertisement' && !item.isSponsored);
       feedItems.sort((a, b) => b._feedTime - a._feedTime || b.id - a.id);
 
-      let visibleItems = feedItems;
+      let visibleOrganic = feedItems;
       if (currentFeedCategoryFilter && currentFeedCategoryFilter !== 'all') {
-        visibleItems = feedItems.filter(item => {
+        visibleOrganic = feedItems.filter(item => {
           if (item._feedType === 'assignment' || item.type === 'assignment') {
             return currentFeedCategoryFilter.toLowerCase() === 'assignment';
           }
@@ -4520,10 +4738,12 @@
         });
       }
 
-      // Reuse existing cards so paging or publishing preserves open comments and pending likes.
+      const visibleItems = interleaveAdvertisementsIntoFeed(visibleOrganic, eligibleFeedAds, feedSessionSeed);
+
+      // Reuse existing cards so paging or publishing preserves open comments, pending likes, and ad stability.
       const fragment = document.createDocumentFragment();
       visibleItems.forEach(item => {
-        const attribute = { post: 'post', assignment: 'assignment', file: 'file' }[item._feedType];
+        const attribute = { post: 'post', assignment: 'assignment', file: 'file', advertisement: 'advertisement' }[item._feedType] || 'post';
         const existing = container.querySelector(`[data-${attribute}-id="${item.id}"]`);
         if (existing) {
           fragment.appendChild(existing);
@@ -4534,6 +4754,7 @@
         }
       });
       container.replaceChildren(fragment);
+      observeSponsoredCards(container);
       if (!visibleItems.length) {
         if (!postsLoaded) {
           container.innerHTML = `<div class="post-feed-empty"><p>Could not load posts</p><p>${escapeHtml(postFeedMessage.textContent || 'Check your connection and try again.')}</p><button type="button" class="apple-nav-btn" onclick="loadFeed({ force: true })" style="margin-top:10px;">Retry</button></div>`;
@@ -4573,7 +4794,7 @@
     }
 
     async function fetchPostPage(before = null) {
-      const response = await fetch('/api/posts?limit=20' + (before === null ? '' : '&before=' + before));
+      const response = await fetch('/api/posts?limit=20&seed=' + encodeURIComponent(feedSessionSeed) + (before === null ? '' : '&before=' + before));
       if (!response.ok) throw new Error('Could not load posts. Please try again.');
       return response.json();
     }
@@ -4607,6 +4828,11 @@
         addFeedPosts(pageData.posts);
         postsCursor = pageData.nextCursor;
         postsLoaded = true;
+        if (Array.isArray(pageData.eligibleAdvertisements)) {
+          eligibleFeedAds = pageData.eligibleAdvertisements;
+        } else if (Array.isArray(pageData.advertisements)) {
+          eligibleFeedAds = pageData.advertisements;
+        }
       }
       renderFeed();
       if (!feedScrollRestoredOnce && feedScrollRestore && typeof feedScrollRestore.restore === 'function') {

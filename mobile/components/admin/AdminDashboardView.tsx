@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/Badge';
 import { apiFetch } from '@/services/api';
 import { AdminAuditModal } from './AdminAuditModal';
 import { AdminCohortsModal } from './AdminCohortsModal';
+import { AdminAdvertisementsModal } from './AdminAdvertisementsModal';
 
 export function AdminDashboardView() {
   const { colors, radii, spacing } = useTheme();
@@ -29,6 +30,7 @@ export function AdminDashboardView() {
 
   const [auditModalVisible, setAuditModalVisible] = useState(false);
   const [cohortsModalVisible, setCohortsModalVisible] = useState(false);
+  const [adsModalVisible, setAdsModalVisible] = useState(false);
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
     queryKey: ['admin-overview'],
@@ -140,6 +142,24 @@ export function AdminDashboardView() {
             </View>
 
             <TouchableOpacity
+              onPress={() => setAdsModalVisible(true)}
+              style={[styles.auditShortcut, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]}
+              accessibilityLabel="Advertisement Management"
+              testID="admin-open-advertisements-btn"
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={[styles.shortcutIconWrap, { backgroundColor: colors.surfaceRaised, marginRight: 12, marginBottom: 0 }]}>
+                  <Ionicons name="megaphone-outline" size={20} color={colors.text} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.shortcutTitle, { color: colors.text }]}>Advertisement Management</Text>
+                  <Caption style={{ color: colors.textSecondary }}>Create, pause, and track in-feed sponsored ads</Caption>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               onPress={() => setAuditModalVisible(true)}
               style={[styles.auditShortcut, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]}
             >
@@ -230,6 +250,7 @@ export function AdminDashboardView() {
       {/* Modals */}
       <AdminAuditModal visible={auditModalVisible} onClose={() => setAuditModalVisible(false)} />
       <AdminCohortsModal visible={cohortsModalVisible} onClose={() => setCohortsModalVisible(false)} />
+      <AdminAdvertisementsModal visible={adsModalVisible} onClose={() => setAdsModalVisible(false)} />
     </SafeAreaView>
   );
 }

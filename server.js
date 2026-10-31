@@ -936,7 +936,11 @@ app.get('/api/academic-context', requireLogin, async (req, res) => {
 });
 
 const postsRouterInstance = require('./routes/posts')(db, requireLogin);
+const advertisementsRouterInstance = require('./routes/advertisements')(db, requireLogin);
 app.use('/api/posts', postsRouterInstance);
+app.use('/api/advertisements', advertisementsRouterInstance);
+app.use('/api/ads', advertisementsRouterInstance);
+app.use('/api/admin/advertisements', advertisementsRouterInstance);
 app.get('/api/profile/:studentId/posts', requireLogin, (req, res, next) => {
   req.query.studentId = req.params.studentId;
   req.url = '/';

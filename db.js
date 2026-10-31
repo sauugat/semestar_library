@@ -975,6 +975,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
 
 
       await require('./lib/posts').ensurePostsSchema({ exec, isPostgres });
+      await require('./lib/advertisements').ensureAdvertisementsSchema({ exec, isPostgres });
       await require('./lib/ai-chat-service').ensureSchema({ exec, isPostgres });
 
       // One-time migration for tables that existed before subject/stdout/stderr columns were added

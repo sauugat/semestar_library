@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-31T13:50:04.528Z",
+  "timestamp": "2026-10-31T13:56:21.237Z",
   "integrationCheck": {
     "roomId": "Building B6 Classrooms Room 1",
     "roomCenter": {
@@ -145,24 +145,24 @@
   },
   "perfInside": {
     "location": "Inside Classroom Room 1",
-    "avgFps": 59,
-    "minFps": 46.5,
-    "avgFrameTimeMs": 16.96,
-    "maxFrameTimeMs": 21.5,
+    "avgFps": 60,
+    "minFps": 38.3,
+    "avgFrameTimeMs": 16.67,
+    "maxFrameTimeMs": 26.1,
     "drawCalls": 1616,
     "triangles": 244943,
-    "geometries": 650,
+    "geometries": 648,
     "textures": 87
   },
   "perfOutside": {
     "location": "Outside Classroom (Veranda & Courtyard)",
-    "avgFps": 27.6,
-    "minFps": 0.5,
-    "avgFrameTimeMs": 36.18,
-    "maxFrameTimeMs": 1880.6,
+    "avgFps": 49.6,
+    "minFps": 23.1,
+    "avgFrameTimeMs": 20.16,
+    "maxFrameTimeMs": 43.3,
     "drawCalls": 1589,
     "triangles": 310527,
-    "geometries": 737,
+    "geometries": 735,
     "textures": 92
   },
   "screenshots": [

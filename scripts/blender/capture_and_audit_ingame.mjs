@@ -156,49 +156,49 @@ server.listen(9876, async () => {
 
   console.log('\n--- 2. Capturing 9 In-Game Audit Screenshots ---');
 
-  // View 1: Entrance from corridor looking into classroom doorway
+  // View 1: Entrance from corridor looking through doorway into classroom
   console.log('[+] View 1: Classroom entrance from the corridor...');
-  await setView(-13.83, 1.62 + 1.25, 41.5, -13.83, 1.62 + 1.20, 48.0, { flashlight: false, ceilingLights: true });
+  await setView(-13.833, 1.62 + 1.35, 43.6, -13.833, 1.62 + 1.20, 48.5, { flashlight: false, ceilingLights: true });
   await page.screenshot({ path: path.join(screenshotDir, '01_classroom_entrance_from_corridor.png') });
 
-  // View 2: Player standing inside classroom (center view toward teaching wall)
+  // View 2: Player standing inside classroom (center view toward desks and dais)
   console.log('[+] View 2: Player standing inside the classroom...');
-  await setView(-13.83, 1.62 + 1.25, 47.5, -10.5, 1.62 + 1.30, 48.0, { flashlight: false, ceilingLights: true });
+  await setView(-14.2, 1.62 + 1.30, 46.8, -15.2, 1.62 + 1.20, 49.5, { flashlight: false, ceilingLights: true });
   await page.screenshot({ path: path.join(screenshotDir, '02_standing_inside_classroom.png') });
 
-  // View 3: View from the back of classroom looking across desks toward dais
+  // View 3: View from back of classroom looking across desks toward dais and whiteboard
   console.log('[+] View 3: View from back of classroom...');
-  await setView(-16.8, 1.62 + 1.30, 49.0, -10.0, 1.62 + 1.20, 48.0, { flashlight: false, ceilingLights: true });
+  await setView(-17.2, 1.62 + 1.30, 49.0, -12.5, 1.62 + 1.20, 49.0, { flashlight: false, ceilingLights: true });
   await page.screenshot({ path: path.join(screenshotDir, '03_view_from_back_of_classroom.png') });
 
-  // View 4: View facing whiteboard, dais, teacher desk, and clock
+  // View 4: View facing whiteboard, dais, teacher desk, and wall clock
   console.log('[+] View 4: View facing the whiteboard...');
-  await setView(-12.2, 1.62 + 1.25, 48.5, -10.0, 1.62 + 1.35, 48.5, { flashlight: false, ceilingLights: true });
+  await setView(-14.5, 1.62 + 1.25, 48.5, -12.0, 1.62 + 1.30, 48.5, { flashlight: false, ceilingLights: true });
   await page.screenshot({ path: path.join(screenshotDir, '04_view_facing_whiteboard.png') });
 
   // View 5: View through classroom windows out to exterior campus
   console.log('[+] View 5: View through classroom windows...');
-  await setView(-14.2, 1.62 + 1.25, 49.8, -14.2, 1.62 + 1.40, 56.0, { flashlight: false, ceilingLights: true });
+  await setView(-16.0, 1.62 + 1.25, 49.2, -16.0, 1.62 + 1.35, 53.5, { flashlight: false, ceilingLights: true });
   await page.screenshot({ path: path.join(screenshotDir, '05_view_through_windows.png') });
 
   // View 6: Classroom with flashlight enabled
   console.log('[+] View 6: Classroom with flashlight enabled...');
-  await setView(-13.83, 1.62 + 1.25, 47.0, -11.0, 1.62 + 1.10, 48.0, { flashlight: true, ceilingLights: true });
+  await setView(-14.5, 1.62 + 1.25, 47.0, -15.5, 1.62 + 1.10, 49.5, { flashlight: true, ceilingLights: true });
   await page.screenshot({ path: path.join(screenshotDir, '06_flashlight_enabled.png') });
 
   // View 7: Classroom with ceiling lights disabled (switchboard toggled)
   console.log('[+] View 7: Classroom with ceiling lights disabled...');
-  await setView(-13.83, 1.62 + 1.25, 47.0, -11.0, 1.62 + 1.10, 48.0, { flashlight: true, ceilingLights: false });
+  await setView(-14.5, 1.62 + 1.25, 47.0, -15.5, 1.62 + 1.10, 49.5, { flashlight: true, ceilingLights: false });
   await page.screenshot({ path: path.join(screenshotDir, '07_ceiling_lights_disabled.png') });
 
   // View 8: Player entering the room across doorway threshold
   console.log('[+] View 8: Player entering the room...');
-  await setView(-13.83, 1.62 + 1.20, 44.5, -13.83, 1.62 + 1.20, 47.5, { flashlight: false, ceilingLights: true });
+  await setView(-13.833, 1.62 + 1.25, 44.5, -13.833, 1.62 + 1.20, 47.5, { flashlight: false, ceilingLights: true });
   await page.screenshot({ path: path.join(screenshotDir, '08_player_entering_room.png') });
 
-  // View 9: Player exiting the room looking back into the corridor
+  // View 9: Player exiting the room looking back out to corridor
   console.log('[+] View 9: Player exiting the room...');
-  await setView(-13.83, 1.62 + 1.20, 45.8, -13.83, 1.62 + 1.20, 41.0, { flashlight: false, ceilingLights: true });
+  await setView(-13.833, 1.62 + 1.25, 45.8, -13.833, 1.62 + 1.20, 42.0, { flashlight: false, ceilingLights: true });
   await page.screenshot({ path: path.join(screenshotDir, '09_player_exiting_room.png') });
 
   console.log('[+] All 9 in-game screenshots captured successfully!');

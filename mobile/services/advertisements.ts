@@ -1,5 +1,7 @@
 import { api, apiFetch, ApiError } from './api';
-import { RawFileAsset } from '../utils/file-upload';
+import { normalizeUploadFile, validateFileSize, RawFileAsset } from '../utils/file-upload';
+
+export const MAX_AD_MEDIA_BYTES = 15 * 1024 * 1024; // 15 MB for advertisement image/video creative
 
 export interface Advertisement {
   id: number;
@@ -58,8 +60,8 @@ export interface CreateAdvertisementParams {
   is_active?: boolean | number;
   start_date?: string | null;
   end_date?: string | null;
-  creativeFile?: RawFileAsset | { uri: string; name?: string; type?: string; mimeType?: string } | null;
-  logoFile?: RawFileAsset | { uri: string; name?: string; type?: string; mimeType?: string } | null;
+  creativeFile?: RawFileAsset | { uri: string; name?: string; type?: string; mimeType?: string; size?: number; fileSize?: number } | null;
+  logoFile?: RawFileAsset | { uri: string; name?: string; type?: string; mimeType?: string; size?: number; fileSize?: number } | null;
 }
 
 export interface ManagedAdvertisementsResponse {
@@ -272,16 +274,20 @@ export async function recordAdClick(adId: number, sessionKey: string = currentFe
 }
 
 export async function uploadAdvertisementMedia(
-  file: RawFileAsset | { uri: string; name?: string; type?: string; mimeType?: string }
-): Promise<{ url: string; filename: string; media_type: 'image' | 'video'; mime_type?: string }> {
-  const formData = new FormData();
-  const assetName = (file as any).name || (file as any).fileName || `ad_${Date.now()}.jpg`;
-  const assetMime = (file as any).type || (file as any).mimeType || 'image/jpeg';
+  file: RawFileAsset | { uri: string; name?: string; type?: string; mimeType?: string; size?: number; fileSize?: number }
+): Promise<{ id?: string; url: string; filename: string; media_type: 'image' | 'video'; mime_type?: string }> {
+  const normalized = normalizeUploadFile(file as RawFileAsset, `ad_${Date.now()}`);
+  try {
+    validateFileSize(normalized.size, MAX_AD_MEDIA_BYTES, 'Advertisement media');
+  } catch (sizeErr: any) {
+    throw new ApiError(sizeErr.message || 'Advertisement media exceeds 15 MB limit.', 413);
+  }
 
+  const formData = new FormData();
   formData.append('file', {
-    uri: file.uri,
-    name: assetName,
-    type: assetMime,
+    uri: normalized.uri,
+    name: normalized.name,
+    type: normalized.type,
   } as any);
 
   const res = await apiFetch('/api/advertisements/media', {

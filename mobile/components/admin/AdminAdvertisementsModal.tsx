@@ -23,7 +23,7 @@ import {
   setAdvertisementStatus,
   deleteAdvertisement,
 } from '@/services/advertisements';
-import { getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
+import { getBaseUrl, getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
 
 interface AdminAdvertisementsModalProps {
   visible: boolean;
@@ -33,6 +33,7 @@ interface AdminAdvertisementsModalProps {
 export function AdminAdvertisementsModal({ visible, onClose }: AdminAdvertisementsModalProps) {
   const { colors, radii, spacing } = useTheme();
   const [ads, setAds] = useState<Advertisement[]>([]);
+  const [baseUrl, setBaseUrl] = useState<string>(DEFAULT_SERVER_URL);
   const [summary, setSummary] = useState({
     total: 0,
     active: 0,
@@ -61,12 +62,16 @@ export function AdminAdvertisementsModal({ visible, onClose }: AdminAdvertisemen
   const [creativeAsset, setCreativeAsset] = useState<any | null>(null);
   const [logoAsset, setLogoAsset] = useState<any | null>(null);
 
+  useEffect(() => {
+    getBaseUrl().then(setBaseUrl).catch(() => {});
+  }, []);
+
   const resolveMediaUrl = (rawUrl?: string | null) => {
     if (!rawUrl) return null;
     if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://') || rawUrl.startsWith('file://')) {
       return rawUrl;
     }
-    const host = (getAutoDetectedServerUrl() || DEFAULT_SERVER_URL).replace(/\/+$/, '');
+    const host = (baseUrl || getAutoDetectedServerUrl() || DEFAULT_SERVER_URL).replace(/\/+$/, '');
     return `${host}/${rawUrl.replace(/^\/+/, '')}`;
   };
 
@@ -132,10 +137,13 @@ export function AdminAdvertisementsModal({ visible, onClose }: AdminAdvertisemen
     });
     if (!result.canceled && result.assets?.[0]) {
       const a = result.assets[0];
+      const resolvedMime = a.mimeType || (a.type === 'video' ? 'video/mp4' : 'image/jpeg');
       setCreativeAsset({
         uri: a.uri,
         name: a.fileName || `creative_${Date.now()}.${a.type === 'video' ? 'mp4' : 'jpg'}`,
-        type: a.mimeType || (a.type === 'video' ? 'video/mp4' : 'image/jpeg'),
+        type: resolvedMime,
+        mimeType: resolvedMime,
+        size: a.fileSize,
       });
     }
   };
@@ -147,10 +155,13 @@ export function AdminAdvertisementsModal({ visible, onClose }: AdminAdvertisemen
     });
     if (!result.canceled && result.assets?.[0]) {
       const a = result.assets[0];
+      const resolvedMime = a.mimeType || 'image/jpeg';
       setLogoAsset({
         uri: a.uri,
         name: a.fileName || `logo_${Date.now()}.jpg`,
-        type: a.mimeType || 'image/jpeg',
+        type: resolvedMime,
+        mimeType: resolvedMime,
+        size: a.fileSize,
       });
     }
   };

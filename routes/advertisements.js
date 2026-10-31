@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { recordAdminAudit } = require('../lib/audit-service');
+const { ensurePostsSchema } = require('../lib/posts');
 const {
   ensureAdvertisementsSchema,
   validateAdvertisementInput,
@@ -23,6 +24,7 @@ const AD_UPLOAD_DIR = process.env.VERCEL
 
 const imageExtensions = {
   'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
   'image/png': '.png',
   'image/gif': '.gif',
   'image/webp': '.webp',
@@ -37,29 +39,71 @@ const videoExtensions = {
   'video/mp4': '.mp4',
   'video/webm': '.webm',
   'video/quicktime': '.mov',
-  'video/x-m4v': '.m4v'
+  'video/x-m4v': '.m4v',
+  'video/3gpp': '.3gp',
+  'video/mpeg': '.mpg'
 };
+
+const extToMime = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.svg': 'image/svg+xml',
+  '.bmp': 'image/bmp',
+  '.heic': 'image/heic',
+  '.heif': 'image/heif',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.m4v': 'video/x-m4v',
+  '.3gp': 'video/3gpp',
+  '.mpg': 'video/mpeg'
+};
+
+const ALLOWED_IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.svg', '.bmp', '.heic', '.heif'];
+const ALLOWED_VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.m4v', '.3gp', '.mpg'];
 
 const MAX_AD_MEDIA_BYTES = 15 * 1024 * 1024; // 15 MB for image/video creative
 
 function getSafeAdMediaExtension(file) {
-  if (file.mimetype && imageExtensions[file.mimetype]) return imageExtensions[file.mimetype];
-  if (file.mimetype && videoExtensions[file.mimetype]) return videoExtensions[file.mimetype];
+  const mime = String(file.mimetype || '').toLowerCase();
+  if (mime && imageExtensions[mime]) return imageExtensions[mime];
+  if (mime && videoExtensions[mime]) return videoExtensions[mime];
   const origExt = path.extname(file.originalname || '').toLowerCase();
-  if (['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.svg', '.mp4', '.webm', '.mov', '.m4v'].includes(origExt)) {
+  if (ALLOWED_IMAGE_EXTS.includes(origExt) || ALLOWED_VIDEO_EXTS.includes(origExt)) {
     return origExt;
   }
-  if (file.mimetype?.startsWith('video/')) return '.mp4';
+  if (mime === 'video' || mime.startsWith('video/')) return '.mp4';
   return '.jpg';
 }
 
 function detectMediaType(file) {
   if (!file) return 'image';
   const mime = String(file.mimetype || '').toLowerCase();
-  if (mime.startsWith('video/')) return 'video';
+  if (mime === 'video' || mime.startsWith('video/')) return 'video';
   const ext = path.extname(file.originalname || file.filename || '').toLowerCase();
-  if (['.mp4', '.webm', '.mov', '.m4v'].includes(ext)) return 'video';
+  if (ALLOWED_VIDEO_EXTS.includes(ext)) return 'video';
   return 'image';
+}
+
+function resolveCanonicalAdMimeType(file) {
+  if (!file) return 'image/jpeg';
+  const rawMime = String(file.mimetype || '').toLowerCase().trim();
+  const ext = path.extname(file.filename || file.originalname || '').toLowerCase();
+  if (rawMime === 'image/jpg') return 'image/jpeg';
+  if (rawMime && (imageExtensions[rawMime] || videoExtensions[rawMime] || rawMime.startsWith('image/') || rawMime.startsWith('video/'))) {
+    return rawMime;
+  }
+  if (ext && extToMime[ext]) {
+    return extToMime[ext];
+  }
+  if (rawMime === 'video' || ALLOWED_VIDEO_EXTS.includes(ext)) {
+    return 'video/mp4';
+  }
+  return 'image/jpeg';
 }
 
 async function removeLocalUpload(filePath) {
@@ -88,8 +132,8 @@ module.exports = function createAdvertisementsRouter(db, requireLogin, { uploadD
     fileFilter: (req, file, cb) => {
       const mime = String(file.mimetype || '').toLowerCase();
       const ext = path.extname(file.originalname || '').toLowerCase();
-      const isImg = mime.startsWith('image/') || ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.svg'].includes(ext);
-      const isVid = mime.startsWith('video/') || ['.mp4', '.webm', '.mov', '.m4v'].includes(ext);
+      const isImg = mime === 'image' || mime.startsWith('image/') || ALLOWED_IMAGE_EXTS.includes(ext);
+      const isVid = mime === 'video' || mime.startsWith('video/') || ALLOWED_VIDEO_EXTS.includes(ext);
       if (isImg || isVid) return cb(null, true);
       const err = new Error('Please upload an image or video creative (JPG, PNG, WebP, GIF, MP4, WebM, MOV).');
       err.code = 'INVALID_AD_MEDIA_TYPE';
@@ -108,6 +152,7 @@ module.exports = function createAdvertisementsRouter(db, requireLogin, { uploadD
       } else if (typeof db.initSchema === 'function') {
         await db.initSchema();
       }
+      await ensurePostsSchema(db);
       await ensureAdvertisementsSchema(db);
       next();
     } catch (err) {
@@ -138,8 +183,9 @@ module.exports = function createAdvertisementsRouter(db, requireLogin, { uploadD
   };
 
   async function saveUploadedFileToBlob(file, uploaderStudentId) {
+    const canonicalMime = resolveCanonicalAdMimeType(file);
     const fileBuffer = await fs.promises.readFile(file.path);
-    const saved = await db.saveFileBlob(file.filename, fileBuffer, file.mimetype);
+    const saved = await db.saveFileBlob(file.filename, fileBuffer, canonicalMime);
     if (!saved) {
       await removeLocalUpload(file.path);
       const err = new Error('Could not persist advertisement media.');
@@ -161,9 +207,9 @@ module.exports = function createAdvertisementsRouter(db, requireLogin, { uploadD
         relativeUrl,
         uploaderStudentId,
         mediaType,
-        file.mimetype || null,
-        file.originalname || null,
-        file.size || null,
+        canonicalMime,
+        file.originalname || file.filename || null,
+        file.size || fileBuffer.length || null,
         nowIso
       );
     } catch (_) {
@@ -175,9 +221,9 @@ module.exports = function createAdvertisementsRouter(db, requireLogin, { uploadD
       filename: file.filename,
       url: relativeUrl,
       media_type: mediaType,
-      mime_type: file.mimetype || null,
-      file_name: file.originalname || null,
-      file_size: file.size || null
+      mime_type: canonicalMime,
+      file_name: file.originalname || file.filename || null,
+      file_size: file.size || fileBuffer.length || null
     };
   }
 

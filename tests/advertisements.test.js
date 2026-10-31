@@ -22,6 +22,11 @@ const testPng = Buffer.from(
   'base64'
 );
 
+const testMp4 = Buffer.from(
+  '00000018667479706d703432000000006d70343269736f6d000000086d646174',
+  'hex'
+);
+
 /**
  * Builds a RFC 7578 multipart/form-data payload buffer from field/file definitions
  * so multer parses multipart uploads without needing a TCP socket.
@@ -739,4 +744,125 @@ test('14. Multipart creative/logo upload persists to blob storage and mobile + w
   assert.ok(mobileHomeTsx.includes('interleaveFeedWithAds'), 'Mobile homepage interleaves ads deterministically');
   assert.ok(mobileSponsoredCardTsx.includes('Sponsored'), 'Mobile SponsoredAdCard displays Sponsored label and CTA');
   assert.ok(mobileAdServiceTs.includes('recordAdImpression'), 'Mobile ad service deduplicates impressions');
+});
+
+// 15: Regression test — Mobile two-step upload flow (/api/advertisements/media + /api/advertisements) for both image and video creatives, authorization, and immediate media retrieval
+test('15. Mobile /api/advertisements/media upload endpoint works for both images and videos, enforces admin authorization, persists to file_blobs, and serves media before and after ad creation without breaking ordinary post uploads', async (t) => {
+  const { apiRequest, blobs } = await createAdTestFixture(t);
+
+  // 1. Non-admin users and unauthenticated requests are blocked from /api/advertisements/media
+  const unauthMedia = await apiRequest('POST', '/api/advertisements/media', {
+    __multipart: true,
+    fields: {},
+    files: [{ field: 'file', filename: 'ad.png', contentType: 'image/png', data: testPng }]
+  }, null);
+  assert.equal(unauthMedia.status, 401);
+
+  for (const nonAdmin of ['student1', 'cr1', 'teacher1']) {
+    const forbiddenMedia = await apiRequest('POST', '/api/advertisements/media', {
+      __multipart: true,
+      fields: {},
+      files: [{ field: 'file', filename: 'ad.png', contentType: 'image/png', data: testPng }]
+    }, nonAdmin);
+    assert.equal(forbiddenMedia.status, 403, `Role ${nonAdmin} must receive 403 on /api/advertisements/media`);
+  }
+
+  // 2. Admin uploads an image creative via POST /api/advertisements/media
+  const imgUpload = await apiRequest('POST', '/api/advertisements/media', {
+    __multipart: true,
+    fields: {},
+    files: [{ field: 'file', filename: 'campus_banner.png', contentType: 'image/png', data: testPng }]
+  }, 'admin1');
+  assert.equal(imgUpload.status, 201);
+  assert.equal(imgUpload.body.media_type, 'image');
+  assert.equal(imgUpload.body.mime_type, 'image/png');
+  assert.match(imgUpload.body.url, /^\/uploads\/posts\/[a-f0-9-]+\.png$/);
+  assert.ok(blobs.has(imgUpload.body.filename), 'Image must be persisted in file_blobs');
+
+  // Verify the uploaded image can be retrieved immediately (even before POST /api/advertisements is called)
+  const preCreateImgFetch = await apiRequest('GET', imgUpload.body.url, undefined, 'admin1');
+  assert.equal(preCreateImgFetch.status, 200);
+  assert.equal(preCreateImgFetch.headers['content-type'], 'image/png');
+  assert.deepEqual(preCreateImgFetch.rawBuffer, testPng);
+
+  // 3. Admin uploads a video creative via POST /api/advertisements/media (including mobile raw 'video' or 'video/mp4' MIME)
+  const vidUpload = await apiRequest('POST', '/api/advertisements/media', {
+    __multipart: true,
+    fields: {},
+    files: [{ field: 'file', filename: 'promo_reel.mp4', contentType: 'video/mp4', data: testMp4 }]
+  }, 'admin1');
+  assert.equal(vidUpload.status, 201);
+  assert.equal(vidUpload.body.media_type, 'video');
+  assert.equal(vidUpload.body.mime_type, 'video/mp4');
+  assert.match(vidUpload.body.url, /^\/uploads\/posts\/[a-f0-9-]+\.mp4$/);
+  assert.ok(blobs.has(vidUpload.body.filename), 'Video must be persisted in file_blobs');
+
+  // Verify the uploaded video can be retrieved immediately with video/mp4 Content-Type
+  const preCreateVidFetch = await apiRequest('GET', vidUpload.body.url, undefined, 'student1');
+  assert.equal(preCreateVidFetch.status, 200);
+  assert.equal(preCreateVidFetch.headers['content-type'], 'video/mp4');
+  assert.deepEqual(preCreateVidFetch.rawBuffer, testMp4);
+
+  // 4. Test mobile picker edge case where contentType is raw 'video' or 'application/octet-stream' with .mov extension
+  const movUpload = await apiRequest('POST', '/api/advertisements/media', {
+    __multipart: true,
+    fields: {},
+    files: [{ field: 'file', filename: 'ios_clip.mov', contentType: 'video', data: testMp4 }]
+  }, 'admin1');
+  assert.equal(movUpload.status, 201);
+  assert.equal(movUpload.body.media_type, 'video');
+  assert.equal(movUpload.body.mime_type, 'video/quicktime');
+  assert.match(movUpload.body.url, /^\/uploads\/posts\/[a-f0-9-]+\.mov$/);
+
+  // 5. Complete mobile JSON creation flow for video advertisement
+  const createdVidAd = await apiRequest('POST', '/api/advertisements', {
+    advertiser_name: 'Figma for Education',
+    advertiser_logo_url: imgUpload.body.url,
+    primary_text: 'Collaborate on UI/UX projects with free Figma Professional for students.',
+    headline: 'Free Figma Pro for BIT Students',
+    description: 'Verify with your campus account',
+    media_url: vidUpload.body.url,
+    media_type: vidUpload.body.media_type,
+    mime_type: vidUpload.body.mime_type,
+    cta_label: 'Get Started',
+    destination_url: 'https://www.figma.com/education/',
+    status: 'active',
+    is_active: true
+  }, 'admin1');
+  assert.equal(createdVidAd.status, 201);
+  assert.equal(createdVidAd.body.media_type, 'video');
+  assert.equal(createdVidAd.body.media_url, vidUpload.body.url);
+  assert.equal(createdVidAd.body.advertiser_logo_url, imgUpload.body.url);
+
+  // Verify video and logo are still retrievable and appear in eligible feed ads
+  const postCreateVidFetch = await apiRequest('GET', createdVidAd.body.media_url, undefined, 'student1');
+  assert.equal(postCreateVidFetch.status, 200);
+  assert.deepEqual(postCreateVidFetch.rawBuffer, testMp4);
+
+  const eligibleRes = await apiRequest('GET', '/api/advertisements/eligible', undefined, 'student1');
+  assert.equal(eligibleRes.status, 200);
+  const foundVidAd = eligibleRes.body.advertisements.find(a => a.id === createdVidAd.body.id);
+  assert.ok(foundVidAd, 'Created video advertisement must be returned in eligible advertisements');
+  assert.equal(foundVidAd.media_type, 'video');
+
+  // 6. Verify ordinary post attachment upload and post creation still work without regression
+  const normalAtt = await apiRequest('POST', '/api/posts/attachments', {
+    __multipart: true,
+    fields: {},
+    files: [{ field: 'file', filename: 'notes_photo.png', contentType: 'image/png', data: testPng }]
+  }, 'student1');
+  assert.equal(normalAtt.status, 201);
+  assert.match(normalAtt.body.url, /^\/uploads\/posts\/[a-f0-9-]+\.png$/);
+
+  const normalPost = await apiRequest('POST', '/api/posts', {
+    content: 'Normal student post with uploaded photo attachment',
+    category: 'general',
+    attachments: [normalAtt.body]
+  }, 'student1');
+  assert.equal(normalPost.status, 201);
+  assert.equal(normalPost.body.attachment_url, normalAtt.body.url);
+
+  const normalImgFetch = await apiRequest('GET', normalAtt.body.url, undefined, 'student2');
+  assert.equal(normalImgFetch.status, 200);
+  assert.deepEqual(normalImgFetch.rawBuffer, testPng);
 });

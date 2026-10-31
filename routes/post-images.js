@@ -1,20 +1,24 @@
 const express = require('express');
 const { isModerationSchemaAvailable } = require('../lib/posts');
+const { ensureAdvertisementsSchema } = require('../lib/advertisements');
 
 module.exports = function createPostImagesRouter(db) {
   const router = express.Router();
   router.get('/:filename', async (req, res, next) => {
     if (!/^[a-f0-9-]+\.[a-z0-9]+$/i.test(req.params.filename)) return res.sendStatus(404);
     try {
-      if (typeof db.initSchema === 'function') {
+      if (typeof db.verifyStartupReady === 'function') {
+        await db.verifyStartupReady();
+      } else if (typeof db.initSchema === 'function') {
         await db.initSchema();
       }
+      await ensureAdvertisementsSchema(db).catch(() => {});
       const modAvail = await isModerationSchemaAvailable(db);
       const modCol = modAvail ? ', moderation_status' : ", 'active' AS moderation_status";
       const fullPath = `/uploads/posts/${req.params.filename}`;
       const altPath = `uploads/posts/${req.params.filename}`;
 
-      // Check if referenced by an advertisement creative or advertiser logo
+      // Check if referenced by an advertisement creative, advertiser logo, or committed ad media staging entry
       let isAdAsset = false;
       try {
         const adRef = await db.get(
@@ -28,6 +32,20 @@ module.exports = function createPostImagesRouter(db) {
         );
         if (adRef) isAdAsset = true;
       } catch (_) {}
+
+      if (!isAdAsset) {
+        try {
+          const stagedAdRef = await db.get(
+            `SELECT id FROM post_attachment_staging
+             WHERE (url = ? OR url = ? OR filename = ?) AND is_committed = 1
+             LIMIT 1`,
+            fullPath,
+            altPath,
+            req.params.filename
+          );
+          if (stagedAdRef) isAdAsset = true;
+        } catch (_) {}
+      }
 
       if (!isAdAsset) {
         // Expose blobs referenced by posts (either primary attachment_url or any post_media entry)
@@ -73,6 +91,14 @@ module.exports = function createPostImagesRouter(db) {
       else if (lowerName.endsWith('.mp4')) mimeType = 'video/mp4';
       else if (lowerName.endsWith('.webm')) mimeType = 'video/webm';
       else if (lowerName.endsWith('.mov')) mimeType = 'video/quicktime';
+      else if (lowerName.endsWith('.m4v')) mimeType = 'video/x-m4v';
+      else if (lowerName.endsWith('.3gp')) mimeType = 'video/3gpp';
+      else if (lowerName.endsWith('.png')) mimeType = 'image/png';
+      else if (lowerName.endsWith('.jpg') || lowerName.endsWith('.jpeg')) mimeType = 'image/jpeg';
+      else if (lowerName.endsWith('.webp')) mimeType = 'image/webp';
+      else if (lowerName.endsWith('.gif')) mimeType = 'image/gif';
+      else if (lowerName.endsWith('.svg')) mimeType = 'image/svg+xml';
+      else if (lowerName.endsWith('.avif')) mimeType = 'image/avif';
 
       res.setHeader('Content-Type', mimeType);
       res.setHeader('Content-Disposition', 'inline');

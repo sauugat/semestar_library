@@ -1581,10 +1581,13 @@ function StudentHomeScreenInner() {
     });
     if (!result.canceled && result.assets?.[0]) {
       const a = result.assets[0];
+      const resolvedMime = a.mimeType || (a.type === 'video' ? 'video/mp4' : 'image/jpeg');
       setAdCreativeAsset({
         uri: a.uri,
         name: a.fileName || `ad_creative_${Date.now()}.${a.type === 'video' ? 'mp4' : 'jpg'}`,
-        type: a.mimeType || (a.type === 'video' ? 'video/mp4' : 'image/jpeg'),
+        type: resolvedMime,
+        mimeType: resolvedMime,
+        size: a.fileSize,
       });
     }
   };
@@ -1596,10 +1599,13 @@ function StudentHomeScreenInner() {
     });
     if (!result.canceled && result.assets?.[0]) {
       const a = result.assets[0];
+      const resolvedMime = a.mimeType || 'image/jpeg';
       setAdLogoAsset({
         uri: a.uri,
         name: a.fileName || `ad_logo_${Date.now()}.jpg`,
-        type: a.mimeType || 'image/jpeg',
+        type: resolvedMime,
+        mimeType: resolvedMime,
+        size: a.fileSize,
       });
     }
   };
@@ -1730,7 +1736,7 @@ function StudentHomeScreenInner() {
     }
   };
 
-  const getFullImageUrl = (attachmentUrl: string | null): string | null => {
+  const getFullImageUrl = (attachmentUrl?: string | null): string | null => {
     if (!attachmentUrl) return null;
     if (
       attachmentUrl.startsWith('http://') ||

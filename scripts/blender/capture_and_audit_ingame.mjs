@@ -18,6 +18,8 @@ const server = http.createServer((req, res) => {
   let reqPath = req.url.split('?')[0];
   if (reqPath === '/' || reqPath === '/game') {
     reqPath = '/public/hide-and-seek-in-game.html';
+  } else if (reqPath.startsWith('/models/')) {
+    reqPath = '/public' + reqPath;
   }
   const filePath = path.join(rootDir, reqPath);
   if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
@@ -120,16 +122,48 @@ server.listen(9876, async () => {
     await page.evaluate(({ p, l, opt }) => {
       const game = window.__game;
       if (!game) return;
+
+      const eyeH = 1.35;
+      const dx = l.x - p.x;
+      const dy = l.y - (p.y + eyeH);
+      const dz = l.z - p.z;
+      const yaw = Math.atan2(-dx, -dz);
+      const pitch = Math.atan2(dy, Math.hypot(dx, dz));
+
       game.playerPhysics.pos.set(p.x, p.y, p.z);
       game.playerPhysics.vel.set(0, 0, 0);
-      game.camera.position.set(p.x, p.y + (opt.camYOffset || 0), p.z);
-      game.camera.lookAt(l.x, l.y, l.z);
+      game.playerPhysics.yaw = yaw;
+      game.playerPhysics.targetYaw = yaw;
+      game.playerPhysics.pitch = pitch;
+      game.playerPhysics.targetPitch = pitch;
+      game.playerPhysics.cameraMode = opt.cameraMode || 'first';
+
+      if (opt.camDist) {
+        game.playerPhysics.camDist = opt.camDist;
+      }
+
+      if (game.playerCharacter) {
+        game.playerCharacter.visible = (opt.cameraMode === 'third');
+      }
+
+      if (opt.cameraMode === 'third') {
+        const dist = opt.camDist || 2.4;
+        const camPosX = p.x - Math.sin(yaw) * dist;
+        const camPosZ = p.z - Math.cos(yaw) * dist;
+        game.camera.position.set(camPosX, p.y + eyeH + 0.35, camPosZ);
+        game.camera.lookAt(p.x, p.y + eyeH * 0.8, p.z);
+      } else {
+        game.camera.position.set(p.x, p.y + eyeH + (opt.camYOffset || 0), p.z);
+        game.camera.rotation.order = 'YXZ';
+        game.camera.rotation.set(pitch, yaw, 0);
+      }
       game.camera.updateMatrixWorld(true);
 
       if (typeof opt.flashlight === 'boolean') {
         game.atmosphere.isFlashlightOn = opt.flashlight;
         if (game.atmosphere.flashlight) {
           game.atmosphere.flashlight.visible = opt.flashlight;
+          game.atmosphere.flashlight.intensity = opt.flashlight ? 2.8 : 0;
         }
       }
 
@@ -158,47 +192,47 @@ server.listen(9876, async () => {
 
   // View 1: Entrance from corridor looking through doorway into classroom
   console.log('[+] View 1: Classroom entrance from the corridor...');
-  await setView(-13.833, 1.62 + 1.35, 43.6, -13.833, 1.62 + 1.20, 48.5, { flashlight: false, ceilingLights: true });
+  await setView(-13.833, 1.62, 43.5, -13.833, 1.62 + 1.20, 48.5, { flashlight: false, ceilingLights: true, cameraMode: 'first' });
   await page.screenshot({ path: path.join(screenshotDir, '01_classroom_entrance_from_corridor.png') });
 
   // View 2: Player standing inside classroom (center view toward desks and dais)
   console.log('[+] View 2: Player standing inside the classroom...');
-  await setView(-14.2, 1.62 + 1.30, 46.8, -15.2, 1.62 + 1.20, 49.5, { flashlight: false, ceilingLights: true });
+  await setView(-16.0, 1.62, 48.0, -13.5, 1.62 + 1.10, 48.0, { flashlight: false, ceilingLights: true, cameraMode: 'first' });
   await page.screenshot({ path: path.join(screenshotDir, '02_standing_inside_classroom.png') });
 
   // View 3: View from back of classroom looking across desks toward dais and whiteboard
   console.log('[+] View 3: View from back of classroom...');
-  await setView(-17.2, 1.62 + 1.30, 49.0, -12.5, 1.62 + 1.20, 49.0, { flashlight: false, ceilingLights: true });
+  await setView(-19.5, 1.62, 49.0, -13.0, 1.62 + 1.20, 49.0, { flashlight: false, ceilingLights: true, cameraMode: 'first' });
   await page.screenshot({ path: path.join(screenshotDir, '03_view_from_back_of_classroom.png') });
 
   // View 4: View facing whiteboard, dais, teacher desk, and wall clock
   console.log('[+] View 4: View facing the whiteboard...');
-  await setView(-14.5, 1.62 + 1.25, 48.5, -12.0, 1.62 + 1.30, 48.5, { flashlight: false, ceilingLights: true });
+  await setView(-15.5, 1.62, 49.0, -12.7, 1.62 + 1.40, 49.0, { flashlight: false, ceilingLights: true, cameraMode: 'first' });
   await page.screenshot({ path: path.join(screenshotDir, '04_view_facing_whiteboard.png') });
 
   // View 5: View through classroom windows out to exterior campus
   console.log('[+] View 5: View through classroom windows...');
-  await setView(-16.0, 1.62 + 1.25, 49.2, -16.0, 1.62 + 1.35, 53.5, { flashlight: false, ceilingLights: true });
+  await setView(-16.5, 1.62, 49.5, -16.5, 1.62 + 1.20, 54.0, { flashlight: false, ceilingLights: true, cameraMode: 'first' });
   await page.screenshot({ path: path.join(screenshotDir, '05_view_through_windows.png') });
 
   // View 6: Classroom with flashlight enabled
   console.log('[+] View 6: Classroom with flashlight enabled...');
-  await setView(-14.5, 1.62 + 1.25, 47.0, -15.5, 1.62 + 1.10, 49.5, { flashlight: true, ceilingLights: true });
+  await setView(-16.0, 1.62, 48.5, -13.5, 1.62 + 1.00, 48.5, { flashlight: true, ceilingLights: false, cameraMode: 'first' });
   await page.screenshot({ path: path.join(screenshotDir, '06_flashlight_enabled.png') });
 
   // View 7: Classroom with ceiling lights disabled (switchboard toggled)
   console.log('[+] View 7: Classroom with ceiling lights disabled...');
-  await setView(-14.5, 1.62 + 1.25, 47.0, -15.5, 1.62 + 1.10, 49.5, { flashlight: true, ceilingLights: false });
+  await setView(-16.0, 1.62, 48.5, -13.5, 1.62 + 1.00, 48.5, { flashlight: false, ceilingLights: false, cameraMode: 'first' });
   await page.screenshot({ path: path.join(screenshotDir, '07_ceiling_lights_disabled.png') });
 
-  // View 8: Player entering the room across doorway threshold
+  // View 8: Player entering the room across doorway threshold (third-person view)
   console.log('[+] View 8: Player entering the room...');
-  await setView(-13.833, 1.62 + 1.25, 44.5, -13.833, 1.62 + 1.20, 47.5, { flashlight: false, ceilingLights: true });
+  await setView(-13.833, 1.62, 45.4, -13.833, 1.62 + 1.20, 48.5, { flashlight: false, ceilingLights: true, cameraMode: 'third', camDist: 2.4 });
   await page.screenshot({ path: path.join(screenshotDir, '08_player_entering_room.png') });
 
-  // View 9: Player exiting the room looking back out to corridor
+  // View 9: Player exiting the room looking back out to corridor (third-person view)
   console.log('[+] View 9: Player exiting the room...');
-  await setView(-13.833, 1.62 + 1.25, 45.8, -13.833, 1.62 + 1.20, 42.0, { flashlight: false, ceilingLights: true });
+  await setView(-13.833, 1.62, 45.0, -13.833, 1.62 + 1.20, 42.5, { flashlight: false, ceilingLights: true, cameraMode: 'third', camDist: 2.4 });
   await page.screenshot({ path: path.join(screenshotDir, '09_player_exiting_room.png') });
 
   console.log('[+] All 9 in-game screenshots captured successfully!');

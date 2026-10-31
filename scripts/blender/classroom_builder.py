@@ -214,16 +214,22 @@ def build_doors_and_windows(mats, root_group):
 
     # 3. Two Windows on East Wall at X = +3.8m (Y = 1.6m and Y = -1.6m)
     # Window opening: 1.60m wide in Y, 1.35m high in Z (Z: 0.95m to 2.30m)
+    # Open hollow aluminum frames with jambs, head, sill, mullion, transom, and glazed glass
+    f_th = 0.045
+    f_d = 0.18
     for w_idx, win_y in enumerate([1.60, -1.60], start=1):
-        # Outer aluminum frame
-        create_box(f"Window_Frame_{w_idx}", (0.18, 1.60, 1.35), (W * 0.5 + 0.01, win_y, 1.625), mats['aluminum_brushed'], root_group)
+        # Outer aluminum frame perimeter
+        create_box(f"Window_Frame_Head_{w_idx}", (f_d, 1.60, f_th), (W * 0.5 + 0.01, win_y, 2.30 - f_th * 0.5), mats['aluminum_brushed'], root_group)
+        create_box(f"Window_Frame_Sill_{w_idx}", (f_d, 1.60, f_th), (W * 0.5 + 0.01, win_y, 0.95 + f_th * 0.5), mats['aluminum_brushed'], root_group)
+        create_box(f"Window_Frame_Jamb_L_{w_idx}", (f_d, f_th, 1.35 - 2 * f_th), (W * 0.5 + 0.01, win_y - 0.80 + f_th * 0.5, 1.625), mats['aluminum_brushed'], root_group)
+        create_box(f"Window_Frame_Jamb_R_{w_idx}", (f_d, f_th, 1.35 - 2 * f_th), (W * 0.5 + 0.01, win_y + 0.80 - f_th * 0.5, 1.625), mats['aluminum_brushed'], root_group)
         # Interior sill ledge
         create_box(f"Window_Sill_{w_idx}", (0.24, 1.68, 0.04), (W * 0.5 - 0.04, win_y, 0.95), mats['trim_wood'], root_group)
         # Central mullion & transom
-        create_box(f"Window_Mullion_{w_idx}", (0.12, 0.04, 1.35), (W * 0.5 + 0.01, win_y, 1.625), mats['aluminum_brushed'], root_group)
-        create_box(f"Window_Transom_{w_idx}", (0.12, 1.60, 0.04), (W * 0.5 + 0.01, win_y, 1.625), mats['aluminum_brushed'], root_group)
+        create_box(f"Window_Mullion_{w_idx}", (0.12, 0.04, 1.35 - 2 * f_th), (W * 0.5 + 0.01, win_y, 1.625), mats['aluminum_brushed'], root_group)
+        create_box(f"Window_Transom_{w_idx}", (0.12, 1.60 - 2 * f_th, 0.04), (W * 0.5 + 0.01, win_y, 1.625), mats['aluminum_brushed'], root_group)
         # Glass Panes (Transparent PBR)
-        create_box(f"Window_Glass_{w_idx}", (0.01, 1.54, 1.30), (W * 0.5 + 0.01, win_y, 1.625), mats['window_glass'], root_group)
+        create_box(f"Window_Glass_{w_idx}", (0.01, 1.51, 1.26), (W * 0.5 + 0.01, win_y, 1.625), mats['window_glass'], root_group)
 
 def build_front_whiteboard_and_clock(mats, root_group):
     """Builds front university whiteboard/chalkboard combo with aluminum tray and stopped wall clock."""

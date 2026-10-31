@@ -41,6 +41,8 @@ def create_pbr_material(name, base_color, roughness=0.5, metallic=0.0, emissive=
     # Set parameters with backwards/forwards compatibility across Blender 4.x/5.x
     if "Base Color" in bsdf.inputs:
         bsdf.inputs["Base Color"].default_value = (*base_color[:3], alpha)
+    if "Alpha" in bsdf.inputs:
+        bsdf.inputs["Alpha"].default_value = alpha
     if "Roughness" in bsdf.inputs:
         bsdf.inputs["Roughness"].default_value = roughness
     if "Metallic" in bsdf.inputs:

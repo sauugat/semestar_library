@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-10-31T13:56:21.237Z",
+  "timestamp": "2026-10-31T14:35:49.903Z",
   "integrationCheck": {
     "roomId": "Building B6 Classrooms Room 1",
     "roomCenter": {
@@ -14,7 +14,7 @@
       "z": 0
     },
     "glbRotationY": -1.5707963267948966,
-    "totalMeshesInRoom": 261,
+    "totalMeshesInRoom": 56,
     "sampleMeshes": [
       {
         "name": "",
@@ -145,24 +145,24 @@
   },
   "perfInside": {
     "location": "Inside Classroom Room 1",
-    "avgFps": 60,
-    "minFps": 38.3,
-    "avgFrameTimeMs": 16.67,
-    "maxFrameTimeMs": 26.1,
-    "drawCalls": 1616,
-    "triangles": 244943,
-    "geometries": 648,
-    "textures": 87
+    "avgFps": 60.5,
+    "minFps": 55.2,
+    "avgFrameTimeMs": 16.52,
+    "maxFrameTimeMs": 18.1,
+    "drawCalls": 311,
+    "triangles": 224469,
+    "geometries": 503,
+    "textures": 92
   },
   "perfOutside": {
     "location": "Outside Classroom (Veranda & Courtyard)",
-    "avgFps": 49.6,
-    "minFps": 23.1,
-    "avgFrameTimeMs": 20.16,
-    "maxFrameTimeMs": 43.3,
-    "drawCalls": 1589,
-    "triangles": 310527,
-    "geometries": 735,
+    "avgFps": 60.7,
+    "minFps": 54.6,
+    "avgFrameTimeMs": 16.48,
+    "maxFrameTimeMs": 18.3,
+    "drawCalls": 221,
+    "triangles": 232547,
+    "geometries": 503,
     "textures": 92
   },
   "screenshots": [

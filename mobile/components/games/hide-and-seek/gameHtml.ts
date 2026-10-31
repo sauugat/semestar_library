@@ -11084,6 +11084,9 @@ export function getHideAndSeekHtml(): string {
               const tubeLightMeshes = [];
 
               blenderScene.traverse(function (child) {
+                if (child.isLight) {
+                  child.visible = false;
+                }
                 if (child.isMesh) {
                   child.userData.noMerge = true;
                   child.castShadow = true;
@@ -11094,6 +11097,13 @@ export function getHideAndSeekHtml(): string {
                   else if (child.name === 'Switchboard_Door') swDoorMesh = child;
                   else if (child.name === 'Item_Brass_Key') brassKeyMesh = child;
                   else if (child.name && child.name.indexOf('TubeLight_Lamp') !== -1) tubeLightMeshes.push(child);
+                  else if (child.name && child.name.indexOf('Window_Glass') !== -1) {
+                    child.material.transparent = true;
+                    child.material.opacity = 0.28;
+                    child.material.roughness = 0.05;
+                    child.material.depthWrite = false;
+                    child.castShadow = false;
+                  }
                   else if (child.name && child.name.indexOf('CeilingFan_Hub') !== -1) {
                     animatedClassroomFans.push({
                       hub: child,
@@ -11202,11 +11212,21 @@ export function getHideAndSeekHtml(): string {
                   doorPivot: swDoorMesh,
                   tubeMeshes: tubeLightMeshes,
                   onToggle: function(isOn) {
+                    this.isOn = isOn;
                     tubeLightMeshes.forEach(m => {
                       if (m.material) {
                         m.material.emissiveIntensity = isOn ? 2.5 : 0.0;
                       }
                     });
+                    if (typeof roomMoodFixtures !== 'undefined') {
+                      const fix = roomMoodFixtures.find(f => f.roomId === unitTitle);
+                      if (fix) {
+                        fix.baseIntensity = isOn ? 1.6 : 0.0;
+                      }
+                    }
+                    if (!isOn && typeof lampFlickerMod !== 'undefined' && lampFlickerMod && lampFlickerMod.indoorOverrideLight) {
+                      lampFlickerMod.indoorOverrideLight.intensity = 0.0;
+                    }
                   }
                 });
               }
@@ -13007,11 +13027,28 @@ export function getHideAndSeekHtml(): string {
         });
       }
 
-      const backZ = cz - doorSide * (depth / 2);
-      buildWallSegment(cx, floorH, backZ, width, wallH, wallT, materials.campusStucco);
-
       const numRooms = customRoomCount || (width >= 26 ? 3 : (width <= 12 ? 1 : 2));
       const roomW = width / numRooms;
+
+      const backZ = cz - doorSide * (depth / 2);
+      if (blockLabel === 'Building B6 Classrooms') {
+        // Rooms 2 and 3 retain normal procedural back wall
+        const r23Width = width - roomW;
+        const r23CenterX = (cx - width / 2 + roomW) + r23Width / 2;
+        buildWallSegment(r23CenterX, floorH, backZ, r23Width, wallH, wallT, materials.campusStucco);
+
+        // Flanking wall segments outside the 8m GLB classroom section (GLB bounds: [-20.53, -12.53])
+        const leftW = (-20.53) - (cx - width / 2);
+        if (leftW > 0.1) {
+          buildWallSegment(cx - width / 2 + leftW / 2, floorH, backZ, leftW, wallH, wallT, materials.campusStucco);
+        }
+        const rightW = (cx - width / 2 + roomW) - (-12.53);
+        if (rightW > 0.1) {
+          buildWallSegment(-12.53 + rightW / 2, floorH, backZ, rightW, wallH, wallT, materials.campusStucco);
+        }
+      } else {
+        buildWallSegment(cx, floorH, backZ, width, wallH, wallT, materials.campusStucco);
+      }
 
       let winIdx = 0;
       for (let wx = cx - width / 2 + 2.8; wx <= cx + width / 2 - 2.8; wx += 5.2) {

@@ -18,6 +18,59 @@ from classroom_materials import build_classroom_material_library, get_or_create_
 from classroom_builder import construct_full_classroom
 from classroom_lighting_and_baking import setup_classroom_lighting, bake_ambient_occlusion_and_lightmap
 
+def optimize_static_meshes(root_group):
+    """
+    Optimizes static classroom geometry by joining non-interactive meshes by material.
+    Preserves all interactive objects, dynamic lights, and transparent glass meshes.
+    Reduces draw calls and node traversal overhead while preserving UVs and AO maps.
+    """
+    interactive_names = {
+        'Door_Leaf_Classroom', 'Door_Handle_Escutcheon', 'Door_Handle_Lever',
+        'TeacherDesk_Drawer', 'Switchboard_Door', 'Item_Brass_Key',
+        'CeilingFan_Hub_1', 'CeilingFan_Hub_2',
+        'Window_Glass_1', 'Window_Glass_2',
+        'Clock_Hand_Hour', 'Clock_Hand_Minute'
+    }
+
+    def is_protected(obj):
+        if obj.name in interactive_names:
+            return True
+        if obj.name.startswith('TubeLight_Lamp'):
+            return True
+        if 'Blade' in obj.name or 'Fan' in obj.name:
+            return True
+        curr = obj.parent
+        while curr:
+            if curr.name in interactive_names:
+                return True
+            curr = curr.parent
+        return False
+
+    mesh_objs = [o for o in bpy.data.objects if o.type == 'MESH']
+    static = [o for o in mesh_objs if not is_protected(o)]
+
+    by_mat = {}
+    for o in static:
+        mat = o.data.materials[0] if len(o.data.materials) > 0 else None
+        mat_name = mat.name if mat else 'NoMaterial'
+        by_mat.setdefault(mat_name, []).append(o)
+
+    for mat_name, objs in by_mat.items():
+        if len(objs) <= 1:
+            continue
+        target = objs[0]
+        bpy.ops.object.select_all(action='DESELECT')
+        for o in objs:
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = target
+        bpy.ops.object.join()
+        target.name = f'Merged_{mat_name}'
+        if root_group:
+            target.parent = root_group
+
+    remaining = [o for o in bpy.data.objects if o.type == 'MESH']
+    print(f"[Pipeline] Optimized static geometry: reduced meshes from {len(mesh_objs)} to {len(remaining)} (preserved all interactive sub-meshes)")
+
 def main():
     print("=" * 60)
     print("  PRODUCTION CLASSROOM GENERATION PIPELINE")
@@ -43,13 +96,16 @@ def main():
     # 3. Bake Ambient Occlusion map with Metal GPU Cycles
     ao_map_path = bake_ambient_occlusion_and_lightmap(output_dir, resolution=1024, samples=24)
 
-    # 4. Save .blend file
+    # 4. Geometry Optimization (Draw Call Reduction): Merge static meshes by material while preserving interactive sub-meshes
+    optimize_static_meshes(root_group)
+
+    # 5. Save .blend file
     print(f"\n[Pipeline] Saving full source scene to {blend_file}...")
     bpy.ops.wm.save_as_mainfile(filepath=blend_file)
     blend_size = os.path.getsize(blend_file)
     print(f"[Pipeline] Source .blend saved: {blend_size:,} bytes")
 
-    # 5. Export to GLB
+    # 6. Export to GLB
     print(f"\n[Pipeline] Exporting to glTF 2.0 Binary (.glb) at {glb_output_file}...")
     bpy.ops.export_scene.gltf(
         filepath=glb_output_file,

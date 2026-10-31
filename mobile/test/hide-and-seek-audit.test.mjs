@@ -82,7 +82,9 @@ globalThis.__HARNESS_EXPORTS__ = {
       return {
         fillStyle: '', fillRect() {}, strokeStyle: '', strokeRect() {},
         fillText() {}, beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, stroke() {},
-        fill() {}, arc() {}, ellipse() {}, save() {}, restore() {}, clearRect() {},
+        fill() {}, arc() {}, ellipse() {}, quadraticCurveTo() {}, bezierCurveTo() {},
+        translate() {}, rotate() {}, scale() {}, resetTransform() {}, setTransform() {}, transform() {},
+        save() {}, restore() {}, clearRect() {},
         createRadialGradient() { return { addColorStop() {} }; },
         createLinearGradient() { return { addColorStop() {} }; },
       };

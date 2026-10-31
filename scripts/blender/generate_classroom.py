@@ -60,7 +60,7 @@ def main():
         export_texcoords=True,
         export_normals=True,
         export_materials='EXPORT',
-        export_lights=True,
+        export_lights=False,
         export_extras=True,
         export_image_format='AUTO'
     )

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Production Classroom 3D Verification — Hide & Seek</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #0f1115; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f0f2f5; }
+    #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+
+    /* HUD Overlay */
+    .hud { position: absolute; z-index: 10; pointer-events: none; }
+    .hud * { pointer-events: auto; }
+
+    .header-panel {
+      top: 16px; left: 16px;
+      background: rgba(18, 22, 28, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      border-radius: 10px;
+      padding: 14px 18px;
+      max-width: 380px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+    .header-panel h1 { font-size: 16px; font-weight: 700; color: #4ade80; display: flex; align-items: center; gap: 8px; }
+    .header-panel p { font-size: 12px; color: #94a3b8; margin-top: 4px; line-height: 1.4; }
+
+    .metrics-panel {
+      top: 16px; right: 16px;
+      background: rgba(18, 22, 28, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-family: ui-monospace, Menlo, Monaco, Consolas, monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+    .metric-val { color: #38bdf8; font-weight: bold; }
+
+    .controls-panel {
+      bottom: 20px; left: 50%;
+      transform: translateX(-50%);
+      background: rgba(18, 22, 28, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(16px);
+      border-radius: 14px;
+      padding: 10px 16px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    }
+    .btn {
+      background: #1e293b;
+      color: #f1f5f9;
+      border: 1px solid #334155;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: #334155; border-color: #64748b; }
+    .btn.active { background: #0284c7; border-color: #38bdf8; color: #fff; }
+    .btn:active { transform: scale(0.97); }
+
+    .loading-overlay {
+      position: absolute; inset: 0;
+      background: #0f1115;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 100;
+      transition: opacity 0.4s ease;
+    }
+    .spinner {
+      width: 44px; height: 44px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three.module.js",
+        "three/addons/": "./vendor/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="loading" class="loading-overlay">
+    <div class="spinner"></div>
+    <h2 style="font-size: 16px; font-weight: 600;">Loading Production Classroom GLB...</h2>
+    <p id="loading-status" style="font-size: 12px; color: #64748b; margin-top: 6px;">Initializing WebGL & Three.js...</p>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <!-- Top Left: Overview -->
+  <div class="hud header-panel">
+    <h1><span style="font-size: 18px;">🏛️</span> Production Classroom (Blender GLB)</h1>
+    <p>Asset generated with Blender 5.2.2 LTS Python API with baked Ambient Occlusion, physical PBR materials, and articulated interactive sub-meshes.</p>
+  </div>
+
+  <!-- Top Right: Realtime Performance Metrics -->
+  <div class="hud metrics-panel" id="metrics">
+    <div>FPS: <span class="metric-val" id="fps-val">60</span></div>
+    <div>Draw Calls: <span class="metric-val" id="dc-val">0</span></div>
+    <div>Triangles: <span class="metric-val" id="tri-val">0</span></div>
+    <div>Meshes: <span class="metric-val" id="mesh-val">0</span></div>
+    <div>Classroom Size: <span class="metric-val">8.0m × 3.58m × 8.0m</span></div>
+  </div>
+
+  <!-- Bottom: Interactive Rig Actions & Camera Angles -->
+  <div class="hud controls-panel">
+    <button class="btn" id="btn-door">🚪 Toggle Door</button>
+    <button class="btn" id="btn-drawer">🗄️ Toggle Drawer</button>
+    <button class="btn" id="btn-fans">💨 Toggle Fans</button>
+    <button class="btn" id="btn-switchboard">⚡ Toggle Switchboard</button>
+    <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 4px;"></div>
+    <button class="btn active" id="cam-overview">Overview</button>
+    <button class="btn" id="cam-teacher">Teacher Desk</button>
+    <button class="btn" id="cam-students">Student Aisles</button>
+    <button class="btn" id="cam-door">Door Entrance</button>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/GLTFLoader.js';
+    import { OrbitControls } from 'three/addons/OrbitControls.js';
+
+    const container = document.getElementById('canvas-container');
+    const loadingElem = document.getElementById('loading');
+    const loadingStatus = document.getElementById('loading-status');
+
+    // 1. Renderer Setup
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    container.appendChild(renderer.domElement);
+
+    // 2. Scene & Camera Setup
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x131720);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(-2.8, 2.2, 4.2);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 1.4, 0);
+    controls.maxPolarAngle = Math.PI * 0.49; // Prevent going underground
+
+    // 3. Lighting Setup
+    const ambientLight = new THREE.AmbientLight(0xfff6ea, 0.45);
+    scene.add(ambientLight);
+
+    const sunLight = new THREE.DirectionalLight(0xfffaed, 1.2);
+    sunLight.position.set(6, 5, 2);
+    scene.add(sunLight);
+
+    // Troffer interior lights
+    const interiorLight1 = new THREE.PointLight(0xfffaea, 0.8, 8);
+    interiorLight1.position.set(0, 3.1, -2.2);
+    scene.add(interiorLight1);
+
+    const interiorLight2 = new THREE.PointLight(0xfffaea, 0.8, 8);
+    interiorLight2.position.set(0, 3.1, 2.2);
+    scene.add(interiorLight2);
+
+    // 4. Interactive Object Rig Handles
+    let doorObj = null;
+    let drawerObj = null;
+    let switchboardDoorObj = null;
+    const fanHubs = [];
+
+    let doorOpen = false;
+    let drawerOpen = false;
+    let switchboardOpen = false;
+    let fansRunning = true;
+
+    // 5. Load GLB
+    loadingStatus.textContent = 'Loading /models/classroom_production.glb...';
+    const loader = new GLTFLoader();
+
+    loader.load(
+      './models/classroom_production.glb',
+      (gltf) => {
+        const model = gltf.scene;
+        scene.add(model);
+
+        let meshCount = 0;
+        let triCount = 0;
+
+        model.traverse((child) => {
+          if (child.isMesh) {
+            meshCount++;
+            if (child.geometry.index) {
+              triCount += child.geometry.index.count / 3;
+            } else if (child.geometry.attributes.position) {
+              triCount += child.geometry.attributes.position.count / 3;
+            }
+
+            // Bind interactive handles by stable names
+            if (child.name === 'Door_Leaf_Classroom') doorObj = child;
+            if (child.name === 'TeacherDesk_Drawer') drawerObj = child;
+            if (child.name === 'Switchboard_Door') switchboardDoorObj = child;
+            if (child.name && child.name.includes('CeilingFan_Hub')) fanHubs.push(child);
+          }
+        });
+
+        document.getElementById('mesh-val').textContent = meshCount;
+        document.getElementById('tri-val').textContent = Math.round(triCount).toLocaleString();
+
+        // Hide loader
+        loadingElem.style.opacity = '0';
+        setTimeout(() => loadingElem.remove(), 400);
+      },
+      (xhr) => {
+        if (xhr.lengthComputable) {
+          const pct = Math.round((xhr.loaded / xhr.total) * 100);
+          loadingStatus.textContent = `Downloading classroom GLB (${pct}%)...`;
+        }
+      },
+      (err) => {
+        console.error('Failed to load GLB:', err);
+        loadingStatus.innerHTML = `<span style="color: #ef4444;">Error loading GLB: ${err.message || err}</span>`;
+      }
+    );
+
+    // 6. Articulated Animation Update Loop
+    let targetDoorYaw = 0;
+    let currentDoorYaw = 0;
+    let targetDrawerZ = 0.02;
+    let currentDrawerZ = 0.02;
+    let targetSwitchboardAngle = 0;
+    let currentSwitchboardAngle = 0;
+
+    document.getElementById('btn-door').onclick = () => {
+      doorOpen = !doorOpen;
+      targetDoorYaw = doorOpen ? Math.PI * 0.5 : 0;
+      document.getElementById('btn-door').classList.toggle('active', doorOpen);
+    };
+
+    document.getElementById('btn-drawer').onclick = () => {
+      drawerOpen = !drawerOpen;
+      targetDrawerZ = drawerOpen ? -0.35 : 0.02;
+      document.getElementById('btn-drawer').classList.toggle('active', drawerOpen);
+    };
+
+    document.getElementById('btn-switchboard').onclick = () => {
+      switchboardOpen = !switchboardOpen;
+      targetSwitchboardAngle = switchboardOpen ? -Math.PI * 0.6 : 0;
+      document.getElementById('btn-switchboard').classList.toggle('active', switchboardOpen);
+    };
+
+    document.getElementById('btn-fans').onclick = () => {
+      fansRunning = !fansRunning;
+      document.getElementById('btn-fans').classList.toggle('active', fansRunning);
+    };
+
+    // Camera preset transitions
+    function transitionCamera(px, py, pz, tx, ty, tz, activeBtnId) {
+      camera.position.set(px, py, pz);
+      controls.target.set(tx, ty, tz);
+      document.querySelectorAll('.controls-panel .btn').forEach(b => {
+        if (b.id.startsWith('cam-')) b.classList.remove('active');
+      });
+      document.getElementById(activeBtnId).classList.add('active');
+    }
+
+    document.getElementById('cam-overview').onclick = () => transitionCamera(-2.8, 2.2, 4.2, 0, 1.4, 0, 'cam-overview');
+    document.getElementById('cam-teacher').onclick = () => transitionCamera(-0.8, 1.6, -1.0, -1.0, 1.0, -2.6, 'cam-teacher');
+    document.getElementById('cam-students').onclick = () => transitionCamera(0.0, 1.7, 3.4, 0.0, 1.0, -0.5, 'cam-students');
+    document.getElementById('cam-door').onclick = () => transitionCamera(-3.0, 1.6, -1.5, -3.78, 1.3, -2.7, 'cam-door');
+
+    // 7. Render Loop with Diagnostics
+    let lastTime = performance.now();
+    let frameCount = 0;
+    let fps = 60;
+
+    function animate(time) {
+      requestAnimationFrame(animate);
+
+      const dt = Math.min((time - lastTime) / 1000, 0.1);
+      lastTime = time;
+
+      // Animate door
+      if (doorObj) {
+        currentDoorYaw += (targetDoorYaw - currentDoorYaw) * 8.0 * dt;
+        doorObj.rotation.y = currentDoorYaw;
+      }
+
+      // Animate drawer
+      if (drawerObj) {
+        currentDrawerZ += (targetDrawerZ - currentDrawerZ) * 8.0 * dt;
+        drawerObj.position.z = currentDrawerZ;
+      }
+
+      // Animate switchboard door
+      if (switchboardDoorObj) {
+        currentSwitchboardAngle += (targetSwitchboardAngle - currentSwitchboardAngle) * 8.0 * dt;
+        switchboardDoorObj.rotation.y = currentSwitchboardAngle;
+      }
+
+      // Animate fans
+      if (fansRunning) {
+        for (const hub of fanHubs) {
+          hub.rotation.y += 4.5 * dt; // ~43 RPM smooth spin
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+
+      // FPS & Draw Call metrics
+      frameCount++;
+      if (frameCount % 20 === 0) {
+        document.getElementById('fps-val').textContent = Math.round(1 / dt);
+        document.getElementById('dc-val').textContent = renderer.info.render.calls;
+      }
+    }
+    requestAnimationFrame(animate);
+
+    // Responsive Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
+

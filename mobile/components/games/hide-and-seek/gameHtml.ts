@@ -1,4 +1,6 @@
 import { THREE_MIN_JS } from './threeMinJs';
+import { GLTF_LOADER_R128_JS } from './gltfLoaderR128';
+import { CLASSROOM_GLB_DATA_URI } from './classroomGlbBase64';
 import { HORROR_CONFIG } from './horrorConfig';
 
 export function getHideAndSeekHtml(): string {
@@ -500,9 +502,11 @@ export function getHideAndSeekHtml(): string {
     #toast.show { opacity: 1; }
   </style>
 
-  <!-- Embedded Three.js Library -->
+  <!-- Embedded Three.js Library & Three.js r128 GLTFLoader -->
   <script>
     ${THREE_MIN_JS}
+    ${GLTF_LOADER_R128_JS}
+    window.CLASSROOM_GLB_DATA_URI = ${JSON.stringify(CLASSROOM_GLB_DATA_URI)};
   </script>
 </head>
 <body>
@@ -7396,9 +7400,9 @@ export function getHideAndSeekHtml(): string {
           '#include <fog_fragment>',
           '#ifdef USE_FOG\\n' +
           '  #ifdef FOG_EXP2\\n' +
-          '    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );\\n' +
+          '    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * fogDepth * fogDepth );\\n' +
           '  #else\\n' +
-          '    float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );\\n' +
+          '    float fogFactor = smoothstep( fogNear, fogFar, fogDepth );\\n' +
           '  #endif\\n' +
           '  fogFactor *= ' + mbFogInfluence.toFixed(3) + ';\\n' +
           '  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\\n' +
@@ -11000,7 +11004,226 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
-    // Specialized Builder: Computer Lab (Rows of Monitors & Chairs, Cable Raceways, Server Rack with LEDs)
+    // Production Blender Classroom GLB Builder
+    // Integrates the Blender 5.2.2 LTS generated production classroom into the campus
+    function buildProductionBlenderClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
+      // 1. Register physics colliders matching the production classroom layout
+      // Dais (raised platform at front teaching area)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 0.40 - 0.70, floorY, unitCenterZ - 2.70),
+        new THREE.Vector3(unitCenterX + 0.40 + 0.70, floorY + 0.14, unitCenterZ + 2.70)
+      ), 'dais');
+
+      // Teacher Desk & Chair
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 0.10 - 0.45, floorY, unitCenterZ - 1.0 - 0.75),
+        new THREE.Vector3(unitCenterX - 0.10 + 0.45, floorY + 0.85, unitCenterZ - 1.0 + 0.75)
+      ), 'furniture');
+
+      // Storage Cupboard on West wall
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.80, floorY, unitCenterZ - 0.60),
+        new THREE.Vector3(unitCenterX - 3.20, floorY + 1.85, unitCenterZ + 0.60)
+      ), 'furniture');
+
+      // 6 Student Workstation Desks (3 columns x 2 rows)
+      const deskColZ = [-2.15, 0.0, 2.15];
+      const deskRowX = [-2.00, -3.95];
+      deskRowX.forEach((rx, rIdx) => {
+        deskColZ.forEach((czOffset, cIdx) => {
+          const wX = unitCenterX + rx;
+          const wZ = unitCenterZ + czOffset;
+          addColliderBox(new THREE.Box3(
+            new THREE.Vector3(wX - 0.35, floorY, wZ - 0.60),
+            new THREE.Vector3(wX + 0.35, floorY + 0.78, wZ + 0.60)
+          ), 'furniture');
+
+          if ((rIdx + cIdx) % 2 === 0) {
+            interactiveHidingSpots.push({
+              id: 'desk-bldg6-r1-' + rIdx + '-' + cIdx,
+              name: unitTitle + ' Workstation #' + (rIdx * 3 + cIdx + 1),
+              x: wX,
+              y: floorY,
+              z: wZ,
+              zone: unitTitle,
+            });
+          }
+        });
+      });
+
+      // Teacher Lectern Hiding Spot
+      interactiveHidingSpots.push({
+        id: 'podium-bldg6-r1',
+        name: unitTitle + ' (Teacher Desk & Lectern)',
+        x: unitCenterX - 0.10,
+        y: floorY,
+        z: unitCenterZ - 1.0,
+        zone: unitTitle,
+      });
+
+      // 2. Load the exported Blender 5.2.2 LTS production GLB
+      if (typeof THREE.GLTFLoader === 'function') {
+        try {
+          const gltfLoader = new THREE.GLTFLoader();
+          const glbSrc = (typeof window !== 'undefined' && window.CLASSROOM_GLB_DATA_URI)
+            ? window.CLASSROOM_GLB_DATA_URI
+            : './models/classroom_production.glb';
+
+          gltfLoader.load(
+            glbSrc,
+            function (gltf) {
+              const blenderScene = gltf.scene;
+              blenderScene.name = 'BlenderProductionClassroomScene';
+              blenderScene.rotation.y = -Math.PI / 2;
+              blenderScene.position.set(-2.70, 0, 0);
+
+              let doorLeafMesh = null;
+              let drawerMesh = null;
+              let swDoorMesh = null;
+              let brassKeyMesh = null;
+              const tubeLightMeshes = [];
+
+              blenderScene.traverse(function (child) {
+                if (child.isMesh) {
+                  child.userData.noMerge = true;
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+
+                  if (child.name === 'Door_Leaf_Classroom') doorLeafMesh = child;
+                  else if (child.name === 'TeacherDesk_Drawer') drawerMesh = child;
+                  else if (child.name === 'Switchboard_Door') swDoorMesh = child;
+                  else if (child.name === 'Item_Brass_Key') brassKeyMesh = child;
+                  else if (child.name && child.name.indexOf('TubeLight_Lamp') !== -1) tubeLightMeshes.push(child);
+                  else if (child.name && child.name.indexOf('CeilingFan_Hub') !== -1) {
+                    animatedClassroomFans.push({
+                      hub: child,
+                      roomGroup: cGroup,
+                      seed: 1234 + animatedClassroomFans.length,
+                      speed: 1.5,
+                    });
+                  }
+                }
+              });
+
+              // A. Register Production Classroom Door
+              if (doorLeafMesh) {
+                doorLeafMesh.userData.isSwingingDoor = true;
+                const doorObj = {
+                  id: 'door-bldg6-r1',
+                  pivot: doorLeafMesh,
+                  x: unitCenterX,
+                  y: floorY,
+                  z: unitCenterZ - 3.8,
+                  closedAngleY: 0.0,
+                  ajarAngleY: 0.45,
+                  openAngleY: 1.45,
+                  minAngleY: 0.0,
+                  maxAngleY: 1.57,
+                  currentAngleY: 0.45,
+                  targetAngleY: 0.45,
+                  isOpen: true,
+                  manuallyClosed: false,
+                  holdTimer: 0,
+                  collider: null,
+                };
+                doorLeafMesh.rotation.y = doorObj.ajarAngleY;
+                swingingDoors.push(doorObj);
+                registerInteriorInteractable({
+                  id: 'door-bldg6-r1',
+                  type: 'door',
+                  name: unitTitle + ' Main Door (Production)',
+                  x: unitCenterX,
+                  y: floorY,
+                  z: unitCenterZ - 3.8,
+                  interactRadius: 2.8,
+                  isOpen: true,
+                  rootMesh: doorLeafMesh,
+                  doorRef: doorObj,
+                  minAngleY: 0.0,
+                  maxAngleY: 1.57,
+                });
+              }
+
+              // B. Register Searchable Teacher Desk Drawer & Key
+              if (drawerMesh) {
+                const initX = drawerMesh.position.x;
+                const initZ = drawerMesh.position.z;
+                let keyRecord = null;
+                if (brassKeyMesh) {
+                  brassKeyMesh.userData.noMerge = true;
+                  keyRecord = {
+                    id: 'item_bldg6_brass_key',
+                    name: 'Master Classroom Brass Key',
+                    kind: 'key',
+                    roomTitle: unitTitle,
+                    discovered: false,
+                    collected: false,
+                    mesh: brassKeyMesh,
+                  };
+                  missionItemsRegistry.push(keyRecord);
+                }
+                registerInteriorInteractable({
+                  id: 'drawer-teacher-bldg6-r1',
+                  type: 'drawer',
+                  name: unitTitle + ' Teacher Desk Drawer',
+                  x: unitCenterX - 0.10,
+                  y: floorY + 0.60,
+                  z: unitCenterZ - 1.0,
+                  interactRadius: 2.5,
+                  isOpen: false,
+                  rootMesh: drawerMesh,
+                  drawerGroup: drawerMesh,
+                  closedX: initX,
+                  closedZ: initZ,
+                  openX: initX,
+                  openZ: initZ - 0.35,
+                  currentT: 0,
+                  targetT: 0,
+                  missionItem: keyRecord,
+                });
+              }
+
+              // C. Register Interactive Switchboard Panel (Controls Classroom Ceiling Tube Lights)
+              if (swDoorMesh) {
+                registerInteriorInteractable({
+                  id: 'switchboard-bldg6-r1',
+                  type: 'switchboard',
+                  name: unitTitle + ' Electrical Sub-Panel',
+                  powerKey: 'bldg6_r1_circuit',
+                  controlsCampusLights: false,
+                  x: unitCenterX - 0.85,
+                  y: floorY + 1.35,
+                  z: unitCenterZ - 3.76,
+                  interactRadius: 2.5,
+                  isOpen: true,
+                  isOn: true,
+                  rootMesh: swDoorMesh,
+                  leverPivot: null,
+                  doorPivot: swDoorMesh,
+                  tubeMeshes: tubeLightMeshes,
+                  onToggle: function(isOn) {
+                    tubeLightMeshes.forEach(m => {
+                      if (m.material) {
+                        m.material.emissiveIntensity = isOn ? 2.5 : 0.0;
+                      }
+                    });
+                  }
+                });
+              }
+
+              cGroup.add(blenderScene);
+              cGroup.userData.hasBlenderProductionMesh = true;
+            },
+            undefined,
+            function (err) {
+              console.warn('[Hide & Seek] Production GLB load fallback to procedural geometry:', err);
+            }
+          );
+        } catch (e) {
+          console.warn('[Hide & Seek] GLB loader error:', e);
+        }
+      }
+    }
     function buildComputerLabInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
       const boardZ = facingDirZ * -3.1;
       const wbMesh = new THREE.Mesh(sharedGeos.whiteboard, materials.whiteboardSurface);
@@ -11898,7 +12121,7 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-bldg4-door', x: 24.0, y: 0.22, z: -15.8, kind: 'door' }, { id: 'wp-bldg4-in', x: 24.0, y: 0.22, z: -10.5, kind: 'interior' }],
       },
       'Building B6 Classrooms Room 1': {
-        id: 'Building B6 Classrooms Room 1', building: 'CLASSROOMS_B6', archetype: 'classroom_standard', lightMood: 'dying_tube',
+        id: 'Building B6 Classrooms Room 1', building: 'CLASSROOMS_B6', archetype: 'classroom_production_glb', lightMood: 'dying_tube',
         bounds: { minX: -24.0, maxX: -6.67, minZ: 36.0, maxZ: 44.0, floorY: 0.22, ceilingY: 3.77 },
         furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3', 'ceiling_fan'],
         hidingSpots: ['podium', 'student_desks'],
@@ -12332,6 +12555,7 @@ export function getHideAndSeekHtml(): string {
     }
 
     const ROOM_ARCHETYPE_BUILDERS = {
+      classroom_production_glb: (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildProductionBlenderClassroomInterior(cGroup, cx, cz, fy, dirZ, title),
       classroom_standard: (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 0),
       classroom_seminar:  (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 1),
       computer_lab:       (cGroup, cx, cz, fy, dirZ, title) => buildComputerLabInterior(cGroup, cx, cz, fy, dirZ, title),
@@ -12356,75 +12580,81 @@ export function getHideAndSeekHtml(): string {
       const windowSideSignX = unitCenterX < 0 ? -1 : 1;
       const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
 
-      // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3 Fluorescent Tube Hoods
-      const ceilPanel = new THREE.Mesh(
-        new THREE.BoxGeometry(6.8, 0.06, 8.2),
-        isNewariStyle ? materials.carvedSalWood : materials.stainedCeilingTiles
-      );
-      ceilPanel.position.set(0, 3.38, 0);
-      cGroup.add(ceilPanel);
+      const isProductionGlb = (roomDef.archetype === 'classroom_production_glb');
 
-      [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz], tIdx) => {
-        const hood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
-        hood.position.set(tx, 3.30, tz);
-        cGroup.add(hood);
-        if (tIdx === 0) {
-          const steadyTube = new THREE.Mesh(tubeStripGeo, step2Mats.steadyDimTubeMat);
-          steadyTube.position.set(tx, 3.27, tz);
-          cGroup.add(steadyTube);
-        } else if (tIdx === 2) {
-          const deadTube = new THREE.Mesh(tubeStripGeo, step2Mats.deadTubeMat);
-          deadTube.position.set(tx, 3.27, tz);
-          cGroup.add(deadTube);
+      if (!isProductionGlb) {
+        // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3 Fluorescent Tube Hoods
+        const ceilPanel = new THREE.Mesh(
+          new THREE.BoxGeometry(6.8, 0.06, 8.2),
+          isNewariStyle ? materials.carvedSalWood : materials.stainedCeilingTiles
+        );
+        ceilPanel.position.set(0, 3.38, 0);
+        cGroup.add(ceilPanel);
+
+        [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz], tIdx) => {
+          const hood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
+          hood.position.set(tx, 3.30, tz);
+          cGroup.add(hood);
+          if (tIdx === 0) {
+            const steadyTube = new THREE.Mesh(tubeStripGeo, step2Mats.steadyDimTubeMat);
+            steadyTube.position.set(tx, 3.27, tz);
+            cGroup.add(steadyTube);
+          } else if (tIdx === 2) {
+            const deadTube = new THREE.Mesh(tubeStripGeo, step2Mats.deadTubeMat);
+            deadTube.position.set(tx, 3.27, tz);
+            cGroup.add(deadTube);
+          }
+        });
+
+        // Ceiling Fan with 1 Bent Blade
+        const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.deskSteelFrame);
+        fanRod.position.set(0, 3.16, -0.4);
+        cGroup.add(fanRod);
+        const fanHub = new THREE.Group();
+        fanHub.position.set(0, 2.96, -0.4);
+        fanHub.userData.noMerge = true;
+        const bentAng = (cCfg.propDensity && cCfg.propDensity.ceilingFanBentBladeRad) || 0.28;
+        for (let b = 0; b < 3; b++) {
+          const ang = (b * Math.PI * 2) / 3;
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.deskSteelFrame);
+          blade.position.set(Math.sin(ang) * 0.44, b === 0 ? -0.09 : 0.0, Math.cos(ang) * 0.44);
+          blade.rotation.y = ang;
+          if (b === 0) blade.rotation.x = bentAng;
+          blade.userData.noMerge = true;
+          fanHub.add(blade);
         }
-      });
+        cGroup.add(fanHub);
+        animatedClassroomFans.push({
+          hub: fanHub,
+          roomGroup: cGroup,
+          seed: roomSeed,
+          speed: (cCfg.propDensity && cCfg.propDensity.fanSwaySpeed) || 0.85,
+        });
 
-      // Ceiling Fan with 1 Bent Blade
-      const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.deskSteelFrame);
-      fanRod.position.set(0, 3.16, -0.4);
-      cGroup.add(fanRod);
-      const fanHub = new THREE.Group();
-      fanHub.position.set(0, 2.96, -0.4);
-      fanHub.userData.noMerge = true;
-      const bentAng = (cCfg.propDensity && cCfg.propDensity.ceilingFanBentBladeRad) || 0.28;
-      for (let b = 0; b < 3; b++) {
-        const ang = (b * Math.PI * 2) / 3;
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.deskSteelFrame);
-        blade.position.set(Math.sin(ang) * 0.44, b === 0 ? -0.09 : 0.0, Math.cos(ang) * 0.44);
-        blade.rotation.y = ang;
-        if (b === 0) blade.rotation.x = bentAng;
-        blade.userData.noMerge = true;
-        fanHub.add(blade);
+        // Working Wall Light Switch mounted right inside the room doorway
+        const swLocalX = doorAxis === 'x' ? (doorDirSign * 3.22) : 1.25;
+        const swLocalZ = doorAxis === 'z' ? (doorDirSign * 3.45) : 1.25;
+        const swRotY = doorAxis === 'x' ? (-doorDirSign * Math.PI / 2) : (doorDirSign === 1 ? Math.PI : 0);
+        buildRoomLightSwitch(cGroup, unitCenterX, floorY, unitCenterZ, swLocalX, 1.32, swLocalZ, swRotY, roomDef.id, roomDef.lightMood);
       }
-      cGroup.add(fanHub);
-      animatedClassroomFans.push({
-        hub: fanHub,
-        roomGroup: cGroup,
-        seed: roomSeed,
-        speed: (cCfg.propDensity && cCfg.propDensity.fanSwaySpeed) || 0.85,
-      });
-
-      // Working Wall Light Switch mounted right inside the room doorway
-      const swLocalX = doorAxis === 'x' ? (doorDirSign * 3.22) : 1.25;
-      const swLocalZ = doorAxis === 'z' ? (doorDirSign * 3.45) : 1.25;
-      const swRotY = doorAxis === 'x' ? (-doorDirSign * Math.PI / 2) : (doorDirSign === 1 ? Math.PI : 0);
-      buildRoomLightSwitch(cGroup, unitCenterX, floorY, unitCenterZ, swLocalX, 1.32, swLocalZ, swRotY, roomDef.id, roomDef.lightMood);
 
       // 2. Data-Driven Archetype Dispatch via ROOM_DEFINITIONS
       const builderFn = ROOM_ARCHETYPE_BUILDERS[roomDef.archetype] || ROOM_ARCHETYPE_BUILDERS.classroom_standard;
       builderFn(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, roomDef);
 
-      // 3. Shared Classroom Horror Decay, Props & Deterministic "Wrong" Detail
-      if (roomDef.archetype === 'classroom_standard' || roomDef.archetype === 'classroom_seminar') {
-        addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, 6.8, 8.2, windowSideSignX, roomSeed);
+      if (!isProductionGlb) {
+        // 3. Shared Classroom Horror Decay, Props & Deterministic "Wrong" Detail
+        if (roomDef.archetype === 'classroom_standard' || roomDef.archetype === 'classroom_seminar') {
+          addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, 6.8, 8.2, windowSideSignX, roomSeed);
+        }
+
+        // 4. Deep Dark Corners & Under-Desk Baked AO + Small Clutter & Asymmetry
+        addRoomBakedAO(cGroup, 6.8, 8.2, 3.38);
+        populateRoomClutterAndAsymmetry(cGroup, 6.6, 7.8, unitCenterX * 3.1 + unitCenterZ * 7.3, false);
+
+        cGroup.userData.isRoomGroup = true;
+        bakeStaticGroup(cGroup, true);
       }
-
-      // 4. Deep Dark Corners & Under-Desk Baked AO + Small Clutter & Asymmetry
-      addRoomBakedAO(cGroup, 6.8, 8.2, 3.38);
-      populateRoomClutterAndAsymmetry(cGroup, 6.6, 7.8, unitCenterX * 3.1 + unitCenterZ * 7.3, false);
-
-      cGroup.userData.isRoomGroup = true;
-      bakeStaticGroup(cGroup, true);
 
       // 5. Per-Room Light Mood Fixtures, Stuttering Tube, Spill Gradients, Window Shafts & Dust Motes
       applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, 6.8, 8.2, windowSideSignX);
@@ -12780,8 +13010,12 @@ export function getHideAndSeekHtml(): string {
       const backZ = cz - doorSide * (depth / 2);
       buildWallSegment(cx, floorH, backZ, width, wallH, wallT, materials.campusStucco);
 
+      const numRooms = customRoomCount || (width >= 26 ? 3 : (width <= 12 ? 1 : 2));
+      const roomW = width / numRooms;
+
       let winIdx = 0;
       for (let wx = cx - width / 2 + 2.8; wx <= cx + width / 2 - 2.8; wx += 5.2) {
+        if (blockLabel === 'Building B6 Classrooms' && wx < cx - width / 2 + roomW) continue;
         const isWarmWindow = (winIdx + Math.abs(Math.round(cz))) % 2 === 0;
         if (isNewariHeritage) {
           buildSanjhyalCarvedWindow(wx, floorH + 1.9, backZ - doorSide * 0.12, 0, -doorSide, 3, isWarmWindow, false);
@@ -12794,8 +13028,6 @@ export function getHideAndSeekHtml(): string {
       buildWallSegment(cx - width / 2, floorH, cz, wallT, wallH, depth - 0.30, wallMat);
       buildWallSegment(cx + width / 2, floorH, cz, wallT, wallH, depth - 0.30, wallMat);
 
-      const numRooms = customRoomCount || (width >= 26 ? 3 : (width <= 12 ? 1 : 2));
-      const roomW = width / numRooms;
       for (let i = 1; i < numRooms; i++) {
         const pX = cx - width / 2 + roomW * i;
         buildWallSegment(pX, floorH, cz, wallT, wallH, depth - 0.32, wallMat);
@@ -12809,6 +13041,7 @@ export function getHideAndSeekHtml(): string {
       for (let roomIdx = 0; roomIdx < numRooms; roomIdx++) {
         const roomCenterX = cx - width / 2 + roomW * (roomIdx + 0.5);
         doorXCoords.push(roomCenterX);
+        const isGlbRoom = (blockLabel === 'Building B6 Classrooms' && roomIdx === 0);
 
         buildWallSegment(roomCenterX - doorW / 2 - sideSegW / 2, floorH, frontZ, sideSegW, wallH, wallT, wallMat);
         buildWallSegment(roomCenterX + doorW / 2 + sideSegW / 2, floorH, frontZ, sideSegW, wallH, wallT, wallMat);
@@ -12824,7 +13057,7 @@ export function getHideAndSeekHtml(): string {
           const doorArch = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.24, 0.14, wallT + 0.08), materials.whiteTrim);
           doorArch.position.set(roomCenterX, floorH + wallH - 0.92, frontZ);
           scene.add(doorArch);
-          if (sideSegW > 2.2) {
+          if (sideSegW > 2.2 && !isGlbRoom) {
             buildDetailedWindow(roomCenterX - doorW / 2 - sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, roomIdx === 0);
             buildDetailedWindow(roomCenterX + doorW / 2 + sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, false);
           }
@@ -12833,16 +13066,18 @@ export function getHideAndSeekHtml(): string {
         // Door frame jamb colliders (leaves 1.71m clear walkable opening)
         addDoorFrameColliders(roomCenterX, floorH, frontZ, doorW, wallT, false);
 
-        // Swinging wooden door + entrance floor mat
-        buildSwingingDoor(
-          scene,
-          roomCenterX - doorW * 0.45,
-          floorH,
-          frontZ - doorSide * 0.16,
-          doorSide === 1 ? -1.15 : 1.15,
-          isNewariHeritage ? materials.ebonyCarvedWood : materials.gandakiBluePole,
-          'door-' + blockLabel + '-r' + (roomIdx + 1)
-        );
+        if (!isGlbRoom) {
+          // Swinging wooden door + entrance floor mat
+          buildSwingingDoor(
+            scene,
+            roomCenterX - doorW * 0.45,
+            floorH,
+            frontZ - doorSide * 0.16,
+            doorSide === 1 ? -1.15 : 1.15,
+            isNewariHeritage ? materials.ebonyCarvedWood : materials.gandakiBluePole,
+            'door-' + blockLabel + '-r' + (roomIdx + 1)
+          );
+        }
         const dMat = new THREE.Mesh(step2Geos.floorMat, step2Mats.matRubber);
         dMat.position.set(roomCenterX, floorH + 0.012, frontZ + doorSide * 0.46);
         scene.add(dMat);
@@ -24087,6 +24322,23 @@ export function getHideAndSeekHtml(): string {
         console.error('[HideAndSeek] Frame error:', loopErr);
       }
     }
+    window.__game = {
+      scene: scene,
+      camera: camera,
+      renderer: renderer,
+      atmosphere: atmosphere,
+      playerPhysics: playerPhysics,
+      roomVisibilityList: roomVisibilityList,
+      interactablesById: interactablesById,
+      swingingDoors: swingingDoors,
+      animatedClassroomFans: animatedClassroomFans,
+      toggleFlashlight: function() {
+        if (atmosphere) {
+          atmosphere.isFlashlightOn = !atmosphere.isFlashlightOn;
+          if (atmosphere.flashlight) atmosphere.flashlight.visible = atmosphere.isFlashlightOn;
+        }
+      }
+    };
     animate();
 
     function handleResize() {

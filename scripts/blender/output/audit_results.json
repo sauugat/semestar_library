@@ -1,0 +1,179 @@
+{
+  "timestamp": "2026-10-31T13:50:04.528Z",
+  "integrationCheck": {
+    "roomId": "Building B6 Classrooms Room 1",
+    "roomCenter": {
+      "x": -13.833333333333334,
+      "y": 1.65,
+      "z": 49
+    },
+    "hasGlbScene": true,
+    "glbPosition": {
+      "x": -2.7,
+      "y": 0,
+      "z": 0
+    },
+    "glbRotationY": -1.5707963267948966,
+    "totalMeshesInRoom": 261,
+    "sampleMeshes": [
+      {
+        "name": "",
+        "mat": "unnamed",
+        "hasAO": false,
+        "visible": true
+      },
+      {
+        "name": "",
+        "mat": "unnamed",
+        "hasAO": false,
+        "visible": true
+      },
+      {
+        "name": "",
+        "mat": "unnamed",
+        "hasAO": false,
+        "visible": true
+      },
+      {
+        "name": "",
+        "mat": "unnamed",
+        "hasAO": false,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_Hub_1",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_1_Blade_1",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_1_Blade_2",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_1_Blade_3",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_Mount_1",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_Rod_1",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_Hub_2",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_2_Blade_1",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_2_Blade_2",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_2_Blade_3",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      },
+      {
+        "name": "CeilingFan_Mount_2",
+        "mat": "Mat_Steel_Dark",
+        "hasAO": true,
+        "visible": true
+      }
+    ],
+    "interactablesCount": 312,
+    "swingingDoorsCount": 47,
+    "animatedFansCount": 33
+  },
+  "interactResults": {
+    "door": {
+      "id": "door-bldg6-r1",
+      "initialAngle": 1.45,
+      "initialOpen": true,
+      "toggledOpen": false,
+      "targetAngle": 0,
+      "status": "PASS"
+    },
+    "drawer": {
+      "id": "drawer-teacher-bldg6-r1",
+      "initialOpen": false,
+      "toggledOpen": true,
+      "hasKey": true,
+      "keyId": "item_bldg6_brass_key",
+      "status": "PASS"
+    },
+    "switchboard": {
+      "id": "switchboard-bldg6-r1",
+      "initialOn": true,
+      "toggledOn": false,
+      "tubeFixturesControlled": 6,
+      "status": "PASS"
+    },
+    "fans": {
+      "totalFansAnimated": 33,
+      "b6Room1Fans": 2,
+      "fan1HubName": "CeilingFan_Hub_1",
+      "fan2HubName": "CeilingFan_Hub_2",
+      "status": "PASS"
+    }
+  },
+  "perfInside": {
+    "location": "Inside Classroom Room 1",
+    "avgFps": 59,
+    "minFps": 46.5,
+    "avgFrameTimeMs": 16.96,
+    "maxFrameTimeMs": 21.5,
+    "drawCalls": 1616,
+    "triangles": 244943,
+    "geometries": 650,
+    "textures": 87
+  },
+  "perfOutside": {
+    "location": "Outside Classroom (Veranda & Courtyard)",
+    "avgFps": 27.6,
+    "minFps": 0.5,
+    "avgFrameTimeMs": 36.18,
+    "maxFrameTimeMs": 1880.6,
+    "drawCalls": 1589,
+    "triangles": 310527,
+    "geometries": 737,
+    "textures": 92
+  },
+  "screenshots": [
+    "01_classroom_entrance_from_corridor.png",
+    "02_standing_inside_classroom.png",
+    "03_view_from_back_of_classroom.png",
+    "04_view_facing_whiteboard.png",
+    "05_view_through_windows.png",
+    "06_flashlight_enabled.png",
+    "07_ceiling_lights_disabled.png",
+    "08_player_entering_room.png",
+    "09_player_exiting_room.png"
+  ]
+}

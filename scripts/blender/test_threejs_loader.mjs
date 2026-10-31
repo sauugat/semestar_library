@@ -28,9 +28,13 @@ const fileBuffer = fs.readFileSync(glbPath);
 console.log(`[+] Read GLB file: ${glbPath}`);
 console.log(`    File Size: ${fileBuffer.byteLength.toLocaleString()} bytes (${(fileBuffer.byteLength / (1024 * 1024)).toFixed(2)} MB)`);
 
-// Polyfill window / self / URL if needed for GLTFLoader
+// Polyfill window / self / URL if needed for GLTFLoader in Node.js
 if (typeof globalThis.self === 'undefined') {
   globalThis.self = globalThis;
+}
+if (typeof URL.createObjectURL === 'undefined') {
+  URL.createObjectURL = (blob) => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+  URL.revokeObjectURL = () => {};
 }
 
 const loader = new GLTFLoader();
@@ -162,3 +166,4 @@ loader.parse(
     process.exit(1);
   }
 );
+

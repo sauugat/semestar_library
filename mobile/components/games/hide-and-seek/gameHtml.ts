@@ -5380,30 +5380,48 @@ export function getHideAndSeekHtml(): string {
           }
         }
       } else if (type === 'pale-campus-stucco') {
-        // Modern Gandaki University Prefab Modular Wall Panels (Exact match to aerial drone photos!)
-        // Clean pale sage / mint-cream panel field with vertical joint seams and horizontal mid-line
-        ctx.fillStyle = '#dce7dd';
+        // Weathered Nepali University Lime Plaster & Masonry (Warm sand/limestone with mineral micro-variation)
+        ctx.fillStyle = '#ded7c8';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#808080';
+        bCtx.fillStyle = '#7a7a7a';
         bCtx.fillRect(0, 0, 512, 512);
+        rCtx.fillStyle = '#949494';
+        rCtx.fillRect(0, 0, 512, 512);
 
-        // Vertical modular panel seams every 64px
-        for (let x = 0; x < 512; x += 64) {
-          ctx.fillStyle = '#c4d2c5';
+        // Subtle organic mineral stipples & plaster aggregate grain
+        for (let i = 0; i < 3600; i++) {
+          const sx = (i * 97 + (i % 7) * 13) % 512;
+          const sy = (i * 173 + (i % 11) * 19) % 512;
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 250, 240, 0.12)' : 'rgba(50, 42, 34, 0.08)';
+          ctx.fillRect(sx, sy, 2 + (i % 3), 2 + (i % 2));
+          bCtx.fillStyle = (i % 2 === 0) ? '#909090' : '#646464';
+          bCtx.fillRect(sx, sy, 2, 2);
+        }
+
+        // Architectural expansion relief seams every 128px (clean, subtle joints)
+        for (let x = 0; x < 512; x += 128) {
+          ctx.fillStyle = 'rgba(40, 32, 24, 0.35)';
           ctx.fillRect(x - 1, 0, 2, 512);
-          ctx.fillStyle = '#f0f6f0';
+          ctx.fillStyle = 'rgba(255, 252, 242, 0.22)';
           ctx.fillRect(x + 1, 0, 1, 512);
-          bCtx.fillStyle = '#404040';
+          bCtx.fillStyle = '#303030';
           bCtx.fillRect(x - 1, 0, 2, 512);
         }
 
-        // Horizontal panel joint seam halfway up
-        ctx.fillStyle = '#c4d2c5';
+        // Horizontal architectural divide at y = 256
+        ctx.fillStyle = 'rgba(40, 32, 24, 0.35)';
         ctx.fillRect(0, 255, 512, 2);
-        ctx.fillStyle = '#f0f6f0';
+        ctx.fillStyle = 'rgba(255, 252, 242, 0.22)';
         ctx.fillRect(0, 257, 512, 1);
-        bCtx.fillStyle = '#404040';
+        bCtx.fillStyle = '#303030';
         bCtx.fillRect(0, 255, 512, 2);
+
+        // Weathered base gradient (rising damp & mineral patina along wall footing)
+        const dampGrad = ctx.createLinearGradient(0, 512, 0, 460);
+        dampGrad.addColorStop(0.0, 'rgba(42, 36, 28, 0.28)');
+        dampGrad.addColorStop(1.0, 'rgba(42, 36, 28, 0.0)');
+        ctx.fillStyle = dampGrad;
+        ctx.fillRect(0, 460, 512, 52);
       } else if (type === 'interlocking-pavers') {
         // Rain-Slicked Nepali Grey Flagstone Courtyard Slabs (Dhunga) with Wet Rain Puddles (Ref Photos 1, 4, 6!)
         ctx.fillStyle = '#1e2530';
@@ -6070,6 +6088,7 @@ export function getHideAndSeekHtml(): string {
       return g;
     }
     const sharedSignageAtlasMat = new THREE.MeshBasicMaterial({ map: signageAtlasTex, side: THREE.DoubleSide });
+    let sharedWinWarmTex = null;
 
     const materials = {
       nepaliRiverStone: new THREE.MeshStandardMaterial({
@@ -6434,6 +6453,7 @@ export function getHideAndSeekHtml(): string {
         winWarmTex.minFilter = THREE.LinearMipmapLinearFilter;
         winWarmTex.magFilter = THREE.LinearFilter;
         winWarmTex.anisotropy = mb.windowAnisotropy || 8;
+        sharedWinWarmTex = winWarmTex;
         return new THREE.MeshStandardMaterial({
           map: winWarmTex,
           emissiveMap: winWarmTex,
@@ -6795,9 +6815,10 @@ export function getHideAndSeekHtml(): string {
       campusStucco: new THREE.MeshStandardMaterial({
         map: stuccoTex.map,
         bumpMap: stuccoTex.bumpMap,
-        bumpScale: 0.022,
-        color: 0x7a8680,
-        roughness: 0.76,
+        bumpScale: 0.032,
+        color: 0xded8cc,
+        roughness: 0.82,
+        metalness: 0.02,
         side: THREE.DoubleSide,
       }),
       classroomFloor: new THREE.MeshStandardMaterial({
@@ -6971,11 +6992,13 @@ export function getHideAndSeekHtml(): string {
         opacity: 0.72,
       }),
       windowWarmLit: new THREE.MeshStandardMaterial({
-        map: dirtyGlassTex.map,
-        color: 0xffb35c,
-        emissive: HORROR_CONFIG.lighting.windowEmissive || 0xffa84c,
-        emissiveIntensity: HORROR_CONFIG.lighting.windowEmissiveIntensity || 0.62,
-        roughness: 0.36,
+        map: sharedWinWarmTex || dirtyGlassTex.map,
+        emissiveMap: sharedWinWarmTex || dirtyGlassTex.map,
+        color: 0xffe8b4,
+        emissive: HORROR_CONFIG.lighting.windowEmissive || 0xff9c34,
+        emissiveIntensity: HORROR_CONFIG.lighting.windowEmissiveIntensity || 0.88,
+        roughness: 0.20,
+        metalness: 0.06,
       }),
       deskWoodTop: new THREE.MeshStandardMaterial({
         map: wornWoodTex.map,
@@ -7396,9 +7419,9 @@ export function getHideAndSeekHtml(): string {
           '#include <fog_fragment>',
           '#ifdef USE_FOG\\n' +
           '  #ifdef FOG_EXP2\\n' +
-          '    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );\\n' +
+          '    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * fogDepth * fogDepth );\\n' +
           '  #else\\n' +
-          '    float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );\\n' +
+          '    float fogFactor = smoothstep( fogNear, fogFar, fogDepth );\\n' +
           '  #endif\\n' +
           '  fogFactor *= ' + mbFogInfluence.toFixed(3) + ';\\n' +
           '  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\\n' +
@@ -7418,6 +7441,7 @@ export function getHideAndSeekHtml(): string {
       [materials.rotundaCurvedGlass, 1.15, 0.85],
       [materials.rotundaCurvedGlassWarm, 0.65, 0.35],
       [materials.rotundaWindowWarm, 0.0, 0.0],
+      [materials.windowWarmLit, 0.0, 0.0],
       [materials.rotundaWindowRed, 0.0, 0.0],
       [materials.rotundaWindowDark, 0.55, 0.75],
       [materials.rotundaSignMat, 0.45, 1.30],
@@ -12689,8 +12713,8 @@ export function getHideAndSeekHtml(): string {
         );
 
         if (flankLen > 1.8) {
-          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ - doorW / 2 - flankLen / 2, 0, rIdx === 0, doorSideX);
-          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ + doorW / 2 + flankLen / 2, 0, false, doorSideX);
+          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ - doorW / 2 - flankLen / 2, 0, (rIdx % 2 === 0), doorSideX);
+          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ + doorW / 2 + flankLen / 2, 0, (rIdx % 3 !== 1), doorSideX);
         }
 
         populateClassroomUnit(cx, rCenterZ, floorH, 1, blockLabel + ' Room ' + (rIdx + 1), false, 'x', doorSideX);
@@ -12825,8 +12849,8 @@ export function getHideAndSeekHtml(): string {
           doorArch.position.set(roomCenterX, floorH + wallH - 0.92, frontZ);
           scene.add(doorArch);
           if (sideSegW > 2.2) {
-            buildDetailedWindow(roomCenterX - doorW / 2 - sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, roomIdx === 0);
-            buildDetailedWindow(roomCenterX + doorW / 2 + sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, false);
+            buildDetailedWindow(roomCenterX - doorW / 2 - sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, (roomIdx % 2 === 0));
+            buildDetailedWindow(roomCenterX + doorW / 2 + sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, (roomIdx % 3 === 0));
           }
         }
 
@@ -12931,9 +12955,9 @@ export function getHideAndSeekHtml(): string {
 
       for (let wx = cx - width / 2 + 4.5; wx <= cx + width / 2 - 4.5; wx += 6.5) {
         if (Math.abs(wx - cx) > 2.4) {
-          buildDetailedWindow(wx, floorH + 1.85, frontZ + doorSide * 0.14, doorSide, false);
+          buildDetailedWindow(wx, floorH + 1.85, frontZ + doorSide * 0.14, doorSide, (Math.round(wx) % 2 === 0));
         }
-        buildDetailedWindow(wx, floorH + 1.85, backZ - doorSide * 0.14, -doorSide, false);
+        buildDetailedWindow(wx, floorH + 1.85, backZ - doorSide * 0.14, -doorSide, (Math.round(wx) % 3 === 0));
       }
 
       getOrRegisterRoomDefinition(blockLabel + ' Room 1', cx, cz, floorH, width * 0.5 - 0.4, depth * 0.5 - 0.4, 'BLDG_15', 'computer_lab', 'z', doorSide);
@@ -13115,12 +13139,13 @@ export function getHideAndSeekHtml(): string {
       metalness: 0.02,
     });
     materials.terraceConcrete = new THREE.MeshStandardMaterial({
-      map: naturalGroundTex,
-      bumpMap: naturalGroundTex,
-      bumpScale: 0.012,
-      color: 0x2c343a,
-      roughness: 0.88,
-      metalness: 0.03,
+      map: paverTex.map,
+      bumpMap: paverTex.bumpMap,
+      bumpScale: 0.045,
+      roughnessMap: paverTex.roughnessMap,
+      color: 0x3a4249,
+      roughness: 0.52,
+      metalness: 0.14,
     });
     materials.retainingRubbleStone = new THREE.MeshStandardMaterial({
       map: riverStoneTex.map,
@@ -13181,11 +13206,11 @@ export function getHideAndSeekHtml(): string {
     const sculptedTerrainMat = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,
       bumpMap: naturalGroundTex,
-      bumpScale: 0.014,
-      color: 0x546066,
+      bumpScale: 0.022,
+      color: 0x485258,
       vertexColors: true,
-      roughness: 0.88,
-      metalness: 0.03,
+      roughness: 0.90,
+      metalness: 0.02,
     });
 
     const terrainMesh = new THREE.Mesh(terrainGeo, sculptedTerrainMat);
@@ -18090,16 +18115,16 @@ export function getHideAndSeekHtml(): string {
             'vec3 tipCol  = vec3(0.86, 0.24, 0.04);\\n' +
             'vec3 fCol = mix(coreCol, midCol, smoothstep(0.0, 0.52, vFlameH));\\n' +
             'fCol = mix(fCol, tipCol, smoothstep(0.52, 1.0, vFlameH));\\n' +
-            'diffuseColor.rgb = fCol * vFlicker;'
+            'diffuseColor.rgb = fCol * vFlicker * 1.55;'
           );
         };
 
         // Warm 1950K Surface Light Pool Material for Clay Diyos (mediump-safe GPU non-synchronized pulse)
         this.diyoPoolMat = new THREE.MeshBasicMaterial({
           map: this.diyoPoolTex,
-          color: 0xff9830,
+          color: 0xff9a32,
           transparent: true,
-          opacity: 0.42,
+          opacity: 0.48,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
           polygonOffset: true,
@@ -18168,7 +18193,7 @@ export function getHideAndSeekHtml(): string {
           shader.fragmentShader = shader.fragmentShader.replace(
             '#include <color_fragment>',
             '#include <color_fragment>\\n' +
-            'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 0.98, 0.90), 0.28) * vTwinkle * uElectricPower;'
+            'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 0.98, 0.92), 0.32) * vTwinkle * uElectricPower * 1.45;'
           );
         };
 
@@ -18244,7 +18269,7 @@ export function getHideAndSeekHtml(): string {
         this.diyoPoolGeo = new THREE.PlaneGeometry(0.85, 0.85).clone();
         this.diyoPoolGeo.rotateX(-Math.PI / 2);
 
-        this.maxDiyos = 750;
+        this.maxDiyos = 1600;
         this.diyoCount = 0;
         this.poolCount = 0;
 
@@ -18268,7 +18293,7 @@ export function getHideAndSeekHtml(): string {
 
         // D. Jhilimili Electric String Light Bulbs (Individual LED bulbs with per-instance color)
         this.bulbGeo = new THREE.SphereGeometry(0.036, 6, 5).clone();
-        this.maxBulbs = 2400;
+        this.maxBulbs = 4500;
         this.bulbCount = 0;
         this.instJhilimiliBulbs = new THREE.InstancedMesh(this.bulbGeo, this.jhilimiliBulbMat, this.maxBulbs);
         this.instJhilimiliBulbs.count = 0;
@@ -18278,7 +18303,7 @@ export function getHideAndSeekHtml(): string {
 
         // E. Sayapatri & Makhamali Flower Garland Blossom Clusters
         this.blossomGeo = new THREE.DodecahedronGeometry(0.058, 0).clone();
-        this.maxBlossoms = 2400;
+        this.maxBlossoms = 4000;
         this.blossomCount = 0;
         this.instGarlandBlossoms = new THREE.InstancedMesh(this.blossomGeo, this.garlandBlossomMat, this.maxBlossoms);
         this.instGarlandBlossoms.count = 0;
@@ -18582,6 +18607,81 @@ export function getHideAndSeekHtml(): string {
     window.__TIHAR_NIGHT_SYSTEM__ = tiharNightMod;
 
     (function populateGandakiTiharNightCampus() {
+      const b1FrontZ = b1Obj.position.z - 3.75;
+      const b5FloorY = (typeof b5Obj.position.y === 'number' ? b5Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const r1FloorY = (typeof r1Obj.position.y === 'number' ? r1Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const r2FloorY = (typeof r2Obj.position.y === 'number' ? r2Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const r4FloorY = (typeof r4Obj.position.y === 'number' ? r4Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const l2FloorY = (typeof l2Obj.position.y === 'number' ? l2Obj.position.y : 1.4) + PLINTH_HEIGHT;
+
+      // -----------------------------------------------------------------------
+      // FOCAL ZONE 0: SOUTH GATE ARRIVAL DRIVEWAY & SPAWN PLAZA (Zone A — Player Start at x: -2.5, z: -48.0)
+      // -----------------------------------------------------------------------
+      // 0A. Centerpiece Laxmi Puja Lotus Rangoli Mandala at the Spawn Plaza with Sacred Clay Diyos & Laxmi Footprints
+      const spawnMandalaY = getTerrainHeightAt(-2.5, -45.5);
+      tiharNightMod.addTiharMandalaAndFootprints(
+        -2.5, spawnMandalaY, -45.5,
+        1.65, 0, 12,
+        -2.5, -36.5, l1FloorY
+      );
+      tiharNightMod.addFocalLight(-2.5, spawnMandalaY + 1.4, -45.5, 0xff9428, 7.8, 14.0, false);
+
+      // 0B. Secondary Laxmi Puja Mandala at the South Gate Entrance
+      const gateMandalaY = getTerrainHeightAt(0.0, -61.5);
+      tiharNightMod.addTiharMandalaAndFootprints(
+        0.0, gateMandalaY, -61.5,
+        1.35, 1, 8,
+        0.0, -52.0, spawnMandalaY
+      );
+      tiharNightMod.addFocalLight(0.0, gateMandalaY + 1.25, -61.5, 0xff9428, 6.8, 12.0, false);
+
+      // 0C. Disciplined Continuous Rows of Clay Diyos Lining the Main South Gate Driveway Approach (-67.0 to -35.0)
+      // Left Driveway Curb (x = -4.2)
+      tiharNightMod.addDiyoLine(
+        -4.2, getTerrainHeightAt(-4.2, -67.0) + 0.04, -67.0,
+        -4.2, getTerrainHeightAt(-4.2, -35.0) + 0.04, -35.0,
+        22, 0, 2, 1.2
+      );
+      // Right Driveway Curb (x = +4.2)
+      tiharNightMod.addDiyoLine(
+        4.2, getTerrainHeightAt(4.2, -67.0) + 0.04, -67.0,
+        4.2, getTerrainHeightAt(4.2, -35.0) + 0.04, -35.0,
+        22, Math.PI, 2, 1.2
+      );
+      // Arrival Plaza Cross-Walk Diyo Rows flanking the spawn position
+      tiharNightMod.addDiyoLine(-8.5, getTerrainHeightAt(-8.5, -48.0) + 0.04, -48.0, -3.2, getTerrainHeightAt(-3.2, -48.0) + 0.04, -48.0, 7, -Math.PI / 2, 2, 1.1);
+      tiharNightMod.addDiyoLine(3.2, getTerrainHeightAt(3.2, -48.0) + 0.04, -48.0, 8.5, getTerrainHeightAt(8.5, -48.0) + 0.04, -48.0, 7, Math.PI / 2, 2, 1.1);
+
+      // 0D. Radiant Overhead Jhilimili LED String Light Canopy criss-crossing the Arrival & Spawn Plaza
+      const spawnHubY = spawnMandalaY + 4.35;
+      [
+        [-4.2, getTerrainHeightAt(-4.2, -58.0) + 4.2, -58.0, 'nepaliMulti', 18],
+        [4.2,  getTerrainHeightAt(4.2, -58.0) + 4.2,  -58.0, 'warmGold', 18],
+        [-12.0, l1FloorY + 3.4,                       -38.0, 'warmGold', 20],
+        [b1Obj.position.x - 3.5, b1FloorY + 3.6,      b1FrontZ, 'nepaliMulti', 20],
+        [0.0,  getTerrainHeightAt(0.0, -36.0) + 4.2,  -36.0, 'warmGold', 18],
+      ].forEach(([tx, ty, tz, pal, count]) => {
+        tiharNightMod.addJhilimiliCatenary(-2.5, spawnHubY, -48.0, tx, ty, tz, 0.65, count, pal, true);
+      });
+
+      // Overhead festive festoon directly above the player spawn position
+      tiharNightMod.addJhilimiliCatenary(-7.5, spawnHubY - 0.45, -48.0, 2.5, spawnHubY - 0.45, -48.0, 0.45, 18, 'warmGold', true);
+
+      // South Gate to Mid-Driveway Canopies
+      tiharNightMod.addJhilimiliCatenary(-4.5, ghFloorY + 4.2, -67.5, ghX - 1.2, ghFloorY + 3.2, ghZ - 2.0, 0.55, 18, 'warmGold', true);
+      tiharNightMod.addJhilimiliCatenary(4.5, ghFloorY + 4.2, -67.5, -4.2, getTerrainHeightAt(-4.2, -58.0) + 4.2, -58.0, 0.55, 18, 'nepaliMulti', true);
+      tiharNightMod.addJhilimiliCatenary(ghX - 1.2, ghFloorY + 3.2, ghZ - 2.0, 4.2, getTerrainHeightAt(4.2, -58.0) + 4.2, -58.0, 0.55, 18, 'warmGold', true);
+      tiharNightMod.addJhilimiliCatenary(-4.2, getTerrainHeightAt(-4.2, -58.0) + 4.2, -58.0, 4.2, getTerrainHeightAt(4.2, -58.0) + 4.2, -58.0, 0.50, 16, 'nepaliMulti', true);
+
+      // 0E. Traditional Sayapatri Flower Garlands & Torana Arches Framing South Gate & Driveway
+      tiharNightMod.addDoorwayToranGarland(0.0, ghFloorY, -67.5, 4.8, 3.6, false);
+      tiharNightMod.addSayapatriSwag(-8.5, ghFloorY + 1.25, -67.5, -4.5, ghFloorY + 1.25, -67.5, 0.22, 12);
+      tiharNightMod.addSayapatriSwag(4.5, ghFloorY + 1.25, -67.5, 8.5, ghFloorY + 1.25, -67.5, 0.22, 12);
+
+      // Flower swags along the driveway curb barriers flanking spawn
+      tiharNightMod.addSayapatriSwag(-4.2, getTerrainHeightAt(-4.2, -52.0) + 0.75, -52.0, -4.2, getTerrainHeightAt(-4.2, -44.0) + 0.75, -44.0, 0.20, 14);
+      tiharNightMod.addSayapatriSwag(4.2, getTerrainHeightAt(4.2, -52.0) + 0.75, -52.0, 4.2, getTerrainHeightAt(4.2, -44.0) + 0.75, -44.0, 0.20, 14);
+
       // -----------------------------------------------------------------------
       // FOCAL ZONE 1: GRAND ROTUNDA COMPLEX & FORECOURT FOUNTAIN PLAZA (Laxmi Puja Centerpiece)
       // -----------------------------------------------------------------------
@@ -18667,6 +18767,11 @@ export function getHideAndSeekHtml(): string {
         tiharNightMod.addJhilimiliCatenary(x1, y1, z1, x2, y2, z2, 0.65, 20, idx === 1 ? 'nepaliMulti' : 'warmGold', true);
       });
 
+      // Additional festoons bridging Central Courtyard between West Wing L2 and East Wing R2
+      tiharNightMod.addJhilimiliCatenary(l2Obj.position.x - 4.0, l2FloorY + 3.4, l2Obj.position.z, courtHubX, courtHubY + 4.2, courtHubZ, 0.65, 20, 'warmGold', true);
+      tiharNightMod.addJhilimiliCatenary(courtHubX, courtHubY + 4.2, courtHubZ, r2Obj.position.x - 3.8, r2FloorY + 3.4, r2Obj.position.z, 0.65, 20, 'nepaliMulti', true);
+      tiharNightMod.addJhilimiliCatenary(b5Obj.position.x - 4.0, b5FloorY + 3.4, b5Obj.position.z, r4Obj.position.x - 4.8, r4FloorY + 3.4, r4Obj.position.z, 0.85, 24, 'warmGold', true);
+
       // Clay Diyos lining the Central Courtyard Pathway Curbs & Terrace Access Ramp
       tiharNightMod.addDiyoLine(-12.5, getTerrainHeightAt(-12.5, -15.5) + 0.04, -15.5, 10.5, getTerrainHeightAt(10.5, -15.5) + 0.04, -15.5, 14, 0, 2, 1.15);
       tiharNightMod.addDiyoLine(-28.0, getTerrainHeightAt(-28.0, -28.0) + 0.04, -28.0, -14.0, getTerrainHeightAt(-14.0, -18.0) + 0.04, -18.0, 10, 0, 2, 1.15);
@@ -18686,6 +18791,9 @@ export function getHideAndSeekHtml(): string {
         l1Obj.position.x, l1FrontZ - 0.2, l1FloorY
       );
       tiharNightMod.addFocalLight(l1Obj.position.x, l1FloorY + 1.85, l1FrontZ - 1.6, 0xff9a38, 6.6, 11.5, true);
+      for (let wz = l1Obj.position.z - 11.0; wz <= l1Obj.position.z + 11.0; wz += 4.5) {
+        tiharNightMod.addDiyo(l1Obj.position.x - 3.8, l1FloorY + 1.22, wz, Math.PI / 2, true, 0.95);
+      }
 
       // West Wing L2 (-4.5, 1.4, 4.0, span 33.0m x 7.6m)
       const l2FrontZ = l2Obj.position.z - 3.8;
@@ -18693,9 +18801,11 @@ export function getHideAndSeekHtml(): string {
       tiharNightMod.addDiyoLine(l2Obj.position.x - 14.5, l2FloorY + 0.02, l2FrontZ - 2.15, l2Obj.position.x + 14.5, l2FloorY + 0.02, l2FrontZ - 2.15, 14, Math.PI, 2, 1.05);
       tiharNightMod.addDoorwayToranGarland(l2Obj.position.x, l2FloorY, l2FrontZ, 1.95, 2.55, false);
       tiharNightMod.addFocalLight(l2Obj.position.x, l2FloorY + 1.85, l2FrontZ - 1.6, 0xff9428, 6.2, 11.0, false);
+      for (let wz = l2Obj.position.z - 11.0; wz <= l2Obj.position.z + 11.0; wz += 4.5) {
+        tiharNightMod.addDiyo(l2Obj.position.x - 3.8, l2FloorY + 1.22, wz, Math.PI / 2, true, 0.95);
+      }
 
       // West Wing L3 Computer & Electronic Labs (bldg_5 at -4.5, 1.4, 18.0)
-      const b5FloorY = (typeof b5Obj.position.y === 'number' ? b5Obj.position.y : 1.4) + PLINTH_HEIGHT;
       const b5FrontZ = b5Obj.position.z - 4.0;
       tiharNightMod.addDiyoLine(b5Obj.position.x - 12.0, b5FloorY + 0.02, b5FrontZ - 2.1, b5Obj.position.x + 12.0, b5FloorY + 0.02, b5FrontZ - 2.1, 12, Math.PI, 2, 1.05);
       tiharNightMod.addDoorwayToranGarland(b5Obj.position.x, b5FloorY, b5FrontZ, 1.95, 2.55, false);
@@ -18704,7 +18814,6 @@ export function getHideAndSeekHtml(): string {
       // FOCAL ZONE 4: EAST WING CAFETERIA (R1), MULTIPURPOSE HALL (R2) & LIBRARY (R4)
       // -----------------------------------------------------------------------
       // East Wing R1 Cafeteria (3.0, 1.4, -25.5, 18.1m x 11.5m) — Festive Student Gathering Area
-      const r1FloorY = (typeof r1Obj.position.y === 'number' ? r1Obj.position.y : 1.4) + PLINTH_HEIGHT;
       const r1FrontZ = r1Obj.position.z - 5.75;
       tiharNightMod.addBuildingEaveJhilimiliFringe(r1Obj.position.x - 8.8, r1FloorY + 3.32, r1FrontZ - 2.1, r1Obj.position.x + 8.8, r1FrontZ - 2.1, 1.5, 1.15, 'nepaliMulti', 0, -1);
       tiharNightMod.addDiyoLine(r1Obj.position.x - 8.2, r1FloorY + 0.02, r1FrontZ - 2.15, r1Obj.position.x + 8.2, r1FloorY + 0.02, r1FrontZ - 2.15, 12, Math.PI, 2, 1.15);
@@ -18732,7 +18841,6 @@ export function getHideAndSeekHtml(): string {
       tiharNightMod.addFocalLight(r2FrontX - 1.8, r2FloorY + 1.8, r2Obj.position.z, 0xff9428, 6.5, 11.5, false);
 
       // East Wing R4 Library (28.5, 1.4, 19.0, longitudinal wing facing -X) — Peaceful Warm Golden Tihar Illumination
-      const r4FloorY = (typeof r4Obj.position.y === 'number' ? r4Obj.position.y : 1.4) + PLINTH_HEIGHT;
       const r4FrontX = r4Obj.position.x - 4.8;
       tiharNightMod.addBuildingEaveJhilimiliFringe(r4FrontX - 2.1, r4FloorY + 3.32, r4Obj.position.z - 10.2, r4FrontX - 2.1, r4Obj.position.z + 10.2, 1.8, 1.05, 'warmGold', -1, 0);
       tiharNightMod.addDiyoLine(r4FrontX - 2.15, r4FloorY + 0.02, r4Obj.position.z - 9.5, r4FrontX - 2.15, r4FloorY + 0.02, r4Obj.position.z + 9.5, 12, -Math.PI / 2, 2, 1.1);
@@ -18748,7 +18856,6 @@ export function getHideAndSeekHtml(): string {
       // -----------------------------------------------------------------------
       // FOCAL ZONE 5: 2-STOREY ADMINISTRATIVE OFFICE (bldg_1) & SOUTH GATE GUARDHOUSE
       // -----------------------------------------------------------------------
-      const b1FrontZ = b1Obj.position.z - 3.75;
       tiharNightMod.addBuildingEaveJhilimiliFringe(b1Obj.position.x - 7.6, b1FloorY + 6.55, b1FrontZ - 0.18, b1Obj.position.x + 7.6, b1FrontZ - 0.18, 1.6, 1.35, 'warmGold', 0, -1);
       tiharNightMod.addDiyoLine(b1Obj.position.x - 6.8, b1FloorY + 0.03, b1FrontZ - 0.24, b1Obj.position.x - 1.4, b1FloorY + 0.03, b1FrontZ - 0.24, 7, Math.PI, 2, 1.05);
       tiharNightMod.addDiyoLine(b1Obj.position.x + 1.4, b1FloorY + 0.03, b1FrontZ - 0.24, b1Obj.position.x + 6.8, b1FloorY + 0.03, b1FrontZ - 0.24, 7, Math.PI, 2, 1.05);
@@ -24026,7 +24133,7 @@ export function getHideAndSeekHtml(): string {
         atmosphere.renderFrame(timeSec);
 
         // Step 1 FPS Guard: If average FPS < 40 for 3.0 seconds, disable the color grade pass automatically!
-        if (rawDelta > 0.001 && rawDelta < 0.5 && atmosphere.isColorGradePassActive()) {
+        if (sessionTelemetry.elapsedSec > 4.5 && rawDelta > 0.001 && rawDelta < 0.5 && atmosphere.isColorGradePassActive()) {
           atmosphere._gradeFpsCount = (atmosphere._gradeFpsCount || 0) + 1;
           atmosphere._gradeFpsAccum = (atmosphere._gradeFpsAccum || 0.0) + rawDelta;
           const guardWin = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.fpsGuardWindowSec) || 3.0;

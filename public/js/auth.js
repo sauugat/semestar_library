@@ -129,6 +129,49 @@
     return token;
   }
 
+  function clearLocalAuth() {
+    cachedAccessToken = null;
+    cachedUser = null;
+    window.IS_AUTHENTICATED = false;
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('sl_user_cache');
+      }
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('sl_user_cache_v1');
+        window.localStorage.removeItem('sl_user_cache_v2');
+        for (let i = window.localStorage.length - 1; i >= 0; i--) {
+          const key = window.localStorage.key(i);
+          if (key && (key.startsWith('sb-') || key.startsWith('sl_swr:') || key.startsWith('sl_user_cache_') || key.includes('auth-token') || key.includes('academic_context'))) {
+            window.localStorage.removeItem(key);
+          }
+        }
+      }
+    } catch {}
+  }
+
+  function isTransientError(err) {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+    if (!err) return false;
+    const msg = String(err.message || err.error_description || err || '').toLowerCase();
+    const name = String(err.name || '').toLowerCase();
+    if (name === 'aborterror' || name === 'timeouterror') return true;
+    if (
+      msg.includes('networkerror') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('network request failed') ||
+      msg.includes('cdn') ||
+      msg.includes('load supabase sdk') ||
+      msg.includes('offline') ||
+      msg.includes('timeout') ||
+      msg.includes('econnrefused') ||
+      msg.includes('etimedout')
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   /**
    * Safe synchronous session reader from localStorage.
    * Only inspects keys matching /^sb-.+-auth-token$/, safely parsing each JSON entry.
@@ -143,7 +186,12 @@
             const raw = window.localStorage.getItem(key);
             if (raw) {
               const parsed = JSON.parse(raw);
-              if (parsed && parsed.access_token) {
+              if (parsed && (parsed.access_token || parsed.refresh_token)) {
+                const isExpired = parsed.expires_at && (Number(parsed.expires_at) * 1000 < Date.now());
+                const hasRefreshToken = Boolean(parsed.refresh_token);
+                if (isExpired && !hasRefreshToken) {
+                  continue;
+                }
                 return parsed;
               }
             }
@@ -603,37 +651,39 @@
 
   async function logout() {
     try {
-      const client = await getSupabase();
-      await client.auth.signOut();
-    } catch (e) {
-      console.warn('[Auth SignOut Error]:', e);
-    }
-    try {
-      await rawFetch('/api/logout', { method: 'POST' });
-    } catch {}
-    try {
-      cachedAccessToken = null;
-      cachedUser = null;
-      window.IS_AUTHENTICATED = false;
-      sessionStorage.clear();
-      if (typeof window !== 'undefined' && window.SWR && typeof window.SWR.clearAll === 'function') {
-        window.SWR.clearAll();
+      try {
+        const client = await getSupabase();
+        await Promise.race([
+          client.auth.signOut(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('SignOut timeout')), 1500))
+        ]);
+      } catch (e) {
+        console.warn('[Auth SignOut Error]:', e.message || e);
       }
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem('sl_user_cache_v1');
-        window.localStorage.removeItem('sl_user_cache_v2');
-        for (let i = window.localStorage.length - 1; i >= 0; i--) {
-          const key = window.localStorage.key(i);
-          if (key && (key.startsWith('sb-') || key.startsWith('sl_swr:') || key.startsWith('sl_user_cache_') || key.includes('auth-token') || key.includes('academic_context'))) {
-            window.localStorage.removeItem(key);
-          }
+      try {
+        if (typeof AbortController !== 'undefined') {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1500);
+          await rawFetch('/api/logout', { method: 'POST', signal: controller.signal }).finally(() => clearTimeout(timeoutId));
+        } else {
+          await rawFetch('/api/logout', { method: 'POST' });
         }
-      }
-      if (window.AcademicContext && typeof window.AcademicContext.invalidate === 'function') {
-        window.AcademicContext.invalidate();
-      }
-    } catch {}
-    window.location.href = '/login.html';
+      } catch {}
+    } finally {
+      clearLocalAuth();
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.clear();
+        }
+        if (typeof window !== 'undefined' && window.SWR && typeof window.SWR.clearAll === 'function') {
+          window.SWR.clearAll();
+        }
+        if (window.AcademicContext && typeof window.AcademicContext.invalidate === 'function') {
+          window.AcademicContext.invalidate();
+        }
+      } catch {}
+      window.location.replace('/');
+    }
   }
 
   // Alias signOut to logout for backwards compatibility
@@ -685,16 +735,22 @@
           opts.headers['Authorization'] = `Bearer ${data.session.access_token}`;
           response = await rawFetch(url, opts);
         } else {
-          console.warn('[Auth] Session expired, redirecting to login');
-          cachedAccessToken = null;
-          cachedUser = null;
-          window.IS_AUTHENTICATED = false;
-          try { window.sessionStorage.removeItem('sl_user_cache'); } catch {}
+          if (isTransientError(error)) {
+            console.warn('[Auth] Transient failure during token refresh; keeping stored session');
+            return response;
+          }
+          console.warn('[Auth] Session definitely expired, redirecting to login');
+          clearLocalAuth();
           initHeader(null);
           const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
           window.location.href = `/login.html?redirect=${currentPath}`;
         }
-      } catch {
+      } catch (err) {
+        if (isTransientError(err)) {
+          console.warn('[Auth] Transient error during token refresh; keeping stored session');
+          return response;
+        }
+        clearLocalAuth();
         const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
         window.location.href = `/login.html?redirect=${currentPath}`;
       }
@@ -724,6 +780,7 @@
     }
 
     const syncUser = getUserSync();
+    const stored = readStoredSession();
     if (syncUser) {
       window.IS_AUTHENTICATED = true;
       document.documentElement.classList.remove('auth-checking');
@@ -731,38 +788,86 @@
     }
 
     try {
-      const session = await getSession();
-      if (!session) {
-        const meUser = await getUser();
-        if (meUser) {
-          window.IS_AUTHENTICATED = true;
-          document.documentElement.classList.remove('auth-checking');
-          initHeader(meUser);
-          return { session: null, user: meUser };
-        }
-        cachedUser = null;
-        cachedAccessToken = null;
-        window.IS_AUTHENTICATED = false;
-        try { window.sessionStorage.removeItem('sl_user_cache'); } catch {}
-        const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
-        window.location.replace(`/login.html?redirect=${currentPath}`);
-        return null;
+      let session = null;
+      let sessionError = null;
+      try {
+        const client = await getSupabase();
+        const res = await client.auth.getSession();
+        session = res.data?.session || null;
+        sessionError = res.error || null;
+      } catch (err) {
+        sessionError = err;
       }
-      if (session.access_token) {
+
+      if (session && session.access_token) {
         cachedAccessToken = session.access_token;
         syncSession().catch(() => {});
+        window.IS_AUTHENTICATED = true;
+        document.documentElement.classList.remove('auth-checking');
+        const user = await getUser();
+        initHeader(user || syncUser);
+        return { session, user: user || syncUser };
       }
-      window.IS_AUTHENTICATED = true;
-      document.documentElement.classList.remove('auth-checking');
-      const user = await getUser();
-      initHeader(user);
-      return { session, user };
+
+      // If getSession() failed due to a transient network issue and we have a stored session / syncUser:
+      if ((syncUser || stored) && isTransientError(sessionError)) {
+        console.warn('[Auth Guard] Supabase unreachable / network offline; operating in cached offline mode');
+        window.IS_AUTHENTICATED = true;
+        document.documentElement.classList.remove('auth-checking');
+        if (syncUser) initHeader(syncUser);
+        return { session: stored, user: syncUser };
+      }
+
+      // Fallback: check /api/me
+      let meUser = null;
+      let meError = null;
+      try {
+        const res = await rawFetch('/api/me', {
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+          credentials: 'same-origin'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (isValidCachedUser(data)) {
+            meUser = data;
+          }
+        } else if (res.status >= 500) {
+          meError = new Error(`Server returned ${res.status}`);
+        }
+      } catch (err) {
+        meError = err;
+      }
+
+      if (meUser) {
+        window.IS_AUTHENTICATED = true;
+        document.documentElement.classList.remove('auth-checking');
+        initHeader(meUser);
+        return { session: null, user: meUser };
+      }
+
+      // If backend was unreachable due to transient network error, keep stored session & stay on page
+      if ((syncUser || stored) && isTransientError(meError)) {
+        console.warn('[Auth Guard] Backend server unreachable; preserving stored session in offline mode');
+        window.IS_AUTHENTICATED = true;
+        document.documentElement.classList.remove('auth-checking');
+        if (syncUser) initHeader(syncUser);
+        return { session: stored, user: syncUser };
+      }
+
+      // Definite auth failure: no stored session, or explicit auth rejection (401/403)
+      clearLocalAuth();
+      const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.replace(`/login.html?redirect=${currentPath}`);
+      return null;
     } catch (e) {
       console.error('[Auth Guard] Error verifying session:', e);
-      cachedUser = null;
-      cachedAccessToken = null;
-      window.IS_AUTHENTICATED = false;
-      try { window.sessionStorage.removeItem('sl_user_cache'); } catch {}
+      if ((syncUser || stored) && isTransientError(e)) {
+        window.IS_AUTHENTICATED = true;
+        document.documentElement.classList.remove('auth-checking');
+        if (syncUser) initHeader(syncUser);
+        return { session: stored, user: syncUser };
+      }
+      clearLocalAuth();
       const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
       window.location.replace(`/login.html?redirect=${currentPath}`);
       return null;

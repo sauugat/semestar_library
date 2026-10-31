@@ -4,6 +4,60 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+  <!-- Anti-flash Early Auth Guard for Logged-In Users -->
+  <style id="home-auth-guard">
+    html.auth-checking body {
+      visibility: hidden !important;
+      opacity: 0 !important;
+    }
+  </style>
+  <script>
+    (function () {
+      function checkAuth() {
+        try {
+          var hasValidSession = false;
+          if (typeof window !== 'undefined' && window.localStorage) {
+            for (var i = 0; i < localStorage.length; i++) {
+              var key = localStorage.key(i);
+              if (key && /^sb-.+-auth-token$/.test(key)) {
+                var raw = localStorage.getItem(key);
+                if (raw) {
+                  var parsed = JSON.parse(raw);
+                  if (parsed && (parsed.access_token || parsed.refresh_token)) {
+                    var isExpired = parsed.expires_at && (Number(parsed.expires_at) * 1000 < Date.now());
+                    var hasRefreshToken = Boolean(parsed.refresh_token);
+                    if (isExpired && !hasRefreshToken) {
+                      continue;
+                    }
+                    hasValidSession = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          if (hasValidSession) {
+            window.location.replace('/dashboard.html');
+            return true;
+          }
+        } catch (e) {}
+        document.documentElement.classList.remove('auth-checking');
+        return false;
+      }
+
+      document.documentElement.classList.add('auth-checking');
+      checkAuth();
+
+      window.addEventListener('pageshow', function (event) {
+        if (event.persisted) {
+          document.documentElement.classList.add('auth-checking');
+          checkAuth();
+        }
+      });
+    })();
+  </script>
+
   <title>Semester Library — Gandaki University Notes, Syllabus & Routines</title>
   <meta name="description"
     content="Semester Library is an academic resource platform for Gandaki University students, providing semester-wise notes, syllabus, exam routines, notices and study resources.">
@@ -54,7 +108,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/home.css?v=25">
   <link rel="stylesheet" href="/home-motion.css?v=25">
-  <script src="/auth.js?v=27"></script>
+  <script src="/auth.js?v=28"></script>
   <script src="/home.js?v=9" defer></script>
 </head>
 <body class="home-page">

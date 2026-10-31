@@ -1,5 +1,7 @@
 import { THREE_MIN_JS } from './threeMinJs';
 import { HORROR_CONFIG } from './horrorConfig';
+import { GLTF_LOADER_R128_JS } from './gltfLoaderR128';
+import { LIBRARY_GLB_DATA_URI } from './libraryGlbBase64';
 
 export function getHideAndSeekHtml(): string {
   const configJson = JSON.stringify(HORROR_CONFIG);
@@ -500,9 +502,11 @@ export function getHideAndSeekHtml(): string {
     #toast.show { opacity: 1; }
   </style>
 
-  <!-- Embedded Three.js Library -->
+  <!-- Embedded Three.js Library & Three.js r128 GLTFLoader -->
   <script>
     ${THREE_MIN_JS}
+    ${GLTF_LOADER_R128_JS}
+    window.LIBRARY_GLB_DATA_URI = ${JSON.stringify(LIBRARY_GLB_DATA_URI)};
   </script>
 </head>
 <body>
@@ -11761,25 +11765,31 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-r2-r3-door', x: 21.4, y: 0.18, z: -5.33, kind: 'door' }, { id: 'wp-r2-r3-in', x: 25.5, y: 0.18, z: -5.33, kind: 'interior' }],
       },
       'East Wing R4 Room 1': {
-        id: 'East Wing R4 Room 1', building: 'R4', archetype: 'canteen_dining', lightMood: 'warm_lamp',
-        bounds: { minX: 21.7, maxX: 29.3, minZ: 6.0, maxZ: 15.33, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['serving_counter', 'glass_snack_case', 'dining_tables_x2', 'benches'],
-        hidingSpots: ['dining_table_1', 'dining_table_2'],
-        waypoints: [{ id: 'wp-r4-r1-door', x: 21.4, y: 0.18, z: 10.67, kind: 'door' }, { id: 'wp-r4-r1-in', x: 25.5, y: 0.18, z: 10.67, kind: 'interior' }],
+        id: 'East Wing R4 Room 1', building: 'R4', archetype: 'library_production_glb', lightMood: 'warm_lamp',
+        bounds: { minX: 23.7, maxX: 33.3, minZ: 8.25, maxZ: 29.75, floorY: 1.62, ceilingY: 5.17 },
+        furniture: ['circulation_desk', 'librarian_terminal', 'reading_tables_x3', 'tall_bookshelves_x4', 'archive_cabinets', 'banker_lamps'],
+        hidingSpots: ['behind_bookshelf', 'inside_archive_cabinet', 'under_reading_table', 'behind_reception_counter'],
+        waypoints: [
+          { id: 'wp-r4-door', x: 23.7, y: 1.62, z: 19.0, kind: 'door' },
+          { id: 'wp-r4-reception', x: 26.5, y: 1.62, z: 16.5, kind: 'interior' },
+          { id: 'wp-r4-reading-hall', x: 28.5, y: 1.62, z: 19.0, kind: 'interior' },
+          { id: 'wp-r4-bookshelves', x: 28.5, y: 1.62, z: 24.5, kind: 'interior' },
+          { id: 'wp-r4-archive', x: 28.5, y: 1.62, z: 27.5, kind: 'interior' }
+        ],
       },
       'East Wing R4 Room 2': {
-        id: 'East Wing R4 Room 2', building: 'R4', archetype: 'canteen_dining', lightMood: 'dark',
-        bounds: { minX: 21.7, maxX: 29.3, minZ: 15.33, maxZ: 24.67, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['serving_counter', 'glass_snack_case', 'dining_tables_x2', 'benches'],
-        hidingSpots: ['dining_table_1', 'dining_table_2'],
-        waypoints: [{ id: 'wp-r4-r2-door', x: 21.4, y: 0.18, z: 20.0, kind: 'door' }, { id: 'wp-r4-r2-in', x: 25.5, y: 0.18, z: 20.0, kind: 'interior' }],
+        id: 'East Wing R4 Room 2', building: 'R4', archetype: 'library_production_glb', lightMood: 'warm_lamp',
+        bounds: { minX: 23.7, maxX: 33.3, minZ: 19.0, maxZ: 29.75, floorY: 1.62, ceilingY: 5.17 },
+        furniture: ['tall_bookshelves_x4', 'archive_cabinets', 'study_carrels'],
+        hidingSpots: ['behind_bookshelf', 'inside_archive_cabinet'],
+        waypoints: [{ id: 'wp-r4-r2-in', x: 28.5, y: 1.62, z: 24.5, kind: 'interior' }],
       },
       'East Wing R4 Room 3': {
-        id: 'East Wing R4 Room 3', building: 'R4', archetype: 'canteen_kitchen', lightMood: 'emergency_red',
-        bounds: { minX: 21.7, maxX: 29.3, minZ: 24.67, maxZ: 34.0, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['stainless_prep_counter', 'exhaust_hood', 'pantry_storage_shelf', 'crates'],
-        hidingSpots: ['kitchen_prep_counter'],
-        waypoints: [{ id: 'wp-r4-r3-door', x: 21.4, y: 0.18, z: 29.33, kind: 'door' }, { id: 'wp-r4-r3-in', x: 25.5, y: 0.18, z: 29.33, kind: 'interior' }],
+        id: 'East Wing R4 Room 3', building: 'R4', archetype: 'library_production_glb', lightMood: 'dark',
+        bounds: { minX: 23.7, maxX: 33.3, minZ: 26.0, maxZ: 29.75, floorY: 1.62, ceilingY: 5.17 },
+        furniture: ['filing_cabinets', 'archive_storage_cupboard', 'cardboard_document_boxes'],
+        hidingSpots: ['inside_archive_cabinet'],
+        waypoints: [{ id: 'wp-r4-r3-in', x: 28.5, y: 1.62, z: 27.5, kind: 'interior' }],
       },
       'Newari Heritage Block W1 Room 1': {
         id: 'Newari Heritage Block W1 Room 1', building: 'W1', archetype: 'classroom_standard', lightMood: 'warm_lamp',
@@ -12006,7 +12016,9 @@ export function getHideAndSeekHtml(): string {
         : (doorAxis === 'z' ? (cz + doorDirSign * (halfD - 0.62)) : cz);
       if (ROOM_DEFINITIONS[roomId]) {
         ROOM_DEFINITIONS[roomId].lightMood = normalizeRoomLightMood(ROOM_DEFINITIONS[roomId].lightMood);
-        ROOM_DEFINITIONS[roomId].bounds = { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + 3.4 };
+        const ceilH = ROOM_DEFINITIONS[roomId].archetype === 'library_production_glb' ? 3.55 : 3.4;
+        ROOM_DEFINITIONS[roomId].bounds = { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + ceilH };
+        ROOM_DEFINITIONS[roomId].door = { x: doorWpX, y: floorY, z: doorWpZ };
         ROOM_DEFINITIONS[roomId].waypoints = [
           { id: 'wp-' + roomId + '-door', x: doorWpX, y: floorY, z: doorWpZ, kind: 'door' },
           { id: 'wp-' + roomId + '-in', x: inWpX, y: floorY, z: inWpZ, kind: 'interior' },
@@ -12355,11 +12367,563 @@ export function getHideAndSeekHtml(): string {
       }
     }
 
+    // Production Blender University Library GLB Builder (Phase 11)
+    // Integrates the Blender 5.2.2 LTS generated production University Library into the campus
+    function buildProductionBlenderLibraryInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
+      // 1. Register physics colliders matching the production library layout
+      // Reception & Circulation Counter
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.55, floorY, unitCenterZ - 3.80),
+        new THREE.Vector3(unitCenterX - 1.85, floorY + 1.10, unitCenterZ - 1.20)
+      ), 'furniture');
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.75, floorY, unitCenterZ - 3.80),
+        new THREE.Vector3(unitCenterX - 2.55, floorY + 1.10, unitCenterZ - 3.20)
+      ), 'furniture');
+
+      // Librarian Workdesk & Chair
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 1.75, floorY, unitCenterZ - 3.20),
+        new THREE.Vector3(unitCenterX - 1.05, floorY + 0.80, unitCenterZ - 1.80)
+      ), 'furniture');
+
+      // Student Bag Cubbies (South Wall)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.30, floorY, unitCenterZ - 10.15),
+        new THREE.Vector3(unitCenterX - 1.10, floorY + 1.55, unitCenterZ - 9.75)
+      ), 'furniture');
+
+      // Noticeboard / Waiting area
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 0.80, floorY, unitCenterZ - 10.15),
+        new THREE.Vector3(unitCenterX + 3.20, floorY + 2.50, unitCenterZ - 9.85)
+      ), 'wall');
+
+      // Study Table 1 (South-West)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.60, floorY, unitCenterZ - 7.70),
+        new THREE.Vector3(unitCenterX - 1.40, floorY + 0.80, unitCenterZ - 5.30)
+      ), 'furniture');
+
+      // Study Table 2 (South-East)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 1.40, floorY, unitCenterZ - 7.70),
+        new THREE.Vector3(unitCenterX + 2.60, floorY + 0.80, unitCenterZ - 5.30)
+      ), 'furniture');
+
+      // Study Table 3 (Central-West)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.60, floorY, unitCenterZ + 1.30),
+        new THREE.Vector3(unitCenterX - 1.40, floorY + 0.80, unitCenterZ + 3.70)
+      ), 'furniture');
+
+      // Study Carrel Desks (Central-East)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 1.40, floorY, unitCenterZ + 1.40),
+        new THREE.Vector3(unitCenterX + 2.60, floorY + 1.30, unitCenterZ + 3.60)
+      ), 'furniture');
+
+      // Bookshelf Stacks Row 1 (Y = +4.60m)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.95, floorY, unitCenterZ + 4.25),
+        new THREE.Vector3(unitCenterX - 0.65, floorY + 2.30, unitCenterZ + 4.95)
+      ), 'furniture');
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 0.65, floorY, unitCenterZ + 4.25),
+        new THREE.Vector3(unitCenterX + 3.95, floorY + 2.30, unitCenterZ + 4.95)
+      ), 'furniture');
+
+      // Bookshelf Stacks Row 2 (Y = +5.90m)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.95, floorY, unitCenterZ + 5.55),
+        new THREE.Vector3(unitCenterX - 0.65, floorY + 2.30, unitCenterZ + 6.25)
+      ), 'furniture');
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 0.65, floorY, unitCenterZ + 5.55),
+        new THREE.Vector3(unitCenterX + 3.95, floorY + 2.30, unitCenterZ + 6.25)
+      ), 'furniture');
+
+      // Archive Partition Wall at Z = +7.20m (Leaves 1.1m clear doorway opening at X in [-0.55, 0.55])
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 4.60, floorY, unitCenterZ + 7.10),
+        new THREE.Vector3(unitCenterX - 0.55, floorY + 3.50, unitCenterZ + 7.30)
+      ), 'wall');
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 0.55, floorY, unitCenterZ + 7.10),
+        new THREE.Vector3(unitCenterX + 4.60, floorY + 3.50, unitCenterZ + 7.30)
+      ), 'wall');
+
+      // Archive Filing Cabinets (West wall)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 4.10, floorY, unitCenterZ + 8.25),
+        new THREE.Vector3(unitCenterX - 3.50, floorY + 1.50, unitCenterZ + 8.95)
+      ), 'furniture');
+
+      // Archive Storage Cupboard (East wall)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 3.40, floorY, unitCenterZ + 8.00),
+        new THREE.Vector3(unitCenterX + 4.20, floorY + 2.15, unitCenterZ + 9.20)
+      ), 'furniture');
+
+      // Archive Box Shelving along North wall
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.10, floorY, unitCenterZ + 9.50),
+        new THREE.Vector3(unitCenterX + 3.10, floorY + 2.25, unitCenterZ + 10.10)
+      ), 'furniture');
+
+      // Concrete Structural Pillars
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 1.85, floorY, unitCenterZ - 3.25),
+        new THREE.Vector3(unitCenterX - 1.35, floorY + 3.50, unitCenterZ - 2.75)
+      ), 'pillar');
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 1.35, floorY, unitCenterZ - 3.25),
+        new THREE.Vector3(unitCenterX + 1.85, floorY + 3.50, unitCenterZ - 2.75)
+      ), 'pillar');
+
+      // 2. Register 4 Interactive Hiding Spots
+      // Hiding Spot 1: Behind Tall Bookshelf (Aisle corner)
+      interactiveHidingSpots.push({
+        id: 'hiding-library-bookshelf',
+        name: unitTitle + ' (Behind Tall Bookshelf)',
+        x: unitCenterX - 3.60,
+        y: floorY,
+        z: unitCenterZ + 6.50,
+        zone: unitTitle,
+      });
+
+      // Hiding Spot 2: Inside Archive Cabinet
+      interactiveHidingSpots.push({
+        id: 'hiding-library-archive-cabinet',
+        name: unitTitle + ' (Inside Archive Cabinet)',
+        x: unitCenterX + 3.60,
+        y: floorY,
+        z: unitCenterZ + 8.60,
+        zone: unitTitle,
+      });
+
+      // Hiding Spot 3: Under Reading Table
+      interactiveHidingSpots.push({
+        id: 'hiding-library-table',
+        name: unitTitle + ' (Under Reading Table)',
+        x: unitCenterX - 2.00,
+        y: floorY,
+        z: unitCenterZ - 6.50,
+        zone: unitTitle,
+      });
+
+      // Hiding Spot 4: Behind Reception Counter
+      interactiveHidingSpots.push({
+        id: 'hiding-library-reception',
+        name: unitTitle + ' (Behind Reception Counter)',
+        x: unitCenterX - 1.80,
+        y: floorY,
+        z: unitCenterZ - 2.50,
+        zone: unitTitle,
+      });
+
+      // 3. Register All 10 Interior Interactables Synchronously
+      const entranceDoorPivot = new THREE.Group();
+      entranceDoorPivot.position.set(unitCenterX - 4.60, floorY, unitCenterZ);
+      cGroup.add(entranceDoorPivot);
+      const entranceDoorObj = {
+        id: 'door-library-entrance',
+        pivot: entranceDoorPivot,
+        x: unitCenterX - 4.60,
+        y: floorY,
+        z: unitCenterZ,
+        closedAngleY: 0.0,
+        ajarAngleY: -0.45,
+        openAngleY: -1.55,
+        minAngleY: -1.57,
+        maxAngleY: 0.0,
+        currentAngleY: -0.45,
+        targetAngleY: -0.45,
+        isOpen: true,
+        manuallyClosed: false,
+        holdTimer: 0,
+        collider: null,
+      };
+      entranceDoorPivot.rotation.y = entranceDoorObj.ajarAngleY;
+      swingingDoors.push(entranceDoorObj);
+      const entranceDoorInteractable = registerInteriorInteractable({
+        id: 'door-library-entrance',
+        type: 'door',
+        name: unitTitle + ' Main Entrance Door',
+        x: unitCenterX - 4.60,
+        y: floorY,
+        z: unitCenterZ,
+        interactRadius: 2.8,
+        isOpen: true,
+        rootMesh: null,
+        doorRef: entranceDoorObj,
+      });
+
+      const archiveDoorPivot = new THREE.Group();
+      archiveDoorPivot.position.set(unitCenterX, floorY, unitCenterZ + 7.20);
+      cGroup.add(archiveDoorPivot);
+      const archiveDoorObj = {
+        id: 'door-library-archive',
+        pivot: archiveDoorPivot,
+        x: unitCenterX,
+        y: floorY,
+        z: unitCenterZ + 7.20,
+        closedAngleY: 0.0,
+        ajarAngleY: 0.0,
+        openAngleY: 1.55,
+        minAngleY: 0.0,
+        maxAngleY: 1.57,
+        currentAngleY: 0.0,
+        targetAngleY: 0.0,
+        isOpen: false,
+        manuallyClosed: false,
+        holdTimer: 0,
+        collider: null,
+      };
+      archiveDoorPivot.rotation.y = archiveDoorObj.closedAngleY;
+      swingingDoors.push(archiveDoorObj);
+      const archiveDoorInteractable = registerInteriorInteractable({
+        id: 'door-library-archive',
+        type: 'door',
+        name: unitTitle + ' Archive Partition Door',
+        x: unitCenterX,
+        y: floorY,
+        z: unitCenterZ + 7.20,
+        interactRadius: 2.6,
+        isOpen: false,
+        rootMesh: null,
+        doorRef: archiveDoorObj,
+      });
+
+      const keyRecord = {
+        id: 'item_library_archive_key',
+        name: 'Library Archive Master Key',
+        kind: 'key',
+        roomTitle: unitTitle,
+        discovered: false,
+        collected: false,
+        mesh: null,
+      };
+      missionItemsRegistry.push(keyRecord);
+
+      const recDrawerInteractable = registerInteriorInteractable({
+        id: 'drawer-library-reception',
+        type: 'drawer',
+        name: unitTitle + ' Circulation Desk Drawer',
+        x: unitCenterX - 2.20,
+        y: floorY + 0.75,
+        z: unitCenterZ - 2.20,
+        interactRadius: 2.5,
+        isOpen: false,
+        rootMesh: null,
+        drawerGroup: null,
+        closedX: -2.20,
+        closedZ: -2.20,
+        openX: -2.20,
+        openZ: -1.85,
+        currentT: 0,
+        targetT: 0,
+        missionItem: keyRecord,
+      });
+
+      const filingDrawerInteractable = registerInteriorInteractable({
+        id: 'drawer-library-filing',
+        type: 'drawer',
+        name: unitTitle + ' Archive Filing Cabinet Drawer',
+        x: unitCenterX - 3.80,
+        y: floorY + 1.24,
+        z: unitCenterZ + 8.56,
+        interactRadius: 2.4,
+        isOpen: false,
+        rootMesh: null,
+        drawerGroup: null,
+        closedX: -3.80,
+        closedZ: 8.56,
+        openX: -3.80,
+        openZ: 8.21,
+        currentT: 0,
+        targetT: 0,
+      });
+
+      const archiveCabInteractable = registerInteriorInteractable({
+        id: 'cupboard-library-archive',
+        type: 'cupboard',
+        name: unitTitle + ' Archive Storage Cupboard',
+        x: unitCenterX + 3.80,
+        y: floorY + 1.05,
+        z: unitCenterZ + 8.60,
+        interactRadius: 2.5,
+        isOpen: false,
+        rootMesh: null,
+        leftPivot: null,
+        rightPivot: null,
+        currentT: 0,
+        targetT: 0,
+      });
+
+      const rareBookInteractable = registerInteriorInteractable({
+        id: 'book-library-gandaki-ledger',
+        type: 'bookshelf',
+        name: 'Gandaki University Founding Ledger (1998)',
+        x: unitCenterX - 1.20,
+        y: floorY + 1.22,
+        z: unitCenterZ + 5.72,
+        interactRadius: 2.4,
+        rootMesh: null,
+        isExamined: false,
+        onInteract: function(it) {
+          it.isExamined = true;
+          if (typeof soundEngine.playPageFlipSfx === 'function') soundEngine.playPageFlipSfx();
+          else if (typeof soundEngine.playPaperSfx === 'function') soundEngine.playPaperSfx();
+          showToast('Founding Record (1998): "On Laxmi Puja night, Gandaki University opened its doors..."');
+          return true;
+        }
+      });
+
+      const terminalInteractable = registerInteriorInteractable({
+        id: 'terminal-library-librarian',
+        type: 'monitor',
+        name: 'Librarian Catalog Terminal',
+        x: unitCenterX - 1.22,
+        y: floorY + 0.92,
+        z: unitCenterZ - 2.50,
+        interactRadius: 2.4,
+        isOn: true,
+        rootMesh: null,
+        onInteract: function(it) {
+          it.isOn = !it.isOn;
+          if (it.rootMesh && it.rootMesh.material) {
+            it.rootMesh.material.emissiveIntensity = it.isOn ? 2.2 : 0.0;
+          }
+          if (typeof soundEngine.playTubeFlickerBuzzSfx === 'function') soundEngine.playTubeFlickerBuzzSfx();
+          else soundEngine.playFuseRepairSfx();
+          showToast('Catalog Terminal: ' + (it.isOn ? 'ONLINE (Accessing Book Database)' : 'STANDBY'));
+          return true;
+        }
+      });
+
+      const deskLampInteractable = registerInteriorInteractable({
+        id: 'lamp-library-banker-1',
+        type: 'desk_lamp',
+        name: 'Reading Table Brass Banker Lamp',
+        x: unitCenterX - 2.00,
+        y: floorY + 1.05,
+        z: unitCenterZ - 6.50,
+        interactRadius: 2.4,
+        isOn: true,
+        rootMesh: null,
+        bulbMesh: null,
+        onInteract: function(it) {
+          it.isOn = !it.isOn;
+          if (it.bulbMesh && it.bulbMesh.material) {
+            it.bulbMesh.material.emissiveIntensity = it.isOn ? 4.0 : 0.0;
+          }
+          soundEngine.playFuseRepairSfx();
+          showToast('Banker Lamp: ' + (it.isOn ? 'ON' : 'OFF'));
+          return true;
+        }
+      });
+
+      const tubeLightMeshes = [];
+      const switchboardInteractable = registerInteriorInteractable({
+        id: 'switchboard-library-r4',
+        type: 'switchboard',
+        name: unitTitle + ' Main Circuit Breaker',
+        powerKey: 'library_r4_circuit',
+        controlsCampusLights: false,
+        x: unitCenterX - 4.50,
+        y: floorY + 1.50,
+        z: unitCenterZ - 1.20,
+        interactRadius: 2.5,
+        isOpen: true,
+        isOn: true,
+        rootMesh: null,
+        leverPivot: null,
+        doorPivot: null,
+        tubeMeshes: tubeLightMeshes,
+        onToggle: function(isOn) {
+          this.isOn = isOn;
+          tubeLightMeshes.forEach(m => {
+            if (m.material) {
+              m.material.emissiveIntensity = isOn ? 3.0 : 0.0;
+            }
+          });
+          if (typeof roomMoodFixtures !== 'undefined') {
+            const fix = roomMoodFixtures.find(f => f.roomId === unitTitle);
+            if (fix) {
+              fix.baseIntensity = isOn ? 1.6 : 0.0;
+            }
+          }
+        }
+      });
+
+      const secondarySwitchInteractable = registerInteriorInteractable({
+        id: 'switch-library-secondary',
+        type: 'light_switch',
+        roomId: unitTitle,
+        name: unitTitle + ' Reading Hall Light Switch',
+        x: unitCenterX - 4.55,
+        y: floorY + 1.40,
+        z: unitCenterZ + 2.00,
+        interactRadius: 2.4,
+        isOn: true,
+        rootMesh: null,
+        defaultActiveMood: 'warm_lamp',
+      });
+
+      // 4. Load Exported Blender 5.2.2 LTS Production GLB & Bind 3D Nodes
+      if (typeof THREE.GLTFLoader === 'function') {
+        try {
+          const gltfLoader = new THREE.GLTFLoader();
+          const glbSrc = (typeof window !== 'undefined' && window.LIBRARY_GLB_DATA_URI)
+            ? window.LIBRARY_GLB_DATA_URI
+            : './models/library_production.glb';
+
+          gltfLoader.load(
+            glbSrc,
+            function (gltf) {
+              const blenderScene = gltf.scene;
+              blenderScene.name = 'BlenderProductionLibraryScene';
+              blenderScene.rotation.y = 0;
+              blenderScene.position.set(0, 0, 0);
+
+              let doorLeafMesh = null;
+              let doorPivot = null;
+              let archDoorMesh = null;
+              let archDoorPivot = null;
+              let recDrawerMesh = null;
+              let keyMesh = null;
+              let filingDrawerMesh = null;
+              let archiveCabDoorMesh = null;
+              let archiveCabPivot = null;
+              let rareBookMesh = null;
+              let monitorScreenMesh = null;
+              let bankerLamp1Mesh = null;
+              let bankerBulb1Mesh = null;
+              let switchboardMesh = null;
+              let interiorSwitchMesh = null;
+
+              blenderScene.traverse(function (child) {
+                if (child.isLight) {
+                  child.visible = false;
+                }
+                if (child.isMesh) {
+                  child.userData.noMerge = true;
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+
+                  if (child.name === 'Door_Leaf_Library_Entrance') doorLeafMesh = child;
+                  else if (child.name === 'Door_Leaf_Archive') archDoorMesh = child;
+                  else if (child.name === 'Reception_Desk_Drawer') recDrawerMesh = child;
+                  else if (child.name === 'Item_Library_Key') keyMesh = child;
+                  else if (child.name === 'Filing_Cabinet_Drawer') filingDrawerMesh = child;
+                  else if (child.name === 'Archive_Cabinet_Door') archiveCabDoorMesh = child;
+                  else if (child.name === 'Bookshelf_Interaction') rareBookMesh = child;
+                  else if (child.name === 'Librarian_Monitor') monitorScreenMesh = child;
+                  else if (child.name === 'Desk_Lamp_Banker_1') bankerLamp1Mesh = child;
+                  else if (child.name === 'Desk_Lamp_Banker_1_Bulb') bankerBulb1Mesh = child;
+                  else if (child.name === 'Library_Switchboard') switchboardMesh = child;
+                  else if (child.name === 'Interior_Light_Switch') interiorSwitchMesh = child;
+                  else if (child.name && child.name.indexOf('Fluorescent_Tube') !== -1) tubeLightMeshes.push(child);
+                  else if (child.name && child.name.indexOf('Window_Glass') !== -1) {
+                    child.material.transparent = true;
+                    child.material.opacity = 0.25;
+                    child.material.roughness = 0.05;
+                    child.material.depthWrite = false;
+                    child.castShadow = false;
+                  }
+                } else {
+                  if (child.name === 'Door_Library_Entrance_Pivot') doorPivot = child;
+                  else if (child.name === 'Door_Archive_Pivot') archDoorPivot = child;
+                  else if (child.name === 'Archive_Cabinet_Door_Pivot') archiveCabPivot = child;
+                }
+              });
+
+              // Bind loaded 3D nodes to registered interactables
+              if (doorLeafMesh) {
+                doorLeafMesh.userData.isSwingingDoor = true;
+                entranceDoorObj.pivot = doorPivot || doorLeafMesh;
+                entranceDoorInteractable.rootMesh = doorLeafMesh;
+                if (entranceDoorObj.pivot) entranceDoorObj.pivot.rotation.y = entranceDoorObj.ajarAngleY;
+              }
+
+              if (archDoorMesh) {
+                archDoorMesh.userData.isSwingingDoor = true;
+                archiveDoorObj.pivot = archDoorPivot || archDoorMesh;
+                archiveDoorInteractable.rootMesh = archDoorMesh;
+                if (archiveDoorObj.pivot) archiveDoorObj.pivot.rotation.y = archiveDoorObj.closedAngleY;
+              }
+
+              if (keyMesh) {
+                keyMesh.userData.noMerge = true;
+                keyRecord.mesh = keyMesh;
+              }
+
+              if (recDrawerMesh) {
+                recDrawerInteractable.rootMesh = recDrawerMesh;
+                recDrawerInteractable.drawerGroup = recDrawerMesh;
+                recDrawerInteractable.closedX = recDrawerMesh.position.x;
+                recDrawerInteractable.closedZ = recDrawerMesh.position.z;
+                recDrawerInteractable.openX = recDrawerMesh.position.x;
+                recDrawerInteractable.openZ = recDrawerMesh.position.z + 0.35;
+              }
+
+              if (filingDrawerMesh) {
+                filingDrawerInteractable.rootMesh = filingDrawerMesh;
+                filingDrawerInteractable.drawerGroup = filingDrawerMesh;
+                filingDrawerInteractable.closedX = filingDrawerMesh.position.x;
+                filingDrawerInteractable.closedZ = filingDrawerMesh.position.z;
+                filingDrawerInteractable.openX = filingDrawerMesh.position.x;
+                filingDrawerInteractable.openZ = filingDrawerMesh.position.z - 0.35;
+              }
+
+              if (archiveCabDoorMesh) {
+                archiveCabInteractable.rootMesh = archiveCabDoorMesh;
+                archiveCabInteractable.leftPivot = archiveCabPivot || archiveCabDoorMesh;
+              }
+
+              if (rareBookMesh) {
+                rareBookInteractable.rootMesh = rareBookMesh;
+              }
+
+              if (monitorScreenMesh) {
+                terminalInteractable.rootMesh = monitorScreenMesh;
+              }
+
+              if (bankerLamp1Mesh) {
+                deskLampInteractable.rootMesh = bankerLamp1Mesh;
+                deskLampInteractable.bulbMesh = bankerBulb1Mesh;
+              }
+
+              if (switchboardMesh) {
+                switchboardInteractable.rootMesh = switchboardMesh;
+                switchboardInteractable.doorPivot = switchboardMesh;
+              }
+
+              if (interiorSwitchMesh) {
+                secondarySwitchInteractable.rootMesh = interiorSwitchMesh;
+              }
+
+              cGroup.add(blenderScene);
+              cGroup.userData.hasBlenderProductionMesh = true;
+            },
+            undefined,
+            function (err) {
+              console.warn('[Hide & Seek] Library Production GLB load fallback to procedural geometry:', err);
+            }
+          );
+        } catch (e) {
+          console.warn('[Hide & Seek] Library GLB loader error:', e);
+        }
+      }
+    }
+
     const ROOM_ARCHETYPE_BUILDERS = {
       classroom_standard: (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 0),
       classroom_seminar:  (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 1),
       computer_lab:       (cGroup, cx, cz, fy, dirZ, title) => buildComputerLabInterior(cGroup, cx, cz, fy, dirZ, title),
       library:            (cGroup, cx, cz, fy, dirZ, title) => buildLibraryRoomInterior(cGroup, cx, cz, fy, dirZ, title),
+      library_production_glb: (cGroup, cx, cz, fy, dirZ, title) => buildProductionBlenderLibraryInterior(cGroup, cx, cz, fy, dirZ, title),
       staff_office:       (cGroup, cx, cz, fy, dirZ, title) => buildStaffAdminOfficeInterior(cGroup, cx, cz, fy, dirZ, title),
       toilets:            (cGroup, cx, cz, fy, dirZ, title) => buildToiletsRoomInterior(cGroup, cx, cz, fy, title),
       canteen_dining:     (cGroup, cx, cz, fy, dirZ, title) => buildCanteenRoomInterior(cGroup, cx, cz, fy, title, false),
@@ -12372,7 +12936,10 @@ export function getHideAndSeekHtml(): string {
       const cGroup = new THREE.Group();
       cGroup.position.set(unitCenterX, floorY, unitCenterZ);
       scene.add(cGroup);
-      const roomDef = getOrRegisterRoomDefinition(unitTitle, unitCenterX, unitCenterZ, floorY, 3.8, 4.6, 'OTHER', 'classroom_standard', doorAxis, doorDirSign);
+      const isLib = (unitTitle.indexOf('East Wing R4') !== -1);
+      const halfW = isLib ? 4.8 : 3.8;
+      const halfD = isLib ? 10.75 : 4.6;
+      const roomDef = getOrRegisterRoomDefinition(unitTitle, unitCenterX, unitCenterZ, floorY, halfW, halfD, isLib ? 'R4' : 'OTHER', isLib ? 'library_production_glb' : 'classroom_standard', doorAxis, doorDirSign);
       const cCfg = (HORROR_CONFIG && HORROR_CONFIG.classroom) || {};
       if (cCfg.moods && cCfg.moods[unitTitle]) {
         roomDef.lightMood = cCfg.moods[unitTitle];
@@ -12380,78 +12947,86 @@ export function getHideAndSeekHtml(): string {
       const windowSideSignX = unitCenterX < 0 ? -1 : 1;
       const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
 
-      // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3 Fluorescent Tube Hoods
-      const ceilPanel = new THREE.Mesh(
-        new THREE.BoxGeometry(6.8, 0.06, 8.2),
-        isNewariStyle ? materials.carvedSalWood : materials.stainedCeilingTiles
-      );
-      ceilPanel.position.set(0, 3.38, 0);
-      cGroup.add(ceilPanel);
+      const isProductionGlb = (roomDef.archetype === 'library_production_glb');
 
-      [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz], tIdx) => {
-        const hood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
-        hood.position.set(tx, 3.30, tz);
-        cGroup.add(hood);
-        if (tIdx === 0) {
-          const steadyTube = new THREE.Mesh(tubeStripGeo, step2Mats.steadyDimTubeMat);
-          steadyTube.position.set(tx, 3.27, tz);
-          cGroup.add(steadyTube);
-        } else if (tIdx === 2) {
-          const deadTube = new THREE.Mesh(tubeStripGeo, step2Mats.deadTubeMat);
-          deadTube.position.set(tx, 3.27, tz);
-          cGroup.add(deadTube);
+      if (!isProductionGlb) {
+        // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3 Fluorescent Tube Hoods
+        const ceilPanel = new THREE.Mesh(
+          new THREE.BoxGeometry(6.8, 0.06, 8.2),
+          isNewariStyle ? materials.carvedSalWood : materials.stainedCeilingTiles
+        );
+        ceilPanel.position.set(0, 3.38, 0);
+        cGroup.add(ceilPanel);
+
+        [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz], tIdx) => {
+          const hood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
+          hood.position.set(tx, 3.30, tz);
+          cGroup.add(hood);
+          if (tIdx === 0) {
+            const steadyTube = new THREE.Mesh(tubeStripGeo, step2Mats.steadyDimTubeMat);
+            steadyTube.position.set(tx, 3.27, tz);
+            cGroup.add(steadyTube);
+          } else if (tIdx === 2) {
+            const deadTube = new THREE.Mesh(tubeStripGeo, step2Mats.deadTubeMat);
+            deadTube.position.set(tx, 3.27, tz);
+            cGroup.add(deadTube);
+          }
+        });
+
+        // Ceiling Fan with 1 Bent Blade
+        const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.deskSteelFrame);
+        fanRod.position.set(0, 3.16, -0.4);
+        cGroup.add(fanRod);
+        const fanHub = new THREE.Group();
+        fanHub.position.set(0, 2.96, -0.4);
+        fanHub.userData.noMerge = true;
+        const bentAng = (cCfg.propDensity && cCfg.propDensity.ceilingFanBentBladeRad) || 0.28;
+        for (let b = 0; b < 3; b++) {
+          const ang = (b * Math.PI * 2) / 3;
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.deskSteelFrame);
+          blade.position.set(Math.sin(ang) * 0.44, b === 0 ? -0.09 : 0.0, Math.cos(ang) * 0.44);
+          blade.rotation.y = ang;
+          if (b === 0) blade.rotation.x = bentAng;
+          blade.userData.noMerge = true;
+          fanHub.add(blade);
         }
-      });
+        cGroup.add(fanHub);
+        animatedClassroomFans.push({
+          hub: fanHub,
+          roomGroup: cGroup,
+          seed: roomSeed,
+          speed: (cCfg.propDensity && cCfg.propDensity.fanSwaySpeed) || 0.85,
+        });
 
-      // Ceiling Fan with 1 Bent Blade
-      const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.deskSteelFrame);
-      fanRod.position.set(0, 3.16, -0.4);
-      cGroup.add(fanRod);
-      const fanHub = new THREE.Group();
-      fanHub.position.set(0, 2.96, -0.4);
-      fanHub.userData.noMerge = true;
-      const bentAng = (cCfg.propDensity && cCfg.propDensity.ceilingFanBentBladeRad) || 0.28;
-      for (let b = 0; b < 3; b++) {
-        const ang = (b * Math.PI * 2) / 3;
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.deskSteelFrame);
-        blade.position.set(Math.sin(ang) * 0.44, b === 0 ? -0.09 : 0.0, Math.cos(ang) * 0.44);
-        blade.rotation.y = ang;
-        if (b === 0) blade.rotation.x = bentAng;
-        blade.userData.noMerge = true;
-        fanHub.add(blade);
+        // Working Wall Light Switch mounted right inside the room doorway
+        const swLocalX = doorAxis === 'x' ? (doorDirSign * 3.22) : 1.25;
+        const swLocalZ = doorAxis === 'z' ? (doorDirSign * 3.45) : 1.25;
+        const swRotY = doorAxis === 'x' ? (-doorDirSign * Math.PI / 2) : (doorDirSign === 1 ? Math.PI : 0);
+        buildRoomLightSwitch(cGroup, unitCenterX, floorY, unitCenterZ, swLocalX, 1.32, swLocalZ, swRotY, roomDef.id, roomDef.lightMood);
       }
-      cGroup.add(fanHub);
-      animatedClassroomFans.push({
-        hub: fanHub,
-        roomGroup: cGroup,
-        seed: roomSeed,
-        speed: (cCfg.propDensity && cCfg.propDensity.fanSwaySpeed) || 0.85,
-      });
-
-      // Working Wall Light Switch mounted right inside the room doorway
-      const swLocalX = doorAxis === 'x' ? (doorDirSign * 3.22) : 1.25;
-      const swLocalZ = doorAxis === 'z' ? (doorDirSign * 3.45) : 1.25;
-      const swRotY = doorAxis === 'x' ? (-doorDirSign * Math.PI / 2) : (doorDirSign === 1 ? Math.PI : 0);
-      buildRoomLightSwitch(cGroup, unitCenterX, floorY, unitCenterZ, swLocalX, 1.32, swLocalZ, swRotY, roomDef.id, roomDef.lightMood);
 
       // 2. Data-Driven Archetype Dispatch via ROOM_DEFINITIONS
       const builderFn = ROOM_ARCHETYPE_BUILDERS[roomDef.archetype] || ROOM_ARCHETYPE_BUILDERS.classroom_standard;
       builderFn(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, roomDef);
 
-      // 3. Shared Classroom Horror Decay, Props & Deterministic "Wrong" Detail
-      if (roomDef.archetype === 'classroom_standard' || roomDef.archetype === 'classroom_seminar') {
-        addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, 6.8, 8.2, windowSideSignX, roomSeed);
+      if (!isProductionGlb) {
+        // 3. Shared Classroom Horror Decay, Props & Deterministic "Wrong" Detail
+        if (roomDef.archetype === 'classroom_standard' || roomDef.archetype === 'classroom_seminar') {
+          addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, 6.8, 8.2, windowSideSignX, roomSeed);
+        }
+
+        // 4. Deep Dark Corners & Under-Desk Baked AO + Small Clutter & Asymmetry
+        addRoomBakedAO(cGroup, 6.8, 8.2, 3.38);
+        populateRoomClutterAndAsymmetry(cGroup, 6.6, 7.8, unitCenterX * 3.1 + unitCenterZ * 7.3, false);
+
+        cGroup.userData.isRoomGroup = true;
+        bakeStaticGroup(cGroup, true);
       }
 
-      // 4. Deep Dark Corners & Under-Desk Baked AO + Small Clutter & Asymmetry
-      addRoomBakedAO(cGroup, 6.8, 8.2, 3.38);
-      populateRoomClutterAndAsymmetry(cGroup, 6.6, 7.8, unitCenterX * 3.1 + unitCenterZ * 7.3, false);
-
-      cGroup.userData.isRoomGroup = true;
-      bakeStaticGroup(cGroup, true);
-
-      // 5. Per-Room Light Mood Fixtures, Stuttering Tube, Spill Gradients, Window Shafts & Dust Motes
-      applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, 6.8, 8.2, windowSideSignX);
+      if (!isProductionGlb) {
+        // 5. Per-Room Light Mood Fixtures, Stuttering Tube, Spill Gradients, Window Shafts & Dust Motes
+        applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, 6.8, 8.2, windowSideSignX);
+      }
 
       cGroup.userData.roomDef = roomDef;
       roomVisibilityList.push({
@@ -12671,18 +13246,21 @@ export function getHideAndSeekHtml(): string {
 
       // Enterable Classrooms along doorSideX
       const doorWallX = cx + doorSideX * (width / 2);
-      const numRooms = length >= 26 ? 3 : 2;
+      const isLibraryWing = (blockLabel === 'East Wing R4');
+      const numRooms = isLibraryWing ? 1 : (length >= 26 ? 3 : 2);
       const roomLen = length / numRooms;
       const doorW = 1.9;
       const doorZCoords = [];
 
-      for (let i = 1; i < numRooms; i++) {
-        const pZ = cz - length / 2 + roomLen * i;
-        buildWallSegment(cx, floorH, pZ, width - 0.32, wallH, wallT, materials.campusStucco);
+      if (!isLibraryWing) {
+        for (let i = 1; i < numRooms; i++) {
+          const pZ = cz - length / 2 + roomLen * i;
+          buildWallSegment(cx, floorH, pZ, width - 0.32, wallH, wallT, materials.campusStucco);
+        }
       }
 
       for (let rIdx = 0; rIdx < numRooms; rIdx++) {
-        const rCenterZ = cz - length / 2 + roomLen * (rIdx + 0.5);
+        const rCenterZ = isLibraryWing ? cz : (cz - length / 2 + roomLen * (rIdx + 0.5));
         doorZCoords.push(rCenterZ);
         const flankLen = (roomLen - doorW) / 2;
 
@@ -12701,16 +13279,18 @@ export function getHideAndSeekHtml(): string {
         // Door frame jamb colliders (leaves 1.66m clear walkable opening)
         addDoorFrameColliders(doorWallX, floorH, rCenterZ, doorW, wallT, true);
 
-        // Swinging wooden door leaf opened into the room with brass handle & room plaque
-        buildSwingingDoor(
-          scene,
-          doorWallX - doorSideX * 0.16,
-          floorH,
-          rCenterZ - doorW * 0.46,
-          doorSideX === -1 ? 0.35 : (Math.PI - 0.35),
-          materials.gandakiBluePole,
-          'door-' + blockLabel + '-r' + (rIdx + 1)
-        );
+        if (!isLibraryWing) {
+          // Swinging wooden door leaf opened into the room with brass handle & room plaque
+          buildSwingingDoor(
+            scene,
+            doorWallX - doorSideX * 0.16,
+            floorH,
+            rCenterZ - doorW * 0.46,
+            doorSideX === -1 ? 0.35 : (Math.PI - 0.35),
+            materials.gandakiBluePole,
+            'door-' + blockLabel + '-r' + (rIdx + 1)
+          );
+        }
 
         if (flankLen > 1.8) {
           buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ - doorW / 2 - flankLen / 2, 0, (rIdx % 2 === 0), doorSideX);
@@ -19144,8 +19724,10 @@ export function getHideAndSeekHtml(): string {
       const maxDoorDist = cullInterior + 8.0;
       for (let d = 0; d < swingingDoors.length; d++) {
         const dr = swingingDoors[d];
-        const dDist = Math.hypot(dr.x - playerPos.x, dr.z - playerPos.z);
-        dr.pivot.visible = (dDist <= maxDoorDist) && (Math.abs(dr.y - playerPos.y) <= 2.6);
+        if (dr && dr.pivot) {
+          const dDist = Math.hypot(dr.x - playerPos.x, dr.z - playerPos.z);
+          dr.pivot.visible = (dDist <= maxDoorDist) && (Math.abs(dr.y - playerPos.y) <= 2.6);
+        }
       }
 
       // 3. Building & Courtyard Sector Distance & Shadow-Caster Culling (Full horizon visibility when outdoors so poles & buildings stay visible across screen!)
@@ -22073,6 +22655,13 @@ export function getHideAndSeekHtml(): string {
         }
         return true;
       }
+      if (typeof it.onInteract === 'function') {
+        const res = it.onInteract(it, options);
+        if (res !== false) {
+          multiplayerStateStore.interactableStates[it.id] = { state: it.state, isOn: it.isOn, isOpen: it.isOpen };
+          return true;
+        }
+      }
       return false;
     }
 
@@ -22508,11 +23097,20 @@ export function getHideAndSeekHtml(): string {
       const spotDist = spot ? Math.hypot(playerPhysics.pos.x - spot.x, playerPhysics.pos.z - spot.z) : 999;
 
       if (nearInt && (nearInt.type !== 'door' ? intDist <= spotDist + 0.35 : !spot)) {
-        const verb = (nearInt.type === 'light_switch' || nearInt.type === 'switchboard')
-          ? (nearInt.isOn ? 'SWITCH OFF: ' : 'SWITCH ON: ')
-          : (nearInt.isOpen ? 'CLOSE: ' : 'OPEN / SEARCH: ');
+        let verb = 'INTERACT: ';
+        let btnText = 'USE';
+        if (nearInt.type === 'light_switch' || nearInt.type === 'switchboard' || nearInt.type === 'monitor' || nearInt.type === 'desk_lamp') {
+          verb = nearInt.isOn ? 'SWITCH OFF: ' : 'SWITCH ON: ';
+          btnText = nearInt.isOn ? 'OFF' : 'ON';
+        } else if (nearInt.type === 'bookshelf' || nearInt.type === 'book') {
+          verb = 'READ / EXAMINE: ';
+          btnText = 'EXAMINE';
+        } else {
+          verb = nearInt.isOpen ? 'CLOSE: ' : 'OPEN / SEARCH: ';
+          btnText = nearInt.isOpen ? 'CLOSE' : 'OPEN';
+        }
         labelEl.textContent = verb + nearInt.name + ' (E)';
-        btnLabel.textContent = (nearInt.type === 'light_switch' || nearInt.type === 'switchboard') ? 'SWITCH' : (nearInt.isOpen ? 'CLOSE' : 'OPEN');
+        btnLabel.textContent = btnText;
         promptEl.classList.add('active');
         crosshairEl.classList.add('active');
       } else if (spot) {

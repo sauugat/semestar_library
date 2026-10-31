@@ -4,6 +4,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  type TextInputInstance,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -32,7 +33,7 @@ export interface ChatComposerProps {
     replyTo: ChatMessage | null;
     mentions?: string[];
   }) => void;
-  inputRef: React.RefObject<TextInput | null>;
+  inputRef: React.RefObject<TextInputInstance | null>;
   paddingBottom?: number;
   userAvailable: boolean;
   members?: ChatMember[];
@@ -110,7 +111,7 @@ export const ChatComposer = React.memo(function ChatComposer({
     setMentionQuery(null);
 
     setTimeout(() => {
-      inputRef.current?.setNativeProps?.({
+      (inputRef.current as any)?.setNativeProps?.({
         selection: { start: newCursor, end: newCursor },
       });
     }, 50);

@@ -213,7 +213,7 @@ export function OnlineLudoGameView({
 
   const isProcessingQueueRef = useRef<boolean>(false);
   const activeActionRef = useRef<any>(null);
-  const pacingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pacingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clientStateRef = useRef<LudoOnlineState>(clientState);
   clientStateRef.current = clientState;

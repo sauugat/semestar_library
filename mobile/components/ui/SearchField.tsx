@@ -7,6 +7,7 @@ import {
   TextInputProps,
   ViewStyle,
   ActivityIndicator,
+  type TextInputInstance,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
@@ -20,7 +21,7 @@ export interface SearchFieldProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export const SearchField = forwardRef<TextInput, SearchFieldProps>(function SearchField(
+export const SearchField = forwardRef<TextInputInstance, SearchFieldProps>(function SearchField(
   {
     value,
     onChangeText,

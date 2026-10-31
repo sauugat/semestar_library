@@ -28,6 +28,7 @@ import {
   Dimensions,
   RefreshControl,
   AppState,
+  type TextInputInstance,
 } from "react-native";
 import { KeyboardStickyView, useKeyboardHandler } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -525,7 +526,7 @@ function ChatScreenInner() {
   const [members, setMembers] = useState<ChatMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState(false);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const actionBusyRef = useRef(false);
   const canPin = Boolean(
     user?.isAdmin || user?.role === "admin" || user?.role === "cr",
@@ -1751,7 +1752,7 @@ function ChatScreenInner() {
                 >
                   <Text style={styles.panelSecondary}>Load earlier messages</Text>
                 </TouchableOpacity>
-              ) : null
+              ) : undefined
             }
             ListEmptyComponent={
               <View style={[styles.emptyContainer, { transform: [{ scaleY: -1 }] }]}>

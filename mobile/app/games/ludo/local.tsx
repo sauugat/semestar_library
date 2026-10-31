@@ -75,7 +75,7 @@ export default function LudoLocalMatchShell() {
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [persistenceWarning, setPersistenceWarning] = useState<string | null>(null);
   const [displayDiceValue, setDisplayDiceValue] = useState<number | null>(null);
-  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const [appState, setAppState] = useState<AppStateStatus>((AppState.currentState as AppStateStatus) ?? 'active');
 
   // Animation and motion accessibility states
   const [isReducedMotion, setIsReducedMotion] = useState(false);
@@ -96,7 +96,7 @@ export default function LudoLocalMatchShell() {
   const mountedRef = useRef<boolean>(true);
   const actionLockRef = useRef<boolean>(false);
   const generationRef = useRef<number>(0);
-  const botTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const botTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingAnimationRef = useRef<{
     result: LocalLudoMoveResult;
     targetSnapshot: LocalLudoSessionSnapshot;

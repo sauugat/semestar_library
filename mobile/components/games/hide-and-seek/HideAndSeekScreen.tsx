@@ -562,7 +562,7 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" hidden />
+      <StatusBar barStyle="light-content" hidden />
 
       {!gameStarted ? (
         <ImageBackground

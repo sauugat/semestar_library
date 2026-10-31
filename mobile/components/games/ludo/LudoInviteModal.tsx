@@ -48,7 +48,7 @@ export function LudoInviteModal({
   const [invitingId, setInvitingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchSequenceRef = useRef<number>(0);
   const isMountedRef = useRef<boolean>(true);
 

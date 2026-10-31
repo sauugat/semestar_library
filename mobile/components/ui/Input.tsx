@@ -7,6 +7,8 @@ import {
   TextInputProps,
   TouchableOpacity,
   ViewStyle,
+  type TextInputInstance,
+  type ViewInstance,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
@@ -21,7 +23,7 @@ export interface InputProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export const Input = forwardRef<TextInput, InputProps>(function Input(
+export const Input = forwardRef<TextInputInstance, InputProps>(function Input(
   {
     label,
     error,
@@ -38,7 +40,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   const { onInputFocus, onInputBlur } = useKeyboardAwareForm();
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const containerRef = useRef<View>(null);
+  const containerRef = useRef<ViewInstance>(null);
 
   return (
     <View

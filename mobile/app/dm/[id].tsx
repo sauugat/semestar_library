@@ -1156,14 +1156,14 @@ function DmConversation() {
                       </Text>
                     </View>
                   </View>
-                ) : null
+                ) : undefined
               }
               ListFooterComponent={
                 loadingOlder ? (
                   <View style={{ paddingVertical: 12 }}>
                     <ActivityIndicator size="small" color={Monochrome.textSecondary} />
                   </View>
-                ) : null
+                ) : undefined
               }
               contentContainerStyle={styles.listContent}
               keyboardDismissMode="on-drag"

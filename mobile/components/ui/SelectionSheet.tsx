@@ -182,7 +182,7 @@ export function SelectionSheet<T = string>({
                         {customActionLabel}
                       </Text>
                     </TouchableOpacity>
-                  ) : null
+                  ) : undefined
                 }
                 renderItem={({ item }) => {
                   const isSelected = selectedId !== undefined && selectedId !== null && item.id === selectedId;

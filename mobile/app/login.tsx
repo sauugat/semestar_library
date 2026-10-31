@@ -9,6 +9,8 @@ import {
   TextInput,
   Keyboard,
   ActivityIndicator,
+  type TextInputInstance,
+  type ScrollViewInstance,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -103,17 +105,17 @@ export default function LoginScreen() {
   const [authMode, setAuthMode] = useState<'signin' | 'register' | 'forgot'>('signin');
 
   // Input Refs for smooth keyboard 'Next' chaining
-  const loginPasswordRef = useRef<TextInput>(null);
+  const loginPasswordRef = useRef<TextInputInstance>(null);
 
-  const regFullNameRef = useRef<TextInput>(null);
-  const regUsernameRef = useRef<TextInput>(null);
-  const regEmailRef = useRef<TextInput>(null);
-  const regPasswordRef = useRef<TextInput>(null);
-  const regConfirmPasswordRef = useRef<TextInput>(null);
-  const otpInputRefs = useRef<(TextInput | null)[]>([]);
+  const regFullNameRef = useRef<TextInputInstance>(null);
+  const regUsernameRef = useRef<TextInputInstance>(null);
+  const regEmailRef = useRef<TextInputInstance>(null);
+  const regPasswordRef = useRef<TextInputInstance>(null);
+  const regConfirmPasswordRef = useRef<TextInputInstance>(null);
+  const otpInputRefs = useRef<(TextInputInstance | null)[]>([]);
 
-  const fpIdentifierRef = useRef<TextInput>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const fpIdentifierRef = useRef<TextInputInstance>(null);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
 
   // Sign In State
   const [identifier, setIdentifier] = useState('');

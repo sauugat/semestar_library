@@ -377,7 +377,7 @@ export default function NotificationsScreen() {
               <View style={{ paddingVertical: 16 }}>
                 <ActivityIndicator size="small" color={colors.primary} />
               </View>
-            ) : null
+            ) : undefined
           }
           renderSectionHeader={({ section: { title } }) => (
             <View

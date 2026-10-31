@@ -5,6 +5,7 @@ import {
   ScrollView,
   RefreshControl,
   TouchableOpacity,
+  type ScrollViewInstance,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,7 +40,7 @@ export default function NoticesScreen() {
   const { id: targetNoticeId } = useLocalSearchParams<{ id?: string }>();
   const { colors, spacing, radii } = useTheme();
   const { serverUrl } = useAuth();
-  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
 
   const [notices, setNotices] = useState<NoticeItem[]>([]);
   const [loading, setLoading] = useState(true);

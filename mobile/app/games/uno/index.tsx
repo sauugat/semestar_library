@@ -152,7 +152,7 @@ export default function UnoGameScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#160B06" />
+      <StatusBar barStyle="light-content" />
 
       {/* Top Newari Ankhi Jhyal Carved Wood Lattice Frieze */}
       <View style={styles.ankhiJhyalFrieze}>

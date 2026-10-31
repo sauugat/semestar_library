@@ -15,6 +15,7 @@ import {
   Animated,
   PanResponder,
   Linking,
+  type TextInputInstance,
 } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { Image } from 'expo-image';
@@ -748,7 +749,7 @@ function StudentHomeScreenInner() {
     id: number;
     content: string;
   } | null>(null);
-  const commentInputRef = useRef<TextInput>(null);
+  const commentInputRef = useRef<TextInputInstance>(null);
 
   const handleOpenPostComments = async (post: Post) => {
     setActiveCommentPost(post);

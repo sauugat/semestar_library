@@ -1,14 +1,22 @@
-import React, { useCallback } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
+  TouchableOpacity,
+  Alert,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Typography';
+import { useAuth } from '@/context/AuthContext';
+import {
+  isOnlineGamesAvailable,
+  checkGamesWorkerReachability,
+  type GamesWorkerReachabilityStatus,
+} from '@/services/games-api';
 
 export interface GameDirectoryItem {
   id: string;
@@ -21,7 +29,15 @@ export interface GameDirectoryItem {
     id: string;
     label: string;
     icon: keyof typeof Ionicons.glyphMap;
-    action: string;
+    action:
+      | 'modal_ttt'
+      | 'route_ttt'
+      | 'route_ludo'
+      | 'route_ludo_setup'
+      | 'route_ludo_online'
+      | 'route_uno'
+      | 'route_hide_and_seek'
+      | 'online_disabled';
     disabled?: boolean;
     badge?: string;
   }[];
@@ -30,14 +46,255 @@ export interface GameDirectoryItem {
 export function GamesView() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const [activeGameModal, setActiveGameModal] = useState<string | null>(null);
+  const isOnlineAvailable = isOnlineGamesAvailable();
 
-  const handleGoHome = useCallback(() => {
-    try {
-      router.replace('/(tabs)' as any);
-    } catch {
-      router.navigate('/(tabs)' as any);
+  const [workerHealth, setWorkerHealth] = useState<GamesWorkerReachabilityStatus>('available');
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const result = await checkGamesWorkerReachability();
+        if (isMounted) {
+          setWorkerHealth(result.status);
+        }
+      } catch {
+        if (isMounted) {
+          setWorkerHealth('configured_unreachable');
+        }
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const gamesDirectory = useMemo<GameDirectoryItem[]>(() => [
+    {
+      id: 'tic-tac-toe',
+      title: 'Tic Tac Toe',
+      category: 'Turn-Based Strategy',
+      description: 'Play a quick pass-and-play practice round or challenge classmates online.',
+      icon: 'grid-outline',
+      status: 'playable',
+      modes: [
+        {
+          id: 'ttt-quick',
+          label: 'Quick Play',
+          icon: 'play',
+          action: 'modal_ttt',
+        },
+        {
+          id: 'ttt-online',
+          label: 'Online Multiplayer',
+          icon: 'globe-outline',
+          action: isOnlineAvailable ? 'route_ttt' : 'online_disabled',
+          badge: !isOnlineAvailable
+            ? 'Setup Required'
+            : workerHealth === 'configured_unreachable'
+            ? 'Server Offline'
+            : undefined,
+        },
+      ],
+    },
+    {
+      id: 'ludo',
+      title: 'Ludo',
+      category: 'Classic Board Game',
+      description: '2 to 4 player strategy match with bot intelligence, safe zones, and local auto-save.',
+      icon: 'dice-outline',
+      status: 'playable',
+      modes: [
+        {
+          id: 'ludo-offline',
+          label: 'Offline Match',
+          icon: 'phone-portrait-outline',
+          action: 'route_ludo',
+        },
+        {
+          id: 'ludo-bots',
+          label: 'Play with Bots',
+          icon: 'hardware-chip-outline',
+          action: 'route_ludo_setup',
+        },
+        {
+          id: 'ludo-online',
+          label: 'Online Multiplayer',
+          icon: 'globe-outline',
+          action: isOnlineAvailable ? 'route_ludo_online' : 'online_disabled',
+          badge: !isOnlineAvailable
+            ? 'Setup Required'
+            : workerHealth === 'configured_unreachable'
+            ? 'Server Offline'
+            : undefined,
+        },
+      ],
+    },
+    {
+      id: 'uno',
+      title: 'UNO: Heritage Edition',
+      category: 'Ancient Nepali Royal Card Game',
+      description: 'Play in an ancient Malla Durbar courtyard with carved Newari woodwork, a Bronze Mandala table, and Himalayan acoustics.',
+      icon: 'albums',
+      status: 'playable',
+      modes: [
+        {
+          id: 'uno-play',
+          label: 'Play UNO (Heritage)',
+          icon: 'play',
+          action: 'route_uno',
+        },
+      ],
+    },
+    {
+      id: 'hide-and-seek',
+      title: 'Hide & Seek: Nightfall 3D',
+      category: '3D Horror Stealth • Royal Yellow Night',
+      description: 'Survive a haunted midnight under the glowing Royal Yellow harvest moon, howling winds, swaying dead trees, flickering streetlamps, and eerie horror SFX.',
+      icon: 'moon-outline',
+      status: 'playable',
+      modes: [
+        {
+          id: 'hns-play',
+          label: 'Enter Nightfall',
+          icon: 'flashlight',
+          action: 'route_hide_and_seek',
+        },
+      ],
+    },
+    {
+      id: 'imposter',
+      title: 'Imposter',
+      category: 'Social Deduction',
+      description: 'Uncover the infiltrator among your classmates before time runs out.',
+      icon: 'people-outline',
+      status: 'coming_soon',
+    },
+    {
+      id: 'chess',
+      title: 'Chess',
+      category: 'Grandmaster Tactics',
+      description: 'Deep strategic matches with asynchronous move clocks and rankings.',
+      icon: 'trophy-outline',
+      status: 'coming_soon',
+    },
+    {
+      id: 'quiz-arena',
+      title: 'Quiz Arena',
+      category: 'Cohort Trivia',
+      description: 'Timed subject quizzes and semester challenges against your peers.',
+      icon: 'help-circle-outline',
+      status: 'coming_soon',
+    },
+  ], [isOnlineAvailable, workerHealth]);
+
+  // Local Tic Tac Toe board state (preserved)
+  const [board, setBoard] = useState<(string | null)[]>(Array(9).fill(null));
+  const [turn, setTurn] = useState<'X' | 'O'>('X');
+  const [winner, setWinner] = useState<string | null>(null);
+
+  const checkWinner = (squares: (string | null)[]) => {
+    const lines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6],
+    ];
+    for (const [a, b, c] of lines) {
+      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+        return squares[a];
+      }
     }
-  }, [router]);
+    if (squares.every(Boolean)) return 'Tie';
+    return null;
+  };
+
+  const handleSquarePress = (idx: number) => {
+    if (board[idx] || winner) return;
+    const nextBoard = [...board];
+    nextBoard[idx] = turn;
+    setBoard(nextBoard);
+
+    const result = checkWinner(nextBoard);
+    if (result) {
+      setWinner(result);
+    } else {
+      setTurn(turn === 'X' ? 'O' : 'X');
+    }
+  };
+
+  const resetGame = () => {
+    setBoard(Array(9).fill(null));
+    setTurn('X');
+    setWinner(null);
+  };
+
+  const handleLaunchMode = async (action: string) => {
+    if (action === 'modal_ttt') {
+      resetGame();
+      setActiveGameModal('tic-tac-toe');
+    } else if (action === 'route_ludo') {
+      router.push('/games/ludo' as any);
+    } else if (action === 'route_ludo_setup') {
+      router.push('/games/ludo/setup' as any);
+    } else if (action === 'route_uno') {
+      router.push('/games/uno' as any);
+    } else if (action === 'route_hide_and_seek') {
+      router.push('/games/hide-and-seek' as any);
+    } else if (action === 'route_ttt' || action === 'route_ludo_online') {
+      const health = await checkGamesWorkerReachability(false);
+      if (health.status === 'configured_unreachable') {
+        Alert.alert(
+          'Games Server Unreachable',
+          `Cannot connect to games worker at ${health.wsUrl}. Ensure the local Worker server is running.\n\nOffline matches and bots are fully playable.`,
+          [
+            {
+              text: 'Retry',
+              onPress: async () => {
+                const refreshed = await checkGamesWorkerReachability(true);
+                setWorkerHealth(refreshed.status);
+                if (refreshed.available) {
+                  router.push((action === 'route_ttt' ? '/games/tic-tac-toe' : '/games/ludo/online') as any);
+                } else {
+                  Alert.alert('Still Unreachable', `Failed to connect to ${refreshed.wsUrl}.`);
+                }
+              },
+            },
+            { text: 'Play Offline', onPress: () => router.push('/games/ludo' as any) },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
+        return;
+      }
+
+      if (health.status === 'not_configured') {
+        Alert.alert(
+          'Multiplayer Not Configured',
+          'Online multiplayer requires an explicitly configured game backend. In local development, enable local QA games.\n\nOffline pass-and-play and bot matches remain fully functional.'
+        );
+        return;
+      }
+
+      if (action === 'route_ttt') {
+        router.push('/games/tic-tac-toe' as any);
+      } else {
+        router.push('/games/ludo/online' as any);
+      }
+    } else if (action === 'online_disabled') {
+      Alert.alert(
+        'Online Multiplayer Unavailable',
+        'Online multiplayer is currently disabled in this build. Quick Play, offline match, and bot modes remain fully playable on this device.'
+      );
+    }
+  };
+
+  const handleComingSoonPress = (title: string) => {
+    Alert.alert(
+      title,
+      'This game is currently in development and will be released in an upcoming update.'
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -52,52 +309,208 @@ export function GamesView() {
         <Text style={styles.headerSubtitle}>Multiplayer & Cohort Challenges</Text>
       </View>
 
-      {/* Main Notice Body */}
       <ScrollView
         contentContainerStyle={[
-          styles.contentContainer,
-          {
-            paddingBottom: Math.max(insets.bottom + 100, 120),
-          },
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom + 100, 120) },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.noticeCard}>
-          {/* Glowing Icon Wrapper */}
-          <View style={styles.iconCircle}>
-            <Ionicons name="game-controller" size={38} color="#FFFFFF" />
-            <View style={styles.iconPillBadge}>
-              <Ionicons name="construct" size={12} color="#F59E0B" />
-            </View>
+        {/* Quick Challenge Banner */}
+        <View style={styles.bannerCard}>
+          <View style={styles.bannerTextContainer}>
+            <Text style={styles.bannerTitle}>Offline Ludo & Quick Play</Text>
+            <Text style={styles.bannerSubtitle}>
+              Play casual matches between classes. Supports local pass-and-play and AI bots without network access.
+            </Text>
           </View>
-
-          {/* Notice Status Pill */}
-          <View style={styles.statusPill}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusPillText}>UNDER DEVELOPMENT</Text>
-          </View>
-
-          {/* Main Notice Title */}
-          <Text style={styles.noticeTitle}>Games Are under development</Text>
-
-          {/* Notice Description */}
-          <Text style={styles.noticeDescription}>
-            Games are currently under development. Stay tuned for exciting multiplayer games with your classmates!
-          </Text>
-
-          {/* OK Button to redirect to Homepage */}
           <TouchableOpacity
-            style={styles.okButton}
-            onPress={handleGoHome}
-            activeOpacity={0.85}
+            style={styles.bannerActionBtn}
+            onPress={() => router.push('/games/ludo' as any)}
+            activeOpacity={0.75}
             accessibilityRole="button"
-            accessibilityLabel="OK, go to homepage"
-            testID="games-notice-ok-btn"
+            accessibilityLabel="Launch Offline Ludo"
           >
-            <Text style={styles.okButtonText}>OK</Text>
+            <Text style={styles.bannerActionText}>Play Ludo</Text>
+            <Ionicons name="arrow-forward" size={12} color="#111111" />
           </TouchableOpacity>
         </View>
+
+        {/* Section Heading */}
+        <Text style={styles.sectionHeader}>Game Directory</Text>
+
+        {/* Game Cards */}
+        {gamesDirectory.map((game) => {
+          const isPlayable = game.status === 'playable';
+
+          return (
+            <View key={game.id} style={styles.gameCard}>
+              <TouchableOpacity
+                activeOpacity={isPlayable && game.modes?.length === 1 ? 0.75 : 1}
+                disabled={!isPlayable || !game.modes || game.modes.length !== 1}
+                onPress={() => {
+                  if (isPlayable && game.modes?.[0]) {
+                    handleLaunchMode(game.modes[0].action);
+                  }
+                }}
+                style={styles.gameCardHeader}
+                accessibilityRole={isPlayable && game.modes?.length === 1 ? 'button' : 'none'}
+                accessibilityLabel={`${game.title}`}
+              >
+                <View style={styles.gameIconBox}>
+                  <Ionicons
+                    name={game.icon}
+                    size={22}
+                    color={isPlayable ? '#FFFFFF' : '#737373'}
+                  />
+                </View>
+
+                <View style={styles.gameTitleContainer}>
+                  <View style={styles.gameHeaderRow}>
+                    <Text style={styles.gameTitle}>{game.title}</Text>
+                    <View
+                      style={[
+                        styles.statusPill,
+                        isPlayable ? styles.statusPillActive : styles.statusPillPending,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          isPlayable ? styles.statusPillTextActive : styles.statusPillTextPending,
+                        ]}
+                      >
+                        {isPlayable ? 'Playable' : 'Coming Soon'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.gameCategory}>{game.category}</Text>
+                </View>
+              </TouchableOpacity>
+
+              <Text style={styles.gameDescription}>{game.description}</Text>
+
+              {/* Mode Action Buttons for Playable Games */}
+              {isPlayable && game.modes && (
+                <View style={styles.modesRow}>
+                  {game.modes.map((mode) => (
+                    <TouchableOpacity
+                      key={mode.id}
+                      style={[
+                        styles.modeButton,
+                        mode.action === 'online_disabled'
+                          ? styles.modeButtonDisabled
+                          : styles.modeButtonPrimary,
+                      ]}
+                      onPress={() => handleLaunchMode(mode.action)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${game.title} ${mode.label}`}
+                    >
+                      <Ionicons
+                        name={mode.icon}
+                        size={13}
+                        color={mode.action === 'online_disabled' ? '#737373' : '#FFFFFF'}
+                      />
+                      <Text
+                        style={[
+                          styles.modeButtonText,
+                          mode.action === 'online_disabled'
+                            ? styles.modeButtonTextDisabled
+                            : styles.modeButtonTextPrimary,
+                        ]}
+                      >
+                        {mode.label}
+                      </Text>
+                      {mode.badge && (
+                        <View style={styles.modeBadge}>
+                          <Text style={styles.modeBadgeText}>{mode.badge}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Tap handler for non-playable cards */}
+              {!isPlayable && (
+                <TouchableOpacity
+                  style={styles.comingSoonTouchArea}
+                  onPress={() => handleComingSoonPress(game.title)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${game.title} Coming Soon`}
+                >
+                  <Text style={styles.comingSoonHint}>In development for your semester cohort</Text>
+                  <Ionicons name="information-circle-outline" size={14} color="#737373" />
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        })}
       </ScrollView>
+
+      {/* Game Modal (Local Tic Tac Toe - Preserved) */}
+      <Modal
+        visible={activeGameModal === 'tic-tac-toe'}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setActiveGameModal(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 16 }]}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Tic Tac Toe</Text>
+                <Text style={styles.modalSubtitle}>
+                  {winner
+                    ? winner === 'Tie'
+                      ? 'Game ended in a Tie!'
+                      : `Winner: ${winner}!`
+                    : `Current Turn: ${turn}`}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setActiveGameModal(null)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close Tic Tac Toe"
+              >
+                <Ionicons name="close" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* 3x3 Board */}
+            <View style={styles.boardGrid}>
+              {board.map((cell, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.boardCell}
+                  onPress={() => handleSquarePress(idx)}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Cell ${idx + 1}: ${cell || 'Empty'}`}
+                >
+                  <Text style={styles.boardCellText}>{cell || ''}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Reset Button */}
+            <TouchableOpacity
+              style={styles.resetBtn}
+              onPress={resetGame}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Start New Round"
+            >
+              <Text style={styles.resetBtnText}>New Round</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -140,112 +553,264 @@ const styles = StyleSheet.create({
     color: '#A1A1A1',
     marginTop: 2,
   },
-  contentContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 40,
+  scrollContent: {
+    padding: 16,
   },
-  noticeCard: {
-    backgroundColor: '#141414',
-    borderRadius: 20,
+  bannerCard: {
+    backgroundColor: '#171717',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#282828',
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    width: '100%',
-    maxWidth: 380,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  iconCircle: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: '#1C1C1C',
-    borderWidth: 1,
-    borderColor: '#333333',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    position: 'relative',
-  },
-  iconPillBadge: {
-    position: 'absolute',
-    bottom: -2,
-    right: -2,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#262626',
-    borderWidth: 1.5,
-    borderColor: '#383838',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusPill: {
+    borderColor: '#303030',
+    padding: 16,
+    marginBottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(245, 158, 11, 0.3)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    marginBottom: 16,
-    gap: 6,
+    justifyContent: 'space-between',
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#F59E0B',
+  bannerTextContainer: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  bannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  bannerSubtitle: {
+    fontSize: 12,
+    color: '#A1A1A1',
+    lineHeight: 16,
+  },
+  bannerActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+  },
+  bannerActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#111111',
+  },
+  sectionHeader: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#737373',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 10,
+    marginLeft: 4,
+  },
+  gameCard: {
+    backgroundColor: '#141414',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#282828',
+    padding: 14,
+    marginBottom: 12,
+  },
+  gameCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  gameIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: '#1C1C1C',
+    borderWidth: 1,
+    borderColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  gameTitleContainer: {
+    flex: 1,
+  },
+  gameHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  gameTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  statusPillActive: {
+    backgroundColor: '#242424',
+    borderWidth: 1,
+    borderColor: '#383838',
+  },
+  statusPillPending: {
+    backgroundColor: '#181818',
   },
   statusPillText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#F59E0B',
-    letterSpacing: 0.8,
+    fontWeight: '600',
   },
-  noticeTitle: {
-    fontSize: 21,
+  statusPillTextActive: {
+    color: '#FFFFFF',
+  },
+  statusPillTextPending: {
+    color: '#737373',
+  },
+  gameCategory: {
+    fontSize: 11.5,
+    color: '#737373',
+  },
+  gameDescription: {
+    fontSize: 12.5,
+    color: '#A1A1A1',
+    lineHeight: 17,
+    marginBottom: 10,
+  },
+  modesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#242424',
+  },
+  modeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 16,
+    gap: 5,
+  },
+  modeButtonPrimary: {
+    backgroundColor: '#222222',
+    borderWidth: 1,
+    borderColor: '#383838',
+  },
+  modeButtonDisabled: {
+    backgroundColor: '#171717',
+    borderWidth: 1,
+    borderColor: '#262626',
+    borderStyle: 'dashed',
+  },
+  modeButtonText: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  modeButtonTextPrimary: {
+    color: '#FFFFFF',
+  },
+  modeButtonTextDisabled: {
+    color: '#737373',
+  },
+  modeBadge: {
+    backgroundColor: '#2B2B2B',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+    marginLeft: 2,
+  },
+  modeBadgeText: {
+    fontSize: 9.5,
+    fontWeight: '700',
+    color: '#9E9E9E',
+  },
+  comingSoonTouchArea: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#202020',
+  },
+  comingSoonHint: {
+    fontSize: 11,
+    color: '#555555',
+    fontStyle: 'italic',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#141414',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderColor: '#282828',
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
     fontWeight: '700',
     color: '#FFFFFF',
-    textAlign: 'center',
-    letterSpacing: -0.3,
-    marginBottom: 12,
-    lineHeight: 28,
   },
-  noticeDescription: {
-    fontSize: 14,
+  modalSubtitle: {
+    fontSize: 13,
     color: '#A1A1A1',
-    textAlign: 'center',
-    lineHeight: 21,
-    marginBottom: 28,
-    paddingHorizontal: 8,
+    marginTop: 2,
   },
-  okButton: {
-    backgroundColor: '#FFFFFF',
-    width: '100%',
-    height: 48,
-    borderRadius: 24,
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#242424',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  okButtonText: {
-    fontSize: 15,
+  boardGrid: {
+    width: 270,
+    height: 270,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  boardCell: {
+    width: 82,
+    height: 82,
+    backgroundColor: '#1C1C1C',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#282828',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  boardCellText: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  resetBtn: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  resetBtnText: {
+    fontSize: 13,
     fontWeight: '700',
     color: '#111111',
-    letterSpacing: 0.2,
   },
 });

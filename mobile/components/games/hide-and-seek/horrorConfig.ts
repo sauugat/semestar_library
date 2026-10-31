@@ -36,62 +36,62 @@ export const HORROR_CONFIG = {
   exploreMode: true,
   enableDevTelemetry: true,
 
-  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (All required grade values in one section)
+  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Nepali Tihar Laxmi Puja Night Grade: Deep Night Blues + 1900K Diyo Golden-Orange Highlights)
   grade: {
     enabled: true,
-    shadowTint: [0.06, 0.16, 0.22],     // Teal-blue shadows
-    highlightTint: [1.08, 0.78, 0.46],  // Warm orange highlights
-    saturation: 0.80,                                               // Midtones slightly desaturated (~0.8)
-    contrast: 1.14,                                                 // Gentle S-curve contrast
-    blackLift: 0.022,                                               // Lifted blacks (never crushed)
-    vignette: 0.46,                                                 // Tunable vignette strength
-    grain: 0.04,                                                    // Animated film grain (~0.04)
-    edgeDesat: 0.28,                                                // Slight desaturation toward screen edges
-    lampColor: 0xff8a2a,                                            // #ff8a2a warm orange lamp light
-    poolOpacity: 0.24,                                              // Lowered pool opacity so it never clips to white
-    fogColor: 0x0e1b20,                                             // Slightly greener gray-blue fog so distance layers separate
-    materialDarknessMultiplier: 0.64,                               // Darken wall & roof albedo by ~36%
-    fpsGuardThreshold: 40,                                          // Auto-disable grade pass if avg FPS < 40 for 3s
+    shadowTint: [0.04, 0.11, 0.19],     // Deep nocturnal indigo-slate shadows
+    highlightTint: [1.14, 0.81, 0.44],  // Warm 1950K Tihar diyo golden-orange highlights
+    saturation: 0.88,                   // Richer festive marigold & Jhilimili color fidelity while keeping nighttime depth
+    contrast: 1.16,                     // Crisp S-curve contrast between lit focal areas and dark nighttime surroundings
+    blackLift: 0.016,                   // Deep, natural night blacks without crushing silhouette readability
+    vignette: 0.44,                     // Subtle nocturnal edge framing
+    grain: 0.032,                       // Subtle organic low-light sensor grain
+    edgeDesat: 0.22,                    // Gentle peripheral desaturation
+    lampColor: 0xff8a2a,                // #ff8a2a warm orange lamp light
+    poolOpacity: 0.28,                  // Warm ground light pool opacity
+    fogColor: 0x08131d,                 // Deep Himalayan autumn night fog
+    materialDarknessMultiplier: 0.62,   // Realistic nighttime albedo response on unlit walls & roofs
+    fpsGuardThreshold: 40,              // Auto-disable grade pass if avg FPS < 40 for 3s
     fpsGuardWindowSec: 3.0,
-    stylizedPs1Mode: false,                                         // Optional PS1-style 0.7x pixel ratio + dither/grain mode
+    stylizedPs1Mode: false,             // Optional PS1-style 0.7x pixel ratio + dither/grain mode
     stylizedPixelRatio: 0.7,
   },
 
   palette: {
     charcoal: '#04070b',
     charcoalTranslucent: 'rgba(6, 11, 18, 0.90)',
-    dimAmber: '#ff8a2a',
-    dimAmberBorder: 'rgba(255, 138, 42, 0.28)',
+    dimAmber: '#ff922b',
+    dimAmberBorder: 'rgba(255, 146, 43, 0.34)',
     bloodRed: '#8c1d1d',
     bloodRedGlow: 'rgba(140, 29, 29, 0.72)',
     boneWhite: '#dce3ea',
     mutedBone: '#7e8c99',
   },
   renderer: {
-    clearColor: 0x071118,
-    toneMappingExposure: 1.15,
-    fogColor: 0x14222c,
-    fogWarmTintColor: 0x221d18,
-    fogNear: 14.0,
-    fogFar: 88.0,
-    fogMinFarUnderTension: 45.0,
+    clearColor: 0x040a12,
+    toneMappingExposure: 1.12,
+    fogColor: 0x091520,
+    fogWarmTintColor: 0x261a10,
+    fogNear: 15.0,
+    fogFar: 92.0,
+    fogMinFarUnderTension: 46.0,
   },
   lighting: {
-    // Lower, cooler global ambient & hemisphere fill so rooms have real contrast and stop looking flat
-    visibilityFloorAmbient: 0.08,
-    ambientColor: 0x162436,
-    ambientIntensity: 0.14,
-    indoorAmbientIntensity: 0.06,
-    hemiSkyColor: 0x1e334a,
-    hemiGroundColor: 0x070c12,
-    hemiIntensity: 0.16,
-    indoorHemiIntensity: 0.07,
-    // Cool moonlight directional light for exterior rim lighting (attenuated indoors)
-    moonColor: 0x8eb8d6,
-    moonIntensity: 0.58,
-    indoorMoonIntensity: 0.10,
-    rimColor: 0x5c8299,
-    rimIntensity: 0.25,
+    // Layered Nepali Tihar Nighttime Lighting: Low-intensity blue-grey ambient + subtle silver-blue moonlight + warm 1900K diyos
+    visibilityFloorAmbient: 0.065,
+    ambientColor: 0x101d2e,
+    ambientIntensity: 0.11,
+    indoorAmbientIntensity: 0.048,
+    hemiSkyColor: 0x182b44,
+    hemiGroundColor: 0x05090e,
+    hemiIntensity: 0.13,
+    indoorHemiIntensity: 0.055,
+    // Subtle Himalayan autumn moonlight directional light for architectural silhouettes (attenuated indoors)
+    moonColor: 0x7ea8cc,
+    moonIntensity: 0.38,
+    indoorMoonIntensity: 0.07,
+    rimColor: 0x4e738c,
+    rimIntensity: 0.21,
     // Main Player Flashlight: soft-edged spotlight, visible volumetric beam cone, battery flicker & realistic falloff
     flashlightColor: 0xfff1d6,
     flashlightLowBatteryColor: 0xffb366,
@@ -100,28 +100,57 @@ export const HORROR_CONFIG = {
     flashlightAngle: 0.60,
     flashlightPenumbra: 0.88,
     flashlightDecay: 1.80,
-    flashlightSpillIntensity: 1.32,
-    flashlightSpillDistance: 6.8,
-    flashlightBeamOpacity: 0.145,
-    // Warm orange lamp light (#ff8a2a) tuned against ACES Filmic so highlights stay orange and never whiten
+    flashlightSpillIntensity: 1.25,
+    flashlightSpillDistance: 6.5,
+    flashlightBeamOpacity: 0.135,
+    // Warm orange lamp & diyo light (1800K-2200K) tuned against ACES Filmic so highlights stay golden-orange
     lampColor: 0xff8a2a,
-    lampCoreColor: 0xffb366,
+    lampCoreColor: 0xffd280,
     lampEmberColor: 0x7c2d12,
-    lampIntensity: 13.2,
-    lampDistance: 18.2,
-    lampDecay: 1.64,
-    lampPoolSize: 7.6,
-    lampHaloScale: 2.50,
-    lampConeOpacity: 0.095,
-    windowGlowRatio: 0.38,
-    windowColdDark: 0x060b0f,
-    windowEmissive: 0xff8a2a,
-    windowEmissiveIntensity: 0.58,
-    doorwayGlowColor: 0xff8a2a,
-    doorwayGlowOpacity: 0.18,
-    diyoUltraEmissiveIntensity: 1.25,
-    horizonWarmGlowOpacity: 0.18,
+    lampIntensity: 12.6,
+    lampDistance: 17.8,
+    lampDecay: 1.68,
+    lampPoolSize: 7.4,
+    lampHaloScale: 2.35,
+    lampConeOpacity: 0.088,
+    windowGlowRatio: 0.46,
+    windowColdDark: 0x05090e,
+    windowEmissive: 0xff922b,
+    windowEmissiveIntensity: 0.68,
+    doorwayGlowColor: 0xff9428,
+    doorwayGlowOpacity: 0.26,
+    diyoUltraEmissiveIntensity: 1.55,
+    horizonWarmGlowOpacity: 0.22,
     redAccent: 0x8c1d1d,
+  },
+  tihar: {
+    enabled: true,
+    festivalName: 'Nepali Tihar — Laxmi Puja Night',
+    // Clay Diyo (1800K-2200K oil lamp) lighting parameters
+    diyoColorCore: 0xfff3c4,       // 2200K bright wick core
+    diyoColorMid: 0xff922b,        // 1950K warm golden-orange flame body
+    diyoColorTip: 0xd9480f,        // 1800K deep amber-orange tip
+    diyoLightColor: 0xff9428,      // 1950K physical PointLight & pool color
+    diyoPoolOpacity: 0.38,         // Localized warm surface light pool on steps/sills/courtyard
+    diyoFocalLightCountUltra: 6,   // Max pooled dynamic PointLights for nearest Tihar diyo/string focal clusters
+    diyoFocalLightCountHigh: 5,
+    diyoFocalLightCountLow: 3,
+    diyoFocalLightCountFast: 2,
+    diyoFocalLightIntensity: 6.8,
+    diyoFocalLightDistance: 11.5,
+    diyoFocalLightDecay: 1.85,
+    // Jhilimili Batti (Electric LED string lights) palette & parameters
+    jhilimiliWarmGold: 0xffb84d,
+    jhilimiliAmber: 0xff881a,
+    jhilimiliRosePink: 0xf43f86,
+    jhilimiliEmerald: 0x10b981,
+    jhilimiliRoyalBlue: 0x38bdf8,
+    jhilimiliWarmWhite: 0xfff0c2,
+    jhilimiliWallWashOpacity: 0.22,
+    // Flowers & Rangoli palette
+    sayapatriOrange: 0xff7b00,
+    sayapatriGold: 0xffb703,
+    makhamaliPurple: 0x881337,
   },
   roomLightMoods: {
     dark: {

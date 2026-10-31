@@ -3496,13 +3496,13 @@ export function getHideAndSeekHtml(): string {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.shadowMap.autoUpdate = true;
 
-        // Natural Night Moonlight + Warm Streetlamp Contrast (Cool silver-blue moon rim so trees/vehicles/ground are readable, never pitch-black silhouettes)
+        // Layered Nepali Tihar Nighttime Lighting (Deep dark night sky + subtle moonlight + low blue-grey ambient so 1900K diyos & Jhilimili lights pop)
         const lCfg = HORROR_CONFIG.lighting || {};
-        this.baseAmbColor = new THREE.Color(0x142236);
+        this.baseAmbColor = new THREE.Color(lCfg.ambientColor || 0x101d2e);
         this.targetAmbColor = this.baseAmbColor.clone();
-        this.baseAmbIntensity = 0.145;
-        this.baseHemiIntensity = 0.20;
-        this.baseMoonIntensity = 0.46;
+        this.baseAmbIntensity = typeof lCfg.ambientIntensity === 'number' ? lCfg.ambientIntensity : 0.115;
+        this.baseHemiIntensity = typeof lCfg.hemiIntensity === 'number' ? lCfg.hemiIntensity : 0.135;
+        this.baseMoonIntensity = typeof lCfg.moonIntensity === 'number' ? lCfg.moonIntensity : 0.38;
 
         this.ambientLight = new THREE.AmbientLight(
           this.baseAmbColor.clone(),
@@ -3511,14 +3511,14 @@ export function getHideAndSeekHtml(): string {
         this.scene.add(this.ambientLight);
 
         this.hemiLight = new THREE.HemisphereLight(
-          0x243b58,
-          0x0a1018,
+          lCfg.hemiSkyColor || 0x182b44,
+          lCfg.hemiGroundColor || 0x05090e,
           this.baseHemiIntensity
         );
         this.scene.add(this.hemiLight);
 
         this.moonDirLight = new THREE.DirectionalLight(
-          0x88b4dc,
+          lCfg.moonColor || 0x7ea8cc,
           this.baseMoonIntensity
         );
         this.moonDirLight.position.set(-38, 64, -44);
@@ -4110,33 +4110,55 @@ export function getHideAndSeekHtml(): string {
         skyCanvas.height = 256;
         const sCtx = skyCanvas.getContext('2d');
 
+        // Deep Himalayan Autumn Tihar (Kartik Aunsi / Laxmi Puja) Night Sky with Subtle Valley Festival Horizon Glow
         const grad = sCtx.createLinearGradient(0, 0, 0, 256);
-        grad.addColorStop(0.0, '#060c18');
-        grad.addColorStop(0.35, '#0b1626');
-        grad.addColorStop(0.65, '#132338');
-        grad.addColorStop(0.85, '#1b3248');
-        grad.addColorStop(1.0, '#162738');
+        grad.addColorStop(0.0, '#02050b');
+        grad.addColorStop(0.32, '#050d1a');
+        grad.addColorStop(0.62, '#0a1728');
+        grad.addColorStop(0.84, '#112236');
+        grad.addColorStop(0.95, '#1c2430');
+        grad.addColorStop(1.0, '#241c18');
         sCtx.fillStyle = grad;
         sCtx.fillRect(0, 0, 512, 256);
 
-        const moonGlow = sCtx.createRadialGradient(340, 74, 4, 340, 74, 110);
-        moonGlow.addColorStop(0.0, 'rgba(215, 235, 248, 0.75)');
-        moonGlow.addColorStop(0.20, 'rgba(140, 180, 210, 0.42)');
-        moonGlow.addColorStop(0.55, 'rgba(60, 100, 130, 0.18)');
-        moonGlow.addColorStop(1.0, 'rgba(16, 32, 48, 0.0)');
+        // Crisp post-monsoon Himalayan autumn stars across upper sky dome
+        for (let st = 0; st < 110; st++) {
+          const sx = (st * 73 + 19) % 510;
+          const sy = (st * 41 + 11) % 145;
+          const sr = (st % 5 === 0) ? 1.15 : 0.72;
+          const sa = 0.22 + ((st * 17) % 55) * 0.01;
+          sCtx.fillStyle = (st % 7 === 0) ? ('rgba(255, 232, 185, ' + sa + ')') : ('rgba(218, 234, 252, ' + sa + ')');
+          sCtx.beginPath();
+          sCtx.arc(sx, sy, sr, 0, Math.PI * 2);
+          sCtx.fill();
+        }
+
+        // Subtle distant Tihar warm amber horizon scatter from Pokhara / Gandaki valley settlements
+        const tiharHorizonGlow = sCtx.createLinearGradient(0, 182, 0, 256);
+        tiharHorizonGlow.addColorStop(0.0, 'rgba(255, 146, 43, 0.0)');
+        tiharHorizonGlow.addColorStop(0.65, 'rgba(255, 140, 36, 0.08)');
+        tiharHorizonGlow.addColorStop(1.0, 'rgba(255, 128, 24, 0.16)');
+        sCtx.fillStyle = tiharHorizonGlow;
+        sCtx.fillRect(0, 182, 512, 74);
+
+        const moonGlow = sCtx.createRadialGradient(340, 74, 4, 340, 74, 96);
+        moonGlow.addColorStop(0.0, 'rgba(205, 228, 246, 0.58)');
+        moonGlow.addColorStop(0.22, 'rgba(125, 168, 204, 0.30)');
+        moonGlow.addColorStop(0.55, 'rgba(48, 84, 116, 0.12)');
+        moonGlow.addColorStop(1.0, 'rgba(10, 22, 36, 0.0)');
         sCtx.fillStyle = moonGlow;
         sCtx.fillRect(0, 0, 512, 256);
 
-        sCtx.fillStyle = 'rgba(240, 248, 255, 0.92)';
+        sCtx.fillStyle = 'rgba(232, 244, 255, 0.84)';
         sCtx.beginPath();
-        sCtx.arc(340, 74, 11, 0, Math.PI * 2);
+        sCtx.arc(340, 74, 9.5, 0, Math.PI * 2);
         sCtx.fill();
 
         [68, 92].forEach((bandY, bIdx) => {
           const bandGrad = sCtx.createLinearGradient(0, bandY - 12, 0, bandY + 12);
-          bandGrad.addColorStop(0.0, 'rgba(14, 28, 36, 0.0)');
-          bandGrad.addColorStop(0.5, bIdx === 0 ? 'rgba(64, 96, 110, 0.16)' : 'rgba(38, 62, 74, 0.14)');
-          bandGrad.addColorStop(1.0, 'rgba(14, 28, 36, 0.0)');
+          bandGrad.addColorStop(0.0, 'rgba(10, 20, 30, 0.0)');
+          bandGrad.addColorStop(0.5, bIdx === 0 ? 'rgba(48, 76, 94, 0.12)' : 'rgba(30, 50, 64, 0.10)');
+          bandGrad.addColorStop(1.0, 'rgba(10, 20, 30, 0.0)');
           sCtx.fillStyle = bandGrad;
           sCtx.fillRect(0, bandY - 12, 512, 24);
         });
@@ -8131,7 +8153,7 @@ export function getHideAndSeekHtml(): string {
       scene.add(dGroup);
     }
 
-    // 5. Recessed Pointed-Arch Brick Wall Niche (Khopa) with Flickering Warm Diyo Clay Oil Lamp (Ref Photo 5!)
+    // 5. Recessed Pointed-Arch Brick Wall Niche (Khopa) with Flickering Warm Diyo Clay Oil Lamp (Ref Photo 5 & 6!)
     function buildDiyoBrickNiche(nx, ny, nz, outDirX, outDirZ) {
       const nGroup = new THREE.Group();
       nGroup.position.set(nx, ny, nz);
@@ -8146,31 +8168,36 @@ export function getHideAndSeekHtml(): string {
       recess.position.set(0, 0, 0.02);
       nGroup.add(recess);
 
-      const sill = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.14), materials.nepalDachiBrick);
-      sill.position.set(0, -0.20, 0.05);
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.06, 0.16), materials.nepalDachiBrick);
+      sill.position.set(0, -0.20, 0.06);
       nGroup.add(sill);
 
-      // Clay Diyo oil lamp bowl + glowing warm flame core
-      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.04, 0.04, 8), materials.teliyaFloorTile);
-      bowl.position.set(0, -0.15, 0.06);
+      // Authentic Nepali Clay Diyo (माटोको दियो) bowl + pinched wick spout + warm mustard oil surface + layered flame
+      const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.038, 0.042, 10), materials.teliyaFloorTile);
+      bowl.position.set(0, -0.15, 0.07);
       nGroup.add(bowl);
 
-      const flame = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.075, 6), materials.diyoFlameGlow);
-      flame.position.set(0, -0.10, 0.06);
-      nGroup.add(flame);
+      const spout = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.045, 6), materials.teliyaFloorTile);
+      spout.rotation.x = Math.PI * 0.45;
+      spout.position.set(0, -0.138, 0.115);
+      nGroup.add(spout);
 
-      // Soft warm amber Diyo halo sprite on the brick wall
+      const flameOuter = new THREE.Mesh(new THREE.ConeGeometry(0.030, 0.082, 7), materials.diyoFlameGlow);
+      flameOuter.position.set(0, -0.095, 0.118);
+      nGroup.add(flameOuter);
+
+      // Soft warm 1900K amber Diyo halo sprite on the brick wall
       const diyoHaloMat = new THREE.SpriteMaterial({
         map: warmLampBloomTex,
-        color: 0xff922b,
+        color: 0xff9428,
         transparent: true,
-        opacity: 0.42,
+        opacity: 0.52,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       });
       const diyoHalo = new THREE.Sprite(diyoHaloMat);
-      diyoHalo.position.set(0, -0.08, 0.10);
-      diyoHalo.scale.set(0.75, 0.75, 1);
+      diyoHalo.position.set(0, -0.08, 0.12);
+      diyoHalo.scale.set(0.88, 0.88, 1);
       nGroup.add(diyoHalo);
 
       scene.add(nGroup);
@@ -17496,6 +17523,1074 @@ export function getHideAndSeekHtml(): string {
     lampFlickerMod.addWallSconce(-4.5, l1FloorY + 2.65, -13.45, 'intermittent', getTerrainHeightAt(-4.5, -13.45));
 
     /* =========================================================================
+       8B. AUTHENTIC NEPALI TIHAR (LAXMI PUJA NIGHT) ENVIRONMENTAL & LAYERED LIGHTING SYSTEM
+           - Instanced Clay Diyos (माटोको दियो) with GPU Non-Synchronized Flame Flicker (1800K-2200K)
+           - Localized Warm Diyo Surface Light Pools on Steps, Windowsills, Plinths & Courtyards
+           - Instanced Jhilimili Batti (झिलिमिली बत्ती) Individual LED String Bulbs + Catenary Cords + Wall-Wash Glow
+           - Scalloped Sayapatri (Marigold) & Makhamali (Globe Amaranth) Garlands (Toran)
+           - High-Detail Procedural Tihar Lotus Mandalas (Rangoli) & Laxmi Paila (Sacred Footprints)
+           - Pooled Selective Dynamic PointLights (Max 2..6 Lights by Quality Tier, castShadow = false)
+       ========================================================================= */
+    const tiharUniforms = {
+      uTime: { value: 0.0 },
+      uElectricPower: { value: 1.0 },
+    };
+
+    function createDiyoWarmPoolTexture() {
+      const c = document.createElement('canvas');
+      c.width = 128;
+      c.height = 128;
+      const ctx = c.getContext('2d');
+      const g = ctx.createRadialGradient(64, 64, 2, 64, 64, 62);
+      g.addColorStop(0.0, 'rgba(255, 238, 175, 0.92)');
+      g.addColorStop(0.24, 'rgba(255, 162, 54, 0.68)');
+      g.addColorStop(0.56, 'rgba(224, 92, 18, 0.30)');
+      g.addColorStop(0.84, 'rgba(130, 38, 6, 0.08)');
+      g.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 128, 128);
+      return new THREE.CanvasTexture(c);
+    }
+
+    function createJhilimiliWallWashTexture(isMulticolor) {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 128;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 256, 128);
+      const colors = isMulticolor
+        ? [
+            'rgba(255, 178, 64, 0.52)',
+            'rgba(244, 63, 134, 0.48)',
+            'rgba(16, 185, 129, 0.46)',
+            'rgba(56, 189, 248, 0.48)',
+            'rgba(255, 136, 26, 0.52)',
+            'rgba(192, 132, 252, 0.46)',
+          ]
+        : [
+            'rgba(255, 196, 88, 0.54)',
+            'rgba(255, 164, 52, 0.48)',
+            'rgba(255, 214, 120, 0.52)',
+            'rgba(255, 152, 42, 0.48)',
+          ];
+      for (let i = 0; i < 8; i++) {
+        const cx = (i + 0.5) * (256 / 8);
+        const cy = 26 + (i % 2) * 10;
+        const r = 46;
+        const g = ctx.createRadialGradient(cx, cy, 2, cx, cy + 16, r);
+        g.addColorStop(0.0, colors[i % colors.length]);
+        g.addColorStop(0.55, colors[(i + 1) % colors.length].replace('0.5', '0.22').replace('0.4', '0.18'));
+        g.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, 256, 128);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      return tex;
+    }
+
+    function createTiharMandalaTexture(variant) {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 512, 512);
+      const cx = 256, cy = 256;
+
+      // 1. Warm ambient radial diyo glow underneath the mandala
+      const baseGlow = ctx.createRadialGradient(cx, cy, 18, cx, cy, 248);
+      baseGlow.addColorStop(0.0, 'rgba(255, 168, 52, 0.48)');
+      baseGlow.addColorStop(0.55, 'rgba(185, 76, 18, 0.34)');
+      baseGlow.addColorStop(0.88, 'rgba(92, 28, 8, 0.22)');
+      baseGlow.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+      ctx.fillStyle = baseGlow;
+      ctx.fillRect(0, 0, 512, 512);
+
+      // 2. Sacred Red-Ochre (Rato Mato) circular base disk
+      ctx.fillStyle = '#5c1f12';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 212, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3. White Rice-Flour (Pitho) outer sacred geometric rings & scalloped border swirls (Ref Photo 6!)
+      ctx.strokeStyle = 'rgba(248, 244, 232, 0.88)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 206, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let sc = 0; sc < 24; sc++) {
+        const ang = (sc * Math.PI * 2) / 24;
+        const sx = cx + Math.cos(ang) * 194;
+        const sy = cy + Math.sin(ang) * 194;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 14, ang - 1.2, ang + 1.2);
+        ctx.stroke();
+      }
+
+      // 4. Outer Thick Ring of Fluffy Sayapatri (Orange/Gold Marigold) & Makhamali (Crimson-Purple) Blossoms (Ref Photo 5!)
+      const ringFlowerCount = 36;
+      for (let f = 0; f < ringFlowerCount; f++) {
+        const ang = (f * Math.PI * 2) / ringFlowerCount;
+        const fx = cx + Math.cos(ang) * 176;
+        const fy = cy + Math.sin(ang) * 176;
+        const isMakhamali = (f % 6 === 0);
+        const rOuter = isMakhamali ? 13 : 18;
+        ctx.fillStyle = isMakhamali ? '#881337' : (f % 2 === 0 ? '#ff7b00' : '#ffb703');
+        ctx.beginPath();
+        ctx.arc(fx, fy, rOuter, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = isMakhamali ? '#be123c' : (f % 2 === 0 ? '#ffa200' : '#ffd166');
+        ctx.beginPath();
+        ctx.arc(fx, fy, rOuter * 0.62, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 5. 12-Petalled Outer Abir Powder Lotus Ring (Ref Photo 5 & 6)
+      const petalColors = variant === 1
+        ? ['#dc2626', '#eab308', '#7e22ce', '#16a34a', '#0284c7', '#ea580c']
+        : ['#e11d48', '#f59e0b', '#15803d', '#6d28d9', '#0369a1', '#d97706'];
+      const outerPetals = 12;
+      for (let p = 0; p < outerPetals; p++) {
+        const a0 = (p * Math.PI * 2) / outerPetals;
+        const aMid = a0 + Math.PI / outerPetals;
+        const a1 = a0 + (Math.PI * 2) / outerPetals;
+        ctx.fillStyle = petalColors[p % petalColors.length];
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a0) * 74, cy + Math.sin(a0) * 74);
+        ctx.quadraticCurveTo(
+          cx + Math.cos(aMid) * 168,
+          cy + Math.sin(aMid) * 168,
+          cx + Math.cos(a1) * 74,
+          cy + Math.sin(a1) * 74
+        );
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#f8fafc';
+        ctx.lineWidth = 4.5;
+        ctx.stroke();
+      }
+
+      // 6. 8-Petalled Inner Sacred Lotus & Golden Marigold Ring
+      for (let p = 0; p < 8; p++) {
+        const a0 = (p * Math.PI * 2) / 8 + 0.18;
+        const aMid = a0 + Math.PI / 8;
+        const a1 = a0 + (Math.PI * 2) / 8;
+        ctx.fillStyle = (p % 2 === 0) ? '#b91c1c' : '#f59e0b';
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a0) * 34, cy + Math.sin(a0) * 34);
+        ctx.quadraticCurveTo(
+          cx + Math.cos(aMid) * 104,
+          cy + Math.sin(aMid) * 104,
+          cx + Math.cos(a1) * 34,
+          cy + Math.sin(a1) * 34
+        );
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#fef08a';
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+      }
+
+      // 7. Center Sacred Laxmi Mandala Medallion & Warm Central Diyo Glow
+      ctx.fillStyle = '#7c2d12';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 36, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      const centerGlow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 44);
+      centerGlow.addColorStop(0.0, 'rgba(255, 245, 200, 0.95)');
+      centerGlow.addColorStop(0.5, 'rgba(255, 160, 48, 0.55)');
+      centerGlow.addColorStop(1.0, 'rgba(255, 120, 20, 0.0)');
+      ctx.fillStyle = centerGlow;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 44, 0, Math.PI * 2);
+      ctx.fill();
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function createLaxmiPailaTexture() {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 256, 512);
+
+      // Draw 3 pairs of alternating Left/Right sacred Laxmi Paila (footprints of Goddess Laxmi) along the vertical strip (Ref Photo 6!)
+      const drawFoot = (fx, fy, isLeft) => {
+        ctx.save();
+        ctx.translate(fx, fy);
+        ctx.rotate(isLeft ? -0.10 : 0.10);
+
+        // Red-ochre / Sindoor auspicious base halo
+        const g = ctx.createRadialGradient(0, 0, 4, 0, 0, 32);
+        g.addColorStop(0.0, 'rgba(220, 38, 38, 0.55)');
+        g.addColorStop(0.65, 'rgba(185, 28, 28, 0.22)');
+        g.addColorStop(1.0, 'rgba(185, 28, 28, 0.0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(0, 0, 32, 0, Math.PI * 2);
+        ctx.fill();
+
+        // White Pitho (rice flour paste) sole & heel
+        ctx.fillStyle = 'rgba(252, 248, 236, 0.92)';
+        ctx.beginPath();
+        ctx.ellipse(0, -6, 12, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(isLeft ? 1 : -1, 15, 9.5, 10.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 5 Sacred Toes (from big toe inward to little toe)
+        const dir = isLeft ? 1 : -1;
+        const toeOffsets = [
+          { dx: dir * 9.5, dy: -26, r: 4.4 },
+          { dx: dir * 4.2, dy: -28, r: 3.7 },
+          { dx: -dir * 0.8, dy: -27, r: 3.3 },
+          { dx: -dir * 5.4, dy: -25, r: 2.9 },
+          { dx: -dir * 9.5, dy: -22, r: 2.5 },
+        ];
+        toeOffsets.forEach(t => {
+          ctx.beginPath();
+          ctx.arc(t.dx, t.dy, t.r, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Red Tika & Yellow Kumkum dot in center of sole
+        ctx.fillStyle = '#dc2626';
+        ctx.beginPath();
+        ctx.arc(0, -5, 4.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#facc15';
+        ctx.beginPath();
+        ctx.arc(0, -5, 2.0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      };
+
+      drawFoot(96, 430, true);
+      drawFoot(160, 390, false);
+      drawFoot(96, 265, true);
+      drawFoot(160, 225, false);
+      drawFoot(96, 100, true);
+      drawFoot(160, 60, false);
+
+      // Auspicious white pitho trail lines & marigold petal dots flanking the footprints
+      for (let i = 0; i < 18; i++) {
+        const py = 24 + i * 27;
+        ctx.fillStyle = (i % 2 === 0) ? '#ff7b00' : '#facc15';
+        ctx.beginPath();
+        ctx.arc(46 + (i % 3) * 6, py, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(210 - (i % 3) * 6, py, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    class TiharNightExperience {
+      constructor(scene) {
+        this.scene = scene;
+        this.rootGroup = new THREE.Group();
+        this.rootGroup.name = 'GandakiTiharNightExperience';
+        this.rootGroup.userData.noMerge = true;
+        this.scene.add(this.rootGroup);
+
+        this._dummy = new THREE.Object3D();
+        this._color = new THREE.Color();
+
+        // 1. Shared Textures & Materials
+        this.diyoPoolTex = createDiyoWarmPoolTexture();
+        this.mandalaTexA = createTiharMandalaTexture(0);
+        this.mandalaTexB = createTiharMandalaTexture(1);
+        this.laxmiPailaTex = createLaxmiPailaTexture();
+        this.wallWashGoldTex = createJhilimiliWallWashTexture(false);
+        this.wallWashMultiTex = createJhilimiliWallWashTexture(true);
+
+        // Clay Diyo Terracotta Bowl Material
+        this.diyoClayMat = new THREE.MeshStandardMaterial({
+          color: 0x9c4221,
+          roughness: 0.72,
+          metalness: 0.08,
+        });
+
+        // GPU-Animated Non-Synchronized Diyo Flame Material (1800K-2200K warm orange-gold core + subtle wind sway)
+        this.diyoFlameMat = new THREE.MeshBasicMaterial({
+          color: 0xffb74d,
+          transparent: true,
+          opacity: 0.96,
+        });
+        this.diyoFlameMat.onBeforeCompile = (shader) => {
+          shader.uniforms.uTime = tiharUniforms.uTime;
+          shader.vertexShader = 'uniform float uTime;\\nvarying float vFlameH;\\nvarying float vFlicker;\\n' + shader.vertexShader;
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <begin_vertex>',
+            '#include <begin_vertex>\\n' +
+            'vec3 instPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);\\n' +
+            'float seed = fract(sin(dot(instPos.xz, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318;\\n' +
+            'float hNorm = clamp((position.y + 0.04) / 0.09, 0.0, 1.0);\\n' +
+            'vFlameH = hNorm;\\n' +
+            'float swayX = sin(uTime * 7.4 + seed) * 0.009 + cos(uTime * 13.1 + seed * 1.7) * 0.005;\\n' +
+            'float swayZ = cos(uTime * 6.2 + seed * 2.3) * 0.008;\\n' +
+            'float stretch = 1.0 + (sin(uTime * 11.8 + seed * 3.1) * 0.13 + cos(uTime * 17.5 + seed) * 0.07) * hNorm;\\n' +
+            'transformed.x += swayX * hNorm * hNorm;\\n' +
+            'transformed.z += swayZ * hNorm * hNorm;\\n' +
+            'transformed.y *= stretch;\\n' +
+            'vFlicker = 0.88 + 0.12 * sin(uTime * 10.5 + seed * 2.9);'
+          );
+          shader.fragmentShader = 'varying float vFlameH;\\nvarying float vFlicker;\\n' + shader.fragmentShader;
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <color_fragment>',
+            '#include <color_fragment>\\n' +
+            'vec3 coreCol = vec3(1.0, 0.97, 0.84);\\n' +
+            'vec3 midCol  = vec3(1.0, 0.58, 0.14);\\n' +
+            'vec3 tipCol  = vec3(0.86, 0.24, 0.04);\\n' +
+            'vec3 fCol = mix(coreCol, midCol, smoothstep(0.0, 0.52, vFlameH));\\n' +
+            'fCol = mix(fCol, tipCol, smoothstep(0.52, 1.0, vFlameH));\\n' +
+            'diffuseColor.rgb = fCol * vFlicker;'
+          );
+        };
+
+        // Warm 1950K Surface Light Pool Material for Clay Diyos (with subtle GPU non-synchronized flicker)
+        this.diyoPoolMat = new THREE.MeshBasicMaterial({
+          map: this.diyoPoolTex,
+          color: 0xff9830,
+          transparent: true,
+          opacity: 0.42,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -2,
+          polygonOffsetUnits: -2,
+        });
+        this.diyoPoolMat.onBeforeCompile = (shader) => {
+          shader.uniforms.uTime = tiharUniforms.uTime;
+          shader.vertexShader = 'uniform float uTime;\\nvarying float vPoolPulse;\\n' + shader.vertexShader;
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <begin_vertex>',
+            '#include <begin_vertex>\\n' +
+            'vec3 pPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);\\n' +
+            'float pSeed = fract(sin(dot(pPos.xz, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318;\\n' +
+            'vPoolPulse = 0.88 + 0.12 * sin(uTime * 9.2 + pSeed * 2.3);'
+          );
+          shader.fragmentShader = 'varying float vPoolPulse;\\n' + shader.fragmentShader;
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <color_fragment>',
+            '#include <color_fragment>\\n' +
+            'diffuseColor.rgb *= vPoolPulse;'
+          );
+        };
+
+        // Jhilimili Batti (Electric String Lights) Individual Bulb Material with GPU Shimmer
+        this.jhilimiliBulbMat = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+        });
+        this.jhilimiliBulbMat.onBeforeCompile = (shader) => {
+          shader.uniforms.uTime = tiharUniforms.uTime;
+          shader.uniforms.uElectricPower = tiharUniforms.uElectricPower;
+          shader.vertexShader = 'uniform float uTime;\\nvarying float vTwinkle;\\n' + shader.vertexShader;
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <begin_vertex>',
+            '#include <begin_vertex>\\n' +
+            'vec3 bPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);\\n' +
+            'float bSeed = fract(sin(dot(bPos.xyz, vec3(19.19, 47.73, 29.11))) * 31415.926) * 6.28318;\\n' +
+            'vTwinkle = 0.82 + 0.18 * sin(uTime * 3.6 + bSeed);'
+          );
+          shader.fragmentShader = 'uniform float uElectricPower;\\nvarying float vTwinkle;\\n' + shader.fragmentShader;
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <color_fragment>',
+            '#include <color_fragment>\\n' +
+            'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 0.98, 0.90), 0.28) * vTwinkle * uElectricPower;'
+          );
+        };
+
+        // Sayapatri & Makhamali Garland Blossom Material
+        this.garlandBlossomMat = new THREE.MeshStandardMaterial({
+          color: 0xffffff,
+          roughness: 0.65,
+          metalness: 0.04,
+          emissive: 0x3a1604,
+          emissiveIntensity: 0.22,
+        });
+
+        this.wireCordMat = new THREE.MeshBasicMaterial({ color: 0x141c24 });
+
+        this.mandalaMatA = new THREE.MeshBasicMaterial({
+          map: this.mandalaTexA,
+          transparent: true,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -2,
+          polygonOffsetUnits: -2,
+        });
+        this.mandalaMatB = new THREE.MeshBasicMaterial({
+          map: this.mandalaTexB,
+          transparent: true,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -2,
+          polygonOffsetUnits: -2,
+        });
+        this.laxmiPailaMat = new THREE.MeshBasicMaterial({
+          map: this.laxmiPailaTex,
+          transparent: true,
+          opacity: 0.92,
+          depthWrite: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -3,
+          polygonOffsetUnits: -3,
+        });
+        this.wallWashGoldMat = new THREE.MeshBasicMaterial({
+          map: this.wallWashGoldTex,
+          transparent: true,
+          opacity: 0.26,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        });
+        this.wallWashMultiMat = new THREE.MeshBasicMaterial({
+          map: this.wallWashMultiTex,
+          transparent: true,
+          opacity: 0.24,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+        });
+
+        // 2. Pre-Merged Geometries & InstancedMeshes (Ultra-Low Draw Calls for Mobile WebView)
+        // A. Clay Diyo Bowl (Terracotta saucer + pinched spout)
+        const bowlCup = new THREE.CylinderGeometry(0.068, 0.042, 0.040, 8);
+        const bowlSpout = new THREE.ConeGeometry(0.025, 0.045, 5);
+        bowlSpout.rotateX(Math.PI * 0.46);
+        bowlSpout.translate(0, 0.008, 0.058);
+        this.diyoBowlGeo = THREE.BufferGeometryUtils.mergeBufferGeometries([bowlCup, bowlSpout]);
+
+        // B. Clay Diyo Flame (Teardrop cone + glowing wick base)
+        const flameCone = new THREE.ConeGeometry(0.028, 0.088, 6);
+        flameCone.translate(0, 0.044, 0.048);
+        const flameBase = new THREE.SphereGeometry(0.022, 6, 5);
+        flameBase.translate(0, 0.016, 0.048);
+        this.diyoFlameGeo = THREE.BufferGeometryUtils.mergeBufferGeometries([flameCone, flameBase]);
+
+        // C. Warm Surface Light Pool Plane
+        this.diyoPoolGeo = new THREE.PlaneGeometry(0.85, 0.85);
+        this.diyoPoolGeo.rotateX(-Math.PI / 2);
+
+        this.maxDiyos = 750;
+        this.diyoCount = 0;
+        this.poolCount = 0;
+
+        this.instDiyoBowls = new THREE.InstancedMesh(this.diyoBowlGeo, this.diyoClayMat, this.maxDiyos);
+        this.instDiyoBowls.count = 0;
+        this.instDiyoBowls.frustumCulled = false;
+        this.instDiyoBowls.userData.noMerge = true;
+        this.rootGroup.add(this.instDiyoBowls);
+
+        this.instDiyoFlames = new THREE.InstancedMesh(this.diyoFlameGeo, this.diyoFlameMat, this.maxDiyos);
+        this.instDiyoFlames.count = 0;
+        this.instDiyoFlames.frustumCulled = false;
+        this.instDiyoFlames.userData.noMerge = true;
+        this.rootGroup.add(this.instDiyoFlames);
+
+        this.instDiyoPools = new THREE.InstancedMesh(this.diyoPoolGeo, this.diyoPoolMat, this.maxDiyos);
+        this.instDiyoPools.count = 0;
+        this.instDiyoPools.frustumCulled = false;
+        this.instDiyoPools.userData.noMerge = true;
+        this.rootGroup.add(this.instDiyoPools);
+
+        // D. Jhilimili Electric String Light Bulbs (Individual LED bulbs with per-instance color)
+        this.bulbGeo = new THREE.SphereGeometry(0.036, 6, 5);
+        this.maxBulbs = 2400;
+        this.bulbCount = 0;
+        this.instJhilimiliBulbs = new THREE.InstancedMesh(this.bulbGeo, this.jhilimiliBulbMat, this.maxBulbs);
+        this.instJhilimiliBulbs.count = 0;
+        this.instJhilimiliBulbs.frustumCulled = false;
+        this.instJhilimiliBulbs.userData.noMerge = true;
+        this.rootGroup.add(this.instJhilimiliBulbs);
+
+        // E. Sayapatri & Makhamali Flower Garland Blossom Clusters
+        this.blossomGeo = new THREE.DodecahedronGeometry(0.058, 0);
+        this.maxBlossoms = 2400;
+        this.blossomCount = 0;
+        this.instGarlandBlossoms = new THREE.InstancedMesh(this.blossomGeo, this.garlandBlossomMat, this.maxBlossoms);
+        this.instGarlandBlossoms.count = 0;
+        this.instGarlandBlossoms.frustumCulled = false;
+        this.instGarlandBlossoms.userData.noMerge = true;
+        this.rootGroup.add(this.instGarlandBlossoms);
+
+        this.cordGeos = [];
+        this.wallWashMeshes = [];
+
+        // 3. Selective Pooled Dynamic PointLights for Focal Tihar Installations (castShadow = false)
+        this.focalLightDefs = [];
+        this.focalLightPool = [];
+        for (let i = 0; i < 6; i++) {
+          const pl = new THREE.PointLight(0xff9428, 0, 12.0, 1.85);
+          pl.castShadow = false;
+          pl.position.set(0, -9999, 0);
+          this.scene.add(pl);
+          this.focalLightPool.push(pl);
+        }
+
+        // Palette definitions for Jhilimili Batti & Sayapatri/Makhamali Garlands
+        this.palettes = {
+          warmGold: [0xffb84d, 0xff9924, 0xffe082, 0xffa726],
+          nepaliMulti: [0xffb84d, 0xf43f86, 0x10b981, 0x38bdf8, 0xff881a, 0xc084fc, 0xfde047],
+          sayapatriMix: [0xff7b00, 0xff9500, 0xffb703, 0xff8800, 0x9f1239, 0xffaa00],
+        };
+      }
+
+      addDiyo(x, y, z, rotY = 0, addSurfacePool = true, poolScale = 1.0) {
+        if (this.diyoCount >= this.maxDiyos) return;
+        const idx = this.diyoCount++;
+        this._dummy.position.set(x, y + 0.020, z);
+        this._dummy.rotation.set(0, rotY, 0);
+        this._dummy.scale.set(1, 1, 1);
+        this._dummy.updateMatrix();
+        this.instDiyoBowls.setMatrixAt(idx, this._dummy.matrix);
+        this.instDiyoFlames.setMatrixAt(idx, this._dummy.matrix);
+
+        if (addSurfacePool && this.poolCount < this.maxDiyos) {
+          const pIdx = this.poolCount++;
+          this._dummy.position.set(x, y + 0.012, z);
+          this._dummy.rotation.set(0, 0, 0);
+          this._dummy.scale.set(poolScale, 1, poolScale);
+          this._dummy.updateMatrix();
+          this.instDiyoPools.setMatrixAt(pIdx, this._dummy.matrix);
+        }
+      }
+
+      addDiyoLine(x1, y1, z1, x2, y2, z2, count, outRotY = 0, poolStride = 2, poolScale = 1.15) {
+        const n = Math.max(2, count);
+        for (let i = 0; i < n; i++) {
+          const t = n === 1 ? 0.5 : i / (n - 1);
+          const x = x1 + (x2 - x1) * t;
+          const y = y1 + (y2 - y1) * t;
+          const z = z1 + (z2 - z1) * t;
+          this.addDiyo(x, y, z, outRotY, (i % poolStride === 0), poolScale);
+        }
+      }
+
+      addDiyoCircle(cx, y, cz, radius, count, poolStride = 2, poolScale = 1.1) {
+        for (let i = 0; i < count; i++) {
+          const ang = (i * Math.PI * 2) / count;
+          const x = cx + Math.cos(ang) * radius;
+          const z = cz + Math.sin(ang) * radius;
+          this.addDiyo(x, y, z, -ang + Math.PI / 2, (i % poolStride === 0), poolScale);
+        }
+      }
+
+      addFocalLight(x, y, z, colorHex = 0xff9428, intensity = 6.8, distance = 11.5, isElectric = false) {
+        this.focalLightDefs.push({
+          x,
+          y,
+          z,
+          colorHex,
+          baseIntensity: intensity,
+          distance,
+          isElectric,
+          seed: (Math.abs(x * 13.7 + z * 29.3) % 6.283),
+          _distSq: 999999,
+        });
+      }
+
+      addJhilimiliCatenary(x1, y1, z1, x2, y2, z2, sag = 0.45, numBulbs = 18, paletteName = 'warmGold', addCord = true) {
+        const pal = this.palettes[paletteName] || this.palettes.warmGold;
+        const span = Math.hypot(x2 - x1, y2 - y1, z2 - z1);
+        if (addCord && span > 0.2) {
+          const segs = 6;
+          for (let s = 0; s < segs; s++) {
+            const t0 = s / segs;
+            const t1 = (s + 1) / segs;
+            const p0x = x1 + (x2 - x1) * t0;
+            const p0y = y1 + (y2 - y1) * t0 - Math.sin(t0 * Math.PI) * sag;
+            const p0z = z1 + (z2 - z1) * t0;
+            const p1x = x1 + (x2 - x1) * t1;
+            const p1y = y1 + (y2 - y1) * t1 - Math.sin(t1 * Math.PI) * sag;
+            const p1z = z1 + (z2 - z1) * t1;
+            const segLen = Math.hypot(p1x - p0x, p1y - p0y, p1z - p0z);
+            const cGeo = new THREE.BoxGeometry(0.012, 0.012, segLen);
+            this._dummy.position.set((p0x + p1x) * 0.5, (p0y + p1y) * 0.5, (p0z + p1z) * 0.5);
+            this._dummy.lookAt(p1x, p1y, p1z);
+            this._dummy.scale.set(1, 1, 1);
+            this._dummy.updateMatrix();
+            cGeo.applyMatrix4(this._dummy.matrix);
+            this.cordGeos.push(cGeo);
+          }
+        }
+        for (let i = 0; i < numBulbs; i++) {
+          if (this.bulbCount >= this.maxBulbs) break;
+          const t = numBulbs <= 1 ? 0.5 : i / (numBulbs - 1);
+          const bx = x1 + (x2 - x1) * t;
+          const by = y1 + (y2 - y1) * t - Math.sin(t * Math.PI) * sag;
+          const bz = z1 + (z2 - z1) * t;
+          const bIdx = this.bulbCount++;
+          this._dummy.position.set(bx, by, bz);
+          this._dummy.rotation.set(0, 0, 0);
+          this._dummy.scale.set(1, 1.25, 1);
+          this._dummy.updateMatrix();
+          this.instJhilimiliBulbs.setMatrixAt(bIdx, this._dummy.matrix);
+          this._color.setHex(pal[i % pal.length]);
+          this.instJhilimiliBulbs.setColorAt(bIdx, this._color);
+        }
+      }
+
+      addBuildingEaveJhilimiliFringe(x1, y, z1, x2, z2, strandSpacing = 1.65, dropLen = 1.15, paletteName = 'warmGold', wallNormalX = 0, wallNormalZ = -1) {
+        const totalLen = Math.hypot(x2 - x1, z2 - z1);
+        const numStrands = Math.max(3, Math.floor(totalLen / strandSpacing));
+        // Top horizontal bus line
+        this.addJhilimiliCatenary(x1, y, z1, x2, y, z2, 0.04, numStrands * 2, paletteName, true);
+        // Hanging vertical/scalloped fairy light icicle strands (Ref Photo 1, 3, 4)
+        for (let s = 0; s < numStrands; s++) {
+          const t0 = s / numStrands;
+          const t1 = (s + 1) / numStrands;
+          const sx0 = x1 + (x2 - x1) * t0;
+          const sz0 = z1 + (z2 - z1) * t0;
+          const sx1 = x1 + (x2 - x1) * t1;
+          const sz1 = z1 + (z2 - z1) * t1;
+          // Scalloped swag between s and s+1
+          this.addJhilimiliCatenary(sx0, y - 0.04, sz0, sx1, y - 0.04, sz1, 0.34, 7, paletteName, false);
+          // Vertical drop strand every 2nd post
+          if (s % 2 === 0) {
+            const dLen = dropLen * (0.78 + (s % 3) * 0.16);
+            this.addJhilimiliCatenary(sx0, y - 0.06, sz0, sx0, y - dLen, sz0, 0.0, 6, paletteName, false);
+          }
+        }
+        // Subtle Wall-Wash Glow Ribbon on the adjacent facade (Ref Photo 4!)
+        const washMat = (paletteName === 'nepaliMulti') ? this.wallWashMultiMat : this.wallWashGoldMat;
+        const washGeo = new THREE.PlaneGeometry(totalLen, dropLen * 1.35);
+        const uvAttr = washGeo.attributes.uv;
+        if (uvAttr) {
+          const repX = Math.max(1, Math.round(totalLen / 3.2));
+          for (let u = 0; u < uvAttr.count; u++) {
+            uvAttr.setX(u, uvAttr.getX(u) * repX);
+          }
+          uvAttr.needsUpdate = true;
+        }
+        const washMesh = new THREE.Mesh(washGeo, washMat);
+        const midX = (x1 + x2) * 0.5 + wallNormalX * 0.04;
+        const midZ = (z1 + z2) * 0.5 + wallNormalZ * 0.04;
+        washMesh.position.set(midX, y - dropLen * 0.55, midZ);
+        if (Math.abs(wallNormalX) > 0.5) {
+          washMesh.rotation.y = wallNormalX > 0 ? Math.PI / 2 : -Math.PI / 2;
+        } else if (wallNormalZ < 0) {
+          washMesh.rotation.y = Math.PI;
+        }
+        washMesh.userData.noMerge = true;
+        this.rootGroup.add(washMesh);
+        this.wallWashMeshes.push(washMesh);
+      }
+
+      addSayapatriSwag(x1, y1, z1, x2, y2, z2, sag = 0.28, numBlossoms = 16) {
+        const pal = this.palettes.sayapatriMix;
+        for (let i = 0; i < numBlossoms; i++) {
+          if (this.blossomCount >= this.maxBlossoms) break;
+          const t = numBlossoms <= 1 ? 0.5 : i / (numBlossoms - 1);
+          const bx = x1 + (x2 - x1) * t;
+          const by = y1 + (y2 - y1) * t - Math.sin(t * Math.PI) * sag;
+          const bz = z1 + (z2 - z1) * t;
+          const idx = this.blossomCount++;
+          const s = 0.85 + ((i * 7) % 5) * 0.08;
+          this._dummy.position.set(bx, by, bz);
+          this._dummy.rotation.set(i * 0.7, i * 1.1, i * 0.5);
+          this._dummy.scale.set(s, s, s);
+          this._dummy.updateMatrix();
+          this.instGarlandBlossoms.setMatrixAt(idx, this._dummy.matrix);
+          this._color.setHex(pal[i % pal.length]);
+          this.instGarlandBlossoms.setColorAt(idx, this._color);
+        }
+      }
+
+      addDoorwayToranGarland(dx, floorY, dz, doorW = 1.95, doorH = 2.55, alongZ = false) {
+        const halfW = doorW * 0.52;
+        const topY = floorY + doorH - 0.05;
+        if (!alongZ) {
+          // Double scalloped Sayapatri & Makhamali swags across top of doorway + vertical side drops (Ref Photo 6!)
+          this.addSayapatriSwag(dx - halfW, topY, dz, dx, topY, dz, 0.24, 12);
+          this.addSayapatriSwag(dx, topY, dz, dx + halfW, topY, dz, 0.24, 12);
+          this.addSayapatriSwag(dx - halfW, topY, dz, dx - halfW, floorY + 0.55, dz, 0.0, 14);
+          this.addSayapatriSwag(dx + halfW, topY, dz, dx + halfW, floorY + 0.55, dz, 0.0, 14);
+        } else {
+          this.addSayapatriSwag(dx, topY, dz - halfW, dx, topY, dz, 0.24, 12);
+          this.addSayapatriSwag(dx, topY, dz, dx, topY, dz + halfW, 0.24, 12);
+          this.addSayapatriSwag(dx, topY, dz - halfW, dx, floorY + 0.55, dz - halfW, 0.0, 14);
+          this.addSayapatriSwag(dx, topY, dz + halfW, dx, floorY + 0.55, dz + halfW, 0.0, 14);
+        }
+      }
+
+      addTiharMandalaAndFootprints(mx, my, mz, radius = 1.35, variant = 0, diyoRingCount = 8, footprintTargetX = null, footprintTargetZ = null, footprintTargetY = null) {
+        const mMat = (variant % 2 === 0) ? this.mandalaMatA : this.mandalaMatB;
+        const mMesh = new THREE.Mesh(new THREE.PlaneGeometry(radius * 2, radius * 2), mMat);
+        mMesh.rotation.x = -Math.PI / 2;
+        mMesh.position.set(mx, my + 0.022, mz);
+        mMesh.userData.noMerge = true;
+        this.rootGroup.add(mMesh);
+
+        // Center sacred clay Diyo + perimeter ring of clay Diyos on the lotus petals (Ref Photo 5 & 6!)
+        this.addDiyo(mx, my + 0.015, mz, 0, true, 1.45);
+        this.addDiyoCircle(mx, my + 0.015, mz, radius * 0.72, diyoRingCount, 1, 1.05);
+
+        // Laxmi Paila (Sacred Footprints of Goddess Laxmi) leading from the Mandala into the building entrance!
+        if (typeof footprintTargetX === 'number' && typeof footprintTargetZ === 'number') {
+          const dx = footprintTargetX - mx;
+          const dz = footprintTargetZ - mz;
+          const dist = Math.hypot(dx, dz);
+          if (dist > 0.6) {
+            const dirX = dx / dist;
+            const dirZ = dz / dist;
+            const startDist = radius * 0.85;
+            const trailLen = Math.max(1.2, dist - startDist);
+            const midX = mx + dirX * (startDist + trailLen * 0.5);
+            const midZ = mz + dirZ * (startDist + trailLen * 0.5);
+            const endY = typeof footprintTargetY === 'number' ? footprintTargetY : my;
+            const avgY = (my + endY) * 0.5 + 0.032;
+            const pMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.62, trailLen), this.laxmiPailaTex ? this.laxmiPailaMat : mMat);
+            pMesh.rotation.order = 'YXZ';
+            pMesh.rotation.y = Math.atan2(dirX, dirZ) + Math.PI;
+            pMesh.rotation.x = -Math.PI / 2 + Math.atan2(endY - my, trailLen);
+            pMesh.position.set(midX, avgY, midZ);
+            pMesh.userData.noMerge = true;
+            this.rootGroup.add(pMesh);
+          }
+        }
+      }
+
+      finalizeGeometry() {
+        this.instDiyoBowls.count = this.diyoCount;
+        this.instDiyoFlames.count = this.diyoCount;
+        this.instDiyoPools.count = this.poolCount;
+        this.instJhilimiliBulbs.count = this.bulbCount;
+        this.instGarlandBlossoms.count = this.blossomCount;
+
+        this.instDiyoBowls.instanceMatrix.needsUpdate = true;
+        this.instDiyoFlames.instanceMatrix.needsUpdate = true;
+        this.instDiyoPools.instanceMatrix.needsUpdate = true;
+        this.instJhilimiliBulbs.instanceMatrix.needsUpdate = true;
+        if (this.instJhilimiliBulbs.instanceColor) this.instJhilimiliBulbs.instanceColor.needsUpdate = true;
+        this.instGarlandBlossoms.instanceMatrix.needsUpdate = true;
+        if (this.instGarlandBlossoms.instanceColor) this.instGarlandBlossoms.instanceColor.needsUpdate = true;
+
+        if (this.cordGeos.length > 0) {
+          const mergedCords = THREE.BufferGeometryUtils.mergeBufferGeometries(this.cordGeos);
+          const cordMesh = new THREE.Mesh(mergedCords, this.wireCordMat);
+          cordMesh.userData.noMerge = true;
+          this.rootGroup.add(cordMesh);
+          this.cordGeos.length = 0;
+        }
+      }
+
+      update(delta, timeSec, playerPos) {
+        tiharUniforms.uTime.value = timeSec;
+        const powered = (!lampFlickerMod || lampFlickerMod.campusPowerEnabled !== false);
+        tiharUniforms.uElectricPower.value = powered ? 1.0 : 0.08;
+
+        for (let w = 0; w < this.wallWashMeshes.length; w++) {
+          this.wallWashMeshes[w].visible = powered && (currentQuality !== 'fast');
+        }
+
+        // Dynamic Focal PointLight Budget by Quality Preset (6 on ULTRA, 5 on HIGH, 3 on LOW, 2 on FAST)
+        const tCfg = HORROR_CONFIG.tihar || {};
+        const maxLights = currentQuality === 'ultra'
+          ? (tCfg.diyoFocalLightCountUltra || 6)
+          : (currentQuality === 'high'
+            ? (tCfg.diyoFocalLightCountHigh || 5)
+            : (currentQuality === 'low' ? (tCfg.diyoFocalLightCountLow || 3) : (tCfg.diyoFocalLightCountFast || 2)));
+
+        for (let i = 0; i < this.focalLightDefs.length; i++) {
+          const d = this.focalLightDefs[i];
+          const dx = d.x - playerPos.x;
+          const dz = d.z - playerPos.z;
+          d._distSq = dx * dx + dz * dz;
+        }
+
+        const used = [-1, -1, -1, -1, -1, -1];
+        const safeFlicker = !!(accessibilitySettings && accessibilitySettings.flickerReduction);
+
+        for (let slot = 0; slot < this.focalLightPool.length; slot++) {
+          const pl = this.focalLightPool[slot];
+          if (slot >= maxLights) {
+            pl.intensity = 0;
+            pl.position.set(0, -9999, 0);
+            continue;
+          }
+          let bestDef = null;
+          let bestDistSq = Infinity;
+          let bestIdx = -1;
+          for (let i = 0; i < this.focalLightDefs.length; i++) {
+            if (used.indexOf(i) !== -1) continue;
+            const def = this.focalLightDefs[i];
+            if (def.isElectric && !powered) continue;
+            if (def._distSq < bestDistSq) {
+              bestDistSq = def._distSq;
+              bestDef = def;
+              bestIdx = i;
+            }
+          }
+          used[slot] = bestIdx;
+          if (bestDef && bestDistSq < 2500) {
+            const dist = Math.sqrt(bestDistSq);
+            const tFade = Math.max(0.0, Math.min(1.0, (50.0 - dist) / 34.0));
+            const smoothFade = tFade * tFade * (3.0 - 2.0 * tFade);
+            const flicker = safeFlicker
+              ? (0.96 + 0.04 * Math.sin(timeSec * 3.2 + bestDef.seed))
+              : (bestDef.isElectric
+                ? (0.94 + 0.06 * Math.sin(timeSec * 4.5 + bestDef.seed))
+                : (0.90 + 0.09 * Math.sin(timeSec * 7.8 + bestDef.seed) + 0.05 * Math.cos(timeSec * 14.3 + bestDef.seed * 2.1)));
+            pl.color.setHex(bestDef.colorHex);
+            pl.position.set(bestDef.x, bestDef.y, bestDef.z);
+            pl.distance = bestDef.distance;
+            pl.intensity = bestDef.baseIntensity * smoothFade * flicker;
+          } else {
+            pl.intensity = 0;
+            pl.position.set(0, -9999, 0);
+          }
+        }
+      }
+    }
+
+    const tiharNightMod = new TiharNightExperience(scene);
+    window.__TIHAR_NIGHT_SYSTEM__ = tiharNightMod;
+
+    (function populateGandakiTiharNightCampus() {
+      // -----------------------------------------------------------------------
+      // FOCAL ZONE 1: GRAND ROTUNDA COMPLEX & FORECOURT FOUNTAIN PLAZA (Laxmi Puja Centerpiece)
+      // -----------------------------------------------------------------------
+      // 1A. Ring of 28 flickering clay Diyos around the Rotunda Forecourt Fountain curb + 12 on inner basin rim (Ref Photo 2!)
+      tiharNightMod.addDiyoCircle(ftnX, ftnBaseY + 0.26, ftnZ, 4.68, 28, 2, 1.25);
+      tiharNightMod.addDiyoCircle(ftnX, ftnBaseY + 0.62, ftnZ, 2.18, 12, 2, 0.95);
+      tiharNightMod.addFocalLight(ftnX, ftnBaseY + 1.45, ftnZ, 0xff9428, 7.6, 13.5, false);
+
+      // 1B. Grand Laxmi Puja Lotus Mandala on the Rotunda Forecourt Walk + Laxmi Paila footprints leading up Portico Steps into Main Atrium!
+      const rotMandalaY = getTerrainHeightAt(rotX, rotFrontZ - 7.4);
+      tiharNightMod.addTiharMandalaAndFootprints(
+        rotX, rotMandalaY, rotFrontZ - 7.4,
+        1.75, 0, 12,
+        rotX, rotFrontZ + 0.4, rotFloor0
+      );
+      tiharNightMod.addFocalLight(rotX, rotFloor0 + 1.35, rotFrontZ - 3.2, 0xff9428, 8.2, 14.0, false);
+
+      // Twin secondary Rangoli Mandalas flanking the portico approach
+      [-7.5, 7.5].forEach((mxOff, mIdx) => {
+        const my = getTerrainHeightAt(rotX + mxOff, rotFrontZ - 9.5);
+        tiharNightMod.addTiharMandalaAndFootprints(rotX + mxOff, my, rotFrontZ - 9.5, 1.15, mIdx + 1, 8, null, null, null);
+      });
+
+      // 1C. Disciplined Rows of Clay Diyos lining the Grand Rotunda Portico Steps, Curved Balustrade & Ground/1st Floor Windowsills (Ref Photo 2 & 6!)
+      tiharNightMod.addDiyoLine(rotX - 4.2, rotBaseY + 0.18, rotFrontZ - 5.2, rotX - 4.2, rotFloor0 + 0.04, rotFrontZ - 0.4, 9, 0, 2, 1.1);
+      tiharNightMod.addDiyoLine(rotX + 4.2, rotBaseY + 0.18, rotFrontZ - 5.2, rotX + 4.2, rotFloor0 + 0.04, rotFrontZ - 0.4, 9, 0, 2, 1.1);
+      tiharNightMod.addDiyoLine(rotX - 3.8, rotFloor0 + 0.03, rotFrontZ - 0.25, rotX - 1.5, rotFloor0 + 0.03, rotFrontZ - 0.25, 6, Math.PI, 2, 1.0);
+      tiharNightMod.addDiyoLine(rotX + 1.5, rotFloor0 + 0.03, rotFrontZ - 0.25, rotX + 3.8, rotFloor0 + 0.03, rotFrontZ - 0.25, 6, Math.PI, 2, 1.0);
+
+      // Clay Diyos on Grand Rotunda Ground Floor & 1st Floor Front Window Sills (westFrontBays & eastFrontBays)
+      [rotX - 19.3, rotX - 15.1, rotX - 10.9, rotX - 6.7, rotX + 6.7, rotX + 10.9, rotX + 15.1, rotX + 19.3].forEach((bx) => {
+        tiharNightMod.addDiyoLine(bx - 0.65, rotFloor0 + 0.96, rotFrontZ - 0.28, bx + 0.65, rotFloor0 + 0.96, rotFrontZ - 0.28, 4, Math.PI, 2, 0.95);
+        tiharNightMod.addDiyoLine(bx - 0.65, rotFloor1 + 0.96, rotFrontZ - 0.28, bx + 0.65, rotFloor1 + 0.96, rotFrontZ - 0.28, 3, Math.PI, 3, 0.85);
+      });
+
+      // 1D. Overhead Radiant Canopy of Golden Jhilimili String Lights & Sayapatri Portico Garlands (Ref Photo 1 & 3!)
+      const canopyHubY = rotFloor2 + 3.85;
+      [
+        [-18.5, rotPlazaBaseY + 5.2, rotFrontZ - 16.5],
+        [-10.5, rotPlazaBaseY + 5.2, rotFrontZ - 18.5],
+        [-3.5,  rotPlazaBaseY + 5.2, rotFrontZ - 19.5],
+        [3.5,   rotPlazaBaseY + 5.2, rotFrontZ - 19.5],
+        [10.5,  rotPlazaBaseY + 5.2, rotFrontZ - 18.5],
+        [18.5,  rotPlazaBaseY + 5.2, rotFrontZ - 16.5],
+      ].forEach(([tx, ty, tz], cIdx) => {
+        tiharNightMod.addJhilimiliCatenary(
+          rotX + (cIdx - 2.5) * 1.6, canopyHubY, rotFrontZ - rotRadius,
+          tx, ty, tz,
+          0.85, 22, (cIdx % 2 === 0) ? 'warmGold' : 'nepaliMulti', true
+        );
+      });
+
+      // Warm Golden Jhilimili Eave & Cornice Outlines across the Grand Rotunda Front Facade
+      tiharNightMod.addBuildingEaveJhilimiliFringe(rotX - 22.5, rotFloor2 + 3.45, rotFrontZ - 0.32, rotX - 5.2, rotFrontZ - 0.32, 1.8, 1.25, 'warmGold', 0, -1);
+      tiharNightMod.addBuildingEaveJhilimiliFringe(rotX + 5.2, rotFloor2 + 3.45, rotFrontZ - 0.32, rotX + 22.5, rotFrontZ - 0.32, 1.8, 1.25, 'warmGold', 0, -1);
+
+      // Sayapatri & Makhamali Garlands framing the Grand Rotunda Main Entrance & Portico Columns
+      tiharNightMod.addDoorwayToranGarland(rotX, rotFloor0, rotFrontZ - 0.14, 2.85, 2.75, false);
+      [-3.8, -1.4, 1.4, 3.8].forEach((colX, idx) => {
+        if (idx < 3) {
+          const nextX = [-3.8, -1.4, 1.4, 3.8][idx + 1];
+          tiharNightMod.addSayapatriSwag(rotX + colX, rotFloor1 + 0.15, rotFrontZ - 4.2, rotX + nextX, rotFloor1 + 0.15, rotFrontZ - 4.2, 0.38, 14);
+        }
+      });
+
+      // Inside Grand Rotunda Ground Floor Atrium: Welcoming Laxmi Puja Mandala & Diyo pair at base of Grand Staircase
+      tiharNightMod.addTiharMandalaAndFootprints(rotX, rotFloor0, rotFrontZ + 2.8, 1.10, 0, 8, null, null, null);
+
+      // -----------------------------------------------------------------------
+      // FOCAL ZONE 2: CENTRAL ACADEMIC COURTYARD HUB & TERRACE STAIRCASES
+      // -----------------------------------------------------------------------
+      const courtHubX = -2.0, courtHubZ = -18.5;
+      const courtHubY = getTerrainHeightAt(courtHubX, courtHubZ);
+      tiharNightMod.addTiharMandalaAndFootprints(courtHubX, courtHubY, courtHubZ, 1.65, 1, 10, null, null, null);
+      tiharNightMod.addFocalLight(courtHubX, courtHubY + 1.4, courtHubZ, 0xff9428, 7.2, 13.0, false);
+
+      // Overhead Criss-Cross Festive Jhilimili String Light Canopy spanning the Central Courtyard between West Wing L1 & East Wing R1 Cafeteria
+      [
+        [-14.0, l1FloorY + 3.55, -13.3, -2.0, r1Obj.position.y + 3.8, -19.8],
+        [-4.0,  l1FloorY + 3.55, -13.3, 4.0,  r1Obj.position.y + 3.8, -19.8],
+        [6.0,   l1FloorY + 3.55, -13.3, 11.5, r1Obj.position.y + 3.8, -19.8],
+      ].forEach(([x1, y1, z1, x2, y2, z2], idx) => {
+        tiharNightMod.addJhilimiliCatenary(x1, y1, z1, x2, y2, z2, 0.65, 20, idx === 1 ? 'nepaliMulti' : 'warmGold', true);
+      });
+
+      // Clay Diyos lining the Central Courtyard Pathway Curbs & Terrace Access Ramp
+      tiharNightMod.addDiyoLine(-12.5, getTerrainHeightAt(-12.5, -15.5) + 0.04, -15.5, 10.5, getTerrainHeightAt(10.5, -15.5) + 0.04, -15.5, 14, 0, 2, 1.15);
+      tiharNightMod.addDiyoLine(-28.0, getTerrainHeightAt(-28.0, -28.0) + 0.04, -28.0, -14.0, getTerrainHeightAt(-14.0, -18.0) + 0.04, -18.0, 10, 0, 2, 1.15);
+
+      // -----------------------------------------------------------------------
+      // FOCAL ZONE 3: WEST WING L1, L2 & L3 (Staffroom, Labs & Verandas)
+      // -----------------------------------------------------------------------
+      // West Wing L1 (-4.0, 1.4, -9.51, span 32.5m x 7.6m)
+      const l1FrontZ = l1Obj.position.z - 3.8;
+      tiharNightMod.addBuildingEaveJhilimiliFringe(l1Obj.position.x - 15.8, l1FloorY + 3.35, l1FrontZ - 2.1, l1Obj.position.x + 15.8, l1FrontZ - 2.1, 1.8, 1.05, 'nepaliMulti', 0, -1);
+      tiharNightMod.addDiyoLine(l1Obj.position.x - 15.2, l1FloorY + 0.02, l1FrontZ - 2.15, l1Obj.position.x + 15.2, l1FloorY + 0.02, l1FrontZ - 2.15, 18, Math.PI, 2, 1.1);
+      tiharNightMod.addDoorwayToranGarland(l1Obj.position.x, l1FloorY, l1FrontZ, 1.95, 2.55, false);
+      const l1OutY = getTerrainHeightAt(l1Obj.position.x, l1FrontZ - 3.4);
+      tiharNightMod.addTiharMandalaAndFootprints(
+        l1Obj.position.x, l1OutY, l1FrontZ - 3.4,
+        1.20, 0, 8,
+        l1Obj.position.x, l1FrontZ - 0.2, l1FloorY
+      );
+      tiharNightMod.addFocalLight(l1Obj.position.x, l1FloorY + 1.85, l1FrontZ - 1.6, 0xff9a38, 6.6, 11.5, true);
+
+      // West Wing L2 (-4.5, 1.4, 4.0, span 33.0m x 7.6m)
+      const l2FrontZ = l2Obj.position.z - 3.8;
+      tiharNightMod.addBuildingEaveJhilimiliFringe(l2Obj.position.x - 16.0, l2FloorY + 3.35, l2FrontZ - 2.1, l2Obj.position.x + 16.0, l2FrontZ - 2.1, 2.0, 1.0, 'warmGold', 0, -1);
+      tiharNightMod.addDiyoLine(l2Obj.position.x - 14.5, l2FloorY + 0.02, l2FrontZ - 2.15, l2Obj.position.x + 14.5, l2FloorY + 0.02, l2FrontZ - 2.15, 14, Math.PI, 2, 1.05);
+      tiharNightMod.addDoorwayToranGarland(l2Obj.position.x, l2FloorY, l2FrontZ, 1.95, 2.55, false);
+      tiharNightMod.addFocalLight(l2Obj.position.x, l2FloorY + 1.85, l2FrontZ - 1.6, 0xff9428, 6.2, 11.0, false);
+
+      // West Wing L3 Computer & Electronic Labs (bldg_5 at -4.5, 1.4, 18.0)
+      const b5FloorY = (typeof b5Obj.position.y === 'number' ? b5Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const b5FrontZ = b5Obj.position.z - 4.0;
+      tiharNightMod.addDiyoLine(b5Obj.position.x - 12.0, b5FloorY + 0.02, b5FrontZ - 2.1, b5Obj.position.x + 12.0, b5FloorY + 0.02, b5FrontZ - 2.1, 12, Math.PI, 2, 1.05);
+      tiharNightMod.addDoorwayToranGarland(b5Obj.position.x, b5FloorY, b5FrontZ, 1.95, 2.55, false);
+
+      // -----------------------------------------------------------------------
+      // FOCAL ZONE 4: EAST WING CAFETERIA (R1), MULTIPURPOSE HALL (R2) & LIBRARY (R4)
+      // -----------------------------------------------------------------------
+      // East Wing R1 Cafeteria (3.0, 1.4, -25.5, 18.1m x 11.5m) — Festive Student Gathering Area
+      const r1FloorY = (typeof r1Obj.position.y === 'number' ? r1Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const r1FrontZ = r1Obj.position.z - 5.75;
+      tiharNightMod.addBuildingEaveJhilimiliFringe(r1Obj.position.x - 8.8, r1FloorY + 3.32, r1FrontZ - 2.1, r1Obj.position.x + 8.8, r1FrontZ - 2.1, 1.5, 1.15, 'nepaliMulti', 0, -1);
+      tiharNightMod.addDiyoLine(r1Obj.position.x - 8.2, r1FloorY + 0.02, r1FrontZ - 2.15, r1Obj.position.x + 8.2, r1FloorY + 0.02, r1FrontZ - 2.15, 12, Math.PI, 2, 1.15);
+      tiharNightMod.addDoorwayToranGarland(r1Obj.position.x - 4.5, r1FloorY, r1FrontZ, 1.95, 2.55, false);
+      tiharNightMod.addDoorwayToranGarland(r1Obj.position.x + 4.5, r1FloorY, r1FrontZ, 1.95, 2.55, false);
+      const r1OutY = getTerrainHeightAt(r1Obj.position.x, r1FrontZ - 3.5);
+      tiharNightMod.addTiharMandalaAndFootprints(
+        r1Obj.position.x - 4.5, r1OutY, r1FrontZ - 3.5,
+        1.25, 1, 8,
+        r1Obj.position.x - 4.5, r1FrontZ - 0.2, r1FloorY
+      );
+      tiharNightMod.addFocalLight(r1Obj.position.x, r1FloorY + 1.9, r1FrontZ - 1.8, 0xff922b, 6.8, 12.0, true);
+
+      // East Wing R2 Multipurpose Hall (28.0, 1.4, -27.0, longitudinal wing facing -X)
+      const r2FrontX = r2Obj.position.x - 3.8;
+      tiharNightMod.addBuildingEaveJhilimiliFringe(r2FrontX - 2.1, r2FloorY + 3.32, r2Obj.position.z - 9.8, r2FrontX - 2.1, r2Obj.position.z + 9.8, 1.6, 1.1, 'nepaliMulti', -1, 0);
+      tiharNightMod.addDiyoLine(r2FrontX - 2.15, r2FloorY + 0.02, r2Obj.position.z - 9.2, r2FrontX - 2.15, r2FloorY + 0.02, r2Obj.position.z + 9.2, 12, -Math.PI / 2, 2, 1.1);
+      tiharNightMod.addDoorwayToranGarland(r2FrontX, r2FloorY, r2Obj.position.z, 1.95, 2.55, true);
+      const r2OutY = getTerrainHeightAt(r2FrontX - 3.6, r2Obj.position.z);
+      tiharNightMod.addTiharMandalaAndFootprints(
+        r2FrontX - 3.6, r2OutY, r2Obj.position.z,
+        1.30, 0, 8,
+        r2FrontX - 0.2, r2Obj.position.z, r2FloorY
+      );
+      tiharNightMod.addFocalLight(r2FrontX - 1.8, r2FloorY + 1.8, r2Obj.position.z, 0xff9428, 6.5, 11.5, false);
+
+      // East Wing R4 Library (28.5, 1.4, 19.0, longitudinal wing facing -X) — Peaceful Warm Golden Tihar Illumination
+      const r4FloorY = (typeof r4Obj.position.y === 'number' ? r4Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const r4FrontX = r4Obj.position.x - 4.8;
+      tiharNightMod.addBuildingEaveJhilimiliFringe(r4FrontX - 2.1, r4FloorY + 3.32, r4Obj.position.z - 10.2, r4FrontX - 2.1, r4Obj.position.z + 10.2, 1.8, 1.05, 'warmGold', -1, 0);
+      tiharNightMod.addDiyoLine(r4FrontX - 2.15, r4FloorY + 0.02, r4Obj.position.z - 9.5, r4FrontX - 2.15, r4FloorY + 0.02, r4Obj.position.z + 9.5, 12, -Math.PI / 2, 2, 1.1);
+      tiharNightMod.addDoorwayToranGarland(r4FrontX, r4FloorY, r4Obj.position.z, 1.95, 2.55, true);
+      const r4OutY = getTerrainHeightAt(r4FrontX - 3.5, r4Obj.position.z);
+      tiharNightMod.addTiharMandalaAndFootprints(
+        r4FrontX - 3.5, r4OutY, r4Obj.position.z,
+        1.25, 1, 8,
+        r4FrontX - 0.2, r4Obj.position.z, r4FloorY
+      );
+      tiharNightMod.addFocalLight(r4FrontX - 1.8, r4FloorY + 1.8, r4Obj.position.z, 0xff9428, 6.4, 11.5, false);
+
+      // -----------------------------------------------------------------------
+      // FOCAL ZONE 5: 2-STOREY ADMINISTRATIVE OFFICE (bldg_1) & SOUTH GATE GUARDHOUSE
+      // -----------------------------------------------------------------------
+      const b1FrontZ = b1Obj.position.z - 3.75;
+      tiharNightMod.addBuildingEaveJhilimiliFringe(b1Obj.position.x - 7.6, b1FloorY + 6.55, b1FrontZ - 0.18, b1Obj.position.x + 7.6, b1FrontZ - 0.18, 1.6, 1.35, 'warmGold', 0, -1);
+      tiharNightMod.addDiyoLine(b1Obj.position.x - 6.8, b1FloorY + 0.03, b1FrontZ - 0.24, b1Obj.position.x - 1.4, b1FloorY + 0.03, b1FrontZ - 0.24, 7, Math.PI, 2, 1.05);
+      tiharNightMod.addDiyoLine(b1Obj.position.x + 1.4, b1FloorY + 0.03, b1FrontZ - 0.24, b1Obj.position.x + 6.8, b1FloorY + 0.03, b1FrontZ - 0.24, 7, Math.PI, 2, 1.05);
+      tiharNightMod.addDoorwayToranGarland(b1Obj.position.x, b1FloorY, b1FrontZ - 0.05, 2.0, 2.65, false);
+      const b1OutY = getTerrainHeightAt(b1Obj.position.x, b1FrontZ - 2.6);
+      tiharNightMod.addTiharMandalaAndFootprints(
+        b1Obj.position.x, b1OutY, b1FrontZ - 2.6,
+        1.30, 0, 8,
+        b1Obj.position.x, b1FrontZ + 0.2, b1FloorY
+      );
+      tiharNightMod.addFocalLight(b1Obj.position.x, b1FloorY + 1.9, b1FrontZ - 1.5, 0xff9428, 6.8, 12.0, false);
+
+      // South Gate Guardhouse (bldg_guardhouse at 9.0, 1.4, -67.84) & Main Entrance Welcome
+      tiharNightMod.addBuildingEaveJhilimiliFringe(ghX - 2.3, ghFloorY + 3.15, ghZ - 2.35, ghX + 2.3, ghZ - 2.35, 1.2, 0.85, 'nepaliMulti', 0, -1);
+      tiharNightMod.addDiyoLine(ghX - 2.1, ghFloorY + 0.03, ghZ - 2.35, ghX + 2.1, ghFloorY + 0.03, ghZ - 2.35, 6, Math.PI, 2, 1.0);
+      tiharNightMod.addDoorwayToranGarland(ghX - 2.3, ghFloorY, ghZ, 1.85, 2.45, true);
+
+      // -----------------------------------------------------------------------
+      // FOCAL ZONE 6: NEWARI HERITAGE BLOCK W1 (bldg_12) & NORTH CLASSROOMS (bldg_6)
+      // -----------------------------------------------------------------------
+      // Newari Heritage Block W1 (-63.5, 0.0, 48.5, 52m x 8m) — Authentic Newari Brick & Carved Wood Tihar (Ref Photo 6!)
+      const b12FloorY = (typeof b12Obj.position.y === 'number' ? b12Obj.position.y : 0.0) + PLINTH_HEIGHT;
+      const b12FrontZ = b12Obj.position.z - 4.0;
+      tiharNightMod.addBuildingEaveJhilimiliFringe(b12Obj.position.x - 24.5, b12FloorY + 3.45, b12FrontZ - 2.1, b12Obj.position.x + 24.5, b12FrontZ - 2.1, 2.0, 1.15, 'warmGold', 0, -1);
+      tiharNightMod.addDiyoLine(b12Obj.position.x - 22.0, b12FloorY + 0.02, b12FrontZ - 2.15, b12Obj.position.x + 22.0, b12FloorY + 0.02, b12FrontZ - 2.15, 22, Math.PI, 2, 1.15);
+      [-17.3, 0.0, 17.3].forEach((rxOff, rIdx) => {
+        tiharNightMod.addDoorwayToranGarland(b12Obj.position.x + rxOff, b12FloorY, b12FrontZ, 1.95, 2.55, false);
+        if (rIdx === 1) {
+          const w1OutY = getTerrainHeightAt(b12Obj.position.x + rxOff, b12FrontZ - 3.4);
+          tiharNightMod.addTiharMandalaAndFootprints(
+            b12Obj.position.x + rxOff, w1OutY, b12FrontZ - 3.4,
+            1.40, 1, 10,
+            b12Obj.position.x + rxOff, b12FrontZ - 0.2, b12FloorY
+          );
+          tiharNightMod.addFocalLight(b12Obj.position.x + rxOff, b12FloorY + 1.8, b12FrontZ - 1.8, 0xff9428, 7.0, 12.5, false);
+        }
+      });
+
+      // North Classrooms Block B6 (3.5, 1.4, 49.0) — Selected Entrance & Veranda Diyo Row
+      const b6FloorY = (typeof b6Obj.position.y === 'number' ? b6Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const b6FrontZ = b6Obj.position.z - 4.0;
+      tiharNightMod.addDiyoLine(b6Obj.position.x - 16.0, b6FloorY + 0.02, b6FrontZ - 2.15, b6Obj.position.x + 16.0, b6FloorY + 0.02, b6FrontZ - 2.15, 14, Math.PI, 2, 1.05);
+      tiharNightMod.addDoorwayToranGarland(b6Obj.position.x, b6FloorY, b6FrontZ, 1.95, 2.55, false);
+
+      // -----------------------------------------------------------------------
+      // FOCAL ZONE 7: TERRACE CONCRETE STAIRCASES & GRAND ROTUNDA INTERIOR STAIRCASES
+      // -----------------------------------------------------------------------
+      // Terrace East Staircase (x=39.5..41.9, z=5.5) & South-West Ramp/Staircase (x=-32.0, z=-39.25)
+      tiharNightMod.addDiyoLine(39.5, 1.32, 3.7, 42.1, 0.05, 3.7, 6, 0, 2, 0.95);
+      tiharNightMod.addDiyoLine(39.5, 1.32, 7.3, 42.1, 0.05, 7.3, 6, 0, 2, 0.95);
+      tiharNightMod.addDiyoLine(-32.2, 1.32, -37.2, -34.6, 0.05, -37.2, 6, 0, 2, 0.95);
+
+      // Grand Rotunda Interior Staircase Balustrade Garlands & Step Edge Diyos (Ground -> 1st Floor)
+      tiharNightMod.addDiyoLine(rotX - 1.0, rotFloor0 + 0.12, rotZ - 2.8, rotX - 1.0, rotFloor1 + 0.05, rotZ + 2.8, 7, Math.PI / 2, 2, 0.85);
+      tiharNightMod.addDiyoLine(rotX + 1.0, rotFloor0 + 0.12, rotZ - 2.8, rotX + 1.0, rotFloor1 + 0.05, rotZ + 2.8, 7, -Math.PI / 2, 2, 0.85);
+      tiharNightMod.addSayapatriSwag(rotX - 1.05, rotFloor0 + 0.95, rotZ - 2.8, rotX - 1.05, rotFloor1 + 0.95, rotZ + 2.8, 0.25, 16);
+      tiharNightMod.addSayapatriSwag(rotX + 1.05, rotFloor0 + 0.95, rotZ - 2.8, rotX + 1.05, rotFloor1 + 0.95, rotZ + 2.8, 0.25, 16);
+
+      tiharNightMod.finalizeGeometry();
+    })();
+
+    /* =========================================================================
        PHASE A FINALIZATION: INSTANCED TREES & SHRUBS + BUILDING/SECTOR MERGING
        + ROOM & BUILDING VISIBILITY & SHADOW-CASTER BUDGET MANAGER (< 400 DRAW CALLS)
        ========================================================================= */
@@ -21082,19 +22177,19 @@ export function getHideAndSeekHtml(): string {
       const zoneEl = document.getElementById('campus-zone-text');
       if (!zoneEl) return;
       const x = playerPhysics.pos.x, y = playerPhysics.pos.y, z = playerPhysics.pos.z;
-      let zone = 'GANDAKI UNIVERSITY • CENTRAL CAMPUS SPINE ROAD';
+      let zone = 'GANDAKI UNIVERSITY • LAXMI PUJA NIGHT • CENTRAL COURTYARD';
       if (z <= -98 && x >= -24 && x <= 24) {
         if (y >= BUILDING_FLOOR_Y + 6.0) zone = 'MAIN BUILDING • 2ND FLOOR: SEMINAR 301 (DARK) & LAB 302 (EMERGENCY RED)';
         else if (y >= BUILDING_FLOOR_Y + 2.4) zone = 'MAIN BUILDING • 1ST FLOOR: CLASS 201 (MOONLIT) & LIBRARY 202 (WARM LAMP)';
-        else zone = 'MAIN BUILDING • GROUND FLOOR: HALL 101 (FLICKER TUBE) & ADMIN 102';
-      } else if (z <= -68) zone = 'GANDAKI UNIVERSITY • GRAND ROTUNDA PLAZA & FOUNTAIN';
+        else zone = 'MAIN BUILDING • GROUND FLOOR: LAXMI PUJA ATRIUM & HALL 101';
+      } else if (z <= -68) zone = 'GANDAKI UNIVERSITY • TIHAR ROTUNDA PLAZA & DIYO FOUNTAIN';
       else if (x <= -41.5 && z <= 14) zone = 'GANDAKI UNIVERSITY • WEST BUS & PARKING PLAZA';
-      else if (x <= -40 && z > 14) zone = 'GANDAKI UNIVERSITY • WEST CLASSROOMS CLUSTER (BLDG 10–12)';
-      else if (x < -1.5 && z >= -18 && z <= 38) zone = 'GANDAKI UNIVERSITY • WEST ACADEMIC WINGS (L1, L2, LABS)';
+      else if (x <= -40 && z > 14) zone = 'GANDAKI UNIVERSITY • NEWARI HERITAGE & WEST WINGS (TIHAR NIGHT)';
+      else if (x < -1.5 && z >= -18 && z <= 38) zone = 'GANDAKI UNIVERSITY • WEST ACADEMIC WINGS (L1, L2, LABS • TIHAR)';
       else if (x >= -15 && x <= 19 && z >= 42) zone = 'GANDAKI UNIVERSITY • NORTH CLASSROOMS BLOCK (BLDG 6)';
-      else if (x > 1.5 && z >= -46 && z <= -32) zone = 'GANDAKI UNIVERSITY • EAST WING R1 (CAFETERIA)';
-      else if (x > 20 && z >= -45 && z <= 36) zone = 'GANDAKI UNIVERSITY • EAST ACADEMIC WINGS (MULTIPURPOSE HALL & LIBRARY)';
-      else if (x > 3.5 && z < -46) zone = 'GANDAKI UNIVERSITY • SOUTH-EAST ADMIN, WASHROOM & WAREHOUSE SECTOR';
+      else if (x > 1.5 && z >= -46 && z <= -32) zone = 'GANDAKI UNIVERSITY • EAST WING R1 (CAFETERIA • TIHAR JHILIMILI)';
+      else if (x > 20 && z >= -45 && z <= 36) zone = 'GANDAKI UNIVERSITY • EAST ACADEMIC WINGS (HALL & LIBRARY • TIHAR)';
+      else if (x > 3.5 && z < -46) zone = 'GANDAKI UNIVERSITY • ADMIN OFFICE & SOUTH ENTRANCE (LAXMI PUJA)';
       if (zoneEl.textContent !== zone) zoneEl.textContent = zone;
     }
 
@@ -22010,6 +23105,9 @@ export function getHideAndSeekHtml(): string {
 
       particleFieldMod.update(delta, timeSec, playerPhysics.pos);
       lampFlickerMod.update(delta, timeSec, playerPhysics.pos);
+      if (typeof tiharNightMod !== 'undefined' && tiharNightMod) {
+        tiharNightMod.update(delta, timeSec, playerPhysics.pos);
+      }
       updateSwingingDoors(delta);
 
       if (!EXPLORE_FLAGS.ENABLE_HIDE_AND_SEEK_GAMEPLAY) {

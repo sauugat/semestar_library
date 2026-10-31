@@ -1,12 +1,12 @@
 import React, { useState, forwardRef } from 'react';
-import { TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { TextInput, TouchableOpacity, StyleSheet, type TextInputInstance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { TextField, TextFieldProps } from './TextField';
 import { useTheme } from '@/constants/useTheme';
 
 export type PasswordFieldProps = Omit<TextFieldProps, 'rightNode'>;
 
-export const PasswordField = forwardRef<TextInput, PasswordFieldProps>(function PasswordField(
+export const PasswordField = forwardRef<TextInputInstance, PasswordFieldProps>(function PasswordField(
   props,
   ref
 ) {

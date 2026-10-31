@@ -61,7 +61,9 @@ export function ChatMessageActionsSheet({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={() => !busy && onClose()}
+      onRequestClose={() => {
+        if (!busy) onClose();
+      }}
     >
       <View style={styles.backdrop}>
         <Pressable

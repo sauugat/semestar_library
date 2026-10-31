@@ -38,7 +38,7 @@ export const MentionSuggestions = React.memo(function MentionSuggestions({
 }: MentionSuggestionsProps) {
   const [remoteCandidates, setRemoteCandidates] = useState<MentionCandidate[]>([]);
   const [loadingRemote, setLoadingRemote] = useState(false);
-  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Debounced server search for candidates not in initial members list
   useEffect(() => {

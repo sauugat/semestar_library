@@ -920,7 +920,6 @@ export function FullScreenFilePreview({
     >
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={colors.background}
       />
       <View style={styles.container}>
         {/* Floating Top Navigation Chrome */}

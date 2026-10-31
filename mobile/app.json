@@ -23,9 +23,6 @@
       "versionCode": 7,
       "softwareKeyboardLayoutMode": "resize",
       "predictiveBackGestureEnabled": false,
-      "metaData": {
-        "EXDevMenuShowFloatingActionButton": false
-      },
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",

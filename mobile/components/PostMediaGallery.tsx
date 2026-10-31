@@ -394,7 +394,7 @@ export function PostMediaGallery({
         animationType="fade"
         onRequestClose={closeFullscreen}
       >
-        <StatusBar barStyle="light-content" backgroundColor="#000000" />
+        <StatusBar barStyle="light-content" />
         <View style={[styles.modalRoot, { backgroundColor: '#000000' }]}>
           {/* Top Bar with Close, Counter, and Share */}
           <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 16) }]}>

@@ -8,7 +8,9 @@ import {
   TouchableOpacity,
   ViewStyle,
   NativeSyntheticEvent,
-  TextInputFocusEventData,
+  TextInputFocusEvent,
+  type TextInputInstance,
+  type ViewInstance,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
@@ -23,7 +25,7 @@ export interface TextFieldProps extends TextInputProps {
   containerStyle?: ViewStyle;
 }
 
-export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
+export const TextField = forwardRef<TextInputInstance, TextFieldProps>(function TextField(
   {
     label,
     error,
@@ -41,7 +43,7 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
   const { colors, spacing, radii, typography, touchTarget } = useTheme();
   const { onInputFocus, onInputBlur } = useKeyboardAwareForm();
   const [isFocused, setIsFocused] = useState(false);
-  const containerRef = useRef<View>(null);
+  const containerRef = useRef<ViewInstance>(null);
 
   const handleFocus = (e: any) => {
     setIsFocused(true);

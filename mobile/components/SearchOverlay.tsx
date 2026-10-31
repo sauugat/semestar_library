@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   StatusBar,
+  type TextInputInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -203,7 +204,7 @@ export function SearchOverlay({
   const [selectedStudent, setSelectedStudent] = useState<SearchStudentItem | null>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<SearchAssignmentItem | null>(null);
 
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
 
   // Debounce search query by ~400ms
   useEffect(() => {
@@ -284,7 +285,7 @@ export function SearchOverlay({
       onRequestClose={handleClose}
       statusBarTranslucent
     >
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="light-content" />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         {/* Header Search Bar with Safe Area Top Inset */}
         <View

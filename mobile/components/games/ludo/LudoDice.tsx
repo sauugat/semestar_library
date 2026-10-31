@@ -66,7 +66,7 @@ export function LudoDice({
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const isRollingRef = useRef(false);
   const activeAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (isRolling && !isRollingRef.current) {

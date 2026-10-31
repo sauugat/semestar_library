@@ -387,7 +387,7 @@ export function FullScreenImageViewer({
       onRequestClose={onClose}
       statusBarTranslucent
     >
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="light-content" />
       <Animated.View
         style={[
           styles.backdrop,

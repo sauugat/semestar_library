@@ -582,7 +582,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
   // Gesture refs for single tap vs double tap coordination
   const lastTapRef = useRef<number>(0);
-  const singleTapTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
       if (singleTapTimerRef.current) {

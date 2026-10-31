@@ -143,7 +143,7 @@ export function AdminAuditModal({ visible, onClose }: AdminAuditModalProps) {
                     <Caption style={{ color: colors.text }}>Next</Caption>
                   </TouchableOpacity>
                 </View>
-              ) : null
+              ) : undefined
             }
           />
         )}

@@ -13,6 +13,7 @@ import {
   StatusBar,
   Animated,
   Platform,
+  type TextInputInstance,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -159,7 +160,7 @@ export default function KyanaChatScreen() {
 
   // References
   const flatListRef = useRef<FlatList<any>>(null);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const activeAbortController = useRef<AbortController | null>(null);
   const isNearBottomRef = useRef(true);
   const messagesRef = useRef<KyanaMessage[]>([]);
@@ -777,7 +778,7 @@ export default function KyanaChatScreen() {
                     )}
                   </View>
                 </View>
-              ) : null
+              ) : undefined
             }
             // In inverted list, ListFooterComponent sits at the very top of history
             ListFooterComponent={

@@ -14,6 +14,8 @@ import {
   Keyboard,
   BackHandler,
   Linking,
+  type TextInputInstance,
+  type ScrollViewInstance,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -82,8 +84,8 @@ export default function PostDetailScreen() {
   const [isLiking, setIsLiking] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const inputRef = useRef<TextInput>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const inputRef = useRef<TextInputInstance>(null);
+  const scrollViewRef = useRef<ScrollViewInstance>(null);
 
   // Intercept Android Back button: close keyboard first before exiting screen
   useEffect(() => {

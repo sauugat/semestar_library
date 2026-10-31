@@ -183,11 +183,7 @@ export async function getBaseUrl(): Promise<string> {
     const saved = await SecureStore.getItemAsync(SERVER_URL_STORAGE_KEY);
     if (saved && saved.trim()) {
       const cleanSaved = saved.trim().replace(/\/+$/, '');
-      const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim()?.replace(/\/+$/, '');
-      // If environment is explicitly configured for production, discard stale local address overrides
-      if (envUrl && !isLocalAddress(envUrl) && isLocalAddress(cleanSaved)) {
-        await SecureStore.deleteItemAsync(SERVER_URL_STORAGE_KEY).catch(() => {});
-      } else if (isTrustedServerUrl(cleanSaved)) {
+      if (isTrustedServerUrl(cleanSaved)) {
         return cleanSaved;
       } else {
         // If stored key is untrusted or invalid, purge it safely
@@ -196,19 +192,19 @@ export async function getBaseUrl(): Promise<string> {
     }
   } catch {}
 
-  // 2. Explicit environment variable EXPO_PUBLIC_API_URL (e.g. from mobile/.env or EAS build env)
-  if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim()) {
-    const envUrl = process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
-    if (isTrustedServerUrl(envUrl)) {
-      return envUrl;
-    }
-  }
-
-  // 3. Optional auto-detected LAN server ONLY when explicitly opted in via EXPO_PUBLIC_AUTO_DETECT_LAN=true
+  // 2. Optional auto-detected LAN server when explicitly opted in via EXPO_PUBLIC_AUTO_DETECT_LAN=true
   if (process.env.EXPO_PUBLIC_AUTO_DETECT_LAN === 'true') {
     const autoUrl = getAutoDetectedServerUrl();
     if (autoUrl && isTrustedServerUrl(autoUrl)) {
       return autoUrl;
+    }
+  }
+
+  // 3. Explicit environment variable EXPO_PUBLIC_API_URL (e.g. from mobile/.env or EAS build env)
+  if (process.env.EXPO_PUBLIC_API_URL && process.env.EXPO_PUBLIC_API_URL.trim()) {
+    const envUrl = process.env.EXPO_PUBLIC_API_URL.trim().replace(/\/+$/, '');
+    if (isTrustedServerUrl(envUrl)) {
+      return envUrl;
     }
   }
 

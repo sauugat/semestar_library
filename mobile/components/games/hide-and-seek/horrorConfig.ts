@@ -36,66 +36,94 @@ export const HORROR_CONFIG = {
   exploreMode: true,
   enableDevTelemetry: true,
 
-  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Nepali Tihar Laxmi Puja Night Grade: Deep Night Blues + 1900K Diyo Golden-Orange Highlights)
+  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Night-Horror Look: Teal Shadows, Warm Highlights, 20% Desat, Slight Black Crush)
   grade: {
     enabled: true,
-    shadowTint: [0.04, 0.11, 0.19],     // Deep nocturnal indigo-slate shadows
-    highlightTint: [1.14, 0.81, 0.44],  // Warm 1950K Tihar diyo golden-orange highlights
-    saturation: 0.88,                   // Richer festive marigold & Jhilimili color fidelity while keeping nighttime depth
-    contrast: 1.16,                     // Crisp S-curve contrast between lit focal areas and dark nighttime surroundings
-    blackLift: 0.016,                   // Deep, natural night blacks without crushing silhouette readability
-    vignette: 0.44,                     // Subtle nocturnal edge framing
-    grain: 0.032,                       // Subtle organic low-light sensor grain
-    edgeDesat: 0.20,                    // Gentle peripheral desaturation
-    bloomStrength: 0.26,                // 5-tap Kawase soft optical bloom around high-luminance diyos & Jhilimili bulbs
-    bloomThreshold: 0.68,               // Luminance threshold for warm festival highlight bloom
-    microContrast: 0.22,                // Unsharp midtone micro-contrast for brick/stone/wood relief
-    chromaStrength: 0.0014,             // Subtle lens periphery chromatic aberration
-    lampColor: 0xff8a2a,                // #ff8a2a warm orange lamp light
+    shadowTint: [0.85, 1.0, 1.15],      // Teal shadows multiplier
+    highlightTint: [1.1, 1.0, 0.88],    // Warm highlights multiplier
+    saturation: 0.80,                   // Desaturate 20%
+    contrast: 1.16,                     // Crisp S-curve contrast
+    blackCrushPow: 1.08,                // Crush blacks slightly: pow(c, vec3(1.08))
+    blackLift: 0.0,                     // Crushed blacks for horror contrast
+    vignette: 0.45,                     // mix(0.55, 1.0, smoothstep(0.85, 0.25, length(vUv - 0.5)))
+    vignetteMin: 0.55,
+    vignetteInner: 0.25,
+    vignetteOuter: 0.85,
+    grain: 0.035,                       // Film grain: (rand(vUv + time) - 0.5) * 0.035
+    edgeDesat: 0.20,
+    bloomStrength: 0.0,                 // Skip heavy full-screen bloom; use glow sprites on lamp heads
+    bloomThreshold: 0.75,
+    microContrast: 0.18,
+    chromaStrength: 0.0010,
+    lampColor: 0xffa955,                // #ffa955 warm lamps
     poolOpacity: 0.28,                  // Warm ground light pool opacity
-    fogColor: 0x08131d,                 // Deep Himalayan autumn night fog
-    materialDarknessMultiplier: 0.62,   // Realistic nighttime albedo response on unlit walls & roofs
+    fogColor: 0x0b1220,                 // Match the sky colour 0x0b1220
+    fogDensity: 0.022,                  // Exponential fog density 0.022
+    materialDarknessMultiplier: 0.58,   // Darken wall/roof/road base colours (nothing brighter than ~0.6 value)
+    maxGradeFrameCostMs: 2.0,           // Auto-switch to CSS overlay if shader pass costs > 2ms per frame on mobile
     fpsGuardThreshold: 40,              // Auto-disable grade pass if avg FPS < 40 for 3s
     fpsGuardWindowSec: 3.0,
-    stylizedPs1Mode: false,             // Optional PS1-style 0.7x pixel ratio + dither/grain mode
+    stylizedPs1Mode: false,
     stylizedPixelRatio: 0.7,
+  },
+
+  albedo: {
+    maxValueCap: 0.60,                  // Nothing brighter than ~0.6 value
+    wallCream: 0xb8a888,                // Darkened cream wall (#b8a888 instead of #f5e6b8)
+    wallPlaster: 0x8f8470,              // Clamped <= 0.6 value plaster albedo
+    wallStucco: 0x787e78,               // Darkened stucco wall
+    roadAsphalt: 0x2a2a2e,              // Wet dark asphalt road (#2a2a2e)
+    roadRoughness: 0.35,                // Wet road roughness ~0.35 for lamp reflections
+    roofBlueMetal: 0x26384a,            // Darkened corrugated metal roof
+    roofTerracotta: 0x6e2820,           // Darkened terracotta roof
+    concretePlinth: 0x484e54,           // Darkened concrete plinth
+    verandaWood: 0x5c3820,              // Darkened wood for veranda
   },
 
   palette: {
     charcoal: '#04070b',
     charcoalTranslucent: 'rgba(6, 11, 18, 0.90)',
-    dimAmber: '#ff922b',
-    dimAmberBorder: 'rgba(255, 146, 43, 0.34)',
+    dimAmber: '#ffa955',
+    dimAmberBorder: 'rgba(255, 169, 85, 0.34)',
     bloodRed: '#8c1d1d',
     bloodRedGlow: 'rgba(140, 29, 29, 0.72)',
     boneWhite: '#dce3ea',
     mutedBone: '#7e8c99',
   },
   renderer: {
-    clearColor: 0x040a12,
-    toneMappingExposure: 1.12,
-    fogColor: 0x091520,
-    fogWarmTintColor: 0x261a10,
+    outputColorSpace: 'srgb',
+    toneMapping: 'ACESFilmicToneMapping',
+    toneMappingExposure: 0.7,
+    pixelRatioCap: 2,
+    shadowMapType: 'PCFSoftShadowMap',
+    clearColor: 0x0b1220,
+    fogType: 'FogExp2',
+    fogColor: 0x0b1220,
+    fogDensity: 0.022,
+    fogWarmTintColor: 0x1c1612,
     fogNear: 15.0,
     fogFar: 92.0,
     fogMinFarUnderTension: 46.0,
   },
   lighting: {
-    // Layered Nepali Tihar Nighttime Lighting: Low-intensity blue-grey ambient + subtle silver-blue moonlight + warm 1900K diyos
-    visibilityFloorAmbient: 0.065,
-    ambientColor: 0x101d2e,
-    ambientIntensity: 0.11,
-    indoorAmbientIntensity: 0.048,
+    // Realistic Night-Horror Lighting: Hemisphere/ambient ~0.06, cold blue moon (0x7f9cd6, 0.35), warm lamps (0xffa955)
+    visibilityFloorAmbient: 0.04,
+    ambientColor: 0x0b1220,
+    ambientIntensity: 0.06,
+    indoorAmbientIntensity: 0.04,
     hemiSkyColor: 0x182b44,
     hemiGroundColor: 0x05090e,
-    hemiIntensity: 0.13,
-    indoorHemiIntensity: 0.055,
-    // Subtle Himalayan autumn moonlight directional light for architectural silhouettes (attenuated indoors)
-    moonColor: 0x7ea8cc,
-    moonIntensity: 0.38,
-    indoorMoonIntensity: 0.07,
+    hemiIntensity: 0.06,
+    indoorHemiIntensity: 0.04,
+    // Cold blue moonlight directional light with 2048 shadow map & bias settings to eliminate jagged shadow edges
+    moonColor: 0x7f9cd6,
+    moonIntensity: 0.35,
+    indoorMoonIntensity: 0.06,
+    moonShadowMapSize: 2048,
+    moonShadowBias: -0.0004,
+    moonShadowNormalBias: 0.03,
     rimColor: 0x4e738c,
-    rimIntensity: 0.21,
+    rimIntensity: 0.18,
     // Main Player Flashlight: soft-edged spotlight, visible volumetric beam cone, battery flicker & realistic falloff
     flashlightColor: 0xfff1d6,
     flashlightLowBatteryColor: 0xffb366,
@@ -104,27 +132,29 @@ export const HORROR_CONFIG = {
     flashlightAngle: 0.60,
     flashlightPenumbra: 0.88,
     flashlightDecay: 1.80,
-    flashlightSpillIntensity: 1.25,
+    flashlightSpillIntensity: 1.15,
     flashlightSpillDistance: 6.5,
-    flashlightBeamOpacity: 0.135,
-    // Warm orange lamp & diyo light (1800K-2200K) tuned against ACES Filmic so highlights stay golden-orange
-    lampColor: 0xff8a2a,
-    lampCoreColor: 0xffd280,
+    flashlightBeamOpacity: 0.12,
+    // Warm lamps (0xffa955): Real PointLights only on the 3 nearest lamps, emissive glow sprites for the rest
+    lampColor: 0xffa955,
+    lampCoreColor: 0xffd8a8,
     lampEmberColor: 0x7c2d12,
-    lampIntensity: 12.6,
+    lampIntensity: 10.5,
     lampDistance: 17.8,
     lampDecay: 1.68,
     lampPoolSize: 7.4,
     lampHaloScale: 2.35,
-    lampConeOpacity: 0.088,
+    lampConeOpacity: 0.0,
+    enableLampCones: false,
+    maxActiveLampLights: 3,
     windowGlowRatio: 0.46,
     windowColdDark: 0x05090e,
-    windowEmissive: 0xff922b,
-    windowEmissiveIntensity: 0.68,
-    doorwayGlowColor: 0xff9428,
-    doorwayGlowOpacity: 0.26,
-    diyoUltraEmissiveIntensity: 1.55,
-    horizonWarmGlowOpacity: 0.22,
+    windowEmissive: 0xffa955,
+    windowEmissiveIntensity: 0.58,
+    doorwayGlowColor: 0xffa955,
+    doorwayGlowOpacity: 0.22,
+    diyoUltraEmissiveIntensity: 1.35,
+    horizonWarmGlowOpacity: 0.16,
     redAccent: 0x8c1d1d,
   },
   tihar: {
@@ -244,15 +274,15 @@ export const HORROR_CONFIG = {
   qualityPresets: {
     ultra: {
       label: 'ULTRA',
-      pixelRatioCap: 1.45,
+      pixelRatioCap: 2.0,
       particleCount: 40,
       paperLeafCount: 20,
       mistPlaneCount: 6,
       maxActiveLampLights: 3,
-      shadowMapSize: 1024,
+      shadowMapSize: 2048,
       enableShadows: true,
       extraDetail: true,
-      enableLampCones: true,
+      enableLampCones: false,
       enableColorGrade: true,
       fakePoolStride: 1,
       cullDistBuilding: 85,
@@ -263,15 +293,15 @@ export const HORROR_CONFIG = {
     },
     high: {
       label: 'HIGH',
-      pixelRatioCap: 1.25,
+      pixelRatioCap: 2.0,
       particleCount: 30,
       paperLeafCount: 14,
       mistPlaneCount: 4,
       maxActiveLampLights: 3,
-      shadowMapSize: 512,
+      shadowMapSize: 2048,
       enableShadows: true,
       extraDetail: true,
-      enableLampCones: true,
+      enableLampCones: false,
       enableColorGrade: true,
       fakePoolStride: 1,
       cullDistBuilding: 75,
@@ -282,12 +312,12 @@ export const HORROR_CONFIG = {
     },
     low: {
       label: 'LOW',
-      pixelRatioCap: 1.0,
+      pixelRatioCap: 1.25,
       particleCount: 18,
       paperLeafCount: 8,
       mistPlaneCount: 0,
       maxActiveLampLights: 2,
-      shadowMapSize: 256,
+      shadowMapSize: 1024,
       enableShadows: false,
       extraDetail: false,
       enableLampCones: false,
@@ -301,12 +331,12 @@ export const HORROR_CONFIG = {
     },
     fast: {
       label: 'FAST',
-      pixelRatioCap: 0.85,
+      pixelRatioCap: 1.0,
       particleCount: 12,
       paperLeafCount: 4,
       mistPlaneCount: 0,
       maxActiveLampLights: 1,
-      shadowMapSize: 256,
+      shadowMapSize: 512,
       enableShadows: false,
       extraDetail: false,
       enableLampCones: false,

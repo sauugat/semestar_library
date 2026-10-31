@@ -38,7 +38,7 @@ export function getHideAndSeekHtml(): string {
       z-index: 1;
     }
 
-    /* FAST & LOW Mode Clean CSS Grade Fallback (Used when ULTRA WebGL grade pass is off — clean edge vignette without scanline noise) */
+    /* FAST & LOW Mode Clean CSS Grade Fallback (Used when WebGL grade pass costs > 2ms or is off — vignette + film grain) */
     #fast-css-grade-fallback {
       position: absolute;
       top: 0;
@@ -49,7 +49,9 @@ export function getHideAndSeekHtml(): string {
       z-index: 3;
       display: none;
       background:
-        radial-gradient(circle at 50% 50%, rgba(10, 22, 32, 0.0) 56%, rgba(5, 13, 22, 0.22) 84%, rgba(2, 5, 10, 0.48) 100%);
+        radial-gradient(circle at 50% 50%, rgba(11, 22, 34, 0.04) 25%, rgba(7, 16, 26, 0.24) 62%, rgba(3, 7, 14, 0.45) 85%, rgba(2, 4, 9, 0.65) 100%),
+        repeating-radial-gradient(circle at 17% 31%, rgba(255, 255, 255, 0.018) 0px, rgba(0, 0, 0, 0.018) 1px, transparent 2px);
+      box-shadow: inset 0 0 110px rgba(3, 7, 14, 0.55);
     }
 
     /* Clean Cool-Night Vignette (No Yellow Screen Wash) */
@@ -61,7 +63,7 @@ export function getHideAndSeekHtml(): string {
       height: 100%;
       pointer-events: none;
       background:
-        radial-gradient(circle at 50% 50%, transparent 58%, rgba(4, 9, 18, 0.35) 82%, rgba(2, 5, 11, 0.65) 100%);
+        radial-gradient(circle at 50% 50%, transparent 35%, rgba(6, 12, 20, 0.22) 68%, rgba(2, 5, 11, 0.48) 100%);
       z-index: 2;
     }
 
@@ -1491,6 +1493,9 @@ export function getHideAndSeekHtml(): string {
           transformedGeos.push(cloned);
         }
         const mergedGeo = THREE.BufferGeometryUtils.mergeBufferGeometries(transformedGeos);
+        for (let g = 0; g < transformedGeos.length; g++) {
+          transformedGeos[g].dispose();
+        }
         if (mergedGeo) {
           let finalMat = mBucket.mat;
           if (shouldBakeVertexAO) {
@@ -3476,17 +3481,20 @@ export function getHideAndSeekHtml(): string {
        ========================================================================= */
     class NightAtmosphere {
       constructor(canvasEl) {
+        if (!THREE.SRGBColorSpace) {
+          THREE.SRGBColorSpace = 'srgb';
+        }
         this.scene = new THREE.Scene();
-        const fogHex = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.fogColor) || HORROR_CONFIG.renderer.fogColor || 0x14222c;
-        this.scene.background = new THREE.Color(HORROR_CONFIG.renderer.clearColor || 0x071118);
+        const fogHex = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogColor) || (HORROR_CONFIG.grade && HORROR_CONFIG.grade.fogColor) || 0x0b1220;
+        const fogDensity = (HORROR_CONFIG.renderer && typeof HORROR_CONFIG.renderer.fogDensity === 'number')
+          ? HORROR_CONFIG.renderer.fogDensity
+          : ((HORROR_CONFIG.grade && typeof HORROR_CONFIG.grade.fogDensity === 'number') ? HORROR_CONFIG.grade.fogDensity : 0.022);
+        this.scene.background = new THREE.Color((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.clearColor) || 0x0b1220);
         this.baseFogColor = new THREE.Color(fogHex);
-        this.warmFogColor = new THREE.Color(HORROR_CONFIG.renderer.fogWarmTintColor || 0x221d18);
-        this.corridorFogColor = new THREE.Color(0x0a141e);
-        this.scene.fog = new THREE.Fog(
-          this.baseFogColor.clone(),
-          (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0,
-          (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0
-        );
+        this.warmFogColor = new THREE.Color((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogWarmTintColor) || 0x1c1612);
+        this.corridorFogColor = new THREE.Color(0x0b1220);
+        this.baseFogDensity = fogDensity;
+        this.scene.fog = new THREE.FogExp2(fogHex, fogDensity);
 
         const initW = Math.max(window.innerWidth || 0, 320);
         const initH = Math.max(window.innerHeight || 0, 240);
@@ -3574,18 +3582,20 @@ export function getHideAndSeekHtml(): string {
 
         const targetPR = this.getEffectivePixelRatio(activePreset);
         this.renderer.setSize(initW, initH);
-        this.renderer.setPixelRatio(targetPR);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2, targetPR));
 
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.06;
-        if ('outputColorSpace' in this.renderer && THREE.SRGBColorSpace) {
-          this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-        } else if ('outputEncoding' in this.renderer && THREE.sRGBEncoding) {
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        if ('outputEncoding' in this.renderer && THREE.sRGBEncoding) {
           this.renderer.outputEncoding = THREE.sRGBEncoding;
         }
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = (HORROR_CONFIG.renderer && typeof HORROR_CONFIG.renderer.toneMappingExposure === 'number')
+          ? HORROR_CONFIG.renderer.toneMappingExposure
+          : 0.7;
 
         const shadowsOn = !!(activePreset && activePreset.enableShadows);
-        const shadowSize = (activePreset && activePreset.shadowMapSize) || 512;
+        const lCfg = HORROR_CONFIG.lighting || {};
+        const shadowSize = lCfg.moonShadowMapSize || (activePreset && activePreset.shadowMapSize) || 2048;
         this.shadowsDebugOverride = null;
         this.lastTotalDrawCalls = 0;
         if (this.renderer.info) {
@@ -3595,13 +3605,12 @@ export function getHideAndSeekHtml(): string {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.shadowMap.autoUpdate = true;
 
-        // Layered Nepali Tihar Nighttime Lighting (Deep dark night sky + subtle moonlight + low blue-grey ambient so 1900K diyos & Jhilimili lights pop)
-        const lCfg = HORROR_CONFIG.lighting || {};
-        this.baseAmbColor = new THREE.Color(lCfg.ambientColor || 0x101d2e);
+        // Step 2: Realistic Night-Horror Lighting (hemi/ambient ~0.06, cold blue moon 0x7f9cd6 @ 0.35, 2048 shadows with bias -0.0004 & normalBias 0.03)
+        this.baseAmbColor = new THREE.Color(lCfg.ambientColor || 0x0b1220);
         this.targetAmbColor = this.baseAmbColor.clone();
-        this.baseAmbIntensity = typeof lCfg.ambientIntensity === 'number' ? lCfg.ambientIntensity : 0.115;
-        this.baseHemiIntensity = typeof lCfg.hemiIntensity === 'number' ? lCfg.hemiIntensity : 0.135;
-        this.baseMoonIntensity = typeof lCfg.moonIntensity === 'number' ? lCfg.moonIntensity : 0.38;
+        this.baseAmbIntensity = typeof lCfg.ambientIntensity === 'number' ? lCfg.ambientIntensity : 0.06;
+        this.baseHemiIntensity = typeof lCfg.hemiIntensity === 'number' ? lCfg.hemiIntensity : 0.06;
+        this.baseMoonIntensity = typeof lCfg.moonIntensity === 'number' ? lCfg.moonIntensity : 0.35;
 
         this.ambientLight = new THREE.AmbientLight(
           this.baseAmbColor.clone(),
@@ -3614,17 +3623,26 @@ export function getHideAndSeekHtml(): string {
           lCfg.hemiGroundColor || 0x05090e,
           this.baseHemiIntensity
         );
+        this.hemiLight.intensity = 0.06;
         this.scene.add(this.hemiLight);
 
         this.moonDirLight = new THREE.DirectionalLight(
-          lCfg.moonColor || 0x7ea8cc,
+          lCfg.moonColor || 0x7f9cd6,
           this.baseMoonIntensity
         );
+        this.moonDirLight.color.set(lCfg.moonColor || 0x7f9cd6);
+        this.moonDirLight.intensity = this.baseMoonIntensity;
         this.moonDirLight.position.set(-38, 64, -44);
         this.moonDirLight.castShadow = shadowsOn;
         if (this.moonDirLight.shadow) {
-          this.moonDirLight.shadow.mapSize.width = shadowSize;
-          this.moonDirLight.shadow.mapSize.height = shadowSize;
+          if (this.moonDirLight.shadow.mapSize && typeof this.moonDirLight.shadow.mapSize.set === 'function') {
+            this.moonDirLight.shadow.mapSize.set(shadowSize, shadowSize);
+          } else if (this.moonDirLight.shadow.mapSize) {
+            this.moonDirLight.shadow.mapSize.width = shadowSize;
+            this.moonDirLight.shadow.mapSize.height = shadowSize;
+          }
+          this.moonDirLight.shadow.bias = typeof lCfg.moonShadowBias === 'number' ? lCfg.moonShadowBias : -0.0004;
+          this.moonDirLight.shadow.normalBias = typeof lCfg.moonShadowNormalBias === 'number' ? lCfg.moonShadowNormalBias : 0.03;
           if (this.moonDirLight.shadow.camera) {
             this.moonDirLight.shadow.camera.left = -52;
             this.moonDirLight.shadow.camera.right = 52;
@@ -4475,9 +4493,11 @@ export function getHideAndSeekHtml(): string {
         this.renderer.shadowMap.enabled = shadowsOn;
         if (this.moonDirLight) this.moonDirLight.castShadow = shadowsOn;
         if (this.flashlight) this.flashlight.castShadow = shadowsOn;
-        // Keep FAST and LOW looking clean and readable when ULTRA post-grade pass is off
-        const baseExp = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.toneMappingExposure) || 1.15;
-        this.renderer.toneMappingExposure = (preset && preset.enableColorGrade) ? baseExp : (baseExp * 1.07);
+        // Keep exposure at horrorConfig 0.7 baseline
+        const baseExp = (HORROR_CONFIG.renderer && typeof HORROR_CONFIG.renderer.toneMappingExposure === 'number')
+          ? HORROR_CONFIG.renderer.toneMappingExposure
+          : 0.7;
+        this.renderer.toneMappingExposure = (preset && preset.enableColorGrade) ? baseExp : (baseExp * 1.05);
         const btn = document.getElementById('dbg-btn-shadows');
         if (btn) {
           btn.textContent = shadowsOn ? 'Shadows: ON' : 'Shadows: OFF';
@@ -4560,60 +4580,62 @@ export function getHideAndSeekHtml(): string {
 
         // Shared material sets by blinkProfile (4 sets instead of 21*5=105 materials!)
         this.profileMats = {};
+        const warmLampHex = (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.lampColor) || 0xffa955;
+        const warmCoreHex = (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.lampCoreColor) || 0xffd8a8;
         ['steady_warm', 'intermittent', 'heavy_blink', 'dead'].forEach(prof => {
           const isDead = prof === 'dead';
           this.profileMats[prof] = {
             bulbMat: new THREE.MeshBasicMaterial({
               map: lanternGlassTex,
-              color: isDead ? 0x1e242b : (HORROR_CONFIG.lighting.lampCoreColor || 0xffe8c2),
+              color: isDead ? 0x1e242b : warmCoreHex,
               transparent: true,
               opacity: isDead ? 0.15 : 0.85,
             }),
             innerGlowMat: new THREE.SpriteMaterial({
               map: warmLampBloomTex,
-              color: HORROR_CONFIG.lighting.lampCoreColor || 0xffe8c2,
+              color: warmCoreHex,
               transparent: true,
-              opacity: isDead ? 0.0 : 0.62,
+              opacity: isDead ? 0.0 : 0.68,
               blending: THREE.AdditiveBlending,
               depthWrite: false,
             }),
             outerGlareMat: new THREE.SpriteMaterial({
               map: warmLampBloomTex,
-              color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
+              color: warmLampHex,
               transparent: true,
-              opacity: isDead ? 0.0 : 0.34,
+              opacity: isDead ? 0.0 : 0.38,
               blending: THREE.AdditiveBlending,
               depthWrite: false,
             }),
             coneMat: new THREE.MeshBasicMaterial({
               map: volumetricConeTex,
-              color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
+              color: warmLampHex,
               transparent: true,
-              opacity: isDead ? 0.0 : (HORROR_CONFIG.lighting.lampConeOpacity || 0.065),
+              opacity: 0.0,
               blending: THREE.AdditiveBlending,
               side: THREE.DoubleSide,
               depthWrite: false,
             }),
             puddleMat: new THREE.MeshBasicMaterial({
               map: realisticGroundPoolTex,
-              color: HORROR_CONFIG.lighting.lampColor || 0xffb35c,
+              color: warmLampHex,
               transparent: true,
-              opacity: isDead ? 0.0 : 0.28,
+              opacity: isDead ? 0.0 : 0.24,
               blending: THREE.AdditiveBlending,
               depthWrite: false,
             }),
           };
         });
 
-        // 8 Downward-Directed Streetlamp PointLights (distance 18.2m, decay 1.64, intensity 8.6) placed at the center of the
-        // downward beam cone (y = baseY + 2.45m) so the ground, vehicles, and walkways beneath each pole are richly illuminated!
-        for (let i = 0; i < 8; i++) {
+        // Pooled PointLights: Real PointLights on the 3 nearest outdoor lamps (0xffa955) + up to 3 indoor room lights
+        for (let i = 0; i < 6; i++) {
           const pl = new THREE.PointLight(
-            0xffa442,
+            warmLampHex,
             0,
             18.2,
             1.64
           );
+          pl.color.set(warmLampHex);
           pl.castShadow = false;
           pl.visible = true;
           pl.position.set(0, -9999, 0);
@@ -4662,10 +4684,9 @@ export function getHideAndSeekHtml(): string {
         lanternGlass.userData.noMerge = true;
         group.add(lanternGlass);
 
-        // Position the 3D PointLight at y = lampBaseY + 2.45m (inside the downward volumetric cone rather than above the roof)
-        // so the streetlamp casts strong, natural light onto the road, vehicles, and ground underneath!
         const bulbPos = new THREE.Vector3(x, lampBaseY + 2.45, z);
 
+        // Emissive glow sprites on lamp head (replaces flat triangular light cones)
         const innerGlow = new THREE.Sprite(pMats.innerGlowMat);
         innerGlow.position.set(0, lanternY, 0);
         innerGlow.scale.set(1.98, 1.98, 1);
@@ -4676,12 +4697,7 @@ export function getHideAndSeekHtml(): string {
         outerGlare.scale.set(3.68, 3.68, 1);
         group.add(outerGlare);
 
-        const coneMesh = new THREE.Mesh(this.sharedGeos.lampCone, pMats.coneMat);
-        coneMesh.scale.set(1.26, 1.02, 1.26);
-        coneMesh.position.set(0, 2.35, 0);
-        coneMesh.userData.noMerge = true;
-        coneMesh.visible = (blinkProfile !== 'dead');
-        group.add(coneMesh);
+        const coneMesh = null;
 
         const puddle = new THREE.Mesh(this.sharedPoolGeo, pMats.puddleMat);
         puddle.rotation.x = -Math.PI / 2;
@@ -4742,13 +4758,7 @@ export function getHideAndSeekHtml(): string {
         outerGlare.scale.set(3.05 * poolScale, 3.05 * poolScale, 1);
         g.add(outerGlare);
 
-        const coneMesh = new THREE.Mesh(this.sharedGeos.lampCone, pMats.coneMat);
-        const coneScaleY = Math.max(0.46, bulbLocalY / 4.6);
-        coneMesh.scale.set(poolScale * 1.08, coneScaleY, poolScale * 1.08);
-        coneMesh.position.set(0, bulbLocalY * 0.48, 0);
-        coneMesh.userData.noMerge = true;
-        coneMesh.visible = (blinkProfile !== 'dead');
-        g.add(coneMesh);
+        const coneMesh = null;
 
         const puddle = new THREE.Mesh(this.sharedPoolGeo, pMats.puddleMat);
         puddle.rotation.x = -Math.PI / 2;
@@ -5032,14 +5042,19 @@ export function getHideAndSeekHtml(): string {
 
         this.nearestLampDist = Math.sqrt(minActiveDistSq);
 
-        // Assign up to 3 pooled PointLights to closest visible indoor rooms, and the remaining slots to closest outdoor streetlamps
+        // Assign Real PointLights ONLY to the 3 nearest outdoor streetlamps (plus any active indoor room lights)
         const activeCount = this.lightPool.length;
+        const maxOutdoorLampLights = (activePreset && typeof activePreset.maxActiveLampLights === 'number')
+          ? Math.min(3, activePreset.maxActiveLampLights)
+          : ((HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.maxActiveLampLights) || 3);
+        const warmLampHex = (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.lampColor) || 0xffa955;
         const ovList = Array.isArray(this.indoorOverrideLights) && this.indoorOverrideLights.length > 0
           ? this.indoorOverrideLights
           : (this.indoorOverrideLight && this.indoorOverrideLight.intensity > 0.01 ? [this.indoorOverrideLight] : []);
         const usedIndices = [-1, -1, -1, -1, -1, -1, -1, -1];
         const cfgDist = (typeof this.customLampDistance === 'number') ? this.customLampDistance : 18.2;
         const cfgDecay = (typeof this.customLampDecay === 'number') ? this.customLampDecay : 1.64;
+        let outdoorAssigned = 0;
         for (let slot = 0; slot < activeCount; slot++) {
           const pl = this.lightPool[slot];
           if (slot < ovList.length && ovList[slot] && ovList[slot].intensity > 0.01) {
@@ -5049,6 +5064,11 @@ export function getHideAndSeekHtml(): string {
             pl.distance = ov.distance || 12.5;
             pl.decay = 1.75;
             pl.intensity = ov.intensity;
+            continue;
+          }
+          if (outdoorAssigned >= maxOutdoorLampLights) {
+            pl.intensity = 0;
+            pl.position.set(0, -9999, 0);
             continue;
           }
           let bestLamp = null;
@@ -5066,10 +5086,11 @@ export function getHideAndSeekHtml(): string {
           }
           usedIndices[slot] = bestIdx;
           if (bestLamp && bestDistSq < 2704) {
+            outdoorAssigned++;
             const d = Math.sqrt(bestDistSq);
             const tPl = Math.max(0, Math.min(1, (52.0 - d) / 38.0));
             const smoothPoolFalloff = tPl * tPl * (3.0 - 2.0 * tPl);
-            pl.color.setHex(0xffa442);
+            pl.color.set(warmLampHex);
             pl.distance = cfgDist;
             pl.decay = cfgDecay;
             pl.position.copy(bestLamp.bulbPos);
@@ -5483,27 +5504,26 @@ export function getHideAndSeekHtml(): string {
           }
         }
       } else if (type === 'pale-campus-stucco') {
-        // Modern Gandaki University Prefab Modular Wall Panels (Exact match to aerial drone photos!)
-        // Clean pale sage / mint-cream panel field with vertical joint seams and horizontal mid-line
-        ctx.fillStyle = '#dce7dd';
+        // Step 3 & 4: Darkened warm cream-plaster (#b8a888 darkened <= 0.6 value) with fine plaster grain & seams
+        ctx.fillStyle = '#998b70';
         ctx.fillRect(0, 0, 512, 512);
         bCtx.fillStyle = '#808080';
         bCtx.fillRect(0, 0, 512, 512);
 
         // Vertical modular panel seams every 64px
         for (let x = 0; x < 512; x += 64) {
-          ctx.fillStyle = '#c4d2c5';
+          ctx.fillStyle = '#7d715a';
           ctx.fillRect(x - 1, 0, 2, 512);
-          ctx.fillStyle = '#f0f6f0';
+          ctx.fillStyle = '#a8997c';
           ctx.fillRect(x + 1, 0, 1, 512);
           bCtx.fillStyle = '#404040';
           bCtx.fillRect(x - 1, 0, 2, 512);
         }
 
         // Horizontal panel joint seam halfway up
-        ctx.fillStyle = '#c4d2c5';
+        ctx.fillStyle = '#7d715a';
         ctx.fillRect(0, 255, 512, 2);
-        ctx.fillStyle = '#f0f6f0';
+        ctx.fillStyle = '#a8997c';
         ctx.fillRect(0, 257, 512, 1);
         bCtx.fillStyle = '#404040';
         bCtx.fillRect(0, 255, 512, 2);
@@ -5966,36 +5986,24 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // Step 3: Darken wall/roof/brick textures by ~35% and add vertical grime & damp stain gradients (Zero new draw calls!)
+      // Step 3 & 4: Darken wall/roof/brick textures so nothing exceeds ~0.6 value, keeping tiles seamless for worldUV
       if (type !== 'surveyor-field-grass' && type !== 'interlocking-pavers') {
-        const darkMult = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.materialDarknessMultiplier) || 0.64;
-        const darkAlpha = Math.max(0.15, Math.min(0.55, 1.0 - darkMult));
+        const darkMult = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.materialDarknessMultiplier) || 0.58;
+        const darkAlpha = Math.max(0.18, Math.min(0.55, 1.0 - darkMult));
         ctx.fillStyle = 'rgba(6, 10, 12, ' + darkAlpha.toFixed(2) + ')';
         ctx.fillRect(0, 0, 512, 512);
 
-        const topGrime = ctx.createLinearGradient(0, 0, 0, 128);
-        topGrime.addColorStop(0.0, 'rgba(4, 7, 9, 0.58)');
-        topGrime.addColorStop(0.45, 'rgba(10, 16, 14, 0.24)');
-        topGrime.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-        ctx.fillStyle = topGrime;
-        ctx.fillRect(0, 0, 512, 128);
-
-        const botGrime = ctx.createLinearGradient(0, 350, 0, 512);
-        botGrime.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
-        botGrime.addColorStop(0.55, 'rgba(12, 20, 15, 0.32)');
-        botGrime.addColorStop(1.0, 'rgba(5, 9, 7, 0.64)');
-        ctx.fillStyle = botGrime;
-        ctx.fillRect(0, 350, 512, 162);
-
-        for (let sx = 12; sx < 512; sx += 28) {
-          const streakW = 6 + ((sx * 7) % 10);
-          const streakH = 140 + ((sx * 19) % 260);
-          const sGrad = ctx.createLinearGradient(0, 0, 0, streakH);
-          sGrad.addColorStop(0.0, 'rgba(5, 9, 8, 0.32)');
-          sGrad.addColorStop(0.7, 'rgba(8, 14, 11, 0.14)');
-          sGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+        // Seamless subtle micro-weathering patches across the 512px tile
+        for (let sx = 16; sx < 512; sx += 32) {
+          const sy = (sx * 37) % 384;
+          const streakW = 8 + ((sx * 7) % 12);
+          const streakH = 64 + ((sx * 19) % 96);
+          const sGrad = ctx.createLinearGradient(0, sy, 0, sy + streakH);
+          sGrad.addColorStop(0.0, 'rgba(6, 10, 9, 0.0)');
+          sGrad.addColorStop(0.5, 'rgba(6, 10, 9, 0.16)');
+          sGrad.addColorStop(1.0, 'rgba(6, 10, 9, 0.0)');
           ctx.fillStyle = sGrad;
-          ctx.fillRect(sx, 0, streakW, streakH);
+          ctx.fillRect(sx, sy, streakW, streakH);
         }
       }
 
@@ -6004,55 +6012,61 @@ export function getHideAndSeekHtml(): string {
       const map = new THREE.CanvasTexture(c);
       map.wrapS = THREE.RepeatWrapping;
       map.wrapT = THREE.RepeatWrapping;
+      map.anisotropy = 4;
+      map.colorSpace = THREE.SRGBColorSpace || 'srgb';
+      if ('encoding' in map && THREE.sRGBEncoding) map.encoding = THREE.sRGBEncoding;
 
       const outBump = new THREE.CanvasTexture(bumpC);
       outBump.wrapS = THREE.RepeatWrapping;
       outBump.wrapT = THREE.RepeatWrapping;
+      outBump.anisotropy = 4;
 
       const outRough = new THREE.CanvasTexture(roughC);
       outRough.wrapS = THREE.RepeatWrapping;
       outRough.wrapT = THREE.RepeatWrapping;
+      outRough.anisotropy = 4;
       if (!window.__sharedArchRoughTex) window.__sharedArchRoughTex = outRough;
 
-      // Synthesize a Tangent-Space RGB Normal Map from the height/bump canvas via 3x3 Sobel operator
+      // Synthesize a 512px Tangent-Space RGB Normal Map from the height/bump canvas via 3x3 Sobel operator
       const normC = document.createElement('canvas');
-      normC.width = 256;
-      normC.height = 256;
+      normC.width = 512;
+      normC.height = 512;
       const outNormal = new THREE.CanvasTexture(normC);
       outNormal.wrapS = THREE.RepeatWrapping;
       outNormal.wrapT = THREE.RepeatWrapping;
+      outNormal.anisotropy = 4;
 
       const buildSobelNormalAndRoughness = () => {
         try {
           const nCtx = normC.getContext('2d');
           if (!nCtx) return;
-          nCtx.drawImage(bumpC, 0, 0, 256, 256);
-          const srcImg = nCtx.getImageData(0, 0, 256, 256);
+          nCtx.drawImage(bumpC, 0, 0, 512, 512);
+          const srcImg = nCtx.getImageData(0, 0, 512, 512);
           const src = srcImg.data;
-          const dstImg = nCtx.createImageData ? nCtx.createImageData(256, 256) : { data: new Uint8ClampedArray(256 * 256 * 4) };
+          const dstImg = nCtx.createImageData ? nCtx.createImageData(512, 512) : { data: new Uint8ClampedArray(512 * 512 * 4) };
           const dst = dstImg.data;
           const strength = 2.65;
-          for (let y = 0; y < 256; y++) {
-            const ym1 = (y - 1) & 255;
-            const yp1 = (y + 1) & 255;
-            for (let x = 0; x < 256; x++) {
-              const xm1 = (x - 1) & 255;
-              const xp1 = (x + 1) & 255;
-              const tl = src[(ym1 * 256 + xm1) * 4] / 255.0;
-              const l  = src[(y   * 256 + xm1) * 4] / 255.0;
-              const bl = src[(yp1 * 256 + xm1) * 4] / 255.0;
-              const t  = src[(ym1 * 256 + x)   * 4] / 255.0;
-              const b  = src[(yp1 * 256 + x)   * 4] / 255.0;
-              const tr = src[(ym1 * 256 + xp1) * 4] / 255.0;
-              const r  = src[(y   * 256 + xp1) * 4] / 255.0;
-              const br = src[(yp1 * 256 + xp1) * 4] / 255.0;
+          for (let y = 0; y < 512; y++) {
+            const ym1 = (y - 1) & 511;
+            const yp1 = (y + 1) & 511;
+            for (let x = 0; x < 512; x++) {
+              const xm1 = (x - 1) & 511;
+              const xp1 = (x + 1) & 511;
+              const tl = src[(ym1 * 512 + xm1) * 4] / 255.0;
+              const l  = src[(y   * 512 + xm1) * 4] / 255.0;
+              const bl = src[(yp1 * 512 + xm1) * 4] / 255.0;
+              const t  = src[(ym1 * 512 + x)   * 4] / 255.0;
+              const b  = src[(yp1 * 512 + x)   * 4] / 255.0;
+              const tr = src[(ym1 * 512 + xp1) * 4] / 255.0;
+              const r  = src[(y   * 512 + xp1) * 4] / 255.0;
+              const br = src[(yp1 * 512 + xp1) * 4] / 255.0;
               const dX = (tr + 2.0 * r + br) - (tl + 2.0 * l + bl);
               const dY = (bl + 2.0 * b + br) - (tl + 2.0 * t + tr);
               let nx = -dX * strength;
               let ny = -dY * strength;
               let nz = 1.0;
               const invLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
-              const idx = (y * 256 + x) * 4;
+              const idx = (y * 512 + x) * 4;
               dst[idx]     = Math.round((nx * invLen * 0.5 + 0.5) * 255);
               dst[idx + 1] = Math.round((ny * invLen * 0.5 + 0.5) * 255);
               dst[idx + 2] = Math.round((nz * invLen * 0.5 + 0.5) * 255);
@@ -6065,7 +6079,6 @@ export function getHideAndSeekHtml(): string {
         } catch (nErr) {}
       };
 
-      // Requirement 1: Generate procedural textures in chunks across frames behind the loading screen & cache them
       const isHeadlessNode = (typeof navigator !== 'undefined' && navigator.userAgent === 'node');
       if (isHeadlessNode || needsBumpCanvas || needsRoughCanvas) {
         runProceduralDraw();
@@ -6090,54 +6103,53 @@ export function getHideAndSeekHtml(): string {
       return result;
     }
 
-    // Phase A Texture Atlas & Shared Surface Maps:
+    // Step 4: 512px Tiled PBR Textures with 1:1 repeat so worldUV(geo, 0.5) gives true 2m physical tiles everywhere!
     const riverStoneTex = createProceduralTextureWithBump('nepali-river-stone');
-    riverStoneTex.map.repeat.set(14, 2);
+    riverStoneTex.map.repeat.set(1, 1);
 
     const blueRoofTex = createProceduralTextureWithBump('bright-blue-corrugated-roof');
-    blueRoofTex.map.repeat.set(10, 4);
+    blueRoofTex.map.repeat.set(1, 1);
 
     const redRoofTex = createProceduralTextureWithBump('terracotta-red-roof');
-    redRoofTex.map.repeat.set(10, 5);
+    redRoofTex.map.repeat.set(1, 1);
 
     const rotundaBrickTex = createProceduralTextureWithBump('rotunda-stone-brick');
-    rotundaBrickTex.map.repeat.set(6, 4);
+    rotundaBrickTex.map.repeat.set(1, 1);
 
     const stuccoTex = createProceduralTextureWithBump('pale-campus-stucco');
-    stuccoTex.map.repeat.set(5, 2);
+    stuccoTex.map.repeat.set(1, 1);
 
     const paverTex = createProceduralTextureWithBump('interlocking-pavers');
-    paverTex.map.repeat.set(24, 24);
+    paverTex.map.repeat.set(1, 1);
 
     const grassTex = createProceduralTextureWithBump('surveyor-field-grass');
     grassTex.map.repeat.set(32, 32);
 
     const dachiBrickTex = createProceduralTextureWithBump('dachi-appa-brick');
-    dachiBrickTex.map.repeat.set(6, 3);
+    dachiBrickTex.map.repeat.set(1, 1);
 
     const carvedSalTex = createProceduralTextureWithBump('carved-sal-wood');
-    carvedSalTex.map.repeat.set(3, 2);
+    carvedSalTex.map.repeat.set(1, 1);
 
-    // Requirement 4: New Worn Canvas Textures + Cheap Bump Maps (scuffed floors, stained ceiling tiles, peeling paint, wood grain, dirty glass)
     const scuffedFloorTex = createProceduralTextureWithBump('scuffed-classroom-floor');
-    scuffedFloorTex.map.repeat.set(6, 6);
-    scuffedFloorTex.bumpMap.repeat.set(6, 6);
+    scuffedFloorTex.map.repeat.set(1, 1);
+    scuffedFloorTex.bumpMap.repeat.set(1, 1);
     const terrazzoFloorTex = scuffedFloorTex;
 
     const stainedCeilingTex = createProceduralTextureWithBump('stained-ceiling-tiles');
-    stainedCeilingTex.map.repeat.set(5, 5);
-    stainedCeilingTex.bumpMap.repeat.set(5, 5);
+    stainedCeilingTex.map.repeat.set(1, 1);
+    stainedCeilingTex.bumpMap.repeat.set(1, 1);
 
     const peelingPaintTex = createProceduralTextureWithBump('peeling-paint-wall');
-    peelingPaintTex.map.repeat.set(4, 2);
-    peelingPaintTex.bumpMap.repeat.set(4, 2);
+    peelingPaintTex.map.repeat.set(1, 1);
+    peelingPaintTex.bumpMap.repeat.set(1, 1);
 
     const wornWoodTex = createProceduralTextureWithBump('worn-wood-grain');
-    wornWoodTex.map.repeat.set(2, 2);
-    wornWoodTex.bumpMap.repeat.set(2, 2);
+    wornWoodTex.map.repeat.set(1, 1);
+    wornWoodTex.bumpMap.repeat.set(1, 1);
 
     const dirtyGlassTex = createProceduralTextureWithBump('dirty-window-glass');
-    dirtyGlassTex.map.repeat.set(2, 2);
+    dirtyGlassTex.map.repeat.set(1, 1);
 
     const scuffedBoardTex = createProceduralTextureWithBump('scuffed-board');
 
@@ -6861,7 +6873,7 @@ export function getHideAndSeekHtml(): string {
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
         bumpScale: 0.055,
-        color: 0xb8c2cc,
+        color: 0x82888e,
         roughness: 0.72,
         side: THREE.FrontSide,
       }),
@@ -6869,7 +6881,7 @@ export function getHideAndSeekHtml(): string {
         map: stainedCeilingTex.map,
         bumpMap: stainedCeilingTex.bumpMap,
         bumpScale: 0.05,
-        color: 0x9aa4ad,
+        color: 0x788086,
         roughness: 0.82,
       }),
       ceilingLightEmissive: new THREE.MeshStandardMaterial({
@@ -6899,7 +6911,7 @@ export function getHideAndSeekHtml(): string {
         map: stuccoTex.map,
         bumpMap: stuccoTex.bumpMap,
         bumpScale: 0.022,
-        color: 0x7a8680,
+        color: 0x8f826c,
         roughness: 0.76,
         side: THREE.FrontSide,
       }),
@@ -6907,9 +6919,9 @@ export function getHideAndSeekHtml(): string {
         map: scuffedFloorTex.map,
         bumpMap: scuffedFloorTex.bumpMap,
         bumpScale: 0.055,
-        color: 0x7a8896,
-        roughness: 0.48,
-        metalness: 0.14,
+        color: 0x68727c,
+        roughness: 0.35,
+        metalness: 0.18,
       }),
       interlockingPavers: new THREE.MeshStandardMaterial({
         map: paverTex.map,
@@ -6962,14 +6974,14 @@ export function getHideAndSeekHtml(): string {
         bumpMap: teliyaTileTex.bumpMap,
         bumpScale: 0.035,
         roughnessMap: teliyaTileTex.roughnessMap,
-        roughness: 0.28,
-        metalness: 0.16,
+        roughness: 0.32,
+        metalness: 0.20,
       }),
       nepalOchreDado: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
         bumpScale: 0.05,
-        color: 0x8c3b26,
+        color: 0x783220,
         roughness: 0.68,
         side: THREE.FrontSide,
       }),
@@ -6977,7 +6989,7 @@ export function getHideAndSeekHtml(): string {
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
         bumpScale: 0.05,
-        color: 0xc2b6a6,
+        color: 0x94876e,
         roughness: 0.68,
         side: THREE.FrontSide,
       }),
@@ -6989,14 +7001,17 @@ export function getHideAndSeekHtml(): string {
           : 0.65,
         roughness: 0.2,
       }),
-      hauntedBlueGlow: new THREE.MeshBasicMaterial({
+      hauntedBlueGlow: new THREE.MeshStandardMaterial({
         color: 0x38bdf8,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 1.0,
+        roughness: 0.2,
       }),
       brassGajur: new THREE.MeshStandardMaterial({
         map: wornWoodTex.map,
         bumpMap: wornWoodTex.bumpMap,
         bumpScale: 0.02,
-        color: 0xd99b26,
+        color: 0x966c1c,
         roughness: 0.28,
         metalness: 0.84,
       }),
@@ -7032,9 +7047,9 @@ export function getHideAndSeekHtml(): string {
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
         bumpScale: 0.03,
-        color: 0x1d4ed8,
+        color: 0x1a3f96,
         metalness: 0.58,
-        roughness: 0.42,
+        roughness: 0.35,
       }),
       royalBlueDark: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
@@ -7046,14 +7061,14 @@ export function getHideAndSeekHtml(): string {
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
         bumpScale: 0.045,
-        color: 0x8d97a0,
+        color: 0x7c848c,
         roughness: 0.64,
       }),
       concretePillar: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
         bumpScale: 0.05,
-        color: 0x9aa6b2,
+        color: 0x7c848c,
         roughness: 0.66,
       }),
       plinthDarkConcrete: new THREE.MeshStandardMaterial({
@@ -7311,7 +7326,58 @@ export function getHideAndSeekHtml(): string {
     sharedGeos.fencePicket.userData.instancedCategory = 'fence';
     sharedGeos.shrubClump.userData.instancedCategory = 'tree';
 
-    // Bind synthesized Sobel tangent-space normalMaps & synced UV repeats to PBR architectural/prop materials
+    // Step 5: Low-Res 64x64 Procedural Night Environment CubeTexture for Wet Road & Veranda Lamp Reflections
+    function createLowResNightEnvCube() {
+      const faces = [];
+      for (let f = 0; f < 6; f++) {
+        const c = document.createElement('canvas');
+        c.width = 64;
+        c.height = 64;
+        const ctx = c.getContext('2d');
+        if (ctx) {
+          if (f === 2) {
+            // +Y Top Sky Face: Cold moonlit zenith
+            const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 44);
+            g.addColorStop(0.0, '#3a5682');
+            g.addColorStop(0.5, '#16253b');
+            g.addColorStop(1.0, '#0b1220');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, 64, 64);
+          } else if (f === 3) {
+            // -Y Bottom Ground Bounce
+            ctx.fillStyle = '#090c12';
+            ctx.fillRect(0, 0, 64, 64);
+          } else {
+            // Side Horizon Faces: Night sky grading into warm #ffa955 streetlamp reflection band
+            const g = ctx.createLinearGradient(0, 0, 0, 64);
+            g.addColorStop(0.0, '#0b1220');
+            g.addColorStop(0.45, '#182840');
+            g.addColorStop(0.62, '#3d352e');
+            g.addColorStop(0.75, '#7a5228');
+            g.addColorStop(1.0, '#10141c');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, 64, 64);
+            // Warm #ffa955 lamp reflection hotspots along the horizon
+            [16, 48].forEach(lx => {
+              const lg = ctx.createRadialGradient(lx, 40, 1, lx, 40, 14);
+              lg.addColorStop(0.0, 'rgba(255, 185, 105, 0.95)');
+              lg.addColorStop(0.45, 'rgba(255, 169, 85, 0.55)');
+              lg.addColorStop(1.0, 'rgba(255, 169, 85, 0.0)');
+              ctx.fillStyle = lg;
+              ctx.fillRect(lx - 14, 26, 28, 28);
+            });
+          }
+        }
+        faces.push(c);
+      }
+      const cubeTex = new THREE.CubeTexture(faces);
+      cubeTex.needsUpdate = true;
+      return cubeTex;
+    }
+    const lowResNightEnvCube = createLowResNightEnvCube();
+    scene.environment = lowResNightEnvCube;
+
+    // Bind synthesized 512px Sobel tangent-space normalMaps, roughnessMaps & low-res envMap to PBR materials
     [
       [riverStoneTex, 0.55],
       [blueRoofTex, 0.45],
@@ -7345,7 +7411,8 @@ export function getHideAndSeekHtml(): string {
           if (!m.roughnessMap && texBundle.roughnessMap) {
             m.roughnessMap = texBundle.roughnessMap;
           }
-          m.envMapIntensity = (m.metalness > 0.4) ? 1.15 : 0.72;
+          m.envMap = lowResNightEnvCube;
+          m.envMapIntensity = (m.roughness <= 0.4) ? 0.95 : ((m.metalness > 0.4) ? 1.15 : 0.65);
         }
       });
     });
@@ -7841,36 +7908,66 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
-    function createWorldScaledBoxGeo(w, h, d, texScale = 2.8) {
-      const geo = new THREE.BoxGeometry(w, h, d);
-      const uv = geo.attributes.uv;
-      const norm = geo.attributes.normal;
-      const pos = geo.attributes.position;
-      if (uv && norm && pos) {
-        for (let i = 0; i < uv.count; i++) {
-          const nx = Math.abs(norm.getX(i));
-          const ny = Math.abs(norm.getY(i));
-          const vx = pos.getX(i) + w * 0.5;
-          const vy = pos.getY(i) + h * 0.5;
-          const vz = pos.getZ(i) + d * 0.5;
-          if (ny > 0.5) {
-            uv.setXY(i, vx / texScale, vz / texScale);
-          } else if (nx > 0.5) {
-            uv.setXY(i, vz / texScale, vy / texScale);
-          } else {
-            uv.setXY(i, vx / texScale, vy / texScale);
-          }
-        }
-        uv.needsUpdate = true;
+    // Step 2 & 4: Rescale box UVs to real metres (tilesPerMetre = 0.5 -> 2m per tile on every wall, roof & road)
+    function worldUV(geo, tilesPerMetre = 0.5) {
+      if (!geo || !geo.attributes) return geo;
+      const p = geo.attributes.position, n = geo.attributes.normal, uv = geo.attributes.uv;
+      if (!p || !n || !uv) return geo;
+      for (let i = 0; i < uv.count; i++) {
+        const nx = Math.abs(n.getX(i)), ny = Math.abs(n.getY(i)), nz = Math.abs(n.getZ(i));
+        let u, v;
+        if (ny > nx && ny > nz) { u = p.getX(i); v = p.getZ(i); }
+        else if (nx > nz)       { u = p.getZ(i); v = p.getY(i); }
+        else                    { u = p.getX(i); v = p.getY(i); }
+        uv.setXY(i, u * tilesPerMetre, v * tilesPerMetre);
       }
+      uv.needsUpdate = true;
+      return geo;
+    }
+
+    // Apply dark grime gradient at the base of each wall and subtle stain near roof edges via vertex colors
+    function applyWallBaseAndEaveGrime(geo, h, yBottomOffset = 0.0, totalWallH = null) {
+      if (!geo || !geo.attributes || !geo.attributes.position) return geo;
+      const pos = geo.attributes.position;
+      const fullH = totalWallH || h;
+      const colors = new Float32Array(pos.count * 3);
+      for (let i = 0; i < pos.count; i++) {
+        const localY = (pos.getY(i) + h * 0.5) + yBottomOffset;
+        const normY = Math.max(0.0, Math.min(1.0, localY / Math.max(0.5, fullH)));
+        // Dark grime rising from wall base (0.0 .. 0.28 of wall height) + subtle damp stain at roof edge (0.82 .. 1.0)
+        let shade = 1.0;
+        if (normY < 0.28) {
+          const tBase = normY / 0.28;
+          shade *= (0.48 + 0.52 * (tBase * tBase * (3.0 - 2.0 * tBase)));
+        } else if (normY > 0.82) {
+          const tTop = (1.0 - normY) / 0.18;
+          shade *= (0.72 + 0.28 * Math.max(0.0, tTop));
+        }
+        colors[i * 3 + 0] = shade * 0.96;
+        colors[i * 3 + 1] = shade * 0.98;
+        colors[i * 3 + 2] = shade;
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      geo.userData.preserveVertexColors = true;
+      return geo;
+    }
+
+    function createWorldScaledBoxGeo(w, h, d, texScale = 2.0, yBottomOffset = 0.0, totalWallH = null) {
+      const segX = w > 4.5 ? Math.min(4, Math.max(1, Math.round(w / 3.2))) : 1;
+      const segY = h > 1.2 ? Math.max(3, Math.min(5, Math.round(h / 1.1))) : 2;
+      const segZ = d > 4.5 ? Math.min(4, Math.max(1, Math.round(d / 3.2))) : 1;
+      const geo = new THREE.BoxGeometry(w, h, d, segX, segY, segZ).clone();
+      const tilesPerMetre = texScale > 0 ? (1.0 / texScale) : 0.5;
+      worldUV(geo, tilesPerMetre);
+      applyWallBaseAndEaveGrime(geo, h, yBottomOffset, totalWallH || h);
       return geo;
     }
 
     function buildWallSegment(x, y, z, w, h, d, mat, trimEnds = true) {
-      const mesh = new THREE.Mesh(createWorldScaledBoxGeo(w, h, d, 2.8), mat);
+      const vcMat = getVertexColoredMaterial(mat);
+      const mesh = new THREE.Mesh(createWorldScaledBoxGeo(w, h, d, 2.0, 0.0, h), vcMat);
       mesh.position.set(x, y + h / 2, z);
       scene.add(mesh);
-      // Inset the long-axis ends slightly so perpendicular wall segments meeting at corners never overlap in 3D AABB checks
       const trim = trimEnds ? 0.13 : 0.0;
       const cw = (w > d + 0.3 && w > trim * 2 + 0.2) ? (w - trim * 2) : w;
       const cd = (d > w + 0.3 && d > trim * 2 + 0.2) ? (d - trim * 2) : d;
@@ -7888,6 +7985,7 @@ export function getHideAndSeekHtml(): string {
         if (axis === 'x') return buildWallSegment(cx, floorY, cz, length, wallH, wallT, mat);
         return buildWallSegment(cx, floorY, cz, wallT, wallH, length, mat);
       }
+      const vcMat = getVertexColoredMaterial(mat);
       const minC = (axis === 'x' ? cx : cz) - length * 0.5;
       const maxC = (axis === 'x' ? cx : cz) + length * 0.5;
       const spandrelH = Math.max(0.18, wallH - headH);
@@ -7895,17 +7993,17 @@ export function getHideAndSeekHtml(): string {
 
       // 1. Continuous lower sill wall mesh (floorY .. floorY + sillH) & upper lintel/spandrel mesh (floorY + headH .. floorY + wallH)
       if (axis === 'x') {
-        const sillMesh = new THREE.Mesh(createWorldScaledBoxGeo(length, sillH, wallT, 2.8), mat);
+        const sillMesh = new THREE.Mesh(createWorldScaledBoxGeo(length, sillH, wallT, 2.0, 0.0, wallH), vcMat);
         sillMesh.position.set(cx, floorY + sillH * 0.5, cz);
         scene.add(sillMesh);
-        const topMesh = new THREE.Mesh(createWorldScaledBoxGeo(length, spandrelH, wallT, 2.8), mat);
+        const topMesh = new THREE.Mesh(createWorldScaledBoxGeo(length, spandrelH, wallT, 2.0, headH, wallH), vcMat);
         topMesh.position.set(cx, floorY + headH + spandrelH * 0.5, cz);
         scene.add(topMesh);
       } else {
-        const sillMesh = new THREE.Mesh(createWorldScaledBoxGeo(wallT, sillH, length, 2.8), mat);
+        const sillMesh = new THREE.Mesh(createWorldScaledBoxGeo(wallT, sillH, length, 2.0, 0.0, wallH), vcMat);
         sillMesh.position.set(cx, floorY + sillH * 0.5, cz);
         scene.add(sillMesh);
-        const topMesh = new THREE.Mesh(createWorldScaledBoxGeo(wallT, spandrelH, length, 2.8), mat);
+        const topMesh = new THREE.Mesh(createWorldScaledBoxGeo(wallT, spandrelH, length, 2.0, headH, wallH), vcMat);
         topMesh.position.set(cx, floorY + headH + spandrelH * 0.5, cz);
         scene.add(topMesh);
       }
@@ -8173,13 +8271,40 @@ export function getHideAndSeekHtml(): string {
         { w: 0.08, h: 1.44, d: 0.28, x: -0.94, y: 0, z: 0 },
         { w: 0.08, h: 1.44, d: 0.28, x:  0.94, y: 0, z: 0 },
         { w: 0.055, h: 1.36, d: 0.16, x: 0, y: 0, z: 0 },
+        { w: 2.00, h: 0.08, d: 0.24, x: 0, y: -0.71, z:  0.08 },
+        { w: 2.00, h: 0.08, d: 0.24, x: 0, y: -0.71, z: -0.08 },
       ];
       const geos = parts.map(p => {
-        const g = new THREE.BoxGeometry(p.w, p.h, p.d);
+        const g = new THREE.BoxGeometry(p.w, p.h, p.d).clone();
         g.translate(p.x, p.y, p.z);
         return g;
       });
-      return THREE.BufferGeometryUtils.mergeBufferGeometries(geos);
+      const merged = THREE.BufferGeometryUtils.mergeBufferGeometries(geos);
+      geos.forEach(g => g.dispose());
+      return merged;
+    })();
+    const sharedMovableSashFrameGeo = (function() {
+      const parts = [
+        { w: 0.86, h: 0.045, d: 0.04, x: 0,     y:  0.63, z: 0 },
+        { w: 0.86, h: 0.045, d: 0.04, x: 0,     y: -0.63, z: 0 },
+        { w: 0.045, h: 1.30, d: 0.04, x: -0.41, y:  0,    z: 0 },
+        { w: 0.045, h: 1.30, d: 0.04, x:  0.41, y:  0,    z: 0 },
+      ];
+      const geos = parts.map(p => {
+        const g = new THREE.BoxGeometry(p.w, p.h, p.d).clone();
+        g.translate(p.x, p.y, p.z);
+        return g;
+      });
+      const merged = THREE.BufferGeometryUtils.mergeBufferGeometries(geos);
+      geos.forEach(g => g.dispose());
+      return merged;
+    })();
+    const sharedWinLeftPaneGeo = new THREE.PlaneGeometry(0.84, 1.28);
+    const sharedWinRightPaneGeo = new THREE.PlaneGeometry(0.82, 1.24);
+    const sharedWinLatchGeo = (function() {
+      const g = new THREE.BoxGeometry(0.03, 0.14, 0.08).clone();
+      g.translate(-0.38, 0.0, 0.0);
+      return g;
     })();
     const seeThroughWindowGlassMat = new THREE.MeshStandardMaterial({
       map: dirtyGlassTex.map,
@@ -8222,48 +8347,27 @@ export function getHideAndSeekHtml(): string {
       }
       wGroup.rotation.y = rotY;
 
-      // Hollow 4-bar 3D window frame spanning the full wall thickness + interior & exterior sill ledges
+      // Hollow 4-bar 3D window frame spanning the full wall thickness + pre-merged interior & exterior sill ledges
       const frame = new THREE.Mesh(hollowWinOuterFrameGeo, materials.whiteTrim);
       wGroup.add(frame);
 
-      const sillExt = new THREE.Mesh(sharedGeos.winSillLedge, materials.whiteTrim);
-      sillExt.position.set(0, -0.71, 0.08);
-      wGroup.add(sillExt);
-      const sillInt = new THREE.Mesh(sharedGeos.winSillLedge, materials.whiteTrim);
-      sillInt.position.set(0, -0.71, -0.08);
-      wGroup.add(sillInt);
-
       // Fixed Left Glass Sash (genuinely see-through from both inside and outside!)
       const paneMat = isWarmLit ? seeThroughWarmWindowGlassMat : seeThroughWindowGlassMat;
-      const leftPane = new THREE.Mesh(new THREE.PlaneGeometry(0.84, 1.28), paneMat);
+      const leftPane = new THREE.Mesh(sharedWinLeftPaneGeo, paneMat);
       leftPane.position.set(-0.45, 0, -0.015);
       wGroup.add(leftPane);
 
-      // Openable / Closable Right Sliding Window Sash with 4-Bar Hollow Frame & Brass Handle Latch
+      // Openable / Closable Right Sliding Window Sash with pre-merged 4-Bar Hollow Frame & Brass Handle Latch
       const movableSash = new THREE.Group();
       movableSash.position.set(0.45, 0, 0.025);
       movableSash.userData.noMerge = true;
-      const rightPane = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 1.24), paneMat);
+      const rightPane = new THREE.Mesh(sharedWinRightPaneGeo, paneMat);
       rightPane.userData.noMerge = true;
       movableSash.add(rightPane);
-      const topRail = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.045, 0.04), materials.deskSteelFrame);
-      topRail.position.set(0, 0.63, 0);
-      topRail.userData.noMerge = true;
-      movableSash.add(topRail);
-      const botRail = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.045, 0.04), materials.deskSteelFrame);
-      botRail.position.set(0, -0.63, 0);
-      botRail.userData.noMerge = true;
-      movableSash.add(botRail);
-      const leftStile = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.30, 0.04), materials.deskSteelFrame);
-      leftStile.position.set(-0.41, 0, 0);
-      leftStile.userData.noMerge = true;
-      movableSash.add(leftStile);
-      const rightStile = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.30, 0.04), materials.deskSteelFrame);
-      rightStile.position.set(0.41, 0, 0);
-      rightStile.userData.noMerge = true;
-      movableSash.add(rightStile);
-      const latchHandle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.08), materials.brassGajur);
-      latchHandle.position.set(-0.38, 0.0, 0.0);
+      const sashFrame = new THREE.Mesh(sharedMovableSashFrameGeo, materials.deskSteelFrame);
+      sashFrame.userData.noMerge = true;
+      movableSash.add(sashFrame);
+      const latchHandle = new THREE.Mesh(sharedWinLatchGeo, materials.brassGajur);
       latchHandle.userData.noMerge = true;
       movableSash.add(latchHandle);
       wGroup.add(movableSash);
@@ -9729,13 +9833,14 @@ export function getHideAndSeekHtml(): string {
     step2Geos.keyboard.userData.instancedCategory = 'desk';
     step2Geos.backpack.userData.instancedCategory = 'book';
 
-    // Pre-merge door leaf + handle into 1 geometry so each articulated door is 1 draw call
+    // Pre-merge door leaf + handle into 1 geometry spanning the full doorway opening so closed doors seal the doorway completely
     const mergedDoorLeafGeo = (function() {
       const g1 = step2Geos.doorLeaf.clone();
-      const m1 = new THREE.Matrix4().makeTranslation(0.46, 1.13, 0);
+      g1.scale(1.88, 1.12, 1.0);
+      const m1 = new THREE.Matrix4().makeTranslation(0.86, 1.27, 0);
       g1.applyMatrix4(m1);
       const g2 = step2Geos.doorHandle.clone();
-      const m2 = new THREE.Matrix4().makeTranslation(0.82, 1.02, 0);
+      const m2 = new THREE.Matrix4().makeTranslation(1.56, 1.05, 0);
       g2.applyMatrix4(m2);
       return THREE.BufferGeometryUtils.mergeBufferGeometries([g1, g2]);
     })();
@@ -9816,23 +9921,78 @@ export function getHideAndSeekHtml(): string {
       return record;
     }
 
+    // Shared & pre-merged geometries for interactive switches, drawers & cupboards
+    const sharedSwitchPlateGeo = new THREE.BoxGeometry(0.14, 0.22, 0.025);
+    const sharedSwitchRockerGeo = new THREE.BoxGeometry(0.06, 0.09, 0.022);
+    const sharedSwitchLedGeo = new THREE.SphereGeometry(0.014, 6, 6);
+    const sharedDrawerTrayGeo = new THREE.BoxGeometry(0.42, 0.14, 0.48);
+    const sharedDrawerFrontGeo = (function() {
+      const g = new THREE.BoxGeometry(0.44, 0.16, 0.03).clone();
+      g.translate(0, 0, 0.25);
+      return g;
+    })();
+    const sharedDrawerHandleGeo = (function() {
+      const g = new THREE.BoxGeometry(0.14, 0.025, 0.035).clone();
+      g.translate(0, 0.01, 0.275);
+      return g;
+    })();
+    const sharedCupboardShellGeo = (function() {
+      const parts = [
+        { w: 1.16, h: 1.88, d: 0.04, x: 0,     y: 0.94, z: -0.26 },
+        { w: 0.04, h: 1.88, d: 0.54, x: -0.56, y: 0.94, z:  0 },
+        { w: 0.04, h: 1.88, d: 0.54, x:  0.56, y: 0.94, z:  0 },
+        { w: 1.14, h: 0.04, d: 0.52, x: 0,     y: 0.04, z:  0 },
+        { w: 1.14, h: 0.04, d: 0.52, x: 0,     y: 0.62, z:  0 },
+        { w: 1.14, h: 0.04, d: 0.52, x: 0,     y: 1.22, z:  0 },
+        { w: 1.14, h: 0.04, d: 0.52, x: 0,     y: 1.86, z:  0 },
+      ];
+      const geos = parts.map(p => {
+        const g = new THREE.BoxGeometry(p.w, p.h, p.d).clone();
+        g.translate(p.x, p.y, p.z);
+        return g;
+      });
+      const merged = THREE.BufferGeometryUtils.mergeBufferGeometries(geos);
+      geos.forEach(g => g.dispose());
+      return merged;
+    })();
+    const sharedCupboardLeftDoorGeo = (function() {
+      const g = new THREE.BoxGeometry(0.55, 1.78, 0.035).clone();
+      g.translate(0.275, 0, 0);
+      return g;
+    })();
+    const sharedCupboardRightDoorGeo = (function() {
+      const g = new THREE.BoxGeometry(0.55, 1.78, 0.035).clone();
+      g.translate(-0.275, 0, 0);
+      return g;
+    })();
+    const sharedCupboardLeftHandleGeo = (function() {
+      const g = new THREE.BoxGeometry(0.025, 0.14, 0.04).clone();
+      g.translate(0.50, 0.04, 0.03);
+      return g;
+    })();
+    const sharedCupboardRightHandleGeo = (function() {
+      const g = new THREE.BoxGeometry(0.025, 0.14, 0.04).clone();
+      g.translate(-0.50, 0.04, 0.03);
+      return g;
+    })();
+
     // Helper: Working Wall Light Switch & Room Illumination Controller
     function buildRoomLightSwitch(parent, worldX, floorY, worldZ, localX, localY, localZ, rotY, roomId, defaultMood = 'dying_tube') {
       const swGroup = new THREE.Group();
       swGroup.position.set(localX, localY, localZ);
       swGroup.rotation.y = rotY;
-      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.22, 0.025), interiorSystemMats.switchPlateIvory);
+      const plate = new THREE.Mesh(sharedSwitchPlateGeo, interiorSystemMats.switchPlateIvory);
       swGroup.add(plate);
       const rockerPivot = new THREE.Group();
       rockerPivot.position.set(0, 0.01, 0.016);
-      const rocker = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, 0.022), interiorSystemMats.switchRockerDark);
+      const rocker = new THREE.Mesh(sharedSwitchRockerGeo, interiorSystemMats.switchRockerDark);
       rockerPivot.add(rocker);
       swGroup.add(rockerPivot);
 
       const initOn = (defaultMood !== 'dark');
       roomLightSwitchStates[roomId] = initOn;
       const ledMat = initOn ? interiorSystemMats.ledOnGreen.clone() : interiorSystemMats.ledOffRed.clone();
-      const led = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 6), ledMat);
+      const led = new THREE.Mesh(sharedSwitchLedGeo, ledMat);
       led.position.set(0, 0.075, 0.018);
       swGroup.add(led);
       rockerPivot.rotation.x = initOn ? -0.22 : 0.22;
@@ -9863,13 +10023,11 @@ export function getHideAndSeekHtml(): string {
       const dGroup = new THREE.Group();
       dGroup.position.set(localX, localY, localZ);
       dGroup.rotation.y = rotY;
-      const tray = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.48), materials.chairWood);
+      const tray = new THREE.Mesh(sharedDrawerTrayGeo, materials.chairWood);
       dGroup.add(tray);
-      const frontFace = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.16, 0.03), materials.deskWoodTop);
-      frontFace.position.z = 0.25;
+      const frontFace = new THREE.Mesh(sharedDrawerFrontGeo, materials.deskWoodTop);
       dGroup.add(frontFace);
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.025, 0.035), materials.brassGajur);
-      handle.position.set(0, 0.01, 0.275);
+      const handle = new THREE.Mesh(sharedDrawerHandleGeo, materials.brassGajur);
       dGroup.add(handle);
 
       let itemRecord = null;
@@ -9921,39 +10079,24 @@ export function getHideAndSeekHtml(): string {
       const bodyMat = isSteel ? interiorSystemMats.panelSteelGrey : materials.chairWood;
       const doorMat = isSteel ? step2Mats.lockerSteel : materials.deskWoodTop;
 
-      // Cabinet shell & 3 interior shelves
-      const backWall = new THREE.Mesh(new THREE.BoxGeometry(1.16, 1.88, 0.04), bodyMat);
-      backWall.position.set(0, 0.94, -0.26);
-      cGroup.add(backWall);
-      [-0.56, 0.56].forEach(sx => {
-        const sideWall = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.88, 0.54), bodyMat);
-        sideWall.position.set(sx, 0.94, 0);
-        cGroup.add(sideWall);
-      });
-      [0.04, 0.62, 1.22, 1.86].forEach(sy => {
-        const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.14, 0.04, 0.52), bodyMat);
-        shelf.position.set(0, sy, 0);
-        cGroup.add(shelf);
-      });
+      // Pre-merged cabinet shell & 3 interior shelves (1 mesh instead of 7)
+      const shell = new THREE.Mesh(sharedCupboardShellGeo, bodyMat);
+      cGroup.add(shell);
 
       // Hinged Left & Right Doors
       const leftPivot = new THREE.Group();
       leftPivot.position.set(-0.56, 0.94, 0.26);
-      const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.78, 0.035), doorMat);
-      leftDoor.position.set(0.275, 0, 0);
+      const leftDoor = new THREE.Mesh(sharedCupboardLeftDoorGeo, doorMat);
       leftPivot.add(leftDoor);
-      const leftHandle = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.14, 0.04), materials.brassGajur);
-      leftHandle.position.set(0.50, 0.04, 0.03);
+      const leftHandle = new THREE.Mesh(sharedCupboardLeftHandleGeo, materials.brassGajur);
       leftPivot.add(leftHandle);
       cGroup.add(leftPivot);
 
       const rightPivot = new THREE.Group();
       rightPivot.position.set(0.56, 0.94, 0.26);
-      const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(0.55, 1.78, 0.035), doorMat);
-      rightDoor.position.set(-0.275, 0, 0);
+      const rightDoor = new THREE.Mesh(sharedCupboardRightDoorGeo, doorMat);
       rightPivot.add(rightDoor);
-      const rightHandle = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.14, 0.04), materials.brassGajur);
-      rightHandle.position.set(-0.50, 0.04, 0.03);
+      const rightHandle = new THREE.Mesh(sharedCupboardRightHandleGeo, materials.brassGajur);
       rightPivot.add(rightHandle);
       cGroup.add(rightPivot);
 
@@ -10087,37 +10230,71 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
+    const sharedSwitchboardBoxGeo = (function() {
+      const box = new THREE.BoxGeometry(0.68, 0.92, 0.22);
+      const leaf = new THREE.BoxGeometry(0.66, 0.90, 0.025).clone();
+      leaf.translate(0.33, 0, 0);
+      return { box, leaf };
+    })();
+    const sharedSwitchboardCavityGeo = (function() {
+      const g = new THREE.BoxGeometry(0.60, 0.84, 0.04).clone();
+      g.translate(0, 0, 0.095);
+      return g;
+    })();
+    const sharedSwitchboardSideBusesGeo = (function() {
+      const b1 = new THREE.BoxGeometry(0.06, 0.56, 0.03).clone();
+      b1.translate(-0.16, 0.04, 0.11);
+      const b2 = new THREE.BoxGeometry(0.06, 0.56, 0.03).clone();
+      b2.translate(0.16, 0.04, 0.11);
+      const merged = THREE.BufferGeometryUtils.mergeBufferGeometries([b1, b2]);
+      b1.dispose();
+      b2.dispose();
+      return merged;
+    })();
+    const sharedSwitchboardCenterBusGeo = (function() {
+      const g = new THREE.BoxGeometry(0.06, 0.56, 0.03).clone();
+      g.translate(0.0, 0.04, 0.11);
+      return g;
+    })();
+    const sharedSwitchboardLeverGeo = (function() {
+      const g = new THREE.BoxGeometry(0.16, 0.04, 0.10).clone();
+      g.translate(0, 0.06, 0.04);
+      return g;
+    })();
+    const sharedSwitchboardHazardGeo = (function() {
+      const g = new THREE.BoxGeometry(0.16, 0.16, 0.03).clone();
+      g.translate(0.33, 0.12, 0.005);
+      return g;
+    })();
+
     // Helper: Interactive Electrical Switchboard & High-Voltage Breaker Panel (Matching Reference Screenshot 2)
     function buildInteractiveSwitchboardPanel(parent, worldX, floorY, worldZ, localX, localY, localZ, rotY, panelId, label, powerKey = 'mainCampusGrid', controlsCampusLights = true) {
       const pGroup = new THREE.Group();
       pGroup.position.set(localX, localY, localZ);
       pGroup.rotation.y = rotY;
 
-      // Steel enclosure box
-      const box = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.92, 0.22), interiorSystemMats.panelSteelGrey);
+      // Steel enclosure box & dark cavity
+      const box = new THREE.Mesh(sharedSwitchboardBoxGeo.box, interiorSystemMats.panelSteelGrey);
       pGroup.add(box);
-      const cavity = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.84, 0.04), interiorSystemMats.panelInteriorDark);
-      cavity.position.z = 0.095;
+      const cavity = new THREE.Mesh(sharedSwitchboardCavityGeo, interiorSystemMats.panelInteriorDark);
       pGroup.add(cavity);
 
-      // Internal Copper Busbars & MCB Breaker Rows
-      [-0.16, 0.0, 0.16].forEach((bx, bIdx) => {
-        const bus = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.56, 0.03), bIdx === 1 ? interiorSystemMats.copperBusbar : interiorSystemMats.missionItemCyan);
-        bus.position.set(bx, 0.04, 0.11);
-        pGroup.add(bus);
-      });
+      // Internal Copper Busbars & MCB Breaker Rows (pre-merged side buses + center copper bus)
+      const sideBuses = new THREE.Mesh(sharedSwitchboardSideBusesGeo, interiorSystemMats.missionItemCyan);
+      pGroup.add(sideBuses);
+      const centerBus = new THREE.Mesh(sharedSwitchboardCenterBusGeo, interiorSystemMats.copperBusbar);
+      pGroup.add(centerBus);
 
       // Main Throw Lever + Status LED
       const leverPivot = new THREE.Group();
       leverPivot.position.set(0, -0.12, 0.12);
-      const leverBar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.10), interiorSystemMats.firePipeRed);
-      leverBar.position.set(0, 0.06, 0.04);
+      const leverBar = new THREE.Mesh(sharedSwitchboardLeverGeo, interiorSystemMats.firePipeRed);
       leverPivot.add(leverBar);
       leverPivot.rotation.x = -0.35; // ON position
       pGroup.add(leverPivot);
 
       const ledMat = interiorSystemMats.ledOnGreen.clone();
-      const statusLed = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 8), ledMat);
+      const statusLed = new THREE.Mesh(sharedSwitchLedGeo, ledMat);
       statusLed.position.set(0.22, 0.32, 0.125);
       pGroup.add(statusLed);
 
@@ -10125,11 +10302,9 @@ export function getHideAndSeekHtml(): string {
       const doorPivot = new THREE.Group();
       doorPivot.position.set(-0.33, 0, 0.11);
       doorPivot.rotation.y = -0.85;
-      const doorLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.90, 0.025), interiorSystemMats.panelSteelGrey);
-      doorLeaf.position.set(0.33, 0, 0);
+      const doorLeaf = new THREE.Mesh(sharedSwitchboardBoxGeo.leaf, interiorSystemMats.panelSteelGrey);
       doorPivot.add(doorLeaf);
-      const hazardDecal = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.03), interiorSystemMats.hazardYellow);
-      hazardDecal.position.set(0.33, 0.12, 0.005);
+      const hazardDecal = new THREE.Mesh(sharedSwitchboardHazardGeo, interiorSystemMats.hazardYellow);
       doorPivot.add(hazardDecal);
       pGroup.add(doorPivot);
 
@@ -10628,18 +10803,20 @@ export function getHideAndSeekHtml(): string {
         jacket.rotation.set(Math.PI / 2, (s * 0.8) % 6.28, 0);
         parent.add(jacket);
 
-        // 5. Crooked peeling posters on interior walls
-        const pGeo1 = posterGeoVariants[s % posterGeoVariants.length];
-        const pGeo2 = posterGeoVariants[(s + 2) % posterGeoVariants.length];
-        const p1 = new THREE.Mesh(pGeo1, oldPosterMat);
-        p1.position.set(-roomW * 0.48 + 0.03, 1.62, -roomD * 0.22);
-        p1.rotation.set(0, Math.PI / 2, 0.09);
-        parent.add(p1);
+        // 5. Crooked peeling posters mounted flush on interior walls (skip on open-sided corridors)
+        if (!isCorridor) {
+          const pGeo1 = posterGeoVariants[s % posterGeoVariants.length];
+          const pGeo2 = posterGeoVariants[(s + 2) % posterGeoVariants.length];
+          const p1 = new THREE.Mesh(pGeo1, oldPosterMat);
+          p1.position.set(-(roomW * 0.5 - 0.025), 1.62, -roomD * 0.22);
+          p1.rotation.set(0, Math.PI / 2, 0.09);
+          parent.add(p1);
 
-        const p2 = new THREE.Mesh(pGeo2, oldPosterMat);
-        p2.position.set(roomW * 0.48 - 0.03, 1.54, roomD * 0.26);
-        p2.rotation.set(0, -Math.PI / 2, -0.07);
-        parent.add(p2);
+          const p2 = new THREE.Mesh(pGeo2, oldPosterMat);
+          p2.position.set((roomW * 0.5 - 0.025), 1.54, roomD * 0.26);
+          p2.rotation.set(0, -Math.PI / 2, -0.07);
+          parent.add(p2);
+        }
       }
     }
 
@@ -10826,15 +11003,25 @@ export function getHideAndSeekHtml(): string {
 
       cGroup.userData.isRoomGroup = true;
       bakeStaticGroup(cGroup, true);
+      const corrBKey = resolveCanonicalBuildingKey(zoneName, 'OTHER');
       roomVisibilityList.push({
         id: zoneName,
         type: 'corridor',
         group: cGroup,
+        bounds: {
+          minX: corridorX - 2.4,
+          maxX: corridorX + 2.4,
+          minZ: corridorZ - length * 0.52,
+          maxZ: corridorZ + length * 0.52,
+          floorY,
+          ceilingY: floorY + 3.55,
+        },
         x: corridorX,
         y: floorY,
         z: corridorZ,
         floorY,
         radius: Math.max(6.0, length * 0.52),
+        bKey: corrBKey,
       });
     }
 
@@ -10860,7 +11047,7 @@ export function getHideAndSeekHtml(): string {
       const propCfg = cCfg.propDensity || {};
       const hw = roomW * 0.5;
       const hd = roomD * 0.5;
-      const boardZ = facingDirZ * -(hd - 0.95);
+      const boardZ = facingDirZ * -(hd - 0.05);
 
       // 1. MATERIALS & DECAY: Wet floor sheen patch near window wall + dark corner mold decals + ceiling water stains
       const wetPatch = new THREE.Mesh(wetFloorSheenGeo, step2Mats.floorWetSheenMat);
@@ -11027,19 +11214,31 @@ export function getHideAndSeekHtml(): string {
       }
     }
 
-    // Helper: Standard / Seminar Classroom Interior (Upgraded with Two-Tone Institutional Dado, Green Bulletin Board, Searchable Teacher Desk Drawer, Openable Storage Cupboard & Chalk Tray)
-    function buildDetailedClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false, layoutVariant = 0) {
+    // Helper: Standard / Seminar Classroom Interior (Upgraded with room-fitted wall bounds so zero props float or block doorways)
+    function buildDetailedClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false, layoutVariant = 0, roomDef = null, roomW = 7.6, roomD = 7.6, doorAxis = 'z', doorDirSign = -1) {
       const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
+      const wallHalfW = Math.max(3.30, roomW * 0.5 - 0.02);
+      const wallHalfD = Math.max(3.30, roomD * 0.5 - 0.02);
       // 1. Two-Tone Institutional Dado Band around Teaching & Side Walls + Raised Dais + Blackboard & Whiteboard with Chalk Tray
-      const boardZ = facingDirZ * -3.1;
+      const boardZ = facingDirZ * -(wallHalfD - 0.04);
       const dadoMat = isNewariStyle ? materials.nepalOchreDado : interiorSystemMats.corridorDadoGreenGrey;
-      const dadoBand = new THREE.Mesh(new THREE.BoxGeometry(6.8, 1.06, 0.04), dadoMat);
-      dadoBand.position.set(0, 0.53, boardZ + facingDirZ * 0.02);
+      const dadoBand = new THREE.Mesh(new THREE.BoxGeometry(Math.max(6.2, roomW - 0.12), 1.06, 0.03), dadoMat);
+      dadoBand.position.set(0, 0.53, boardZ + facingDirZ * 0.015);
       cGroup.add(dadoBand);
-      [-3.36, 3.36].forEach(sx => {
-        const sideDado = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.06, 8.0), dadoMat);
-        sideDado.position.set(sx, 0.53, 0);
-        cGroup.add(sideDado);
+      [-1, 1].forEach(sSign => {
+        const sx = sSign * (wallHalfW - 0.015);
+        if (doorAxis === 'x' && sSign === doorDirSign) {
+          const segD = Math.max(0.4, (roomD - 2.15) * 0.5);
+          [-1, 1].forEach(zSide => {
+            const sideDado = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.06, segD), dadoMat);
+            sideDado.position.set(sx, 0.53, zSide * (1.075 + segD * 0.5));
+            cGroup.add(sideDado);
+          });
+        } else {
+          const sideDado = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.06, Math.max(6.2, roomD - 0.12)), dadoMat);
+          sideDado.position.set(sx, 0.53, 0);
+          cGroup.add(sideDado);
+        }
       });
 
       const dais = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 1.4), materials.rotundaPlinthConcrete);
@@ -11060,32 +11259,35 @@ export function getHideAndSeekHtml(): string {
       chalkTray.position.set(0.55, 1.16, boardZ + facingDirZ * 0.06);
       cGroup.add(chalkTray);
 
-      // Green Felt Bulletin Board on Rear Wall (Matching Reference Screenshot 1)
+      // Side Wall Openable 2-Door Classroom Storage Cupboard + Green Bulletin Board + Upper Wall Shelves with Books (mounted flush against actual side walls)
+      const bcSignX = unitCenterX > 15 ? 1 : -1;
+      const noticeWallX = -bcSignX * (wallHalfW - 0.04);
+      const noticeZ = (doorAxis === 'x' && doorDirSign === -bcSignX) ? -2.05 : 1.55;
       const rearNotice = new THREE.Mesh(step2Geos.noticeBoard, materials.chairWood);
-      rearNotice.rotation.set(0.04, Math.PI / 2, 0.02);
-      rearNotice.position.set(0, 1.75, facingDirZ * 3.15);
+      rearNotice.rotation.set(0.015, 0.0, 0.0);
+      rearNotice.position.set(noticeWallX, 1.75, noticeZ);
       cGroup.add(rearNotice);
       const rearCork = new THREE.Mesh(step2Geos.noticeCork, interiorSystemMats.bulletinFeltGreen);
-      rearCork.rotation.set(0.04, Math.PI / 2, 0.02);
-      rearCork.position.set(0, 1.75, facingDirZ * 3.12);
+      rearCork.rotation.set(0.015, 0.0, 0.0);
+      rearCork.position.set(noticeWallX + bcSignX * 0.015, 1.75, noticeZ);
       cGroup.add(rearCork);
-      [-0.42, 0.05, 0.46].forEach((nx, nIdx) => {
+      [-0.42, 0.05, 0.46].forEach((nz, nIdx) => {
         const nSheet = new THREE.Mesh(step2Geos.noticeNote, step2Mats.paperSheet);
-        nSheet.position.set(nx, 1.76 + (nIdx - 1) * 0.06, facingDirZ * 3.09);
-        nSheet.rotation.set(0, Math.PI / 2, (nIdx - 1) * 0.14);
+        nSheet.position.set(noticeWallX + bcSignX * 0.03, 1.76 + (nIdx - 1) * 0.06, noticeZ + nz);
+        nSheet.rotation.set((nIdx - 1) * 0.10, 0.0, 0.0);
         cGroup.add(nSheet);
       });
 
-      // Side Wall Openable 2-Door Classroom Storage Cupboard + Upper Wall Shelves with Books
-      const bcSignX = unitCenterX > 15 ? 1 : -1;
+      const cupLocalX = bcSignX * (wallHalfW - 0.30);
+      const cupLocalZ = (doorAxis === 'x' && doorDirSign === bcSignX) ? 1.85 : 0.4;
       buildOpenableCupboard(
         cGroup,
         unitCenterX,
         floorY,
         unitCenterZ,
-        bcSignX * 3.02,
+        cupLocalX,
         0.0,
-        0.4,
+        cupLocalZ,
         bcSignX > 0 ? -Math.PI / 2 : Math.PI / 2,
         'cupboard-' + unitTitle.replace(/\s+/g, '-').toLowerCase(),
         unitTitle + ' Storage Cupboard',
@@ -11093,31 +11295,33 @@ export function getHideAndSeekHtml(): string {
         null
       );
 
+      const shelfWallX = -bcSignX * (wallHalfW - 0.16);
+      const shelfLocalZOff = (doorAxis === 'x' && doorDirSign === -bcSignX) ? -1.85 : -0.8;
       [1.45, 2.05].forEach((sy, sIdx) => {
         const wShelf = new THREE.Mesh(step2Geos.wallShelf, materials.chairWood);
-        wShelf.position.set(3.18, sy, -0.8 + sIdx * 0.4);
+        wShelf.position.set(shelfWallX, sy, shelfLocalZOff + sIdx * 0.4);
         cGroup.add(wShelf);
         const sBooks = new THREE.Mesh(step2Geos.bookStack, sIdx === 0 ? materials.rotundaRedSteel : materials.gandakiBluePole);
-        sBooks.position.set(3.14, sy + 0.08, -0.8 + sIdx * 0.4);
+        sBooks.position.set(shelfWallX + bcSignX * 0.04, sy + 0.08, shelfLocalZOff + sIdx * 0.4);
         cGroup.add(sBooks);
       });
 
-      // Wall-Mounted Oscillating Fans on both side walls + Window Curtains
-      buildWallMountedFan(cGroup, -3.28, 2.55, -1.5, Math.PI / 2);
-      buildWallMountedFan(cGroup, 3.28, 2.55, 1.2, -Math.PI / 2);
-      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.6, -Math.PI / 2, isNewariStyle);
-      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, 1.8, -Math.PI / 2, isNewariStyle);
+      // Wall-Mounted Oscillating Fans on both side walls + Window Curtains flush with actual room walls
+      buildWallMountedFan(cGroup, -(wallHalfW - 0.06), 2.55, -1.5, Math.PI / 2);
+      buildWallMountedFan(cGroup,  (wallHalfW - 0.06), 2.55,  1.2, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, (wallHalfW - 0.08), 1.92, -1.6, -Math.PI / 2, isNewariStyle);
+      buildInteriorWindowCurtains(cGroup, (wallHalfW - 0.08), 1.92,  1.8, -Math.PI / 2, isNewariStyle);
 
-      // Representative Classroom Sub-Breaker Switchboard Panel (Ensures every classroom—starting with West Wing L1 Room 1—has a functional door, searchable drawer, and working electrical switchboard)
+      // Representative Classroom Sub-Breaker Switchboard Panel mounted flush against West/interior side wall
       buildInteractiveSwitchboardPanel(
         cGroup,
         unitCenterX,
         floorY,
         unitCenterZ,
-        -bcSignX * 3.12,
+        bcSignX * (wallHalfW - 0.12),
         1.42,
-        facingDirZ * -2.55,
-        bcSignX > 0 ? Math.PI / 2 : -Math.PI / 2,
+        facingDirZ * (wallHalfD - 1.15),
+        bcSignX > 0 ? -Math.PI / 2 : Math.PI / 2,
         'switchboard-classroom-' + unitTitle.replace(/\s+/g, '-').toLowerCase(),
         unitTitle + ' Classroom Electrical Sub-Panel',
         'classroomCircuit_' + unitTitle.replace(/\s+/g, '_'),
@@ -12253,18 +12457,46 @@ export function getHideAndSeekHtml(): string {
     const FALLBACK_MOOD_CYCLE = ['dark', 'dying_tube', 'moonlight', 'warm_lamp', 'emergency_red'];
     let fallbackMoodCounter = 0;
 
+    function resolveCanonicalBuildingKey(labelOrId, fallback = 'OTHER') {
+      if (!labelOrId) return fallback;
+      const s = String(labelOrId);
+      if (s.indexOf('West Wing L1') !== -1) return 'L1';
+      if (s.indexOf('West Wing L2') !== -1) return 'L2';
+      if (s.indexOf('West Wing L3') !== -1) return 'L3';
+      if (s.indexOf('East Wing R1') !== -1) return 'R1';
+      if (s.indexOf('East Wing R2') !== -1) return 'R2';
+      if (s.indexOf('East Wing R4') !== -1) return 'R4';
+      if (s.indexOf('Building B6') !== -1 || s.indexOf('CLASSROOMS_B6') !== -1) return 'CLASSROOMS_B6';
+      if (s.indexOf('Computer Lab Copy B15') !== -1 || s.indexOf('BLDG_15') !== -1) return 'BLDG_15';
+      if (s.indexOf('Pharmacy Lab B4') !== -1 || s.indexOf('PHARMACY_B4') !== -1) return 'PHARMACY_B4';
+      if (s.indexOf('Washroom 1 B3') !== -1 || s.indexOf('WASHROOM_B3') !== -1) return 'WASHROOM_B3';
+      if (s.indexOf('Washroom 2 B48') !== -1) return 'WASHROOM_B48';
+      if (s.indexOf('Office') !== -1 || s.indexOf('OFFICE_B1') !== -1) return 'OFFICE_B1';
+      if (s.indexOf('Warehouse B2') !== -1 || s.indexOf('WAREHOUSE_B2') !== -1) return 'WAREHOUSE_B2';
+      if (s.indexOf('Newari Heritage Block W1') !== -1) return 'W1';
+      if (s.indexOf('Newari Cultural Hall W2') !== -1 || s.indexOf('Heritage Library W2') !== -1) return 'W2';
+      if (s.indexOf('Building W3') !== -1) return 'W3';
+      if (s.indexOf('Building W4') !== -1) return 'W4';
+      if (s.indexOf('Security Guardhouse 18') !== -1) return 'GUARDHOUSE_18';
+      if (s.indexOf('Guardhouse') !== -1) return 'GUARDHOUSE';
+      if (s.indexOf('Rotunda') !== -1 || s.indexOf('ROTUNDA') !== -1) return 'ROTUNDA';
+      return fallback;
+    }
+
     function getOrRegisterRoomDefinition(roomId, cx, cz, floorY, halfW = 3.8, halfD = 4.6, building = 'OTHER', archetype = 'classroom_standard', doorAxis = 'z', doorDirSign = -1) {
+      const canonicalBldg = resolveCanonicalBuildingKey(building !== 'OTHER' ? building : roomId, building);
       const doorWpX = doorAxis === 'x' ? (cx + doorDirSign * (halfW - 0.3)) : cx;
       const doorWpZ = doorAxis === 'z' ? (cz + doorDirSign * (halfD - 0.3)) : cz;
-      const inWpX = building === 'ROTUNDA'
+      const inWpX = canonicalBldg === 'ROTUNDA'
         ? (cx + (cx < 0 ? 4.8 : -4.8))
         : (doorAxis === 'x' ? (cx + doorDirSign * (halfW - 0.62)) : cx);
-      const inWpZ = building === 'ROTUNDA'
+      const inWpZ = canonicalBldg === 'ROTUNDA'
         ? (cz - 4.8)
         : (doorAxis === 'z' ? (cz + doorDirSign * (halfD - 0.62)) : cz);
       if (ROOM_DEFINITIONS[roomId]) {
+        ROOM_DEFINITIONS[roomId].building = resolveCanonicalBuildingKey(ROOM_DEFINITIONS[roomId].building || roomId, canonicalBldg);
         ROOM_DEFINITIONS[roomId].lightMood = normalizeRoomLightMood(ROOM_DEFINITIONS[roomId].lightMood);
-        ROOM_DEFINITIONS[roomId].bounds = { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + 3.4 };
+        ROOM_DEFINITIONS[roomId].bounds = { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + 3.55 };
         ROOM_DEFINITIONS[roomId].waypoints = [
           { id: 'wp-' + roomId + '-door', x: doorWpX, y: floorY, z: doorWpZ, kind: 'door' },
           { id: 'wp-' + roomId + '-in', x: inWpX, y: floorY, z: inWpZ, kind: 'interior' },
@@ -12274,10 +12506,10 @@ export function getHideAndSeekHtml(): string {
       const mood = FALLBACK_MOOD_CYCLE[(fallbackMoodCounter++) % FALLBACK_MOOD_CYCLE.length];
       const def = {
         id: roomId,
-        building: building,
+        building: canonicalBldg,
         archetype: archetype,
         lightMood: mood,
-        bounds: { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + 3.4 },
+        bounds: { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + 3.55 },
         furniture: ['teacher_podium', 'teacher_desk', 'student_desks_3x3'],
         hidingSpots: ['podium', 'student_desks'],
         waypoints: [
@@ -12584,7 +12816,7 @@ export function getHideAndSeekHtml(): string {
         }
         rf.currentMult = mult;
 
-        // Check if player is physically inside this room's bounds
+        // Check if player is physically inside or looking into this visible room
         if (Math.abs(playerPos.y - rf.floorY) < 2.2) {
           const hw = rf.halfW || 7.0;
           const hd = rf.halfD || 6.8;
@@ -12598,24 +12830,43 @@ export function getHideAndSeekHtml(): string {
       }
 
       if (lampFlickerMod) {
-        if (insideFixture && powerCutDarkBuilding !== 'ROTUNDA') {
-          lampFlickerMod.indoorOverrideLight = {
-            x: insideFixture.worldX,
-            y: insideFixture.worldY,
-            z: insideFixture.worldZ,
-            color: insideFixture.color,
-            distance: insideFixture.distance,
-            intensity: insideFixture.baseIntensity * (insideFixture.currentMult || 1.0),
-          };
-        } else {
-          lampFlickerMod.indoorOverrideLight = null;
+        const activeIndoorLights = [];
+        if (powerCutDarkBuilding !== 'ROTUNDA') {
+          const candidates = [];
+          for (let i = 0; i < roomMoodFixtures.length; i++) {
+            const rf = roomMoodFixtures[i];
+            if (!rf.group || !rf.group.visible) continue;
+            if (roomLightSwitchStates[rf.roomId] === false) continue;
+            const effInt = rf.baseIntensity * (rf.currentMult || 1.0);
+            if (effInt <= 0.02) continue;
+            if (Math.abs(playerPos.y - rf.floorY) > 2.6) continue;
+            const dSq = (playerPos.x - rf.worldX) * (playerPos.x - rf.worldX) + (playerPos.z - rf.worldZ) * (playerPos.z - rf.worldZ);
+            if (dSq <= 484.0) {
+              candidates.push({ rf, dSq: rf === insideFixture ? -1 : dSq, effInt });
+            }
+          }
+          candidates.sort((a, b) => a.dSq - b.dSq);
+          const maxIndoor = Math.min(3, candidates.length);
+          for (let k = 0; k < maxIndoor; k++) {
+            const c = candidates[k];
+            activeIndoorLights.push({
+              x: c.rf.worldX,
+              y: c.rf.worldY,
+              z: c.rf.worldZ,
+              color: c.rf.color,
+              distance: c.rf.distance,
+              intensity: c.effInt,
+            });
+          }
         }
+        lampFlickerMod.indoorOverrideLights = activeIndoorLights;
+        lampFlickerMod.indoorOverrideLight = activeIndoorLights.length > 0 ? activeIndoorLights[0] : null;
       }
     }
 
     const ROOM_ARCHETYPE_BUILDERS = {
-      classroom_standard: (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 0),
-      classroom_seminar:  (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 1),
+      classroom_standard: (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 0, roomDef, rw, rd, dAxis, dSign),
+      classroom_seminar:  (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 1, roomDef, rw, rd, dAxis, dSign),
       computer_lab:       (cGroup, cx, cz, fy, dirZ, title) => buildComputerLabInterior(cGroup, cx, cz, fy, dirZ, title),
       library:            (cGroup, cx, cz, fy, dirZ, title) => buildLibraryRoomInterior(cGroup, cx, cz, fy, dirZ, title),
       staff_office:       (cGroup, cx, cz, fy, dirZ, title) => buildStaffAdminOfficeInterior(cGroup, cx, cz, fy, dirZ, title),
@@ -12626,11 +12877,26 @@ export function getHideAndSeekHtml(): string {
       electrical:         (cGroup, cx, cz, fy, dirZ, title) => buildElectricalMaintenanceRoomInterior(cGroup, cx, cz, fy, title),
     };
 
-    function populateClassroomUnit(unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false, doorAxis = 'z', doorDirSign = -1) {
+    function populateClassroomUnit(
+      unitCenterX,
+      unitCenterZ,
+      floorY,
+      facingDirZ,
+      unitTitle,
+      isNewariStyle = false,
+      doorAxis = 'z',
+      doorDirSign = -1,
+      roomW = 7.6,
+      roomD = 7.6,
+      buildingKey = 'OTHER'
+    ) {
       const cGroup = new THREE.Group();
       cGroup.position.set(unitCenterX, floorY, unitCenterZ);
       scene.add(cGroup);
-      const roomDef = getOrRegisterRoomDefinition(unitTitle, unitCenterX, unitCenterZ, floorY, 3.8, 4.6, 'OTHER', 'classroom_standard', doorAxis, doorDirSign);
+      const resolvedBldgKey = resolveCanonicalBuildingKey(buildingKey !== 'OTHER' ? buildingKey : unitTitle, 'OTHER');
+      const halfW = Math.max(3.2, roomW * 0.5 - 0.14);
+      const halfD = Math.max(3.2, roomD * 0.5 - 0.14);
+      const roomDef = getOrRegisterRoomDefinition(unitTitle, unitCenterX, unitCenterZ, floorY, halfW, halfD, resolvedBldgKey, 'classroom_standard', doorAxis, doorDirSign);
       const cCfg = (HORROR_CONFIG && HORROR_CONFIG.classroom) || {};
       if (cCfg.moods && cCfg.moods[unitTitle]) {
         roomDef.lightMood = cCfg.moods[unitTitle];
@@ -12638,35 +12904,90 @@ export function getHideAndSeekHtml(): string {
       const windowSideSignX = unitCenterX < 0 ? -1 : 1;
       const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
 
-      // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3 Fluorescent Tube Hoods
+      const ceilW = Math.max(6.4, roomW - 0.26);
+      const ceilD = Math.max(6.4, roomD - 0.26);
+      const ceilY = 3.44;
+      cGroup.userData.roomLocalBounds = { minX: -ceilW * 0.5, maxX: ceilW * 0.5, minY: 0.0, maxY: ceilY, minZ: -ceilD * 0.5, maxZ: ceilD * 0.5 };
+
+      // 1. Room-Fitted Ceiling Slab, Interior Floor Tile Surface, Perimeter Skirting Boards & Corner Pilasters
       const ceilPanel = new THREE.Mesh(
-        new THREE.BoxGeometry(6.8, 0.06, 8.2),
+        createWorldScaledBoxGeo(ceilW, 0.08, ceilD, 2.6),
         isNewariStyle ? materials.carvedSalWood : materials.stainedCeilingTiles
       );
-      ceilPanel.position.set(0, 3.38, 0);
+      ceilPanel.position.set(0, ceilY, 0);
       cGroup.add(ceilPanel);
+
+      const interiorFloorTile = new THREE.Mesh(
+        createWorldScaledBoxGeo(ceilW - 0.04, 0.012, ceilD - 0.04, 2.4),
+        isNewariStyle ? materials.teliyaFloorTile : materials.rotundaTerrazzoFloor
+      );
+      interiorFloorTile.position.set(0, 0.006, 0);
+      cGroup.add(interiorFloorTile);
+
+      // Perimeter Skirting Boards (0.12m high dark wood/slate trim along walls with doorway cutout) & Crown Molding
+      const skirtMat = isNewariStyle ? materials.ebonyCarvedWood : materials.chairWood;
+      const skHalfW = ceilW * 0.5 - 0.02;
+      const skHalfD = ceilD * 0.5 - 0.02;
+      const doorGap = 2.05;
+      [-1, 1].forEach(sign => {
+        // Z walls (North/South)
+        const isDoorZWall = (doorAxis === 'z' && sign === doorDirSign);
+        if (isDoorZWall) {
+          const segW = Math.max(0.2, (ceilW - doorGap) * 0.5);
+          [-1, 1].forEach(sSide => {
+            const sk = new THREE.Mesh(new THREE.BoxGeometry(segW, 0.12, 0.035), skirtMat);
+            sk.position.set(sSide * (doorGap * 0.5 + segW * 0.5), 0.06, sign * skHalfD);
+            cGroup.add(sk);
+          });
+        } else {
+          const sk = new THREE.Mesh(new THREE.BoxGeometry(ceilW, 0.12, 0.035), skirtMat);
+          sk.position.set(0, 0.06, sign * skHalfD);
+          cGroup.add(sk);
+        }
+        // X walls (East/West)
+        const isDoorXWall = (doorAxis === 'x' && sign === doorDirSign);
+        if (isDoorXWall) {
+          const segD = Math.max(0.2, (ceilD - doorGap) * 0.5);
+          [-1, 1].forEach(sSide => {
+            const sk = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, segD), skirtMat);
+            sk.position.set(sign * skHalfW, 0.06, sSide * (doorGap * 0.5 + segD * 0.5));
+            cGroup.add(sk);
+          });
+        } else {
+          const sk = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, ceilD), skirtMat);
+          sk.position.set(sign * skHalfW, 0.06, 0);
+          cGroup.add(sk);
+        }
+      });
+
+      // 4 Architectural Corner Pilasters
+      [[-skHalfW + 0.06, -skHalfD + 0.06], [skHalfW - 0.06, -skHalfD + 0.06], [-skHalfW + 0.06, skHalfD - 0.06], [skHalfW - 0.06, skHalfD - 0.06]].forEach(([px, pz]) => {
+        const pil = new THREE.Mesh(new THREE.BoxGeometry(0.16, ceilY, 0.16), materials.rotundaInteriorWall);
+        pil.position.set(px, ceilY * 0.5, pz);
+        cGroup.add(pil);
+      });
 
       [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz], tIdx) => {
         const hood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
-        hood.position.set(tx, 3.30, tz);
+        hood.position.set(tx, ceilY - 0.08, tz);
         cGroup.add(hood);
         if (tIdx === 0) {
           const steadyTube = new THREE.Mesh(tubeStripGeo, step2Mats.steadyDimTubeMat);
-          steadyTube.position.set(tx, 3.27, tz);
+          steadyTube.position.set(tx, ceilY - 0.11, tz);
           cGroup.add(steadyTube);
         } else if (tIdx === 2) {
           const deadTube = new THREE.Mesh(tubeStripGeo, step2Mats.deadTubeMat);
-          deadTube.position.set(tx, 3.27, tz);
+          deadTube.position.set(tx, ceilY - 0.11, tz);
           cGroup.add(deadTube);
         }
       });
 
       // Ceiling Fan with 1 Bent Blade
       const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.deskSteelFrame);
-      fanRod.position.set(0, 3.16, -0.4);
+      fanRod.position.set(0, ceilY - 0.22, -0.4);
       cGroup.add(fanRod);
       const fanHub = new THREE.Group();
-      fanHub.position.set(0, 2.96, -0.4);
+      fanHub.position.set(0, ceilY - 0.42, -0.4);
       fanHub.userData.noMerge = true;
       const bentAng = (cCfg.propDensity && cCfg.propDensity.ceilingFanBentBladeRad) || 0.28;
       for (let b = 0; b < 3; b++) {
@@ -12687,40 +13008,44 @@ export function getHideAndSeekHtml(): string {
       });
 
       // Working Wall Light Switch mounted right inside the room doorway
-      const swLocalX = doorAxis === 'x' ? (doorDirSign * 3.22) : 1.25;
-      const swLocalZ = doorAxis === 'z' ? (doorDirSign * 3.45) : 1.25;
+      const swLocalX = doorAxis === 'x' ? (doorDirSign * (skHalfW - 0.04)) : 1.25;
+      const swLocalZ = doorAxis === 'z' ? (doorDirSign * (skHalfD - 0.04)) : 1.25;
       const swRotY = doorAxis === 'x' ? (-doorDirSign * Math.PI / 2) : (doorDirSign === 1 ? Math.PI : 0);
       buildRoomLightSwitch(cGroup, unitCenterX, floorY, unitCenterZ, swLocalX, 1.32, swLocalZ, swRotY, roomDef.id, roomDef.lightMood);
 
       // 2. Data-Driven Archetype Dispatch via ROOM_DEFINITIONS
       const builderFn = ROOM_ARCHETYPE_BUILDERS[roomDef.archetype] || ROOM_ARCHETYPE_BUILDERS.classroom_standard;
-      builderFn(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, roomDef);
+      builderFn(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, roomDef, ceilW, ceilD, doorAxis, doorDirSign);
 
       // 3. Shared Classroom Horror Decay, Props & Deterministic "Wrong" Detail
       if (roomDef.archetype === 'classroom_standard' || roomDef.archetype === 'classroom_seminar') {
-        addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, 6.8, 8.2, windowSideSignX, roomSeed);
+        addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, ceilW, ceilD, windowSideSignX, roomSeed);
       }
 
       // 4. Deep Dark Corners & Under-Desk Baked AO + Small Clutter & Asymmetry
-      addRoomBakedAO(cGroup, 6.8, 8.2, 3.38);
-      populateRoomClutterAndAsymmetry(cGroup, 6.6, 7.8, unitCenterX * 3.1 + unitCenterZ * 7.3, false);
+      addRoomBakedAO(cGroup, ceilW, ceilD, ceilY);
+      populateRoomClutterAndAsymmetry(cGroup, ceilW, ceilD, unitCenterX * 3.1 + unitCenterZ * 7.3, false);
 
       cGroup.userData.isRoomGroup = true;
       bakeStaticGroup(cGroup, true);
 
       // 5. Per-Room Light Mood Fixtures, Stuttering Tube, Spill Gradients, Window Shafts & Dust Motes
-      applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, 6.8, 8.2, windowSideSignX);
+      applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, ceilW, ceilD, windowSideSignX);
 
       cGroup.userData.roomDef = roomDef;
       roomVisibilityList.push({
         id: unitTitle,
         type: 'room',
         group: cGroup,
+        roomDef: roomDef,
+        bounds: roomDef.bounds,
+        doorAxis: doorAxis,
+        doorDirSign: doorDirSign,
         x: unitCenterX,
         y: floorY,
         z: unitCenterZ,
         floorY,
-        radius: 5.4,
+        radius: Math.hypot(halfW, halfD),
         bKey: roomDef.building,
         lightMood: roomDef.lightMood,
       });
@@ -12885,8 +13210,8 @@ export function getHideAndSeekHtml(): string {
       buildCornerQuoins(cx - width / 2, floorH, cz + length / 2, wallH);
       buildCornerQuoins(cx + width / 2, floorH, cz + length / 2, wallH);
 
-      // North End Wall
-      buildWallSegment(cx, floorH, cz + length / 2, width, wallH, wallT, materials.campusStucco);
+      // North End Wall (with genuine 3D window opening)
+      buildWallWithWindowOpenings(cx, floorH, cz + length / 2, width, wallH, wallT, 'x', [cx], 1.92, 1.18, 2.62, materials.campusStucco);
       buildDetailedWindow(cx, floorH + 1.9, cz + length / 2 + 0.14, 1, false);
 
       // South End Wall
@@ -12896,7 +13221,7 @@ export function getHideAndSeekHtml(): string {
         buildWallSegment(cx - doorW / 2 - flankW / 2, floorH, cz - length / 2, flankW, wallH, wallT, materials.campusStucco);
         buildWallSegment(cx + doorW / 2 + flankW / 2, floorH, cz - length / 2, flankW, wallH, wallT, materials.campusStucco);
 
-        const transom = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.9, wallT), materials.campusStucco);
+        const transom = new THREE.Mesh(createWorldScaledBoxGeo(doorW, 0.9, wallT, 2.8), materials.campusStucco);
         transom.position.set(cx, floorH + wallH - 0.45, cz - length / 2);
         scene.add(transom);
 
@@ -12908,16 +13233,21 @@ export function getHideAndSeekHtml(): string {
         step.position.set(cx, bBaseY + 0.07, cz - length / 2 - 0.5);
         scene.add(step);
       } else {
-        buildWallSegment(cx, floorH, cz - length / 2, width, wallH, wallT, materials.campusStucco);
+        buildWallWithWindowOpenings(cx, floorH, cz - length / 2, width, wallH, wallT, 'x', [cx], 1.92, 1.18, 2.62, materials.campusStucco);
         buildDetailedWindow(cx, floorH + 1.9, cz - length / 2 - 0.14, -1, true);
       }
 
-      // Solid / Window Wall
+      // Exterior Window Wall (opposite doorSideX) with true 3D window openings
       const solidX = cx - doorSideX * (width / 2);
-      buildWallSegment(solidX, floorH, cz, wallT, wallH, length, materials.campusStucco);
+      const solidWinZCoords = [];
+      for (let wz = cz - length / 2 + 4.2; wz <= cz + length / 2 - 4.2; wz += 6.2) {
+        solidWinZCoords.push(wz);
+      }
+      buildWallWithWindowOpenings(solidX, floorH, cz, length, wallH, wallT, 'z', solidWinZCoords, 1.92, 1.18, 2.62, materials.campusStucco);
 
       let winIdx = 0;
-      for (let wz = cz - length / 2 + 4.2; wz <= cz + length / 2 - 4.2; wz += 6.2) {
+      for (let w = 0; w < solidWinZCoords.length; w++) {
+        const wz = solidWinZCoords[w];
         const isWarmWindow = (winIdx + Math.abs(Math.round(cx))) % 2 === 0;
         buildDetailedWindow(solidX - doorSideX * 0.14, floorH + 1.9, wz, 0, isWarmWindow, -doorSideX);
 
@@ -12933,6 +13263,7 @@ export function getHideAndSeekHtml(): string {
       const roomLen = length / numRooms;
       const doorW = 1.9;
       const doorZCoords = [];
+      const wingBldgKey = resolveCanonicalBuildingKey(blockLabel, 'OTHER');
 
       for (let i = 1; i < numRooms; i++) {
         const pZ = cz - length / 2 + roomLen * i;
@@ -12943,11 +13274,20 @@ export function getHideAndSeekHtml(): string {
         const rCenterZ = cz - length / 2 + roomLen * (rIdx + 0.5);
         doorZCoords.push(rCenterZ);
         const flankLen = (roomLen - doorW) / 2;
+        const leftFlankZ = rCenterZ - doorW / 2 - flankLen / 2;
+        const rightFlankZ = rCenterZ + doorW / 2 + flankLen / 2;
 
-        buildWallSegment(doorWallX, floorH, rCenterZ - doorW / 2 - flankLen / 2, wallT, wallH, flankLen, materials.campusStucco);
-        buildWallSegment(doorWallX, floorH, rCenterZ + doorW / 2 + flankLen / 2, wallT, wallH, flankLen, materials.campusStucco);
+        if (flankLen > 2.2) {
+          buildWallWithWindowOpenings(doorWallX, floorH, leftFlankZ, flankLen, wallH, wallT, 'z', [leftFlankZ], 1.92, 1.18, 2.62, materials.campusStucco);
+          buildWallWithWindowOpenings(doorWallX, floorH, rightFlankZ, flankLen, wallH, wallT, 'z', [rightFlankZ], 1.92, 1.18, 2.62, materials.campusStucco);
+          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, leftFlankZ, 0, rIdx === 0, doorSideX);
+          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rightFlankZ, 0, false, doorSideX);
+        } else {
+          buildWallSegment(doorWallX, floorH, leftFlankZ, wallT, wallH, flankLen, materials.campusStucco);
+          buildWallSegment(doorWallX, floorH, rightFlankZ, wallT, wallH, flankLen, materials.campusStucco);
+        }
 
-        const transom = new THREE.Mesh(new THREE.BoxGeometry(wallT, 0.9, doorW), materials.campusStucco);
+        const transom = new THREE.Mesh(createWorldScaledBoxGeo(wallT, 0.9, doorW, 2.8), materials.campusStucco);
         transom.position.set(doorWallX, floorH + wallH - 0.45, rCenterZ);
         scene.add(transom);
 
@@ -12970,12 +13310,7 @@ export function getHideAndSeekHtml(): string {
           'door-' + blockLabel + '-r' + (rIdx + 1)
         );
 
-        if (flankLen > 1.8) {
-          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ - doorW / 2 - flankLen / 2, 0, rIdx === 0, doorSideX);
-          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ + doorW / 2 + flankLen / 2, 0, false, doorSideX);
-        }
-
-        populateClassroomUnit(cx, rCenterZ, floorH, 1, blockLabel + ' Room ' + (rIdx + 1), false, 'x', doorSideX);
+        populateClassroomUnit(cx, rCenterZ, floorH, 1, blockLabel + ' Room ' + (rIdx + 1), false, 'x', doorSideX, width, roomLen, wingBldgKey);
       }
 
       // Shared concrete plinth band, exposed footing, downpipe & 2-3 wide steps at every door
@@ -13029,6 +13364,7 @@ export function getHideAndSeekHtml(): string {
       const wallMat = isNewariHeritage ? materials.nepalDachiBrick : materials.campusStucco;
       const floorMat = isNewariHeritage ? materials.teliyaFloorTile : materials.classroomFloor;
       const roofMat = isNewariHeritage ? materials.jhingatiTerracottaRoof : materials.brightBlueRoof;
+      const wingBldgKey = resolveCanonicalBuildingKey(blockLabel, 'OTHER');
 
       const verandaDepth = hasVeranda ? 2.4 : 0.9;
       const slab = new THREE.Mesh(
@@ -13060,10 +13396,19 @@ export function getHideAndSeekHtml(): string {
       }
 
       const backZ = cz - doorSide * (depth / 2);
-      buildWallSegment(cx, floorH, backZ, width, wallH, wallT, materials.campusStucco);
+      const backWinXCoords = [];
+      for (let wx = cx - width / 2 + 2.8; wx <= cx + width / 2 - 2.8; wx += 5.2) {
+        backWinXCoords.push(wx);
+      }
+      if (isNewariHeritage) {
+        buildWallSegment(cx, floorH, backZ, width, wallH, wallT, wallMat);
+      } else {
+        buildWallWithWindowOpenings(cx, floorH, backZ, width, wallH, wallT, 'x', backWinXCoords, 1.92, 1.18, 2.62, materials.campusStucco);
+      }
 
       let winIdx = 0;
-      for (let wx = cx - width / 2 + 2.8; wx <= cx + width / 2 - 2.8; wx += 5.2) {
+      for (let w = 0; w < backWinXCoords.length; w++) {
+        const wx = backWinXCoords[w];
         const isWarmWindow = (winIdx + Math.abs(Math.round(cz))) % 2 === 0;
         if (isNewariHeritage) {
           buildSanjhyalCarvedWindow(wx, floorH + 1.9, backZ - doorSide * 0.12, 0, -doorSide, 3, isWarmWindow, false);
@@ -13091,11 +13436,18 @@ export function getHideAndSeekHtml(): string {
       for (let roomIdx = 0; roomIdx < numRooms; roomIdx++) {
         const roomCenterX = cx - width / 2 + roomW * (roomIdx + 0.5);
         doorXCoords.push(roomCenterX);
+        const leftSegX = roomCenterX - doorW / 2 - sideSegW / 2;
+        const rightSegX = roomCenterX + doorW / 2 + sideSegW / 2;
 
-        buildWallSegment(roomCenterX - doorW / 2 - sideSegW / 2, floorH, frontZ, sideSegW, wallH, wallT, wallMat);
-        buildWallSegment(roomCenterX + doorW / 2 + sideSegW / 2, floorH, frontZ, sideSegW, wallH, wallT, wallMat);
+        if (!isNewariHeritage && sideSegW > 2.2) {
+          buildWallWithWindowOpenings(leftSegX, floorH, frontZ, sideSegW, wallH, wallT, 'x', [leftSegX], 1.92, 1.18, 2.62, wallMat);
+          buildWallWithWindowOpenings(rightSegX, floorH, frontZ, sideSegW, wallH, wallT, 'x', [rightSegX], 1.92, 1.18, 2.62, wallMat);
+        } else {
+          buildWallSegment(leftSegX, floorH, frontZ, sideSegW, wallH, wallT, wallMat);
+          buildWallSegment(rightSegX, floorH, frontZ, sideSegW, wallH, wallT, wallMat);
+        }
 
-        const transom = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.9, wallT), wallMat);
+        const transom = new THREE.Mesh(createWorldScaledBoxGeo(doorW, 0.9, wallT, 2.8), wallMat);
         transom.position.set(roomCenterX, floorH + wallH - 0.45, frontZ);
         scene.add(transom);
 
@@ -13107,8 +13459,8 @@ export function getHideAndSeekHtml(): string {
           doorArch.position.set(roomCenterX, floorH + wallH - 0.92, frontZ);
           scene.add(doorArch);
           if (sideSegW > 2.2) {
-            buildDetailedWindow(roomCenterX - doorW / 2 - sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, roomIdx === 0);
-            buildDetailedWindow(roomCenterX + doorW / 2 + sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, false);
+            buildDetailedWindow(leftSegX, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, roomIdx === 0);
+            buildDetailedWindow(rightSegX, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, false);
           }
         }
 
@@ -13138,7 +13490,10 @@ export function getHideAndSeekHtml(): string {
           blockLabel + ' Room ' + (roomIdx + 1),
           isNewariHeritage,
           'z',
-          doorSide
+          doorSide,
+          roomW,
+          depth,
+          wingBldgKey
         );
       }
 
@@ -13178,6 +13533,7 @@ export function getHideAndSeekHtml(): string {
       const wallT = 0.25;
       const frontZ = cz + doorSide * (depth * 0.5);
       const backZ = cz - doorSide * (depth * 0.5);
+      const bKey = resolveCanonicalBuildingKey(blockLabel, 'BLDG_15');
 
       const slab = new THREE.Mesh(
         new THREE.BoxGeometry(width + 0.4, PLINTH_HEIGHT, depth + 0.4),
@@ -13194,31 +13550,41 @@ export function getHideAndSeekHtml(): string {
       buildCornerQuoins(cx - width / 2, floorH, cz + depth / 2, wallH);
       buildCornerQuoins(cx + width / 2, floorH, cz + depth / 2, wallH);
 
-      // Back wall & side walls
-      buildWallSegment(cx, floorH, backZ, width, wallH, wallT, materials.campusStucco);
+      const backWinX = [];
+      const leftFlankWinX = [];
+      const rightFlankWinX = [];
+      for (let wx = cx - width / 2 + 4.5; wx <= cx + width / 2 - 4.5; wx += 6.5) {
+        backWinX.push(wx);
+        if (wx < cx - 2.4) leftFlankWinX.push(wx);
+        else if (wx > cx + 2.4) rightFlankWinX.push(wx);
+      }
+
+      // Back wall with true 3D window openings & side walls
+      buildWallWithWindowOpenings(cx, floorH, backZ, width, wallH, wallT, 'x', backWinX, 1.92, 1.13, 2.57, materials.campusStucco);
       buildWallSegment(cx - width / 2, floorH, cz, wallT, wallH, depth - 0.30, materials.campusStucco);
       buildWallSegment(cx + width / 2, floorH, cz, wallT, wallH, depth - 0.30, materials.campusStucco);
 
-      // Front wall with central enterable doorway (doorW = 2.0m)
+      // Front wall with central enterable doorway (doorW = 2.0m) and true 3D window openings on flanks
       const doorW = 2.0;
       const flankW = (width - doorW) * 0.5;
-      buildWallSegment(cx - doorW * 0.5 - flankW * 0.5, floorH, frontZ, flankW, wallH, wallT, materials.campusStucco);
-      buildWallSegment(cx + doorW * 0.5 + flankW * 0.5, floorH, frontZ, flankW, wallH, wallT, materials.campusStucco);
-      const transom = new THREE.Mesh(new THREE.BoxGeometry(doorW, 0.9, wallT), materials.campusStucco);
+      buildWallWithWindowOpenings(cx - doorW * 0.5 - flankW * 0.5, floorH, frontZ, flankW, wallH, wallT, 'x', leftFlankWinX, 1.92, 1.13, 2.57, materials.campusStucco);
+      buildWallWithWindowOpenings(cx + doorW * 0.5 + flankW * 0.5, floorH, frontZ, flankW, wallH, wallT, 'x', rightFlankWinX, 1.92, 1.13, 2.57, materials.campusStucco);
+      const transom = new THREE.Mesh(createWorldScaledBoxGeo(doorW, 0.9, wallT, 2.8), materials.campusStucco);
       transom.position.set(cx, floorH + wallH - 0.45, frontZ);
       scene.add(transom);
       addDoorFrameColliders(cx, floorH, frontZ, doorW, wallT, false);
       buildSwingingDoor(scene, cx - doorW * 0.45, floorH, frontZ - doorSide * 0.16, 1.15, materials.gandakiBluePole, 'door-bldg-15-main');
       addWarmDoorwayGlow(cx, floorH, frontZ, doorW, false);
 
-      for (let wx = cx - width / 2 + 4.5; wx <= cx + width / 2 - 4.5; wx += 6.5) {
+      for (let i = 0; i < backWinX.length; i++) {
+        const wx = backWinX[i];
         if (Math.abs(wx - cx) > 2.4) {
           buildDetailedWindow(wx, floorH + 1.85, frontZ + doorSide * 0.14, doorSide, false);
         }
         buildDetailedWindow(wx, floorH + 1.85, backZ - doorSide * 0.14, -doorSide, false);
       }
 
-      getOrRegisterRoomDefinition(blockLabel + ' Room 1', cx, cz, floorH, width * 0.5 - 0.4, depth * 0.5 - 0.4, 'BLDG_15', 'computer_lab', 'z', doorSide);
+      getOrRegisterRoomDefinition(blockLabel + ' Room 1', cx, cz, floorH, width * 0.5 - 0.4, depth * 0.5 - 0.4, bKey, 'computer_lab', 'z', doorSide);
       buildPitchedGableRoof(cx, floorH + wallH, cz, width + 0.9, depth + 1.1, 1.25, materials.brightBlueRoof, false);
     }
 
@@ -13251,20 +13617,30 @@ export function getHideAndSeekHtml(): string {
       redBin.position.set(cx - 1.72, floor0Y + 0.23, frontZ - 0.18);
       scene.add(redBin);
 
-      // 2. 2-Storey Cream Prefab Panel Exterior Walls, Vertical Panel Seams & Corner Quoins (IMG_5839 3.JPG)
+      // 2. 2-Storey Cream Prefab Panel Exterior Walls with True 3D Window Openings on Both Storeys (IMG_5839 3.JPG)
       const totalWallH = eaveY - floor0Y; // 6.61m
-      buildWallSegment(cx, floor0Y, backZ, width, totalWallH, wallT, materials.campusStucco);
-      buildWallSegment(leftX, floor0Y, cz, wallT, totalWallH, depth - 0.30, materials.campusStucco);
-      buildWallSegment(rightX, floor0Y, cz, wallT, totalWallH, depth - 0.30, materials.campusStucco);
+      const story0H = floor1Y - floor0Y;  // 3.31m
+      const story1H = eaveY - floor1Y;    // 3.30m
+      buildWallWithWindowOpenings(cx, floor0Y, backZ, width, story0H, wallT, 'x', [cx - 3.8, cx + 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(cx, floor1Y, backZ, width, story1H, wallT, 'x', [cx - 3.8, cx + 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(leftX, floor0Y, cz, depth - 0.30, story0H, wallT, 'z', [cz - 2.0, cz + 2.0], 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(leftX, floor1Y, cz, depth - 0.30, story1H, wallT, 'z', [cz - 2.0, cz + 2.0], 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(rightX, floor0Y, cz, depth - 0.30, story0H, wallT, 'z', [cz - 2.0, cz + 2.0], 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(rightX, floor1Y, cz, depth - 0.30, story1H, wallT, 'z', [cz - 2.0, cz + 2.0], 1.92, 0.93, 2.37, materials.campusStucco);
 
-      // Front Facade (-Z) with Central Glazed Double Entrance Doorway (doorW = 2.0m)
+      // Front Facade (-Z) with Central Glazed Double Entrance Doorway (doorW = 2.0m) & True 3D Window Openings
       const doorW = 2.0;
       const flankW = (width - doorW) / 2;
-      buildWallSegment(cx - doorW / 2 - flankW / 2, floor0Y, frontZ, flankW, totalWallH, wallT, materials.campusStucco);
-      buildWallSegment(cx + doorW / 2 + flankW / 2, floor0Y, frontZ, flankW, totalWallH, wallT, materials.campusStucco);
+      const leftFlankCX = cx - doorW / 2 - flankW / 2;
+      const rightFlankCX = cx + doorW / 2 + flankW / 2;
+      buildWallWithWindowOpenings(leftFlankCX, floor0Y, frontZ, flankW, story0H, wallT, 'x', [cx - 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(leftFlankCX, floor1Y, frontZ, flankW, story1H, wallT, 'x', [cx - 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(rightFlankCX, floor0Y, frontZ, flankW, story0H, wallT, 'x', [cx + 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(rightFlankCX, floor1Y, frontZ, flankW, story1H, wallT, 'x', [cx + 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
+
       // Upper wall above ground-floor doorway
       const upperSpanH = totalWallH - 2.65;
-      const upperFrontWall = new THREE.Mesh(new THREE.BoxGeometry(doorW, upperSpanH, wallT), materials.campusStucco);
+      const upperFrontWall = new THREE.Mesh(createWorldScaledBoxGeo(doorW, upperSpanH, wallT, 2.8), materials.campusStucco);
       upperFrontWall.position.set(cx, floor0Y + 2.65 + upperSpanH * 0.5, frontZ);
       scene.add(upperFrontWall);
 
@@ -13295,7 +13671,7 @@ export function getHideAndSeekHtml(): string {
       });
       // Twin narrow central windows on 1st floor above the canopy (IMG_5839 3.JPG)
       [-0.85, 0.85].forEach(nwx => {
-        const nWin = new THREE.Mesh(new THREE.BoxGeometry(0.68, 1.32, 0.08), materials.windowGlass);
+        const nWin = new THREE.Mesh(new THREE.BoxGeometry(0.68, 1.32, 0.08), seeThroughWindowGlassMat);
         nWin.position.set(cx + nwx, floor1Y + 1.65, frontZ - 0.14);
         scene.add(nWin);
         const nFrame = new THREE.Mesh(new THREE.BoxGeometry(0.76, 1.40, 0.06), materials.whiteTrim);
@@ -13325,8 +13701,8 @@ export function getHideAndSeekHtml(): string {
       buildGrandStaircase(rightX - 1.15, frontZ + 1.3, backZ - 1.3, floor0Y, floor1Y, 1.65);
 
       // Populate Ground Floor & 1st Floor Administrative Office Interiors + Hiding Spots
-      populateClassroomUnit(cx - 1.2, cz, floor0Y, -1, 'Office Ground Floor', false, 'z', -1);
-      populateClassroomUnit(cx - 1.2, cz, floor1Y, -1, 'Office 1st Floor', false, 'z', -1);
+      populateClassroomUnit(cx - 1.2, cz, floor0Y, -1, 'Office Ground Floor', false, 'z', -1, width - 2.4, depth, 'OFFICE_B1');
+      populateClassroomUnit(cx - 1.2, cz, floor1Y, -1, 'Office 1st Floor', false, 'z', -1, width - 2.4, depth, 'OFFICE_B1');
 
       // 4. Pitched Bright-Blue Corrugated Gable Roof with Exposed Dark Rafter Tails (IMG_5839 3.JPG)
       buildPitchedGableRoof(cx, eaveY, cz, width + 1.1, depth + 1.1, 1.52, materials.brightBlueRoof, false);
@@ -13368,41 +13744,59 @@ export function getHideAndSeekHtml(): string {
     naturalGroundTex.repeat.set(1, 1);
 
     const asphaltRoadTex = createProceduralTexture(512, 512, (ctx) => {
-      ctx.fillStyle = '#141920';
+      ctx.fillStyle = '#2a2a2e';
       ctx.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 5500; i++) {
+      for (let i = 0; i < 6500; i++) {
         const ax = (i * 131 + (i % 5) * 7) % 512;
         const ay = (i * 257 + (i % 9) * 11) % 512;
-        ctx.fillStyle = (i % 2 === 0) ? 'rgba(110, 125, 142, 0.05)' : 'rgba(5, 8, 12, 0.10)';
+        ctx.fillStyle = (i % 2 === 0) ? 'rgba(92, 98, 108, 0.07)' : 'rgba(10, 12, 16, 0.14)';
         ctx.fillRect(ax, ay, 2, 2);
       }
+      // Subtle damp tire-track and rain-sheen variation across the 512px asphalt tile
+      const wetPatch = ctx.createRadialGradient(256, 256, 24, 256, 256, 210);
+      wetPatch.addColorStop(0.0, 'rgba(16, 18, 22, 0.28)');
+      wetPatch.addColorStop(1.0, 'rgba(16, 18, 22, 0.0)');
+      ctx.fillStyle = wetPatch;
+      ctx.fillRect(0, 0, 512, 512);
     }, 'campus-asphalt-road-seamless-512');
     asphaltRoadTex.wrapS = THREE.RepeatWrapping;
     asphaltRoadTex.wrapT = THREE.RepeatWrapping;
+    asphaltRoadTex.anisotropy = 4;
+    asphaltRoadTex.colorSpace = THREE.SRGBColorSpace || 'srgb';
+    if ('encoding' in asphaltRoadTex && THREE.sRGBEncoding) asphaltRoadTex.encoding = THREE.sRGBEncoding;
 
     materials.asphaltRoad = new THREE.MeshStandardMaterial({
       map: asphaltRoadTex,
       bumpMap: asphaltRoadTex,
-      bumpScale: 0.010,
-      color: 0x1a2028,
-      roughness: 0.86,
-      metalness: 0.06,
+      bumpScale: 0.016,
+      normalMap: paverTex.normalMap,
+      normalScale: new THREE.Vector2(0.28, 0.28),
+      roughnessMap: paverTex.roughnessMap,
+      color: (HORROR_CONFIG.albedo && HORROR_CONFIG.albedo.roadAsphalt) || 0x2a2a2e,
+      roughness: (HORROR_CONFIG.albedo && HORROR_CONFIG.albedo.roadRoughness) || 0.35,
+      metalness: 0.18,
+      envMap: lowResNightEnvCube,
+      envMapIntensity: 0.95,
     });
     materials.lowerGroundDirtGravel = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,
       bumpMap: naturalGroundTex,
       bumpScale: 0.014,
       color: 0x1e2522,
-      roughness: 0.92,
-      metalness: 0.02,
+      roughness: 0.85,
+      metalness: 0.04,
+      envMap: lowResNightEnvCube,
+      envMapIntensity: 0.35,
     });
     materials.terraceConcrete = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,
       bumpMap: naturalGroundTex,
       bumpScale: 0.012,
-      color: 0x2c343a,
-      roughness: 0.88,
-      metalness: 0.03,
+      color: 0x2a2a2e,
+      roughness: 0.35,
+      metalness: 0.16,
+      envMap: lowResNightEnvCube,
+      envMapIntensity: 0.90,
     });
     materials.retainingRubbleStone = new THREE.MeshStandardMaterial({
       map: riverStoneTex.map,
@@ -13423,7 +13817,7 @@ export function getHideAndSeekHtml(): string {
     const tUvAttr = terrainGeo.attributes.uv;
     if (tUvAttr) {
       for (let i = 0; i < tUvAttr.count; i++) {
-        tUvAttr.setXY(i, tUvAttr.getX(i) * 32, tUvAttr.getY(i) * 32);
+        tUvAttr.setXY(i, tUvAttr.getX(i) * (terrainSize * 0.5), tUvAttr.getY(i) * (terrainSize * 0.5));
       }
       tUvAttr.needsUpdate = true;
     }
@@ -13439,22 +13833,22 @@ export function getHideAndSeekHtml(): string {
       if (h < terrainMinH) terrainMinH = h;
       if (h > terrainMaxH) terrainMaxH = h;
       const noise = (Math.sin(vx * 0.11) * Math.cos(vz * 0.11) + Math.sin((vx + vz) * 0.05)) * 0.03;
-      let r = 0.56, g = 0.62, b = 0.58;
+      let r = 0.42, g = 0.46, b = 0.48;
       if (h >= 1.02 && h <= 1.66 && vx > -36 && vx < 48 && vz > -142 && vz < 58) {
-        r = 0.64 + noise; g = 0.68 + noise; b = 0.72 + noise;
+        r = 0.48 + noise; g = 0.50 + noise; b = 0.54 + noise;
       } else if (h <= 0.25 && vx >= -94 && vx <= -24 && vz >= -42 && vz <= 56) {
-        r = 0.46 + noise; g = 0.50 + noise; b = 0.56 + noise;
+        r = 0.38 + noise; g = 0.40 + noise; b = 0.44 + noise;
       } else if (h > 1.68) {
         const hillT = Math.min(1, (h - 1.68) / 8.0);
-        r = 0.34 - 0.05 * hillT + noise;
-        g = 0.54 - 0.07 * hillT + noise;
-        b = 0.38 - 0.05 * hillT + noise;
+        r = 0.28 - 0.05 * hillT + noise;
+        g = 0.42 - 0.07 * hillT + noise;
+        b = 0.32 - 0.05 * hillT + noise;
       } else {
-        r = 0.48 + noise; g = 0.56 + noise; b = 0.50 + noise;
+        r = 0.36 + noise; g = 0.42 + noise; b = 0.38 + noise;
       }
-      tColors[i * 3 + 0] = Math.max(0.18, Math.min(1.0, r));
-      tColors[i * 3 + 1] = Math.max(0.18, Math.min(1.0, g));
-      tColors[i * 3 + 2] = Math.max(0.18, Math.min(1.0, b));
+      tColors[i * 3 + 0] = Math.max(0.16, Math.min(0.60, r));
+      tColors[i * 3 + 1] = Math.max(0.16, Math.min(0.60, g));
+      tColors[i * 3 + 2] = Math.max(0.16, Math.min(0.60, b));
     }
     terrainGeo.setAttribute('color', new THREE.BufferAttribute(tColors, 3));
     tPosAttr.needsUpdate = true;
@@ -13464,10 +13858,12 @@ export function getHideAndSeekHtml(): string {
       map: naturalGroundTex,
       bumpMap: naturalGroundTex,
       bumpScale: 0.014,
-      color: 0x546066,
+      color: 0x363a40,
       vertexColors: true,
-      roughness: 0.88,
-      metalness: 0.03,
+      roughness: 0.42,
+      metalness: 0.10,
+      envMap: lowResNightEnvCube,
+      envMapIntensity: 0.65,
     });
 
     const terrainMesh = new THREE.Mesh(terrainGeo, sculptedTerrainMat);
@@ -13486,7 +13882,7 @@ export function getHideAndSeekHtml(): string {
     };
     scene.userData.terrainAudit = window.__TERRAIN_MESH_AUDIT__;
 
-    // Helper: Build Terrain-Conforming Paved Road / Walk Ribbon with World-Scaled UVs
+    // Helper: Build Terrain-Conforming Paved Road / Walk Ribbon with World-Scaled UVs (2m per tile)
     function buildTerrainDrapeRibbon(cx, cz, width, depth, mat, yOffset = 0.028) {
       const segX = Math.max(4, Math.min(32, Math.ceil(width / 2.5)));
       const segZ = Math.max(4, Math.min(32, Math.ceil(depth / 2.5)));
@@ -13500,7 +13896,7 @@ export function getHideAndSeekHtml(): string {
         const wz = cz + pos.getZ(i);
         pos.setY(i, getTerrainHeightAt(wx, wz) + yOffset);
         if (uv) {
-          uv.setXY(i, uv.getX(i) * (width / 4.0), uv.getY(i) * (depth / 4.0));
+          uv.setXY(i, wx * 0.5, wz * 0.5);
         }
       }
       pos.needsUpdate = true;
@@ -14292,7 +14688,7 @@ export function getHideAndSeekHtml(): string {
     scene.add(ghSlab);
     addWalkableFloor(ghX - ghW / 2 - 0.8, ghX + ghW / 2 + 0.4, ghZ - ghD / 2 - 0.4, ghZ + ghD / 2 + 0.4, ghFloorY);
     buildSharedBuildingPlinthAndSteps(ghX, ghZ, ghW, ghD, [ghZ], 'x', -1, 'Guardhouse', ghBaseY);
-    buildWallSegment(ghX, ghFloorY, ghZ - ghD / 2, ghW, 3.04, 0.22, materials.campusStucco);
+    buildWallWithWindowOpenings(ghX, ghFloorY, ghZ - ghD / 2, ghW, 3.04, 0.22, 'x', [ghX - 0.4], 1.92, 0.83, 2.27, materials.campusStucco);
     buildWallSegment(ghX, ghFloorY, ghZ + ghD / 2, ghW, 3.04, 0.22, materials.campusStucco);
     buildWallSegment(ghX + ghW / 2, ghFloorY, ghZ, 0.22, 3.04, ghD - 0.28, materials.campusStucco);
     buildWallSegment(ghX - ghW / 2, ghFloorY, ghZ - 1.55, 0.22, 3.04, 1.35, materials.campusStucco);
@@ -14302,6 +14698,9 @@ export function getHideAndSeekHtml(): string {
     const ghGroup = new THREE.Group();
     ghGroup.position.set(ghX, ghFloorY, ghZ);
     scene.add(ghGroup);
+    const ghCeil = new THREE.Mesh(createWorldScaledBoxGeo(ghW - 0.24, 0.08, ghD - 0.24, 2.6), materials.stainedCeilingTiles);
+    ghCeil.position.set(0, 2.96, 0);
+    ghGroup.add(ghCeil);
     const ghDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
     ghDesk.position.set(0.65, 0.34, 0);
     ghDesk.rotation.y = Math.PI / 2;
@@ -14311,15 +14710,21 @@ export function getHideAndSeekHtml(): string {
     ghMon.rotation.y = -Math.PI / 2;
     ghGroup.add(ghMon);
     const ghLocker = new THREE.Mesh(step2Geos.filingCabinet, step2Mats.lockerSteel);
-    ghLocker.position.set(1.45, 0.69, 1.45);
+    ghLocker.position.set(1.45, 0.68, 1.45);
     ghGroup.add(ghLocker);
-    bakeStaticGroup(ghGroup, true);
     ghGroup.userData.isRoomGroup = true;
-    ghGroup.userData.roomDef = getOrRegisterRoomDefinition('Security Guardhouse', ghX, ghZ, ghFloorY, ghW * 0.5, ghD * 0.5, 'GUARDHOUSE', 'staff_office', 'x', -1);
+    ghGroup.userData.roomLocalBounds = { minX: -ghW * 0.5 + 0.12, maxX: ghW * 0.5 - 0.12, minY: 0, maxY: 2.96, minZ: -ghD * 0.5 + 0.12, maxZ: ghD * 0.5 - 0.12 };
+    bakeStaticGroup(ghGroup, true);
+    const ghRoomDef = getOrRegisterRoomDefinition('Security Guardhouse', ghX, ghZ, ghFloorY, ghW * 0.5 - 0.11, ghD * 0.5 - 0.11, 'GUARDHOUSE', 'staff_office', 'x', -1);
+    ghGroup.userData.roomDef = ghRoomDef;
     roomVisibilityList.push({
       id: 'Security Guardhouse',
       type: 'room',
       group: ghGroup,
+      roomDef: ghRoomDef,
+      bounds: ghRoomDef.bounds,
+      doorAxis: 'x',
+      doorDirSign: -1,
       x: ghX,
       y: ghFloorY,
       z: ghZ,
@@ -16790,6 +17195,7 @@ export function getHideAndSeekHtml(): string {
 
       // Bake all static geometry in the room first
       rGroup.userData.isRoomGroup = true;
+      rGroup.userData.roomLocalBounds = { minX: -7.0, maxX: 7.0, minY: 0.0, maxY: 3.38, minZ: -6.7, maxZ: 6.7 };
       bakeStaticGroup(rGroup, true);
 
       // 6) Unified Per-Room Light Mood Fixtures, Volumetric Cone Moonlight Shafts & Dust Motes
@@ -16803,11 +17209,15 @@ export function getHideAndSeekHtml(): string {
         roomCode,
         type: 'room',
         group: rGroup,
+        roomDef: roomDef,
+        bounds: roomDef.bounds,
+        doorAxis: 'x',
+        doorDirSign: -sideSign,
         x: roomCX,
         y: floorY,
         z: roomCZ,
         floorY,
-        radius: 9.2,
+        radius: 9.8,
         bKey: roomDef.building,
         lightMood: roomDef.lightMood,
       });
@@ -18508,19 +18918,23 @@ export function getHideAndSeekHtml(): string {
         });
 
         // 2. Pre-Merged Geometries & InstancedMeshes (Always .clone() before transforming so global geometry cache is never mutated!)
-        // A. Clay Diyo Bowl (Terracotta saucer + pinched spout)
-        const bowlCup = new THREE.CylinderGeometry(0.068, 0.042, 0.040, 8).clone();
-        const bowlSpout = new THREE.ConeGeometry(0.025, 0.045, 5).clone();
+        // A. Clay Diyo Bowl (Terracotta saucer + pinched spout — optimized 6-segment micro-mesh)
+        const bowlCup = new THREE.CylinderGeometry(0.068, 0.042, 0.040, 6).clone();
+        const bowlSpout = new THREE.ConeGeometry(0.025, 0.045, 4).clone();
         bowlSpout.rotateX(Math.PI * 0.46);
         bowlSpout.translate(0, 0.008, 0.058);
         this.diyoBowlGeo = THREE.BufferGeometryUtils.mergeBufferGeometries([bowlCup, bowlSpout]);
+        bowlCup.dispose();
+        bowlSpout.dispose();
 
-        // B. Clay Diyo Flame (Teardrop cone + glowing wick base)
-        const flameCone = new THREE.ConeGeometry(0.028, 0.088, 6).clone();
+        // B. Clay Diyo Flame (Teardrop cone + glowing wick base — optimized micro-mesh)
+        const flameCone = new THREE.ConeGeometry(0.028, 0.088, 5).clone();
         flameCone.translate(0, 0.044, 0.048);
-        const flameBase = new THREE.SphereGeometry(0.022, 6, 5).clone();
+        const flameBase = new THREE.SphereGeometry(0.022, 4, 3).clone();
         flameBase.translate(0, 0.016, 0.048);
         this.diyoFlameGeo = THREE.BufferGeometryUtils.mergeBufferGeometries([flameCone, flameBase]);
+        flameCone.dispose();
+        flameBase.dispose();
 
         // C. Warm Surface Light Pool Plane (.clone() so cached PlaneGeometry is not rotated in place!)
         this.diyoPoolGeo = new THREE.PlaneGeometry(0.85, 0.85).clone();
@@ -18548,8 +18962,8 @@ export function getHideAndSeekHtml(): string {
         this.instDiyoPools.userData.noMerge = true;
         this.rootGroup.add(this.instDiyoPools);
 
-        // D. Jhilimili Electric String Light Bulbs (Individual LED bulbs with per-instance color)
-        this.bulbGeo = new THREE.SphereGeometry(0.036, 6, 5).clone();
+        // D. Jhilimili Electric String Light Bulbs (Individual 3.6cm LED bulbs with 4x3 low-poly sphere)
+        this.bulbGeo = new THREE.SphereGeometry(0.036, 4, 3).clone();
         this.maxBulbs = 2400;
         this.bulbCount = 0;
         this.instJhilimiliBulbs = new THREE.InstancedMesh(this.bulbGeo, this.jhilimiliBulbMat, this.maxBulbs);
@@ -19194,20 +19608,15 @@ export function getHideAndSeekHtml(): string {
 
     function getRoomBuildingKey(id) {
       if (!id) return 'other';
-      if (ROOM_DEFINITIONS[id] && ROOM_DEFINITIONS[id].building) {
-        return ROOM_DEFINITIONS[id].building;
+      if (ROOM_DEFINITIONS[id] && ROOM_DEFINITIONS[id].building && ROOM_DEFINITIONS[id].building !== 'OTHER') {
+        return resolveCanonicalBuildingKey(ROOM_DEFINITIONS[id].building, ROOM_DEFINITIONS[id].building);
       }
-      const corridorMap = {
-        'West Wing L1 Corridor': 'L1',
-        'West Wing L2 Corridor': 'L2',
-        'West Wing L3 Corridor': 'L3',
-        'East Wing R1 Corridor': 'R1',
-        'East Wing R2 Corridor': 'R2',
-        'East Wing R4 Corridor': 'R4',
-      };
-      return corridorMap[id] || 'other';
+      return resolveCanonicalBuildingKey(id, 'other');
     }
-    roomVisibilityList.forEach(r => { if (!r.bKey) r.bKey = getRoomBuildingKey(r.id); });
+    roomVisibilityList.forEach(r => {
+      r.bKey = getRoomBuildingKey(r.id);
+      if (!r.bounds && r.roomDef && r.roomDef.bounds) r.bounds = r.roomDef.bounds;
+    });
 
     let activeRoomSoundTimer = 0;
     let powerCutDarkBuilding = null;
@@ -19223,13 +19632,102 @@ export function getHideAndSeekHtml(): string {
       }
     }
 
+    // Raycast sightline check against solid wall & closed-door colliders (ignores furniture, steps & windows so window/open-door sightlines pass while solid walls & closed doors occlude!)
+    function hasArchitecturalSightline(eyePos, targetX, targetY, targetZ) {
+      const dx = targetX - eyePos.x;
+      const dy = targetY - eyePos.y;
+      const dz = targetZ - eyePos.z;
+      const dist = Math.hypot(dx, dy, dz);
+      if (dist < 0.05) return true;
+      const invD = 1.0 / dist;
+      const dirX = dx * invD;
+      const dirY = dy * invD;
+      const dirZ = dz * invD;
+      const tMax = dist - 0.12;
+      if (tMax <= 0.12) return true;
+
+      for (let i = 0; i < colliders.length; i++) {
+        const c = colliders[i];
+        if (!c || c.enabled === false) continue;
+        const tag = c.tag || 'wall';
+        if (tag !== 'wall' && tag !== 'door_leaf') continue;
+        if (!c.min || !c.max) continue;
+        let t0 = 0.10;
+        let t1 = tMax;
+        if (Math.abs(dirX) > 1e-6) {
+          const inv = 1.0 / dirX;
+          let ta = (c.min.x - eyePos.x) * inv;
+          let tb = (c.max.x - eyePos.x) * inv;
+          if (ta > tb) { const tmp = ta; ta = tb; tb = tmp; }
+          if (ta > t0) t0 = ta;
+          if (tb < t1) t1 = tb;
+          if (t0 > t1) continue;
+        } else if (eyePos.x < c.min.x || eyePos.x > c.max.x) continue;
+        if (Math.abs(dirY) > 1e-6) {
+          const inv = 1.0 / dirY;
+          let ta = (c.min.y - eyePos.y) * inv;
+          let tb = (c.max.y - eyePos.y) * inv;
+          if (ta > tb) { const tmp = ta; ta = tb; tb = tmp; }
+          if (ta > t0) t0 = ta;
+          if (tb < t1) t1 = tb;
+          if (t0 > t1) continue;
+        } else if (eyePos.y < c.min.y || eyePos.y > c.max.y) continue;
+        if (Math.abs(dirZ) > 1e-6) {
+          const inv = 1.0 / dirZ;
+          let ta = (c.min.z - eyePos.z) * inv;
+          let tb = (c.max.z - eyePos.z) * inv;
+          if (ta > tb) { const tmp = ta; ta = tb; tb = tmp; }
+          if (ta > t0) t0 = ta;
+          if (tb < t1) t1 = tb;
+          if (t0 > t1) continue;
+        } else if (eyePos.z < c.min.z || eyePos.z > c.max.z) continue;
+        return false;
+      }
+      return true;
+    }
+
+    // Check if any of the room's interior sample points has an unoccluded architectural sightline (through an open door or window) from eyePos
+    function isRoomVisibleThroughArchitecture(eyePos, r, fwdX, fwdZ) {
+      const b = r.bounds || (r.roomDef && r.roomDef.bounds);
+      const yTest = r.floorY + 1.45;
+      const hx = b ? Math.max(1.0, (b.maxX - b.minX) * 0.34) : 2.2;
+      const hz = b ? Math.max(1.0, (b.maxZ - b.minZ) * 0.34) : 2.2;
+      const pts = [
+        [r.x, r.z],
+        [r.x - hx, r.z],
+        [r.x + hx, r.z],
+        [r.x, r.z - hz],
+        [r.x, r.z + hz],
+      ];
+      for (let p = 0; p < pts.length; p++) {
+        const tx = pts[p][0];
+        const tz = pts[p][1];
+        const vx = tx - eyePos.x;
+        const vz = tz - eyePos.z;
+        const d = Math.hypot(vx, vz);
+        if (d > 2.2) {
+          const dot = (vx * fwdX + vz * fwdZ) / (d || 1);
+          if (dot < -0.55) continue; // Behind wide-FOV camera frustum
+        }
+        if (hasArchitecturalSightline(eyePos, tx, yTest, tz)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     function updateRoomAndBuildingVisibility(playerPos, yaw, preset) {
       const cullInterior = (preset && preset.cullDistInterior) || 20.0;
       const cullBuilding = (preset && preset.cullDistBuilding) || 75.0;
       const fwdX = -Math.sin(yaw);
       const fwdZ = -Math.cos(yaw);
+      const eyePos = {
+        x: playerPos.x,
+        y: playerPos.y + (playerPhysics && playerPhysics.isCrouching ? 1.05 : 1.55),
+        z: playerPos.z,
+      };
 
-      // 1. Check if player is currently inside any enclosed room or building corridor
+      // 1. Check if player is currently inside any enclosed room or building corridor using exact architectural room bounds
       let currentInsideRoom = null;
       let activeBuildingKey = null;
       if (playerPos.z <= -98.0 && playerPos.x >= -24.0 && playerPos.x <= 24.0) {
@@ -19237,16 +19735,22 @@ export function getHideAndSeekHtml(): string {
       }
       for (let i = 0; i < roomVisibilityList.length; i++) {
         const r = roomVisibilityList[i];
-        const dx = Math.abs(playerPos.x - r.x);
-        const dz = Math.abs(playerPos.z - r.z);
+        if (Math.abs(playerPos.y - r.floorY) >= 2.2) continue;
+        const b = r.bounds || (r.roomDef && r.roomDef.bounds);
         if (r.type === 'room') {
-          if (dx < r.radius * 0.72 && dz < r.radius * 0.72 && Math.abs(playerPos.y - r.floorY) < 2.2) {
+          const insideBounds = b
+            ? (playerPos.x >= b.minX - 0.28 && playerPos.x <= b.maxX + 0.28 && playerPos.z >= b.minZ - 0.28 && playerPos.z <= b.maxZ + 0.28)
+            : (Math.abs(playerPos.x - r.x) < r.radius * 0.78 && Math.abs(playerPos.z - r.z) < r.radius * 0.78);
+          if (insideBounds) {
             currentInsideRoom = r;
             activeBuildingKey = r.bKey;
             break;
           }
         } else if (r.type === 'corridor' && !activeBuildingKey) {
-          if (dx < 2.6 && dz < r.radius && Math.abs(playerPos.y - r.floorY) < 2.2) {
+          const insideCorr = b
+            ? (playerPos.x >= b.minX && playerPos.x <= b.maxX && playerPos.z >= b.minZ && playerPos.z <= b.maxZ)
+            : (Math.abs(playerPos.x - r.x) < 2.6 && Math.abs(playerPos.z - r.z) < r.radius);
+          if (insideCorr) {
             activeBuildingKey = r.bKey;
           }
         }
@@ -19259,7 +19763,7 @@ export function getHideAndSeekHtml(): string {
         atmosphere.updateRoomMoodAmbient(0.016, activeMood, inCorridor);
       }
 
-      // 2. Room & Corridor Interior Visibility + Shadow-Caster Culling (stays strictly < 400 draw calls on HIGH!)
+      // 2. Room & Corridor Interior Visibility via Architectural Occlusion + Wide-FOV Frustum
       const isOverview = !!(typeof exploreTools !== 'undefined' && exploreTools && exploreTools.overviewCam);
       let visCount = 0;
       for (let i = 0; i < roomVisibilityList.length; i++) {
@@ -19276,55 +19780,93 @@ export function getHideAndSeekHtml(): string {
           setRoomShadowCasters(r, false);
           continue;
         }
-        // If player is inside a specific building/corridor, do NOT render interiors of other buildings!
-        if (activeBuildingKey && r.bKey !== activeBuildingKey) {
-          r.group.visible = false;
-          setRoomShadowCasters(r, false);
-          continue;
-        }
+
         const dx = r.x - playerPos.x;
         const dz = r.z - playerPos.z;
         const dist = Math.hypot(dx, dz);
         const effDist = Math.max(0, dist - r.radius);
 
-        // Far buildings' interiors must never be rendered
-        const maxIntDist = activeBuildingKey ? cullInterior : Math.min(cullInterior, 13.5);
+        // Far buildings' interiors beyond cullInterior range -> hidden
+        const maxIntDist = activeBuildingKey ? (cullInterior + 4.0) : Math.min(cullInterior, 16.5);
         if (effDist > maxIntDist) {
           r.group.visible = false;
           setRoomShadowCasters(r, false);
           continue;
         }
-        // If player is inside an enclosed room, hide other rooms in the same wing unless right at the doorway
-        if (currentInsideRoom && r.type === 'room' && dist > 7.2) {
-          r.group.visible = false;
-          setRoomShadowCasters(r, false);
-          continue;
-        }
-        // Check camera sightline cone through doorway/windows
-        if (effDist > 4.2) {
-          const dot = (dx * fwdX + dz * fwdZ) / (dist || 1);
-          if (dot < 0.05) {
-            r.group.visible = false;
+
+        // Corridor in the active building stays visible when connected door is open or player is in corridor
+        if (r.type === 'corridor') {
+          if (activeBuildingKey && r.bKey === activeBuildingKey) {
+            const corridorVisible = !currentInsideRoom || isRoomVisibleThroughArchitecture(eyePos, r, fwdX, fwdZ);
+            r.group.visible = corridorVisible;
             setRoomShadowCasters(r, false);
+            if (corridorVisible) visCount++;
             continue;
           }
+          const corrSight = isRoomVisibleThroughArchitecture(eyePos, r, fwdX, fwdZ);
+          r.group.visible = corrSight;
+          setRoomShadowCasters(r, false);
+          if (corrSight) visCount++;
+          continue;
         }
-        r.group.visible = true;
-        setRoomShadowCasters(r, dist < 9.5);
-        visCount++;
+
+        // Enclosed Room Visibility: check true architectural sightline through open doors or window openings!
+        // If a solid partition wall or manually closed door blocks all sightlines to the room, it is occluded.
+        const archVisible = isRoomVisibleThroughArchitecture(eyePos, r, fwdX, fwdZ);
+        r.group.visible = archVisible;
+        setRoomShadowCasters(r, archVisible && dist < 10.5);
+        if (archVisible) visCount++;
       }
       visibleRoomsCount = visCount;
+      scene.userData.visibilityAudit = {
+        currentInsideRoomId: currentInsideRoom ? currentInsideRoom.id : null,
+        activeBuildingKey: activeBuildingKey || null,
+        visibleRoomsCount: visCount,
+      };
 
-      // 2b. Distance-cull articulated swinging doors beyond interior visibility range
-      const maxDoorDist = cullInterior + 8.0;
+      // 2b. Distance-cull articulated swinging doors and architectural-cull window assemblies
+      const maxDoorDist = cullInterior + 10.0;
       for (let d = 0; d < swingingDoors.length; d++) {
         const dr = swingingDoors[d];
         const dDist = Math.hypot(dr.x - playerPos.x, dr.z - playerPos.z);
         dr.pivot.visible = (dDist <= maxDoorDist) && (Math.abs(dr.y - playerPos.y) <= 2.6);
       }
+      const maxWinOutdoorDist = currentInsideRoom ? 18.5 : (activeBuildingKey ? 78.0 : 95.0);
+      const curRoomBounds = currentInsideRoom ? (currentInsideRoom.bounds || (currentInsideRoom.roomDef && currentInsideRoom.roomDef.bounds)) : null;
+      for (let wIdx = 0; wIdx < interiorInteractables.length; wIdx++) {
+        const wi = interiorInteractables[wIdx];
+        if (!wi || wi.type !== 'window' || !wi.rootMesh) continue;
+        if (isOverview) {
+          wi.rootMesh.visible = true;
+          continue;
+        }
+        const wdx = wi.x - playerPos.x;
+        const wdz = wi.z - playerPos.z;
+        const wDist = Math.hypot(wdx, wdz);
+        if (wDist > maxWinOutdoorDist) {
+          wi.rootMesh.visible = false;
+          continue;
+        }
+        if (currentInsideRoom && curRoomBounds) {
+          const inCurRoomWall = (
+            wi.x >= curRoomBounds.minX - 0.75 && wi.x <= curRoomBounds.maxX + 0.75 &&
+            wi.z >= curRoomBounds.minZ - 0.75 && wi.z <= curRoomBounds.maxZ + 0.75 &&
+            Math.abs(wi.y - currentInsideRoom.floorY) <= 2.5
+          );
+          if (inCurRoomWall) {
+            wi.rootMesh.visible = true;
+          } else {
+            const wDot = wDist > 0.5 ? ((wdx * fwdX + wdz * fwdZ) / wDist) : 1.0;
+            wi.rootMesh.visible = (wDist <= 14.5) && (Math.abs(wi.y - currentInsideRoom.floorY) <= 2.6) && (wDot >= -0.35);
+          }
+        } else {
+          wi.rootMesh.visible = true;
+        }
+      }
 
-      // 3. Building & Courtyard Sector Distance & Shadow-Caster Culling (Full horizon visibility when outdoors so poles & buildings stay visible across screen!)
-      const maxSectorDist = currentInsideRoom ? Math.min(cullBuilding, 32.0) : (activeBuildingKey ? Math.min(cullBuilding, 85.0) : 185.0);
+      // 3. Building & Courtyard Sector Distance & Shadow-Caster Culling
+      // Keep the central courtyard and surrounding campus sectors visible through windows and open doors!
+      const maxSectorDist = currentInsideRoom ? Math.max(cullBuilding, 88.0) : (activeBuildingKey ? Math.max(cullBuilding, 115.0) : 185.0);
       const minLandmarkDist = (HORROR_CONFIG.mainBuilding && HORROR_CONFIG.mainBuilding.minLandmarkCullDist) || 185.0;
       if (typeof mainBuildingEffectsGroup !== 'undefined' && mainBuildingEffectsGroup) {
         mainBuildingEffectsGroup.visible = (currentQuality !== 'fast');
@@ -19335,24 +19877,13 @@ export function getHideAndSeekHtml(): string {
           sec.group.visible = true;
           continue;
         }
-        if (currentInsideRoom) {
-          if (activeBuildingKey === 'ROTUNDA' && sec.id !== 'rotunda-complex') {
-            sec.group.visible = false;
-            continue;
-          }
-          const secDist = Math.max(0, Math.hypot(sec.x - playerPos.x, sec.z - playerPos.z) - sec.radius);
-          if (secDist > 2.5 || sec.id === 'central-courtyard') {
-            sec.group.visible = false;
-            continue;
-          }
-        }
         const dx = sec.x - playerPos.x;
         const dz = sec.z - playerPos.z;
         const dist = Math.max(0, Math.hypot(dx, dz) - sec.radius);
         const limit = (sec.isLandmark && !currentInsideRoom) ? Math.max(maxSectorDist * 1.25, minLandmarkDist) : maxSectorDist;
         const isVis = dist <= limit;
         sec.group.visible = isVis;
-        const castShad = isVis && (dist <= (currentInsideRoom ? 8.0 : 26.0));
+        const castShad = isVis && (dist <= (currentInsideRoom ? 12.0 : 26.0));
         if (sec._lastShadowState !== castShad && sec.meshes) {
           sec._lastShadowState = castShad;
           for (let m = 0; m < sec.meshes.length; m++) {
@@ -19361,7 +19892,7 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // 4. Keep exterior lamp groups, cones & ground light pools visible all the way across the screen (185m horizon)
+      // 4. Keep exterior lamp groups, rain puddles & tree shadow decals visible through windows & open doors!
       const isLowOrFast = (currentQuality === 'low' || currentQuality === 'fast');
       const isFastOnly = (currentQuality === 'fast');
       const isUltraOnly = (currentQuality === 'ultra');
@@ -19373,7 +19904,7 @@ export function getHideAndSeekHtml(): string {
           const lx = lm.x !== undefined ? lm.x : (lm.bulbPos ? lm.bulbPos.x : 0);
           const lz = lm.z !== undefined ? lm.z : (lm.bulbPos ? lm.bulbPos.z : 0);
           const lDist = Math.hypot(lx - playerPos.x, lz - playerPos.z);
-          const showLamp = currentInsideRoom ? (lDist < 28.0) : (lDist < 185.0);
+          const showLamp = currentInsideRoom ? (lDist < 72.0) : (lDist < 185.0);
           if (lm.group) lm.group.visible = showLamp;
           if (lm.puddleMesh) lm.puddleMesh.visible = showLamp && lampsPowered && lm.blinkProfile !== 'dead';
         }
@@ -19382,14 +19913,14 @@ export function getHideAndSeekHtml(): string {
         for (let p = 0; p < rainPuddles.length; p++) {
           const pd = rainPuddles[p];
           if (!pd) continue;
-          pd.visible = !currentInsideRoom && Math.hypot(pd.position.x - playerPos.x, pd.position.z - playerPos.z) < 34.0;
+          pd.visible = Math.hypot(pd.position.x - playerPos.x, pd.position.z - playerPos.z) < 42.0;
         }
       }
       if (typeof treeShadowDecals !== 'undefined' && Array.isArray(treeShadowDecals)) {
         for (let t = 0; t < treeShadowDecals.length; t++) {
           const ts = treeShadowDecals[t];
           if (!ts || !ts.mesh) continue;
-          ts.mesh.visible = !currentInsideRoom && !isLowOrFast && Math.hypot(ts.mesh.position.x - playerPos.x, playerPos.z - ts.mesh.position.z) < 34.0;
+          ts.mesh.visible = !isLowOrFast && Math.hypot(ts.mesh.position.x - playerPos.x, playerPos.z - ts.mesh.position.z) < 42.0;
         }
       }
       // 5. Cull Rotunda corridor mist planes, corridor fog planes & ULTRA-only classroom doorway mist planes
@@ -19814,6 +20345,30 @@ export function getHideAndSeekHtml(): string {
       }
       if (warningCount === 0) {
         console.log('[Hiding Spot Startup Dev Check] PASSED: All ' + interactiveHidingSpots.length + ' hiding spots have verified collision-free exit positions (>= playerRadius + 0.15 clear).');
+      }
+      // Ensure all bot navigation waypoints are >= 0.28m clear of any solid furniture/wall collider
+      for (let w = 0; w < navWaypoints.length; w++) {
+        const wp = navWaypoints[w];
+        const wy = typeof wp.y === 'number' ? wp.y : 0;
+        if (!isPositionClearOfColliders(wp.x, wy, wp.z, 0.28)) {
+          const radii = [0.35, 0.55, 0.75, 1.0, 1.35, 1.75];
+          const angles = 16;
+          let found = false;
+          for (let r = 0; r < radii.length && !found; r++) {
+            const dist = radii[r];
+            for (let a = 0; a < angles; a++) {
+              const theta = (a * Math.PI * 2) / angles;
+              const cx = wp.x + Math.sin(theta) * dist;
+              const cz = wp.z + Math.cos(theta) * dist;
+              if (isPositionClearOfColliders(cx, wy, cz, 0.28)) {
+                wp.x = cx;
+                wp.z = cz;
+                found = true;
+                break;
+              }
+            }
+          }
+        }
       }
     }
     initializeHidingSpotExitPositions();
@@ -22138,7 +22693,8 @@ export function getHideAndSeekHtml(): string {
         it.isTransitioning = true;
         if (it.collider) it.collider.enabled = !it.isOpen;
         multiplayerStateStore.interactableStates[it.id] = { isOpen: it.isOpen, state: it.state };
-        soundEngine.playDoorCreakSfx();
+        it.lastPlayedSfx = 'window_slide';
+        soundEngine.playWindowSlideSfx();
         showToast(it.isOpen ? 'Window Opened' : 'Window Closed');
         return true;
       }
@@ -22151,7 +22707,8 @@ export function getHideAndSeekHtml(): string {
         if (it.ledMat && it.ledMat.color) it.ledMat.color.setHex(it.isOn ? 0x22c55e : 0xef4444);
         setRoomLightMood(it.roomId, it.isOn ? (it.defaultActiveMood || 'warm_lamp') : 'dark');
         multiplayerStateStore.interactableStates[it.id] = { isOn: it.isOn, state: it.state };
-        soundEngine.playFuseRepairSfx();
+        it.lastPlayedSfx = 'switch_click';
+        soundEngine.playSwitchClickSfx();
         showToast(it.roomId + ' Lights: ' + (it.isOn ? 'ON' : 'OFF'));
         return true;
       }
@@ -22220,7 +22777,8 @@ export function getHideAndSeekHtml(): string {
         }
 
         multiplayerStateStore.interactableStates[it.id] = { isOn: it.isOn, state: it.state };
-        soundEngine.playFuseRepairSfx();
+        it.lastPlayedSfx = 'breaker_clunk';
+        soundEngine.playBreakerClunkSfx();
         showToast(it.name + ': ' + (it.isOn ? 'POWER ON' : 'POWER OFF'));
         sendToReactNative('POWER_STATE_CHANGED', { powerKey: it.powerKey, isOn: it.isOn, powerStates: interiorPowerStates });
         return true;
@@ -22234,7 +22792,16 @@ export function getHideAndSeekHtml(): string {
           it.collider.enabled = !it.isOpen;
         }
         multiplayerStateStore.interactableStates[it.id] = { isOpen: it.isOpen, state: it.state };
-        soundEngine.playDoorCreakSfx();
+        if (it.type === 'drawer' || it.type === 'rack') {
+          it.lastPlayedSfx = 'drawer_slide';
+          soundEngine.playDrawerSlideSfx();
+        } else if (it.type === 'locker') {
+          it.lastPlayedSfx = 'locker_latch';
+          soundEngine.playLockerLatchSfx();
+        } else {
+          it.lastPlayedSfx = 'door_creak';
+          soundEngine.playDoorCreakSfx();
+        }
         if (it.isOpen && it.missionItem && !it.missionItem.collected) {
           collectMissionItemAuthoritative(it.missionItem, options.playerId || 'local_player');
         } else {
@@ -24240,25 +24807,37 @@ export function getHideAndSeekHtml(): string {
           }
         }
 
-        // Fog & Vignette update: In EXPLORE_MODE, keep steady baseline or slider-tuned fog & normal subtle vignette
-        if (scene.fog && scene.fog.isFog) {
-          if (!exploreTools.fogEnabled) {
-            scene.fog.near = 9999;
-            scene.fog.far = 10000;
-          } else if (!EXPLORE_FLAGS.ENABLE_FEAR_FOV_AND_TENSION_FOG) {
-            const userFar = exploreTools.fogFar || ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0);
-            scene.fog.near = Math.max(2.5, (userFar / 88.0) * ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0));
-            scene.fog.far = userFar;
-          } else {
-            const timerRatio = Math.max(0, Math.min(1, 1 - (matchTimer / (GAME_CONFIG.matchDuration || 135))));
-            const combinedTension = Math.min(1.0, currentHunterProximity * 0.75 + timerRatio * 0.45);
-            const baseFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0;
-            const minFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogMinFarUnderTension) || 45.0;
-            scene.fog.near = Math.max(2.5, ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0) - combinedTension * 3.0);
-            scene.fog.far = baseFar - (baseFar - minFar) * combinedTension;
-            const vigEl = document.getElementById('cinematic-vignette');
-            if (vigEl) {
-              vigEl.style.opacity = (0.28 + combinedTension * 0.20).toFixed(2);
+        // Fog & Vignette update: Support FogExp2(0x0b1220, 0.022) and linear Fog
+        if (scene.fog) {
+          const baseDens = (HORROR_CONFIG.renderer && typeof HORROR_CONFIG.renderer.fogDensity === 'number')
+            ? HORROR_CONFIG.renderer.fogDensity
+            : 0.022;
+          if (scene.fog.isFogExp2) {
+            if (!exploreTools.fogEnabled) {
+              scene.fog.density = 0.0001;
+            } else {
+              const fogMult = (typeof exploreTools.fogMultiplier === 'number') ? exploreTools.fogMultiplier : 1.0;
+              scene.fog.density = baseDens * fogMult;
+            }
+          } else if (scene.fog.isFog) {
+            if (!exploreTools.fogEnabled) {
+              scene.fog.near = 9999;
+              scene.fog.far = 10000;
+            } else if (!EXPLORE_FLAGS.ENABLE_FEAR_FOV_AND_TENSION_FOG) {
+              const userFar = exploreTools.fogFar || ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0);
+              scene.fog.near = Math.max(2.5, (userFar / 88.0) * ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0));
+              scene.fog.far = userFar;
+            } else {
+              const timerRatio = Math.max(0, Math.min(1, 1 - (matchTimer / (GAME_CONFIG.matchDuration || 135))));
+              const combinedTension = Math.min(1.0, currentHunterProximity * 0.75 + timerRatio * 0.45);
+              const baseFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogFar) || 88.0;
+              const minFar = (HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogMinFarUnderTension) || 45.0;
+              scene.fog.near = Math.max(2.5, ((HORROR_CONFIG.renderer && HORROR_CONFIG.renderer.fogNear) || 14.0) - combinedTension * 3.0);
+              scene.fog.far = baseFar - (baseFar - minFar) * combinedTension;
+              const vigEl = document.getElementById('cinematic-vignette');
+              if (vigEl) {
+                vigEl.style.opacity = (0.28 + combinedTension * 0.20).toFixed(2);
+              }
             }
           }
 
@@ -24266,7 +24845,7 @@ export function getHideAndSeekHtml(): string {
           const lampDist = (lampFlickerMod && typeof lampFlickerMod.nearestLampDist === 'number')
             ? lampFlickerMod.nearestLampDist
             : 999;
-          const warmFactor = Math.max(0.0, Math.min(0.45, (1.0 - lampDist / 14.0) * 0.45));
+          const warmFactor = Math.max(0.0, Math.min(0.20, (1.0 - lampDist / 14.0) * 0.20));
           scene.fog.color.copy(atmosphere.baseFogColor).lerp(atmosphere.warmFogColor, warmFactor);
         }
         if (!EXPLORE_FLAGS.ENABLE_FEAR_FOV_AND_TENSION_FOG) {

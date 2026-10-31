@@ -49,6 +49,12 @@ globalThis.__HARNESS_EXPORTS__ = {
   resolvePlayerMovement,
   getSupportFloorY,
   updatePlayer,
+  updateRoomAndBuildingVisibility,
+  hasArchitecturalSightline,
+  isRoomVisibleThroughArchitecture,
+  roomVisibilityList,
+  buildingSectors,
+  soundEngine,
   scene,
   camera,
   raycastCameraDistance,
@@ -2181,6 +2187,137 @@ describe('Physics & Controls Audit: Gandaki University 3D Hide-and-Seek', () => 
       assert.strictEqual(exitRes.ok, true);
       assert.strictEqual(env.playerPhysics.isHiding, false, 'Exiting hiding spot must restore player movement controls');
       assert.strictEqual(env.playerPhysics.currentHidingSpot, null);
+    });
+
+    test('9.10 Architectural Occlusion Visibility, Window Sightlines, Door Occlusion, Camera Rotation Stability, and Interaction Audio Audit', () => {
+      const env = initGameEnvironment();
+      const sys = env.scene.userData.interiorSystem;
+      const rooms = env.roomVisibilityList;
+      const sectors = env.buildingSectors;
+      assert.ok(Array.isArray(rooms) && rooms.length >= 20, 'roomVisibilityList must contain all rooms and corridors');
+      assert.ok(Array.isArray(sectors) && sectors.length >= 8, 'buildingSectors must be initialized');
+
+      const r1 = rooms.find(r => r.id === 'West Wing L1 Room 1');
+      const r2 = rooms.find(r => r.id === 'West Wing L1 Room 2');
+      const r3 = rooms.find(r => r.id === 'West Wing L1 Room 3');
+      const courtyardSec = sectors.find(s => s.id === 'central-courtyard');
+      assert.ok(r1 && r2 && r3, 'West Wing L1 rooms 1, 2, 3 must exist in roomVisibilityList');
+      assert.ok(courtyardSec, 'central-courtyard sector must exist');
+
+      // 1. Entering a room & rotating camera 360 degrees at room center and room boundaries:
+      //    - The active room must NEVER disappear at any camera yaw.
+      //    - Adjacent rooms behind solid partition walls (Room 2 & Room 3) must be OCCLUDED (visible = false).
+      //    - Exterior central courtyard and nearby campus sectors must remain visible through windows/doors.
+      env.playerPhysics.pos.set(r1.x, r1.floorY, r1.z);
+      for (let deg = 0; deg < 360; deg += 30) {
+        const yaw = (deg * Math.PI) / 180;
+        env.playerPhysics.yaw = yaw;
+        env.updateRoomAndBuildingVisibility(env.playerPhysics.pos, yaw, { cullDistInterior: 20.0, cullDistBuilding: 75.0 });
+        assert.strictEqual(r1.group.visible, true, `Active room (${r1.id}) must stay visible at yaw=${deg} deg`);
+        assert.strictEqual(r2.group.visible, false, `Adjacent room (${r2.id}) behind solid partition wall must be occluded when inside ${r1.id} at yaw=${deg} deg`);
+        assert.strictEqual(r3.group.visible, false, `Room (${r3.id}) behind solid walls must be occluded when inside ${r1.id} at yaw=${deg} deg`);
+        assert.strictEqual(courtyardSec.group.visible, true, `Central courtyard must remain visible through windows/doors when inside ${r1.id} at yaw=${deg} deg`);
+      }
+
+      // Test camera rotation right at the doorway threshold boundary of r1
+      const doorThresholdZ = r1.bounds.minZ + 0.15;
+      env.playerPhysics.pos.set(r1.x, r1.floorY, doorThresholdZ);
+      for (let deg = 0; deg < 360; deg += 45) {
+        const yaw = (deg * Math.PI) / 180;
+        env.playerPhysics.yaw = yaw;
+        env.updateRoomAndBuildingVisibility(env.playerPhysics.pos, yaw, { cullDistInterior: 20.0, cullDistBuilding: 75.0 });
+        assert.strictEqual(r1.group.visible, true, `Room (${r1.id}) must not disappear at doorway boundary at yaw=${deg} deg`);
+      }
+
+      // 2. Open vs. Closed Door Architectural Occlusion from outside doorway:
+      //    Stand outside West Wing L1 Room 1 doorway (z = r1.bounds.minZ - 1.8) looking into the room (yaw = Math.PI -> +Z)
+      const outsideDoorPos = { x: r1.x, y: r1.floorY, z: r1.bounds.minZ - 1.8 };
+      const r1Door = sys.interactables.find(it => it.type === 'door' && it.id === 'door-West Wing L1-r1');
+      assert.ok(r1Door, 'door-West Wing L1-r1 must exist');
+      assert.strictEqual(r1Door.isOpen, true, 'Door should initially be open');
+
+      env.playerPhysics.pos.set(outsideDoorPos.x, outsideDoorPos.y, outsideDoorPos.z);
+      env.playerPhysics.yaw = Math.PI; // Looking +Z into Room 1
+      env.updateRoomAndBuildingVisibility(env.playerPhysics.pos, env.playerPhysics.yaw, { cullDistInterior: 20.0, cullDistBuilding: 75.0 });
+      assert.strictEqual(r1.group.visible, true, 'Through an OPEN doorway, player outside must see Room 1 interior');
+
+      // Close the door and verify its door_leaf collider occludes sightline from directly in front of the door
+      sys.toggleInteractableById(r1Door.id);
+      assert.strictEqual(r1Door.isOpen, false);
+      assert.strictEqual(r1Door.collider.enabled, true);
+      const doorEye = { x: r1Door.x, y: r1.floorY + 1.5, z: r1Door.z - 0.65 };
+      const blockedByClosedDoor = env.hasArchitecturalSightline(doorEye, r1Door.x, r1.floorY + 1.45, r1Door.z + 0.65);
+      assert.strictEqual(blockedByClosedDoor, false, 'Closed door leaf collider must block architectural sightline through doorway');
+
+      // Re-open the door and verify sightline is restored
+      sys.toggleInteractableById(r1Door.id);
+      assert.strictEqual(r1Door.isOpen, true);
+      const clearThroughOpenDoor = env.hasArchitecturalSightline(doorEye, r1Door.x, r1.floorY + 1.45, r1Door.z + 0.65);
+      assert.strictEqual(clearThroughOpenDoor, true, 'Open door must allow architectural sightline through doorway');
+
+      // 3. Window Opening Sightline Verification:
+      const sampleWin = sys.interactables.find(it => it.type === 'window');
+      assert.ok(sampleWin, 'Sample window interactable must exist');
+      let glassTransparent = false;
+      sampleWin.rootMesh.traverse(ch => {
+        if (ch.isMesh && ch.material && ch.material.transparent && ch.material.opacity <= 0.5) {
+          glassTransparent = true;
+        }
+      });
+      assert.strictEqual(glassTransparent, true, 'Window sashes must use transparent see-through glass material');
+
+      // 4. Leaving a room restores exterior and interior visibility:
+      env.playerPhysics.pos.set(0.0, env.getSupportFloorY(0.0, -35.0, 1.0), -35.0);
+      env.playerPhysics.yaw = 0;
+      env.updateRoomAndBuildingVisibility(env.playerPhysics.pos, 0, { cullDistInterior: 20.0, cullDistBuilding: 75.0 });
+      assert.strictEqual(env.scene.userData.visibilityAudit.currentInsideRoomId, null, 'Player outside must have currentInsideRoomId = null');
+      assert.strictEqual(courtyardSec.group.visible, true, 'Central courtyard must be visible when outdoors');
+
+      // 5. Interaction Audio Wiring Verification:
+      const audioCalls = [];
+      const origDoor = env.soundEngine.playDoorCreakSfx.bind(env.soundEngine);
+      const origWin = env.soundEngine.playWindowSlideSfx.bind(env.soundEngine);
+      const origSw = env.soundEngine.playSwitchClickSfx.bind(env.soundEngine);
+      const origBrk = env.soundEngine.playBreakerClunkSfx.bind(env.soundEngine);
+      const origDrw = env.soundEngine.playDrawerSlideSfx.bind(env.soundEngine);
+      const origLck = env.soundEngine.playLockerLatchSfx.bind(env.soundEngine);
+      env.soundEngine.playDoorCreakSfx = () => { audioCalls.push('door_creak'); origDoor(); };
+      env.soundEngine.playWindowSlideSfx = () => { audioCalls.push('window_slide'); origWin(); };
+      env.soundEngine.playSwitchClickSfx = () => { audioCalls.push('switch_click'); origSw(); };
+      env.soundEngine.playBreakerClunkSfx = () => { audioCalls.push('breaker_clunk'); origBrk(); };
+      env.soundEngine.playDrawerSlideSfx = () => { audioCalls.push('drawer_slide'); origDrw(); };
+      env.soundEngine.playLockerLatchSfx = () => { audioCalls.push('locker_latch'); origLck(); };
+
+      const tDoor = sys.interactables.find(it => it.type === 'door');
+      const tWin = sys.interactables.find(it => it.type === 'window');
+      const tSw = sys.interactables.find(it => it.type === 'light_switch');
+      const tBrk = sys.interactables.find(it => it.type === 'switchboard' && !it.controlsCampusLights && it.powerKey !== 'mainCampusGrid');
+      const tDrw = sys.interactables.find(it => it.type === 'drawer');
+      const tLck = sys.interactables.find(it => it.type === 'locker');
+
+      audioCalls.length = 0;
+      sys.toggleInteractableById(tDoor.id);
+      assert.deepStrictEqual(audioCalls, ['door_creak'], 'Door interaction must play only door_creak SFX');
+
+      audioCalls.length = 0;
+      sys.toggleInteractableById(tWin.id);
+      assert.deepStrictEqual(audioCalls, ['window_slide'], 'Window interaction must play only window_slide SFX');
+
+      audioCalls.length = 0;
+      sys.toggleInteractableById(tSw.id);
+      assert.deepStrictEqual(audioCalls, ['switch_click'], 'Light switch interaction must play only switch_click SFX');
+
+      audioCalls.length = 0;
+      sys.toggleInteractableById(tBrk.id);
+      assert.deepStrictEqual(audioCalls, ['breaker_clunk'], 'Switchboard interaction must play only breaker_clunk SFX');
+
+      audioCalls.length = 0;
+      sys.toggleInteractableById(tDrw.id);
+      assert.deepStrictEqual(audioCalls, ['drawer_slide'], 'Drawer interaction must play only drawer_slide SFX');
+
+      audioCalls.length = 0;
+      sys.toggleInteractableById(tLck.id);
+      assert.deepStrictEqual(audioCalls, ['locker_latch'], 'Locker interaction must play only locker_latch SFX');
     });
   });
 });

@@ -46,7 +46,11 @@ export const HORROR_CONFIG = {
     blackLift: 0.016,                   // Deep, natural night blacks without crushing silhouette readability
     vignette: 0.44,                     // Subtle nocturnal edge framing
     grain: 0.032,                       // Subtle organic low-light sensor grain
-    edgeDesat: 0.22,                    // Gentle peripheral desaturation
+    edgeDesat: 0.20,                    // Gentle peripheral desaturation
+    bloomStrength: 0.26,                // 5-tap Kawase soft optical bloom around high-luminance diyos & Jhilimili bulbs
+    bloomThreshold: 0.68,               // Luminance threshold for warm festival highlight bloom
+    microContrast: 0.22,                // Unsharp midtone micro-contrast for brick/stone/wood relief
+    chromaStrength: 0.0014,             // Subtle lens periphery chromatic aberration
     lampColor: 0xff8a2a,                // #ff8a2a warm orange lamp light
     poolOpacity: 0.28,                  // Warm ground light pool opacity
     fogColor: 0x08131d,                 // Deep Himalayan autumn night fog
@@ -240,12 +244,12 @@ export const HORROR_CONFIG = {
   qualityPresets: {
     ultra: {
       label: 'ULTRA',
-      pixelRatioCap: 1.35,
-      particleCount: 36,
-      paperLeafCount: 18,
+      pixelRatioCap: 1.45,
+      particleCount: 40,
+      paperLeafCount: 20,
       mistPlaneCount: 6,
       maxActiveLampLights: 3,
-      shadowMapSize: 512,
+      shadowMapSize: 1024,
       enableShadows: true,
       extraDetail: true,
       enableLampCones: true,
@@ -259,16 +263,16 @@ export const HORROR_CONFIG = {
     },
     high: {
       label: 'HIGH',
-      pixelRatioCap: 1.15,
-      particleCount: 28,
-      paperLeafCount: 12,
+      pixelRatioCap: 1.25,
+      particleCount: 30,
+      paperLeafCount: 14,
       mistPlaneCount: 4,
       maxActiveLampLights: 3,
       shadowMapSize: 512,
       enableShadows: true,
       extraDetail: true,
       enableLampCones: true,
-      enableColorGrade: false,
+      enableColorGrade: true,
       fakePoolStride: 1,
       cullDistBuilding: 75,
       cullDistInterior: 20,
@@ -321,6 +325,16 @@ export const HORROR_CONFIG = {
     crouchSpeed: 2.2,
     acceleration: 28.0,
     deceleration: 32.0,
+    airControlFactor: 0.42,
+    wallSlideFriction: 0.06,
+    skinWidth: 0.008,
+    stepSmoothSpeed: 22.0,
+    springStiffness: 148.0,
+    springDamping: 18.5,
+    maxLandingDip: 0.24,
+    strafeRollAngle: 0.026,
+    flashlightSpringStiffness: 92.0,
+    flashlightSpringDamping: 14.5,
     playerRadius: 0.28,
     standingHeight: 1.80,
     crouchHeight: 1.05,

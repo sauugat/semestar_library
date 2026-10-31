@@ -3687,7 +3687,63 @@ export function getHideAndSeekHtml(): string {
         this.buildCloudyMoonlitSkyDome();
 
         // Step 1: Single-Pass Full-Screen Color Grade (1 WebGLRenderTarget + 1 Full-Screen Quad)
+        this.flWristYaw = undefined;
+        this.flWristPitch = undefined;
+        this.flWristVelYaw = 0.0;
+        this.flWristVelPitch = 0.0;
+        this.initPbrEnvironmentMap();
         this.initColorGradePass(initW, initH, targetPR);
+      }
+
+      initPbrEnvironmentMap() {
+        try {
+          if (!this.renderer || typeof THREE.PMREMGenerator !== 'function' || typeof this.renderer.setRenderTarget !== 'function') return;
+          const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+          if (typeof pmremGenerator.compileCubemapShader === 'function') pmremGenerator.compileCubemapShader();
+          const envScene = new THREE.Scene();
+          // Procedural Himalayan Tihar Night Sky Dome + Warm 1950K Diyo Ground Bounce for PBR Reflections
+          const domeGeo = new THREE.SphereGeometry(20, 16, 12).clone();
+          const posAttr = domeGeo.attributes.position;
+          const colors = new Float32Array(posAttr.count * 3);
+          const cTop = new THREE.Color(0x06101e);
+          const cHoriz = new THREE.Color(0x162b46);
+          const cGround = new THREE.Color(0x3b1d0b);
+          const cTmp = new THREE.Color();
+          for (let i = 0; i < posAttr.count; i++) {
+            const ny = posAttr.getY(i) / 20.0;
+            if (ny >= 0) {
+              cTmp.copy(cHoriz).lerp(cTop, Math.pow(ny, 0.65));
+            } else {
+              cTmp.copy(cHoriz).lerp(cGround, Math.min(1.0, -ny * 1.4));
+            }
+            colors[i * 3] = cTmp.r;
+            colors[i * 3 + 1] = cTmp.g;
+            colors[i * 3 + 2] = cTmp.b;
+          }
+          domeGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+          const domeMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide });
+          envScene.add(new THREE.Mesh(domeGeo, domeMat));
+          // Moon specular lobe + warm Tihar diyo/Jhilimili reflection cards
+          const moonDisc = new THREE.Mesh(new THREE.SphereGeometry(2.2, 8, 8).clone(), new THREE.MeshBasicMaterial({ color: 0x9ed0ff }));
+          moonDisc.position.set(-8, 13, -10);
+          envScene.add(moonDisc);
+          const tiharColors = [0xff922b, 0xffb84d, 0xf43f86, 0x38bdf8, 0xffaa33, 0x10b981];
+          const cardGeo = new THREE.SphereGeometry(1.15, 6, 6).clone();
+          for (let i = 0; i < 6; i++) {
+            const ang = (i / 6) * Math.PI * 2;
+            const m = new THREE.Mesh(cardGeo, new THREE.MeshBasicMaterial({ color: tiharColors[i] }));
+            m.position.set(Math.cos(ang) * 14, -2.5 + (i % 2) * 3.0, Math.sin(ang) * 14);
+            envScene.add(m);
+          }
+          const envRT = pmremGenerator.fromScene(envScene, 0.04);
+          if (envRT && envRT.texture) {
+            this.scene.environment = envRT.texture;
+            this.pmremRenderTarget = envRT;
+          }
+          pmremGenerator.dispose();
+        } catch (envErr) {
+          console.warn('[HideAndSeek] PMREM environment map skipped:', envErr);
+        }
       }
 
       updateFlashlight(delta, timeSec, camPos, yaw, pitch, hunterProximity = 0.0, isHiding = false, isFirstPerson = true) {
@@ -3815,26 +3871,56 @@ export function getHideAndSeekHtml(): string {
           this.flashlightSpill.color.copy(this.flashlight.color);
         }
 
-        // 2. Position & Aim Flashlight and Volumetric Beam Cone
-        const fx = -Math.sin(yaw) * Math.cos(pitch);
-        const fy = Math.sin(pitch);
-        const fz = -Math.cos(yaw) * Math.cos(pitch);
-        const rightX = Math.cos(yaw);
-        const rightZ = -Math.sin(yaw);
-
-        // Offset emitter slightly right and down from eye so the volumetric cone is clearly visible in 1st-person
-        const handOffR = isFirstPerson ? 0.22 : 0.28;
-        const handOffY = isFirstPerson ? -0.19 : -0.25;
-        const handOffFwd = isFirstPerson ? 0.18 : 0.35;
-
-        const emitX = camPos.x + rightX * handOffR + fx * handOffFwd;
-        const emitY = camPos.y + handOffY + fy * handOffFwd;
-        const emitZ = camPos.z + rightZ * handOffR + fz * handOffFwd;
-
-        const targetX = camPos.x + fx * 14.0;
-        const targetY = camPos.y + fy * 14.0;
-        const targetZ = camPos.z + fz * 14.0;
-
+        // 2. Position & Aim Flashlight with 2nd-Order Wrist Spring-Damper Inertia & Figure-8 Sway
+        const pCfgFl = HORROR_CONFIG.physics || {};
+        const flStiff = pCfgFl.flashlightSpringStiffness || 92.0;
+        const flDamp = pCfgFl.flashlightSpringDamping || 14.5;
+        const flDt = Math.min(0.05, Math.max(0.001, delta));
+        if (this.flWristYaw === undefined || !Number.isFinite(this.flWristYaw)) {
+          this.flWristYaw = yaw;
+          this.flWristPitch = pitch;
+          this.flWristVelYaw = 0;
+          this.flWristVelPitch = 0;
+        }
+        let yawErr = yaw - this.flWristYaw;
+        while (yawErr > Math.PI) { this.flWristYaw += Math.PI * 2; yawErr = yaw - this.flWristYaw; }
+        while (yawErr < -Math.PI) { this.flWristYaw -= Math.PI * 2; yawErr = yaw - this.flWristYaw; }
+        const pitchErr = pitch - this.flWristPitch;
+        this.flWristVelYaw += (yawErr * flStiff - this.flWristVelYaw * flDamp) * flDt;
+        this.flWristVelPitch += (pitchErr * flStiff - this.flWristVelPitch * flDamp) * flDt;
+        this.flWristYaw += this.flWristVelYaw * flDt;
+        this.flWristPitch += this.flWristVelPitch * flDt;
+        const maxLag = 0.14;
+        if (Math.abs(yaw - this.flWristYaw) > maxLag) {
+          this.flWristYaw = yaw - Math.sign(yaw - this.flWristYaw) * maxLag;
+        }
+        if (Math.abs(pitch - this.flWristPitch) > maxLag * 0.8) {
+          this.flWristPitch = pitch - Math.sign(pitch - this.flWristPitch) * (maxLag * 0.8);
+        }
+        const moveSpdFl = (typeof playerPhysics !== 'undefined' && playerPhysics.vel) ? Math.hypot(playerPhysics.vel.x, playerPhysics.vel.z) : 0;
+        const gaitPhase = (typeof playerPhysics !== 'undefined') ? (playerPhysics.bobTimer || 0) : (timeSec * 4.0);
+        const gaitBlend = Math.min(1.0, moveSpdFl / 5.0);
+        const swayYaw = Math.cos(gaitPhase * 0.5) * 0.014 * gaitBlend + Math.sin(timeSec * 1.45) * 0.0025;
+        const swayPitch = Math.sin(gaitPhase) * 0.018 * gaitBlend + Math.cos(timeSec * 1.15) * 0.003;
+        const effYaw = isFirstPerson ? (this.flWristYaw + swayYaw) : yaw;
+        const effPitch = isFirstPerson ? (this.flWristPitch + swayPitch) : pitch;
+        const sinY = Math.sin(effYaw);
+        const cosY = Math.cos(effYaw);
+        const cosP = Math.cos(effPitch);
+        const sinP = Math.sin(effPitch);
+        const fwdX = -sinY * cosP;
+        const fwdY = sinP;
+        const fwdZ = -cosY * cosP;
+        const rightX = cosY;
+        const rightZ = -sinY;
+        const handOffR = isFirstPerson ? 0.20 : 0.0;
+        const handOffY = isFirstPerson ? -0.16 : 0.0;
+        const emitX = camPos.x + rightX * handOffR + fwdX * 0.12;
+        const emitY = camPos.y + handOffY + fwdY * 0.12;
+        const emitZ = camPos.z + rightZ * handOffR + fwdZ * 0.12;
+        const targetX = emitX + fwdX * 14.0;
+        const targetY = emitY + fwdY * 14.0;
+        const targetZ = emitZ + fwdZ * 14.0;
         this.flashlight.position.set(emitX, emitY, emitZ);
         this.flashlightTarget.position.set(targetX, targetY, targetZ);
 
@@ -3954,12 +4040,16 @@ export function getHideAndSeekHtml(): string {
           uTime: { value: 0.0 },
           uShadowTint: { value: new THREE.Vector3(sTint[0], sTint[1], sTint[2]) },
           uHighlightTint: { value: new THREE.Vector3(hTint[0], hTint[1], hTint[2]) },
-          uSaturation: { value: typeof gCfg.saturation === 'number' ? gCfg.saturation : 0.80 },
-          uContrast: { value: typeof gCfg.contrast === 'number' ? gCfg.contrast : 1.14 },
-          uBlackLift: { value: typeof gCfg.blackLift === 'number' ? gCfg.blackLift : 0.022 },
-          uVignette: { value: typeof gCfg.vignette === 'number' ? gCfg.vignette : 0.46 },
-          uGrain: { value: typeof gCfg.grain === 'number' ? gCfg.grain : 0.04 },
-          uEdgeDesat: { value: typeof gCfg.edgeDesat === 'number' ? gCfg.edgeDesat : 0.28 },
+          uSaturation: { value: typeof gCfg.saturation === 'number' ? gCfg.saturation : 0.90 },
+          uContrast: { value: typeof gCfg.contrast === 'number' ? gCfg.contrast : 1.18 },
+          uBlackLift: { value: typeof gCfg.blackLift === 'number' ? gCfg.blackLift : 0.015 },
+          uVignette: { value: typeof gCfg.vignette === 'number' ? gCfg.vignette : 0.42 },
+          uGrain: { value: typeof gCfg.grain === 'number' ? gCfg.grain : 0.028 },
+          uEdgeDesat: { value: typeof gCfg.edgeDesat === 'number' ? gCfg.edgeDesat : 0.20 },
+          uBloomStrength: { value: typeof gCfg.bloomStrength === 'number' ? gCfg.bloomStrength : 0.26 },
+          uBloomThreshold: { value: typeof gCfg.bloomThreshold === 'number' ? gCfg.bloomThreshold : 0.68 },
+          uMicroContrast: { value: typeof gCfg.microContrast === 'number' ? gCfg.microContrast : 0.22 },
+          uChromaStrength: { value: typeof gCfg.chromaStrength === 'number' ? gCfg.chromaStrength : 0.0014 },
           uStylized: { value: this.stylizedMode ? 1.0 : 0.0 },
           uResolution: { value: new THREE.Vector2(rtW, rtH) },
         };
@@ -3987,6 +4077,10 @@ export function getHideAndSeekHtml(): string {
             'uniform float uVignette;',
             'uniform float uGrain;',
             'uniform float uEdgeDesat;',
+            'uniform float uBloomStrength;',
+            'uniform float uBloomThreshold;',
+            'uniform float uMicroContrast;',
+            'uniform float uChromaStrength;',
             'uniform float uStylized;',
             'uniform vec2 uResolution;',
             'varying vec2 vUv;',
@@ -3997,40 +4091,77 @@ export function getHideAndSeekHtml(): string {
             '  return fract((p3.x + p3.y) * p3.z);',
             '}',
             '',
-            'void main() {',
-            '  vec3 col = texture2D(tDiffuse, vUv).rgb;',
+            'vec3 acesFilmic(vec3 x) {',
+            '  return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);',
+            '}',
             '',
-            '  // 1. Luminance & Edge-aware desaturation (midtones ~0.8, further desaturated toward edges)',
+            'void main() {',
             '  vec2 centered = vUv - 0.5;',
             '  float edgeDistSq = dot(centered, centered) * 2.4;',
+            '  vec2 texel = 1.0 / max(uResolution, vec2(160.0));',
+            '',
+            '  // 1. Subtle Radial Lens Chromatic Aberration at Periphery',
+            '  vec2 caOffset = centered * edgeDistSq * uChromaStrength;',
+            '  float cR = texture2D(tDiffuse, clamp(vUv + caOffset, 0.0, 1.0)).r;',
+            '  vec3 cMid = texture2D(tDiffuse, vUv).rgb;',
+            '  float cB = texture2D(tDiffuse, clamp(vUv - caOffset, 0.0, 1.0)).b;',
+            '  vec3 col = vec3(cR, cMid.g, cB);',
+            '',
+            '  // 2. 4-Tap Rotated Kawase Neighborhood Sample for Soft Tihar Diyo Optical Bloom & Micro-Contrast',
+            '  vec2 d1 = vec2(2.2, 1.2) * texel;',
+            '  vec2 d2 = vec2(-1.2, 2.2) * texel;',
+            '  vec3 s1 = texture2D(tDiffuse, clamp(vUv + d1, 0.0, 1.0)).rgb;',
+            '  vec3 s2 = texture2D(tDiffuse, clamp(vUv - d1, 0.0, 1.0)).rgb;',
+            '  vec3 s3 = texture2D(tDiffuse, clamp(vUv + d2, 0.0, 1.0)).rgb;',
+            '  vec3 s4 = texture2D(tDiffuse, clamp(vUv - d2, 0.0, 1.0)).rgb;',
+            '  vec3 avgNeighbor = (s1 + s2 + s3 + s4) * 0.25;',
+            '',
             '  float luma = dot(col, vec3(0.299, 0.587, 0.114));',
+            '  float avgLuma = dot(avgNeighbor, vec3(0.299, 0.587, 0.114));',
+            '',
+            '  // Unsharp midtone micro-contrast for architectural masonry, Sal wood & paver relief',
+            '  float midMask = smoothstep(0.03, 0.18, luma) * (1.0 - smoothstep(0.75, 0.98, luma));',
+            '  float detailDelta = clamp((luma - avgLuma) * uMicroContrast * midMask, -0.06, 0.08);',
+            '  col = max(vec3(0.0), col + vec3(detailDelta));',
+            '',
+            '  // Warm optical halation bloom around Tihar diyos, Jhilimili bulbs & specular reflections',
+            '  float bW1 = smoothstep(uBloomThreshold, 1.25, dot(s1, vec3(0.299, 0.587, 0.114)));',
+            '  float bW2 = smoothstep(uBloomThreshold, 1.25, dot(s2, vec3(0.299, 0.587, 0.114)));',
+            '  float bW3 = smoothstep(uBloomThreshold, 1.25, dot(s3, vec3(0.299, 0.587, 0.114)));',
+            '  float bW4 = smoothstep(uBloomThreshold, 1.25, dot(s4, vec3(0.299, 0.587, 0.114)));',
+            '  vec3 bloomCol = (s1 * bW1 + s2 * bW2 + s3 * bW3 + s4 * bW4) * 0.25;',
+            '  col += bloomCol * uHighlightTint * uBloomStrength;',
+            '',
+            '  // 3. Luminance & Edge-aware desaturation',
+            '  luma = dot(col, vec3(0.299, 0.587, 0.114));',
             '  float localSat = max(0.0, uSaturation * (1.0 - edgeDistSq * uEdgeDesat));',
             '  col = mix(vec3(luma), col, localSat);',
             '',
-            '  // 2. Split-Tone: Shadows tinted teal-blue, Highlights tinted warm orange (#ff8a2a)',
+            '  // 4. Split-Tone: Shadows tinted nocturnal indigo-blue, Highlights tinted 1950K Tihar golden-orange',
             '  float shadowWeight = pow(clamp(1.0 - luma, 0.0, 1.0), 1.55);',
             '  float highlightWeight = pow(clamp(luma, 0.0, 1.0), 1.35);',
-            '  col += uShadowTint * shadowWeight * 0.42;',
-            '  col *= mix(vec3(1.0), uHighlightTint, highlightWeight * 0.55);',
+            '  col += uShadowTint * shadowWeight * 0.40;',
+            '  col *= mix(vec3(1.0), uHighlightTint, highlightWeight * 0.52);',
             '',
-            '  // 3. Gentle S-curve contrast + lifted blacks (never crushed)',
-            '  vec3 sCurve = smoothstep(0.0, 1.0, col);',
-            '  col = mix(col, sCurve, clamp((uContrast - 1.0) * 1.8, 0.0, 0.65));',
+            '  // 5. ACES-Inspired Filmic Toe/Shoulder Contrast + Lifted Night Blacks',
+            '  vec3 filmic = acesFilmic(col * 1.08);',
+            '  vec3 sCurve = smoothstep(0.0, 1.0, mix(col, filmic, 0.36));',
+            '  col = mix(col, sCurve, clamp((uContrast - 1.0) * 1.65, 0.0, 0.62));',
             '  col = col * (1.0 - uBlackLift) + vec3(uBlackLift);',
             '',
-            '  // 4. Optional PS1 Stylized Quantization & Ordered Dither',
+            '  // 6. Optional PS1 Stylized Quantization & Ordered Dither',
             '  if (uStylized > 0.5) {',
             '    vec2 pix = floor(vUv * uResolution);',
             '    float bayer = mod(pix.x * 3.0 + pix.y * 5.0, 8.0) / 8.0 - 0.5;',
             '    col = floor((col + bayer * 0.035) * 24.0) / 24.0;',
             '  }',
             '',
-            '  // 5. Animated Film Grain (~0.04)',
+            '  // 7. Shadow-Weighted Organic Sensor Grain',
             '  float noise = (hash12(vUv * uResolution + vec2(uTime * 61.7, uTime * 37.3)) - 0.5) * 2.0;',
-            '  col += noise * uGrain * (0.45 + 0.55 * (1.0 - luma));',
+            '  col += noise * uGrain * (0.42 + 0.58 * (1.0 - luma));',
             '',
-            '  // 6. Smooth Radial Vignette',
-            '  float vig = clamp(1.0 - edgeDistSq * uVignette, 0.12, 1.0);',
+            '  // 8. Smooth Ocular Vignette',
+            '  float vig = clamp(1.0 - edgeDistSq * uVignette, 0.14, 1.0);',
             '  col *= vig;',
             '',
             '  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);',
@@ -5778,17 +5909,70 @@ export function getHideAndSeekHtml(): string {
       const outRough = new THREE.CanvasTexture(roughC);
       outRough.wrapS = THREE.RepeatWrapping;
       outRough.wrapT = THREE.RepeatWrapping;
-      window.__sharedArchRoughTex = outRough;
+      if (!window.__sharedArchRoughTex) window.__sharedArchRoughTex = outRough;
+
+      // Synthesize a Tangent-Space RGB Normal Map from the height/bump canvas via 3x3 Sobel operator
+      const normC = document.createElement('canvas');
+      normC.width = 256;
+      normC.height = 256;
+      const outNormal = new THREE.CanvasTexture(normC);
+      outNormal.wrapS = THREE.RepeatWrapping;
+      outNormal.wrapT = THREE.RepeatWrapping;
+
+      const buildSobelNormalAndRoughness = () => {
+        try {
+          const nCtx = normC.getContext('2d');
+          if (!nCtx) return;
+          nCtx.drawImage(bumpC, 0, 0, 256, 256);
+          const srcImg = nCtx.getImageData(0, 0, 256, 256);
+          const src = srcImg.data;
+          const dstImg = nCtx.createImageData ? nCtx.createImageData(256, 256) : { data: new Uint8ClampedArray(256 * 256 * 4) };
+          const dst = dstImg.data;
+          const strength = 2.65;
+          for (let y = 0; y < 256; y++) {
+            const ym1 = (y - 1) & 255;
+            const yp1 = (y + 1) & 255;
+            for (let x = 0; x < 256; x++) {
+              const xm1 = (x - 1) & 255;
+              const xp1 = (x + 1) & 255;
+              const tl = src[(ym1 * 256 + xm1) * 4] / 255.0;
+              const l  = src[(y   * 256 + xm1) * 4] / 255.0;
+              const bl = src[(yp1 * 256 + xm1) * 4] / 255.0;
+              const t  = src[(ym1 * 256 + x)   * 4] / 255.0;
+              const b  = src[(yp1 * 256 + x)   * 4] / 255.0;
+              const tr = src[(ym1 * 256 + xp1) * 4] / 255.0;
+              const r  = src[(y   * 256 + xp1) * 4] / 255.0;
+              const br = src[(yp1 * 256 + xp1) * 4] / 255.0;
+              const dX = (tr + 2.0 * r + br) - (tl + 2.0 * l + bl);
+              const dY = (bl + 2.0 * b + br) - (tl + 2.0 * t + tr);
+              let nx = -dX * strength;
+              let ny = -dY * strength;
+              let nz = 1.0;
+              const invLen = 1.0 / Math.sqrt(nx * nx + ny * ny + nz * nz);
+              const idx = (y * 256 + x) * 4;
+              dst[idx]     = Math.round((nx * invLen * 0.5 + 0.5) * 255);
+              dst[idx + 1] = Math.round((ny * invLen * 0.5 + 0.5) * 255);
+              dst[idx + 2] = Math.round((nz * invLen * 0.5 + 0.5) * 255);
+              dst[idx + 3] = 255;
+            }
+          }
+          nCtx.putImageData(dstImg, 0, 0);
+          outNormal.needsUpdate = true;
+          outRough.needsUpdate = true;
+        } catch (nErr) {}
+      };
 
       // Requirement 1: Generate procedural textures in chunks across frames behind the loading screen & cache them
       const isHeadlessNode = (typeof navigator !== 'undefined' && navigator.userAgent === 'node');
       if (isHeadlessNode || needsBumpCanvas || needsRoughCanvas) {
         runProceduralDraw();
+        buildSobelNormalAndRoughness();
         map.needsUpdate = true;
         if (outBump) outBump.needsUpdate = true;
       } else {
         window.__TEXTURE_CHUNK_QUEUE__.push(() => {
           runProceduralDraw();
+          buildSobelNormalAndRoughness();
           map.needsUpdate = true;
         });
       }
@@ -5796,7 +5980,8 @@ export function getHideAndSeekHtml(): string {
       const result = {
         map,
         bumpMap: outBump,
-        roughnessMap: window.__sharedArchRoughTex,
+        normalMap: outNormal,
+        roughnessMap: outRough,
       };
       window.__PROCEDURAL_TEX_CACHE__.set(type, result);
       return result;
@@ -7022,6 +7207,40 @@ export function getHideAndSeekHtml(): string {
     sharedGeos.chairBack.userData.instancedCategory = 'chair';
     sharedGeos.fencePicket.userData.instancedCategory = 'fence';
     sharedGeos.shrubClump.userData.instancedCategory = 'tree';
+
+    // Bind synthesized Sobel tangent-space normalMaps & synced UV repeats to PBR architectural/prop materials
+    [
+      [riverStoneTex, 0.55],
+      [blueRoofTex, 0.45],
+      [redRoofTex, 0.48],
+      [rotundaBrickTex, 0.52],
+      [stuccoTex, 0.36],
+      [paverTex, 0.50],
+      [grassTex, 0.38],
+      [dachiBrickTex, 0.54],
+      [carvedSalTex, 0.58],
+      [scuffedFloorTex, 0.32],
+      [stainedCeilingTex, 0.30],
+      [peelingPaintTex, 0.38],
+      [wornWoodTex, 0.46],
+      [dirtyGlassTex, 0.22],
+      [scuffedBoardTex, 0.24],
+    ].forEach(([texBundle, nScale]) => {
+      if (!texBundle || !texBundle.map) return;
+      const rx = texBundle.map.repeat.x;
+      const ry = texBundle.map.repeat.y;
+      if (texBundle.bumpMap) texBundle.bumpMap.repeat.set(rx, ry);
+      if (texBundle.normalMap) texBundle.normalMap.repeat.set(rx, ry);
+      if (texBundle.roughnessMap) texBundle.roughnessMap.repeat.set(rx, ry);
+      Object.keys(materials).forEach(k => {
+        const m = materials[k];
+        if (m && m.isMeshStandardMaterial && m.map === texBundle.map && !m.normalMap && texBundle.normalMap) {
+          m.normalMap = texBundle.normalMap;
+          m.normalScale = new THREE.Vector2(nScale, nScale);
+          m.envMapIntensity = (m.metalness > 0.4) ? 1.15 : 0.72;
+        }
+      });
+    });
 
     const treeShadowDecals = [];
     const roomVisibilityList = [];
@@ -17824,7 +18043,7 @@ export function getHideAndSeekHtml(): string {
           metalness: 0.08,
         });
 
-        // GPU-Animated Non-Synchronized Diyo Flame Material (1800K-2200K warm orange-gold core + subtle wind sway)
+        // GPU-Animated Non-Synchronized Diyo Flame Material (mediump-safe GLSL for mobile WebGL, 1800K-2200K warm orange-gold core)
         this.diyoFlameMat = new THREE.MeshBasicMaterial({
           color: 0xffb74d,
           transparent: true,
@@ -17832,23 +18051,37 @@ export function getHideAndSeekHtml(): string {
         });
         this.diyoFlameMat.onBeforeCompile = (shader) => {
           shader.uniforms.uTime = tiharUniforms.uTime;
-          shader.vertexShader = 'uniform float uTime;\\nvarying float vFlameH;\\nvarying float vFlicker;\\n' + shader.vertexShader;
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <common>',
+            '#include <common>\\n' +
+            'uniform float uTime;\\n' +
+            'varying float vFlameH;\\n' +
+            'varying float vFlicker;\\n'
+          );
           shader.vertexShader = shader.vertexShader.replace(
             '#include <begin_vertex>',
             '#include <begin_vertex>\\n' +
-            'vec3 instPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);\\n' +
-            'float seed = fract(sin(dot(instPos.xz, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318;\\n' +
+            'vec3 instPos = vec3(0.0);\\n' +
+            '#ifdef USE_INSTANCING\\n' +
+            '  instPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);\\n' +
+            '#endif\\n' +
+            'float seed = sin(instPos.x * 3.73 + instPos.z * 5.19) * 3.14159;\\n' +
             'float hNorm = clamp((position.y + 0.04) / 0.09, 0.0, 1.0);\\n' +
             'vFlameH = hNorm;\\n' +
             'float swayX = sin(uTime * 7.4 + seed) * 0.009 + cos(uTime * 13.1 + seed * 1.7) * 0.005;\\n' +
             'float swayZ = cos(uTime * 6.2 + seed * 2.3) * 0.008;\\n' +
-            'float stretch = 1.0 + (sin(uTime * 11.8 + seed * 3.1) * 0.13 + cos(uTime * 17.5 + seed) * 0.07) * hNorm;\\n' +
+            'float stretch = 1.0 + (sin(uTime * 11.8 + seed * 2.1) * 0.13 + cos(uTime * 17.5 + seed) * 0.07) * hNorm;\\n' +
             'transformed.x += swayX * hNorm * hNorm;\\n' +
             'transformed.z += swayZ * hNorm * hNorm;\\n' +
             'transformed.y *= stretch;\\n' +
-            'vFlicker = 0.88 + 0.12 * sin(uTime * 10.5 + seed * 2.9);'
+            'vFlicker = 0.88 + 0.12 * sin(uTime * 10.5 + seed * 1.9);'
           );
-          shader.fragmentShader = 'varying float vFlameH;\\nvarying float vFlicker;\\n' + shader.fragmentShader;
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <common>',
+            '#include <common>\\n' +
+            'varying float vFlameH;\\n' +
+            'varying float vFlicker;\\n'
+          );
           shader.fragmentShader = shader.fragmentShader.replace(
             '#include <color_fragment>',
             '#include <color_fragment>\\n' +
@@ -17861,7 +18094,7 @@ export function getHideAndSeekHtml(): string {
           );
         };
 
-        // Warm 1950K Surface Light Pool Material for Clay Diyos (with subtle GPU non-synchronized flicker)
+        // Warm 1950K Surface Light Pool Material for Clay Diyos (mediump-safe GPU non-synchronized pulse)
         this.diyoPoolMat = new THREE.MeshBasicMaterial({
           map: this.diyoPoolTex,
           color: 0xff9830,
@@ -17875,15 +18108,27 @@ export function getHideAndSeekHtml(): string {
         });
         this.diyoPoolMat.onBeforeCompile = (shader) => {
           shader.uniforms.uTime = tiharUniforms.uTime;
-          shader.vertexShader = 'uniform float uTime;\\nvarying float vPoolPulse;\\n' + shader.vertexShader;
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <common>',
+            '#include <common>\\n' +
+            'uniform float uTime;\\n' +
+            'varying float vPoolPulse;\\n'
+          );
           shader.vertexShader = shader.vertexShader.replace(
             '#include <begin_vertex>',
             '#include <begin_vertex>\\n' +
-            'vec3 pPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);\\n' +
-            'float pSeed = fract(sin(dot(pPos.xz, vec2(12.9898, 78.233))) * 43758.5453) * 6.28318;\\n' +
-            'vPoolPulse = 0.88 + 0.12 * sin(uTime * 9.2 + pSeed * 2.3);'
+            'vec3 pPos = vec3(0.0);\\n' +
+            '#ifdef USE_INSTANCING\\n' +
+            '  pPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);\\n' +
+            '#endif\\n' +
+            'float pSeed = sin(pPos.x * 3.73 + pPos.z * 5.19) * 3.14159;\\n' +
+            'vPoolPulse = 0.88 + 0.12 * sin(uTime * 9.2 + pSeed * 1.7);'
           );
-          shader.fragmentShader = 'varying float vPoolPulse;\\n' + shader.fragmentShader;
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <common>',
+            '#include <common>\\n' +
+            'varying float vPoolPulse;\\n'
+          );
           shader.fragmentShader = shader.fragmentShader.replace(
             '#include <color_fragment>',
             '#include <color_fragment>\\n' +
@@ -17891,22 +18136,35 @@ export function getHideAndSeekHtml(): string {
           );
         };
 
-        // Jhilimili Batti (Electric String Lights) Individual Bulb Material with GPU Shimmer
+        // Jhilimili Batti (Electric String Lights) Individual Bulb Material with mediump-safe GPU Shimmer
         this.jhilimiliBulbMat = new THREE.MeshBasicMaterial({
           color: 0xffffff,
         });
         this.jhilimiliBulbMat.onBeforeCompile = (shader) => {
           shader.uniforms.uTime = tiharUniforms.uTime;
           shader.uniforms.uElectricPower = tiharUniforms.uElectricPower;
-          shader.vertexShader = 'uniform float uTime;\\nvarying float vTwinkle;\\n' + shader.vertexShader;
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <common>',
+            '#include <common>\\n' +
+            'uniform float uTime;\\n' +
+            'varying float vTwinkle;\\n'
+          );
           shader.vertexShader = shader.vertexShader.replace(
             '#include <begin_vertex>',
             '#include <begin_vertex>\\n' +
-            'vec3 bPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);\\n' +
-            'float bSeed = fract(sin(dot(bPos.xyz, vec3(19.19, 47.73, 29.11))) * 31415.926) * 6.28318;\\n' +
+            'vec3 bPos = vec3(0.0);\\n' +
+            '#ifdef USE_INSTANCING\\n' +
+            '  bPos = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);\\n' +
+            '#endif\\n' +
+            'float bSeed = sin(bPos.x * 2.91 + bPos.y * 4.13 + bPos.z * 3.37) * 3.14159;\\n' +
             'vTwinkle = 0.82 + 0.18 * sin(uTime * 3.6 + bSeed);'
           );
-          shader.fragmentShader = 'uniform float uElectricPower;\\nvarying float vTwinkle;\\n' + shader.fragmentShader;
+          shader.fragmentShader = shader.fragmentShader.replace(
+            '#include <common>',
+            '#include <common>\\n' +
+            'uniform float uElectricPower;\\n' +
+            'varying float vTwinkle;\\n'
+          );
           shader.fragmentShader = shader.fragmentShader.replace(
             '#include <color_fragment>',
             '#include <color_fragment>\\n' +
@@ -17967,23 +18225,23 @@ export function getHideAndSeekHtml(): string {
           side: THREE.DoubleSide,
         });
 
-        // 2. Pre-Merged Geometries & InstancedMeshes (Ultra-Low Draw Calls for Mobile WebView)
+        // 2. Pre-Merged Geometries & InstancedMeshes (Always .clone() before transforming so global geometry cache is never mutated!)
         // A. Clay Diyo Bowl (Terracotta saucer + pinched spout)
-        const bowlCup = new THREE.CylinderGeometry(0.068, 0.042, 0.040, 8);
-        const bowlSpout = new THREE.ConeGeometry(0.025, 0.045, 5);
+        const bowlCup = new THREE.CylinderGeometry(0.068, 0.042, 0.040, 8).clone();
+        const bowlSpout = new THREE.ConeGeometry(0.025, 0.045, 5).clone();
         bowlSpout.rotateX(Math.PI * 0.46);
         bowlSpout.translate(0, 0.008, 0.058);
         this.diyoBowlGeo = THREE.BufferGeometryUtils.mergeBufferGeometries([bowlCup, bowlSpout]);
 
         // B. Clay Diyo Flame (Teardrop cone + glowing wick base)
-        const flameCone = new THREE.ConeGeometry(0.028, 0.088, 6);
+        const flameCone = new THREE.ConeGeometry(0.028, 0.088, 6).clone();
         flameCone.translate(0, 0.044, 0.048);
-        const flameBase = new THREE.SphereGeometry(0.022, 6, 5);
+        const flameBase = new THREE.SphereGeometry(0.022, 6, 5).clone();
         flameBase.translate(0, 0.016, 0.048);
         this.diyoFlameGeo = THREE.BufferGeometryUtils.mergeBufferGeometries([flameCone, flameBase]);
 
-        // C. Warm Surface Light Pool Plane
-        this.diyoPoolGeo = new THREE.PlaneGeometry(0.85, 0.85);
+        // C. Warm Surface Light Pool Plane (.clone() so cached PlaneGeometry is not rotated in place!)
+        this.diyoPoolGeo = new THREE.PlaneGeometry(0.85, 0.85).clone();
         this.diyoPoolGeo.rotateX(-Math.PI / 2);
 
         this.maxDiyos = 750;
@@ -18009,7 +18267,7 @@ export function getHideAndSeekHtml(): string {
         this.rootGroup.add(this.instDiyoPools);
 
         // D. Jhilimili Electric String Light Bulbs (Individual LED bulbs with per-instance color)
-        this.bulbGeo = new THREE.SphereGeometry(0.036, 6, 5);
+        this.bulbGeo = new THREE.SphereGeometry(0.036, 6, 5).clone();
         this.maxBulbs = 2400;
         this.bulbCount = 0;
         this.instJhilimiliBulbs = new THREE.InstancedMesh(this.bulbGeo, this.jhilimiliBulbMat, this.maxBulbs);
@@ -18019,7 +18277,7 @@ export function getHideAndSeekHtml(): string {
         this.rootGroup.add(this.instJhilimiliBulbs);
 
         // E. Sayapatri & Makhamali Flower Garland Blossom Clusters
-        this.blossomGeo = new THREE.DodecahedronGeometry(0.058, 0);
+        this.blossomGeo = new THREE.DodecahedronGeometry(0.058, 0).clone();
         this.maxBlossoms = 2400;
         this.blossomCount = 0;
         this.instGarlandBlossoms = new THREE.InstancedMesh(this.blossomGeo, this.garlandBlossomMat, this.maxBlossoms);
@@ -18030,17 +18288,7 @@ export function getHideAndSeekHtml(): string {
 
         this.cordGeos = [];
         this.wallWashMeshes = [];
-
-        // 3. Selective Pooled Dynamic PointLights for Focal Tihar Installations (castShadow = false)
         this.focalLightDefs = [];
-        this.focalLightPool = [];
-        for (let i = 0; i < 6; i++) {
-          const pl = new THREE.PointLight(0xff9428, 0, 12.0, 1.85);
-          pl.castShadow = false;
-          pl.position.set(0, -9999, 0);
-          this.scene.add(pl);
-          this.focalLightPool.push(pl);
-        }
 
         // Palette definitions for Jhilimili Batti & Sayapatri/Makhamali Garlands
         this.palettes = {
@@ -18102,6 +18350,30 @@ export function getHideAndSeekHtml(): string {
           seed: (Math.abs(x * 13.7 + z * 29.3) % 6.283),
           _distSq: 999999,
         });
+        // Register into lampFlickerMod's existing 8-PointLight pool so ZERO extra PointLights are added to scene!
+        if (typeof lampFlickerMod !== 'undefined' && lampFlickerMod && Array.isArray(lampFlickerMod.lamps)) {
+          lampFlickerMod.lamps.push({
+            x,
+            z,
+            bulbPos: new THREE.Vector3(x, y, z),
+            baseIntensity: intensity,
+            currentIntensity: intensity,
+            blinkProfile: 'steady_warm',
+            blinkState: 'steady',
+            stateTimer: 10.0 + Math.random() * 8.0,
+            seed: (Math.abs(x * 13.7 + z * 29.3) % 6.283),
+            smoothFactor: 1.0,
+            _lastDistSq: 999999,
+            group: null,
+            puddleMesh: null,
+            coneMesh: null,
+            bulbMat: { opacity: 1, color: { setHex() {} } },
+            coneMat: { opacity: 0 },
+            innerGlowMat: { opacity: 1 },
+            outerGlareMat: { opacity: 1 },
+            puddleMat: { opacity: 0 },
+          });
+        }
       }
 
       addJhilimiliCatenary(x1, y1, z1, x2, y2, z2, sag = 0.45, numBulbs = 18, paletteName = 'warmGold', addCord = true) {
@@ -18119,7 +18391,8 @@ export function getHideAndSeekHtml(): string {
             const p1y = y1 + (y2 - y1) * t1 - Math.sin(t1 * Math.PI) * sag;
             const p1z = z1 + (z2 - z1) * t1;
             const segLen = Math.hypot(p1x - p0x, p1y - p0y, p1z - p0z);
-            const cGeo = new THREE.BoxGeometry(0.012, 0.012, segLen);
+            // CRITICAL: Always .clone() before applyMatrix4 so the cached BoxGeometry is never mutated in place!
+            const cGeo = new THREE.BoxGeometry(0.012, 0.012, segLen).clone();
             this._dummy.position.set((p0x + p1x) * 0.5, (p0y + p1y) * 0.5, (p0z + p1z) * 0.5);
             this._dummy.lookAt(p1x, p1y, p1z);
             this._dummy.scale.set(1, 1, 1);
@@ -18166,9 +18439,9 @@ export function getHideAndSeekHtml(): string {
             this.addJhilimiliCatenary(sx0, y - 0.06, sz0, sx0, y - dLen, sz0, 0.0, 6, paletteName, false);
           }
         }
-        // Subtle Wall-Wash Glow Ribbon on the adjacent facade (Ref Photo 4!)
+        // Subtle Wall-Wash Glow Ribbon on the adjacent facade (.clone() before modifying UVs!)
         const washMat = (paletteName === 'nepaliMulti') ? this.wallWashMultiMat : this.wallWashGoldMat;
-        const washGeo = new THREE.PlaneGeometry(totalLen, dropLen * 1.35);
+        const washGeo = new THREE.PlaneGeometry(totalLen, dropLen * 1.35).clone();
         const uvAttr = washGeo.attributes.uv;
         if (uvAttr) {
           const repX = Math.max(1, Math.round(totalLen / 3.2));
@@ -18215,7 +18488,6 @@ export function getHideAndSeekHtml(): string {
         const halfW = doorW * 0.52;
         const topY = floorY + doorH - 0.05;
         if (!alongZ) {
-          // Double scalloped Sayapatri & Makhamali swags across top of doorway + vertical side drops (Ref Photo 6!)
           this.addSayapatriSwag(dx - halfW, topY, dz, dx, topY, dz, 0.24, 12);
           this.addSayapatriSwag(dx, topY, dz, dx + halfW, topY, dz, 0.24, 12);
           this.addSayapatriSwag(dx - halfW, topY, dz, dx - halfW, floorY + 0.55, dz, 0.0, 14);
@@ -18280,6 +18552,12 @@ export function getHideAndSeekHtml(): string {
         this.instGarlandBlossoms.instanceMatrix.needsUpdate = true;
         if (this.instGarlandBlossoms.instanceColor) this.instGarlandBlossoms.instanceColor.needsUpdate = true;
 
+        computeInstancedBoundingSphere(this.instDiyoBowls, this.diyoCount);
+        computeInstancedBoundingSphere(this.instDiyoFlames, this.diyoCount);
+        computeInstancedBoundingSphere(this.instDiyoPools, this.poolCount);
+        computeInstancedBoundingSphere(this.instJhilimiliBulbs, this.bulbCount);
+        computeInstancedBoundingSphere(this.instGarlandBlossoms, this.blossomCount);
+
         if (this.cordGeos.length > 0) {
           const mergedCords = THREE.BufferGeometryUtils.mergeBufferGeometries(this.cordGeos);
           const cordMesh = new THREE.Mesh(mergedCords, this.wireCordMat);
@@ -18296,64 +18574,6 @@ export function getHideAndSeekHtml(): string {
 
         for (let w = 0; w < this.wallWashMeshes.length; w++) {
           this.wallWashMeshes[w].visible = powered && (currentQuality !== 'fast');
-        }
-
-        // Dynamic Focal PointLight Budget by Quality Preset (6 on ULTRA, 5 on HIGH, 3 on LOW, 2 on FAST)
-        const tCfg = HORROR_CONFIG.tihar || {};
-        const maxLights = currentQuality === 'ultra'
-          ? (tCfg.diyoFocalLightCountUltra || 6)
-          : (currentQuality === 'high'
-            ? (tCfg.diyoFocalLightCountHigh || 5)
-            : (currentQuality === 'low' ? (tCfg.diyoFocalLightCountLow || 3) : (tCfg.diyoFocalLightCountFast || 2)));
-
-        for (let i = 0; i < this.focalLightDefs.length; i++) {
-          const d = this.focalLightDefs[i];
-          const dx = d.x - playerPos.x;
-          const dz = d.z - playerPos.z;
-          d._distSq = dx * dx + dz * dz;
-        }
-
-        const used = [-1, -1, -1, -1, -1, -1];
-        const safeFlicker = !!(accessibilitySettings && accessibilitySettings.flickerReduction);
-
-        for (let slot = 0; slot < this.focalLightPool.length; slot++) {
-          const pl = this.focalLightPool[slot];
-          if (slot >= maxLights) {
-            pl.intensity = 0;
-            pl.position.set(0, -9999, 0);
-            continue;
-          }
-          let bestDef = null;
-          let bestDistSq = Infinity;
-          let bestIdx = -1;
-          for (let i = 0; i < this.focalLightDefs.length; i++) {
-            if (used.indexOf(i) !== -1) continue;
-            const def = this.focalLightDefs[i];
-            if (def.isElectric && !powered) continue;
-            if (def._distSq < bestDistSq) {
-              bestDistSq = def._distSq;
-              bestDef = def;
-              bestIdx = i;
-            }
-          }
-          used[slot] = bestIdx;
-          if (bestDef && bestDistSq < 2500) {
-            const dist = Math.sqrt(bestDistSq);
-            const tFade = Math.max(0.0, Math.min(1.0, (50.0 - dist) / 34.0));
-            const smoothFade = tFade * tFade * (3.0 - 2.0 * tFade);
-            const flicker = safeFlicker
-              ? (0.96 + 0.04 * Math.sin(timeSec * 3.2 + bestDef.seed))
-              : (bestDef.isElectric
-                ? (0.94 + 0.06 * Math.sin(timeSec * 4.5 + bestDef.seed))
-                : (0.90 + 0.09 * Math.sin(timeSec * 7.8 + bestDef.seed) + 0.05 * Math.cos(timeSec * 14.3 + bestDef.seed * 2.1)));
-            pl.color.setHex(bestDef.colorHex);
-            pl.position.set(bestDef.x, bestDef.y, bestDef.z);
-            pl.distance = bestDef.distance;
-            pl.intensity = bestDef.baseIntensity * smoothFade * flicker;
-          } else {
-            pl.intensity = 0;
-            pl.position.set(0, -9999, 0);
-          }
         }
       }
     }
@@ -19537,6 +19757,12 @@ export function getHideAndSeekHtml(): string {
       smoothMoveZ: 0,
       camDist: 3.4,
       isSprinting: false,
+      stepVisualOffset: 0,
+      camSpringY: 0,
+      camSpringVelY: 0,
+      camRoll: 0,
+      camRollVel: 0,
+      currentSurface: 'paver',
     };
 
     // Phase B.4: Physics Colliders & Bot Waypoints Debug View (Toggle)
@@ -19802,16 +20028,29 @@ export function getHideAndSeekHtml(): string {
           }
         }
 
-        // Apply penetration resolution and tangent sliding
+        // Apply penetration resolution with skin-width buffer, tangential wall-scrape friction & acute crease protection
         if (pen > 0) {
-          pos.x += nx * pen;
-          pos.z += nz * pen;
+          const skinW = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.skinWidth) || 0.004;
+          const wallFric = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.wallSlideFriction) || 0.06;
+          pos.x += nx * (pen + skinW * 0.25);
+          pos.z += nz * (pen + skinW * 0.25);
 
-          // Remove only into-wall velocity component (v . n < 0)
           const vDotN = vel.x * nx + vel.z * nz;
           if (vDotN < 0) {
+            // Project velocity onto wall tangent and apply subtle physical wall-scrape friction
             vel.x -= vDotN * nx;
             vel.z -= vDotN * nz;
+            const scrapeAtten = Math.max(0.75, 1.0 - wallFric * Math.min(1.0, -vDotN / 4.8));
+            vel.x *= scrapeAtten;
+            vel.z *= scrapeAtten;
+            // Acute multi-wall crease guard: if already sliding along a conflicting wall normal in this substep, damp corner jitter
+            if (collided) {
+              const prevDot = physicsDebug.lastNormal.x * nx + physicsDebug.lastNormal.z * nz;
+              if (prevDot < -0.18) {
+                vel.x *= 0.25;
+                vel.z *= 0.25;
+              }
+            }
           }
 
           physicsDebug.lastNormal.set(nx, 0, nz);
@@ -20337,9 +20576,11 @@ export function getHideAndSeekHtml(): string {
       scene.add(pMesh);
       activeProjectiles.push({
         mesh: pMesh,
-        vel: new THREE.Vector3(fx * 11.5, fy * 7.2, fz * 11.5),
+        vel: new THREE.Vector3(fx * 11.8 + playerPhysics.vel.x * 0.35, fy * 7.4, fz * 11.8 + playerPhysics.vel.z * 0.35),
+        angVel: new THREE.Vector3(8.5, 3.2, -6.4),
         floorY: playerPhysics.pos.y,
-        life: 2.2,
+        bounces: 0,
+        life: 2.8,
       });
       showToast('Threw distraction item! (' + throwablesRemaining + ' left)');
     }
@@ -21154,10 +21395,11 @@ export function getHideAndSeekHtml(): string {
     }
 
     function performJump() {
-      if (playerPhysics.isGrounded && !playerPhysics.isHiding && !playerPhysics.isCrouching) {
+      if (playerPhysics.isGrounded && !playerPhysics.isHiding && !isPlayerSpectating) {
         playerPhysics.vel.y = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.jumpForce) || 5.2;
         playerPhysics.isGrounded = false;
-        soundEngine.playFootstep('road', false);
+        playerPhysics.camSpringVelY -= 1.15; // Physical squat-and-launch camera impulse
+        if (playerPhysics.isCrouching) playerPhysics.isCrouching = false;
       }
     }
 
@@ -22413,7 +22655,12 @@ export function getHideAndSeekHtml(): string {
         const targetDt = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.targetSubStepDt) || (1.0 / 60.0);
         const subSteps = Math.min(maxSubSteps, Math.max(1, Math.ceil(clampedDelta / targetDt)));
         const subDt = clampedDelta / subSteps;
-        const accelRate = isMoving ? (pCfg.acceleration || 28.0) : (pCfg.deceleration || 32.0);
+        // Surface-dependent ground traction & air-control physics
+        const surfTractionMap = { road: 1.06, paver: 1.00, stair: 0.96, classroom: 0.86, gravel: 0.88 };
+        const surfTraction = surfTractionMap[playerPhysics.currentSurface || 'paver'] || 1.0;
+        const airControl = playerPhysics.isGrounded ? 1.0 : (pCfg.airControlFactor || 0.42);
+        const baseAccel = isMoving ? (pCfg.acceleration || 28.0) : (pCfg.deceleration || 32.0);
+        const accelRate = baseAccel * surfTraction * airControl;
         const playerH = playerPhysics.isHiding ? (pCfg.hidingHeight || 0.65) : (playerPhysics.isCrouching ? (pCfg.crouchHeight || 1.05) : (pCfg.standingHeight || 1.80));
         const stepH = pCfg.stepHeight || 0.52;
         const gravity = pCfg.gravity || 16.5;
@@ -22427,6 +22674,7 @@ export function getHideAndSeekHtml(): string {
           playerPhysics.pos.x += playerPhysics.vel.x * subDt;
           playerPhysics.pos.z += playerPhysics.vel.z * subDt;
 
+          const prevY = playerPhysics.pos.y;
           const targetGroundY = getSupportFloorY(playerPhysics.pos.x, playerPhysics.pos.z, playerPhysics.pos.y);
           const ceilingMaxBottomY = getCeilingLimitBottomY(playerPhysics.pos.x, playerPhysics.pos.z, playerPhysics.pos.y, playerH);
 
@@ -22435,12 +22683,22 @@ export function getHideAndSeekHtml(): string {
             let nextY = playerPhysics.pos.y + playerPhysics.vel.y * subDt;
             if (nextY >= ceilingMaxBottomY) {
               nextY = ceilingMaxBottomY;
-              if (playerPhysics.vel.y > 0) playerPhysics.vel.y = 0;
+              if (playerPhysics.vel.y > 0) playerPhysics.vel.y = -playerPhysics.vel.y * 0.15;
             }
             if (nextY <= targetGroundY) {
+              const impactSpeed = Math.max(0, -playerPhysics.vel.y);
               nextY = targetGroundY;
               playerPhysics.vel.y = 0;
               playerPhysics.isGrounded = true;
+              // Inject physical landing compression impulse into 2nd-order camera spring
+              if (impactSpeed > 1.2) {
+                const dipImpulse = Math.min(3.4, impactSpeed * 0.42);
+                playerPhysics.camSpringVelY -= dipImpulse;
+                playerPhysics.camRollVel += ((Math.random() > 0.5 ? 1 : -1) * Math.min(0.45, impactSpeed * 0.05));
+                if (impactSpeed > 3.2 && typeof soundEngine !== 'undefined' && soundEngine.playFootstep) {
+                  soundEngine.playFootstep(playerPhysics.currentSurface || 'paver', false);
+                }
+              }
             }
             playerPhysics.pos.y = nextY;
           } else {
@@ -22450,6 +22708,11 @@ export function getHideAndSeekHtml(): string {
                 playerPhysics.pos.y = targetGroundY;
               } else {
                 playerPhysics.pos.y += stepDiff * Math.min(1.0, 26.0 * subDt);
+              }
+              const actualStepDelta = playerPhysics.pos.y - prevY;
+              if (Math.abs(actualStepDelta) > 0.002) {
+                // Absorb discrete stair riser step into visual spring buffer so camera glides smoothly
+                playerPhysics.stepVisualOffset = Math.max(-0.32, Math.min(0.32, (playerPhysics.stepVisualOffset || 0) - actualStepDelta * 0.55));
               }
             } else if (stepDiff < -0.65) {
               // Stepped off a high ledge
@@ -22498,6 +22761,7 @@ export function getHideAndSeekHtml(): string {
             } else {
               surface = 'paver';
             }
+            playerPhysics.currentSurface = surface;
             soundEngine.playFootstep(surface, playerPhysics.isCrouching);
             if (EXPLORE_FLAGS.ENABLE_HUNTER_AND_BOTS) {
               if (isSprint && !playerPhysics.isCrouching) {
@@ -22571,23 +22835,35 @@ export function getHideAndSeekHtml(): string {
       const targetEye = playerPhysics.isHiding
         ? (pCfg.hidingEyeHeight || 0.58)
         : (playerPhysics.isCrouching && !exploreTools.freeFly ? (pCfg.crouchEyeHeight || 0.95) : (pCfg.standingEyeHeight || 1.62));
-      playerPhysics.currentEyeHeight += (targetEye - playerPhysics.currentEyeHeight) * 12.0 * delta;
+      playerPhysics.currentEyeHeight += (targetEye - playerPhysics.currentEyeHeight) * Math.min(1.0, 14.0 * delta);
+
+      // Integrate 2nd-order Hooke spring-damper for landing compression, jump launch & stair step-smoothing
+      const sprDt = Math.min(0.05, Math.max(0.001, delta));
+      const sprK = pCfg.springStiffness || 148.0;
+      const sprC = pCfg.springDamping || 18.5;
+      const maxDip = pCfg.maxLandingDip || 0.24;
+      playerPhysics.camSpringVelY += (-sprK * playerPhysics.camSpringY - sprC * playerPhysics.camSpringVelY) * sprDt;
+      playerPhysics.camSpringY = Math.max(-maxDip, Math.min(maxDip * 0.65, playerPhysics.camSpringY + playerPhysics.camSpringVelY * sprDt));
+      const stepSmoothRate = pCfg.stepSmoothSpeed || 22.0;
+      playerPhysics.stepVisualOffset *= Math.exp(-stepSmoothRate * sprDt);
 
       let vertBob = 0;
       let latBob = 0;
       if (!exploreTools.freeFly && !exploreTools.overviewCam) {
         if (isMoving && playerPhysics.isGrounded && !playerPhysics.isHiding) {
-          const bobSpeed = (targetSpeed > 5.5) ? 12.0 : (playerPhysics.isCrouching ? 6.5 : 9.5);
-          playerPhysics.bobTimer += delta * bobSpeed;
-          const bobAmp = playerPhysics.isCrouching ? 0.022 : (targetSpeed > 5.5 ? 0.052 : 0.038);
+          const actualHorizSpd = Math.hypot(playerPhysics.vel.x, playerPhysics.vel.z);
+          const spdFactor = Math.min(1.35, actualHorizSpd / Math.max(1.0, walkSpd));
+          const bobSpeed = (targetSpeed > 5.5) ? 12.2 : (playerPhysics.isCrouching ? 6.5 : 9.6);
+          playerPhysics.bobTimer += delta * bobSpeed * Math.max(0.45, spdFactor);
+          const bobAmp = (playerPhysics.isCrouching ? 0.020 : (targetSpeed > 5.5 ? 0.050 : 0.036)) * Math.min(1.15, spdFactor);
           vertBob = Math.sin(playerPhysics.bobTimer) * bobAmp;
-          latBob = Math.cos(playerPhysics.bobTimer * 0.5) * (bobAmp * 0.45);
+          latBob = Math.cos(playerPhysics.bobTimer * 0.5) * (bobAmp * 0.48);
         } else if (!playerPhysics.isHiding && EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_SHAKE) {
           vertBob = Math.sin(Date.now() * 0.0024) * 0.008;
         }
       }
 
-      const eyeY = playerPhysics.pos.y + playerPhysics.currentEyeHeight + vertBob;
+      const eyeY = playerPhysics.pos.y + playerPhysics.currentEyeHeight + vertBob + playerPhysics.camSpringY + playerPhysics.stepVisualOffset;
 
       // Top-Down 3D Campus Overview Camera vs Spectator / 1st-Person / 3rd-Person
       if (exploreTools.overviewCam) {
@@ -22613,7 +22889,11 @@ export function getHideAndSeekHtml(): string {
 
         if (EXPLORE_FLAGS.ENABLE_CAMERA_AND_SCREEN_SHAKE) {
           const turnRate = playerPhysics.targetYaw - playerPhysics.yaw;
-          camera.rotation.z = Math.max(-0.025, Math.min(0.025, turnRate * 0.15));
+          const maxRoll = pCfg.strafeRollAngle || 0.026;
+          const targetRoll = Math.max(-maxRoll, Math.min(maxRoll, turnRate * 0.14 - moveRight * 0.015));
+          playerPhysics.camRollVel += ((targetRoll - playerPhysics.camRoll) * 110.0 - playerPhysics.camRollVel * 16.0) * sprDt;
+          playerPhysics.camRoll += playerPhysics.camRollVel * sprDt;
+          camera.rotation.z = playerPhysics.camRoll;
         } else {
           camera.rotation.z = 0;
         }
@@ -22798,12 +23078,27 @@ export function getHideAndSeekHtml(): string {
         const minA = typeof door.minAngleY === 'number' ? door.minAngleY : Math.min(door.closedAngleY, door.openAngleY);
         const maxA = typeof door.maxAngleY === 'number' ? door.maxAngleY : Math.max(door.closedAngleY, door.openAngleY);
         door.targetAngleY = Math.max(minA, Math.min(maxA, door.targetAngleY));
+        if (typeof door.angVelY !== 'number') door.angVelY = 0;
+        const dDt = Math.min(0.05, Math.max(0.001, delta));
+        // Player body push-through impulse when sprinting/walking through an unlocked doorway
+        const pDistDoor = Math.hypot(playerPhysics.pos.x - door.x, playerPhysics.pos.z - door.z);
+        if (pDistDoor < 1.35 && Math.abs(playerPhysics.pos.y - door.y) < 1.8) {
+          const pSpd = Math.hypot(playerPhysics.vel.x, playerPhysics.vel.z);
+          if (pSpd > 2.2) {
+            const pushSign = Math.sign(door.openAngleY - door.closedAngleY) || 1;
+            door.angVelY += pushSign * Math.min(3.5, pSpd * 0.35) * dDt * 8.0;
+          }
+        }
         const diff = door.targetAngleY - door.currentAngleY;
-        if (Math.abs(diff) > 0.002) {
-          door.currentAngleY = Math.max(minA, Math.min(maxA, door.currentAngleY + diff * Math.min(1.0, 9.5 * delta)));
+        door.angVelY += (diff * 68.0 - door.angVelY * 11.5) * dDt;
+        if (Math.abs(diff) > 0.0015 || Math.abs(door.angVelY) > 0.01) {
+          door.currentAngleY += door.angVelY * dDt;
+          if (door.currentAngleY < minA) { door.currentAngleY = minA; door.angVelY = -door.angVelY * 0.18; }
+          if (door.currentAngleY > maxA) { door.currentAngleY = maxA; door.angVelY = -door.angVelY * 0.18; }
           door.pivot.rotation.y = door.currentAngleY;
         } else {
           door.currentAngleY = door.targetAngleY;
+          door.angVelY = 0;
           door.pivot.rotation.y = door.currentAngleY;
           if (interactablesById[door.id]) interactablesById[door.id].isTransitioning = false;
         }
@@ -22907,18 +23202,65 @@ export function getHideAndSeekHtml(): string {
         if (powerCutBuildingTimer <= 0) powerCutDarkBuilding = null;
       }
 
-      // Update active thrown distraction projectiles (disabled in EXPLORE_MODE)
+      // Update active thrown distraction projectiles with multi-bounce restitution, wall ricochet & 3D spin
       if (EXPLORE_FLAGS.ENABLE_THROWABLE_DISTRACTIONS) {
         for (let p = activeProjectiles.length - 1; p >= 0; p--) {
           const pr = activeProjectiles[p];
           pr.life -= delta;
-          pr.vel.y -= 15.0 * delta;
+          pr.vel.y -= 16.5 * delta;
+          pr.vel.x *= Math.max(0.0, 1.0 - 0.35 * delta);
+          pr.vel.z *= Math.max(0.0, 1.0 - 0.35 * delta);
+          const nextPx = pr.mesh.position.x + pr.vel.x * delta;
+          const nextPz = pr.mesh.position.z + pr.vel.z * delta;
+          for (let ci = 0; ci < colliders.length; ci++) {
+            const c = colliders[ci];
+            if (!c || c.enabled === false || !c.min || !c.max) continue;
+            if (pr.mesh.position.y < c.min.y || pr.mesh.position.y > c.max.y) continue;
+            if (c.type !== 'cylinder' && c.type !== 'obb') {
+              if (nextPx >= c.min.x - 0.08 && nextPx <= c.max.x + 0.08 && nextPz >= c.min.z - 0.08 && nextPz <= c.max.z + 0.08) {
+                const penX = Math.min(Math.abs(nextPx - c.min.x), Math.abs(c.max.x - nextPx));
+                const penZ = Math.min(Math.abs(nextPz - c.min.z), Math.abs(c.max.z - nextPz));
+                if (penX < penZ) pr.vel.x = -pr.vel.x * 0.52;
+                else pr.vel.z = -pr.vel.z * 0.52;
+                break;
+              }
+            }
+          }
           pr.mesh.position.x += pr.vel.x * delta;
           pr.mesh.position.y += pr.vel.y * delta;
           pr.mesh.position.z += pr.vel.z * delta;
-          if (pr.mesh.position.y <= pr.floorY + 0.08 || pr.life <= 0) {
-            soundEngine.playDistractionClatterSfx();
-            recordNoiseEvent(pr.mesh.position.x, pr.floorY, pr.mesh.position.z, 1.0, 'Thrown Distraction');
+          if (pr.angVel) {
+            pr.mesh.rotation.x += pr.angVel.x * delta;
+            pr.mesh.rotation.y += pr.angVel.y * delta;
+            pr.mesh.rotation.z += pr.angVel.z * delta;
+          }
+          const supportY = getSupportFloorY(pr.mesh.position.x, pr.mesh.position.z, pr.mesh.position.y);
+          pr.floorY = supportY;
+          if (pr.mesh.position.y <= supportY + 0.08) {
+            pr.mesh.position.y = supportY + 0.08;
+            pr.bounces = (pr.bounces || 0) + 1;
+            if (pr.bounces === 1) {
+              soundEngine.playDistractionClatterSfx();
+              recordNoiseEvent(pr.mesh.position.x, supportY, pr.mesh.position.z, 1.0, 'Thrown Distraction');
+              if (seekerRef && seekerRef.bot) {
+                seekerRef.bot.investigateTarget = {
+                  x: pr.mesh.position.x,
+                  y: supportY,
+                  z: pr.mesh.position.z,
+                  timer: 11.0,
+                };
+              }
+            }
+            if (Math.abs(pr.vel.y) > 1.35 && pr.bounces <= 3) {
+              pr.vel.y = -pr.vel.y * 0.44;
+              pr.vel.x *= 0.68;
+              pr.vel.z *= 0.68;
+              if (pr.angVel) pr.angVel.multiplyScalar(0.65);
+            } else {
+              pr.vel.set(0, 0, 0);
+            }
+          }
+          if (pr.life <= 0) {
             scene.remove(pr.mesh);
             activeProjectiles.splice(p, 1);
           }

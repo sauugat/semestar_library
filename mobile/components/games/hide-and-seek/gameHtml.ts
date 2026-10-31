@@ -1,6 +1,7 @@
 import { THREE_MIN_JS } from './threeMinJs';
 import { GLTF_LOADER_R128_JS } from './gltfLoaderR128';
 import { CLASSROOM_GLB_DATA_URI } from './classroomGlbBase64';
+import { COMPUTER_LAB_GLB_DATA_URI } from './computerLabGlbBase64';
 import { HORROR_CONFIG } from './horrorConfig';
 
 export function getHideAndSeekHtml(): string {
@@ -507,6 +508,7 @@ export function getHideAndSeekHtml(): string {
     ${THREE_MIN_JS}
     ${GLTF_LOADER_R128_JS}
     window.CLASSROOM_GLB_DATA_URI = ${JSON.stringify(CLASSROOM_GLB_DATA_URI)};
+    window.COMPUTER_LAB_GLB_DATA_URI = ${JSON.stringify(COMPUTER_LAB_GLB_DATA_URI)};
   </script>
 </head>
 <body>
@@ -11244,6 +11246,295 @@ export function getHideAndSeekHtml(): string {
         }
       }
     }
+
+    function buildProductionBlenderComputerLabInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
+      // 1. Colliders & Hiding Spots
+      // A. Computer Workstation Desks: along Z = -1.6, X in [-2.5, 2.5]
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.50, floorY, unitCenterZ - 1.95),
+        new THREE.Vector3(unitCenterX + 2.50, floorY + 0.78, unitCenterZ - 1.25)
+      ), 'furniture');
+
+      // B. Electronics Testing Workbenches: along Z = +1.8, X in [-2.5, 2.5]
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.50, floorY, unitCenterZ + 1.35),
+        new THREE.Vector3(unitCenterX + 2.50, floorY + 0.90, unitCenterZ + 2.25)
+      ), 'furniture');
+
+      // C. Equipment Storage Cabinet: along X = +3.70, Z in [-0.5, 0.9]
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 3.30, floorY, unitCenterZ - 0.50),
+        new THREE.Vector3(unitCenterX + 3.95, floorY + 2.00, unitCenterZ + 0.90)
+      ), 'furniture');
+
+      // D. Server Rack: along X = +3.60, Z in [-3.2, -2.2]
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 3.20, floorY, unitCenterZ - 3.20),
+        new THREE.Vector3(unitCenterX + 3.95, floorY + 2.10, unitCenterZ - 2.20)
+      ), 'furniture');
+
+      // E. Instructor Desk: at X = -2.60, Z = +0.80
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.10, floorY, unitCenterZ + 0.35),
+        new THREE.Vector3(unitCenterX - 2.10, floorY + 0.80, unitCenterZ + 1.25)
+      ), 'furniture');
+
+      // Interactive Hiding Spots
+      interactiveHidingSpots.push({
+        id: 'hiding-spot-lab-bench',
+        name: unitTitle + ' (Under Electronics Workbench)',
+        x: unitCenterX + 0.0,
+        y: floorY,
+        z: unitCenterZ + 1.80,
+        zone: unitTitle,
+      });
+
+      interactiveHidingSpots.push({
+        id: 'hiding-spot-lab-cabinet',
+        name: unitTitle + ' (Equipment Storage Cabinet)',
+        x: unitCenterX + 3.65,
+        y: floorY,
+        z: unitCenterZ + 0.20,
+        zone: unitTitle,
+      });
+
+      interactiveHidingSpots.push({
+        id: 'hiding-spot-lab-server',
+        name: unitTitle + ' (Behind Server Rack)',
+        x: unitCenterX + 3.55,
+        y: floorY,
+        z: unitCenterZ - 2.70,
+        zone: unitTitle,
+      });
+
+      // 2. Load the exported Blender 5.2.2 LTS production GLB
+      if (typeof THREE.GLTFLoader === 'function') {
+        try {
+          const gltfLoader = new THREE.GLTFLoader();
+          const glbSrc = (typeof window !== 'undefined' && window.COMPUTER_LAB_GLB_DATA_URI)
+            ? window.COMPUTER_LAB_GLB_DATA_URI
+            : './models/computer_lab_production.glb';
+
+          gltfLoader.load(
+            glbSrc,
+            function (gltf) {
+              const blenderScene = gltf.scene;
+              blenderScene.name = 'BlenderProductionComputerLabScene';
+              blenderScene.rotation.y = -Math.PI / 2;
+              blenderScene.position.set(0, 0, 0);
+
+              let doorLeafMesh = null;
+              let cabDoorLeft = null;
+              let cabDoorRight = null;
+              let drawerMesh = null;
+              let swDoorMesh = null;
+              let labKeyMesh = null;
+              let terminalMonitor = null;
+              const tubeLightMeshes = [];
+
+              blenderScene.traverse(function (child) {
+                if (child.isLight) {
+                  child.visible = false;
+                }
+                if (child.isMesh) {
+                  child.userData.noMerge = true;
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+
+                  if (child.name === 'Door_Leaf_Lab' || child.parent && child.parent.name === 'Door_Leaf_Lab') doorLeafMesh = child.parent.name === 'Door_Leaf_Lab' ? child.parent : child;
+                  else if (child.name === 'Cabinet_Door_Left' || child.parent && child.parent.name === 'Cabinet_Door_Left') cabDoorLeft = child.parent.name === 'Cabinet_Door_Left' ? child.parent : child;
+                  else if (child.name === 'Cabinet_Door_Right' || child.parent && child.parent.name === 'Cabinet_Door_Right') cabDoorRight = child.parent.name === 'Cabinet_Door_Right' ? child.parent : child;
+                  else if (child.name === 'TeacherDesk_Drawer_Lab' || child.parent && child.parent.name === 'TeacherDesk_Drawer_Lab') drawerMesh = child.parent.name === 'TeacherDesk_Drawer_Lab' ? child.parent : child;
+                  else if (child.name === 'Item_Lab_Key' || child.parent && child.parent.name === 'Item_Lab_Key') labKeyMesh = child;
+                  else if (child.name === 'Switchboard_Door_Lab' || child.parent && child.parent.name === 'Switchboard_Door_Lab') swDoorMesh = child.parent.name === 'Switchboard_Door_Lab' ? child.parent : child;
+                  else if (child.name === 'Terminal_Monitor_1') terminalMonitor = child;
+                  else if (child.name && child.name.indexOf('TubeLight_Lamp') !== -1) tubeLightMeshes.push(child);
+                  else if (child.name && child.name.indexOf('Window_Glass') !== -1) {
+                    child.material.transparent = true;
+                    child.material.opacity = 0.28;
+                    child.material.roughness = 0.05;
+                    child.material.depthWrite = false;
+                    child.castShadow = false;
+                  }
+                }
+              });
+
+              // A. Register Production Laboratory Door
+              if (doorLeafMesh) {
+                doorLeafMesh.userData.isSwingingDoor = true;
+                const doorObj = {
+                  id: 'door-l3-r1',
+                  pivot: doorLeafMesh,
+                  x: unitCenterX,
+                  y: floorY,
+                  z: unitCenterZ - 3.8,
+                  closedAngleY: 0.0,
+                  ajarAngleY: 0.45,
+                  openAngleY: 1.45,
+                  minAngleY: 0.0,
+                  maxAngleY: 1.57,
+                  currentAngleY: 0.45,
+                  targetAngleY: 0.45,
+                  isOpen: true,
+                  manuallyClosed: false,
+                  holdTimer: 0,
+                  collider: null,
+                };
+                doorLeafMesh.rotation.y = doorObj.ajarAngleY;
+                swingingDoors.push(doorObj);
+                registerInteriorInteractable({
+                  id: 'door-l3-r1',
+                  type: 'door',
+                  name: unitTitle + ' Main Door (Production)',
+                  x: unitCenterX,
+                  y: floorY,
+                  z: unitCenterZ - 3.8,
+                  interactRadius: 2.8,
+                  isOpen: true,
+                  rootMesh: doorLeafMesh,
+                  doorRef: doorObj,
+                  minAngleY: 0.0,
+                  maxAngleY: 1.57,
+                });
+              }
+
+              // B. Register Searchable Instructor Desk Drawer & Key
+              if (drawerMesh) {
+                const initX = drawerMesh.position.x;
+                const initZ = drawerMesh.position.z;
+                let keyRecord = null;
+                if (labKeyMesh) {
+                  labKeyMesh.userData.noMerge = true;
+                  keyRecord = {
+                    id: 'item_bldg5_brass_key',
+                    name: 'Electronics Lab Master Key',
+                    kind: 'key',
+                    roomTitle: unitTitle,
+                    discovered: false,
+                    collected: false,
+                    mesh: labKeyMesh,
+                  };
+                  missionItemsRegistry.push(keyRecord);
+                }
+                registerInteriorInteractable({
+                  id: 'drawer-instructor-l3-r1',
+                  type: 'drawer',
+                  name: unitTitle + ' Instructor Desk Drawer',
+                  x: unitCenterX - 2.60,
+                  y: floorY + 0.60,
+                  z: unitCenterZ + 0.80,
+                  interactRadius: 2.5,
+                  isOpen: false,
+                  rootMesh: drawerMesh,
+                  drawerGroup: drawerMesh,
+                  closedX: initX,
+                  closedZ: initZ,
+                  openX: initX,
+                  openZ: initZ - 0.35,
+                  currentT: 0,
+                  targetT: 0,
+                  missionItem: keyRecord,
+                });
+              }
+
+              // C. Register Equipment Storage Cabinet Doors
+              if (cabDoorLeft && cabDoorRight) {
+                registerInteriorInteractable({
+                  id: 'cabinet-doors-l3-r1',
+                  type: 'cabinet',
+                  name: unitTitle + ' Equipment Storage Cabinet',
+                  x: unitCenterX + 3.65,
+                  y: floorY + 1.00,
+                  z: unitCenterZ + 0.20,
+                  interactRadius: 2.6,
+                  isOpen: false,
+                  rootMesh: cabDoorLeft,
+                  leftPivot: cabDoorLeft,
+                  rightPivot: cabDoorRight,
+                  currentAngle: 0.0,
+                  targetAngle: 0.0,
+                  onToggle: function() {
+                    this.isOpen = !this.isOpen;
+                    this.targetAngle = this.isOpen ? 1.45 : 0.0;
+                    if (this.leftPivot) this.leftPivot.rotation.y = this.targetAngle;
+                    if (this.rightPivot) this.rightPivot.rotation.y = -this.targetAngle;
+                  }
+                });
+              }
+
+              // D. Register Interactive Terminal Monitor
+              if (terminalMonitor) {
+                registerInteriorInteractable({
+                  id: 'terminal-monitor-l3-r1',
+                  type: 'terminal',
+                  name: unitTitle + ' Computer Terminal #1',
+                  x: unitCenterX - 1.55,
+                  y: floorY + 1.05,
+                  z: unitCenterZ - 1.60,
+                  interactRadius: 2.2,
+                  isOn: true,
+                  rootMesh: terminalMonitor,
+                  onToggle: function() {
+                    this.isOn = !this.isOn;
+                    if (terminalMonitor.material) {
+                      terminalMonitor.material.emissiveIntensity = this.isOn ? 2.5 : 0.0;
+                    }
+                  }
+                });
+              }
+
+              // E. Register Interactive Switchboard Panel (Controls Lab Tube Lights)
+              if (swDoorMesh) {
+                registerInteriorInteractable({
+                  id: 'switchboard-l3-r1',
+                  type: 'switchboard',
+                  name: unitTitle + ' Electrical Sub-Panel',
+                  powerKey: 'bldg5_r1_circuit',
+                  controlsCampusLights: false,
+                  x: unitCenterX + 1.50,
+                  y: floorY + 1.50,
+                  z: unitCenterZ - 3.76,
+                  interactRadius: 2.5,
+                  isOpen: true,
+                  isOn: true,
+                  rootMesh: swDoorMesh,
+                  leverPivot: null,
+                  doorPivot: swDoorMesh,
+                  tubeMeshes: tubeLightMeshes,
+                  onToggle: function(isOn) {
+                    this.isOn = isOn;
+                    tubeLightMeshes.forEach(m => {
+                      if (m.material) {
+                        m.material.emissiveIntensity = isOn ? 2.5 : 0.0;
+                      }
+                    });
+                    if (typeof roomMoodFixtures !== 'undefined') {
+                      const fix = roomMoodFixtures.find(f => f.roomId === unitTitle);
+                      if (fix) {
+                        fix.baseIntensity = isOn ? 1.6 : 0.0;
+                      }
+                    }
+                    if (!isOn && typeof lampFlickerMod !== 'undefined' && lampFlickerMod && lampFlickerMod.indoorOverrideLight) {
+                      lampFlickerMod.indoorOverrideLight.intensity = 0.0;
+                    }
+                  }
+                });
+              }
+
+              cGroup.add(blenderScene);
+              cGroup.userData.hasBlenderProductionMesh = true;
+            },
+            undefined,
+            function (err) {
+              console.warn('[Hide & Seek] Lab GLB load fallback to procedural geometry:', err);
+            }
+          );
+        } catch (e) {
+          console.warn('[Hide & Seek] Lab GLB loader error:', e);
+        }
+      }
+    }
+
     function buildComputerLabInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
       const boardZ = facingDirZ * -3.1;
       const wbMesh = new THREE.Mesh(sharedGeos.whiteboard, materials.whiteboardSurface);
@@ -11924,11 +12215,11 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-l2-r3-door', x: -13.4, y: 0.18, z: -2.67, kind: 'door' }, { id: 'wp-l2-r3-in', x: -17.5, y: 0.18, z: -2.67, kind: 'interior' }],
       },
       'West Wing L3 Room 1': {
-        id: 'West Wing L3 Room 1', building: 'L3', archetype: 'library', lightMood: 'warm_lamp',
-        bounds: { minX: -21.3, maxX: -13.7, minZ: 9.0, maxZ: 20.0, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['tall_bookshelves_x3', 'reading_tables_x2', 'banker_lamps', 'curtains'],
-        hidingSpots: ['bookshelf_aisle_1', 'bookshelf_aisle_2', 'bookshelf_aisle_3'],
-        waypoints: [{ id: 'wp-l3-r1-door', x: -13.4, y: 0.18, z: 14.5, kind: 'door' }, { id: 'wp-l3-r1-in', x: -17.2, y: 0.18, z: 13.4, kind: 'interior' }],
+        id: 'West Wing L3 Room 1', building: 'L3', archetype: 'computer_lab_production_glb', lightMood: 'dying_tube',
+        bounds: { minX: -20.5, maxX: -11.5, minZ: 14.0, maxZ: 22.0, floorY: 1.62, ceilingY: 5.17 },
+        furniture: ['computer_workstations_2x2', 'electronics_benches_x2', 'equipment_cabinet', 'server_rack', 'teacher_desk'],
+        hidingSpots: ['cabinet_interior', 'under_workbench', 'behind_server_rack'],
+        waypoints: [{ id: 'wp-l3-r1-door', x: -16.0, y: 1.62, z: 13.8, kind: 'door' }, { id: 'wp-l3-r1-in', x: -16.0, y: 1.62, z: 17.5, kind: 'interior' }],
       },
       'West Wing L3 Room 2': {
         id: 'West Wing L3 Room 2', building: 'L3', archetype: 'library', lightMood: 'moonlight',
@@ -12576,6 +12867,7 @@ export function getHideAndSeekHtml(): string {
 
     const ROOM_ARCHETYPE_BUILDERS = {
       classroom_production_glb: (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildProductionBlenderClassroomInterior(cGroup, cx, cz, fy, dirZ, title),
+      computer_lab_production_glb: (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildProductionBlenderComputerLabInterior(cGroup, cx, cz, fy, dirZ, title),
       classroom_standard: (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 0),
       classroom_seminar:  (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 1),
       computer_lab:       (cGroup, cx, cz, fy, dirZ, title) => buildComputerLabInterior(cGroup, cx, cz, fy, dirZ, title),
@@ -12600,7 +12892,7 @@ export function getHideAndSeekHtml(): string {
       const windowSideSignX = unitCenterX < 0 ? -1 : 1;
       const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
 
-      const isProductionGlb = (roomDef.archetype === 'classroom_production_glb');
+      const isProductionGlb = (roomDef.archetype === 'classroom_production_glb' || roomDef.archetype === 'computer_lab_production_glb');
 
       if (!isProductionGlb) {
         // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3 Fluorescent Tube Hoods
@@ -13046,13 +13338,28 @@ export function getHideAndSeekHtml(): string {
         if (rightW > 0.1) {
           buildWallSegment(-12.53 + rightW / 2, floorH, backZ, rightW, wallH, wallT, materials.campusStucco);
         }
+      } else if (blockLabel === 'West Wing L3') {
+        // Rooms 2 and 3 retain normal procedural back wall
+        const r23Width = width - roomW;
+        const r23CenterX = (cx - width / 2 + roomW) + r23Width / 2;
+        buildWallSegment(r23CenterX, floorH, backZ, r23Width, wallH, wallT, materials.campusStucco);
+
+        // Room 1 GLB lab section: bounds along X are [-20.0, -12.0] (center -16.0, span 8.0m)
+        const leftW = (-20.0) - (cx - width / 2);
+        if (leftW > 0.1) {
+          buildWallSegment(cx - width / 2 + leftW / 2, floorH, backZ, leftW, wallH, wallT, materials.campusStucco);
+        }
+        const rightW = (cx - width / 2 + roomW) - (-12.0);
+        if (rightW > 0.1) {
+          buildWallSegment(-12.0 + rightW / 2, floorH, backZ, rightW, wallH, wallT, materials.campusStucco);
+        }
       } else {
         buildWallSegment(cx, floorH, backZ, width, wallH, wallT, materials.campusStucco);
       }
 
       let winIdx = 0;
       for (let wx = cx - width / 2 + 2.8; wx <= cx + width / 2 - 2.8; wx += 5.2) {
-        if (blockLabel === 'Building B6 Classrooms' && wx < cx - width / 2 + roomW) continue;
+        if ((blockLabel === 'Building B6 Classrooms' || blockLabel === 'West Wing L3') && wx < cx - width / 2 + roomW) continue;
         const isWarmWindow = (winIdx + Math.abs(Math.round(cz))) % 2 === 0;
         if (isNewariHeritage) {
           buildSanjhyalCarvedWindow(wx, floorH + 1.9, backZ - doorSide * 0.12, 0, -doorSide, 3, isWarmWindow, false);
@@ -13078,7 +13385,7 @@ export function getHideAndSeekHtml(): string {
       for (let roomIdx = 0; roomIdx < numRooms; roomIdx++) {
         const roomCenterX = cx - width / 2 + roomW * (roomIdx + 0.5);
         doorXCoords.push(roomCenterX);
-        const isGlbRoom = (blockLabel === 'Building B6 Classrooms' && roomIdx === 0);
+        const isGlbRoom = (blockLabel === 'Building B6 Classrooms' && roomIdx === 0) || (blockLabel === 'West Wing L3' && roomIdx === 0);
 
         buildWallSegment(roomCenterX - doorW / 2 - sideSegW / 2, floorH, frontZ, sideSegW, wallH, wallT, wallMat);
         buildWallSegment(roomCenterX + doorW / 2 + sideSegW / 2, floorH, frontZ, sideSegW, wallH, wallT, wallMat);

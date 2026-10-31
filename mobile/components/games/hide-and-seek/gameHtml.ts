@@ -1258,7 +1258,7 @@ export function getHideAndSeekHtml(): string {
     })();
 
     // Baked Vertex-Color Ambient Occlusion helper (Requirement 3: darkening in corners, floor/ceiling contact & furniture undersides)
-    function applyBakedVertexAO(geo, isRoomInterior = true) {
+    function applyBakedVertexAO(geo, isRoomInterior = true, explicitRoomBounds = null) {
       if (!geo || !geo.attributes || !geo.attributes.position) return geo;
       if (geo.userData && geo.userData.preserveVertexColors) return geo;
       if (!geo.boundingBox) geo.computeBoundingBox();
@@ -1270,9 +1270,12 @@ export function getHideAndSeekHtml(): string {
       const vCount = posAttr.count;
       const colors = new Float32Array(vCount * 3);
 
-      const minX = bbox.min.x, maxX = bbox.max.x;
-      const minY = bbox.min.y, maxY = bbox.max.y;
-      const minZ = bbox.min.z, maxZ = bbox.max.z;
+      const minX = explicitRoomBounds ? explicitRoomBounds.minX : bbox.min.x;
+      const maxX = explicitRoomBounds ? explicitRoomBounds.maxX : bbox.max.x;
+      const minY = explicitRoomBounds ? (explicitRoomBounds.minY || 0.0) : bbox.min.y;
+      const maxY = explicitRoomBounds ? (explicitRoomBounds.maxY || 3.45) : bbox.max.y;
+      const minZ = explicitRoomBounds ? explicitRoomBounds.minZ : bbox.min.z;
+      const maxZ = explicitRoomBounds ? explicitRoomBounds.maxZ : bbox.max.z;
       const spanX = Math.max(0.5, maxX - minX);
       const spanZ = Math.max(0.5, maxZ - minZ);
 
@@ -1284,41 +1287,41 @@ export function getHideAndSeekHtml(): string {
 
         let ao = 1.0;
 
-        // 1. Floor contact & baseboard darkening (vertices within 0.36m of floor)
+        // 1. Floor contact & baseboard darkening (vertices within 0.38m of floor)
         const hFromFloor = Math.max(0.0, vy - Math.max(0.0, minY));
         if (hFromFloor < 0.38) {
           const floorFactor = hFromFloor / 0.38;
-          ao *= (0.48 + 0.52 * floorFactor);
+          ao *= (0.46 + 0.54 * floorFactor);
         }
 
         // 2. Under-desk / furniture underside cavity darkening (downward-facing normals or low furniture cavities)
         if (ny < -0.35 && vy > 0.15 && vy < 1.35) {
-          ao *= 0.52;
+          ao *= 0.50;
         } else if (vy > 0.05 && vy < 0.68 && isRoomInterior) {
           // Slight ambient cavity shadow in lower furniture leg zone
-          ao *= 0.84;
+          ao *= 0.82;
         }
 
-        // 3. Ceiling coving darkening (near 3.25m - 3.45m room ceiling)
-        if (isRoomInterior && vy > 2.95 && vy < 3.55) {
-          const ceilFactor = Math.min(1.0, Math.max(0.0, (3.42 - vy) / 0.45));
-          ao *= (0.58 + 0.42 * ceilFactor);
+        // 3. Ceiling coving darkening (near 3.25m - 3.55m room ceiling)
+        if (isRoomInterior && vy > 2.95 && vy < 3.60) {
+          const ceilFactor = Math.min(1.0, Math.max(0.0, (maxY - vy) / 0.48));
+          ao *= (0.54 + 0.46 * ceilFactor);
         }
 
         // 4. Vertical room corner darkening (where X and Z both approach room perimeter bounds)
         if (isRoomInterior && spanX > 2.5 && spanZ > 2.5) {
           const dxWall = Math.min(Math.abs(vx - minX), Math.abs(maxX - vx));
           const dzWall = Math.min(Math.abs(vz - minZ), Math.abs(maxZ - vz));
-          if (dxWall < 1.15 && dzWall < 1.15) {
-            const cornerT = Math.max(dxWall / 1.15, dzWall / 1.15);
-            ao *= (0.46 + 0.54 * cornerT);
-          } else if (dxWall < 0.45 || dzWall < 0.45) {
-            const wallT = Math.min(dxWall, dzWall) / 0.45;
-            ao *= (0.76 + 0.24 * wallT);
+          if (dxWall < 1.25 && dzWall < 1.25) {
+            const cornerT = Math.max(dxWall / 1.25, dzWall / 1.25);
+            ao *= (0.42 + 0.58 * cornerT);
+          } else if (dxWall < 0.50 || dzWall < 0.50) {
+            const wallT = Math.min(dxWall, dzWall) / 0.50;
+            ao *= (0.74 + 0.26 * wallT);
           }
         }
 
-        ao = Math.max(0.28, Math.min(1.0, ao));
+        ao = Math.max(0.26, Math.min(1.0, ao));
         // Slight cool slate tint in deepest occluded creases
         colors[i * 3]     = ao * (0.94 + 0.06 * ao);
         colors[i * 3 + 1] = ao * (0.97 + 0.03 * ao);
@@ -1457,6 +1460,7 @@ export function getHideAndSeekHtml(): string {
 
       // Merge each material bucket into a single BufferGeometry & Mesh with Baked Vertex AO
       const isRoom = !!(rootGroup.userData && rootGroup.userData.isRoomGroup);
+      const roomLocalBounds = (rootGroup.userData && rootGroup.userData.roomLocalBounds) || null;
       materialBuckets.forEach((mBucket) => {
         const isOpaque = !mBucket.mat.transparent;
         const shouldBakeVertexAO = isOpaque && !mBucket.mat.isMeshBasicMaterial;
@@ -1468,7 +1472,7 @@ export function getHideAndSeekHtml(): string {
           clonedSingle.computeBoundingSphere();
           let finalMat = mBucket.mat;
           if (shouldBakeVertexAO) {
-            applyBakedVertexAO(clonedSingle, isRoom);
+            applyBakedVertexAO(clonedSingle, isRoom, roomLocalBounds);
             finalMat = getVertexColoredMaterial(mBucket.mat);
           }
           const singleMesh = new THREE.Mesh(clonedSingle, finalMat);
@@ -1490,7 +1494,7 @@ export function getHideAndSeekHtml(): string {
         if (mergedGeo) {
           let finalMat = mBucket.mat;
           if (shouldBakeVertexAO) {
-            applyBakedVertexAO(mergedGeo, isRoom);
+            applyBakedVertexAO(mergedGeo, isRoom, roomLocalBounds);
             finalMat = getVertexColoredMaterial(mBucket.mat);
           }
           const mergedMesh = new THREE.Mesh(mergedGeo, finalMat);
@@ -3098,6 +3102,101 @@ export function getHideAndSeekHtml(): string {
           gain.connect(this.masterGain);
           osc.start(now);
           osc.stop(now + 0.05);
+        } catch (e) {}
+      }
+
+      playSwitchClickSfx() {
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(1480, now);
+          osc.frequency.exponentialRampToValueAtTime(420, now + 0.035);
+          this.scheduleEnvelope(gain.gain, now, 0.09, 0.002, 0.04);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 0.045);
+        } catch (e) {}
+      }
+
+      playBreakerClunkSfx() {
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(185, now);
+          osc.frequency.exponentialRampToValueAtTime(48, now + 0.14);
+          this.scheduleEnvelope(gain.gain, now, 0.16, 0.004, 0.15);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          if (this.reverbSend) gain.connect(this.reverbSend);
+          osc.start(now);
+          osc.stop(now + 0.16);
+        } catch (e) {}
+      }
+
+      playDrawerSlideSfx() {
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(140, now);
+          osc.frequency.linearRampToValueAtTime(195, now + 0.22);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(360, now);
+          this.scheduleEnvelope(gain.gain, now, 0.08, 0.010, 0.24);
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 0.26);
+        } catch (e) {}
+      }
+
+      playWindowSlideSfx() {
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const filter = this.ctx.createBiquadFilter();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.linearRampToValueAtTime(240, now + 0.26);
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(520, now);
+          this.scheduleEnvelope(gain.gain, now, 0.075, 0.012, 0.28);
+          osc.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.masterGain);
+          osc.start(now);
+          osc.stop(now + 0.30);
+        } catch (e) {}
+      }
+
+      playLockerLatchSfx() {
+        if (!this.ctx || this.isMuted || this.isBackgrounded) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(540, now);
+          osc.frequency.exponentialRampToValueAtTime(165, now + 0.11);
+          this.scheduleEnvelope(gain.gain, now, 0.085, 0.004, 0.12);
+          osc.connect(gain);
+          gain.connect(this.masterGain);
+          if (this.reverbSend) gain.connect(this.reverbSend);
+          osc.start(now);
+          osc.stop(now + 0.13);
         } catch (e) {}
       }
 
@@ -4933,18 +5032,22 @@ export function getHideAndSeekHtml(): string {
 
         this.nearestLampDist = Math.sqrt(minActiveDistSq);
 
-        // Assign 8 downward-directed PointLights to the 8 closest poles with smooth cubic distance fade (52m -> 14m)
+        // Assign up to 3 pooled PointLights to closest visible indoor rooms, and the remaining slots to closest outdoor streetlamps
         const activeCount = this.lightPool.length;
-        const ov = this.indoorOverrideLight;
+        const ovList = Array.isArray(this.indoorOverrideLights) && this.indoorOverrideLights.length > 0
+          ? this.indoorOverrideLights
+          : (this.indoorOverrideLight && this.indoorOverrideLight.intensity > 0.01 ? [this.indoorOverrideLight] : []);
         const usedIndices = [-1, -1, -1, -1, -1, -1, -1, -1];
         const cfgDist = (typeof this.customLampDistance === 'number') ? this.customLampDistance : 18.2;
         const cfgDecay = (typeof this.customLampDecay === 'number') ? this.customLampDecay : 1.64;
         for (let slot = 0; slot < activeCount; slot++) {
           const pl = this.lightPool[slot];
-          if (slot === 0 && ov && ov.intensity > 0.01) {
+          if (slot < ovList.length && ovList[slot] && ovList[slot].intensity > 0.01) {
+            const ov = ovList[slot];
             pl.color.setHex(ov.color || 0xb4f0e4);
             pl.position.set(ov.x, ov.y, ov.z);
             pl.distance = ov.distance || 12.5;
+            pl.decay = 1.75;
             pl.intensity = ov.intensity;
             continue;
           }
@@ -6220,7 +6323,7 @@ export function getHideAndSeekHtml(): string {
           emissive: mb.wallEmissive || 0x0d151e,
           emissiveIntensity: mb.wallEmissiveIntensity !== undefined ? mb.wallEmissiveIntensity : 0.10,
           roughness: mb.wallRoughness !== undefined ? mb.wallRoughness : 0.68,
-          side: THREE.DoubleSide,
+          side: THREE.FrontSide,
         });
       })(),
       rotundaWhiteArch: (function() {
@@ -6760,7 +6863,7 @@ export function getHideAndSeekHtml(): string {
         bumpScale: 0.055,
         color: 0xb8c2cc,
         roughness: 0.72,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
       }),
       stainedCeilingTiles: new THREE.MeshStandardMaterial({
         map: stainedCeilingTex.map,
@@ -6798,7 +6901,7 @@ export function getHideAndSeekHtml(): string {
         bumpScale: 0.022,
         color: 0x7a8680,
         roughness: 0.76,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
       }),
       classroomFloor: new THREE.MeshStandardMaterial({
         map: scuffedFloorTex.map,
@@ -6823,7 +6926,7 @@ export function getHideAndSeekHtml(): string {
         roughnessMap: dachiBrickTex.roughnessMap,
         roughness: 0.68,
         metalness: 0.06,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
       }),
       carvedSalWood: new THREE.MeshStandardMaterial({
         map: carvedSalTex.map,
@@ -6868,7 +6971,7 @@ export function getHideAndSeekHtml(): string {
         bumpScale: 0.05,
         color: 0x8c3b26,
         roughness: 0.68,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
       }),
       nepalCreamPlaster: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
@@ -6876,7 +6979,7 @@ export function getHideAndSeekHtml(): string {
         bumpScale: 0.05,
         color: 0xc2b6a6,
         roughness: 0.68,
-        side: THREE.DoubleSide,
+        side: THREE.FrontSide,
       }),
       diyoFlameGlow: new THREE.MeshStandardMaterial({
         color: 0xffc27a,
@@ -7234,9 +7337,14 @@ export function getHideAndSeekHtml(): string {
       if (texBundle.roughnessMap) texBundle.roughnessMap.repeat.set(rx, ry);
       Object.keys(materials).forEach(k => {
         const m = materials[k];
-        if (m && m.isMeshStandardMaterial && m.map === texBundle.map && !m.normalMap && texBundle.normalMap) {
-          m.normalMap = texBundle.normalMap;
-          m.normalScale = new THREE.Vector2(nScale, nScale);
+        if (m && m.isMeshStandardMaterial && m.map === texBundle.map) {
+          if (!m.normalMap && texBundle.normalMap) {
+            m.normalMap = texBundle.normalMap;
+            m.normalScale = new THREE.Vector2(nScale, nScale);
+          }
+          if (!m.roughnessMap && texBundle.roughnessMap) {
+            m.roughnessMap = texBundle.roughnessMap;
+          }
           m.envMapIntensity = (m.metalness > 0.4) ? 1.15 : 0.72;
         }
       });
@@ -7733,8 +7841,33 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
+    function createWorldScaledBoxGeo(w, h, d, texScale = 2.8) {
+      const geo = new THREE.BoxGeometry(w, h, d);
+      const uv = geo.attributes.uv;
+      const norm = geo.attributes.normal;
+      const pos = geo.attributes.position;
+      if (uv && norm && pos) {
+        for (let i = 0; i < uv.count; i++) {
+          const nx = Math.abs(norm.getX(i));
+          const ny = Math.abs(norm.getY(i));
+          const vx = pos.getX(i) + w * 0.5;
+          const vy = pos.getY(i) + h * 0.5;
+          const vz = pos.getZ(i) + d * 0.5;
+          if (ny > 0.5) {
+            uv.setXY(i, vx / texScale, vz / texScale);
+          } else if (nx > 0.5) {
+            uv.setXY(i, vz / texScale, vy / texScale);
+          } else {
+            uv.setXY(i, vx / texScale, vy / texScale);
+          }
+        }
+        uv.needsUpdate = true;
+      }
+      return geo;
+    }
+
     function buildWallSegment(x, y, z, w, h, d, mat, trimEnds = true) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      const mesh = new THREE.Mesh(createWorldScaledBoxGeo(w, h, d, 2.8), mat);
       mesh.position.set(x, y + h / 2, z);
       scene.add(mesh);
       // Inset the long-axis ends slightly so perpendicular wall segments meeting at corners never overlap in 3D AABB checks
@@ -7748,8 +7881,81 @@ export function getHideAndSeekHtml(): string {
       return mesh;
     }
 
+    // Construct a wall with genuine 3D window openings (sill wall + upper lintel spandrel + vertical piers between windows)
+    function buildWallWithWindowOpenings(cx, floorY, cz, length, wallH, wallT, axis, winCoords, winW = 1.92, sillH = 1.18, headH = 2.62, mat = materials.campusStucco) {
+      const sorted = (winCoords || []).slice().sort((a, b) => a - b);
+      if (sorted.length === 0) {
+        if (axis === 'x') return buildWallSegment(cx, floorY, cz, length, wallH, wallT, mat);
+        return buildWallSegment(cx, floorY, cz, wallT, wallH, length, mat);
+      }
+      const minC = (axis === 'x' ? cx : cz) - length * 0.5;
+      const maxC = (axis === 'x' ? cx : cz) + length * 0.5;
+      const spandrelH = Math.max(0.18, wallH - headH);
+      const midBandH = Math.max(0.20, headH - sillH);
+
+      // 1. Continuous lower sill wall mesh (floorY .. floorY + sillH) & upper lintel/spandrel mesh (floorY + headH .. floorY + wallH)
+      if (axis === 'x') {
+        const sillMesh = new THREE.Mesh(createWorldScaledBoxGeo(length, sillH, wallT, 2.8), mat);
+        sillMesh.position.set(cx, floorY + sillH * 0.5, cz);
+        scene.add(sillMesh);
+        const topMesh = new THREE.Mesh(createWorldScaledBoxGeo(length, spandrelH, wallT, 2.8), mat);
+        topMesh.position.set(cx, floorY + headH + spandrelH * 0.5, cz);
+        scene.add(topMesh);
+      } else {
+        const sillMesh = new THREE.Mesh(createWorldScaledBoxGeo(wallT, sillH, length, 2.8), mat);
+        sillMesh.position.set(cx, floorY + sillH * 0.5, cz);
+        scene.add(sillMesh);
+        const topMesh = new THREE.Mesh(createWorldScaledBoxGeo(wallT, spandrelH, length, 2.8), mat);
+        topMesh.position.set(cx, floorY + headH + spandrelH * 0.5, cz);
+        scene.add(topMesh);
+      }
+
+      // 2. Solid vertical piers between window openings ( leaving true 3D cutouts at each window! )
+      let cursor = minC;
+      for (let i = 0; i < sorted.length; i++) {
+        const wLeft = Math.max(minC, sorted[i] - winW * 0.5);
+        const wRight = Math.min(maxC, sorted[i] + winW * 0.5);
+        const pierSpan = wLeft - cursor;
+        if (pierSpan > 0.04) {
+          const pMid = cursor + pierSpan * 0.5;
+          const pierMesh = new THREE.Mesh(
+            axis === 'x'
+              ? createWorldScaledBoxGeo(pierSpan, midBandH, wallT, 2.8)
+              : createWorldScaledBoxGeo(wallT, midBandH, pierSpan, 2.8),
+            mat
+          );
+          if (axis === 'x') pierMesh.position.set(pMid, floorY + sillH + midBandH * 0.5, cz);
+          else pierMesh.position.set(cx, floorY + sillH + midBandH * 0.5, pMid);
+          scene.add(pierMesh);
+        }
+        cursor = Math.max(cursor, wRight);
+      }
+      const endSpan = maxC - cursor;
+      if (endSpan > 0.04) {
+        const pMid = cursor + endSpan * 0.5;
+        const pierMesh = new THREE.Mesh(
+          axis === 'x'
+            ? createWorldScaledBoxGeo(endSpan, midBandH, wallT, 2.8)
+            : createWorldScaledBoxGeo(wallT, midBandH, endSpan, 2.8),
+          mat
+        );
+        if (axis === 'x') pierMesh.position.set(pMid, floorY + sillH + midBandH * 0.5, cz);
+        else pierMesh.position.set(cx, floorY + sillH + midBandH * 0.5, pMid);
+        scene.add(pierMesh);
+      }
+
+      // 3. Single continuous wall collider along the window wall
+      const trim = 0.13;
+      const cw = axis === 'x' ? Math.max(0.2, length - trim * 2) : wallT;
+      const cd = axis === 'z' ? Math.max(0.2, length - trim * 2) : wallT;
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(cx - cw * 0.5, floorY, cz - cd * 0.5),
+        new THREE.Vector3(cx + cw * 0.5, floorY + wallH, cz + cd * 0.5)
+      ));
+    }
+
     function buildFloorSlabSegment(x, topY, z, w, thickness, d, mat) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, thickness, d), mat);
+      const mesh = new THREE.Mesh(createWorldScaledBoxGeo(w, thickness, d, 2.8), mat);
       mesh.position.set(x, topY - thickness / 2, z);
       scene.add(mesh);
       addWalkableFloor(x - w / 2, x + w / 2, z - d / 2, z + d / 2, topY);
@@ -7960,9 +8166,54 @@ export function getHideAndSeekHtml(): string {
       scene.add(strip);
     }
 
+    const hollowWinOuterFrameGeo = (function() {
+      const parts = [
+        { w: 1.96, h: 0.08, d: 0.28, x: 0, y:  0.68, z: 0 },
+        { w: 1.96, h: 0.08, d: 0.28, x: 0, y: -0.68, z: 0 },
+        { w: 0.08, h: 1.44, d: 0.28, x: -0.94, y: 0, z: 0 },
+        { w: 0.08, h: 1.44, d: 0.28, x:  0.94, y: 0, z: 0 },
+        { w: 0.055, h: 1.36, d: 0.16, x: 0, y: 0, z: 0 },
+      ];
+      const geos = parts.map(p => {
+        const g = new THREE.BoxGeometry(p.w, p.h, p.d);
+        g.translate(p.x, p.y, p.z);
+        return g;
+      });
+      return THREE.BufferGeometryUtils.mergeBufferGeometries(geos);
+    })();
+    const seeThroughWindowGlassMat = new THREE.MeshStandardMaterial({
+      map: dirtyGlassTex.map,
+      normalMap: dirtyGlassTex.normalMap,
+      roughnessMap: dirtyGlassTex.roughnessMap,
+      color: 0x243b4e,
+      roughness: 0.16,
+      metalness: 0.25,
+      transparent: true,
+      opacity: 0.36,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+    const seeThroughWarmWindowGlassMat = new THREE.MeshStandardMaterial({
+      map: dirtyGlassTex.map,
+      normalMap: dirtyGlassTex.normalMap,
+      roughnessMap: dirtyGlassTex.roughnessMap,
+      color: 0x4a3b2c,
+      emissive: 0xffa84c,
+      emissiveIntensity: 0.18,
+      roughness: 0.18,
+      metalness: 0.22,
+      transparent: true,
+      opacity: 0.40,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+
     function buildDetailedWindow(wx, wy, wz, facingZDir = 1, isWarmLit = false, facingXDir = 0) {
       const wGroup = new THREE.Group();
-      wGroup.position.set(wx, wy, wz);
+      // Position window centered inside the 3D wall opening so both interior and exterior frames align with wall faces
+      const wallCenterX = wx - (facingXDir !== 0 ? facingXDir * 0.12 : 0);
+      const wallCenterZ = wz - (facingXDir === 0 ? facingZDir * 0.12 : 0);
+      wGroup.position.set(wallCenterX, wy, wallCenterZ);
       let rotY = 0;
       if (facingXDir !== 0) {
         rotY = facingXDir === 1 ? Math.PI / 2 : -Math.PI / 2;
@@ -7971,48 +8222,48 @@ export function getHideAndSeekHtml(): string {
       }
       wGroup.rotation.y = rotY;
 
-      const frame = new THREE.Mesh(sharedGeos.winFrameOuter, materials.whiteTrim);
+      // Hollow 4-bar 3D window frame spanning the full wall thickness + interior & exterior sill ledges
+      const frame = new THREE.Mesh(hollowWinOuterFrameGeo, materials.whiteTrim);
       wGroup.add(frame);
 
-      const sill = new THREE.Mesh(sharedGeos.winSillLedge, materials.whiteTrim);
-      sill.position.set(0, -0.70, 0.05);
-      wGroup.add(sill);
+      const sillExt = new THREE.Mesh(sharedGeos.winSillLedge, materials.whiteTrim);
+      sillExt.position.set(0, -0.71, 0.08);
+      wGroup.add(sillExt);
+      const sillInt = new THREE.Mesh(sharedGeos.winSillLedge, materials.whiteTrim);
+      sillInt.position.set(0, -0.71, -0.08);
+      wGroup.add(sillInt);
 
-      // Fixed Left Glass Sash
-      const paneMat = isWarmLit ? materials.windowWarmLit : materials.windowGlass;
-      const leftPane = new THREE.Mesh(new THREE.PlaneGeometry(0.76, 1.32), paneMat);
-      leftPane.position.set(-0.38, 0, 0.035);
+      // Fixed Left Glass Sash (genuinely see-through from both inside and outside!)
+      const paneMat = isWarmLit ? seeThroughWarmWindowGlassMat : seeThroughWindowGlassMat;
+      const leftPane = new THREE.Mesh(new THREE.PlaneGeometry(0.84, 1.28), paneMat);
+      leftPane.position.set(-0.45, 0, -0.015);
       wGroup.add(leftPane);
-
-      const mulV = new THREE.Mesh(new THREE.BoxGeometry(0.055, 1.38, 0.06), materials.whiteTrim);
-      mulV.position.set(0, 0, 0.05);
-      wGroup.add(mulV);
 
       // Openable / Closable Right Sliding Window Sash with 4-Bar Hollow Frame & Brass Handle Latch
       const movableSash = new THREE.Group();
-      movableSash.position.set(0.38, 0, 0.055);
+      movableSash.position.set(0.45, 0, 0.025);
       movableSash.userData.noMerge = true;
-      const rightPane = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 1.28), paneMat);
+      const rightPane = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 1.24), paneMat);
       rightPane.userData.noMerge = true;
       movableSash.add(rightPane);
-      const topRail = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.045, 0.04), materials.deskSteelFrame);
-      topRail.position.set(0, 0.65, 0);
+      const topRail = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.045, 0.04), materials.deskSteelFrame);
+      topRail.position.set(0, 0.63, 0);
       topRail.userData.noMerge = true;
       movableSash.add(topRail);
-      const botRail = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.045, 0.04), materials.deskSteelFrame);
-      botRail.position.set(0, -0.65, 0);
+      const botRail = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.045, 0.04), materials.deskSteelFrame);
+      botRail.position.set(0, -0.63, 0);
       botRail.userData.noMerge = true;
       movableSash.add(botRail);
-      const leftStile = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.34, 0.04), materials.deskSteelFrame);
-      leftStile.position.set(-0.37, 0, 0);
+      const leftStile = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.30, 0.04), materials.deskSteelFrame);
+      leftStile.position.set(-0.41, 0, 0);
       leftStile.userData.noMerge = true;
       movableSash.add(leftStile);
-      const rightStile = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.34, 0.04), materials.deskSteelFrame);
-      rightStile.position.set(0.37, 0, 0);
+      const rightStile = new THREE.Mesh(new THREE.BoxGeometry(0.045, 1.30, 0.04), materials.deskSteelFrame);
+      rightStile.position.set(0.41, 0, 0);
       rightStile.userData.noMerge = true;
       movableSash.add(rightStile);
-      const latchHandle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.06), materials.brassGajur);
-      latchHandle.position.set(-0.35, 0.0, 0.03);
+      const latchHandle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.08), materials.brassGajur);
+      latchHandle.position.set(-0.38, 0.0, 0.0);
       latchHandle.userData.noMerge = true;
       movableSash.add(latchHandle);
       wGroup.add(movableSash);
@@ -8024,26 +8275,26 @@ export function getHideAndSeekHtml(): string {
       interactableRootMeshes.push(wGroup);
       const isAlongX = (facingXDir === 0);
       const winCollider = addColliderBox(new THREE.Box3(
-        new THREE.Vector3(wx - (isAlongX ? 0.78 : 0.16), wy - 0.68, wz - (isAlongX ? 0.16 : 0.78)),
-        new THREE.Vector3(wx + (isAlongX ? 0.78 : 0.16), wy + 0.68, wz + (isAlongX ? 0.16 : 0.78))
+        new THREE.Vector3(wallCenterX - (isAlongX ? 0.88 : 0.16), wy - 0.68, wallCenterZ - (isAlongX ? 0.16 : 0.88)),
+        new THREE.Vector3(wallCenterX + (isAlongX ? 0.88 : 0.16), wy + 0.68, wallCenterZ + (isAlongX ? 0.16 : 0.88))
       ), 'window_sash');
 
       registerInteriorInteractable({
         id: winId,
         type: 'window',
         name: 'Campus Window Sash',
-        x: wx,
+        x: wallCenterX,
         y: wy - 1.85,
-        z: wz,
-        interactRadius: 2.45,
+        z: wallCenterZ,
+        interactRadius: 2.55,
         isOpen: false,
         state: 'closed',
         sashGroup: movableSash,
         rootMesh: wGroup,
-        closedX: 0.38,
-        openX: -0.32,
-        currentX: 0.38,
-        targetX: 0.38,
+        closedX: 0.45,
+        openX: -0.36,
+        currentX: 0.45,
+        targetX: 0.45,
         collider: winCollider,
       });
     }
@@ -9489,26 +9740,26 @@ export function getHideAndSeekHtml(): string {
       return THREE.BufferGeometryUtils.mergeBufferGeometries([g1, g2]);
     })();
 
-    // Shared Materials for Functional Interior System (Switchboards, Breaker Panels, Drawers, Library Lamps & Bulletins)
+    // Shared Materials for Functional Interior System (Switchboards, Breaker Panels, Drawers, Library Lamps & Bulletins — Full PBR with normalMap & roughnessMap)
     const interiorSystemMats = {
-      switchPlateIvory: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.42, metalness: 0.12 }),
-      switchRockerDark: new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.50, metalness: 0.25 }),
+      switchPlateIvory: new THREE.MeshStandardMaterial({ map: peelingPaintTex.map, normalMap: peelingPaintTex.normalMap, roughnessMap: peelingPaintTex.roughnessMap, color: 0xe2e8f0, roughness: 0.42, metalness: 0.12 }),
+      switchRockerDark: new THREE.MeshStandardMaterial({ map: peelingPaintTex.map, normalMap: peelingPaintTex.normalMap, roughnessMap: peelingPaintTex.roughnessMap, color: 0x334155, roughness: 0.50, metalness: 0.25 }),
       ledOnGreen: new THREE.MeshBasicMaterial({ color: 0x22c55e }),
       ledOffRed: new THREE.MeshBasicMaterial({ color: 0xef4444 }),
       ledWarnAmber: new THREE.MeshBasicMaterial({ color: 0xf59e0b }),
-      transformerDarkGreen: new THREE.MeshStandardMaterial({ color: 0x1e352f, roughness: 0.52, metalness: 0.62 }),
-      panelSteelGrey: new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.44, metalness: 0.68 }),
-      panelInteriorDark: new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.70, metalness: 0.45 }),
-      copperBusbar: new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.30, metalness: 0.85 }),
-      firePipeRed: new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.36, metalness: 0.58 }),
-      conduitGalvanized: new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.34, metalness: 0.78 }),
-      fireExitDoorRed: new THREE.MeshStandardMaterial({ color: 0x991b1b, roughness: 0.46, metalness: 0.35 }),
+      transformerDarkGreen: new THREE.MeshStandardMaterial({ map: peelingPaintTex.map, normalMap: peelingPaintTex.normalMap, roughnessMap: peelingPaintTex.roughnessMap, color: 0x1e352f, roughness: 0.52, metalness: 0.62 }),
+      panelSteelGrey: new THREE.MeshStandardMaterial({ map: peelingPaintTex.map, normalMap: peelingPaintTex.normalMap, roughnessMap: peelingPaintTex.roughnessMap, color: 0x64748b, roughness: 0.44, metalness: 0.68 }),
+      panelInteriorDark: new THREE.MeshStandardMaterial({ map: peelingPaintTex.map, normalMap: peelingPaintTex.normalMap, roughnessMap: peelingPaintTex.roughnessMap, color: 0x0f172a, roughness: 0.70, metalness: 0.45 }),
+      copperBusbar: new THREE.MeshStandardMaterial({ map: wornWoodTex.map, normalMap: wornWoodTex.normalMap, roughnessMap: wornWoodTex.roughnessMap, color: 0xd97706, roughness: 0.30, metalness: 0.85 }),
+      firePipeRed: new THREE.MeshStandardMaterial({ map: peelingPaintTex.map, normalMap: peelingPaintTex.normalMap, roughnessMap: peelingPaintTex.roughnessMap, color: 0xdc2626, roughness: 0.36, metalness: 0.58 }),
+      conduitGalvanized: new THREE.MeshStandardMaterial({ map: peelingPaintTex.map, normalMap: peelingPaintTex.normalMap, roughnessMap: peelingPaintTex.roughnessMap, color: 0x94a3b8, roughness: 0.34, metalness: 0.78 }),
+      fireExitDoorRed: new THREE.MeshStandardMaterial({ map: peelingPaintTex.map, normalMap: peelingPaintTex.normalMap, roughnessMap: peelingPaintTex.roughnessMap, color: 0x991b1b, roughness: 0.46, metalness: 0.35 }),
       fireExitSignGlow: new THREE.MeshBasicMaterial({ color: 0x4ade80 }),
       hazardYellow: new THREE.MeshBasicMaterial({ color: 0xfacc15 }),
-      corridorDadoGreenGrey: new THREE.MeshStandardMaterial({ color: 0x4b5548, roughness: 0.78, metalness: 0.06 }),
-      bulletinFeltGreen: new THREE.MeshStandardMaterial({ color: 0x1b4332, roughness: 0.88, metalness: 0.02 }),
+      corridorDadoGreenGrey: new THREE.MeshStandardMaterial({ map: peelingPaintTex.map, normalMap: peelingPaintTex.normalMap, roughnessMap: peelingPaintTex.roughnessMap, color: 0x4b5548, roughness: 0.78, metalness: 0.06 }),
+      bulletinFeltGreen: new THREE.MeshStandardMaterial({ map: scuffedBoardTex.map, normalMap: scuffedBoardTex.normalMap, roughnessMap: scuffedBoardTex.roughnessMap, color: 0x1b4332, roughness: 0.88, metalness: 0.02 }),
       libraryShadeCream: new THREE.MeshStandardMaterial({ color: 0xfef3c7, emissive: 0xf59e0b, emissiveIntensity: 0.85, roughness: 0.35 }),
-      libraryDarkTable: new THREE.MeshStandardMaterial({ color: 0x271c15, roughness: 0.38, metalness: 0.12 }),
+      libraryDarkTable: new THREE.MeshStandardMaterial({ map: wornWoodTex.map, normalMap: wornWoodTex.normalMap, roughnessMap: wornWoodTex.roughnessMap, color: 0x271c15, roughness: 0.38, metalness: 0.12 }),
       missionItemGold: new THREE.MeshStandardMaterial({ color: 0xfacc15, emissive: 0xca8a04, emissiveIntensity: 0.65, roughness: 0.25, metalness: 0.80 }),
       missionItemCyan: new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.70, roughness: 0.22, metalness: 0.60 }),
     };
@@ -10401,13 +10652,40 @@ export function getHideAndSeekHtml(): string {
       spawnCorridorFogPlanes(cGroup, corridorX, floorY, corridorZ, length);
       populateRoomClutterAndAsymmetry(cGroup, 1.6, length * 0.85, Math.abs(corridorX + corridorZ), true);
 
-      // Two-tone institutional corridor dado band + dark rubber baseboard + glowing green EXIT signs at corridor ends
-      const dadoStrip = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.08, length * 0.94), interiorSystemMats.corridorDadoGreenGrey);
-      dadoStrip.position.set(-wallSignX * 0.02, 0.54, 0);
-      cGroup.add(dadoStrip);
-      const baseboard = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.10, length * 0.94), materials.castIronDark);
-      baseboard.position.set(-wallSignX * 0.025, 0.05, 0);
-      cGroup.add(baseboard);
+      // Offset outward from the 0.24m thick exterior wall face (-wallSignX * 0.12) so nothing clips into the wall or doorways!
+      const wallFaceX = -wallSignX * 0.125;
+      const localDoorZ = (doorZList || []).map(dz => dz - corridorZ);
+      const isClearOfDoorZ = (zVal, pad = 1.35) => localDoorZ.every(dz => Math.abs(zVal - dz) > pad);
+
+      // Two-tone institutional corridor dado band + dark rubber baseboard between doorway openings + glowing green EXIT signs at corridor ends
+      localDoorZ.forEach((dz, idx) => {
+        const prevZ = idx === 0 ? -length * 0.47 : (localDoorZ[idx - 1] + 1.05);
+        const segEnd = dz - 1.05;
+        if (segEnd - prevZ > 0.3) {
+          const segLen = segEnd - prevZ;
+          const segMid = (prevZ + segEnd) * 0.5;
+          const dadoStrip = new THREE.Mesh(new THREE.BoxGeometry(0.025, 1.08, segLen), interiorSystemMats.corridorDadoGreenGrey);
+          dadoStrip.position.set(wallFaceX - wallSignX * 0.015, 0.54, segMid);
+          cGroup.add(dadoStrip);
+          const baseboard = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.10, segLen), materials.castIronDark);
+          baseboard.position.set(wallFaceX - wallSignX * 0.02, 0.05, segMid);
+          cGroup.add(baseboard);
+        }
+        if (idx === localDoorZ.length - 1) {
+          const tailStart = dz + 1.05;
+          const tailEnd = length * 0.47;
+          if (tailEnd - tailStart > 0.3) {
+            const segLen = tailEnd - tailStart;
+            const segMid = (tailStart + tailEnd) * 0.5;
+            const dadoStrip = new THREE.Mesh(new THREE.BoxGeometry(0.025, 1.08, segLen), interiorSystemMats.corridorDadoGreenGrey);
+            dadoStrip.position.set(wallFaceX - wallSignX * 0.015, 0.54, segMid);
+            cGroup.add(dadoStrip);
+            const baseboard = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.10, segLen), materials.castIronDark);
+            baseboard.position.set(wallFaceX - wallSignX * 0.02, 0.05, segMid);
+            cGroup.add(baseboard);
+          }
+        }
+      });
 
       [-length * 0.42, length * 0.42].forEach(ez => {
         const exitBox = new THREE.Mesh(step2Geos.exitSignBox, interiorSystemMats.fireExitSignGlow);
@@ -10419,36 +10697,37 @@ export function getHideAndSeekHtml(): string {
       doorZList.forEach((dz, idx) => {
         const localZ = dz - corridorZ;
         const mat = new THREE.Mesh(step2Geos.floorMat, step2Mats.matRubber);
-        mat.position.set(-wallSignX * 0.58, 0.012, localZ);
+        mat.position.set(-wallSignX * 0.68, 0.010, localZ);
         mat.rotation.y = Math.PI / 2;
         cGroup.add(mat);
 
         // Glazed Transom Window above classroom doorway (Ref 1)
         const transomFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.54, 1.82), materials.castIronDark);
-        transomFrame.position.set(-wallSignX * 0.03, 2.86, localZ);
+        transomFrame.position.set(wallFaceX - wallSignX * 0.02, 2.86, localZ);
         cGroup.add(transomFrame);
-        const transomGlass = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.46, 1.72), materials.windowGlass);
-        transomGlass.position.set(-wallSignX * 0.03, 2.86, localZ);
+        const transomGlass = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.46, 1.72), seeThroughWindowGlassMat);
+        transomGlass.position.set(wallFaceX - wallSignX * 0.02, 2.86, localZ);
         cGroup.add(transomGlass);
 
         const lampBack = new THREE.Mesh(step2Geos.wallLampBack, materials.castIronDark);
-        lampBack.position.set(-wallSignX * 0.04, 2.42, localZ + 1.25);
+        lampBack.position.set(wallFaceX - wallSignX * 0.03, 2.42, localZ + 1.35);
         cGroup.add(lampBack);
         const lampBulb = new THREE.Mesh(step2Geos.wallLampBulb, idx % 2 === 0 ? step2Mats.dyingTubeMat : step2Mats.deadTubeMat);
-        lampBulb.position.set(-wallSignX * 0.10, 2.42, localZ + 1.25);
+        lampBulb.position.set(wallFaceX - wallSignX * 0.09, 2.42, localZ + 1.35);
         cGroup.add(lampBulb);
       });
 
-      // 2. Corridor Steel Locker Bank with Interactive Hinged Doors (Ref 1 Left Wall)
-      const lockerZ = -length * 0.16;
+      // 2. Corridor Steel Locker Bank with Interactive Hinged Doors (Ref 1 Left Wall — placed safely between doorways)
+      const lockerZ = isClearOfDoorZ(-length * 0.16, 1.8) ? (-length * 0.16) : 0.0;
+      const lockerCenterX = wallFaceX - wallSignX * 0.25;
       const lockerMesh = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
-      lockerMesh.position.set(-wallSignX * 0.28, 0.96, lockerZ);
+      lockerMesh.position.set(lockerCenterX, 0.96, lockerZ);
       cGroup.add(lockerMesh);
-      addUnderFurnitureAO(cGroup, -wallSignX * 0.28, lockerZ, 0.72, 2.05);
+      addUnderFurnitureAO(cGroup, lockerCenterX, lockerZ, 0.72, 2.05);
 
       [-0.56, 0, 0.56].forEach((lz, lIdx) => {
         const lPivot = new THREE.Group();
-        lPivot.position.set(-wallSignX * 0.52, 1.05, lockerZ + lz - 0.24);
+        lPivot.position.set(lockerCenterX - wallSignX * 0.24, 1.05, lockerZ + lz - 0.24);
         const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
         lDoor.position.set(0, 0, 0.24);
         lPivot.add(lDoor);
@@ -10464,10 +10743,10 @@ export function getHideAndSeekHtml(): string {
             kind: 'fuse',
             containerId: lockerId,
             roomTitle: zoneName,
-            localX: -wallSignX * 0.28,
+            localX: lockerCenterX,
             localY: 1.02,
             localZ: lockerZ + lz,
-            worldX: corridorX - wallSignX * 0.28,
+            worldX: corridorX + lockerCenterX,
             worldY: floorY + 1.02,
             worldZ: corridorZ + lockerZ + lz,
           });
@@ -10477,7 +10756,7 @@ export function getHideAndSeekHtml(): string {
           id: lockerId,
           type: 'locker',
           name: zoneName + ' Locker #' + (lIdx + 1),
-          x: corridorX - wallSignX * 0.42,
+          x: corridorX + lockerCenterX - wallSignX * 0.18,
           y: floorY,
           z: corridorZ + lockerZ + lz,
           interactRadius: 2.35,
@@ -10491,55 +10770,58 @@ export function getHideAndSeekHtml(): string {
         });
       });
 
-      // Low Shoe-Locker Cubby Bank beside the tall lockers (Ref 1 Left Wall)
-      const shoeBank = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.88, 2.20), step2Mats.lockerSteel);
-      shoeBank.position.set(-wallSignX * 0.24, 0.44, lockerZ - 2.15);
-      cGroup.add(shoeBank);
+      // Low Shoe-Locker Cubby Bank beside the tall lockers (only if clear of doorways)
+      const shoeZ = lockerZ - 2.15;
+      if (isClearOfDoorZ(shoeZ, 1.75)) {
+        const shoeBank = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.88, 2.00), step2Mats.lockerSteel);
+        shoeBank.position.set(wallFaceX - wallSignX * 0.22, 0.44, shoeZ);
+        cGroup.add(shoeBank);
+      }
 
-      // 3. Large Green Felt Bulletin Board with Timetable & Flyers + Small Wooden Hallway Desk with Sanitizer (Ref 1 Right Wall)
-      const nbZ = length * 0.16;
-      const nbFrame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.08, 2.15), materials.chairWood);
-      nbFrame.position.set(-wallSignX * 0.04, 1.62, nbZ);
+      // 3. Large Green Felt Bulletin Board with Timetable & Flyers + Small Wooden Hallway Desk with Sanitizer
+      const nbZ = isClearOfDoorZ(length * 0.16, 1.75) ? (length * 0.16) : (length * 0.38);
+      const nbFrame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.08, 2.05), materials.chairWood);
+      nbFrame.position.set(wallFaceX - wallSignX * 0.03, 1.62, nbZ);
       cGroup.add(nbFrame);
-      const nbFelt = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.96, 2.02), interiorSystemMats.bulletinFeltGreen);
-      nbFelt.position.set(-wallSignX * 0.045, 1.62, nbZ);
+      const nbFelt = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.96, 1.92), interiorSystemMats.bulletinFeltGreen);
+      nbFelt.position.set(wallFaceX - wallSignX * 0.035, 1.62, nbZ);
       cGroup.add(nbFelt);
       [-0.62, -0.15, 0.35, 0.72].forEach((nz, nIdx) => {
         const note = new THREE.Mesh(step2Geos.noticeNote, nIdx === 2 ? interiorSystemMats.missionItemCyan : step2Mats.paperSheet);
-        note.position.set(-wallSignX * 0.06, 1.64 + ((nIdx % 2) - 0.5) * 0.14, nbZ + nz);
+        note.position.set(wallFaceX - wallSignX * 0.05, 1.64 + ((nIdx % 2) - 0.5) * 0.14, nbZ + nz);
         cGroup.add(note);
       });
 
-      // Small Hallway Desk with Hand Sanitizer Pump Bottle under the Green Bulletin Board (Ref 1 Foreground)
+      // Small Hallway Desk with Hand Sanitizer Pump Bottle under the Green Bulletin Board
       const hDesk = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.72, 0.76), materials.chairWood);
-      hDesk.position.set(-wallSignX * 0.28, 0.36, nbZ + 0.45);
+      hDesk.position.set(wallFaceX - wallSignX * 0.25, 0.36, nbZ + 0.42);
       cGroup.add(hDesk);
       const sanitizer = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.16, 8), step2Mats.bottleClearPlastic);
-      sanitizer.position.set(-wallSignX * 0.28, 0.80, nbZ + 0.45);
+      sanitizer.position.set(wallFaceX - wallSignX * 0.25, 0.80, nbZ + 0.42);
       cGroup.add(sanitizer);
 
       // 4. Hot/Cold Water Dispenser & Red Wall-Mounted Fire Extinguisher
-      const wdZ = lockerZ + 1.35;
+      const wdZ = lockerZ + 1.32;
       const wdBody = new THREE.Mesh(step2Geos.waterDispenser, materials.rotundaWhiteArch);
-      wdBody.position.set(-wallSignX * 0.24, 0.51, wdZ);
+      wdBody.position.set(wallFaceX - wallSignX * 0.22, 0.51, wdZ);
       cGroup.add(wdBody);
       const wdJug = new THREE.Mesh(step2Geos.waterBottle, step2Mats.waterJugBlue);
-      wdJug.position.set(-wallSignX * 0.24, 1.22, wdZ);
+      wdJug.position.set(wallFaceX - wallSignX * 0.22, 1.22, wdZ);
       cGroup.add(wdJug);
-      addUnderFurnitureAO(cGroup, -wallSignX * 0.24, wdZ, 0.58, 0.58);
+      addUnderFurnitureAO(cGroup, wallFaceX - wallSignX * 0.22, wdZ, 0.58, 0.58);
 
-      const colCenterX = corridorX - wallSignX * 0.42;
+      const colCenterX = corridorX + lockerCenterX;
       addColliderBox(new THREE.Box3(
-        new THREE.Vector3(colCenterX - 0.18, floorY, corridorZ + lockerZ - 0.92),
-        new THREE.Vector3(colCenterX + 0.18, floorY + 1.95, corridorZ + wdZ + 0.26)
+        new THREE.Vector3(colCenterX - 0.22, floorY, corridorZ + lockerZ - 0.92),
+        new THREE.Vector3(colCenterX + 0.22, floorY + 1.95, corridorZ + wdZ + 0.24)
       ), 'furniture');
 
-      const feZ = nbZ - 1.35;
+      const feZ = nbZ - 1.25;
       const feBody = new THREE.Mesh(step2Geos.fireExtBody, step2Mats.fireRed);
-      feBody.position.set(-wallSignX * 0.12, 1.22, feZ);
+      feBody.position.set(wallFaceX - wallSignX * 0.10, 1.22, feZ);
       cGroup.add(feBody);
       const feTop = new THREE.Mesh(step2Geos.fireExtTop, materials.castIronDark);
-      feTop.position.set(-wallSignX * 0.12, 1.52, feZ);
+      feTop.position.set(wallFaceX - wallSignX * 0.10, 1.52, feZ);
       cGroup.add(feTop);
 
       cGroup.userData.isRoomGroup = true;
@@ -10845,7 +11127,7 @@ export function getHideAndSeekHtml(): string {
       // Teacher Podium & Lecture Desk with Searchable Pull-Out Drawer (Holds Main Switchboard Key in West Wing L1 Room 1!)
       const podiumZ = facingDirZ * -2.1;
       const podium = new THREE.Mesh(sharedGeos.podiumBody, materials.chairWood);
-      podium.position.set(-2.6, 0.64, podiumZ);
+      podium.position.set(-2.6, 0.575, podiumZ);
       cGroup.add(podium);
       addUnderFurnitureAO(cGroup, -2.6, podiumZ, 0.85, 0.85);
       addColliderBox(new THREE.Box3(
@@ -10854,12 +11136,12 @@ export function getHideAndSeekHtml(): string {
       ), 'furniture');
 
       const tDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
-      tDesk.position.set(0.4, 0.42, podiumZ);
+      tDesk.position.set(0.4, 0.34, podiumZ);
       tDesk.rotation.y = facingDirZ === 1 ? 0 : Math.PI;
       cGroup.add(tDesk);
       addUnderFurnitureAO(cGroup, 0.4, podiumZ, 1.55, 0.95);
       const tBook = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
-      tBook.position.set(0.35, 0.86, podiumZ);
+      tBook.position.set(0.35, 0.74, podiumZ);
       cGroup.add(tBook);
 
       const hasMainBreakerKey = (unitTitle === 'West Wing L1 Room 1');
@@ -10869,7 +11151,7 @@ export function getHideAndSeekHtml(): string {
         floorY,
         unitCenterZ,
         0.4,
-        0.62,
+        0.58,
         podiumZ + facingDirZ * 0.14,
         facingDirZ === 1 ? 0 : Math.PI,
         'drawer-teacher-' + unitTitle.replace(/\s+/g, '-').toLowerCase(),
@@ -10883,7 +11165,7 @@ export function getHideAndSeekHtml(): string {
       );
 
       const tChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
-      tChair.position.set(0.4, 0.50, podiumZ - facingDirZ * 0.5);
+      tChair.position.set(0.4, 0.44, podiumZ - facingDirZ * 0.5);
       tChair.rotation.y = 0.14;
       cGroup.add(tChair);
       addColliderBox(new THREE.Box3(
@@ -10924,18 +11206,18 @@ export function getHideAndSeekHtml(): string {
           deskGroup.rotation.y = jitterYaw;
 
           const topMesh = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
-          topMesh.position.y = 0.75;
+          topMesh.position.y = 0.74;
           deskGroup.add(topMesh);
 
           const panelMesh = new THREE.Mesh(sharedGeos.deskModestyPanel, materials.chairWood);
-          panelMesh.position.set(0, 0.56, -facingDirZ * 0.24);
+          panelMesh.position.set(0, 0.55, -facingDirZ * 0.24);
           deskGroup.add(panelMesh);
 
           const legL = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
-          legL.position.set(-0.58, 0.37, 0);
+          legL.position.set(-0.58, 0.36, 0);
           deskGroup.add(legL);
           const legR = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
-          legR.position.set(0.58, 0.37, 0);
+          legR.position.set(0.58, 0.36, 0);
           deskGroup.add(legR);
 
           const benchZ = facingDirZ * 0.44 + ((deskSeed % 5) - 2) * 0.025;
@@ -11071,7 +11353,7 @@ export function getHideAndSeekHtml(): string {
 
             const chairYaw = ((rIdx * 3 + cIdx + mIdx) % 5 - 2) * 0.11;
             const chSeat = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
-            chSeat.position.set(mx, 0.46, facingDirZ * 0.44);
+            chSeat.position.set(mx, 0.44, facingDirZ * 0.44);
             chSeat.rotation.y = chairYaw;
             wGrp.add(chSeat);
             const chBack = new THREE.Mesh(sharedGeos.chairBack, materials.castIronDark);
@@ -11202,7 +11484,7 @@ export function getHideAndSeekHtml(): string {
 
         [-0.45, 0.45].forEach((chZ, chIdx) => {
           const ch = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
-          ch.position.set(tx + (chIdx === 0 ? -0.35 : 0.35), 0.45, tz + chZ * 1.45);
+          ch.position.set(tx + (chIdx === 0 ? -0.35 : 0.35), 0.44, tz + chZ * 1.45);
           ch.rotation.y = (chIdx === 0 ? 0.16 : -0.22);
           cGroup.add(ch);
         });
@@ -11303,23 +11585,23 @@ export function getHideAndSeekHtml(): string {
       ];
       deskCoords.forEach(([dx, dz], dIdx) => {
         const oDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
-        oDesk.position.set(dx, 0.38, dz);
+        oDesk.position.set(dx, 0.34, dz);
         oDesk.rotation.y = (dIdx - 1) * 0.025;
         cGroup.add(oDesk);
         addUnderFurnitureAO(cGroup, dx, dz + 0.10, 1.72, 1.18, oDesk.rotation.y);
 
         const mon = new THREE.Mesh(step2Geos.monitorPanel, dIdx === 0 ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
-        mon.position.set(dx - 0.28, 0.94, dz - 0.12);
+        mon.position.set(dx - 0.28, 0.89, dz - 0.12);
         mon.rotation.y = 0.12;
         cGroup.add(mon);
 
         const papers = new THREE.Mesh(step2Geos.paperStack, step2Mats.paperSheet);
-        papers.position.set(dx + 0.36, 0.84, dz + 0.08);
+        papers.position.set(dx + 0.36, 0.80, dz + 0.08);
         papers.rotation.y = -0.18;
         cGroup.add(papers);
 
         const chair = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
-        chair.position.set(dx + (dIdx === 1 ? 0.10 : -0.06), 0.46, dz + 0.56);
+        chair.position.set(dx + (dIdx === 1 ? 0.10 : -0.06), 0.44, dz + 0.56);
         chair.rotation.y = (dIdx === 1 ? -0.28 : 0.19);
         cGroup.add(chair);
 
@@ -14021,11 +14303,11 @@ export function getHideAndSeekHtml(): string {
     ghGroup.position.set(ghX, ghFloorY, ghZ);
     scene.add(ghGroup);
     const ghDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
-    ghDesk.position.set(0.65, 0.38, 0);
+    ghDesk.position.set(0.65, 0.34, 0);
     ghDesk.rotation.y = Math.PI / 2;
     ghGroup.add(ghDesk);
     const ghMon = new THREE.Mesh(step2Geos.monitorPanel, step2Mats.monitorScreenOn);
-    ghMon.position.set(0.72, 0.94, -0.25);
+    ghMon.position.set(0.72, 0.89, -0.25);
     ghMon.rotation.y = -Math.PI / 2;
     ghGroup.add(ghMon);
     const ghLocker = new THREE.Mesh(step2Geos.filingCabinet, step2Mats.lockerSteel);
@@ -16170,18 +16452,18 @@ export function getHideAndSeekHtml(): string {
         const profDeskX = -2.4;
         const profDeskZ = boardZ - 1.35;
         const profDesk = new THREE.Mesh(step2Geos.officeDesk, materials.chairWood);
-        profDesk.position.set(profDeskX, 0.16 + 0.38, profDeskZ);
+        profDesk.position.set(profDeskX, 0.16 + 0.34, profDeskZ);
         profDesk.rotation.y = 0.03;
         rGroup.add(profDesk);
         addUnderFurnitureAO(rGroup, profDeskX, profDeskZ, 1.85, 1.15);
 
         const profChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
-        profChair.position.set(profDeskX - 0.12, 0.16 + 0.46, profDeskZ + 0.56);
+        profChair.position.set(profDeskX - 0.12, 0.16 + 0.44, profDeskZ + 0.56);
         profChair.rotation.y = -0.24;
         rGroup.add(profChair);
 
         const podiumLectern = new THREE.Mesh(sharedGeos.podiumBody, materials.chairWood);
-        podiumLectern.position.set(2.8, 0.16 + 0.59, profDeskZ);
+        podiumLectern.position.set(2.8, 0.16 + 0.575, profDeskZ);
         rGroup.add(podiumLectern);
         addUnderFurnitureAO(rGroup, 2.8, profDeskZ, 0.92, 0.85);
 

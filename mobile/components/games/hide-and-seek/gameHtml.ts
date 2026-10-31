@@ -595,7 +595,7 @@ export function getHideAndSeekHtml(): string {
 
   <div id="campus-banner">
     <div class="beacon"></div>
-    <span id="campus-zone-text">GANDAKI UNIVERSITY BLUEPRINT • MAIN PARKING PLAZA</span>
+    <span id="campus-zone-text">GANDAKI UNIVERSITY • LAXMI PUJA NIGHT • CENTRAL COURTYARD</span>
   </div>
 
   <div id="action-prompt">
@@ -18292,7 +18292,7 @@ export function getHideAndSeekHtml(): string {
         this.rootGroup.add(this.instDiyoPools);
 
         // D. Jhilimili Electric String Light Bulbs (Individual LED bulbs with per-instance color)
-        this.bulbGeo = new THREE.SphereGeometry(0.036, 6, 5).clone();
+        this.bulbGeo = new THREE.SphereGeometry(0.052, 6, 5).clone();
         this.maxBulbs = 4500;
         this.bulbCount = 0;
         this.instJhilimiliBulbs = new THREE.InstancedMesh(this.bulbGeo, this.jhilimiliBulbMat, this.maxBulbs);
@@ -21329,6 +21329,12 @@ export function getHideAndSeekHtml(): string {
     exploreTools.initUI = () => exploreTools.init();
     exploreTools.init();
     window.exploreTools = exploreTools;
+    window.playerPhysics = playerPhysics;
+    window.camera = camera;
+    window.scene = scene;
+    window.atmosphere = atmosphere;
+    window.renderer = renderer;
+    window.physicsDebug = physicsDebug;
 
     // STEP 1: Headless Scripted Input Runner
     window.__TEST_HARNESS__ = {
@@ -22984,6 +22990,7 @@ export function getHideAndSeekHtml(): string {
           camera.lookAt(sb.mesh.position.x, sb.mesh.position.y + 1.2, sb.mesh.position.z);
         }
       } else if (playerPhysics.cameraMode === 'first' || exploreTools.freeFly) {
+        if (playerCharacter) playerCharacter.visible = false;
         const cosYaw = Math.cos(playerPhysics.yaw);
         const sinYaw = Math.sin(playerPhysics.yaw);
         camera.position.set(
@@ -23035,6 +23042,7 @@ export function getHideAndSeekHtml(): string {
         camera.lookAt(headX, headY + 0.15 * vertRatio, headZ);
 
         if (playerCharacter) {
+          playerCharacter.visible = true;
           const fadeStart = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.cameraFadeStartDist) || 0.60;
           const fadeEnd = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.cameraFadeEndDist) || 0.15;
           const charOpacity = Math.max(0.0, Math.min(1.0, (playerPhysics.camDist - fadeEnd) / (fadeStart - fadeEnd)));

@@ -11643,89 +11643,27 @@ export function getHideAndSeekHtml(): string {
 
     function populateRoomClutterAndAsymmetry(parent, roomW, roomD, seed = 1, isCorridor = false) {
       const s = Math.abs(Math.round(seed * 17 + roomW * 7 + roomD * 13));
-      const hw = roomW * 0.38;
-      const hd = roomD * 0.38;
-      const jacketMats = [step2Mats.jacketDenim, step2Mats.jacketBurgundy, step2Mats.jacketOlive];
-
-      // 1. Scattered loose papers & crumpled paper balls on the floor
-      const paperCount = isCorridor ? 4 : 7;
-      for (let i = 0; i < paperCount; i++) {
-        const px = (((s + i * 37) % 100) / 50 - 1) * hw;
-        const pz = (((s + i * 61) % 100) / 50 - 1) * hd;
-        if (i % 3 === 2) {
-          const ball = new THREE.Mesh(clutterCrumpledGeo, step2Mats.paperSheet);
-          ball.position.set(px, 0.045, pz);
-          ball.rotation.set(i * 0.7, i * 1.3, 0.4);
-          parent.add(ball);
-        } else {
-          const sheet = new THREE.Mesh(clutterPaperGeo, step2Mats.paperSheet);
-          sheet.position.set(px, 0.012 + (i % 2) * 0.003, pz);
-          sheet.rotation.y = ((s + i * 29) % 628) * 0.01;
-          parent.add(sheet);
-        }
-      }
-
-      // 2. Upright & fallen water/glass bottles near walls & desks
-      const bottleCount = isCorridor ? 2 : 4;
-      for (let b = 0; b < bottleCount; b++) {
-        const bx = (((s + b * 43) % 100) / 50 - 1) * hw * 0.92;
-        const bz = (((s + b * 71) % 100) / 50 - 1) * hd * 0.92;
-        const bMat = (b % 2 === 0) ? step2Mats.bottleClearPlastic : step2Mats.bottleGreenGlass;
-        const bMesh = new THREE.Mesh(clutterBottleGeo, bMat);
-        if (b % 2 === 1) {
-          // Fallen bottle rolled onto its side
-          bMesh.position.set(bx, 0.04, bz);
-          bMesh.rotation.set(Math.PI / 2, (s + b * 1.9) % 6.28, 0);
-        } else {
-          bMesh.position.set(bx, 0.11, bz);
-          bMesh.rotation.y = b * 1.1;
-        }
-        parent.add(bMesh);
-      }
-
+      // Clean, tidy academic room detailing (no floor trash, overturned chairs, or crooked peeling posters)
       if (!isCorridor) {
-        // 3. Fallen / overturned chair lying on its side to break symmetry (visual only, no collider block)
-        const fcX = ((s % 2 === 0) ? -1 : 1) * (hw * 0.52);
-        const fcZ = (((s * 3) % 2 === 0) ? -1 : 1) * (hd * 0.46);
-        const fChair = new THREE.Mesh(fallenChairGeo, materials.chairWood);
-        fChair.position.set(fcX, 0.22, fcZ);
-        fChair.rotation.set(Math.PI / 2, 0.45 + (s % 5) * 0.5, 0.12);
-        parent.add(fChair);
-        addUnderFurnitureAO(parent, fcX, fcZ, 0.65, 0.65, fChair.rotation.y);
+        const pGeo1 = posterGeoVariants[s % posterGeoVariants.length];
+        const pGeo2 = posterGeoVariants[(s + 2) % posterGeoVariants.length];
+        const p1 = new THREE.Mesh(pGeo1, oldPosterMat);
+        p1.position.set(-(roomW * 0.5 - 0.025), 1.65, -roomD * 0.22);
+        p1.rotation.set(0, Math.PI / 2, 0);
+        parent.add(p1);
 
-        // 4. Forgotten student jacket / hoodie crumpled on floor or bench corner
-        const jkX = -fcX * 0.78;
-        const jkZ = -fcZ * 0.65;
-        const jacket = new THREE.Mesh(clutterJacketGeo, jacketMats[s % jacketMats.length]);
-        jacket.position.set(jkX, 0.05, jkZ);
-        jacket.rotation.set(Math.PI / 2, (s * 0.8) % 6.28, 0);
-        parent.add(jacket);
-
-        // 5. Crooked peeling posters mounted flush on interior walls (skip on open-sided corridors)
-        if (!isCorridor) {
-          const pGeo1 = posterGeoVariants[s % posterGeoVariants.length];
-          const pGeo2 = posterGeoVariants[(s + 2) % posterGeoVariants.length];
-          const p1 = new THREE.Mesh(pGeo1, oldPosterMat);
-          p1.position.set(-(roomW * 0.5 - 0.025), 1.62, -roomD * 0.22);
-          p1.rotation.set(0, Math.PI / 2, 0.09);
-          parent.add(p1);
-
-          const p2 = new THREE.Mesh(pGeo2, oldPosterMat);
-          p2.position.set((roomW * 0.5 - 0.025), 1.54, roomD * 0.26);
-          p2.rotation.set(0, -Math.PI / 2, -0.07);
-          parent.add(p2);
-        }
+        const p2 = new THREE.Mesh(pGeo2, oldPosterMat);
+        p2.position.set((roomW * 0.5 - 0.025), 1.65, roomD * 0.26);
+        p2.rotation.set(0, -Math.PI / 2, 0);
+        parent.add(p2);
       }
     }
 
-    // Helper: Populate Corridor / Veranda Strip (Matching Reference Screenshot 1: Two-Tone Dado Wall, Shoe Cubbies & Interactive Lockers, Green Felt Timetable Bulletin Board, Hallway Sanitizer Desk & Glowing Exit Signs)
+    // Helper: Populate Corridor / Veranda Strip (Clean Two-Tone Dado Wall, Interactive Lockers, Green Felt Timetable Bulletin Board, Hallway Sanitizer Desk & Glowing Exit Signs)
     function populateCorridorProps(corridorX, corridorZ, floorY, length, wallSignX = 1, doorZList = [], zoneName = 'Corridor') {
       const cGroup = new THREE.Group();
       cGroup.position.set(corridorX, floorY, corridorZ);
       scene.add(cGroup);
-
-      spawnCorridorFogPlanes(cGroup, corridorX, floorY, corridorZ, length);
-      populateRoomClutterAndAsymmetry(cGroup, 1.6, length * 0.85, Math.abs(corridorX + corridorZ), true);
 
       // Offset outward from the 0.24m thick exterior wall face (-wallSignX * 0.12) so nothing clips into the wall or doorways!
       const wallFaceX = -wallSignX * 0.125;
@@ -11768,15 +11706,15 @@ export function getHideAndSeekHtml(): string {
         cGroup.add(exitBox);
       });
 
-      // 1. Floor Mats, Transom Window Frames, Protruding Room Plaques ('1', '2', '3') & Corridor Pendant Lamps
-      doorZList.forEach((dz, idx) => {
+      // 1. Floor Mats, Transom Window Frames, Protruding Room Plaques ('1', '2', '3') & Clean Working Corridor Wall Lamps
+      doorZList.forEach((dz) => {
         const localZ = dz - corridorZ;
         const mat = new THREE.Mesh(step2Geos.floorMat, step2Mats.matRubber);
         mat.position.set(-wallSignX * 0.68, 0.010, localZ);
         mat.rotation.y = Math.PI / 2;
         cGroup.add(mat);
 
-        // Glazed Transom Window above classroom doorway (Ref 1)
+        // Glazed Transom Window above classroom doorway
         const transomFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.54, 1.82), materials.castIronDark);
         transomFrame.position.set(wallFaceX - wallSignX * 0.02, 2.86, localZ);
         cGroup.add(transomFrame);
@@ -11787,7 +11725,7 @@ export function getHideAndSeekHtml(): string {
         const lampBack = new THREE.Mesh(step2Geos.wallLampBack, materials.castIronDark);
         lampBack.position.set(wallFaceX - wallSignX * 0.03, 2.42, localZ + 1.35);
         cGroup.add(lampBack);
-        const lampBulb = new THREE.Mesh(step2Geos.wallLampBulb, idx % 2 === 0 ? step2Mats.dyingTubeMat : step2Mats.deadTubeMat);
+        const lampBulb = new THREE.Mesh(step2Geos.wallLampBulb, step2Mats.steadyDimTubeMat);
         lampBulb.position.set(wallFaceX - wallSignX * 0.09, 2.42, localZ + 1.35);
         cGroup.add(lampBulb);
       });
@@ -11940,179 +11878,23 @@ export function getHideAndSeekHtml(): string {
 
     // Shared Classroom Horror Layer (called by both wing classrooms and Rotunda classrooms — zero copy-paste per room)
     function addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, roomW, roomD, windowSideSignX, roomSeed) {
-      const cCfg = (HORROR_CONFIG && HORROR_CONFIG.classroom) || {};
-      const decayCfg = cCfg.decayAmount || {};
-      const propCfg = cCfg.propDensity || {};
-      const hw = roomW * 0.5;
       const hd = roomD * 0.5;
       const boardZ = facingDirZ * -(hd - 0.05);
 
-      // 1. MATERIALS & DECAY: Wet floor sheen patch near window wall + dark corner mold decals + ceiling water stains
-      const wetPatch = new THREE.Mesh(wetFloorSheenGeo, step2Mats.floorWetSheenMat);
-      wetPatch.rotation.x = -Math.PI / 2;
-      wetPatch.position.set(windowSideSignX * (hw - 1.15), 0.019, -0.55);
-      cGroup.add(wetPatch);
-
-      // One sagging ceiling panel hanging down at an angle + dark cavity above it
-      const sagX = (roomSeed % 2 === 0 ? -1 : 1) * (hw * 0.36);
-      const sagZ = facingDirZ * 0.55;
-      const cavityMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.86, 0.86), materials.aoUnderDeskDecal);
-      cavityMesh.rotation.x = Math.PI / 2;
-      cavityMesh.position.set(sagX, 3.35, sagZ);
-      cGroup.add(cavityMesh);
-      const sagTile = new THREE.Mesh(saggingCeilingTileGeo, materials.stainedCeilingTiles);
-      sagTile.position.set(sagX, 3.26, sagZ);
-      sagTile.rotation.set(decayCfg.ceilingSagAngleRad || 0.24, 0.12, -0.18);
-      cGroup.add(sagTile);
-
-      // Vertical water stain decals running down from ceiling & dark mold in corners
-      [
-        [windowSideSignX * (hw - 0.04), 2.15, -hd * 0.32, -windowSideSignX * Math.PI / 2],
-        [-windowSideSignX * (hw - 0.04), 2.05, hd * 0.28, windowSideSignX * Math.PI / 2],
-      ].forEach(([sx, sy, sz, sry]) => {
-        const st = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.95), step2Mats.wallStainDecal);
-        st.position.set(sx, sy, sz);
-        st.rotation.y = sry;
-        cGroup.add(st);
-      });
-
-      // One cracked window pane overlay on the window wall
-      const crackMesh = new THREE.Mesh(crackedWindowPaneGeo, materials.windowGlass);
-      crackMesh.position.set(windowSideSignX * (hw - 0.05), 1.92, -hd * 0.22);
-      crackMesh.rotation.y = -windowSideSignX * Math.PI / 2;
-      cGroup.add(crackMesh);
-
-      // 2. STORYTELLING PROPS (instanced/shared geometry): Stopped wall clock (10:17), spilled water bottle + puddle, abandoned bag, overturned chairs
+      // Clean functional classroom wall clock mounted flush above the teaching board
       const clockMesh = new THREE.Mesh(stoppedClockFaceGeo, materials.whiteboardSurface);
       clockMesh.rotation.x = Math.PI / 2;
       clockMesh.position.set(0.55, 2.74, boardZ + facingDirZ * 0.03);
       cGroup.add(clockMesh);
 
-      // Hanging broken projector/speaker cable with GPU vertex-shader draft sway (zero CPU loop)
-      const cableMesh = new THREE.Mesh(hangingCableGeo, step2Mats.swayingCableMat);
-      cableMesh.position.set(-1.45, 3.02, boardZ + facingDirZ * 0.42);
-      cableMesh.userData.noMerge = true;
-      cGroup.add(cableMesh);
-
-      // Loose papers on floor & front desk with GPU vertex-shader air movement (grounded flush on floor y=0.012m and teacher desk surface y=0.785m)
-      [ [-0.85, 0.012, 0.15, 0.42], [1.15, 0.012, -1.05, -0.58], [0.42, 0.785, facingDirZ * -2.10, 0.24] ].forEach(([px, py, pz, ry]) => {
-        const flPaper = new THREE.Mesh(clutterPaperGeo, step2Mats.flutterPaperMat);
-        flPaper.position.set(px, py, pz);
-        flPaper.rotation.y = ry;
-        flPaper.userData.noMerge = true;
-        cGroup.add(flPaper);
-      });
-
-      // Spilled water bottle on floor with dark wet puddle underneath
-      const spillX = -1.18, spillZ = facingDirZ * 1.38;
-      const spillBottle = new THREE.Mesh(clutterBottleGeo, step2Mats.bottleClearPlastic);
-      spillBottle.position.set(spillX, 0.038, spillZ);
-      spillBottle.rotation.set(Math.PI / 2, 0.95, 0);
-      cGroup.add(spillBottle);
-      const spillPuddle = new THREE.Mesh(aoSharedPlaneGeo, step2Mats.floorWetSheenMat);
-      spillPuddle.rotation.x = -Math.PI / 2;
-      spillPuddle.position.set(spillX + 0.14, 0.018, spillZ + 0.08);
-      spillPuddle.scale.set(0.62, 0.48, 1);
-      cGroup.add(spillPuddle);
-
-      // Second overturned chair & abandoned student bag on floor (non-blocking)
-      const ovChair = new THREE.Mesh(fallenChairGeo, materials.chairWood);
-      ovChair.position.set(windowSideSignX * (hw - 0.82), 0.21, facingDirZ * 2.45);
-      ovChair.rotation.set(Math.PI / 2, -0.68, 0.14);
-      cGroup.add(ovChair);
-      const abBag = new THREE.Mesh(step2Geos.backpack, step2Mats.bagOlive);
-      abBag.position.set(-windowSideSignX * 1.25, 0.19, facingDirZ * -1.42);
-      abBag.rotation.set(0.32, 0.85, -0.45);
-      cGroup.add(abBag);
-
-      // One desk dragged near the door wall (has furniture collider, leaves doorway entry >= 1.25m clear and zero overlap with student desks!)
-      if (propCfg.draggedDeskNearDoor !== false && roomW <= 9.0) {
-        const dragX = -windowSideSignX * (hw - 1.05);
-        const dragZ = facingDirZ * (hd - 0.92);
-        const dragDesk = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
-        dragDesk.position.set(dragX, 0.74, dragZ);
-        dragDesk.rotation.y = 0.38;
-        cGroup.add(dragDesk);
-        const dragLegL = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
-        dragLegL.position.set(dragX - 0.48, 0.362, dragZ - 0.18);
-        dragLegL.rotation.y = 0.38;
-        cGroup.add(dragLegL);
-        const dragLegR = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
-        dragLegR.position.set(dragX + 0.48, 0.362, dragZ + 0.18);
-        dragLegR.rotation.y = 0.38;
-        cGroup.add(dragLegR);
-        addUnderFurnitureAO(cGroup, dragX, dragZ, 1.38, 0.88, 0.38);
-        addColliderBox(new THREE.Box3(
-          new THREE.Vector3(unitCenterX + dragX - 0.52, floorY, unitCenterZ + dragZ - 0.26),
-          new THREE.Vector3(unitCenterX + dragX + 0.52, floorY + 0.78, unitCenterZ + dragZ + 0.26)
-        ), 'furniture');
-      }
-
-      // Corner cobwebs near ceiling (culled on FAST)
-      [
-        [-hw + 0.34, 3.16, -hd + 0.34,  0.78],
-        [ hw - 0.34, 3.16, -hd + 0.34, -0.78],
-        [ hw - 0.34, 3.16,  hd - 0.34, -2.35],
-      ].forEach(([cx, cy, cz, cry]) => {
-        const web = new THREE.Mesh(new THREE.PlaneGeometry(0.76, 0.58), step2Mats.cobwebMat);
-        web.position.set(cx, cy, cz);
-        web.rotation.set(0.30, cry, 0);
-        web.userData.noMerge = true;
-        cGroup.add(web);
-        classroomCobwebMeshes.push({ mesh: web, roomGroup: cGroup });
-      });
-
-      // 3. ONE DETERMINISTIC "WRONG" DETAIL PER CLASSROOM (Rewards looking closely; Representative Room gets all/signature set)
-      const isRepRoom = (roomDef && roomDef.id === (cCfg.representativeRoomId || 'West Wing L1 Room 1'));
-      const wrongIdx = Math.abs(Math.round(roomSeed)) % 4;
-      if (isRepRoom || wrongIdx === 0) {
-        // (a) Single chair in the dark corner facing directly into the wall (grounded at y = 0.440m)
-        const wChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
-        const wcX = windowSideSignX * (hw - 0.62);
-        const wcZ = facingDirZ * -(hd - 0.72);
-        wChair.position.set(wcX, 0.44, wcZ);
-        wChair.rotation.y = windowSideSignX > 0 ? Math.PI * 0.25 : -Math.PI * 0.25;
-        cGroup.add(wChair);
-        addUnderFurnitureAO(cGroup, wcX, wcZ, 0.62, 0.62);
-      }
-      if (isRepRoom || wrongIdx === 1) {
-        // (b) Attendance sheet on teacher desk with all student names crossed out (grounded on teacher desk top at y = 0.784m)
-        const attSheet = new THREE.Mesh(crossedAttendanceGeo, materials.whiteboardSurface);
-        attSheet.position.set(0.05, 0.784, facingDirZ * -2.10);
-        attSheet.rotation.y = -0.16;
-        cGroup.add(attSheet);
-      }
-      if (isRepRoom || wrongIdx === 2) {
-        // (c) Dusty handprint smudge pressed against the inside of the window glass
-        const smudge = new THREE.Mesh(windowHandprintDecalGeo, step2Mats.handprintSmudgeMat);
-        smudge.position.set(windowSideSignX * (hw - 0.06), 1.68, hd * 0.18);
-        smudge.rotation.y = -windowSideSignX * Math.PI / 2;
-        cGroup.add(smudge);
-      }
-      if (wrongIdx === 3 && roomDef) {
-        // (d) Mark room door as slightly ajar (0.18 rad crack)
-        roomDef.wrongDetail = 'door_slightly_open';
-      }
-
-      // 4. ULTRA-ONLY Low Ground Mist Near the Classroom Doorway Threshold
-      const doorMistCount = (cCfg.mistAmount && cCfg.mistAmount.doorMistPlanes) || 2;
-      for (let m = 0; m < doorMistCount; m++) {
-        const mistPlane = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.8), step2Mats.corridorMistMat);
-        mistPlane.rotation.x = -Math.PI / 2;
-        mistPlane.position.set(-windowSideSignX * (hw - 1.35) + m * 0.55, 0.11 + m * 0.05, facingDirZ * (hd * 0.25));
-        mistPlane.userData.noMerge = true;
-        cGroup.add(mistPlane);
-        classroomDoorMistPlanes.push({
-          mesh: mistPlane,
-          roomGroup: cGroup,
-          baseX: mistPlane.position.x,
-          baseZ: mistPlane.position.z,
-          phase: roomSeed + m * 1.9,
-        });
-      }
+      // Neatly placed attendance register & lecture notes on the teacher desk (y = 0.785m)
+      const registerSheet = new THREE.Mesh(clutterPaperGeo, step2Mats.paperSheet);
+      registerSheet.position.set(0.18, 0.785, facingDirZ * -2.10);
+      registerSheet.rotation.y = 0.04;
+      cGroup.add(registerSheet);
     }
 
-    // Helper: Standard / Seminar Classroom Interior (Upgraded with room-fitted wall bounds so zero props float or block doorways)
+    // Helper: Standard / Seminar Classroom Interior (Clean, functional academic room with zero floating props)
     function buildDetailedClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false, layoutVariant = 0, roomDef = null, roomW = 7.6, roomD = 7.6, doorAxis = 'z', doorDirSign = -1) {
       const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
       const wallHalfW = Math.max(3.30, roomW * 0.5 - 0.02);
@@ -12149,8 +11931,7 @@ export function getHideAndSeekHtml(): string {
       wbMesh.position.set(-1.1, 1.85, boardZ);
       cGroup.add(wbMesh);
 
-      const useUnsettlingBoard = (roomSeed % 2 === 1) || (unitTitle === 'West Wing L1 Room 1');
-      const bbMesh = new THREE.Mesh(useUnsettlingBoard ? classroomBoardUnsettlingGeo : classroomBoardNormalGeo, materials.blackboardGreen);
+      const bbMesh = new THREE.Mesh(classroomBoardNormalGeo, materials.whiteboardSurface);
       bbMesh.position.set(2.2, 1.85, boardZ);
       cGroup.add(bbMesh);
 
@@ -12169,20 +11950,29 @@ export function getHideAndSeekHtml(): string {
         cGroup.add(chalkPiece);
       });
 
-      // Ceiling-mounted LCD Projector & Pull-Down Projection Screen above Blackboard
-      const projMountRod = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.42, 6), materials.deskSteelFrame);
+      // Ceiling-mounted LCD Projector (connected flush to 3.44m ceiling slab) & Pull-Down White Projection Screen
+      const projMountPlate = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.18), materials.deskSteelFrame);
+      projMountPlate.position.set(0.55, 3.42, 0.15);
+      cGroup.add(projMountPlate);
+      const projMountRod = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.46, 8), materials.deskSteelFrame);
       projMountRod.position.set(0.55, 3.20, 0.15);
       cGroup.add(projMountRod);
-      const projBody = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.11, 0.28), materials.whiteTrim);
+      const projBody = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.12, 0.30), materials.whiteTrim);
       projBody.position.set(0.55, 2.96, 0.15);
       cGroup.add(projBody);
-      const projLens = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.05, 8), materials.castIronDark);
+      const projLens = new THREE.Mesh(new THREE.CylinderGeometry(0.040, 0.040, 0.06, 10), step2Mats.steadyDimTubeMat);
       projLens.rotation.x = Math.PI / 2;
-      projLens.position.set(0.55, 2.95, 0.15 - facingDirZ * 0.15);
+      projLens.position.set(0.55, 2.95, 0.15 - facingDirZ * 0.16);
       cGroup.add(projLens);
-      const projScreenHousing = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.07, 0.07), materials.deskSteelFrame);
+      const projScreenHousing = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.07, 0.08), materials.deskSteelFrame);
       projScreenHousing.position.set(-1.1, 2.62, boardZ + facingDirZ * 0.08);
       cGroup.add(projScreenHousing);
+      const projScreenCanvas = new THREE.Mesh(new THREE.BoxGeometry(2.18, 1.24, 0.015), materials.whiteboardSurface);
+      projScreenCanvas.position.set(-1.1, 1.98, boardZ + facingDirZ * 0.075);
+      cGroup.add(projScreenCanvas);
+      const projScreenBar = new THREE.Mesh(new THREE.BoxGeometry(2.24, 0.03, 0.03), materials.deskSteelFrame);
+      projScreenBar.position.set(-1.1, 1.35, boardZ + facingDirZ * 0.08);
+      cGroup.add(projScreenBar);
 
       // Side Wall Openable 2-Door Classroom Storage Cupboard + Green Bulletin Board + Upper Wall Shelves with Books (mounted flush against actual side walls)
       const bcSignX = unitCenterX > 15 ? 1 : -1;
@@ -12385,17 +12175,16 @@ export function getHideAndSeekHtml(): string {
         colOffsetsX.forEach((cx, cIdx) => {
           if (layoutVariant === 1 && rIdx === 0 && cIdx === Math.floor(colOffsetsX.length / 2)) return;
 
-          const deskSeed = roomSeed + rIdx * 11 + cIdx * 19;
-          const jitterX = ((deskSeed % 7) - 3) * 0.018;
-          const jitterZ = (((deskSeed * 3) % 7) - 3) * 0.016;
-          const jitterYaw = (((deskSeed * 5) % 9) - 4) * 0.022;
+          const jitterX = 0.0;
+          const jitterZ = 0.0;
+          const jitterYaw = 0.0;
 
           // Baked contact AO decal directly under desk & bench footprint
-          addUnderFurnitureAO(cGroup, cx + jitterX, rz + jitterZ + facingDirZ * 0.18, 1.52, 1.12, jitterYaw);
+          addUnderFurnitureAO(cGroup, cx, rz + facingDirZ * 0.18, 1.52, 1.12, 0.0);
 
           const deskGroup = new THREE.Group();
-          deskGroup.position.set(cx + jitterX, 0, rz + jitterZ);
-          deskGroup.rotation.y = jitterYaw;
+          deskGroup.position.set(cx, 0, rz);
+          deskGroup.rotation.y = 0.0;
 
           const topMesh = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
           topMesh.position.y = 0.74;
@@ -12412,15 +12201,12 @@ export function getHideAndSeekHtml(): string {
           legR.position.set(0.58, 0.362, 0);
           deskGroup.add(legR);
 
-          const benchZ = facingDirZ * 0.44 + ((deskSeed % 5) - 2) * 0.025;
-          const benchYaw = (((deskSeed * 7) % 7) - 3) * 0.028;
+          const benchZ = facingDirZ * 0.44;
           const bSeat = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
           bSeat.position.set(0, 0.44, benchZ);
-          bSeat.rotation.y = benchYaw;
           deskGroup.add(bSeat);
           const bBack = new THREE.Mesh(step2Geos.benchLongBack, materials.chairWood);
           bBack.position.set(0, 0.62, benchZ + facingDirZ * 0.16);
-          bBack.rotation.y = benchYaw;
           deskGroup.add(bBack);
 
           // Grounded open book (y = 0.781m) and book stack (y = 0.828m) flush on the 0.768m desk surface
@@ -13971,9 +13757,8 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // 2. Classroom 3-Tube Ceiling Array: 1 steady-dim, 1 stuttering (irregular on/off bursts), 1 dead
-      // Aligned with pendantTubeFixture hoods at (0.95, 0.98) and (-1.65, -1.85), plus dynamic steadyTubeMat so switching OFF extinguishes all tubes!
-      const tubeY = isMainBldg ? 2.86 : 3.33;
+      // 2. Clean 3-Tube Ceiling Array: All 3 ceiling pendant fixtures hold active emissive tubes controlled by the room light switch!
+      const tubeY = isMainBldg ? 3.11 : 3.17;
       const stutterTubeMat = step2Mats.dyingTubeMat.clone();
       const stutterTube = new THREE.Mesh(tubeStripGeo, stutterTubeMat);
       stutterTube.position.set(isMainBldg ? (roomW * 0.14) : 0.95, tubeY, isMainBldg ? (roomD * 0.12) : 0.98);
@@ -13985,6 +13770,10 @@ export function getHideAndSeekHtml(): string {
       steadyTubeDynamic.position.set(isMainBldg ? (-roomW * 0.18) : -1.65, tubeY, isMainBldg ? (-roomD * 0.16) : -1.85);
       steadyTubeDynamic.userData.noMerge = true;
       cGroup.add(steadyTubeDynamic);
+      const steadyTubeRear = new THREE.Mesh(tubeStripGeo, steadyTubeMat);
+      steadyTubeRear.position.set(isMainBldg ? (-roomW * 0.18) : -1.65, tubeY, isMainBldg ? (roomD * 0.16) : 2.05);
+      steadyTubeRear.userData.noMerge = true;
+      cGroup.add(steadyTubeRear);
       if (mood === 'dark') {
         stutterTubeMat.emissiveIntensity = 0.0;
         steadyTubeMat.emissiveIntensity = 0.0;

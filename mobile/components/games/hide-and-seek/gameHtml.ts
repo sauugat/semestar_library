@@ -13204,20 +13204,29 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
-    // Specialized Builder: Campus Toilets / Washroom Block (Walkable Stalls with Partition & Bowl Colliders, Washbasins, Mirrors)
+    // Specialized Builder: Campus Toilets / Washroom Block (Walkable Stalls with Partition & Bowl Colliders, Ceramic Tile Dado, Washbasins, Mirrors & Water Drum)
     function buildToiletsRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle) {
+      const tileDadoBack = new THREE.Mesh(new THREE.BoxGeometry(6.8, 1.75, 0.03), materials.rotundaWhiteArch);
+      tileDadoBack.position.set(0, 0.88, 3.25);
+      cGroup.add(tileDadoBack);
+      const tileDadoEast = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.75, 6.4), materials.rotundaWhiteArch);
+      tileDadoEast.position.set(3.18, 0.88, 0);
+      cGroup.add(tileDadoEast);
+      const tileDadoWest = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.75, 5.2), materials.rotundaWhiteArch);
+      tileDadoWest.position.set(-2.06, 0.88, -0.4);
+      cGroup.add(tileDadoWest);
+
       [-1.8, -0.2, 1.4].forEach((sz, sIdx) => {
         const pWall = new THREE.Mesh(step2Geos.stallWall, materials.rotundaWhiteArch);
         pWall.position.set(2.15, 0.98, sz - 0.75);
         cGroup.add(pWall);
 
-        // Stall partition wall collider (slim 0.12m Z thickness so stall interiors remain walkable!)
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(unitCenterX + 1.42, floorY, unitCenterZ + sz - 0.81),
           new THREE.Vector3(unitCenterX + 3.15, floorY + 1.95, unitCenterZ + sz - 0.69)
         ), 'furniture');
 
-        const sDoor = new THREE.Mesh(step2Geos.stallDoor, materials.chairWood);
+        const sDoor = new THREE.Mesh(step2Geos.stallDoor, materials.whiteTrim);
         sDoor.position.set(1.42, 0.96, sz);
         sDoor.rotation.y = sIdx === 1 ? 0.65 : 0.18;
         cGroup.add(sDoor);
@@ -13229,8 +13238,10 @@ export function getHideAndSeekHtml(): string {
         const tank = new THREE.Mesh(step2Geos.toiletTank, step2Mats.ceramicWhite);
         tank.position.set(2.75, 0.58, sz);
         cGroup.add(tank);
+        const flushPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.34, 6), step2Mats.stainlessSteel);
+        flushPipe.position.set(2.82, 0.82, sz);
+        cGroup.add(flushPipe);
 
-        // Individual ceramic toilet fixture box collider inside stall
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(unitCenterX + 2.22, floorY, unitCenterZ + sz - 0.24),
           new THREE.Vector3(unitCenterX + 2.95, floorY + 0.82, unitCenterZ + sz + 0.24)
@@ -13246,7 +13257,9 @@ export function getHideAndSeekHtml(): string {
         });
       });
 
-      // End stall partition wall collider
+      const endWall = new THREE.Mesh(step2Geos.stallWall, materials.rotundaWhiteArch);
+      endWall.position.set(2.15, 0.98, 2.18);
+      cGroup.add(endWall);
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX + 1.42, floorY, unitCenterZ + 2.12),
         new THREE.Vector3(unitCenterX + 3.15, floorY + 1.95, unitCenterZ + 2.24)
@@ -13260,10 +13273,19 @@ export function getHideAndSeekHtml(): string {
         const basin = new THREE.Mesh(step2Geos.sinkBasin, step2Mats.ceramicWhite);
         basin.position.set(-1.65, 0.86, bz);
         cGroup.add(basin);
+        const faucet = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, 0.14, 8), step2Mats.stainlessSteel);
+        faucet.position.set(-1.86, 0.94, bz);
+        cGroup.add(faucet);
+        const soap = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.08), materials.whiteTrim);
+        soap.position.set(-1.98, 1.18, bz + 0.24);
+        cGroup.add(soap);
       });
       const mirror = new THREE.Mesh(step2Geos.wallMirror, step2Mats.mirrorGlass);
       mirror.position.set(-2.02, 1.52, -1.2);
       cGroup.add(mirror);
+      const waterDrum = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.24, 0.72, 12), materials.gandakiBluePole);
+      waterDrum.position.set(-1.68, 0.36, 0.55);
+      cGroup.add(waterDrum);
 
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX - 2.05, floorY, unitCenterZ - 2.45),
@@ -13271,10 +13293,18 @@ export function getHideAndSeekHtml(): string {
       ), 'furniture');
     }
 
-    // Specialized Builder: Campus Canteen (Serving Counter, Snack Case, Dining Tables, Kitchen Stove & Pantry)
+    // Specialized Builder: Campus Canteen / Cafeteria (Serving Counter, Illuminated Snack Case, Chiya Dispenser, Menu Board, Dining Tables & Kitchen Hood)
     function buildCanteenRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle, isKitchen = false) {
       buildWallMountedFan(cGroup, 3.28, 2.55, 0, -Math.PI / 2);
+      buildWallMountedFan(cGroup, -3.28, 2.55, 0, Math.PI / 2);
       buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.5, -Math.PI / 2, true);
+
+      const menuFrame = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.92, 0.05), materials.chairWood);
+      menuFrame.position.set(0.2, 2.05, 3.18);
+      cGroup.add(menuFrame);
+      const menuBoard = new THREE.Mesh(new THREE.BoxGeometry(1.74, 0.82, 0.06), materials.blackboardGreen);
+      menuBoard.position.set(0.2, 2.05, 3.17);
+      cGroup.add(menuBoard);
 
       if (isKitchen) {
         const prep = new THREE.Mesh(step2Geos.canteenCounter, step2Mats.stainlessSteel);
@@ -13299,7 +13329,6 @@ export function getHideAndSeekHtml(): string {
           new THREE.Vector3(unitCenterX + 1.38, floorY, unitCenterZ - 2.15),
           new THREE.Vector3(unitCenterX + 2.35, floorY + 1.02, unitCenterZ + 2.15)
         ), 'furniture');
-        // West storage shelf & crate rack box collider
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(unitCenterX - 1.85 - 0.34, floorY, unitCenterZ - 1.4 - 1.15),
           new THREE.Vector3(unitCenterX - 1.85 + 0.34, floorY + 2.10, unitCenterZ - 1.4 + 1.15)
@@ -13321,6 +13350,12 @@ export function getHideAndSeekHtml(): string {
         const sCase = new THREE.Mesh(step2Geos.snackCase, materials.windowWarmLit);
         sCase.position.set(1.95, 1.22, -1.2);
         cGroup.add(sCase);
+        const teaUrn = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.48, 12), step2Mats.stainlessSteel);
+        teaUrn.position.set(1.95, 1.22, 0.45);
+        cGroup.add(teaUrn);
+        const beverageFridge = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.82, 0.72), materials.whiteTrim);
+        beverageFridge.position.set(2.15, 0.91, 1.95);
+        cGroup.add(beverageFridge);
 
         addColliderBox(new THREE.Box3(
           new THREE.Vector3(unitCenterX + 1.48, floorY, unitCenterZ - 2.75),
@@ -13334,6 +13369,11 @@ export function getHideAndSeekHtml(): string {
           tbl.rotation.y = (tIdx === 0 ? 0.03 : -0.025);
           cGroup.add(tbl);
           addUnderFurnitureAO(cGroup, tx, tz, 1.85, 1.65, tbl.rotation.y);
+          [-0.42, 0.42].forEach((pxOff) => {
+            const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.02, 10), step2Mats.stainlessSteel);
+            plate.position.set(tx + pxOff, 0.77, tz - 0.18);
+            cGroup.add(plate);
+          });
           [-0.65, 0.65].forEach((bz, bIdx) => {
             const bnc = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
             bnc.position.set(tx + (bIdx === 0 ? 0.04 : -0.05), 0.44, tz + bz);
@@ -13566,10 +13606,10 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-r1-r1-door', x: 10.4, y: 0.18, z: -32.67, kind: 'door' }, { id: 'wp-r1-r1-in', x: 14.5, y: 0.18, z: -32.67, kind: 'interior' }],
       },
       'East Wing R1 Room 2': {
-        id: 'East Wing R1 Room 2', building: 'R1', archetype: 'staff_office', lightMood: 'dying_tube',
+        id: 'East Wing R1 Room 2', building: 'R1', archetype: 'canteen_dining', lightMood: 'warm_lamp',
         bounds: { minX: 10.7, maxX: 18.3, minZ: -28.33, maxZ: -19.67, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3', 'monitors'],
-        hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
+        furniture: ['serving_counter', 'glass_snack_case', 'dining_tables_x2', 'benches'],
+        hidingSpots: ['dining_table_1', 'dining_table_2'],
         waypoints: [{ id: 'wp-r1-r2-door', x: 10.4, y: 0.18, z: -24.0, kind: 'door' }, { id: 'wp-r1-r2-in', x: 14.5, y: 0.18, z: -24.0, kind: 'interior' }],
       },
       'East Wing R1 Room 3': {
@@ -15016,7 +15056,7 @@ export function getHideAndSeekHtml(): string {
       buildPitchedGableRoof(cx, floorH + wallH, cz, width + 0.9, depth + 1.1, 1.25, materials.brightBlueRoof, false);
     }
 
-    // 2-STOREY ADMINISTRATIVE OFFICE BLOCK (bldg_1: "Office " at (21.0, 0, -56.0), 15.5m x 7m x 7.5m — Matching IMG_5839 3.JPG!)
+    // 2-STOREY ADMINISTRATIVE OFFICE BLOCK (bldg_1: "Office " at (21.0, 0, -56.0), 15.5m x 7m x 7.5m — 1:1 Replica of IMG_5839 4.JPG, photo-output 17.PNG & photo-output 18.PNG!)
     function buildTwoStoreyAdminOfficeBlock(cx = 21.0, cz = -56.0, width = 15.5, height = 7.0, depth = 7.5, baseY = undefined) {
       const bBaseY = typeof baseY === 'number' ? baseY : getTerrainHeightAt(cx, cz);
       const floor0Y = bBaseY + PLINTH_HEIGHT;
@@ -15028,98 +15068,258 @@ export function getHideAndSeekHtml(): string {
       const leftX   = cx - width / 2;
       const rightX  = cx + width / 2;
 
-      // 1. Shared Raised Concrete Plinth & 3 Terrazzo Entrance Steps with Walkable Ramp (IMG_5839 3.JPG)
+      if (sAtlasCtx && !sAtlasCtx.__guReplicaSignsDrawn) {
+        sAtlasCtx.__guReplicaSignsDrawn = true;
+        // 1. Blue "ADMINISTRATIVE BLOCK" Plaque (IMG_5839 4.JPG)
+        sAtlasCtx.fillStyle = '#1d4ed8';
+        sAtlasCtx.fillRect(512, 96, 256, 96);
+        sAtlasCtx.strokeStyle = '#f8fafc';
+        sAtlasCtx.lineWidth = 4;
+        sAtlasCtx.strokeRect(518, 102, 244, 84);
+        sAtlasCtx.fillStyle = '#ffffff';
+        sAtlasCtx.font = '900 22px sans-serif';
+        sAtlasCtx.textAlign = 'center';
+        sAtlasCtx.fillText('ADMINISTRATIVE', 640, 138);
+        sAtlasCtx.fillText('BLOCK', 640, 168);
+
+        // 2. Blue "WASHROOM / TOILET" Plaque (photo-output 18.PNG)
+        sAtlasCtx.fillStyle = '#1e40af';
+        sAtlasCtx.fillRect(768, 96, 256, 96);
+        sAtlasCtx.strokeStyle = '#f8fafc';
+        sAtlasCtx.lineWidth = 4;
+        sAtlasCtx.strokeRect(774, 102, 244, 84);
+        sAtlasCtx.fillStyle = '#ffffff';
+        sAtlasCtx.font = '900 24px sans-serif';
+        sAtlasCtx.fillText('WASHROOM', 896, 138);
+        sAtlasCtx.font = '700 18px sans-serif';
+        sAtlasCtx.fillText('GENTS  |  LADIES', 896, 168);
+
+        // 3. "GANDAKI UNIVERSITY CAFETERIA" Sign Board (photo-output 17.PNG & 18.PNG)
+        sAtlasCtx.fillStyle = '#1e3a8a';
+        sAtlasCtx.fillRect(512, 192, 256, 96);
+        sAtlasCtx.strokeStyle = '#fde047';
+        sAtlasCtx.lineWidth = 4;
+        sAtlasCtx.strokeRect(518, 198, 244, 84);
+        sAtlasCtx.fillStyle = '#fde047';
+        sAtlasCtx.font = '900 18px sans-serif';
+        sAtlasCtx.fillText('GANDAKI UNIVERSITY', 640, 230);
+        sAtlasCtx.fillStyle = '#ffffff';
+        sAtlasCtx.font = '900 26px sans-serif';
+        sAtlasCtx.fillText('CAFETERIA', 640, 264);
+
+        // 4. "TATA MOTORS GEN VOLTZ" Diesel Generator Sign (photo-output 18.PNG)
+        sAtlasCtx.fillStyle = '#0f296b';
+        sAtlasCtx.fillRect(768, 192, 256, 96);
+        sAtlasCtx.fillStyle = '#ffffff';
+        sAtlasCtx.font = '900 20px sans-serif';
+        sAtlasCtx.fillText('TATA MOTORS', 880, 232);
+        sAtlasCtx.fillStyle = '#38bdf8';
+        sAtlasCtx.font = '800 18px sans-serif';
+        sAtlasCtx.fillText('GEN VOLTZ', 880, 262);
+
+        // 5. "GANDAKI UNIVERSITY / ESTD : 2019" South Gate Archway Header (photo-output 18.PNG)
+        sAtlasCtx.fillStyle = '#0369a1';
+        sAtlasCtx.fillRect(512, 288, 512, 128);
+        sAtlasCtx.strokeStyle = '#0284c7';
+        sAtlasCtx.lineWidth = 6;
+        sAtlasCtx.strokeRect(516, 292, 504, 120);
+        sAtlasCtx.fillStyle = '#dc2626';
+        sAtlasCtx.beginPath();
+        sAtlasCtx.arc(572, 352, 34, 0, Math.PI * 2);
+        sAtlasCtx.fill();
+        sAtlasCtx.strokeStyle = '#f8fafc';
+        sAtlasCtx.lineWidth = 3;
+        sAtlasCtx.stroke();
+        sAtlasCtx.fillStyle = '#38bdf8';
+        sAtlasCtx.beginPath();
+        sAtlasCtx.arc(572, 352, 22, Math.PI, 0);
+        sAtlasCtx.fill();
+        sAtlasCtx.fillStyle = '#eab308';
+        sAtlasCtx.font = '900 34px sans-serif';
+        sAtlasCtx.fillText('GANDAKI UNIVERSITY', 795, 346);
+        sAtlasCtx.fillStyle = '#f8fafc';
+        sAtlasCtx.font = '900 22px sans-serif';
+        sAtlasCtx.fillText('ESTD : 2019', 795, 384);
+        signageAtlasTex.needsUpdate = true;
+      }
+
+      // 1. Shared Raised Concrete Plinth & 3 Wide Terrazzo Entrance Steps with Walkable Ramp (IMG_5839 4.JPG)
       addWalkableFloor(leftX - 0.32, rightX + 0.32, frontZ - 0.32, backZ + 0.32, floor0Y);
       buildSharedBuildingPlinthAndSteps(cx, cz, width, depth, [cx], 'z', -1, 'Office B1', bBaseY);
 
-      // Row of 10 Red Terracotta Flower Pots with Flowering Plants along the Raised Plinth Ledge + Red Dustbin (IMG_5839 3.JPG!)
-      [-5.2, -4.4, -3.6, -2.8, -2.1, 2.1, 2.8, 3.6, 4.4, 5.2].forEach((pxOff) => {
+      // 16 Red Terracotta Flower Pots with Red/Orange Blossoms along the Front Plinth Ledge + 2 on East Plinth + Red Dome-Lid Dustbin (IMG_5839 4.JPG!)
+      const leftPotOffsets = [-7.1, -6.3, -5.5, -4.7, -3.9, -3.2, -2.55, -1.95];
+      const rightPotOffsets = [1.85, 2.55, 3.25, 4.0, 4.75, 5.5, 6.3, 7.1];
+      leftPotOffsets.concat(rightPotOffsets).forEach((pxOff, pIdx) => {
         const pot = new THREE.Mesh(step2Geos.plantPot, step2Mats.terracottaPot);
         pot.position.set(cx + pxOff, floor0Y + 0.16, frontZ - 0.16);
         scene.add(pot);
         const bush = new THREE.Mesh(step2Geos.plantBush, materials.foliageGreen);
         bush.position.set(cx + pxOff, floor0Y + 0.42, frontZ - 0.16);
         scene.add(bush);
+        if (pIdx % 2 === 0) {
+          const blossom = new THREE.Mesh(new THREE.SphereGeometry(0.065, 6, 6), step2Mats.fireRed);
+          blossom.position.set(cx + pxOff + 0.04, floor0Y + 0.56, frontZ - 0.18);
+          scene.add(blossom);
+        }
       });
-      const redBin = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.46, 10), step2Mats.fireRed);
-      redBin.position.set(cx - 1.72, floor0Y + 0.23, frontZ - 0.18);
+      [-3.35, -2.45].forEach((pzOff) => {
+        const pot = new THREE.Mesh(step2Geos.plantPot, step2Mats.terracottaPot);
+        pot.position.set(rightX + 0.14, floor0Y + 0.16, cz + pzOff);
+        scene.add(pot);
+        const bush = new THREE.Mesh(step2Geos.plantBush, materials.foliageGreen);
+        bush.position.set(rightX + 0.14, floor0Y + 0.42, cz + pzOff);
+        scene.add(bush);
+      });
+      const redBin = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.44, 12), step2Mats.fireRed);
+      redBin.position.set(cx - 1.42, floor0Y + 0.22, frontZ - 0.18);
       scene.add(redBin);
+      const redBinDome = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), step2Mats.fireRed);
+      redBinDome.position.set(cx - 1.42, floor0Y + 0.44, frontZ - 0.18);
+      scene.add(redBinDome);
 
-      // 2. 2-Storey Cream Prefab Panel Exterior Walls with True 3D Window Openings on Both Storeys (IMG_5839 3.JPG)
+      // 2. 2-Storey Cream Prefab Sandwich Panel Exterior Walls with True 3D Window Openings Matching IMG_5839 4.JPG & photo-output 18.PNG
       const totalWallH = eaveY - floor0Y; // 6.61m
       const story0H = floor1Y - floor0Y;  // 3.31m
       const story1H = eaveY - floor1Y;    // 3.30m
-      buildWallWithWindowOpenings(cx, floor0Y, backZ, width, story0H, wallT, 'x', [cx - 3.8, cx + 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
-      buildWallWithWindowOpenings(cx, floor1Y, backZ, width, story1H, wallT, 'x', [cx - 3.8, cx + 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
-      buildWallWithWindowOpenings(leftX, floor0Y, cz, depth - 0.30, story0H, wallT, 'z', [cz - 2.0, cz + 2.0], 1.92, 0.93, 2.37, materials.campusStucco);
-      buildWallWithWindowOpenings(leftX, floor1Y, cz, depth - 0.30, story1H, wallT, 'z', [cz - 2.0, cz + 2.0], 1.92, 0.93, 2.37, materials.campusStucco);
-      buildWallWithWindowOpenings(rightX, floor0Y, cz, depth - 0.30, story0H, wallT, 'z', [cz - 2.0, cz + 2.0], 1.92, 0.93, 2.37, materials.campusStucco);
-      buildWallWithWindowOpenings(rightX, floor1Y, cz, depth - 0.30, story1H, wallT, 'z', [cz - 2.0, cz + 2.0], 1.92, 0.93, 2.37, materials.campusStucco);
+      const frontLeftWinX = [cx - 5.55, cx - 2.85];
+      const frontRightWinX = [cx + 2.85, cx + 5.55];
+      const backWinX = [cx - 5.2, cx, cx + 5.2];
+      const sideWinZ = [cz - 1.85, cz + 1.45];
 
-      // Front Facade (-Z) with Central Glazed Double Entrance Doorway (doorW = 2.0m) & True 3D Window Openings
+      buildWallWithWindowOpenings(cx, floor0Y, backZ, width, story0H, wallT, 'x', backWinX, 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(cx, floor1Y, backZ, width, story1H, wallT, 'x', backWinX, 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(leftX, floor0Y, cz, depth - 0.30, story0H, wallT, 'z', sideWinZ, 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(leftX, floor1Y, cz, depth - 0.30, story1H, wallT, 'z', sideWinZ, 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(rightX, floor0Y, cz, depth - 0.30, story0H, wallT, 'z', sideWinZ, 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(rightX, floor1Y, cz, depth - 0.30, story1H, wallT, 'z', sideWinZ, 1.92, 0.93, 2.37, materials.campusStucco);
+
+      // Front Facade (-Z) with Central Glazed Double Entrance Doorway (doorW = 2.0m) & 2 Sliding Windows per Flank on Both Storeys
       const doorW = 2.0;
       const flankW = (width - doorW) / 2;
       const leftFlankCX = cx - doorW / 2 - flankW / 2;
       const rightFlankCX = cx + doorW / 2 + flankW / 2;
-      buildWallWithWindowOpenings(leftFlankCX, floor0Y, frontZ, flankW, story0H, wallT, 'x', [cx - 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
-      buildWallWithWindowOpenings(leftFlankCX, floor1Y, frontZ, flankW, story1H, wallT, 'x', [cx - 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
-      buildWallWithWindowOpenings(rightFlankCX, floor0Y, frontZ, flankW, story0H, wallT, 'x', [cx + 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
-      buildWallWithWindowOpenings(rightFlankCX, floor1Y, frontZ, flankW, story1H, wallT, 'x', [cx + 3.8], 1.92, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(leftFlankCX, floor0Y, frontZ, flankW, story0H, wallT, 'x', frontLeftWinX, 1.84, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(leftFlankCX, floor1Y, frontZ, flankW, story1H, wallT, 'x', frontLeftWinX, 1.84, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(rightFlankCX, floor0Y, frontZ, flankW, story0H, wallT, 'x', frontRightWinX, 1.84, 0.93, 2.37, materials.campusStucco);
+      buildWallWithWindowOpenings(rightFlankCX, floor1Y, frontZ, flankW, story1H, wallT, 'x', frontRightWinX, 1.84, 0.93, 2.37, materials.campusStucco);
 
-      // Upper wall above ground-floor doorway
-      const upperSpanH = totalWallH - 2.65;
-      const upperFrontWall = new THREE.Mesh(createWorldScaledBoxGeo(doorW, upperSpanH, wallT, 2.8), materials.campusStucco);
-      upperFrontWall.position.set(cx, floor0Y + 2.65 + upperSpanH * 0.5, frontZ);
-      scene.add(upperFrontWall);
+      // Upper wall above ground-floor doorway with twin narrow vertical staircase windows (IMG_5839 4.JPG)
+      const doorTransomH = story0H - 2.65;
+      const doorTransomWall = new THREE.Mesh(createWorldScaledBoxGeo(doorW, doorTransomH, wallT, 2.8), materials.campusStucco);
+      doorTransomWall.position.set(cx, floor0Y + 2.65 + doorTransomH * 0.5, frontZ);
+      scene.add(doorTransomWall);
+      buildWallWithWindowOpenings(cx, floor1Y, frontZ, doorW, story1H, wallT, 'x', [cx - 0.62, cx + 0.62], 0.58, 0.93, 2.37, materials.campusStucco);
+
+      // White Aluminum Glazed Entrance Portal Frame with Sidelights & Mid-Rails (IMG_5839 4.JPG)
+      [-doorW * 0.48, doorW * 0.48].forEach((sxOff) => {
+        const sidePost = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.65, wallT + 0.06), materials.whiteTrim);
+        sidePost.position.set(cx + sxOff, floor0Y + 1.325, frontZ);
+        scene.add(sidePost);
+        const midRail = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, wallT + 0.05), materials.whiteTrim);
+        midRail.position.set(cx + sxOff * 0.84, floor0Y + 1.05, frontZ);
+        scene.add(midRail);
+      });
+      const portalHeader = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.16, 0.09, wallT + 0.06), materials.whiteTrim);
+      portalHeader.position.set(cx, floor0Y + 2.62, frontZ);
+      scene.add(portalHeader);
 
       addDoorFrameColliders(cx, floor0Y, frontZ, doorW, wallT, false);
       buildSwingingDoor(scene, cx - doorW * 0.45, floor0Y, frontZ + 0.16, 1.15, materials.whiteTrim, 'door-office-bldg1-main');
       addWarmDoorwayGlow(cx, floor0Y, frontZ, doorW, false);
 
-      // Curved Blue-Trimmed Cantilevered Entrance Canopy Awning over the Front Doorway (IMG_5839 3.JPG!)
-      const canopyW = 4.2, canopyD = 1.65;
-      const canopyDeck = new THREE.Mesh(new THREE.BoxGeometry(canopyW, 0.12, canopyD), materials.whiteTrim);
+      // Vertical Prefab Sandwich Panel Seam Battens across Front & Side Walls (IMG_5839 4.JPG)
+      for (let px = leftX + 1.25; px < rightX - 0.4; px += 1.55) {
+        if (Math.abs(px - cx) < 1.15) continue;
+        const seamF = new THREE.Mesh(new THREE.BoxGeometry(0.028, totalWallH, 0.018), materials.whiteTrim);
+        seamF.position.set(px, floor0Y + totalWallH * 0.5, frontZ - wallT * 0.5 - 0.008);
+        scene.add(seamF);
+      }
+      for (let pz = frontZ + 1.25; pz < backZ - 0.4; pz += 1.50) {
+        const seamR = new THREE.Mesh(new THREE.BoxGeometry(0.018, totalWallH, 0.028), materials.whiteTrim);
+        seamR.position.set(rightX + wallT * 0.5 + 0.008, floor0Y + totalWallH * 0.5, pz);
+        scene.add(seamR);
+      }
+
+      // Curved Blue-Trimmed Cantilevered Entrance Canopy Awning with White Soffit & Steel Brackets over the Front Doorway (IMG_5839 4.JPG!)
+      const canopyW = 4.35, canopyD = 1.72;
+      const canopyDeck = new THREE.Mesh(new THREE.BoxGeometry(canopyW, 0.09, canopyD), materials.whiteTrim);
       canopyDeck.position.set(cx, floor0Y + 2.82, frontZ - canopyD * 0.5);
       scene.add(canopyDeck);
       const canopyArch = new THREE.Mesh(
-        new THREE.CylinderGeometry(canopyW * 0.5, canopyW * 0.5, canopyD, 18, 1, false, -Math.PI * 0.35, Math.PI * 0.70),
+        new THREE.CylinderGeometry(canopyW * 0.5, canopyW * 0.5, canopyD + 0.08, 20, 1, false, -Math.PI * 0.36, Math.PI * 0.72),
         materials.brightBlueRoof
       );
       canopyArch.rotation.x = Math.PI / 2;
-      canopyArch.scale.set(1.0, 1.0, 0.18);
+      canopyArch.scale.set(1.0, 1.0, 0.19);
       canopyArch.position.set(cx, floor0Y + 2.86, frontZ - canopyD * 0.5);
       scene.add(canopyArch);
-
-      // 2 Storeys of Sliding Aluminum Windows with Curtains + 2 Narrow Central Staircase Windows & "ADMINISTRATIVE BLOCK" Blue Sign (IMG_5839 3.JPG!)
-      [-3.8, 3.8].forEach((wxOff, wIdx) => {
-        buildDetailedWindow(cx + wxOff, floor0Y + 1.65, frontZ - 0.14, -1, wIdx === 1);
-        buildDetailedWindow(cx + wxOff, floor1Y + 1.65, frontZ - 0.14, -1, wIdx === 0);
-        buildDetailedWindow(cx + wxOff, floor0Y + 1.65, backZ + 0.14, 1, false);
-        buildDetailedWindow(cx + wxOff, floor1Y + 1.65, backZ + 0.14, 1, wIdx === 1);
+      const canopyLip = new THREE.Mesh(new THREE.BoxGeometry(canopyW + 0.06, 0.11, 0.05), materials.gandakiBluePole);
+      canopyLip.position.set(cx, floor0Y + 2.84, frontZ - canopyD);
+      scene.add(canopyLip);
+      [-canopyW * 0.45, 0, canopyW * 0.45].forEach((bxOff) => {
+        const brk = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, canopyD * 0.82), materials.castIronDark);
+        brk.position.set(cx + bxOff, floor0Y + 2.68, frontZ - canopyD * 0.42);
+        brk.rotation.x = 0.16;
+        scene.add(brk);
       });
-      // Twin narrow central windows on 1st floor above the canopy (IMG_5839 3.JPG)
-      [-0.85, 0.85].forEach(nwx => {
-        const nWin = new THREE.Mesh(new THREE.BoxGeometry(0.68, 1.32, 0.08), seeThroughWindowGlassMat);
-        nWin.position.set(cx + nwx, floor1Y + 1.65, frontZ - 0.14);
+
+      // 8 Front Sliding Aluminum Windows (4 per floor) + Banded Curtains + 6 Back Windows (IMG_5839 4.JPG & photo-output 18.PNG!)
+      frontLeftWinX.concat(frontRightWinX).forEach((wx, wIdx) => {
+        buildDetailedWindow(wx, floor0Y + 1.65, frontZ - 0.14, -1, wIdx % 2 === 1);
+        buildDetailedWindow(wx, floor1Y + 1.65, frontZ - 0.14, -1, wIdx % 2 === 0);
+        [floor0Y, floor1Y].forEach((flY) => {
+          const curtainTop = new THREE.Mesh(new THREE.BoxGeometry(1.68, 0.36, 0.04), materials.foliageGreen);
+          curtainTop.position.set(wx, flY + 2.12, frontZ + 0.06);
+          scene.add(curtainTop);
+          const curtainBody = new THREE.Mesh(new THREE.BoxGeometry(1.68, 0.88, 0.03), materials.campusStucco);
+          curtainBody.position.set(wx, flY + 1.50, frontZ + 0.06);
+          scene.add(curtainBody);
+        });
+      });
+      backWinX.forEach((wx, wIdx) => {
+        buildDetailedWindow(wx, floor0Y + 1.65, backZ + 0.14, 1, false);
+        buildDetailedWindow(wx, floor1Y + 1.65, backZ + 0.14, 1, wIdx === 1);
+      });
+
+      // Twin narrow central 2-pane staircase windows on 1st floor above the canopy (IMG_5839 4.JPG & photo-output 18.PNG)
+      [-0.62, 0.62].forEach(nwx => {
+        const nWin = new THREE.Mesh(new THREE.BoxGeometry(0.54, 1.36, 0.06), seeThroughWindowGlassMat);
+        nWin.position.set(cx + nwx, floor1Y + 1.65, frontZ - 0.02);
         scene.add(nWin);
-        const nFrame = new THREE.Mesh(new THREE.BoxGeometry(0.76, 1.40, 0.06), materials.whiteTrim);
-        nFrame.position.set(cx + nwx, floor1Y + 1.65, frontZ - 0.13);
+        const nFrame = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.44, 0.08), materials.whiteTrim);
+        nFrame.position.set(cx + nwx, floor1Y + 1.65, frontZ - 0.04);
         scene.add(nFrame);
-      });
-      // Side facade windows (2 per floor on East and West walls, IMG_5839 3.JPG)
-      [-2.0, 2.0].forEach((wzOff, sIdx) => {
-        buildDetailedWindow(leftX - 0.14, floor0Y + 1.65, cz + wzOff, 0, false, -1);
-        buildDetailedWindow(leftX - 0.14, floor1Y + 1.65, cz + wzOff, 0, sIdx === 0, -1);
-        buildDetailedWindow(rightX + 0.14, floor0Y + 1.65, cz + wzOff, 0, sIdx === 1, 1);
-        buildDetailedWindow(rightX + 0.14, floor1Y + 1.65, cz + wzOff, 0, false, 1);
+        const nMidBar = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.06, 0.10), materials.whiteTrim);
+        nMidBar.position.set(cx + nwx, floor1Y + 1.65, frontZ - 0.05);
+        scene.add(nMidBar);
       });
 
-      // Blue "ADMINISTRATIVE BLOCK" Sign Plaque on Upper-Right Front Facade & Grey PVC Downspouts (IMG_5839 3.JPG)
-      const adminPlaque = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.34, 0.06), materials.gandakiBluePole);
-      adminPlaque.position.set(rightX - 0.95, floor1Y + 2.45, frontZ - 0.14);
+      // East & West Gable Side Windows (2 large sliding windows per floor + small high rear windows on East gable wall, IMG_5839 4.JPG!)
+      sideWinZ.forEach((wz, sIdx) => {
+        buildDetailedWindow(leftX - 0.14, floor0Y + 1.65, wz, 0, false, -1);
+        buildDetailedWindow(leftX - 0.14, floor1Y + 1.65, wz, 0, sIdx === 0, -1);
+        buildDetailedWindow(rightX + 0.14, floor0Y + 1.65, wz, 0, sIdx === 1, 1);
+        buildDetailedWindow(rightX + 0.14, floor1Y + 1.65, wz, 0, false, 1);
+      });
+      [cz + 2.85, cz + 3.35].forEach((hwz) => {
+        const smFrame = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.56, 0.62), materials.whiteTrim);
+        smFrame.position.set(rightX + 0.13, floor1Y + 1.92, hwz);
+        scene.add(smFrame);
+        const smGlass = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.46, 0.52), seeThroughWindowGlassMat);
+        smGlass.position.set(rightX + 0.14, floor1Y + 1.92, hwz);
+        scene.add(smGlass);
+      });
+
+      // Blue "ADMINISTRATIVE BLOCK" Sign Plaque on Upper-Right Front Facade & Grey PVC Downspouts (IMG_5839 4.JPG)
+      const adminPlaque = new THREE.Mesh(
+        createAtlasUvGeo(new THREE.BoxGeometry(1.12, 0.42, 0.05), 512, 96, 256, 96),
+        sharedSignageAtlasMat
+      );
+      adminPlaque.position.set(rightX - 0.92, floor1Y + 2.45, frontZ - 0.14);
       scene.add(adminPlaque);
-      [leftX + 0.18, rightX - 0.18].forEach(px => {
-        const dPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, totalWallH, 8), materials.deskSteelFrame);
+      [leftX + 0.16, rightX - 0.16].forEach(px => {
+        const dPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.052, totalWallH + 0.25, 10), materials.deskSteelFrame);
         dPipe.position.set(px, floor0Y + totalWallH * 0.5, frontZ - 0.16);
         scene.add(dPipe);
       });
@@ -15132,8 +15332,248 @@ export function getHideAndSeekHtml(): string {
       populateClassroomUnit(cx - 1.2, cz, floor0Y, -1, 'Office Ground Floor', false, 'z', -1, width - 2.4, depth, 'OFFICE_B1');
       populateClassroomUnit(cx - 1.2, cz, floor1Y, -1, 'Office 1st Floor', false, 'z', -1, width - 2.4, depth, 'OFFICE_B1');
 
-      // 4. Pitched Bright-Blue Corrugated Gable Roof with Exposed Dark Rafter Tails (IMG_5839 3.JPG)
-      buildPitchedGableRoof(cx, eaveY, cz, width + 1.1, depth + 1.1, 1.52, materials.brightBlueRoof, false);
+      // 4. Stepped / Split-Level Clerestory Bright-Blue Corrugated Roof with Exposed Dark Rafter Tails & Eave Brackets (IMG_5839 4.JPG, photo-output 17.PNG & 18.PNG!)
+      buildPitchedGableRoof(cx, eaveY, cz - depth * 0.14, width + 1.1, depth * 0.72 + 1.1, 1.55, materials.brightBlueRoof, false);
+      const rearRoofW = width + 1.25;
+      const rearRoofD = depth * 0.48 + 0.85;
+      const rearSlope = new THREE.Mesh(new THREE.BoxGeometry(rearRoofW, 0.12, rearRoofD), materials.brightBlueRoof);
+      rearSlope.position.set(cx, eaveY + 0.42, cz + depth * 0.28);
+      rearSlope.rotation.x = 0.24;
+      scene.add(rearSlope);
+      const rearFascia = new THREE.Mesh(new THREE.BoxGeometry(rearRoofW + 0.04, 0.16, 0.06), materials.gandakiBluePole);
+      rearFascia.position.set(cx, eaveY + 0.14, backZ + 0.62);
+      scene.add(rearFascia);
+      const frontFascia = new THREE.Mesh(new THREE.BoxGeometry(rearRoofW + 0.04, 0.16, 0.06), materials.gandakiBluePole);
+      frontFascia.position.set(cx, eaveY + 0.04, frontZ - 0.62);
+      scene.add(frontFascia);
+      for (let rz = frontZ - 0.45; rz <= backZ + 0.45; rz += 0.72) {
+        const isRear = rz > cz + 0.2;
+        const ry = isRear ? (eaveY + 0.36 - (rz - cz) * 0.06) : (eaveY + 0.12 + (1.0 - Math.abs(rz - (cz - 1.0)) / (depth * 0.5)) * 1.15);
+        [-width * 0.5 - 0.35, width * 0.5 + 0.35].forEach((rxOff) => {
+          const purlin = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.10, 0.08), materials.ebonyCarvedWood);
+          purlin.position.set(cx + rxOff, ry, rz);
+          scene.add(purlin);
+        });
+      }
+      [-5.8, -3.1, 3.1, 5.8].forEach((bxOff) => {
+        const eaveBrk = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.34, 0.48), materials.ebonyCarvedWood);
+        eaveBrk.position.set(cx + bxOff, eaveY - 0.18, frontZ - 0.26);
+        eaveBrk.rotation.x = 0.38;
+        scene.add(eaveBrk);
+      });
+
+      // 5. 1-Storey West Office Annex Wing & Elevated Dual-Tank Steel Water Tower on the Left of the Office (photo-output 18.PNG top-left!)
+      const annexW = 3.8, annexD = 5.4, annexH = 3.25;
+      const annexCX = leftX - annexW * 0.5 - 0.05;
+      const annexCZ = cz + 0.4;
+      const annexBody = new THREE.Mesh(createWorldScaledBoxGeo(annexW, annexH, annexD, 2.4), materials.campusStucco);
+      annexBody.position.set(annexCX, floor0Y + annexH * 0.5, annexCZ);
+      scene.add(annexBody);
+      const annexPlinth = new THREE.Mesh(new THREE.BoxGeometry(annexW + 0.25, PLINTH_HEIGHT + 1.2, annexD + 0.25), materials.rotundaPlinthConcrete);
+      annexPlinth.position.set(annexCX, floor0Y - (PLINTH_HEIGHT + 1.2) * 0.5, annexCZ);
+      scene.add(annexPlinth);
+      const annexWinFrame = new THREE.Mesh(new THREE.BoxGeometry(1.65, 1.18, 0.08), materials.whiteTrim);
+      annexWinFrame.position.set(annexCX, floor0Y + 1.55, annexCZ - annexD * 0.5 - 0.04);
+      scene.add(annexWinFrame);
+      const annexWinGlass = new THREE.Mesh(new THREE.BoxGeometry(1.52, 1.06, 0.10), seeThroughWindowGlassMat);
+      annexWinGlass.position.set(annexCX, floor0Y + 1.55, annexCZ - annexD * 0.5 - 0.05);
+      scene.add(annexWinGlass);
+      buildPitchedGableRoof(annexCX, floor0Y + annexH, annexCZ, annexW + 0.7, annexD + 0.8, 0.95, materials.brightBlueRoof, false);
+
+      const wtX = leftX - 2.2, wtZ = backZ + 2.4, wtH = 7.4;
+      [[-1.1, -1.1], [1.1, -1.1], [-1.1, 1.1], [1.1, 1.1]].forEach(([lx, lz]) => {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, wtH, 8), materials.gandakiBluePole);
+        leg.position.set(wtX + lx, bBaseY + wtH * 0.5, wtZ + lz);
+        scene.add(leg);
+      });
+      const wtDeck = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.16, 2.8), materials.gandakiBluePole);
+      wtDeck.position.set(wtX, bBaseY + wtH, wtZ);
+      scene.add(wtDeck);
+      [-0.68, 0.68].forEach((txOff) => {
+        const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.58, 1.65, 14), materials.whiteTrim);
+        tank.position.set(wtX + txOff, bBaseY + wtH + 0.90, wtZ);
+        scene.add(tank);
+      });
+    }
+
+    // 1-STOREY CAMPUS WASHROOM BLOCK (bldg_3: "Washroom 1 " at (12.5, 1.4, -42.0), 14.5m x 4.0m x 7.5m — 1:1 Replica of photo-output 17.PNG & photo-output 18.PNG!)
+    function buildCampusWashroomBlock(cx = 12.5, cz = -42.0, width = 14.5, depth = 7.5, baseY = undefined) {
+      const bBaseY = typeof baseY === 'number' ? baseY : getTerrainHeightAt(cx, cz);
+      const floorH = bBaseY + PLINTH_HEIGHT;
+      const wallH = 3.55;
+      const wallT = 0.25;
+      const doorSide = -1;
+      const frontZ = cz + doorSide * (depth * 0.5);
+      const backZ = cz - doorSide * (depth * 0.5);
+      const leftX = cx - width * 0.5;
+      const rightX = cx + width * 0.5;
+      const blockLabel = 'Washroom 1 B3';
+      const wingBldgKey = resolveCanonicalBuildingKey(blockLabel, 'WASHROOM_B3');
+
+      const slab = new THREE.Mesh(new THREE.BoxGeometry(width + 0.5, PLINTH_HEIGHT, depth + 0.9), materials.classroomFloor);
+      slab.position.set(cx, bBaseY + PLINTH_HEIGHT * 0.5, cz + doorSide * 0.25);
+      scene.add(slab);
+      addWalkableFloor(leftX - 0.32, rightX + 0.32, cz - depth / 2 - 0.32, cz + depth / 2 + 0.32, floorH);
+
+      buildCornerQuoins(leftX, floorH, cz - depth / 2, wallH);
+      buildCornerQuoins(rightX, floorH, cz - depth / 2, wallH);
+      buildCornerQuoins(leftX, floorH, cz + depth / 2, wallH);
+      buildCornerQuoins(rightX, floorH, cz + depth / 2, wallH);
+
+      // High-Sill Horizontal Ventilation / Transom Windows along North & South Walls (photo-output 17.PNG!)
+      const backWinXCoords = [cx - 4.8, cx - 1.6, cx + 1.6, cx + 4.8];
+      buildWallWithWindowOpenings(cx, floorH, backZ, width, wallH, wallT, 'x', backWinXCoords, 1.92, 1.72, 2.68, materials.campusStucco);
+      backWinXCoords.forEach((wx, wIdx) => {
+        buildDetailedWindow(wx, floorH + 2.15, backZ + 0.14, 1, wIdx % 2 === 0);
+      });
+
+      buildWallSegment(leftX, floorH, cz, wallT, wallH, depth - 0.30, materials.campusStucco);
+      buildWallSegment(rightX, floorH, cz, wallT, wallH, depth - 0.30, materials.campusStucco);
+
+      // South Front Wall (-Z) with Recessed Tiled Entrance Vestibule, Privacy Baffle Screen, High Ventilation Windows & Blue "WASHROOM" Plaque (photo-output 18.PNG!)
+      const doorW = 1.95;
+      const sideSegW = (width - doorW) * 0.5;
+      const leftSegX = cx - doorW * 0.5 - sideSegW * 0.5;
+      const rightSegX = cx + doorW * 0.5 + sideSegW * 0.5;
+      buildWallWithWindowOpenings(leftSegX, floorH, frontZ, sideSegW, wallH, wallT, 'x', [leftSegX], 1.92, 1.72, 2.68, materials.campusStucco);
+      buildWallWithWindowOpenings(rightSegX, floorH, frontZ, sideSegW, wallH, wallT, 'x', [rightSegX], 1.92, 1.72, 2.68, materials.campusStucco);
+      buildDetailedWindow(leftSegX, floorH + 2.15, frontZ - 0.14, -1, true);
+      buildDetailedWindow(rightSegX, floorH + 2.15, frontZ - 0.14, -1, false);
+
+      const transom = new THREE.Mesh(createWorldScaledBoxGeo(doorW, 0.9, wallT, 2.8), materials.campusStucco);
+      transom.position.set(cx, floorH + wallH - 0.45, frontZ);
+      scene.add(transom);
+      const doorArch = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.24, 0.14, wallT + 0.08), materials.whiteTrim);
+      doorArch.position.set(cx, floorH + wallH - 0.92, frontZ);
+      scene.add(doorArch);
+
+      const vestibuleTileL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.62, 0.85), materials.rotundaWhiteArch);
+      vestibuleTileL.position.set(cx - doorW * 0.48, floorH + 1.31, frontZ + 0.42);
+      scene.add(vestibuleTileL);
+      const baffleScreen = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.25, 1.35), materials.rotundaWhiteArch);
+      baffleScreen.position.set(cx - 1.48, floorH + 1.125, frontZ + 1.45);
+      scene.add(baffleScreen);
+
+      const washroomPlaque = new THREE.Mesh(
+        createAtlasUvGeo(new THREE.BoxGeometry(0.88, 0.34, 0.05), 768, 96, 256, 96),
+        sharedSignageAtlasMat
+      );
+      washroomPlaque.position.set(cx + doorW * 0.5 + 0.68, floorH + 2.12, frontZ - 0.14);
+      scene.add(washroomPlaque);
+
+      addDoorFrameColliders(cx, floorH, frontZ, doorW, wallT, false);
+      buildSwingingDoor(scene, cx - doorW * 0.45, floorH, frontZ + 0.16, 1.15, materials.gandakiBluePole, 'door-' + blockLabel + '-r1');
+      addWarmDoorwayGlow(cx, floorH, frontZ, doorW, false);
+
+      populateClassroomUnit(cx, cz, floorH, doorSide, blockLabel + ' Room 1', false, 'z', doorSide, width, depth, wingBldgKey);
+      buildSharedBuildingPlinthAndSteps(cx, cz, width, depth, [cx], 'z', doorSide, blockLabel, bBaseY);
+
+      // Mono-Pitched (Single-Slope Shed) Bright-Blue Corrugated Roof with Royal-Blue Fascia, Angled Wing-Wall Eave & 16 Exposed Dark Rafters (photo-output 17.PNG & 18.PNG!)
+      const roofW = width + 1.35, roofD = depth + 1.45;
+      const shedSlope = new THREE.Mesh(new THREE.BoxGeometry(roofW, 0.14, roofD), materials.brightBlueRoof);
+      shedSlope.position.set(cx, floorH + wallH + 0.48, cz);
+      shedSlope.rotation.x = 0.11;
+      scene.add(shedSlope);
+      const shedFasciaFront = new THREE.Mesh(new THREE.BoxGeometry(roofW + 0.06, 0.18, 0.06), materials.gandakiBluePole);
+      shedFasciaFront.position.set(cx, floorH + wallH + 0.08, frontZ - 0.72);
+      scene.add(shedFasciaFront);
+      const shedFasciaBack = new THREE.Mesh(new THREE.BoxGeometry(roofW + 0.06, 0.18, 0.06), materials.gandakiBluePole);
+      shedFasciaBack.position.set(cx, floorH + wallH + 0.88, backZ + 0.72);
+      scene.add(shedFasciaBack);
+      for (let rx = leftX - 0.35; rx <= rightX + 0.35; rx += 0.92) {
+        const rafter = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.11, roofD - 0.15), materials.ebonyCarvedWood);
+        rafter.position.set(rx, floorH + wallH + 0.39, cz);
+        rafter.rotation.x = 0.11;
+        scene.add(rafter);
+      }
+      [leftX, rightX].forEach((wxPos) => {
+        const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.72, depth + 0.85), materials.campusStucco);
+        cheek.position.set(wxPos, floorH + wallH + 0.28, cz);
+        cheek.rotation.x = 0.11;
+        scene.add(cheek);
+      });
+
+      const yardY = getTerrainHeightAt(cx + 3.4, frontZ - 1.65);
+      const septicRing = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.12, 0.24, 18), materials.rotundaPlinthConcrete);
+      septicRing.position.set(cx + 3.4, yardY + 0.12, frontZ - 1.65);
+      scene.add(septicRing);
+      const septicLid = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.82, 0.26, 16), materials.plinthDarkConcrete);
+      septicLid.position.set(cx + 3.4, yardY + 0.13, frontZ - 1.65);
+      scene.add(septicLid);
+    }
+
+    // GANDAKI UNIVERSITY CAFETERIA BLOCK (bldg_east_wing_r1: "Cafeteria" at (3.0, 1.4, -25.5), 18.1m x 4.2m x 11.5m — 1:1 Replica of photo-output 17.PNG & photo-output 18.PNG!)
+    function buildCafeteriaBuildingBlock(cx = 3.0, cz = -25.5, width = 18.1, depth = 11.5, baseY = undefined) {
+      buildEnterableClassroomWing(cx, cz, width, depth, -1, true, 'East Wing R1', false, false, 2, baseY);
+
+      const bBaseY = typeof baseY === 'number' ? baseY : getTerrainHeightAt(cx, cz);
+      const floorH = bBaseY + PLINTH_HEIGHT;
+      const wallH = 3.55;
+      const frontZ = cz - depth * 0.5;
+      const backZ = cz + depth * 0.5;
+      const leftX = cx - width * 0.5;
+      const rightX = cx + width * 0.5;
+      const verandaColZ = frontZ - 2.15;
+
+      // 1. Royal-Blue Roof Eave Fascia Band & 20 Closely-Spaced Exposed Dark Rafter Tails across the Cafeteria Facade (photo-output 17.PNG!)
+      const cafeFascia = new THREE.Mesh(new THREE.BoxGeometry(width + 2.1, 0.18, 0.07), materials.gandakiBluePole);
+      cafeFascia.position.set(cx, floorH + wallH + 0.08, frontZ - 0.62);
+      scene.add(cafeFascia);
+      for (let rx = leftX - 0.45; rx <= rightX + 0.45; rx += 0.92) {
+        const rafterF = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.12, 0.78), materials.ebonyCarvedWood);
+        rafterF.position.set(rx, floorH + wallH - 0.06, frontZ - 0.32);
+        scene.add(rafterF);
+        const rafterB = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.12, 0.78), materials.ebonyCarvedWood);
+        rafterB.position.set(rx, floorH + wallH - 0.06, backZ + 0.32);
+        scene.add(rafterB);
+      }
+
+      // 2. White Aluminum Half-Glazed Double Door Trim & 2-Pane Rectangular Transom Windows Above Cafeteria Doors (photo-output 17.PNG!)
+      const roomW = width * 0.5;
+      [cx - roomW * 0.5, cx + roomW * 0.5].forEach((doorCX) => {
+        const transomFrame = new THREE.Mesh(new THREE.BoxGeometry(1.96, 0.56, 0.10), materials.whiteTrim);
+        transomFrame.position.set(doorCX, floorH + 2.86, frontZ - 0.12);
+        scene.add(transomFrame);
+        const transomGlass = new THREE.Mesh(new THREE.BoxGeometry(1.82, 0.44, 0.12), seeThroughWindowGlassMat);
+        transomGlass.position.set(doorCX, floorH + 2.86, frontZ - 0.12);
+        scene.add(transomGlass);
+        const transomMullion = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.52, 0.13), materials.whiteTrim);
+        transomMullion.position.set(doorCX, floorH + 2.86, frontZ - 0.12);
+        scene.add(transomMullion);
+      });
+
+      // 3. Lavender-Pink/Grey Connecting Canopy Fascia Band, Blue Veranda Railing Grilles & "GANDAKI UNIVERSITY CAFETERIA" Sign Board (photo-output 18.PNG!)
+      const pinkFasciaMat = new THREE.MeshStandardMaterial({ color: 0xbda4b8, roughness: 0.48, metalness: 0.22 });
+      const verandaFascia = new THREE.Mesh(new THREE.BoxGeometry(width + 0.65, 0.36, 0.08), pinkFasciaMat);
+      verandaFascia.position.set(cx, floorH + 3.12, verandaColZ - 0.18);
+      scene.add(verandaFascia);
+
+      const cafeSign = new THREE.Mesh(
+        createAtlasUvGeo(new THREE.BoxGeometry(1.65, 0.56, 0.06), 512, 192, 256, 96),
+        sharedSignageAtlasMat
+      );
+      cafeSign.position.set(cx, floorH + 3.15, verandaColZ - 0.23);
+      scene.add(cafeSign);
+
+      [leftX + 1.35, cx, rightX - 1.35].forEach((rxPos) => {
+        const railTop = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.05, 0.05), materials.gandakiBluePole);
+        railTop.position.set(rxPos, floorH + 0.92, verandaColZ);
+        scene.add(railTop);
+        const railBot = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.05, 0.05), materials.gandakiBluePole);
+        railBot.position.set(rxPos, floorH + 0.18, verandaColZ);
+        scene.add(railBot);
+        for (let bx = rxPos - 0.9; bx <= rxPos + 0.9; bx += 0.30) {
+          const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.74, 6), materials.gandakiBluePole);
+          bar.position.set(bx, floorH + 0.55, verandaColZ);
+          scene.add(bar);
+        }
+      });
+
+      [leftX + 0.14, rightX - 0.14].forEach((px) => {
+        const cPipe = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, wallH + 0.2, 8), materials.deskSteelFrame);
+        cPipe.position.set(px, floorH + wallH * 0.5, frontZ - 0.16);
+        scene.add(cPipe);
+      });
     }
 
     /* =========================================================================
@@ -16201,7 +16641,49 @@ export function getHideAndSeekHtml(): string {
     buildCornerQuoins(ghX - ghW / 2, ghFloorY, ghZ - ghD / 2, 3.04);
     buildCornerQuoins(ghX + ghW / 2, ghFloorY, ghZ - ghD / 2, 3.04);
     buildDetailedWindow(ghX - 0.4, ghFloorY + 1.55, ghZ - ghD / 2 - 0.12, -1, true);
-    buildPitchedGableRoof(ghX, ghFloorY + 3.04, ghZ, ghW + 1.2, ghD + 1.2, 1.15, materials.brightBlueRoof, true);
+    buildPitchedGableRoof(ghX, ghFloorY + 3.04, ghZ, ghW + 1.2, ghD + 1.2, 1.15, materials.brightBlueRoof, false);
+
+    (function buildSouthGateArchwayAndGeneratorShed() {
+      const shedW = 4.2, shedD = 4.4, shedRoofY = ghFloorY + 2.88;
+      const shedCX = ghX - ghW * 0.5 - shedW * 0.5 - 0.15;
+      const shedCZ = ghZ - 0.1;
+      const shedRoof = new THREE.Mesh(new THREE.BoxGeometry(shedW + 0.4, 0.10, shedD + 0.4), materials.brightBlueRoof);
+      shedRoof.position.set(shedCX, shedRoofY, shedCZ);
+      shedRoof.rotation.z = 0.08;
+      scene.add(shedRoof);
+      [[-shedW * 0.45, -shedD * 0.45], [-shedW * 0.45, shedD * 0.45], [shedW * 0.45, -shedD * 0.45], [shedW * 0.45, shedD * 0.45]].forEach(([px, pz]) => {
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 2.88, 8), materials.gandakiBluePole);
+        post.position.set(shedCX + px, ghFloorY + 1.44, shedCZ + pz);
+        scene.add(post);
+      });
+      const genX = shedCX - 0.55, genZ = ghZ - 1.65;
+      const genBody = new THREE.Mesh(
+        createAtlasUvGeo(new THREE.BoxGeometry(2.15, 1.28, 0.96), 768, 192, 256, 96),
+        sharedSignageAtlasMat
+      );
+      genBody.position.set(genX, ghBaseY + 0.64, genZ);
+      scene.add(genBody);
+
+      const archCX = 15.2, archZ = ghZ - ghD * 0.5 - 0.15, archSpan = 6.8, archH = 4.35;
+      const archBaseY = getTerrainHeightAt(archCX, archZ);
+      [-archSpan * 0.5, archSpan * 0.5].forEach((pxOff) => {
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.62, archH, 0.62), materials.gandakiBluePole);
+        pillar.position.set(archCX + pxOff, archBaseY + archH * 0.5, archZ);
+        scene.add(pillar);
+      });
+      const lintelBox = new THREE.Mesh(new THREE.BoxGeometry(archSpan + 1.15, 0.88, 0.72), materials.gandakiBluePole);
+      lintelBox.position.set(archCX, archBaseY + archH + 0.36, archZ);
+      scene.add(lintelBox);
+      [-0.37, 0.37].forEach((fzOff) => {
+        const signFace = new THREE.Mesh(
+          createAtlasUvGeo(new THREE.PlaneGeometry(archSpan + 0.95, 0.78), 512, 288, 512, 128),
+          sharedSignageAtlasMat
+        );
+        signFace.position.set(archCX, archBaseY + archH + 0.36, archZ + fzOff);
+        if (fzOff < 0) signFace.rotation.y = Math.PI;
+        scene.add(signFace);
+      });
+    })();
 
     /* =========================================================================
        3. 2 ENTERABLE GANDAKI UNIVERSITY BUSES ON THE RAISED 1.00m TERRACE
@@ -17547,7 +18029,7 @@ export function getHideAndSeekHtml(): string {
        ========================================================================= */
     // bldg_east_wing_r1: "Cafeteria" at JSON (3, 1.4, -25.5), dim 18.1 x 4.2 x 11.5, rotY = 0
     const r1Obj = getLayoutObj('bldg_east_wing_r1', { position: { x: 3.0, y: 1.4, z: -25.5 }, dimensions: { width: 18.1, height: 4.2, depth: 11.5 } });
-    buildEnterableClassroomWing(r1Obj.position.x, r1Obj.position.z, r1Obj.dimensions.width, r1Obj.dimensions.depth, -1, true, 'East Wing R1', false, false, 2, r1Obj.position.y);
+    buildCafeteriaBuildingBlock(r1Obj.position.x, r1Obj.position.z, r1Obj.dimensions.width, r1Obj.dimensions.depth, r1Obj.position.y);
 
     // bldg_east_wing_r2: "Multipurpose Hall" at JSON (28, 1.4, -27), dim 7.6 x 4.2 x 20.5, rotY = 0
     const r2Obj = getLayoutObj('bldg_east_wing_r2', { position: { x: 28.0, y: 1.4, z: -27.0 }, dimensions: { width: 7.6, height: 4.2, depth: 20.5 } });
@@ -17563,7 +18045,7 @@ export function getHideAndSeekHtml(): string {
 
     // bldg_3: "Washroom 1 " at JSON (12.5, 1.4, -42), dim 14.5 x 4 x 7.5, rotY = 0
     const b3Obj = getLayoutObj('bldg_3', { position: { x: 12.5, y: 1.4, z: -42.0 }, dimensions: { width: 14.5, height: 4.0, depth: 7.5 } });
-    buildEnterableClassroomWing(b3Obj.position.x, b3Obj.position.z, b3Obj.dimensions.width, b3Obj.dimensions.depth, -1, false, 'Washroom 1 B3', false, false, 1, b3Obj.position.y);
+    buildCampusWashroomBlock(b3Obj.position.x, b3Obj.position.z, b3Obj.dimensions.width, b3Obj.dimensions.depth, b3Obj.position.y);
 
     // bldg_1: "Office " (2-Storey Administrative Office Block) at JSON (21, 1.4, -56), dim 15.5 x 7 x 7.5, rotY = 0
     const b1Obj = getLayoutObj('bldg_1', { position: { x: 21.0, y: 1.4, z: -56.0 }, dimensions: { width: 15.5, height: 7.0, depth: 7.5 } });

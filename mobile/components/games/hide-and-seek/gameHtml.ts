@@ -14190,22 +14190,13 @@ export function getHideAndSeekHtml(): string {
       const tStates = cCfg.tubeStates || {};
       const tSpill = cCfg.tubeSpill || {};
 
-      // Animate classroom ceiling fans with 1 bent blade when room is visible
+      // Smoothly spin 3-blade ceiling fans 360° when room is visible and room switch is ON
       for (let f = 0; f < animatedClassroomFans.length; f++) {
         const fn = animatedClassroomFans[f];
         if (!fn.roomGroup || !fn.roomGroup.visible) continue;
-        fn.hub.rotation.y = Math.sin(timeSec * (fn.speed || 0.85) + fn.seed) * 0.42;
-      }
-
-      // Animate ULTRA-only doorway ground mist planes when room is visible
-      for (let m = 0; m < classroomDoorMistPlanes.length; m++) {
-        const dm = classroomDoorMistPlanes[m];
-        if (!dm || !dm.mesh || !dm.mesh.visible) continue;
-        const bx = (typeof dm.baseX === 'number') ? dm.baseX : dm.mesh.position.x;
-        const bz = (typeof dm.baseZ === 'number') ? dm.baseZ : dm.mesh.position.z;
-        const ph = (typeof dm.phase === 'number') ? dm.phase : 0;
-        dm.mesh.position.x = bx + Math.sin(timeSec * 0.34 + ph) * 0.22;
-        dm.mesh.position.z = bz + Math.cos(timeSec * 0.28 + ph) * 0.18;
+        const rId = fn.roomId || (fn.roomGroup.userData && fn.roomGroup.userData.roomDef && fn.roomGroup.userData.roomDef.id);
+        if (rId && roomLightSwitchStates[rId] === false) continue;
+        fn.hub.rotation.y = (timeSec * 4.2 + (fn.seed || 0)) % (Math.PI * 2);
       }
 
       for (let i = 0; i < roomMoodFixtures.length; i++) {
@@ -14224,49 +14215,34 @@ export function getHideAndSeekHtml(): string {
           continue;
         }
 
-        // Irregular stuttering warm fluorescent tube burst math (simplified on FAST)
-        let tubeStutter = 0.22;
-        if (calmTube) {
-          tubeStutter = 0.88 + 0.08 * Math.sin(timeSec * 7.85 + rf.seed);
-        } else if (safeFlicker || isFast) {
-          tubeStutter = 0.72 + 0.18 * Math.sin(timeSec * 9.5 + rf.seed);
-        } else {
-          const w1 = Math.sin(timeSec * ((fRates.stutterBurstHz || 18.5) * 1.1) + rf.seed * 3.1);
-          const w2 = Math.sin(timeSec * 41.0 + rf.seed * 7.4);
-          const burstGate = Math.sin(timeSec * (fRates.stutterBaseHz || 3.1) + rf.seed);
-          const dropout = (burstGate > (fRates.stutterDropoutThreshold || 0.64)) ? 0.04 : 1.0;
-          tubeStutter = (w1 > -0.22 ? (0.72 + 0.28 * w2) : 0.08) * dropout;
-        }
+        // Clean, steady realistic fluorescent illumination (no harsh horror stutter dropout)
+        const tubeSteady = 0.96 + 0.04 * Math.sin(timeSec * 2.4 + rf.seed);
         if (rf.stutterTubeMat) {
           const peak = tStates.stutterPeakIntensity || 1.65;
-          rf.stutterTubeMat.emissiveIntensity = Math.max(tStates.stutterMinIntensity || 0.05, peak * tubeStutter);
+          rf.stutterTubeMat.emissiveIntensity = peak * tubeSteady;
         }
         if (rf.steadyTubeMat) {
-          rf.steadyTubeMat.emissiveIntensity = 0.58 + 0.08 * Math.sin(timeSec * 5.2 + rf.seed);
+          rf.steadyTubeMat.emissiveIntensity = 0.85 * tubeSteady;
         }
         if (rf.floorSpillMat && rf.mood !== 'emergency_red') {
-          rf.floorSpillMat.opacity = (tSpill.floorSpillOpacity || 0.18) * (0.35 + 0.65 * tubeStutter);
+          rf.floorSpillMat.opacity = (tSpill.floorSpillOpacity || 0.18) * tubeSteady;
         }
         if (rf.deskSpillMat && rf.mood !== 'emergency_red') {
-          rf.deskSpillMat.opacity = (tSpill.deskSpillOpacity || 0.14) * (0.35 + 0.65 * tubeStutter);
+          rf.deskSpillMat.opacity = (tSpill.deskSpillOpacity || 0.14) * tubeSteady;
         }
 
         let mult = 1.0;
         if (rf.mood === 'dying_tube') {
-          mult = tubeStutter;
+          mult = tubeSteady;
           if (rf.bulbMat) rf.bulbMat.emissiveIntensity = (tStates.stutterPeakIntensity || 1.65) * mult;
           if (rf.poolMat) rf.poolMat.opacity = (tSpill.floorSpillOpacity || 0.18) * mult;
         } else if (rf.mood === 'emergency_red') {
-          const pulse = steadyRed
-            ? 0.85
-            : (safeFlicker || isFast
-              ? (0.75 + 0.12 * Math.sin(timeSec * 2.2 + rf.seed))
-              : (0.42 + 0.48 * (0.5 + 0.5 * Math.sin(timeSec * 3.1 + rf.seed))));
+          const pulse = steadyRed ? 0.92 : (0.86 + 0.08 * Math.sin(timeSec * 2.0 + rf.seed));
           mult = pulse;
           if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 1.25 * pulse;
           if (rf.poolMat) rf.poolMat.opacity = 0.18 * pulse;
         } else if (rf.mood === 'warm_lamp') {
-          mult = 0.96 + 0.04 * Math.sin(timeSec * 3.2 + rf.seed);
+          mult = 0.97 + 0.03 * Math.sin(timeSec * 2.5 + rf.seed);
           if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 1.45 * mult;
           if (rf.poolMat) rf.poolMat.opacity = 0.28 * mult;
         } else if (rf.mood === 'moonlight') {
@@ -14282,9 +14258,6 @@ export function getHideAndSeekHtml(): string {
           const hd = rf.halfD || 6.8;
           if (Math.abs(playerPos.x - rf.worldX) <= hw + 1.5 && Math.abs(playerPos.z - rf.worldZ) <= hd + 1.5) {
             if (rf.baseIntensity > 0.01) insideFixture = rf;
-            if (!calmTube && !safeFlicker && tubeStutter < 0.16 && Math.random() < 0.028) {
-              soundEngine.playTubeFlickerBuzzSfx();
-            }
           }
         }
       }
@@ -14372,7 +14345,7 @@ export function getHideAndSeekHtml(): string {
       // 1. Room-Fitted Ceiling Slab, Interior Floor Tile Surface, Perimeter Skirting Boards & Corner Pilasters
       const ceilPanel = new THREE.Mesh(
         createWorldScaledBoxGeo(ceilW, 0.08, ceilD, 2.6),
-        isNewariStyle ? materials.carvedSalWood : materials.stainedCeilingTiles
+        isNewariStyle ? materials.carvedSalWood : materials.rotundaInteriorWall
       );
       ceilPanel.position.set(0, ceilY, 0);
       cGroup.add(ceilPanel);
@@ -14427,33 +14400,31 @@ export function getHideAndSeekHtml(): string {
         cGroup.add(pil);
       });
 
-      // 3 Ceiling Pendant Tube Reflector Hoods:
-      // Hood 0 (-1.65, -1.85) & Hood 1 (0.95, 0.98) receive dynamic switchable tubes in applyRoomLightMoodFixtures; Hood 2 (-1.65, 2.05) holds the dead tube.
-      [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz], tIdx) => {
+      // 3 Ceiling Pendant Tube Reflector Hoods mounted flush against the 3.44m ceiling slab (top of +0.23m suspension rods at y = 3.43m)
+      [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz]) => {
         const hood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
-        hood.position.set(tx, ceilY - 0.08, tz);
+        hood.position.set(tx, ceilY - 0.24, tz);
         cGroup.add(hood);
-        if (tIdx === 2) {
-          const deadTube = new THREE.Mesh(tubeStripGeo, step2Mats.deadTubeMat);
-          deadTube.position.set(tx, ceilY - 0.11, tz);
-          cGroup.add(deadTube);
-        }
       });
 
-      // Ceiling Fan with 1 Bent Blade
-      const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.deskSteelFrame);
+      // Clean 3-Blade Ceiling Fan with Ceiling Canopy Cup & Motor Hub (spins smoothly when room switch is ON)
+      const fanCanopy = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.06, 0.06, 10), materials.whiteTrim);
+      fanCanopy.position.set(0, ceilY - 0.03, -0.4);
+      cGroup.add(fanCanopy);
+      const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.40, 8), materials.deskSteelFrame);
       fanRod.position.set(0, ceilY - 0.22, -0.4);
       cGroup.add(fanRod);
       const fanHub = new THREE.Group();
       fanHub.position.set(0, ceilY - 0.42, -0.4);
       fanHub.userData.noMerge = true;
-      const bentAng = (cCfg.propDensity && cCfg.propDensity.ceilingFanBentBladeRad) || 0.28;
+      const motorDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.06, 12), materials.whiteTrim);
+      motorDisc.userData.noMerge = true;
+      fanHub.add(motorDisc);
       for (let b = 0; b < 3; b++) {
         const ang = (b * Math.PI * 2) / 3;
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.deskSteelFrame);
-        blade.position.set(Math.sin(ang) * 0.44, b === 0 ? -0.09 : 0.0, Math.cos(ang) * 0.44);
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.whiteTrim);
+        blade.position.set(Math.sin(ang) * 0.44, 0.0, Math.cos(ang) * 0.44);
         blade.rotation.y = ang;
-        if (b === 0) blade.rotation.x = bentAng;
         blade.userData.noMerge = true;
         fanHub.add(blade);
       }
@@ -14461,8 +14432,9 @@ export function getHideAndSeekHtml(): string {
       animatedClassroomFans.push({
         hub: fanHub,
         roomGroup: cGroup,
+        roomId: roomDef.id,
         seed: roomSeed,
-        speed: (cCfg.propDensity && cCfg.propDensity.fanSwaySpeed) || 0.85,
+        speed: 4.2,
       });
 
       // Working Wall Light Switch mounted right inside the room doorway
@@ -18644,23 +18616,55 @@ export function getHideAndSeekHtml(): string {
       // Startup Baked AO in wall-floor corners, ceiling corners & behind half-open doors
       addRoomStartupBakedAO(rGroup, 14.0, 13.4, sideSign);
 
-      // Finished Interior Stained Acoustic Drop-Ceiling Grid Slab at y = 3.38m (Ref 1, Ref 2, Ref 5)
+      // Clean Acoustic Drop-Ceiling Grid Slab at y = 3.38m
       const ceilGeo = remapInteriorAtlasUVs(new THREE.BoxGeometry(14.1, 0.08, 13.5), 0, 384, 256, 128);
-      const roomCeiling = new THREE.Mesh(ceilGeo, materials.stainedCeilingTiles);
+      const roomCeiling = new THREE.Mesh(ceilGeo, materials.rotundaInteriorWall);
       roomCeiling.position.set(0, 3.38, 0);
       rGroup.add(roomCeiling);
 
-      // Recessed Square Drop-Ceiling Troffer Panels & Industrial Twin-Cord Pendant Tube Fixtures (Ref 1 & Ref 4)
+      // Recessed Square Drop-Ceiling Troffer Panels & Twin-Cord Pendant Tube Fixtures mounted flush to y = 3.38m ceiling
       [-3.4, 3.4].forEach(px => {
         [-3.2, 0.0, 3.2].forEach((pz, pIdx) => {
           const pHood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
-          pHood.position.set(px, 2.90, pz);
+          pHood.position.set(px, 3.14, pz);
           rGroup.add(pHood);
           if (pIdx === 1) {
             const rPanel = new THREE.Mesh(step2Geos.recessedCeilingPanel, step2Mats.recessedPanelWarmMat);
             rPanel.position.set(px * 0.5, 3.34, pz);
             rGroup.add(rPanel);
           }
+        });
+      });
+
+      // Twin 3-Blade Ceiling Fans mounted flush to the 3.38m Rotunda ceiling
+      [-2.8, 2.8].forEach((fx, fIdx) => {
+        const fanCanopy = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.06, 0.06, 10), materials.whiteTrim);
+        fanCanopy.position.set(fx, 3.35, 0.0);
+        rGroup.add(fanCanopy);
+        const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 8), materials.deskSteelFrame);
+        fanRod.position.set(fx, 3.16, 0.0);
+        rGroup.add(fanRod);
+        const fanHub = new THREE.Group();
+        fanHub.position.set(fx, 2.96, 0.0);
+        fanHub.userData.noMerge = true;
+        const motorDisc = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.06, 12), materials.whiteTrim);
+        motorDisc.userData.noMerge = true;
+        fanHub.add(motorDisc);
+        for (let b = 0; b < 3; b++) {
+          const ang = (b * Math.PI * 2) / 3;
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.whiteTrim);
+          blade.position.set(Math.sin(ang) * 0.44, 0.0, Math.cos(ang) * 0.44);
+          blade.rotation.y = ang;
+          blade.userData.noMerge = true;
+          fanHub.add(blade);
+        }
+        rGroup.add(fanHub);
+        animatedClassroomFans.push({
+          hub: fanHub,
+          roomGroup: rGroup,
+          roomId: roomTitle,
+          seed: floorNum * 11 + fIdx * 3,
+          speed: 4.2,
         });
       });
 
@@ -18797,7 +18801,25 @@ export function getHideAndSeekHtml(): string {
         boardTray.position.set(-0.1, 1.18, boardZ - 0.08);
         rGroup.add(boardTray);
 
-        // Teacher Lectern Podium & Beveled Professor Desk with Drawers/Handles + Upright & Toppled Swivel Chairs (Ref 1!)
+        // Ceiling-Mounted LCD Projector (connected flush to 3.38m ceiling) & Pull-Down White Projection Screen
+        const projRod = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.44, 8), materials.deskSteelFrame);
+        projRod.position.set(0.0, 3.16, 1.65);
+        rGroup.add(projRod);
+        const projBody = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.13, 0.32), materials.whiteTrim);
+        projBody.position.set(0.0, 2.92, 1.65);
+        rGroup.add(projBody);
+        const projLens = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.042, 0.06, 10), step2Mats.steadyDimTubeMat);
+        projLens.rotation.x = Math.PI / 2;
+        projLens.position.set(0.0, 2.91, 1.82);
+        rGroup.add(projLens);
+        const screenHousing = new THREE.Mesh(new THREE.BoxGeometry(2.85, 0.08, 0.08), materials.deskSteelFrame);
+        screenHousing.position.set(2.4, 2.72, boardZ - 0.08);
+        rGroup.add(screenHousing);
+        const screenCanvas = new THREE.Mesh(new THREE.BoxGeometry(2.68, 1.42, 0.015), materials.whiteboardSurface);
+        screenCanvas.position.set(2.4, 1.98, boardZ - 0.075);
+        rGroup.add(screenCanvas);
+
+        // Teacher Lectern Podium & Beveled Professor Desk with Drawers/Handles + Upright Swivel Chair
         const profDeskX = -2.4;
         const profDeskZ = boardZ - 1.35;
         const profDesk = new THREE.Mesh(step2Geos.officeDesk, materials.chairWood);
@@ -18867,58 +18889,35 @@ export function getHideAndSeekHtml(): string {
 
         rowZOffsets.forEach((rz, rIdx) => {
           colXOffsets.forEach((cxOff, cIdx) => {
-            const seed = (rIdx * 7 + cIdx * 13 + floorNum * 5);
-            const jitterX = ((seed % 7) - 3) * 0.018;
-            const jitterZ = (((seed * 3) % 7) - 3) * 0.016;
-            const jitterYaw = (((seed * 5) % 9) - 4) * 0.022;
-            const isToppled = !!(dressing.toppledDesk && rIdx === 2 && cIdx === 2);
-
-            const dx = cxOff + jitterX;
-            const dz = rz + jitterZ;
+            const jitterYaw = 0.0;
+            const isToppled = false;
+            const dx = cxOff;
+            const dz = rz;
 
             // Under-desk contact AO decal strip
-            addUnderFurnitureAO(rGroup, dx, dz - 0.14, 1.56, 1.15, jitterYaw);
+            addUnderFurnitureAO(rGroup, dx, dz - 0.14, 1.56, 1.15, 0.0);
 
             const dMesh = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
-            if (isToppled) {
-              dMesh.position.set(dx, 0.36, dz + 0.12);
-              dMesh.rotation.set(1.38, jitterYaw + 0.22, 0.12);
-            } else {
-              dMesh.position.set(dx, 0.74, dz);
-              dMesh.rotation.y = jitterYaw;
-            }
+            dMesh.position.set(dx, 0.74, dz);
             rGroup.add(dMesh);
 
             const modesty = new THREE.Mesh(sharedGeos.deskModestyPanel, materials.chairWood);
-            modesty.position.set(dx, isToppled ? 0.28 : 0.52, dz + 0.24);
-            modesty.rotation.y = jitterYaw;
+            modesty.position.set(dx, 0.52, dz + 0.24);
             rGroup.add(modesty);
 
             [-0.58, 0.58].forEach(lx => {
               const leg = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
               leg.position.set(dx + lx, 0.36, dz);
-              leg.rotation.y = jitterYaw;
               rGroup.add(leg);
             });
 
-            // Constructed Bench with Legs & Cross-Brace (pushed in, tilted, or fallen)
-            const isFallenBench = (rIdx === 1 && cIdx === 0 && dressing.toppledDesk);
-            const benchPushZ = ((seed % 3) - 1) * 0.06;
-            const benchYaw = jitterYaw + (((seed * 11) % 7) - 3) * 0.035;
-
+            // Constructed Bench with Legs & Cross-Brace (upright & grounded flush at y = 0.000m)
             const benchSeat = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
-            if (isFallenBench) {
-              benchSeat.position.set(dx - 0.08, 0.22, dz - 0.54);
-              benchSeat.rotation.set(-1.32, benchYaw, 0.08);
-            } else {
-              benchSeat.position.set(dx, 0.44, dz - 0.48 + benchPushZ);
-              benchSeat.rotation.y = benchYaw;
-            }
+            benchSeat.position.set(dx, 0.44, dz - 0.48);
             rGroup.add(benchSeat);
 
             const benchBack = new THREE.Mesh(step2Geos.benchLongBack, materials.chairWood);
-            benchBack.position.set(dx, isFallenBench ? 0.16 : 0.62, dz - 0.64 + benchPushZ);
-            benchBack.rotation.y = benchYaw;
+            benchBack.position.set(dx, 0.62, dz - 0.64);
             rGroup.add(benchBack);
 
             if (isRotundaLab) {
@@ -19057,85 +19056,11 @@ export function getHideAndSeekHtml(): string {
         );
       }
 
-      // Shared Classroom Horror Decay, Props & Deterministic "Wrong" Detail for Rotunda Classrooms
+      // Clean Classroom Props & Framed Wall Charts for Rotunda Classrooms
       if (rArch === 'rotunda_lecture' || rArch === 'rotunda_seminar') {
         addSharedClassroomHorrorDecayAndProps(rGroup, roomDef, roomCX, roomCZ, floorY, -1, 14.0, 13.4, sideSign, floorNum * 19 + sideSign * 7);
       }
-      // Data-Driven Horror Dressing Items + Small Clutter & Asymmetry (Papers, Bottles, Fallen Chair, Jacket, Posters)
       populateRoomClutterAndAsymmetry(rGroup, 13.4, 12.6, floorNum * 19 + sideSign * 7, false);
-
-      // 1) Solitary Chair Facing the Corner Wall (Requirement 4)
-      if (dressing.chairFacingWall) {
-        const eerieChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
-        eerieChair.position.set(sideSign * 5.85, 0.45, -5.65);
-        eerieChair.rotation.y = sideSign > 0 ? Math.PI * 0.25 : -Math.PI * 0.25;
-        rGroup.add(eerieChair);
-        addUnderFurnitureAO(rGroup, sideSign * 5.85, -5.65, 0.62, 0.62);
-      }
-
-      // 2) Scattered Loose Papers & Fallen Books Fanned Around Floor & Corner Desk (Ref 1 & Ref 3!)
-      if (dressing.scatteredPapers) {
-        [
-          [-1.6, -2.8, 0.35], [-1.2, -2.5, -0.62], [1.8, -0.9, 0.84],
-          [2.1, 1.1, -0.42], [-2.5, 1.4, 1.12], [0.4, -4.6, 0.28],
-          [-2.2, 4.1, 0.52], [-1.7, 3.8, -0.34], [-2.7, 4.3, 1.05],
-          [sideSign * 3.8, -4.1, 0.44], [sideSign * 4.1, -3.7, -0.58],
-        ].forEach(([px, pz, rot], pIdx) => {
-          const sheet = new THREE.Mesh(
-            pIdx % 3 === 0 ? step2Geos.openBook : step2Geos.noticeNote,
-            step2Mats.paperSheet
-          );
-          sheet.position.set(px, 0.020, pz);
-          sheet.rotation.set(Math.PI / 2, 0, rot);
-          rGroup.add(sheet);
-        });
-      }
-
-      // 3) Cracked Window Glass Overlay (Requirement 4: optional cracked window per room)
-      if (dressing.crackedWindow) {
-        const crackPane = new THREE.Mesh(
-          remapInteriorAtlasUVs(new THREE.PlaneGeometry(1.65, 1.35), 0, 256, 256, 128),
-          materials.windowGlass
-        );
-        crackPane.position.set(sideSign * 6.84, 1.92, 0.0);
-        crackPane.rotation.y = -sideSign * Math.PI / 2;
-        rGroup.add(crackPane);
-      }
-
-      // 4) Single Mysterious Item Left on Central Desk (Astrolabe / Recorder / Key / Ledger / Lantern / Drive)
-      if (dressing.mysteriousItem) {
-        const mysBase = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 0.08, 8), materials.deskSteelFrame);
-        mysBase.position.set(0.0, 0.81, 0.2);
-        rGroup.add(mysBase);
-        const mysOrb = new THREE.Mesh(new THREE.DodecahedronGeometry(0.085, 0), step2Mats.recessedPanelWarmMat);
-        mysOrb.position.set(0.0, 0.90, 0.2);
-        rGroup.add(mysOrb);
-      }
-
-      // 5) Damp Wall Stains & Ceiling Corner Cobwebs
-      if (dressing.wallStains) {
-        const stain1 = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 2.2), step2Mats.wallStainDecal);
-        stain1.position.set(-4.2, 2.1, 6.62);
-        stain1.rotation.y = Math.PI;
-        rGroup.add(stain1);
-        const stain2 = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.9), step2Mats.wallStainDecal);
-        stain2.position.set(sideSign * 6.92, 1.85, -3.4);
-        stain2.rotation.y = -sideSign * Math.PI / 2;
-        rGroup.add(stain2);
-      }
-      if (dressing.cobwebs) {
-        [
-          [-6.55, 3.18, -6.35,  0.78],
-          [ 6.55, 3.18, -6.35, -0.78],
-          [-6.55, 3.18,  6.35,  2.35],
-          [ 6.55, 3.18,  6.35, -2.35],
-        ].forEach(([wx, wy, wz, ry]) => {
-          const web = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.65), step2Mats.cobwebMat);
-          web.position.set(wx, wy, wz);
-          web.rotation.set(0.32, ry, 0);
-          rGroup.add(web);
-        });
-      }
 
       // Bake all static geometry in the room first
       rGroup.userData.isRoomGroup = true;

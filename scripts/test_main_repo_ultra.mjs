@@ -3,6 +3,9 @@ import path from 'node:path';
 import http from 'node:http';
 import { chromium } from 'playwright';
 import { THREE_MIN_JS } from '../mobile/components/games/hide-and-seek/threeMinJs.ts';
+import { GLTF_LOADER_R128_JS } from '../mobile/components/games/hide-and-seek/gltfLoaderR128.ts';
+import { LIBRARY_GLB_DATA_URI } from '../mobile/components/games/hide-and-seek/libraryGlbBase64.ts';
+import { UNIFIED_SKY_DOME_BASE64 } from '../mobile/components/games/hide-and-seek/unifiedSkyDomeBase64.ts';
 
 const mainRepoPath = '/Users/sauu_gat/semester-library';
 const gameHtmlPath = path.resolve(mainRepoPath, 'mobile/components/games/hide-and-seek/gameHtml.ts');
@@ -22,8 +25,8 @@ const configJson = JSON.stringify(HORROR_CONFIG);
 const start = file.indexOf("return `");
 const end = file.lastIndexOf("`;") + 2;
 const fnBody = file.slice(start, end);
-const fn = new Function("THREE_MIN_JS", "configJson", fnBody);
-const html = fn(THREE_MIN_JS, configJson);
+const fn = new Function("THREE_MIN_JS", "GLTF_LOADER_R128_JS", "LIBRARY_GLB_DATA_URI", "UNIFIED_SKY_DOME_BASE64", "configJson", fnBody);
+const html = fn(THREE_MIN_JS, GLTF_LOADER_R128_JS, LIBRARY_GLB_DATA_URI, UNIFIED_SKY_DOME_BASE64, configJson);
 
 async function testMainRepo() {
   const server = http.createServer((req, res) => {

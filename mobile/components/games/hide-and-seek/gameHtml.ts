@@ -2,6 +2,7 @@ import { THREE_MIN_JS } from './threeMinJs';
 import { HORROR_CONFIG } from './horrorConfig';
 import { GLTF_LOADER_R128_JS } from './gltfLoaderR128';
 import { LIBRARY_GLB_DATA_URI } from './libraryGlbBase64';
+import { UNIFIED_SKY_DOME_BASE64 } from './unifiedSkyDomeBase64';
 
 export function getHideAndSeekHtml(): string {
   const configJson = JSON.stringify(HORROR_CONFIG);
@@ -507,6 +508,7 @@ export function getHideAndSeekHtml(): string {
     ${THREE_MIN_JS}
     ${GLTF_LOADER_R128_JS}
     window.LIBRARY_GLB_DATA_URI = ${JSON.stringify(LIBRARY_GLB_DATA_URI)};
+    window.UNIFIED_SKY_DOME_URI = ${JSON.stringify(UNIFIED_SKY_DOME_BASE64)};
   </script>
 </head>
 <body>
@@ -4242,138 +4244,31 @@ export function getHideAndSeekHtml(): string {
         this.skyGroup.name = 'NightHorrorSkyAndSilhouettes';
 
         // ---------------------------------------------------------------------
-        // 1. HIGH-DEFINITION CELESTIAL SKY DOME & THE GREAT HIMALAYAN MILKY WAY
+        // 1. UNIFIED CELESTIAL SKY DOME WITH REAL HIMALAYAS & POKHARA VALLEY
+        // One seamless sphere: zero cylinder rims, zero seams, zero clipping!
+        // Directly composited from authentic high-resolution Pokhara photographs
         // ---------------------------------------------------------------------
-        const skyCanvas = document.createElement('canvas');
-        skyCanvas.width = 1024;
-        skyCanvas.height = 512;
-        const sCtx = skyCanvas.getContext('2d');
-
-        // Deep Nocturnal Himalayan Autumn Sky Gradient (Kartik Laxmi Puja Night)
-        // Perfectly seamless horizontally across u = 0 to u = 1
-        const skyGrad = sCtx.createLinearGradient(0, 0, 0, 512);
-        skyGrad.addColorStop(0.00, '#010308'); // Cosmic zenith black-indigo
-        skyGrad.addColorStop(0.22, '#030713'); // High celestial deep sapphire
-        skyGrad.addColorStop(0.50, '#050f20'); // Mid-dome Himalayan nocturnal navy
-        skyGrad.addColorStop(0.76, '#081425'); // Atmospheric lower vault
-        skyGrad.addColorStop(0.92, '#0b1220'); // Exact match to scene fogColor (0x0b1220)
-        skyGrad.addColorStop(1.00, '#070d18'); // Ground fade
-        sCtx.fillStyle = skyGrad;
-        sCtx.fillRect(0, 0, 1024, 512);
-
-        // The Great Himalayan Milky Way Arch (Luminous Cosmic Gas & Dust Clouds)
-        sCtx.save();
-        const mwSpline = [
-          { x: 160, y: 360, w: 90,  a: 0.22 },
-          { x: 300, y: 240, w: 125, a: 0.32 },
-          { x: 480, y: 140, w: 155, a: 0.42 },
-          { x: 680, y: 125, w: 140, a: 0.36 },
-          { x: 860, y: 220, w: 110, a: 0.26 },
-        ];
-
-        // 1A. Outer celestial nebula glow (deep violet & cyan-azure cosmic gas)
-        mwSpline.forEach(pt => {
-          const rgViolet = sCtx.createRadialGradient(pt.x, pt.y, 10, pt.x, pt.y, pt.w * 1.6);
-          rgViolet.addColorStop(0.00, 'rgba(78, 54, 132, ' + (pt.a * 0.75).toFixed(3) + ')');
-          rgViolet.addColorStop(0.40, 'rgba(40, 78, 142, ' + (pt.a * 0.45).toFixed(3) + ')');
-          rgViolet.addColorStop(0.75, 'rgba(20, 42, 85, ' + (pt.a * 0.18).toFixed(3) + ')');
-          rgViolet.addColorStop(1.00, 'rgba(11, 18, 32, 0)');
-          sCtx.fillStyle = rgViolet;
-          sCtx.beginPath();
-          sCtx.arc(pt.x, pt.y, pt.w * 1.6, 0, Math.PI * 2);
-          sCtx.fill();
-        });
-
-        // 1B. Luminous core star clouds (dense galactic core brightness)
-        mwSpline.forEach(pt => {
-          const rgCore = sCtx.createRadialGradient(pt.x + 3, pt.y - 2, 4, pt.x, pt.y, pt.w * 0.85);
-          rgCore.addColorStop(0.00, 'rgba(230, 240, 255, ' + (pt.a * 0.90).toFixed(3) + ')');
-          rgCore.addColorStop(0.32, 'rgba(175, 212, 252, ' + (pt.a * 0.62).toFixed(3) + ')');
-          rgCore.addColorStop(0.68, 'rgba(92, 142, 205, ' + (pt.a * 0.28).toFixed(3) + ')');
-          rgCore.addColorStop(1.00, 'rgba(11, 18, 32, 0)');
-          sCtx.fillStyle = rgCore;
-          sCtx.beginPath();
-          sCtx.arc(pt.x, pt.y, pt.w * 0.85, 0, Math.PI * 2);
-          sCtx.fill();
-        });
-
-        // 1C. Organic dust mottling (feathered soft cosmic dust breaks)
-        for (let d = 0; d < 22; d++) {
-          const t = d / 22;
-          const gx = 220 + t * 580 + Math.sin(d * 3.7) * 24;
-          const gy = 300 - Math.sin(t * Math.PI) * 190 + Math.cos(d * 4.1) * 18;
-          const gw = 18 + (d % 4) * 8;
-          const dGrad = sCtx.createRadialGradient(gx, gy, 2, gx, gy, gw);
-          dGrad.addColorStop(0.0, 'rgba(3, 7, 16, 0.28)');
-          dGrad.addColorStop(0.7, 'rgba(5, 12, 24, 0.12)');
-          dGrad.addColorStop(1.0, 'rgba(11, 18, 32, 0.0)');
-          sCtx.fillStyle = dGrad;
-          sCtx.beginPath();
-          sCtx.arc(gx, gy, gw, 0, Math.PI * 2);
-          sCtx.fill();
-        }
-
-        // 1D. Embedded Micro-Star Clusters along the Milky Way
-        for (let ms = 0; ms < 900; ms++) {
-          const t = ms / 900;
-          const baseX = 160 + t * 700;
-          const baseY = 360 - Math.sin(t * Math.PI) * 240;
-          const spread = (Math.sin(t * Math.PI) * 55 + 18) * (Math.sin(ms * 12.3) * 0.5 + 0.5);
-          const ang = Math.sin(ms * 33.7) * Math.PI * 2;
-          const sx = baseX + Math.cos(ang) * spread;
-          const sy = baseY + Math.sin(ang) * (spread * 0.65);
-          const sa = (0.28 + (ms % 7) * 0.10) * Math.min(1.0, Math.max(0.0, 1.0 - sy / 460));
-          const sr = (ms % 23 === 0) ? 1.3 : ((ms % 7 === 0) ? 0.95 : 0.60);
-          sCtx.fillStyle = (ms % 5 === 0) ? ('rgba(255, 230, 195, ' + sa.toFixed(2) + ')') : ('rgba(225, 240, 255, ' + sa.toFixed(2) + ')');
-          sCtx.fillRect(sx, sy, sr, sr);
-        }
-
-        // 1E. The Pleiades (Krittika / Seven Sisters Cluster) enveloped in azure nebulosity
-        const plx = 640, ply = 145;
-        const plNeb = sCtx.createRadialGradient(plx, ply, 3, plx, ply, 34);
-        plNeb.addColorStop(0.00, 'rgba(150, 200, 255, 0.38)');
-        plNeb.addColorStop(0.55, 'rgba(80, 130, 220, 0.16)');
-        plNeb.addColorStop(1.00, 'rgba(10, 20, 35, 0)');
-        sCtx.fillStyle = plNeb;
-        sCtx.beginPath();
-        sCtx.arc(plx, ply, 34, 0, Math.PI * 2);
-        sCtx.fill();
-
-        [
-          [0, 0, 1.4], [-6, -4, 1.2], [5, -5, 1.1], [-4, 6, 1.2],
-          [7, 3, 1.0], [12, -2, 0.9], [-11, 2, 0.9]
-        ].forEach(([ox, oy, sz]) => {
-          sCtx.fillStyle = 'rgba(235, 246, 255, 0.95)';
-          sCtx.beginPath();
-          sCtx.arc(plx + ox, ply + oy, sz, 0, Math.PI * 2);
-          sCtx.fill();
-        });
-
-        // 1F. Pokhara Valley Laxmi Puja Horizon Light Dome (Southern Festive Glow)
-        const vGlow = sCtx.createRadialGradient(512, 495, 25, 512, 495, 340);
-        vGlow.addColorStop(0.00, 'rgba(255, 154, 46, 0.28)'); // Warm golden Tihar diya ambience
-        vGlow.addColorStop(0.35, 'rgba(235, 120, 28, 0.16)');
-        vGlow.addColorStop(0.70, 'rgba(180, 85, 20, 0.06)');
-        vGlow.addColorStop(1.00, 'rgba(11, 18, 32, 0.0)');
-        sCtx.fillStyle = vGlow;
-        sCtx.fillRect(180, 360, 664, 152);
-
-        // Scattered warm festive light pinpricks across the lower Pokhara valley
-        for (let vl = 0; vl < 80; vl++) {
-          const vx = 260 + ((vl * 37 + 11) % 504);
-          const vy = 455 + ((vl * 19 + 7) % 40);
-          const va = 0.25 + (vl % 5) * 0.12;
-          sCtx.fillStyle = (vl % 3 === 0) ? ('rgba(255, 186, 75, ' + va.toFixed(2) + ')') : ('rgba(255, 140, 42, ' + va.toFixed(2) + ')');
-          sCtx.fillRect(vx, vy, 1.2, 1.2);
-        }
-        sCtx.restore();
-
-        const skyTex = new THREE.CanvasTexture(skyCanvas);
+        const skyImg = (typeof Image !== 'undefined')
+          ? new Image()
+          : ((typeof document !== 'undefined' && document.createElement) ? document.createElement('img') : null);
+        const skyTex = skyImg ? new THREE.Texture(skyImg) : new THREE.Texture();
+        skyTex.wrapS = THREE.RepeatWrapping;
+        skyTex.wrapT = THREE.ClampToEdgeWrapping;
         if (THREE.SRGBColorSpace) skyTex.colorSpace = THREE.SRGBColorSpace;
         else if (THREE.sRGBEncoding) skyTex.encoding = THREE.sRGBEncoding;
 
+        if (skyImg) {
+          skyImg.onload = function() {
+            skyTex.needsUpdate = true;
+          };
+          const skySrc = (typeof window !== 'undefined' && window.UNIFIED_SKY_DOME_URI)
+            ? window.UNIFIED_SKY_DOME_URI
+            : '';
+          skyImg.src = skySrc;
+        }
+
         const skySphere = new THREE.Mesh(
-          new THREE.SphereGeometry(180, 36, 24),
+          new THREE.SphereGeometry(180, 48, 32),
           new THREE.MeshBasicMaterial({
             map: skyTex,
             side: THREE.BackSide,
@@ -4381,6 +4276,8 @@ export function getHideAndSeekHtml(): string {
             depthWrite: false
           })
         );
+        // Rotate so Machapuchare faces North-North-East (~15 deg East of North)
+        skySphere.rotation.y = Math.PI - 0.22;
         skySphere.renderOrder = -12;
         this.skyGroup.add(skySphere);
 
@@ -4551,194 +4448,81 @@ export function getHideAndSeekHtml(): string {
         this.skyGroup.add(starPoints);
 
         // ---------------------------------------------------------------------
-        // 3. MAJESTIC HIMALAYAN HORIZON WITH SACRED MACHAPUCHARE (FISHTAIL PEAK)
+        // 3. DYNAMIC 3D POKHARA VALLEY TWINKLE LIGHTS
+        // Layered in front of the mountain horizon for living festival sparkle
         // ---------------------------------------------------------------------
-        const moonDirNorm = new THREE.Vector3(-38, 64, -44).normalize();
+        const cityLightCount = 900;
+        const cityGeom = new THREE.BufferGeometry();
+        const cityPositions = new Float32Array(cityLightCount * 3);
+        const cityColors = new Float32Array(cityLightCount * 3);
+        const citySizes = new Float32Array(cityLightCount);
 
-        // 3A. Range 1: High Himalayas & Machapuchare (Radius 166m, Towering Heights 58m - 92m)
-        // Strictly integer harmonics across 360 degrees for zero seam
-        const segCount1 = 256;
-        const rGeo1 = new THREE.CylinderGeometry(166, 166, 96, segCount1, 1, true);
-        const pos1 = rGeo1.attributes.position;
-        const col1 = new Float32Array(pos1.count * 3);
-        const fogBaseCol = new THREE.Color(0x0b1220);
+        let clIdx = 0;
+        for (let c = 0; c < cityLightCount; c++) {
+          const h1 = Math.sin(c * 17.3 + 43.1) * 43758.5453;
+          const u = h1 - Math.floor(h1);
+          const v = Math.sin(c * 29.7 + 91.3) * 0.5 + 0.5;
 
-        for (let i = 0; i < pos1.count; i++) {
-          const vy = pos1.getY(i);
-          if (vy > 0) {
-            const vx = pos1.getX(i);
-            const vz = pos1.getZ(i);
-            const ang = Math.atan2(vx, vz); // -PI to PI
+          const ang = (Math.PI - 1.25) + u * 2.50;
+          const dist = 142.0 + v * 22.0;
+          const y = -4.0 + Math.pow(v, 1.4) * 14.0 + Math.sin(c * 7.1) * 2.0;
 
-            // Base jagged Himalayan ridgeline harmonics
-            let peakH =
-              Math.sin(ang * 3.0) * 0.22 +
-              Math.cos(ang * 7.0) * 0.14 +
-              Math.sin(ang * 15.0) * 0.08 +
-              Math.cos(ang * 31.0) * 0.05 +
-              Math.abs(Math.sin(ang * 63.0)) * 0.035;
+          cityPositions[clIdx * 3 + 0] = Math.sin(ang) * dist;
+          cityPositions[clIdx * 3 + 1] = y;
+          cityPositions[clIdx * 3 + 2] = Math.cos(ang) * dist;
 
-            // Sacred Machapuchare (Fishtail Peak, 6,993m) at bearing ~ 0.44 rad (NNE)
-            const dFishtail = Math.abs(ang - 0.44);
-            if (dFishtail < 0.28) {
-              const u = dFishtail / 0.28;
-              const fishtailPyramid = 1.0 - Math.pow(u, 1.6);
-              const summitNotch = Math.abs(ang - 0.44) < 0.028 ? 0.14 : 0.0;
-              peakH += fishtailPyramid * 1.05 - summitNotch;
-            }
-
-            // Annapurna South (7,219m) & Hiunchuli Massif (NW, ang ~ -0.35 rad)
-            const dAnnapurna = Math.abs(ang - (-0.35));
-            if (dAnnapurna < 0.38) {
-              const u = dAnnapurna / 0.38;
-              const annaMassif = 1.0 - Math.pow(u, 1.4);
-              const crags = Math.sin(ang * 48.0) * 0.08 + Math.cos(ang * 96.0) * 0.04;
-              peakH += annaMassif * 0.85 + crags;
-            }
-
-            // Lamjung Himal & Manaslu (NE, ang ~ 1.08 rad)
-            const dLamjung = Math.abs(ang - 1.08);
-            if (dLamjung < 0.35) {
-              const u = dLamjung / 0.35;
-              const lamjungRidge = 1.0 - Math.pow(u, 1.5);
-              peakH += lamjungRidge * 0.68 + Math.sin(ang * 42.0) * 0.05;
-            }
-
-            // Dhaulagiri I (WNW, ang ~ -1.15 rad)
-            const dDhau = Math.abs(ang - (-1.15));
-            if (dDhau < 0.30) {
-              const u = dDhau / 0.30;
-              const dhauPyramid = 1.0 - Math.pow(u, 1.8);
-              peakH += dhauPyramid * 0.75;
-            }
-
-            // Southern Valley Gap (Pokhara lake valley, ang ~ PI or -PI)
-            const dSouth = Math.min(Math.abs(ang - Math.PI), Math.abs(ang - (-Math.PI)));
-            if (dSouth < 0.70) {
-              const valleyDip = Math.cos((dSouth / 0.70) * Math.PI * 0.5);
-              peakH -= valleyDip * 0.52;
-            }
-
-            // High Himalayan heights: 48m base * factor -> Machapuchare reaches ~90m (28.5 deg)
-            const finalPeakY = 48.0 * (0.85 + peakH);
-            pos1.setY(i, finalPeakY);
-
-            // Slope directional lighting against moon
-            const slopeX = -Math.sin(ang);
-            const slopeZ = -Math.cos(ang);
-            const peakNormal = new THREE.Vector3(Math.cos(ang) * 0.65, 0.75, Math.sin(ang) * 0.65).normalize();
-            const moonDot = Math.max(0.0, -slopeX * moonDirNorm.x - slopeZ * moonDirNorm.z) * 0.55 + Math.max(0.0, peakNormal.dot(moonDirNorm)) * 0.45;
-
-            // Snowline altitude: peaks above 32m covered in glacial ice & snow
-            const snowFactor = Math.min(1.0, Math.max(0.0, (finalPeakY - 30.0) / 24.0));
-            const snowLit = new THREE.Color(0xdceeff);
-            const snowShade = new THREE.Color(0x182c46); // Cold nocturnal blue ambient
-            const rockShade = new THREE.Color(0x081322);
-
-            const currentSnow = rockShade.clone().lerp(snowShade, snowFactor);
-            const finalCol = currentSnow.lerp(snowLit, Math.pow(moonDot, 1.1) * snowFactor * 0.95);
-
-            col1[i * 3 + 0] = finalCol.r;
-            col1[i * 3 + 1] = finalCol.g;
-            col1[i * 3 + 2] = finalCol.b;
+          const lType = c % 12;
+          let r = 1.0, g = 0.75, b = 0.35, sz = 1.8;
+          if (lType === 0) {
+            r = 0.94; g = 0.97; b = 1.00; sz = 2.2;
+          } else if (lType === 1 || lType === 2) {
+            r = 1.00; g = 0.82; b = 0.40; sz = 2.0;
+          } else if (lType === 3) {
+            r = 1.00; g = 0.50; b = 0.20; sz = 1.7;
           } else {
-            pos1.setY(i, -6.0);
-            col1[i * 3 + 0] = fogBaseCol.r;
-            col1[i * 3 + 1] = fogBaseCol.g;
-            col1[i * 3 + 2] = fogBaseCol.b;
+            r = 1.00; g = 0.70; b = 0.30; sz = 1.4;
           }
+
+          cityColors[clIdx * 3 + 0] = r;
+          cityColors[clIdx * 3 + 1] = g;
+          cityColors[clIdx * 3 + 2] = b;
+          citySizes[clIdx] = sz;
+          clIdx++;
         }
-        rGeo1.setAttribute('color', new THREE.BufferAttribute(col1, 3));
-        rGeo1.computeVertexNormals();
 
-        const rMesh1 = new THREE.Mesh(rGeo1, new THREE.MeshBasicMaterial({
-          vertexColors: true,
-          side: THREE.BackSide,
-          fog: false,
-          depthWrite: false,
-        }));
-        rMesh1.position.y = 6.0;
-        rMesh1.renderOrder = -9;
-        this.skyGroup.add(rMesh1);
+        cityGeom.setAttribute('position', new THREE.BufferAttribute(cityPositions, 3));
+        cityGeom.setAttribute('color', new THREE.BufferAttribute(cityColors, 3));
+        cityGeom.setAttribute('size', new THREE.BufferAttribute(citySizes, 1));
 
-        // 3B. Range 2: Intermediate Forested Foothills (Radius 146m, Height 26m - 40m)
-        const segCount2 = 128;
-        const rGeo2 = new THREE.CylinderGeometry(146, 146, 48, segCount2, 1, true);
-        const pos2 = rGeo2.attributes.position;
-        const col2 = new Float32Array(pos2.count * 3);
-        const footCol = new THREE.Color(0x06111e);
-
-        for (let i = 0; i < pos2.count; i++) {
-          const vy = pos2.getY(i);
-          if (vy > 0) {
-            const vx = pos2.getX(i);
-            const vz = pos2.getZ(i);
-            const ang = Math.atan2(vx, vz);
-            const wave =
-              Math.sin(ang * 6.0) * 0.30 +
-              Math.cos(ang * 12.0) * 0.16 +
-              Math.sin(ang * 24.0) * 0.08;
-            pos2.setY(i, 20.0 * (0.75 + wave));
-            col2[i * 3 + 0] = footCol.r;
-            col2[i * 3 + 1] = footCol.g;
-            col2[i * 3 + 2] = footCol.b;
-          } else {
-            pos2.setY(i, -5.0);
-            col2[i * 3 + 0] = fogBaseCol.r;
-            col2[i * 3 + 1] = fogBaseCol.g;
-            col2[i * 3 + 2] = fogBaseCol.b;
-          }
+        const cityLightCanvas = document.createElement('canvas');
+        cityLightCanvas.width = 32;
+        cityLightCanvas.height = 32;
+        const clCtx = cityLightCanvas.getContext('2d');
+        if (clCtx) {
+          const clGrad = clCtx.createRadialGradient(16, 16, 1, 16, 16, 15);
+          clGrad.addColorStop(0.00, 'rgba(255, 255, 255, 1.0)');
+          clGrad.addColorStop(0.35, 'rgba(255, 210, 140, 0.85)');
+          clGrad.addColorStop(0.70, 'rgba(255, 140, 40, 0.25)');
+          clGrad.addColorStop(1.00, 'rgba(200, 80, 10, 0.0)');
+          clCtx.fillStyle = clGrad;
+          clCtx.fillRect(0, 0, 32, 32);
         }
-        rGeo2.setAttribute('color', new THREE.BufferAttribute(col2, 3));
-        const rMesh2 = new THREE.Mesh(rGeo2, new THREE.MeshBasicMaterial({
+        const cityLightTex = new THREE.CanvasTexture(cityLightCanvas);
+
+        const cityLightMat = new THREE.PointsMaterial({
+          map: cityLightTex,
+          size: 2.2,
           vertexColors: true,
-          side: THREE.BackSide,
           transparent: true,
-          opacity: 0.94,
-          fog: false,
+          opacity: 0.85,
+          blending: THREE.AdditiveBlending,
           depthWrite: false,
-        }));
-        rMesh2.position.y = 4.0;
-        rMesh2.renderOrder = -8;
-        this.skyGroup.add(rMesh2);
-
-        // 3C. Range 3: Near Horizon Campus Boundary Hills (Radius 128m, Height 14m - 22m)
-        const segCount3 = 96;
-        const rGeo3 = new THREE.CylinderGeometry(128, 128, 28, segCount3, 1, true);
-        const pos3 = rGeo3.attributes.position;
-        const col3 = new Float32Array(pos3.count * 3);
-        const nearHillCol = new THREE.Color(0x091424);
-
-        for (let i = 0; i < pos3.count; i++) {
-          const vy = pos3.getY(i);
-          if (vy > 0) {
-            const vx = pos3.getX(i);
-            const vz = pos3.getZ(i);
-            const ang = Math.atan2(vx, vz);
-            const wave = Math.sin(ang * 8.0) * 0.26 + Math.cos(ang * 16.0) * 0.12;
-            pos3.setY(i, 12.0 * (0.68 + wave));
-            col3[i * 3 + 0] = nearHillCol.r;
-            col3[i * 3 + 1] = nearHillCol.g;
-            col3[i * 3 + 2] = nearHillCol.b;
-          } else {
-            pos3.setY(i, -4.0);
-            col3[i * 3 + 0] = fogBaseCol.r;
-            col3[i * 3 + 1] = fogBaseCol.g;
-            col3[i * 3 + 2] = fogBaseCol.b;
-          }
-        }
-        rGeo3.setAttribute('color', new THREE.BufferAttribute(col3, 3));
-        const rMesh3 = new THREE.Mesh(rGeo3, new THREE.MeshBasicMaterial({
-          vertexColors: true,
-          side: THREE.BackSide,
-          transparent: true,
-          opacity: 0.88,
           fog: false,
-          depthWrite: false,
-        }));
-        rMesh3.position.y = 2.0;
-        rMesh3.renderOrder = -7;
-        this.skyGroup.add(rMesh3);
+        });
+
+        const cityPoints = new THREE.Points(cityGeom, cityLightMat);
+        cityPoints.renderOrder = -8;
+        this.skyGroup.add(cityPoints);
 
         // ---------------------------------------------------------------------
         // 4. MAJESTIC AUTUMN MOON (HIGH-DEFINITION CRATER SURFACE & OPTICAL HALO)

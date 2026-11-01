@@ -166,7 +166,7 @@ export const HideAndSeekScreen: React.FC<HideAndSeekProps> = ({ onBack }) => {
     let isCancelled = false;
     const cacheHtml = async () => {
       try {
-        const targetPath = `${FileSystem.cacheDirectory}hide-and-seek-tihar-night-v26-ultra.html`;
+        const targetPath = `${FileSystem.cacheDirectory}hide-and-seek-tihar-night-v28-ultra.html`;
         const content = getHideAndSeekHtml();
         await FileSystem.writeAsStringAsync(targetPath, content, {
           encoding: FileSystem.EncodingType.UTF8,

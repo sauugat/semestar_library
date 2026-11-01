@@ -36,31 +36,44 @@ export const HORROR_CONFIG = {
   exploreMode: true,
   enableDevTelemetry: true,
 
-  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Night-Horror Look: Teal Shadows, Warm Highlights, 20% Desat, Slight Black Crush)
+  // 0. PHASE 12 — PHOTOREALISTIC GRAPHICS OVERHAUL MASTER CONFIG
+  photorealisticOverhaul: {
+    enabled: true,
+    wetPavementRoughnessMin: 0.055,
+    wetPavementRoughnessMax: 0.72,
+    puddleReflectivity: 0.78,
+    normalMapStrength: 3.15,
+    anisotropyMax: 8,
+    streetLampAnalyticalCount: 24,
+    dynamicShadowFrustumHalfSize: 48.0,
+    enableEnvironmentalDetails: true,
+  },
+
+  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Night-Horror Look: Teal Shadows, Warm Highlights, Filmic Contrast)
   grade: {
     enabled: true,
-    shadowTint: [0.85, 1.0, 1.15],      // Teal shadows multiplier
-    highlightTint: [1.1, 1.0, 0.88],    // Warm highlights multiplier
-    saturation: 0.80,                   // Desaturate 20%
-    contrast: 1.16,                     // Crisp S-curve contrast
-    blackCrushPow: 1.08,                // Crush blacks slightly: pow(c, vec3(1.08))
-    blackLift: 0.0,                     // Crushed blacks for horror contrast
-    vignette: 0.45,                     // mix(0.55, 1.0, smoothstep(0.85, 0.25, length(vUv - 0.5)))
-    vignetteMin: 0.55,
-    vignetteInner: 0.25,
-    vignetteOuter: 0.85,
-    grain: 0.035,                       // Film grain: (rand(vUv + time) - 0.5) * 0.035
-    edgeDesat: 0.20,
-    bloomStrength: 0.0,                 // Skip heavy full-screen bloom; use glow sprites on lamp heads
-    bloomThreshold: 0.75,
-    microContrast: 0.18,
-    chromaStrength: 0.0010,
-    lampColor: 0xffa955,                // #ffa955 warm lamps
-    poolOpacity: 0.28,                  // Warm ground light pool opacity
-    fogColor: 0x0b1220,                 // Match the sky colour 0x0b1220
-    fogDensity: 0.022,                  // Exponential fog density 0.022
-    materialDarknessMultiplier: 0.58,   // Darken wall/roof/road base colours (nothing brighter than ~0.6 value)
-    maxGradeFrameCostMs: 2.0,           // Auto-switch to CSS overlay if shader pass costs > 2ms per frame on mobile
+    shadowTint: [0.82, 0.98, 1.18],      // Cold moonlit teal/blue shadows multiplier (Ref 1, 2, 3)
+    highlightTint: [1.14, 0.99, 0.84],   // Warm sodium/halide streetlamp highlights multiplier
+    saturation: 0.86,                   // Filmic natural saturation
+    contrast: 1.09,                     // Balanced filmic S-curve contrast without crushing midtones
+    blackCrushPow: 1.04,                // Preserve shadow detail in wet pavement & dark corners
+    blackLift: 0.008,                   // Subtle shadow toe lift so dark materials retain normal/roughness detail
+    vignette: 0.42,                     // Cinematic lens vignette
+    vignetteMin: 0.58,
+    vignetteInner: 0.28,
+    vignetteOuter: 0.88,
+    grain: 0.024,                       // Fine 35mm film grain
+    edgeDesat: 0.16,
+    bloomStrength: 0.36,                // Soft 5-tap HDR highlight bloom around streetlamps & diyos
+    bloomThreshold: 0.72,
+    microContrast: 0.22,                // Local luminance micro-contrast for concrete/asphalt grit
+    chromaStrength: 0.0012,             // Subtle lens edge chromatic aberration
+    lampColor: 0xffa955,                // #ffa955 warm streetlamps
+    poolOpacity: 0.34,                  // Warm ground light pool opacity
+    fogColor: 0x0b1322,                 // Match the deep cold night sky colour
+    fogDensity: 0.0185,                 // Exponential fog density with warm lamp inscattering
+    materialDarknessMultiplier: 0.68,   // Calibrated PBR albedo range (0.04..0.68)
+    maxGradeFrameCostMs: 2.5,           // Auto-switch to CSS overlay if shader pass costs > 2.5ms per frame on mobile
     fpsGuardThreshold: 40,              // Auto-disable grade pass if avg FPS < 40 for 3s
     fpsGuardWindowSec: 3.0,
     stylizedPs1Mode: false,
@@ -68,16 +81,16 @@ export const HORROR_CONFIG = {
   },
 
   albedo: {
-    maxValueCap: 0.60,                  // Nothing brighter than ~0.6 value
-    wallCream: 0xb8a888,                // Darkened cream wall (#b8a888 instead of #f5e6b8)
-    wallPlaster: 0x8f8470,              // Clamped <= 0.6 value plaster albedo
-    wallStucco: 0x787e78,               // Darkened stucco wall
-    roadAsphalt: 0x2a2a2e,              // Wet dark asphalt road (#2a2a2e)
-    roadRoughness: 0.35,                // Wet road roughness ~0.35 for lamp reflections
-    roofBlueMetal: 0x26384a,            // Darkened corrugated metal roof
-    roofTerracotta: 0x6e2820,           // Darkened terracotta roof
-    concretePlinth: 0x484e54,           // Darkened concrete plinth
-    verandaWood: 0x5c3820,              // Darkened wood for veranda
+    maxValueCap: 0.68,                  // Calibrated physical albedo cap
+    wallCream: 0xb8a888,                // Weathered cream plaster/panel wall
+    wallPlaster: 0x968974,              // Weathered plaster albedo
+    wallStucco: 0x828882,               // Weathered stucco wall
+    roadAsphalt: 0x24272d,              // Wet cracked asphalt road (#24272d)
+    roadRoughness: 0.24,                // Wet road base roughness (modulated 0.06..0.72 by roughnessMap)
+    roofBlueMetal: 0x26384a,            // Corrugated metal roof
+    roofTerracotta: 0x6e2820,           // Terracotta roof
+    concretePlinth: 0x484e54,           // Concrete plinth
+    verandaWood: 0x5c3820,              // Weathered timber for veranda & doors
   },
 
   palette: {
@@ -93,95 +106,92 @@ export const HORROR_CONFIG = {
   renderer: {
     outputColorSpace: 'srgb',
     toneMapping: 'ACESFilmicToneMapping',
-    toneMappingExposure: 0.7,
+    toneMappingExposure: 0.86,
     pixelRatioCap: 2,
     shadowMapType: 'PCFSoftShadowMap',
-    clearColor: 0x0b1220,
+    clearColor: 0x0b1322,
     fogType: 'FogExp2',
-    fogColor: 0x0b1220,
-    fogDensity: 0.022,
+    fogColor: 0x0b1322,
+    fogDensity: 0.0185,
     fogWarmTintColor: 0x1c1612,
     fogNear: 15.0,
-    fogFar: 92.0,
+    fogFar: 96.0,
     fogMinFarUnderTension: 46.0,
   },
   lighting: {
-    // Realistic Night-Horror Lighting: Hemisphere/ambient ~0.06, cold blue moon (0x7f9cd6, 0.35), warm lamps (0xffa955)
-    visibilityFloorAmbient: 0.04,
-    ambientColor: 0x0b1220,
-    ambientIntensity: 0.06,
-    indoorAmbientIntensity: 0.04,
-    hemiSkyColor: 0x182b44,
-    hemiGroundColor: 0x05090e,
-    hemiIntensity: 0.06,
-    indoorHemiIntensity: 0.04,
+    // Realistic Night-Horror Lighting: Cold blue moon (0x88aae6, 0.52), warm sodium/halide streetlamps (0xffa955)
+    visibilityFloorAmbient: 0.055,
+    ambientColor: 0x0e1828,
+    ambientIntensity: 0.095,
+    indoorAmbientIntensity: 0.065,
+    hemiSkyColor: 0x223a5e,
+    hemiGroundColor: 0x080d14,
+    hemiIntensity: 0.11,
+    indoorHemiIntensity: 0.07,
     // Cold blue moonlight directional light with 2048 shadow map & bias settings to eliminate jagged shadow edges
-    moonColor: 0x7f9cd6,
-    moonIntensity: 0.35,
-    indoorMoonIntensity: 0.06,
+    moonColor: 0x88aae6,
+    moonIntensity: 0.52,
+    indoorMoonIntensity: 0.10,
     moonShadowMapSize: 2048,
-    moonShadowBias: -0.0004,
-    moonShadowNormalBias: 0.03,
-    rimColor: 0x4e738c,
-    rimIntensity: 0.18,
+    moonShadowBias: -0.00035,
+    moonShadowNormalBias: 0.025,
+    rimColor: 0x5c84a6,
+    rimIntensity: 0.24,
     // Main Player Flashlight: soft-edged spotlight, visible volumetric beam cone, battery flicker & realistic falloff
     flashlightColor: 0xfff1d6,
     flashlightLowBatteryColor: 0xffb366,
-    flashlightIntensity: 11.2,
-    flashlightDistance: 30.5,
-    flashlightAngle: 0.60,
+    flashlightIntensity: 12.8,
+    flashlightDistance: 32.5,
+    flashlightAngle: 0.62,
     flashlightPenumbra: 0.88,
-    flashlightDecay: 1.80,
-    flashlightSpillIntensity: 1.15,
-    flashlightSpillDistance: 6.5,
+    flashlightDecay: 1.72,
+    flashlightSpillIntensity: 1.45,
+    flashlightSpillDistance: 7.5,
     flashlightBeamOpacity: 0.12,
-    // Warm lamps (0xffa955): Real PointLights only on the 3 nearest lamps, emissive glow sprites for the rest
+    // Warm streetlamps (0xffa955): Pooled PointLights on 6 nearest lamps + analytical shader lighting for all nearby lamps
     lampColor: 0xffa955,
-    lampCoreColor: 0xffd8a8,
+    lampCoreColor: 0xffe4b8,
     lampEmberColor: 0x7c2d12,
-    lampIntensity: 10.5,
-    lampDistance: 17.8,
-    lampDecay: 1.68,
-    lampPoolSize: 7.4,
-    lampHaloScale: 2.35,
-    lampConeOpacity: 0.0,
-    enableLampCones: false,
-    maxActiveLampLights: 3,
-    windowGlowRatio: 0.46,
+    lampIntensity: 13.5,
+    lampDistance: 24.5,
+    lampDecay: 1.62,
+    lampPoolSize: 8.4,
+    lampHaloScale: 2.55,
+    lampConeOpacity: 0.085,
+    enableLampCones: true,
+    maxActiveLampLights: 6,
+    windowGlowRatio: 0.48,
     windowColdDark: 0x05090e,
     windowEmissive: 0xffa955,
-    windowEmissiveIntensity: 0.58,
+    windowEmissiveIntensity: 0.72,
     doorwayGlowColor: 0xffa955,
-    doorwayGlowOpacity: 0.22,
-    diyoUltraEmissiveIntensity: 1.35,
-    horizonWarmGlowOpacity: 0.16,
+    doorwayGlowOpacity: 0.28,
+    diyoUltraEmissiveIntensity: 1.55,
+    horizonWarmGlowOpacity: 0.18,
     redAccent: 0x8c1d1d,
   },
   tihar: {
     enabled: true,
     festivalName: 'Nepali Tihar — Laxmi Puja Night',
-    // Clay Diyo (1800K-2200K oil lamp) lighting parameters
-    diyoColorCore: 0xfff3c4,       // 2200K bright wick core
-    diyoColorMid: 0xff922b,        // 1950K warm golden-orange flame body
-    diyoColorTip: 0xd9480f,        // 1800K deep amber-orange tip
-    diyoLightColor: 0xff9428,      // 1950K physical PointLight & pool color
-    diyoPoolOpacity: 0.38,         // Localized warm surface light pool on steps/sills/courtyard
-    diyoFocalLightCountUltra: 6,   // Max pooled dynamic PointLights for nearest Tihar diyo/string focal clusters
+    diyoColorCore: 0xfff3c4,
+    diyoColorMid: 0xff922b,
+    diyoColorTip: 0xd9480f,
+    diyoLightColor: 0xff9428,
+    diyoPoolOpacity: 0.38,
+    diyoFocalLightCountUltra: 6,
     diyoFocalLightCountHigh: 5,
     diyoFocalLightCountLow: 3,
     diyoFocalLightCountFast: 2,
-    diyoFocalLightIntensity: 6.8,
-    diyoFocalLightDistance: 11.5,
-    diyoFocalLightDecay: 1.85,
-    // Jhilimili Batti (Electric LED string lights) palette & parameters
+    diyoFocalLightIntensity: 7.4,
+    diyoFocalLightDistance: 13.5,
+    diyoFocalLightDecay: 1.75,
     jhilimiliWarmGold: 0xffb84d,
     jhilimiliAmber: 0xff881a,
     jhilimiliRosePink: 0xf43f86,
     jhilimiliEmerald: 0x10b981,
     jhilimiliRoyalBlue: 0x38bdf8,
     jhilimiliWarmWhite: 0xfff0c2,
-    jhilimiliWallWashOpacity: 0.22,
-    // Flowers & Rangoli palette
+    jhilimiliWallWashOpacity: 0.26,
     sayapatriOrange: 0xff7b00,
     sayapatriGold: 0xffb703,
     makhamaliPurple: 0x881337,
@@ -199,56 +209,56 @@ export const HORROR_CONFIG = {
       flickerType: 'none',
     },
     dying_tube: {
-      ambientColor: 0x0c1a20,
-      ambientMult: 0.54,
-      color: 0xb4f0e4,
-      lightColor: 0xb4f0e4,
-      intensity: 4.4,
-      lightIntensity: 4.4,
-      distance: 11.8,
-      lightDistance: 11.8,
+      ambientColor: 0x18120c,
+      ambientMult: 0.58,
+      color: 0xffb84d,
+      lightColor: 0xffb84d,
+      intensity: 5.2,
+      lightIntensity: 5.2,
+      distance: 13.2,
+      lightDistance: 13.2,
       flickerType: 'fluorescent_dying',
     },
     moonlight: {
       ambientColor: 0x0b1828,
-      ambientMult: 0.56,
+      ambientMult: 0.60,
       color: 0x84b6e6,
       lightColor: 0x84b6e6,
-      intensity: 3.3,
-      lightIntensity: 3.3,
-      distance: 12.5,
-      lightDistance: 12.5,
+      intensity: 3.9,
+      lightIntensity: 3.9,
+      distance: 13.5,
+      lightDistance: 13.5,
       flickerType: 'steady_moon',
     },
     warm_lamp: {
       ambientColor: 0x16100c,
-      ambientMult: 0.56,
+      ambientMult: 0.60,
       color: 0xff9838,
       lightColor: 0xff9838,
-      intensity: 4.8,
-      lightIntensity: 4.8,
-      distance: 11.2,
-      lightDistance: 11.2,
+      intensity: 5.4,
+      lightIntensity: 5.4,
+      distance: 12.6,
+      lightDistance: 12.6,
       flickerType: 'warm_filament',
     },
     emergency_red: {
       ambientColor: 0x180608,
-      ambientMult: 0.52,
+      ambientMult: 0.56,
       color: 0xff2222,
       lightColor: 0xff2222,
-      intensity: 4.5,
-      lightIntensity: 4.5,
-      distance: 11.5,
-      lightDistance: 11.5,
+      intensity: 4.8,
+      lightIntensity: 4.8,
+      distance: 12.4,
+      lightDistance: 12.4,
       flickerType: 'emergency_pulse',
     },
-    '101': { mood: 'dying_tube', color: 0xcbe4f5, intensity: 3.8, ambientScale: 0.14, tubeFlicker: true, moonlightShafts: true },
-    '102': { mood: 'warm_lamp', color: 0xe6a152, intensity: 4.0, ambientScale: 0.16, tubeFlicker: false, moonlightShafts: true },
-    '201': { mood: 'moonlight', color: 0x82acc9, intensity: 2.8, ambientScale: 0.14, tubeFlicker: false, moonlightShafts: true },
-    '202': { mood: 'warm_lamp', color: 0xd99445, intensity: 3.8, ambientScale: 0.16, tubeFlicker: true, moonlightShafts: true },
-    '301': { mood: 'dark', color: 0x3b5263, intensity: 0.0, ambientScale: 0.10, tubeFlicker: true, moonlightShafts: true },
-    '302': { mood: 'emergency_red', color: 0xc92a2a, intensity: 4.0, ambientScale: 0.14, tubeFlicker: true, moonlightShafts: false },
-    'atrium': { mood: 'dying_tube', color: 0xd8a060, intensity: 3.4, ambientScale: 0.18, tubeFlicker: true, moonlightShafts: true },
+    '101': { mood: 'dying_tube', color: 0xcbe4f5, intensity: 4.2, ambientScale: 0.16, tubeFlicker: true, moonlightShafts: true },
+    '102': { mood: 'warm_lamp', color: 0xe6a152, intensity: 4.5, ambientScale: 0.18, tubeFlicker: false, moonlightShafts: true },
+    '201': { mood: 'moonlight', color: 0x82acc9, intensity: 3.2, ambientScale: 0.16, tubeFlicker: false, moonlightShafts: true },
+    '202': { mood: 'warm_lamp', color: 0xd99445, intensity: 4.2, ambientScale: 0.18, tubeFlicker: true, moonlightShafts: true },
+    '301': { mood: 'dark', color: 0x3b5263, intensity: 0.0, ambientScale: 0.12, tubeFlicker: true, moonlightShafts: true },
+    '302': { mood: 'emergency_red', color: 0xc92a2a, intensity: 4.4, ambientScale: 0.16, tubeFlicker: true, moonlightShafts: false },
+    'atrium': { mood: 'dying_tube', color: 0xd8a060, intensity: 3.8, ambientScale: 0.20, tubeFlicker: true, moonlightShafts: true },
   },
   tension: {
     baseBreathingAmp: 0.012,
@@ -273,70 +283,70 @@ export const HORROR_CONFIG = {
   },
   qualityPresets: {
     ultra: {
-      label: 'ULTRA',
-      pixelRatioCap: 2.0,
-      particleCount: 40,
-      paperLeafCount: 20,
+      label: 'HIGH (ULTRA)',
+      pixelRatioCap: 1.5,
+      particleCount: 44,
+      paperLeafCount: 22,
       mistPlaneCount: 6,
-      maxActiveLampLights: 3,
+      maxActiveLampLights: 6,
       shadowMapSize: 2048,
       enableShadows: true,
       extraDetail: true,
-      enableLampCones: false,
+      enableLampCones: true,
       enableColorGrade: true,
       fakePoolStride: 1,
-      cullDistBuilding: 85,
-      cullDistInterior: 24,
-      cullDistProps: 60,
+      cullDistBuilding: 92,
+      cullDistInterior: 26,
+      cullDistProps: 66,
       eventIntervalMin: 12,
       eventIntervalMax: 24,
     },
     high: {
       label: 'HIGH',
-      pixelRatioCap: 2.0,
-      particleCount: 30,
-      paperLeafCount: 14,
+      pixelRatioCap: 1.35,
+      particleCount: 34,
+      paperLeafCount: 16,
       mistPlaneCount: 4,
+      maxActiveLampLights: 5,
+      shadowMapSize: 1024,
+      enableShadows: true,
+      extraDetail: true,
+      enableLampCones: true,
+      enableColorGrade: true,
+      fakePoolStride: 1,
+      cullDistBuilding: 80,
+      cullDistInterior: 22,
+      cullDistProps: 54,
+      eventIntervalMin: 14,
+      eventIntervalMax: 26,
+    },
+    low: {
+      label: 'BALANCED',
+      pixelRatioCap: 1.10,
+      particleCount: 20,
+      paperLeafCount: 10,
+      mistPlaneCount: 2,
       maxActiveLampLights: 3,
-      shadowMapSize: 2048,
+      shadowMapSize: 512,
       enableShadows: true,
       extraDetail: true,
       enableLampCones: false,
       enableColorGrade: true,
       fakePoolStride: 1,
-      cullDistBuilding: 75,
-      cullDistInterior: 20,
-      cullDistProps: 50,
-      eventIntervalMin: 14,
-      eventIntervalMax: 26,
-    },
-    low: {
-      label: 'LOW',
-      pixelRatioCap: 1.25,
-      particleCount: 18,
-      paperLeafCount: 8,
-      mistPlaneCount: 0,
-      maxActiveLampLights: 2,
-      shadowMapSize: 1024,
-      enableShadows: false,
-      extraDetail: false,
-      enableLampCones: false,
-      enableColorGrade: false,
-      fakePoolStride: 2,
-      cullDistBuilding: 62,
-      cullDistInterior: 16,
-      cullDistProps: 40,
+      cullDistBuilding: 66,
+      cullDistInterior: 18,
+      cullDistProps: 44,
       eventIntervalMin: 18,
       eventIntervalMax: 32,
     },
     fast: {
-      label: 'FAST',
-      pixelRatioCap: 1.0,
+      label: 'PERFORMANCE',
+      pixelRatioCap: 0.85,
       particleCount: 12,
       paperLeafCount: 4,
       mistPlaneCount: 0,
-      maxActiveLampLights: 1,
-      shadowMapSize: 512,
+      maxActiveLampLights: 2,
+      shadowMapSize: 256,
       enableShadows: false,
       extraDetail: false,
       enableLampCones: false,

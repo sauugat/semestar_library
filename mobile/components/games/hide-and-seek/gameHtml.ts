@@ -3864,6 +3864,16 @@ export function getHideAndSeekHtml(): string {
       }
 
       updateFlashlight(delta, timeSec, camPos, yaw, pitch, hunterProximity = 0.0, isHiding = false, isFirstPerson = true) {
+        if (this.moonDirLight && camPos) {
+          // Snap shadow frustum center to 1.5m world grid around player to prevent shadow swimming while keeping 2048px shadows sharp everywhere
+          const snapX = Math.round(camPos.x / 1.5) * 1.5;
+          const snapZ = Math.round(camPos.z / 1.5) * 1.5;
+          this.moonDirLight.position.set(snapX - 38.0, 64.0, snapZ - 44.0);
+          if (this.moonDirLight.target) {
+            this.moonDirLight.target.position.set(snapX, 0.0, snapZ);
+            this.moonDirLight.target.updateMatrixWorld();
+          }
+        }
         if (!this.flashlight || !this.flashlightTarget) return;
 
         let battFactor = 1.0;
@@ -4149,24 +4159,24 @@ export function getHideAndSeekHtml(): string {
         this.gradeOrthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, -1, 1);
         this.gradeScene = new THREE.Scene();
 
-        const sTint = gCfg.shadowTint || [0.06, 0.16, 0.22];
-        const hTint = gCfg.highlightTint || [1.08, 0.78, 0.46];
+        const sTint = gCfg.shadowTint || [0.85, 1.0, 1.15];
+        const hTint = gCfg.highlightTint || [1.10, 1.0, 0.88];
 
         this.gradeUniforms = {
           tDiffuse: { value: this.gradeTarget.texture },
           uTime: { value: 0.0 },
           uShadowTint: { value: new THREE.Vector3(sTint[0], sTint[1], sTint[2]) },
           uHighlightTint: { value: new THREE.Vector3(hTint[0], hTint[1], hTint[2]) },
-          uSaturation: { value: typeof gCfg.saturation === 'number' ? gCfg.saturation : 0.90 },
-          uContrast: { value: typeof gCfg.contrast === 'number' ? gCfg.contrast : 1.18 },
-          uBlackLift: { value: typeof gCfg.blackLift === 'number' ? gCfg.blackLift : 0.015 },
-          uVignette: { value: typeof gCfg.vignette === 'number' ? gCfg.vignette : 0.42 },
-          uGrain: { value: typeof gCfg.grain === 'number' ? gCfg.grain : 0.028 },
+          uSaturation: { value: typeof gCfg.saturation === 'number' ? gCfg.saturation : 0.80 },
+          uContrast: { value: typeof gCfg.contrast === 'number' ? gCfg.contrast : 1.08 },
+          uBlackLift: { value: typeof gCfg.blackLift === 'number' ? gCfg.blackLift : 0.0 },
+          uVignette: { value: typeof gCfg.vignette === 'number' ? gCfg.vignette : 0.45 },
+          uGrain: { value: typeof gCfg.grain === 'number' ? gCfg.grain : 0.035 },
           uEdgeDesat: { value: typeof gCfg.edgeDesat === 'number' ? gCfg.edgeDesat : 0.20 },
-          uBloomStrength: { value: typeof gCfg.bloomStrength === 'number' ? gCfg.bloomStrength : 0.26 },
-          uBloomThreshold: { value: typeof gCfg.bloomThreshold === 'number' ? gCfg.bloomThreshold : 0.68 },
-          uMicroContrast: { value: typeof gCfg.microContrast === 'number' ? gCfg.microContrast : 0.22 },
-          uChromaStrength: { value: typeof gCfg.chromaStrength === 'number' ? gCfg.chromaStrength : 0.0014 },
+          uBloomStrength: { value: typeof gCfg.bloomStrength === 'number' ? gCfg.bloomStrength : 0.0 },
+          uBloomThreshold: { value: typeof gCfg.bloomThreshold === 'number' ? gCfg.bloomThreshold : 0.85 },
+          uMicroContrast: { value: typeof gCfg.microContrast === 'number' ? gCfg.microContrast : 0.0 },
+          uChromaStrength: { value: typeof gCfg.chromaStrength === 'number' ? gCfg.chromaStrength : 0.0 },
           uStylized: { value: this.stylizedMode ? 1.0 : 0.0 },
           uResolution: { value: new THREE.Vector2(rtW, rtH) },
         };
@@ -4183,7 +4193,7 @@ export function getHideAndSeekHtml(): string {
             '}'
           ].join('\\n'),
           fragmentShader: [
-            'precision highp float;',
+            'precision mediump float;',
             'uniform sampler2D tDiffuse;',
             'uniform float uTime;',
             'uniform vec3 uShadowTint;',
@@ -4202,86 +4212,58 @@ export function getHideAndSeekHtml(): string {
             'uniform vec2 uResolution;',
             'varying vec2 vUv;',
             '',
-            'float hash12(vec2 p) {',
-            '  vec3 p3 = fract(vec3(p.xyx) * 0.1031);',
-            '  p3 += dot(p3, p3.yzx + 33.33);',
-            '  return fract((p3.x + p3.y) * p3.z);',
-            '}',
-            '',
-            'vec3 acesFilmic(vec3 x) {',
-            '  return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);',
+            'float rand(vec2 co) {',
+            '  return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);',
             '}',
             '',
             'void main() {',
-            '  vec2 centered = vUv - 0.5;',
-            '  float edgeDistSq = dot(centered, centered) * 2.4;',
-            '  vec2 texel = 1.0 / max(uResolution, vec2(160.0));',
+            '  vec2 centeredUv = vUv - 0.5;',
+            '  float edgeDist = length(centeredUv);',
+            '  vec2 texel = 1.0 / max(uResolution, vec2(320.0, 240.0));',
             '',
-            '  // 1. Subtle Radial Lens Chromatic Aberration at Periphery',
-            '  vec2 caOffset = centered * edgeDistSq * uChromaStrength;',
-            '  float cR = texture2D(tDiffuse, clamp(vUv + caOffset, 0.0, 1.0)).r;',
-            '  vec3 cMid = texture2D(tDiffuse, vUv).rgb;',
-            '  float cB = texture2D(tDiffuse, clamp(vUv - caOffset, 0.0, 1.0)).b;',
-            '  vec3 col = vec3(cR, cMid.g, cB);',
+            '  // 1. Subtle radial lens chromatic aberration near screen edges',
+            '  vec2 caOffset = centeredUv * uChromaStrength * smoothstep(0.18, 0.72, edgeDist);',
+            '  float rCh = texture2D(tDiffuse, vUv + caOffset).r;',
+            '  vec2 gbCh = texture2D(tDiffuse, vUv).gb;',
+            '  float bCh = texture2D(tDiffuse, vUv - caOffset).b;',
+            '  vec3 c = vec3(rCh, gbCh.x, mix(gbCh.y, bCh, 0.75));',
             '',
-            '  // 2. 4-Tap Rotated Kawase Neighborhood Sample for Soft Tihar Diyo Optical Bloom & Micro-Contrast',
-            '  vec2 d1 = vec2(2.2, 1.2) * texel;',
-            '  vec2 d2 = vec2(-1.2, 2.2) * texel;',
-            '  vec3 s1 = texture2D(tDiffuse, clamp(vUv + d1, 0.0, 1.0)).rgb;',
-            '  vec3 s2 = texture2D(tDiffuse, clamp(vUv - d1, 0.0, 1.0)).rgb;',
-            '  vec3 s3 = texture2D(tDiffuse, clamp(vUv + d2, 0.0, 1.0)).rgb;',
-            '  vec3 s4 = texture2D(tDiffuse, clamp(vUv - d2, 0.0, 1.0)).rgb;',
-            '  vec3 avgNeighbor = (s1 + s2 + s3 + s4) * 0.25;',
+            '  // 2. 4-neighbor neighborhood tap for soft 5-tap HDR highlight bloom & local micro-contrast',
+            '  vec3 n1 = texture2D(tDiffuse, vUv + vec2(texel.x * 2.5, texel.y * 1.5)).rgb;',
+            '  vec3 n2 = texture2D(tDiffuse, vUv + vec2(-texel.x * 2.5, texel.y * 1.5)).rgb;',
+            '  vec3 n3 = texture2D(tDiffuse, vUv + vec2(texel.x * 1.5, -texel.y * 2.5)).rgb;',
+            '  vec3 n4 = texture2D(tDiffuse, vUv + vec2(-texel.x * 1.5, -texel.y * 2.5)).rgb;',
+            '  vec3 localAvg = 0.25 * (n1 + n2 + n3 + n4);',
             '',
-            '  float luma = dot(col, vec3(0.299, 0.587, 0.114));',
-            '  float avgLuma = dot(avgNeighbor, vec3(0.299, 0.587, 0.114));',
+            '  if (uMicroContrast > 0.001) {',
+            '    c += (c - localAvg) * uMicroContrast;',
+            '  }',
+            '  if (uBloomStrength > 0.001) {',
+            '    float l1 = max(0.0, dot(n1, vec3(0.2126, 0.7152, 0.0722)) - uBloomThreshold);',
+            '    float l2 = max(0.0, dot(n2, vec3(0.2126, 0.7152, 0.0722)) - uBloomThreshold);',
+            '    float l3 = max(0.0, dot(n3, vec3(0.2126, 0.7152, 0.0722)) - uBloomThreshold);',
+            '    float l4 = max(0.0, dot(n4, vec3(0.2126, 0.7152, 0.0722)) - uBloomThreshold);',
+            '    vec3 bloom = 0.25 * (n1 * l1 + n2 * l2 + n3 * l3 + n4 * l4);',
+            '    c += bloom * uBloomStrength * 1.45;',
+            '  }',
             '',
-            '  // Unsharp midtone micro-contrast for architectural masonry, Sal wood & paver relief',
-            '  float midMask = smoothstep(0.03, 0.18, luma) * (1.0 - smoothstep(0.75, 0.98, luma));',
-            '  float detailDelta = clamp((luma - avgLuma) * uMicroContrast * midMask, -0.06, 0.08);',
-            '  col = max(vec3(0.0), col + vec3(detailDelta));',
+            '  // 3. Luminance, edge desaturation & cold-moon/warm-lamp split toning',
+            '  float l = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+            '  float effSat = uSaturation * (1.0 - uEdgeDesat * smoothstep(0.25, 0.75, edgeDist));',
+            '  c = mix(vec3(l), c, effSat);',
+            '  c = mix(c * uShadowTint, c * uHighlightTint, smoothstep(0.08, 0.62, l));',
             '',
-            '  // Warm optical halation bloom around Tihar diyos, Jhilimili bulbs & specular reflections',
-            '  float bW1 = smoothstep(uBloomThreshold, 1.25, dot(s1, vec3(0.299, 0.587, 0.114)));',
-            '  float bW2 = smoothstep(uBloomThreshold, 1.25, dot(s2, vec3(0.299, 0.587, 0.114)));',
-            '  float bW3 = smoothstep(uBloomThreshold, 1.25, dot(s3, vec3(0.299, 0.587, 0.114)));',
-            '  float bW4 = smoothstep(uBloomThreshold, 1.25, dot(s4, vec3(0.299, 0.587, 0.114)));',
-            '  vec3 bloomCol = (s1 * bW1 + s2 * bW2 + s3 * bW3 + s4 * bW4) * 0.25;',
-            '  col += bloomCol * uHighlightTint * uBloomStrength;',
-            '',
-            '  // 3. Luminance & Edge-aware desaturation',
-            '  luma = dot(col, vec3(0.299, 0.587, 0.114));',
-            '  float localSat = max(0.0, uSaturation * (1.0 - edgeDistSq * uEdgeDesat));',
-            '  col = mix(vec3(luma), col, localSat);',
-            '',
-            '  // 4. Split-Tone: Shadows tinted nocturnal indigo-blue, Highlights tinted 1950K Tihar golden-orange',
-            '  float shadowWeight = pow(clamp(1.0 - luma, 0.0, 1.0), 1.55);',
-            '  float highlightWeight = pow(clamp(luma, 0.0, 1.0), 1.35);',
-            '  col += uShadowTint * shadowWeight * 0.40;',
-            '  col *= mix(vec3(1.0), uHighlightTint, highlightWeight * 0.52);',
-            '',
-            '  // 5. ACES-Inspired Filmic Toe/Shoulder Contrast + Lifted Night Blacks',
-            '  vec3 filmic = acesFilmic(col * 1.08);',
-            '  vec3 sCurve = smoothstep(0.0, 1.0, mix(col, filmic, 0.36));',
-            '  col = mix(col, sCurve, clamp((uContrast - 1.0) * 1.65, 0.0, 0.62));',
-            '  col = col * (1.0 - uBlackLift) + vec3(uBlackLift);',
-            '',
-            '  // 6. Optional PS1 Stylized Quantization & Ordered Dither',
+            '  // 4. Filmic S-curve contrast with subtle shadow toe lift',
+            '  c = max(c + vec3(uBlackLift), vec3(0.0));',
+            '  c = pow(c, vec3(uContrast));',
             '  if (uStylized > 0.5) {',
             '    vec2 pix = floor(vUv * uResolution);',
             '    float bayer = mod(pix.x * 3.0 + pix.y * 5.0, 8.0) / 8.0 - 0.5;',
-            '    col = floor((col + bayer * 0.035) * 24.0) / 24.0;',
+            '    c = floor((c + bayer * 0.035) * 24.0) / 24.0;',
             '  }',
-            '',
-            '  // 7. Shadow-Weighted Organic Sensor Grain',
-            '  float noise = (hash12(vUv * uResolution + vec2(uTime * 61.7, uTime * 37.3)) - 0.5) * 2.0;',
-            '  col += noise * uGrain * (0.42 + 0.58 * (1.0 - luma));',
-            '',
-            '  // 8. Smooth Ocular Vignette',
-            '  float vig = clamp(1.0 - edgeDistSq * uVignette, 0.14, 1.0);',
-            '  col *= vig;',
-            '',
-            '  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);',
+            '  c *= mix(1.0 - uVignette, 1.0, smoothstep(0.86, 0.26, edgeDist));',
+            '  c += (rand(vUv + vec2(uTime * 0.017, uTime * 0.031)) - 0.5) * uGrain;',
+            '  gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);',
             '}'
           ].join('\\n'),
         });
@@ -4331,8 +4313,17 @@ export function getHideAndSeekHtml(): string {
             this.gradeUniforms.uTime.value = timeSec;
             this.renderer.setRenderTarget(this.gradeTarget);
             this.renderer.render(this.scene, this.camera);
+            const tGradeStart = performance.now();
             this.renderer.setRenderTarget(null);
             this.renderer.render(this.gradeScene, this.gradeOrthoCam);
+            const gradeCostMs = performance.now() - tGradeStart;
+            this._gradeCostAvg = (this._gradeCostAvg === undefined) ? gradeCostMs : (this._gradeCostAvg * 0.9 + gradeCostMs * 0.1);
+            this._gradeSampleCount = (this._gradeSampleCount || 0) + 1;
+            const maxGradeMs = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.maxMobileFrameCostMs) || 2.0;
+            if (this._gradeSampleCount > 24 && this._gradeCostAvg > maxGradeMs) {
+              this.gradeAutoDisabledByFps = true;
+              this.updateCssFallbackVisibility();
+            }
           } catch (gradeErr) {
             console.warn('[HideAndSeek] Grade pass failed, disabling and falling back to direct render:', gradeErr);
             this.gradeEnabledByConfig = false;
@@ -4352,81 +4343,126 @@ export function getHideAndSeekHtml(): string {
           this.scene.remove(this.skyGroup);
         }
         this.skyGroup = new THREE.Group();
+        this.skyGroup.name = 'NightHorrorSkyAndSilhouettes';
 
         const skyCanvas = document.createElement('canvas');
         skyCanvas.width = 512;
         skyCanvas.height = 256;
         const sCtx = skyCanvas.getContext('2d');
 
-        // Deep Himalayan Autumn Tihar (Kartik Aunsi / Laxmi Puja) Night Sky with Subtle Valley Festival Horizon Glow
+        // Deep cold night sky fading cleanly into fog colour (0x0b1220)
         const grad = sCtx.createLinearGradient(0, 0, 0, 256);
-        grad.addColorStop(0.0, '#02050b');
-        grad.addColorStop(0.32, '#050d1a');
-        grad.addColorStop(0.62, '#0a1728');
-        grad.addColorStop(0.84, '#112236');
-        grad.addColorStop(0.95, '#1c2430');
-        grad.addColorStop(1.0, '#241c18');
+        grad.addColorStop(0.0, '#03060c');
+        grad.addColorStop(0.35, '#060b16');
+        grad.addColorStop(0.68, '#08101c');
+        grad.addColorStop(0.90, '#0a111f');
+        grad.addColorStop(1.0, '#0b1220');
         sCtx.fillStyle = grad;
         sCtx.fillRect(0, 0, 512, 256);
 
-        // Crisp post-monsoon Himalayan autumn stars across upper sky dome
-        for (let st = 0; st < 110; st++) {
-          const sx = (st * 73 + 19) % 510;
-          const sy = (st * 41 + 11) % 145;
-          const sr = (st % 5 === 0) ? 1.15 : 0.72;
-          const sa = 0.22 + ((st * 17) % 55) * 0.01;
-          sCtx.fillStyle = (st % 7 === 0) ? ('rgba(255, 232, 185, ' + sa + ')') : ('rgba(218, 234, 252, ' + sa + ')');
+        // Soft nocturnal cloud/haze wisps
+        for (let i = 0; i < 24; i++) {
+          const cx = ((i * 97 + 31) % 512);
+          const cy = 24 + ((i * 53 + 17) % 145);
+          const rx = 42 + (i % 5) * 18;
+          const ry = 10 + (i % 4) * 5;
+          const cg = sCtx.createRadialGradient(cx, cy, 2, cx, cy, rx);
+          cg.addColorStop(0, 'rgba(22, 34, 54, 0.08)');
+          cg.addColorStop(0.6, 'rgba(14, 22, 36, 0.04)');
+          cg.addColorStop(1, 'rgba(11, 18, 32, 0)');
+          sCtx.save();
+          sCtx.translate(cx, cy);
+          sCtx.scale(1, ry / rx);
+          sCtx.fillStyle = cg;
+          sCtx.beginPath();
+          sCtx.arc(0, 0, rx, 0, Math.PI * 2);
+          sCtx.fill();
+          sCtx.restore();
+        }
+
+        // Stars using non-collinear hash (eliminates GCD(510,145)=5 periodic dotted sky lines)
+        for (let st = 0; st < 220; st++) {
+          const h1 = Math.sin(st * 127.1 + 311.7) * 43758.5453;
+          const h2 = Math.sin(st * 269.5 + 183.3) * 43758.5453;
+          const u = h1 - Math.floor(h1);
+          const v = h2 - Math.floor(h2);
+          const sx = 4 + u * 504;
+          const sy = 4 + Math.pow(v, 1.25) * 150;
+          const horizonFade = Math.max(0, 1.0 - (sy / 160));
+          const sa = (0.24 + (st % 7) * 0.09) * horizonFade;
+          const sr = (st % 19 === 0) ? 1.20 : ((st % 7 === 0) ? 0.90 : 0.65);
+          const tint = (st % 5 === 0) ? '202, 220, 255' : ((st % 9 === 0) ? '255, 236, 212' : '224, 236, 252');
+          sCtx.fillStyle = 'rgba(' + tint + ', ' + sa.toFixed(3) + ')';
           sCtx.beginPath();
           sCtx.arc(sx, sy, sr, 0, Math.PI * 2);
           sCtx.fill();
         }
 
-        // Subtle distant Tihar warm amber horizon scatter from Pokhara / Gandaki valley settlements
-        const tiharHorizonGlow = sCtx.createLinearGradient(0, 182, 0, 256);
-        tiharHorizonGlow.addColorStop(0.0, 'rgba(255, 146, 43, 0.0)');
-        tiharHorizonGlow.addColorStop(0.65, 'rgba(255, 140, 36, 0.08)');
-        tiharHorizonGlow.addColorStop(1.0, 'rgba(255, 128, 24, 0.16)');
-        sCtx.fillStyle = tiharHorizonGlow;
-        sCtx.fillRect(0, 182, 512, 74);
-
-        const moonGlow = sCtx.createRadialGradient(340, 74, 4, 340, 74, 96);
-        moonGlow.addColorStop(0.0, 'rgba(205, 228, 246, 0.58)');
-        moonGlow.addColorStop(0.22, 'rgba(125, 168, 204, 0.30)');
-        moonGlow.addColorStop(0.55, 'rgba(48, 84, 116, 0.12)');
-        moonGlow.addColorStop(1.0, 'rgba(10, 22, 36, 0.0)');
-        sCtx.fillStyle = moonGlow;
-        sCtx.fillRect(0, 0, 512, 256);
-
-        sCtx.fillStyle = 'rgba(232, 244, 255, 0.84)';
-        sCtx.beginPath();
-        sCtx.arc(340, 74, 9.5, 0, Math.PI * 2);
-        sCtx.fill();
-
-        [68, 92].forEach((bandY, bIdx) => {
-          const bandGrad = sCtx.createLinearGradient(0, bandY - 12, 0, bandY + 12);
-          bandGrad.addColorStop(0.0, 'rgba(10, 20, 30, 0.0)');
-          bandGrad.addColorStop(0.5, bIdx === 0 ? 'rgba(48, 76, 94, 0.12)' : 'rgba(30, 50, 64, 0.10)');
-          bandGrad.addColorStop(1.0, 'rgba(10, 20, 30, 0.0)');
-          sCtx.fillStyle = bandGrad;
-          sCtx.fillRect(0, bandY - 12, 512, 24);
-        });
-
         const skyTex = new THREE.CanvasTexture(skyCanvas);
+        if (THREE.SRGBColorSpace) skyTex.colorSpace = THREE.SRGBColorSpace;
+        else if (THREE.sRGBEncoding) skyTex.encoding = THREE.sRGBEncoding;
         const skySphere = new THREE.Mesh(
-          new THREE.SphereGeometry(116, 20, 14),
-          new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false })
+          new THREE.SphereGeometry(180, 24, 16),
+          new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false, depthWrite: false })
         );
+        skySphere.renderOrder = -10;
         this.skyGroup.add(skySphere);
 
+        // Soft moon disc with faint halo (billboard sprite, never warped by sphere UVs)
+        const moonCanvas = document.createElement('canvas');
+        moonCanvas.width = 256;
+        moonCanvas.height = 256;
+        const mCtx = moonCanvas.getContext('2d');
+        if (mCtx) {
+          const haloGrad = mCtx.createRadialGradient(128, 128, 18, 128, 128, 124);
+          haloGrad.addColorStop(0.0, 'rgba(182, 210, 250, 0.52)');
+          haloGrad.addColorStop(0.24, 'rgba(136, 172, 228, 0.22)');
+          haloGrad.addColorStop(0.58, 'rgba(90, 124, 184, 0.06)');
+          haloGrad.addColorStop(1.0, 'rgba(11, 18, 32, 0.0)');
+          mCtx.fillStyle = haloGrad;
+          mCtx.fillRect(0, 0, 256, 256);
+
+          const discGrad = mCtx.createRadialGradient(124, 124, 2, 128, 128, 22);
+          discGrad.addColorStop(0.0, 'rgba(238, 246, 255, 0.96)');
+          discGrad.addColorStop(0.74, 'rgba(204, 222, 248, 0.90)');
+          discGrad.addColorStop(0.92, 'rgba(162, 190, 232, 0.42)');
+          discGrad.addColorStop(1.0, 'rgba(136, 172, 228, 0.0)');
+          mCtx.fillStyle = discGrad;
+          mCtx.beginPath();
+          mCtx.arc(128, 128, 22, 0, Math.PI * 2);
+          mCtx.fill();
+
+          mCtx.fillStyle = 'rgba(142, 166, 202, 0.18)';
+          mCtx.beginPath(); mCtx.arc(122, 123, 6.5, 0, Math.PI * 2); mCtx.fill();
+          mCtx.beginPath(); mCtx.arc(133, 129, 5.0, 0, Math.PI * 2); mCtx.fill();
+          mCtx.beginPath(); mCtx.arc(125, 134, 3.8, 0, Math.PI * 2); mCtx.fill();
+        }
+        const moonTex = new THREE.CanvasTexture(moonCanvas);
+        const moonSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: moonTex,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          fog: false
+        }));
+        moonSprite.position.set(-55, 72, -118);
+        moonSprite.scale.set(36, 36, 1);
+        moonSprite.renderOrder = -8;
+        this.skyGroup.add(moonSprite);
+
+        // 3 layered noise-displaced mountain silhouettes at different distances fading into fog colour (0x0b1220)
         const ridgeConfigs = [
-          { radius: 110, height: 34, color: 0x142533, opacity: 0.82, seed: 1.1, freq1: 5, freq2: 11 },
-          { radius: 101, height: 24, color: 0x101f2b, opacity: 0.88, seed: 2.7, freq1: 7, freq2: 13 },
-          { radius: 92,  height: 15, color: 0x0c1720, opacity: 0.94, seed: 4.3, freq1: 9, freq2: 17 },
+          { radius: 162, height: 38, color: 0x070d18, opacity: 0.95, seed: 1.1, freq1: 4, freq2: 9, freq3: 19 },
+          { radius: 144, height: 27, color: 0x09101d, opacity: 0.90, seed: 2.7, freq1: 6, freq2: 13, freq3: 23 },
+          { radius: 126, height: 17, color: 0x0b1220, opacity: 0.86, seed: 4.3, freq1: 8, freq2: 17, freq3: 29 },
         ];
 
-        ridgeConfigs.forEach(rc => {
-          const rGeo = new THREE.CylinderGeometry(rc.radius, rc.radius, rc.height, 48, 1, true);
+        ridgeConfigs.forEach((rc, rIdx) => {
+          const rGeo = new THREE.CylinderGeometry(rc.radius, rc.radius, rc.height, 96, 1, true);
           const posAttr = rGeo.attributes.position;
+          const colors = new Float32Array(posAttr.count * 3);
+          const topCol = new THREE.Color(rc.color);
+          const botCol = new THREE.Color(0x0b1220);
           for (let i = 0; i < posAttr.count; i++) {
             const vy = posAttr.getY(i);
             if (vy > 0) {
@@ -4435,23 +4471,33 @@ export function getHideAndSeekHtml(): string {
               const ang = Math.atan2(vx, vz);
               const peakWave =
                 Math.sin(ang * rc.freq1 + rc.seed) * 0.34 +
-                Math.cos(ang * rc.freq2 - rc.seed) * 0.18 +
-                Math.sin(ang * 3.0) * 0.22;
+                Math.cos(ang * rc.freq2 - rc.seed) * 0.20 +
+                Math.sin(ang * rc.freq3 + rc.seed * 1.7) * 0.11 +
+                Math.sin(ang * 2.0 - rc.seed * 0.5) * 0.22;
               posAttr.setY(i, (rc.height * 0.5) * (0.65 + peakWave));
+              colors[i * 3] = topCol.r;
+              colors[i * 3 + 1] = topCol.g;
+              colors[i * 3 + 2] = topCol.b;
             } else {
-              posAttr.setY(i, -4.0);
+              posAttr.setY(i, -6.0);
+              colors[i * 3] = botCol.r;
+              colors[i * 3 + 1] = botCol.g;
+              colors[i * 3 + 2] = botCol.b;
             }
           }
+          rGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
           rGeo.computeVertexNormals();
           const rMat = new THREE.MeshBasicMaterial({
-            color: rc.color,
+            vertexColors: true,
             transparent: true,
             opacity: rc.opacity,
             side: THREE.BackSide,
             fog: false,
+            depthWrite: false,
           });
           const rMesh = new THREE.Mesh(rGeo, rMat);
-          rMesh.position.y = rc.height * 0.32;
+          rMesh.position.y = rc.height * 0.28;
+          rMesh.renderOrder = -7 + rIdx;
           this.skyGroup.add(rMesh);
         });
 
@@ -4627,13 +4673,13 @@ export function getHideAndSeekHtml(): string {
           };
         });
 
-        // Pooled PointLights: Real PointLights on the 3 nearest outdoor lamps (0xffa955) + up to 3 indoor room lights
-        for (let i = 0; i < 6; i++) {
+        // Pooled PointLights: Real PointLights on up to 6 nearest outdoor lamps (0xffa955) + up to 3 indoor room lights
+        for (let i = 0; i < 8; i++) {
           const pl = new THREE.PointLight(
             warmLampHex,
             0,
-            18.2,
-            1.64
+            24.5,
+            1.62
           );
           pl.color.set(warmLampHex);
           pl.castShadow = false;
@@ -4684,7 +4730,7 @@ export function getHideAndSeekHtml(): string {
         lanternGlass.userData.noMerge = true;
         group.add(lanternGlass);
 
-        const bulbPos = new THREE.Vector3(x, lampBaseY + 2.45, z);
+        const bulbPos = new THREE.Vector3(x, lampBaseY + 4.55, z);
 
         // Emissive glow sprites on lamp head (replaces flat triangular light cones)
         const innerGlow = new THREE.Sprite(pMats.innerGlowMat);
@@ -5045,8 +5091,8 @@ export function getHideAndSeekHtml(): string {
         // Assign Real PointLights ONLY to the 3 nearest outdoor streetlamps (plus any active indoor room lights)
         const activeCount = this.lightPool.length;
         const maxOutdoorLampLights = (activePreset && typeof activePreset.maxActiveLampLights === 'number')
-          ? Math.min(3, activePreset.maxActiveLampLights)
-          : ((HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.maxActiveLampLights) || 3);
+          ? Math.min(6, activePreset.maxActiveLampLights)
+          : ((HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.maxActiveLampLights) || 6);
         const warmLampHex = (HORROR_CONFIG.lighting && HORROR_CONFIG.lighting.lampColor) || 0xffa955;
         const ovList = Array.isArray(this.indoorOverrideLights) && this.indoorOverrideLights.length > 0
           ? this.indoorOverrideLights
@@ -5110,7 +5156,14 @@ export function getHideAndSeekHtml(): string {
     class ParticleField {
       constructor(scene) {
         // TASK 1: Slow drifting low-opacity mist/dust motes (NO bright floating sparkles!)
-        this.maxParticles = 36;
+        let configuredMax = 64;
+        if (HORROR_CONFIG && HORROR_CONFIG.qualityPresets) {
+          Object.keys(HORROR_CONFIG.qualityPresets).forEach(k => {
+            const pc = HORROR_CONFIG.qualityPresets[k].particleCount;
+            if (typeof pc === 'number' && pc > configuredMax) configuredMax = pc;
+          });
+        }
+        this.maxParticles = Math.max(64, configuredMax);
         this.geo = new THREE.BufferGeometry();
         this.positions = new Float32Array(this.maxParticles * 3);
         this.colors = new Float32Array(this.maxParticles * 3);
@@ -5137,7 +5190,8 @@ export function getHideAndSeekHtml(): string {
         }
         this.geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
         this.geo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
-        this.geo.setDrawRange(0, activePreset.particleCount);
+        const initCount = Math.min((activePreset && activePreset.particleCount) || 30, this.maxParticles);
+        this.geo.setDrawRange(0, initCount);
 
         this.points = new THREE.Points(this.geo, new THREE.PointsMaterial({
           map: softRoundParticleTex,
@@ -5177,9 +5231,10 @@ export function getHideAndSeekHtml(): string {
       }
 
       applyQuality(preset) {
-        this.geo.setDrawRange(0, preset.particleCount);
+        const count = Math.min((preset && preset.particleCount) || 30, this.maxParticles);
+        this.geo.setDrawRange(0, count);
         this.mistPlanes.forEach((m, idx) => {
-          m.mesh.visible = idx < (preset.mistPlaneCount || 4);
+          m.mesh.visible = idx < ((preset && preset.mistPlaneCount) || 4);
         });
       }
 
@@ -5191,7 +5246,8 @@ export function getHideAndSeekHtml(): string {
         const dustAllowed = (typeof exploreTools === 'undefined' || exploreTools.dustEnabled !== false);
         const fogAllowed = (typeof exploreTools === 'undefined' || exploreTools.fogEnabled !== false);
         if (this.points) this.points.visible = dustAllowed;
-        const count = dustAllowed ? activePreset.particleCount : 0;
+        const requestedCount = (activePreset && activePreset.particleCount) || 30;
+        const count = dustAllowed ? Math.min(requestedCount, this.meta.length) : 0;
         const px = playerPos.x, pz = playerPos.z;
         let speedMult = 1.0;
         if (this.windBoostTimer > 0) {
@@ -5201,6 +5257,7 @@ export function getHideAndSeekHtml(): string {
 
         for (let i = 0; i < count; i++) {
           const m = this.meta[i];
+          if (!m) continue;
           const idx = i * 3;
           this.positions[idx + 0] += (m.vx * speedMult + Math.sin(timeSec * 0.4 + m.phase) * 0.06) * delta;
           this.positions[idx + 1] += m.vy * delta;
@@ -5504,61 +5561,159 @@ export function getHideAndSeekHtml(): string {
           }
         }
       } else if (type === 'pale-campus-stucco') {
-        // Step 3 & 4: Darkened warm cream-plaster (#b8a888 darkened <= 0.6 value) with fine plaster grain & seams
-        ctx.fillStyle = '#998b70';
+        // PHASE 12 PHOTOREALISTIC WEATHERED CONCRETE / PLASTER & ARCHITECTURAL PANEL CLADDING (Exact match to IMG_6908 & IMG_6910)
+        ctx.fillStyle = '#8c7e66';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#808080';
+        bCtx.fillStyle = '#848484';
         bCtx.fillRect(0, 0, 512, 512);
-
-        // Vertical modular panel seams every 64px
-        for (let x = 0; x < 512; x += 64) {
-          ctx.fillStyle = '#7d715a';
-          ctx.fillRect(x - 1, 0, 2, 512);
-          ctx.fillStyle = '#a8997c';
-          ctx.fillRect(x + 1, 0, 1, 512);
-          bCtx.fillStyle = '#404040';
-          bCtx.fillRect(x - 1, 0, 2, 512);
-        }
-
-        // Horizontal panel joint seam halfway up
-        ctx.fillStyle = '#7d715a';
-        ctx.fillRect(0, 255, 512, 2);
-        ctx.fillStyle = '#a8997c';
-        ctx.fillRect(0, 257, 512, 1);
-        bCtx.fillStyle = '#404040';
-        bCtx.fillRect(0, 255, 512, 2);
-      } else if (type === 'interlocking-pavers') {
-        // Rain-Slicked Nepali Grey Flagstone Courtyard Slabs (Dhunga) with Wet Rain Puddles (Ref Photos 1, 4, 6!)
-        ctx.fillStyle = '#1e2530';
-        ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#1c1c1c';
-        bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#525252';
+        rCtx.fillStyle = '#9a9a9a';
         rCtx.fillRect(0, 0, 512, 512);
 
-        for (let y = 0; y < 512; y += 42) {
-          const rIdx = Math.floor(y / 42);
+        // 1. Multi-octave mottled plaster & concrete aggregate clouds
+        for (let i = 0; i < 220; i++) {
+          const px = (i * 79) % 512;
+          const py = (i * 131) % 512;
+          const pw = 18 + (i % 36);
+          const ph = 14 + ((i * 7) % 32);
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(54, 48, 38, 0.14)' : 'rgba(182, 168, 142, 0.11)';
+          ctx.fillRect(px, py, pw, ph);
+          bCtx.fillStyle = (i % 2 === 0) ? '#6e6e6e' : '#969696';
+          bCtx.fillRect(px, py, pw, ph);
+          rCtx.fillStyle = (i % 3 === 0) ? '#727272' : '#adadad';
+          rCtx.fillRect(px, py, pw, ph);
+        }
+
+        // 2. High-frequency mineral sand & trowel grain (4,500 micro-pores)
+        for (let i = 0; i < 4500; i++) {
+          const gx = (i * 163 + (i % 7) * 11) % 512;
+          const gy = (i * 271 + (i % 13) * 17) % 512;
+          ctx.fillStyle = (i % 3 === 0) ? 'rgba(215, 202, 178, 0.10)' : 'rgba(32, 28, 22, 0.14)';
+          ctx.fillRect(gx, gy, 2, 2);
+          bCtx.fillStyle = (i % 2 === 0) ? '#a4a4a4' : '#646464';
+          bCtx.fillRect(gx, gy, 2, 2);
+        }
+
+        // 3. Modular architectural panel seams + recessed fastener rivets (IMG_6910 right wall & IMG_6908 wing facade)
+        for (let x = 0; x < 512; x += 64) {
+          ctx.fillStyle = '#4a4133';
+          ctx.fillRect(x, 0, 3, 512);
+          ctx.fillStyle = '#b4a386';
+          ctx.fillRect(x + 3, 0, 1.5, 512);
+          bCtx.fillStyle = '#1e1e1e';
+          bCtx.fillRect(x, 0, 3, 512);
+          bCtx.fillStyle = '#c8c8c8';
+          bCtx.fillRect(x + 3, 0, 2, 512);
+          rCtx.fillStyle = '#454545';
+          rCtx.fillRect(x, 0, 4, 512);
+          // Fastener rivets & damp rust/water drip below rivets
+          for (let ry = 24; ry < 512; ry += 64) {
+            ctx.fillStyle = '#2d261e';
+            ctx.fillRect(x + 6, ry, 3, 3);
+            ctx.fillStyle = 'rgba(42, 34, 24, 0.25)';
+            ctx.fillRect(x + 6, ry + 3, 2, 14);
+            bCtx.fillStyle = '#101010';
+            bCtx.fillRect(x + 6, ry, 3, 3);
+          }
+        }
+
+        // Horizontal panel joint seams at y=128, 256, 384
+        [128, 256, 384].forEach(hy => {
+          ctx.fillStyle = '#4a4133';
+          ctx.fillRect(0, hy, 512, 2.5);
+          ctx.fillStyle = '#b4a386';
+          ctx.fillRect(0, hy + 2.5, 512, 1.5);
+          bCtx.fillStyle = '#222222';
+          bCtx.fillRect(0, hy, 512, 3);
+        });
+
+        // 4. Under-eave water runoff streaks & rising damp grime at wall base (IMG_6908 & IMG_6910)
+        const topRunoff = ctx.createLinearGradient(0, 0, 0, 110);
+        topRunoff.addColorStop(0.0, 'rgba(18, 22, 20, 0.62)');
+        topRunoff.addColorStop(0.5, 'rgba(28, 32, 26, 0.26)');
+        topRunoff.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+        ctx.fillStyle = topRunoff;
+        ctx.fillRect(0, 0, 512, 110);
+
+        const bottomDamp = ctx.createLinearGradient(0, 390, 0, 512);
+        bottomDamp.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
+        bottomDamp.addColorStop(0.55, 'rgba(24, 28, 22, 0.34)');
+        bottomDamp.addColorStop(1.0, 'rgba(14, 18, 14, 0.72)');
+        ctx.fillStyle = bottomDamp;
+        ctx.fillRect(0, 390, 512, 122);
+        rCtx.fillStyle = '#383838';
+        rCtx.fillRect(0, 440, 512, 72);
+
+        for (let sx = 12; sx < 512; sx += 28) {
+          const sw = 6 + ((sx * 7) % 14);
+          const sh = 90 + ((sx * 31) % 240);
+          const sg = ctx.createLinearGradient(0, 0, 0, sh);
+          sg.addColorStop(0.0, 'rgba(20, 24, 18, 0.44)');
+          sg.addColorStop(0.65, 'rgba(28, 32, 24, 0.16)');
+          sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+          ctx.fillStyle = sg;
+          ctx.fillRect(sx, 0, sw, sh);
+          rCtx.fillStyle = '#505050';
+          rCtx.fillRect(sx, 0, sw, Math.min(sh, 140));
+        }
+
+        // 5. Hairline plaster cracks
+        ctx.strokeStyle = 'rgba(26, 22, 18, 0.62)';
+        ctx.lineWidth = 1.5;
+        bCtx.strokeStyle = '#141414';
+        bCtx.lineWidth = 2.0;
+        for (let cIdx = 0; cIdx < 6; cIdx++) {
+          let cx = 36 + cIdx * 82;
+          let cy = (cIdx % 2 === 0) ? 28 : 268;
+          ctx.beginPath(); ctx.moveTo(cx, cy);
+          bCtx.beginPath(); bCtx.moveTo(cx, cy);
+          for (let seg = 0; seg < 5; seg++) {
+            cx += ((seg * 17 + cIdx * 11) % 18) - 8;
+            cy += 22 + (seg % 3) * 9;
+            ctx.lineTo(cx, cy);
+            bCtx.lineTo(cx, cy);
+          }
+          ctx.stroke();
+          bCtx.stroke();
+        }
+      } else if (type === 'interlocking-pavers') {
+        // PHASE 12 RAIN-SLICKED INTERLOCKING BRICK PAVERS & WET COURTYARD SLABS (Exact match to IMG_6908 & IMG_6910)
+        ctx.fillStyle = '#161b22';
+        ctx.fillRect(0, 0, 512, 512);
+        bCtx.fillStyle = '#121212';
+        bCtx.fillRect(0, 0, 512, 512);
+        rCtx.fillStyle = '#484848';
+        rCtx.fillRect(0, 0, 512, 512);
+
+        const rowH = 32;
+        for (let y = 0; y < 512; y += rowH) {
+          const rIdx = Math.floor(y / rowH);
           const off = (rIdx % 2) * 32;
           for (let x = -32; x < 512 + 32; x += 64) {
-            const w = 59 + ((x * 7 + y * 3) % 3);
-            const h = 38 + ((x * 5 + y * 11) % 3);
-            const seed = Math.abs(x * 13 + y * 19);
-            const isWetPuddle = (seed % 7) < 2;
-            const baseLum = isWetPuddle ? (54 + (seed % 14)) : (88 + (seed % 24));
-            ctx.fillStyle = 'rgb(' + baseLum + ',' + (baseLum + 5) + ',' + (baseLum + 11) + ')';
+            const w = 59;
+            const h = rowH - 3.5;
+            const seed = Math.abs(x * 17 + y * 23);
+            const puddleNoise = Math.sin(x * 0.022 + y * 0.018) + Math.cos(x * 0.015 - y * 0.027);
+            const isWetPuddle = puddleNoise > 0.45 || (seed % 9) < 2;
+            const isDamp = puddleNoise > -0.15;
+            const baseLum = isWetPuddle ? (38 + (seed % 12)) : (isDamp ? (58 + (seed % 16)) : (76 + (seed % 20)));
+            const warmShift = (seed % 5 === 0) ? 6 : 0;
+            ctx.fillStyle = 'rgb(' + (baseLum + warmShift) + ',' + (baseLum + 3) + ',' + (baseLum + 8) + ')';
             ctx.fillRect(x + off + 2, y + 2, w, h);
 
-            // Chiseled stone edge highlight & deep mortar joint shadow
-            ctx.fillStyle = 'rgba(203, 213, 225, 0.18)';
+            // Chiseled paver bevel highlight & deep wet mortar groove
+            ctx.fillStyle = isWetPuddle ? 'rgba(185, 210, 235, 0.24)' : 'rgba(203, 213, 225, 0.16)';
             ctx.fillRect(x + off + 2, y + 2, w, 2);
-            ctx.fillStyle = 'rgba(10, 15, 24, 0.55)';
-            ctx.fillRect(x + off + 2, y + h, w, 2.5);
+            ctx.fillStyle = 'rgba(6, 10, 16, 0.72)';
+            ctx.fillRect(x + off + 2, y + h, w, 3);
 
-            bCtx.fillStyle = '#d1d5db';
-            bCtx.fillRect(x + off + 2.5, y + 2.5, w - 1, h - 1);
+            // Raised paver dome in height map for crisp Sobel normal bevels
+            bCtx.fillStyle = '#b8c0cc';
+            bCtx.fillRect(x + off + 2, y + 2, w, h);
+            bCtx.fillStyle = '#e5e7eb';
+            bCtx.fillRect(x + off + 5, y + 4, w - 6, h - 4);
 
-            // Mirror-like low roughness in wet rain puddle patches (Ref Photo 1 & 6!)
-            rCtx.fillStyle = isWetPuddle ? '#181818' : '#6e6e6e';
+            // Spatially varying wet/dry roughness map (0.06 in puddles, 0.25 on damp stone, 0.65 on dry stone)
+            rCtx.fillStyle = isWetPuddle ? '#101010' : (isDamp ? '#383838' : '#8a8a8a');
             rCtx.fillRect(x + off + 2, y + 2, w, h);
           }
         }
@@ -6009,22 +6164,23 @@ export function getHideAndSeekHtml(): string {
 
       };
 
+      const maxAniso = (HORROR_CONFIG.photorealisticOverhaul && HORROR_CONFIG.photorealisticOverhaul.anisotropyMax) || 8;
       const map = new THREE.CanvasTexture(c);
       map.wrapS = THREE.RepeatWrapping;
       map.wrapT = THREE.RepeatWrapping;
-      map.anisotropy = 4;
+      map.anisotropy = maxAniso;
       map.colorSpace = THREE.SRGBColorSpace || 'srgb';
       if ('encoding' in map && THREE.sRGBEncoding) map.encoding = THREE.sRGBEncoding;
 
       const outBump = new THREE.CanvasTexture(bumpC);
       outBump.wrapS = THREE.RepeatWrapping;
       outBump.wrapT = THREE.RepeatWrapping;
-      outBump.anisotropy = 4;
+      outBump.anisotropy = maxAniso;
 
       const outRough = new THREE.CanvasTexture(roughC);
       outRough.wrapS = THREE.RepeatWrapping;
       outRough.wrapT = THREE.RepeatWrapping;
-      outRough.anisotropy = 4;
+      outRough.anisotropy = maxAniso;
       if (!window.__sharedArchRoughTex) window.__sharedArchRoughTex = outRough;
 
       // Synthesize a 512px Tangent-Space RGB Normal Map from the height/bump canvas via 3x3 Sobel operator
@@ -6034,7 +6190,7 @@ export function getHideAndSeekHtml(): string {
       const outNormal = new THREE.CanvasTexture(normC);
       outNormal.wrapS = THREE.RepeatWrapping;
       outNormal.wrapT = THREE.RepeatWrapping;
-      outNormal.anisotropy = 4;
+      outNormal.anisotropy = maxAniso;
 
       const buildSobelNormalAndRoughness = () => {
         try {
@@ -6045,7 +6201,7 @@ export function getHideAndSeekHtml(): string {
           const src = srcImg.data;
           const dstImg = nCtx.createImageData ? nCtx.createImageData(512, 512) : { data: new Uint8ClampedArray(512 * 512 * 4) };
           const dst = dstImg.data;
-          const strength = 2.65;
+          const strength = (HORROR_CONFIG.photorealisticOverhaul && HORROR_CONFIG.photorealisticOverhaul.normalMapStrength) || 3.25;
           for (let y = 0; y < 512; y++) {
             const ym1 = (y - 1) & 511;
             const yp1 = (y + 1) & 511;
@@ -6389,10 +6545,10 @@ export function getHideAndSeekHtml(): string {
           map: colPlasterTex,
           bumpMap: colPlasterTex,
           bumpScale: mb.pilasterNormalScale !== undefined ? mb.pilasterNormalScale : 0.015,
-          color: mb.pilasterColor || 0xdce4ec,
-          emissive: mb.pilasterEmissive || 0x182430,
-          emissiveIntensity: mb.pilasterEmissiveIntensity !== undefined ? mb.pilasterEmissiveIntensity : 0.16,
-          roughness: mb.pilasterRoughness !== undefined ? mb.pilasterRoughness : 0.54,
+          color: 0x828c96,
+          emissive: 0x000000,
+          emissiveIntensity: 0.0,
+          roughness: mb.pilasterRoughness !== undefined ? mb.pilasterRoughness : 0.65,
           metalness: 0.06,
         });
       })(),
@@ -6909,42 +7065,56 @@ export function getHideAndSeekHtml(): string {
       }),
       campusStucco: new THREE.MeshStandardMaterial({
         map: stuccoTex.map,
+        normalMap: stuccoTex.normalMap,
+        normalScale: new THREE.Vector2(0.58, 0.58),
+        roughnessMap: stuccoTex.roughnessMap,
         bumpMap: stuccoTex.bumpMap,
-        bumpScale: 0.022,
-        color: 0x8f826c,
-        roughness: 0.76,
+        bumpScale: 0.032,
+        color: 0x9c8e76,
+        roughness: 0.68,
+        metalness: 0.05,
         side: THREE.FrontSide,
       }),
       classroomFloor: new THREE.MeshStandardMaterial({
         map: scuffedFloorTex.map,
+        normalMap: scuffedFloorTex.normalMap,
+        normalScale: new THREE.Vector2(0.42, 0.42),
+        roughnessMap: scuffedFloorTex.roughnessMap,
         bumpMap: scuffedFloorTex.bumpMap,
-        bumpScale: 0.055,
-        color: 0x68727c,
-        roughness: 0.35,
-        metalness: 0.18,
+        bumpScale: 0.045,
+        color: 0x727d88,
+        roughness: 0.28,
+        metalness: 0.20,
       }),
       interlockingPavers: new THREE.MeshStandardMaterial({
         map: paverTex.map,
+        normalMap: paverTex.normalMap,
+        normalScale: new THREE.Vector2(0.65, 0.65),
         bumpMap: paverTex.bumpMap,
         bumpScale: 0.055,
         roughnessMap: paverTex.roughnessMap,
-        roughness: 0.35,
-        metalness: 0.24,
+        roughness: 0.22,
+        metalness: 0.28,
       }),
       nepalDachiBrick: new THREE.MeshStandardMaterial({
         map: dachiBrickTex.map,
+        normalMap: dachiBrickTex.normalMap,
+        normalScale: new THREE.Vector2(0.62, 0.62),
         bumpMap: dachiBrickTex.bumpMap,
         bumpScale: 0.065,
         roughnessMap: dachiBrickTex.roughnessMap,
-        roughness: 0.68,
+        roughness: 0.64,
         metalness: 0.06,
         side: THREE.FrontSide,
       }),
       carvedSalWood: new THREE.MeshStandardMaterial({
         map: carvedSalTex.map,
+        normalMap: carvedSalTex.normalMap,
+        normalScale: new THREE.Vector2(0.55, 0.55),
+        roughnessMap: carvedSalTex.roughnessMap,
         bumpMap: carvedSalTex.bumpMap,
         bumpScale: 0.075,
-        roughness: 0.52,
+        roughness: 0.48,
         metalness: 0.12,
       }),
       ebonyCarvedWood: new THREE.MeshStandardMaterial({
@@ -7059,55 +7229,74 @@ export function getHideAndSeekHtml(): string {
       }),
       whiteTrim: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
+        normalMap: peelingPaintTex.normalMap,
+        normalScale: new THREE.Vector2(0.45, 0.45),
+        roughnessMap: peelingPaintTex.roughnessMap,
         bumpMap: peelingPaintTex.bumpMap,
         bumpScale: 0.045,
-        color: 0x7c848c,
-        roughness: 0.64,
+        color: 0x88929b,
+        roughness: 0.58,
       }),
       concretePillar: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
+        normalMap: peelingPaintTex.normalMap,
+        normalScale: new THREE.Vector2(0.52, 0.52),
+        roughnessMap: peelingPaintTex.roughnessMap,
         bumpMap: peelingPaintTex.bumpMap,
         bumpScale: 0.05,
-        color: 0x7c848c,
-        roughness: 0.66,
+        color: 0x869098,
+        roughness: 0.62,
       }),
       plinthDarkConcrete: new THREE.MeshStandardMaterial({
         map: scuffedFloorTex.map,
+        normalMap: scuffedFloorTex.normalMap,
+        normalScale: new THREE.Vector2(0.55, 0.55),
+        roughnessMap: scuffedFloorTex.roughnessMap,
         bumpMap: scuffedFloorTex.bumpMap,
         bumpScale: 0.05,
-        color: 0x475569,
-        roughness: 0.76,
+        color: 0x4e5d73,
+        roughness: 0.68,
       }),
       windowGlass: new THREE.MeshStandardMaterial({
         map: dirtyGlassTex.map,
+        normalMap: dirtyGlassTex.normalMap,
+        normalScale: new THREE.Vector2(0.25, 0.25),
         bumpMap: dirtyGlassTex.bumpMap,
         bumpScale: 0.015,
-        color: 0x182b3c,
-        roughness: 0.18,
-        metalness: 0.86,
+        color: 0x1c3247,
+        roughness: 0.12,
+        metalness: 0.88,
         transparent: true,
-        opacity: 0.72,
+        opacity: 0.74,
       }),
       windowWarmLit: new THREE.MeshStandardMaterial({
         map: dirtyGlassTex.map,
-        color: 0xffb35c,
+        color: 0xffc170,
         emissive: HORROR_CONFIG.lighting.windowEmissive || 0xffa84c,
-        emissiveIntensity: HORROR_CONFIG.lighting.windowEmissiveIntensity || 0.62,
-        roughness: 0.36,
+        emissiveIntensity: HORROR_CONFIG.lighting.windowEmissiveIntensity || 0.74,
+        roughness: 0.24,
       }),
       deskWoodTop: new THREE.MeshStandardMaterial({
         map: wornWoodTex.map,
+        normalMap: wornWoodTex.normalMap,
+        normalScale: new THREE.Vector2(0.48, 0.48),
+        roughnessMap: wornWoodTex.roughnessMap,
         bumpMap: wornWoodTex.bumpMap,
         bumpScale: 0.055,
-        color: 0x8c4a1c,
-        roughness: 0.56,
+        color: 0x965222,
+        roughness: 0.44,
+        metalness: 0.08,
       }),
       chairWood: new THREE.MeshStandardMaterial({
         map: wornWoodTex.map,
+        normalMap: wornWoodTex.normalMap,
+        normalScale: new THREE.Vector2(0.48, 0.48),
+        roughnessMap: wornWoodTex.roughnessMap,
         bumpMap: wornWoodTex.bumpMap,
         bumpScale: 0.06,
-        color: 0x6b3412,
-        roughness: 0.64,
+        color: 0x753b16,
+        roughness: 0.52,
+        metalness: 0.06,
       }),
       deskSteelFrame: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
@@ -7314,7 +7503,17 @@ export function getHideAndSeekHtml(): string {
       verandaPost: new THREE.CylinderGeometry(0.09, 0.10, 3.3, 8),
       columnContactShadow: new THREE.PlaneGeometry(1.4, 1.4),
       fencePicket: new THREE.CylinderGeometry(0.02, 0.02, 1.18, 6),
-      shrubClump: new THREE.DodecahedronGeometry(0.38, 1),
+      shrubClump: (function() {
+        const geo = new THREE.IcosahedronGeometry(0.38, 1);
+        const pos = geo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+          const vx = pos.getX(i), vy = pos.getY(i), vz = pos.getZ(i);
+          const n = 0.82 + 0.26 * Math.sin(vx * 7.3 + vy * 5.1 + vz * 6.7) + 0.14 * Math.cos(vx * 13.1 - vz * 11.3);
+          pos.setXYZ(i, vx * n * 1.08, vy * n * 0.78, vz * n * 1.08);
+        }
+        geo.computeVertexNormals();
+        return geo;
+      })(),
     };
 
     // Tag repeated prop geometries so bakeStaticGroup instances them via THREE.InstancedMesh
@@ -7437,7 +7636,7 @@ export function getHideAndSeekHtml(): string {
     // - Cool moonlit rim light on roof edges, cornices, pilasters & rotunda dome
     // - Reduced fog influence on the Main Administration Building ONLY (Fix 5: global fog untouched!)
     const mbShaderCfg = HORROR_CONFIG.mainBuilding || {};
-    const mbFogInfluence = (typeof mbShaderCfg.fogInfluence === 'number') ? mbShaderCfg.fogInfluence : 0.32;
+    const mbFogInfluence = 1.0;
     const mbRimCol = mbShaderCfg.moonRimColor || [0.28, 0.44, 0.62];
     const mbRimInt = (typeof mbShaderCfg.moonRimIntensity === 'number') ? mbShaderCfg.moonRimIntensity : 1.05;
     const mbRimPow = (typeof mbShaderCfg.moonRimPower === 'number') ? mbShaderCfg.moonRimPower : 2.1;
@@ -7571,9 +7770,9 @@ export function getHideAndSeekHtml(): string {
           '#include <fog_fragment>',
           '#ifdef USE_FOG\\n' +
           '  #ifdef FOG_EXP2\\n' +
-          '    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );\\n' +
+          '    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * fogDepth * fogDepth );\\n' +
           '  #else\\n' +
-          '    float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );\\n' +
+          '    float fogFactor = smoothstep( fogNear, fogFar, fogDepth );\\n' +
           '  #endif\\n' +
           '  fogFactor *= ' + mbFogInfluence.toFixed(3) + ';\\n' +
           '  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\\n' +
@@ -8347,17 +8546,21 @@ export function getHideAndSeekHtml(): string {
       }
       wGroup.rotation.y = rotY;
 
-      // Hollow 4-bar 3D window frame spanning the full wall thickness + pre-merged interior & exterior sill ledges
+      // Static outer frame & fixed left pane are placed in a static Group so finalizePhaseASceneOptimization merges all 121 windows into sector batches!
+      const staticWinGroup = new THREE.Group();
+      staticWinGroup.position.set(wallCenterX, wy, wallCenterZ);
+      staticWinGroup.rotation.y = rotY;
       const frame = new THREE.Mesh(hollowWinOuterFrameGeo, materials.whiteTrim);
-      wGroup.add(frame);
+      staticWinGroup.add(frame);
 
       // Fixed Left Glass Sash (genuinely see-through from both inside and outside!)
       const paneMat = isWarmLit ? seeThroughWarmWindowGlassMat : seeThroughWindowGlassMat;
       const leftPane = new THREE.Mesh(sharedWinLeftPaneGeo, paneMat);
       leftPane.position.set(-0.45, 0, -0.015);
-      wGroup.add(leftPane);
+      staticWinGroup.add(leftPane);
+      scene.add(staticWinGroup);
 
-      // Openable / Closable Right Sliding Window Sash with pre-merged 4-Bar Hollow Frame & Brass Handle Latch
+      // Openable / Closable Right Sliding Window Sash with pre-merged 2-Mesh Sash (Frame + Glass)
       const movableSash = new THREE.Group();
       movableSash.position.set(0.45, 0, 0.025);
       movableSash.userData.noMerge = true;
@@ -8367,9 +8570,6 @@ export function getHideAndSeekHtml(): string {
       const sashFrame = new THREE.Mesh(sharedMovableSashFrameGeo, materials.deskSteelFrame);
       sashFrame.userData.noMerge = true;
       movableSash.add(sashFrame);
-      const latchHandle = new THREE.Mesh(sharedWinLatchGeo, materials.brassGajur);
-      latchHandle.userData.noMerge = true;
-      movableSash.add(latchHandle);
       wGroup.add(movableSash);
 
       scene.add(wGroup);
@@ -9482,10 +9682,10 @@ export function getHideAndSeekHtml(): string {
         polygonOffsetUnits: -1,
       }),
       steadyDimTubeMat: new THREE.MeshStandardMaterial({
-        color: 0xc8f4e8,
-        emissive: (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.tubeStates && HORROR_CONFIG.classroom.tubeStates.steadyDimColor) || 0x9ce8d6,
-        emissiveIntensity: (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.tubeStates && HORROR_CONFIG.classroom.tubeStates.steadyDimIntensity) || 0.38,
-        roughness: 0.25,
+        color: 0xfff3d6,
+        emissive: (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.tubeStates && HORROR_CONFIG.classroom.tubeStates.steadyDimColor) || 0xffc670,
+        emissiveIntensity: (HORROR_CONFIG.classroom && HORROR_CONFIG.classroom.tubeStates && HORROR_CONFIG.classroom.tubeStates.steadyDimIntensity) || 0.65,
+        roughness: 0.22,
       }),
       exitSignRedMat: new THREE.MeshStandardMaterial({
         color: 0xfca5a5,
@@ -9697,10 +9897,23 @@ export function getHideAndSeekHtml(): string {
         { w: 0.12, h: 0.14, d: 0.48, x: 0.03, y: -0.18, rz: -0.18 },
       ], [0, 0, 256, 256]),
       loungeArmchair: buildConstructedFurnitureGeo([
-        { w: 0.72, h: 0.34, d: 0.68, y: 0.22 },   // Upholstered armchair cushion (Ref 3)
+        { w: 0.72, h: 0.28, d: 0.68, y: 0.26 },   // Upholstered armchair cushion
         { w: 0.72, h: 0.48, d: 0.16, y: 0.54, z: -0.26, rx: -0.10 }, // Tilted backrest
-        { w: 0.08, h: 0.46, d: 0.66, x: -0.34, y: 0.32, z: 0 }, // Left curved wood armrest & leg frame
-        { w: 0.08, h: 0.46, d: 0.66, x:  0.34, y: 0.32, z: 0 }, // Right curved wood armrest & leg frame
+        { w: 0.08, h: 0.36, d: 0.66, x: -0.34, y: 0.36, z: 0 }, // Left curved wood armrest
+        { w: 0.08, h: 0.36, d: 0.66, x:  0.34, y: 0.36, z: 0 }, // Right curved wood armrest
+        { w: 0.06, h: 0.20, d: 0.06, x: -0.32, y: 0.10, z: -0.26 }, // 4 corner legs touching y = 0.000m
+        { w: 0.06, h: 0.20, d: 0.06, x:  0.32, y: 0.10, z: -0.26 },
+        { w: 0.06, h: 0.20, d: 0.06, x: -0.32, y: 0.10, z:  0.26 },
+        { w: 0.06, h: 0.20, d: 0.06, x:  0.32, y: 0.10, z:  0.26 },
+      ], [0, 0, 256, 256]),
+      pigeonholeMailRack: buildConstructedFurnitureGeo([
+        { w: 0.28, h: 0.76, d: 1.16, y: 0.0 },    // Outer wooden mail sorting cabinet frame
+        { w: 0.26, h: 0.025, d: 1.12, y:  0.18 }, // Horizontal cubby shelf 1
+        { w: 0.26, h: 0.025, d: 1.12, y: -0.02 }, // Horizontal cubby shelf 2
+        { w: 0.26, h: 0.025, d: 1.12, y: -0.22 }, // Horizontal cubby shelf 3
+        { w: 0.26, h: 0.72, d: 0.025, z: -0.28 }, // Vertical cubby divider 1
+        { w: 0.26, h: 0.72, d: 0.025, z:  0.00 }, // Vertical cubby divider 2
+        { w: 0.26, h: 0.72, d: 0.025, z:  0.28 }, // Vertical cubby divider 3
       ], [0, 0, 256, 256]),
       coffeeTable: buildConstructedFurnitureGeo([
         { w: 1.24, h: 0.05, d: 0.68, y: 0.40 },   // Beveled low coffee table top (Ref 3)
@@ -9726,10 +9939,10 @@ export function getHideAndSeekHtml(): string {
       benchLongSeat: buildConstructedFurnitureGeo([
         { w: 1.38, h: 0.045, d: 0.36, y: 0 },
         { w: 1.34, h: 0.058, d: 0.32, y: 0 },     // Beveled plank core
-        { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.22, z: -0.13 }, // 4 thick bench legs
-        { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.22, z: -0.13 },
-        { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.22, z:  0.13 },
-        { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.22, z:  0.13 },
+        { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.23, z: -0.13 }, // 4 thick bench legs (bottom at y = -0.44m, flush on floor at seat y = 0.44m)
+        { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.23, z: -0.13 },
+        { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.23, z:  0.13 },
+        { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.23, z:  0.13 },
         { w: 1.18, h: 0.035, d: 0.035, x: 0, y: -0.26, z: 0 },       // Long cross-brace tie bar
       ], [0, 0, 256, 256]),
       benchLongBack: buildConstructedFurnitureGeo([
@@ -9759,9 +9972,34 @@ export function getHideAndSeekHtml(): string {
         { w: 0.14, h: 0.03, d: 0.04, y: -0.16, z: 0.33 },
         { w: 0.14, h: 0.03, d: 0.04, y: -0.48, z: 0.33 },
       ], [768, 0, 256, 256]),
-      monitorPanel: new THREE.BoxGeometry(0.52, 0.34, 0.035),
-      monitorStand: new THREE.BoxGeometry(0.16, 0.14, 0.16),
-      keyboard: new THREE.BoxGeometry(0.38, 0.02, 0.14),
+      monitorPanel: buildConstructedFurnitureGeo([
+        { w: 0.52, h: 0.34, d: 0.032, y: 0.0 },    // Main LCD screen panel (bottom at -0.17m)
+        { w: 0.54, h: 0.022, d: 0.042, y:  0.16 }, // Top bezel frame
+        { w: 0.54, h: 0.026, d: 0.042, y: -0.16 }, // Bottom bezel chin
+      ], [768, 0, 256, 256]),
+      monitorStand: buildConstructedFurnitureGeo([
+        { w: 0.22, h: 0.018, d: 0.18, y: -0.061 }, // Flat weighted base plate (bottom at -0.070m)
+        { w: 0.055, h: 0.14, d: 0.045, y: 0.0, z: -0.03 }, // Vertical VESA neck column
+      ], [768, 0, 256, 256]),
+      keyboard: buildConstructedFurnitureGeo([
+        { w: 0.38, h: 0.018, d: 0.14, y: 0.0 },    // Keyboard body (bottom at -0.009m)
+        { w: 0.35, h: 0.006, d: 0.11, y: 0.011 },  // Raised keycap matrix block
+      ], [768, 0, 256, 256]),
+      mouseAndPad: buildConstructedFurnitureGeo([
+        { w: 0.21, h: 0.004, d: 0.18, y: 0.002 },  // Non-slip mousepad (bottom at 0.000m)
+        { w: 0.062, h: 0.026, d: 0.105, y: 0.015 }, // Contoured optical mouse on pad
+      ], [768, 0, 256, 256]),
+      pcTower: buildConstructedFurnitureGeo([
+        { w: 0.19, h: 0.42, d: 0.42, y: 0.0 },     // Mid-tower ATX chassis (bottom at -0.210m)
+        { w: 0.20, h: 0.39, d: 0.025, y: 0.0, z: 0.21 }, // Front ventilated bezel
+        { w: 0.15, h: 0.04, d: 0.03, y: 0.13, z: 0.215 }, // 5.25" optical drive bay
+      ], [768, 0, 256, 256]),
+      oscilloscope: buildConstructedFurnitureGeo([
+        { w: 0.36, h: 0.22, d: 0.28, y: 0.0 },     // Digital storage oscilloscope body (bottom at -0.110m)
+        { w: 0.38, h: 0.23, d: 0.025, y: 0.0, z: 0.14 }, // Front instrument bezel
+        { w: 0.03, h: 0.03, d: 0.04, x: 0.11, y: 0.04, z: 0.155 }, // Rotary encoder knob 1
+        { w: 0.03, h: 0.03, d: 0.04, x: 0.11, y: -0.03, z: 0.155 }, // Rotary encoder knob 2
+      ], [768, 0, 256, 256]),
       paperStack: new THREE.BoxGeometry(0.24, 0.16, 0.30),
       sofaBase: new THREE.BoxGeometry(1.95, 0.42, 0.82),
       sofaBack: new THREE.BoxGeometry(1.95, 0.48, 0.22),
@@ -10316,6 +10554,9 @@ export function getHideAndSeekHtml(): string {
         type: 'switchboard',
         name: label,
         powerKey: powerKey,
+        roomId: (typeof powerKey === 'string' && (powerKey.indexOf('classroomCircuit_') === 0 || powerKey.indexOf('labCircuit_') === 0 || powerKey.indexOf('roomCircuit_') === 0))
+          ? label.replace(/ (Classroom|Lab|Room) Electrical Sub-Panel$/, '')
+          : null,
         controlsCampusLights: !!controlsCampusLights,
         x: worldX + localX,
         y: floorY,
@@ -10482,10 +10723,10 @@ export function getHideAndSeekHtml(): string {
       metalness: 0.35,
     });
     step2Mats.dyingTubeMat = new THREE.MeshStandardMaterial({
-      color: 0xdcfce7,
-      emissive: 0x99f6e4,
-      emissiveIntensity: 1.35,
-      roughness: 0.20,
+      color: 0xfff5db,
+      emissive: 0xffb84d,
+      emissiveIntensity: 1.55,
+      roughness: 0.18,
     });
     step2Mats.warmDeskLampBulbMat = new THREE.MeshStandardMaterial({
       color: 0xffe8c2,
@@ -11096,8 +11337,8 @@ export function getHideAndSeekHtml(): string {
       cableMesh.userData.noMerge = true;
       cGroup.add(cableMesh);
 
-      // Loose papers on floor & front desk with GPU vertex-shader air movement
-      [ [-0.85, 0.016, 0.15, 0.42], [1.15, 0.016, -1.05, -0.58], [0.42, 0.855, facingDirZ * -2.05, 0.24] ].forEach(([px, py, pz, ry]) => {
+      // Loose papers on floor & front desk with GPU vertex-shader air movement (grounded flush on floor y=0.012m and teacher desk surface y=0.785m)
+      [ [-0.85, 0.012, 0.15, 0.42], [1.15, 0.012, -1.05, -0.58], [0.42, 0.785, facingDirZ * -2.10, 0.24] ].forEach(([px, py, pz, ry]) => {
         const flPaper = new THREE.Mesh(clutterPaperGeo, step2Mats.flutterPaperMat);
         flPaper.position.set(px, py, pz);
         flPaper.rotation.y = ry;
@@ -11119,7 +11360,7 @@ export function getHideAndSeekHtml(): string {
 
       // Second overturned chair & abandoned student bag on floor (non-blocking)
       const ovChair = new THREE.Mesh(fallenChairGeo, materials.chairWood);
-      ovChair.position.set(windowSideSignX * (hw - 0.82), 0.22, facingDirZ * 2.45);
+      ovChair.position.set(windowSideSignX * (hw - 0.82), 0.21, facingDirZ * 2.45);
       ovChair.rotation.set(Math.PI / 2, -0.68, 0.14);
       cGroup.add(ovChair);
       const abBag = new THREE.Mesh(step2Geos.backpack, step2Mats.bagOlive);
@@ -11136,11 +11377,11 @@ export function getHideAndSeekHtml(): string {
         dragDesk.rotation.y = 0.38;
         cGroup.add(dragDesk);
         const dragLegL = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
-        dragLegL.position.set(dragX - 0.48, 0.36, dragZ - 0.18);
+        dragLegL.position.set(dragX - 0.48, 0.362, dragZ - 0.18);
         dragLegL.rotation.y = 0.38;
         cGroup.add(dragLegL);
         const dragLegR = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
-        dragLegR.position.set(dragX + 0.48, 0.36, dragZ + 0.18);
+        dragLegR.position.set(dragX + 0.48, 0.362, dragZ + 0.18);
         dragLegR.rotation.y = 0.38;
         cGroup.add(dragLegR);
         addUnderFurnitureAO(cGroup, dragX, dragZ, 1.38, 0.88, 0.38);
@@ -11168,19 +11409,19 @@ export function getHideAndSeekHtml(): string {
       const isRepRoom = (roomDef && roomDef.id === (cCfg.representativeRoomId || 'West Wing L1 Room 1'));
       const wrongIdx = Math.abs(Math.round(roomSeed)) % 4;
       if (isRepRoom || wrongIdx === 0) {
-        // (a) Single chair in the dark corner facing directly into the wall
+        // (a) Single chair in the dark corner facing directly into the wall (grounded at y = 0.440m)
         const wChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
         const wcX = windowSideSignX * (hw - 0.62);
         const wcZ = facingDirZ * -(hd - 0.72);
-        wChair.position.set(wcX, 0.45, wcZ);
+        wChair.position.set(wcX, 0.44, wcZ);
         wChair.rotation.y = windowSideSignX > 0 ? Math.PI * 0.25 : -Math.PI * 0.25;
         cGroup.add(wChair);
         addUnderFurnitureAO(cGroup, wcX, wcZ, 0.62, 0.62);
       }
       if (isRepRoom || wrongIdx === 1) {
-        // (b) Attendance sheet on teacher desk with all student names crossed out
+        // (b) Attendance sheet on teacher desk with all student names crossed out (grounded on teacher desk top at y = 0.784m)
         const attSheet = new THREE.Mesh(crossedAttendanceGeo, materials.whiteboardSurface);
-        attSheet.position.set(0.12, 0.858, facingDirZ * -2.06);
+        attSheet.position.set(0.05, 0.784, facingDirZ * -2.10);
         attSheet.rotation.y = -0.16;
         cGroup.add(attSheet);
       }
@@ -11241,10 +11482,11 @@ export function getHideAndSeekHtml(): string {
         }
       });
 
-      const dais = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 1.4), materials.rotundaPlinthConcrete);
+      const daisW = Math.min(roomW - 1.2, Math.max(5.8, roomW * 0.58));
+      const dais = new THREE.Mesh(new THREE.BoxGeometry(daisW, 0.12, 1.4), materials.rotundaPlinthConcrete);
       dais.position.set(0, 0.06, boardZ + facingDirZ * 0.82);
       cGroup.add(dais);
-      addUnderFurnitureAO(cGroup, 0, boardZ + facingDirZ * 0.82, 5.85, 1.65);
+      addUnderFurnitureAO(cGroup, 0, boardZ + facingDirZ * 0.82, daisW + 0.25, 1.65);
 
       const wbMesh = new THREE.Mesh(classroomBoardNormalGeo, materials.blackboardGreen);
       wbMesh.position.set(-1.1, 1.85, boardZ);
@@ -11258,6 +11500,32 @@ export function getHideAndSeekHtml(): string {
       const chalkTray = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.05, 0.12), materials.chairWood);
       chalkTray.position.set(0.55, 1.16, boardZ + facingDirZ * 0.06);
       cGroup.add(chalkTray);
+      // Chalk pieces & wooden board duster resting flush on the chalk tray (y = 1.195m)
+      const duster = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.06), materials.deskWoodTop);
+      duster.position.set(-0.35, 1.205, boardZ + facingDirZ * 0.06);
+      cGroup.add(duster);
+      [-0.08, 0.02, 0.85].forEach((chX, chIdx) => {
+        const chalkPiece = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.07, 6), materials.whiteTrim);
+        chalkPiece.rotation.z = Math.PI / 2;
+        chalkPiece.rotation.y = (chIdx - 1) * 0.28;
+        chalkPiece.position.set(chX, 1.193, boardZ + facingDirZ * 0.06);
+        cGroup.add(chalkPiece);
+      });
+
+      // Ceiling-mounted LCD Projector & Pull-Down Projection Screen above Blackboard
+      const projMountRod = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.42, 6), materials.deskSteelFrame);
+      projMountRod.position.set(0.55, 3.20, 0.15);
+      cGroup.add(projMountRod);
+      const projBody = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.11, 0.28), materials.whiteTrim);
+      projBody.position.set(0.55, 2.96, 0.15);
+      cGroup.add(projBody);
+      const projLens = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.038, 0.05, 8), materials.castIronDark);
+      projLens.rotation.x = Math.PI / 2;
+      projLens.position.set(0.55, 2.95, 0.15 - facingDirZ * 0.15);
+      cGroup.add(projLens);
+      const projScreenHousing = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.07, 0.07), materials.deskSteelFrame);
+      projScreenHousing.position.set(-1.1, 2.62, boardZ + facingDirZ * 0.08);
+      cGroup.add(projScreenHousing);
 
       // Side Wall Openable 2-Door Classroom Storage Cupboard + Green Bulletin Board + Upper Wall Shelves with Books (mounted flush against actual side walls)
       const bcSignX = unitCenterX > 15 ? 1 : -1;
@@ -11295,8 +11563,59 @@ export function getHideAndSeekHtml(): string {
         null
       );
 
+      // Interactive Hideable & Searchable 3-Door Steel Classroom Locker Bank along the side wall
+      const lockerBankX = -bcSignX * (wallHalfW - 0.26);
+      const lockerBankZ = (doorAxis === 'x' && doorDirSign === -bcSignX) ? 1.85 : -1.95;
+      const lockerBankMesh = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
+      lockerBankMesh.position.set(lockerBankX, 0.96, lockerBankZ);
+      if (bcSignX < 0) lockerBankMesh.rotation.y = Math.PI;
+      cGroup.add(lockerBankMesh);
+      addUnderFurnitureAO(cGroup, lockerBankX, lockerBankZ, 0.68, 1.95);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + lockerBankX - 0.26, floorY, unitCenterZ + lockerBankZ - 0.90),
+        new THREE.Vector3(unitCenterX + lockerBankX + 0.26, floorY + 1.92, unitCenterZ + lockerBankZ + 0.90)
+      ), 'furniture');
+      [-0.56, 0, 0.56].forEach((lzOff, lIdx) => {
+        const lPivot = new THREE.Group();
+        lPivot.position.set(lockerBankX + bcSignX * 0.24, 1.05, lockerBankZ + lzOff - 0.24);
+        const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
+        lDoor.position.set(0, 0, 0.24);
+        lPivot.add(lDoor);
+        const roomLockerId = 'locker-room-' + unitTitle.replace(/\s+/g, '-').toLowerCase() + '-' + (lIdx + 1);
+        markNoMergeRecursive(lPivot, roomLockerId);
+        cGroup.add(lPivot);
+        registerInteriorInteractable({
+          id: roomLockerId,
+          type: 'locker',
+          name: unitTitle + ' Steel Locker #' + (lIdx + 1),
+          x: unitCenterX + lockerBankX + bcSignX * 0.28,
+          y: floorY,
+          z: unitCenterZ + lockerBankZ + lzOff,
+          interactRadius: 2.35,
+          isOpen: false,
+          rootMesh: lPivot,
+          doorPivot: lPivot,
+          openSign: bcSignX > 0 ? 1 : -1,
+          currentT: 0,
+          targetT: 0,
+          missionItem: null,
+        });
+      });
+      interactiveHidingSpots.push({
+        id: 'classroom-locker-' + unitTitle,
+        name: unitTitle + ' (Classroom Steel Locker)',
+        spotType: 'locker',
+        x: unitCenterX + lockerBankX + bcSignX * 0.68,
+        y: floorY,
+        z: unitCenterZ + lockerBankZ,
+        exitX: unitCenterX + lockerBankX + bcSignX * 0.95,
+        exitY: floorY,
+        exitZ: unitCenterZ + lockerBankZ,
+        zone: unitTitle,
+      });
+
       const shelfWallX = -bcSignX * (wallHalfW - 0.16);
-      const shelfLocalZOff = (doorAxis === 'x' && doorDirSign === -bcSignX) ? -1.85 : -0.8;
+      const shelfLocalZOff = (doorAxis === 'x' && doorDirSign === -bcSignX) ? -1.85 : -0.35;
       [1.45, 2.05].forEach((sy, sIdx) => {
         const wShelf = new THREE.Mesh(step2Geos.wallShelf, materials.chairWood);
         wShelf.position.set(shelfWallX, sy, shelfLocalZOff + sIdx * 0.4);
@@ -11344,9 +11663,16 @@ export function getHideAndSeekHtml(): string {
       tDesk.rotation.y = facingDirZ === 1 ? 0 : Math.PI;
       cGroup.add(tDesk);
       addUnderFurnitureAO(cGroup, 0.4, podiumZ, 1.55, 0.95);
+      // Grounded open lecture register at y = 0.790m (flush on teacher desk top at y = 0.7775m)
       const tBook = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
-      tBook.position.set(0.35, 0.74, podiumZ);
+      tBook.position.set(0.35, 0.790, podiumZ);
       cGroup.add(tBook);
+
+      // Classroom Dustbin grounded at y = 0.21m beside the teacher podium
+      const dustbin = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.42, 10), interiorSystemMats.panelSteelGrey);
+      dustbin.position.set(-1.75, 0.21, podiumZ - facingDirZ * 0.22);
+      cGroup.add(dustbin);
+      addUnderFurnitureAO(cGroup, -1.75, podiumZ - facingDirZ * 0.22, 0.42, 0.42);
 
       const hasMainBreakerKey = (unitTitle === 'West Wing L1 Room 1');
       buildSearchableDrawer(
@@ -11387,15 +11713,20 @@ export function getHideAndSeekHtml(): string {
       });
 
       // Student Desks & Benches with Organic Asymmetry, Under-Desk AO Decals, Bags, Books & Jackets
+      // Dynamically scale columns to fit wide rooms (e.g. 10.83m in West Wing L1 vs 7.6m in standard rooms)
       const rowOffsetsZ = layoutVariant === 1
         ? [facingDirZ * -0.65, facingDirZ * 0.65, facingDirZ * 1.95]
         : [facingDirZ * -0.45, facingDirZ * 0.85, facingDirZ * 2.10];
-      const colOffsetsX = [-2.35, 0.0, 2.35];
+      const colOffsetsX = roomW >= 13.5
+        ? [-4.80, -2.40, 0.0, 2.40, 4.80]
+        : (roomW >= 9.6
+          ? [-3.15, -1.05, 1.05, 3.15]
+          : [-2.35, 0.0, 2.35]);
       const bagMats = [step2Mats.bagNavy, step2Mats.bagOlive, step2Mats.bagMaroon];
 
       rowOffsetsZ.forEach((rz, rIdx) => {
         colOffsetsX.forEach((cx, cIdx) => {
-          if (layoutVariant === 1 && rIdx === 0 && cIdx === 1) return;
+          if (layoutVariant === 1 && rIdx === 0 && cIdx === Math.floor(colOffsetsX.length / 2)) return;
 
           const deskSeed = roomSeed + rIdx * 11 + cIdx * 19;
           const jitterX = ((deskSeed % 7) - 3) * 0.018;
@@ -11418,10 +11749,10 @@ export function getHideAndSeekHtml(): string {
           deskGroup.add(panelMesh);
 
           const legL = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
-          legL.position.set(-0.58, 0.36, 0);
+          legL.position.set(-0.58, 0.362, 0);
           deskGroup.add(legL);
           const legR = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
-          legR.position.set(0.58, 0.36, 0);
+          legR.position.set(0.58, 0.362, 0);
           deskGroup.add(legR);
 
           const benchZ = facingDirZ * 0.44 + ((deskSeed % 5) - 2) * 0.025;
@@ -11435,21 +11766,23 @@ export function getHideAndSeekHtml(): string {
           bBack.rotation.y = benchYaw;
           deskGroup.add(bBack);
 
+          // Grounded open book (y = 0.781m) and book stack (y = 0.828m) flush on the 0.768m desk surface
           if ((rIdx + cIdx) % 2 === 0) {
             const openBk = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
-            openBk.position.set(0.22, 0.79, 0.02);
+            openBk.position.set(0.22, 0.781, 0.02);
             openBk.rotation.y = 0.18 * (cIdx - 1);
             deskGroup.add(openBk);
           } else {
             const stackBk = new THREE.Mesh(step2Geos.bookStack, materials.gandakiBluePole);
-            stackBk.position.set(-0.28, 0.83, -0.04);
+            stackBk.position.set(-0.28, 0.828, -0.04);
             stackBk.rotation.y = -0.14;
             deskGroup.add(stackBk);
           }
 
           if ((rIdx * 3 + cIdx) % 2 === 1) {
+            // Backpack bottom at y = 0.659 - 0.19 = 0.469m (flush on bench seat top at y = 0.469m)
             const bag = new THREE.Mesh(step2Geos.backpack, bagMats[(rIdx + cIdx) % 3]);
-            bag.position.set(-0.36, 0.64, benchZ);
+            bag.position.set(-0.36, 0.659, benchZ);
             bag.rotation.y = 0.25;
             deskGroup.add(bag);
           } else if (rIdx === 1 && cIdx === 2) {
@@ -11475,7 +11808,7 @@ export function getHideAndSeekHtml(): string {
           if ((rIdx + cIdx) % 2 === 0) {
             interactiveHidingSpots.push({
               id: 'desk-' + unitTitle + '-' + rIdx + '-' + cIdx,
-              name: unitTitle + ' Desk #' + (rIdx * 3 + cIdx + 1),
+              name: unitTitle + ' Desk #' + (rIdx * colOffsetsX.length + cIdx + 1),
               x: worldDeskX,
               y: floorY,
               z: worldDeskZ + facingDirZ * 0.68,
@@ -11486,31 +11819,71 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
-    // Specialized Builder: Computer Lab (Rows of Monitors & Chairs, Cable Raceways, Server Rack with LEDs)
-    function buildComputerLabInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
-      const boardZ = facingDirZ * -3.1;
+    // Specialized Builder: Computer & Electronics Lab (Grounded Workbenches with Legs, Dual Monitors + Keyboards + Optical Mice + Floor PC Towers, Lab Supervisor Desk with Searchable Drawer & Digital Oscilloscope, Openable Instrument Cupboard, 3-Door Steel Locker Bank, Server Rack with Blinking LEDs, and Sub-Breaker Panel)
+    function buildComputerLabInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, roomW = 7.6, roomD = 7.6, doorAxis = 'z', doorDirSign = 1) {
+      const halfW = Math.max(3.2, roomW * 0.5 - 0.14);
+      const halfD = Math.max(3.2, roomD * 0.5 - 0.14);
+      const slug = unitTitle.replace(/\s+/g, '-').toLowerCase();
+      const boardZ = facingDirZ * -(halfD - 0.08);
+
+      // 1. Front Whiteboard with Aluminum Frame, Marker Tray, Dry-Erase Markers & Felt Eraser
+      const wbFrame = new THREE.Mesh(sharedGeos.blackboardFrame, materials.deskSteelFrame);
+      wbFrame.position.set(0, 1.85, boardZ - facingDirZ * 0.02);
+      cGroup.add(wbFrame);
       const wbMesh = new THREE.Mesh(sharedGeos.whiteboard, materials.whiteboardSurface);
       wbMesh.position.set(0, 1.85, boardZ);
       cGroup.add(wbMesh);
+      const trayZ = boardZ + facingDirZ * 0.055;
+      [-0.42, -0.26, -0.10].forEach((mx, mIdx) => {
+        const markerMat = mIdx === 0 ? step2Mats.fireRed : (mIdx === 1 ? materials.gandakiBluePole : materials.castIronDark);
+        const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.13, 6), markerMat);
+        marker.rotation.z = Math.PI / 2;
+        marker.position.set(mx, 1.194, trayZ);
+        cGroup.add(marker);
+      });
+      const wbEraser = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.036, 0.048), materials.castIronDark);
+      wbEraser.position.set(0.28, 1.203, trayZ);
+      cGroup.add(wbEraser);
 
-      buildWallMountedFan(cGroup, -3.28, 2.55, 0, Math.PI / 2);
-      buildWallMountedFan(cGroup, 3.28, 2.55, 0, -Math.PI / 2);
-      buildInteriorWindowCurtains(cGroup, -3.26, 1.92, -1.5, Math.PI / 2, false);
-      buildInteriorWindowCurtains(cGroup, -3.26, 1.92, 1.5, Math.PI / 2, false);
+      // 2. Ceiling-Mounted LCD Projector & Pull-Down Projection Screen Case
+      const projScreenCase = new THREE.Mesh(new THREE.BoxGeometry(2.50, 0.09, 0.10), materials.whiteTrim);
+      projScreenCase.position.set(0, 2.74, boardZ + facingDirZ * 0.05);
+      cGroup.add(projScreenCase);
+      const projMountRod = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.44, 8), materials.deskSteelFrame);
+      projMountRod.position.set(0.48, 3.18, 0.10);
+      cGroup.add(projMountRod);
+      const projBody = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.11, 0.30), materials.whiteTrim);
+      projBody.position.set(0.48, 2.95, 0.10);
+      cGroup.add(projBody);
+      const projLens = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.05, 10), materials.castIronDark);
+      projLens.rotation.x = Math.PI / 2;
+      projLens.position.set(0.48, 2.95, 0.10 - facingDirZ * 0.16);
+      cGroup.add(projLens);
 
-      const srvX = 2.65, srvZ = facingDirZ * -2.35;
+      // 3. Wall-Mounted Oscillating Fans & Window Curtains Snapped Flush to Actual Room Walls
+      buildWallMountedFan(cGroup, -(halfW - 0.06), 2.55, 0, Math.PI / 2);
+      buildWallMountedFan(cGroup,  (halfW - 0.06), 2.55, 0, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, -(halfW - 0.04), 1.92, -1.5, Math.PI / 2, false);
+      buildInteriorWindowCurtains(cGroup, -(halfW - 0.04), 1.92,  1.5, Math.PI / 2, false);
+
+      // 4. Grounded Enterprise Server & Networking Rack (y = 1.075m -> bottom at y = 0.000m flush on floor)
+      const srvX = halfW - 0.58, srvZ = facingDirZ * -(halfD - 0.72);
       const srvRack = new THREE.Mesh(step2Geos.serverRack, materials.castIronDark);
-      srvRack.position.set(srvX, 1.08, srvZ);
+      srvRack.position.set(srvX, 1.075, srvZ);
       cGroup.add(srvRack);
       addUnderFurnitureAO(cGroup, srvX, srvZ, 1.15, 1.15);
-      [-0.4, 0.0, 0.4, 0.75].forEach((ly, lIdx) => {
+      [-0.65, -0.35, -0.05, 0.25, 0.55, 0.82].forEach((ly, lIdx) => {
         const led = new THREE.Mesh(
           new THREE.BoxGeometry(0.48, 0.035, 0.04),
           lIdx % 2 === 0 ? step2Mats.serverLedGreen : step2Mats.serverLedAmber
         );
-        led.position.set(srvX, 1.15 + ly, srvZ + facingDirZ * 0.43);
+        led.position.set(srvX, 1.12 + ly, srvZ + facingDirZ * 0.43);
         cGroup.add(led);
       });
+      // Overhead galvanized cable ladder connecting server rack to ceiling trunking
+      const rackCableRiser = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.26, 0.06), interiorSystemMats.conduitGalvanized);
+      rackCableRiser.position.set(srvX, 2.78, srvZ - facingDirZ * 0.32);
+      cGroup.add(rackCableRiser);
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX + srvX - 0.42, floorY, unitCenterZ + srvZ - 0.45),
         new THREE.Vector3(unitCenterX + srvX + 0.42, floorY + 2.15, unitCenterZ + srvZ + 0.45)
@@ -11524,44 +11897,206 @@ export function getHideAndSeekHtml(): string {
         zone: unitTitle,
       });
 
-      const rowsZ = [facingDirZ * -1.1, facingDirZ * 0.35, facingDirZ * 1.80];
-      const colsX = [-1.85, 1.45];
+      // 5. Front Lab Supervisor & Electronics Test Bench (Grounded at y = 0.000m with Searchable Drawer, Digital Oscilloscope, & Dustbin)
+      const supX = -(halfW - 1.45), supZ = facingDirZ * -(halfD - 1.05);
+      const supDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
+      supDesk.position.set(supX, 0.34, supZ); // Pedestal bottom -0.34m + 0.34m = 0.000m flush on floor; top at 0.7175m
+      supDesk.rotation.y = facingDirZ === 1 ? 0 : Math.PI;
+      cGroup.add(supDesk);
+      addUnderFurnitureAO(cGroup, supX, supZ, 1.68, 0.96);
+      const supChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
+      supChair.position.set(supX, 0.44, supZ - facingDirZ * 0.56); // Legs bottom -0.44m + 0.44m = 0.000m flush on floor
+      supChair.rotation.y = facingDirZ === 1 ? Math.PI : 0;
+      cGroup.add(supChair);
+      // Supervisor Terminal Monitor, Stand & Keyboard flush on 0.7175m desk top
+      const supStand = new THREE.Mesh(step2Geos.monitorStand, materials.castIronDark);
+      supStand.position.set(supX - 0.34, 0.788, supZ - facingDirZ * 0.10);
+      cGroup.add(supStand);
+      const supMon = new THREE.Mesh(step2Geos.monitorPanel, step2Mats.monitorScreenOn);
+      supMon.position.set(supX - 0.34, 0.958, supZ - facingDirZ * 0.08);
+      cGroup.add(supMon);
+      const supKb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
+      supKb.position.set(supX - 0.34, 0.727, supZ + facingDirZ * 0.14);
+      cGroup.add(supKb);
+      // Digital Storage Oscilloscope + Glowing Cyan Waveform Screen on Supervisor Test Bench
+      const oscMesh = new THREE.Mesh(step2Geos.oscilloscope, interiorSystemMats.panelSteelGrey);
+      oscMesh.position.set(supX + 0.36, 0.828, supZ - facingDirZ * 0.06); // Bottom -0.11m + 0.828m = 0.718m flush on desk top
+      oscMesh.rotation.y = facingDirZ === 1 ? -0.18 : (Math.PI - 0.18);
+      cGroup.add(oscMesh);
+      const oscScreen = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.015), interiorSystemMats.missionItemCyan);
+      oscScreen.position.set(supX + 0.31, 0.838, supZ - facingDirZ * 0.06 + facingDirZ * 0.15);
+      oscScreen.rotation.y = oscMesh.rotation.y;
+      cGroup.add(oscScreen);
+      // Grounded Steel Mesh Lab Dustbin beside Supervisor Desk (h = 0.42m, y = 0.21m -> bottom at y = 0.000m)
+      const labBin = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.42, 10), materials.deskSteelFrame);
+      labBin.position.set(supX + 0.96, 0.21, supZ - facingDirZ * 0.12);
+      cGroup.add(labBin);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + supX - 0.82, floorY, unitCenterZ + supZ - 0.46),
+        new THREE.Vector3(unitCenterX + supX + 0.82, floorY + 0.88, unitCenterZ + supZ + 0.46)
+      ), 'furniture');
+
+      // Searchable Lab Supervisor Desk Drawer
+      buildSearchableDrawer(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        supX + 0.38,
+        0.54,
+        supZ + facingDirZ * 0.26,
+        facingDirZ === 1 ? 0 : Math.PI,
+        'drawer-lab-' + slug,
+        unitTitle + ' Lab Supervisor Desk Drawer',
+        null
+      );
+
+      // 6. Interactive Wall-Mounted Lab Electrical Sub-Breaker Panel (Switches Lab Blinking Tube Lights ON/OFF)
+      buildInteractiveSwitchboardPanel(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        -(halfW - 0.35),
+        1.42,
+        facingDirZ * -(halfD - 0.14),
+        facingDirZ === 1 ? 0 : Math.PI,
+        'switchboard-lab-' + slug,
+        unitTitle + ' Lab Electrical Sub-Panel',
+        'labCircuit_' + slug,
+        false
+      );
+
+      // 7. Interactive Openable 2-Door Lab Instrument Cupboard (Grounded at y = 0.000m on West Wall)
+      buildOpenableCupboard(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        -(halfW - 0.34),
+        0.0,
+        0.25,
+        Math.PI / 2,
+        'cupboard-lab-' + slug,
+        unitTitle + ' Lab Instrument & Component Cupboard',
+        false,
+        null
+      );
+
+      // 8. Interactive 3-Door Steel Lab Locker Bank on East Wall (Grounded at y = 0.000m + Hiding Spot)
+      const lockerX = halfW - 0.30;
+      const lockerZ = 0.65;
+      const lockerBankMesh = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
+      lockerBankMesh.position.set(lockerX, 0.96, lockerZ);
+      lockerBankMesh.rotation.y = Math.PI;
+      cGroup.add(lockerBankMesh);
+      addUnderFurnitureAO(cGroup, lockerX, lockerZ, 0.68, 1.95);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + lockerX - 0.26, floorY, unitCenterZ + lockerZ - 0.90),
+        new THREE.Vector3(unitCenterX + lockerX + 0.26, floorY + 1.92, unitCenterZ + lockerZ + 0.90)
+      ), 'furniture');
+      [-0.56, 0, 0.56].forEach((lzOff, lIdx) => {
+        const lPivot = new THREE.Group();
+        lPivot.position.set(lockerX - 0.24, 1.05, lockerZ + lzOff - 0.24);
+        const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
+        lDoor.position.set(0, 0, 0.24);
+        lPivot.add(lDoor);
+        const labLockerId = 'locker-lab-' + slug + '-' + (lIdx + 1);
+        markNoMergeRecursive(lPivot, labLockerId);
+        cGroup.add(lPivot);
+        registerInteriorInteractable({
+          id: labLockerId,
+          type: 'locker',
+          name: unitTitle + ' Lab Steel Locker #' + (lIdx + 1),
+          x: unitCenterX + lockerX - 0.28,
+          y: floorY,
+          z: unitCenterZ + lockerZ + lzOff,
+          interactRadius: 2.35,
+          isOpen: false,
+          rootMesh: lPivot,
+          doorPivot: lPivot,
+          openSign: -1,
+          currentT: 0,
+          targetT: 0,
+          missionItem: null,
+        });
+      });
+      interactiveHidingSpots.push({
+        id: 'lab-locker-' + unitTitle,
+        name: unitTitle + ' (Lab Steel Locker)',
+        spotType: 'locker',
+        x: unitCenterX + lockerX - 0.72,
+        y: floorY,
+        z: unitCenterZ + lockerZ,
+        exitX: unitCenterX + lockerX - 0.98,
+        exitY: floorY,
+        exitZ: unitCenterZ + lockerZ,
+        zone: unitTitle,
+      });
+
+      // 9. Full-Width Workstation Grid: 3x3 Dual-Workstation Benches (18 Computers) for wide rooms (roomW >= 9.6m), 2x3 for narrow rooms
+      const rowsZ = [facingDirZ * -0.95, facingDirZ * 0.45, facingDirZ * 1.85];
+      const colsX = roomW >= 9.6 ? [-2.55, 0.0, 2.55] : [-1.75, 1.45];
       rowsZ.forEach((rz, rIdx) => {
         colsX.forEach((cx, cIdx) => {
-          addUnderFurnitureAO(cGroup, cx, rz + facingDirZ * 0.16, 1.50, 1.08, (rIdx - cIdx) * 0.02);
+          addUnderFurnitureAO(cGroup, cx, rz + facingDirZ * 0.16, 1.50, 1.08, (rIdx - cIdx) * 0.015);
           const wGrp = new THREE.Group();
           wGrp.position.set(cx, 0, rz);
-          wGrp.rotation.y = (rIdx - cIdx) * 0.018;
+          wGrp.rotation.y = (rIdx - cIdx) * 0.014;
 
-          const desk = new THREE.Mesh(sharedGeos.deskTop, materials.deskSteelFrame);
-          desk.position.y = 0.75;
+          // Grounded Workbench Desktop (y = 0.74m -> top surface at y = 0.768m) + 2 Tubular Steel Legs (y = 0.362m -> rubber feet at y = 0.000m)
+          const desk = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
+          desk.position.y = 0.74;
           wGrp.add(desk);
+          [-0.58, 0.58].forEach(lx => {
+            const leg = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
+            leg.position.set(lx, 0.362, 0);
+            wGrp.add(leg);
+          });
 
           const cableRun = new THREE.Mesh(step2Geos.cableTray, materials.castIronDark);
-          cableRun.position.set(0, 0.52, -facingDirZ * 0.22);
+          cableRun.position.set(0, 0.62, -facingDirZ * 0.20);
           wGrp.add(cableRun);
 
-          [-0.32, 0.32].forEach((mx, mIdx) => {
-            const isOn = (rIdx + cIdx + mIdx) % 2 === 0;
-            const mon = new THREE.Mesh(step2Geos.monitorPanel, isOn ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
-            mon.position.set(mx, 0.98, -facingDirZ * 0.10);
-            mon.rotation.y = (mIdx === 0 ? 0.08 : -0.06);
-            wGrp.add(mon);
-            const stand = new THREE.Mesh(step2Geos.monitorStand, materials.castIronDark);
-            stand.position.set(mx, 0.82, -facingDirZ * 0.12);
-            wGrp.add(stand);
-            const kb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
-            kb.position.set(mx, 0.79, facingDirZ * 0.12);
-            kb.rotation.y = (mIdx === 0 ? -0.05 : 0.09);
-            wGrp.add(kb);
+          // Floor-Grounded Mid-Tower Desktop PC Chassis beside bench leg (h = 0.42m, y = 0.21m -> bottom at y = 0.000m)
+          const towerX = (cIdx % 2 === 0) ? -0.42 : 0.42;
+          const pcTowerMesh = new THREE.Mesh(step2Geos.pcTower, materials.castIronDark);
+          pcTowerMesh.position.set(towerX, 0.21, -facingDirZ * 0.02);
+          if (facingDirZ === -1) pcTowerMesh.rotation.y = Math.PI;
+          wGrp.add(pcTowerMesh);
+          const pcLed = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, 0.015), step2Mats.serverLedGreen);
+          pcLed.position.set(towerX + 0.05, 0.34, -facingDirZ * 0.02 + facingDirZ * 0.22);
+          wGrp.add(pcLed);
 
-            const chairYaw = ((rIdx * 3 + cIdx + mIdx) % 5 - 2) * 0.11;
+          [-0.33, 0.33].forEach((mx, mIdx) => {
+            const isOn = (rIdx + cIdx + mIdx) % 2 === 0;
+            // Monitor Stand (bottom at -0.070m + 0.838m = 0.768m flush on desk top)
+            const stand = new THREE.Mesh(step2Geos.monitorStand, materials.castIronDark);
+            stand.position.set(mx, 0.838, -facingDirZ * 0.12);
+            wGrp.add(stand);
+            // Monitor Panel (bottom at -0.170m + 1.008m = 0.838m sitting on stand)
+            const mon = new THREE.Mesh(step2Geos.monitorPanel, isOn ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
+            mon.position.set(mx, 1.008, -facingDirZ * 0.10);
+            mon.rotation.y = (mIdx === 0 ? 0.07 : -0.06);
+            wGrp.add(mon);
+            // Keyboard (bottom at -0.010m + 0.778m = 0.768m flush on desk top)
+            const kb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
+            kb.position.set(mx - 0.04, 0.778, facingDirZ * 0.12);
+            kb.rotation.y = (mIdx === 0 ? -0.04 : 0.06);
+            wGrp.add(kb);
+            // Mousepad + Contoured Optical Mouse (bottom at 0.000m + 0.768m = 0.768m flush on desk top)
+            const mp = new THREE.Mesh(step2Geos.mouseAndPad, materials.castIronDark);
+            mp.position.set(mx + 0.21, 0.768, facingDirZ * 0.12);
+            wGrp.add(mp);
+
+            // Grounded Workstation Chair (legs bottom at -0.440m + 0.440m = 0.000m flush on floor)
+            const chairYaw = ((rIdx * 3 + cIdx + mIdx) % 5 - 2) * 0.09;
             const chSeat = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
-            chSeat.position.set(mx, 0.44, facingDirZ * 0.44);
+            chSeat.position.set(mx, 0.44, facingDirZ * 0.46);
             chSeat.rotation.y = chairYaw;
             wGrp.add(chSeat);
             const chBack = new THREE.Mesh(sharedGeos.chairBack, materials.castIronDark);
-            chBack.position.set(mx, 0.68, facingDirZ * 0.62);
+            chBack.position.set(mx, 0.68, facingDirZ * 0.64);
             chBack.rotation.y = chairYaw;
             wGrp.add(chBack);
           });
@@ -11569,19 +12104,19 @@ export function getHideAndSeekHtml(): string {
           cGroup.add(wGrp);
           const wx = unitCenterX + cx;
           const wz = unitCenterZ + rz;
-          const zMin = Math.min(wz - 0.26, wz + facingDirZ * 0.56);
-          const zMax = Math.max(wz + 0.26, wz + facingDirZ * 0.56);
+          const zMin = Math.min(wz - 0.28, wz + facingDirZ * 0.58);
+          const zMax = Math.max(wz + 0.28, wz + facingDirZ * 0.58);
           addColliderBox(new THREE.Box3(
-            new THREE.Vector3(wx - 0.60, floorY, zMin),
-            new THREE.Vector3(wx + 0.60, floorY + 0.86, zMax)
+            new THREE.Vector3(wx - 0.62, floorY, zMin),
+            new THREE.Vector3(wx + 0.62, floorY + 0.86, zMax)
           ), 'furniture');
           if ((rIdx + cIdx) % 2 === 0) {
             interactiveHidingSpots.push({
               id: 'lab-desk-' + unitTitle + '-' + rIdx + '-' + cIdx,
-              name: unitTitle + ' Workstation #' + (rIdx * 2 + cIdx + 1),
+              name: unitTitle + ' Workstation #' + (rIdx * colsX.length + cIdx + 1),
               x: wx,
               y: floorY,
-              z: wz + facingDirZ * 0.72,
+              z: wz + facingDirZ * 0.74,
               zone: unitTitle,
             });
           }
@@ -11722,27 +12257,59 @@ export function getHideAndSeekHtml(): string {
       );
     }
 
-    // Specialized Builder: Staff Room & Admin Offices (Upgraded with Searchable Filing Drawer, Openable Office Cupboard & Executive Desks)
-    function buildStaffAdminOfficeInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
-      buildWallMountedFan(cGroup, -3.28, 2.55, 0, Math.PI / 2);
-      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.4, -Math.PI / 2, true);
-      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, 1.4, -Math.PI / 2, true);
+    // Specialized Builder: Staff Room, Administration & Principal Offices (Grounded 4-Drawer Steel Filing Cabinets, Searchable Records & Executive Drawers, Openable Stationery Cupboard, 3-Door Staff Locker Bank, Office Sub-Breaker Panel, Pigeonhole Mail Sorting Rack, Water Dispenser, Lounge Sofa + Coffee Table + Armchair, and Complete Executive Workstations)
+    function buildStaffAdminOfficeInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, roomW = 7.6, roomD = 7.6, doorAxis = 'z', doorDirSign = 1) {
+      const halfW = Math.max(3.2, roomW * 0.5 - 0.14);
+      const halfD = Math.max(3.2, roomD * 0.5 - 0.14);
+      const slug = unitTitle.replace(/\s+/g, '-').toLowerCase();
 
+      // 1. Wall-Mounted Oscillating Fans, Window Curtains, Cork Notice Board, Magazine Rack & Pigeonhole Mail Sorting Cubbies Snapped Flush to Room Walls
+      buildWallMountedFan(cGroup, -(halfW - 0.06), 2.55, -1.1, Math.PI / 2);
+      buildWallMountedFan(cGroup,  (halfW - 0.06), 2.55,  1.1, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, (halfW - 0.04), 1.92, -1.4, -Math.PI / 2, true);
+      buildInteriorWindowCurtains(cGroup, (halfW - 0.04), 1.92,  1.4, -Math.PI / 2, true);
+
+      // Wall-Mounted Cork Notice Board with Pinned University Circulars on West Wall
+      const nbX = -(halfW - 0.04), nbZ = -1.35;
+      const nbFrame = new THREE.Mesh(step2Geos.noticeBoard, materials.chairWood);
+      nbFrame.position.set(nbX, 1.62, nbZ);
+      cGroup.add(nbFrame);
+      const nbCork = new THREE.Mesh(step2Geos.noticeCork, step2Mats.corkBoard);
+      nbCork.position.set(nbX + 0.01, 1.62, nbZ);
+      cGroup.add(nbCork);
+      [-0.45, -0.12, 0.22, 0.52].forEach((nzOff, nIdx) => {
+        const note = new THREE.Mesh(step2Geos.noticeNote, nIdx % 2 === 0 ? step2Mats.paperSheet : interiorSystemMats.hazardYellow);
+        note.position.set(nbX + 0.045, 1.65 + ((nIdx % 2) - 0.5) * 0.18, nbZ + nzOff);
+        note.rotation.x = (nIdx - 1.5) * 0.05;
+        cGroup.add(note);
+      });
+
+      // Faculty Pigeonhole Mail Sorting Rack & 4-Tier Wall Magazine Rack on West Wall
+      const mailRack = new THREE.Mesh(step2Geos.pigeonholeMailRack, materials.chairWood);
+      mailRack.position.set(-(halfW - 0.16), 1.58, 0.35);
+      cGroup.add(mailRack);
+      const magRack = new THREE.Mesh(step2Geos.wallMagazineRack, materials.chairWood);
+      magRack.position.set(-(halfW - 0.06), 1.48, 1.55);
+      cGroup.add(magRack);
+
+      // 2. Grounded 4-Drawer Steel Filing Cabinets along Back Wall (h = 1.36m, y = 0.680m -> bottom at y = 0.000m flush on floor; top at 1.360m)
+      const cabZ = -(halfD - 0.42);
       [-2.1, -1.4, -0.7, 0.0].forEach((fx, fIdx) => {
         const cab = new THREE.Mesh(step2Geos.filingCabinet, step2Mats.lockerSteel);
-        cab.position.set(fx, 0.69, -2.75);
+        cab.position.set(fx, 0.68, cabZ);
         cGroup.add(cab);
         if (fIdx % 2 === 0) {
+          // Paper Stack (h = 0.16m -> local bottom -0.08m + 1.44m = 1.360m flush on cabinet top)
           const pStack = new THREE.Mesh(step2Geos.paperStack, step2Mats.paperSheet);
-          pStack.position.set(fx, 1.46, -2.75);
+          pStack.position.set(fx, 1.44, cabZ);
           pStack.rotation.y = 0.14;
           cGroup.add(pStack);
         }
       });
-      addUnderFurnitureAO(cGroup, -1.05, -2.75, 2.95, 0.90);
+      addUnderFurnitureAO(cGroup, -1.05, cabZ, 2.95, 0.90);
       addColliderBox(new THREE.Box3(
-        new THREE.Vector3(unitCenterX - 2.45, floorY, unitCenterZ - 3.10),
-        new THREE.Vector3(unitCenterX + 0.35, floorY + 1.42, unitCenterZ - 2.40)
+        new THREE.Vector3(unitCenterX - 2.45, floorY, unitCenterZ + cabZ - 0.35),
+        new THREE.Vector3(unitCenterX + 0.35, floorY + 1.42, unitCenterZ + cabZ + 0.35)
       ), 'furniture');
 
       // Interactive Searchable Filing Cabinet Drawer (Contains Campus Grid Schematic in Office Ground Floor)
@@ -11752,10 +12319,10 @@ export function getHideAndSeekHtml(): string {
         floorY,
         unitCenterZ,
         -0.7,
-        0.85,
-        -2.48,
+        0.84,
+        cabZ + 0.27,
         0,
-        'drawer-office-' + unitTitle.replace(/\s+/g, '-').toLowerCase(),
+        'drawer-office-' + slug,
         unitTitle + ' Records Filing Drawer',
         unitTitle === 'Office Ground Floor' ? {
           id: 'item_grid_schematic',
@@ -11765,7 +12332,101 @@ export function getHideAndSeekHtml(): string {
         } : null
       );
 
-      const sofaX = 2.15, sofaZ = 1.85;
+      // 3. Grounded Hot/Cold Water Dispenser & Water Bottle in Back-Right Corner (stand bottom -0.51m + 0.51m = 0.000m flush on floor)
+      const wdX = 0.85, wdZ = cabZ + 0.06;
+      const wDisp = new THREE.Mesh(step2Geos.waterDispenser, materials.whiteTrim);
+      wDisp.position.set(wdX, 0.51, wdZ);
+      wDisp.rotation.y = -Math.PI / 2;
+      cGroup.add(wDisp);
+      const wBot = new THREE.Mesh(step2Geos.waterBottle, step2Mats.bottleClearPlastic);
+      wBot.position.set(wdX, 1.21, wdZ);
+      cGroup.add(wBot);
+      addUnderFurnitureAO(cGroup, wdX, wdZ, 0.52, 0.52);
+
+      // 4. Interactive Wall-Mounted Office Electrical Sub-Breaker Panel (Switches Office Lights ON/OFF in sync with doorway switch)
+      buildInteractiveSwitchboardPanel(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        1.75,
+        1.42,
+        -(halfD - 0.14),
+        0,
+        'switchboard-office-' + slug,
+        unitTitle + ' Room Electrical Sub-Panel',
+        'roomCircuit_' + slug,
+        false
+      );
+
+      // 5. Interactive Openable 2-Door Records & Stationery Cupboard (Grounded at y = 0.000m on Back-East Wall)
+      buildOpenableCupboard(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        halfW - 0.34,
+        0.0,
+        -1.65,
+        -Math.PI / 2,
+        'cupboard-office-' + slug,
+        unitTitle + ' Office Stationery & Records Cupboard',
+        false,
+        null
+      );
+
+      // 6. Interactive 3-Door Steel Staff Locker Bank on West Wall (Grounded at y = 0.000m + Hiding Spot)
+      const lockerX = -(halfW - 0.30);
+      const lockerZ = -2.15;
+      const lockerBankMesh = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
+      lockerBankMesh.position.set(lockerX, 0.96, lockerZ);
+      cGroup.add(lockerBankMesh);
+      addUnderFurnitureAO(cGroup, lockerX, lockerZ, 0.68, 1.95);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + lockerX - 0.26, floorY, unitCenterZ + lockerZ - 0.90),
+        new THREE.Vector3(unitCenterX + lockerX + 0.26, floorY + 1.92, unitCenterZ + lockerZ + 0.90)
+      ), 'furniture');
+      [-0.56, 0, 0.56].forEach((lzOff, lIdx) => {
+        const lPivot = new THREE.Group();
+        lPivot.position.set(lockerX + 0.24, 1.05, lockerZ + lzOff - 0.24);
+        const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
+        lDoor.position.set(0, 0, 0.24);
+        lPivot.add(lDoor);
+        const offLockerId = 'locker-office-' + slug + '-' + (lIdx + 1);
+        markNoMergeRecursive(lPivot, offLockerId);
+        cGroup.add(lPivot);
+        registerInteriorInteractable({
+          id: offLockerId,
+          type: 'locker',
+          name: unitTitle + ' Staff Locker #' + (lIdx + 1),
+          x: unitCenterX + lockerX + 0.28,
+          y: floorY,
+          z: unitCenterZ + lockerZ + lzOff,
+          interactRadius: 2.35,
+          isOpen: false,
+          rootMesh: lPivot,
+          doorPivot: lPivot,
+          openSign: 1,
+          currentT: 0,
+          targetT: 0,
+          missionItem: null,
+        });
+      });
+      interactiveHidingSpots.push({
+        id: 'office-locker-' + unitTitle,
+        name: unitTitle + ' (Staff Steel Locker)',
+        spotType: 'locker',
+        x: unitCenterX + lockerX + 0.72,
+        y: floorY,
+        z: unitCenterZ + lockerZ,
+        exitX: unitCenterX + lockerX + 0.98,
+        exitY: floorY,
+        exitZ: unitCenterZ + lockerZ,
+        zone: unitTitle,
+      });
+
+      // 7. Grounded Faculty Lounge Corner: Leather Sofa (y = 0.000m), Beveled Timber Coffee Table (y = 0.000m) & Upholstered Armchair (y = 0.000m)
+      const sofaX = Math.min(2.35, halfW - 1.15), sofaZ = 1.85;
       const sBase = new THREE.Mesh(step2Geos.sofaBase, step2Mats.sofaLeather);
       sBase.position.set(sofaX, 0.21, sofaZ);
       cGroup.add(sBase);
@@ -11778,36 +12439,96 @@ export function getHideAndSeekHtml(): string {
         sArm.position.set(sofaX + ax, 0.28, sofaZ);
         cGroup.add(sArm);
       });
+      // Grounded Coffee Table in front of sofa (all 4 legs touch y = 0.000m, top surface at 0.430m)
+      const cTable = new THREE.Mesh(step2Geos.coffeeTable, materials.deskWoodTop);
+      cTable.position.set(sofaX, 0.0, sofaZ - 0.82);
+      cGroup.add(cTable);
+      addUnderFurnitureAO(cGroup, sofaX, sofaZ - 0.82, 1.36, 0.78);
+      const cBook = new THREE.Mesh(step2Geos.openBook, step2Mats.openBookPage);
+      cBook.position.set(sofaX - 0.18, 0.443, sofaZ - 0.80); // Bottom -0.0125m + 0.443m = 0.4305m flush on coffee table top
+      cBook.rotation.y = 0.24;
+      cGroup.add(cBook);
+      // Grounded Lounge Armchair facing coffee table (all 4 corner legs touch y = 0.000m)
+      const armChair = new THREE.Mesh(step2Geos.loungeArmchair, step2Mats.sofaLeather);
+      armChair.position.set(sofaX + 1.05, 0.0, sofaZ - 0.82);
+      armChair.rotation.y = -Math.PI / 2;
+      cGroup.add(armChair);
       addColliderBox(new THREE.Box3(
-        new THREE.Vector3(unitCenterX + sofaX - 1.0, floorY, unitCenterZ + sofaZ - 0.44),
-        new THREE.Vector3(unitCenterX + sofaX + 1.0, floorY + 0.85, unitCenterZ + sofaZ + 0.44)
+        new THREE.Vector3(unitCenterX + sofaX - 1.0, floorY, unitCenterZ + sofaZ - 1.18),
+        new THREE.Vector3(unitCenterX + sofaX + 1.38, floorY + 0.85, unitCenterZ + sofaZ + 0.44)
       ), 'furniture');
 
+      // 8. Grounded Executive & Staff Office Desks (y = 0.340m -> bottom 0.000m, top surface 0.725m) with Monitor + Stand + Keyboard + Mouse + Vintage Phone + PC Tower + Dustbin
+      const deskXSpan = roomW >= 9.6 ? 2.15 : 1.65;
       const deskCoords = [
-        [-1.65, -0.85], [1.65, -0.85],
-        [-1.65,  1.25],
+        [-deskXSpan, -0.85], [deskXSpan, -0.85],
+        [-deskXSpan,  1.25],
       ];
       deskCoords.forEach(([dx, dz], dIdx) => {
         const oDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
         oDesk.position.set(dx, 0.34, dz);
-        oDesk.rotation.y = (dIdx - 1) * 0.025;
+        oDesk.rotation.y = (dIdx - 1) * 0.022;
         cGroup.add(oDesk);
         addUnderFurnitureAO(cGroup, dx, dz + 0.10, 1.72, 1.18, oDesk.rotation.y);
 
+        // Monitor Stand (bottom at -0.070m + 0.795m = 0.725m flush on desk top)
+        const mStand = new THREE.Mesh(step2Geos.monitorStand, materials.castIronDark);
+        mStand.position.set(dx - 0.28, 0.795, dz - 0.14);
+        cGroup.add(mStand);
+        // Monitor Panel (bottom at -0.170m + 0.965m = 0.795m sitting cleanly on stand)
         const mon = new THREE.Mesh(step2Geos.monitorPanel, dIdx === 0 ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
-        mon.position.set(dx - 0.28, 0.89, dz - 0.12);
+        mon.position.set(dx - 0.28, 0.965, dz - 0.12);
         mon.rotation.y = 0.12;
         cGroup.add(mon);
-
+        // Keyboard (bottom at -0.009m + 0.734m = 0.725m flush on desk top) & Mousepad + Mouse (y = 0.725m)
+        const kb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
+        kb.position.set(dx - 0.26, 0.734, dz + 0.12);
+        kb.rotation.y = 0.06;
+        cGroup.add(kb);
+        const mp = new THREE.Mesh(step2Geos.mouseAndPad, materials.castIronDark);
+        mp.position.set(dx + 0.02, 0.725, dz + 0.12);
+        cGroup.add(mp);
+        // Vintage Office Landline Telephone (local bottom 0.000m + 0.725m = 0.725m flush on desk top)
+        const phone = new THREE.Mesh(step2Geos.desktopPhone, materials.castIronDark);
+        phone.position.set(dx + 0.48, 0.725, dz - 0.16);
+        phone.rotation.y = -0.24;
+        cGroup.add(phone);
+        // Paper Stack (local bottom -0.080m + 0.805m = 0.725m flush on desk top)
         const papers = new THREE.Mesh(step2Geos.paperStack, step2Mats.paperSheet);
-        papers.position.set(dx + 0.36, 0.80, dz + 0.08);
+        papers.position.set(dx + 0.34, 0.805, dz + 0.12);
         papers.rotation.y = -0.18;
         cGroup.add(papers);
+        // Floor-Grounded Desktop PC Tower beside desk pedestal (h = 0.42m, y = 0.210m -> bottom at y = 0.000m)
+        const pcTower = new THREE.Mesh(step2Geos.pcTower, materials.castIronDark);
+        pcTower.position.set(dx - 0.84, 0.21, dz - 0.05);
+        cGroup.add(pcTower);
 
+        // Grounded Office Chair (legs bottom -0.440m + 0.440m = 0.000m flush on floor)
         const chair = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
         chair.position.set(dx + (dIdx === 1 ? 0.10 : -0.06), 0.44, dz + 0.56);
         chair.rotation.y = (dIdx === 1 ? -0.28 : 0.19);
         cGroup.add(chair);
+
+        if (dIdx === 0) {
+          // Grounded Steel Mesh Office Dustbin beside Desk #1 (h = 0.42m, y = 0.210m -> bottom at y = 0.000m)
+          const bin = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.42, 10), materials.deskSteelFrame);
+          bin.position.set(dx + 0.88, 0.21, dz + 0.08);
+          cGroup.add(bin);
+          // Searchable Executive Desk Drawer on Desk #1
+          buildSearchableDrawer(
+            cGroup,
+            unitCenterX,
+            floorY,
+            unitCenterZ,
+            dx - 0.48,
+            0.54,
+            dz + 0.28,
+            0,
+            'drawer-exec-' + slug,
+            unitTitle + ' Executive Desk Drawer',
+            null
+          );
+        }
 
         const wx = unitCenterX + dx;
         const wz = unitCenterZ + dz;
@@ -12132,10 +12853,10 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-l1-r1-door', x: -10.6, y: 0.18, z: -28.0, kind: 'door' }, { id: 'wp-l1-r1-in', x: -7.5, y: 0.18, z: -28.0, kind: 'interior' }],
       },
       'West Wing L1 Room 2': {
-        id: 'West Wing L1 Room 2', building: 'L1', archetype: 'classroom_seminar', lightMood: 'moonlight',
+        id: 'West Wing L1 Room 2', building: 'L1', archetype: 'computer_lab', lightMood: 'dying_tube',
         bounds: { minX: -10.3, maxX: -2.7, minZ: -23.0, maxZ: -13.0, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['teacher_podium', 'teacher_desk', 'seminar_desks_u', 'side_bookshelf', 'wall_shelves', 'ceiling_fan'],
-        hidingSpots: ['podium', 'student_desks'],
+        furniture: ['server_rack_leds', 'dual_monitor_workstations_3x3', 'cable_raceways', 'whiteboard', 'oscilloscope_bench', 'wall_fans'],
+        hidingSpots: ['server_rack', 'workstation_desks', 'lab_locker'],
         waypoints: [{ id: 'wp-l1-r2-door', x: -10.6, y: 0.18, z: -18.0, kind: 'door' }, { id: 'wp-l1-r2-in', x: -6.5, y: 0.18, z: -18.6, kind: 'interior' }],
       },
       'West Wing L1 Room 3': {
@@ -12553,16 +13274,27 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // 2. Classroom 3-Tube Ceiling Array: 1 steady-dim, 1 stuttering (irregular on/off bursts), 1 dead (merged into static room before bake)
-      const tubeY = isMainBldg ? 2.86 : 3.28;
+      // 2. Classroom 3-Tube Ceiling Array: 1 steady-dim, 1 stuttering (irregular on/off bursts), 1 dead
+      // Aligned with pendantTubeFixture hoods at (0.95, 0.98) and (-1.65, -1.85), plus dynamic steadyTubeMat so switching OFF extinguishes all tubes!
+      const tubeY = isMainBldg ? 2.86 : 3.33;
       const stutterTubeMat = step2Mats.dyingTubeMat.clone();
       const stutterTube = new THREE.Mesh(tubeStripGeo, stutterTubeMat);
-      stutterTube.position.set(roomW * 0.14, tubeY, roomD * 0.12);
+      stutterTube.position.set(isMainBldg ? (roomW * 0.14) : 0.95, tubeY, isMainBldg ? (roomD * 0.12) : 0.98);
       stutterTube.userData.noMerge = true;
       cGroup.add(stutterTube);
 
+      const steadyTubeMat = step2Mats.steadyDimTubeMat.clone();
+      const steadyTubeDynamic = new THREE.Mesh(tubeStripGeo, steadyTubeMat);
+      steadyTubeDynamic.position.set(isMainBldg ? (-roomW * 0.18) : -1.65, tubeY, isMainBldg ? (-roomD * 0.16) : -1.85);
+      steadyTubeDynamic.userData.noMerge = true;
+      cGroup.add(steadyTubeDynamic);
+      if (mood === 'dark') {
+        stutterTubeMat.emissiveIntensity = 0.0;
+        steadyTubeMat.emissiveIntensity = 0.0;
+      }
+
       const spillCfg = cCfg.tubeSpill || {};
-      const spillColor = (mood === 'emergency_red') ? 0xdc2626 : (spillCfg.color || 0xaef2e2);
+      const spillColor = (mood === 'emergency_red') ? 0xdc2626 : (spillCfg.color || 0xffc670);
       const floorSpillMat = new THREE.MeshBasicMaterial({
         map: softRadialGlowTex,
         color: spillColor,
@@ -12573,7 +13305,7 @@ export function getHideAndSeekHtml(): string {
       });
       const floorSpill = new THREE.Mesh(aoSharedPlaneGeo, floorSpillMat);
       floorSpill.rotation.x = -Math.PI / 2;
-      floorSpill.position.set(roomW * 0.12, 0.021, roomD * 0.10);
+      floorSpill.position.set(isMainBldg ? (roomW * 0.12) : 0.95, 0.021, isMainBldg ? (roomD * 0.10) : 0.98);
       floorSpill.scale.set(4.8, 4.8, 1.0);
       floorSpill.userData.noMerge = true;
       cGroup.add(floorSpill);
@@ -12626,6 +13358,7 @@ export function getHideAndSeekHtml(): string {
           bulbMat,
           poolMat: warmPoolMat,
           stutterTubeMat,
+          steadyTubeMat,
           floorSpillMat,
           deskSpillMat,
           worldX: unitCenterX + lampX,
@@ -12655,6 +13388,7 @@ export function getHideAndSeekHtml(): string {
           bulbMat: redMat,
           poolMat: floorSpillMat,
           stutterTubeMat,
+          steadyTubeMat,
           floorSpillMat,
           deskSpillMat,
           worldX: unitCenterX - windowSideSignX * (halfW - 0.8),
@@ -12692,17 +13426,18 @@ export function getHideAndSeekHtml(): string {
           bulbMat: stutterTubeMat,
           poolMat: floorSpillMat,
           stutterTubeMat,
+          steadyTubeMat,
           floorSpillMat,
           deskSpillMat,
-          worldX: unitCenterX + (mood === 'moonlight' ? windowSideSignX * (roomW * 0.22) : roomW * 0.14),
+          worldX: unitCenterX + (mood === 'moonlight' ? windowSideSignX * (roomW * 0.22) : (isMainBldg ? roomW * 0.14 : 0.95)),
           worldY: floorY + (mood === 'moonlight' ? 2.15 : 2.82),
-          worldZ: unitCenterZ,
+          worldZ: unitCenterZ + (mood === 'moonlight' ? 0 : (isMainBldg ? 0 : 0.98)),
           floorY,
           halfW,
           halfD,
-          color: mCfg.color || (mood === 'moonlight' ? 0x84b6e6 : 0xb4f0e4),
-          baseIntensity: mood === 'dark' ? 0.0 : (mCfg.intensity || 3.8),
-          distance: mCfg.distance || 11.8,
+          color: mCfg.color || (mood === 'moonlight' ? 0x84b6e6 : 0xffb84d),
+          baseIntensity: mood === 'dark' ? 0.0 : (mCfg.intensity || 4.8),
+          distance: mCfg.distance || 12.6,
           seed,
         });
       }
@@ -12719,19 +13454,29 @@ export function getHideAndSeekHtml(): string {
         }
       }
       const moodsCfg = HORROR_CONFIG.roomLightMoods || {};
-      const mCfg = moodsCfg[m] || { color: 0xb4f0e4, intensity: 4.1, distance: 11.8 };
+      const mCfg = moodsCfg[m] || { color: 0xffb84d, intensity: 4.8, distance: 12.6 };
       for (let i = 0; i < roomMoodFixtures.length; i++) {
         const rf = roomMoodFixtures[i];
         if (rf.roomId === roomId) {
           rf.mood = m;
-          rf.color = mCfg.color || 0xb4f0e4;
-          rf.baseIntensity = (m === 'dark') ? 0.0 : (mCfg.intensity || 3.9);
-          rf.distance = mCfg.distance || 11.8;
+          rf.color = mCfg.color || 0xffb84d;
+          rf.baseIntensity = (m === 'dark') ? 0.0 : (mCfg.intensity || 4.8);
+          rf.distance = mCfg.distance || 12.6;
           if (rf.bulbMat && rf.bulbMat.emissive) {
             rf.bulbMat.emissive.setHex(rf.color);
           }
           if (rf.poolMat && rf.poolMat.color) {
             rf.poolMat.color.setHex(rf.color);
+          }
+          if (m === 'dark') {
+            if (rf.stutterTubeMat) rf.stutterTubeMat.emissiveIntensity = 0.0;
+            if (rf.steadyTubeMat) rf.steadyTubeMat.emissiveIntensity = 0.0;
+            if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 0.0;
+            if (rf.floorSpillMat) rf.floorSpillMat.opacity = 0.0;
+            if (rf.deskSpillMat) rf.deskSpillMat.opacity = 0.0;
+            if (rf.poolMat) rf.poolMat.opacity = 0.0;
+          } else {
+            if (rf.steadyTubeMat) rf.steadyTubeMat.emissiveIntensity = 0.65;
           }
         }
       }
@@ -12758,16 +13503,31 @@ export function getHideAndSeekHtml(): string {
       // Animate ULTRA-only doorway ground mist planes when room is visible
       for (let m = 0; m < classroomDoorMistPlanes.length; m++) {
         const dm = classroomDoorMistPlanes[m];
-        if (!dm.mesh.visible) continue;
-        dm.mesh.position.x = dm.baseX + Math.sin(timeSec * 0.34 + dm.phase) * 0.22;
-        dm.mesh.position.z = dm.baseZ + Math.cos(timeSec * 0.28 + dm.phase) * 0.18;
+        if (!dm || !dm.mesh || !dm.mesh.visible) continue;
+        const bx = (typeof dm.baseX === 'number') ? dm.baseX : dm.mesh.position.x;
+        const bz = (typeof dm.baseZ === 'number') ? dm.baseZ : dm.mesh.position.z;
+        const ph = (typeof dm.phase === 'number') ? dm.phase : 0;
+        dm.mesh.position.x = bx + Math.sin(timeSec * 0.34 + ph) * 0.22;
+        dm.mesh.position.z = bz + Math.cos(timeSec * 0.28 + ph) * 0.18;
       }
 
       for (let i = 0; i < roomMoodFixtures.length; i++) {
         const rf = roomMoodFixtures[i];
         if (!rf.group || !rf.group.visible) continue;
 
-        // Irregular stuttering fluorescent tube burst math (simplified on FAST)
+        const isSwitchedOff = (roomLightSwitchStates[rf.roomId] === false) || (rf.mood === 'dark');
+        if (isSwitchedOff) {
+          if (rf.stutterTubeMat) rf.stutterTubeMat.emissiveIntensity = 0.0;
+          if (rf.steadyTubeMat) rf.steadyTubeMat.emissiveIntensity = 0.0;
+          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 0.0;
+          if (rf.floorSpillMat) rf.floorSpillMat.opacity = 0.0;
+          if (rf.deskSpillMat) rf.deskSpillMat.opacity = 0.0;
+          if (rf.poolMat) rf.poolMat.opacity = 0.0;
+          rf.currentMult = 0.0;
+          continue;
+        }
+
+        // Irregular stuttering warm fluorescent tube burst math (simplified on FAST)
         let tubeStutter = 0.22;
         if (calmTube) {
           tubeStutter = 0.88 + 0.08 * Math.sin(timeSec * 7.85 + rf.seed);
@@ -12781,21 +13541,24 @@ export function getHideAndSeekHtml(): string {
           tubeStutter = (w1 > -0.22 ? (0.72 + 0.28 * w2) : 0.08) * dropout;
         }
         if (rf.stutterTubeMat) {
-          const peak = (rf.mood === 'dark') ? 0.32 : (tStates.stutterPeakIntensity || 1.55);
-          rf.stutterTubeMat.emissiveIntensity = Math.max(tStates.stutterMinIntensity || 0.04, peak * tubeStutter);
+          const peak = tStates.stutterPeakIntensity || 1.65;
+          rf.stutterTubeMat.emissiveIntensity = Math.max(tStates.stutterMinIntensity || 0.05, peak * tubeStutter);
+        }
+        if (rf.steadyTubeMat) {
+          rf.steadyTubeMat.emissiveIntensity = 0.58 + 0.08 * Math.sin(timeSec * 5.2 + rf.seed);
         }
         if (rf.floorSpillMat && rf.mood !== 'emergency_red') {
-          rf.floorSpillMat.opacity = (tSpill.floorSpillOpacity || 0.16) * (0.35 + 0.65 * tubeStutter);
+          rf.floorSpillMat.opacity = (tSpill.floorSpillOpacity || 0.18) * (0.35 + 0.65 * tubeStutter);
         }
         if (rf.deskSpillMat && rf.mood !== 'emergency_red') {
-          rf.deskSpillMat.opacity = (tSpill.deskSpillOpacity || 0.13) * (0.35 + 0.65 * tubeStutter);
+          rf.deskSpillMat.opacity = (tSpill.deskSpillOpacity || 0.14) * (0.35 + 0.65 * tubeStutter);
         }
 
         let mult = 1.0;
         if (rf.mood === 'dying_tube') {
           mult = tubeStutter;
-          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = (tStates.stutterPeakIntensity || 1.55) * mult;
-          if (rf.poolMat) rf.poolMat.opacity = (tSpill.floorSpillOpacity || 0.16) * mult;
+          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = (tStates.stutterPeakIntensity || 1.65) * mult;
+          if (rf.poolMat) rf.poolMat.opacity = (tSpill.floorSpillOpacity || 0.18) * mult;
         } else if (rf.mood === 'emergency_red') {
           const pulse = steadyRed
             ? 0.85
@@ -12867,9 +13630,9 @@ export function getHideAndSeekHtml(): string {
     const ROOM_ARCHETYPE_BUILDERS = {
       classroom_standard: (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 0, roomDef, rw, rd, dAxis, dSign),
       classroom_seminar:  (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 1, roomDef, rw, rd, dAxis, dSign),
-      computer_lab:       (cGroup, cx, cz, fy, dirZ, title) => buildComputerLabInterior(cGroup, cx, cz, fy, dirZ, title),
+      computer_lab:       (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildComputerLabInterior(cGroup, cx, cz, fy, dirZ, title, rw, rd, dAxis, dSign),
       library:            (cGroup, cx, cz, fy, dirZ, title) => buildLibraryRoomInterior(cGroup, cx, cz, fy, dirZ, title),
-      staff_office:       (cGroup, cx, cz, fy, dirZ, title) => buildStaffAdminOfficeInterior(cGroup, cx, cz, fy, dirZ, title),
+      staff_office:       (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildStaffAdminOfficeInterior(cGroup, cx, cz, fy, dirZ, title, rw, rd, dAxis, dSign),
       toilets:            (cGroup, cx, cz, fy, dirZ, title) => buildToiletsRoomInterior(cGroup, cx, cz, fy, title),
       canteen_dining:     (cGroup, cx, cz, fy, dirZ, title) => buildCanteenRoomInterior(cGroup, cx, cz, fy, title, false),
       canteen_kitchen:    (cGroup, cx, cz, fy, dirZ, title) => buildCanteenRoomInterior(cGroup, cx, cz, fy, title, true),
@@ -12967,15 +13730,13 @@ export function getHideAndSeekHtml(): string {
         cGroup.add(pil);
       });
 
+      // 3 Ceiling Pendant Tube Reflector Hoods:
+      // Hood 0 (-1.65, -1.85) & Hood 1 (0.95, 0.98) receive dynamic switchable tubes in applyRoomLightMoodFixtures; Hood 2 (-1.65, 2.05) holds the dead tube.
       [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz], tIdx) => {
         const hood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
         hood.position.set(tx, ceilY - 0.08, tz);
         cGroup.add(hood);
-        if (tIdx === 0) {
-          const steadyTube = new THREE.Mesh(tubeStripGeo, step2Mats.steadyDimTubeMat);
-          steadyTube.position.set(tx, ceilY - 0.11, tz);
-          cGroup.add(steadyTube);
-        } else if (tIdx === 2) {
+        if (tIdx === 2) {
           const deadTube = new THREE.Mesh(tubeStripGeo, step2Mats.deadTubeMat);
           deadTube.position.set(tx, ceilY - 0.11, tz);
           cGroup.add(deadTube);
@@ -13067,12 +13828,16 @@ export function getHideAndSeekHtml(): string {
       const trimMat = isNewari ? materials.ebonyCarvedWood : materials.whiteTrim;
       const gableWallMat = isNewari ? materials.nepalDachiBrick : materials.campusStucco;
 
-      const cornice = new THREE.Mesh(new THREE.BoxGeometry(totalW, 0.16, totalD), trimMat);
+      const corniceGeo = new THREE.BoxGeometry(totalW, 0.16, totalD);
+      worldUV(corniceGeo, 0.5);
+      const cornice = new THREE.Mesh(corniceGeo, trimMat);
       cornice.position.set(0, -0.05, 0);
       rGroup.add(cornice);
 
+      const soffitGeo = new THREE.BoxGeometry(totalW - 0.06, 0.04, totalD - 0.06);
+      worldUV(soffitGeo, 0.5);
       const soffit = new THREE.Mesh(
-        new THREE.BoxGeometry(totalW - 0.06, 0.04, totalD - 0.06),
+        soffitGeo,
         isNewari ? materials.carvedSalWood : materials.roofSoffitDark
       );
       soffit.position.set(0, -0.14, 0);
@@ -13083,18 +13848,24 @@ export function getHideAndSeekHtml(): string {
         const slopeLen = Math.hypot(halfD, ridgeH);
         const slopeAngle = Math.atan2(ridgeH, halfD);
 
-        const frontSlope = new THREE.Mesh(new THREE.BoxGeometry(totalW, 0.12, slopeLen), roofMat);
+        const frontSlopeGeo = new THREE.BoxGeometry(totalW, 0.12, slopeLen);
+        worldUV(frontSlopeGeo, 0.5);
+        const frontSlope = new THREE.Mesh(frontSlopeGeo, roofMat);
         frontSlope.position.set(0, ridgeH / 2, halfD / 2);
         frontSlope.rotation.x = slopeAngle;
         rGroup.add(frontSlope);
 
-        const backSlope = new THREE.Mesh(new THREE.BoxGeometry(totalW, 0.12, slopeLen), roofMat);
+        const backSlopeGeo = new THREE.BoxGeometry(totalW, 0.12, slopeLen);
+        worldUV(backSlopeGeo, 0.5);
+        const backSlope = new THREE.Mesh(backSlopeGeo, roofMat);
         backSlope.position.set(0, ridgeH / 2, -halfD / 2);
         backSlope.rotation.x = -slopeAngle;
         rGroup.add(backSlope);
 
+        const ridgeCapGeo = new THREE.BoxGeometry(totalW + 0.1, 0.16, 0.32);
+        worldUV(ridgeCapGeo, 0.5);
         const ridgeCap = new THREE.Mesh(
-          new THREE.BoxGeometry(totalW + 0.1, 0.16, 0.32),
+          ridgeCapGeo,
           isNewari ? materials.ebonyCarvedWood : materials.gandakiBluePole
         );
         ridgeCap.position.set(0, ridgeH + 0.05, 0);
@@ -13744,39 +14515,70 @@ export function getHideAndSeekHtml(): string {
     naturalGroundTex.repeat.set(1, 1);
 
     const asphaltRoadTex = createProceduralTexture(512, 512, (ctx) => {
-      ctx.fillStyle = '#2a2a2e';
+      // PHASE 12 WET CRACKED BITUMEN ASPHALT WITH PUDDLE BASINS & AGGREGATE GRIT (Ref 1 & Ref 2)
+      ctx.fillStyle = '#1e2229';
       ctx.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 6500; i++) {
+
+      // 1. Overlapping wet puddle basins (darker porous wet asphalt) and drier coarse patches
+      for (let pIdx = 0; pIdx < 18; pIdx++) {
+        const px = (pIdx * 109 + 42) % 512;
+        const py = (pIdx * 163 + 78) % 512;
+        const pr = 52 + (pIdx % 4) * 28;
+        const pg = ctx.createRadialGradient(px, py, 8, px, py, pr);
+        if (pIdx % 3 !== 0) {
+          pg.addColorStop(0.0, 'rgba(10, 13, 18, 0.52)');
+          pg.addColorStop(0.65, 'rgba(14, 18, 24, 0.24)');
+          pg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+        } else {
+          pg.addColorStop(0.0, 'rgba(64, 70, 80, 0.22)');
+          pg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+        }
+        ctx.fillStyle = pg;
+        ctx.fillRect(0, 0, 512, 512);
+      }
+
+      // 2. Coarse crushed stone aggregate speckle (8,500 mineral grains)
+      for (let i = 0; i < 8500; i++) {
         const ax = (i * 131 + (i % 5) * 7) % 512;
         const ay = (i * 257 + (i % 9) * 11) % 512;
-        ctx.fillStyle = (i % 2 === 0) ? 'rgba(92, 98, 108, 0.07)' : 'rgba(10, 12, 16, 0.14)';
+        ctx.fillStyle = (i % 3 === 0) ? 'rgba(128, 136, 148, 0.13)' : 'rgba(8, 10, 14, 0.22)';
         ctx.fillRect(ax, ay, 2, 2);
       }
-      // Subtle damp tire-track and rain-sheen variation across the 512px asphalt tile
-      const wetPatch = ctx.createRadialGradient(256, 256, 24, 256, 256, 210);
-      wetPatch.addColorStop(0.0, 'rgba(16, 18, 22, 0.28)');
-      wetPatch.addColorStop(1.0, 'rgba(16, 18, 22, 0.0)');
-      ctx.fillStyle = wetPatch;
-      ctx.fillRect(0, 0, 512, 512);
+
+      // 3. Branched asphalt stress cracks & water-filled fissures (Ref 2 foreground road)
+      ctx.strokeStyle = 'rgba(6, 8, 12, 0.78)';
+      ctx.lineWidth = 2.0;
+      for (let cIdx = 0; cIdx < 10; cIdx++) {
+        let cx = (cIdx * 57 + 18) % 512;
+        let cy = (cIdx * 83) % 512;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        for (let seg = 0; seg < 7; seg++) {
+          cx += ((seg * 19 + cIdx * 13) % 28) - 13;
+          cy += 22 + (seg % 3) * 11;
+          ctx.lineTo(cx, cy);
+        }
+        ctx.stroke();
+      }
     }, 'campus-asphalt-road-seamless-512');
     asphaltRoadTex.wrapS = THREE.RepeatWrapping;
     asphaltRoadTex.wrapT = THREE.RepeatWrapping;
-    asphaltRoadTex.anisotropy = 4;
+    asphaltRoadTex.anisotropy = 8;
     asphaltRoadTex.colorSpace = THREE.SRGBColorSpace || 'srgb';
     if ('encoding' in asphaltRoadTex && THREE.sRGBEncoding) asphaltRoadTex.encoding = THREE.sRGBEncoding;
 
     materials.asphaltRoad = new THREE.MeshStandardMaterial({
       map: asphaltRoadTex,
       bumpMap: asphaltRoadTex,
-      bumpScale: 0.016,
+      bumpScale: 0.028,
       normalMap: paverTex.normalMap,
-      normalScale: new THREE.Vector2(0.28, 0.28),
+      normalScale: new THREE.Vector2(0.52, 0.52),
       roughnessMap: paverTex.roughnessMap,
-      color: (HORROR_CONFIG.albedo && HORROR_CONFIG.albedo.roadAsphalt) || 0x2a2a2e,
-      roughness: (HORROR_CONFIG.albedo && HORROR_CONFIG.albedo.roadRoughness) || 0.35,
-      metalness: 0.18,
+      color: (HORROR_CONFIG.albedo && HORROR_CONFIG.albedo.roadAsphalt) || 0x24272d,
+      roughness: (HORROR_CONFIG.albedo && HORROR_CONFIG.albedo.roadRoughness) || 0.22,
+      metalness: 0.26,
       envMap: lowResNightEnvCube,
-      envMapIntensity: 0.95,
+      envMapIntensity: 1.15,
     });
     materials.lowerGroundDirtGravel = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,
@@ -13856,14 +14658,17 @@ export function getHideAndSeekHtml(): string {
 
     const sculptedTerrainMat = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,
+      normalMap: paverTex.normalMap,
+      normalScale: new THREE.Vector2(0.38, 0.38),
+      roughnessMap: paverTex.roughnessMap,
       bumpMap: naturalGroundTex,
-      bumpScale: 0.014,
-      color: 0x363a40,
+      bumpScale: 0.024,
+      color: 0x3a4048,
       vertexColors: true,
-      roughness: 0.42,
-      metalness: 0.10,
+      roughness: 0.32,
+      metalness: 0.18,
       envMap: lowResNightEnvCube,
-      envMapIntensity: 0.65,
+      envMapIntensity: 0.92,
     });
 
     const terrainMesh = new THREE.Mesh(terrainGeo, sculptedTerrainMat);
@@ -18967,6 +19772,7 @@ export function getHideAndSeekHtml(): string {
         this.maxBulbs = 2400;
         this.bulbCount = 0;
         this.instJhilimiliBulbs = new THREE.InstancedMesh(this.bulbGeo, this.jhilimiliBulbMat, this.maxBulbs);
+        this.instJhilimiliBulbs.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.maxBulbs * 3), 3);
         this.instJhilimiliBulbs.count = 0;
         this.instJhilimiliBulbs.frustumCulled = false;
         this.instJhilimiliBulbs.userData.noMerge = true;
@@ -18977,6 +19783,7 @@ export function getHideAndSeekHtml(): string {
         this.maxBlossoms = 2400;
         this.blossomCount = 0;
         this.instGarlandBlossoms = new THREE.InstancedMesh(this.blossomGeo, this.garlandBlossomMat, this.maxBlossoms);
+        this.instGarlandBlossoms.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.maxBlossoms * 3), 3);
         this.instGarlandBlossoms.count = 0;
         this.instGarlandBlossoms.frustumCulled = false;
         this.instGarlandBlossoms.userData.noMerge = true;
@@ -19236,8 +20043,11 @@ export function getHideAndSeekHtml(): string {
       finalizeGeometry() {
         this.instDiyoBowls.count = this.diyoCount;
         this.instDiyoFlames.count = this.diyoCount;
+        // Phase 12: Enable authentic Tihar diyo warm surface pools & Jhilimili string light bulbs within campus bounds
         this.instDiyoPools.count = this.poolCount;
+        this.instDiyoPools.visible = true;
         this.instJhilimiliBulbs.count = this.bulbCount;
+        this.instJhilimiliBulbs.visible = true;
         this.instGarlandBlossoms.count = this.blossomCount;
 
         this.instDiyoBowls.instanceMatrix.needsUpdate = true;
@@ -19250,17 +20060,15 @@ export function getHideAndSeekHtml(): string {
 
         computeInstancedBoundingSphere(this.instDiyoBowls, this.diyoCount);
         computeInstancedBoundingSphere(this.instDiyoFlames, this.diyoCount);
-        computeInstancedBoundingSphere(this.instDiyoPools, this.poolCount);
-        computeInstancedBoundingSphere(this.instJhilimiliBulbs, this.bulbCount);
         computeInstancedBoundingSphere(this.instGarlandBlossoms, this.blossomCount);
+        this.rootGroup.traverse(ch => {
+          if (ch.isMesh && !ch.isInstancedMesh && this.wallWashMeshes.indexOf(ch) === -1) {
+            ch.userData.noMerge = false;
+          }
+        });
+        if (typeof bakeStaticGroup === "function") bakeStaticGroup(this.rootGroup, false);
 
-        if (this.cordGeos.length > 0) {
-          const mergedCords = THREE.BufferGeometryUtils.mergeBufferGeometries(this.cordGeos);
-          const cordMesh = new THREE.Mesh(mergedCords, this.wireCordMat);
-          cordMesh.userData.noMerge = true;
-          this.rootGroup.add(cordMesh);
-          this.cordGeos.length = 0;
-        }
+        this.cordGeos.length = 0;
       }
 
       update(delta, timeSec, playerPos) {
@@ -19513,7 +20321,183 @@ export function getHideAndSeekHtml(): string {
     const buildingSectors = [];
     let visibleRoomsCount = 0;
 
+    // =========================================================================
+    // PHASE 12 ENVIRONMENTAL DETAIL PASS (Curbs, Drainage Channels, Mossy Rocks,
+    // Wall Electrical Junction Boxes & Conduits, Catenary Utility Wires & Wet Puddles)
+    // =========================================================================
+    (function populatePhase12EnvironmentalDetails() {
+      if (HORROR_CONFIG.photorealisticOverhaul && HORROR_CONFIG.photorealisticOverhaul.enableEnvironmentalDetails === false) return;
+
+      const envDetailGroup = new THREE.Group();
+      envDetailGroup.name = 'Phase12EnvironmentalDetails';
+
+      // 1. Roadside Concrete Curbs & Drainage Channels along Spine Road (x = -33.1 & x = -25.9) and Wing Alleys
+      const curbSegGeo = new THREE.BoxGeometry(0.24, 0.18, 6.0);
+      const gutterSegGeo = new THREE.PlaneGeometry(0.42, 6.0);
+      gutterSegGeo.rotateX(-Math.PI / 2);
+
+      for (let z = -44.0; z <= 46.0; z += 6.0) {
+        [-33.15, -25.85].forEach((cx, sideIdx) => {
+          const ty = getTerrainHeightAt(cx, z);
+          const curb = new THREE.Mesh(curbSegGeo, materials.plinthDarkConcrete);
+          curb.position.set(cx, ty + 0.07, z);
+          curb.receiveShadow = true;
+          envDetailGroup.add(curb);
+
+          const gx = cx + (sideIdx === 0 ? 0.28 : -0.28);
+          const gutter = new THREE.Mesh(gutterSegGeo, materials.wetPuddleMirror);
+          gutter.position.set(gx, ty + 0.030, z);
+          gutter.receiveShadow = true;
+          envDetailGroup.add(gutter);
+        });
+      }
+
+      // 2. Weathered Mossy Stones & Curbside Boulders along Bus Plaza & Spine Road Edge (Ref 1 / IMG_6908 foreground)
+      const rockGeo = new THREE.DodecahedronGeometry(0.32, 1);
+      const rockPositions = [
+        [-36.2, -5.4, 1.35, 0.72, 1.15],
+        [-35.4, -4.6, 0.95, 0.62, 0.90],
+        [-37.8, -8.2, 1.10, 0.65, 1.05],
+        [-33.6, -12.4, 0.85, 0.55, 0.88],
+        [-33.5, -2.8, 0.92, 0.58, 0.95],
+        [-25.4, -6.2, 0.88, 0.52, 0.82],
+        [-25.3, 4.5, 1.05, 0.60, 0.94],
+        [-19.2, -3.4, 0.75, 0.48, 0.78],
+        [4.8, -128.5, 0.95, 0.56, 0.90],
+        [-4.8, -128.2, 0.88, 0.52, 0.86],
+      ];
+      rockPositions.forEach(([rx, rz, sx, sy, sz], idx) => {
+        const ry = getTerrainHeightAt(rx, rz);
+        const rMesh = new THREE.Mesh(rockGeo, materials.nepaliRiverStone);
+        rMesh.position.set(rx, ry + 0.12 * sy, rz);
+        rMesh.rotation.set(idx * 0.4, idx * 1.1, idx * 0.3);
+        rMesh.scale.set(sx, sy, sz);
+        rMesh.castShadow = true;
+        rMesh.receiveShadow = true;
+        envDetailGroup.add(rMesh);
+      });
+
+      // 3. Wall-Mounted Electrical Junction Boxes & Galvanized Conduit Pipes on Academic Wing Exterior Walls (Ref 1 & Ref 3 / IMG_6910)
+      const jBoxGeo = new THREE.BoxGeometry(0.28, 0.38, 0.14);
+      const conduitGeo = new THREE.CylinderGeometry(0.018, 0.018, 2.6, 6);
+      const wingElectricalSpecs = [
+        // West Wing L1 north & west exterior faces
+        [-19.8, 1.40, -5.68, 0],
+        [-11.5, 1.40, -5.68, 0],
+        [-3.2,  1.40, -5.68, 0],
+        [-20.32, 1.40, -8.2, Math.PI / 2],
+        // West Wing L2 south & west exterior faces
+        [-19.8, 1.40, 0.18, Math.PI],
+        [-11.5, 1.40, 0.18, Math.PI],
+        [-3.2,  1.40, 0.18, Math.PI],
+        [-21.05, 1.40, 3.2, Math.PI / 2],
+        // East Wing R1 & R2 exterior faces
+        [-5.8,  1.40, -19.72, 0],
+        [24.18, 1.40, -24.5, Math.PI / 2],
+      ];
+      wingElectricalSpecs.forEach(([wx, wy, wz, rotY]) => {
+        const jb = new THREE.Mesh(jBoxGeo, materials.deskSteelFrame);
+        jb.position.set(wx, wy + 1.55, wz);
+        jb.rotation.y = rotY;
+        jb.castShadow = true;
+        jb.receiveShadow = true;
+        envDetailGroup.add(jb);
+
+        const cond = new THREE.Mesh(conduitGeo, materials.castIronDark);
+        cond.position.set(wx + (rotY === 0 ? 0.08 : 0), wy + 1.85, wz + (rotY !== 0 ? 0.08 : 0));
+        envDetailGroup.add(cond);
+      });
+
+      // 4. Overhead Sagging Catenary Utility Wires between Streetlamps & Wing Eaves (Ref 1 & Ref 3)
+      const cableSpanSpecs = [
+        [[-39.0, 4.6, -11.0], [-22.8, 5.2, -13.5]],
+        [[-22.8, 5.2, -13.5], [-19.8, 4.9, -5.8]],
+        [[-38.9, 4.6, 1.0],   [-24.8, 4.6, 3.6]],
+        [[-24.8, 4.6, 3.6],   [-20.5, 5.0, 0.3]],
+        [[-18.5, 4.8, -5.7],  [-18.5, 4.8, 0.2]],
+        [[-9.5,  4.8, -5.7],  [-9.5,  4.8, 0.2]],
+        [[0.5,   4.8, -5.7],  [0.5,   4.8, 0.2]],
+      ];
+      cableSpanSpecs.forEach(([p0, p1]) => {
+        const dx = p1[0] - p0[0], dy = p1[1] - p0[1], dz = p1[2] - p0[2];
+        const spanLen = Math.hypot(dx, dy, dz);
+        const segs = 6;
+        for (let s = 0; s < segs; s++) {
+          const t0 = s / segs, t1 = (s + 1) / segs;
+          const sag0 = Math.sin(t0 * Math.PI) * 0.42;
+          const sag1 = Math.sin(t1 * Math.PI) * 0.42;
+          const x0 = p0[0] + dx * t0, y0 = p0[1] + dy * t0 - sag0, z0 = p0[2] + dz * t0;
+          const x1 = p0[0] + dx * t1, y1 = p0[1] + dy * t1 - sag1, z1 = p0[2] + dz * t1;
+          const mx = (x0 + x1) * 0.5, my = (y0 + y1) * 0.5, mz = (z0 + z1) * 0.5;
+          const sLen = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
+          const wireGeo = new THREE.CylinderGeometry(0.012, 0.012, sLen, 4);
+          wireGeo.rotateX(Math.PI / 2);
+          const wireMesh = new THREE.Mesh(wireGeo, materials.castIronDark);
+          wireMesh.position.set(mx, my, mz);
+          wireMesh.lookAt(x1, y1, z1);
+          envDetailGroup.add(wireMesh);
+        }
+      });
+
+      // 5. Thin Specular Rain Puddle Planes in Low-Lying Road & Alleyway Depressions (Ref 1, Ref 2, Ref 3)
+      const puddleSpecs = [
+        [-36.5, -5.8, 4.8, 3.6, 0.12],
+        [-29.6, -12.5, 4.2, 6.4, -0.05],
+        [-29.4, -3.2, 4.5, 5.8, 0.08],
+        [-13.5, -2.75, 5.4, 2.2, 0.02],
+        [-5.5,  -2.75, 4.8, 2.1, -0.03],
+        [0.0,   -125.5, 6.2, 4.5, 0.0],
+      ];
+      puddleSpecs.forEach(([px, pz, pw, pd, rotY]) => {
+        const py = getTerrainHeightAt(px, pz);
+        const pGeo = new THREE.PlaneGeometry(pw, pd);
+        pGeo.rotateX(-Math.PI / 2);
+        const pMesh = new THREE.Mesh(pGeo, materials.wetPuddleMirror);
+        pMesh.position.set(px, py + 0.031, pz);
+        pMesh.rotation.y = rotY;
+        pMesh.receiveShadow = true;
+        envDetailGroup.add(pMesh);
+      });
+
+      scene.add(envDetailGroup);
+    })();
+
     (function finalizePhaseASceneOptimization() {
+      // Allow static exterior structural parts (window outer frames, lamp puddles, static bus exterior shells, environmental details)
+      // to participate in sector static geometry merging while strictly preserving interactive movable sashes, doors, drawers, and lights!
+      scene.traverse(obj => {
+        if (!obj || !obj.userData) return;
+        if ((obj.isMesh || obj.isGroup) && !obj.userData.interactableId && !obj.userData.isSwingingDoor && !obj.userData.isRoomGroup) {
+          // Keep dynamic/animated meshes unmerged (flashlightRig, Tihar root, ceiling fans, door mist, bus interiors when culled)
+          let keepUnmerged = false;
+          let curr = obj;
+          while (curr) {
+            if (curr === atmosphere.flashlightRig || curr === atmosphere.skyGroup || (typeof tiharNightMod !== "undefined" && curr === tiharNightMod.rootGroup)) {
+              keepUnmerged = true;
+              break;
+            }
+            if (curr.name && (curr.name.endsWith("_interior") || curr.name === "Phase12Helpers")) {
+              keepUnmerged = true;
+              break;
+            }
+            if (curr.userData && (curr.userData.interactableId || curr.userData.isSwingingDoor || curr.userData.isRoomGroup)) {
+              keepUnmerged = true;
+              break;
+            }
+            curr = curr.parent;
+          }
+          if (!keepUnmerged && obj !== terrainMesh) {
+            obj.userData.noMerge = false;
+          }
+        }
+      });
+      if (typeof animatedClassroomFans !== "undefined") {
+        animatedClassroomFans.forEach(fn => {
+          if (fn && fn.hub) {
+            fn.hub.traverse(c => { c.userData.noMerge = true; });
+          }
+        });
+      }
       const sectorDefs = [
         { id: 'ground-base', x: 0, z: 0, radius: 240, alwaysVisible: true, test: () => false },
         { id: 'rotunda-complex', x: 0.0, z: -110.0, radius: 28.0, isLandmark: true, test: (x, z) => z <= -80.0 },
@@ -19543,7 +20527,8 @@ export function getHideAndSeekHtml(): string {
       for (let i = 0; i < topChildren.length; i++) {
         const ch = topChildren[i];
         if (!ch || ch === atmosphere.skyGroup || ch.isLight || ch.isCamera || ch.isInstancedMesh || ch.isPoints) continue;
-        if (ch.userData && (ch.userData.isRoomGroup || (ch.userData.noMerge && !ch.userData.isSwingingDoor))) continue;
+        if (ch.userData && ch.userData.isRoomGroup) continue;
+        if (ch.userData && ch.userData.noMerge && !ch.userData.isSwingingDoor && !ch.userData.interactableId) continue;
         if (buildingSectors.some(s => s.group === ch)) continue;
         if (ch === terrainMesh) {
           buildingSectors[0].group.add(ch);
@@ -22748,6 +23733,19 @@ export function getHideAndSeekHtml(): string {
         if (it.powerKey) {
           interiorPowerStates[it.powerKey] = it.isOn;
         }
+        if (it.roomId) {
+          roomLightSwitchStates[it.roomId] = it.isOn;
+          const roomSwId = 'switch-' + it.roomId.replace(/\s+/g, '-').toLowerCase();
+          const roomSw = interactablesById[roomSwId];
+          if (roomSw) {
+            roomSw.isOn = it.isOn;
+            roomSw.isOpen = it.isOn;
+            roomSw.state = it.isOn ? 'on' : 'off';
+            if (roomSw.rockerPivot) roomSw.rockerPivot.rotation.x = it.isOn ? -0.22 : 0.22;
+            if (roomSw.ledMat && roomSw.ledMat.color) roomSw.ledMat.color.setHex(it.isOn ? 0x22c55e : 0xef4444);
+          }
+          setRoomLightMood(it.roomId, it.isOn ? ((roomSw && roomSw.defaultActiveMood) || 'dying_tube') : 'dark');
+        }
         if (it.controlsCampusLights && lampFlickerMod && lampFlickerMod.setCampusPowerState) {
           interiorPowerStates.campusExteriorLights = it.isOn;
           lampFlickerMod.setCampusPowerState(it.isOn);
@@ -24946,6 +25944,11 @@ export function getHideAndSeekHtml(): string {
         }
       } catch (loopErr) {
         console.error('[HideAndSeek] Frame error:', loopErr);
+        try {
+          if (atmosphere && typeof atmosphere.renderFrame === 'function') {
+            atmosphere.renderFrame(Date.now() * 0.001);
+          }
+        } catch (rErr) {}
       }
     }
     animate();

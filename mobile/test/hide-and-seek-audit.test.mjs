@@ -2069,6 +2069,46 @@ describe('Physics & Controls Audit: Gandaki University 3D Hide-and-Seek', () => 
       assert.ok(repCupboard, 'Representative classroom (West Wing L1 Room 1) must have an openable cupboard');
       assert.ok(repDoor, 'Representative classroom (West Wing L1 Room 1) must have a functional hinged door');
 
+      // 1b. Phase 2 Representative Computer & Electronics Lab (West Wing L1 Room 2) verification
+      const labDrawer = sys.interactablesById['drawer-lab-west-wing-l1-room-2'];
+      const labSwitchboard = sys.interactablesById['switchboard-lab-west-wing-l1-room-2'];
+      const labLightSwitch = sys.interactablesById['switch-west-wing-l1-room-2'];
+      const labCupboard = sys.interactablesById['cupboard-lab-west-wing-l1-room-2'];
+      const labLocker = sys.interactablesById['locker-lab-west-wing-l1-room-2-1'];
+      const labDoor = sys.interactablesById['door-West Wing L1-r2'];
+      assert.ok(labDrawer, 'Computer Lab (West Wing L1 Room 2) must have a searchable lab supervisor desk drawer');
+      assert.ok(labSwitchboard, 'Computer Lab (West Wing L1 Room 2) must have a working lab electrical sub-breaker panel');
+      assert.ok(labLightSwitch, 'Computer Lab (West Wing L1 Room 2) must have a working wall light switch');
+      assert.ok(labCupboard, 'Computer Lab (West Wing L1 Room 2) must have an openable lab instrument cupboard');
+      assert.ok(labLocker, 'Computer Lab (West Wing L1 Room 2) must have an interactive 3-door steel locker bank');
+      assert.ok(labDoor, 'Computer Lab (West Wing L1 Room 2) must have a functional hinged door');
+      sys.toggleInteractableById(labSwitchboard.id);
+      assert.strictEqual(sys.roomLightStates['West Wing L1 Room 2'], false, 'Toggling lab sub-breaker OFF must turn off West Wing L1 Room 2 lights');
+      assert.strictEqual(labLightSwitch.isOn, false, 'Wall switch must sync OFF when lab sub-breaker is flipped OFF');
+      sys.toggleInteractableById(labSwitchboard.id);
+      assert.strictEqual(sys.roomLightStates['West Wing L1 Room 2'], true, 'Toggling lab sub-breaker ON must restore West Wing L1 Room 2 lights');
+      assert.strictEqual(labLightSwitch.isOn, true, 'Wall switch must sync ON when lab sub-breaker is flipped ON');
+
+      // 1c. Phase 3 Representative Staff & Administration Office (East Wing R1 Room 1) verification
+      const offFilingDrawer = sys.interactablesById['drawer-office-east-wing-r1-room-1'];
+      const offExecDrawer = sys.interactablesById['drawer-exec-east-wing-r1-room-1'];
+      const offSwitchboard = sys.interactablesById['switchboard-office-east-wing-r1-room-1'];
+      const offLightSwitch = sys.interactablesById['switch-east-wing-r1-room-1'];
+      const offCupboard = sys.interactablesById['cupboard-office-east-wing-r1-room-1'];
+      const offLocker = sys.interactablesById['locker-office-east-wing-r1-room-1-1'];
+      assert.ok(offFilingDrawer, 'Admin Office (East Wing R1 Room 1) must have a searchable records filing drawer');
+      assert.ok(offExecDrawer, 'Admin Office (East Wing R1 Room 1) must have a searchable executive desk drawer');
+      assert.ok(offSwitchboard, 'Admin Office (East Wing R1 Room 1) must have a working office electrical sub-breaker panel');
+      assert.ok(offLightSwitch, 'Admin Office (East Wing R1 Room 1) must have a working wall light switch');
+      assert.ok(offCupboard, 'Admin Office (East Wing R1 Room 1) must have an openable stationery cupboard');
+      assert.ok(offLocker, 'Admin Office (East Wing R1 Room 1) must have an interactive 3-door staff locker bank');
+      sys.toggleInteractableById(offSwitchboard.id);
+      assert.strictEqual(sys.roomLightStates['East Wing R1 Room 1'], false, 'Toggling office sub-breaker OFF must turn off East Wing R1 Room 1 lights');
+      assert.strictEqual(offLightSwitch.isOn, false, 'Office wall switch must sync OFF when sub-breaker is flipped OFF');
+      sys.toggleInteractableById(offSwitchboard.id);
+      assert.strictEqual(sys.roomLightStates['East Wing R1 Room 1'], true, 'Toggling office sub-breaker ON must restore East Wing R1 Room 1 lights');
+      assert.strictEqual(offLightSwitch.isOn, true, 'Office wall switch must sync ON when sub-breaker is flipped ON');
+
       // Verify nested-mesh raycast lookup resolves child meshes back to the logical interactable record
       let nestedChildMesh = null;
       repDrawer.rootMesh.traverse(ch => {

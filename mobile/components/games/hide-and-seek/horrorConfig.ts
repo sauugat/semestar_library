@@ -49,30 +49,30 @@ export const HORROR_CONFIG = {
     enableEnvironmentalDetails: true,
   },
 
-  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Night-Horror Look: Teal Shadows, Warm Highlights, Filmic Contrast)
+  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Natural Dark Night Look: Crisp Moonlit Shadows, Warm Streetlamps, Clean Contrast)
   grade: {
     enabled: true,
-    shadowTint: [0.82, 0.98, 1.18],      // Cold moonlit teal/blue shadows multiplier (Ref 1, 2, 3)
-    highlightTint: [1.14, 0.99, 0.84],   // Warm sodium/halide streetlamp highlights multiplier
-    saturation: 0.86,                   // Filmic natural saturation
-    contrast: 1.09,                     // Balanced filmic S-curve contrast without crushing midtones
-    blackCrushPow: 1.04,                // Preserve shadow detail in wet pavement & dark corners
-    blackLift: 0.008,                   // Subtle shadow toe lift so dark materials retain normal/roughness detail
-    vignette: 0.42,                     // Cinematic lens vignette
-    vignetteMin: 0.58,
-    vignetteInner: 0.28,
-    vignetteOuter: 0.88,
-    grain: 0.024,                       // Fine 35mm film grain
-    edgeDesat: 0.16,
-    bloomStrength: 0.36,                // Soft 5-tap HDR highlight bloom around streetlamps & diyos
-    bloomThreshold: 0.72,
-    microContrast: 0.22,                // Local luminance micro-contrast for concrete/asphalt grit
-    chromaStrength: 0.0012,             // Subtle lens edge chromatic aberration
+    shadowTint: [0.88, 0.96, 1.12],      // Natural moonlit night shadows
+    highlightTint: [1.08, 1.00, 0.90],   // Natural warm streetlamp highlights
+    saturation: 0.94,                   // Natural color saturation
+    contrast: 1.05,                     // Balanced natural S-curve contrast
+    blackCrushPow: 1.01,                // Preserve shadow detail in dark corners
+    blackLift: 0.012,                   // Natural shadow detail
+    vignette: 0.24,                     // Subtle natural lens vignette
+    vignetteMin: 0.72,
+    vignetteInner: 0.38,
+    vignetteOuter: 0.92,
+    grain: 0.010,                       // Very fine sensor noise
+    edgeDesat: 0.06,
+    bloomStrength: 0.30,                // Soft highlight bloom around streetlamps & diyos
+    bloomThreshold: 0.74,
+    microContrast: 0.16,                // Subtle surface clarity
+    chromaStrength: 0.0005,             // Minimal chromatic aberration
     lampColor: 0xffa955,                // #ffa955 warm streetlamps
     poolOpacity: 0.34,                  // Warm ground light pool opacity
-    fogColor: 0x0b1322,                 // Match the deep cold night sky colour
-    fogDensity: 0.0185,                 // Exponential fog density with warm lamp inscattering
-    materialDarknessMultiplier: 0.68,   // Calibrated PBR albedo range (0.04..0.68)
+    fogColor: 0x070d18,                 // Deep natural night sky colour
+    fogDensity: 0.0145,                 // Clean night air atmospheric depth
+    materialDarknessMultiplier: 0.84,   // Natural architectural PBR albedo range
     maxGradeFrameCostMs: 2.5,           // Auto-switch to CSS overlay if shader pass costs > 2.5ms per frame on mobile
     fpsGuardThreshold: 40,              // Auto-disable grade pass if avg FPS < 40 for 3s
     fpsGuardWindowSec: 3.0,
@@ -81,16 +81,16 @@ export const HORROR_CONFIG = {
   },
 
   albedo: {
-    maxValueCap: 0.68,                  // Calibrated physical albedo cap
-    wallCream: 0xb8a888,                // Weathered cream plaster/panel wall
-    wallPlaster: 0x968974,              // Weathered plaster albedo
-    wallStucco: 0x828882,               // Weathered stucco wall
-    roadAsphalt: 0x24272d,              // Wet cracked asphalt road (#24272d)
-    roadRoughness: 0.24,                // Wet road base roughness (modulated 0.06..0.72 by roughnessMap)
-    roofBlueMetal: 0x26384a,            // Corrugated metal roof
-    roofTerracotta: 0x6e2820,           // Terracotta roof
-    concretePlinth: 0x484e54,           // Concrete plinth
-    verandaWood: 0x5c3820,              // Weathered timber for veranda & doors
+    maxValueCap: 0.84,                  // Clean architectural physical albedo cap
+    wallCream: 0xc8bca6,                // Clean warm architectural cream plaster wall
+    wallPlaster: 0xb8aca0,              // Clean smooth plaster albedo
+    wallStucco: 0xb2aca2,               // Clean exterior stucco wall
+    roadAsphalt: 0x262a30,              // Natural dark asphalt road (#262a30)
+    roadRoughness: 0.58,                // Natural asphalt road roughness
+    roofBlueMetal: 0x283c50,            // Clean painted metal roof
+    roofTerracotta: 0x7a3228,           // Clean terracotta roof
+    concretePlinth: 0x586068,           // Clean concrete plinth
+    verandaWood: 0x6b4428,              // Natural varnished timber for veranda & doors
   },
 
   palette: {
@@ -106,39 +106,39 @@ export const HORROR_CONFIG = {
   renderer: {
     outputColorSpace: 'srgb',
     toneMapping: 'ACESFilmicToneMapping',
-    toneMappingExposure: 0.86,
+    toneMappingExposure: 0.92,
     pixelRatioCap: 2,
     shadowMapType: 'PCFSoftShadowMap',
-    clearColor: 0x0b1322,
+    clearColor: 0x060c17,
     fogType: 'FogExp2',
-    fogColor: 0x0b1322,
-    fogDensity: 0.0185,
+    fogColor: 0x060c17,
+    fogDensity: 0.0145,
     fogWarmTintColor: 0x1c1612,
-    fogNear: 15.0,
-    fogFar: 96.0,
-    fogMinFarUnderTension: 46.0,
+    fogNear: 18.0,
+    fogFar: 110.0,
+    fogMinFarUnderTension: 56.0,
   },
   lighting: {
-    // Realistic Night-Horror Lighting: Cold blue moon (0x88aae6, 0.52), warm sodium/halide streetlamps (0xffa955)
-    visibilityFloorAmbient: 0.055,
-    ambientColor: 0x0e1828,
-    ambientIntensity: 0.095,
-    indoorAmbientIntensity: 0.065,
-    hemiSkyColor: 0x223a5e,
-    hemiGroundColor: 0x080d14,
-    hemiIntensity: 0.11,
-    indoorHemiIntensity: 0.07,
-    // Cold blue moonlight directional light with 2048 shadow map & bias settings to eliminate jagged shadow edges
-    moonColor: 0x88aae6,
-    moonIntensity: 0.52,
-    indoorMoonIntensity: 0.10,
+    // Realistic Dark Night Lighting: Natural moonlight (0x9cb8e8, 0.56), warm sodium/halide streetlamps (0xffa955)
+    visibilityFloorAmbient: 0.065,
+    ambientColor: 0x101c2e,
+    ambientIntensity: 0.115,
+    indoorAmbientIntensity: 0.085,
+    hemiSkyColor: 0x264066,
+    hemiGroundColor: 0x0a1018,
+    hemiIntensity: 0.14,
+    indoorHemiIntensity: 0.09,
+    // Natural moonlight directional light with 2048 shadow map & bias settings to eliminate jagged shadow edges
+    moonColor: 0x9cb8e8,
+    moonIntensity: 0.56,
+    indoorMoonIntensity: 0.12,
     moonShadowMapSize: 2048,
     moonShadowBias: -0.00035,
     moonShadowNormalBias: 0.025,
-    rimColor: 0x5c84a6,
+    rimColor: 0x688eb2,
     rimIntensity: 0.24,
     // Main Player Flashlight: soft-edged spotlight, visible volumetric beam cone, battery flicker & realistic falloff
-    flashlightColor: 0xfff1d6,
+    flashlightColor: 0xfff3dc,
     flashlightLowBatteryColor: 0xffb366,
     flashlightIntensity: 12.8,
     flashlightDistance: 32.5,
@@ -147,7 +147,7 @@ export const HORROR_CONFIG = {
     flashlightDecay: 1.72,
     flashlightSpillIntensity: 1.45,
     flashlightSpillDistance: 7.5,
-    flashlightBeamOpacity: 0.12,
+    flashlightBeamOpacity: 0.10,
     // Warm streetlamps (0xffa955): Pooled PointLights on 6 nearest lamps + analytical shader lighting for all nearby lamps
     lampColor: 0xffa955,
     lampCoreColor: 0xffe4b8,
@@ -157,18 +157,18 @@ export const HORROR_CONFIG = {
     lampDecay: 1.62,
     lampPoolSize: 8.4,
     lampHaloScale: 2.55,
-    lampConeOpacity: 0.085,
+    lampConeOpacity: 0.075,
     enableLampCones: true,
     maxActiveLampLights: 6,
     windowGlowRatio: 0.48,
-    windowColdDark: 0x05090e,
-    windowEmissive: 0xffa955,
+    windowColdDark: 0x070d16,
+    windowEmissive: 0xffb668,
     windowEmissiveIntensity: 0.72,
     doorwayGlowColor: 0xffa955,
-    doorwayGlowOpacity: 0.28,
+    doorwayGlowOpacity: 0.0,
     diyoUltraEmissiveIntensity: 1.55,
-    horizonWarmGlowOpacity: 0.18,
-    redAccent: 0x8c1d1d,
+    horizonWarmGlowOpacity: 0.14,
+    redAccent: 0x38bdf8,
   },
   tihar: {
     enabled: true,
@@ -177,7 +177,7 @@ export const HORROR_CONFIG = {
     diyoColorMid: 0xff922b,
     diyoColorTip: 0xd9480f,
     diyoLightColor: 0xff9428,
-    diyoPoolOpacity: 0.38,
+    diyoPoolOpacity: 0.0,
     diyoFocalLightCountUltra: 6,
     diyoFocalLightCountHigh: 5,
     diyoFocalLightCountLow: 3,
@@ -191,16 +191,16 @@ export const HORROR_CONFIG = {
     jhilimiliEmerald: 0x10b981,
     jhilimiliRoyalBlue: 0x38bdf8,
     jhilimiliWarmWhite: 0xfff0c2,
-    jhilimiliWallWashOpacity: 0.26,
+    jhilimiliWallWashOpacity: 0.22,
     sayapatriOrange: 0xff7b00,
     sayapatriGold: 0xffb703,
     makhamaliPurple: 0x881337,
   },
   roomLightMoods: {
     dark: {
-      ambientColor: 0x060b12,
-      ambientMult: 0.36,
-      color: 0x060b12,
+      ambientColor: 0x08101c,
+      ambientMult: 0.44,
+      color: 0x08101c,
       lightColor: 0x000000,
       intensity: 0.0,
       lightIntensity: 0.0,
@@ -209,65 +209,65 @@ export const HORROR_CONFIG = {
       flickerType: 'none',
     },
     dying_tube: {
-      ambientColor: 0x18120c,
-      ambientMult: 0.58,
-      color: 0xffb84d,
-      lightColor: 0xffb84d,
-      intensity: 5.2,
-      lightIntensity: 5.2,
-      distance: 13.2,
-      lightDistance: 13.2,
-      flickerType: 'fluorescent_dying',
+      ambientColor: 0x161c24,
+      ambientMult: 0.64,
+      color: 0xeef6ff,
+      lightColor: 0xeef6ff,
+      intensity: 5.4,
+      lightIntensity: 5.4,
+      distance: 13.6,
+      lightDistance: 13.6,
+      flickerType: 'steady_moon',
     },
     moonlight: {
-      ambientColor: 0x0b1828,
-      ambientMult: 0.60,
-      color: 0x84b6e6,
-      lightColor: 0x84b6e6,
-      intensity: 3.9,
-      lightIntensity: 3.9,
-      distance: 13.5,
-      lightDistance: 13.5,
+      ambientColor: 0x0d1c30,
+      ambientMult: 0.64,
+      color: 0x98c2ec,
+      lightColor: 0x98c2ec,
+      intensity: 4.2,
+      lightIntensity: 4.2,
+      distance: 13.8,
+      lightDistance: 13.8,
       flickerType: 'steady_moon',
     },
     warm_lamp: {
-      ambientColor: 0x16100c,
-      ambientMult: 0.60,
-      color: 0xff9838,
-      lightColor: 0xff9838,
+      ambientColor: 0x18130e,
+      ambientMult: 0.64,
+      color: 0xffb366,
+      lightColor: 0xffb366,
       intensity: 5.4,
       lightIntensity: 5.4,
-      distance: 12.6,
-      lightDistance: 12.6,
+      distance: 13.2,
+      lightDistance: 13.2,
       flickerType: 'warm_filament',
     },
     emergency_red: {
-      ambientColor: 0x180608,
-      ambientMult: 0.56,
-      color: 0xff2222,
-      lightColor: 0xff2222,
-      intensity: 4.8,
-      lightIntensity: 4.8,
-      distance: 12.4,
-      lightDistance: 12.4,
-      flickerType: 'emergency_pulse',
+      ambientColor: 0x141a24,
+      ambientMult: 0.62,
+      color: 0xffe0b2,
+      lightColor: 0xffe0b2,
+      intensity: 5.0,
+      lightIntensity: 5.0,
+      distance: 13.0,
+      lightDistance: 13.0,
+      flickerType: 'warm_filament',
     },
-    '101': { mood: 'dying_tube', color: 0xcbe4f5, intensity: 4.2, ambientScale: 0.16, tubeFlicker: true, moonlightShafts: true },
-    '102': { mood: 'warm_lamp', color: 0xe6a152, intensity: 4.5, ambientScale: 0.18, tubeFlicker: false, moonlightShafts: true },
-    '201': { mood: 'moonlight', color: 0x82acc9, intensity: 3.2, ambientScale: 0.16, tubeFlicker: false, moonlightShafts: true },
-    '202': { mood: 'warm_lamp', color: 0xd99445, intensity: 4.2, ambientScale: 0.18, tubeFlicker: true, moonlightShafts: true },
-    '301': { mood: 'dark', color: 0x3b5263, intensity: 0.0, ambientScale: 0.12, tubeFlicker: true, moonlightShafts: true },
-    '302': { mood: 'emergency_red', color: 0xc92a2a, intensity: 4.4, ambientScale: 0.16, tubeFlicker: true, moonlightShafts: false },
-    'atrium': { mood: 'dying_tube', color: 0xd8a060, intensity: 3.8, ambientScale: 0.20, tubeFlicker: true, moonlightShafts: true },
+    '101': { mood: 'dying_tube', color: 0xe2f0fc, intensity: 4.6, ambientScale: 0.20, tubeFlicker: false, moonlightShafts: true },
+    '102': { mood: 'warm_lamp', color: 0xffb870, intensity: 4.8, ambientScale: 0.20, tubeFlicker: false, moonlightShafts: true },
+    '201': { mood: 'moonlight', color: 0x96bde0, intensity: 3.6, ambientScale: 0.18, tubeFlicker: false, moonlightShafts: true },
+    '202': { mood: 'warm_lamp', color: 0xf2ad60, intensity: 4.6, ambientScale: 0.20, tubeFlicker: false, moonlightShafts: true },
+    '301': { mood: 'moonlight', color: 0x8ab2d8, intensity: 3.4, ambientScale: 0.18, tubeFlicker: false, moonlightShafts: true },
+    '302': { mood: 'warm_lamp', color: 0xffe0b2, intensity: 4.6, ambientScale: 0.20, tubeFlicker: false, moonlightShafts: true },
+    'atrium': { mood: 'warm_lamp', color: 0xffc278, intensity: 4.4, ambientScale: 0.22, tubeFlicker: false, moonlightShafts: true },
   },
   tension: {
-    baseBreathingAmp: 0.012,
-    hunterNearBreathingBoost: 0.038,
-    baseSwayRoll: 0.006,
-    hunterNearSwayRoll: 0.028,
+    baseBreathingAmp: 0.008,
+    hunterNearBreathingBoost: 0.024,
+    baseSwayRoll: 0.004,
+    hunterNearSwayRoll: 0.018,
     hunterProximityRadius: 24.0,
-    flickerBurstIntervalMin: 12.0,
-    flickerBurstIntervalMax: 22.0,
+    flickerBurstIntervalMin: 999.0,
+    flickerBurstIntervalMax: 999.0,
     autoStepDownFpsThreshold: 40,
     autoStepDownSafeFps: 45,
     autoStepDownWindowSec: 5.0,
@@ -287,7 +287,7 @@ export const HORROR_CONFIG = {
       pixelRatioCap: 1.5,
       particleCount: 44,
       paperLeafCount: 22,
-      mistPlaneCount: 6,
+      mistPlaneCount: 0,
       maxActiveLampLights: 6,
       shadowMapSize: 2048,
       enableShadows: true,
@@ -306,7 +306,7 @@ export const HORROR_CONFIG = {
       pixelRatioCap: 1.35,
       particleCount: 34,
       paperLeafCount: 16,
-      mistPlaneCount: 4,
+      mistPlaneCount: 0,
       maxActiveLampLights: 5,
       shadowMapSize: 1024,
       enableShadows: true,
@@ -325,7 +325,7 @@ export const HORROR_CONFIG = {
       pixelRatioCap: 1.10,
       particleCount: 20,
       paperLeafCount: 10,
-      mistPlaneCount: 2,
+      mistPlaneCount: 0,
       maxActiveLampLights: 3,
       shadowMapSize: 512,
       enableShadows: true,
@@ -439,8 +439,8 @@ export const HORROR_CONFIG = {
     retainingWallColliderExtraHeight: 1.60, // Prevents jumping/climbing retaining wall from lower ground
   },
   accessibility: {
-    fearIntensity: 'high',
-    flickerReduction: false,
+    fearIntensity: 'low',
+    flickerReduction: true,
     screenShakeOff: false,
     batterySaver: false,
     qualityPinMode: 'auto',
@@ -474,12 +474,12 @@ export const HORROR_CONFIG = {
     stepHeight1: 0.18,
     stepHeight2: 0.36,
     interiorCullDist: 25.0,
-    mossAmountBusA: 0.52,
-    mossAmountBusB: 0.86,
-    glassBreakageBusA: 0.35,
-    glassBreakageBusB: 0.68,
-    vineCountBusA: 10,
-    vineCountBusB: 16,
+    mossAmountBusA: 0.0,
+    mossAmountBusB: 0.0,
+    glassBreakageBusA: 0.0,
+    glassBreakageBusB: 0.0,
+    vineCountBusA: 0,
+    vineCountBusB: 0,
     routeDevanagari: 'पोखरा',
     busA: {
       id: 'bus-a',
@@ -490,10 +490,10 @@ export const HORROR_CONFIG = {
       plateNumber: 'ग १ ख ९४९१',
       plateAscii: 'GA 1 KHA 9491',
       fleetCode: 'GP62',
-      mossAmount: 0.52,
-      glassBreakage: 0.35,
-      vineCount: 10,
-      doorOpenAngle: 0.55, // Slightly open folding door leaf
+      mossAmount: 0.0,
+      glassBreakage: 0.0,
+      vineCount: 0,
+      doorOpenAngle: 0.55,
     },
     busB: {
       id: 'bus-b',
@@ -504,10 +504,10 @@ export const HORROR_CONFIG = {
       plateNumber: 'ग १ ख ७२६२',
       plateAscii: 'GA 1 KHA 7262',
       fleetCode: 'GP64',
-      mossAmount: 0.86,
-      glassBreakage: 0.68,
-      vineCount: 16,
-      doorOpenAngle: 1.25, // Wider open door leaf, more broken glass & heavier moss
+      mossAmount: 0.0,
+      glassBreakage: 0.0,
+      vineCount: 0,
+      doorOpenAngle: 1.25,
     },
   },
   campusLayout: {

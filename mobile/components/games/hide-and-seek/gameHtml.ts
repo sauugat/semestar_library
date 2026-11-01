@@ -4990,7 +4990,14 @@ export function getHideAndSeekHtml(): string {
     class ParticleField {
       constructor(scene) {
         // TASK 1: Slow drifting low-opacity mist/dust motes (NO bright floating sparkles!)
-        this.maxParticles = 36;
+        let configuredMax = 64;
+        if (HORROR_CONFIG && HORROR_CONFIG.qualityPresets) {
+          Object.keys(HORROR_CONFIG.qualityPresets).forEach(k => {
+            const pc = HORROR_CONFIG.qualityPresets[k].particleCount;
+            if (typeof pc === 'number' && pc > configuredMax) configuredMax = pc;
+          });
+        }
+        this.maxParticles = Math.max(64, configuredMax);
         this.geo = new THREE.BufferGeometry();
         this.positions = new Float32Array(this.maxParticles * 3);
         this.colors = new Float32Array(this.maxParticles * 3);
@@ -5017,7 +5024,8 @@ export function getHideAndSeekHtml(): string {
         }
         this.geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
         this.geo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
-        this.geo.setDrawRange(0, activePreset.particleCount);
+        const initCount = Math.min((activePreset && activePreset.particleCount) || 30, this.maxParticles);
+        this.geo.setDrawRange(0, initCount);
 
         this.points = new THREE.Points(this.geo, new THREE.PointsMaterial({
           map: softRoundParticleTex,
@@ -5057,9 +5065,10 @@ export function getHideAndSeekHtml(): string {
       }
 
       applyQuality(preset) {
-        this.geo.setDrawRange(0, preset.particleCount);
+        const count = Math.min((preset && preset.particleCount) || 30, this.maxParticles);
+        this.geo.setDrawRange(0, count);
         this.mistPlanes.forEach((m, idx) => {
-          m.mesh.visible = idx < (preset.mistPlaneCount || 4);
+          m.mesh.visible = idx < ((preset && preset.mistPlaneCount) || 4);
         });
       }
 
@@ -5071,7 +5080,8 @@ export function getHideAndSeekHtml(): string {
         const dustAllowed = (typeof exploreTools === 'undefined' || exploreTools.dustEnabled !== false);
         const fogAllowed = (typeof exploreTools === 'undefined' || exploreTools.fogEnabled !== false);
         if (this.points) this.points.visible = dustAllowed;
-        const count = dustAllowed ? activePreset.particleCount : 0;
+        const requestedCount = (activePreset && activePreset.particleCount) || 30;
+        const count = dustAllowed ? Math.min(requestedCount, this.meta.length) : 0;
         const px = playerPos.x, pz = playerPos.z;
         let speedMult = 1.0;
         if (this.windBoostTimer > 0) {
@@ -5081,6 +5091,7 @@ export function getHideAndSeekHtml(): string {
 
         for (let i = 0; i < count; i++) {
           const m = this.meta[i];
+          if (!m) continue;
           const idx = i * 3;
           this.positions[idx + 0] += (m.vx * speedMult + Math.sin(timeSec * 0.4 + m.phase) * 0.06) * delta;
           this.positions[idx + 1] += m.vy * delta;
@@ -12280,9 +12291,12 @@ export function getHideAndSeekHtml(): string {
       // Animate ULTRA-only doorway ground mist planes when room is visible
       for (let m = 0; m < classroomDoorMistPlanes.length; m++) {
         const dm = classroomDoorMistPlanes[m];
-        if (!dm.mesh.visible) continue;
-        dm.mesh.position.x = dm.baseX + Math.sin(timeSec * 0.34 + dm.phase) * 0.22;
-        dm.mesh.position.z = dm.baseZ + Math.cos(timeSec * 0.28 + dm.phase) * 0.18;
+        if (!dm || !dm.mesh || !dm.mesh.visible) continue;
+        const bx = (typeof dm.baseX === 'number') ? dm.baseX : dm.mesh.position.x;
+        const bz = (typeof dm.baseZ === 'number') ? dm.baseZ : dm.mesh.position.z;
+        const ph = (typeof dm.phase === 'number') ? dm.phase : 0;
+        dm.mesh.position.x = bx + Math.sin(timeSec * 0.34 + ph) * 0.22;
+        dm.mesh.position.z = bz + Math.cos(timeSec * 0.28 + ph) * 0.18;
       }
 
       for (let i = 0; i < roomMoodFixtures.length; i++) {
@@ -18876,6 +18890,7 @@ export function getHideAndSeekHtml(): string {
         this.maxBulbs = 4500;
         this.bulbCount = 0;
         this.instJhilimiliBulbs = new THREE.InstancedMesh(this.bulbGeo, this.jhilimiliBulbMat, this.maxBulbs);
+        this.instJhilimiliBulbs.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.maxBulbs * 3), 3);
         this.instJhilimiliBulbs.count = 0;
         this.instJhilimiliBulbs.frustumCulled = false;
         this.instJhilimiliBulbs.userData.noMerge = true;
@@ -18886,6 +18901,7 @@ export function getHideAndSeekHtml(): string {
         this.maxBlossoms = 4000;
         this.blossomCount = 0;
         this.instGarlandBlossoms = new THREE.InstancedMesh(this.blossomGeo, this.garlandBlossomMat, this.maxBlossoms);
+        this.instGarlandBlossoms.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.maxBlossoms * 3), 3);
         this.instGarlandBlossoms.count = 0;
         this.instGarlandBlossoms.frustumCulled = false;
         this.instGarlandBlossoms.userData.noMerge = true;
@@ -24798,6 +24814,11 @@ export function getHideAndSeekHtml(): string {
         }
       } catch (loopErr) {
         console.error('[HideAndSeek] Frame error:', loopErr);
+        try {
+          if (atmosphere && typeof atmosphere.renderFrame === 'function') {
+            atmosphere.renderFrame(Date.now() * 0.001);
+          }
+        } catch (rErr) {}
       }
     }
     animate();

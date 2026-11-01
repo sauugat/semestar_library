@@ -5891,81 +5891,108 @@ export function getHideAndSeekHtml(): string {
           }
         }
       } else if (type === 'pale-campus-stucco') {
-        // Weathered Nepali University Lime Plaster & Masonry (Warm sand/limestone with mineral micro-variation)
-        ctx.fillStyle = '#ded7c8';
+        // Natural Clean Cream/Beige Architectural Board-and-Batten & Stucco Wall (Ref Photos 1 & 2!)
+        ctx.fillStyle = '#eee7d8';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#7a7a7a';
+        bCtx.fillStyle = '#808080';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#949494';
+        rCtx.fillStyle = '#9c9c9c';
         rCtx.fillRect(0, 0, 512, 512);
 
-        // Subtle organic mineral stipples & plaster aggregate grain
-        for (let i = 0; i < 3600; i++) {
+        // Natural fine lime/mineral micro-texture
+        for (let i = 0; i < 3200; i++) {
           const sx = (i * 97 + (i % 7) * 13) % 512;
           const sy = (i * 173 + (i % 11) * 19) % 512;
-          ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 250, 240, 0.12)' : 'rgba(50, 42, 34, 0.08)';
-          ctx.fillRect(sx, sy, 2 + (i % 3), 2 + (i % 2));
-          bCtx.fillStyle = (i % 2 === 0) ? '#909090' : '#646464';
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 252, 245, 0.18)' : 'rgba(80, 70, 60, 0.05)';
+          ctx.fillRect(sx, sy, 2 + (i % 2), 2 + (i % 2));
+          bCtx.fillStyle = (i % 2 === 0) ? '#8c8c8c' : '#747474';
           bCtx.fillRect(sx, sy, 2, 2);
         }
 
-        // Architectural expansion relief seams every 128px (clean, subtle joints)
-        for (let x = 0; x < 512; x += 128) {
-          ctx.fillStyle = 'rgba(40, 32, 24, 0.35)';
+        // Clean vertical architectural board-and-batten siding (spaced every 48px, matching pavilion buildings in ref photos!)
+        for (let x = 0; x < 512; x += 48) {
+          // Subtle panel shadow seam
+          ctx.fillStyle = 'rgba(75, 65, 55, 0.18)';
           ctx.fillRect(x - 1, 0, 2, 512);
-          ctx.fillStyle = 'rgba(255, 252, 242, 0.22)';
-          ctx.fillRect(x + 1, 0, 1, 512);
-          bCtx.fillStyle = '#303030';
+          // Batten strip
+          ctx.fillStyle = '#f5efe4';
+          ctx.fillRect(x + 1, 0, 5, 512);
+          // Batten highlight edge
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
+          ctx.fillRect(x + 1, 0, 1.5, 512);
+          // Batten right shadow edge
+          ctx.fillStyle = 'rgba(60, 50, 40, 0.14)';
+          ctx.fillRect(x + 6, 0, 1.5, 512);
+
+          bCtx.fillStyle = '#484848';
           bCtx.fillRect(x - 1, 0, 2, 512);
+          bCtx.fillStyle = '#b0b0b0';
+          bCtx.fillRect(x + 1, 0, 5, 512);
         }
 
-        // Horizontal architectural divide at y = 256
-        ctx.fillStyle = 'rgba(40, 32, 24, 0.35)';
-        ctx.fillRect(0, 255, 512, 2);
-        ctx.fillStyle = 'rgba(255, 252, 242, 0.22)';
-        ctx.fillRect(0, 257, 512, 1);
-        bCtx.fillStyle = '#303030';
-        bCtx.fillRect(0, 255, 512, 2);
-
-        // Weathered base gradient (rising damp & mineral patina along wall footing)
-        const dampGrad = ctx.createLinearGradient(0, 512, 0, 460);
-        dampGrad.addColorStop(0.0, 'rgba(42, 36, 28, 0.28)');
-        dampGrad.addColorStop(1.0, 'rgba(42, 36, 28, 0.0)');
-        ctx.fillStyle = dampGrad;
-        ctx.fillRect(0, 460, 512, 52);
+        // Horizontal architectural trim bands (clean floor/wainscot trim)
+        [128, 384].forEach(ty => {
+          ctx.fillStyle = 'rgba(70, 60, 50, 0.16)';
+          ctx.fillRect(0, ty - 1, 512, 2);
+          ctx.fillStyle = '#f2ece0';
+          ctx.fillRect(0, ty + 1, 512, 4);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+          ctx.fillRect(0, ty + 1, 512, 1.5);
+          bCtx.fillStyle = '#a8a8a8';
+          bCtx.fillRect(0, ty + 1, 512, 4);
+        });
       } else if (type === 'interlocking-pavers') {
-        // Rain-Slicked Nepali Grey Flagstone Courtyard Slabs (Dhunga) with Wet Rain Puddles (Ref Photos 1, 4, 6!)
-        ctx.fillStyle = '#1e2530';
+        // Authentic Rain-Slicked Interlocking Courtyard Pavers (Ref Photo 2!)
+        // Clean rectangular paving stones with crisp mortar bevels and warm lantern specular reflections
+        ctx.fillStyle = '#1c222a'; // Deep clean mortar background
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#1c1c1c';
+        bCtx.fillStyle = '#141414';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#525252';
+        rCtx.fillStyle = '#585858';
         rCtx.fillRect(0, 0, 512, 512);
 
-        for (let y = 0; y < 512; y += 42) {
-          const rIdx = Math.floor(y / 42);
-          const off = (rIdx % 2) * 32;
-          for (let x = -32; x < 512 + 32; x += 64) {
-            const w = 59 + ((x * 7 + y * 3) % 3);
-            const h = 38 + ((x * 5 + y * 11) % 3);
-            const seed = Math.abs(x * 13 + y * 19);
-            const isWetPuddle = (seed % 7) < 2;
-            const baseLum = isWetPuddle ? (54 + (seed % 14)) : (88 + (seed % 24));
-            ctx.fillStyle = 'rgb(' + baseLum + ',' + (baseLum + 5) + ',' + (baseLum + 11) + ')';
-            ctx.fillRect(x + off + 2, y + 2, w, h);
+        const paverW = 48;
+        const paverH = 24;
+        const mortar = 2.5;
+        for (let y = 0; y < 512; y += paverH) {
+          const rowIdx = Math.floor(y / paverH);
+          const off = (rowIdx % 2) * (paverW * 0.5);
+          for (let x = -paverW; x < 512 + paverW; x += paverW) {
+            const seed = Math.abs(Math.floor(x * 19 + y * 31));
+            // Warm charcoal-slate tone with subtle terracotta/stone variation
+            const toneVar = (seed % 28) - 14;
+            const r = Math.min(115, Math.max(55, 76 + toneVar));
+            const g = Math.min(125, Math.max(62, 84 + toneVar + (seed % 4)));
+            const b = Math.min(138, Math.max(70, 94 + toneVar + (seed % 6)));
 
-            // Chiseled stone edge highlight & deep mortar joint shadow
-            ctx.fillStyle = 'rgba(203, 213, 225, 0.18)';
-            ctx.fillRect(x + off + 2, y + 2, w, 2);
-            ctx.fillStyle = 'rgba(10, 15, 24, 0.55)';
-            ctx.fillRect(x + off + 2, y + h, w, 2.5);
+            const px = x + off + mortar * 0.5;
+            const py = y + mortar * 0.5;
+            const pw = paverW - mortar;
+            const ph = paverH - mortar;
 
-            bCtx.fillStyle = '#d1d5db';
-            bCtx.fillRect(x + off + 2.5, y + 2.5, w - 1, h - 1);
+            ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+            ctx.fillRect(px, py, pw, ph);
 
-            // Mirror-like low roughness in wet rain puddle patches (Ref Photo 1 & 6!)
-            rCtx.fillStyle = isWetPuddle ? '#181818' : '#6e6e6e';
-            rCtx.fillRect(x + off + 2, y + 2, w, h);
+            // Bevel highlights on top and left edges catching ambient/lantern light
+            ctx.fillStyle = 'rgba(235, 242, 252, 0.22)';
+            ctx.fillRect(px, py, pw, 1.8);
+            ctx.fillRect(px, py, 1.8, ph);
+
+            // Subtle bottom and right bevel shadow
+            ctx.fillStyle = 'rgba(12, 16, 22, 0.45)';
+            ctx.fillRect(px, py + ph - 1.8, pw, 1.8);
+            ctx.fillRect(px + pw - 1.8, py, 1.8, ph);
+
+            // Bump map: raised smooth paver body with recessed mortar joint
+            bCtx.fillStyle = '#c8d0d8';
+            bCtx.fillRect(px + 1, py + 1, pw - 2, ph - 2);
+
+            // Roughness map: rain-slicked specular sheen reflecting warm lanterns (Ref Photo 2!)
+            // Low roughness (0.28 - 0.40) for gorgeous wet reflection
+            const isGlossPuddle = (seed % 5) === 0;
+            const roughVal = isGlossPuddle ? 45 : (75 + (seed % 20));
+            rCtx.fillStyle = 'rgb(' + roughVal + ',' + roughVal + ',' + roughVal + ')';
+            rCtx.fillRect(px, py, pw, ph);
           }
         }
       } else if (type === 'dachi-appa-brick') {
@@ -6141,245 +6168,191 @@ export function getHideAndSeekHtml(): string {
           }
         }
             } else if (type === 'surveyor-field-grass') {
-        // Step 3: Darker, desaturated green-gray grass
-        ctx.fillStyle = '#101612';
+        // Natural Lush Mountain Grass & Loam Turf (Ref Photo 2!)
+        ctx.fillStyle = '#18261b'; // Rich dark alpine loam
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#404040';
+        bCtx.fillStyle = '#505050';
         bCtx.fillRect(0, 0, 512, 512);
-        const patches = ['#0b100d', '#141c17', '#111813', '#17201a', '#0e1410'];
-        for (let i = 0; i < 5500; i++) {
-          ctx.fillStyle = patches[i % patches.length];
-          ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 7);
-          bCtx.fillStyle = i % 2 === 0 ? '#707070' : '#303030';
-          bCtx.fillRect(Math.random() * 512, Math.random() * 512, 2, 6);
+        rCtx.fillStyle = '#909090';
+        rCtx.fillRect(0, 0, 512, 512);
+
+        const grassTones = ['#233d28', '#2b4d32', '#1f3623', '#33593b', '#28462f', '#3c6645'];
+        for (let i = 0; i < 6200; i++) {
+          const gx = (i * 97 + (i % 13) * 23) % 512;
+          const gy = (i * 173 + (i % 17) * 31) % 512;
+          const bladeW = 1.5 + (i % 2);
+          const bladeH = 5 + (i % 6);
+          ctx.fillStyle = grassTones[i % grassTones.length];
+          ctx.fillRect(gx, gy, bladeW, bladeH);
+          bCtx.fillStyle = (i % 2 === 0) ? '#888888' : '#383838';
+          bCtx.fillRect(gx, gy, bladeW, bladeH - 1);
         }
       } else if (type === 'scuffed-classroom-floor') {
-        // Requirement 4: Scuffed institutional concrete/linoleum tiles with heel marks, chair drag scratches & grime stains
-        ctx.fillStyle = '#1e2630';
+        // Clean Polished Institutional Terrazzo Floor Tiles (No Heel Scuffs or Grime!)
+        ctx.fillStyle = '#262f3a'; // Clean grout background
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#787878';
+        bCtx.fillStyle = '#282828';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#5c5c5c';
+        rCtx.fillStyle = '#484848';
         rCtx.fillRect(0, 0, 512, 512);
 
         const ts = 64;
         for (let y = 0; y < 512; y += ts) {
           for (let x = 0; x < 512; x += ts) {
-            const seed = Math.abs(x * 13 + y * 29);
-            const tone = 30 + (seed % 14);
-            ctx.fillStyle = 'rgb(' + tone + ',' + (tone + 6) + ',' + (tone + 12) + ')';
-            ctx.fillRect(x + 2, y + 2, ts - 3, ts - 3);
-            ctx.fillStyle = '#0d1218';
-            ctx.fillRect(x, y, ts, 2);
-            ctx.fillRect(x, y, 2, ts);
-            bCtx.fillStyle = '#222222';
-            bCtx.fillRect(x, y, ts, 2);
-            bCtx.fillRect(x, y, 2, ts);
-            if (seed % 3 === 0) {
-              ctx.strokeStyle = 'rgba(8, 11, 15, 0.65)';
-              ctx.lineWidth = 2.5;
-              ctx.beginPath();
-              ctx.moveTo(x + 12, y + 18);
-              if (ctx.quadraticCurveTo) ctx.quadraticCurveTo(x + 34, y + 28, x + 48, y + 46); else { ctx.lineTo(x + 34, y + 28); ctx.lineTo(x + 48, y + 46); }
-              ctx.stroke();
-              bCtx.strokeStyle = '#383838';
-              bCtx.lineWidth = 2;
-              bCtx.beginPath();
-              ctx.moveTo(x + 12, y + 18);
-              bCtx.lineTo(x + 48, y + 46);
-              bCtx.stroke();
+            const seed = Math.abs(Math.floor(x * 17 + y * 29));
+            const tone = 168 + (seed % 24);
+            // Elegant light-gray stone tile
+            ctx.fillStyle = 'rgb(' + tone + ',' + (tone + 4) + ',' + (tone + 8) + ')';
+            ctx.fillRect(x + 1.5, y + 1.5, ts - 3, ts - 3);
+
+            // Subtle top/left tile bevel highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
+            ctx.fillRect(x + 1.5, y + 1.5, ts - 3, 1.5);
+            ctx.fillRect(x + 1.5, y + 1.5, 1.5, ts - 3);
+
+            bCtx.fillStyle = '#e2e8f0';
+            bCtx.fillRect(x + 1.5, y + 1.5, ts - 3, ts - 3);
+
+            // Multi-colored fine terrazzo mineral chips (quartz white, dark slate, warm ochre)
+            for (let sp = 0; sp < 18; sp++) {
+              const sx = x + 4 + ((sp * 23 + seed) % (ts - 8));
+              const sy = y + 4 + ((sp * 37 + seed * 3) % (ts - 8));
+              const chipColor = sp % 3 === 0
+                ? 'rgba(255, 255, 255, 0.65)'
+                : (sp % 3 === 1 ? 'rgba(40, 52, 65, 0.45)' : 'rgba(185, 120, 80, 0.35)');
+              ctx.fillStyle = chipColor;
+              ctx.fillRect(sx, sy, 2.5, 2.5);
             }
-            if (seed % 5 === 0) {
-              const sg = ctx.createRadialGradient(x + 32, y + 32, 3, x + 32, y + 32, 26);
-              sg.addColorStop(0.0, 'rgba(10, 14, 18, 0.58)');
-              sg.addColorStop(0.7, 'rgba(18, 26, 22, 0.25)');
-              sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-              ctx.fillStyle = sg;
-              ctx.fillRect(x + 4, y + 4, ts - 8, ts - 8);
-              rCtx.fillStyle = '#282828';
-              rCtx.fillRect(x + 10, y + 10, 36, 36);
-            }
+
+            // Smooth satin finish on terrazzo
+            rCtx.fillStyle = '#383838';
+            rCtx.fillRect(x + 1.5, y + 1.5, ts - 3, ts - 3);
           }
         }
       } else if (type === 'stained-ceiling-tiles') {
-        // Requirement 4: Stained acoustic drop-ceiling tiles with brown roof-leak water rings, mold speckles & sagging seams
-        ctx.fillStyle = '#6c7378';
+        // Clean Modular Acoustic Drop-Ceiling Tiles (No Water Leaks or Mold!)
+        ctx.fillStyle = '#e5ebf2';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#888888';
+        bCtx.fillStyle = '#909090';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#989898';
+        rCtx.fillStyle = '#9a9a9a';
         rCtx.fillRect(0, 0, 512, 512);
 
         const cw = 64, ch = 128;
         for (let y = 0; y < 512; y += ch) {
           for (let x = 0; x < 512; x += cw) {
-            const seed = Math.abs(x * 17 + y * 23);
-            const base = 104 + (seed % 18);
-            ctx.fillStyle = 'rgb(' + base + ',' + (base + 3) + ',' + (base + 5) + ')';
-            ctx.fillRect(x + 3, y + 3, cw - 6, ch - 6);
-            ctx.fillStyle = '#22282e';
-            ctx.fillRect(x, y, cw, 3);
-            ctx.fillRect(x, y, 3, ch);
-            bCtx.fillStyle = '#181818';
-            bCtx.fillRect(x, y, cw, 3);
-            bCtx.fillRect(x, y, 3, ch);
+            const seed = Math.abs(Math.floor(x * 17 + y * 23));
+            const base = 210 + (seed % 14);
+            ctx.fillStyle = 'rgb(' + base + ',' + (base + 3) + ',' + (base + 6) + ')';
+            ctx.fillRect(x + 2, y + 2, cw - 4, ch - 4);
 
-            ctx.fillStyle = 'rgba(20, 26, 30, 0.36)';
+            // Clean metal T-bar suspension grid lines
+            ctx.fillStyle = '#8b96a2';
+            ctx.fillRect(x, y, cw, 2);
+            ctx.fillRect(x, y, 2, ch);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            ctx.fillRect(x, y + 2, cw, 1);
+            ctx.fillRect(x + 2, y, 1, ch);
+
+            bCtx.fillStyle = '#303030';
+            bCtx.fillRect(x, y, cw, 2);
+            bCtx.fillRect(x, y, 2, ch);
+            bCtx.fillStyle = '#b0b0b0';
+            bCtx.fillRect(x + 2, y + 2, cw - 4, ch - 4);
+
+            // Fine acoustic pin-hole perforations
+            ctx.fillStyle = 'rgba(70, 80, 92, 0.22)';
             for (let py = y + 8; py < y + ch - 6; py += 10) {
               for (let px = x + 8; px < x + cw - 6; px += 10) {
                 ctx.fillRect(px, py, 1.5, 1.5);
-                bCtx.fillStyle = '#404040';
-                bCtx.fillRect(px, py, 2, 2);
               }
-            }
-
-            if (seed % 3 !== 0) {
-              const cx = x + 20 + (seed % 24);
-              const cy = y + 32 + ((seed * 3) % 64);
-              const rad = 18 + (seed % 22);
-              const wg = ctx.createRadialGradient(cx, cy, rad * 0.2, cx, cy, rad);
-              wg.addColorStop(0.0, 'rgba(54, 42, 26, 0.52)');
-              wg.addColorStop(0.68, 'rgba(68, 52, 30, 0.65)');
-              wg.addColorStop(0.88, 'rgba(42, 32, 18, 0.38)');
-              wg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-              ctx.fillStyle = wg;
-              ctx.fillRect(x + 3, y + 3, cw - 6, ch - 6);
             }
           }
         }
       } else if (type === 'peeling-paint-wall') {
-        // Requirement 4: Peeling paint & damp plaster with flaking patches exposing raw dark concrete, cracks & stains
-        ctx.fillStyle = '#6e7874';
+        // Clean Architectural Painted Woodwork & Concrete Trim (Zero Peeling, Zero Cracks!)
+        ctx.fillStyle = '#dce4ec';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#909090';
+        bCtx.fillStyle = '#888888';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#848484';
+        rCtx.fillStyle = '#7a7a7a';
         rCtx.fillRect(0, 0, 512, 512);
 
-        for (let i = 0; i < 900; i++) {
+        // Smooth architectural micro-grain
+        for (let i = 0; i < 1800; i++) {
           const px = (i * 73) % 512;
           const py = (i * 137) % 512;
-          const w = 10 + (i % 26);
-          const h = 8 + ((i * 7) % 24);
-          ctx.fillStyle = (i % 2 === 0) ? 'rgba(42, 52, 48, 0.16)' : 'rgba(148, 158, 152, 0.12)';
-          ctx.fillRect(px, py, w, h);
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.16)' : 'rgba(60, 75, 88, 0.06)';
+          ctx.fillRect(px, py, 3, 3);
+          bCtx.fillStyle = (i % 2 === 0) ? '#929292' : '#7e7e7e';
+          bCtx.fillRect(px, py, 2, 2);
         }
 
-        // Fine horizontal architectural plaster courses & subtle micro-grain (no giant oval bubbles)
-        for (let y = 0; y < 512; y += 32) {
-          ctx.fillStyle = 'rgba(28, 36, 34, 0.14)';
-          ctx.fillRect(0, y, 512, 1.5);
-          ctx.fillStyle = 'rgba(210, 220, 215, 0.08)';
-          ctx.fillRect(0, y + 1.5, 512, 1);
-          bCtx.fillStyle = '#686868';
-          bCtx.fillRect(0, y, 512, 1.5);
-        }
-
-        ctx.strokeStyle = 'rgba(18, 24, 26, 0.65)';
-        ctx.lineWidth = 1.5;
-        bCtx.strokeStyle = '#101010';
-        bCtx.lineWidth = 2.0;
-        for (let cIdx = 0; cIdx < 8; cIdx++) {
-          let cx = 40 + cIdx * 60;
-          let cy = (cIdx % 2 === 0) ? 10 : 320;
-          ctx.beginPath();
-          ctx.moveTo(cx, cy);
-          bCtx.beginPath();
-          bCtx.moveTo(cx, cy);
-          for (let seg = 0; seg < 6; seg++) {
-            cx += ((seg * 13 + cIdx * 7) % 22) - 10;
-            cy += 24 + (seg % 3) * 8;
-            ctx.lineTo(cx, cy);
-            bCtx.lineTo(cx, cy);
-          }
-          ctx.stroke();
-          bCtx.stroke();
+        // Clean architectural horizontal trim reveals every 64px
+        for (let y = 0; y < 512; y += 64) {
+          ctx.fillStyle = 'rgba(45, 58, 70, 0.15)';
+          ctx.fillRect(0, y, 512, 2);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.fillRect(0, y + 2, 512, 2);
+          bCtx.fillStyle = '#404040';
+          bCtx.fillRect(0, y, 512, 2);
+          bCtx.fillStyle = '#b8b8b8';
+          bCtx.fillRect(0, y + 2, 512, 2);
         }
       } else if (type === 'worn-wood-grain') {
-        // Requirement 4: Worn wood grain with knots, scratched varnish, ink stains & bump relief
-        ctx.fillStyle = '#4e2710';
+        // Rich Polished Teak & Sal Hardwood Grain (Clean, Natural, Warm Satin Varnish!)
+        ctx.fillStyle = '#6a381a';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#606060';
+        bCtx.fillStyle = '#707070';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#585858';
+        rCtx.fillStyle = '#505050';
         rCtx.fillRect(0, 0, 512, 512);
 
-        for (let y = 0; y < 512; y += 3) {
-          const wave = Math.floor(Math.sin(y * 0.08) * 10 + Math.cos(y * 0.03) * 8);
-          const r = Math.max(38, Math.min(115, 78 + wave));
-          const g = Math.max(18, Math.min(62, 39 + Math.floor(wave * 0.55)));
-          const b = Math.max(8, Math.min(34, 16 + Math.floor(wave * 0.3)));
+        for (let y = 0; y < 512; y += 2) {
+          const wave = Math.floor(Math.sin(y * 0.05) * 12 + Math.cos(y * 0.02) * 8);
+          const r = Math.max(75, Math.min(145, 108 + wave));
+          const g = Math.max(38, Math.min(88, 58 + Math.floor(wave * 0.55)));
+          const b = Math.max(16, Math.min(48, 28 + Math.floor(wave * 0.3)));
           ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
-          ctx.fillRect(0, y, 512, 3);
-          bCtx.fillStyle = wave > 0 ? '#989898' : '#424242';
-          bCtx.fillRect(0, y, 512, 2);
+          ctx.fillRect(0, y, 512, 2);
+          bCtx.fillStyle = wave > 0 ? '#909090' : '#525252';
+          bCtx.fillRect(0, y, 512, 1.5);
         }
+        // Clean plank seams every 128px
         for (let py = 0; py < 512; py += 128) {
-          ctx.fillStyle = '#1e0d05';
-          ctx.fillRect(0, py, 512, 3);
-          bCtx.fillStyle = '#121212';
-          bCtx.fillRect(0, py, 512, 3);
-        }
-        for (let k = 0; k < 7; k++) {
-          const kx = 48 + ((k * 113) % 420);
-          const ky = 36 + ((k * 79) % 440);
-          ctx.fillStyle = '#291206';
-          ctx.beginPath();
-          ctx.ellipse(kx, ky, 16, 7, 0.15, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#633318';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-        ctx.strokeStyle = 'rgba(168, 122, 82, 0.42)';
-        ctx.lineWidth = 1.5;
-        bCtx.strokeStyle = '#1e1e1e';
-        bCtx.lineWidth = 1.5;
-        for (let sc = 0; sc < 24; sc++) {
-          const sx = (sc * 67) % 480;
-          const sy = (sc * 43) % 480;
-          const ex = sx + 18 + (sc % 28);
-          const ey = sy + ((sc % 3) - 1) * 14;
-          ctx.beginPath();
-          ctx.moveTo(sx, sy);
-          ctx.lineTo(ex, ey);
-          ctx.stroke();
-          bCtx.beginPath();
-          bCtx.moveTo(sx, sy);
-          bCtx.lineTo(ex, ey);
-          bCtx.stroke();
+          ctx.fillStyle = 'rgba(20, 10, 4, 0.40)';
+          ctx.fillRect(0, py, 512, 2);
+          ctx.fillStyle = 'rgba(255, 200, 150, 0.18)';
+          ctx.fillRect(0, py + 2, 512, 1.5);
+          bCtx.fillStyle = '#202020';
+          bCtx.fillRect(0, py, 512, 2);
         }
       } else if (type === 'dirty-window-glass') {
-        // Requirement 4: Dirty glass texture with rain streaks, dried water spots, corner dust buildup & smudges
-        ctx.fillStyle = '#0c1824';
+        // Clean Architectural Night Window Glass (Clear, Reflective, Natural Nocturnal Specular!)
+        ctx.fillStyle = '#101c2b';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#505050';
+        bCtx.fillStyle = '#808080';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#282828';
+        rCtx.fillStyle = '#1c1c1c'; // Smooth, high-reflectivity glass
         rCtx.fillRect(0, 0, 512, 512);
 
-        const edgeGrime = ctx.createRadialGradient(256, 256, 90, 256, 256, 340);
-        edgeGrime.addColorStop(0.0, 'rgba(12, 24, 36, 0.0)');
-        edgeGrime.addColorStop(0.65, 'rgba(28, 42, 48, 0.38)');
-        edgeGrime.addColorStop(1.0, 'rgba(42, 54, 52, 0.78)');
-        ctx.fillStyle = edgeGrime;
+        // Gentle night sky gradation
+        const glassGrad = ctx.createLinearGradient(0, 0, 0, 512);
+        glassGrad.addColorStop(0.0, 'rgba(40, 65, 92, 0.28)');
+        glassGrad.addColorStop(0.5, 'rgba(20, 36, 54, 0.14)');
+        glassGrad.addColorStop(1.0, 'rgba(10, 18, 28, 0.22)');
+        ctx.fillStyle = glassGrad;
         ctx.fillRect(0, 0, 512, 512);
 
-        for (let rx = 8; rx < 512; rx += 18) {
-          const rw = 3 + (rx % 5);
-          ctx.fillStyle = (rx % 36 === 0) ? 'rgba(94, 118, 128, 0.28)' : 'rgba(5, 10, 16, 0.35)';
-          ctx.fillRect(rx, 0, rw, 512);
-          rCtx.fillStyle = (rx % 36 === 0) ? '#909090' : '#181818';
-          rCtx.fillRect(rx, 0, rw, 512);
-        }
-        for (let sp = 0; sp < 45; sp++) {
-          const sx = (sp * 83) % 500;
-          const sy = (sp * 59) % 500;
-          ctx.fillStyle = 'rgba(110, 130, 138, 0.18)';
-          ctx.beginPath();
-          ctx.arc(sx, sy, 4 + (sp % 9), 0, Math.PI * 2);
-          ctx.fill();
-        }
+        // Diagonal moonlight specular sheen reflection
+        ctx.fillStyle = 'rgba(180, 215, 248, 0.10)';
+        ctx.beginPath();
+        ctx.moveTo(80, 0);
+        ctx.lineTo(240, 0);
+        ctx.lineTo(120, 512);
+        ctx.lineTo(0, 512);
+        ctx.closePath();
+        ctx.fill();
       } else if (type === 'scuffed-board') {
         ctx.fillStyle = '#8b99a6';
         ctx.fillRect(0, 0, 512, 512);
@@ -6392,39 +6365,7 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // Step 3: Darken wall/roof/brick textures by ~35% and add vertical grime & damp stain gradients (Zero new draw calls!)
-      if (type !== 'surveyor-field-grass' && type !== 'interlocking-pavers') {
-        const darkMult = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.materialDarknessMultiplier) || 0.64;
-        const darkAlpha = Math.max(0.15, Math.min(0.55, 1.0 - darkMult));
-        ctx.fillStyle = 'rgba(6, 10, 12, ' + darkAlpha.toFixed(2) + ')';
-        ctx.fillRect(0, 0, 512, 512);
-
-        const topGrime = ctx.createLinearGradient(0, 0, 0, 128);
-        topGrime.addColorStop(0.0, 'rgba(4, 7, 9, 0.58)');
-        topGrime.addColorStop(0.45, 'rgba(10, 16, 14, 0.24)');
-        topGrime.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-        ctx.fillStyle = topGrime;
-        ctx.fillRect(0, 0, 512, 128);
-
-        const botGrime = ctx.createLinearGradient(0, 350, 0, 512);
-        botGrime.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
-        botGrime.addColorStop(0.55, 'rgba(12, 20, 15, 0.32)');
-        botGrime.addColorStop(1.0, 'rgba(5, 9, 7, 0.64)');
-        ctx.fillStyle = botGrime;
-        ctx.fillRect(0, 350, 512, 162);
-
-        for (let sx = 12; sx < 512; sx += 28) {
-          const streakW = 6 + ((sx * 7) % 10);
-          const streakH = 140 + ((sx * 19) % 260);
-          const sGrad = ctx.createLinearGradient(0, 0, 0, streakH);
-          sGrad.addColorStop(0.0, 'rgba(5, 9, 8, 0.32)');
-          sGrad.addColorStop(0.7, 'rgba(8, 14, 11, 0.14)');
-          sGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-          ctx.fillStyle = sGrad;
-          ctx.fillRect(sx, 0, streakW, streakH);
-        }
-      }
-
+      // Natural architectural finish with clean surface response (zero artificial grime streaks)
       };
 
       const map = new THREE.CanvasTexture(c);
@@ -6662,78 +6603,45 @@ export function getHideAndSeekHtml(): string {
       })(),
       rotundaBrick: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
-        // High-detail 1024px weathered plaster & exposed brick masonry with damp moss, mortar joints & hairline cracks
+        // High-detail 1024px Clean Ashlar Stone & Architectural Masonry (Zero Spalling, Zero Cracks, Natural Warm Cream/Beige)
         const fineWallTex = createProceduralTexture(1024, 1024, (ctx) => {
-          ctx.fillStyle = '#86909a';
+          ctx.fillStyle = '#e4dccf'; // Warm sand/cream ashlar stone
           ctx.fillRect(0, 0, 1024, 1024);
 
-          // Subtle tonal stone/plaster variation patches
+          // Subtle natural limestone tonal variations across blocks
           for (let py = 0; py < 1024; py += 64) {
             for (let px = 0; px < 1024; px += 64) {
               const v = ((px * 17 + py * 31) % 24) - 12;
-              ctx.fillStyle = v >= 0 ? ('rgba(220, 230, 240, ' + (v * 0.005) + ')') : ('rgba(18, 26, 34, ' + (-v * 0.006) + ')');
+              ctx.fillStyle = v >= 0 ? ('rgba(255, 252, 245, ' + (v * 0.006) + ')') : ('rgba(65, 55, 45, ' + (-v * 0.005) + ')');
               ctx.fillRect(px, py, 64, 64);
             }
           }
 
-          // Crisp horizontal masonry/plaster courses + staggered vertical mortar joints
-          for (let y = 0; y < 1024; y += 24) {
-            ctx.fillStyle = 'rgba(20, 28, 36, 0.24)';
+          // Crisp dressed ashlar stone block courses & neat mortar joints
+          for (let y = 0; y < 1024; y += 32) {
+            // Horizontal recessed mortar joint
+            ctx.fillStyle = 'rgba(55, 45, 35, 0.22)';
             ctx.fillRect(0, y, 1024, 2);
-            ctx.fillStyle = 'rgba(230, 238, 246, 0.12)';
+            // Stone block top bevel highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.26)';
             ctx.fillRect(0, y + 2, 1024, 1.5);
-            const rowOff = ((y / 24) % 2) * 32;
-            ctx.fillStyle = 'rgba(22, 30, 38, 0.15)';
-            for (let x = rowOff; x < 1024; x += 64) {
-              ctx.fillRect(x, y, 1.5, 24);
+            // Staggered vertical mortar joints
+            const rowOff = ((y / 32) % 2) * 48;
+            ctx.fillStyle = 'rgba(55, 45, 35, 0.18)';
+            for (let x = rowOff; x < 1024; x += 96) {
+              ctx.fillRect(x, y, 2, 32);
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+              ctx.fillRect(x + 2, y, 1, 32);
+              ctx.fillStyle = 'rgba(55, 45, 35, 0.18)';
             }
           }
 
-          // Exposed weathered red-brick spalling patches where old plaster has flaked off (horror realism!)
-          [
-            [140, 310, 95, 58], [620, 190, 110, 64], [380, 680, 88, 52], [810, 540, 96, 62],
-          ].forEach(([bx, by, bw, bh]) => {
-            ctx.fillStyle = 'rgba(32, 22, 20, 0.45)';
-            ctx.fillRect(bx - 4, by - 4, bw + 8, bh + 8);
-            ctx.fillStyle = '#6e3228';
-            ctx.fillRect(bx, by, bw, bh);
-            ctx.fillStyle = 'rgba(24, 14, 12, 0.55)';
-            for (let ry = by; ry < by + bh; ry += 12) {
-              ctx.fillRect(bx, ry, bw, 2);
-              for (let rx = bx + ((ry % 24 === 0) ? 0 : 14); rx < bx + bw; rx += 28) {
-                ctx.fillRect(rx, ry, 2, 12);
-              }
-            }
-          });
-
-          // Hairline structural plaster cracks
-          ctx.strokeStyle = 'rgba(16, 22, 28, 0.48)';
-          ctx.lineWidth = 2;
-          [[210, 80, 245, 260], [740, 120, 710, 340], [490, 420, 530, 640]].forEach(([x0, y0, x1, y1]) => {
-            ctx.beginPath();
-            ctx.moveTo(x0, y0);
-            ctx.lineTo((x0 + x1) * 0.5 + 14, (y0 + y1) * 0.5);
-            ctx.lineTo(x1, y1);
-            ctx.stroke();
-          });
-
-          // Under-eave dark dampness & vertical monsoon rain/moss streaks
-          const topDamp = ctx.createLinearGradient(0, 0, 0, 240);
-          topDamp.addColorStop(0.0, 'rgba(10, 16, 20, 0.58)');
-          topDamp.addColorStop(0.45, 'rgba(18, 28, 30, 0.24)');
-          topDamp.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-          ctx.fillStyle = topDamp;
-          ctx.fillRect(0, 0, 1024, 240);
-
-          for (let sx = 22; sx < 1024; sx += 48) {
-            const sw = 8 + ((sx * 7) % 16);
-            const sh = 240 + ((sx * 29) % 520);
-            const sg = ctx.createLinearGradient(0, 0, 0, sh);
-            sg.addColorStop(0.0, 'rgba(14, 22, 20, 0.38)');
-            sg.addColorStop(0.6, 'rgba(20, 32, 26, 0.16)');
-            sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-            ctx.fillStyle = sg;
-            ctx.fillRect(sx, 0, sw, sh);
+          // Fine natural mineral stippling
+          for (let i = 0; i < 4000; i++) {
+            const gx = (i * 197) % 1024;
+            const gy = (i * 353) % 1024;
+            ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.12)' : 'rgba(50, 42, 32, 0.06)';
+            ctx.fillRect(gx, gy, 2, 2);
           }
         }, 'main-bldg-fine-wall-plaster-1024');
         fineWallTex.wrapS = THREE.RepeatWrapping;
@@ -6745,54 +6653,36 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: fineWallTex,
           bumpMap: fineWallTex,
-          bumpScale: mb.wallNormalScale !== undefined ? mb.wallNormalScale : 0.022,
-          color: mb.wallColor || 0x949ea8,
-          emissive: mb.wallEmissive || 0x0d151e,
-          emissiveIntensity: mb.wallEmissiveIntensity !== undefined ? mb.wallEmissiveIntensity : 0.10,
-          roughness: mb.wallRoughness !== undefined ? mb.wallRoughness : 0.68,
+          bumpScale: mb.wallNormalScale !== undefined ? mb.wallNormalScale : 0.015,
+          color: mb.wallColor || 0xe6dfd3,
+          emissive: mb.wallEmissive || 0x161310,
+          emissiveIntensity: mb.wallEmissiveIntensity !== undefined ? mb.wallEmissiveIntensity : 0.08,
+          roughness: mb.wallRoughness !== undefined ? mb.wallRoughness : 0.62,
           side: THREE.DoubleSide,
         });
       })(),
       rotundaWhiteArch: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
-        // High-contrast classical off-white stone/plaster for columns, pilasters, quoins, floor bands & cornices
+        // Clean classical white stone/plaster for columns, pilasters, quoins, floor bands & cornices
         const colPlasterTex = createProceduralTexture(1024, 1024, (ctx) => {
-          ctx.fillStyle = '#d6dfe6';
+          ctx.fillStyle = '#eef3f8';
           ctx.fillRect(0, 0, 1024, 1024);
 
-          // Subtle dressed-stone block courses & bevel highlights
+          // Dressed-stone block courses & bevel highlights
           for (let y = 0; y < 1024; y += 64) {
-            ctx.fillStyle = 'rgba(30, 42, 54, 0.16)';
+            ctx.fillStyle = 'rgba(40, 52, 65, 0.12)';
             ctx.fillRect(0, y, 1024, 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
             ctx.fillRect(0, y + 2, 1024, 2);
           }
 
           // Fine stone grain
-          for (let i = 0; i < 900; i++) {
+          for (let i = 0; i < 1800; i++) {
             const gx = (i * 97) % 1024;
             const gy = (i * 163) % 1024;
-            ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.10)' : 'rgba(28, 38, 48, 0.09)';
-            ctx.fillRect(gx, gy, 4, 4);
+            ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.15)' : 'rgba(38, 48, 58, 0.06)';
+            ctx.fillRect(gx, gy, 3, 3);
           }
-
-          // Vertical dark rain/moss streaks along columns and pilasters
-          for (let sx = 28; sx < 1024; sx += 64) {
-            const sw = 10 + ((sx * 11) % 20);
-            const sh = 260 + ((sx * 37) % 540);
-            const sg = ctx.createLinearGradient(0, 0, 0, sh);
-            sg.addColorStop(0.0, 'rgba(18, 26, 24, 0.42)');
-            sg.addColorStop(0.55, 'rgba(26, 36, 32, 0.18)');
-            sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-            ctx.fillStyle = sg;
-            ctx.fillRect(sx, 0, sw, sh);
-          }
-
-          const baseStain = ctx.createLinearGradient(0, 780, 0, 1024);
-          baseStain.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
-          baseStain.addColorStop(1.0, 'rgba(16, 24, 22, 0.44)');
-          ctx.fillStyle = baseStain;
-          ctx.fillRect(0, 780, 1024, 244);
         }, 'main-bldg-col-pilaster-plaster-1024');
         colPlasterTex.wrapS = THREE.RepeatWrapping;
         colPlasterTex.wrapT = THREE.RepeatWrapping;
@@ -6803,12 +6693,12 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: colPlasterTex,
           bumpMap: colPlasterTex,
-          bumpScale: mb.pilasterNormalScale !== undefined ? mb.pilasterNormalScale : 0.015,
-          color: mb.pilasterColor || 0xdce4ec,
-          emissive: mb.pilasterEmissive || 0x182430,
-          emissiveIntensity: mb.pilasterEmissiveIntensity !== undefined ? mb.pilasterEmissiveIntensity : 0.16,
-          roughness: mb.pilasterRoughness !== undefined ? mb.pilasterRoughness : 0.54,
-          metalness: 0.06,
+          bumpScale: mb.pilasterNormalScale !== undefined ? mb.pilasterNormalScale : 0.012,
+          color: mb.pilasterColor || 0xf0f4f8,
+          emissive: mb.pilasterEmissive || 0x182028,
+          emissiveIntensity: mb.pilasterEmissiveIntensity !== undefined ? mb.pilasterEmissiveIntensity : 0.12,
+          roughness: mb.pilasterRoughness !== undefined ? mb.pilasterRoughness : 0.50,
+          metalness: 0.04,
         });
       })(),
       rotundaPlinthConcrete: (function() {
@@ -6978,48 +6868,40 @@ export function getHideAndSeekHtml(): string {
       rotundaWindowRed: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
         const sz = mb.windowTextureSize || 1024;
-        const winRedTex = createProceduralTexture(sz, sz, (ctx) => {
-          // Haunted Blood-Red Emergency-Lit Lab 302 Window with Ceiling Fixture, Broken Blinds & Watcher Silhouette!
+        const winWarmStudyTex = createProceduralTexture(sz, sz, (ctx) => {
+          // Warm Evening Study Room & Research Lab Window (Clean, Warm Amber Illumination, Zero Horror Silhouette!)
           const bg = ctx.createLinearGradient(0, sz, 0, 0);
-          bg.addColorStop(0.0, '#ffaa82');
-          bg.addColorStop(0.40, '#ee4426');
-          bg.addColorStop(0.80, '#961610');
-          bg.addColorStop(1.0, '#3d0605');
+          bg.addColorStop(0.0, '#fff4cc');
+          bg.addColorStop(0.35, '#ffcf70');
+          bg.addColorStop(0.70, '#e58e32');
+          bg.addColorStop(1.0, '#6e3814');
           ctx.fillStyle = bg;
           ctx.fillRect(0, 0, sz, sz);
 
-          // Glowing red emergency cage lamp at top-center of room
-          const rad = ctx.createRadialGradient(sz * 0.5, sz * 0.22, sz * 0.02, sz * 0.5, sz * 0.52, sz * 0.58);
-          rad.addColorStop(0.0, 'rgba(255, 235, 215, 0.95)');
-          rad.addColorStop(0.28, 'rgba(255, 96, 64, 0.72)');
-          rad.addColorStop(0.65, 'rgba(210, 32, 22, 0.38)');
-          rad.addColorStop(1.0, 'rgba(20, 2, 2, 0.62)');
+          // Glowing warm study pendant lamp at top-center of room
+          const rad = ctx.createRadialGradient(sz * 0.5, sz * 0.20, sz * 0.02, sz * 0.5, sz * 0.45, sz * 0.55);
+          rad.addColorStop(0.0, 'rgba(255, 255, 245, 0.98)');
+          rad.addColorStop(0.24, 'rgba(255, 220, 140, 0.82)');
+          rad.addColorStop(0.60, 'rgba(255, 160, 50, 0.40)');
+          rad.addColorStop(1.0, 'rgba(35, 15, 4, 0.50)');
           ctx.fillStyle = rad;
           ctx.fillRect(0, 0, sz, sz);
 
-          // Crooked Venetian blinds across top (drawn via polygon paths for universal Canvas2D + headless test compatibility)
-          ctx.fillStyle = 'rgba(28, 4, 4, 0.52)';
-          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.42); by += Math.round(sz * 0.03)) {
-            const tiltY = Math.round(sz * 0.025);
-            const slatH = Math.round(sz * 0.014);
-            ctx.beginPath();
-            ctx.moveTo(0, by);
-            ctx.lineTo(sz, by + tiltY);
-            ctx.lineTo(sz, by + tiltY + slatH);
-            ctx.lineTo(0, by + slatH);
-            ctx.closePath();
-            ctx.fill();
+          // Clean horizontal venetian blinds across upper half
+          ctx.fillStyle = 'rgba(40, 20, 8, 0.40)';
+          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.44); by += Math.round(sz * 0.028)) {
+            ctx.fillRect(0, by, sz, Math.round(sz * 0.013));
           }
 
-          // Eerie dark horror silhouette (The Hollow Proctor / Watcher) standing behind the right pane!
-          ctx.fillStyle = 'rgba(14, 2, 3, 0.76)';
-          ctx.beginPath();
-          ctx.arc(sz * 0.68, sz * 0.52, sz * 0.065, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.beginPath();
-          ctx.ellipse(sz * 0.68, sz * 0.78, sz * 0.14, sz * 0.22, 0, Math.PI, 0, false);
-          ctx.fill();
+          // Warm upward sill light bounce
+          const sillBounce = ctx.createLinearGradient(0, sz, 0, sz * 0.70);
+          sillBounce.addColorStop(0.0, 'rgba(255, 245, 210, 0.82)');
+          sillBounce.addColorStop(0.5, 'rgba(255, 195, 100, 0.35)');
+          sillBounce.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+          ctx.fillStyle = sillBounce;
+          ctx.fillRect(0, sz * 0.70, sz, sz * 0.30);
 
+          // Clean architectural window frame & mullions
           const fHex = mb.windowFrameHex || '#11171f';
           const bW = Math.round(sz * 0.055);
           const mW = Math.round(sz * 0.036);
@@ -7032,19 +6914,22 @@ export function getHideAndSeekHtml(): string {
           ctx.fillRect(0, Math.round(sz * 0.30), sz, mW);
           ctx.fillRect(0, Math.round(sz * 0.65), sz, Math.round(mW * 0.75));
 
-          ctx.fillStyle = 'rgba(255, 120, 90, 0.40)';
+          // Warm light catching mullion edges
+          ctx.fillStyle = 'rgba(255, 215, 140, 0.42)';
+          ctx.fillRect(Math.round(sz * 0.5 - mW * 0.5) - 2.5, bW, 2.5, sz - bW * 2);
+          ctx.fillRect(bW, Math.round(sz * 0.30) + mW, sz - bW * 2, 3.5);
           ctx.fillRect(bW, sz - bW - 5, sz - bW * 2, 5);
-        }, 'main-bldg-win-red-1024');
-        winRedTex.generateMipmaps = true;
-        winRedTex.minFilter = THREE.LinearMipmapLinearFilter;
-        winRedTex.magFilter = THREE.LinearFilter;
-        winRedTex.anisotropy = mb.windowAnisotropy || 8;
+        }, 'main-bldg-win-warm-study-1024');
+        winWarmStudyTex.generateMipmaps = true;
+        winWarmStudyTex.minFilter = THREE.LinearMipmapLinearFilter;
+        winWarmStudyTex.magFilter = THREE.LinearFilter;
+        winWarmStudyTex.anisotropy = mb.windowAnisotropy || 8;
         return new THREE.MeshStandardMaterial({
-          map: winRedTex,
-          emissiveMap: winRedTex,
-          color: mb.windowRedColor || 0xff7852,
-          emissive: mb.windowRedEmissive || 0xe62e1c,
-          emissiveIntensity: mb.windowRedEmissiveIntensity !== undefined ? mb.windowRedEmissiveIntensity : 1.12,
+          map: winWarmStudyTex,
+          emissiveMap: winWarmStudyTex,
+          color: mb.windowRedColor || 0xffe8b4,
+          emissive: mb.windowRedEmissive || 0xffa036,
+          emissiveIntensity: mb.windowRedEmissiveIntensity !== undefined ? mb.windowRedEmissiveIntensity : 0.95,
           roughness: 0.18,
           metalness: 0.18,
         });
@@ -7053,7 +6938,7 @@ export function getHideAndSeekHtml(): string {
         const mb = HORROR_CONFIG.mainBuilding || {};
         const sz = mb.windowTextureSize || 1024;
         const winDarkTex = createProceduralTexture(sz, sz, (ctx) => {
-          // Dark reflective glass pane with cool night-sky reflection, faint blind slats & cracked corner pane
+          // Clean dark reflective glass pane with cool night-sky reflection & neat closed blinds (No Cracks!)
           const skyRefl = ctx.createLinearGradient(0, 0, sz * 0.65, sz);
           skyRefl.addColorStop(0.0, '#36526e');
           skyRefl.addColorStop(0.35, '#1e3246');
@@ -7062,31 +6947,21 @@ export function getHideAndSeekHtml(): string {
           ctx.fillStyle = skyRefl;
           ctx.fillRect(0, 0, sz, sz);
 
-          // Dimly visible closed interior blinds behind dark glass
-          ctx.fillStyle = 'rgba(6, 11, 18, 0.42)';
-          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.62); by += Math.round(sz * 0.032)) {
-            ctx.fillRect(0, by, sz, Math.round(sz * 0.015));
+          // Neat closed interior blinds behind dark glass
+          ctx.fillStyle = 'rgba(6, 11, 18, 0.38)';
+          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.88); by += Math.round(sz * 0.030)) {
+            ctx.fillRect(0, by, sz, Math.round(sz * 0.014));
           }
 
-          // Cool moonlight diagonal specular reflection streak across glass
-          ctx.fillStyle = 'rgba(145, 188, 226, 0.18)';
+          // Cool moonlight diagonal specular reflection streak across clean glass
+          ctx.fillStyle = 'rgba(155, 198, 235, 0.20)';
           ctx.beginPath();
-          ctx.moveTo(sz * 0.10, sz * 0.06);
-          ctx.lineTo(sz * 0.36, sz * 0.06);
-          ctx.lineTo(sz * 0.16, sz * 0.90);
-          ctx.lineTo(sz * 0.04, sz * 0.90);
+          ctx.moveTo(sz * 0.12, sz * 0.05);
+          ctx.lineTo(sz * 0.38, sz * 0.05);
+          ctx.lineTo(sz * 0.18, sz * 0.95);
+          ctx.lineTo(sz * 0.04, sz * 0.95);
           ctx.closePath();
           ctx.fill();
-
-          // Subtle spiderweb crack in bottom-right pane corner
-          ctx.strokeStyle = 'rgba(165, 198, 224, 0.25)';
-          ctx.lineWidth = 2;
-          [[0.92, 0.92, 0.76, 0.82], [0.92, 0.92, 0.81, 0.72], [0.92, 0.92, 0.72, 0.90]].forEach(([x0, y0, x1, y1]) => {
-            ctx.beginPath();
-            ctx.moveTo(sz * x0, sz * y0);
-            ctx.lineTo(sz * x1, sz * y1);
-            ctx.stroke();
-          });
 
           // Crisp dark frame & mullions with moonlight bevel highlight
           const fHex = mb.windowFrameHex || '#11171f';
@@ -7155,14 +7030,13 @@ export function getHideAndSeekHtml(): string {
           ctx.lineWidth = 4;
           ctx.strokeRect(24, 24, sw - 48, sh - 48);
 
-          // Subtle vertical damp/moss weathering streaks across plaque
-          for (let sx = 40; sx < sw; sx += 130) {
-            const sg = ctx.createLinearGradient(0, 0, 0, sh * 0.88);
-            sg.addColorStop(0.0, 'rgba(18, 26, 24, 0.36)');
-            sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-            ctx.fillStyle = sg;
-            ctx.fillRect(sx, 0, 24, sh * 0.88);
-          }
+          // Crisp stone tablet border & decorative corner accents
+          ctx.strokeStyle = '#1e2832';
+          ctx.lineWidth = 8;
+          ctx.strokeRect(18, 18, sw - 36, sh - 36);
+          ctx.strokeStyle = 'rgba(240, 246, 252, 0.55)';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(24, 24, sw - 48, sh - 48);
 
           // Chiseled 3D embossed highlight + deep shadow + bold dark-slate "GANDAKI UNIVERSITY" lettering
           ctx.font = '900 112px "Arial Black", Impact, sans-serif';
@@ -7182,12 +7056,12 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: signTex,
           bumpMap: signTex,
-          bumpScale: 0.014,
-          color: mb.signPlaqueColor || 0xcfd8e0,
-          emissive: mb.signEmissive || 0x263442,
-          emissiveIntensity: mb.signEmissiveIntensity !== undefined ? mb.signEmissiveIntensity : 0.26,
-          roughness: 0.48,
-          metalness: 0.14,
+          bumpScale: 0.012,
+          color: mb.signPlaqueColor || 0xdbe4ec,
+          emissive: mb.signEmissive || 0x222d38,
+          emissiveIntensity: mb.signEmissiveIntensity !== undefined ? mb.signEmissiveIntensity : 0.22,
+          roughness: 0.45,
+          metalness: 0.12,
         });
       })(),
       rotundaFacadeUplightMat: (function() {
@@ -7281,24 +7155,24 @@ export function getHideAndSeekHtml(): string {
       rotundaTerrazzoFloor: new THREE.MeshStandardMaterial({
         map: terrazzoFloorTex.map,
         bumpMap: terrazzoFloorTex.bumpMap,
-        bumpScale: 0.025,
-        roughness: 0.30,
-        metalness: 0.18,
+        bumpScale: 0.018,
+        roughness: 0.28,
+        metalness: 0.16,
       }),
       rotundaInteriorWall: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.055,
-        color: 0xb8c2cc,
-        roughness: 0.72,
+        bumpScale: 0.024,
+        color: 0xded8ce,
+        roughness: 0.65,
         side: THREE.DoubleSide,
       }),
       stainedCeilingTiles: new THREE.MeshStandardMaterial({
         map: stainedCeilingTex.map,
         bumpMap: stainedCeilingTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x9aa4ad,
-        roughness: 0.82,
+        bumpScale: 0.025,
+        color: 0xe2e8f0,
+        roughness: 0.72,
       }),
       ceilingLightEmissive: new THREE.MeshStandardMaterial({
         color: 0xfff8eb,
@@ -7309,16 +7183,16 @@ export function getHideAndSeekHtml(): string {
       fountainPinkTrim: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x283038,
-        roughness: 0.68,
+        bumpScale: 0.035,
+        color: 0x3a4552,
+        roughness: 0.60,
         metalness: 0.12,
       }),
       fountainWater: new THREE.MeshStandardMaterial({
-        color: 0x09131c,
-        emissive: 0x061018,
-        emissiveIntensity: 0.14,
-        roughness: 0.12,
+        color: 0x0f2438,
+        emissive: 0x0a1a28,
+        emissiveIntensity: 0.18,
+        roughness: 0.10,
         metalness: 0.88,
         transparent: true,
         opacity: 0.88,
@@ -7326,88 +7200,88 @@ export function getHideAndSeekHtml(): string {
       campusStucco: new THREE.MeshStandardMaterial({
         map: stuccoTex.map,
         bumpMap: stuccoTex.bumpMap,
-        bumpScale: 0.032,
-        color: 0xded8cc,
-        roughness: 0.82,
+        bumpScale: 0.024,
+        color: 0xeee7d8,
+        roughness: 0.68,
         metalness: 0.02,
         side: THREE.DoubleSide,
       }),
       classroomFloor: new THREE.MeshStandardMaterial({
         map: scuffedFloorTex.map,
         bumpMap: scuffedFloorTex.bumpMap,
-        bumpScale: 0.055,
-        color: 0x7a8896,
-        roughness: 0.48,
+        bumpScale: 0.025,
+        color: 0xc4ced8,
+        roughness: 0.35,
         metalness: 0.14,
       }),
       interlockingPavers: new THREE.MeshStandardMaterial({
         map: paverTex.map,
         bumpMap: paverTex.bumpMap,
-        bumpScale: 0.055,
+        bumpScale: 0.038,
         roughnessMap: paverTex.roughnessMap,
-        roughness: 0.35,
-        metalness: 0.24,
+        roughness: 0.38,
+        metalness: 0.16,
       }),
       nepalDachiBrick: new THREE.MeshStandardMaterial({
         map: dachiBrickTex.map,
         bumpMap: dachiBrickTex.bumpMap,
-        bumpScale: 0.065,
+        bumpScale: 0.055,
         roughnessMap: dachiBrickTex.roughnessMap,
-        roughness: 0.68,
+        roughness: 0.64,
         metalness: 0.06,
         side: THREE.DoubleSide,
       }),
       carvedSalWood: new THREE.MeshStandardMaterial({
         map: carvedSalTex.map,
         bumpMap: carvedSalTex.bumpMap,
-        bumpScale: 0.075,
-        roughness: 0.52,
+        bumpScale: 0.065,
+        roughness: 0.48,
         metalness: 0.12,
       }),
       ebonyCarvedWood: new THREE.MeshStandardMaterial({
         map: carvedSalTex.map,
         bumpMap: carvedSalTex.bumpMap,
-        bumpScale: 0.085,
-        color: 0x1a110b,
-        roughness: 0.44,
-        metalness: 0.16,
+        bumpScale: 0.075,
+        color: 0x221812,
+        roughness: 0.42,
+        metalness: 0.14,
       }),
       tikijhyalLattice: new THREE.MeshStandardMaterial({
         map: tikijhyalTex.map,
         bumpMap: tikijhyalTex.bumpMap,
-        bumpScale: 0.08,
-        roughness: 0.48,
+        bumpScale: 0.07,
+        roughness: 0.45,
         metalness: 0.14,
       }),
       jhingatiTerracottaRoof: new THREE.MeshStandardMaterial({
         map: jhingatiRoofTex.map,
         bumpMap: jhingatiRoofTex.bumpMap,
-        bumpScale: 0.085,
-        roughness: 0.46,
+        bumpScale: 0.075,
+        roughness: 0.44,
         metalness: 0.15,
       }),
       teliyaFloorTile: new THREE.MeshStandardMaterial({
         map: teliyaTileTex.map,
         bumpMap: teliyaTileTex.bumpMap,
-        bumpScale: 0.035,
+        bumpScale: 0.030,
         roughnessMap: teliyaTileTex.roughnessMap,
-        roughness: 0.28,
+        roughness: 0.26,
         metalness: 0.16,
       }),
       nepalOchreDado: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x8c3b26,
-        roughness: 0.68,
+        bumpScale: 0.035,
+        color: 0x9a4430,
+        roughness: 0.62,
         side: THREE.DoubleSide,
       }),
       nepalCreamPlaster: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0xc2b6a6,
-        roughness: 0.68,
+        bumpScale: 0.035,
+        color: 0xd2c6b6,
+        roughness: 0.64,
         side: THREE.DoubleSide,
       }),
       diyoFlameGlow: new THREE.MeshStandardMaterial({
@@ -7439,58 +7313,59 @@ export function getHideAndSeekHtml(): string {
       surveyorGrass: new THREE.MeshStandardMaterial({
         map: grassTex.map,
         bumpMap: grassTex.bumpMap,
-        bumpScale: 0.05,
-        roughness: 0.85,
+        bumpScale: 0.045,
+        color: 0x243e2a,
+        roughness: 0.80,
       }),
       lawnStripGreen: new THREE.MeshStandardMaterial({
         map: grassTex.map,
         bumpMap: grassTex.bumpMap,
         bumpScale: 0.04,
-        color: 0x16201a,
-        roughness: 0.90,
+        color: 0x284832,
+        roughness: 0.82,
       }),
       castIronDark: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.025,
-        color: 0x161c26,
+        bumpScale: 0.020,
+        color: 0x1c2430,
         metalness: 0.82,
-        roughness: 0.34,
+        roughness: 0.32,
       }),
       gandakiBluePole: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.03,
+        bumpScale: 0.025,
         color: 0x1d4ed8,
         metalness: 0.58,
-        roughness: 0.42,
+        roughness: 0.40,
       }),
       royalBlueDark: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         color: 0x0f172a,
         metalness: 0.75,
-        roughness: 0.38,
+        roughness: 0.36,
       }),
       whiteTrim: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.045,
-        color: 0x8d97a0,
-        roughness: 0.64,
+        bumpScale: 0.025,
+        color: 0xe2e8f0,
+        roughness: 0.52,
       }),
       concretePillar: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x9aa6b2,
-        roughness: 0.66,
+        bumpScale: 0.030,
+        color: 0xd8e0e8,
+        roughness: 0.58,
       }),
       plinthDarkConcrete: new THREE.MeshStandardMaterial({
         map: scuffedFloorTex.map,
         bumpMap: scuffedFloorTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x475569,
-        roughness: 0.76,
+        bumpScale: 0.035,
+        color: 0x64748b,
+        roughness: 0.68,
       }),
       windowGlass: new THREE.MeshStandardMaterial({
         map: dirtyGlassTex.map,
@@ -9166,58 +9041,64 @@ export function getHideAndSeekHtml(): string {
     }
 
     if (sAtlasCtx) {
-      // Poster 1 (256, 0, 128, 160): Weathered Curfew Notice with torn corner & water stain
-      sAtlasCtx.fillStyle = '#b8c2b0';
+      // Poster 1 (256, 0, 128, 160): University Central Library & Reading Hall Hours
+      sAtlasCtx.fillStyle = '#f0f5fa';
       sAtlasCtx.fillRect(256, 0, 128, 160);
-      sAtlasCtx.fillStyle = 'rgba(42, 34, 22, 0.32)';
-      sAtlasCtx.beginPath();
-      sAtlasCtx.arc(356, 130, 34, 0, Math.PI * 2);
-      sAtlasCtx.fill();
-      sAtlasCtx.fillStyle = '#334155';
+      sAtlasCtx.fillStyle = '#1e3a5f';
       sAtlasCtx.fillRect(264, 10, 112, 26);
-      sAtlasCtx.fillStyle = '#991b1b';
-      sAtlasCtx.font = 'bold 13px serif';
-      sAtlasCtx.fillText('CURFEW NOTICE', 268, 28);
+      sAtlasCtx.fillStyle = '#ffffff';
+      sAtlasCtx.font = 'bold 12px sans-serif';
+      sAtlasCtx.fillText('LIBRARY NOTICE', 270, 27);
       sAtlasCtx.fillStyle = '#1e293b';
-      sAtlasCtx.font = '10px monospace';
-      sAtlasCtx.fillText('NO ENTRY AFTER', 270, 56);
-      sAtlasCtx.fillText('22:00 HRS', 282, 72);
-      sAtlasCtx.fillText('BY ORDER: WARDEN', 266, 102);
+      sAtlasCtx.font = '10px sans-serif';
+      sAtlasCtx.fillText('OPEN STUDY HALLS', 268, 56);
+      sAtlasCtx.fillText('08:00 - 21:00 HRS', 272, 72);
+      sAtlasCtx.fillText('SILENT ZONE ACTIVE', 266, 92);
+      sAtlasCtx.fillStyle = '#0284c7';
+      sAtlasCtx.fillText('WI-FI: GU-CAMPUS', 270, 114);
+      sAtlasCtx.fillStyle = '#64748b';
+      sAtlasCtx.fillText('DEPT. OF ACADEMICS', 266, 138);
 
-      // Poster 2 (384, 0, 128, 160): Faded Exam & Missing Scholar Bulletin
-      sAtlasCtx.fillStyle = '#c4b89b';
+      // Poster 2 (384, 0, 128, 160): Authentic Gandaki University Tihar Celebration Bulletin
+      sAtlasCtx.fillStyle = '#fffbeb';
       sAtlasCtx.fillRect(384, 0, 128, 160);
-      sAtlasCtx.fillStyle = '#7c2d12';
+      sAtlasCtx.fillStyle = '#b45309';
       sAtlasCtx.fillRect(392, 10, 112, 24);
       sAtlasCtx.fillStyle = '#fef3c7';
       sAtlasCtx.font = 'bold 12px sans-serif';
-      sAtlasCtx.fillText('CAMPUS ALERT', 402, 26);
-      sAtlasCtx.fillStyle = '#292524';
-      sAtlasCtx.fillRect(416, 42, 64, 54);
-      sAtlasCtx.fillStyle = '#78716c';
+      sAtlasCtx.fillText('TIHAR MAHOTSAV', 398, 26);
+      sAtlasCtx.fillStyle = '#78350f';
+      sAtlasCtx.font = 'bold 10px serif';
+      sAtlasCtx.fillText('HAPPY LAXMI PUJA', 400, 52);
+      sAtlasCtx.fillStyle = '#d97706';
       sAtlasCtx.beginPath();
-      sAtlasCtx.arc(448, 62, 12, 0, Math.PI * 2);
+      sAtlasCtx.arc(448, 76, 16, 0, Math.PI * 2);
       sAtlasCtx.fill();
-      sAtlasCtx.fillStyle = '#1c1917';
-      sAtlasCtx.font = 'bold 10px monospace';
-      sAtlasCtx.fillText('REPORT UNUSUAL', 398, 114);
-      sAtlasCtx.fillText('NIGHT SOUNDS', 404, 128);
+      sAtlasCtx.fillStyle = '#fffbeb';
+      sAtlasCtx.font = '14px serif';
+      sAtlasCtx.fillText('🪔', 440, 81);
+      sAtlasCtx.fillStyle = '#451a03';
+      sAtlasCtx.font = '10px sans-serif';
+      sAtlasCtx.fillText('CULTURAL PROGRAM', 396, 112);
+      sAtlasCtx.fillText('AT CAMPUS PLAZA', 402, 126);
+      sAtlasCtx.fillStyle = '#b45309';
+      sAtlasCtx.fillText('WELCOME ALL', 412, 144);
 
-      // Poster 3 (256, 160, 128, 120): Stained Science / Lab Safety Chart
-      sAtlasCtx.fillStyle = '#a8b8c0';
+      // Poster 3 (256, 160, 128, 120): Department of Science & Engineering Safety Guidelines
+      sAtlasCtx.fillStyle = '#f1f5f9';
       sAtlasCtx.fillRect(256, 160, 128, 120);
-      sAtlasCtx.strokeStyle = '#1e3a5f';
+      sAtlasCtx.strokeStyle = '#0284c7';
       sAtlasCtx.lineWidth = 3;
       sAtlasCtx.strokeRect(262, 166, 116, 108);
-      sAtlasCtx.fillStyle = '#0f172a';
+      sAtlasCtx.fillStyle = '#0369a1';
       sAtlasCtx.font = 'bold 11px sans-serif';
       sAtlasCtx.fillText('LAB SAFETY RULES', 268, 184);
       for (let ly = 198; ly < 262; ly += 14) {
-        sAtlasCtx.fillStyle = '#334155';
+        sAtlasCtx.fillStyle = '#38bdf8';
         sAtlasCtx.fillRect(270, ly, 96, 4);
       }
 
-      // Poster 4 (384, 160, 128, 120): Torn Cultural Fest Poster
+      // Poster 4 (384, 160, 128, 120): Autumn University Cultural Fest
       sAtlasCtx.fillStyle = '#451a03';
       sAtlasCtx.fillRect(384, 160, 128, 120);
       sAtlasCtx.strokeStyle = '#d97706';
@@ -14168,30 +14049,34 @@ export function getHideAndSeekHtml(): string {
        1. GROUND AREAS, TERRACE PLATFORM, RETAINING WALLS & ROADS FROM JSON
           Single Source of Truth: /semester-library/gandaki-campus-layout.json
        ========================================================================= */
-    // Seamless Organic Dark Night Ground & Asphalt Micro-Grain Textures (Zero 16x16 pixel grid squares!)
+    // Seamless Organic Dark Loam Night Ground & Rain-Slicked Asphalt Textures (Ref Photos 1 & 2)
     const naturalGroundTex = createProceduralTexture(1024, 1024, (ctx) => {
-      ctx.fillStyle = '#28302c';
+      ctx.fillStyle = '#1e2621';
       ctx.fillRect(0, 0, 1024, 1024);
-      // Soft overlapping organic soil/moss/slate clouds instead of hard pixel squares
-      for (let i = 0; i < 140; i++) {
+      // Soft overlapping organic mountain soil, humus, and nocturnal moss patches
+      for (let i = 0; i < 160; i++) {
         const cx = (i * 173) % 1024;
         const cy = (i * 289) % 1024;
-        const rad = 64 + (i % 72);
+        const rad = 56 + (i % 84);
         const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, rad);
-        if (i % 2 === 0) {
-          g.addColorStop(0.0, 'rgba(56, 66, 60, 0.16)');
-          g.addColorStop(1.0, 'rgba(56, 66, 60, 0.0)');
+        if (i % 3 === 0) {
+          g.addColorStop(0.0, 'rgba(44, 62, 48, 0.22)'); // rich nocturnal mossy turf
+          g.addColorStop(1.0, 'rgba(44, 62, 48, 0.0)');
+        } else if (i % 3 === 1) {
+          g.addColorStop(0.0, 'rgba(38, 48, 40, 0.20)'); // fertile dark loam
+          g.addColorStop(1.0, 'rgba(38, 48, 40, 0.0)');
         } else {
-          g.addColorStop(0.0, 'rgba(18, 24, 21, 0.18)');
-          g.addColorStop(1.0, 'rgba(18, 24, 21, 0.0)');
+          g.addColorStop(0.0, 'rgba(14, 18, 15, 0.24)'); // moist humus shadow
+          g.addColorStop(1.0, 'rgba(14, 18, 15, 0.0)');
         }
         ctx.fillStyle = g;
         ctx.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
       }
+      // Fine mineral loam and rounded river-gravel specks
       for (let i = 0; i < 9000; i++) {
         const gx = (i * 197 + (i % 7) * 13) % 1024;
         const gy = (i * 353 + (i % 11) * 19) % 1024;
-        ctx.fillStyle = (i % 3 === 0) ? 'rgba(145, 160, 152, 0.05)' : 'rgba(10, 14, 12, 0.08)';
+        ctx.fillStyle = (i % 3 === 0) ? 'rgba(155, 172, 162, 0.06)' : 'rgba(10, 15, 12, 0.09)';
         ctx.fillRect(gx, gy, 2, 2);
       }
     }, 'natural-compound-ground-seamless-1024');
@@ -14200,13 +14085,34 @@ export function getHideAndSeekHtml(): string {
     naturalGroundTex.repeat.set(1, 1);
 
     const asphaltRoadTex = createProceduralTexture(512, 512, (ctx) => {
-      ctx.fillStyle = '#141920';
+      // Clean, natural rain-slicked dark tarmac (Ref Photo 1)
+      ctx.fillStyle = '#1c232c';
       ctx.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 5500; i++) {
+
+      // Soft moisture sheen gradients catching streetlamp reflections
+      for (let i = 0; i < 40; i++) {
+        const px = (i * 137) % 512;
+        const py = (i * 239) % 512;
+        const pr = 45 + (i % 55);
+        const g = ctx.createRadialGradient(px, py, 2, px, py, pr);
+        g.addColorStop(0.0, 'rgba(46, 58, 72, 0.16)');
+        g.addColorStop(1.0, 'rgba(46, 58, 72, 0.0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+      }
+
+      // Multi-scale crushed stone aggregate & bituminous binder
+      for (let i = 0; i < 6500; i++) {
         const ax = (i * 131 + (i % 5) * 7) % 512;
         const ay = (i * 257 + (i % 9) * 11) % 512;
-        ctx.fillStyle = (i % 2 === 0) ? 'rgba(110, 125, 142, 0.05)' : 'rgba(5, 8, 12, 0.10)';
-        ctx.fillRect(ax, ay, 2, 2);
+        if (i % 3 === 0) {
+          ctx.fillStyle = 'rgba(125, 144, 164, 0.08)'; // quartz fleck
+        } else if (i % 3 === 1) {
+          ctx.fillStyle = 'rgba(8, 12, 16, 0.14)'; // tar pore
+        } else {
+          ctx.fillStyle = 'rgba(64, 76, 90, 0.06)'; // granite grain
+        }
+        ctx.fillRect(ax, ay, (i % 5 === 0) ? 2 : 1.5, (i % 5 === 0) ? 2 : 1.5);
       }
     }, 'campus-asphalt-road-seamless-512');
     asphaltRoadTex.wrapS = THREE.RepeatWrapping;
@@ -14215,17 +14121,17 @@ export function getHideAndSeekHtml(): string {
     materials.asphaltRoad = new THREE.MeshStandardMaterial({
       map: asphaltRoadTex,
       bumpMap: asphaltRoadTex,
-      bumpScale: 0.010,
-      color: 0x1a2028,
-      roughness: 0.86,
-      metalness: 0.06,
+      bumpScale: 0.012,
+      color: 0x28313c,
+      roughness: 0.38, // Rain-slicked tarmac reflecting warm streetlamps (Ref Photo 1)
+      metalness: 0.14,
     });
     materials.lowerGroundDirtGravel = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,
       bumpMap: naturalGroundTex,
-      bumpScale: 0.014,
-      color: 0x1e2522,
-      roughness: 0.92,
+      bumpScale: 0.016,
+      color: 0x242d27,
+      roughness: 0.88,
       metalness: 0.02,
     });
     materials.terraceConcrete = new THREE.MeshStandardMaterial({
@@ -14233,16 +14139,16 @@ export function getHideAndSeekHtml(): string {
       bumpMap: paverTex.bumpMap,
       bumpScale: 0.045,
       roughnessMap: paverTex.roughnessMap,
-      color: 0x3a4249,
-      roughness: 0.52,
-      metalness: 0.14,
+      color: 0x3e4850,
+      roughness: 0.40, // Interlocking pavers with wet-look gloss reflecting lantern glow (Ref Photo 2)
+      metalness: 0.12,
     });
     materials.retainingRubbleStone = new THREE.MeshStandardMaterial({
       map: riverStoneTex.map,
       bumpMap: riverStoneTex.bumpMap,
       bumpScale: 0.06,
-      color: 0x222930,
-      roughness: 0.88,
+      color: 0x2a333a,
+      roughness: 0.82,
       metalness: 0.04,
     });
 
@@ -14297,9 +14203,9 @@ export function getHideAndSeekHtml(): string {
       map: naturalGroundTex,
       bumpMap: naturalGroundTex,
       bumpScale: 0.022,
-      color: 0x485258,
+      color: 0x58665f,
       vertexColors: true,
-      roughness: 0.90,
+      roughness: 0.82,
       metalness: 0.02,
     });
 
@@ -15180,11 +15086,11 @@ export function getHideAndSeekHtml(): string {
       floorY: 0.54,
       stepHeights: [0.18, 0.36],
       interiorCutoffDistance: 25.0,
-      mossAmountA: 0.65,
-      mossAmountB: 0.92,
-      glassBreakageA: 0.35,
-      glassBreakageB: 0.72,
-      vineCountUltra: 14,
+      mossAmountA: 0.0,
+      mossAmountB: 0.0,
+      glassBreakageA: 0.0,
+      glassBreakageB: 0.0,
+      vineCountUltra: 0,
       plateNumberA: 'ग १ ख ९४९१',
       plateNumberB: 'ग १ ख ७२६२',
       routeSignDevanagari: 'पोखरा',
@@ -15194,25 +15100,25 @@ export function getHideAndSeekHtml(): string {
       doorOpenAngleB: 0.42,
     };
 
-    // ── 1:1 PHOTO-ACCURATE ASHOK LEYLAND HORROR COACH TEXTURE SUITE (IMG_6025 3.JPG) ──
-    // Dedicated UV-mapped procedural textures so every panel, decal, shattered pane, and vine matches the reference photo.
+    // ── 1:1 PHOTO-ACCURATE ASHOK LEYLAND CAMPUS COACH TEXTURE SUITE (Ref Photos 1 & 2) ──
+    // Dedicated UV-mapped procedural textures with clean university livery matching the reference photos.
     function createBusMasterAtlasTex() {
       const canvas = document.createElement('canvas');
       canvas.width = 2048;
       canvas.height = 1024;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Base weathered ochre-yellow coach paint (#b9851e)
-        ctx.fillStyle = '#b9851e';
+        // Base vibrant ochre-yellow coach paint
+        ctx.fillStyle = '#dca026';
         ctx.fillRect(0, 0, 2048, 1024);
 
         // ── BAND 1 (Y: 0..420): FULL SIDE WAIST LIVERY ("GANDAKI [Crest] UNIVERSITY", Navy Stripes, Riveted Seams, Access Hatches, Yellow Notice Boards) ──
         const sideGrad = ctx.createLinearGradient(0, 0, 0, 420);
-        sideGrad.addColorStop(0.0, '#8f6312');
-        sideGrad.addColorStop(0.12, '#c48f24');
-        sideGrad.addColorStop(0.68, '#a67418');
-        sideGrad.addColorStop(0.88, '#6e490c');
-        sideGrad.addColorStop(1.0, '#2e1d08');
+        sideGrad.addColorStop(0.0, '#a5781a');
+        sideGrad.addColorStop(0.12, '#deb036');
+        sideGrad.addColorStop(0.68, '#c89524');
+        sideGrad.addColorStop(0.88, '#926310');
+        sideGrad.addColorStop(1.0, '#4e3309');
         ctx.fillStyle = sideGrad;
         ctx.fillRect(0, 0, 2048, 420);
 
@@ -15336,48 +15242,39 @@ export function getHideAndSeekHtml(): string {
         ctx.font = 'bold 12px sans-serif';
         ctx.fillText('CAMPUS SHUTTLE', 1842, 118);
 
-        // Heavy rain-runoff grime streaks, rust patches, and green moss stains across Band 1
-        for (let i = 0; i < 260; i++) {
-          const rx = (i * 89) % 2048;
-          const ry = (i * 53) % 400;
-          const rw = 6 + (i % 34);
-          const rh = 14 + (i % 65);
-          if (i % 3 === 0) {
-            ctx.fillStyle = 'rgba(42, 64, 20, 0.52)'; // green moss/algae patch
-          } else if (i % 3 === 1) {
-            ctx.fillStyle = 'rgba(72, 34, 10, 0.44)'; // rust patch
-          } else {
-            ctx.fillStyle = 'rgba(22, 16, 10, 0.36)'; // vertical soot/grime streak
-          }
+        // Clean, well-maintained bus finish with subtle automotive panel highlights
+        for (let i = 0; i < 40; i++) {
+          const rx = (i * 127) % 2048;
+          const ry = (i * 61) % 400;
+          const rw = 16 + (i % 24);
+          const rh = 8 + (i % 16);
+          ctx.fillStyle = 'rgba(255, 240, 200, 0.05)';
           ctx.fillRect(rx, ry, rw, rh);
         }
 
-        // ── BAND 2 (Y: 430..740): GENERAL WEATHERED YELLOW PAINT (Left: 0..1024) & SIGNAGE / PLATES (Right: 1024..2048) ──
+        // ── BAND 2 (Y: 430..740): GENERAL WARM YELLOW COACH PAINT (Left: 0..1024) & SIGNAGE / PLATES (Right: 1024..2048) ──
         const bodyGrad = ctx.createLinearGradient(0, 430, 0, 740);
-        bodyGrad.addColorStop(0.0, '#7c5813');
-        bodyGrad.addColorStop(0.25, '#bd8920');
-        bodyGrad.addColorStop(0.75, '#9b6c15');
-        bodyGrad.addColorStop(1.0, '#4f3409');
+        bodyGrad.addColorStop(0.0, '#a47718');
+        bodyGrad.addColorStop(0.25, '#d49b26');
+        bodyGrad.addColorStop(0.75, '#be871e');
+        bodyGrad.addColorStop(1.0, '#734e0c');
         ctx.fillStyle = bodyGrad;
         ctx.fillRect(0, 430, 1024, 310);
-        for (let i = 0; i < 160; i++) {
-          ctx.fillStyle = i % 2 === 0 ? 'rgba(48, 68, 22, 0.45)' : 'rgba(64, 32, 10, 0.42)';
-          ctx.fillRect((i * 67) % 1000, 435 + ((i * 39) % 290), 12 + (i % 28), 10 + (i % 32));
+        for (let i = 0; i < 30; i++) {
+          ctx.fillStyle = 'rgba(255, 230, 160, 0.04)';
+          ctx.fillRect((i * 67) % 1000, 435 + ((i * 39) % 290), 20 + (i % 20), 12 + (i % 16));
         }
 
         // Top Destination Board (X: 1040..1820, Y: 440..545): "GP62 | GANDAKI UNIVERSITY"
-        ctx.fillStyle = '#22262c';
+        ctx.fillStyle = '#1e242d';
         ctx.fillRect(1040, 440, 780, 105);
         ctx.strokeStyle = '#94a3b8';
         ctx.lineWidth = 6;
         ctx.strokeRect(1044, 444, 772, 97);
-        ctx.fillStyle = '#cbd5e1';
+        ctx.fillStyle = '#e2e8f0';
         ctx.font = 'bold 54px "Arial Narrow", sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText((busConfig.fleetCodeA || 'GP62') + '  |  GANDAKI UNIVERSITY', 1068, 512);
-        // Moss stain over left GP62 corner
-        ctx.fillStyle = 'rgba(48, 72, 22, 0.58)';
-        ctx.fillRect(1048, 446, 175, 48);
 
         // Roof Cant-Rail Fleet Stencil "GP62" (X: 1840..2030, Y: 445..535)
         ctx.fillStyle = '#b07e1b';
@@ -15443,17 +15340,18 @@ export function getHideAndSeekHtml(): string {
         ctx.font = 'bold 36px sans-serif';
         ctx.fillText('गण्डकी • पोखरा', 1830, 710);
 
-        // ── BAND 3 (Y: 750..1024): INTERIOR TORN BLUE-GREEN SEAT VINYL (Left) & RIBBED RUBBER FLOOR MAT (Right) ──
-        ctx.fillStyle = '#2b474b';
+        // ── BAND 3 (Y: 750..1024): INTERIOR CLEAN BLUE-GREEN SEAT FABRIC (Left) & RIBBED RUBBER FLOOR MAT (Right) ──
+        ctx.fillStyle = '#1e333a';
         ctx.fillRect(0, 750, 1024, 274);
-        for (let i = 0; i < 120; i++) {
-          ctx.fillStyle = i % 2 === 0 ? 'rgba(148, 136, 114, 0.36)' : 'rgba(16, 26, 28, 0.48)';
-          ctx.fillRect((i * 53) % 990, 755 + ((i * 29) % 250), 18 + (i % 24), 12 + (i % 18));
+        for (let i = 0; i < 60; i++) {
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(38, 58, 64, 0.45)' : 'rgba(18, 30, 36, 0.45)';
+          ctx.fillRect((i * 53) % 990, 755 + ((i * 29) % 250), 22 + (i % 20), 16 + (i % 16));
         }
-        // Exposed yellow foam gashes on torn seats
-        ctx.fillStyle = '#8c7248';
-        ctx.fillRect(180, 810, 22, 95);
-        ctx.fillRect(640, 835, 28, 84);
+        // Neat stitched seam accent along cushions
+        ctx.strokeStyle = 'rgba(70, 100, 115, 0.40)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(40, 780, 440, 200);
+        ctx.strokeRect(520, 780, 440, 200);
 
         // Ribbed dark rubber floor mat (X: 1024..2048, Y: 750..1024)
         ctx.fillStyle = '#1c1e21';
@@ -15470,7 +15368,7 @@ export function getHideAndSeekHtml(): string {
       return tex;
     }
 
-    // Dedicated Shattered Windshield & Broken Side Window Texture with Alpha Cutout Holes
+    // Clean Architectural Vehicle Glass Texture with Clear Stencils (Ref Photos 1 & 2)
     function createBusShatteredGlassTex() {
       const canvas = document.createElement('canvas');
       canvas.width = 1024;
@@ -15478,66 +15376,29 @@ export function getHideAndSeekHtml(): string {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, 1024, 512);
-        // Base dirty smoky glass fill
-        ctx.fillStyle = 'rgba(44, 50, 56, 0.82)';
+        // Clean tinted translucent safety glass
+        ctx.fillStyle = 'rgba(28, 40, 54, 0.72)';
         ctx.fillRect(0, 0, 1024, 512);
 
-        // Grime streaks & dust mottling on glass
-        for (let i = 0; i < 180; i++) {
-          ctx.fillStyle = i % 2 === 0 ? 'rgba(96, 88, 74, 0.34)' : 'rgba(18, 22, 26, 0.42)';
-          ctx.fillRect((i * 47) % 1024, (i * 31) % 512, 16 + (i % 36), 24 + (i % 48));
-        }
+        // Soft ambient reflection gradient across glass panes
+        const gGrad = ctx.createLinearGradient(0, 0, 0, 512);
+        gGrad.addColorStop(0.0, 'rgba(160, 195, 230, 0.15)');
+        gGrad.addColorStop(0.5, 'rgba(60, 90, 120, 0.05)');
+        gGrad.addColorStop(1.0, 'rgba(20, 35, 50, 0.18)');
+        ctx.fillStyle = gGrad;
+        ctx.fillRect(0, 0, 1024, 512);
 
-        // Left Windshield Pane (X: 0..320, Y: 0..512): Top "GANDAKI" Stencil + Bottom Sinhala/Nepali Stencil + Jagged Center Hole
-        ctx.fillStyle = 'rgba(226, 232, 240, 0.86)';
+        // Left Windshield Pane (X: 0..320, Y: 0..512): Top "GANDAKI" Stencil + Bottom Nepali Stencil
+        ctx.fillStyle = 'rgba(235, 242, 250, 0.90)';
         ctx.font = 'bold 48px "Arial Narrow", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('GANDAKI', 160, 74);
         ctx.font = 'bold 18px sans-serif';
         ctx.fillText('गण्डकी विश्वविद्यालय - १२००', 160, 478);
 
-        // Right Windshield Pane (X: 320..640, Y: 0..512): Top "UNIVERSITY" Stencil + Jagged Center Hole
+        // Right Windshield Pane (X: 320..640, Y: 0..512): Top "UNIVERSITY" Stencil
         ctx.font = 'bold 46px "Arial Narrow", sans-serif';
         ctx.fillText('UNIVERSITY', 480, 74);
-
-        // Punch out jagged shattered holes (alpha = 0) in Left Windshield, Right Windshield, and Broken Side Window Pane (X: 640..832)
-        ctx.save();
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(0,0,0,1)';
-        [
-          // Left windshield jagged hole
-          [[58, 130], [115, 108], [185, 122], [255, 112], [272, 210], [248, 340], [268, 420], [190, 438], [112, 425], [48, 390], [66, 260]],
-          // Right windshield jagged hole
-          [[368, 126], [440, 104], [528, 118], [595, 135], [582, 265], [602, 395], [535, 432], [445, 418], [362, 405], [380, 275]],
-          // Broken side window pane hole (X: 640..832)
-          [[675, 150], [735, 115], [798, 155], [812, 275], [785, 395], [720, 415], [668, 365], [658, 245]],
-        ].forEach(poly => {
-          ctx.beginPath();
-          poly.forEach(([px, py], idx) => {
-            if (idx === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-          });
-          ctx.closePath();
-          ctx.fill();
-        });
-        ctx.restore();
-
-        // Draw bright fracture crack lines around the jagged hole perimeters
-        ctx.strokeStyle = 'rgba(203, 213, 225, 0.75)';
-        ctx.lineWidth = 2.5;
-        [
-          [[58, 130], [115, 108], [185, 122], [255, 112], [272, 210], [248, 340], [268, 420], [190, 438], [112, 425], [48, 390], [66, 260]],
-          [[368, 126], [440, 104], [528, 118], [595, 135], [582, 265], [602, 395], [535, 432], [445, 418], [362, 405], [380, 275]],
-          [[675, 150], [735, 115], [798, 155], [812, 275], [785, 395], [720, 415], [668, 365], [658, 245]],
-        ].forEach(poly => {
-          ctx.beginPath();
-          poly.forEach(([px, py], idx) => {
-            if (idx === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-          });
-          ctx.closePath();
-          ctx.stroke();
-        });
       }
       const tex = new THREE.CanvasTexture(canvas);
       tex.needsUpdate = true;
@@ -15552,39 +15413,26 @@ export function getHideAndSeekHtml(): string {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, 512, 512);
-        // Top half (Y: 0..260): Dense moss mat with irregular organic lower fringe
-        for (let i = 0; i < 420; i++) {
-          const mx = (i * 37) % 512;
-          const my = (i * 19) % 210;
-          const mr = 8 + (i % 18);
-          ctx.fillStyle = i % 3 === 0 ? '#2d4418' : (i % 3 === 1 ? '#3f5c22' : '#1e2f0f');
-          ctx.beginPath();
-          ctx.arc(mx, my, mr, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        // Hanging vine stems & pointed ivy/creeper leaves (Y: 40..500)
-        for (let s = 0; s < 18; s++) {
-          const baseX = 14 + s * 28;
-          const maxLen = 220 + ((s * 67) % 260);
+        // Soft lush creeping vine stems & pointed leaves
+        for (let s = 0; s < 12; s++) {
+          const baseX = 24 + s * 40;
+          const maxLen = 140 + ((s * 53) % 180);
           ctx.strokeStyle = '#263814';
-          ctx.lineWidth = 3.5;
+          ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.moveTo(baseX, 20);
-          for (let y = 40; y <= maxLen; y += 24) {
-            const sway = Math.sin(y * 0.04 + s) * 10;
+          ctx.moveTo(baseX, 10);
+          for (let y = 30; y <= maxLen; y += 24) {
+            const sway = Math.sin(y * 0.04 + s) * 8;
             ctx.lineTo(baseX + sway, y);
           }
           ctx.stroke();
 
-          // Pointed creeper leaves along each stem
-          for (let y = 36; y <= maxLen; y += 16) {
-            const sway = Math.sin(y * 0.04 + s) * 10;
-            const lx = baseX + sway + ((y % 32 === 0) ? -9 : 9);
-            const lw = 11 + ((s + y) % 9);
-            const lh = 15 + ((s * 3 + y) % 10);
-            ctx.fillStyle = (y + s) % 3 === 0 ? '#3a571f' : ((y + s) % 3 === 1 ? '#4d6b28' : '#243812');
+          for (let y = 30; y <= maxLen; y += 18) {
+            const sway = Math.sin(y * 0.04 + s) * 8;
+            const lx = baseX + sway + ((y % 36 === 0) ? -8 : 8);
+            ctx.fillStyle = (y + s) % 2 === 0 ? '#385621' : '#496c2a';
             ctx.beginPath();
-            ctx.ellipse(lx, y, lw * 0.55, lh * 0.55, ((y % 32 === 0) ? -0.45 : 0.45), 0, Math.PI * 2);
+            ctx.ellipse(lx, y, 6, 8, ((y % 36 === 0) ? -0.4 : 0.4), 0, Math.PI * 2);
             ctx.fill();
           }
         }
@@ -15596,7 +15444,7 @@ export function getHideAndSeekHtml(): string {
       return tex;
     }
 
-    // Procedural Sheet-Metal Dent, Rivet & Rust-Pit Bump/Roughness Map (512x256)
+    // Procedural Sheet-Metal Seams & Rivet Row Bump Map (512x256)
     function createBusDentBumpTex() {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
@@ -15607,22 +15455,13 @@ export function getHideAndSeekHtml(): string {
         ctx.fillRect(0, 0, 512, 256);
         // Vertical panel seams & raised rivet rows
         for (let x = 32; x < 512; x += 64) {
-          ctx.fillStyle = '#383838';
+          ctx.fillStyle = '#484848';
           ctx.fillRect(x, 0, 2, 256);
-          ctx.fillStyle = '#d8d8d8';
+          ctx.fillStyle = '#c0c0c0';
           for (let y = 8; y < 256; y += 14) {
             ctx.fillRect(x - 3, y, 2, 2);
             ctx.fillRect(x + 2, y, 2, 2);
           }
-        }
-        // Concave sheet-metal dents, impact creases & rust pitting
-        for (let i = 0; i < 95; i++) {
-          const dx = (i * 59) % 490;
-          const dy = (i * 41) % 240;
-          const dw = 10 + (i % 28);
-          const dh = 6 + (i % 22);
-          ctx.fillStyle = i % 2 === 0 ? 'rgba(28,28,28,0.55)' : 'rgba(215,215,215,0.45)';
-          ctx.fillRect(dx, dy, dw, dh);
         }
       }
       const tex = new THREE.CanvasTexture(canvas);
@@ -15637,21 +15476,21 @@ export function getHideAndSeekHtml(): string {
     const busFoliageVineTex = createBusFoliageVineTex();
     const busDentBumpTex = createBusDentBumpTex();
 
-    // Shared Bus Materials (with real bump-mapped sheet-metal dents & rivets)
+    // Shared Bus Materials (with clean automotive specular response matching Ref Photos 1 & 2)
     const busExteriorPaintMat = new THREE.MeshStandardMaterial({
-      color: 0xd8a63a,
+      color: 0xdfa028,
       map: busMasterAtlasTex,
       bumpMap: busDentBumpTex,
-      bumpScale: 0.046,
-      roughness: 0.74,
-      metalness: 0.22,
+      bumpScale: 0.018,
+      roughness: 0.42, // Smooth automotive paint reflecting streetlamps
+      metalness: 0.18,
     });
     const busDarkTrimMat = new THREE.MeshStandardMaterial({
-      color: 0x1a2028,
+      color: 0x181e26,
       bumpMap: busDentBumpTex,
-      bumpScale: 0.025,
-      roughness: 0.64,
-      metalness: 0.42,
+      bumpScale: 0.016,
+      roughness: 0.54,
+      metalness: 0.38,
     });
     const busChromeTrimMat = new THREE.MeshStandardMaterial({
       color: 0xc8d2dc,
@@ -15659,24 +15498,23 @@ export function getHideAndSeekHtml(): string {
       metalness: 0.84,
     });
     const busDirtyGlassMat = new THREE.MeshStandardMaterial({
-      color: 0xdbe4ee,
+      color: 0xc4d8e8,
       map: busShatteredGlassTex,
-      roughness: 0.22,
-      metalness: 0.18,
+      roughness: 0.12,
+      metalness: 0.22,
       transparent: true,
-      alphaTest: 0.18,
-      opacity: 0.86,
+      opacity: 0.60,
       side: THREE.DoubleSide,
     });
     const busMossVineMat = new THREE.MeshStandardMaterial({
       color: 0x84a955,
       map: busFoliageVineTex,
       bumpMap: busFoliageVineTex,
-      bumpScale: 0.035,
-      roughness: 0.92,
+      bumpScale: 0.02,
+      roughness: 0.90,
       metalness: 0.04,
-      alphaTest: 0.24,
       transparent: true,
+      opacity: 0.0, // Bus kept clean and well maintained as in reference photos
       side: THREE.DoubleSide,
     });
     const busHeadlightEmissiveMat = new THREE.MeshStandardMaterial({
@@ -15691,7 +15529,7 @@ export function getHideAndSeekHtml(): string {
       emissiveIntensity: 0.55,
       roughness: 0.32,
     });
-    // Blinking Warm Amber & Blood-Red Horror Ceiling Tube Materials
+    // Warm Welcoming Interior Bus Lighting Materials
     const busWarmTubeBaseMat = new THREE.MeshStandardMaterial({
       color: 0xffe4b5,
       emissive: 0xff9922,
@@ -15699,9 +15537,9 @@ export function getHideAndSeekHtml(): string {
       roughness: 0.25,
     });
     const busRedTubeBaseMat = new THREE.MeshStandardMaterial({
-      color: 0xffb4b4,
-      emissive: 0xff1e1e,
-      emissiveIntensity: 1.45,
+      color: 0xffedd0,
+      emissive: 0xffa836,
+      emissiveIntensity: 1.35,
       roughness: 0.25,
     });
     const busWarmGlowBaseMat = new THREE.MeshBasicMaterial({
@@ -15712,9 +15550,9 @@ export function getHideAndSeekHtml(): string {
       side: THREE.DoubleSide,
     });
     const busRedGlowBaseMat = new THREE.MeshBasicMaterial({
-      color: 0xef4444,
+      color: 0xffa234,
       transparent: true,
-      opacity: 0.16,
+      opacity: 0.12,
       depthWrite: false,
       side: THREE.DoubleSide,
     });

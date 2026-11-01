@@ -41,12 +41,12 @@ export const HORROR_CONFIG = {
     enabled: true,
     shadowTint: [0.04, 0.11, 0.19],     // Deep nocturnal indigo-slate shadows
     highlightTint: [1.14, 0.81, 0.44],  // Warm 1950K Tihar diyo golden-orange highlights
-    saturation: 0.88,                   // Richer festive marigold & Jhilimili color fidelity while keeping nighttime depth
-    contrast: 1.16,                     // Crisp S-curve contrast between lit focal areas and dark nighttime surroundings
+    saturation: 1.02,                   // Rich festive marigold, Jhilimili & architectural color fidelity
+    contrast: 1.10,                     // Balanced S-curve contrast between lit campus areas and dark surroundings
     blackLift: 0.016,                   // Deep, natural night blacks without crushing silhouette readability
-    vignette: 0.44,                     // Subtle nocturnal edge framing
-    grain: 0.032,                       // Subtle organic low-light sensor grain
-    edgeDesat: 0.20,                    // Gentle peripheral desaturation
+    vignette: 0.25,                     // Subtle nocturnal edge framing
+    grain: 0.010,                       // Clean modern sensor clarity
+    edgeDesat: 0.05,                    // Rich color fidelity across the entire viewport
     bloomStrength: 0.26,                // 5-tap Kawase soft optical bloom around high-luminance diyos & Jhilimili bulbs
     bloomThreshold: 0.68,               // Luminance threshold for warm festival highlight bloom
     microContrast: 0.22,                // Unsharp midtone micro-contrast for brick/stone/wood relief
@@ -54,7 +54,7 @@ export const HORROR_CONFIG = {
     lampColor: 0xff8a2a,                // #ff8a2a warm orange lamp light
     poolOpacity: 0.28,                  // Warm ground light pool opacity
     fogColor: 0x08131d,                 // Deep Himalayan autumn night fog
-    materialDarknessMultiplier: 0.62,   // Realistic nighttime albedo response on unlit walls & roofs
+    materialDarknessMultiplier: 0.98,   // Natural, clean architectural albedo response on unlit walls & roofs
     fpsGuardThreshold: 40,              // Auto-disable grade pass if avg FPS < 40 for 3s
     fpsGuardWindowSec: 3.0,
     stylizedPs1Mode: false,             // Optional PS1-style 0.7x pixel ratio + dither/grain mode
@@ -202,23 +202,23 @@ export const HORROR_CONFIG = {
       flickerType: 'warm_filament',
     },
     emergency_red: {
-      ambientColor: 0x180608,
+      ambientColor: 0x18120c,
       ambientMult: 0.52,
-      color: 0xff2222,
-      lightColor: 0xff2222,
-      intensity: 4.5,
-      lightIntensity: 4.5,
+      color: 0xffaa3c,
+      lightColor: 0xffaa3c,
+      intensity: 4.2,
+      lightIntensity: 4.2,
       distance: 11.5,
       lightDistance: 11.5,
-      flickerType: 'emergency_pulse',
+      flickerType: 'warm_filament',
     },
     '101': { mood: 'dying_tube', color: 0xcbe4f5, intensity: 3.8, ambientScale: 0.14, tubeFlicker: true, moonlightShafts: true },
     '102': { mood: 'warm_lamp', color: 0xe6a152, intensity: 4.0, ambientScale: 0.16, tubeFlicker: false, moonlightShafts: true },
     '201': { mood: 'moonlight', color: 0x82acc9, intensity: 2.8, ambientScale: 0.14, tubeFlicker: false, moonlightShafts: true },
     '202': { mood: 'warm_lamp', color: 0xd99445, intensity: 3.8, ambientScale: 0.16, tubeFlicker: true, moonlightShafts: true },
     '301': { mood: 'dark', color: 0x3b5263, intensity: 0.0, ambientScale: 0.10, tubeFlicker: true, moonlightShafts: true },
-    '302': { mood: 'emergency_red', color: 0xc92a2a, intensity: 4.0, ambientScale: 0.14, tubeFlicker: true, moonlightShafts: false },
-    'atrium': { mood: 'dying_tube', color: 0xd8a060, intensity: 3.4, ambientScale: 0.18, tubeFlicker: true, moonlightShafts: true },
+    '302': { mood: 'warm_lamp', color: 0xe6a152, intensity: 4.0, ambientScale: 0.16, tubeFlicker: false, moonlightShafts: true },
+    'atrium': { mood: 'warm_lamp', color: 0xd8a060, intensity: 3.4, ambientScale: 0.18, tubeFlicker: true, moonlightShafts: true },
   },
   tension: {
     baseBreathingAmp: 0.012,

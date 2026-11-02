@@ -67,6 +67,11 @@ async function captureVerificationViews() {
 
   const shots = [
     {
+      name: 'himalaya_user_courtyard_match.png',
+      desc: 'Exact viewpoint from user in-game screenshot media_1793608178805_4bc9d387.jpg',
+      x: -20.0, y: 1.6, z: -22.0, yaw: 0.35, pitch: 0.12
+    },
+    {
       name: 'himalaya_01_courtyard_north.png',
       desc: 'Courtyard facing North towards Machapuchare and Annapurnas',
       x: -20.0, y: 2.8, z: -15.0, yaw: 0.0, pitch: 0.12

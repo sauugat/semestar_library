@@ -4276,16 +4276,16 @@ export function getHideAndSeekHtml(): string {
             depthWrite: false
           })
         );
-        // Rotate so Machapuchare and Annapurnas face North-North-East (~12.7 deg East of North)
-        skySphere.rotation.y = 1.38;
+        // Rotate so Machhapuchhre and Annapurna range sit centered directly above courtyard building (matches reference screenshot)
+        skySphere.rotation.y = Math.PI - 0.22;
         skySphere.renderOrder = -10;
         this.skyGroup.add(skySphere);
 
         // ---------------------------------------------------------------------
-        // 2. HIGH-PRECISION 3D CELESTIAL STARFIELD (Immune to UV distortion!)
-        // Strictly placed in the overhead celestial vault - ZERO stars on mountains!
+        // 2. NATURAL HIMALAYAN CELESTIAL STARFIELD (Strictly overhead in zenith void)
+        // High overhead (phi <= 0.35 rad) - ZERO stars on mountains or twilight sky!
         // ---------------------------------------------------------------------
-        const starCount = 950;
+        const starCount = 650;
         const starGeom = new THREE.BufferGeometry();
         const starPositions = new Float32Array(starCount * 3);
         const starColors = new Float32Array(starCount * 3);
@@ -4295,56 +4295,6 @@ export function getHideAndSeekHtml(): string {
         const R_STAR = 176.0;
         let sIdx = 0;
 
-        // 2A. Real Himalayan Constellations (All positioned high in the overhead sky)
-        const constellations = [
-          // Ursa Major (Saptarishi / Big Dipper - overhead northern celestial sky)
-          { name: 'Dubhe',      theta: -0.85, phi: 0.38, color: [1.0, 0.88, 0.65], size: 2.8 },
-          { name: 'Merak',      theta: -0.82, phi: 0.42, color: [0.92, 0.95, 1.0], size: 2.6 },
-          { name: 'Phecda',     theta: -0.92, phi: 0.45, color: [0.92, 0.95, 1.0], size: 2.5 },
-          { name: 'Megrez',     theta: -0.96, phi: 0.41, color: [0.90, 0.94, 1.0], size: 2.2 },
-          { name: 'Alioth',     theta: -1.06, phi: 0.39, color: [0.92, 0.95, 1.0], size: 2.8 },
-          { name: 'Mizar',      theta: -1.14, phi: 0.36, color: [0.92, 0.95, 1.0], size: 2.7 },
-          { name: 'Alkaid',     theta: -1.24, phi: 0.32, color: [0.80, 0.88, 1.0], size: 2.8 },
-
-          // Polaris (North Star / Dhruva Tara - high overhead)
-          { name: 'Polaris',    theta: -0.84, phi: 0.28, color: [1.0, 0.96, 0.88], size: 3.0 },
-
-          // Cassiopeia (The Queen 'W' - high celestial vault)
-          { name: 'Schedar',    theta: 0.35,  phi: 0.32, color: [1.0, 0.85, 0.60], size: 2.7 },
-          { name: 'Caph',       theta: 0.28,  phi: 0.35, color: [0.95, 0.96, 1.0], size: 2.5 },
-          { name: 'Gamma Cas',  theta: 0.41,  phi: 0.30, color: [0.85, 0.92, 1.0], size: 2.6 },
-          { name: 'Ruchbah',    theta: 0.48,  phi: 0.33, color: [0.92, 0.95, 1.0], size: 2.4 },
-          { name: 'Segin',      theta: 0.55,  phi: 0.29, color: [0.88, 0.92, 1.0], size: 2.3 },
-
-          // Vega & Altair & Cygnus overhead
-          { name: 'Vega',       theta: -1.65, phi: 0.32, color: [0.88, 0.94, 1.0], size: 3.4 },
-          { name: 'Deneb',      theta: -1.45, phi: 0.26, color: [0.90, 0.94, 1.0], size: 2.9 },
-          { name: 'Altair',     theta: -1.85, phi: 0.44, color: [0.95, 0.96, 1.0], size: 2.9 },
-
-          // Southern celestial sky (facing away from the mountain)
-          { name: 'Betelgeuse', theta: 1.85,  phi: 0.62, color: [1.0, 0.68, 0.45], size: 3.0 },
-          { name: 'Rigel',      theta: 1.98,  phi: 0.66, color: [0.75, 0.88, 1.0],  size: 2.8 },
-          { name: 'Sirius',     theta: 2.15,  phi: 0.68, color: [0.85, 0.94, 1.0],  size: 3.6 },
-        ];
-
-        constellations.forEach(st => {
-          if (sIdx < starCount) {
-            const spX = R_STAR * Math.sin(st.phi) * Math.cos(st.theta);
-            const spY = R_STAR * Math.cos(st.phi);
-            const spZ = R_STAR * Math.sin(st.phi) * Math.sin(st.theta);
-            starPositions[sIdx * 3 + 0] = spX;
-            starPositions[sIdx * 3 + 1] = spY;
-            starPositions[sIdx * 3 + 2] = spZ;
-            starColors[sIdx * 3 + 0] = st.color[0];
-            starColors[sIdx * 3 + 1] = st.color[1];
-            starColors[sIdx * 3 + 2] = st.color[2];
-            starSizes[sIdx] = st.size;
-            starPhases[sIdx] = sIdx * 1.73;
-            sIdx++;
-          }
-        });
-
-        // 2B. Natural Himalayan Autumn Star Field (strictly overhead in the celestial vault)
         while (sIdx < starCount) {
           const h1 = Math.sin(sIdx * 127.1 + 311.7) * 43758.5453;
           const h2 = Math.sin(sIdx * 269.5 + 183.3) * 43758.5453;
@@ -4352,11 +4302,9 @@ export function getHideAndSeekHtml(): string {
           const v = h2 - Math.floor(h2);
 
           const theta = u * Math.PI * 2.0 - Math.PI;
-          // Towards North (where Annapurna massif stands), keep phi <= 0.48 rad (elevation > +62 deg)
-          // Elsewhere, keep phi <= 0.66 rad (elevation > +52 deg). Never touches mountains!
-          const isNorth = (theta > -2.9 && theta < -0.2);
-          const maxPhi = isNorth ? 0.46 : 0.64;
-          const phi = Math.pow(v, 1.8) * (maxPhi - 0.05) + 0.05;
+          // Strictly overhead in celestial zenith: phi <= 0.32 rad (elevation > +72 deg). Never touches mountains or twilight sky!
+          const maxPhi = 0.32;
+          const phi = Math.pow(v, 1.6) * (maxPhi - 0.04) + 0.04;
 
           const spX = R_STAR * Math.sin(phi) * Math.cos(theta);
           const spY = R_STAR * Math.cos(phi);
@@ -4368,13 +4316,13 @@ export function getHideAndSeekHtml(): string {
 
           const tempType = sIdx % 10;
           let r = 0.92, g = 0.95, b = 1.0;
-          let sz = 1.1 + (sIdx % 5) * 0.28;
+          let sz = 0.90 + (sIdx % 5) * 0.22;
           if (tempType === 0 || tempType === 1) {
-            r = 0.78; g = 0.88; b = 1.00; sz *= 1.10;
+            r = 0.78; g = 0.88; b = 1.00; sz *= 1.05;
           } else if (tempType === 2) {
-            r = 1.00; g = 0.92; b = 0.72; sz *= 1.15;
+            r = 1.00; g = 0.92; b = 0.75; sz *= 1.08;
           } else if (tempType === 3) {
-            r = 1.00; g = 0.74; b = 0.50; sz *= 1.20;
+            r = 1.00; g = 0.78; b = 0.55; sz *= 1.10;
           } else {
             r = 0.96; g = 0.98; b = 1.00;
           }
@@ -4411,10 +4359,10 @@ export function getHideAndSeekHtml(): string {
 
         const starMaterial = new THREE.PointsMaterial({
           map: starTexture,
-          size: 1.35,
+          size: 0.95,
           vertexColors: true,
           transparent: true,
-          opacity: 0.90,
+          opacity: 0.70,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
           fog: false,
@@ -4436,6 +4384,7 @@ export function getHideAndSeekHtml(): string {
         };
 
         const starPoints = new THREE.Points(starGeom, starMaterial);
+        starPoints.rotation.y = skySphere.rotation.y;
         starPoints.renderOrder = -12;
         this.skyGroup.add(starPoints);
 
@@ -5812,64 +5761,47 @@ export function getHideAndSeekHtml(): string {
           }
         }
       } else if (type === 'pale-campus-stucco') {
-        // Natural Clean Cream/Beige Architectural Board-and-Batten & Stucco Wall (Ref Photos 1 & 2!)
-        ctx.fillStyle = '#eee7d8';
+        // Natural Clean Warm Cream/Beige Architectural Stucco Wall (Matching Ref Photos 3 & 4!)
+        // Soft matte plaster finish with subtle natural mineral grain (zero harsh corrugated foil stripes)
+        ctx.fillStyle = '#eee8dc';
         ctx.fillRect(0, 0, 512, 512);
         bCtx.fillStyle = '#808080';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#9c9c9c';
+        rCtx.fillStyle = '#e8e8e8'; // High roughness (0.91) for realistic matte non-reflective architectural stucco
         rCtx.fillRect(0, 0, 512, 512);
 
-        // Natural fine lime/mineral micro-texture
-        for (let i = 0; i < 3200; i++) {
+        // Soft natural fine plaster/lime micro-texture
+        for (let i = 0; i < 4000; i++) {
           const sx = (i * 97 + (i % 7) * 13) % 512;
           const sy = (i * 173 + (i % 11) * 19) % 512;
-          ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 252, 245, 0.18)' : 'rgba(80, 70, 60, 0.05)';
-          ctx.fillRect(sx, sy, 2 + (i % 2), 2 + (i % 2));
-          bCtx.fillStyle = (i % 2 === 0) ? '#8c8c8c' : '#747474';
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 252, 246, 0.12)' : 'rgba(120, 105, 90, 0.04)';
+          ctx.fillRect(sx, sy, 2, 2);
+          bCtx.fillStyle = (i % 2 === 0) ? '#848484' : '#7c7c7c';
           bCtx.fillRect(sx, sy, 2, 2);
         }
 
-        // Clean vertical architectural board-and-batten siding (spaced every 48px, matching pavilion buildings in ref photos!)
-        for (let x = 0; x < 512; x += 48) {
-          // Subtle panel shadow seam
-          ctx.fillStyle = 'rgba(75, 65, 55, 0.18)';
-          ctx.fillRect(x - 1, 0, 2, 512);
-          // Batten strip
-          ctx.fillStyle = '#f5efe4';
-          ctx.fillRect(x + 1, 0, 5, 512);
-          // Batten highlight edge
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
-          ctx.fillRect(x + 1, 0, 1.5, 512);
-          // Batten right shadow edge
-          ctx.fillStyle = 'rgba(60, 50, 40, 0.14)';
-          ctx.fillRect(x + 6, 0, 1.5, 512);
+        // Clean subtle horizontal architectural lap/wainscot seams (spaced every 64px, matching Ref Photos 3 & 4)
+        for (let y = 0; y < 512; y += 64) {
+          // Soft subtle shadow groove
+          ctx.fillStyle = 'rgba(80, 70, 60, 0.10)';
+          ctx.fillRect(0, y, 512, 1.5);
+          // Soft subtle highlight edge
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+          ctx.fillRect(0, y + 1.5, 512, 1.2);
 
-          bCtx.fillStyle = '#484848';
-          bCtx.fillRect(x - 1, 0, 2, 512);
-          bCtx.fillStyle = '#b0b0b0';
-          bCtx.fillRect(x + 1, 0, 5, 512);
+          bCtx.fillStyle = '#7a7a7a';
+          bCtx.fillRect(0, y, 512, 1.5);
+          bCtx.fillStyle = '#868686';
+          bCtx.fillRect(0, y + 1.5, 512, 1.2);
         }
-
-        // Horizontal architectural trim bands (clean floor/wainscot trim)
-        [128, 384].forEach(ty => {
-          ctx.fillStyle = 'rgba(70, 60, 50, 0.16)';
-          ctx.fillRect(0, ty - 1, 512, 2);
-          ctx.fillStyle = '#f2ece0';
-          ctx.fillRect(0, ty + 1, 512, 4);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-          ctx.fillRect(0, ty + 1, 512, 1.5);
-          bCtx.fillStyle = '#a8a8a8';
-          bCtx.fillRect(0, ty + 1, 512, 4);
-        });
       } else if (type === 'interlocking-pavers') {
-        // Authentic Rain-Slicked Interlocking Courtyard Pavers (Ref Photo 2!)
-        // Clean rectangular paving stones with crisp mortar bevels and warm lantern specular reflections
-        ctx.fillStyle = '#1c222a'; // Deep clean mortar background
+        // Authentic Warm Interlocking Courtyard Pavers (Ref Photo 4!)
+        // Clean rectangular paving stones with crisp mortar joints and soft warm lantern diffuse response
+        ctx.fillStyle = '#1e242c'; // Deep clean mortar background
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#141414';
+        bCtx.fillStyle = '#656565';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#585858';
+        rCtx.fillStyle = '#b0b0b0';
         rCtx.fillRect(0, 0, 512, 512);
 
         const paverW = 48;
@@ -5880,11 +5812,11 @@ export function getHideAndSeekHtml(): string {
           const off = (rowIdx % 2) * (paverW * 0.5);
           for (let x = -paverW; x < 512 + paverW; x += paverW) {
             const seed = Math.abs(Math.floor(x * 19 + y * 31));
-            // Warm charcoal-slate tone with subtle terracotta/stone variation
-            const toneVar = (seed % 28) - 14;
-            const r = Math.min(115, Math.max(55, 76 + toneVar));
-            const g = Math.min(125, Math.max(62, 84 + toneVar + (seed % 4)));
-            const b = Math.min(138, Math.max(70, 94 + toneVar + (seed % 6)));
+            // Warm charcoal-slate tone with subtle earthy terracotta hue (Ref Photo 4)
+            const toneVar = (seed % 24) - 12;
+            const r = Math.min(135, Math.max(70, 92 + toneVar));
+            const g = Math.min(138, Math.max(72, 95 + toneVar + (seed % 4)));
+            const b = Math.min(148, Math.max(78, 102 + toneVar + (seed % 6)));
 
             const px = x + off + mortar * 0.5;
             const py = y + mortar * 0.5;
@@ -5895,23 +5827,21 @@ export function getHideAndSeekHtml(): string {
             ctx.fillRect(px, py, pw, ph);
 
             // Bevel highlights on top and left edges catching ambient/lantern light
-            ctx.fillStyle = 'rgba(235, 242, 252, 0.22)';
-            ctx.fillRect(px, py, pw, 1.8);
-            ctx.fillRect(px, py, 1.8, ph);
+            ctx.fillStyle = 'rgba(235, 242, 252, 0.16)';
+            ctx.fillRect(px, py, pw, 1.5);
+            ctx.fillRect(px, py, 1.5, ph);
 
             // Subtle bottom and right bevel shadow
-            ctx.fillStyle = 'rgba(12, 16, 22, 0.45)';
-            ctx.fillRect(px, py + ph - 1.8, pw, 1.8);
-            ctx.fillRect(px + pw - 1.8, py, 1.8, ph);
+            ctx.fillStyle = 'rgba(12, 16, 22, 0.35)';
+            ctx.fillRect(px, py + ph - 1.5, pw, 1.5);
+            ctx.fillRect(px + pw - 1.5, py, 1.5, ph);
 
-            // Bump map: raised smooth paver body with recessed mortar joint
-            bCtx.fillStyle = '#c8d0d8';
+            // Bump map: smooth paver body (#969696) with recessed mortar (#656565)
+            bCtx.fillStyle = '#969696';
             bCtx.fillRect(px + 1, py + 1, pw - 2, ph - 2);
 
-            // Roughness map: rain-slicked specular sheen reflecting warm lanterns (Ref Photo 2!)
-            // Low roughness (0.28 - 0.40) for gorgeous wet reflection
-            const isGlossPuddle = (seed % 5) === 0;
-            const roughVal = isGlossPuddle ? 45 : (75 + (seed % 20));
+            // Roughness map: uniform realistic stone roughness (~0.72) for soft, cohesive warm sheen (NO mirror specular dots!)
+            const roughVal = 180 + (seed % 20);
             rCtx.fillStyle = 'rgb(' + roughVal + ',' + roughVal + ',' + roughVal + ')';
             rCtx.fillRect(px, py, pw, ph);
           }
@@ -7121,9 +7051,9 @@ export function getHideAndSeekHtml(): string {
       campusStucco: new THREE.MeshStandardMaterial({
         map: stuccoTex.map,
         bumpMap: stuccoTex.bumpMap,
-        bumpScale: 0.005,
-        color: 0xeee7d8,
-        roughness: 0.88,
+        bumpScale: 0.001,
+        color: 0xf0ebe1,
+        roughness: 0.94,
         metalness: 0.0,
         side: THREE.DoubleSide,
       }),
@@ -7132,13 +7062,13 @@ export function getHideAndSeekHtml(): string {
         bumpMap: scuffedFloorTex.bumpMap,
         bumpScale: 0.015,
         color: 0xc4ced8,
-        roughness: 0.55,
-        metalness: 0.04,
+        roughness: 0.65,
+        metalness: 0.02,
       }),
       interlockingPavers: new THREE.MeshStandardMaterial({
         map: paverTex.map,
         bumpMap: paverTex.bumpMap,
-        bumpScale: 0.010,
+        bumpScale: 0.005,
         roughnessMap: paverTex.roughnessMap,
         roughness: 0.72,
         metalness: 0.0,
@@ -7544,7 +7474,7 @@ export function getHideAndSeekHtml(): string {
       [blueRoofTex, 0.25],
       [redRoofTex, 0.26],
       [rotundaBrickTex, 0.22],
-      [stuccoTex, 0.12],
+      [stuccoTex, 0.02],
       [paverTex, 0.16],
       [grassTex, 0.20],
       [dachiBrickTex, 0.24],
@@ -7567,7 +7497,7 @@ export function getHideAndSeekHtml(): string {
         if (m && m.isMeshStandardMaterial && m.map === texBundle.map && !m.normalMap && texBundle.normalMap) {
           m.normalMap = texBundle.normalMap;
           m.normalScale = new THREE.Vector2(nScale, nScale);
-          m.envMapIntensity = (m.metalness > 0.4) ? 1.15 : 0.72;
+          m.envMapIntensity = (m.metalness > 0.4) ? 1.15 : 0.25;
         }
       });
     });
@@ -14042,35 +13972,35 @@ export function getHideAndSeekHtml(): string {
     materials.asphaltRoad = new THREE.MeshStandardMaterial({
       map: asphaltRoadTex,
       bumpMap: asphaltRoadTex,
-      bumpScale: 0.006,
-      color: 0x28313c,
-      roughness: 0.68,
-      metalness: 0.02,
+      bumpScale: 0.003,
+      color: 0x242a32,
+      roughness: 0.76,
+      metalness: 0.0,
     });
     materials.lowerGroundDirtGravel = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,
       bumpMap: naturalGroundTex,
-      bumpScale: 0.016,
-      color: 0x242d27,
+      bumpScale: 0.012,
+      color: 0x263028,
       roughness: 0.88,
-      metalness: 0.02,
+      metalness: 0.0,
     });
     materials.terraceConcrete = new THREE.MeshStandardMaterial({
       map: paverTex.map,
       bumpMap: paverTex.bumpMap,
-      bumpScale: 0.045,
+      bumpScale: 0.005,
       roughnessMap: paverTex.roughnessMap,
-      color: 0x3e4850,
-      roughness: 0.40, // Interlocking pavers with wet-look gloss reflecting lantern glow (Ref Photo 2)
-      metalness: 0.12,
+      color: 0x484d54,
+      roughness: 0.72,
+      metalness: 0.0,
     });
     materials.retainingRubbleStone = new THREE.MeshStandardMaterial({
       map: riverStoneTex.map,
       bumpMap: riverStoneTex.bumpMap,
-      bumpScale: 0.06,
-      color: 0x2a333a,
-      roughness: 0.82,
-      metalness: 0.04,
+      bumpScale: 0.04,
+      color: 0x303a42,
+      roughness: 0.85,
+      metalness: 0.0,
     });
 
     // Authoritative 128x128 Sculpted Terrain Heightmap Mesh from gandaki-campus-layout.json
@@ -14123,11 +14053,11 @@ export function getHideAndSeekHtml(): string {
     const sculptedTerrainMat = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,
       bumpMap: naturalGroundTex,
-      bumpScale: 0.022,
-      color: 0x58665f,
+      bumpScale: 0.010,
+      color: 0x505e57,
       vertexColors: true,
-      roughness: 0.82,
-      metalness: 0.02,
+      roughness: 0.88,
+      metalness: 0.0,
     });
 
     const terrainMesh = new THREE.Mesh(terrainGeo, sculptedTerrainMat);

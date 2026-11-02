@@ -340,3 +340,4 @@ async function generatePanorama() {
 }
 
 generatePanorama();
+

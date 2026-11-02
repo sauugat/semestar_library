@@ -2,21 +2,24 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright';
 
-const ref1Path = '/Users/sauu_gat/.gemini/antigravity/brain/45106dad-77ce-43dd-a1d9-7616daf470de/.user_uploaded/media_1793606772788_469ea29c.jpg';
-const ref1B64 = fs.readFileSync(ref1Path).toString('base64');
+// User's full-height original photograph (1024 x 682):
+// Contains the full purple sky, Machhapuchhre with lenticular sunset cloud,
+// Annapurna range, dark foothills, and the glittering sea of Pokhara lights!
+const fullPhotoPath = '/Users/sauu_gat/.gemini/antigravity/brain/45106dad-77ce-43dd-a1d9-7616daf470de/.user_uploaded/media_1793608178803_36e90d4c.jpg';
+const fullPhotoB64 = fs.readFileSync(fullPhotoPath).toString('base64');
 
 async function build() {
   const browser = await chromium.launch({ headless: true, channel: 'chrome' });
   const page = await browser.newPage();
 
-  const dataUrl = await page.evaluate(async ({ r1 }) => {
+  const dataUrl = await page.evaluate(async ({ photoB64 }) => {
     const loadImg = (b64) => new Promise((resolve) => {
       const img = new Image();
       img.onload = () => resolve(img);
       img.src = 'data:image/jpeg;base64,' + b64;
     });
 
-    const imgRef1 = await loadImg(r1);
+    const img = await loadImg(photoB64);
 
     const W = 2048;
     const H = 1024;
@@ -26,138 +29,97 @@ async function build() {
     const ctx = canvas.getContext('2d');
 
     // -------------------------------------------------------------------------
-    // 1. MASTER CELESTIAL SKY GRADIENT (Exact Color-Match to User Reference 1)
-    // Silky smooth, authentic twilight sky graduating from deep cosmic indigo
-    // at the celestial zenith into dusky violet and exact lavender at photo top.
+    // 1. MASTER CELESTIAL SKY GRADIENT (Exact Color-Match to User Reference Photo)
+    // Deep cosmic indigo at zenith transitioning smoothly through nocturnal violet
+    // into the exact dusky lilac/lavender palette of the photograph at y = 90.
     // -------------------------------------------------------------------------
     const skyGrad = ctx.createLinearGradient(0, 0, 0, H);
-    skyGrad.addColorStop(0.00, '#06040e'); // Cosmic zenith indigo-black
-    skyGrad.addColorStop(0.08, '#0d071a'); // Upper celestial dome
-    skyGrad.addColorStop(0.16, '#1e0f34'); // Deep nocturnal purple
-    skyGrad.addColorStop(0.24, '#381b53'); // Twilight violet
-    skyGrad.addColorStop(0.31, '#5a2f74'); // Mauve-violet
-    skyGrad.addColorStop(0.36, '#7e5590'); // Dusky lilac
-    skyGrad.addColorStop(0.40, '#9884a6'); // EXACT match to top of Ref 1 photo
-    skyGrad.addColorStop(0.48, '#6c5a7a'); // Valley twilight haze
-    skyGrad.addColorStop(0.54, '#352e46'); // Distant foothill mist
-    skyGrad.addColorStop(0.62, '#181b2b'); // Lower ridge silhouette
-    skyGrad.addColorStop(0.70, '#0b1220'); // Three.js scene fog color (0x0b1220)
+    skyGrad.addColorStop(0.00, '#07040e'); // Cosmic zenith void
+    skyGrad.addColorStop(0.08, '#10071e'); // High celestial dome
+    skyGrad.addColorStop(0.16, '#230f3a'); // Deep nocturnal purple
+    skyGrad.addColorStop(0.24, '#441d5d'); // Twilight violet
+    skyGrad.addColorStop(0.32, '#6c3b7e'); // Rich dusky mauve
+    skyGrad.addColorStop(0.38, '#9884a6'); // EXACT match to top of photograph (152, 132, 166)
+    skyGrad.addColorStop(0.46, '#725e80'); // Atmospheric twilight haze
+    skyGrad.addColorStop(0.54, '#383049'); // Foothill valley dusk
+    skyGrad.addColorStop(0.64, '#1a1d2d'); // Lower ridge mist
+    skyGrad.addColorStop(0.72, '#0b1220'); // Three.js scene fog color (0x0b1220)
     skyGrad.addColorStop(1.00, '#060a12'); // Nadir ground
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, W, H);
 
     // -------------------------------------------------------------------------
-    // 2. AUTHENTIC HIMALAYAN MASSIF & MACHHAPUCHHRE FROM REFERENCE 1
-    // Peak is centered at x = 1086 (dead center facing North from campus).
+    // 2. AUTHENTIC HIMALAYAN PANORAMA FROM USER'S ORIGINAL PHOTOGRAPH
+    // Scaled and positioned so Machhapuchhre is centered at x = 1080
+    // (aligns directly behind the courtyard building when rotY = Math.PI - 0.22)
     // -------------------------------------------------------------------------
-    const r1W = 1820;
-    const r1H = Math.round(r1W * (imgRef1.height / imgRef1.width)); // ~657px
-    // In Ref 1 (1024x370), peak is at x ~ 432:
-    const r1X = Math.round(1086 - (432 / 1024) * r1W); // Center peak at x = 1086
-    const r1Y = 135; // Summit peak lands at y ~ 360 (+26.7 deg elevation)
+    const rW = 1800;
+    const rH = Math.round(rW * (img.height / img.width)); // ~1200px
+    // In photo (1024x682), Machhapuchhre summit is at x ~ 432:
+    const rX = Math.round(1080 - (432 / 1024) * rW);
+    const rY = 90; // Top of photo placed at y = 90
 
-    const r1Canvas = document.createElement('canvas');
-    r1Canvas.width = r1W;
-    r1Canvas.height = r1H;
-    const r1Ctx = r1Canvas.getContext('2d');
-    r1Ctx.drawImage(imgRef1, 0, 0, r1W, r1H);
+    // Offscreen feathered canvas for pristine photo
+    const pCanvas = document.createElement('canvas');
+    pCanvas.width = rW;
+    pCanvas.height = rH;
+    const pCtx = pCanvas.getContext('2d');
+    pCtx.drawImage(img, 0, 0, rW, rH);
 
-    // Feather top (seamless blend into lavender sky) and left/right/bottom edges
-    const r1Data = r1Ctx.getImageData(0, 0, r1W, r1H);
-    const d1 = r1Data.data;
-    const topFeather = 65;
+    // Feather edges:
+    // Top: soft 70px feather into matching lavender sky
+    // Left & Right: soft 160px feather into 360 wings
+    // Bottom: soft 120px feather into nadir ground fog
+    const pData = pCtx.getImageData(0, 0, rW, rH);
+    const pd = pData.data;
+    const topFeather = 70;
     const sideFeather = 160;
-    const botFeather = 110;
+    const botFeather = 140;
 
-    for (let y = 0; y < r1H; y++) {
+    for (let y = 0; y < rH; y++) {
       let aY = 1.0;
       if (y < topFeather) {
         const t = y / topFeather;
         aY = t * t * (3 - 2 * t);
-      } else if (y > r1H - botFeather) {
-        const t = (r1H - y) / botFeather;
+      } else if (y > rH - botFeather) {
+        const t = (rH - y) / botFeather;
         aY = Math.max(0.0, t * t * (3 - 2 * t));
       }
 
-      for (let x = 0; x < r1W; x++) {
+      for (let x = 0; x < rW; x++) {
         let aX = 1.0;
         if (x < sideFeather) {
           const t = x / sideFeather;
           aX = t * t * (3 - 2 * t);
-        } else if (x > r1W - sideFeather) {
-          const t = (r1W - x) / sideFeather;
+        } else if (x > rW - sideFeather) {
+          const t = (rW - x) / sideFeather;
           aX = t * t * (3 - 2 * t);
         }
 
         const alpha = aX * aY;
-        const idx = (y * r1W + x) * 4;
-        d1[idx + 3] = Math.round(d1[idx + 3] * alpha);
+        const idx = (y * rW + x) * 4;
+        pd[idx + 3] = Math.round(pd[idx + 3] * alpha);
       }
     }
-    r1Ctx.putImageData(r1Data, 0, 0);
+    pCtx.putImageData(pData, 0, 0);
 
-    // Draw pristine Ref 1 mountain panorama
-    ctx.drawImage(r1Canvas, r1X, r1Y);
+    // Draw the centerpiece photograph
+    ctx.drawImage(pCanvas, rX, rY);
 
     // -------------------------------------------------------------------------
-    // 3. LAYERED FOOTHILL SILHOUETTES & 360-DEGREE PANORAMA
+    // 3. CONTINUOUS 360-DEGREE PANORAMA WINGS
+    // Seamlessly connects the Annapurna range, foothills, and city lights around 360°
     // -------------------------------------------------------------------------
-    // Gentle distant ridges continuing around the western and eastern horizons
+    // Left wing
     ctx.save();
-    ctx.globalAlpha = 0.70;
-    ctx.drawImage(r1Canvas, r1X - r1W * 0.85, r1Y + 38, r1W * 0.90, r1H * 0.95);
-    ctx.drawImage(r1Canvas, r1X + r1W * 0.85, r1Y + 38, r1W * 0.90, r1H * 0.95);
+    ctx.globalAlpha = 0.75;
+    ctx.drawImage(pCanvas, rX - rW * 0.85, rY + 45, rW * 0.90, rH * 0.96);
+    // Right wing
+    ctx.drawImage(pCanvas, rX + rW * 0.85, rY + 45, rW * 0.90, rH * 0.96);
     ctx.restore();
 
     // -------------------------------------------------------------------------
-    // 4. SOFT POKHARA VALLEY FESTIVAL "SEA OF LIGHTS"
-    // Warm glittering city lights nestled along the southern valley floor
-    // (x: 0..450 and x: 1600..2048, y: 505..560), matching Ref 2
-    // -------------------------------------------------------------------------
-    const rng = (seed) => {
-      const s = Math.sin(seed * 91.345) * 43758.5453;
-      return s - Math.floor(s);
-    };
-
-    // Soft valley basin ambient glow
-    const valGrad = ctx.createLinearGradient(0, 495, 0, 565);
-    valGrad.addColorStop(0.00, 'rgba(255, 185, 75, 0.00)');
-    valGrad.addColorStop(0.40, 'rgba(255, 175, 65, 0.18)');
-    valGrad.addColorStop(0.75, 'rgba(215, 125, 45, 0.12)');
-    valGrad.addColorStop(1.00, 'rgba(11, 18, 32, 0.00)');
-    ctx.fillStyle = valGrad;
-    ctx.fillRect(0, 495, W, 70);
-
-    for (let i = 0; i < 4000; i++) {
-      const u = rng(i * 1.6180339887);
-      const v = rng(i * 2.7182818284);
-      const cx = (u * W) | 0;
-
-      // Higher density in the southern valley (away from the central massif)
-      const isNorthCenter = (cx > 700 && cx < 1450);
-      const prob = isNorthCenter ? 0.18 : 0.92;
-      if (rng(i * 3.14159) > prob) continue;
-
-      const cy = 502 + Math.pow(v, 1.4) * 58 + Math.sin(cx * 0.025) * 4;
-      if (cy > 560) continue;
-
-      const warmType = i % 10;
-      let col;
-      if (warmType < 6) {
-        col = `rgba(255, 218, 145, ${(0.35 + rng(i * 5.1) * 0.55).toFixed(2)})`;
-      } else if (warmType < 8) {
-        col = `rgba(255, 165, 65, ${(0.40 + rng(i * 6.2) * 0.50).toFixed(2)})`;
-      } else {
-        col = `rgba(225, 242, 255, ${(0.45 + rng(i * 7.3) * 0.45).toFixed(2)})`;
-      }
-
-      const sz = (i % 19 === 0) ? 1.4 : 1.0;
-      ctx.fillStyle = col;
-      ctx.fillRect(cx, cy, sz, sz);
-    }
-
-    // -------------------------------------------------------------------------
-    // 5. MATHEMATICALLY PERFECT SEAMLESS 360-DEGREE WRAP
+    // 4. MATHEMATICALLY PERFECT SEAMLESS 360-DEGREE WRAP
     // Blends x in [0, K-1] and x in [W-K, W-1] so column 0 == column W-1 identically
     // -------------------------------------------------------------------------
     const K = 128;
@@ -192,7 +154,7 @@ async function build() {
     ctx.putImageData(fullImgData, 0, 0);
 
     return canvas.toDataURL('image/jpeg', 0.92);
-  }, { r1: ref1B64 });
+  }, { photoB64: fullPhotoB64 });
 
   await browser.close();
 

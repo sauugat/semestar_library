@@ -4276,8 +4276,8 @@ export function getHideAndSeekHtml(): string {
             depthWrite: false
           })
         );
-        // Rotate so Machhapuchhre and Annapurna range sit centered directly above courtyard building (matches reference screenshot)
-        skySphere.rotation.y = Math.PI - 0.22;
+        // Rotate so Machhapuchhre (Fishtail) and Annapurna range sit centered directly above academic wing & parking/bus view (matches user view)
+        skySphere.rotation.y = 0.35;
         skySphere.renderOrder = -10;
         this.skyGroup.add(skySphere);
 

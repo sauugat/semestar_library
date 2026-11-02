@@ -4278,13 +4278,14 @@ export function getHideAndSeekHtml(): string {
         );
         // Rotate so Machapuchare and Annapurnas face North-North-East (~12.7 deg East of North)
         skySphere.rotation.y = 1.38;
-        skySphere.renderOrder = -12;
+        skySphere.renderOrder = -10;
         this.skyGroup.add(skySphere);
 
         // ---------------------------------------------------------------------
         // 2. HIGH-PRECISION 3D CELESTIAL STARFIELD (Immune to UV distortion!)
+        // Strictly placed in the overhead celestial vault - ZERO stars on mountains!
         // ---------------------------------------------------------------------
-        const starCount = 1200;
+        const starCount = 950;
         const starGeom = new THREE.BufferGeometry();
         const starPositions = new Float32Array(starCount * 3);
         const starColors = new Float32Array(starCount * 3);
@@ -4294,42 +4295,36 @@ export function getHideAndSeekHtml(): string {
         const R_STAR = 176.0;
         let sIdx = 0;
 
-        // 2A. Real Himalayan Constellations
+        // 2A. Real Himalayan Constellations (All positioned high in the overhead sky)
         const constellations = [
-          // Orion (The Hunter - Mrigashira)
-          { name: 'Betelgeuse', theta: 1.85, phi: 0.72, color: [1.0, 0.68, 0.45], size: 4.2 },
-          { name: 'Rigel',      theta: 1.98, phi: 0.94, color: [0.75, 0.88, 1.0],  size: 4.0 },
-          { name: 'Bellatrix',  theta: 1.78, phi: 0.76, color: [0.85, 0.92, 1.0],  size: 3.2 },
-          { name: 'Saiph',      theta: 2.02, phi: 0.91, color: [0.82, 0.90, 1.0],  size: 3.0 },
-          // Orion Belt
-          { name: 'Alnitak',    theta: 1.91, phi: 0.83, color: [0.90, 0.95, 1.0],  size: 3.4 },
-          { name: 'Alnilam',    theta: 1.89, phi: 0.84, color: [0.92, 0.96, 1.0],  size: 3.5 },
-          { name: 'Mintaka',    theta: 1.87, phi: 0.85, color: [0.90, 0.95, 1.0],  size: 3.3 },
+          // Ursa Major (Saptarishi / Big Dipper - overhead northern celestial sky)
+          { name: 'Dubhe',      theta: -0.85, phi: 0.38, color: [1.0, 0.88, 0.65], size: 2.8 },
+          { name: 'Merak',      theta: -0.82, phi: 0.42, color: [0.92, 0.95, 1.0], size: 2.6 },
+          { name: 'Phecda',     theta: -0.92, phi: 0.45, color: [0.92, 0.95, 1.0], size: 2.5 },
+          { name: 'Megrez',     theta: -0.96, phi: 0.41, color: [0.90, 0.94, 1.0], size: 2.2 },
+          { name: 'Alioth',     theta: -1.06, phi: 0.39, color: [0.92, 0.95, 1.0], size: 2.8 },
+          { name: 'Mizar',      theta: -1.14, phi: 0.36, color: [0.92, 0.95, 1.0], size: 2.7 },
+          { name: 'Alkaid',     theta: -1.24, phi: 0.32, color: [0.80, 0.88, 1.0], size: 2.8 },
 
-          // Ursa Major (Saptarishi / Big Dipper)
-          { name: 'Dubhe',      theta: -0.85, phi: 0.52, color: [1.0, 0.88, 0.65], size: 3.6 },
-          { name: 'Merak',      theta: -0.82, phi: 0.58, color: [0.92, 0.95, 1.0], size: 3.4 },
-          { name: 'Phecda',     theta: -0.92, phi: 0.62, color: [0.92, 0.95, 1.0], size: 3.2 },
-          { name: 'Megrez',     theta: -0.96, phi: 0.56, color: [0.90, 0.94, 1.0], size: 2.8 },
-          { name: 'Alioth',     theta: -1.06, phi: 0.53, color: [0.92, 0.95, 1.0], size: 3.6 },
-          { name: 'Mizar',      theta: -1.14, phi: 0.49, color: [0.92, 0.95, 1.0], size: 3.5 },
-          { name: 'Alkaid',     theta: -1.24, phi: 0.44, color: [0.80, 0.88, 1.0], size: 3.6 },
+          // Polaris (North Star / Dhruva Tara - high overhead)
+          { name: 'Polaris',    theta: -0.84, phi: 0.28, color: [1.0, 0.96, 0.88], size: 3.0 },
 
-          // Polaris (North Star / Dhruva Tara)
-          { name: 'Polaris',    theta: -0.84, phi: 0.35, color: [1.0, 0.96, 0.88], size: 3.8 },
+          // Cassiopeia (The Queen 'W' - high celestial vault)
+          { name: 'Schedar',    theta: 0.35,  phi: 0.32, color: [1.0, 0.85, 0.60], size: 2.7 },
+          { name: 'Caph',       theta: 0.28,  phi: 0.35, color: [0.95, 0.96, 1.0], size: 2.5 },
+          { name: 'Gamma Cas',  theta: 0.41,  phi: 0.30, color: [0.85, 0.92, 1.0], size: 2.6 },
+          { name: 'Ruchbah',    theta: 0.48,  phi: 0.33, color: [0.92, 0.95, 1.0], size: 2.4 },
+          { name: 'Segin',      theta: 0.55,  phi: 0.29, color: [0.88, 0.92, 1.0], size: 2.3 },
 
-          // Cassiopeia (The Queen 'W')
-          { name: 'Schedar',    theta: 0.35, phi: 0.42, color: [1.0, 0.85, 0.60], size: 3.5 },
-          { name: 'Caph',       theta: 0.28, phi: 0.45, color: [0.95, 0.96, 1.0], size: 3.2 },
-          { name: 'Gamma Cas',  theta: 0.41, phi: 0.38, color: [0.85, 0.92, 1.0], size: 3.4 },
-          { name: 'Ruchbah',    theta: 0.48, phi: 0.41, color: [0.92, 0.95, 1.0], size: 3.1 },
-          { name: 'Segin',      theta: 0.55, phi: 0.37, color: [0.88, 0.92, 1.0], size: 2.9 },
+          // Vega & Altair & Cygnus overhead
+          { name: 'Vega',       theta: -1.65, phi: 0.32, color: [0.88, 0.94, 1.0], size: 3.4 },
+          { name: 'Deneb',      theta: -1.45, phi: 0.26, color: [0.90, 0.94, 1.0], size: 2.9 },
+          { name: 'Altair',     theta: -1.85, phi: 0.44, color: [0.95, 0.96, 1.0], size: 2.9 },
 
-          // Sirius (Canis Major - Brightest star in the sky)
-          { name: 'Sirius',     theta: 2.15, phi: 1.05, color: [0.85, 0.94, 1.0],  size: 5.2 },
-          // Vega & Altair
-          { name: 'Vega',       theta: -1.65, phi: 0.48, color: [0.88, 0.94, 1.0], size: 4.5 },
-          { name: 'Altair',     theta: -1.85, phi: 0.68, color: [0.95, 0.96, 1.0], size: 3.8 },
+          // Southern celestial sky (facing away from the mountain)
+          { name: 'Betelgeuse', theta: 1.85,  phi: 0.62, color: [1.0, 0.68, 0.45], size: 3.0 },
+          { name: 'Rigel',      theta: 1.98,  phi: 0.66, color: [0.75, 0.88, 1.0],  size: 2.8 },
+          { name: 'Sirius',     theta: 2.15,  phi: 0.68, color: [0.85, 0.94, 1.0],  size: 3.6 },
         ];
 
         constellations.forEach(st => {
@@ -4349,7 +4344,7 @@ export function getHideAndSeekHtml(): string {
           }
         });
 
-        // 2B. Natural Himalayan Autumn Star Field (distributed above mountain ridgelines)
+        // 2B. Natural Himalayan Autumn Star Field (strictly overhead in the celestial vault)
         while (sIdx < starCount) {
           const h1 = Math.sin(sIdx * 127.1 + 311.7) * 43758.5453;
           const h2 = Math.sin(sIdx * 269.5 + 183.3) * 43758.5453;
@@ -4357,7 +4352,11 @@ export function getHideAndSeekHtml(): string {
           const v = h2 - Math.floor(h2);
 
           const theta = u * Math.PI * 2.0 - Math.PI;
-          const phi = Math.pow(v, 1.45) * 1.25 + 0.10;
+          // Towards North (where Annapurna massif stands), keep phi <= 0.48 rad (elevation > +62 deg)
+          // Elsewhere, keep phi <= 0.66 rad (elevation > +52 deg). Never touches mountains!
+          const isNorth = (theta > -2.9 && theta < -0.2);
+          const maxPhi = isNorth ? 0.46 : 0.64;
+          const phi = Math.pow(v, 1.8) * (maxPhi - 0.05) + 0.05;
 
           const spX = R_STAR * Math.sin(phi) * Math.cos(theta);
           const spY = R_STAR * Math.cos(phi);
@@ -4369,13 +4368,13 @@ export function getHideAndSeekHtml(): string {
 
           const tempType = sIdx % 10;
           let r = 0.92, g = 0.95, b = 1.0;
-          let sz = 1.2 + (sIdx % 5) * 0.35;
+          let sz = 1.1 + (sIdx % 5) * 0.28;
           if (tempType === 0 || tempType === 1) {
-            r = 0.78; g = 0.88; b = 1.00; sz *= 1.15;
+            r = 0.78; g = 0.88; b = 1.00; sz *= 1.10;
           } else if (tempType === 2) {
-            r = 1.00; g = 0.92; b = 0.72; sz *= 1.25;
+            r = 1.00; g = 0.92; b = 0.72; sz *= 1.15;
           } else if (tempType === 3) {
-            r = 1.00; g = 0.74; b = 0.50; sz *= 1.35;
+            r = 1.00; g = 0.74; b = 0.50; sz *= 1.20;
           } else {
             r = 0.96; g = 0.98; b = 1.00;
           }
@@ -4393,36 +4392,29 @@ export function getHideAndSeekHtml(): string {
         starGeom.setAttribute('aStarSize', new THREE.BufferAttribute(starSizes, 1));
         starGeom.setAttribute('aStarPhase', new THREE.BufferAttribute(starPhases, 1));
 
-        // Soft Circular Star Texture with Subtle 4-Point Flare
+        // Soft Circular Star Texture (Pure Gaussian falloff, zero harsh cross strokes!)
         const starCanvas = document.createElement('canvas');
-        starCanvas.width = 64;
-        starCanvas.height = 64;
+        starCanvas.width = 32;
+        starCanvas.height = 32;
         const starCtx = starCanvas.getContext('2d');
         if (starCtx) {
-          const sGrad = starCtx.createRadialGradient(32, 32, 2, 32, 32, 30);
+          const sGrad = starCtx.createRadialGradient(16, 16, 1, 16, 16, 15);
           sGrad.addColorStop(0.00, 'rgba(255, 255, 255, 1.0)');
-          sGrad.addColorStop(0.18, 'rgba(240, 248, 255, 0.85)');
-          sGrad.addColorStop(0.45, 'rgba(180, 215, 255, 0.32)');
-          sGrad.addColorStop(0.80, 'rgba(120, 175, 245, 0.08)');
-          sGrad.addColorStop(1.00, 'rgba(11, 18, 32, 0.0)');
+          sGrad.addColorStop(0.20, 'rgba(235, 245, 255, 0.85)');
+          sGrad.addColorStop(0.50, 'rgba(180, 215, 255, 0.28)');
+          sGrad.addColorStop(0.80, 'rgba(120, 165, 245, 0.06)');
+          sGrad.addColorStop(1.00, 'rgba(0, 0, 0, 0.0)');
           starCtx.fillStyle = sGrad;
-          starCtx.fillRect(0, 0, 64, 64);
-
-          starCtx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-          starCtx.lineWidth = 1.0;
-          starCtx.beginPath();
-          starCtx.moveTo(32, 8); starCtx.lineTo(32, 56);
-          starCtx.moveTo(8, 32); starCtx.lineTo(56, 32);
-          starCtx.stroke();
+          starCtx.fillRect(0, 0, 32, 32);
         }
         const starTexture = new THREE.CanvasTexture(starCanvas);
 
         const starMaterial = new THREE.PointsMaterial({
           map: starTexture,
-          size: 2.2,
+          size: 1.35,
           vertexColors: true,
           transparent: true,
-          opacity: 0.95,
+          opacity: 0.90,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
           fog: false,
@@ -4444,85 +4436,14 @@ export function getHideAndSeekHtml(): string {
         };
 
         const starPoints = new THREE.Points(starGeom, starMaterial);
-        starPoints.renderOrder = -11;
+        starPoints.renderOrder = -12;
         this.skyGroup.add(starPoints);
 
         // ---------------------------------------------------------------------
-        // 3. DYNAMIC 3D POKHARA VALLEY TWINKLE LIGHTS
-        // Layered in front of the mountain horizon for living festival sparkle
+        // 3. POKHARA VALLEY FESTIVAL LIGHTS
+        // Photorealistically integrated directly into the unified celestial dome
+        // along the southern valley horizon for authentic Deepawali ambience.
         // ---------------------------------------------------------------------
-        const cityLightCount = 900;
-        const cityGeom = new THREE.BufferGeometry();
-        const cityPositions = new Float32Array(cityLightCount * 3);
-        const cityColors = new Float32Array(cityLightCount * 3);
-        const citySizes = new Float32Array(cityLightCount);
-
-        let clIdx = 0;
-        for (let c = 0; c < cityLightCount; c++) {
-          const h1 = Math.sin(c * 17.3 + 43.1) * 43758.5453;
-          const u = h1 - Math.floor(h1);
-          const v = Math.sin(c * 29.7 + 91.3) * 0.5 + 0.5;
-
-          const ang = (Math.PI - 1.25) + u * 2.50;
-          const dist = 142.0 + v * 22.0;
-          const y = -4.0 + Math.pow(v, 1.4) * 14.0 + Math.sin(c * 7.1) * 2.0;
-
-          cityPositions[clIdx * 3 + 0] = Math.sin(ang) * dist;
-          cityPositions[clIdx * 3 + 1] = y;
-          cityPositions[clIdx * 3 + 2] = Math.cos(ang) * dist;
-
-          const lType = c % 12;
-          let r = 1.0, g = 0.75, b = 0.35, sz = 1.8;
-          if (lType === 0) {
-            r = 0.94; g = 0.97; b = 1.00; sz = 2.2;
-          } else if (lType === 1 || lType === 2) {
-            r = 1.00; g = 0.82; b = 0.40; sz = 2.0;
-          } else if (lType === 3) {
-            r = 1.00; g = 0.50; b = 0.20; sz = 1.7;
-          } else {
-            r = 1.00; g = 0.70; b = 0.30; sz = 1.4;
-          }
-
-          cityColors[clIdx * 3 + 0] = r;
-          cityColors[clIdx * 3 + 1] = g;
-          cityColors[clIdx * 3 + 2] = b;
-          citySizes[clIdx] = sz;
-          clIdx++;
-        }
-
-        cityGeom.setAttribute('position', new THREE.BufferAttribute(cityPositions, 3));
-        cityGeom.setAttribute('color', new THREE.BufferAttribute(cityColors, 3));
-        cityGeom.setAttribute('size', new THREE.BufferAttribute(citySizes, 1));
-
-        const cityLightCanvas = document.createElement('canvas');
-        cityLightCanvas.width = 32;
-        cityLightCanvas.height = 32;
-        const clCtx = cityLightCanvas.getContext('2d');
-        if (clCtx) {
-          const clGrad = clCtx.createRadialGradient(16, 16, 1, 16, 16, 15);
-          clGrad.addColorStop(0.00, 'rgba(255, 255, 255, 1.0)');
-          clGrad.addColorStop(0.35, 'rgba(255, 210, 140, 0.85)');
-          clGrad.addColorStop(0.70, 'rgba(255, 140, 40, 0.25)');
-          clGrad.addColorStop(1.00, 'rgba(200, 80, 10, 0.0)');
-          clCtx.fillStyle = clGrad;
-          clCtx.fillRect(0, 0, 32, 32);
-        }
-        const cityLightTex = new THREE.CanvasTexture(cityLightCanvas);
-
-        const cityLightMat = new THREE.PointsMaterial({
-          map: cityLightTex,
-          size: 2.2,
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.85,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          fog: false,
-        });
-
-        const cityPoints = new THREE.Points(cityGeom, cityLightMat);
-        cityPoints.renderOrder = -8;
-        this.skyGroup.add(cityPoints);
 
         // ---------------------------------------------------------------------
         // 4. MAJESTIC AUTUMN MOON (HIGH-DEFINITION CRATER SURFACE & OPTICAL HALO)
@@ -6398,7 +6319,7 @@ export function getHideAndSeekHtml(): string {
           const src = srcImg.data;
           const dstImg = nCtx.createImageData ? nCtx.createImageData(256, 256) : { data: new Uint8ClampedArray(256 * 256 * 4) };
           const dst = dstImg.data;
-          const strength = 2.65;
+          const strength = 0.40;
           for (let y = 0; y < 256; y++) {
             const ym1 = (y - 1) & 255;
             const yp1 = (y + 1) & 255;
@@ -7200,35 +7121,35 @@ export function getHideAndSeekHtml(): string {
       campusStucco: new THREE.MeshStandardMaterial({
         map: stuccoTex.map,
         bumpMap: stuccoTex.bumpMap,
-        bumpScale: 0.024,
+        bumpScale: 0.005,
         color: 0xeee7d8,
-        roughness: 0.68,
-        metalness: 0.02,
+        roughness: 0.88,
+        metalness: 0.0,
         side: THREE.DoubleSide,
       }),
       classroomFloor: new THREE.MeshStandardMaterial({
         map: scuffedFloorTex.map,
         bumpMap: scuffedFloorTex.bumpMap,
-        bumpScale: 0.025,
+        bumpScale: 0.015,
         color: 0xc4ced8,
-        roughness: 0.35,
-        metalness: 0.14,
+        roughness: 0.55,
+        metalness: 0.04,
       }),
       interlockingPavers: new THREE.MeshStandardMaterial({
         map: paverTex.map,
         bumpMap: paverTex.bumpMap,
-        bumpScale: 0.038,
+        bumpScale: 0.010,
         roughnessMap: paverTex.roughnessMap,
-        roughness: 0.38,
-        metalness: 0.16,
+        roughness: 0.72,
+        metalness: 0.0,
       }),
       nepalDachiBrick: new THREE.MeshStandardMaterial({
         map: dachiBrickTex.map,
         bumpMap: dachiBrickTex.bumpMap,
-        bumpScale: 0.055,
+        bumpScale: 0.022,
         roughnessMap: dachiBrickTex.roughnessMap,
-        roughness: 0.64,
-        metalness: 0.06,
+        roughness: 0.78,
+        metalness: 0.02,
         side: THREE.DoubleSide,
       }),
       carvedSalWood: new THREE.MeshStandardMaterial({
@@ -7619,21 +7540,21 @@ export function getHideAndSeekHtml(): string {
 
     // Bind synthesized Sobel tangent-space normalMaps & synced UV repeats to PBR architectural/prop materials
     [
-      [riverStoneTex, 0.55],
-      [blueRoofTex, 0.45],
-      [redRoofTex, 0.48],
-      [rotundaBrickTex, 0.52],
-      [stuccoTex, 0.36],
-      [paverTex, 0.50],
-      [grassTex, 0.38],
-      [dachiBrickTex, 0.54],
-      [carvedSalTex, 0.58],
-      [scuffedFloorTex, 0.32],
-      [stainedCeilingTex, 0.30],
-      [peelingPaintTex, 0.38],
-      [wornWoodTex, 0.46],
-      [dirtyGlassTex, 0.22],
-      [scuffedBoardTex, 0.24],
+      [riverStoneTex, 0.28],
+      [blueRoofTex, 0.25],
+      [redRoofTex, 0.26],
+      [rotundaBrickTex, 0.22],
+      [stuccoTex, 0.12],
+      [paverTex, 0.16],
+      [grassTex, 0.20],
+      [dachiBrickTex, 0.24],
+      [carvedSalTex, 0.32],
+      [scuffedFloorTex, 0.18],
+      [stainedCeilingTex, 0.18],
+      [peelingPaintTex, 0.22],
+      [wornWoodTex, 0.25],
+      [dirtyGlassTex, 0.14],
+      [scuffedBoardTex, 0.15],
     ].forEach(([texBundle, nScale]) => {
       if (!texBundle || !texBundle.map) return;
       const rx = texBundle.map.repeat.x;
@@ -14121,10 +14042,10 @@ export function getHideAndSeekHtml(): string {
     materials.asphaltRoad = new THREE.MeshStandardMaterial({
       map: asphaltRoadTex,
       bumpMap: asphaltRoadTex,
-      bumpScale: 0.012,
+      bumpScale: 0.006,
       color: 0x28313c,
-      roughness: 0.38, // Rain-slicked tarmac reflecting warm streetlamps (Ref Photo 1)
-      metalness: 0.14,
+      roughness: 0.68,
+      metalness: 0.02,
     });
     materials.lowerGroundDirtGravel = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,

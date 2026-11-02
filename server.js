@@ -751,6 +751,38 @@ app.get('/compiler', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'compiler.html'));
 });
 
+// Semester Library — Hide & Seek Web Edition (/games/hide-and-seek)
+const hideAndSeekWebEngine = require('./lib/hide-and-seek-web-engine');
+
+app.get(['/games/hide-and-seek', '/games/hide-and-seek/', '/hide-and-seek', '/hide-and-seek.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+  res.sendFile(path.join(__dirname, 'public', 'games', 'hide-and-seek', 'index.html'));
+});
+
+app.get(['/api/games/hide-and-seek/metadata'], (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.json(hideAndSeekWebEngine.getWebEditionMetadata());
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load Hide & Seek metadata', error: err.message });
+  }
+});
+
+app.get(['/api/games/hide-and-seek/engine', '/games/hide-and-seek/engine.html'], (req, res) => {
+  try {
+    const html = hideAndSeekWebEngine.buildWebEditionEngineHtml();
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    res.send(html);
+  } catch (err) {
+    const staticEngine = path.join(__dirname, 'public', 'games', 'hide-and-seek', 'engine.html');
+    if (fs.existsSync(staticEngine)) {
+      return res.sendFile(staticEngine);
+    }
+    res.status(500).send('Failed to compile Hide & Seek Web Engine: ' + err.message);
+  }
+});
+
 app.get(['/login', '/login.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });

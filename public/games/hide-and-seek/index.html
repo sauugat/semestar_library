@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Hide &amp; Seek: Web Edition — Gandaki University 3D | Semester Library</title>
+  <meta name="description" content="Explore the 3D Gandaki University night campus in Semester Library's browser-native Hide & Seek Web Edition featuring WebGL PBR materials, 4K shadows, SSAO, and 32 enterable rooms." />
+  <link rel="icon" type="image/png" sizes="192x192" href="/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/games/hide-and-seek/web-edition.css" />
+  <script src="/auth.js" defer></script>
+  <script src="/games/hide-and-seek/web-edition.js" defer></script>
+</head>
+<body>
+  <!-- =====================================================================
+       1. TOP SITE NAVIGATION & AUTHENTICATION BAR (Shown in Lobby)
+       ===================================================================== -->
+  <header id="web-top-nav" class="web-top-nav">
+    <div class="nav-left">
+      <a href="/" class="brand-link" title="Semester Library Home">
+        <span class="brand-dot"></span>
+        <span class="brand-name">Semester Library</span>
+      </a>
+      <span class="nav-sep">/</span>
+      <a href="/dashboard.html" class="nav-crumb">Dashboard</a>
+      <span class="nav-sep">/</span>
+      <span class="nav-crumb active">Hide &amp; Seek: Web Edition</span>
+    </div>
+
+    <div class="nav-right">
+      <a href="/campus-map-debug-view.html" target="_blank" rel="noopener" class="nav-tool-pill" title="Inspect 2D Campus Blueprint &amp; 139 Object Coordinates">
+        <span>2D Blueprint Inspector</span>
+      </a>
+      <div id="auth-user-pill" class="auth-user-pill">
+        <div class="auth-avatar" id="web-auth-avatar">G</div>
+        <div class="auth-meta">
+          <span class="auth-name" id="web-auth-name">Guest Explorer</span>
+          <span class="auth-role" id="web-auth-role">Gandaki Campus 3D</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- =====================================================================
+       2. DEDICATED WEB LOBBY SCREEN
+       ===================================================================== -->
+  <main id="web-lobby-screen" class="web-lobby-screen">
+    <div class="lobby-backdrop-glow"></div>
+
+    <div class="lobby-grid">
+      <!-- Left Column: Hero Title, Mode Configuration & Launch -->
+      <section class="lobby-hero-card">
+        <div class="edition-badge-row">
+          <span class="edition-pill">WEBGL2 / THREE.JS OVERHAUL</span>
+          <span class="edition-pill subtle" id="lobby-map-version-pill">MAP v1.2.0 • 139 OBJECTS</span>
+        </div>
+
+        <h1 class="lobby-title">
+          HIDE <span class="title-accent">&amp;</span> SEEK
+          <span class="lobby-subtitle">GANDAKI UNIVERSITY NIGHT CAMPUS — WEB EDITION</span>
+        </h1>
+
+        <p class="lobby-lead">
+          Experience the full 320m Gandaki University Mustang Chowk campus in first-person or third-person 3D. Featuring real-time 4096px soft shadows, screen-space ambient occlusion (SSAO), 50Hz AC fluorescent classroom lighting, drifting nocturnal cloud layers, and 32 enterable rooms.
+        </p>
+
+        <!-- Configuration Selectors -->
+        <div class="config-section">
+          <label class="config-label">1. EXPERIENCE MODE</label>
+          <div class="pill-selector" id="mode-selector">
+            <button type="button" class="select-card active" data-mode="explore">
+              <div class="card-head">
+                <span class="card-title">Campus Exploration</span>
+                <span class="card-tag">FREE ROAM</span>
+              </div>
+              <p class="card-desc">Explore all 32 rooms, buses GP62 &amp; GP64, light switches, doors, and lighting tools at your own pace.</p>
+            </button>
+            <button type="button" class="select-card" data-mode="match">
+              <div class="card-head">
+                <span class="card-title">Hide &amp; Seek Survival</span>
+                <span class="card-tag">SINGLE-PLAYER AI</span>
+              </div>
+              <p class="card-desc">Restore 4 campus fuse boxes to unlock the South Main Gate while evading the autonomous Proctor AI.</p>
+            </button>
+          </div>
+        </div>
+
+        <div class="config-row-two">
+          <div class="config-section">
+            <label class="config-label">2. GRAPHICS PRESET</label>
+            <div class="segmented-bar" id="lobby-gfx-selector">
+              <button type="button" data-quality="fast" class="seg-item">Perf</button>
+              <button type="button" data-quality="low" class="seg-item">Balanced</button>
+              <button type="button" data-quality="high" class="seg-item">High</button>
+              <button type="button" data-quality="ultra" class="seg-item active">Ultra (4K)</button>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <label class="config-label">3. AI PATROL INTENSITY</label>
+            <div class="segmented-bar" id="lobby-diff-selector">
+              <button type="button" data-diff="easy" class="seg-item">Calm (3)</button>
+              <button type="button" data-diff="medium" class="seg-item active">Watch (5)</button>
+              <button type="button" data-diff="hard" class="seg-item">Lockdown (7)</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <label class="config-label" for="lobby-spawn-select">4. INITIAL SPAWN LOCATION</label>
+          <select id="lobby-spawn-select" class="web-select">
+            <option value="-2.5,1.00,-48.0,0">South Spine Terrace (Main Campus Spawn)</option>
+            <option value="0.0,1.00,-126.5,3.14">Main Grand Rotunda Entrance</option>
+            <option value="-15.3,1.25,-9.5,3.14">West Wing L1 — Standard Lecture Classroom</option>
+            <option value="12.2,4.85,-110.0,0">Main Rotunda 202 — University Library</option>
+            <option value="-63.2,1.00,-3.8,-1.57">Bus Parking Bay — Bus A (GP62) &amp; Bus B (GP64)</option>
+            <option value="3.0,1.00,-32.5,3.14">East Wing R1 — Campus Cafeteria</option>
+            <option value="4.8,1.00,-64.0,-1.57">South Main Gate &amp; Security Guardhouse</option>
+          </select>
+        </div>
+
+        <div class="launch-bar">
+          <button type="button" id="btn-launch-game" class="btn-launch-primary">
+            <span>LAUNCH 3D CAMPUS</span>
+            <span class="btn-sub-hint">Locks Mouse Pointer • Fullscreen Ready</span>
+          </button>
+          <button type="button" id="btn-lobby-fullscreen" class="btn-launch-secondary" title="Toggle Browser Fullscreen">
+            <span>FULLSCREEN</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Right Column: Graphics Overhaul Specs, Controls & World Telemetry -->
+      <aside class="lobby-side-column">
+        <div class="info-panel">
+          <h2 class="panel-heading">SINGLE-SOURCE WORLD ARCHITECTURE</h2>
+          <div class="world-stats-grid">
+            <div class="stat-box">
+              <span class="stat-num" id="stat-total-objects">139</span>
+              <span class="stat-label">Verified JSON Objects</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-num" id="stat-total-rooms">32</span>
+              <span class="stat-label">Enterable Rooms</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-num" id="stat-terrain-res">128×128</span>
+              <span class="stat-label">320m Sculpted Terrain</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-num">4096px</span>
+              <span class="stat-label">PCF Soft Shadow Map</span>
+            </div>
+          </div>
+
+          <h3 class="panel-subheading">WEB EDITION GRAPHICS UPGRADES</h3>
+          <ul class="upgrade-list">
+            <li><strong>Interior Fluorescent Lighting:</strong> 50Hz AC ballast micro-ripple, high-CRI phosphor diffuser glow &amp; rectilinear ceiling bounce rig.</li>
+            <li><strong>Texel-Snapped 4K Shadows:</strong> Camera-following directional moon shadow frustum + perspective flashlight shadow casting.</li>
+            <li><strong>SSAO + Dual-Radius Bloom:</strong> 8-tap spiral screen-space cavity ambient occlusion, optical halation &amp; ACES Filmic tone mapping.</li>
+            <li><strong>16× Anisotropic PBR:</strong> Sobel tangent-space normal maps, roughness maps &amp; 512px PMREM reflections across terrazzo, timber &amp; glass.</li>
+          </ul>
+        </div>
+
+        <div class="info-panel controls-card">
+          <h2 class="panel-heading">DESKTOP KEYBOARD &amp; MOUSE CONTROLS</h2>
+          <div class="keybind-grid">
+            <div class="kb-item"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>Move / Strafe</span></div>
+            <div class="kb-item"><kbd>Mouse</kbd><span>Pointer-Lock 360° Look</span></div>
+            <div class="kb-item"><kbd>Shift</kbd><span>Sprint (Hold)</span></div>
+            <div class="kb-item"><kbd>Space</kbd><span>Jump / Hold Breath</span></div>
+            <div class="kb-item"><kbd>E</kbd><span>Open Door / Switch / Hide</span></div>
+            <div class="kb-item"><kbd>F</kbd><span>Toggle Flashlight</span></div>
+            <div class="kb-item"><kbd>C</kbd><span>Crouch / Stealth</span></div>
+            <div class="kb-item"><kbd>V</kbd><span>1st / 3rd Person Cam</span></div>
+            <div class="kb-item"><kbd>P</kbd><span>Map &amp; Physics Inspector</span></div>
+            <div class="kb-item"><kbd>ESC</kbd> / <kbd>Tab</kbd><span>Pause &amp; Settings Menu</span></div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- =====================================================================
+       3. LOADING SCREEN OVERLAY
+       ===================================================================== -->
+  <div id="web-loading-overlay" class="web-loading-overlay hidden" aria-live="polite">
+    <div class="loading-box">
+      <div class="loading-spinner"></div>
+      <div class="loading-eyebrow">GANDAKI UNIVERSITY • 3D WEB ENGINE</div>
+      <h2 class="loading-title" id="loading-stage-title">Initializing WebGL2 Rendering Pipeline...</h2>
+      <div class="loading-progress-track">
+        <div class="loading-progress-fill" id="loading-progress-fill"></div>
+      </div>
+      <div class="loading-step-detail" id="loading-step-detail">
+        Loading authoritative gandaki-campus-layout.json (139 objects) &amp; 128×128 terrain heightmap...
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       4. DEDICATED GAME VIEWPORT & DESKTOP HUD
+       ===================================================================== -->
+  <section id="web-game-viewport" class="web-game-viewport hidden">
+    <!-- Top Desktop HUD Bar -->
+    <div id="web-hud-top" class="web-hud-top">
+      <div class="hud-cluster-left">
+        <button type="button" id="hud-btn-pause" class="hud-btn primary" title="Open Pause &amp; Settings Menu (ESC / Tab)">
+          <span>PAUSE / SETTINGS</span>
+          <kbd>ESC</kbd>
+        </button>
+        <div class="hud-pill" id="hud-mode-badge">EXPLORE MODE</div>
+        <div class="hud-pill location-pill">
+          <span class="loc-dot"></span>
+          <span id="hud-room-label">OUTDOORS [CAMPUS]</span>
+        </div>
+        <div class="hud-pill mono-pill" id="hud-coords-label">XYZ: (-2.5, 1.0, -48.0)</div>
+      </div>
+
+      <div class="hud-cluster-right">
+        <div class="hud-pill telemetry-pill" id="hud-telemetry-pill" title="Live WebGL Performance Telemetry">
+          <span id="hud-fps-val">60 FPS</span>
+          <span class="tel-sep">•</span>
+          <span id="hud-ms-val">16.6ms</span>
+          <span class="tel-sep">•</span>
+          <span id="hud-draws-val">-- draws</span>
+          <span class="tel-sep">•</span>
+          <span id="hud-scale-val">1.35x</span>
+        </div>
+        <button type="button" id="hud-btn-quality" class="hud-btn" title="Cycle Graphics Quality Preset">
+          <span id="hud-quality-label">GFX: ULTRA (4K)</span>
+        </button>
+        <button type="button" id="hud-btn-mute" class="hud-btn" title="Toggle Audio Mute">
+          <span id="hud-mute-label">AUDIO: ON</span>
+        </button>
+        <button type="button" id="hud-btn-fullscreen" class="hud-btn" title="Toggle Fullscreen (F11)">
+          <span>FULLSCREEN</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Pointer-Lock Prompt Pill (Shown when cursor is unlocked while in-game) -->
+    <button type="button" id="pointer-lock-banner" class="pointer-lock-banner">
+      <span class="pl-dot"></span>
+      <span>CLICK TO LOCK MOUSE POINTER FOR 360° LOOK</span>
+      <kbd>ESC to Release</kbd>
+    </button>
+
+    <!-- Bottom Desktop Keybind Legend Bar -->
+    <div id="web-hud-bottom" class="web-hud-bottom">
+      <span><kbd>WASD</kbd> Move</span>
+      <span><kbd>Shift</kbd> Sprint</span>
+      <span><kbd>Mouse</kbd> Look</span>
+      <span><kbd>E</kbd> Interact / Door / Switch / Hide</span>
+      <span><kbd>F</kbd> Flashlight</span>
+      <span><kbd>C</kbd> Crouch</span>
+      <span><kbd>Space</kbd> Jump</span>
+      <span><kbd>V</kbd> Camera</span>
+      <span><kbd>P</kbd> Inspector</span>
+      <span><kbd>Tab</kbd> Settings</span>
+    </div>
+
+    <!-- Pause & Settings Modal Overlay -->
+    <div id="web-pause-modal" class="web-pause-modal hidden" role="dialog" aria-modal="true" aria-labelledby="pause-modal-title">
+      <div class="pause-card">
+        <div class="pause-header">
+          <div>
+            <div class="pause-eyebrow">GANDAKI UNIVERSITY 3D • WEB EDITION</div>
+            <h2 id="pause-modal-title" class="pause-title">GAME PAUSED &amp; GRAPHICS SETTINGS</h2>
+          </div>
+          <button type="button" id="btn-resume-top" class="btn-resume-main">RESUME GAME (LOCK MOUSE)</button>
+        </div>
+
+        <div class="pause-columns">
+          <!-- Column 1: Graphics & Post-Processing -->
+          <div class="pause-section">
+            <h3 class="pause-sec-title">1. GRAPHICS &amp; POST-PROCESSING</h3>
+
+            <div class="setting-row">
+              <span>Quality Preset</span>
+              <div class="segmented-bar compact" id="pause-gfx-selector">
+                <button type="button" data-quality="fast" class="seg-item">Perf</button>
+                <button type="button" data-quality="low" class="seg-item">Balanced</button>
+                <button type="button" data-quality="high" class="seg-item">High</button>
+                <button type="button" data-quality="ultra" class="seg-item active">Ultra</button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <span>Adaptive Resolution (60 FPS Target)</span>
+              <input type="checkbox" id="opt-adaptive-res" checked />
+            </div>
+
+            <div class="setting-row">
+              <span>Screen-Space Ambient Occlusion (SSAO)</span>
+              <input type="checkbox" id="opt-ssao" checked />
+            </div>
+
+            <div class="setting-row">
+              <span>Optical Bloom Intensity</span>
+              <input type="range" id="opt-bloom" min="0" max="0.75" step="0.05" value="0.36" />
+            </div>
+
+            <div class="setting-row">
+              <span>Flashlight Intensity</span>
+              <input type="range" id="opt-flashlight" min="6" max="24" step="0.5" value="14.5" />
+            </div>
+
+            <div class="setting-row">
+              <span>Atmospheric Night Fog</span>
+              <input type="range" id="opt-fog" min="0" max="1.6" step="0.05" value="0.5" />
+            </div>
+          </div>
+
+          <!-- Column 2: Controls, Audio & Instant Teleport -->
+          <div class="pause-section">
+            <h3 class="pause-sec-title">2. CONTROLS, AUDIO &amp; TELEPORT</h3>
+
+            <div class="setting-row">
+              <span>Mouse Look Sensitivity</span>
+              <input type="range" id="opt-sensitivity" min="0.3" max="2.5" step="0.1" value="1.0" />
+            </div>
+
+            <div class="setting-row">
+              <span>Ambience &amp; Sound Volume</span>
+              <input type="range" id="opt-volume" min="0" max="1.4" step="0.05" value="1.0" />
+            </div>
+
+            <div class="setting-row">
+              <span>Mute All Audio</span>
+              <input type="checkbox" id="opt-mute" />
+            </div>
+
+            <div class="setting-row">
+              <span>Quick Campus / Room Teleport</span>
+              <select id="pause-teleport-select" class="web-select compact">
+                <option value="">Select Landmark or Room...</option>
+                <option value="-2.5,1.00,-48.0,0">South Spine Terrace (Spawn)</option>
+                <option value="0.0,1.00,-126.5,3.14">Main Grand Rotunda Entrance</option>
+                <option value="-12.2,1.25,-110.0,0">Rotunda Hall 101 (Fluorescent Lecture)</option>
+                <option value="12.2,1.25,-110.0,0">Rotunda Admin 102 (Warm Lamp)</option>
+                <option value="12.2,4.85,-110.0,0">Rotunda Library 202 (University Library)</option>
+                <option value="-15.3,1.25,-9.5,3.14">West Wing L1 — Classroom 1</option>
+                <option value="-4.5,1.25,-2.1,3.14">West Wing L2 — Computer Lab</option>
+                <option value="3.0,1.00,-32.5,3.14">East Wing R1 — Cafeteria</option>
+                <option value="21.3,1.00,19.0,-1.57">East Wing R4 — Library Wing</option>
+                <option value="-61.0,1.54,-0.5,0">Bus A (GP62) Cabin Interior</option>
+                <option value="-49.0,1.54,-0.5,0.04">Bus B (GP64) Cabin Interior</option>
+                <option value="4.8,1.00,-64.0,-1.57">South Gate Guardhouse</option>
+              </select>
+            </div>
+
+            <div class="pause-actions-row">
+              <button type="button" id="btn-toggle-inspector" class="btn-secondary">Toggle 3D Inspector (P)</button>
+              <button type="button" id="btn-restart-match" class="btn-secondary">Respawn / Restart</button>
+              <button type="button" id="btn-return-lobby" class="btn-danger">Exit to Lobby</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dedicated 3D Engine Viewport Frame (Single Source of Truth Engine) -->
+    <iframe
+      id="game-engine-frame"
+      class="game-engine-frame"
+      title="Gandaki University 3D Hide and Seek Web Engine"
+      allow="fullscreen; pointer-lock; autoplay"
+    ></iframe>
+  </section>
+</body>
+</html>

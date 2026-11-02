@@ -16,6 +16,9 @@ config.resolver.extraNodeModules = {
   '@semester-library/ludo-engine': path.resolve(workspaceRoot, 'packages/ludo-engine/src'),
 };
 
+config.resolver.assetExts.push('wasm');
+config.resolver.assetExts.push('glb');
+
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
 ];

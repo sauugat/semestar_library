@@ -50,8 +50,8 @@ globalThis.__HARNESS_EXPORTS__ = {
   getSupportFloorY,
   updatePlayer,
   updateRoomAndBuildingVisibility,
-  hasArchitecturalSightline,
-  isRoomVisibleThroughArchitecture,
+  hasArchitecturalSightline: typeof hasArchitecturalSightline !== 'undefined' ? hasArchitecturalSightline : null,
+  isRoomVisibleThroughArchitecture: typeof isRoomVisibleThroughArchitecture !== 'undefined' ? isRoomVisibleThroughArchitecture : null,
   roomVisibilityList,
   buildingSectors,
   soundEngine,
@@ -2108,6 +2108,48 @@ describe('Physics & Controls Audit: Gandaki University 3D Hide-and-Seek', () => 
       sys.toggleInteractableById(offSwitchboard.id);
       assert.strictEqual(sys.roomLightStates['East Wing R1 Room 1'], true, 'Toggling office sub-breaker ON must restore East Wing R1 Room 1 lights');
       assert.strictEqual(offLightSwitch.isOn, true, 'Office wall switch must sync ON when sub-breaker is flipped ON');
+
+      // 1d. Phase 4 Representative Cafeteria Dining Hall (East Wing R1 Room 2) verification
+      const canDrawer = sys.interactablesById['drawer-canteen-east-wing-r1-room-2'];
+      const canSwitchboard = sys.interactablesById['switchboard-canteen-east-wing-r1-room-2'];
+      const canLightSwitch = sys.interactablesById['switch-east-wing-r1-room-2'];
+      const canCupboard = sys.interactablesById['cupboard-canteen-east-wing-r1-room-2'];
+      const canLocker = sys.interactablesById['locker-canteen-east-wing-r1-room-2-1'];
+      const canDoor = sys.interactablesById['door-East Wing R1-r2'];
+      assert.ok(canDrawer, 'Cafeteria (East Wing R1 Room 2) must have a searchable cashier counter drawer');
+      assert.ok(canSwitchboard, 'Cafeteria (East Wing R1 Room 2) must have a working canteen electrical sub-breaker panel');
+      assert.ok(canLightSwitch, 'Cafeteria (East Wing R1 Room 2) must have a working wall light switch');
+      assert.ok(canCupboard, 'Cafeteria (East Wing R1 Room 2) must have an openable canteen supply cupboard');
+      assert.ok(canLocker, 'Cafeteria (East Wing R1 Room 2) must have an interactive 3-door steel locker bank');
+      assert.ok(canDoor, 'Cafeteria (East Wing R1 Room 2) must have a functional hinged door');
+      sys.toggleInteractableById(canSwitchboard.id);
+      assert.strictEqual(sys.roomLightStates['East Wing R1 Room 2'], false, 'Toggling canteen sub-breaker OFF must turn off East Wing R1 Room 2 lights');
+      assert.strictEqual(canLightSwitch.isOn, false, 'Canteen wall switch must sync OFF when sub-breaker is flipped OFF');
+      sys.toggleInteractableById(canSwitchboard.id);
+      assert.strictEqual(sys.roomLightStates['East Wing R1 Room 2'], true, 'Toggling canteen sub-breaker ON must restore East Wing R1 Room 2 lights');
+      assert.strictEqual(canLightSwitch.isOn, true, 'Canteen wall switch must sync ON when sub-breaker is flipped ON');
+
+      // 1e. Phase 5 Representative Library Reading Room & Archive Stacks (West Wing L3 Room 1 & Room 2) verification
+      const libRack = sys.interactablesById['rack-lib-west-wing-l3-room-1'];
+      const libDrawer = sys.interactablesById['drawer-lib-west-wing-l3-room-1'];
+      const libSwitchboard = sys.interactablesById['switchboard-lib-west-wing-l3-room-1'];
+      const libLightSwitch = sys.interactablesById['switch-west-wing-l3-room-1'];
+      const libCupboard = sys.interactablesById['cupboard-lib-west-wing-l3-room-1'];
+      const libLocker = sys.interactablesById['locker-lib-west-wing-l3-room-1-1'];
+      const libDoor = sys.interactablesById['door-West Wing L3-r1'];
+      assert.ok(libRack, 'Library (West Wing L3 Room 1) must have a motorized sliding archive rack');
+      assert.ok(libDrawer, 'Library (West Wing L3 Room 1) must have a searchable librarian circulation desk drawer');
+      assert.ok(libSwitchboard, 'Library (West Wing L3 Room 1) must have a working library electrical sub-breaker panel');
+      assert.ok(libLightSwitch, 'Library (West Wing L3 Room 1) must have a working wall light switch');
+      assert.ok(libCupboard, 'Library (West Wing L3 Room 1) must have an openable rare-book & manuscript cupboard');
+      assert.ok(libLocker, 'Library (West Wing L3 Room 1) must have an interactive 3-door student bag locker bank');
+      assert.ok(libDoor, 'Library (West Wing L3 Room 1) must have a functional hinged door');
+      sys.toggleInteractableById(libSwitchboard.id);
+      assert.strictEqual(sys.roomLightStates['West Wing L3 Room 1'], false, 'Toggling library sub-breaker OFF must turn off West Wing L3 Room 1 lights');
+      assert.strictEqual(libLightSwitch.isOn, false, 'Library wall switch must sync OFF when sub-breaker is flipped OFF');
+      sys.toggleInteractableById(libSwitchboard.id);
+      assert.strictEqual(sys.roomLightStates['West Wing L3 Room 1'], true, 'Toggling library sub-breaker ON must restore West Wing L3 Room 1 lights');
+      assert.strictEqual(libLightSwitch.isOn, true, 'Library wall switch must sync ON when sub-breaker is flipped ON');
 
       // Verify nested-mesh raycast lookup resolves child meshes back to the logical interactable record
       let nestedChildMesh = null;

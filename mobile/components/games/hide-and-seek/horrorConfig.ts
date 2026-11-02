@@ -36,25 +36,25 @@ export const HORROR_CONFIG = {
   exploreMode: true,
   enableDevTelemetry: true,
 
-  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Nepali Tihar Laxmi Puja Night Grade: Deep Night Blues + 1900K Diyo Golden-Orange Highlights)
+  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Nepali Tihar Laxmi Puja Night Grade: Deep Night Blues + 2800K Warm Golden Lanterns)
   grade: {
     enabled: true,
-    shadowTint: [0.04, 0.11, 0.19],     // Deep nocturnal indigo-slate shadows
-    highlightTint: [1.14, 0.81, 0.44],  // Warm 1950K Tihar diyo golden-orange highlights
-    saturation: 1.02,                   // Rich festive marigold, Jhilimili & architectural color fidelity
-    contrast: 1.10,                     // Balanced S-curve contrast between lit campus areas and dark surroundings
-    blackLift: 0.016,                   // Deep, natural night blacks without crushing silhouette readability
-    vignette: 0.25,                     // Subtle nocturnal edge framing
-    grain: 0.010,                       // Clean modern sensor clarity
-    edgeDesat: 0.05,                    // Rich color fidelity across the entire viewport
-    bloomStrength: 0.26,                // 5-tap Kawase soft optical bloom around high-luminance diyos & Jhilimili bulbs
-    bloomThreshold: 0.68,               // Luminance threshold for warm festival highlight bloom
-    microContrast: 0.22,                // Unsharp midtone micro-contrast for brick/stone/wood relief
-    chromaStrength: 0.0014,             // Subtle lens periphery chromatic aberration
-    lampColor: 0xff8a2a,                // #ff8a2a warm orange lamp light
+    shadowTint: [0.06, 0.11, 0.19],     // Deep nocturnal indigo-slate shadows
+    highlightTint: [1.12, 0.86, 0.52],  // Warm 2800K streetlamp & diyo golden highlights
+    saturation: 1.05,                   // Rich festive marigold, Jhilimili & architectural color fidelity
+    contrast: 1.04,                     // Balanced contrast without crushing dark areas
+    blackLift: 0.024,                   // Natural shadow detail without horror black crush
+    vignette: 0.18,                     // Subtle nocturnal edge framing
+    grain: 0.005,                       // Crisp modern sensor clarity
+    edgeDesat: 0.02,                    // Clean color fidelity across viewport
+    bloomStrength: 0.24,                // Soft optical bloom around lamps & diyos
+    bloomThreshold: 0.65,               // Luminance threshold for warm highlights
+    microContrast: 0.16,                // Balanced midtone micro-contrast for brick/stone/wood relief
+    chromaStrength: 0.0008,             // Clean subtle optical periphery
+    lampColor: 0xff9e38,                // Warm golden 2800K lantern light
     poolOpacity: 0.28,                  // Warm ground light pool opacity
-    fogColor: 0x08131d,                 // Deep Himalayan autumn night fog
-    materialDarknessMultiplier: 0.98,   // Natural, clean architectural albedo response on unlit walls & roofs
+    fogColor: 0x0c1726,                 // Atmospheric Himalayan twilight fog
+    materialDarknessMultiplier: 1.00,   // Natural, clean architectural albedo response
     fpsGuardThreshold: 40,              // Auto-disable grade pass if avg FPS < 40 for 3s
     fpsGuardWindowSec: 3.0,
     stylizedPs1Mode: false,             // Optional PS1-style 0.7x pixel ratio + dither/grain mode
@@ -72,41 +72,41 @@ export const HORROR_CONFIG = {
     mutedBone: '#7e8c99',
   },
   renderer: {
-    clearColor: 0x02050c,
-    toneMappingExposure: 1.02,
-    fogColor: 0x050c18,
-    fogWarmTintColor: 0x241508,
-    fogNear: 18.0,
-    fogFar: 96.0,
-    fogMinFarUnderTension: 48.0,
+    clearColor: 0x070b16,
+    toneMappingExposure: 1.06,
+    fogColor: 0x0c1726,
+    fogWarmTintColor: 0x221a14,
+    fogNear: 45.0,
+    fogFar: 260.0,
+    fogMinFarUnderTension: 120.0,
   },
   lighting: {
-    // Layered Nepali Tihar Nighttime Lighting: Deep blue-black sky + subtle silver-blue moonlight + rich 1950K diyos
-    visibilityFloorAmbient: 0.058,
-    ambientColor: 0x0c1524,
-    ambientIntensity: 0.095,
-    indoorAmbientIntensity: 0.045,
-    hemiSkyColor: 0x142236,
-    hemiGroundColor: 0x05080e,
-    hemiIntensity: 0.115,
-    indoorHemiIntensity: 0.050,
-    // Subtle Himalayan autumn moonlight directional light for architectural silhouettes
-    moonColor: 0x86a5c6,
-    moonIntensity: 0.28,
-    indoorMoonIntensity: 0.06,
-    rimColor: 0x4a718c,
-    rimIntensity: 0.20,
-    // Main Player Flashlight: soft-edged spotlight, visible volumetric beam cone, battery flicker & realistic falloff
-    flashlightColor: 0xfff1d6,
+    // Natural Serene Himalayan Nighttime Lighting: Clear twilight sky + silver-blue moonlight + warm lanterns
+    visibilityFloorAmbient: 0.18,
+    ambientColor: 0x1a293e,
+    ambientIntensity: 0.28,
+    indoorAmbientIntensity: 0.22,
+    hemiSkyColor: 0x243650,
+    hemiGroundColor: 0x101620,
+    hemiIntensity: 0.30,
+    indoorHemiIntensity: 0.18,
+    // Himalayan autumn moonlight directional light for crisp architectural silhouettes & natural soft shadows
+    moonColor: 0x9ec3e8,
+    moonIntensity: 0.65,
+    indoorMoonIntensity: 0.12,
+    rimColor: 0x5a81a0,
+    rimIntensity: 0.25,
+    // Soft Inspection Flashlight: warm, pleasant beam that complements natural campus lighting without harsh blinding glare
+    flashlightColor: 0xfff4e0,
     flashlightLowBatteryColor: 0xffb366,
-    flashlightIntensity: 10.8,
-    flashlightDistance: 30.5,
-    flashlightAngle: 0.60,
-    flashlightPenumbra: 0.88,
-    flashlightDecay: 1.85,
-    flashlightSpillIntensity: 1.15,
-    flashlightSpillDistance: 6.2,
-    flashlightBeamOpacity: 0.125,
+    flashlightIntensity: 3.8,
+    flashlightDistance: 32.0,
+    flashlightAngle: 0.65,
+    flashlightPenumbra: 0.90,
+    flashlightDecay: 1.65,
+    flashlightSpillIntensity: 0.85,
+    flashlightSpillDistance: 7.0,
+    flashlightBeamOpacity: 0.08,
     // Warm orange lamp & diyo light (1800K-2200K) tuned against ACES Filmic so highlights stay golden-orange
     lampColor: 0xff8c2b,
     lampCoreColor: 0xffe29a,
@@ -169,10 +169,10 @@ export const HORROR_CONFIG = {
       flickerType: 'none',
     },
     dying_tube: {
-      ambientColor: 0x18120c,
+      ambientColor: 0x0c1a20,
       ambientMult: 0.54,
-      color: 0xffb84d,
-      lightColor: 0xffb84d,
+      color: 0xb4f0e4,
+      lightColor: 0xb4f0e4,
       intensity: 4.4,
       lightIntensity: 4.4,
       distance: 11.8,

@@ -9679,10 +9679,23 @@ export function getHideAndSeekHtml(): string {
         { w: 0.12, h: 0.14, d: 0.48, x: 0.03, y: -0.18, rz: -0.18 },
       ], [0, 0, 256, 256]),
       loungeArmchair: buildConstructedFurnitureGeo([
-        { w: 0.72, h: 0.34, d: 0.68, y: 0.22 },   // Upholstered armchair cushion (Ref 3)
+        { w: 0.72, h: 0.28, d: 0.68, y: 0.26 },   // Upholstered armchair cushion
         { w: 0.72, h: 0.48, d: 0.16, y: 0.54, z: -0.26, rx: -0.10 }, // Tilted backrest
-        { w: 0.08, h: 0.46, d: 0.66, x: -0.34, y: 0.32, z: 0 }, // Left curved wood armrest & leg frame
-        { w: 0.08, h: 0.46, d: 0.66, x:  0.34, y: 0.32, z: 0 }, // Right curved wood armrest & leg frame
+        { w: 0.08, h: 0.36, d: 0.66, x: -0.34, y: 0.36, z: 0 }, // Left curved wood armrest
+        { w: 0.08, h: 0.36, d: 0.66, x:  0.34, y: 0.36, z: 0 }, // Right curved wood armrest
+        { w: 0.06, h: 0.20, d: 0.06, x: -0.32, y: 0.10, z: -0.26 }, // 4 corner legs touching y = 0.000m
+        { w: 0.06, h: 0.20, d: 0.06, x:  0.32, y: 0.10, z: -0.26 },
+        { w: 0.06, h: 0.20, d: 0.06, x: -0.32, y: 0.10, z:  0.26 },
+        { w: 0.06, h: 0.20, d: 0.06, x:  0.32, y: 0.10, z:  0.26 },
+      ], [0, 0, 256, 256]),
+      pigeonholeMailRack: buildConstructedFurnitureGeo([
+        { w: 0.28, h: 0.76, d: 1.16, y: 0.0 },    // Outer wooden mail sorting cabinet frame
+        { w: 0.26, h: 0.025, d: 1.12, y:  0.18 }, // Horizontal cubby shelf 1
+        { w: 0.26, h: 0.025, d: 1.12, y: -0.02 }, // Horizontal cubby shelf 2
+        { w: 0.26, h: 0.025, d: 1.12, y: -0.22 }, // Horizontal cubby shelf 3
+        { w: 0.26, h: 0.72, d: 0.025, z: -0.28 }, // Vertical cubby divider 1
+        { w: 0.26, h: 0.72, d: 0.025, z:  0.00 }, // Vertical cubby divider 2
+        { w: 0.26, h: 0.72, d: 0.025, z:  0.28 }, // Vertical cubby divider 3
       ], [0, 0, 256, 256]),
       coffeeTable: buildConstructedFurnitureGeo([
         { w: 1.24, h: 0.05, d: 0.68, y: 0.40 },   // Beveled low coffee table top (Ref 3)
@@ -9708,10 +9721,10 @@ export function getHideAndSeekHtml(): string {
       benchLongSeat: buildConstructedFurnitureGeo([
         { w: 1.38, h: 0.045, d: 0.36, y: 0 },
         { w: 1.34, h: 0.058, d: 0.32, y: 0 },     // Beveled plank core
-        { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.22, z: -0.13 }, // 4 thick bench legs
-        { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.22, z: -0.13 },
-        { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.22, z:  0.13 },
-        { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.22, z:  0.13 },
+        { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.23, z: -0.13 }, // 4 thick bench legs (bottom at y = -0.44m, flush on floor at seat y = 0.44m)
+        { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.23, z: -0.13 },
+        { w: 0.05, h: 0.42, d: 0.05, x: -0.58, y: -0.23, z:  0.13 },
+        { w: 0.05, h: 0.42, d: 0.05, x:  0.58, y: -0.23, z:  0.13 },
         { w: 1.18, h: 0.035, d: 0.035, x: 0, y: -0.26, z: 0 },       // Long cross-brace tie bar
       ], [0, 0, 256, 256]),
       benchLongBack: buildConstructedFurnitureGeo([
@@ -9741,9 +9754,34 @@ export function getHideAndSeekHtml(): string {
         { w: 0.14, h: 0.03, d: 0.04, y: -0.16, z: 0.33 },
         { w: 0.14, h: 0.03, d: 0.04, y: -0.48, z: 0.33 },
       ], [768, 0, 256, 256]),
-      monitorPanel: new THREE.BoxGeometry(0.52, 0.34, 0.035),
-      monitorStand: new THREE.BoxGeometry(0.16, 0.14, 0.16),
-      keyboard: new THREE.BoxGeometry(0.38, 0.02, 0.14),
+      monitorPanel: buildConstructedFurnitureGeo([
+        { w: 0.52, h: 0.34, d: 0.032, y: 0.0 },    // Main LCD screen panel (bottom at -0.17m)
+        { w: 0.54, h: 0.022, d: 0.042, y:  0.16 }, // Top bezel frame
+        { w: 0.54, h: 0.026, d: 0.042, y: -0.16 }, // Bottom bezel chin
+      ], [768, 0, 256, 256]),
+      monitorStand: buildConstructedFurnitureGeo([
+        { w: 0.22, h: 0.018, d: 0.18, y: -0.061 }, // Flat weighted base plate (bottom at -0.070m)
+        { w: 0.055, h: 0.14, d: 0.045, y: 0.0, z: -0.03 }, // Vertical VESA neck column
+      ], [768, 0, 256, 256]),
+      keyboard: buildConstructedFurnitureGeo([
+        { w: 0.38, h: 0.018, d: 0.14, y: 0.0 },    // Keyboard body (bottom at -0.009m)
+        { w: 0.35, h: 0.006, d: 0.11, y: 0.011 },  // Raised keycap matrix block
+      ], [768, 0, 256, 256]),
+      mouseAndPad: buildConstructedFurnitureGeo([
+        { w: 0.21, h: 0.004, d: 0.18, y: 0.002 },  // Non-slip mousepad (bottom at 0.000m)
+        { w: 0.062, h: 0.026, d: 0.105, y: 0.015 }, // Contoured optical mouse on pad
+      ], [768, 0, 256, 256]),
+      pcTower: buildConstructedFurnitureGeo([
+        { w: 0.19, h: 0.42, d: 0.42, y: 0.0 },     // Mid-tower ATX chassis (bottom at -0.210m)
+        { w: 0.20, h: 0.39, d: 0.025, y: 0.0, z: 0.21 }, // Front ventilated bezel
+        { w: 0.15, h: 0.04, d: 0.03, y: 0.13, z: 0.215 }, // 5.25" optical drive bay
+      ], [768, 0, 256, 256]),
+      oscilloscope: buildConstructedFurnitureGeo([
+        { w: 0.36, h: 0.22, d: 0.28, y: 0.0 },     // Digital storage oscilloscope body (bottom at -0.110m)
+        { w: 0.38, h: 0.23, d: 0.025, y: 0.0, z: 0.14 }, // Front instrument bezel
+        { w: 0.03, h: 0.03, d: 0.04, x: 0.11, y: 0.04, z: 0.155 }, // Rotary encoder knob 1
+        { w: 0.03, h: 0.03, d: 0.04, x: 0.11, y: -0.03, z: 0.155 }, // Rotary encoder knob 2
+      ], [768, 0, 256, 256]),
       paperStack: new THREE.BoxGeometry(0.24, 0.16, 0.30),
       sofaBase: new THREE.BoxGeometry(1.95, 0.42, 0.82),
       sofaBack: new THREE.BoxGeometry(1.95, 0.48, 0.22),
@@ -9783,8 +9821,34 @@ export function getHideAndSeekHtml(): string {
       sinkCounter: new THREE.BoxGeometry(0.58, 0.84, 2.40),
       sinkBasin: new THREE.BoxGeometry(0.38, 0.06, 0.48),
       wallMirror: new THREE.BoxGeometry(0.04, 1.05, 2.20),
-      canteenCounter: new THREE.BoxGeometry(0.85, 0.98, 4.20),
-      snackCase: new THREE.BoxGeometry(0.52, 0.48, 1.45),
+      canteenCounter: buildConstructedFurnitureGeo([
+        { w: 0.82, h: 0.86, d: 4.14, y: -0.02 },   // Main counter cabinet body
+        { w: 0.74, h: 0.08, d: 4.08, y: -0.45 },   // Recessed bottom toe-kick plinth (bottom at -0.490m)
+        { w: 0.90, h: 0.06, d: 4.24, y:  0.46 },   // Overhanging beveled countertop slab (top at +0.490m)
+        { w: 0.03, h: 0.74, d: 0.92, x: -0.42, y: -0.02, z: -1.42 }, // Front architectural trim panel 1
+        { w: 0.03, h: 0.74, d: 0.92, x: -0.42, y: -0.02, z:  0.00 }, // Front architectural trim panel 2
+        { w: 0.03, h: 0.74, d: 0.92, x: -0.42, y: -0.02, z:  1.42 }, // Front architectural trim panel 3
+      ], [0, 0, 256, 256]),
+      snackCase: buildConstructedFurnitureGeo([
+        { w: 0.50, h: 0.44, d: 1.42, y: 0.0 },     // Glass pastry/snack case core
+        { w: 0.54, h: 0.04, d: 1.46, y: -0.22 },   // Bottom stainless frame base (bottom at -0.240m)
+        { w: 0.54, h: 0.035, d: 1.46, y: 0.2225 }, // Top stainless frame cap (top at +0.240m)
+        { w: 0.46, h: 0.02, d: 1.38, y: 0.0 },     // Middle display shelf
+      ], [768, 0, 256, 256]),
+      beverageCooler: buildConstructedFurnitureGeo([
+        { w: 0.68, h: 1.88, d: 0.72, y: 0.0 },     // Upright commercial chiller body (bottom at -0.940m)
+        { w: 0.70, h: 0.22, d: 0.74, y: 0.82 },    // Top illuminated compressor header sign box
+        { w: 0.70, h: 0.14, d: 0.74, y: -0.87 },   // Lower compressor grille kickplate
+        { w: 0.04, h: 0.32, d: 0.04, x: -0.35, y: 0.05, z: -0.26 }, // Vertical door handle bar
+      ], [768, 0, 256, 256]),
+      commercialStove: buildConstructedFurnitureGeo([
+        { w: 0.76, h: 0.14, d: 1.48, y: 0.0 },     // Stainless range body (bottom at -0.070m, top at +0.070m)
+        { w: 0.28, h: 0.03, d: 0.28, x: -0.16, y: 0.08, z: -0.42 }, // Heavy cast-iron burner grate 1
+        { w: 0.28, h: 0.03, d: 0.28, x:  0.16, y: 0.08, z: -0.42 }, // Burner grate 2
+        { w: 0.28, h: 0.03, d: 0.28, x: -0.16, y: 0.08, z:  0.00 }, // Burner grate 3
+        { w: 0.28, h: 0.03, d: 0.28, x:  0.16, y: 0.08, z:  0.00 }, // Burner grate 4
+        { w: 0.04, h: 0.04, d: 1.24, x: -0.40, y: 0.0, z: -0.10 },  // Front gas control manifold bar
+      ], [768, 0, 256, 256]),
       storageShelf: buildConstructedFurnitureGeo([
         { w: 0.58, h: 2.10, d: 0.05, z: -1.06 },  // Left upright frame
         { w: 0.58, h: 2.10, d: 0.05, z:  1.06 },  // Right upright frame
@@ -10227,6 +10291,9 @@ export function getHideAndSeekHtml(): string {
         type: 'switchboard',
         name: label,
         powerKey: powerKey,
+        roomId: (typeof powerKey === 'string' && (powerKey.indexOf('classroomCircuit_') === 0 || powerKey.indexOf('labCircuit_') === 0 || powerKey.indexOf('roomCircuit_') === 0))
+          ? label.replace(/ (Classroom|Lab|Room|Canteen) Electrical Sub-Panel$/, '')
+          : null,
         controlsCampusLights: !!controlsCampusLights,
         x: worldX + localX,
         y: floorY,

@@ -169,10 +169,10 @@ export const HORROR_CONFIG = {
       flickerType: 'none',
     },
     dying_tube: {
-      ambientColor: 0x0c1a20,
+      ambientColor: 0x18120c,
       ambientMult: 0.54,
-      color: 0xb4f0e4,
-      lightColor: 0xb4f0e4,
+      color: 0xffb84d,
+      lightColor: 0xffb84d,
       intensity: 4.4,
       lightIntensity: 4.4,
       distance: 11.8,

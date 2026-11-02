@@ -4276,8 +4276,8 @@ export function getHideAndSeekHtml(): string {
             depthWrite: false
           })
         );
-        // Rotate so Machapuchare faces North-North-East (~15 deg East of North)
-        skySphere.rotation.y = Math.PI - 0.22;
+        // Rotate so Machapuchare and Annapurnas face North-North-East (~12.7 deg East of North)
+        skySphere.rotation.y = 1.38;
         skySphere.renderOrder = -12;
         this.skyGroup.add(skySphere);
 

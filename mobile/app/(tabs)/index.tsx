@@ -88,6 +88,7 @@ import { PostMediaGallery } from '@/components/PostMediaGallery';
 import { EditPostModal } from '@/components/EditPostModal';
 import { PostFileAttachments } from '@/components/PostFileAttachments';
 import { CommentItem } from '@/components/CommentItem';
+import { CommentsBottomSheetModal } from '@/components/CommentsBottomSheetModal';
 import { PostCard, VoteButtons } from '@/components/PostCard';
 import { SponsoredAdCard } from '@/components/SponsoredAdCard';
 import {
@@ -3057,6 +3058,23 @@ function StudentHomeScreenInner() {
             <Ionicons name="share-outline" size={17} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
+
+        {Number(file.commentCount || 0) > 0 && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => void handleOpenFileComments(file)}
+            style={{
+              marginTop: spacing.compact,
+              paddingTop: spacing.tight,
+              borderTopWidth: StyleSheet.hairlineWidth,
+              borderTopColor: colors.borderSubtle,
+            }}
+          >
+            <Text variant="xs" color="muted">
+              View all {file.commentCount} {Number(file.commentCount) === 1 ? 'comment' : 'comments'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -3301,6 +3319,23 @@ function StudentHomeScreenInner() {
             <Ionicons name="share-outline" size={17} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
+
+        {Number(a.commentCount || 0) > 0 && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => void handleOpenAssignmentComments(a)}
+            style={{
+              marginTop: spacing.compact,
+              paddingTop: spacing.tight,
+              borderTopWidth: StyleSheet.hairlineWidth,
+              borderTopColor: colors.borderSubtle,
+            }}
+          >
+            <Text variant="xs" color="muted">
+              View all {a.commentCount} {Number(a.commentCount) === 1 ? 'comment' : 'comments'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   };
@@ -4395,199 +4430,38 @@ function StudentHomeScreenInner() {
         }}
       />
 
-      {/* Post Comments Modal Dialog / Sheet */}
-      <Modal
+      {/* Instagram-style Comments Bottom Sheet Modal */}
+      <CommentsBottomSheetModal
         visible={commentsModalOpen}
-        animationType="slide"
-        transparent
-        onRequestClose={() => {
+        onClose={() => {
           setCommentsModalOpen(false);
           setActiveCommentPost(null);
+          setCommentReplyingTo(null);
+          setCommentEditing(null);
         }}
-      >
-        <KeyboardStickyView
-          offset={{ closed: 0, opened: insets.bottom }}
-          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}
-        >
-          <View
-            style={{
-              backgroundColor: colors.surface,
-              borderTopLeftRadius: radii.xl,
-              borderTopRightRadius: radii.xl,
-              maxHeight: '85%',
-              minHeight: '55%',
-              paddingBottom: Platform.OS === 'ios' ? 24 : 12,
-            }}
-          >
-            {/* Comments Header */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: spacing.lg,
-                paddingVertical: spacing.md,
-                borderBottomWidth: 1,
-                borderBottomColor: colors.border,
-              }}
-            >
-              <View>
-                <Heading style={{ fontSize: 16 }}>Comments</Heading>
-                <Caption color="muted">
-                  {activeCommentPost ? `On post by ${activeCommentPost.name}` : 'Post replies'}
-                </Caption>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setCommentsModalOpen(false);
-                  setActiveCommentPost(null);
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  padding: 6,
-                  borderRadius: radii.full,
-                  backgroundColor: colors.surfaceRaised,
-                }}
-              >
-                <Ionicons name="close" size={20} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Comments List */}
-            <ScrollView
-              contentContainerStyle={{ padding: spacing.md, paddingBottom: 24 }}
-              keyboardShouldPersistTaps="handled"
-            >
-              {loadingComments ? (
-                <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 32 }} />
-              ) : postComments.length === 0 ? (
-                <View style={{ alignItems: 'center', paddingVertical: 36 }}>
-                  <Ionicons name="chatbubbles-outline" size={42} color={colors.textMuted} style={{ marginBottom: 8 }} />
-                  <Text variant="sm" weight="600" color="secondary">
-                    No comments yet
-                  </Text>
-                  <Caption color="muted" style={{ marginTop: 4 }}>
-                    Be the first to join the conversation!
-                  </Caption>
-                </View>
-              ) : (
-                postComments.map((comment) => (
-                  <CommentItem
-                    key={comment.id}
-                    comment={comment}
-                    onReply={handleReplyPressModal}
-                    onEdit={handleEditPressModal}
-                    onDelete={handleDeletePostComment}
-                    onToggleReaction={handleToggleCommentReactionModal}
-                    getFullUrl={getFullImageUrl}
-                    currentUserId={user?.studentId || null}
-                    isAdmin={user?.role === 'admin'}
-                  />
-                ))
-              )}
-            </ScrollView>
-
-            {/* Comment Composer Input Bar */}
-            <View
-              style={{
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.sm,
-                borderTopWidth: 1,
-                borderTopColor: colors.border,
-                backgroundColor: colors.surface,
-              }}
-            >
-              {(commentReplyingTo || commentEditing) && (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    borderRadius: 6,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    backgroundColor: colors.surfaceRaised,
-                    marginBottom: 6,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
-                    <Ionicons
-                      name={commentEditing ? 'pencil' : 'arrow-undo'}
-                      size={13}
-                      color={colors.primary}
-                    />
-                    <Text variant="xs" weight="600" color="secondary" numberOfLines={1}>
-                      {commentEditing
-                        ? 'Editing your comment'
-                        : `Replying to ${commentReplyingTo?.name}`}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={handleCancelCommentInputMode}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="close-circle" size={15} color={colors.textMuted} />
-                  </TouchableOpacity>
-                </View>
-              )}
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <TextInput
-                  ref={commentInputRef}
-                  placeholder={
-                    commentEditing
-                      ? 'Edit your comment…'
-                      : commentReplyingTo
-                      ? `Reply to ${commentReplyingTo.name}…`
-                      : 'Write a reply...'
-                  }
-                  placeholderTextColor={colors.textMuted}
-                  value={commentInput}
-                  onChangeText={setCommentInput}
-                  style={{
-                    flex: 1,
-                    backgroundColor: colors.surfaceRaised,
-                    borderColor: colors.border,
-                    borderWidth: 1,
-                    borderRadius: radii.full,
-                    paddingHorizontal: spacing.md,
-                    paddingVertical: Platform.OS === 'ios' ? 10 : 7,
-                    color: colors.text,
-                    fontSize: 14,
-                    maxHeight: 90,
-                  }}
-                  multiline
-                />
-                <TouchableOpacity
-                  onPress={handleSubmitPostComment}
-                  disabled={!commentInput.trim() || postingComment}
-                  style={{
-                    backgroundColor: commentInput.trim() ? colors.primary : colors.surfaceRaised,
-                    width: 40,
-                    height: 40,
-                    borderRadius: 20,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {postingComment ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Ionicons
-                      name={commentEditing ? 'checkmark' : 'send'}
-                      size={18}
-                      color={commentInput.trim() ? '#FFFFFF' : colors.textMuted}
-                    />
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </KeyboardStickyView>
-      </Modal>
+        comments={postComments}
+        loading={loadingComments}
+        posting={postingComment}
+        commentInput={commentInput}
+        onChangeCommentInput={setCommentInput}
+        onSubmitComment={handleSubmitPostComment}
+        commentInputRef={commentInputRef}
+        replyingTo={commentReplyingTo}
+        editingComment={commentEditing}
+        onCancelInputMode={handleCancelCommentInputMode}
+        onReply={activeCommentKind === 'post' ? handleReplyPressModal : undefined}
+        onEdit={activeCommentKind === 'post' ? handleEditPressModal : undefined}
+        onDelete={handleDeletePostComment}
+        onToggleReaction={activeCommentKind === 'post' ? handleToggleCommentReactionModal : undefined}
+        getFullUrl={getFullImageUrl}
+        currentUserId={user?.studentId || null}
+        currentUserName={user?.name || null}
+        currentUserAvatar={user?.avatarUrl || null}
+        isAdmin={user?.role === 'admin'}
+        onNavigateProfile={(sid) => {
+          router.push({ pathname: '/user/[id]', params: { id: sid } });
+        }}
+      />
 
       {/* Floating Toast Notification */}
       {toastMessage && (

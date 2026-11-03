@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,10 +7,11 @@ import {
   Alert,
   Platform,
   TouchableOpacity,
-  TextInput,
+  type TextInputInstance,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -21,7 +22,10 @@ import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { formatDate, formatTimeAgo } from '@/utils/date';
+import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyComposer';
+import { CommentItem } from '@/components/CommentItem';
+import { CommentComposerBar } from '@/components/CommentComposerBar';
+import { formatDate } from '@/utils/date';
 import {
   getFileById,
   LibraryFile,
@@ -123,6 +127,9 @@ function getFileCategory(filename: string): 'pdf' | 'image' | 'text' | 'office' 
 export default function MaterialDetailScreen() {
   const { id, preview } = useLocalSearchParams<{ id: string; preview?: string }>();
   const { colors, spacing, radii } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const commentInputRef = useRef<TextInputInstance>(null);
 
   // In-app authenticated download states
   const [downloading, setDownloading] = useState(false);
@@ -381,38 +388,84 @@ export default function MaterialDetailScreen() {
     ]);
   };
 
+  const getFullUrl = useCallback(
+    (path?: any) => {
+      if (!path || typeof path !== 'string') return null;
+      if (path.startsWith('http://') || path.startsWith('https://')) return path;
+      const base = (serverBaseUrl || '').replace(/\/+$/, '');
+      const clean = path.replace(/^\/+/, '');
+      return base ? `${base}/${clean}` : path;
+    },
+    [serverBaseUrl]
+  );
+
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/library');
+    }
+  };
+
+  const topHeader = (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingTop: Math.max(insets.top, 10),
+        paddingBottom: 10,
+        paddingHorizontal: 14,
+        backgroundColor: colors.surface,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: colors.border,
+      }}
+    >
+      <TouchableOpacity
+        onPress={handleBack}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        style={{ paddingRight: 10, paddingVertical: 4 }}
+        accessibilityLabel="Go back"
+      >
+        <Ionicons name="chevron-back" size={24} color={colors.text} />
+      </TouchableOpacity>
+      <Text variant="md" weight="700" style={{ color: colors.text }}>
+        Material Details
+      </Text>
+    </View>
+  );
+
   if (loading) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text variant="sm" color="secondary" style={{ marginTop: spacing.md }}>
-          Loading material #{id}...
-        </Text>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {topHeader}
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text variant="sm" color="secondary" style={{ marginTop: spacing.md }}>
+            Loading material #{id}...
+          </Text>
+        </View>
       </View>
     );
   }
 
   if (error || !file) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: colors.background, padding: spacing.lg }]}>
-        <Ionicons name="alert-circle-outline" size={54} color={colors.error} style={{ marginBottom: spacing.sm }} />
-        <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>
-          Material Not Found
-        </Heading>
-        <Text variant="sm" color="secondary" style={{ textAlign: 'center', marginBottom: spacing.lg }}>
-          {error || 'The requested material does not exist or has been removed.'}
-        </Text>
-        <Button
-          title="Back to Library"
-          variant="primary"
-          onPress={() => {
-            if (router.canGoBack()) {
-              router.back();
-            } else {
-              router.replace('/(tabs)/library');
-            }
-          }}
-        />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {topHeader}
+        <View style={[styles.centerContainer, { padding: spacing.lg }]}>
+          <Ionicons name="alert-circle-outline" size={54} color={colors.error} style={{ marginBottom: spacing.sm }} />
+          <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>
+            Material Not Found
+          </Heading>
+          <Text variant="sm" color="secondary" style={{ textAlign: 'center', marginBottom: spacing.lg }}>
+            {error || 'The requested material does not exist or has been removed.'}
+          </Text>
+          <Button
+            title="Back to Library"
+            variant="primary"
+            onPress={handleBack}
+          />
+        </View>
       </View>
     );
   }
@@ -422,12 +475,15 @@ export default function MaterialDetailScreen() {
   const ext = (file.originalName.split('.').pop() || 'file').toUpperCase();
 
   return (
-    <>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {topHeader}
+      <KeyboardContentBoundary style={{ flex: 1 }}>
       <ScrollView
         contentContainerStyle={[
           styles.container,
           { padding: spacing.md, backgroundColor: colors.background },
         ]}
+        keyboardShouldPersistTaps="handled"
       >
         {/* File Header Card */}
         <Card variant="elevated" padding="lg" style={{ marginBottom: spacing.md }}>
@@ -733,46 +789,11 @@ export default function MaterialDetailScreen() {
         </Card>
 
         {/* Comments & Discussion Section */}
-        <Subheading style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
-          Class Discussion ({comments.length})
-        </Subheading>
-
-        {/* Comment Composer */}
-        <Card
-          variant="flat"
-          padding="md"
-          style={{
-            marginBottom: spacing.md,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.surfaceRaised,
-          }}
-        >
-          <TextInput
-            placeholder="Ask a question or thank the contributor..."
-            placeholderTextColor={colors.textMuted}
-            value={commentInput}
-            onChangeText={setCommentInput}
-            multiline
-            style={{
-              color: colors.text,
-              fontSize: 14,
-              minHeight: 52,
-              textAlignVertical: 'top',
-              paddingTop: 0,
-            }}
-          />
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: spacing.xs }}>
-            <Button
-              title="Post Comment"
-              variant="primary"
-              size="sm"
-              loading={postingComment}
-              disabled={!commentInput.trim() || postingComment}
-              onPress={handlePostComment}
-            />
-          </View>
-        </Card>
+        <View style={{ marginTop: spacing.lg, marginBottom: spacing.sm, paddingHorizontal: 4 }}>
+          <Text variant="sm" weight="700" color="secondary">
+            COMMENTS ({comments.length})
+          </Text>
+        </View>
 
         {/* Comments List */}
         {loadingComments ? (
@@ -783,98 +804,45 @@ export default function MaterialDetailScreen() {
           </Card>
         ) : (
           comments.map((c) => (
-            <Card
+            <CommentItem
               key={c.id}
-              variant="flat"
-              padding="md"
-              style={{
-                marginBottom: spacing.xs,
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: colors.surfaceRaised,
+              comment={{
+                id: c.id,
+                postId: file.id,
+                userId: c.studentId,
+                studentId: c.studentId,
+                content: c.content || c.commentText || '',
+                createdAt: c.createdAt || (c as any).created_at,
+                name: c.name || c.commenterName || 'Classmate',
+                role: c.role || 'student',
+                avatarUrl: c.avatarUrl || null,
+                canDelete: c.canDelete,
+                canEdit: false,
+                replies: [],
               }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    if (c.studentId) {
-                      router.push({
-                        pathname: '/user/[id]',
-                        params: { id: c.studentId },
-                      });
-                    }
-                  }}
-                  style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
-                >
-                  <View
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 14,
-                      backgroundColor: colors.surfaceSubtle,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden',
-                      marginRight: 8,
-                    }}
-                  >
-                    {c.avatarUrl ? (
-                      <Image
-                        source={{
-                          uri: c.avatarUrl.startsWith('http')
-                            ? c.avatarUrl
-                            : `${serverBaseUrl}${c.avatarUrl.startsWith('/') ? '' : '/'}${c.avatarUrl}`,
-                        }}
-                        style={{ width: '100%', height: '100%' }}
-                        contentFit="cover"
-                      />
-                    ) : (
-                      <Text variant="xs" weight="700" color="primary">
-                        {(c.name || c.commenterName || 'S').charAt(0).toUpperCase()}
-                      </Text>
-                    )}
-                  </View>
-                  <Text variant="xs" weight="700">
-                    {c.name || c.commenterName || 'Classmate'}
-                  </Text>
-                  {c.role && c.role !== 'student' && (
-                    <View
-                      style={{
-                        backgroundColor: colors.surfaceSubtle,
-                        paddingHorizontal: 4,
-                        paddingVertical: 1,
-                        borderRadius: 4,
-                        marginLeft: 6,
-                      }}
-                    >
-                      <Text variant="xs" weight="700" color="accent" style={{ fontSize: 9 }}>
-                        {c.role.toUpperCase()}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-
-                {c.canDelete && (
-                  <TouchableOpacity
-                    onPress={() => handleDeleteComment(c.id)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="trash-outline" size={14} color={colors.error} />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <Text variant="sm" style={{ marginTop: 6, lineHeight: 20 }}>
-                {c.content || c.commentText}
-              </Text>
-              <Caption color="muted" style={{ marginTop: 4, fontSize: 10 }}>
-                {formatTimeAgo(c.createdAt || (c as any).created_at)}
-              </Caption>
-            </Card>
+              onDelete={(item) => handleDeleteComment(item.id)}
+              getFullUrl={getFullUrl}
+              currentUserId={user?.studentId || null}
+              isAdmin={user?.role === 'admin'}
+            />
           ))
         )}
       </ScrollView>
+      </KeyboardContentBoundary>
+
+      {/* Sticky Instagram-style Comment Composer */}
+      <StickyComposer>
+        <CommentComposerBar
+          value={commentInput}
+          onChangeText={setCommentInput}
+          onSubmit={handlePostComment}
+          submitting={postingComment}
+          inputRef={commentInputRef}
+          userAvatarUrl={getFullUrl(user?.avatarUrl)}
+          userName={user?.name || 'You'}
+          showQuickEmojis
+        />
+      </StickyComposer>
 
       {/* Full-Screen Note/File Preview Modal with Orientation Unlock, Pinch-Zoom & Pan */}
       <FullScreenFilePreview
@@ -889,7 +857,7 @@ export default function MaterialDetailScreen() {
         downloadProgress={downloadProgress}
         downloadStatusText={downloadStatusText}
       />
-    </>
+    </View>
   );
 }
 

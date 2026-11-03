@@ -1,7 +1,16 @@
-import React from 'react';
-import { ViewStyle, StyleSheet, StyleProp } from 'react-native';
+import React, { useEffect } from 'react';
+import {
+  ViewStyle,
+  StyleSheet,
+  StyleProp,
+  Keyboard,
+  Platform,
+  type KeyboardEvent,
+} from 'react-native';
 import Reanimated, {
   useAnimatedStyle,
+  useSharedValue,
+  withTiming,
   interpolate,
 } from 'react-native-reanimated';
 import {
@@ -17,6 +26,49 @@ export interface UseKeyboardViewportOptions {
 }
 
 /**
+ * Shared fallback keyboard height shared-value so screens work identically
+ * in both native dev-client builds and Expo Go fallback environments.
+ */
+function useFallbackKeyboardSharedValues() {
+  const fallbackHeightSV = useSharedValue(0);
+  const fallbackProgressSV = useSharedValue(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const onShow = (e: KeyboardEvent) => {
+      const h = e?.endCoordinates?.height || 0;
+      const duration = e?.duration && e.duration > 0 ? e.duration : 220;
+      if (h > 0) {
+        fallbackHeightSV.value = withTiming(-h, { duration });
+        fallbackProgressSV.value = withTiming(1, { duration });
+      }
+    };
+
+    const onHide = (e: KeyboardEvent) => {
+      const duration = e?.duration && e.duration > 0 ? e.duration : 200;
+      fallbackHeightSV.value = withTiming(0, { duration });
+      fallbackProgressSV.value = withTiming(0, { duration });
+    };
+
+    const s1 = Keyboard.addListener(showEvent, onShow);
+    const s2 = Platform.OS === 'ios' ? Keyboard.addListener('keyboardDidShow', onShow) : null;
+    const s3 = Keyboard.addListener(hideEvent, onHide);
+    const s4 = Platform.OS === 'ios' ? Keyboard.addListener('keyboardDidHide', onHide) : null;
+
+    return () => {
+      s1.remove();
+      s2?.remove();
+      s3.remove();
+      s4?.remove();
+    };
+  }, [fallbackHeightSV, fallbackProgressSV]);
+
+  return { fallbackHeightSV, fallbackProgressSV };
+}
+
+/**
  * Shared keyboard viewport hook for Semester Library.
  * Synchronizes the content viewport's bottom boundary with the sticky composer
  * so content terminates strictly above the composer without being covered.
@@ -24,19 +76,15 @@ export interface UseKeyboardViewportOptions {
 export function useKeyboardViewport(options?: UseKeyboardViewportOptions) {
   const insets = useSafeAreaInsets();
   const { height, progress } = useReanimatedKeyboardAnimation();
+  const { fallbackHeightSV, fallbackProgressSV } = useFallbackKeyboardSharedValues();
 
-  const defaultOpenedOffset = Math.max(
-    0,
-    insets.bottom - COMPOSER_GEOMETRY.keyboardGap
-  );
-  const openedOffset =
-    options?.openedOffset !== undefined
-      ? options.openedOffset
-      : defaultOpenedOffset;
+  const openedOffset = options?.openedOffset !== undefined ? options.openedOffset : 0;
 
   const contentStyle = useAnimatedStyle(() => {
-    const offset = interpolate(progress.value, [0, 1], [0, openedOffset]);
-    const lift = Math.max(0, -(height.value + offset));
+    const activeHeight = height.value !== 0 ? height.value : fallbackHeightSV.value;
+    const activeProgress = progress.value !== 0 ? progress.value : fallbackProgressSV.value;
+    const offset = interpolate(activeProgress, [0, 1], [0, openedOffset]);
+    const lift = Math.max(0, -(activeHeight + offset));
     return {
       marginBottom: lift,
     };
@@ -83,13 +131,8 @@ export interface StickyComposerProps {
 
 /**
  * Enterprise-grade StickyComposer for Semester Library.
- * Backed by react-native-keyboard-controller's native KeyboardStickyView.
- *
- * Spacing Standards:
- * 1. Synchronously follows the software keyboard during appearance/dismissal.
- * 2. When keyboard is hidden: safely sits above the device navigation bar / home indicator.
- * 3. When keyboard is open: sits intentionally attached ~8dp above the keyboard edge.
- * 4. Preserves native keyboard controllers without custom timers.
+ * Backed by react-native-keyboard-controller's native KeyboardStickyView
+ * with automatic fallback for Expo Go and dynamic safe-area bottom padding collapse.
  */
 export function StickyComposer({
   children,
@@ -99,32 +142,53 @@ export function StickyComposer({
 }: StickyComposerProps) {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { height, progress } = useReanimatedKeyboardAnimation();
+  const { fallbackHeightSV, fallbackProgressSV } = useFallbackKeyboardSharedValues();
 
-  // Offset calculation:
-  // When keyboard is open, offset subtracts the safe-area inset (minus the intended 8dp gap)
-  // so the composer stays flush and naturally attached above the keyboard without an awkward empty void.
-  const openedOffset =
-    customOpenedOffset !== undefined
-      ? customOpenedOffset
-      : Math.max(0, insets.bottom - COMPOSER_GEOMETRY.keyboardGap);
+  const closedBottomPadding = Math.max(insets.bottom, COMPOSER_GEOMETRY.verticalPadding);
+  const openedBottomPadding = COMPOSER_GEOMETRY.verticalPadding;
+  const openedOffset = customOpenedOffset !== undefined ? customOpenedOffset : 0;
+
+  const animatedComposerStyle = useAnimatedStyle(() => {
+    const activeProgress = progress.value !== 0 ? progress.value : fallbackProgressSV.value;
+    const pb = interpolate(
+      activeProgress,
+      [0, 1],
+      [closedBottomPadding, openedBottomPadding]
+    );
+    // Only apply fallback translateY if native KeyboardStickyView height.value is 0
+    const fallbackTranslateY =
+      height.value === 0 && fallbackHeightSV.value !== 0
+        ? fallbackHeightSV.value + openedOffset
+        : 0;
+
+    return {
+      paddingBottom: pb,
+      transform: [{ translateY: fallbackTranslateY }],
+    };
+  }, [closedBottomPadding, openedBottomPadding, openedOffset]);
 
   return (
     <KeyboardStickyView
       offset={{ closed: 0, opened: openedOffset }}
-      style={[
-        styles.container,
-        {
-          backgroundColor: colors.surface,
-          borderTopColor: bordered ? colors.border : 'transparent',
-          borderTopWidth: bordered ? StyleSheet.hairlineWidth : 0,
-          paddingBottom: Math.max(insets.bottom, COMPOSER_GEOMETRY.verticalPadding),
-          paddingTop: COMPOSER_GEOMETRY.verticalPadding,
-          paddingHorizontal: COMPOSER_GEOMETRY.horizontalPadding,
-        },
-        style,
-      ]}
+      style={styles.container}
     >
-      {children}
+      <Reanimated.View
+        style={[
+          styles.container,
+          {
+            backgroundColor: colors.surface,
+            borderTopColor: bordered ? colors.border : 'transparent',
+            borderTopWidth: bordered ? StyleSheet.hairlineWidth : 0,
+            paddingTop: COMPOSER_GEOMETRY.verticalPadding,
+            paddingHorizontal: COMPOSER_GEOMETRY.horizontalPadding,
+          },
+          animatedComposerStyle,
+          style,
+        ]}
+      >
+        {children}
+      </Reanimated.View>
     </KeyboardStickyView>
   );
 }
@@ -141,4 +205,3 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 });
-

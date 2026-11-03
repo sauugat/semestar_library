@@ -36,6 +36,7 @@ import {
   PostComment,
 } from '@/services/posts';
 import { CommentItem } from '@/components/CommentItem';
+import { CommentComposerBar } from '@/components/CommentComposerBar';
 import { VoteButtons } from '@/components/PostCard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatDate } from '@/utils/date';
@@ -337,26 +338,59 @@ export default function NoticeDetailScreen() {
     }
   };
 
+  const topHeader = (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingTop: Math.max(insets.top, 10),
+        paddingBottom: 10,
+        paddingHorizontal: 14,
+        backgroundColor: colors.surface,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: colors.border,
+      }}
+    >
+      <TouchableOpacity
+        onPress={handleBack}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        style={{ paddingRight: 10, paddingVertical: 4 }}
+        accessibilityLabel="Go back"
+      >
+        <Ionicons name="chevron-back" size={24} color={colors.text} />
+      </TouchableOpacity>
+      <Text variant="md" weight="700" style={{ color: colors.text }}>
+        Notice Details
+      </Text>
+    </View>
+  );
+
   if (loading) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text variant="sm" color="muted" style={{ marginTop: 12 }}>
-          Loading official notice…
-        </Text>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {topHeader}
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text variant="sm" color="muted" style={{ marginTop: 12 }}>
+            Loading official notice…
+          </Text>
+        </View>
       </View>
     );
   }
 
   if (!notice) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: colors.background, padding: 24 }]}>
-        <Ionicons name="megaphone-outline" size={48} color={colors.textMuted} style={{ marginBottom: 12 }} />
-        <Heading style={{ fontSize: 18, marginBottom: 6 }}>Notice Not Found</Heading>
-        <Caption color="muted" style={{ textAlign: 'center', marginBottom: 20 }}>
-          This notice may have expired or is no longer available.
-        </Caption>
-        <Button title="Back to Notices" variant="primary" onPress={handleBack} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {topHeader}
+        <View style={[styles.centerContainer, { padding: 24 }]}>
+          <Ionicons name="megaphone-outline" size={48} color={colors.textMuted} style={{ marginBottom: 12 }} />
+          <Heading style={{ fontSize: 18, marginBottom: 6 }}>Notice Not Found</Heading>
+          <Caption color="muted" style={{ textAlign: 'center', marginBottom: 20 }}>
+            This notice may have expired or is no longer available.
+          </Caption>
+          <Button title="Back to Notices" variant="primary" onPress={handleBack} />
+        </View>
       </View>
     );
   }
@@ -366,6 +400,7 @@ export default function NoticeDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {topHeader}
       <KeyboardContentBoundary style={{ flex: 1 }}>
         <ScrollView
           ref={scrollViewRef}
@@ -516,81 +551,21 @@ export default function NoticeDetailScreen() {
         </ScrollView>
       </KeyboardContentBoundary>
 
-      {/* Sticky Comment Composer */}
+      {/* Sticky Instagram-style Comment Composer */}
       <StickyComposer>
-        {(replyingTo || editingComment) && (
-          <View
-            style={[
-              styles.composerContextBar,
-              {
-                backgroundColor: colors.surfaceRaised,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
-              <Ionicons name={editingComment ? 'pencil' : 'arrow-undo'} size={14} color={colors.primary} />
-              <Text variant="xs" weight="600" color="secondary" numberOfLines={1}>
-                {editingComment ? 'Editing your comment' : `Replying to ${replyingTo?.name}`}
-              </Text>
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleCancelInputMode}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={styles.composerInnerRow}>
-          <TextInput
-            ref={inputRef}
-            placeholder={
-              editingComment
-                ? 'Edit your comment…'
-                : replyingTo
-                ? `Reply to ${replyingTo.name}…`
-                : 'Write a comment on this notice…'
-            }
-            placeholderTextColor={colors.textMuted}
-            value={commentText}
-            onChangeText={setCommentText}
-            multiline
-            maxLength={1000}
-            style={[
-              styles.textInput,
-              {
-                backgroundColor: colors.surfaceSubtle,
-                color: colors.text,
-                borderColor: colors.border,
-              },
-            ]}
-          />
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={handleSubmitComment}
-            disabled={!commentText.trim() || submittingComment}
-            style={[
-              styles.sendButton,
-              {
-                backgroundColor: commentText.trim() ? colors.primary : colors.surfaceSubtle,
-                opacity: commentText.trim() ? 1 : 0.5,
-              },
-            ]}
-          >
-            {submittingComment ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <Ionicons
-                name={editingComment ? 'checkmark' : 'send'}
-                size={18}
-                color={commentText.trim() ? colors.primaryText || '#ffffff' : colors.textMuted}
-              />
-            )}
-          </TouchableOpacity>
-        </View>
+        <CommentComposerBar
+          value={commentText}
+          onChangeText={setCommentText}
+          onSubmit={handleSubmitComment}
+          submitting={submittingComment}
+          inputRef={inputRef}
+          userAvatarUrl={getFullUrl(user?.avatarUrl)}
+          userName={user?.name || 'You'}
+          replyingTo={replyingTo}
+          editingComment={editingComment}
+          onCancelMode={handleCancelInputMode}
+          showQuickEmojis
+        />
       </StickyComposer>
 
       {/* Full-Screen Image Modal */}

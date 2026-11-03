@@ -203,7 +203,13 @@ export async function voteFile(
   fileId: number,
   vote: 'up' | 'down'
 ): Promise<{ upCount: number; downCount: number; myVote: number; liked: boolean; likeCount: number }> {
-  const res = await api.post<any>(`/api/files/${fileId}/vote`, { vote });
+  let res: any;
+  try {
+    res = await api.post<any>(`/api/files/${fileId}/vote`, { vote });
+  } catch (err: any) {
+    // Fallback to /api/files/:id/like if an older deployed instance handles vote via /like
+    res = await api.post<any>(`/api/files/${fileId}/like`, { vote });
+  }
   const upCount = Number(res.upCount ?? res.up_count ?? res.likeCount ?? 0);
   const downCount = Number(res.downCount ?? res.down_count ?? 0);
   const myVote = Number(res.myVote ?? res.my_vote ?? (res.liked ? 1 : 0));
@@ -362,15 +368,30 @@ export async function uploadNote(params: UploadNoteParams): Promise<UploadNoteRe
 export interface FileComment {
   id: number;
   fileId: number;
+  postId?: number;
+  userId?: string;
   studentId: string;
   commentText: string;
   content: string;
   createdAt: string;
+  updatedAt?: string | null;
+  edited?: boolean;
   commenterName: string;
   name: string;
   avatarUrl?: string | null;
   role: string;
+  parentCommentId?: number | null;
+  replyToUserId?: string | null;
+  replyToUser?: {
+    studentId: string;
+    name: string;
+  } | null;
+  reactionCount?: number;
+  reactedByMe?: boolean;
+  replyCount?: number;
+  replies?: FileComment[];
   canDelete?: boolean;
+  canEdit?: boolean;
 }
 
 export async function getFileComments(fileId: number): Promise<FileComment[]> {
@@ -379,9 +400,33 @@ export async function getFileComments(fileId: number): Promise<FileComment[]> {
 
 export async function addFileComment(
   fileId: number,
-  text: string
+  text: string,
+  options?: {
+    parentCommentId?: number | null;
+    replyToUserId?: string | null;
+  }
 ): Promise<{ commentId: number; comment?: FileComment; commentCount: number }> {
-  return api.post(`/api/files/${fileId}/comments`, { text });
+  return api.post(`/api/files/${fileId}/comments`, {
+    text,
+    content: text,
+    parent_comment_id: options?.parentCommentId ?? null,
+    reply_to_user_id: options?.replyToUserId ?? null,
+  });
+}
+
+export async function editFileComment(
+  fileId: number,
+  commentId: number,
+  content: string
+): Promise<{ comment: FileComment; message: string }> {
+  return api.put(`/api/files/${fileId}/comments/${commentId}`, { content, text: content });
+}
+
+export async function toggleFileCommentReaction(
+  fileId: number,
+  commentId: number
+): Promise<{ reacted: boolean; reactionCount: number; reaction_count: number }> {
+  return api.post(`/api/files/${fileId}/comments/${commentId}/like`, {});
 }
 
 export async function deleteFileComment(

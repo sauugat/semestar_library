@@ -60,9 +60,13 @@ import {
   voteAssignment,
   getFileComments,
   addFileComment,
+  editFileComment,
+  toggleFileCommentReaction,
   deleteFileComment,
   getAssignmentComments,
   addAssignmentComment,
+  editAssignmentComment,
+  toggleAssignmentCommentReaction,
   deleteAssignmentComment,
   createPost,
   deletePost,
@@ -74,6 +78,7 @@ import {
   Post,
   PostComment,
   LibraryFile,
+  FileComment,
   MAX_ATTACHMENT_BYTES_PER_FILE,
   MAX_POST_ATTACHMENT_BYTES,
   formatAttachmentBytes,
@@ -94,6 +99,7 @@ import { SponsoredAdCard } from '@/components/SponsoredAdCard';
 import {
   Advertisement,
   interleaveFeedWithAds,
+  getEligibleAdvertisements,
   createAdvertisement,
   getFeedSessionKey,
 } from '@/services/advertisements';
@@ -879,18 +885,29 @@ function StudentHomeScreenInner() {
     queryKey: ['campus-feed', user?.studentId],
     queryFn: async () => {
       const feedQuery = isTeacherUser ? '?feed=1' : '';
-      const [postsRes, filesRes, assignmentsRes] = await Promise.all([
+      const [postsRes, filesRes, assignmentsRes, standaloneAds] = await Promise.all([
         getPosts(null, 20, undefined, undefined, { seed: feedSessionSeed }),
         getFeedFiles(feedQuery),
         apiFetch(`/api/code-lab/assignments${feedQuery}`)
           .then(async response => (response.ok ? ((await response.json()) as FeedAssignment[]) : []))
           .catch(() => [] as FeedAssignment[]),
+        getEligibleAdvertisements(feedSessionSeed).catch(() => [] as Advertisement[]),
       ]);
+      const combinedAdsMap = new Map<number, Advertisement>();
+      for (const ad of [
+        ...(postsRes.eligibleAdvertisements || []),
+        ...(postsRes.advertisements || []),
+        ...(standaloneAds || []),
+      ]) {
+        if (ad && ad.id && !combinedAdsMap.has(Number(ad.id))) {
+          combinedAdsMap.set(Number(ad.id), ad);
+        }
+      }
       return {
         posts: postsRes.posts,
         files: filesRes,
         assignments: assignmentsRes,
-        eligibleAdvertisements: postsRes.eligibleAdvertisements || postsRes.advertisements || [],
+        eligibleAdvertisements: Array.from(combinedAdsMap.values()),
         nextCursor: postsRes.nextCursor,
         fetchedAt: new Date(),
       };
@@ -1014,6 +1031,70 @@ function StudentHomeScreenInner() {
     }
   };
 
+  const normalizeFileOrAssignmentComment = useCallback(
+    (c: FileComment, targetPostId: number): PostComment => ({
+      id: Number(c.id),
+      postId: Number(c.postId || c.fileId || targetPostId),
+      userId: c.userId || c.studentId,
+      studentId: c.studentId,
+      content: c.content || c.commentText || '',
+      createdAt: c.createdAt || (c as any).created_at,
+      updatedAt: c.updatedAt || (c as any).updated_at || null,
+      edited: Boolean(
+        c.edited ||
+          ((c.updatedAt || (c as any).updated_at) &&
+            (c.updatedAt || (c as any).updated_at) !== (c.createdAt || (c as any).created_at))
+      ),
+      name: c.name || c.commenterName || 'Student',
+      role: c.role || 'student',
+      avatarUrl: c.avatarUrl || null,
+      parentCommentId: c.parentCommentId ?? (c as any).parent_comment_id ?? null,
+      replyToUserId: c.replyToUserId ?? (c as any).reply_to_user_id ?? null,
+      replyToUser: c.replyToUser || null,
+      reactionCount: Number(c.reactionCount ?? (c as any).reaction_count ?? 0),
+      reactedByMe: Boolean(c.reactedByMe ?? (c as any).reacted_by_me),
+      canDelete: Boolean(
+        c.canDelete ||
+          (user?.studentId && c.studentId === user.studentId) ||
+          user?.role === 'admin'
+      ),
+      canEdit: Boolean(c.canEdit || (user?.studentId && c.studentId === user.studentId)),
+      replyCount: Number(c.replyCount ?? (c.replies ? c.replies.length : 0)),
+      replies: Array.isArray(c.replies)
+        ? c.replies.map((r) => ({
+            id: Number(r.id),
+            postId: Number(r.postId || r.fileId || targetPostId),
+            userId: r.userId || r.studentId,
+            studentId: r.studentId,
+            content: r.content || r.commentText || '',
+            createdAt: r.createdAt || (r as any).created_at,
+            updatedAt: r.updatedAt || (r as any).updated_at || null,
+            edited: Boolean(
+              r.edited ||
+                ((r.updatedAt || (r as any).updated_at) &&
+                  (r.updatedAt || (r as any).updated_at) !== (r.createdAt || (r as any).created_at))
+            ),
+            name: r.name || r.commenterName || 'Student',
+            role: r.role || 'student',
+            avatarUrl: r.avatarUrl || null,
+            parentCommentId: r.parentCommentId ?? (r as any).parent_comment_id ?? c.id,
+            replyToUserId: r.replyToUserId ?? (r as any).reply_to_user_id ?? null,
+            replyToUser: r.replyToUser || null,
+            reactionCount: Number(r.reactionCount ?? (r as any).reaction_count ?? 0),
+            reactedByMe: Boolean(r.reactedByMe ?? (r as any).reacted_by_me),
+            canDelete: Boolean(
+              r.canDelete ||
+                (user?.studentId && r.studentId === user.studentId) ||
+                user?.role === 'admin'
+            ),
+            canEdit: Boolean(r.canEdit || (user?.studentId && r.studentId === user.studentId)),
+            replies: [],
+          }))
+        : [],
+    }),
+    [user?.studentId, user?.role]
+  );
+
   const handleOpenFileComments = async (file: LibraryFile) => {
     setActiveCommentKind('file');
     setActiveCommentPost({
@@ -1040,22 +1121,7 @@ function StudentHomeScreenInner() {
     setLoadingComments(true);
     try {
       const data = await getFileComments(file.id);
-      setPostComments(
-        (data || []).map((c) => ({
-          id: c.id,
-          postId: file.id,
-          userId: c.studentId,
-          studentId: c.studentId,
-          content: c.content || c.commentText,
-          createdAt: c.createdAt,
-          name: c.name || c.commenterName || 'Student',
-          role: c.role || 'student',
-          avatarUrl: c.avatarUrl || null,
-          canDelete: c.canDelete,
-          canEdit: false,
-          replies: [],
-        }))
-      );
+      setPostComments((data || []).map((c) => normalizeFileOrAssignmentComment(c, file.id)));
     } catch {
       showToast('Could not load note comments');
     } finally {
@@ -1089,22 +1155,7 @@ function StudentHomeScreenInner() {
     setLoadingComments(true);
     try {
       const data = await getAssignmentComments(assignment.id);
-      setPostComments(
-        (data || []).map((c) => ({
-          id: c.id,
-          postId: assignment.id,
-          userId: c.studentId,
-          studentId: c.studentId,
-          content: c.content || c.commentText,
-          createdAt: c.createdAt,
-          name: c.name || c.commenterName || 'Student',
-          role: c.role || 'student',
-          avatarUrl: c.avatarUrl || null,
-          canDelete: c.canDelete,
-          canEdit: false,
-          replies: [],
-        }))
-      );
+      setPostComments((data || []).map((c) => normalizeFileOrAssignmentComment(c, assignment.id)));
     } catch {
       showToast('Could not load assignment comments');
     } finally {
@@ -1146,8 +1197,10 @@ function StudentHomeScreenInner() {
 
   const handleReplyPressModal = (comment: PostComment) => {
     setCommentEditing(null);
+    // If replying to a nested reply, attach under its parent root comment
+    const rootCommentId = comment.parentCommentId ? Number(comment.parentCommentId) : Number(comment.id);
     setCommentReplyingTo({
-      commentId: comment.id,
+      commentId: rootCommentId,
       name: comment.name || 'User',
       studentId: comment.studentId || comment.userId,
     });
@@ -1180,66 +1233,156 @@ function StudentHomeScreenInner() {
     setPostingComment(true);
     try {
       if (activeCommentKind === 'file') {
-        const res = await addFileComment(activeCommentPost.id, content);
+        if (commentEditing) {
+          const res = await editFileComment(activeCommentPost.id, commentEditing.id, content);
+          const normalized = res.comment
+            ? normalizeFileOrAssignmentComment(res.comment, activeCommentPost.id)
+            : null;
+          setPostComments((prev) =>
+            prev.map((root) => {
+              if (root.id === commentEditing.id) {
+                return normalized ? { ...root, ...normalized, replies: root.replies } : { ...root, content, edited: true };
+              }
+              if (root.replies && root.replies.length > 0) {
+                return {
+                  ...root,
+                  replies: root.replies.map((reply) =>
+                    reply.id === commentEditing.id
+                      ? normalized
+                        ? { ...reply, ...normalized }
+                        : { ...reply, content, edited: true }
+                      : reply
+                  ),
+                };
+              }
+              return root;
+            })
+          );
+          setCommentEditing(null);
+          setCommentInput('');
+          showToast('Comment updated');
+          return;
+        }
+
+        const res = await addFileComment(
+          activeCommentPost.id,
+          content,
+          commentReplyingTo
+            ? {
+                parentCommentId: commentReplyingTo.commentId,
+                replyToUserId: commentReplyingTo.studentId,
+              }
+            : undefined
+        );
+        const wasReply = Boolean(commentReplyingTo);
+        const parentId = commentReplyingTo?.commentId;
         setCommentInput('');
+        setCommentReplyingTo(null);
         if (res.comment) {
-          const c = res.comment;
-          setPostComments((prev) => [
-            ...prev,
-            {
-              id: c.id,
-              postId: activeCommentPost.id,
-              userId: c.studentId,
-              studentId: c.studentId,
-              content: c.content || c.commentText,
-              createdAt: c.createdAt,
-              name: c.name || c.commenterName || 'Student',
-              role: c.role || 'student',
-              avatarUrl: c.avatarUrl || null,
-              canDelete: true,
-              canEdit: false,
-              replies: [],
-            },
-          ]);
+          const newComment = normalizeFileOrAssignmentComment(res.comment, activeCommentPost.id);
+          if (wasReply && parentId) {
+            setPostComments((prev) =>
+              prev.map((root) => {
+                if (root.id === parentId) {
+                  const currentReplies = root.replies || [];
+                  return {
+                    ...root,
+                    replyCount: (root.replyCount || currentReplies.length) + 1,
+                    replies: [...currentReplies, newComment],
+                  };
+                }
+                return root;
+              })
+            );
+          } else {
+            setPostComments((prev) => [...prev, newComment]);
+          }
         }
         const updatedCount = res.commentCount ?? (activeCommentPost.comment_count + 1);
         setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
         setFiles((prev) =>
-          prev.map((f) => (f.id === activeCommentPost.id ? { ...f, commentCount: updatedCount } : f))
+          prev.map((f) =>
+            Number(f.id) === Number(activeCommentPost.id) ? { ...f, commentCount: updatedCount } : f
+          )
         );
-        showToast('Comment posted');
+        showToast(wasReply ? 'Reply posted' : 'Comment posted');
         return;
       }
 
       if (activeCommentKind === 'assignment') {
-        const res = await addAssignmentComment(activeCommentPost.id, content);
+        if (commentEditing) {
+          const res = await editAssignmentComment(activeCommentPost.id, commentEditing.id, content);
+          const normalized = res.comment
+            ? normalizeFileOrAssignmentComment(res.comment, activeCommentPost.id)
+            : null;
+          setPostComments((prev) =>
+            prev.map((root) => {
+              if (root.id === commentEditing.id) {
+                return normalized ? { ...root, ...normalized, replies: root.replies } : { ...root, content, edited: true };
+              }
+              if (root.replies && root.replies.length > 0) {
+                return {
+                  ...root,
+                  replies: root.replies.map((reply) =>
+                    reply.id === commentEditing.id
+                      ? normalized
+                        ? { ...reply, ...normalized }
+                        : { ...reply, content, edited: true }
+                      : reply
+                  ),
+                };
+              }
+              return root;
+            })
+          );
+          setCommentEditing(null);
+          setCommentInput('');
+          showToast('Comment updated');
+          return;
+        }
+
+        const res = await addAssignmentComment(
+          activeCommentPost.id,
+          content,
+          commentReplyingTo
+            ? {
+                parentCommentId: commentReplyingTo.commentId,
+                replyToUserId: commentReplyingTo.studentId,
+              }
+            : undefined
+        );
+        const wasReply = Boolean(commentReplyingTo);
+        const parentId = commentReplyingTo?.commentId;
         setCommentInput('');
+        setCommentReplyingTo(null);
         if (res.comment) {
-          const c = res.comment;
-          setPostComments((prev) => [
-            ...prev,
-            {
-              id: c.id,
-              postId: activeCommentPost.id,
-              userId: c.studentId,
-              studentId: c.studentId,
-              content: c.content || c.commentText,
-              createdAt: c.createdAt,
-              name: c.name || c.commenterName || 'Student',
-              role: c.role || 'student',
-              avatarUrl: c.avatarUrl || null,
-              canDelete: true,
-              canEdit: false,
-              replies: [],
-            },
-          ]);
+          const newComment = normalizeFileOrAssignmentComment(res.comment, activeCommentPost.id);
+          if (wasReply && parentId) {
+            setPostComments((prev) =>
+              prev.map((root) => {
+                if (root.id === parentId) {
+                  const currentReplies = root.replies || [];
+                  return {
+                    ...root,
+                    replyCount: (root.replyCount || currentReplies.length) + 1,
+                    replies: [...currentReplies, newComment],
+                  };
+                }
+                return root;
+              })
+            );
+          } else {
+            setPostComments((prev) => [...prev, newComment]);
+          }
         }
         const updatedCount = res.commentCount ?? (activeCommentPost.comment_count + 1);
         setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
         setAssignments((prev) =>
-          prev.map((a) => (a.id === activeCommentPost.id ? { ...a, commentCount: updatedCount } : a))
+          prev.map((a) =>
+            Number(a.id) === Number(activeCommentPost.id) ? { ...a, commentCount: updatedCount } : a
+          )
         );
-        showToast('Comment posted');
+        showToast(wasReply ? 'Reply posted' : 'Comment posted');
         return;
       }
 
@@ -1274,7 +1417,7 @@ function StudentHomeScreenInner() {
         setCommentInput('');
         setCommentReplyingTo(null);
         if (res.comment) {
-          const targetParentId = res.comment.parentCommentId;
+          const targetParentId = res.comment.parentCommentId || commentReplyingTo.commentId;
           setPostComments((prev) =>
             prev.map((root) => {
               if (root.id === targetParentId) {
@@ -1343,7 +1486,12 @@ function StudentHomeScreenInner() {
     );
 
     try {
-      const res = await toggleCommentReaction(activeCommentPost.id, comment.id);
+      const res =
+        activeCommentKind === 'file'
+          ? await toggleFileCommentReaction(activeCommentPost.id, comment.id)
+          : activeCommentKind === 'assignment'
+          ? await toggleAssignmentCommentReaction(activeCommentPost.id, comment.id)
+          : await toggleCommentReaction(activeCommentPost.id, comment.id);
       setPostComments((prev) =>
         prev.map((root) => {
           if (root.id === comment.id) {
@@ -1401,24 +1549,46 @@ function StudentHomeScreenInner() {
         style: 'destructive',
         onPress: async () => {
           try {
+            const removeCommentFromTree = (list: PostComment[], targetId: number): PostComment[] =>
+              list
+                .map((root) => {
+                  if (root.id === targetId) {
+                    return null;
+                  }
+                  if (root.replies && root.replies.length > 0) {
+                    const updatedReplies = root.replies.filter((r) => r.id !== targetId);
+                    return {
+                      ...root,
+                      replies: updatedReplies,
+                      replyCount: updatedReplies.length,
+                    };
+                  }
+                  return root;
+                })
+                .filter(Boolean) as PostComment[];
+
             if (activeCommentKind === 'file') {
               const res = await deleteFileComment(activeCommentPost.id, comment.id);
-              setPostComments((prev) => prev.filter((c) => c.id !== comment.id));
+              setPostComments((prev) => removeCommentFromTree(prev, comment.id));
               const updatedCount = res.commentCount ?? Math.max(0, activeCommentPost.comment_count - 1);
               setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
               setFiles((prev) =>
-                prev.map((f) => (f.id === activeCommentPost.id ? { ...f, commentCount: updatedCount } : f))
+                prev.map((f) =>
+                  Number(f.id) === Number(activeCommentPost.id) ? { ...f, commentCount: updatedCount } : f
+                )
               );
               showToast('Comment deleted');
               return;
             }
             if (activeCommentKind === 'assignment') {
               const res = await deleteAssignmentComment(activeCommentPost.id, comment.id);
-              setPostComments((prev) => prev.filter((c) => c.id !== comment.id));
+              setPostComments((prev) => removeCommentFromTree(prev, comment.id));
               const updatedCount = res.commentCount ?? Math.max(0, activeCommentPost.comment_count - 1);
               setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
               setAssignments((prev) =>
-                prev.map((a) => (a.id === activeCommentPost.id ? { ...a, commentCount: updatedCount } : a))
+                prev.map((a) =>
+                  Number(a.id) === Number(activeCommentPost.id) ? { ...a, commentCount: updatedCount } : a
+                )
               );
               showToast('Comment deleted');
               return;
@@ -1731,7 +1901,8 @@ function StudentHomeScreenInner() {
   };
 
   const handleToggleFileLike = async (fileId: number, direction: 'up' | 'down' = 'up') => {
-    const targetFile = files.find((f) => f.id === fileId);
+    const numFileId = Number(fileId);
+    const targetFile = files.find((f) => Number(f.id) === numFileId);
     if (!targetFile) return;
 
     const prevUp = Number(targetFile.upCount ?? targetFile.up_count ?? targetFile.likeCount ?? 0);
@@ -1744,12 +1915,15 @@ function StudentHomeScreenInner() {
 
     setFiles((prev) =>
       prev.map((f) =>
-        f.id === fileId
+        Number(f.id) === numFileId
           ? {
               ...f,
               upCount: nextUp,
               downCount: nextDown,
               myVote: nextVote,
+              up_count: nextUp,
+              down_count: nextDown,
+              my_vote: nextVote,
               liked: nextVote === 1,
               likeCount: nextUp,
             }
@@ -1758,15 +1932,18 @@ function StudentHomeScreenInner() {
     );
 
     try {
-      const result = await voteFile(fileId, direction);
+      const result = await voteFile(numFileId, direction);
       setFiles((prev) =>
         prev.map((f) =>
-          f.id === fileId
+          Number(f.id) === numFileId
             ? {
                 ...f,
                 upCount: result.upCount,
                 downCount: result.downCount,
                 myVote: result.myVote,
+                up_count: result.upCount,
+                down_count: result.downCount,
+                my_vote: result.myVote,
                 liked: result.liked,
                 likeCount: result.likeCount,
               }
@@ -1777,13 +1954,16 @@ function StudentHomeScreenInner() {
         old
           ? {
               ...old,
-              files: old.files.map((f: LibraryFile) =>
-                f.id === fileId
+              files: (old.files || []).map((f: LibraryFile) =>
+                Number(f.id) === numFileId
                   ? {
                       ...f,
                       upCount: result.upCount,
                       downCount: result.downCount,
                       myVote: result.myVote,
+                      up_count: result.upCount,
+                      down_count: result.downCount,
+                      my_vote: result.myVote,
                       liked: result.liked,
                       likeCount: result.likeCount,
                     }
@@ -1795,12 +1975,15 @@ function StudentHomeScreenInner() {
     } catch (err: any) {
       setFiles((prev) =>
         prev.map((f) =>
-          f.id === fileId
+          Number(f.id) === numFileId
             ? {
                 ...f,
                 upCount: prevUp,
                 downCount: prevDown,
                 myVote: prevVote,
+                up_count: prevUp,
+                down_count: prevDown,
+                my_vote: prevVote,
                 liked: prevVote === 1,
                 likeCount: prevUp,
               }
@@ -1812,7 +1995,8 @@ function StudentHomeScreenInner() {
   };
 
   const handleToggleAssignmentVote = async (assignmentId: number, direction: 'up' | 'down' = 'up') => {
-    const target = assignments.find((a) => a.id === assignmentId);
+    const numAssignmentId = Number(assignmentId);
+    const target = assignments.find((a) => Number(a.id) === numAssignmentId);
     if (!target) return;
 
     const prevUp = Number(target.upCount ?? target.likeCount ?? 0);
@@ -1825,7 +2009,7 @@ function StudentHomeScreenInner() {
 
     setAssignments((prev) =>
       prev.map((a) =>
-        a.id === assignmentId
+        Number(a.id) === numAssignmentId
           ? {
               ...a,
               upCount: nextUp,
@@ -1839,10 +2023,10 @@ function StudentHomeScreenInner() {
     );
 
     try {
-      const result = await voteAssignment(assignmentId, direction);
+      const result = await voteAssignment(numAssignmentId, direction);
       setAssignments((prev) =>
         prev.map((a) =>
-          a.id === assignmentId
+          Number(a.id) === numAssignmentId
             ? {
                 ...a,
                 upCount: result.upCount,
@@ -1854,10 +2038,29 @@ function StudentHomeScreenInner() {
             : a
         )
       );
+      queryClient.setQueryData(['campus-feed', user?.studentId], (old: any) =>
+        old
+          ? {
+              ...old,
+              assignments: (old.assignments || []).map((a: FeedAssignment) =>
+                Number(a.id) === numAssignmentId
+                  ? {
+                      ...a,
+                      upCount: result.upCount,
+                      downCount: result.downCount,
+                      myVote: result.myVote,
+                      liked: result.liked,
+                      likeCount: result.likeCount,
+                    }
+                  : a
+              ),
+            }
+          : old
+      );
     } catch (err: any) {
       setAssignments((prev) =>
         prev.map((a) =>
-          a.id === assignmentId
+          Number(a.id) === numAssignmentId
             ? {
                 ...a,
                 upCount: prevUp,
@@ -4449,10 +4652,10 @@ function StudentHomeScreenInner() {
         replyingTo={commentReplyingTo}
         editingComment={commentEditing}
         onCancelInputMode={handleCancelCommentInputMode}
-        onReply={activeCommentKind === 'post' ? handleReplyPressModal : undefined}
-        onEdit={activeCommentKind === 'post' ? handleEditPressModal : undefined}
+        onReply={handleReplyPressModal}
+        onEdit={handleEditPressModal}
         onDelete={handleDeletePostComment}
-        onToggleReaction={activeCommentKind === 'post' ? handleToggleCommentReactionModal : undefined}
+        onToggleReaction={handleToggleCommentReactionModal}
         getFullUrl={getFullImageUrl}
         currentUserId={user?.studentId || null}
         currentUserName={user?.name || null}
@@ -4463,7 +4666,7 @@ function StudentHomeScreenInner() {
         }}
       />
 
-      {/* Floating Toast Notification */}
+      {/* Floating Toast Notification (positioned cleanly above the floating bottom navigation bar) */}
       {toastMessage && (
         <Animated.View
           pointerEvents="none"
@@ -4471,13 +4674,14 @@ function StudentHomeScreenInner() {
             styles.toastContainer,
             {
               opacity: toastOpacity,
-              backgroundColor: colors.surfaceRaised,
-              borderColor: colors.border,
+              bottom: Math.max(insets.bottom, 12) + (isAdmin ? 104 : 74),
+              backgroundColor: '#18181B',
+              borderColor: 'rgba(255, 255, 255, 0.16)',
             },
           ]}
         >
-          <Ionicons name="checkmark-circle" size={17} color="#FFFFFF" style={{ marginRight: 8 }} />
-          <Text variant="sm" weight="600" color="primary">
+          <Ionicons name="checkmark-circle" size={18} color="#22C55E" style={{ marginRight: 8 }} />
+          <Text variant="sm" weight="600" style={{ color: '#FAFAFA' }}>
             {toastMessage}
           </Text>
         </Animated.View>
@@ -4922,7 +5126,7 @@ const styles = StyleSheet.create({
   },
   toastContainer: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 92,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
@@ -4931,11 +5135,11 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 8,
-    zIndex: 9999,
+    shadowRadius: 12,
+    elevation: 24,
+    zIndex: 99999,
   },
 });
 

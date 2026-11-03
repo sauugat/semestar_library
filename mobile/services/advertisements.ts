@@ -104,8 +104,12 @@ export function isSafeAdDestinationUrl(rawUrl?: string | null): boolean {
 
 export function isAdCurrentlyEligible(ad: Advertisement, now: Date = new Date()): boolean {
   if (!ad) return false;
-  const isActive = Number(ad.is_active ?? (ad.isActive ? 1 : 0)) === 1;
-  const status = String(ad.status || '').toLowerCase();
+  const rawActive: unknown = ad.is_active ?? ad.isActive;
+  const isActive =
+    rawActive === undefined || rawActive === null
+      ? true
+      : rawActive === true || Number(rawActive) === 1 || String(rawActive).toLowerCase() === 'true';
+  const status = String(ad.status || 'active').toLowerCase();
   if (!isActive || status !== 'active') return false;
 
   const nowMs = now.getTime();
@@ -116,7 +120,11 @@ export function isAdCurrentlyEligible(ad: Advertisement, now: Date = new Date())
   }
   const endRaw = ad.end_date ?? ad.endDate ?? null;
   if (endRaw) {
-    const endMs = new Date(endRaw).getTime();
+    const endStr = String(endRaw).trim();
+    const endDateObj = /^\d{4}-\d{2}-\d{2}$/.test(endStr)
+      ? new Date(`${endStr}T23:59:59.999Z`)
+      : new Date(endStr);
+    const endMs = endDateObj.getTime();
     if (!isNaN(endMs) && nowMs > endMs) return false;
   }
   return true;
@@ -224,6 +232,16 @@ export function interleaveFeedWithAds<T>(
       organicSinceLastAd = 0;
       nextGap = intervalRng() < 0.5 ? 2 : 3;
     }
+  }
+
+  // If the feed only has 1 or 2 organic items (fewer than nextGap), still place the first eligible ad after them
+  if (adIdx === 0 && shuffledAds.length > 0 && cleanOrganic.length > 0) {
+    const ad = shuffledAds[adIdx++];
+    result.push({
+      feedType: 'advertisement',
+      advertisement: ad,
+      time: new Date(ad.created_at || ad.createdAt || 0).getTime() || 0,
+    });
   }
 
   return result;

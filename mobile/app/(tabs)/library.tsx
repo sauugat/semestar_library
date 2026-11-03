@@ -1058,21 +1058,22 @@ function StudentLibraryView() {
         }}
       />
 
-      {/* Toast Notification */}
+      {/* Toast Notification (positioned cleanly above the floating bottom navigation bar) */}
       {toastMessage && (
         <Animated.View
           style={[
             styles.toastContainer,
             {
               opacity: toastOpacity,
-              backgroundColor: '#1E293B',
-              borderColor: 'rgba(255, 255, 255, 0.15)',
+              bottom: user?.isAdmin || user?.role === 'admin' ? 116 : 86,
+              backgroundColor: '#18181B',
+              borderColor: 'rgba(255, 255, 255, 0.16)',
             },
           ]}
           pointerEvents="none"
         >
           <Ionicons name="checkmark-circle" size={18} color="#22C55E" style={{ marginRight: 8 }} />
-          <Text variant="sm" weight="600" style={{ color: '#F8FAFC' }}>
+          <Text variant="sm" weight="600" style={{ color: '#FAFAFA' }}>
             {toastMessage}
           </Text>
         </Animated.View>
@@ -1164,21 +1165,20 @@ const styles = StyleSheet.create({
   },
   toastContainer: {
     position: 'absolute',
-    bottom: 24,
-    left: 20,
-    right: 20,
+    bottom: 92,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+    borderRadius: 24,
     borderWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-    zIndex: 999,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 24,
+    zIndex: 99999,
   },
   container: {
     flexGrow: 1,

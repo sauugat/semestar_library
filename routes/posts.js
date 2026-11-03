@@ -194,7 +194,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       : "WHERE deleted_at IS NULL";
     return `
       SELECT p.*, s.name, s.role,
-        CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) || '-' || SUBSTR(s.avatarUrl, -12) ELSE s.avatarUrl END AS "avatarUrl",
+        CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) ELSE s.avatarUrl END AS "avatarUrl",
         s.studentId AS "studentId",
         COALESCE(v.up_count, l.like_count, 0) AS like_count,
         COALESCE(v.up_count, l.like_count, 0) AS up_count,

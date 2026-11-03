@@ -3631,8 +3631,9 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
 
 // Fetch details of a single file/material by ID
 app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
   const fileId = req.params.id;
-  const currentStudentId = req.student?.studentId || req.session?.studentId;
+  const currentStudentId = req.student?.studentId || req.user?.studentId || req.session?.studentId;
 
   if (!fileId || isNaN(parseInt(fileId, 10))) {
     return res.status(400).json({ message: 'Invalid file ID' });
@@ -3641,7 +3642,9 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
   const query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope,
-      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
+      students.name AS uploaderName,
+      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) ELSE students.avatarUrl END AS uploaderAvatar,
+      students.role AS uploaderRole,
       COALESCE((SELECT SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END) FROM (SELECT fileId, studentId, vote_type FROM file_votes WHERE fileId = files.id UNION ALL SELECT fl.fileId, fl.studentId, 1 AS vote_type FROM file_likes fl WHERE fl.fileId = files.id AND NOT EXISTS (SELECT 1 FROM file_votes fv WHERE fv.fileId = fl.fileId AND fv.studentId = fl.studentId)) t), 0) AS upCount,
       COALESCE((SELECT SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END) FROM file_votes WHERE file_votes.fileId = files.id), 0) AS downCount,
       COALESCE((SELECT vote_type FROM (SELECT fileId, studentId, vote_type FROM file_votes WHERE fileId = files.id UNION ALL SELECT fl.fileId, fl.studentId, 1 AS vote_type FROM file_likes fl WHERE fl.fileId = files.id AND NOT EXISTS (SELECT 1 FROM file_votes fv WHERE fv.fileId = fl.fileId AND fv.studentId = fl.studentId)) m WHERE m.studentId = ? LIMIT 1), 0) AS myVote,
@@ -3680,6 +3683,7 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
 });
 
 app.get('/api/files', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
   const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200) : 100;
   const offset = req.query.offset ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
 
@@ -3743,7 +3747,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope, COALESCE(files.sort_order, 0) AS sort_order,
       students.name AS uploaderName,
-      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) || '-' || SUBSTR(students.avatarUrl, -12) ELSE students.avatarUrl END AS uploaderAvatar,
+      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) ELSE students.avatarUrl END AS uploaderAvatar,
       students.role AS uploaderRole,
       COALESCE(fv.upCount, fl.likeCount, 0) AS likeCount,
       COALESCE(fv.upCount, fl.likeCount, 0) AS upCount,
@@ -4364,6 +4368,7 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
 
 // Toggle/set vote or like on a file (supports Reddit-style up/down votes and anonymous 10-vote milestone notifications)
 app.post(['/api/files/:id/like', '/api/files/:id/vote'], requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
   const fileId = Number(req.params.id);
   const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
   if (!studentId || !fileId) return res.status(400).json({ message: 'Invalid request' });
@@ -4480,53 +4485,147 @@ app.post(['/api/files/:id/like', '/api/files/:id/vote'], requireLogin, async (re
   });
 });
 
-// List comments on a file
-app.get('/api/files/:id/comments', requireLogin, async (req, res) => {
-  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
-  const currentRole = req.session?.role || req.user?.role || req.student?.role || 'student';
-
-  const comments = await db.all(`
-    SELECT file_comments.id, file_comments.studentId, file_comments.commentText, file_comments.createdAt,
-           students.name AS commenterName, students.avatarUrl, students.role
-    FROM file_comments
-    JOIN students ON students.studentId = file_comments.studentId
-    WHERE fileId = ?
-    ORDER BY file_comments.createdAt ASC
-  `, req.params.id);
-
-  const formatted = comments.map(c => ({
-    id: c.id,
-    fileId: Number(req.params.id),
+function formatFileCommentRow(c, fileId, currentStudentId, currentRole) {
+  const rawAvatar = c.avatarUrl || c.avatarurl || null;
+  const avatarUrl = rawAvatar && String(rawAvatar).startsWith('data:')
+    ? `/api/avatar/student/${c.studentId}?v=${String(rawAvatar).length}`
+    : rawAvatar;
+  const rawCreated = c.createdAt || c.created_at;
+  let createdAt = rawCreated;
+  if (typeof rawCreated === 'string') {
+    const t = rawCreated.trim();
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(t)) {
+      createdAt = t.replace(' ', 'T') + 'Z';
+    }
+  }
+  const isAuthor = Boolean(currentStudentId && c.studentId === currentStudentId);
+  const isAdminUser = currentRole === 'admin';
+  const replyToUser = (c.reply_to_user_id && c.reply_to_name) ? {
+    studentId: c.reply_to_user_id,
+    name: c.reply_to_name
+  } : null;
+  return {
+    id: Number(c.id),
+    fileId,
+    postId: fileId,
+    userId: c.studentId,
     studentId: c.studentId,
     commentText: c.commentText,
     content: c.commentText,
-    createdAt: c.createdAt,
+    createdAt,
+    updatedAt: c.updated_at || null,
+    edited: Boolean(c.updated_at),
+    parentCommentId: c.parent_comment_id ? Number(c.parent_comment_id) : null,
+    replyToUserId: c.reply_to_user_id || null,
+    replyToUser,
     commenterName: c.commenterName,
     name: c.commenterName,
-    avatarUrl: c.avatarUrl,
+    avatarUrl,
     role: c.role || 'student',
-    canDelete: c.studentId === currentStudentId || currentRole === 'admin'
-  }));
+    reactionCount: Number(c.reaction_count || 0),
+    reactedByMe: Boolean(c.reacted_by_me),
+    replyCount: Number(c.reply_count || 0),
+    replies: Array.isArray(c.replies) ? c.replies : [],
+    canDelete: isAuthor || isAdminUser,
+    canEdit: isAuthor
+  };
+}
 
-  res.json(formatted);
+// List comments on a file
+app.get('/api/files/:id/comments', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const fileId = Number(req.params.id);
+  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId || '';
+  const currentRole = req.session?.role || req.user?.role || req.student?.role || 'student';
+
+  const rows = await db.all(`
+    SELECT fc.id, fc.studentId, fc.commentText, fc.createdAt,
+           fc.parent_comment_id, fc.reply_to_user_id, fc.updated_at,
+           students.name AS commenterName,
+           CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) ELSE students.avatarUrl END AS avatarUrl,
+           students.role,
+           r_s.name AS reply_to_name,
+           COALESCE(rc.reaction_count, 0) AS reaction_count,
+           (mine_r.user_id IS NOT NULL) AS reacted_by_me
+    FROM file_comments fc
+    JOIN students ON students.studentId = fc.studentId
+    LEFT JOIN students r_s ON r_s.studentId = fc.reply_to_user_id
+    LEFT JOIN (
+      SELECT comment_id, COUNT(*) AS reaction_count
+      FROM file_comment_reactions
+      GROUP BY comment_id
+    ) rc ON rc.comment_id = fc.id
+    LEFT JOIN file_comment_reactions mine_r ON mine_r.comment_id = fc.id AND mine_r.user_id = ?
+    WHERE fc.fileId = ?
+    ORDER BY fc.id ASC
+  `, currentStudentId, fileId);
+
+  const repliesByParent = new Map();
+  for (const r of rows) {
+    const pid = r.parent_comment_id ?? r.parentCommentId;
+    if (pid != null) {
+      const numPid = Number(pid);
+      if (!repliesByParent.has(numPid)) repliesByParent.set(numPid, []);
+      repliesByParent.get(numPid).push(formatFileCommentRow(r, fileId, currentStudentId, currentRole));
+    }
+  }
+
+  const rootComments = [];
+  for (const r of rows) {
+    const pid = r.parent_comment_id ?? r.parentCommentId;
+    if (pid == null) {
+      const rootId = Number(r.id);
+      const childReplies = repliesByParent.get(rootId) || [];
+      r.replies = childReplies;
+      r.reply_count = childReplies.length;
+      rootComments.push(formatFileCommentRow(r, fileId, currentStudentId, currentRole));
+    }
+  }
+
+  res.json(rootComments);
 });
 
-// Add a comment to a file
+// Add a comment or reply to a file
 app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const fileId = Number(req.params.id);
   const text = (req.body.text || req.body.content || '').trim();
   if (!text) return res.status(400).json({ message: 'Comment cannot be empty' });
-  if (text.length > 500) return res.status(400).json({ message: 'Comment too long' });
+  if (text.length > 1000) return res.status(400).json({ message: 'Comment too long' });
 
   const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
-  const currentName = req.session?.name || req.user?.name || req.student?.name || 'Someone';
+  const currentUser = await db.get('SELECT name, avatarUrl, role FROM students WHERE studentId = ?', currentStudentId);
+  const currentName = currentUser?.name || req.session?.name || req.user?.name || req.student?.name || 'Someone';
 
+  const rawParentId = req.body.parent_comment_id ?? req.body.parentCommentId ?? null;
+  let resolvedParentId = null;
+  let resolvedReplyToUserId = req.body.reply_to_user_id ?? req.body.replyToUserId ?? null;
+  let replyToName = null;
+
+  if (rawParentId) {
+    const targetComment = await db.get('SELECT id, studentId, parent_comment_id FROM file_comments WHERE id = ? AND fileId = ?', Number(rawParentId), fileId);
+    if (targetComment) {
+      resolvedParentId = targetComment.parent_comment_id ? Number(targetComment.parent_comment_id) : Number(targetComment.id);
+      if (!resolvedReplyToUserId) resolvedReplyToUserId = targetComment.studentId;
+    }
+  }
+  if (resolvedReplyToUserId) {
+    const rt = await db.get('SELECT name FROM students WHERE studentId = ?', resolvedReplyToUserId);
+    replyToName = rt?.name || null;
+  }
+
+  const now = new Date().toISOString();
   const result = await db.run(`
-    INSERT INTO file_comments (fileId, studentId, commentText, createdAt) VALUES (?, ?, ?, ?)
-  `, req.params.id, currentStudentId, text, new Date().toISOString());
+    INSERT INTO file_comments (fileId, studentId, commentText, parent_comment_id, reply_to_user_id, createdAt) VALUES (?, ?, ?, ?, ?, ?)
+  `, fileId, currentStudentId, text, resolvedParentId, resolvedReplyToUserId, now);
+
+  const rawAvatar = currentUser?.avatarUrl || null;
+  const cleanAvatar = rawAvatar && String(rawAvatar).startsWith('data:')
+    ? `/api/avatar/student/${currentStudentId}?v=${String(rawAvatar).length}`
+    : rawAvatar;
 
   // Create notification via notification center
-  const fileId = req.params.id;
-  const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
+  const file = await db.get('SELECT uploadedBy, originalName, title FROM files WHERE id = ?', fileId);
   if (file && file.uploadedBy !== currentStudentId) {
     try {
       const notifService = require('./lib/notifications-service');
@@ -4534,8 +4633,9 @@ app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
         type: 'material_comment',
         actorId: currentStudentId,
         actorName: currentName,
+        actorAvatar: cleanAvatar,
         title: `${currentName} commented on your file`,
-        body: `${currentName} commented on your file: ${file.originalName || 'Study Material'}`,
+        body: `${currentName} commented on your file: ${file.title || file.originalName || 'Study Material'}`,
         entityType: 'material',
         entityId: String(fileId),
         secondaryEntityId: String(result.lastInsertRowid || ''),
@@ -4549,37 +4649,100 @@ app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
     }
   }
 
-  const newComment = await db.get(`
-    SELECT file_comments.id, file_comments.studentId, file_comments.commentText, file_comments.createdAt,
-           students.name AS commenterName, students.avatarUrl, students.role
-    FROM file_comments
-    JOIN students ON students.studentId = file_comments.studentId
-    WHERE file_comments.id = ?
-  `, result.lastInsertRowid);
-
-  const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', req.params.id);
+  const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', fileId);
 
   res.json({
     commentId: result.lastInsertRowid,
-    comment: newComment ? {
-      id: newComment.id,
-      fileId: Number(req.params.id),
-      studentId: newComment.studentId,
-      commentText: newComment.commentText,
-      content: newComment.commentText,
-      createdAt: newComment.createdAt,
-      commenterName: newComment.commenterName,
-      name: newComment.commenterName,
-      avatarUrl: newComment.avatarUrl,
-      role: newComment.role || 'student',
-      canDelete: true
-    } : null,
-    commentCount: Number(count?.c || 1)
+    comment: {
+      id: Number(result.lastInsertRowid),
+      fileId,
+      postId: fileId,
+      userId: currentStudentId,
+      studentId: currentStudentId,
+      commentText: text,
+      content: text,
+      createdAt: now,
+      parentCommentId: resolvedParentId,
+      replyToUserId: resolvedReplyToUserId,
+      replyToUser: (resolvedReplyToUserId && replyToName) ? { studentId: resolvedReplyToUserId, name: replyToName } : null,
+      commenterName: currentName,
+      name: currentName,
+      avatarUrl: cleanAvatar,
+      role: currentUser?.role || 'student',
+      reactionCount: 0,
+      reactedByMe: false,
+      replyCount: 0,
+      replies: [],
+      canDelete: true,
+      canEdit: true
+    },
+    commentCount: Number(count?.c || 1),
+    comment_count: Number(count?.c || 1)
   });
+});
+
+// Edit a comment on a file
+app.put('/api/files/:id/comments/:commentId', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const fileId = Number(req.params.id);
+  const commentId = Number(req.params.commentId);
+  const text = (req.body.text || req.body.content || '').trim();
+  if (!text) return res.status(400).json({ message: 'Comment cannot be empty' });
+  if (text.length > 1000) return res.status(400).json({ message: 'Comment too long' });
+
+  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  const comment = await db.get('SELECT * FROM file_comments WHERE id = ? AND fileId = ?', commentId, fileId);
+  if (!comment) return res.status(404).json({ message: 'Comment not found' });
+  if (comment.studentId !== currentStudentId) {
+    return res.status(403).json({ message: 'Only the comment author can edit this comment' });
+  }
+
+  const now = new Date().toISOString();
+  await db.run('UPDATE file_comments SET commentText = ?, updated_at = ? WHERE id = ?', text, now, commentId);
+  res.json({
+    message: 'Comment updated',
+    comment: {
+      id: commentId,
+      content: text,
+      commentText: text,
+      updatedAt: now,
+      edited: true
+    }
+  });
+});
+
+// Toggle heart reaction on a file comment
+app.post('/api/files/:id/comments/:commentId/like', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const commentId = Number(req.params.commentId);
+  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  if (!commentId || !currentStudentId) return res.status(400).json({ message: 'Invalid request' });
+
+  const existing = await db.get(
+    'SELECT id FROM file_comment_reactions WHERE comment_id = ? AND user_id = ? AND reaction_type = ?',
+    commentId, currentStudentId, 'like'
+  );
+  let reacted = false;
+  if (existing) {
+    await db.run('DELETE FROM file_comment_reactions WHERE comment_id = ? AND user_id = ?', commentId, currentStudentId);
+    reacted = false;
+  } else {
+    await db.run(
+      'INSERT INTO file_comment_reactions (comment_id, user_id, reaction_type, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (comment_id, user_id, reaction_type) DO NOTHING',
+      commentId, currentStudentId, 'like', new Date().toISOString()
+    );
+    reacted = true;
+  }
+  const countRow = await db.get('SELECT COUNT(*) AS c FROM file_comment_reactions WHERE comment_id = ?', commentId);
+  const reactionCount = Number(countRow?.c || 0);
+  res.json({ reacted, reactedByMe: reacted, reactionCount, reaction_count: reactionCount });
 });
 
 // Delete a comment on a file
 app.delete('/api/files/:id/comments/:commentId', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const fileId = Number(req.params.id);
+  const commentId = Number(req.params.commentId);
   const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
   const currentRole = req.session?.role || req.user?.role || req.student?.role || 'student';
 
@@ -4589,9 +4752,9 @@ app.delete('/api/files/:id/comments/:commentId', requireLogin, async (req, res) 
     return res.status(403).json({ message: 'Unauthorized to delete this comment' });
   }
 
-  await db.run('DELETE FROM file_comments WHERE id = ?', req.params.commentId);
-  const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', req.params.id);
-  res.json({ message: 'Comment deleted', commentCount: Number(count?.c || 0) });
+  await db.run('DELETE FROM file_comments WHERE id = ? OR parent_comment_id = ?', commentId, commentId);
+  const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', fileId);
+  res.json({ message: 'Comment deleted', commentCount: Number(count?.c || 0), comment_count: Number(count?.c || 0) });
 });
 
 // --- Routine/Exam Endpoints ---
@@ -5057,7 +5220,7 @@ app.get('/api/library/files', async (req, res) => {
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope, COALESCE(files.sort_order, 0) AS sort_order,
       students.name AS uploaderName,
-      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) || '-' || SUBSTR(students.avatarUrl, -12) ELSE students.avatarUrl END AS uploaderAvatar,
+      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) ELSE students.avatarUrl END AS uploaderAvatar,
       students.role AS uploaderRole,
       COALESCE(fl.likeCount, 0) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
@@ -5397,7 +5560,7 @@ app.get('/api/chat/members', requireLogin, async (req, res) => {
     const [members, lastMessages] = await Promise.all([
       db.all(`
         SELECT s.studentId, s.name, s.username,
-          CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) || '-' || SUBSTR(s.avatarUrl, -12) ELSE s.avatarUrl END AS avatarUrl,
+          CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) ELSE s.avatarUrl END AS avatarUrl,
           s.semester, s.department, s.role,
           r.lastReadMessageId
         FROM students s
@@ -6083,7 +6246,7 @@ const uploadCover = multer({
 async function getStudentProfile(targetStudentId, viewerStudentId) {
   let student = await db.get(`
     SELECT studentId, username, name,
-      CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId || '?v=' || LENGTH(avatarUrl) || '-' || SUBSTR(avatarUrl, -12) ELSE avatarUrl END AS avatarUrl,
+      CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId || '?v=' || LENGTH(avatarUrl) ELSE avatarUrl END AS avatarUrl,
       coverUrl, coverPosition, bio, department, semester, cohort_id, githubUrl, linkedinUrl, role, verification_status, email
     FROM students
     WHERE studentId = ?
@@ -6092,7 +6255,7 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
   if (!student && targetStudentId) {
     student = await db.get(`
       SELECT studentId, username, name,
-        CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId || '?v=' || LENGTH(avatarUrl) || '-' || SUBSTR(avatarUrl, -12) ELSE avatarUrl END AS avatarUrl,
+        CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId || '?v=' || LENGTH(avatarUrl) ELSE avatarUrl END AS avatarUrl,
         coverUrl, coverPosition, bio, department, semester, cohort_id, githubUrl, linkedinUrl, role, verification_status, email
       FROM students
       WHERE LOWER(username) = LOWER(?)

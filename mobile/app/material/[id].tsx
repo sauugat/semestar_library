@@ -31,10 +31,13 @@ import {
   LibraryFile,
   getFileComments,
   addFileComment,
+  editFileComment,
+  toggleFileCommentReaction,
   deleteFileComment,
   voteFile,
   FileComment,
 } from '@/services/library';
+import { PostComment } from '@/services/posts';
 import { VoteButtons } from '@/components/PostCard';
 import { getBaseUrl, getAuthToken } from '@/services/api';
 import { FullScreenFilePreview } from '@/components/FullScreenFilePreview';
@@ -280,28 +283,103 @@ export default function MaterialDetailScreen() {
   const [upCount, setUpCount] = useState(0);
   const [downCount, setDownCount] = useState(0);
   const [myVote, setMyVote] = useState(0);
-  const [comments, setComments] = useState<FileComment[]>([]);
+  const [comments, setComments] = useState<PostComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [postingComment, setPostingComment] = useState(false);
   const [commentInput, setCommentInput] = useState('');
+  const [replyingTo, setReplyingTo] = useState<{
+    commentId: number;
+    name: string;
+    studentId?: string;
+  } | null>(null);
+  const [editingComment, setEditingComment] = useState<{
+    id: number;
+    content: string;
+  } | null>(null);
   const [serverBaseUrl, setServerBaseUrl] = useState('');
 
   useEffect(() => {
     getBaseUrl().then(setServerBaseUrl).catch(() => {});
   }, []);
 
+  const normalizeComment = useCallback(
+    (c: FileComment, targetId: number): PostComment => ({
+      id: Number(c.id),
+      postId: Number(c.postId || c.fileId || targetId),
+      userId: c.userId || c.studentId,
+      studentId: c.studentId,
+      content: c.content || c.commentText || '',
+      createdAt: c.createdAt || (c as any).created_at,
+      updatedAt: c.updatedAt || (c as any).updated_at || null,
+      edited: Boolean(
+        c.edited ||
+          ((c.updatedAt || (c as any).updated_at) &&
+            (c.updatedAt || (c as any).updated_at) !== (c.createdAt || (c as any).created_at))
+      ),
+      name: c.name || c.commenterName || 'Classmate',
+      role: c.role || 'student',
+      avatarUrl: c.avatarUrl || null,
+      parentCommentId: c.parentCommentId ?? (c as any).parent_comment_id ?? null,
+      replyToUserId: c.replyToUserId ?? (c as any).reply_to_user_id ?? null,
+      replyToUser: c.replyToUser || null,
+      reactionCount: Number(c.reactionCount ?? (c as any).reaction_count ?? 0),
+      reactedByMe: Boolean(c.reactedByMe ?? (c as any).reacted_by_me),
+      canDelete: Boolean(
+        c.canDelete ||
+          (user?.studentId && c.studentId === user.studentId) ||
+          user?.role === 'admin'
+      ),
+      canEdit: Boolean(c.canEdit || (user?.studentId && c.studentId === user.studentId)),
+      replyCount: Number(c.replyCount ?? (c.replies ? c.replies.length : 0)),
+      replies: Array.isArray(c.replies)
+        ? c.replies.map((r) => ({
+            id: Number(r.id),
+            postId: Number(r.postId || r.fileId || targetId),
+            userId: r.userId || r.studentId,
+            studentId: r.studentId,
+            content: r.content || r.commentText || '',
+            createdAt: r.createdAt || (r as any).created_at,
+            updatedAt: r.updatedAt || (r as any).updated_at || null,
+            edited: Boolean(
+              r.edited ||
+                ((r.updatedAt || (r as any).updated_at) &&
+                  (r.updatedAt || (r as any).updated_at) !== (r.createdAt || (r as any).created_at))
+            ),
+            name: r.name || r.commenterName || 'Classmate',
+            role: r.role || 'student',
+            avatarUrl: r.avatarUrl || null,
+            parentCommentId: r.parentCommentId ?? (r as any).parent_comment_id ?? c.id,
+            replyToUserId: r.replyToUserId ?? (r as any).reply_to_user_id ?? null,
+            replyToUser: r.replyToUser || null,
+            reactionCount: Number(r.reactionCount ?? (r as any).reaction_count ?? 0),
+            reactedByMe: Boolean(r.reactedByMe ?? (r as any).reacted_by_me),
+            canDelete: Boolean(
+              r.canDelete ||
+                (user?.studentId && r.studentId === user.studentId) ||
+                user?.role === 'admin'
+            ),
+            canEdit: Boolean(r.canEdit || (user?.studentId && r.studentId === user.studentId)),
+            replies: [],
+          }))
+        : [],
+    }),
+    [user?.studentId, user?.role]
+  );
+
   const fetchComments = useCallback(async () => {
     if (!id) return;
     setLoadingComments(true);
     try {
       const data = await getFileComments(Number(id));
-      if (Array.isArray(data)) setComments(data);
+      if (Array.isArray(data)) {
+        setComments(data.map((c) => normalizeComment(c, Number(id))));
+      }
     } catch {
       // Graceful fallback
     } finally {
       setLoadingComments(false);
     }
-  }, [id]);
+  }, [id, normalizeComment]);
 
   useEffect(() => {
     if (file) {
@@ -355,10 +433,67 @@ export default function MaterialDetailScreen() {
     const text = commentInput.trim();
     setPostingComment(true);
     try {
-      const res = await addFileComment(file.id, text);
+      if (editingComment) {
+        const res = await editFileComment(file.id, editingComment.id, text);
+        const normalized = res.comment ? normalizeComment(res.comment, file.id) : null;
+        setComments((prev) =>
+          prev.map((root) => {
+            if (root.id === editingComment.id) {
+              return normalized ? { ...root, ...normalized, replies: root.replies } : { ...root, content: text, edited: true };
+            }
+            if (root.replies && root.replies.length > 0) {
+              return {
+                ...root,
+                replies: root.replies.map((reply) =>
+                  reply.id === editingComment.id
+                    ? normalized
+                      ? { ...reply, ...normalized }
+                      : { ...reply, content: text, edited: true }
+                    : reply
+                ),
+              };
+            }
+            return root;
+          })
+        );
+        setEditingComment(null);
+        setCommentInput('');
+        return;
+      }
+
+      const res = await addFileComment(
+        file.id,
+        text,
+        replyingTo
+          ? {
+              parentCommentId: replyingTo.commentId,
+              replyToUserId: replyingTo.studentId,
+            }
+          : undefined
+      );
+      const wasReply = Boolean(replyingTo);
+      const parentId = replyingTo?.commentId;
       setCommentInput('');
+      setReplyingTo(null);
       if (res.comment) {
-        setComments((prev) => [...prev, res.comment!]);
+        const normalized = normalizeComment(res.comment, file.id);
+        if (wasReply && parentId) {
+          setComments((prev) =>
+            prev.map((root) => {
+              if (root.id === parentId) {
+                const currentReplies = root.replies || [];
+                return {
+                  ...root,
+                  replyCount: (root.replyCount || currentReplies.length) + 1,
+                  replies: [...currentReplies, normalized],
+                };
+              }
+              return root;
+            })
+          );
+        } else {
+          setComments((prev) => [...prev, normalized]);
+        }
       } else {
         await fetchComments();
       }
@@ -366,6 +501,78 @@ export default function MaterialDetailScreen() {
       Alert.alert('Error', err.message || 'Could not post comment.');
     } finally {
       setPostingComment(false);
+    }
+  };
+
+  const handleToggleReaction = async (comment: PostComment) => {
+    if (!file) return;
+    const prevReacted = Boolean(comment.reactedByMe);
+    const prevCount = Number(comment.reactionCount || 0);
+    const nextReacted = !prevReacted;
+    const nextCount = prevReacted ? Math.max(0, prevCount - 1) : prevCount + 1;
+
+    setComments((prev) =>
+      prev.map((root) => {
+        if (root.id === comment.id) {
+          return { ...root, reactedByMe: nextReacted, reactionCount: nextCount };
+        }
+        if (root.replies && root.replies.length > 0) {
+          return {
+            ...root,
+            replies: root.replies.map((r) =>
+              r.id === comment.id ? { ...r, reactedByMe: nextReacted, reactionCount: nextCount } : r
+            ),
+          };
+        }
+        return root;
+      })
+    );
+
+    try {
+      const res = await toggleFileCommentReaction(file.id, comment.id);
+      setComments((prev) =>
+        prev.map((root) => {
+          if (root.id === comment.id) {
+            return {
+              ...root,
+              reactedByMe: res.reacted,
+              reactionCount: res.reactionCount ?? res.reaction_count,
+            };
+          }
+          if (root.replies && root.replies.length > 0) {
+            return {
+              ...root,
+              replies: root.replies.map((r) =>
+                r.id === comment.id
+                  ? {
+                      ...r,
+                      reactedByMe: res.reacted,
+                      reactionCount: res.reactionCount ?? res.reaction_count,
+                    }
+                  : r
+              ),
+            };
+          }
+          return root;
+        })
+      );
+    } catch {
+      setComments((prev) =>
+        prev.map((root) => {
+          if (root.id === comment.id) {
+            return { ...root, reactedByMe: prevReacted, reactionCount: prevCount };
+          }
+          if (root.replies && root.replies.length > 0) {
+            return {
+              ...root,
+              replies: root.replies.map((r) =>
+                r.id === comment.id ? { ...r, reactedByMe: prevReacted, reactionCount: prevCount } : r
+              ),
+            };
+          }
+          return root;
+        })
+      );
     }
   };
 
@@ -379,7 +586,22 @@ export default function MaterialDetailScreen() {
         onPress: async () => {
           try {
             await deleteFileComment(file.id, commentId);
-            setComments((prev) => prev.filter((c) => c.id !== commentId));
+            setComments((prev) =>
+              prev
+                .map((root) => {
+                  if (root.id === commentId) return null;
+                  if (root.replies && root.replies.length > 0) {
+                    const updatedReplies = root.replies.filter((r) => r.id !== commentId);
+                    return {
+                      ...root,
+                      replies: updatedReplies,
+                      replyCount: updatedReplies.length,
+                    };
+                  }
+                  return root;
+                })
+                .filter(Boolean) as PostComment[]
+            );
           } catch (err: any) {
             Alert.alert('Error', err.message || 'Could not delete comment.');
           }
@@ -806,21 +1028,25 @@ export default function MaterialDetailScreen() {
           comments.map((c) => (
             <CommentItem
               key={c.id}
-              comment={{
-                id: c.id,
-                postId: file.id,
-                userId: c.studentId,
-                studentId: c.studentId,
-                content: c.content || c.commentText || '',
-                createdAt: c.createdAt || (c as any).created_at,
-                name: c.name || c.commenterName || 'Classmate',
-                role: c.role || 'student',
-                avatarUrl: c.avatarUrl || null,
-                canDelete: c.canDelete,
-                canEdit: false,
-                replies: [],
+              comment={c}
+              onReply={(target) => {
+                setEditingComment(null);
+                const rootId = target.parentCommentId ? Number(target.parentCommentId) : Number(target.id);
+                setReplyingTo({
+                  commentId: rootId,
+                  name: target.name || 'Classmate',
+                  studentId: target.studentId || target.userId,
+                });
+                setTimeout(() => commentInputRef.current?.focus(), 50);
+              }}
+              onEdit={(target) => {
+                setReplyingTo(null);
+                setEditingComment({ id: target.id, content: target.content });
+                setCommentInput(target.content);
+                setTimeout(() => commentInputRef.current?.focus(), 50);
               }}
               onDelete={(item) => handleDeleteComment(item.id)}
+              onToggleReaction={handleToggleReaction}
               getFullUrl={getFullUrl}
               currentUserId={user?.studentId || null}
               isAdmin={user?.role === 'admin'}
@@ -840,6 +1066,13 @@ export default function MaterialDetailScreen() {
           inputRef={commentInputRef}
           userAvatarUrl={getFullUrl(user?.avatarUrl)}
           userName={user?.name || 'You'}
+          replyingTo={replyingTo}
+          editingComment={editingComment}
+          onCancelMode={() => {
+            setReplyingTo(null);
+            setEditingComment(null);
+            setCommentInput('');
+          }}
           showQuickEmojis
         />
       </StickyComposer>

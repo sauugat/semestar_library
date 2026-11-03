@@ -1,10 +1,28 @@
 import { api, apiFetch, ApiError, getBaseUrl, getAuthToken } from './api';
-import { LibraryFile, toggleFileLike, voteFile, getFileComments, addFileComment, deleteFileComment, FileComment } from './library';
+import {
+  LibraryFile,
+  toggleFileLike,
+  voteFile,
+  getFileComments,
+  addFileComment,
+  editFileComment,
+  toggleFileCommentReaction,
+  deleteFileComment,
+  FileComment,
+} from './library';
 import { Advertisement } from './advertisements';
 import { normalizeUploadFile, validateFileSize, RawFileAsset } from '../utils/file-upload';
 
 export type { LibraryFile, FileComment };
-export { toggleFileLike, voteFile, getFileComments, addFileComment, deleteFileComment };
+export {
+  toggleFileLike,
+  voteFile,
+  getFileComments,
+  addFileComment,
+  editFileComment,
+  toggleFileCommentReaction,
+  deleteFileComment,
+};
 
 export const MAX_ATTACHMENT_BYTES_PER_FILE = 4 * 1024 * 1024; // 4.0 MB per attachment (stays below Vercel request ceiling)
 export const MAX_POST_ATTACHMENT_BYTES = MAX_ATTACHMENT_BYTES_PER_FILE; // Alias for backward compatibility
@@ -296,9 +314,36 @@ export async function getAssignmentComments(assignmentId: number): Promise<FileC
 
 export async function addAssignmentComment(
   assignmentId: number,
-  text: string
+  text: string,
+  options?: {
+    parentCommentId?: number | null;
+    replyToUserId?: string | null;
+  }
 ): Promise<{ commentId: number; comment?: FileComment; commentCount: number }> {
-  return api.post(`/api/code-lab/assignments/${assignmentId}/comments`, { text });
+  return api.post(`/api/code-lab/assignments/${assignmentId}/comments`, {
+    text,
+    content: text,
+    parent_comment_id: options?.parentCommentId ?? null,
+    reply_to_user_id: options?.replyToUserId ?? null,
+  });
+}
+
+export async function editAssignmentComment(
+  assignmentId: number,
+  commentId: number,
+  content: string
+): Promise<{ comment: FileComment; message: string }> {
+  return api.put(`/api/code-lab/assignments/${assignmentId}/comments/${commentId}`, {
+    content,
+    text: content,
+  });
+}
+
+export async function toggleAssignmentCommentReaction(
+  assignmentId: number,
+  commentId: number
+): Promise<{ reacted: boolean; reactionCount: number; reaction_count: number }> {
+  return api.post(`/api/code-lab/assignments/${assignmentId}/comments/${commentId}/like`, {});
 }
 
 export async function deleteAssignmentComment(

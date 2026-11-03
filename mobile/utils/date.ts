@@ -34,10 +34,17 @@ export function safeParseDate(val: unknown): Date | null {
       return isNaN(d.getTime()) ? null : d;
     }
 
-    // Replace common postgres format without T
-    const normalized = trimmed.includes(' ') && !trimmed.includes('T')
+    // Replace common SQLite/Postgres timestamp format without T
+    const withT = trimmed.includes(' ') && !trimmed.includes('T')
       ? trimmed.replace(' ', 'T')
       : trimmed;
+
+    // SQLite CURRENT_TIMESTAMP and UTC database timestamps without timezone offset ('2026-11-03T07:10:00')
+    // must be parsed as UTC ('Z') rather than local device time (+05:45), otherwise brand-new comments appear ~6h old.
+    const normalized =
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(withT)
+        ? `${withT}Z`
+        : withT;
 
     const d = new Date(normalized);
     if (!isNaN(d.getTime())) {

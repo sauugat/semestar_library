@@ -5,7 +5,7 @@ const { ensureAdvertisementsSchema } = require('../lib/advertisements');
 module.exports = function createPostImagesRouter(db) {
   const router = express.Router();
   router.get('/:filename', async (req, res, next) => {
-    if (!/^[a-f0-9-]+\.[a-z0-9]+$/i.test(req.params.filename)) return res.sendStatus(404);
+    if (!/^[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+$/i.test(req.params.filename)) return res.sendStatus(404);
     try {
       if (typeof db.verifyStartupReady === 'function') {
         await db.verifyStartupReady();

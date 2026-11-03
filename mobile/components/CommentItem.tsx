@@ -3,6 +3,8 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -65,6 +67,11 @@ export function CommentItem({
     highlightCommentId && replies.some((r) => r.id === highlightCommentId)
   );
   const [repliesExpanded, setRepliesExpanded] = useState(containsHighlightedReply);
+  const [longPressTarget, setLongPressTarget] = useState<{
+    item: PostComment;
+    canEdit: boolean;
+    canDelete: boolean;
+  } | null>(null);
 
   React.useEffect(() => {
     if (containsHighlightedReply) {
@@ -77,8 +84,8 @@ export function CommentItem({
   const isAuthor = Boolean(
     currentUserId && (comment.userId === currentUserId || comment.studentId === currentUserId)
   );
-  const canDeleteComment = !comment.isDeleted && (comment.canDelete || isAuthor || isAdmin);
-  const canEditComment = !comment.isDeleted && Boolean(onEdit) && (comment.canEdit || isAuthor);
+  const canDeleteComment = Boolean(!comment.isDeleted && (comment.canDelete || isAuthor || isAdmin));
+  const canEditComment = Boolean(!comment.isDeleted && Boolean(onEdit) && (comment.canEdit || isAuthor));
 
   const avatarUrl = getFullUrl(comment.avatarUrl);
   const roleLower = (comment.role || '').toLowerCase();
@@ -100,13 +107,25 @@ export function CommentItem({
     router.push({ pathname: '/user/[id]', params: { id: studentId } });
   };
 
+  const handleOpenLongPressMenu = (
+    target: PostComment,
+    canEdit: boolean,
+    canDelete: boolean
+  ) => {
+    if (target.isDeleted) return;
+    if (!onReply && !canEdit && !canDelete) return;
+    setLongPressTarget({ item: target, canEdit, canDelete });
+  };
+
   return (
     <View style={styles.container}>
-      {/* Flat Instagram-style Root Comment Row */}
-      <View
-        style={[
+      {/* Flat Instagram-style Root Comment Row (long-press opens Reply / Edit / Delete action sheet) */}
+      <Pressable
+        delayLongPress={260}
+        onLongPress={() => handleOpenLongPressMenu(comment, canEditComment, canDeleteComment)}
+        style={({ pressed }) => [
           styles.commentRow,
-          isHighlighted && {
+          (isHighlighted || (pressed && !comment.isDeleted)) && {
             backgroundColor: colors.surfaceRaised,
             borderRadius: 12,
           },
@@ -126,6 +145,8 @@ export function CommentItem({
             <TouchableOpacity
               activeOpacity={comment.isDeleted ? 1 : 0.7}
               onPress={() => !comment.isDeleted && navigateToProfile(comment.studentId)}
+              onLongPress={() => handleOpenLongPressMenu(comment, canEditComment, canDeleteComment)}
+              delayLongPress={260}
               disabled={Boolean(comment.isDeleted)}
               style={styles.nameGroup}
             >
@@ -162,54 +183,29 @@ export function CommentItem({
                 fontStyle: comment.isDeleted ? 'italic' : 'normal',
               },
             ]}
-            selectable={!comment.isDeleted}
           >
             {comment.content}
           </Text>
 
-          {/* Sub-action links below comment: Reply, Edit, Delete */}
-          {!comment.isDeleted && (
+          {/* Inline sub-action below comment: ONLY Reply is shown inline; Edit/Delete appear on long-press */}
+          {!comment.isDeleted && onReply && (
             <View style={styles.subActionRow}>
-              {onReply && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => onReply(comment)}
-                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
-                >
-                  <Text weight="600" style={[styles.subActionText, { color: colors.textMuted }]}>
-                    Reply
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {canEditComment && onEdit && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => onEdit(comment)}
-                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
-                >
-                  <Text weight="600" style={[styles.subActionText, { color: colors.textMuted }]}>
-                    Edit
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {canDeleteComment && (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => onDelete(comment)}
-                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
-                >
-                  <Text weight="600" style={[styles.subActionText, { color: colors.error || '#EF4444' }]}>
-                    Delete
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => onReply(comment)}
+                onLongPress={() => handleOpenLongPressMenu(comment, canEditComment, canDeleteComment)}
+                delayLongPress={260}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
+              >
+                <Text weight="600" style={[styles.subActionText, { color: colors.textMuted }]}>
+                  Reply
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
 
-        {/* Right Heart Reaction Column (Heart icon on top, count stacked directly underneath) */}
+        {/* Right Heart Reaction Column (Lowered slightly so it aligns with comment body) */}
         {!comment.isDeleted && onToggleReaction && (
           <TouchableOpacity
             activeOpacity={0.7}
@@ -235,7 +231,7 @@ export function CommentItem({
             )}
           </TouchableOpacity>
         )}
-      </View>
+      </Pressable>
 
       {/* Expand / Collapse Replies Line ("— View N more replies") */}
       {hasReplies && (
@@ -261,8 +257,8 @@ export function CommentItem({
             const isReplyAuthor = Boolean(
               currentUserId && (reply.userId === currentUserId || reply.studentId === currentUserId)
             );
-            const canDeleteReply = !reply.isDeleted && (reply.canDelete || isReplyAuthor || isAdmin);
-            const canEditReply = !reply.isDeleted && Boolean(onEdit) && (reply.canEdit || isReplyAuthor);
+            const canDeleteReply = Boolean(!reply.isDeleted && (reply.canDelete || isReplyAuthor || isAdmin));
+            const canEditReply = Boolean(!reply.isDeleted && Boolean(onEdit) && (reply.canEdit || isReplyAuthor));
             const replyRoleLower = (reply.role || '').toLowerCase();
             const replyBadge =
               replyRoleLower === 'admin'
@@ -275,11 +271,13 @@ export function CommentItem({
             const isReplyHighlighted = highlightCommentId != null && reply.id === highlightCommentId;
 
             return (
-              <View
+              <Pressable
                 key={reply.id}
-                style={[
+                delayLongPress={260}
+                onLongPress={() => handleOpenLongPressMenu(reply, canEditReply, canDeleteReply)}
+                style={({ pressed }) => [
                   styles.replyRow,
-                  isReplyHighlighted && {
+                  (isReplyHighlighted || (pressed && !reply.isDeleted)) && {
                     backgroundColor: colors.surfaceRaised,
                     borderRadius: 10,
                   },
@@ -298,6 +296,8 @@ export function CommentItem({
                     <TouchableOpacity
                       activeOpacity={reply.isDeleted ? 1 : 0.7}
                       onPress={() => !reply.isDeleted && navigateToProfile(reply.studentId)}
+                      onLongPress={() => handleOpenLongPressMenu(reply, canEditReply, canDeleteReply)}
+                      delayLongPress={260}
                       disabled={Boolean(reply.isDeleted)}
                       style={styles.nameGroup}
                     >
@@ -332,7 +332,6 @@ export function CommentItem({
                         fontStyle: reply.isDeleted ? 'italic' : 'normal',
                       },
                     ]}
-                    selectable={!reply.isDeleted}
                   >
                     {!reply.isDeleted && reply.replyToUser?.name && (
                       <Text
@@ -346,43 +345,19 @@ export function CommentItem({
                     {reply.content}
                   </Text>
 
-                  {!reply.isDeleted && (
+                  {!reply.isDeleted && onReply && (
                     <View style={styles.subActionRow}>
-                      {onReply && (
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => onReply(reply)}
-                          hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
-                        >
-                          <Text weight="600" style={[styles.subActionText, { color: colors.textMuted }]}>
-                            Reply
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {canEditReply && onEdit && (
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => onEdit(reply)}
-                          hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
-                        >
-                          <Text weight="600" style={[styles.subActionText, { color: colors.textMuted }]}>
-                            Edit
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-
-                      {canDeleteReply && (
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => onDelete(reply)}
-                          hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
-                        >
-                          <Text weight="600" style={[styles.subActionText, { color: colors.error || '#EF4444' }]}>
-                            Delete
-                          </Text>
-                        </TouchableOpacity>
-                      )}
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => onReply(reply)}
+                        onLongPress={() => handleOpenLongPressMenu(reply, canEditReply, canDeleteReply)}
+                        delayLongPress={260}
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
+                      >
+                        <Text weight="600" style={[styles.subActionText, { color: colors.textMuted }]}>
+                          Reply
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
@@ -412,11 +387,104 @@ export function CommentItem({
                     )}
                   </TouchableOpacity>
                 )}
-              </View>
+              </Pressable>
             );
           })}
         </View>
       )}
+
+      {/* Clean Long-Press Action Menu (Reply / Edit / Delete) */}
+      <Modal
+        visible={Boolean(longPressTarget)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLongPressTarget(null)}
+      >
+        <Pressable
+          style={styles.actionModalBackdrop}
+          onPress={() => setLongPressTarget(null)}
+        >
+          <View
+            style={[
+              styles.actionSheetCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={[styles.actionSheetHeader, { borderBottomColor: colors.border }]}>
+              <Text weight="700" numberOfLines={1} style={{ fontSize: 13, color: colors.textSecondary }}>
+                {longPressTarget?.item.name || 'Comment'}
+              </Text>
+              <Text numberOfLines={2} style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                {longPressTarget?.item.content}
+              </Text>
+            </View>
+
+            {onReply && longPressTarget && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.actionOptionRow, { borderBottomColor: colors.border }]}
+                onPress={() => {
+                  const target = longPressTarget.item;
+                  setLongPressTarget(null);
+                  onReply(target);
+                }}
+              >
+                <Ionicons name="return-down-forward-outline" size={18} color={colors.text} />
+                <Text weight="600" style={{ fontSize: 15, color: colors.text }}>
+                  Reply
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {longPressTarget?.canEdit && onEdit && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.actionOptionRow, { borderBottomColor: colors.border }]}
+                onPress={() => {
+                  const target = longPressTarget.item;
+                  setLongPressTarget(null);
+                  onEdit(target);
+                }}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.text} />
+                <Text weight="600" style={{ fontSize: 15, color: colors.text }}>
+                  Edit Comment
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {longPressTarget?.canDelete && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.actionOptionRow, { borderBottomColor: colors.border }]}
+                onPress={() => {
+                  const target = longPressTarget.item;
+                  setLongPressTarget(null);
+                  onDelete(target);
+                }}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.error || '#EF4444'} />
+                <Text weight="600" style={{ fontSize: 15, color: colors.error || '#EF4444' }}>
+                  Delete Comment
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.actionCancelRow}
+              onPress={() => setLongPressTarget(null)}
+            >
+              <Text weight="700" style={{ fontSize: 15, color: colors.textSecondary }}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -428,8 +496,8 @@ const styles = StyleSheet.create({
   commentRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: 4,
-    paddingHorizontal: 2,
+    paddingVertical: 5,
+    paddingHorizontal: 4,
   },
   commentCenter: {
     flex: 1,
@@ -488,7 +556,7 @@ const styles = StyleSheet.create({
   likeColumn: {
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 2,
+    paddingTop: 12,
     minWidth: 28,
   },
   likeCountText: {
@@ -519,11 +587,44 @@ const styles = StyleSheet.create({
   replyRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingVertical: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
   replyCenter: {
     flex: 1,
     marginLeft: 10,
     marginRight: 8,
+  },
+  actionModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 28,
+  },
+  actionSheetCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  actionSheetHeader: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  actionOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  actionCancelRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
   },
 });

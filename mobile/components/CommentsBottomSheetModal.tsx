@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -9,6 +9,9 @@ import {
   Keyboard,
   Platform,
   Pressable,
+  Animated,
+  Easing,
+  PanResponder,
   useWindowDimensions,
   type TextInputInstance,
   type ScrollViewInstance,
@@ -56,6 +59,9 @@ export interface CommentsBottomSheetModalProps {
   onNavigateProfile?: (studentId: string) => void;
 }
 
+const DISMISS_DRAG_DISTANCE = 80;
+const DISMISS_SWIPE_VELOCITY = 0.65;
+
 export function CommentsBottomSheetModal({
   visible,
   onClose,
@@ -85,21 +91,207 @@ export function CommentsBottomSheetModal({
   const { height: windowHeight } = useWindowDimensions();
   const scrollViewRef = useRef<ScrollViewInstance>(null);
 
+  // Internal mount state so we completely control slide-in and slide-out animations
+  // without fighting React Native Modal's native animationType="slide" (which caused the close flicker).
+  const [modalMounted, setModalMounted] = useState(visible);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [backdropHeight, setBackdropHeight] = useState(windowHeight);
   const closedBackdropHeightRef = useRef(windowHeight);
 
+  const offscreenY = Math.max(windowHeight, 800) + 60;
+  const sheetTranslateY = useRef(new Animated.Value(offscreenY)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  const isClosingRef = useRef(false);
+  const isDraggingRef = useRef(false);
+  const scrollOffsetYRef = useRef(0);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const offscreenYRef = useRef(offscreenY);
+  offscreenYRef.current = offscreenY;
+
+  const animateClose = useCallback(
+    (notifyParent: boolean = true) => {
+      if (isClosingRef.current) return;
+      isClosingRef.current = true;
+      isDraggingRef.current = false;
+
+      Keyboard.dismiss();
+      sheetTranslateY.stopAnimation();
+      backdropOpacity.stopAnimation();
+
+      Animated.parallel([
+        Animated.timing(sheetTranslateY, {
+          toValue: offscreenYRef.current,
+          duration: 210,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 0,
+          duration: 190,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // CRITICAL: Never reset sheetTranslateY to 0 here before unmount!
+        // Keep it at offscreenY while unmounting so the sheet can never flash back onto the screen.
+        setKeyboardHeight(0);
+        setModalMounted(false);
+        if (notifyParent) {
+          onCloseRef.current();
+        }
+      });
+    },
+    [backdropOpacity, sheetTranslateY]
+  );
+
+  const snapBackToOpen = useCallback(() => {
+    if (isClosingRef.current) return;
+    isDraggingRef.current = false;
+    sheetTranslateY.stopAnimation();
+    backdropOpacity.stopAnimation();
+
+    Animated.parallel([
+      Animated.spring(sheetTranslateY, {
+        toValue: 0,
+        damping: 24,
+        stiffness: 260,
+        mass: 0.85,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [backdropOpacity, sheetTranslateY]);
+
+  // Synchronize open / close lifecycle with `visible` prop
   useEffect(() => {
-    if (!visible) {
-      setKeyboardHeight(0);
+    if (visible) {
+      isClosingRef.current = false;
+      isDraggingRef.current = false;
+      scrollOffsetYRef.current = 0;
+      setModalMounted(true);
+
+      // Start strictly offscreen before animating up to 0
+      sheetTranslateY.stopAnimation();
+      backdropOpacity.stopAnimation();
+      sheetTranslateY.setValue(offscreenYRef.current);
+      backdropOpacity.setValue(0);
+
+      const frame = requestAnimationFrame(() => {
+        if (isClosingRef.current) return;
+        Animated.parallel([
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            damping: 26,
+            stiffness: 250,
+            mass: 0.9,
+            useNativeDriver: true,
+          }),
+          Animated.timing(backdropOpacity, {
+            toValue: 1,
+            duration: 200,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+
+      return () => cancelAnimationFrame(frame);
+    } else if (modalMounted && !isClosingRef.current) {
+      animateClose(false);
     }
-  }, [visible]);
+  }, [visible, modalMounted, animateClose, backdropOpacity, sheetTranslateY]);
+
+  // Shared helper for updating drag position & backdrop opacity during a downward swipe
+  const updateDragPosition = (dy: number) => {
+    if (isClosingRef.current) return;
+    const clampedDy = Math.max(0, dy);
+    sheetTranslateY.setValue(clampedDy);
+    const progress = Math.min(1, clampedDy / Math.max(320, offscreenYRef.current * 0.55));
+    backdropOpacity.setValue(Math.max(0, 1 - progress * 0.85));
+  };
+
+  // Shared helper for finishing or cancelling a gesture
+  const finishDragGesture = (dy: number, vy: number) => {
+    if (isClosingRef.current) return;
+    if (dy > DISMISS_DRAG_DISTANCE || (dy > 24 && vy > DISMISS_SWIPE_VELOCITY)) {
+      animateClose(true);
+    } else {
+      snapBackToOpen();
+    }
+  };
+
+  // 1. Header / Drag Handle PanResponder (highest priority on the top bar)
+  const headerPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !isClosingRef.current,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        !isClosingRef.current && gs.dy > 4 && Math.abs(gs.dy) > Math.abs(gs.dx),
+      onMoveShouldSetPanResponderCapture: (_, gs) =>
+        !isClosingRef.current && gs.dy > 6 && Math.abs(gs.dy) > Math.abs(gs.dx),
+      onPanResponderGrant: () => {
+        if (isClosingRef.current) return;
+        isDraggingRef.current = true;
+        sheetTranslateY.stopAnimation();
+      },
+      onPanResponderMove: (_, gs) => {
+        updateDragPosition(gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        finishDragGesture(gs.dy, gs.vy);
+      },
+      onPanResponderTerminate: (_, gs) => {
+        finishDragGesture(gs.dy, gs.vy);
+      },
+      onPanResponderTerminationRequest: () => false,
+    })
+  ).current;
+
+  // 2. Comments Body Pull-Down PanResponder (activates only when ScrollView is at top y <= 1 and user pulls down)
+  const bodyPullPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        !isClosingRef.current &&
+        scrollOffsetYRef.current <= 1 &&
+        gs.dy > 10 &&
+        gs.dy > Math.abs(gs.dx) * 1.35,
+      onMoveShouldSetPanResponderCapture: (_, gs) =>
+        !isClosingRef.current &&
+        scrollOffsetYRef.current <= 1 &&
+        gs.dy > 10 &&
+        gs.dy > Math.abs(gs.dx) * 1.35,
+      onPanResponderGrant: () => {
+        if (isClosingRef.current) return;
+        isDraggingRef.current = true;
+        sheetTranslateY.stopAnimation();
+      },
+      onPanResponderMove: (_, gs) => {
+        updateDragPosition(gs.dy);
+      },
+      onPanResponderRelease: (_, gs) => {
+        finishDragGesture(gs.dy, gs.vy);
+      },
+      onPanResponderTerminate: (_, gs) => {
+        finishDragGesture(gs.dy, gs.vy);
+      },
+      onPanResponderTerminationRequest: () => false,
+    })
+  ).current;
 
   // Listen to native Keyboard events (works in both native builds & Expo Go)
   useEffect(() => {
-    if (!visible) return;
+    if (!modalMounted) return;
 
     const onShow = (e: KeyboardEvent) => {
+      if (isClosingRef.current) return;
       const h = e?.endCoordinates?.height || 0;
       if (h > 0) {
         setKeyboardHeight(h);
@@ -128,7 +320,7 @@ export function CommentsBottomSheetModal({
       s3.remove();
       s4?.remove();
     };
-  }, [visible]);
+  }, [modalMounted]);
 
   // Also sync with react-native-keyboard-controller worklet events when available
   useKeyboardHandler(
@@ -144,7 +336,7 @@ export function CommentsBottomSheetModal({
         runOnJS(setKeyboardHeight)(Math.max(0, e.height));
       },
     },
-    [visible]
+    [modalMounted]
   );
 
   // Update closed reference height when keyboard is closed
@@ -167,12 +359,9 @@ export function CommentsBottomSheetModal({
     backdropHeight - effectiveKeyboardPadding - topSafeMargin
   );
   const defaultSheetHeight = Math.round(baseFullHeight * 0.76);
-  const sheetHeight =
-    keyboardHeight > 0
-      ? Math.min(defaultSheetHeight, availableSheetHeight)
-      : Math.min(defaultSheetHeight, availableSheetHeight);
+  const sheetHeight = Math.min(defaultSheetHeight, availableSheetHeight);
 
-  // Scroll to bottom when a comment is added
+  // Scroll to bottom when a new comment is added
   const prevCommentCountRef = useRef(comments.length);
   useEffect(() => {
     if (comments.length > prevCommentCountRef.current) {
@@ -183,22 +372,25 @@ export function CommentsBottomSheetModal({
     prevCommentCountRef.current = comments.length;
   }, [comments.length]);
 
-  const handleClose = () => {
-    Keyboard.dismiss();
-    onClose();
-  };
+  const handleClose = useCallback(() => {
+    animateClose(true);
+  }, [animateClose]);
+
+  if (!modalMounted && !visible) {
+    return null;
+  }
 
   return (
     <Modal
-      visible={visible}
-      animationType="slide"
+      visible={modalMounted}
+      animationType="none"
       transparent
       statusBarTranslucent
       onRequestClose={handleClose}
     >
       <View
         style={[
-          styles.backdrop,
+          styles.rootContainer,
           {
             paddingBottom: effectiveKeyboardPadding,
           },
@@ -210,6 +402,18 @@ export function CommentsBottomSheetModal({
           }
         }}
       >
+        {/* Animated Dimmed Backdrop */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            styles.backdropOverlay,
+            {
+              opacity: backdropOpacity,
+            },
+          ]}
+        />
+
         {/* Tap outside sheet to dismiss */}
         <Pressable
           style={styles.backdropDismissArea}
@@ -217,19 +421,21 @@ export function CommentsBottomSheetModal({
           accessibilityLabel="Close comments"
         />
 
-        {/* Instagram-style Bottom Sheet */}
-        <View
+        {/* Instagram-style Draggable Bottom Sheet */}
+        <Animated.View
           style={[
             styles.sheetContainer,
             {
               backgroundColor: colors.surface,
               height: sheetHeight,
               maxHeight: availableSheetHeight,
+              transform: [{ translateY: sheetTranslateY }],
             },
           ]}
         >
-          {/* Drag Handle + Centered "Comments" Header */}
+          {/* Drag Handle + Centered "Comments" Header (swipe down to dismiss) */}
           <View
+            {...headerPanResponder.panHandlers}
             style={[
               styles.sheetHeader,
               {
@@ -259,49 +465,57 @@ export function CommentsBottomSheetModal({
             </View>
           </View>
 
-          {/* Comments List */}
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.commentsScroll}
-            contentContainerStyle={styles.commentsScrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {loading ? (
-              <View style={styles.emptyContainer}>
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : comments.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text weight="700" style={{ fontSize: 16, color: colors.text, marginBottom: 4 }}>
-                  No comments yet
-                </Text>
-                <Text variant="xs" color="muted">
-                  Start the conversation.
-                </Text>
-              </View>
-            ) : (
-              comments.map((comment) => (
-                <CommentItem
-                  key={comment.id}
-                  comment={comment}
-                  onReply={onReply}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onToggleReaction={onToggleReaction}
-                  getFullUrl={getFullUrl}
-                  currentUserId={currentUserId}
-                  isAdmin={isAdmin}
-                  onNavigateProfile={(sid) => {
-                    handleClose();
-                    if (onNavigateProfile) {
-                      onNavigateProfile(sid);
-                    }
-                  }}
-                />
-              ))
-            )}
-          </ScrollView>
+          {/* Comments List (also supports pulling down when at top of scroll to close) */}
+          <View style={styles.commentsScrollWrapper} {...bodyPullPanResponder.panHandlers}>
+            <ScrollView
+              ref={scrollViewRef}
+              style={styles.commentsScroll}
+              contentContainerStyle={styles.commentsScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              overScrollMode="never"
+              scrollEventThrottle={16}
+              onScroll={(e) => {
+                scrollOffsetYRef.current = Math.max(0, e.nativeEvent.contentOffset.y);
+              }}
+            >
+              {loading ? (
+                <View style={styles.emptyContainer}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                </View>
+              ) : comments.length === 0 ? (
+                <View style={styles.emptyContainer}>
+                  <Text weight="700" style={{ fontSize: 16, color: colors.text, marginBottom: 4 }}>
+                    No comments yet
+                  </Text>
+                  <Text variant="xs" color="muted">
+                    Start the conversation.
+                  </Text>
+                </View>
+              ) : (
+                comments.map((comment) => (
+                  <CommentItem
+                    key={comment.id}
+                    comment={comment}
+                    onReply={onReply}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onToggleReaction={onToggleReaction}
+                    getFullUrl={getFullUrl}
+                    currentUserId={currentUserId}
+                    isAdmin={isAdmin}
+                    onNavigateProfile={(sid) => {
+                      animateClose(true);
+                      if (onNavigateProfile) {
+                        onNavigateProfile(sid);
+                      }
+                    }}
+                  />
+                ))
+              )}
+            </ScrollView>
+          </View>
 
           {/* Docked Quick Emoji Bar + Comment Input Bar */}
           <View
@@ -328,16 +542,18 @@ export function CommentsBottomSheetModal({
               showQuickEmojis
             />
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
+  rootContainer: {
     flex: 1,
     justifyContent: 'flex-end',
+  },
+  backdropOverlay: {
     backgroundColor: 'rgba(0,0,0,0.55)',
   },
   backdropDismissArea: {
@@ -352,15 +568,15 @@ const styles = StyleSheet.create({
   sheetHeader: {
     alignItems: 'center',
     paddingTop: 10,
-    paddingBottom: 10,
+    paddingBottom: 12,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   dragHandle: {
-    width: 38,
-    height: 4,
-    borderRadius: 2,
-    opacity: 0.45,
+    width: 40,
+    height: 4.5,
+    borderRadius: 2.5,
+    opacity: 0.5,
     marginBottom: 10,
   },
   titleRow: {
@@ -381,6 +597,9 @@ const styles = StyleSheet.create({
     width: 28,
     alignItems: 'flex-end',
     justifyContent: 'center',
+  },
+  commentsScrollWrapper: {
+    flex: 1,
   },
   commentsScroll: {
     flex: 1,

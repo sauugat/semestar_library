@@ -1,10 +1,10 @@
 import { api, apiFetch, ApiError, getBaseUrl, getAuthToken } from './api';
-import { LibraryFile, toggleFileLike } from './library';
+import { LibraryFile, toggleFileLike, voteFile, getFileComments, addFileComment, deleteFileComment, FileComment } from './library';
 import { Advertisement } from './advertisements';
 import { normalizeUploadFile, validateFileSize, RawFileAsset } from '../utils/file-upload';
 
-export type { LibraryFile };
-export { toggleFileLike };
+export type { LibraryFile, FileComment };
+export { toggleFileLike, voteFile, getFileComments, addFileComment, deleteFileComment };
 
 export const MAX_ATTACHMENT_BYTES_PER_FILE = 4 * 1024 * 1024; // 4.0 MB per attachment (stays below Vercel request ceiling)
 export const MAX_POST_ATTACHMENT_BYTES = MAX_ATTACHMENT_BYTES_PER_FILE; // Alias for backward compatibility
@@ -79,6 +79,12 @@ export interface Post {
   avatarUrl: string | null;
   studentId: string;
   like_count: number;
+  up_count?: number;
+  down_count?: number;
+  my_vote?: number;
+  upCount?: number;
+  downCount?: number;
+  myVote?: number;
   comment_count: number;
   submission_count: number;
   liked_by_me: boolean;
@@ -131,6 +137,12 @@ export interface ToggleLikeResult {
   likeCount: number;
   liked_by_me: boolean;
   like_count: number;
+  up_count?: number;
+  down_count?: number;
+  my_vote?: number;
+  upCount?: number;
+  downCount?: number;
+  myVote?: number;
 }
 
 /**
@@ -249,11 +261,51 @@ export async function getFeedFiles(feedQuery: string = '?feed=1'): Promise<Libra
 /**
  * Toggle like for a post. If already liked, sends DELETE; otherwise sends POST.
  */
-export async function toggleLike(postId: number, currentLiked: boolean = false): Promise<ToggleLikeResult> {
+export async function votePost(
+  postId: number,
+  vote: 'up' | 'down'
+): Promise<ToggleLikeResult> {
+  return api.post<ToggleLikeResult>(`/api/posts/${postId}/vote`, { vote });
+}
+
+export async function toggleLike(
+  postId: number,
+  currentLiked: boolean = false,
+  voteDirection?: 'up' | 'down'
+): Promise<ToggleLikeResult> {
+  if (voteDirection) {
+    return votePost(postId, voteDirection);
+  }
   if (currentLiked) {
     return api.delete<ToggleLikeResult>(`/api/posts/${postId}/like`);
   }
   return api.post<ToggleLikeResult>(`/api/posts/${postId}/like`);
+}
+
+export async function voteAssignment(
+  assignmentId: number,
+  vote: 'up' | 'down'
+): Promise<{ upCount: number; downCount: number; myVote: number; liked: boolean; likeCount: number }> {
+  return api.post(`/api/code-lab/assignments/${assignmentId}/vote`, { vote });
+}
+
+export async function getAssignmentComments(assignmentId: number): Promise<FileComment[]> {
+  const res = await api.get<any>(`/api/code-lab/assignments/${assignmentId}/comments`);
+  return Array.isArray(res) ? res : [];
+}
+
+export async function addAssignmentComment(
+  assignmentId: number,
+  text: string
+): Promise<{ commentId: number; comment?: FileComment; commentCount: number }> {
+  return api.post(`/api/code-lab/assignments/${assignmentId}/comments`, { text });
+}
+
+export async function deleteAssignmentComment(
+  assignmentId: number,
+  commentId: number
+): Promise<{ message: string; commentCount: number }> {
+  return api.delete(`/api/code-lab/assignments/${assignmentId}/comments/${commentId}`);
 }
 
 /**

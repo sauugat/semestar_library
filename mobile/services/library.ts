@@ -32,6 +32,12 @@ export interface LibraryFile {
   uploaderRole: string;
   likeCount: string | number;
   liked: boolean;
+  upCount?: number;
+  downCount?: number;
+  myVote?: number;
+  up_count?: number;
+  down_count?: number;
+  my_vote?: number;
   commentCount: string | number;
   isOfficial: boolean;
   canDelete?: boolean;
@@ -184,6 +190,30 @@ export async function getOfficePreviewUrl(id: number | string): Promise<string> 
 export interface ToggleFileLikeResult {
   liked: boolean;
   likeCount: number;
+  upCount?: number;
+  downCount?: number;
+  myVote?: number;
+}
+
+/**
+ * Vote (up/down) or toggle like for a file/material.
+ * Endpoint: POST /api/files/:id/vote
+ */
+export async function voteFile(
+  fileId: number,
+  vote: 'up' | 'down'
+): Promise<{ upCount: number; downCount: number; myVote: number; liked: boolean; likeCount: number }> {
+  const res = await api.post<any>(`/api/files/${fileId}/vote`, { vote });
+  const upCount = Number(res.upCount ?? res.up_count ?? res.likeCount ?? 0);
+  const downCount = Number(res.downCount ?? res.down_count ?? 0);
+  const myVote = Number(res.myVote ?? res.my_vote ?? (res.liked ? 1 : 0));
+  return {
+    upCount,
+    downCount,
+    myVote,
+    liked: myVote === 1,
+    likeCount: upCount,
+  };
 }
 
 /**
@@ -192,14 +222,24 @@ export interface ToggleFileLikeResult {
  */
 export async function toggleFileLike(
   fileId: number,
-  currentLiked: boolean = false
+  currentLiked: boolean = false,
+  voteDirection?: 'up' | 'down'
 ): Promise<ToggleFileLikeResult> {
-  const res = await api.post<ToggleFileLikeResult>(`/api/files/${fileId}/like`, {
+  if (voteDirection) {
+    return voteFile(fileId, voteDirection);
+  }
+  const res = await api.post<any>(`/api/files/${fileId}/like`, {
     action: currentLiked ? 'unlike' : 'like',
   });
+  const upCount = Number(res.upCount ?? res.up_count ?? res.likeCount ?? 0);
+  const downCount = Number(res.downCount ?? res.down_count ?? 0);
+  const myVote = Number(res.myVote ?? res.my_vote ?? (res.liked ? 1 : 0));
   return {
     liked: Boolean(res.liked),
-    likeCount: Number(res.likeCount ?? 0),
+    likeCount: upCount,
+    upCount,
+    downCount,
+    myVote,
   };
 }
 

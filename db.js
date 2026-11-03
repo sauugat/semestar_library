@@ -165,6 +165,8 @@ const camelMap = {
   lastinsertrowid: 'lastInsertRowid', uploadername: 'uploaderName',
   uploaderavatar: 'uploaderAvatar', uploaderrole: 'uploaderRole',
   likecount: 'likeCount', commentcount: 'commentCount',
+  upcount: 'upCount', downcount: 'downCount', myvote: 'myVote',
+  up_count: 'upCount', down_count: 'downCount', my_vote: 'myVote',
   commentername: 'commenterName', isfollowing: 'isFollowing',
   followerscount: 'followersCount', followingcount: 'followingCount',
   replytoid: 'replyToId', linktitle: 'linkTitle', linkdesc: 'linkDesc',
@@ -328,7 +330,7 @@ async function run(sql, ...params) {
     const hasReturning = /RETURNING/i.test(sql);
 
     if (isInsert && !hasReturning) {
-      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_submissions', 'mobile_tokens', 'login_attempts', 'student_device_tokens', 'student_notification_preferences', 'push_receipt_tickets', 'cohort_audit_logs', 'admin_audit_logs', 'dm_participants', 'dm_blocks', 'dm_message_deletions', 'dm_rate_limits', 'attendance_settings', 'teacher_drive_connections'];
+      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'file_votes', 'assignment_votes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_votes', 'post_submissions', 'mobile_tokens', 'login_attempts', 'student_device_tokens', 'student_notification_preferences', 'push_receipt_tickets', 'cohort_audit_logs', 'admin_audit_logs', 'dm_participants', 'dm_blocks', 'dm_message_deletions', 'dm_rate_limits', 'attendance_settings', 'teacher_drive_connections'];
       const isNoIdTable = noIdTables.some(tbl => new RegExp(`INSERT\\s+INTO\\s+${tbl}\\b`, 'i').test(sql));
       if (!isNoIdTable) {
         pgSql += ' RETURNING id';
@@ -545,9 +547,31 @@ async function initSchema() {
             PRIMARY KEY (fileId, studentId)
           );
 
+          CREATE TABLE IF NOT EXISTS file_votes (
+            fileId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            vote_type INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (fileId, studentId)
+          );
+
           CREATE TABLE IF NOT EXISTS file_comments (
             id SERIAL PRIMARY KEY,
             fileId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            commentText TEXT NOT NULL,
+            createdAt TIMESTAMPTZ NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS assignment_votes (
+            assignmentId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            vote_type INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (assignmentId, studentId)
+          );
+
+          CREATE TABLE IF NOT EXISTS assignment_comments (
+            id SERIAL PRIMARY KEY,
+            assignmentId INTEGER NOT NULL,
             studentId TEXT NOT NULL,
             commentText TEXT NOT NULL,
             createdAt TIMESTAMPTZ NOT NULL
@@ -777,9 +801,31 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             PRIMARY KEY (fileId, studentId)
           );
 
+          CREATE TABLE IF NOT EXISTS file_votes (
+            fileId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            vote_type INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (fileId, studentId)
+          );
+
           CREATE TABLE IF NOT EXISTS file_comments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fileId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            commentText TEXT NOT NULL,
+            createdAt TEXT NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS assignment_votes (
+            assignmentId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            vote_type INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (assignmentId, studentId)
+          );
+
+          CREATE TABLE IF NOT EXISTS assignment_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            assignmentId INTEGER NOT NULL,
             studentId TEXT NOT NULL,
             commentText TEXT NOT NULL,
             createdAt TEXT NOT NULL

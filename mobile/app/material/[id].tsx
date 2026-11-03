@@ -28,9 +28,10 @@ import {
   getFileComments,
   addFileComment,
   deleteFileComment,
-  toggleFileLike,
+  voteFile,
   FileComment,
 } from '@/services/library';
+import { VoteButtons } from '@/components/PostCard';
 import { getBaseUrl, getAuthToken } from '@/services/api';
 import { FullScreenFilePreview } from '@/components/FullScreenFilePreview';
 
@@ -269,8 +270,9 @@ export default function MaterialDetailScreen() {
     }
   };
 
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
+  const [upCount, setUpCount] = useState(0);
+  const [downCount, setDownCount] = useState(0);
+  const [myVote, setMyVote] = useState(0);
   const [comments, setComments] = useState<FileComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [postingComment, setPostingComment] = useState(false);
@@ -296,26 +298,36 @@ export default function MaterialDetailScreen() {
 
   useEffect(() => {
     if (file) {
-      setLiked(Boolean(file.liked));
-      setLikeCount(Number(file.likeCount || 0));
+      setUpCount(Number(file.upCount ?? file.up_count ?? file.likeCount ?? 0));
+      setDownCount(Number(file.downCount ?? file.down_count ?? 0));
+      setMyVote(Number(file.myVote ?? file.my_vote ?? (file.liked ? 1 : 0)));
       fetchComments();
     }
   }, [file, fetchComments]);
 
-  const handleToggleLike = async () => {
+  const handleVote = async (direction: 'up' | 'down') => {
     if (!file) return;
-    const prevLiked = liked;
-    const prevCount = likeCount;
-    setLiked(!prevLiked);
-    setLikeCount(prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1);
+    const prevUp = upCount;
+    const prevDown = downCount;
+    const prevVote = myVote;
+    const desiredVote = direction === 'down' ? -1 : 1;
+    const nextVote = prevVote === desiredVote ? 0 : desiredVote;
+    const nextUp = Math.max(0, prevUp + (nextVote === 1 ? 1 : 0) - (prevVote === 1 ? 1 : 0));
+    const nextDown = Math.max(0, prevDown + (nextVote === -1 ? 1 : 0) - (prevVote === -1 ? 1 : 0));
+
+    setUpCount(nextUp);
+    setDownCount(nextDown);
+    setMyVote(nextVote);
 
     try {
-      const res = await toggleFileLike(file.id);
-      setLiked(Boolean(res.liked));
-      setLikeCount(Number(res.likeCount || 0));
+      const res = await voteFile(file.id, direction);
+      setUpCount(Number(res.upCount ?? nextUp));
+      setDownCount(Number(res.downCount ?? nextDown));
+      setMyVote(Number(res.myVote ?? nextVote));
     } catch {
-      setLiked(prevLiked);
-      setLikeCount(prevCount);
+      setUpCount(prevUp);
+      setDownCount(prevDown);
+      setMyVote(prevVote);
     }
   };
 
@@ -530,35 +542,15 @@ export default function MaterialDetailScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </TouchableOpacity>
 
-          {/* Quick Action Strip (Like & Copy Link) */}
+          {/* Quick Action Strip (Reddit-style Up/Down Votes & Copy Link) */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: spacing.md }}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleToggleLike}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                backgroundColor: liked ? '#FEE2E2' : colors.surfaceSubtle,
-                borderColor: liked ? '#FCA5A5' : colors.border,
-                borderWidth: 1,
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.xs + 3,
-                borderRadius: radii.full,
-              }}
-            >
-              <Ionicons
-                name={liked ? 'heart' : 'heart-outline'}
-                size={17}
-                color={liked ? '#EF4444' : colors.textMuted}
-              />
-              <Text
-                variant="xs"
-                weight="700"
-                style={{ marginLeft: 6, color: liked ? '#EF4444' : colors.textSecondary }}
-              >
-                {likeCount} {likeCount === 1 ? 'Like' : 'Likes'}
-              </Text>
-            </TouchableOpacity>
+            <VoteButtons
+              upCount={upCount}
+              downCount={downCount}
+              myVote={myVote}
+              colors={colors}
+              onVote={(dir) => void handleVote(dir)}
+            />
 
             <TouchableOpacity
               activeOpacity={0.7}

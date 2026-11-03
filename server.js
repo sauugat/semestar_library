@@ -3642,6 +3642,9 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope,
       students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
+      COALESCE((SELECT SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END) FROM (SELECT fileId, studentId, vote_type FROM file_votes WHERE fileId = files.id UNION ALL SELECT fl.fileId, fl.studentId, 1 AS vote_type FROM file_likes fl WHERE fl.fileId = files.id AND NOT EXISTS (SELECT 1 FROM file_votes fv WHERE fv.fileId = fl.fileId AND fv.studentId = fl.studentId)) t), 0) AS upCount,
+      COALESCE((SELECT SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END) FROM file_votes WHERE file_votes.fileId = files.id), 0) AS downCount,
+      COALESCE((SELECT vote_type FROM (SELECT fileId, studentId, vote_type FROM file_votes WHERE fileId = files.id UNION ALL SELECT fl.fileId, fl.studentId, 1 AS vote_type FROM file_likes fl WHERE fl.fileId = files.id AND NOT EXISTS (SELECT 1 FROM file_votes fv WHERE fv.fileId = fl.fileId AND fv.studentId = fl.studentId)) m WHERE m.studentId = ? LIMIT 1), 0) AS myVote,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
@@ -3652,7 +3655,7 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
 
   const [viewerIsAdmin, file, context] = await Promise.all([
     req.student ? Promise.resolve(req.student.role === 'admin') : isStudentAdmin(currentStudentId),
-    db.get(query, currentStudentId, parseInt(fileId, 10)),
+    db.get(query, currentStudentId, currentStudentId, parseInt(fileId, 10)),
     getAcademicContext(db, req)
   ]);
 
@@ -3742,12 +3745,32 @@ app.get('/api/files', requireLogin, async (req, res) => {
       students.name AS uploaderName,
       CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) || '-' || SUBSTR(students.avatarUrl, -12) ELSE students.avatarUrl END AS uploaderAvatar,
       students.role AS uploaderRole,
-      COALESCE(fl.likeCount, 0) AS likeCount,
-      EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
+      COALESCE(fv.upCount, fl.likeCount, 0) AS likeCount,
+      COALESCE(fv.upCount, fl.likeCount, 0) AS upCount,
+      COALESCE(fv.downCount, 0) AS downCount,
+      COALESCE(fm.vote_type, 0) AS myVote,
+      (COALESCE(fm.vote_type, 0) = 1) AS liked,
       COALESCE(fc.commentCount, 0) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
     LEFT JOIN (SELECT fileId, COUNT(*) AS likeCount FROM file_likes GROUP BY fileId) fl ON fl.fileId = files.id
+    LEFT JOIN (
+      SELECT fileId,
+        SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END) AS upCount,
+        SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END) AS downCount
+      FROM (
+        SELECT fileId, studentId, vote_type FROM file_votes
+        UNION ALL
+        SELECT fl2.fileId, fl2.studentId, 1 AS vote_type FROM file_likes fl2
+        WHERE NOT EXISTS (SELECT 1 FROM file_votes fv2 WHERE fv2.fileId = fl2.fileId AND fv2.studentId = fl2.studentId)
+      ) cv GROUP BY fileId
+    ) fv ON fv.fileId = files.id
+    LEFT JOIN (
+      SELECT fileId, studentId, vote_type FROM file_votes
+      UNION ALL
+      SELECT fl3.fileId, fl3.studentId, 1 AS vote_type FROM file_likes fl3
+      WHERE NOT EXISTS (SELECT 1 FROM file_votes fv3 WHERE fv3.fileId = fl3.fileId AND fv3.studentId = fl3.studentId)
+    ) fm ON fm.fileId = files.id AND fm.studentId = ?
     LEFT JOIN (SELECT fileId, COUNT(*) AS commentCount FROM file_comments GROUP BY fileId) fc ON fc.fileId = files.id
     WHERE ${whereSql}${teacherFeedSql}
     ORDER BY CASE WHEN COALESCE(files.sort_order, 0) > 0 THEN 0 ELSE 1 END ASC, COALESCE(files.sort_order, 0) ASC, files.uploadedAt DESC
@@ -4339,70 +4362,122 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
   res.download(filePath, file.originalName);
 });
 
-// Toggle/set like on a file (retry-safe)
-app.post('/api/files/:id/like', requireLogin, async (req, res) => {
-  const fileId = req.params.id;
-  const studentId = req.session.studentId;
+// Toggle/set vote or like on a file (supports Reddit-style up/down votes and anonymous 10-vote milestone notifications)
+app.post(['/api/files/:id/like', '/api/files/:id/vote'], requireLogin, async (req, res) => {
+  const fileId = Number(req.params.id);
+  const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  if (!studentId || !fileId) return res.status(400).json({ message: 'Invalid request' });
+
+  const rawVote = req.body?.vote ?? req.body?.voteType ?? req.body?.direction;
   const explicitAction = req.body && (req.body.action || (typeof req.body.liked === 'boolean' ? (req.body.liked ? 'like' : 'unlike') : null));
 
-  const existing = await db.get('SELECT 1 FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
-  let shouldLike;
+  const currentRow = await db.get(
+    `SELECT vote_type FROM (
+       SELECT fileId, studentId, vote_type FROM file_votes WHERE fileId = ? AND studentId = ?
+       UNION ALL
+       SELECT fl.fileId, fl.studentId, 1 AS vote_type FROM file_likes fl
+       WHERE fl.fileId = ? AND fl.studentId = ? AND NOT EXISTS (
+         SELECT 1 FROM file_votes fv WHERE fv.fileId = fl.fileId AND fv.studentId = fl.studentId
+       )
+     ) m LIMIT 1`,
+    fileId, studentId, fileId, studentId
+  );
+  const currentVote = Number(currentRow?.vote_type || 0);
 
-  if (explicitAction === 'like') {
-    shouldLike = true;
+  let nextVote;
+  if (rawVote === 'up' || rawVote === 1 || rawVote === '1') {
+    nextVote = (req.body?.toggle !== false && currentVote === 1) ? 0 : 1;
+  } else if (rawVote === 'down' || rawVote === -1 || rawVote === '-1') {
+    nextVote = (req.body?.toggle !== false && currentVote === -1) ? 0 : -1;
+  } else if (rawVote === 'none' || rawVote === 0 || rawVote === '0') {
+    nextVote = 0;
+  } else if (explicitAction === 'like') {
+    nextVote = 1;
   } else if (explicitAction === 'unlike') {
-    shouldLike = false;
+    nextVote = 0;
   } else {
-    shouldLike = !existing;
+    nextVote = currentVote === 1 ? 0 : 1;
   }
 
-  if (shouldLike) {
-    if (!existing) {
+  if (nextVote === 0) {
+    await db.run('DELETE FROM file_votes WHERE fileId = ? AND studentId = ?', fileId, studentId);
+    await db.run('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
+  } else {
+    await db.run(
+      `INSERT INTO file_votes (fileId, studentId, vote_type) VALUES (?, ?, ?)
+       ON CONFLICT (fileId, studentId) DO UPDATE SET vote_type = EXCLUDED.vote_type`,
+      fileId, studentId, nextVote
+    );
+    if (nextVote === 1) {
       if (db.isPostgres) {
         await db.run('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?) ON CONFLICT (fileId, studentId) DO NOTHING', fileId, studentId);
       } else {
         await db.run('INSERT OR IGNORE INTO file_likes (fileId, studentId) VALUES (?, ?)', fileId, studentId);
       }
-      // Create notification via notification center
-      const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
-      if (file && file.uploadedBy !== studentId) {
-        try {
-          const notifService = require('./lib/notifications-service');
-          const likerName = req.session?.studentName || req.user?.name || 'Someone';
-          await notifService.createNotification(db, {
-            type: 'material_reaction',
-            actorId: studentId,
-            actorName: likerName,
-            title: `${likerName} liked your file`,
-            body: `${likerName} liked your file: ${file.originalName || 'Study Material'}`,
-            entityType: 'material',
-            entityId: String(fileId),
-            deepLink: `/material/${fileId}`,
-            webPath: `files.html?highlight=${fileId}`,
-            groupKey: `material:${fileId}:reactions`,
-            recipientUserIds: [file.uploadedBy],
-          });
-        } catch (notifErr) {
-          console.warn('[File like notification error]:', notifErr.message);
-        }
-      }
-    }
-  } else {
-    if (existing) {
+    } else {
       await db.run('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
-      try {
-        const notifService = require('./lib/notifications-service');
-        await notifService.removeReactionFromGroup(db, {
-          groupKey: `material:${fileId}:reactions`,
-          actorId: studentId,
-        });
-      } catch (_) {}
     }
   }
 
-  const countRow = await db.get('SELECT COUNT(*) AS c FROM file_likes WHERE fileId = ?', fileId);
-  const count = Number(countRow?.c || countRow?.count || 0);
-  res.json({ liked: shouldLike, likeCount: count });
+  const summary = await db.get(
+    `SELECT
+       COALESCE(SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END), 0) AS upCount,
+       COALESCE(SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END), 0) AS downCount
+     FROM (
+       SELECT fileId, studentId, vote_type FROM file_votes WHERE fileId = ?
+       UNION ALL
+       SELECT fl.fileId, fl.studentId, 1 AS vote_type FROM file_likes fl
+       WHERE fl.fileId = ? AND NOT EXISTS (
+         SELECT 1 FROM file_votes fv WHERE fv.fileId = fl.fileId AND fv.studentId = fl.studentId
+       )
+     ) t`,
+    fileId, fileId
+  );
+  const upCount = Number(summary?.upCount || summary?.upcount || 0);
+  const downCount = Number(summary?.downCount || summary?.downcount || 0);
+
+  const file = await db.get('SELECT uploadedBy, title, originalName FROM files WHERE id = ?', fileId);
+  if (file && file.uploadedBy && file.uploadedBy !== studentId) {
+    const isNewUpMilestone = nextVote === 1 && currentVote !== 1 && upCount >= 10 && upCount % 10 === 0;
+    const isNewDownMilestone = nextVote === -1 && currentVote !== -1 && downCount >= 10 && downCount % 10 === 0;
+    if (isNewUpMilestone || isNewDownMilestone) {
+      try {
+        const notifService = require('./lib/notifications-service');
+        const mCount = isNewUpMilestone ? upCount : downCount;
+        const actionWord = isNewUpMilestone ? 'upvoted' : 'downvoted';
+        const label = file.title || file.originalName || 'Note';
+        const titleText = `${mCount} people ${actionWord} your note`;
+        await notifService.createNotification(db, {
+          type: 'material_reaction',
+          actorId: null,
+          actorName: null,
+          actorAvatar: null,
+          title: titleText,
+          body: `${titleText}: "${label}"`,
+          entityType: 'material',
+          entityId: String(fileId),
+          deepLink: `/material/${fileId}`,
+          webPath: `files.html?highlight=${fileId}`,
+          groupKey: `material:${fileId}:${isNewUpMilestone ? 'up' : 'down'}_milestone:${mCount}`,
+          recipientUserIds: [file.uploadedBy],
+          metadata: { fromApp: true, anonymousVoteMilestone: true, voteType: isNewUpMilestone ? 'up' : 'down', milestoneCount: mCount },
+        });
+      } catch (notifErr) {
+        console.warn('[File vote milestone notification error]:', notifErr.message);
+      }
+    }
+  }
+
+  res.json({
+    liked: nextVote === 1,
+    likeCount: upCount,
+    upCount,
+    downCount,
+    myVote: nextVote,
+    up_count: upCount,
+    down_count: downCount,
+    my_vote: nextVote,
+  });
 });
 
 // List comments on a file

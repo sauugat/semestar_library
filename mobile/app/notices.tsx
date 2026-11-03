@@ -18,6 +18,8 @@ import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonCard } from '@/components/ui/Skeleton';
 import { apiFetch } from '@/services/api';
+import { votePost } from '@/services/posts';
+import { VoteButtons } from '@/components/PostCard';
 import { formatDate, formatTimeAgo } from '@/utils/date';
 
 interface NoticeItem {
@@ -33,6 +35,12 @@ interface NoticeItem {
   avatarUrl?: string;
   imageUrl?: string;
   is_official?: boolean;
+  up_count?: number;
+  down_count?: number;
+  my_vote?: number;
+  like_count?: number;
+  liked_by_me?: boolean;
+  comment_count?: number;
 }
 
 export default function NoticesScreen() {
@@ -223,6 +231,46 @@ export default function NoticesScreen() {
                   <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 'auto' }} />
                 </View>
               ) : null}
+
+              {/* Upvote/Downvote & Comment Strip */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: spacing.compact, paddingTop: spacing.tight, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border }}>
+                <VoteButtons
+                  upCount={Number(notice.up_count ?? notice.like_count ?? 0)}
+                  downCount={Number(notice.down_count ?? 0)}
+                  myVote={Number(notice.my_vote ?? (notice.liked_by_me ? 1 : 0))}
+                  colors={colors}
+                  onVote={async (dir) => {
+                    try {
+                      const res = await votePost(notice.id, dir);
+                      setNotices((prev) =>
+                        prev.map((n) =>
+                          n.id === notice.id
+                            ? {
+                                ...n,
+                                up_count: res.up_count ?? res.upCount ?? res.like_count,
+                                down_count: res.down_count ?? res.downCount ?? 0,
+                                my_vote: res.my_vote ?? res.myVote ?? 0,
+                                like_count: res.like_count,
+                                liked_by_me: res.liked_by_me,
+                              }
+                            : n
+                        )
+                      );
+                    } catch {}
+                  }}
+                />
+
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => router.push(`/notice/${notice.id}`)}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}
+                >
+                  <Ionicons name="chatbubble-outline" size={16} color={colors.textMuted} />
+                  <Text variant="xs" weight="600" color="secondary" style={{ marginLeft: 5 }}>
+                    {Number(notice.comment_count || 0)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </SurfaceCard>
           );
         })

@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/useTheme';
@@ -314,52 +314,43 @@ export default function NotificationsScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Top Header Controls Bar */}
-      <View
-        style={[
-          styles.topHeader,
-          {
-            backgroundColor: colors.surface,
-            borderBottomColor: colors.border,
-            paddingTop: Platform.OS === 'android' ? 12 : 8,
-          },
-        ]}
-      >
-        <View style={styles.headerLeft}>
-          <Heading style={{ fontSize: 22, fontWeight: '700' }}>Notifications</Heading>
-        </View>
+      <Stack.Screen
+        options={{
+          title: 'Notifications',
+          headerRight: () => (
+            <View style={styles.headerRight}>
+              {isAdmin && (
+                <TouchableOpacity
+                  style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+                  onPress={() => setAdminPushModalVisible(true)}
+                  accessibilityLabel="Push notification as app"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="megaphone-outline" size={18} color={colors.text} />
+                </TouchableOpacity>
+              )}
 
-        <View style={styles.headerRight}>
-          {isAdmin && (
-            <TouchableOpacity
-              style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-              onPress={() => setAdminPushModalVisible(true)}
-              accessibilityLabel="Push notification as app"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="megaphone-outline" size={18} color={colors.text} />
-            </TouchableOpacity>
-          )}
+              <TouchableOpacity
+                style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+                onPress={handleMarkAllRead}
+                accessibilityLabel="Mark all as read"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="checkmark-done" size={18} color={colors.text} />
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-            onPress={handleMarkAllRead}
-            accessibilityLabel="Mark all as read"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="checkmark-done" size={18} color={colors.text} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-            onPress={() => router.push('/notification-settings' as any)}
-            accessibilityLabel="Notification settings"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="settings-outline" size={18} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-      </View>
+              <TouchableOpacity
+                style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+                onPress={() => router.push('/notification-settings' as any)}
+                accessibilityLabel="Notification settings"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="settings-outline" size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+          ),
+        }}
+      />
 
       {/* Tabs Row */}
       <View

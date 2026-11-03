@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,7 +19,8 @@ import { PostMarkdown } from '@/components/PostMarkdown';
 export interface PostCardProps {
   post: Post;
   currentUserId?: string;
-  onLike?: (postId: number) => void;
+  onLike?: (postId: number, direction?: 'up' | 'down') => void;
+  onVote?: (postId: number, direction: 'up' | 'down') => void;
   onDoubleTapLike?: (postId: number) => void;
   onShare?: (post: Post) => void;
   onOpenDetail?: (post: Post) => void;
@@ -43,76 +43,105 @@ function getTypeBadgeProps(type: string, isOfficial: boolean | undefined, colors
   return null;
 }
 
-function AnimatedLikeButton({
-  liked,
-  count,
+export function VoteButtons({
+  upCount,
+  downCount,
+  myVote,
   colors,
-  onPress,
+  onVote,
 }: {
-  liked: boolean;
-  count: number;
+  upCount: number;
+  downCount: number;
+  myVote: number;
   colors: any;
-  onPress: () => void;
+  onVote: (direction: 'up' | 'down') => void;
 }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const upScale = useRef(new Animated.Value(1)).current;
+  const downScale = useRef(new Animated.Value(1)).current;
 
-  const handlePress = () => {
-    if (!liked) {
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 1.45,
-          duration: 120,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1.0,
-          friction: 4,
-          tension: 100,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 0.85,
-          duration: 80,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1.0,
-          duration: 80,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-    onPress();
+  const isUp = myVote === 1;
+  const isDown = myVote === -1;
+
+  const handleUp = () => {
+    Animated.sequence([
+      Animated.timing(upScale, { toValue: 1.35, duration: 100, useNativeDriver: true }),
+      Animated.spring(upScale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }),
+    ]).start();
+    onVote('up');
+  };
+
+  const handleDown = () => {
+    Animated.sequence([
+      Animated.timing(downScale, { toValue: 1.35, duration: 100, useNativeDriver: true }),
+      Animated.spring(downScale, { toValue: 1, friction: 4, tension: 120, useNativeDriver: true }),
+    ]).start();
+    onVote('down');
   };
 
   return (
-    <TouchableOpacity
-      style={styles.actionButton}
-      onPress={handlePress}
-      accessibilityLabel={liked ? 'Unlike post' : 'Like post'}
-      activeOpacity={0.7}
+    <View
+      style={[
+        styles.votePill,
+        {
+          backgroundColor: colors.surfaceRaised,
+          borderColor: colors.border,
+        },
+      ]}
     >
-      <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-        <Ionicons
-          name={liked ? 'heart' : 'heart-outline'}
-          size={18}
-          color={liked ? '#EF4444' : colors.textMuted}
-        />
-      </Animated.View>
-      <Text
-        variant="xs"
-        weight={liked ? '700' : '600'}
-        style={{
-          marginLeft: 5,
-          color: liked ? '#EF4444' : colors.textSecondary,
-        }}
+      <TouchableOpacity
+        style={styles.voteHalfBtn}
+        onPress={handleUp}
+        accessibilityLabel="Upvote post"
+        activeOpacity={0.7}
+        hitSlop={{ top: 6, bottom: 6, left: 6, right: 4 }}
       >
-        {count}
-      </Text>
-    </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: upScale }] }}>
+          <Ionicons
+            name={isUp ? 'arrow-up' : 'arrow-up-outline'}
+            size={16}
+            color={isUp ? '#FF4500' : colors.textMuted}
+          />
+        </Animated.View>
+        <Text
+          variant="xs"
+          weight={isUp ? '700' : '600'}
+          style={{
+            marginLeft: 4,
+            color: isUp ? '#FF4500' : colors.textSecondary,
+          }}
+        >
+          {upCount}
+        </Text>
+      </TouchableOpacity>
+
+      <View style={[styles.voteDivider, { backgroundColor: colors.border }]} />
+
+      <TouchableOpacity
+        style={styles.voteHalfBtn}
+        onPress={handleDown}
+        accessibilityLabel="Downvote post"
+        activeOpacity={0.7}
+        hitSlop={{ top: 6, bottom: 6, left: 4, right: 6 }}
+      >
+        <Animated.View style={{ transform: [{ scale: downScale }] }}>
+          <Ionicons
+            name={isDown ? 'arrow-down' : 'arrow-down-outline'}
+            size={16}
+            color={isDown ? '#6366F1' : colors.textMuted}
+          />
+        </Animated.View>
+        <Text
+          variant="xs"
+          weight={isDown ? '700' : '600'}
+          style={{
+            marginLeft: 4,
+            color: isDown ? '#6366F1' : colors.textSecondary,
+          }}
+        >
+          {downCount}
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -120,6 +149,7 @@ export function PostCard({
   post,
   currentUserId,
   onLike,
+  onVote,
   onDoubleTapLike,
   onShare,
   onOpenDetail,
@@ -135,6 +165,10 @@ export function PostCard({
   const badge = getTypeBadgeProps(post.type, post.is_official, colors);
   const authorStudentId = post.studentId || post.user_id;
   const avatarUrl = getFullImageUrl(post.avatarUrl) || post.avatarUrl;
+
+  const upCount = Number(post.up_count ?? post.upCount ?? post.like_count ?? 0);
+  const downCount = Number(post.down_count ?? post.downCount ?? 0);
+  const myVote = Number(post.my_vote ?? post.myVote ?? (post.liked_by_me ? 1 : 0));
 
   const defaultOpenDetail = () => {
     if (onOpenDetail) {
@@ -152,6 +186,14 @@ export function PostCard({
         pathname: '/user/[id]',
         params: { id: authorStudentId },
       });
+    }
+  };
+
+  const handleVoteDirection = (direction: 'up' | 'down') => {
+    if (onVote) {
+      onVote(post.id, direction);
+    } else if (onLike) {
+      onLike(post.id, direction);
     }
   };
 
@@ -276,8 +318,8 @@ export function PostCard({
         );
       })()}
 
-      {/* Assignment Title */}
-      {Boolean(post.title && post.type === 'assignment') && (
+      {/* Post Title (for Notice, Announcement, News, Complaints, Feedback, Assignment) */}
+      {Boolean(post.title && post.title.trim()) && (
         <View style={{ marginTop: spacing.xs, marginBottom: 2 }}>
           <Text variant="sm" weight="700" style={{ color: colors.text, fontSize: 15 }}>
             {post.title}
@@ -304,9 +346,9 @@ export function PostCard({
           media={post.media ? post.media.filter((m) => (m.media_type || 'image') === 'image') : null}
           imageUrl={post.attachment_url}
           getFullUrl={getFullImageUrl}
-          onDoubleTap={() => onDoubleTapLike ? onDoubleTapLike(post.id) : !post.liked_by_me && onLike?.(post.id)}
-          postDetails={{ name: post.name, caption: post.content, uploadedAt: new Date(post.created_at).toLocaleString(), liked: Boolean(post.liked_by_me), likes: post.like_count || 0, comments: post.comment_count || 0 }}
-          onLike={() => onLike?.(post.id)}
+          onDoubleTap={() => onDoubleTapLike ? onDoubleTapLike(post.id) : (myVote !== 1 && handleVoteDirection('up'))}
+          postDetails={{ name: post.name, caption: post.content, uploadedAt: new Date(post.created_at).toLocaleString(), liked: myVote === 1, likes: upCount, comments: post.comment_count || 0 }}
+          onLike={() => handleVoteDirection('up')}
           onComments={defaultOpenDetail}
         />
       )}
@@ -319,14 +361,15 @@ export function PostCard({
         />
       )}
 
-      {/* Post Engagement Actions */}
+      {/* Post Engagement Actions: Modern Reddit-style Upvote/Downvote + Comments + Share */}
       <View style={styles.postActionRow}>
-        {onLike && (
-          <AnimatedLikeButton
-            liked={Boolean(post.liked_by_me)}
-            count={post.like_count || 0}
+        {(onLike || onVote) && (
+          <VoteButtons
+            upCount={upCount}
+            downCount={downCount}
+            myVote={myVote}
             colors={colors}
-            onPress={() => onLike(post.id)}
+            onVote={handleVoteDirection}
           />
         )}
 
@@ -429,7 +472,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 14,
-    gap: 16,
+    gap: 14,
+  },
+  votePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+  },
+  voteHalfBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  voteDivider: {
+    width: 1,
+    height: 14,
+    marginHorizontal: 2,
   },
   actionButton: {
     flexDirection: 'row',

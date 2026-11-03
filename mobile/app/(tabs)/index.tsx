@@ -54,7 +54,16 @@ import {
   getPosts,
   getFeedFiles,
   toggleLike,
+  votePost,
   toggleFileLike,
+  voteFile,
+  voteAssignment,
+  getFileComments,
+  addFileComment,
+  deleteFileComment,
+  getAssignmentComments,
+  addAssignmentComment,
+  deleteAssignmentComment,
   createPost,
   deletePost,
   getComments,
@@ -79,7 +88,7 @@ import { PostMediaGallery } from '@/components/PostMediaGallery';
 import { EditPostModal } from '@/components/EditPostModal';
 import { PostFileAttachments } from '@/components/PostFileAttachments';
 import { CommentItem } from '@/components/CommentItem';
-import { PostCard } from '@/components/PostCard';
+import { PostCard, VoteButtons } from '@/components/PostCard';
 import { SponsoredAdCard } from '@/components/SponsoredAdCard';
 import {
   Advertisement,
@@ -201,11 +210,22 @@ type FeedAssignment = {
   teacherName?: string;
   createdBy?: string;
   subject?: string;
+  semester?: string;
+  language?: string;
+  pdfUrl?: string | null;
+  pdfName?: string | null;
   createdAt: string;
   deadline?: string;
   avatarUrl?: string;
+  teacherAvatar?: string;
   questionCount?: number;
   submissionCount?: number;
+  liked?: boolean;
+  likeCount?: number;
+  upCount?: number;
+  downCount?: number;
+  myVote?: number;
+  commentCount?: number;
 };
 
 export type FeedItem =
@@ -956,8 +976,9 @@ function StudentHomeScreenInner() {
     return interleaveFeedWithAds(organicSorted, eligibleAds, { seed: feedSessionSeed });
   }, [posts, files, assignments, eligibleAds, feedSessionSeed, feedCategoryFilter, user, fetchedTeacherSubjects]);
 
-  // Post Comments bottom-sheet state
+  // Unified Comments bottom-sheet state (supports Posts/Notices, Notes/Files, and Assignments)
   const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(null);
+  const [activeCommentKind, setActiveCommentKind] = useState<'post' | 'file' | 'assignment'>('post');
   const [postComments, setPostComments] = useState<PostComment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
   const [postingComment, setPostingComment] = useState(false);
@@ -975,6 +996,7 @@ function StudentHomeScreenInner() {
   const commentInputRef = useRef<TextInputInstance>(null);
 
   const handleOpenPostComments = async (post: Post) => {
+    setActiveCommentKind('post');
     setActiveCommentPost(post);
     setCommentReplyingTo(null);
     setCommentEditing(null);
@@ -986,6 +1008,104 @@ function StudentHomeScreenInner() {
       setPostComments(data || []);
     } catch {
       showToast('Could not load comments');
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleOpenFileComments = async (file: LibraryFile) => {
+    setActiveCommentKind('file');
+    setActiveCommentPost({
+      id: file.id,
+      user_id: file.uploadedBy,
+      studentId: file.uploadedBy,
+      name: file.uploaderName || 'Student',
+      role: file.uploaderRole || 'student',
+      avatarUrl: file.uploaderAvatar || null,
+      title: file.title || file.originalName,
+      content: file.subject ? `${file.subject}${file.chapter ? ` • ${file.chapter}` : ''}` : file.originalName,
+      type: 'status',
+      attachment_url: null,
+      created_at: file.uploadedAt,
+      like_count: Number(file.upCount ?? file.likeCount ?? 0),
+      comment_count: Number(file.commentCount || 0),
+      submission_count: 0,
+      liked_by_me: Boolean(file.liked),
+    });
+    setCommentReplyingTo(null);
+    setCommentEditing(null);
+    setCommentInput('');
+    setCommentsModalOpen(true);
+    setLoadingComments(true);
+    try {
+      const data = await getFileComments(file.id);
+      setPostComments(
+        (data || []).map((c) => ({
+          id: c.id,
+          postId: file.id,
+          userId: c.studentId,
+          studentId: c.studentId,
+          content: c.content || c.commentText,
+          createdAt: c.createdAt,
+          name: c.name || c.commenterName || 'Student',
+          role: c.role || 'student',
+          avatarUrl: c.avatarUrl || null,
+          canDelete: c.canDelete,
+          canEdit: false,
+          replies: [],
+        }))
+      );
+    } catch {
+      showToast('Could not load note comments');
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleOpenAssignmentComments = async (assignment: FeedAssignment) => {
+    setActiveCommentKind('assignment');
+    setActiveCommentPost({
+      id: assignment.id,
+      user_id: assignment.createdBy || '',
+      studentId: assignment.createdBy || '',
+      name: assignment.teacherName || 'Faculty Member',
+      role: 'teacher',
+      avatarUrl: assignment.avatarUrl || assignment.teacherAvatar || null,
+      title: assignment.title,
+      content: assignment.description || assignment.subject || '',
+      type: 'assignment',
+      attachment_url: null,
+      created_at: assignment.createdAt,
+      like_count: Number(assignment.upCount ?? assignment.likeCount ?? 0),
+      comment_count: Number(assignment.commentCount || 0),
+      submission_count: Number(assignment.submissionCount || 0),
+      liked_by_me: Boolean(assignment.liked),
+    });
+    setCommentReplyingTo(null);
+    setCommentEditing(null);
+    setCommentInput('');
+    setCommentsModalOpen(true);
+    setLoadingComments(true);
+    try {
+      const data = await getAssignmentComments(assignment.id);
+      setPostComments(
+        (data || []).map((c) => ({
+          id: c.id,
+          postId: assignment.id,
+          userId: c.studentId,
+          studentId: c.studentId,
+          content: c.content || c.commentText,
+          createdAt: c.createdAt,
+          name: c.name || c.commenterName || 'Student',
+          role: c.role || 'student',
+          avatarUrl: c.avatarUrl || null,
+          canDelete: c.canDelete,
+          canEdit: false,
+          replies: [],
+        }))
+      );
+    } catch {
+      showToast('Could not load assignment comments');
     } finally {
       setLoadingComments(false);
     }
@@ -1058,6 +1178,70 @@ function StudentHomeScreenInner() {
     const content = commentInput.trim();
     setPostingComment(true);
     try {
+      if (activeCommentKind === 'file') {
+        const res = await addFileComment(activeCommentPost.id, content);
+        setCommentInput('');
+        if (res.comment) {
+          const c = res.comment;
+          setPostComments((prev) => [
+            ...prev,
+            {
+              id: c.id,
+              postId: activeCommentPost.id,
+              userId: c.studentId,
+              studentId: c.studentId,
+              content: c.content || c.commentText,
+              createdAt: c.createdAt,
+              name: c.name || c.commenterName || 'Student',
+              role: c.role || 'student',
+              avatarUrl: c.avatarUrl || null,
+              canDelete: true,
+              canEdit: false,
+              replies: [],
+            },
+          ]);
+        }
+        const updatedCount = res.commentCount ?? (activeCommentPost.comment_count + 1);
+        setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
+        setFiles((prev) =>
+          prev.map((f) => (f.id === activeCommentPost.id ? { ...f, commentCount: updatedCount } : f))
+        );
+        showToast('Comment posted');
+        return;
+      }
+
+      if (activeCommentKind === 'assignment') {
+        const res = await addAssignmentComment(activeCommentPost.id, content);
+        setCommentInput('');
+        if (res.comment) {
+          const c = res.comment;
+          setPostComments((prev) => [
+            ...prev,
+            {
+              id: c.id,
+              postId: activeCommentPost.id,
+              userId: c.studentId,
+              studentId: c.studentId,
+              content: c.content || c.commentText,
+              createdAt: c.createdAt,
+              name: c.name || c.commenterName || 'Student',
+              role: c.role || 'student',
+              avatarUrl: c.avatarUrl || null,
+              canDelete: true,
+              canEdit: false,
+              replies: [],
+            },
+          ]);
+        }
+        const updatedCount = res.commentCount ?? (activeCommentPost.comment_count + 1);
+        setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
+        setAssignments((prev) =>
+          prev.map((a) => (a.id === activeCommentPost.id ? { ...a, commentCount: updatedCount } : a))
+        );
+        showToast('Comment posted');
+        return;
+      }
+
       if (commentEditing) {
         // Edit mode
         const res = await editComment(activeCommentPost.id, commentEditing.id, content);
@@ -1216,6 +1400,28 @@ function StudentHomeScreenInner() {
         style: 'destructive',
         onPress: async () => {
           try {
+            if (activeCommentKind === 'file') {
+              const res = await deleteFileComment(activeCommentPost.id, comment.id);
+              setPostComments((prev) => prev.filter((c) => c.id !== comment.id));
+              const updatedCount = res.commentCount ?? Math.max(0, activeCommentPost.comment_count - 1);
+              setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
+              setFiles((prev) =>
+                prev.map((f) => (f.id === activeCommentPost.id ? { ...f, commentCount: updatedCount } : f))
+              );
+              showToast('Comment deleted');
+              return;
+            }
+            if (activeCommentKind === 'assignment') {
+              const res = await deleteAssignmentComment(activeCommentPost.id, comment.id);
+              setPostComments((prev) => prev.filter((c) => c.id !== comment.id));
+              const updatedCount = res.commentCount ?? Math.max(0, activeCommentPost.comment_count - 1);
+              setActiveCommentPost((prev) => (prev ? { ...prev, comment_count: updatedCount } : null));
+              setAssignments((prev) =>
+                prev.map((a) => (a.id === activeCommentPost.id ? { ...a, commentCount: updatedCount } : a))
+              );
+              showToast('Comment deleted');
+              return;
+            }
             const res = await deleteComment(activeCommentPost.id, comment.id);
             setPostComments((prev) =>
               prev
@@ -1427,39 +1633,54 @@ function StudentHomeScreenInner() {
       setLoadingMore(false);
     }
   };
-  const handleToggleLike = async (postId: number) => {
+  const handleToggleLike = async (postId: number, direction: 'up' | 'down' = 'up') => {
     const targetPost = posts.find((p) => p.id === postId);
     if (!targetPost) return;
 
-    const previousLiked = targetPost.liked_by_me;
-    const previousCount = targetPost.like_count;
-    const newLiked = !previousLiked;
-    const newCount = newLiked ? previousCount + 1 : Math.max(0, previousCount - 1);
+    const prevUp = Number(targetPost.up_count ?? targetPost.upCount ?? targetPost.like_count ?? 0);
+    const prevDown = Number(targetPost.down_count ?? targetPost.downCount ?? 0);
+    const prevVote = Number(targetPost.my_vote ?? targetPost.myVote ?? (targetPost.liked_by_me ? 1 : 0));
+    const desiredVote = direction === 'down' ? -1 : 1;
+    const nextVote = prevVote === desiredVote ? 0 : desiredVote;
+    const nextUp = Math.max(0, prevUp + (nextVote === 1 ? 1 : 0) - (prevVote === 1 ? 1 : 0));
+    const nextDown = Math.max(0, prevDown + (nextVote === -1 ? 1 : 0) - (prevVote === -1 ? 1 : 0));
 
-    // Optimistic UI update
     setPosts((prev) =>
       prev.map((p) =>
         p.id === postId
           ? {
               ...p,
-              liked_by_me: newLiked,
-              like_count: newCount,
+              up_count: nextUp,
+              down_count: nextDown,
+              my_vote: nextVote,
+              upCount: nextUp,
+              downCount: nextDown,
+              myVote: nextVote,
+              liked_by_me: nextVote === 1,
+              like_count: nextUp,
             }
           : p
       )
     );
 
     try {
-      const result = await toggleLike(postId, previousLiked);
-      const finalLiked = result.liked_by_me ?? result.liked;
-      const finalCount = result.like_count ?? result.likeCount;
+      const result = await votePost(postId, direction);
+      const finalUp = Number(result.up_count ?? result.upCount ?? result.like_count ?? nextUp);
+      const finalDown = Number(result.down_count ?? result.downCount ?? nextDown);
+      const finalVote = Number(result.my_vote ?? result.myVote ?? nextVote);
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId
             ? {
                 ...p,
-                liked_by_me: finalLiked,
-                like_count: finalCount,
+                up_count: finalUp,
+                down_count: finalDown,
+                my_vote: finalVote,
+                upCount: finalUp,
+                downCount: finalDown,
+                myVote: finalVote,
+                liked_by_me: finalVote === 1,
+                like_count: finalUp,
               }
             : p
         )
@@ -1472,8 +1693,14 @@ function StudentHomeScreenInner() {
                 p.id === postId
                   ? {
                       ...p,
-                      liked_by_me: finalLiked,
-                      like_count: finalCount,
+                      up_count: finalUp,
+                      down_count: finalDown,
+                      my_vote: finalVote,
+                      upCount: finalUp,
+                      downCount: finalDown,
+                      myVote: finalVote,
+                      liked_by_me: finalVote === 1,
+                      like_count: finalUp,
                     }
                   : p
               ),
@@ -1486,45 +1713,59 @@ function StudentHomeScreenInner() {
           p.id === postId
             ? {
                 ...p,
-                liked_by_me: previousLiked,
-                like_count: previousCount,
+                up_count: prevUp,
+                down_count: prevDown,
+                my_vote: prevVote,
+                upCount: prevUp,
+                downCount: prevDown,
+                myVote: prevVote,
+                liked_by_me: prevVote === 1,
+                like_count: prevUp,
               }
             : p
         )
       );
-      Alert.alert('Action Failed', err.message || 'Could not update like status.');
+      Alert.alert('Action Failed', err.message || 'Could not update vote.');
     }
   };
 
-  const handleToggleFileLike = async (fileId: number) => {
+  const handleToggleFileLike = async (fileId: number, direction: 'up' | 'down' = 'up') => {
     const targetFile = files.find((f) => f.id === fileId);
     if (!targetFile) return;
 
-    const previousLiked = Boolean(targetFile.liked);
-    const previousCount = Number(targetFile.likeCount || 0);
-    const newLiked = !previousLiked;
-    const newCount = newLiked ? previousCount + 1 : Math.max(0, previousCount - 1);
+    const prevUp = Number(targetFile.upCount ?? targetFile.up_count ?? targetFile.likeCount ?? 0);
+    const prevDown = Number(targetFile.downCount ?? targetFile.down_count ?? 0);
+    const prevVote = Number(targetFile.myVote ?? targetFile.my_vote ?? (targetFile.liked ? 1 : 0));
+    const desiredVote = direction === 'down' ? -1 : 1;
+    const nextVote = prevVote === desiredVote ? 0 : desiredVote;
+    const nextUp = Math.max(0, prevUp + (nextVote === 1 ? 1 : 0) - (prevVote === 1 ? 1 : 0));
+    const nextDown = Math.max(0, prevDown + (nextVote === -1 ? 1 : 0) - (prevVote === -1 ? 1 : 0));
 
-    // Optimistic UI update
     setFiles((prev) =>
       prev.map((f) =>
         f.id === fileId
           ? {
               ...f,
-              liked: newLiked,
-              likeCount: newCount,
+              upCount: nextUp,
+              downCount: nextDown,
+              myVote: nextVote,
+              liked: nextVote === 1,
+              likeCount: nextUp,
             }
           : f
       )
     );
 
     try {
-      const result = await toggleFileLike(fileId, previousLiked);
+      const result = await voteFile(fileId, direction);
       setFiles((prev) =>
         prev.map((f) =>
           f.id === fileId
             ? {
                 ...f,
+                upCount: result.upCount,
+                downCount: result.downCount,
+                myVote: result.myVote,
                 liked: result.liked,
                 likeCount: result.likeCount,
               }
@@ -1539,6 +1780,9 @@ function StudentHomeScreenInner() {
                 f.id === fileId
                   ? {
                       ...f,
+                      upCount: result.upCount,
+                      downCount: result.downCount,
+                      myVote: result.myVote,
                       liked: result.liked,
                       likeCount: result.likeCount,
                     }
@@ -1553,22 +1797,88 @@ function StudentHomeScreenInner() {
           f.id === fileId
             ? {
                 ...f,
-                liked: previousLiked,
-                likeCount: previousCount,
+                upCount: prevUp,
+                downCount: prevDown,
+                myVote: prevVote,
+                liked: prevVote === 1,
+                likeCount: prevUp,
               }
             : f
         )
       );
-      showToast(err.message || 'Could not update like.');
+      showToast(err.message || 'Could not update vote.');
     }
   };
 
-  // Called on double-tap: ensure like is triggered if not already liked
+  const handleToggleAssignmentVote = async (assignmentId: number, direction: 'up' | 'down' = 'up') => {
+    const target = assignments.find((a) => a.id === assignmentId);
+    if (!target) return;
+
+    const prevUp = Number(target.upCount ?? target.likeCount ?? 0);
+    const prevDown = Number(target.downCount ?? 0);
+    const prevVote = Number(target.myVote ?? (target.liked ? 1 : 0));
+    const desiredVote = direction === 'down' ? -1 : 1;
+    const nextVote = prevVote === desiredVote ? 0 : desiredVote;
+    const nextUp = Math.max(0, prevUp + (nextVote === 1 ? 1 : 0) - (prevVote === 1 ? 1 : 0));
+    const nextDown = Math.max(0, prevDown + (nextVote === -1 ? 1 : 0) - (prevVote === -1 ? 1 : 0));
+
+    setAssignments((prev) =>
+      prev.map((a) =>
+        a.id === assignmentId
+          ? {
+              ...a,
+              upCount: nextUp,
+              downCount: nextDown,
+              myVote: nextVote,
+              liked: nextVote === 1,
+              likeCount: nextUp,
+            }
+          : a
+      )
+    );
+
+    try {
+      const result = await voteAssignment(assignmentId, direction);
+      setAssignments((prev) =>
+        prev.map((a) =>
+          a.id === assignmentId
+            ? {
+                ...a,
+                upCount: result.upCount,
+                downCount: result.downCount,
+                myVote: result.myVote,
+                liked: result.liked,
+                likeCount: result.likeCount,
+              }
+            : a
+        )
+      );
+    } catch (err: any) {
+      setAssignments((prev) =>
+        prev.map((a) =>
+          a.id === assignmentId
+            ? {
+                ...a,
+                upCount: prevUp,
+                downCount: prevDown,
+                myVote: prevVote,
+                liked: prevVote === 1,
+                likeCount: prevUp,
+              }
+            : a
+        )
+      );
+      showToast(err.message || 'Could not update vote.');
+    }
+  };
+
+  // Called on double-tap: ensure upvote is triggered if not already upvoted
   const handleDoubleTapLike = (postId: number) => {
     const target = posts.find((p) => p.id === postId);
     if (!target) return;
-    if (!target.liked_by_me) {
-      handleToggleLike(postId);
+    const myVote = Number(target.my_vote ?? target.myVote ?? (target.liked_by_me ? 1 : 0));
+    if (myVote !== 1) {
+      void handleToggleLike(postId, 'up');
     }
   };
 
@@ -2533,14 +2843,11 @@ function StudentHomeScreenInner() {
         post={item}
         currentUserId={user?.studentId}
         onLike={handleToggleLike}
+        onVote={handleToggleLike}
         onDoubleTapLike={handleDoubleTapLike}
         onShare={handleSharePost}
         onOpenDetail={(p) => {
-          if (p.type === 'notice') {
-            router.push(`/notice/${p.id}`);
-          } else {
-            router.push(`/post/${p.id}`);
-          }
+          void handleOpenPostComments(p);
         }}
         onOpenMenu={(p) => setSelectedMenuPost(p)}
         onOpenFile={handleOpenAttachedFile}
@@ -2720,18 +3027,19 @@ function StudentHomeScreenInner() {
           </View>
         </TouchableOpacity>
 
-        {/* File Engagement Actions (Like button & Comments count) */}
+        {/* File Engagement Actions (Reddit-style Up/Down votes, Comments & Share) */}
         <View style={styles.postActionRow}>
-          <LikeButton
-            liked={Boolean(file.liked)}
-            count={Number(file.likeCount || 0)}
+          <VoteButtons
+            upCount={Number(file.upCount ?? file.up_count ?? file.likeCount ?? 0)}
+            downCount={Number(file.downCount ?? file.down_count ?? 0)}
+            myVote={Number(file.myVote ?? file.my_vote ?? (file.liked ? 1 : 0))}
             colors={colors}
-            onPress={() => handleToggleFileLike(file.id)}
+            onVote={(dir) => void handleToggleFileLike(file.id, dir)}
           />
 
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => router.push(`/material/${file.id}` as any)}
+            onPress={() => void handleOpenFileComments(file)}
             accessibilityLabel="View comments on material"
           >
             <Ionicons name="chatbubble-outline" size={17} color={colors.textMuted} />
@@ -2753,63 +3061,253 @@ function StudentHomeScreenInner() {
     );
   };
 
+  // Render assignment uploaded card using the exact same template as note post (renderFileItem)
+  const renderAssignmentItem = (a: FeedAssignment) => {
+    const badgeExt = a.pdfUrl ? 'PDF' : (a.language ? a.language.toUpperCase() : 'LAB');
+    const uploaderAvatarUrl = getFullImageUrl(a.avatarUrl || a.teacherAvatar || (a as any).avatar_url || null) || a.avatarUrl;
+    const openAssignment = () => {
+      router.push(`/assignments/${a.id}` as any);
+    };
+
+    return (
+      <View
+        style={[
+          styles.postItem,
+          {
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={openAssignment}
+        >
+          {/* Author / Uploader Row */}
+          <View style={styles.postAuthorRow}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={(e) => {
+                e.stopPropagation();
+                if (a.createdBy) {
+                  router.push({
+                    pathname: '/user/[id]',
+                    params: { id: a.createdBy },
+                  });
+                }
+              }}
+              style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+            >
+              <Avatar
+                url={uploaderAvatarUrl}
+                name={a.teacherName || 'Faculty Member'}
+                size="md"
+              />
+              <View style={{ flex: 1, marginLeft: spacing.compact }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text variant="sm" weight="700" numberOfLines={1}>
+                    {a.teacherName || 'Faculty Member'}
+                  </Text>
+                  <View
+                    style={[
+                      styles.rolePill,
+                      {
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                        borderWidth: 1,
+                        borderRadius: radii.sm,
+                      },
+                    ]}
+                  >
+                    <Text variant="xs" weight="700" color="secondary">
+                      TEACHER
+                    </Text>
+                  </View>
+                </View>
+                <Caption color="muted">
+                  Uploaded {formatRelativeTime(a.createdAt)}
+                </Caption>
+              </View>
+            </TouchableOpacity>
+
+            {/* Type Badge: ASSIGNMENT */}
+            <View
+              style={[
+                styles.typeBadge,
+                {
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: colors.border,
+                  borderRadius: radii.full,
+                },
+              ]}
+            >
+              <Ionicons name="document-text-outline" size={11} color={colors.textSecondary} style={{ marginRight: 3 }} />
+              <Text
+                variant="xs"
+                weight="700"
+                style={{ color: colors.textSecondary, fontSize: 10 }}
+              >
+                ASSIGNMENT
+              </Text>
+            </View>
+          </View>
+
+          {/* Assignment Title, Description & Subject/Deadline tags */}
+          <View style={{ marginTop: 10, marginBottom: 8 }}>
+            {a.title ? (
+              <Text weight="700" style={{ fontSize: 15, marginBottom: 6, lineHeight: 20 }}>
+                {a.title}
+              </Text>
+            ) : null}
+
+            {Boolean(a.description && a.description.trim()) ? (
+              <Text variant="sm" color="secondary" numberOfLines={2} style={{ marginBottom: 6, lineHeight: 19 }}>
+                {a.description}
+              </Text>
+            ) : null}
+
+            {(a.subject || a.semester || a.deadline) ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                {a.subject ? (
+                  <View
+                    style={[
+                      styles.fileMetaTag,
+                      {
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="book-outline" size={11} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                    <Text variant="xs" weight="600" color="secondary">
+                      {a.subject}
+                    </Text>
+                  </View>
+                ) : null}
+                {a.semester ? (
+                  <View
+                    style={[
+                      styles.fileMetaTag,
+                      {
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text variant="xs" color="muted">
+                      {String(a.semester).startsWith('Semester') ? a.semester : `Semester ${a.semester}`}
+                    </Text>
+                  </View>
+                ) : null}
+                {a.deadline ? (
+                  <View
+                    style={[
+                      styles.fileMetaTag,
+                      {
+                        backgroundColor: colors.surfaceRaised,
+                        borderColor: colors.border,
+                      },
+                    ]}
+                  >
+                    <Text variant="xs" color="muted">
+                      Due {new Date(a.deadline).toLocaleDateString()}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+
+          {/* Assignment Attachment Box - matching Note post attachment box */}
+          <View
+            style={[
+              styles.feedFileAttachmentBox,
+              {
+                backgroundColor: colors.surfaceRaised,
+                borderColor: colors.border,
+                borderRadius: radii.md,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.fileTypeBadge,
+                {
+                  backgroundColor: '#4B5563',
+                  borderRadius: radii.sm,
+                },
+              ]}
+            >
+              <Text variant="xs" weight="800" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
+                {badgeExt}
+              </Text>
+            </View>
+
+            <View style={{ flex: 1, marginRight: spacing.sm }}>
+              <Text variant="sm" weight="600" numberOfLines={1}>
+                {a.pdfName || a.title}
+              </Text>
+              <Caption color="muted" numberOfLines={1}>
+                {typeof a.questionCount === 'number' && a.questionCount > 0
+                  ? `${a.questionCount} ${a.questionCount === 1 ? 'Problem' : 'Problems'} • `
+                  : ''}
+                Tap to view assignment
+              </Caption>
+            </View>
+
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Assignment Engagement Actions (Reddit-style Up/Down votes, Comments, Submissions & Share) */}
+        <View style={styles.postActionRow}>
+          <VoteButtons
+            upCount={Number(a.upCount ?? a.likeCount ?? 0)}
+            downCount={Number(a.downCount ?? 0)}
+            myVote={Number(a.myVote ?? (a.liked ? 1 : 0))}
+            colors={colors}
+            onVote={(dir) => void handleToggleAssignmentVote(a.id, dir)}
+          />
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => void handleOpenAssignmentComments(a)}
+            accessibilityLabel="View comments on assignment"
+          >
+            <Ionicons name="chatbubble-outline" size={17} color={colors.textMuted} />
+            <Text variant="xs" weight="600" color="secondary" style={{ marginLeft: 5 }}>
+              {Number(a.commentCount || 0)}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={openAssignment}
+            accessibilityLabel="View assignment submissions"
+          >
+            <Ionicons name="document-text-outline" size={17} color={colors.textMuted} />
+            <Text variant="xs" weight="600" color="secondary" style={{ marginLeft: 5 }}>
+              {Number(a.submissionCount || 0)} submitted
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => {
+              const link = `${baseUrl}/code-lab/assignment.html?id=${a.id}`;
+              void Clipboard.setStringAsync(link).then(() => showToast('Assignment link copied!'));
+            }}
+            accessibilityLabel="Share assignment link"
+          >
+            <Ionicons name="share-outline" size={17} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   const renderFeedItem = ({ item }: { item: FeedItem }) => {
     if (item.feedType === 'assignment') {
-      const a = item.assignment;
-      return (
-        <Card variant="elevated" padding="md" style={{ marginBottom: spacing.md, borderWidth: 1, borderColor: colors.border }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
-              <Avatar name={a.teacherName || 'Faculty'} size="sm" url={a.avatarUrl || (a as any).avatar_url} style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text variant="sm" weight="700" numberOfLines={1}>{a.teacherName || 'Faculty Member'}</Text>
-                <Caption color="muted">{formatTimeAgo(a.createdAt)}{a.subject ? ` · ${a.subject}` : ''}</Caption>
-              </View>
-            </View>
-            <View style={{
-              backgroundColor: colors.surfaceRaised,
-              borderColor: colors.border,
-              borderWidth: 1,
-              borderRadius: radii.full,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-              flexDirection: 'row',
-              alignItems: 'center',
-            }}>
-              <Ionicons name="document-text-outline" size={11} color={colors.textSecondary} style={{ marginRight: 3 }} />
-              <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 10 }}>ASSIGNMENT</Text>
-            </View>
-          </View>
-
-          <Subheading style={{ marginTop: 6, marginBottom: 4 }}>{a.title}</Subheading>
-          {Boolean(a.description) && (
-            <Text variant="sm" color="secondary" numberOfLines={3} style={{ marginBottom: 8, lineHeight: 20 }}>
-              {a.description}
-            </Text>
-          )}
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: spacing.sm }}>
-            {typeof a.questionCount === 'number' && a.questionCount > 0 && (
-              <Caption color="secondary"><Ionicons name="list-outline" size={12} color={colors.textMuted} /> {a.questionCount} {a.questionCount === 1 ? 'Problem' : 'Problems'}</Caption>
-            )}
-            {Boolean(a.deadline) && (
-              <Caption color="secondary"><Ionicons name="calendar-outline" size={12} color={colors.textMuted} /> Due {new Date(a.deadline!).toLocaleDateString()}</Caption>
-            )}
-            {typeof a.submissionCount === 'number' && (
-              <Caption color="secondary"><Ionicons name="people-outline" size={12} color={colors.textMuted} /> {a.submissionCount} submitted</Caption>
-            )}
-          </View>
-
-          <Button
-            title="Open Assignment"
-            variant="secondary"
-            size="sm"
-            onPress={() => {
-              void Linking.openURL(`${baseUrl}/code-lab/assignment.html?id=${a.id}`).catch(() => showToast('Could not open the website.'));
-            }}
-          />
-        </Card>
-      );
+      return renderAssignmentItem(item.assignment);
     }
     if (item.feedType === 'advertisement') {
       return (

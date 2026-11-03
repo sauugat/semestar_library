@@ -10,10 +10,6 @@ const searchTool = { type: 'function', function: {
   name: 'search_notes', description: 'Search uploaded notes.',
   parameters: { type: 'object', properties: { query: { type: 'string' }, semester: { type: 'integer', minimum: 1, maximum: 8 } }, required: ['query'], additionalProperties: false }
 } };
-const webTool = { type: 'function', function: {
-  name: 'web_search', description: 'Find current data.',
-  parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] }
-} };
 
 function byteStream(bytes, chunkSize = 7) {
   let index = 0;
@@ -185,11 +181,12 @@ test('client cancellation aborts the active request and never starts a fallback'
   assert.ok(requestSignal.aborted);
 });
 
-test('unknown tool names are never executed', async () => {
+test('unknown tool names including removed web_search are never executed', async () => {
   let executed = false;
-  const provider = createChatProvider({ env: environment, fetchImpl: async () => sse([gemini([{ functionCall: { name: 'delete_files', args: {} } }])]) });
+  const provider = createChatProvider({ env: environment, fetchImpl: async () => sse([gemini([{ functionCall: { name: 'web_search', args: { query: 'news' } } }])]) });
   await assert.rejects(provider.generateReply({ message: 'notes', tools: [searchTool], executeTool: async () => { executed = true; } }), { code: 'UNKNOWN_TOOL' });
   assert.equal(executed, false);
+  assert.equal(typeof provider.webSearch, 'undefined');
 });
 
 test('invalid semester filters are rejected before execution', async () => {
@@ -197,42 +194,6 @@ test('invalid semester filters are rejected before execution', async () => {
   const provider = createChatProvider({ env: environment, fetchImpl: async () => sse([gemini([{ functionCall: { name: 'search_notes', args: { query: 'DBMS', semester: 99 } } }])]) });
   await assert.rejects(provider.generateReply({ message: 'DBMS notes', tools: [searchTool], executeTool: async () => { executed = true; } }), { code: 'INVALID_TOOL_CALL' });
   assert.equal(executed, false);
-});
-
-test('required search forces the native tool and refuses an ungrounded response', async () => {
-  let body;
-  let emitted = '';
-  const provider = createChatProvider({ env: environment, fetchImpl: async (url, request) => {
-    body = JSON.parse(request.body);
-    return sse([gemini([{ functionCall: { name: 'web_search', args: { query: 'today news' } } }])]);
-  } });
-  await assert.rejects(provider.generateReply({ message: 'today news', requireWebSearch: true, tools: [webTool], executeTool: async () => ({ results: [] }), onDelta: text => { emitted += text; } }), { code: 'SEARCH_UNAVAILABLE' });
-  assert.deepEqual(body.toolConfig.functionCallingConfig, { mode: 'ANY', allowedFunctionNames: ['web_search'] });
-  assert.equal(emitted, '');
-});
-
-test('grounded web search returns only actual HTTP source URLs and supported snippets', async () => {
-  let requestBody;
-  const provider = createChatProvider({ env: environment, fetchImpl: async (url, request) => {
-    requestBody = JSON.parse(request.body);
-    return Response.json({ candidates: [{ content: { parts: [{ text: 'A supported summary.' }] }, groundingMetadata: {
-      webSearchQueries: ['latest computing news'],
-      groundingChunks: [{ web: { uri: 'https://example.org/news', title: 'Computing news' } }, { web: { uri: 'javascript:alert(1)', title: 'Not a source' } }],
-      groundingSupports: [{ groundingChunkIndices: [0], segment: { text: 'Supported fact.' } }]
-    } }] });
-  } });
-  const result = await provider.webSearch('latest computing news');
-  assert.equal(result.results.length, 1);
-  assert.deepEqual(result.results[0], { title: 'Computing news', url: 'https://example.org/news', snippet: 'Supported fact.' });
-  assert.deepEqual(requestBody.tools, [{ googleSearch: {} }]);
-  assert.equal(result.summary, 'A supported summary.');
-});
-
-test('web search rejects metadata without both source URLs and actual search queries', async () => {
-  for (const groundingMetadata of [{}, { webSearchQueries: ['query'] }, { groundingChunks: [{ web: { uri: 'https://example.org/' } }] }]) {
-    const provider = createChatProvider({ env: environment, fetchImpl: async () => Response.json({ candidates: [{ content: { parts: [{ text: 'A made up answer.' }] }, groundingMetadata }] }) });
-    await assert.rejects(provider.webSearch('latest news'), { code: 'SEARCH_UNAVAILABLE' });
-  }
 });
 
 test('complex model is selected before the request and does not create a second generation', async () => {
@@ -262,20 +223,4 @@ test('tool results are reused if the provider fails before final text and falls 
   assert.equal(result.reply, 'DBMS notes found.');
   assert.equal(executions, 1);
   assert.equal(requests, 4);
-});
-
-test('live search falls back after a Gemini error and requires actual OpenRouter citations', async()=>{
-  const calls=[];
-  const provider=createChatProvider({env:environment,fetchImpl:async(url,request)=>{
-    calls.push(url);
-    if(url.includes('googleapis')) return new Response('',{status:429});
-    const body=JSON.parse(request.body);
-    assert.equal(body.tools[0].type,'openrouter:web_search');
-    assert.equal(body.tools[0].parameters.max_uses,1);
-    return Response.json({choices:[{message:{content:'Current sourced answer.',annotations:[{type:'url_citation',url_citation:{url:'https://example.org/current',title:'Current',content:'Source excerpt'}}]}}],usage:{server_tool_use:{web_search_requests:1}}});
-  }});
-  const result=await provider.webSearch('latest news');
-  assert.equal(calls.length,2);assert.equal(result.provider,'openrouter_web_search');assert.equal(result.results[0].url,'https://example.org/current');
-  const ungrounded=createChatProvider({env:{OPENROUTER_API_KEY:'test'},fetchImpl:async()=>Response.json({choices:[{message:{content:'Unsourced claim.'}}]})});
-  await assert.rejects(ungrounded.webSearch('latest news'),{code:'SEARCH_UNAVAILABLE'});
 });

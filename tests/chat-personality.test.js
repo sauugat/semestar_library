@@ -51,8 +51,8 @@ test('model receives personality and stress override while code remains a direct
   });
   assert.match(prompt, /platonic/); assert.match(prompt, /no jokes or roasts/); assert.match(prompt, /Code blocks, formulas, factual lists and citations stay clean/);
 });
-test('exam stress does not send a normal academic explanation to live search', () => {
+test('exam stress keeps normal academic explanation on direct route and sends non-syllabus release query to scope_check', () => {
   const { routeQuery } = require('../lib/chat-tools');
   assert.equal(routeQuery("I'm panicking about tomorrow's exam, explain arrays").kind, 'direct');
-  assert.equal(routeQuery('what is the latest Java version?').kind, 'web');
+  assert.equal(routeQuery('what is the latest Java version?').kind, 'scope_check');
 });

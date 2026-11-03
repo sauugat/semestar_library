@@ -207,58 +207,59 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 -- 1. Unified Knowledge Resource Registry
 CREATE TABLE IF NOT EXISTS knowledge_resources (
-  id TEXT PRIMARY KEY,                       -- e.g. 'post:142', 'file:58', 'assignment:12', 'routine:4'
+  id TEXT PRIMARY KEY,                       -- e.g. 'post:142', 'note:58', 'assignment:12', 'routine:4', 'comment:91'
   resource_type TEXT NOT NULL CHECK (
-    resource_type IN ('post', 'notice', 'note', 'assignment', 'routine', 'syllabus', 'gu_official')
+    resource_type IN ('post', 'notice', 'assignment', 'note', 'routine', 'syllabus', 'gu_official', 'comment')
   ),
   canonical_id INTEGER,                      -- Native integer ID in source table
   canonical_code TEXT,                     -- Code for syllabus (e.g. 'BIT101')
   title TEXT NOT NULL,
   source_authority_tier INTEGER NOT NULL CHECK (source_authority_tier BETWEEN 1 AND 5),
-  -- Tier 1: Official GU Notice
-  -- Tier 2: Verified Campus Notice
-  -- Tier 3: Teacher Announcement / Material
-  -- Tier 4: CR Announcement
-  -- Tier 5: Student Community Post
+  -- Tier 1: Official GU Notice / Admin Notice / Routine
+  -- Tier 2: Teacher Notice / Assignment / Comment
+  -- Tier 3: CR Announcement / Comment / Course Note
+  -- Tier 4: Student Community Post / Comment
 
   -- Author & Academic Scoping (Matches academic-context.js)
   author_id TEXT REFERENCES students(studentId) ON DELETE SET NULL,
   author_role TEXT NOT NULL DEFAULT 'student',
   cohort_id TEXT REFERENCES cohorts(id) ON DELETE CASCADE,
   semester_no INTEGER CHECK (semester_no BETWEEN 1 AND 8),
-  audience_scope TEXT NOT NULL DEFAULT 'cohort' CHECK (audience_scope IN ('cohort', 'all_students', 'public')),
+  audience_scope TEXT NOT NULL DEFAULT 'cohort' CHECK (audience_scope IN ('cohort', 'all_students')),
   target_all_semesters INTEGER NOT NULL DEFAULT 0,
-  visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'students-only', 'private')),
+  visibility TEXT NOT NULL DEFAULT 'everyone' CHECK (visibility IN ('everyone', 'students_only', 'teachers_only', 'cohort_only')),
 
   -- Navigation Metadata (Pre-computed for instant card rendering)
   web_url TEXT NOT NULL,
   mobile_route TEXT NOT NULL,
   mobile_params JSONB NOT NULL DEFAULT '{}'::jsonb,
 
-  -- Freshness & Sync Tracking
+  -- Freshness, Moderation & Sync Tracking
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   deleted_at TIMESTAMPTZ,                    -- Soft delete flag
+  hidden_at TIMESTAMPTZ,                     -- Moderation hide flag
   content_hash TEXT NOT NULL                 -- SHA256 to avoid redundant embedding generation
 );
 
 CREATE INDEX IF NOT EXISTS idx_kr_scope ON knowledge_resources (audience_scope, cohort_id, semester_no);
-CREATE INDEX IF NOT EXISTS idx_kr_active ON knowledge_resources (resource_type, updated_at DESC) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_kr_active ON knowledge_resources (resource_type, updated_at DESC) WHERE deleted_at IS NULL AND hidden_at IS NULL;
 
 -- 2. Knowledge Chunks with Vector & Full-Text Search
 CREATE TABLE IF NOT EXISTS knowledge_chunks (
-  id TEXT PRIMARY KEY,                       -- e.g. 'post:142:c0', 'file:58:c3'
+  id TEXT PRIMARY KEY,                       -- e.g. 'post:142:c0', 'note:58:c3'
   resource_id TEXT NOT NULL REFERENCES knowledge_resources(id) ON DELETE CASCADE,
   chunk_index INTEGER NOT NULL DEFAULT 0,
   content TEXT NOT NULL,
-  page_number INTEGER,                       -- For PDFs / Documents
+  page_number INTEGER,                       -- For PDFs / Documents (extracted in note_search_documents)
+  embedding_model TEXT NOT NULL DEFAULT 'gemini-embedding-001',
   
-  -- Vector embedding using Gemini text-embedding-004 (768 dimensions)
+  -- Vector embedding using Gemini gemini-embedding-001 (768 dimensions via MRL outputDimensionality)
   embedding vector(768),
 
   -- Precomputed multi-lingual tsvectors
   tsv_content tsvector GENERATED ALWAYS AS (
-    setweight(to_tsvector('nepali', content), 'A') || 
+    setweight(to_tsvector('english', content), 'A') || 
     setweight(to_tsvector('simple', content), 'B')
   ) STORED,
 
@@ -583,8 +584,8 @@ To deliver immediate value without destabilizing the application, Phase 1 is str
 
 | File Path | Action | Exact Scope of Change |
 | :--- | :--- | :--- |
-| `lib/knowledge-index.js` `[PROPOSED]` | **NEW** | Database schema initialization for `knowledge_resources` and `knowledge_chunks`. Embedding helper using Gemini `text-embedding-004`. Hybrid SQL retrieval query. |
-| `lib/knowledge-sync.js` `[PROPOSED]` | **NEW** | Synchronous/asynchronous sync hooks: `syncPostToKnowledge(db, postId)`, `deletePostFromKnowledge(db, postId)`, `syncAssignmentToKnowledge(db, assignmentId)`. |
+| `lib/knowledge-schema.js`, `lib/knowledge-search.js`, `lib/knowledge-embeddings.js` `[VERIFIED]` | **NEW** | Database schema initialization for `knowledge_resources`, `knowledge_chunks`, and `knowledge_jobs` (joined with `note_search_documents` for note extraction freshness). Embedding helper using Gemini `gemini-embedding-001` (768d). Hybrid SQL retrieval query. |
+| `lib/knowledge-sync.js`, `lib/knowledge-worker.js`, `lib/knowledge-builder.js` `[VERIFIED]` | **NEW** | Synchronous/asynchronous sync hooks and worker queue for posts, notices, assignments, notes, routines, comments, and `gu_official` resources. |
 | `routes/posts.js` `[PROPOSED]` | **EDIT** | Call `syncPostToKnowledge` in POST `/api/posts`, PUT `/api/posts/:id`, and `deletePostFromKnowledge` in DELETE `/api/posts/:id`. |
 | `routes/code-lab/assignments.js` `[PROPOSED]` | **EDIT** | Call `syncAssignmentToKnowledge` in assignment creation/editing/deletion routes. |
 | `lib/chat-tools.js` `[PROPOSED]` | **EDIT** | Register `searchKnowledge` and update `search_posts`, `search_notices`, `search_assignments` to consume the unified index. |
@@ -599,7 +600,7 @@ To deliver immediate value without destabilizing the application, Phase 1 is str
    - *(Option A)* Create a lightweight mobile screen in `mobile/app/assignment/[id].tsx` that renders the assignment details and starter code?
    - *(Option B)* Configure the card to open the Code Lab web workspace in an in-app WebView browser?
 2. **Historical Semester Access for Promoted Cohorts:** When a cohort finishes Semester 2 and is promoted to Semester 3, should students retain **read-only archive access** to their old Semester 1 and 2 posts/notes via Kyana, or should Kyana strictly quarantine search to their active semester?
-3. **Embedding API Provider:** Will we use the existing `GEMINI_API_KEY` (Google AI Studio) for `text-embedding-004`, or does the university require an enterprise Google Cloud Vertex AI service account?
+3. **Embedding API Provider:** Uses `GEMINI_API_KEY` (Google AI Studio) with `gemini-embedding-001` (768 dimensions via `outputDimensionality: 768`).
 4. **Vercel Serverless Plan Limits:** On the Vercel Hobby tier, serverless functions timeout at **10 seconds**. On Vercel Pro, the limit is **60 seconds**. Which Vercel plan is active in production? (This dictates whether large document text indexing runs synchronously or via a background cron reconciliation endpoint).
 5. **Flagged Content Moderation:** If a community post receives 3+ content reports (`content_reports` table), should it be automatically excluded from Kyana's knowledge index immediately, or only after an admin takes moderation action?
 

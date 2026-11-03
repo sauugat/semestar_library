@@ -5,7 +5,8 @@ const session=require('express-session');
 const {resolveChatMode}=require('../lib/chat-mode');
 const {createChatHandler}=require('../lib/chat-http');
 const {handleChat}=require('../ai-assistant');
-const {createTools,routeQuery}=require('../lib/chat-tools');
+const {TOOLS}=require('../lib/chat-tools');
+const {toneInstructions}=require('../lib/chat-personality');
 
 test('mode commands strip only control phrases and keep requested subject filters',()=>{
   for(const message of ['be formal','stop roasting','serious mode','no jokes','switch to formal mode']) {
@@ -41,10 +42,9 @@ test('mode participates in cache identity and formal prompt overrides old roast 
   assert.equal((await ask('formal')).reply,'Professional answer.');assert.equal(calls,2);
   assert.equal((await ask('formal',[{role:'assistant',content:'bro 💀'}])).reply,'Professional answer.');
 });
-test('web search gets the same authoritative session tone',async()=>{
-  let instructions;
-  const tools=createTools({},routeQuery('latest Java release'),{chatMode:'formal',webSearch:async(q,options)=>{instructions=options.personalityInstructions;return {results:[],summary:''};}});
-  await tools.executeTool('web_search',{query:'latest Java release'});
+test('web_search tool is removed and formal tone instructions apply cleanly',async()=>{
+  assert.equal(TOOLS.some(t=>t.function.name==='web_search'),false);
+  const instructions=toneInstructions('explain BCNF',[],'formal');
   assert.match(instructions,/CURRENT SESSION MODE: FORMAL/);assert.match(instructions,/no slang/);
 });
 test('session cookie persists formal mode across history resets, SSE and separate handler instances',async t=>{

@@ -875,7 +875,7 @@ function StudentHomeScreenInner() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // React Query: Feed caching with 45s staleTime
+  // React Query: Feed caching with 45s staleTime (Campus Posts & Sponsored Ads only; Notes & Assignments live in Library)
   const {
     data: feedData,
     isLoading: isFeedLoading,
@@ -884,13 +884,8 @@ function StudentHomeScreenInner() {
   } = useQuery({
     queryKey: ['campus-feed', user?.studentId],
     queryFn: async () => {
-      const feedQuery = isTeacherUser ? '?feed=1' : '';
-      const [postsRes, filesRes, assignmentsRes, standaloneAds] = await Promise.all([
+      const [postsRes, standaloneAds] = await Promise.all([
         getPosts(null, 20, undefined, undefined, { seed: feedSessionSeed }),
-        getFeedFiles(feedQuery),
-        apiFetch(`/api/code-lab/assignments${feedQuery}`)
-          .then(async response => (response.ok ? ((await response.json()) as FeedAssignment[]) : []))
-          .catch(() => [] as FeedAssignment[]),
         getEligibleAdvertisements(feedSessionSeed).catch(() => [] as Advertisement[]),
       ]);
       const combinedAdsMap = new Map<number, Advertisement>();
@@ -905,8 +900,8 @@ function StudentHomeScreenInner() {
       }
       return {
         posts: postsRes.posts,
-        files: filesRes,
-        assignments: assignmentsRes,
+        files: [] as LibraryFile[],
+        assignments: [] as FeedAssignment[],
         eligibleAdvertisements: Array.from(combinedAdsMap.values()),
         nextCursor: postsRes.nextCursor,
         fetchedAt: new Date(),
@@ -920,8 +915,8 @@ function StudentHomeScreenInner() {
   useEffect(() => {
     if (feedData) {
       setPosts(feedData.posts);
-      setFiles(feedData.files);
-      setAssignments(feedData.assignments || []);
+      setFiles([]);
+      setAssignments([]);
       setEligibleAds((feedData as any).eligibleAdvertisements || []);
       setNextCursor(feedData.nextCursor);
       setLastFetchedAt(feedData.fetchedAt);
@@ -934,23 +929,15 @@ function StudentHomeScreenInner() {
   // Horizontal feed category filter state
   const [feedCategoryFilter, setFeedCategoryFilter] = useState<string>('all');
 
-  // Merge posts and uploaded files into a unified chronological feed
+  // Campus feed items (strictly social/campus posts & ads — notes and assignment posts are displayed in the Library tab)
   const feedItems = useMemo<FeedItem[]>(() => {
-    const isTeacher = user?.role === 'teacher' || user?.role === 'faculty';
-    const teacherId = user?.studentId;
-    const allTeacherSubs = (user?.subjects && user.subjects.length > 0)
-      ? user.subjects
-      : (fetchedTeacherSubjects || []);
-    const teacherSubjectTerms = allTeacherSubs.flatMap((s: any) => [
-      s.title,
-      s.name,
-      s.code,
-      s.id,
-    ].filter(Boolean).map((t: string) => String(t).toLowerCase().trim()));
+    const nonAssignmentPosts = posts.filter(
+      (p) => (p.type || '').toLowerCase() !== 'assignment' && (p.category || '').toLowerCase() !== 'assignment'
+    );
 
     const visiblePosts = feedCategoryFilter === 'all'
-      ? posts
-      : posts.filter((p) => (p.category || 'general').toLowerCase() === feedCategoryFilter.toLowerCase());
+      ? nonAssignmentPosts
+      : nonAssignmentPosts.filter((p) => (p.category || 'general').toLowerCase() === feedCategoryFilter.toLowerCase());
 
     const postItems: FeedItem[] = visiblePosts.map((p) => ({
       feedType: 'post',
@@ -958,41 +945,13 @@ function StudentHomeScreenInner() {
       time: new Date(p.created_at).getTime() || 0,
     }));
 
-    // In teachers feeds, show only notes uploaded by this teacher (not notes from other teachers).
-    const eligibleFiles = isTeacher
-      ? files.filter((f) => f.uploadedBy === teacherId)
-      : files;
-
-    const fileItems: FeedItem[] = feedCategoryFilter === 'all'
-      ? eligibleFiles.map((f) => ({
-          feedType: 'file',
-          file: f,
-          time: new Date(f.uploadedAt || (f as any).createdAt || 0).getTime() || 0,
-        }))
-      : [];
-
-    // In teachers feeds, assignments also show only those he or she has uploaded.
-    const eligibleAssignments = isTeacher
-      ? assignments.filter((a) => a.createdBy === teacherId)
-      : assignments;
-
-    const assignmentItems: FeedItem[] = feedCategoryFilter === 'all'
-      ? eligibleAssignments.map((assignment) => ({
-          feedType: 'assignment',
-          assignment,
-          time: new Date(assignment.createdAt).getTime() || 0,
-        }))
-      : [];
-
-    const organicSorted = [...postItems, ...fileItems, ...assignmentItems].sort((a, b) => {
+    const organicSorted = [...postItems].sort((a, b) => {
       if (b.time !== a.time) return b.time - a.time;
-      const bId = b.feedType === 'post' ? b.post.id : b.feedType === 'file' ? b.file.id : (b as any).assignment.id;
-      const aId = a.feedType === 'post' ? a.post.id : a.feedType === 'file' ? a.file.id : (a as any).assignment.id;
-      return bId - aId;
+      return (b as any).post.id - (a as any).post.id;
     });
 
     return interleaveFeedWithAds(organicSorted, eligibleAds, { seed: feedSessionSeed });
-  }, [posts, files, assignments, eligibleAds, feedSessionSeed, feedCategoryFilter, user, fetchedTeacherSubjects]);
+  }, [posts, eligibleAds, feedSessionSeed, feedCategoryFilter]);
 
   // Unified Comments bottom-sheet state (supports Posts/Notices, Notes/Files, and Assignments)
   const [activeCommentPost, setActiveCommentPost] = useState<Post | null>(null);

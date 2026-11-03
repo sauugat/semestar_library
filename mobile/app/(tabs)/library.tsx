@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   RefreshControl,
   Animated,
+  PanResponder,
   Alert,
+  useWindowDimensions,
   type TextInputInstance,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TabSwipeContainer } from '@/components/navigation/TabSwipeContainer';
+import { usePagerSwipe } from '@/components/navigation/PagerTabs';
 import { useAdaptiveNavScroll } from '@/context/NavScrollContext';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -42,6 +45,7 @@ import {
 import {
   getFeedFiles,
   voteAssignment,
+  applyCachedAssignmentVotes,
   getAssignmentComments,
   addAssignmentComment,
   editAssignmentComment,
@@ -71,7 +75,6 @@ import {
 } from '@/constants/subjects.config';
 
 type LibrarySection = 'feed' | 'browse';
-type FeedSubFilter = 'all' | 'notes' | 'assignments';
 
 type FeedAssignment = {
   id: number;
@@ -101,6 +104,17 @@ type FeedAssignment = {
 type LibraryFeedItem =
   | { feedType: 'file'; file: LibraryFile; time: number }
   | { feedType: 'assignment'; assignment: FeedAssignment; time: number };
+
+function isBoilerplatePdfDescription(desc?: string | null): boolean {
+  if (!desc) return true;
+  const clean = desc.trim().toLowerCase();
+  return (
+    clean === '' ||
+    clean === 'refer to attached assignment pdf for problem statement' ||
+    clean === 'refer to attached assignment pdf for problem statement.' ||
+    clean === 'question solution from attached pdf'
+  );
+}
 
 function isMatchingSemester(dbSemester: string | null | undefined, semItem: SemesterItem): boolean {
   if (!dbSemester) return false;
@@ -196,16 +210,14 @@ function SkeletonCard({ colors, radii, spacing }: { colors: any; radii: any; spa
   );
 }
 
-function FeedPostSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
+function FeedPostSkeletonCard({ colors }: { colors: any }) {
   return (
     <View
       style={{
-        backgroundColor: colors.surface,
-        borderRadius: radii.lg,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: colors.border,
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+        borderBottomColor: colors.border,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
@@ -250,8 +262,8 @@ function FeedPostSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
       <View
         style={{
           width: '100%',
-          height: 56,
-          borderRadius: radii.md,
+          height: 54,
+          borderRadius: 12,
           backgroundColor: colors.surfaceRaised,
           marginBottom: 12,
         }}
@@ -267,6 +279,8 @@ function FeedPostSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
 function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean }) {
   const { colors, spacing, radii } = useTheme();
   const { user } = useAuth();
+  const { width: screenWidth } = useWindowDimensions();
+  const { setSwipeEnabled } = usePagerSwipe();
   const { onScroll: handleNavScroll, scrollEventThrottle } = useAdaptiveNavScroll();
   const params = useLocalSearchParams<{
     subject?: string;
@@ -304,19 +318,84 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
 
   const brandAvatarUri = user?.avatarUrl ? getFullImageUrl(user.avatarUrl) : null;
 
-  // Top-level 2-Section Switcher:
-  // Section 1 ('feed'): Notes & Assignment Posts
-  // Section 2 ('browse'): Subjects & Units (or Teacher Materials workspace)
-  const [activeSection, setActiveSection] = useState<LibrarySection>(() =>
-    params.subject || params.semester || params.section === 'browse' ? 'browse' : 'feed'
-  );
-  const [feedSubFilter, setFeedSubFilter] = useState<FeedSubFilter>('all');
+  // ─────────────────────────────────────────────────────────────
+  // SLIDABLE & ANIMATED 2-SECTION STATE ('feed' = 0, 'browse' = 1)
+  // ─────────────────────────────────────────────────────────────
+  const initialSection: LibrarySection =
+    params.subject || params.semester || params.section === 'browse' ? 'browse' : 'feed';
+  const [activeSection, setActiveSection] = useState<LibrarySection>(initialSection);
+  const activeSectionRef = useRef<LibrarySection>(initialSection);
+  const slideAnim = useRef(new Animated.Value(initialSection === 'browse' ? 1 : 0)).current;
+  const [switcherTrackWidth, setSwitcherTrackWidth] = useState(0);
 
   // Navigation state for Section 2 (Subject -> Chapter -> Notes)
   const queryClient = useQueryClient();
   const [selectedSemesterId, setSelectedSemesterId] = useState<string>('Semester I');
   const [selectedSubject, setSelectedSubject] = useState<SubjectItem | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<ChapterItem | null>(null);
+  const selectedSubjectRef = useRef<SubjectItem | null>(null);
+  useEffect(() => {
+    selectedSubjectRef.current = selectedSubject;
+  }, [selectedSubject]);
+
+  const animateToSection = useCallback(
+    (target: LibrarySection) => {
+      activeSectionRef.current = target;
+      setActiveSection(target);
+      Animated.spring(slideAnim, {
+        toValue: target === 'browse' ? 1 : 0,
+        damping: 24,
+        stiffness: 240,
+        mass: 0.85,
+        useNativeDriver: true,
+      }).start();
+    },
+    [slideAnim]
+  );
+
+  // Horizontal swipe gesture responder to smoothly slide between Section 1 & Section 2
+  const pagerPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          const { dx, dy } = gestureState;
+          if (Math.abs(dx) < 14 || Math.abs(dx) < Math.abs(dy) * 1.35) {
+            return false;
+          }
+          if (activeSectionRef.current === 'feed' && dx < -14) {
+            return true;
+          }
+          if (activeSectionRef.current === 'browse' && dx > 14 && !selectedSubjectRef.current) {
+            return true;
+          }
+          return false;
+        },
+        onPanResponderGrant: () => {
+          setSwipeEnabled(false);
+          slideAnim.stopAnimation();
+        },
+        onPanResponderMove: (_, gestureState) => {
+          const w = Math.max(screenWidth, 1);
+          const base = activeSectionRef.current === 'browse' ? 1 : 0;
+          const next = Math.max(0, Math.min(1, base - gestureState.dx / w));
+          slideAnim.setValue(next);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          setSwipeEnabled(true);
+          const w = Math.max(screenWidth, 1);
+          const base = activeSectionRef.current === 'browse' ? 1 : 0;
+          const projected = base - (gestureState.dx + gestureState.vx * 110) / w;
+          const target: LibrarySection = projected >= 0.5 ? 'browse' : 'feed';
+          animateToSection(target);
+        },
+        onPanResponderTerminate: () => {
+          setSwipeEnabled(true);
+          animateToSection(activeSectionRef.current);
+        },
+      }),
+    [screenWidth, slideAnim, animateToSection, setSwipeEnabled]
+  );
+
   const [refreshing, setRefreshing] = useState(false);
 
   // Search & Upload note modal states
@@ -368,15 +447,18 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
     queryKey: ['library-posts-feed', user?.studentId, isTeacherUser],
     queryFn: async () => {
       const feedQuery = isTeacherUser ? '?feed=1' : '';
-      const [filesRes, assignmentsRes] = await Promise.all([
+      const [filesRes, rawAssignments] = await Promise.all([
         getFeedFiles(feedQuery),
         apiFetch(`/api/code-lab/assignments${feedQuery}`)
           .then(async (res) => (res.ok ? ((await res.json()) as FeedAssignment[]) : []))
           .catch(() => [] as FeedAssignment[]),
       ]);
+      const assignmentsWithVotes = await applyCachedAssignmentVotes(
+        Array.isArray(rawAssignments) ? rawAssignments : []
+      );
       return {
         files: Array.isArray(filesRes) ? filesRes : [],
-        assignments: Array.isArray(assignmentsRes) ? assignmentsRes : [],
+        assignments: assignmentsWithVotes,
       };
     },
     staleTime: 45 * 1000,
@@ -404,23 +486,17 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
   }, [feedAssignments, isTeacherUser, user?.studentId]);
 
   const combinedFeedItems = useMemo<LibraryFeedItem[]>(() => {
-    const fileItems: LibraryFeedItem[] =
-      feedSubFilter === 'all' || feedSubFilter === 'notes'
-        ? eligibleFeedFiles.map((file) => ({
-            feedType: 'file',
-            file,
-            time: new Date(file.uploadedAt || (file as any).createdAt || 0).getTime() || 0,
-          }))
-        : [];
+    const fileItems: LibraryFeedItem[] = eligibleFeedFiles.map((file) => ({
+      feedType: 'file',
+      file,
+      time: new Date(file.uploadedAt || (file as any).createdAt || 0).getTime() || 0,
+    }));
 
-    const assignmentItems: LibraryFeedItem[] =
-      feedSubFilter === 'all' || feedSubFilter === 'assignments'
-        ? eligibleFeedAssignments.map((assignment) => ({
-            feedType: 'assignment',
-            assignment,
-            time: new Date(assignment.createdAt || 0).getTime() || 0,
-          }))
-        : [];
+    const assignmentItems: LibraryFeedItem[] = eligibleFeedAssignments.map((assignment) => ({
+      feedType: 'assignment',
+      assignment,
+      time: new Date(assignment.createdAt || 0).getTime() || 0,
+    }));
 
     return [...fileItems, ...assignmentItems].sort((a, b) => {
       if (b.time !== a.time) return b.time - a.time;
@@ -428,7 +504,7 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
       const aId = a.feedType === 'file' ? a.file.id : a.assignment.id;
       return Number(bId) - Number(aId);
     });
-  }, [eligibleFeedFiles, eligibleFeedAssignments, feedSubFilter]);
+  }, [eligibleFeedFiles, eligibleFeedAssignments]);
 
   // ─────────────────────────────────────────────────────────────
   // COMMENTS & VOTING HANDLERS FOR NOTES & ASSIGNMENTS
@@ -927,61 +1003,45 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
     const nextUp = Math.max(0, prevUp + (nextVote === 1 ? 1 : 0) - (prevVote === 1 ? 1 : 0));
     const nextDown = Math.max(0, prevDown + (nextVote === -1 ? 1 : 0) - (prevVote === -1 ? 1 : 0));
 
-    setFeedFiles((prev) =>
-      prev.map((f) =>
+    const applyFileVoteUpdate = (list: LibraryFile[], up: number, down: number, vote: number) =>
+      list.map((f) =>
         Number(f.id) === numFileId
           ? {
               ...f,
-              upCount: nextUp,
-              downCount: nextDown,
-              myVote: nextVote,
-              up_count: nextUp,
-              down_count: nextDown,
-              my_vote: nextVote,
-              liked: nextVote === 1,
-              likeCount: nextUp,
+              upCount: up,
+              downCount: down,
+              myVote: vote,
+              up_count: up,
+              down_count: down,
+              my_vote: vote,
+              liked: vote === 1,
+              likeCount: up,
             }
           : f
-      )
+      );
+
+    setFeedFiles((prev) => applyFileVoteUpdate(prev, nextUp, nextDown, nextVote));
+    queryClient.setQueryData(['library-posts-feed', user?.studentId, isTeacherUser], (old: any) =>
+      old ? { ...old, files: applyFileVoteUpdate(old.files || [], nextUp, nextDown, nextVote) } : old
     );
 
     try {
-      const result = await voteFile(numFileId, direction);
-      setFeedFiles((prev) =>
-        prev.map((f) =>
-          Number(f.id) === numFileId
-            ? {
-                ...f,
-                upCount: result.upCount,
-                downCount: result.downCount,
-                myVote: result.myVote,
-                up_count: result.upCount,
-                down_count: result.downCount,
-                my_vote: result.myVote,
-                liked: result.liked,
-                likeCount: result.likeCount,
-              }
-            : f
-        )
+      const result = await voteFile(numFileId, direction, {
+        upCount: prevUp,
+        downCount: prevDown,
+        myVote: prevVote,
+      });
+      setFeedFiles((prev) => applyFileVoteUpdate(prev, result.upCount, result.downCount, result.myVote));
+      queryClient.setQueryData(['library-posts-feed', user?.studentId, isTeacherUser], (old: any) =>
+        old
+          ? {
+              ...old,
+              files: applyFileVoteUpdate(old.files || [], result.upCount, result.downCount, result.myVote),
+            }
+          : old
       );
     } catch (err: any) {
-      setFeedFiles((prev) =>
-        prev.map((f) =>
-          Number(f.id) === numFileId
-            ? {
-                ...f,
-                upCount: prevUp,
-                downCount: prevDown,
-                myVote: prevVote,
-                up_count: prevUp,
-                down_count: prevDown,
-                my_vote: prevVote,
-                liked: prevVote === 1,
-                likeCount: prevUp,
-              }
-            : f
-        )
-      );
+      setFeedFiles((prev) => applyFileVoteUpdate(prev, prevUp, prevDown, prevVote));
       showToast(err?.message || 'Could not update vote.');
     }
   };
@@ -999,52 +1059,54 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
     const nextUp = Math.max(0, prevUp + (nextVote === 1 ? 1 : 0) - (prevVote === 1 ? 1 : 0));
     const nextDown = Math.max(0, prevDown + (nextVote === -1 ? 1 : 0) - (prevVote === -1 ? 1 : 0));
 
-    setFeedAssignments((prev) =>
-      prev.map((a) =>
+    const applyAssignmentVoteUpdate = (list: FeedAssignment[], up: number, down: number, vote: number) =>
+      list.map((a) =>
         Number(a.id) === numAssignmentId
           ? {
               ...a,
-              upCount: nextUp,
-              downCount: nextDown,
-              myVote: nextVote,
-              liked: nextVote === 1,
-              likeCount: nextUp,
+              upCount: up,
+              downCount: down,
+              myVote: vote,
+              liked: vote === 1,
+              likeCount: up,
             }
           : a
-      )
+      );
+
+    setFeedAssignments((prev) => applyAssignmentVoteUpdate(prev, nextUp, nextDown, nextVote));
+    queryClient.setQueryData(['library-posts-feed', user?.studentId, isTeacherUser], (old: any) =>
+      old
+        ? {
+            ...old,
+            assignments: applyAssignmentVoteUpdate(old.assignments || [], nextUp, nextDown, nextVote),
+          }
+        : old
     );
 
     try {
-      const result = await voteAssignment(numAssignmentId, direction);
+      const result = await voteAssignment(numAssignmentId, direction, {
+        upCount: prevUp,
+        downCount: prevDown,
+        myVote: prevVote,
+      });
       setFeedAssignments((prev) =>
-        prev.map((a) =>
-          Number(a.id) === numAssignmentId
-            ? {
-                ...a,
-                upCount: result.upCount,
-                downCount: result.downCount,
-                myVote: result.myVote,
-                liked: result.liked,
-                likeCount: result.likeCount,
-              }
-            : a
-        )
+        applyAssignmentVoteUpdate(prev, result.upCount, result.downCount, result.myVote)
+      );
+      queryClient.setQueryData(['library-posts-feed', user?.studentId, isTeacherUser], (old: any) =>
+        old
+          ? {
+              ...old,
+              assignments: applyAssignmentVoteUpdate(
+                old.assignments || [],
+                result.upCount,
+                result.downCount,
+                result.myVote
+              ),
+            }
+          : old
       );
     } catch (err: any) {
-      setFeedAssignments((prev) =>
-        prev.map((a) =>
-          Number(a.id) === numAssignmentId
-            ? {
-                ...a,
-                upCount: prevUp,
-                downCount: prevDown,
-                myVote: prevVote,
-                liked: prevVote === 1,
-                likeCount: prevUp,
-              }
-            : a
-        )
-      );
+      setFeedAssignments((prev) => applyAssignmentVoteUpdate(prev, prevUp, prevDown, prevVote));
       showToast(err?.message || 'Could not update vote.');
     }
   };
@@ -1076,10 +1138,9 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
     return SEMESTERS.find((s) => s.id === selectedSemesterId) || SEMESTERS[0];
   }, [isStaff, params.fromSyllabus, currentSemesterNumber, semesterRoman, selectedSemesterId]);
 
-  // Handle incoming route params (e.g. from Home search or Syllabus View Notes)
   useEffect(() => {
     if (params.subject) {
-      setActiveSection('browse');
+      animateToSection('browse');
       const match = findSubjectAcrossSemesters(params.subject);
       if (match) {
         if (isStaff || params.fromSyllabus === '1') {
@@ -1113,7 +1174,7 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
         }
       }
     } else if (params.semester && isStaff) {
-      setActiveSection('browse');
+      animateToSection('browse');
       const sem = SEMESTERS.find(
         (s) =>
           s.id.toLowerCase() === params.semester?.toLowerCase() ||
@@ -1122,7 +1183,7 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
       );
       if (sem) setSelectedSemesterId(sem.id);
     }
-  }, [params.subject, params.semester, params.chapter, params.unit, params.fromSyllabus, isStaff, currentSemester]);
+  }, [params.subject, params.semester, params.chapter, params.unit, params.fromSyllabus, isStaff, currentSemester, animateToSection]);
 
   const isNotesLevel = selectedSubject !== null && selectedChapter !== null;
   const chapterFilterParam = selectedChapter?.id === 'ALL' ? undefined : selectedChapter?.id;
@@ -1254,7 +1315,6 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
     setSelectedChapter(null);
   };
 
-  // Fixed Brand Header matching Home tab's exact header style and layout
   const renderBrandHeader = () => (
     <View
       style={[
@@ -1351,124 +1411,97 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
     </View>
   );
 
-  // Professional 2-Section Switcher Bar
+  // Borderless, Clean Animated 2-Section Switcher (No outer box border, no count number)
   const renderSectionSwitcher = () => {
     const isFeedActive = activeSection === 'feed';
     const isBrowseActive = activeSection === 'browse';
-    const totalFeedCount = eligibleFeedFiles.length + eligibleFeedAssignments.length;
+    const tabWidth = switcherTrackWidth / 2;
+    const indicatorTranslateX = slideAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, tabWidth],
+    });
 
     return (
       <View
+        onLayout={(e) => setSwitcherTrackWidth(e.nativeEvent.layout.width)}
         style={[
-          styles.sectionSwitcherOuter,
+          styles.sectionSwitcherBar,
           {
             backgroundColor: colors.background,
             borderBottomColor: colors.border,
           },
         ]}
       >
-        <View
-          style={[
-            styles.sectionSwitcherTrack,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              borderRadius: radii.lg,
-            },
-          ]}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => animateToSection('feed')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: isFeedActive }}
+          style={styles.sectionSwitcherTab}
         >
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setActiveSection('feed')}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isFeedActive }}
-            style={[
-              styles.sectionSwitcherTab,
-              {
-                borderRadius: radii.md,
-                backgroundColor: isFeedActive ? colors.surfaceRaised : 'transparent',
-                borderColor: isFeedActive ? colors.borderStrong : 'transparent',
-              },
-            ]}
+          <Ionicons
+            name={isFeedActive ? 'documents' : 'documents-outline'}
+            size={15}
+            color={isFeedActive ? colors.text : colors.textMuted}
+            style={{ marginRight: 6 }}
+          />
+          <Text
+            variant="xs"
+            weight={isFeedActive ? '700' : '600'}
+            style={{
+              color: isFeedActive ? colors.text : colors.textMuted,
+              fontSize: 13.5,
+            }}
+            numberOfLines={1}
           >
-            <Ionicons
-              name={isFeedActive ? 'documents' : 'documents-outline'}
-              size={15}
-              color={isFeedActive ? colors.text : colors.textSecondary}
-              style={{ marginRight: 6 }}
-            />
-            <Text
-              variant="xs"
-              weight={isFeedActive ? '700' : '600'}
-              style={{
-                color: isFeedActive ? colors.text : colors.textSecondary,
-                fontSize: 13,
-              }}
-              numberOfLines={1}
-            >
-              Notes & Assignments
-            </Text>
-            {totalFeedCount > 0 && (
-              <View
-                style={[
-                  styles.sectionCountPill,
-                  {
-                    backgroundColor: isFeedActive ? colors.text : colors.surfaceRaised,
-                  },
-                ]}
-              >
-                <Text
-                  variant="xs"
-                  weight="700"
-                  style={{
-                    color: isFeedActive ? colors.background : colors.textSecondary,
-                    fontSize: 10,
-                  }}
-                >
-                  {totalFeedCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
+            Notes & Assignments
+          </Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => setActiveSection('browse')}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: isBrowseActive }}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => animateToSection('browse')}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: isBrowseActive }}
+          style={styles.sectionSwitcherTab}
+        >
+          <Ionicons
+            name={isBrowseActive ? 'library' : 'library-outline'}
+            size={15}
+            color={isBrowseActive ? colors.text : colors.textMuted}
+            style={{ marginRight: 6 }}
+          />
+          <Text
+            variant="xs"
+            weight={isBrowseActive ? '700' : '600'}
+            style={{
+              color: isBrowseActive ? colors.text : colors.textMuted,
+              fontSize: 13.5,
+            }}
+            numberOfLines={1}
+          >
+            {isTeacherRole ? 'My Materials' : 'Subjects & Library'}
+          </Text>
+        </TouchableOpacity>
+
+        {tabWidth > 0 && (
+          <Animated.View
+            pointerEvents="none"
             style={[
-              styles.sectionSwitcherTab,
+              styles.sectionUnderlineIndicator,
               {
-                borderRadius: radii.md,
-                backgroundColor: isBrowseActive ? colors.surfaceRaised : 'transparent',
-                borderColor: isBrowseActive ? colors.borderStrong : 'transparent',
+                width: tabWidth,
+                backgroundColor: colors.text,
+                transform: [{ translateX: indicatorTranslateX }],
               },
             ]}
-          >
-            <Ionicons
-              name={isBrowseActive ? 'library' : 'library-outline'}
-              size={15}
-              color={isBrowseActive ? colors.text : colors.textSecondary}
-              style={{ marginRight: 6 }}
-            />
-            <Text
-              variant="xs"
-              weight={isBrowseActive ? '700' : '600'}
-              style={{
-                color: isBrowseActive ? colors.text : colors.textSecondary,
-                fontSize: 13,
-              }}
-              numberOfLines={1}
-            >
-              {isTeacherRole ? 'My Materials' : 'Subjects & Library'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+          />
+        )}
       </View>
     );
   };
 
-  // Render Note Post Card in Section 1
+  // Render Note Post Item (No outer box border, no teacher/role tag, small subject/chapter tags, no semester tag)
   const renderFeedFileCard = (file: LibraryFile) => {
     const ext = getFileType(file.originalName);
 
@@ -1477,9 +1510,7 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
         style={[
           styles.feedPostItem,
           {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRadius: radii.lg,
+            borderBottomColor: colors.border,
           },
         ]}
       >
@@ -1487,7 +1518,7 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
           activeOpacity={0.75}
           onPress={() => router.push(`/material/${file.id}?preview=1` as any)}
         >
-          {/* Author / Uploader Row */}
+          {/* Author / Uploader Row (without Teacher/Role tag) */}
           <View style={styles.postAuthorRow}>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -1508,28 +1539,9 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
                 size="md"
               />
               <View style={{ flex: 1, marginLeft: spacing.compact }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text variant="sm" weight="700" numberOfLines={1}>
-                    {file.uploaderName || 'Student'}
-                  </Text>
-                  {file.uploaderRole && file.uploaderRole !== 'student' && (
-                    <View
-                      style={[
-                        styles.rolePill,
-                        {
-                          backgroundColor: colors.surfaceRaised,
-                          borderColor: colors.border,
-                          borderWidth: 1,
-                          borderRadius: radii.sm,
-                        },
-                      ]}
-                    >
-                      <Text variant="xs" weight="700" color="secondary">
-                        {file.uploaderRole.toUpperCase()}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                <Text variant="sm" weight="700" numberOfLines={1}>
+                  {file.uploaderName || 'Student'}
+                </Text>
                 <Caption color="muted">
                   Uploaded {formatTimeAgo(file.uploadedAt)}
                 </Caption>
@@ -1543,7 +1555,6 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
                 {
                   backgroundColor: colors.surfaceRaised,
                   borderColor: colors.border,
-                  borderRadius: radii.full,
                 },
               ]}
             >
@@ -1558,28 +1569,28 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
             </View>
           </View>
 
-          {/* Post Title & Subject/Chapter tags */}
-          <View style={{ marginTop: 10, marginBottom: 8 }}>
+          {/* Post Title & Small Subject/Chapter tags */}
+          <View style={{ marginTop: 10, marginBottom: 6 }}>
             {file.title && file.title !== file.originalName ? (
-              <Text weight="700" style={{ fontSize: 15, marginBottom: 6, lineHeight: 20 }}>
+              <Text weight="700" style={{ fontSize: 15, marginBottom: 5, lineHeight: 20 }}>
                 {file.title}
               </Text>
             ) : null}
 
-            {(file.subject || file.chapter || file.semester) ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            {(file.subject || file.chapter) ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}>
                 {file.subject ? (
                   <View
                     style={[
-                      styles.fileMetaTag,
+                      styles.smallMetaTag,
                       {
                         backgroundColor: colors.surfaceRaised,
                         borderColor: colors.border,
                       },
                     ]}
                   >
-                    <Ionicons name="book-outline" size={11} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                    <Text variant="xs" weight="600" color="secondary">
+                    <Ionicons name="book-outline" size={10} color={colors.textMuted} style={{ marginRight: 3 }} />
+                    <Text style={[styles.smallMetaTagText, { color: colors.textSecondary }]} numberOfLines={1}>
                       {file.subject}
                     </Text>
                   </View>
@@ -1587,30 +1598,15 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
                 {file.chapter ? (
                   <View
                     style={[
-                      styles.fileMetaTag,
+                      styles.smallMetaTag,
                       {
                         backgroundColor: colors.surfaceRaised,
                         borderColor: colors.border,
                       },
                     ]}
                   >
-                    <Text variant="xs" color="muted">
+                    <Text style={[styles.smallMetaTagText, { color: colors.textMuted }]} numberOfLines={1}>
                       {file.chapter}
-                    </Text>
-                  </View>
-                ) : null}
-                {file.semester ? (
-                  <View
-                    style={[
-                      styles.fileMetaTag,
-                      {
-                        backgroundColor: colors.surfaceRaised,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                  >
-                    <Text variant="xs" color="muted">
-                      {String(file.semester).startsWith('Semester') ? file.semester : `Semester ${file.semester}`}
                     </Text>
                   </View>
                 ) : null}
@@ -1625,19 +1621,10 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
               {
                 backgroundColor: colors.surfaceRaised,
                 borderColor: colors.border,
-                borderRadius: radii.md,
               },
             ]}
           >
-            <View
-              style={[
-                styles.feedFileTypeBadge,
-                {
-                  backgroundColor: '#27272A',
-                  borderRadius: radii.sm,
-                },
-              ]}
-            >
+            <View style={styles.feedFileTypeBadge}>
               <Text variant="xs" weight="800" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
                 {ext.toUpperCase()}
               </Text>
@@ -1706,7 +1693,7 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
     );
   };
 
-  // Render Assignment Post Card in Section 1
+  // Render Assignment Post Item (No outer box border, no TEACHER tag, small subject tag, no boilerplate description)
   const renderFeedAssignmentCard = (a: FeedAssignment) => {
     const badgeExt = a.pdfUrl ? 'PDF' : a.language ? a.language.toUpperCase() : 'LAB';
     const uploaderAvatarUrl =
@@ -1715,19 +1702,19 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
       router.push(`/assignments/${a.id}` as any);
     };
 
+    const showDescription = !isBoilerplatePdfDescription(a.description);
+
     return (
       <View
         style={[
           styles.feedPostItem,
           {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRadius: radii.lg,
+            borderBottomColor: colors.border,
           },
         ]}
       >
         <TouchableOpacity activeOpacity={0.75} onPress={openAssignment}>
-          {/* Author / Uploader Row */}
+          {/* Author / Uploader Row (without TEACHER tag) */}
           <View style={styles.postAuthorRow}>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -1748,26 +1735,9 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
                 size="md"
               />
               <View style={{ flex: 1, marginLeft: spacing.compact }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text variant="sm" weight="700" numberOfLines={1}>
-                    {a.teacherName || 'Faculty Member'}
-                  </Text>
-                  <View
-                    style={[
-                      styles.rolePill,
-                      {
-                        backgroundColor: colors.surfaceRaised,
-                        borderColor: colors.border,
-                        borderWidth: 1,
-                        borderRadius: radii.sm,
-                      },
-                    ]}
-                  >
-                    <Text variant="xs" weight="700" color="secondary">
-                      TEACHER
-                    </Text>
-                  </View>
-                </View>
+                <Text variant="sm" weight="700" numberOfLines={1}>
+                  {a.teacherName || 'Faculty Member'}
+                </Text>
                 <Caption color="muted">
                   Posted {formatTimeAgo(a.createdAt)}
                 </Caption>
@@ -1781,7 +1751,6 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
                 {
                   backgroundColor: colors.surfaceRaised,
                   borderColor: colors.border,
-                  borderRadius: radii.full,
                 },
               ]}
             >
@@ -1796,65 +1765,50 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
             </View>
           </View>
 
-          {/* Assignment Title, Description & Subject/Deadline tags */}
-          <View style={{ marginTop: 10, marginBottom: 8 }}>
+          {/* Assignment Title, non-boilerplate Description & Small Subject/Deadline tags */}
+          <View style={{ marginTop: 10, marginBottom: 6 }}>
             {a.title ? (
-              <Text weight="700" style={{ fontSize: 15, marginBottom: 6, lineHeight: 20 }}>
+              <Text weight="700" style={{ fontSize: 15, marginBottom: 5, lineHeight: 20 }}>
                 {a.title}
               </Text>
             ) : null}
 
-            {Boolean(a.description && a.description.trim()) ? (
-              <Text variant="sm" color="secondary" numberOfLines={2} style={{ marginBottom: 6, lineHeight: 19 }}>
+            {showDescription ? (
+              <Text variant="sm" color="secondary" numberOfLines={2} style={{ marginBottom: 5, lineHeight: 19 }}>
                 {a.description}
               </Text>
             ) : null}
 
-            {(a.subject || a.semester || a.deadline) ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            {(a.subject || a.deadline) ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}>
                 {a.subject ? (
                   <View
                     style={[
-                      styles.fileMetaTag,
+                      styles.smallMetaTag,
                       {
                         backgroundColor: colors.surfaceRaised,
                         borderColor: colors.border,
                       },
                     ]}
                   >
-                    <Ionicons name="book-outline" size={11} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                    <Text variant="xs" weight="600" color="secondary">
+                    <Ionicons name="book-outline" size={10} color={colors.textMuted} style={{ marginRight: 3 }} />
+                    <Text style={[styles.smallMetaTagText, { color: colors.textSecondary }]} numberOfLines={1}>
                       {a.subject}
-                    </Text>
-                  </View>
-                ) : null}
-                {a.semester ? (
-                  <View
-                    style={[
-                      styles.fileMetaTag,
-                      {
-                        backgroundColor: colors.surfaceRaised,
-                        borderColor: colors.border,
-                      },
-                    ]}
-                  >
-                    <Text variant="xs" color="muted">
-                      {String(a.semester).startsWith('Semester') ? a.semester : `Semester ${a.semester}`}
                     </Text>
                   </View>
                 ) : null}
                 {a.deadline ? (
                   <View
                     style={[
-                      styles.fileMetaTag,
+                      styles.smallMetaTag,
                       {
                         backgroundColor: colors.surfaceRaised,
                         borderColor: colors.border,
                       },
                     ]}
                   >
-                    <Ionicons name="time-outline" size={11} color={colors.textSecondary} style={{ marginRight: 4 }} />
-                    <Text variant="xs" color="muted">
+                    <Ionicons name="time-outline" size={10} color={colors.textMuted} style={{ marginRight: 3 }} />
+                    <Text style={[styles.smallMetaTagText, { color: colors.textMuted }]} numberOfLines={1}>
                       Due {new Date(a.deadline).toLocaleDateString()}
                     </Text>
                   </View>
@@ -1870,19 +1824,10 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
               {
                 backgroundColor: colors.surfaceRaised,
                 borderColor: colors.border,
-                borderRadius: radii.md,
               },
             ]}
           >
-            <View
-              style={[
-                styles.feedFileTypeBadge,
-                {
-                  backgroundColor: '#27272A',
-                  borderRadius: radii.sm,
-                },
-              ]}
-            >
+            <View style={styles.feedFileTypeBadge}>
               <Text variant="xs" weight="800" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
                 {badgeExt}
               </Text>
@@ -1893,10 +1838,11 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
                 {a.pdfName || a.title}
               </Text>
               <Caption color="muted" numberOfLines={1}>
-                {typeof a.questionCount === 'number' && a.questionCount > 0
-                  ? `${a.questionCount} ${a.questionCount === 1 ? 'Problem' : 'Problems'} • `
-                  : ''}
-                Tap to open assignment
+                {a.pdfUrl
+                  ? 'Tap to view PDF'
+                  : typeof a.questionCount === 'number' && a.questionCount > 0
+                  ? `${a.questionCount} ${a.questionCount === 1 ? 'Question' : 'Questions'} • Tap to view`
+                  : 'Tap to view assignment'}
               </Caption>
             </View>
 
@@ -1928,7 +1874,7 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
           <TouchableOpacity
             style={styles.actionButton}
             onPress={openAssignment}
-            accessibilityLabel="View assignment submissions"
+            accessibilityLabel="View assignment details"
           >
             <Ionicons name="document-text-outline" size={17} color={colors.textMuted} />
             <Text variant="xs" weight="600" color="secondary" style={{ marginLeft: 5 }}>
@@ -1968,76 +1914,10 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
     );
   };
 
-  // Sub-filter header inside Section 1 (All / Notes / Assignments)
-  const renderFeedListHeader = () => {
-    const filterOptions: { id: FeedSubFilter; label: string; count: number; icon: keyof typeof Ionicons.glyphMap }[] = [
-      {
-        id: 'all',
-        label: 'All Updates',
-        count: eligibleFeedFiles.length + eligibleFeedAssignments.length,
-        icon: 'layers-outline',
-      },
-      {
-        id: 'notes',
-        label: 'Notes',
-        count: eligibleFeedFiles.length,
-        icon: 'document-text-outline',
-      },
-      {
-        id: 'assignments',
-        label: 'Assignments',
-        count: eligibleFeedAssignments.length,
-        icon: 'code-slash-outline',
-      },
-    ];
-
-    return (
-      <View style={{ marginBottom: spacing.sm }}>
-        <View style={styles.feedSubFilterRow}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, paddingRight: 8 }}
-          >
-            {filterOptions.map((opt) => {
-              const selected = feedSubFilter === opt.id;
-              return (
-                <TouchableOpacity
-                  key={opt.id}
-                  activeOpacity={0.75}
-                  onPress={() => setFeedSubFilter(opt.id)}
-                  style={[
-                    styles.feedFilterChip,
-                    {
-                      backgroundColor: selected ? colors.text : colors.surface,
-                      borderColor: selected ? colors.text : colors.border,
-                      borderRadius: radii.full,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={opt.icon}
-                    size={13}
-                    color={selected ? colors.background : colors.textSecondary}
-                    style={{ marginRight: 5 }}
-                  />
-                  <Text
-                    variant="xs"
-                    weight="700"
-                    style={{
-                      color: selected ? colors.background : colors.textSecondary,
-                    }}
-                  >
-                    {opt.label} ({opt.count})
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      </View>
-    );
-  };
+  const pagerTranslateX = slideAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -screenWidth],
+  });
 
   return (
     <TabSwipeContainer tabIndex={1} disabled={Boolean(searchOpen || uploadModalOpen || commentsModalOpen)}>
@@ -2045,592 +1925,585 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
         {/* Pinned Brand Header */}
         {renderBrandHeader()}
 
-        {/* 2-Section Switcher Bar */}
+        {/* Borderless Animated 2-Section Switcher Bar */}
         {renderSectionSwitcher()}
 
-        {/* ═════════════════════════════════════════════════════════════
-            SECTION 1: NOTES & ASSIGNMENT POSTS FEED
-            ═════════════════════════════════════════════════════════════ */}
-        {activeSection === 'feed' && (
-          <FlatList
-            data={combinedFeedItems}
-            keyExtractor={(item) =>
-              item.feedType === 'file' ? `lib-file-${item.file.id}` : `lib-assign-${item.assignment.id}`
-            }
-            renderItem={({ item }) =>
-              item.feedType === 'file'
-                ? renderFeedFileCard(item.file)
-                : renderFeedAssignmentCard(item.assignment)
-            }
-            ListHeaderComponent={renderFeedListHeader}
-            ListEmptyComponent={
-              isLibraryFeedLoading && !libraryFeedData ? (
-                <View style={{ paddingTop: 4 }}>
-                  <FeedPostSkeletonCard colors={colors} radii={radii} />
-                  <FeedPostSkeletonCard colors={colors} radii={radii} />
-                  <FeedPostSkeletonCard colors={colors} radii={radii} />
-                </View>
-              ) : libraryFeedError ? (
-                <Card variant="elevated" padding="lg" style={styles.centerCard}>
-                  <Ionicons name="cloud-offline-outline" size={40} color={colors.error} style={{ marginBottom: spacing.sm }} />
-                  <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>
-                    Unable to Load Posts
-                  </Heading>
-                  <Text variant="sm" color="secondary" style={{ textAlign: 'center', marginBottom: spacing.md }}>
-                    Could not fetch notes and assignment posts right now.
-                  </Text>
-                  <Button
-                    title="Retry"
-                    variant="primary"
-                    size="sm"
-                    onPress={() => void refetchLibraryFeed()}
-                  />
-                </Card>
-              ) : (
-                <EmptyState
-                  icon={feedSubFilter === 'assignments' ? 'code-slash-outline' : 'documents-outline'}
-                  title={
-                    feedSubFilter === 'notes'
-                      ? 'No Note Posts Yet'
-                      : feedSubFilter === 'assignments'
-                      ? 'No Assignment Posts Yet'
-                      : 'No Notes or Assignments Yet'
-                  }
-                  description={
-                    feedSubFilter === 'notes'
-                      ? 'Uploaded study notes for your cohort will appear here.'
-                      : feedSubFilter === 'assignments'
-                      ? 'Posted coding and coursework assignments will appear here.'
-                      : 'New study notes and assignment posts shared with your cohort will appear here.'
-                  }
-                  actionTitle={isStaff ? 'Upload Note' : undefined}
-                  onAction={isStaff ? () => setUploadModalOpen(true) : undefined}
-                />
-              )
-            }
-            onScroll={handleNavScroll}
-            scrollEventThrottle={scrollEventThrottle}
-            contentContainerStyle={[
-              styles.container,
-              {
-                paddingHorizontal: spacing.md,
-                paddingTop: spacing.sm,
-                paddingBottom: 110,
-              },
-            ]}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
-              />
-            }
-          />
-        )}
-
-        {/* ═════════════════════════════════════════════════════════════
-            SECTION 2: CURRENT LIBRARY VIEW (Subjects & Chapters / Teacher Materials)
-            ═════════════════════════════════════════════════════════════ */}
-        {activeSection === 'browse' && isTeacherRole && (
-          <View style={{ flex: 1 }}>
-            <TeacherMaterialsView />
-          </View>
-        )}
-
-        {/* LEVEL 3: NOTES / FILES VIEW (When Chapter is Selected) */}
-        {activeSection === 'browse' && !isTeacherRole && selectedSubject && selectedChapter && (
-          <ScrollView
-            contentContainerStyle={[styles.container, { padding: spacing.md }]}
-            onScroll={handleNavScroll}
-            scrollEventThrottle={scrollEventThrottle}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
-              />
-            }
+        {/* Slidable 2-Page Horizontal Track */}
+        <View style={{ flex: 1, overflow: 'hidden' }} {...pagerPanResponder.panHandlers}>
+          <Animated.View
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              width: screenWidth * 2,
+              transform: [{ translateX: pagerTranslateX }],
+            }}
           >
-            <View style={[styles.navHeader, { marginBottom: spacing.md }]}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={handleBackToChapters}
-                style={[
-                  styles.backButton,
+            {/* ═════════════════════════════════════════════════════════════
+                PAGE 1: NOTES & ASSIGNMENT POSTS FEED
+                ═════════════════════════════════════════════════════════════ */}
+            <View style={{ width: screenWidth, flex: 1 }}>
+              <FlatList
+                data={combinedFeedItems}
+                keyExtractor={(item) =>
+                  item.feedType === 'file' ? `lib-file-${item.file.id}` : `lib-assign-${item.assignment.id}`
+                }
+                renderItem={({ item }) =>
+                  item.feedType === 'file'
+                    ? renderFeedFileCard(item.file)
+                    : renderFeedAssignmentCard(item.assignment)
+                }
+                ListEmptyComponent={
+                  isLibraryFeedLoading && !libraryFeedData ? (
+                    <View>
+                      <FeedPostSkeletonCard colors={colors} />
+                      <FeedPostSkeletonCard colors={colors} />
+                      <FeedPostSkeletonCard colors={colors} />
+                    </View>
+                  ) : libraryFeedError ? (
+                    <Card variant="elevated" padding="lg" style={[styles.centerCard, { margin: spacing.md }]}>
+                      <Ionicons name="cloud-offline-outline" size={40} color={colors.error} style={{ marginBottom: spacing.sm }} />
+                      <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>
+                        Unable to Load Posts
+                      </Heading>
+                      <Text variant="sm" color="secondary" style={{ textAlign: 'center', marginBottom: spacing.md }}>
+                        Could not fetch notes and assignment posts right now.
+                      </Text>
+                      <Button
+                        title="Retry"
+                        variant="primary"
+                        size="sm"
+                        onPress={() => void refetchLibraryFeed()}
+                      />
+                    </Card>
+                  ) : (
+                    <EmptyState
+                      icon="documents-outline"
+                      title="No Notes or Assignments Yet"
+                      description="New study notes and assignment posts shared with your cohort will appear here."
+                      actionTitle={isStaff ? 'Upload Note' : undefined}
+                      onAction={isStaff ? () => setUploadModalOpen(true) : undefined}
+                    />
+                  )
+                }
+                onScroll={handleNavScroll}
+                scrollEventThrottle={scrollEventThrottle}
+                contentContainerStyle={[
+                  styles.container,
                   {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    borderRadius: radii.md,
-                    paddingHorizontal: spacing.sm + 4,
-                    paddingVertical: spacing.xs + 2,
+                    paddingBottom: 130,
                   },
                 ]}
-              >
-                <Ionicons name="arrow-back" size={16} color={colors.text} style={{ marginRight: 6 }} />
-                <Text variant="sm" weight="600" color="primary">
-                  Chapters
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.breadcrumbTextContainer}>
-                <Caption color="muted" numberOfLines={1}>
-                  {selectedSubject.code} › {selectedChapter.shortTitle || selectedChapter.title}
-                </Caption>
-              </View>
-            </View>
-
-            <Card
-              variant="elevated"
-              padding="md"
-              style={[styles.headerCard, { marginBottom: spacing.md, borderColor: colors.border }]}
-            >
-              <View style={styles.chapterHeaderRow}>
-                <View
-                  style={[
-                    styles.unitBadge,
-                    {
-                      backgroundColor: '#27272A',
-                      borderRadius: radii.md,
-                      marginRight: spacing.md,
-                    },
-                  ]}
-                >
-                  <Text variant="xs" weight="800" style={{ color: '#FFFFFF' }}>
-                    {selectedChapter.unitNumber ? `U${selectedChapter.unitNumber}` : '•'}
-                  </Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Heading style={{ fontSize: 18, lineHeight: 24, marginBottom: 2 }}>
-                    {selectedChapter.title}
-                  </Heading>
-                  <Caption color="muted">
-                    {selectedSubject.title} • {currentSemester.shortLabel}
-                  </Caption>
-                </View>
-              </View>
-            </Card>
-
-            <View style={[styles.sectionRow, { marginBottom: spacing.sm }]}>
-              <Subheading>Study Materials</Subheading>
-              {!loadingFiles && (
-                <Caption color="muted">
-                  {files.length} {files.length === 1 ? 'file' : 'files'}
-                </Caption>
-              )}
-            </View>
-
-            {loadingFiles && !refreshing && (
-              <View>
-                <SkeletonCard colors={colors} radii={radii} spacing={spacing} />
-                <SkeletonCard colors={colors} radii={radii} spacing={spacing} />
-                <SkeletonCard colors={colors} radii={radii} spacing={spacing} />
-              </View>
-            )}
-
-            {!loadingFiles && filesError && (
-              <Card variant="elevated" padding="lg" style={styles.centerCard}>
-                <Ionicons name="cloud-offline-outline" size={40} color={colors.error} style={{ marginBottom: spacing.sm }} />
-                <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>Connection Error</Heading>
-                <Text variant="sm" color="secondary" style={{ textAlign: 'center', marginBottom: spacing.md }}>
-                  Unable to load materials for this chapter.
-                </Text>
-                <Button
-                  title="Try Again"
-                  variant="primary"
-                  size="sm"
-                  onPress={() => refetchFiles()}
-                  leftIcon={<Ionicons name="refresh" size={14} color={colors.primaryText} />}
-                />
-              </Card>
-            )}
-
-            {!loadingFiles && !filesError && files.length === 0 && (
-              <EmptyState
-                icon="folder-open-outline"
-                title="No Notes Yet"
-                description={`No study materials have been uploaded for ${selectedChapter.title} yet.`}
-                actionTitle={isStaff ? 'Upload Note' : undefined}
-                onAction={isStaff ? () => setUploadModalOpen(true) : undefined}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor={colors.primary}
+                    colors={[colors.primary]}
+                  />
+                }
               />
-            )}
+            </View>
 
-            {!loadingFiles && !filesError && files.length > 0 && (
-              <View>
-                {files.map((file) => {
-                  const ext = getFileType(file.originalName);
-
-                  return (
-                    <Card
-                      key={file.id}
-                      variant="elevated"
-                      padding="md"
-                      onPress={() => router.push(`/material/${file.id}?preview=1` as any)}
-                      style={{ marginBottom: spacing.sm, borderColor: colors.border }}
+            {/* ═════════════════════════════════════════════════════════════
+                PAGE 2: CURRENT LIBRARY VIEW (Subjects & Chapters / Teacher Materials)
+                ═════════════════════════════════════════════════════════════ */}
+            <View style={{ width: screenWidth, flex: 1 }}>
+              {isTeacherRole ? (
+                <View style={{ flex: 1 }}>
+                  <TeacherMaterialsView />
+                </View>
+              ) : selectedSubject && selectedChapter ? (
+                /* LEVEL 3: NOTES / FILES VIEW (When Chapter is Selected) */
+                <ScrollView
+                  contentContainerStyle={[styles.container, { padding: spacing.md, paddingBottom: 120 }]}
+                  onScroll={handleNavScroll}
+                  scrollEventThrottle={scrollEventThrottle}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={handleRefresh}
+                      tintColor={colors.primary}
+                      colors={[colors.primary]}
+                    />
+                  }
+                >
+                  <View style={[styles.navHeader, { marginBottom: spacing.md }]}>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={handleBackToChapters}
+                      style={[
+                        styles.backButton,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.border,
+                          borderRadius: radii.md,
+                          paddingHorizontal: spacing.sm + 4,
+                          paddingVertical: spacing.xs + 2,
+                        },
+                      ]}
                     >
-                      <View style={styles.fileRow}>
+                      <Ionicons name="arrow-back" size={16} color={colors.text} style={{ marginRight: 6 }} />
+                      <Text variant="sm" weight="600" color="primary">
+                        Chapters
+                      </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.breadcrumbTextContainer}>
+                      <Caption color="muted" numberOfLines={1}>
+                        {selectedSubject.code} › {selectedChapter.shortTitle || selectedChapter.title}
+                      </Caption>
+                    </View>
+                  </View>
+
+                  <Card
+                    variant="elevated"
+                    padding="md"
+                    style={[styles.headerCard, { marginBottom: spacing.md, borderColor: colors.border }]}
+                  >
+                    <View style={styles.chapterHeaderRow}>
+                      <View
+                        style={[
+                          styles.unitBadge,
+                          {
+                            backgroundColor: '#27272A',
+                            borderRadius: radii.md,
+                            marginRight: spacing.md,
+                          },
+                        ]}
+                      >
+                        <Text variant="xs" weight="800" style={{ color: '#FFFFFF' }}>
+                          {selectedChapter.unitNumber ? `U${selectedChapter.unitNumber}` : '•'}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Heading style={{ fontSize: 18, lineHeight: 24, marginBottom: 2 }}>
+                          {selectedChapter.title}
+                        </Heading>
+                        <Caption color="muted">
+                          {selectedSubject.title} • {currentSemester.shortLabel}
+                        </Caption>
+                      </View>
+                    </View>
+                  </Card>
+
+                  <View style={[styles.sectionRow, { marginBottom: spacing.sm }]}>
+                    <Subheading>Study Materials</Subheading>
+                    {!loadingFiles && (
+                      <Caption color="muted">
+                        {files.length} {files.length === 1 ? 'file' : 'files'}
+                      </Caption>
+                    )}
+                  </View>
+
+                  {loadingFiles && !refreshing && (
+                    <View>
+                      <SkeletonCard colors={colors} radii={radii} spacing={spacing} />
+                      <SkeletonCard colors={colors} radii={radii} spacing={spacing} />
+                      <SkeletonCard colors={colors} radii={radii} spacing={spacing} />
+                    </View>
+                  )}
+
+                  {!loadingFiles && filesError && (
+                    <Card variant="elevated" padding="lg" style={styles.centerCard}>
+                      <Ionicons name="cloud-offline-outline" size={40} color={colors.error} style={{ marginBottom: spacing.sm }} />
+                      <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>Connection Error</Heading>
+                      <Text variant="sm" color="secondary" style={{ textAlign: 'center', marginBottom: spacing.md }}>
+                        Unable to load materials for this chapter.
+                      </Text>
+                      <Button
+                        title="Try Again"
+                        variant="primary"
+                        size="sm"
+                        onPress={() => refetchFiles()}
+                        leftIcon={<Ionicons name="refresh" size={14} color={colors.primaryText} />}
+                      />
+                    </Card>
+                  )}
+
+                  {!loadingFiles && !filesError && files.length === 0 && (
+                    <EmptyState
+                      icon="folder-open-outline"
+                      title="No Notes Yet"
+                      description={`No study materials have been uploaded for ${selectedChapter.title} yet.`}
+                      actionTitle={isStaff ? 'Upload Note' : undefined}
+                      onAction={isStaff ? () => setUploadModalOpen(true) : undefined}
+                    />
+                  )}
+
+                  {!loadingFiles && !filesError && files.length > 0 && (
+                    <View>
+                      {files.map((file) => {
+                        const ext = getFileType(file.originalName);
+
+                        return (
+                          <Card
+                            key={file.id}
+                            variant="elevated"
+                            padding="md"
+                            onPress={() => router.push(`/material/${file.id}?preview=1` as any)}
+                            style={{ marginBottom: spacing.sm, borderColor: colors.border }}
+                          >
+                            <View style={styles.fileRow}>
+                              <View
+                                style={[
+                                  styles.fileTypeBadge,
+                                  {
+                                    backgroundColor: '#27272A',
+                                    borderRadius: radii.md,
+                                    marginRight: spacing.md,
+                                  },
+                                ]}
+                              >
+                                <Text variant="xs" weight="800" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
+                                  {ext.toUpperCase()}
+                                </Text>
+                              </View>
+
+                              <View style={{ flex: 1 }}>
+                                <Text weight="700" variant="sm" numberOfLines={1}>
+                                  {file.title || file.originalName}
+                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, flexWrap: 'wrap' }}>
+                                  <Caption color="muted">
+                                    {formatFileSize(file.sizeBytes)} • By{' '}
+                                  </Caption>
+                                  <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={(e) => {
+                                      e.stopPropagation();
+                                      if (file.uploadedBy) {
+                                        router.push({
+                                          pathname: '/user/[id]',
+                                          params: { id: file.uploadedBy },
+                                        });
+                                      }
+                                    }}
+                                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                                  >
+                                    <Caption weight="700" color="primary" style={{ textDecorationLine: 'underline' }}>
+                                      {file.uploaderName || 'Student'}
+                                    </Caption>
+                                  </TouchableOpacity>
+                                </View>
+                                <View style={styles.fileMetaRow}>
+                                  {Boolean(Number(file.likeCount)) && (
+                                    <Caption color="muted" style={{ marginRight: spacing.sm }}>
+                                      ♥ {String(file.likeCount)}
+                                    </Caption>
+                                  )}
+                                  {Boolean(Number(file.commentCount)) && (
+                                    <Caption color="muted">
+                                      💬 {String(file.commentCount)}
+                                    </Caption>
+                                  )}
+                                </View>
+                              </View>
+
+                              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                            </View>
+                          </Card>
+                        );
+                      })}
+                    </View>
+                  )}
+                </ScrollView>
+              ) : selectedSubject && !selectedChapter ? (
+                /* LEVEL 2: CHAPTERS VIEW (When Subject is Selected) */
+                <ScrollView
+                  contentContainerStyle={[styles.container, { padding: spacing.md, paddingBottom: 120 }]}
+                  onScroll={handleNavScroll}
+                  scrollEventThrottle={scrollEventThrottle}
+                >
+                  <View style={[styles.navHeader, { marginBottom: spacing.md }]}>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={handleBackToSubjects}
+                      style={[
+                        styles.backButton,
+                        {
+                          backgroundColor: colors.surface,
+                          borderColor: colors.border,
+                          borderRadius: radii.md,
+                          paddingHorizontal: spacing.sm + 4,
+                          paddingVertical: spacing.xs + 2,
+                        },
+                      ]}
+                    >
+                      <Ionicons name="arrow-back" size={16} color={colors.text} style={{ marginRight: 6 }} />
+                      <Text variant="sm" weight="600" color="primary">
+                        {currentSemester.shortLabel} Subjects
+                      </Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.breadcrumbTextContainer}>
+                      <Caption color="muted" numberOfLines={1}>
+                        {currentSemester.shortLabel} › {selectedSubject.code}
+                      </Caption>
+                    </View>
+                  </View>
+
+                  <Card
+                    variant="elevated"
+                    padding="lg"
+                    style={[styles.subjectBannerCard, { marginBottom: spacing.md, borderColor: colors.border }]}
+                  >
+                    <View style={styles.subjectBannerTop}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                         <View
                           style={[
-                            styles.fileTypeBadge,
+                            styles.codePill,
                             {
                               backgroundColor: '#27272A',
-                              borderRadius: radii.md,
-                              marginRight: spacing.md,
+                              borderRadius: radii.sm,
+                              paddingHorizontal: spacing.sm,
+                              paddingVertical: 2,
                             },
                           ]}
                         >
-                          <Text variant="xs" weight="800" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
-                            {ext.toUpperCase()}
+                          <Text variant="xs" weight="700" style={{ color: '#FFFFFF' }}>
+                            {selectedSubject.code}
                           </Text>
                         </View>
-
-                        <View style={{ flex: 1 }}>
-                          <Text weight="700" variant="sm" numberOfLines={1}>
-                            {file.title || file.originalName}
-                          </Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, flexWrap: 'wrap' }}>
-                            <Caption color="muted">
-                              {formatFileSize(file.sizeBytes)} • By{' '}
-                            </Caption>
-                            <TouchableOpacity
-                              activeOpacity={0.7}
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                if (file.uploadedBy) {
-                                  router.push({
-                                    pathname: '/user/[id]',
-                                    params: { id: file.uploadedBy },
-                                  });
-                                }
-                              }}
-                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                            >
-                              <Caption weight="700" color="primary" style={{ textDecorationLine: 'underline' }}>
-                                {file.uploaderName || 'Student'}
-                              </Caption>
-                            </TouchableOpacity>
-                          </View>
-                          <View style={styles.fileMetaRow}>
-                            {Boolean(Number(file.likeCount)) && (
-                              <Caption color="muted" style={{ marginRight: spacing.sm }}>
-                                ♥ {String(file.likeCount)}
-                              </Caption>
-                            )}
-                            {Boolean(Number(file.commentCount)) && (
-                              <Caption color="muted">
-                                💬 {String(file.commentCount)}
-                              </Caption>
-                            )}
-                          </View>
-                        </View>
-
-                        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                        {Boolean(selectedSubject.credit) && (
+                          <Caption color="muted">{selectedSubject.credit} Credits</Caption>
+                        )}
                       </View>
-                    </Card>
-                  );
-                })}
-              </View>
-            )}
-          </ScrollView>
-        )}
 
-        {/* LEVEL 2: CHAPTERS VIEW (When Subject is Selected) */}
-        {activeSection === 'browse' && !isTeacherRole && selectedSubject && !selectedChapter && (
-          <ScrollView
-            contentContainerStyle={[styles.container, { padding: spacing.md }]}
-            onScroll={handleNavScroll}
-            scrollEventThrottle={scrollEventThrottle}
-          >
-            <View style={[styles.navHeader, { marginBottom: spacing.md }]}>
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={handleBackToSubjects}
-                style={[
-                  styles.backButton,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    borderRadius: radii.md,
-                    paddingHorizontal: spacing.sm + 4,
-                    paddingVertical: spacing.xs + 2,
-                  },
-                ]}
-              >
-                <Ionicons name="arrow-back" size={16} color={colors.text} style={{ marginRight: 6 }} />
-                <Text variant="sm" weight="600" color="primary">
-                  {currentSemester.shortLabel} Subjects
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.breadcrumbTextContainer}>
-                <Caption color="muted" numberOfLines={1}>
-                  {currentSemester.shortLabel} › {selectedSubject.code}
-                </Caption>
-              </View>
-            </View>
-
-            <Card
-              variant="elevated"
-              padding="lg"
-              style={[styles.subjectBannerCard, { marginBottom: spacing.md, borderColor: colors.border }]}
-            >
-              <View style={styles.subjectBannerTop}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View
-                    style={[
-                      styles.codePill,
-                      {
-                        backgroundColor: '#27272A',
-                        borderRadius: radii.sm,
-                        paddingHorizontal: spacing.sm,
-                        paddingVertical: 2,
-                      },
-                    ]}
-                  >
-                    <Text variant="xs" weight="700" style={{ color: '#FFFFFF' }}>
-                      {selectedSubject.code}
-                    </Text>
-                  </View>
-                  {Boolean(selectedSubject.credit) && (
-                    <Caption color="muted">{selectedSubject.credit} Credits</Caption>
-                  )}
-                </View>
-
-                {selectedSubject.code !== 'CUSTOM' && (
-                  <TouchableOpacity
-                    activeOpacity={0.75}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/syllabus',
-                        params: {
-                          course: selectedSubject.code || selectedSubject.title,
-                          semester: currentSemester.semester,
-                          fromLibrary: '1',
-                        },
-                      } as any)
-                    }
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      backgroundColor: colors.surfaceRaised,
-                      borderColor: colors.borderStrong,
-                      borderWidth: 1,
-                      borderRadius: radii.sm,
-                      paddingHorizontal: 9,
-                      paddingVertical: 4,
-                    }}
-                  >
-                    <Ionicons name="book-outline" size={12} color={colors.text} style={{ marginRight: 4 }} />
-                    <Text variant="xs" weight="700" style={{ color: colors.text, fontSize: 11 }}>
-                      View Syllabus
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              <Heading style={{ fontSize: 20, lineHeight: 26, marginVertical: spacing.xs }}>
-                {selectedSubject.title}
-              </Heading>
-
-              <Caption color="secondary">
-                {currentSemester.year} • {currentSemester.label} • {selectedSubject.chapters.length} Units & Categories
-              </Caption>
-            </Card>
-
-            <View style={[styles.sectionRow, { marginBottom: spacing.sm }]}>
-              <Subheading>Syllabus Units & Chapters</Subheading>
-              <Caption color="muted">{chapters.length} Chapters</Caption>
-            </View>
-
-            {chapters.map((chapter) => {
-              const isSpecial = chapter.isSpecial;
-
-              return (
-                <Card
-                  key={chapter.id}
-                  variant="elevated"
-                  padding="md"
-                  onPress={() => handleSelectChapter(chapter)}
-                  style={[styles.chapterCard, { marginBottom: spacing.sm, borderColor: colors.border }]}
-                >
-                  <View style={styles.chapterCardRow}>
-                    <View
-                      style={[
-                        styles.chapterBadge,
-                        {
-                          backgroundColor: isSpecial ? '#1E293B' : '#27272A',
-                          borderRadius: radii.md,
-                          marginRight: spacing.md,
-                        },
-                      ]}
-                    >
-                      {isSpecial ? (
-                        <Ionicons
-                          name={chapter.id === 'PYQS' ? 'document-text-outline' : 'bookmark-outline'}
-                          size={16}
-                          color="#FFFFFF"
-                        />
-                      ) : (
-                        <Text variant="xs" weight="800" style={{ color: '#FFFFFF' }}>
-                          {chapter.unitNumber ? String(chapter.unitNumber).padStart(2, '0') : '•'}
-                        </Text>
-                      )}
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <Text variant="sm" weight="600" color="primary" numberOfLines={2}>
-                        {chapter.title}
-                      </Text>
-                      {Boolean(chapter.shortTitle && chapter.shortTitle !== chapter.title) && (
-                        <Caption color="muted" numberOfLines={1}>
-                          {chapter.shortTitle}
-                        </Caption>
-                      )}
-                    </View>
-
-                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-                  </View>
-                </Card>
-              );
-            })}
-          </ScrollView>
-        )}
-
-        {/* LEVEL 1: SUBJECTS VIEW */}
-        {activeSection === 'browse' && !isTeacherRole && !selectedSubject && (
-          <ScrollView
-            contentContainerStyle={[styles.container, { padding: spacing.md }]}
-            onScroll={handleNavScroll}
-            scrollEventThrottle={scrollEventThrottle}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
-              />
-            }
-          >
-            {isUnassigned && (
-              <Card variant="elevated" padding="lg" style={[styles.centerCard, { marginBottom: spacing.md }]}>
-                <Ionicons name="school-outline" size={40} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
-                <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>Class Not Assigned</Heading>
-                <Text variant="sm" color="secondary" style={{ textAlign: 'center' }}>
-                  Your class has not been assigned yet. Course materials for your cohort will appear once assigned by faculty.
-                </Text>
-              </Card>
-            )}
-
-            {isStaff && (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginHorizontal: -spacing.md, marginBottom: spacing.md }}
-                contentContainerStyle={[styles.semesterTabContainer, { paddingHorizontal: spacing.md }]}
-              >
-                {SEMESTERS.map((sem) => {
-                  const isSelected = sem.id === selectedSemesterId;
-                  return (
-                    <TouchableOpacity
-                      key={sem.id}
-                      activeOpacity={0.7}
-                      onPress={() => handleSelectSemester(sem.id)}
-                      style={[
-                        styles.semesterPill,
-                        {
-                          backgroundColor: isSelected ? colors.primary : colors.surfaceRaised,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                          borderRadius: radii.full,
-                          paddingHorizontal: spacing.md,
-                          paddingVertical: spacing.xs + 3,
-                          marginRight: spacing.xs + 4,
-                        },
-                      ]}
-                    >
-                      <Text
-                        variant="sm"
-                        weight="700"
-                        style={{ color: isSelected ? colors.primaryText : colors.text }}
-                      >
-                        {sem.shortLabel}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
-
-            <View style={[styles.sectionRow, { marginBottom: spacing.sm }]}>
-              <View>
-                <Subheading>Subjects & Curriculum</Subheading>
-                {isStaff && Boolean(displayLabel) && (
-                  <Caption color="muted">{displayLabel}</Caption>
-                )}
-              </View>
-              {isStaff && <Caption color="muted">{subjects.length} Available</Caption>}
-            </View>
-
-            {subjects.map((subject) => {
-              const unitCount = (subject.chapters || []).filter((c) => !c.isSpecial).length;
-
-              return (
-                <Card
-                  key={`${subject.code}-${subject.title}`}
-                  variant="elevated"
-                  padding="md"
-                  onPress={() => handleSelectSubject(subject)}
-                  style={[styles.subjectCard, { marginBottom: spacing.sm, borderColor: colors.border }]}
-                >
-                  <View style={styles.subjectCardContent}>
-                    <View style={styles.subjectTopRow}>
-                      <View
-                        style={[
-                          styles.codeBadge,
-                          {
-                            backgroundColor: '#27272A',
+                      {selectedSubject.code !== 'CUSTOM' && (
+                        <TouchableOpacity
+                          activeOpacity={0.75}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/syllabus',
+                              params: {
+                                course: selectedSubject.code || selectedSubject.title,
+                                semester: currentSemester.semester,
+                                fromLibrary: '1',
+                              },
+                            } as any)
+                          }
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: colors.surfaceRaised,
+                            borderColor: colors.borderStrong,
+                            borderWidth: 1,
                             borderRadius: radii.sm,
-                            paddingHorizontal: spacing.sm,
-                            paddingVertical: 2,
-                          },
-                        ]}
-                      >
-                        <Text variant="xs" weight="800" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
-                          {subject.code}
-                        </Text>
-                      </View>
-                      {Boolean(subject.credit) && (
-                        <Caption color="muted">{subject.credit} Credits</Caption>
+                            paddingHorizontal: 9,
+                            paddingVertical: 4,
+                          }}
+                        >
+                          <Ionicons name="book-outline" size={12} color={colors.text} style={{ marginRight: 4 }} />
+                          <Text variant="xs" weight="700" style={{ color: colors.text, fontSize: 11 }}>
+                            View Syllabus
+                          </Text>
+                        </TouchableOpacity>
                       )}
                     </View>
 
-                    <Text variant="md" weight="700" color="primary" style={{ marginVertical: spacing.xs }}>
-                      {subject.title}
-                    </Text>
+                    <Heading style={{ fontSize: 20, lineHeight: 26, marginVertical: spacing.xs }}>
+                      {selectedSubject.title}
+                    </Heading>
 
-                    <View style={styles.subjectBottomRow}>
-                      <Caption color="secondary">
-                        {unitCount} Syllabus {unitCount === 1 ? 'Unit' : 'Units'} • Notes & PYQs
-                      </Caption>
-                      <View
-                        style={[
-                          styles.openPill,
-                          {
-                            backgroundColor: colors.surfaceSubtle,
-                            borderColor: colors.borderSubtle,
-                            borderRadius: radii.pill,
-                          },
-                        ]}
-                      >
-                        <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
-                      </View>
-                    </View>
+                    <Caption color="secondary">
+                      {currentSemester.year} • {currentSemester.label} • {selectedSubject.chapters.length} Units & Categories
+                    </Caption>
+                  </Card>
+
+                  <View style={[styles.sectionRow, { marginBottom: spacing.sm }]}>
+                    <Subheading>Syllabus Units & Chapters</Subheading>
+                    <Caption color="muted">{chapters.length} Chapters</Caption>
                   </View>
-                </Card>
-              );
-            })}
-          </ScrollView>
-        )}
+
+                  {chapters.map((chapter) => {
+                    const isSpecial = chapter.isSpecial;
+
+                    return (
+                      <Card
+                        key={chapter.id}
+                        variant="elevated"
+                        padding="md"
+                        onPress={() => handleSelectChapter(chapter)}
+                        style={[styles.chapterCard, { marginBottom: spacing.sm, borderColor: colors.border }]}
+                      >
+                        <View style={styles.chapterCardRow}>
+                          <View
+                            style={[
+                              styles.chapterBadge,
+                              {
+                                backgroundColor: isSpecial ? '#1E293B' : '#27272A',
+                                borderRadius: radii.md,
+                                marginRight: spacing.md,
+                              },
+                            ]}
+                          >
+                            {isSpecial ? (
+                              <Ionicons
+                                name={chapter.id === 'PYQS' ? 'document-text-outline' : 'bookmark-outline'}
+                                size={16}
+                                color="#FFFFFF"
+                              />
+                            ) : (
+                              <Text variant="xs" weight="800" style={{ color: '#FFFFFF' }}>
+                                {chapter.unitNumber ? String(chapter.unitNumber).padStart(2, '0') : '•'}
+                              </Text>
+                            )}
+                          </View>
+
+                          <View style={{ flex: 1 }}>
+                            <Text variant="sm" weight="600" color="primary" numberOfLines={2}>
+                              {chapter.title}
+                            </Text>
+                            {Boolean(chapter.shortTitle && chapter.shortTitle !== chapter.title) && (
+                              <Caption color="muted" numberOfLines={1}>
+                                {chapter.shortTitle}
+                              </Caption>
+                            )}
+                          </View>
+
+                          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                        </View>
+                      </Card>
+                    );
+                  })}
+                </ScrollView>
+              ) : (
+                /* LEVEL 1: SUBJECTS VIEW */
+                <ScrollView
+                  contentContainerStyle={[styles.container, { padding: spacing.md, paddingBottom: 120 }]}
+                  onScroll={handleNavScroll}
+                  scrollEventThrottle={scrollEventThrottle}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={handleRefresh}
+                      tintColor={colors.primary}
+                      colors={[colors.primary]}
+                    />
+                  }
+                >
+                  {isUnassigned && (
+                    <Card variant="elevated" padding="lg" style={[styles.centerCard, { marginBottom: spacing.md }]}>
+                      <Ionicons name="school-outline" size={40} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
+                      <Heading style={{ marginBottom: spacing.xs, textAlign: 'center' }}>Class Not Assigned</Heading>
+                      <Text variant="sm" color="secondary" style={{ textAlign: 'center' }}>
+                        Your class has not been assigned yet. Course materials for your cohort will appear once assigned by faculty.
+                      </Text>
+                    </Card>
+                  )}
+
+                  {isStaff && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={{ marginHorizontal: -spacing.md, marginBottom: spacing.md }}
+                      contentContainerStyle={[styles.semesterTabContainer, { paddingHorizontal: spacing.md }]}
+                    >
+                      {SEMESTERS.map((sem) => {
+                        const isSelected = sem.id === selectedSemesterId;
+                        return (
+                          <TouchableOpacity
+                            key={sem.id}
+                            activeOpacity={0.7}
+                            onPress={() => handleSelectSemester(sem.id)}
+                            style={[
+                              styles.semesterPill,
+                              {
+                                backgroundColor: isSelected ? colors.primary : colors.surfaceRaised,
+                                borderColor: isSelected ? colors.primary : colors.border,
+                                borderRadius: radii.full,
+                                paddingHorizontal: spacing.md,
+                                paddingVertical: spacing.xs + 3,
+                                marginRight: spacing.xs + 4,
+                              },
+                            ]}
+                          >
+                            <Text
+                              variant="sm"
+                              weight="700"
+                              style={{ color: isSelected ? colors.primaryText : colors.text }}
+                            >
+                              {sem.shortLabel}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </ScrollView>
+                  )}
+
+                  <View style={[styles.sectionRow, { marginBottom: spacing.sm }]}>
+                    <View>
+                      <Subheading>Subjects & Curriculum</Subheading>
+                      {isStaff && Boolean(displayLabel) && (
+                        <Caption color="muted">{displayLabel}</Caption>
+                      )}
+                    </View>
+                    {isStaff && <Caption color="muted">{subjects.length} Available</Caption>}
+                  </View>
+
+                  {subjects.map((subject) => {
+                    const unitCount = (subject.chapters || []).filter((c) => !c.isSpecial).length;
+
+                    return (
+                      <Card
+                        key={`${subject.code}-${subject.title}`}
+                        variant="elevated"
+                        padding="md"
+                        onPress={() => handleSelectSubject(subject)}
+                        style={[styles.subjectCard, { marginBottom: spacing.sm, borderColor: colors.border }]}
+                      >
+                        <View style={styles.subjectCardContent}>
+                          <View style={styles.subjectTopRow}>
+                            <View
+                              style={[
+                                styles.codeBadge,
+                                {
+                                  backgroundColor: '#27272A',
+                                  borderRadius: radii.sm,
+                                  paddingHorizontal: spacing.sm,
+                                  paddingVertical: 2,
+                                },
+                              ]}
+                            >
+                              <Text variant="xs" weight="800" style={{ color: '#FFFFFF', letterSpacing: 0.5 }}>
+                                {subject.code}
+                              </Text>
+                            </View>
+                            {Boolean(subject.credit) && (
+                              <Caption color="muted">{subject.credit} Credits</Caption>
+                            )}
+                          </View>
+
+                          <Text variant="md" weight="700" color="primary" style={{ marginVertical: spacing.xs }}>
+                            {subject.title}
+                          </Text>
+
+                          <View style={styles.subjectBottomRow}>
+                            <Caption color="secondary">
+                              {unitCount} Syllabus {unitCount === 1 ? 'Unit' : 'Units'} • Notes & PYQs
+                            </Caption>
+                            <View
+                              style={[
+                                styles.openPill,
+                                {
+                                  backgroundColor: colors.surfaceSubtle,
+                                  borderColor: colors.borderSubtle,
+                                  borderRadius: radii.pill,
+                                },
+                              ]}
+                            >
+                              <Ionicons name="arrow-forward" size={14} color={colors.textSecondary} />
+                            </View>
+                          </View>
+                        </View>
+                      </Card>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+          </Animated.View>
+        </View>
 
         {/* Live Notes / Files Search Overlay */}
         <SearchOverlay
@@ -2775,90 +2648,75 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  sectionSwitcherOuter: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  sectionSwitcherTrack: {
+  sectionSwitcherBar: {
+    position: 'relative',
     flexDirection: 'row',
-    padding: 4,
-    borderWidth: 1,
-    gap: 6,
+    alignItems: 'center',
+    height: 44,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   sectionSwitcherTab: {
     flex: 1,
+    height: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-  },
-  sectionCountPill: {
-    marginLeft: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 999,
-    minWidth: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  feedSubFilterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  feedFilterChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderWidth: 1,
+  },
+  sectionUnderlineIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    height: 2.5,
+    borderRadius: 2,
   },
   feedPostItem: {
-    padding: 15,
-    marginBottom: 12,
-    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    backgroundColor: 'transparent',
   },
   postAuthorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  rolePill: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
   },
   typeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 9,
     paddingVertical: 3.5,
+    borderRadius: 999,
     borderWidth: 1,
   },
   feedFileAttachmentBox: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
+    borderRadius: 12,
     borderWidth: 1,
     marginTop: 6,
   },
   feedFileTypeBadge: {
     width: 44,
     height: 38,
+    borderRadius: 8,
+    backgroundColor: '#27272A',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  fileMetaTag: {
+  smallMetaTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderWidth: 1,
-    borderRadius: 6,
+    borderRadius: 5,
+  },
+  smallMetaTagText: {
+    fontSize: 10.5,
+    lineHeight: 14,
+    fontWeight: '600',
   },
   postActionRow: {
     flexDirection: 'row',

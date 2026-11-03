@@ -3666,8 +3666,23 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
     return res.status(404).json({ message: 'Material not found' });
   }
 
+  const upCountSingle = Number(file.upCount ?? file.upcount ?? file.likeCount ?? file.likecount ?? 0);
+  const downCountSingle = Number(file.downCount ?? file.downcount ?? 0);
+  const myVoteSingle = Number(file.myVote ?? file.myvote ?? (file.liked ? 1 : 0));
+  const commentCountSingle = Number(file.commentCount ?? file.commentcount ?? 0);
+
   const processed = {
     ...file,
+    upCount: upCountSingle,
+    downCount: downCountSingle,
+    myVote: myVoteSingle,
+    up_count: upCountSingle,
+    down_count: downCountSingle,
+    my_vote: myVoteSingle,
+    likeCount: upCountSingle,
+    liked: myVoteSingle === 1,
+    commentCount: commentCountSingle,
+    comment_count: commentCountSingle,
     cohortId: file.cohort_id || file.cohortId || null,
     cohort_id: file.cohort_id || file.cohortId || null,
     semesterNo: file.semester_no !== undefined ? file.semester_no : (file.semesterNo !== undefined ? file.semesterNo : null),
@@ -3798,18 +3813,34 @@ app.get('/api/files', requireLogin, async (req, res) => {
     ]).filter(Boolean)
   );
 
-  const processed = files.map(f => ({
-    ...f,
-    cohortId: f.cohort_id || f.cohortId || null,
-    cohort_id: f.cohort_id || f.cohortId || null,
-    semesterNo: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
-    semester_no: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
-    audienceScope: f.audience_scope || f.audienceScope || 'cohort',
-    audience_scope: f.audience_scope || f.audienceScope || 'cohort',
-    uploaderRole: f.uploaderRole || 'student',
-    isOfficial: f.uploaderRole === 'admin',
-    canDelete: viewerIsAdmin || f.uploadedBy === currentViewerId || (context.role === 'teacher' && teacherSubjectSet.has(String(f.subject || '').trim().toLowerCase()))
-  }));
+  const processed = files.map(f => {
+    const upCount = Number(f.upCount ?? f.upcount ?? f.likeCount ?? f.likecount ?? 0);
+    const downCount = Number(f.downCount ?? f.downcount ?? 0);
+    const myVote = Number(f.myVote ?? f.myvote ?? (f.liked ? 1 : 0));
+    const commentCount = Number(f.commentCount ?? f.commentcount ?? 0);
+    return {
+      ...f,
+      upCount,
+      downCount,
+      myVote,
+      up_count: upCount,
+      down_count: downCount,
+      my_vote: myVote,
+      likeCount: upCount,
+      liked: myVote === 1,
+      commentCount,
+      comment_count: commentCount,
+      cohortId: f.cohort_id || f.cohortId || null,
+      cohort_id: f.cohort_id || f.cohortId || null,
+      semesterNo: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+      semester_no: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+      audienceScope: f.audience_scope || f.audienceScope || 'cohort',
+      audience_scope: f.audience_scope || f.audienceScope || 'cohort',
+      uploaderRole: f.uploaderRole || 'student',
+      isOfficial: f.uploaderRole === 'admin',
+      canDelete: viewerIsAdmin || f.uploadedBy === currentViewerId || (context.role === 'teacher' && teacherSubjectSet.has(String(f.subject || '').trim().toLowerCase()))
+    };
+  });
 
   res.json(processed);
 });

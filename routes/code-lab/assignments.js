@@ -1051,21 +1051,40 @@ router.delete('/assignments/:id/comments/:commentId', requireLogin, async (req, 
 
 // ── GET /assignments/:id — single assignment with nested questions ──────────
 router.get('/assignments/:id', async (req, res) => {
+    if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
     const assignmentId = Number(req.params.id);
     if (!Number.isInteger(assignmentId) || assignmentId <= 0) {
         return res.status(400).json({ message: 'Invalid assignment ID.' });
     }
 
+    const context = await getAcademicContext(db, req);
+    const currentStudentId =
+        (context && context.studentId) ||
+        (req.user && req.user.studentId) ||
+        (req.student && req.student.studentId) ||
+        (req.session && req.session.studentId) ||
+        null;
+
+    const myVoteSql = currentStudentId
+        ? `COALESCE((SELECT av.vote_type FROM assignment_votes av WHERE av.assignmentId = a.id AND av.studentId = ?), 0) AS myVote`
+        : `0 AS myVote`;
+    const avatarExpr = `CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) ELSE s.avatarUrl END`;
+
     const assignment = await db.get(
-        `SELECT a.*, s.name AS teacherName, s.avatarUrl AS avatarUrl, s.avatarUrl AS teacherAvatar
+        `SELECT a.*, s.name AS teacherName, ${avatarExpr} AS avatarUrl, ${avatarExpr} AS teacherAvatar,
+                (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
+                (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
+                COALESCE((SELECT SUM(CASE WHEN av.vote_type = 1 THEN 1 ELSE 0 END) FROM assignment_votes av WHERE av.assignmentId = a.id), 0) AS upCount,
+                COALESCE((SELECT SUM(CASE WHEN av.vote_type = -1 THEN 1 ELSE 0 END) FROM assignment_votes av WHERE av.assignmentId = a.id), 0) AS downCount,
+                COALESCE((SELECT COUNT(*) FROM assignment_comments ac WHERE ac.assignmentId = a.id), 0) AS commentCount,
+                ${myVoteSql}
          FROM assignments a
          LEFT JOIN students s ON s.studentId = a.createdBy
          WHERE a.id = ?`,
-        assignmentId
+        ...(currentStudentId ? [currentStudentId, assignmentId] : [assignmentId])
     );
     if (!assignment) return res.status(404).json({ message: 'Assignment not found.' });
 
-    const context = await getAcademicContext(db, req);
     if (!assertContentAccess(context, assignment)) {
         return res.status(404).json({ message: 'Assignment not found.' });
     }
@@ -1080,7 +1099,6 @@ router.get('/assignments/:id', async (req, res) => {
     );
 
     // Fetch student's existing submissions if logged in so their code is restored in editor
-    const currentStudentId = req.session && req.session.studentId;
     let userSubmissions = [];
     let adminUser = false;
     if (currentStudentId) {
@@ -1120,6 +1138,12 @@ router.get('/assignments/:id', async (req, res) => {
 
     const resolvedPdfUrl = assignment.pdfUrl || assignment.pdfurl || null;
     const resolvedPdfName = assignment.pdfName || assignment.pdfname || null;
+    const upCount = Number(assignment.upCount ?? assignment.upcount ?? 0);
+    const downCount = Number(assignment.downCount ?? assignment.downcount ?? 0);
+    const myVote = Number(assignment.myVote ?? assignment.myvote ?? 0);
+    const commentCount = Number(assignment.commentCount ?? assignment.commentcount ?? 0);
+    const submissionCount = Number(assignment.submissionCount ?? assignment.submissioncount ?? 0);
+    const questionCount = Number(assignment.questionCount ?? assignment.questioncount ?? questionsWithSub.length);
 
     res.json({
         ...assignment,
@@ -1127,6 +1151,18 @@ router.get('/assignments/:id', async (req, res) => {
         pdfName: resolvedPdfName,
         pdfurl: resolvedPdfUrl,
         pdfname: resolvedPdfName,
+        upCount,
+        downCount,
+        myVote,
+        up_count: upCount,
+        down_count: downCount,
+        my_vote: myVote,
+        likeCount: upCount,
+        liked: myVote === 1,
+        commentCount,
+        comment_count: commentCount,
+        submissionCount,
+        questionCount,
         canDelete: !!(currentStudentId && (assignment.createdBy === currentStudentId || adminUser)),
         currentStudentId: currentStudentId || null,
         questions: questionsWithSub

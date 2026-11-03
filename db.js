@@ -1442,81 +1442,95 @@ async function cleanupExpiredSessions() {
 let startupReadyPromise = null;
 
 let interactionsSchemaReady = false;
+let interactionsSchemaPromise = null;
 async function ensureInteractionsSchema() {
   if (interactionsSchemaReady) return;
-  const idDef = isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
-  const tsDef = isPostgres ? 'TIMESTAMPTZ' : 'TEXT';
-  await exec(`
-    CREATE TABLE IF NOT EXISTS post_votes (
-      post_id INTEGER NOT NULL,
-      user_id TEXT NOT NULL,
-      vote_type INTEGER NOT NULL DEFAULT 1,
-      PRIMARY KEY (post_id, user_id)
-    );
-    CREATE TABLE IF NOT EXISTS file_votes (
-      fileId INTEGER NOT NULL,
-      studentId TEXT NOT NULL,
-      vote_type INTEGER NOT NULL DEFAULT 1,
-      PRIMARY KEY (fileId, studentId)
-    );
-    CREATE TABLE IF NOT EXISTS file_comments (
-      id ${idDef},
-      fileId INTEGER NOT NULL,
-      studentId TEXT NOT NULL,
-      commentText TEXT NOT NULL,
-      parent_comment_id INTEGER,
-      reply_to_user_id TEXT,
-      updated_at ${tsDef},
-      createdAt ${tsDef} NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS file_comment_reactions (
-      id ${idDef},
-      comment_id INTEGER NOT NULL,
-      user_id TEXT NOT NULL,
-      reaction_type TEXT NOT NULL DEFAULT 'like',
-      created_at ${tsDef} NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(comment_id, user_id, reaction_type)
-    );
-    CREATE TABLE IF NOT EXISTS assignment_votes (
-      assignmentId INTEGER NOT NULL,
-      studentId TEXT NOT NULL,
-      vote_type INTEGER NOT NULL DEFAULT 1,
-      PRIMARY KEY (assignmentId, studentId)
-    );
-    CREATE TABLE IF NOT EXISTS assignment_comments (
-      id ${idDef},
-      assignmentId INTEGER NOT NULL,
-      studentId TEXT NOT NULL,
-      commentText TEXT NOT NULL,
-      parent_comment_id INTEGER,
-      reply_to_user_id TEXT,
-      updated_at ${tsDef},
-      createdAt ${tsDef} NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS assignment_comment_reactions (
-      id ${idDef},
-      comment_id INTEGER NOT NULL,
-      user_id TEXT NOT NULL,
-      reaction_type TEXT NOT NULL DEFAULT 'like',
-      created_at ${tsDef} NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE(comment_id, user_id, reaction_type)
-    );
-  `);
-
-  const alterStmts = [
-    `ALTER TABLE file_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}parent_comment_id INTEGER`,
-    `ALTER TABLE file_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}reply_to_user_id TEXT`,
-    `ALTER TABLE file_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}updated_at ${tsDef}`,
-    `ALTER TABLE assignment_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}parent_comment_id INTEGER`,
-    `ALTER TABLE assignment_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}reply_to_user_id TEXT`,
-    `ALTER TABLE assignment_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}updated_at ${tsDef}`,
-  ];
-  for (const sql of alterStmts) {
+  if (interactionsSchemaPromise) return interactionsSchemaPromise;
+  interactionsSchemaPromise = (async () => {
     try {
-      await run(sql);
-    } catch (_) {}
-  }
-  interactionsSchemaReady = true;
+      const idDef = isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+      const tsDef = isPostgres ? 'TIMESTAMPTZ' : 'TEXT';
+      const ddlStmts = [
+        `CREATE TABLE IF NOT EXISTS post_votes (
+          post_id INTEGER NOT NULL,
+          user_id TEXT NOT NULL,
+          vote_type INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (post_id, user_id)
+        )`,
+        `CREATE TABLE IF NOT EXISTS file_votes (
+          fileId INTEGER NOT NULL,
+          studentId TEXT NOT NULL,
+          vote_type INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (fileId, studentId)
+        )`,
+        `CREATE TABLE IF NOT EXISTS file_comments (
+          id ${idDef},
+          fileId INTEGER NOT NULL,
+          studentId TEXT NOT NULL,
+          commentText TEXT NOT NULL,
+          parent_comment_id INTEGER,
+          reply_to_user_id TEXT,
+          updated_at ${tsDef},
+          createdAt ${tsDef} NOT NULL
+        )`,
+        `CREATE TABLE IF NOT EXISTS file_comment_reactions (
+          id ${idDef},
+          comment_id INTEGER NOT NULL,
+          user_id TEXT NOT NULL,
+          reaction_type TEXT NOT NULL DEFAULT 'like',
+          created_at ${tsDef} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(comment_id, user_id, reaction_type)
+        )`,
+        `CREATE TABLE IF NOT EXISTS assignment_votes (
+          assignmentId INTEGER NOT NULL,
+          studentId TEXT NOT NULL,
+          vote_type INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (assignmentId, studentId)
+        )`,
+        `CREATE TABLE IF NOT EXISTS assignment_comments (
+          id ${idDef},
+          assignmentId INTEGER NOT NULL,
+          studentId TEXT NOT NULL,
+          commentText TEXT NOT NULL,
+          parent_comment_id INTEGER,
+          reply_to_user_id TEXT,
+          updated_at ${tsDef},
+          createdAt ${tsDef} NOT NULL
+        )`,
+        `CREATE TABLE IF NOT EXISTS assignment_comment_reactions (
+          id ${idDef},
+          comment_id INTEGER NOT NULL,
+          user_id TEXT NOT NULL,
+          reaction_type TEXT NOT NULL DEFAULT 'like',
+          created_at ${tsDef} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(comment_id, user_id, reaction_type)
+        )`,
+      ];
+      for (const ddl of ddlStmts) {
+        try {
+          await exec(ddl);
+        } catch (_) {}
+      }
+
+      const alterStmts = [
+        `ALTER TABLE file_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}parent_comment_id INTEGER`,
+        `ALTER TABLE file_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}reply_to_user_id TEXT`,
+        `ALTER TABLE file_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}updated_at ${tsDef}`,
+        `ALTER TABLE assignment_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}parent_comment_id INTEGER`,
+        `ALTER TABLE assignment_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}reply_to_user_id TEXT`,
+        `ALTER TABLE assignment_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}updated_at ${tsDef}`,
+      ];
+      for (const sql of alterStmts) {
+        try {
+          await run(sql);
+        } catch (_) {}
+      }
+      interactionsSchemaReady = true;
+    } finally {
+      interactionsSchemaPromise = null;
+    }
+  })();
+  return interactionsSchemaPromise;
 }
 
 /**

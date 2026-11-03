@@ -263,13 +263,15 @@ export async function getPostById(postId: number): Promise<Post> {
 }
 
 /**
- * Fetch uploaded library files for merging into the Campus Feed.
+ * Fetch uploaded library files for merging into the Campus/Library Feed.
  */
 export async function getFeedFiles(feedQuery: string = '?feed=1'): Promise<LibraryFile[]> {
   try {
     const q = feedQuery ? (feedQuery.startsWith('?') ? feedQuery : `?${feedQuery}`) : '?feed=1';
     const res = await api.get<LibraryFile[]>(`/api/files${q}`);
-    return Array.isArray(res) ? res : [];
+    const list = Array.isArray(res) ? res : [];
+    const { applyCachedFileVotes } = require('./library');
+    return await applyCachedFileVotes(list);
   } catch (err) {
     console.warn('Failed to fetch /api/files for feed:', err);
     return [];
@@ -300,11 +302,112 @@ export async function toggleLike(
   return api.post<ToggleLikeResult>(`/api/posts/${postId}/like`);
 }
 
+const ASSIGNMENT_VOTES_STORAGE_KEY = 'semester_library_assignment_votes_v1';
+let cachedAssignmentVotes: Record<string, { myVote: number; upCount?: number; downCount?: number }> | null = null;
+
+async function loadCachedAssignmentVotes(): Promise<Record<string, { myVote: number; upCount?: number; downCount?: number }>> {
+  if (cachedAssignmentVotes) return cachedAssignmentVotes;
+  try {
+    const SecureStore = require('expo-secure-store');
+    const raw = await SecureStore.getItemAsync(ASSIGNMENT_VOTES_STORAGE_KEY);
+    cachedAssignmentVotes = raw ? JSON.parse(raw) : {};
+  } catch {
+    cachedAssignmentVotes = {};
+  }
+  return cachedAssignmentVotes || {};
+}
+
+async function saveCachedAssignmentVote(
+  assignmentId: number,
+  state: { myVote: number; upCount: number; downCount: number }
+): Promise<void> {
+  const map = await loadCachedAssignmentVotes();
+  map[String(assignmentId)] = state;
+  cachedAssignmentVotes = map;
+  try {
+    const SecureStore = require('expo-secure-store');
+    await SecureStore.setItemAsync(ASSIGNMENT_VOTES_STORAGE_KEY, JSON.stringify(map));
+  } catch {}
+}
+
+export async function applyCachedAssignmentVotes<T extends { id: number; upCount?: number; downCount?: number; myVote?: number; likeCount?: number; liked?: boolean }>(
+  assignments: T[]
+): Promise<T[]> {
+  if (!Array.isArray(assignments) || assignments.length === 0) return [];
+  const map = await loadCachedAssignmentVotes();
+  return assignments.map((a) => {
+    const serverUp = Number((a as any).upCount ?? (a as any).up_count ?? a.likeCount ?? 0);
+    const serverDown = Number((a as any).downCount ?? (a as any).down_count ?? 0);
+    const hasServerMyVote = a.myVote !== undefined || (a as any).my_vote !== undefined;
+    const serverMyVote = Number(a.myVote ?? (a as any).my_vote ?? (a.liked ? 1 : 0));
+    const local = map[String(a.id)];
+
+    if (local && (!hasServerMyVote || (serverMyVote === 0 && local.myVote !== 0))) {
+      const upCount = local.myVote === 1 ? Math.max(serverUp, local.upCount ?? 1) : serverUp;
+      const downCount = local.myVote === -1 ? Math.max(serverDown, local.downCount ?? 1) : serverDown;
+      return {
+        ...a,
+        upCount,
+        downCount,
+        myVote: local.myVote,
+        likeCount: upCount,
+        liked: local.myVote === 1,
+      };
+    }
+
+    return {
+      ...a,
+      upCount: serverUp,
+      downCount: serverDown,
+      myVote: serverMyVote,
+      likeCount: serverUp,
+      liked: serverMyVote === 1,
+    };
+  });
+}
+
 export async function voteAssignment(
   assignmentId: number,
-  vote: 'up' | 'down'
+  vote: 'up' | 'down',
+  currentState?: { upCount?: number; downCount?: number; myVote?: number }
 ): Promise<{ upCount: number; downCount: number; myVote: number; liked: boolean; likeCount: number }> {
-  return api.post(`/api/code-lab/assignments/${assignmentId}/vote`, { vote });
+  const numId = Number(assignmentId);
+  const map = await loadCachedAssignmentVotes();
+  const prevVote = Number(currentState?.myVote ?? map[String(numId)]?.myVote ?? 0);
+  const prevUp = Number(currentState?.upCount ?? map[String(numId)]?.upCount ?? 0);
+  const prevDown = Number(currentState?.downCount ?? map[String(numId)]?.downCount ?? 0);
+  const desiredVote = vote === 'down' ? -1 : 1;
+  const computedNextVote = prevVote === desiredVote ? 0 : desiredVote;
+  const computedNextUp = Math.max(0, prevUp + (computedNextVote === 1 ? 1 : 0) - (prevVote === 1 ? 1 : 0));
+  const computedNextDown = Math.max(0, prevDown + (computedNextVote === -1 ? 1 : 0) - (prevVote === -1 ? 1 : 0));
+
+  try {
+    const res = await api.post<any>(`/api/code-lab/assignments/${numId}/vote`, { vote });
+    const upCount = Number(res.upCount ?? res.up_count ?? res.likeCount ?? computedNextUp);
+    const downCount = Number(res.downCount ?? res.down_count ?? computedNextDown);
+    const myVote = Number(res.myVote ?? res.my_vote ?? computedNextVote);
+    await saveCachedAssignmentVote(numId, { myVote, upCount, downCount });
+    return {
+      upCount,
+      downCount,
+      myVote,
+      liked: myVote === 1,
+      likeCount: upCount,
+    };
+  } catch {
+    await saveCachedAssignmentVote(numId, {
+      myVote: computedNextVote,
+      upCount: computedNextUp,
+      downCount: computedNextDown,
+    });
+    return {
+      upCount: computedNextUp,
+      downCount: computedNextDown,
+      myVote: computedNextVote,
+      liked: computedNextVote === 1,
+      likeCount: computedNextUp,
+    };
+  }
 }
 
 export async function getAssignmentComments(assignmentId: number): Promise<FileComment[]> {

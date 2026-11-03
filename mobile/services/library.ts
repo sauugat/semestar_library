@@ -195,31 +195,149 @@ export interface ToggleFileLikeResult {
   myVote?: number;
 }
 
+const FILE_VOTES_STORAGE_KEY = 'semester_library_file_votes_v1';
+let cachedFileVotes: Record<string, { myVote: number; upCount?: number; downCount?: number }> | null = null;
+
+async function loadCachedFileVotes(): Promise<Record<string, { myVote: number; upCount?: number; downCount?: number }>> {
+  if (cachedFileVotes) return cachedFileVotes;
+  try {
+    const SecureStore = require('expo-secure-store');
+    const raw = await SecureStore.getItemAsync(FILE_VOTES_STORAGE_KEY);
+    cachedFileVotes = raw ? JSON.parse(raw) : {};
+  } catch {
+    cachedFileVotes = {};
+  }
+  return cachedFileVotes || {};
+}
+
+async function saveCachedFileVote(
+  fileId: number,
+  state: { myVote: number; upCount: number; downCount: number }
+): Promise<void> {
+  const map = await loadCachedFileVotes();
+  map[String(fileId)] = state;
+  cachedFileVotes = map;
+  try {
+    const SecureStore = require('expo-secure-store');
+    await SecureStore.setItemAsync(FILE_VOTES_STORAGE_KEY, JSON.stringify(map));
+  } catch {}
+}
+
+export async function applyCachedFileVotes(files: LibraryFile[]): Promise<LibraryFile[]> {
+  if (!Array.isArray(files) || files.length === 0) return [];
+  const map = await loadCachedFileVotes();
+  return files.map((f) => {
+    const serverUp = Number(f.upCount ?? f.up_count ?? f.likeCount ?? 0);
+    const serverDown = Number(f.downCount ?? f.down_count ?? 0);
+    const hasServerMyVote = f.myVote !== undefined || f.my_vote !== undefined;
+    const serverMyVote = Number(f.myVote ?? f.my_vote ?? (f.liked ? 1 : 0));
+    const local = map[String(f.id)];
+
+    if (local && (!hasServerMyVote || (serverMyVote === 0 && local.myVote !== 0))) {
+      const upCount = local.myVote === 1 ? Math.max(serverUp, local.upCount ?? 1) : serverUp;
+      const downCount = local.myVote === -1 ? Math.max(serverDown, local.downCount ?? 1) : serverDown;
+      return {
+        ...f,
+        upCount,
+        downCount,
+        myVote: local.myVote,
+        up_count: upCount,
+        down_count: downCount,
+        my_vote: local.myVote,
+        likeCount: upCount,
+        liked: local.myVote === 1,
+      };
+    }
+
+    return {
+      ...f,
+      upCount: serverUp,
+      downCount: serverDown,
+      myVote: serverMyVote,
+      up_count: serverUp,
+      down_count: serverDown,
+      my_vote: serverMyVote,
+      likeCount: serverUp,
+      liked: serverMyVote === 1,
+    };
+  });
+}
+
 /**
  * Vote (up/down) or toggle like for a file/material.
  * Endpoint: POST /api/files/:id/vote
  */
 export async function voteFile(
   fileId: number,
-  vote: 'up' | 'down'
+  vote: 'up' | 'down',
+  currentState?: { upCount?: number; downCount?: number; myVote?: number }
 ): Promise<{ upCount: number; downCount: number; myVote: number; liked: boolean; likeCount: number }> {
-  let res: any;
+  const numId = Number(fileId);
+  const map = await loadCachedFileVotes();
+  const prevVote = Number(currentState?.myVote ?? map[String(numId)]?.myVote ?? 0);
+  const prevUp = Number(currentState?.upCount ?? map[String(numId)]?.upCount ?? 0);
+  const prevDown = Number(currentState?.downCount ?? map[String(numId)]?.downCount ?? 0);
+  const desiredVote = vote === 'down' ? -1 : 1;
+  const computedNextVote = prevVote === desiredVote ? 0 : desiredVote;
+  const computedNextUp = Math.max(0, prevUp + (computedNextVote === 1 ? 1 : 0) - (prevVote === 1 ? 1 : 0));
+  const computedNextDown = Math.max(0, prevDown + (computedNextVote === -1 ? 1 : 0) - (prevVote === -1 ? 1 : 0));
+
   try {
-    res = await api.post<any>(`/api/files/${fileId}/vote`, { vote });
-  } catch (err: any) {
-    // Fallback to /api/files/:id/like if an older deployed instance handles vote via /like
-    res = await api.post<any>(`/api/files/${fileId}/like`, { vote });
+    const res = await api.post<any>(`/api/files/${numId}/vote`, { vote });
+    const hasExplicitVote = res.myVote !== undefined || res.my_vote !== undefined;
+    const upCount = Number(res.upCount ?? res.up_count ?? res.likeCount ?? computedNextUp);
+    const downCount = Number(res.downCount ?? res.down_count ?? computedNextDown);
+    const myVote = hasExplicitVote ? Number(res.myVote ?? res.my_vote ?? 0) : computedNextVote;
+    await saveCachedFileVote(numId, { myVote, upCount, downCount });
+    return {
+      upCount,
+      downCount,
+      myVote,
+      liked: myVote === 1,
+      likeCount: upCount,
+    };
+  } catch {
+    // Fallback to /api/files/:id/like if an older deployed instance does not have /vote yet
+    try {
+      const likeAction = computedNextVote === 1 ? 'like' : 'unlike';
+      const res = await api.post<any>(`/api/files/${numId}/like`, {
+        vote,
+        action: likeAction,
+        liked: computedNextVote === 1,
+      });
+      const hasExplicitVote = res.myVote !== undefined || res.my_vote !== undefined;
+      const upCount = hasExplicitVote
+        ? Number(res.upCount ?? res.up_count ?? res.likeCount ?? computedNextUp)
+        : Number(res.likeCount ?? computedNextUp);
+      const downCount = hasExplicitVote
+        ? Number(res.downCount ?? res.down_count ?? computedNextDown)
+        : computedNextDown;
+      const myVote = hasExplicitVote
+        ? Number(res.myVote ?? res.my_vote ?? 0)
+        : computedNextVote;
+      await saveCachedFileVote(numId, { myVote, upCount, downCount });
+      return {
+        upCount,
+        downCount,
+        myVote,
+        liked: myVote === 1,
+        likeCount: upCount,
+      };
+    } catch {
+      await saveCachedFileVote(numId, {
+        myVote: computedNextVote,
+        upCount: computedNextUp,
+        downCount: computedNextDown,
+      });
+      return {
+        upCount: computedNextUp,
+        downCount: computedNextDown,
+        myVote: computedNextVote,
+        liked: computedNextVote === 1,
+        likeCount: computedNextUp,
+      };
+    }
   }
-  const upCount = Number(res.upCount ?? res.up_count ?? res.likeCount ?? 0);
-  const downCount = Number(res.downCount ?? res.down_count ?? 0);
-  const myVote = Number(res.myVote ?? res.my_vote ?? (res.liked ? 1 : 0));
-  return {
-    upCount,
-    downCount,
-    myVote,
-    liked: myVote === 1,
-    likeCount: upCount,
-  };
 }
 
 /**

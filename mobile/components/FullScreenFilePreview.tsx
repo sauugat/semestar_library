@@ -246,15 +246,22 @@ const WEBVIEW_GESTURE_BRIDGE_JS = `
 true;
 `;
 
-function getPdfJsHtml(base64Data: string, title: string, isDark: boolean = true): string {
-  const bgColor = isDark ? '#0a0a0a' : '#fafafa';
+function getPdfJsHtml(
+  base64Data: string,
+  title: string,
+  isDark: boolean = true,
+  topOffset: number = 108,
+  bottomOffset: number = 64
+): string {
+  const bgColor = isDark ? '#121214' : '#f3f4f6';
   const textColor = isDark ? '#f5f5f5' : '#0a0a0a';
   const subtextColor = isDark ? '#b5b5b5' : '#737373';
   const spinnerBorder = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)';
   const spinnerActive = isDark ? '#f5f5f5' : '#0a0a0a';
-  const pillBg = isDark ? 'rgba(23, 23, 23, 0.92)' : 'rgba(255, 255, 255, 0.92)';
-  const pillBorder = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-  const shadowOpacity = isDark ? '0.7' : '0.15';
+  const pillBg = isDark ? 'rgba(23, 23, 23, 0.94)' : 'rgba(255, 255, 255, 0.94)';
+  const pillBorder = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.1)';
+  const pageBorder = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)';
+  const pageShadow = isDark ? '0 10px 32px rgba(0, 0, 0, 0.65)' : '0 6px 24px rgba(0, 0, 0, 0.12)';
 
   return `<!DOCTYPE html>
 <html>
@@ -267,14 +274,23 @@ function getPdfJsHtml(base64Data: string, title: string, isDark: boolean = true)
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       width: 100%;
-      min-height: 100%;
+      height: 100%;
       background-color: ${bgColor};
       color: ${textColor};
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Plus Jakarta Sans", sans-serif;
+      -webkit-overflow-scrolling: touch;
       touch-action: pan-x pan-y pinch-zoom;
     }
+    #stage {
+      min-height: 100vh;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: ${topOffset}px 14px ${bottomOffset}px 14px;
+    }
     #status {
-      padding: 60px 20px;
+      margin: auto;
+      padding: 40px 20px;
       text-align: center;
       font-size: 14px;
       color: ${subtextColor};
@@ -293,27 +309,36 @@ function getPdfJsHtml(base64Data: string, title: string, isDark: boolean = true)
     }
     #container {
       width: 100%;
+      max-width: 720px;
+      margin: auto;
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       gap: 16px;
-      padding: 16px 12px 64px 12px;
+    }
+    .pdf-page-sheet {
+      width: 100%;
+      background: #FFFFFF;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid ${pageBorder};
+      box-shadow: ${pageShadow};
     }
     canvas {
+      display: block;
       width: 100% !important;
       max-width: 100%;
       height: auto !important;
       background: #FFFFFF;
-      border-radius: 6px;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, ${shadowOpacity});
-      border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)'};
     }
     #page-pill {
       position: fixed;
       bottom: 16px;
       right: 16px;
       background: ${pillBg};
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       color: ${textColor};
       padding: 6px 12px;
       border-radius: 20px;
@@ -326,11 +351,13 @@ function getPdfJsHtml(base64Data: string, title: string, isDark: boolean = true)
   </style>
 </head>
 <body>
-  <div id="status">
-    <div class="spinner"></div>
-    <div id="status-text">Loading document pages...</div>
+  <div id="stage">
+    <div id="status">
+      <div class="spinner"></div>
+      <div id="status-text">Loading document pages...</div>
+    </div>
+    <div id="container" style="display:none;"></div>
   </div>
-  <div id="container"></div>
   <div id="page-pill" style="display:none;"></div>
   <script>
     ${WEBVIEW_GESTURE_BRIDGE_JS}
@@ -344,17 +371,44 @@ function getPdfJsHtml(base64Data: string, title: string, isDark: boolean = true)
       pdfjsLib.getDocument({ data: uint8 }).promise.then(async function(pdf) {
         document.getElementById('status').style.display = 'none';
         const container = document.getElementById('container');
+        container.style.display = 'flex';
         const pagePill = document.getElementById('page-pill');
         pagePill.style.display = 'block';
-        pagePill.innerText = pdf.numPages + ' page' + (pdf.numPages > 1 ? 's' : '');
-        for (let num = 1; num <= pdf.numPages; num++) {
+        const total = pdf.numPages;
+        const updatePill = function(current) {
+          pagePill.innerText = total === 1 ? '1 / 1' : ('Page ' + current + ' of ' + total);
+        };
+        updatePill(1);
+
+        const dpr = Math.min(window.devicePixelRatio || 2, 2.5);
+        const pageEls = [];
+        for (let num = 1; num <= total; num++) {
           const page = await pdf.getPage(num);
-          const viewport = page.getViewport({ scale: 2.0 });
+          const viewport = page.getViewport({ scale: dpr });
+          const sheet = document.createElement('div');
+          sheet.className = 'pdf-page-sheet';
+          sheet.setAttribute('data-page', String(num));
           const canvas = document.createElement('canvas');
           canvas.height = viewport.height;
           canvas.width = viewport.width;
-          container.appendChild(canvas);
+          sheet.appendChild(canvas);
+          container.appendChild(sheet);
+          pageEls.push(sheet);
           await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+        }
+
+        if (total > 1) {
+          window.addEventListener('scroll', function() {
+            const mid = window.innerHeight * 0.45;
+            let activePage = 1;
+            for (let i = 0; i < pageEls.length; i++) {
+              const rect = pageEls[i].getBoundingClientRect();
+              if (rect.top <= mid) {
+                activePage = i + 1;
+              }
+            }
+            updatePill(activePage);
+          }, { passive: true });
         }
       }).catch(function(err) {
         document.getElementById('status').innerHTML = '<div style="color:#EF4444; margin-top:20px;">Could not render PDF: ' + err.message + '</div>';
@@ -367,8 +421,15 @@ function getPdfJsHtml(base64Data: string, title: string, isDark: boolean = true)
 </html>`;
 }
 
-function getImageHtml(base64Data: string, mime: string, title: string, isDark: boolean = true): string {
-  const bgColor = isDark ? '#0a0a0a' : '#fafafa';
+function getImageHtml(
+  base64Data: string,
+  mime: string,
+  title: string,
+  isDark: boolean = true,
+  topOffset: number = 108,
+  bottomOffset: number = 64
+): string {
+  const bgColor = isDark ? '#121214' : '#f3f4f6';
   const shadowOpacity = isDark ? '0.7' : '0.15';
 
   return `<!DOCTYPE html>
@@ -383,28 +444,25 @@ function getImageHtml(base64Data: string, mime: string, title: string, isDark: b
       width: 100%;
       height: 100%;
       background-color: ${bgColor};
-      display: flex;
-      align-items: center;
-      justify-content: center;
       overflow: auto;
       touch-action: pan-x pan-y pinch-zoom;
     }
     .wrapper {
       min-width: 100%;
-      min-height: 100%;
+      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 12px;
+      padding: ${topOffset}px 14px ${bottomOffset}px 14px;
     }
     img {
       max-width: 100%;
-      max-height: 100%;
+      max-height: calc(100vh - ${topOffset + bottomOffset}px);
       object-fit: contain;
       user-select: none;
       -webkit-user-select: none;
       box-shadow: 0 4px 28px rgba(0, 0, 0, ${shadowOpacity});
-      border-radius: 4px;
+      border-radius: 6px;
     }
   </style>
 </head>
@@ -450,6 +508,10 @@ export function FullScreenFilePreview({
   const [pptxLoadError, setPptxLoadError] = useState<string | null>(null);
   const [pptxLoading, setPptxLoading] = useState<boolean>(true);
   const [downloadingPptx, setDownloadingPptx] = useState<boolean>(false);
+
+  const topPad = Math.max(insets.top, isLandscape ? 12 : Platform.OS === 'ios' ? 44 : 24);
+  const defaultHeaderClearance = topPad + 64;
+  const defaultBottomClearance = Math.max(insets.bottom, 16) + 52;
 
   // ─────────────────────────────────────────────────────────────
   // AUTO-HIDE HEADER STATE (Hides after 3s, or on scroll down, zoom, or rotate)
@@ -636,8 +698,8 @@ export function FullScreenFilePreview({
                   <style>
                     :root {
                       ${isDark ? `
-                        --bg: #0a0a0a !important;
-                        --card-bg: #171717 !important;
+                        --bg: #121214 !important;
+                        --card-bg: #18181b !important;
                         --text: #f5f5f5 !important;
                         --text-muted: #a1a1aa !important;
                         --border: rgba(255, 255, 255, 0.12) !important;
@@ -647,11 +709,11 @@ export function FullScreenFilePreview({
                     }
                     .preview-navbar { display: none !important; }
                     body {
-                      ${isDark ? 'background: #0a0a0a !important; color: #f5f5f5 !important;' : ''}
-                      padding: 16px 12px 60px !important;
+                      ${isDark ? 'background: #121214 !important; color: #f5f5f5 !important;' : ''}
+                      padding: ${defaultHeaderClearance}px 14px ${defaultBottomClearance}px !important;
                     }
                     ${isDark ? `
-                      .slide-card { background: #171717 !important; border: 1px solid rgba(255,255,255,0.12) !important; color: #f5f5f5 !important; }
+                      .slide-card { background: #18181b !important; border: 1px solid rgba(255,255,255,0.12) !important; color: #f5f5f5 !important; }
                       .slide-card-header { border-bottom: 1px solid rgba(255,255,255,0.08) !important; background: rgba(255,255,255,0.03) !important; }
                       .slide-badge { background: #262626 !important; color: #fb923c !important; }
                       .slide-card-body { color: #e4e4e7 !important; }
@@ -711,7 +773,7 @@ export function FullScreenFilePreview({
     } finally {
       setPreparing(false);
     }
-  }, [file, activeUri, localFileUri, onDownloadFile, isDark, fileUrl, mimeType]);
+  }, [file, activeUri, localFileUri, onDownloadFile, isDark, fileUrl, mimeType, defaultHeaderClearance, defaultBottomClearance]);
 
   useEffect(() => {
     if (visible && file) {
@@ -773,7 +835,6 @@ export function FullScreenFilePreview({
     [hideChrome]
   );
 
-  const topPad = Math.max(insets.top, isLandscape ? 12 : Platform.OS === 'ios' ? 44 : 24);
   const headerTranslateY = chromeAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [-(topPad + 64), 0],
@@ -784,7 +845,16 @@ export function FullScreenFilePreview({
       StyleSheet.create({
         container: {
           flex: 1,
-          backgroundColor: colors.background,
+          backgroundColor: isDark ? '#121214' : '#f3f4f6',
+        },
+        statusBarScrim: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top,
+          backgroundColor: isDark ? 'rgba(18, 18, 20, 0.88)' : 'rgba(243, 244, 246, 0.88)',
+          zIndex: 25,
         },
         header: {
           position: 'absolute',
@@ -833,14 +903,14 @@ export function FullScreenFilePreview({
         },
         viewerBody: {
           flex: 1,
-          backgroundColor: isDark ? '#0a0a0a' : '#fafafa',
+          backgroundColor: isDark ? '#121214' : '#f3f4f6',
         },
         webViewWrap: {
           flex: 1,
         },
         webView: {
           flex: 1,
-          backgroundColor: isDark ? '#0a0a0a' : '#fafafa',
+          backgroundColor: isDark ? '#121214' : '#f3f4f6',
         },
         centerBox: {
           position: 'absolute',
@@ -848,7 +918,7 @@ export function FullScreenFilePreview({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: isDark ? '#0a0a0a' : '#fafafa',
+          backgroundColor: isDark ? '#121214' : '#f3f4f6',
           alignItems: 'center',
           justifyContent: 'center',
           padding: 24,
@@ -1063,7 +1133,7 @@ export function FullScreenFilePreview({
           fontWeight: '500',
         },
       }),
-    [colors, isDark, topPad]
+    [colors, isDark, topPad, insets.top]
   );
 
   if (!visible) return null;
@@ -1073,6 +1143,11 @@ export function FullScreenFilePreview({
   const content = (
     <View style={styles.container}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+
+      {/* Top Status Bar Scrim so PDF/Document never collides with iOS status bar icons */}
+      {!isLandscape && insets.top > 0 && (
+        <View pointerEvents="none" style={styles.statusBarScrim} />
+      )}
 
       {/* Auto-Hiding Floating Top Header (Hides after 3s, or on scroll down / zoom / rotate) */}
       <Animated.View
@@ -1188,75 +1263,55 @@ export function FullScreenFilePreview({
                 </Text>
               ) : (
                 <Text style={styles.docDescription}>
-                  {`Ready to view in your device's document reader (${officeMeta.appHint}).`}
+                  {`Ready to view in your preferred office app (${officeMeta.appHint}) or save to your device.`}
                 </Text>
               )}
-              <View style={{ width: '100%', maxWidth: 280, gap: 10 }}>
+              <View style={styles.errorActions}>
                 <TouchableOpacity
-                  style={[styles.primaryButton, { backgroundColor: officeMeta.color }]}
+                  style={styles.primaryButton}
                   onPress={onShareFile}
+                  disabled={downloadingPptx}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                  <Text style={[styles.primaryButtonText, { color: '#FFFFFF' }]}>Open in Document Reader</Text>
+                  <Ionicons name="open-outline" size={18} color={colors.primaryText} style={{ marginRight: 6 }} />
+                  <Text style={styles.primaryButtonText}>Open in External App</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.secondaryButton}
-                  onPress={handleDownloadPptx}
-                  disabled={downloadingPptx || downloading}
+                  onPress={pptxLoadError ? handleRetryPptx : handleDownloadPptx}
+                  disabled={downloadingPptx}
                   activeOpacity={0.8}
                 >
-                  {downloadingPptx || downloading ? (
+                  {downloadingPptx ? (
                     <ActivityIndicator size="small" color={colors.text} style={{ marginRight: 6 }} />
                   ) : (
-                    <Ionicons name="download-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                    <Ionicons
+                      name={pptxLoadError ? 'refresh-outline' : 'download-outline'}
+                      size={18}
+                      color={colors.text}
+                      style={{ marginRight: 6 }}
+                    />
                   )}
                   <Text style={styles.secondaryButtonText}>
-                    {downloadingPptx || downloading ? 'Downloading...' : 'Download File'}
+                    {pptxLoadError ? 'Retry Preview' : 'Download'}
                   </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.secondaryButton} onPress={handleRetryPptx} activeOpacity={0.8}>
-                  <Ionicons name="refresh-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
-                  <Text style={styles.secondaryButtonText}>Try Online Preview Again</Text>
                 </TouchableOpacity>
               </View>
             </View>
           );
 
-          if (pptxLoadError) {
-            if (officeHtml) {
-              return (
-                <WebView
-                  source={{ html: officeHtml }}
-                  originWhitelist={['*']}
-                  scalesPageToFit={true}
-                  nestedScrollEnabled={true}
-                  javaScriptEnabled={true}
-                  domStorageEnabled={true}
-                  injectedJavaScript={WEBVIEW_GESTURE_BRIDGE_JS}
-                  onMessage={handleWebViewMessage}
-                  startInLoadingState={true}
-                  renderLoading={() => (
-                    <View style={styles.centerBox}>
-                      <ActivityIndicator size="small" color={colors.primary} />
-                      <Text style={styles.loadingText}>Loading document content...</Text>
-                    </View>
-                  )}
-                  onError={() => setOfficeHtml(null)}
-                  style={styles.webView}
-                />
-              );
-            }
-            return showFallbackCard;
-          }
-
-          if (officeEmbedUrl) {
+          if (fileCategory === 'pptx' && officeEmbedUrl && !pptxLoadError) {
             return (
-              <View style={styles.webViewWrap}>
+              <View style={[styles.webViewWrap, { paddingTop: defaultHeaderClearance }]}>
+                {pptxLoading && (
+                  <View style={styles.centerBox}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={styles.loadingText}>Loading {officeMeta.label}...</Text>
+                    <Text style={styles.loadingSubtext}>Connecting to Microsoft Office viewer</Text>
+                  </View>
+                )}
                 <WebView
-                  key={officeEmbedUrl}
                   source={{ uri: officeEmbedUrl }}
                   originWhitelist={['*']}
                   scalesPageToFit={true}
@@ -1318,12 +1373,20 @@ export function FullScreenFilePreview({
           return showFallbackCard;
         })()}
 
-        {/* PDF Viewer (Uses PDF.js HTML with gesture bridge on both iOS & Android so scroll/zoom/tap auto-hide works reliably) */}
+        {/* PDF Viewer (Centered vertically when single-page, positioned below header at default) */}
         {!isLoading && !errorMsg && fileCategory === 'pdf' && (pdfBase64 || activeUri) && (
           <WebView
             source={
               pdfBase64
-                ? { html: getPdfJsHtml(pdfBase64, file?.title || '', isDark) }
+                ? {
+                    html: getPdfJsHtml(
+                      pdfBase64,
+                      file?.title || '',
+                      isDark,
+                      defaultHeaderClearance,
+                      defaultBottomClearance
+                    ),
+                  }
                 : { uri: activeUri || '' }
             }
             originWhitelist={['*']}
@@ -1350,12 +1413,21 @@ export function FullScreenFilePreview({
           />
         )}
 
-        {/* Image Viewer */}
+        {/* Image Viewer (Centered vertically in viewport below header) */}
         {!isLoading && !errorMsg && fileCategory === 'image' && (imageBase64 || activeUri) && (
           <WebView
             source={
               imageBase64
-                ? { html: getImageHtml(imageBase64, getImageMime(file?.originalName || ''), file?.title || '', isDark) }
+                ? {
+                    html: getImageHtml(
+                      imageBase64,
+                      getImageMime(file?.originalName || ''),
+                      file?.title || '',
+                      isDark,
+                      defaultHeaderClearance,
+                      defaultBottomClearance
+                    ),
+                  }
                 : { uri: activeUri || '' }
             }
             originWhitelist={['*']}
@@ -1387,7 +1459,10 @@ export function FullScreenFilePreview({
           <View style={styles.textContainer}>
             <ScrollView
               style={styles.textScroll}
-              contentContainerStyle={[styles.textContentContainer, { paddingTop: topPad + 60 }]}
+              contentContainerStyle={[
+                styles.textContentContainer,
+                { paddingTop: defaultHeaderClearance, paddingBottom: defaultBottomClearance },
+              ]}
               onScroll={handleTextScroll}
               scrollEventThrottle={16}
             >

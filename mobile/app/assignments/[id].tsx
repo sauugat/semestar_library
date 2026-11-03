@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Animated,
+  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
@@ -135,12 +136,19 @@ const WEBVIEW_GESTURE_BRIDGE_JS = `
 true;
 `;
 
-function getPdfViewerHtml(base64Data: string, isDark: boolean): string {
-  const bgColor = isDark ? '#0A0A0A' : '#FAFAFA';
+function getPdfViewerHtml(
+  base64Data: string,
+  isDark: boolean,
+  topOffset: number,
+  bottomOffset: number
+): string {
+  const bgColor = isDark ? '#121214' : '#F3F4F6';
   const textColor = isDark ? '#F4F4F5' : '#18181B';
   const subtextColor = isDark ? '#A1A1AA' : '#71717A';
-  const pillBg = isDark ? 'rgba(24, 24, 27, 0.92)' : 'rgba(255, 255, 255, 0.92)';
-  const pillBorder = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.1)';
+  const pillBg = isDark ? 'rgba(24, 24, 27, 0.94)' : 'rgba(255, 255, 255, 0.94)';
+  const pillBorder = isDark ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.1)';
+  const pageBorder = isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)';
+  const pageShadow = isDark ? '0 10px 32px rgba(0, 0, 0, 0.65)' : '0 6px 24px rgba(0, 0, 0, 0.12)';
 
   return `<!DOCTYPE html>
 <html>
@@ -152,51 +160,74 @@ function getPdfViewerHtml(base64Data: string, isDark: boolean): string {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
       width: 100%;
-      min-height: 100%;
+      height: 100%;
       background-color: ${bgColor};
       color: ${textColor};
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-overflow-scrolling: touch;
       touch-action: pan-x pan-y pinch-zoom;
     }
+    #stage {
+      min-height: 100vh;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: ${topOffset}px 14px ${bottomOffset}px 14px;
+    }
     #status {
-      padding: 60px 20px;
+      margin: auto;
+      padding: 40px 20px;
       text-align: center;
       font-size: 13px;
       color: ${subtextColor};
     }
     #container {
       width: 100%;
+      max-width: 720px;
+      margin: auto;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
-      padding: 14px 12px 64px 12px;
+      justify-content: center;
+      gap: 16px;
+    }
+    .pdf-page-sheet {
+      width: 100%;
+      background: #FFFFFF;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid ${pageBorder};
+      box-shadow: ${pageShadow};
     }
     canvas {
+      display: block;
       width: 100% !important;
       height: auto !important;
       background: #FFFFFF;
-      border-radius: 6px;
-      box-shadow: 0 6px 24px rgba(0,0,0,0.35);
     }
     #page-pill {
       position: fixed;
-      bottom: 14px;
-      right: 14px;
+      bottom: 16px;
+      right: 16px;
       background: ${pillBg};
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       color: ${textColor};
-      padding: 5px 11px;
+      padding: 6px 12px;
       border-radius: 999px;
-      font-size: 11px;
+      font-size: 11.5px;
       font-weight: 600;
       border: 1px solid ${pillBorder};
       z-index: 99;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.35);
     }
   </style>
 </head>
 <body>
-  <div id="status">Loading assignment PDF…</div>
-  <div id="container"></div>
+  <div id="stage">
+    <div id="status">Loading assignment PDF…</div>
+    <div id="container" style="display:none;"></div>
+  </div>
   <div id="page-pill" style="display:none;"></div>
   <script>
     ${WEBVIEW_GESTURE_BRIDGE_JS}
@@ -208,17 +239,44 @@ function getPdfViewerHtml(base64Data: string, isDark: boolean): string {
       pdfjsLib.getDocument({ data: uint8 }).promise.then(async function(pdf) {
         document.getElementById('status').style.display = 'none';
         const container = document.getElementById('container');
+        container.style.display = 'flex';
         const pill = document.getElementById('page-pill');
         pill.style.display = 'block';
-        pill.innerText = pdf.numPages + (pdf.numPages === 1 ? ' page' : ' pages');
-        for (let num = 1; num <= pdf.numPages; num++) {
+        const total = pdf.numPages;
+        const updatePill = function(current) {
+          pill.innerText = total === 1 ? '1 / 1' : ('Page ' + current + ' of ' + total);
+        };
+        updatePill(1);
+
+        const dpr = Math.min(window.devicePixelRatio || 2, 2.5);
+        const pageEls = [];
+        for (let num = 1; num <= total; num++) {
           const page = await pdf.getPage(num);
-          const viewport = page.getViewport({ scale: 2.0 });
+          const viewport = page.getViewport({ scale: dpr });
+          const sheet = document.createElement('div');
+          sheet.className = 'pdf-page-sheet';
+          sheet.setAttribute('data-page', String(num));
           const canvas = document.createElement('canvas');
           canvas.height = viewport.height;
           canvas.width = viewport.width;
-          container.appendChild(canvas);
+          sheet.appendChild(canvas);
+          container.appendChild(sheet);
+          pageEls.push(sheet);
           await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+        }
+
+        if (total > 1) {
+          window.addEventListener('scroll', function() {
+            const mid = window.innerHeight * 0.45;
+            let activePage = 1;
+            for (let i = 0; i < pageEls.length; i++) {
+              const rect = pageEls[i].getBoundingClientRect();
+              if (rect.top <= mid) {
+                activePage = i + 1;
+              }
+            }
+            updatePill(activePage);
+          }, { passive: true });
         }
       }).catch(function() {
         document.getElementById('status').innerText = 'Unable to render PDF preview.';
@@ -485,15 +543,32 @@ export default function AssignmentDetailScreen() {
     });
   }, [assignment?.questions, hasPdf]);
 
-  const topPad = Math.max(insets.top, isLandscape ? 12 : 16);
+  const topPad = Math.max(insets.top, isLandscape ? 12 : Platform.OS === 'ios' ? 44 : 24);
+  const defaultHeaderClearance = topPad + 64;
   const headerTranslateY = chromeAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [-(topPad + 60), 0],
+    outputRange: [-(topPad + 64), 0],
   });
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
+
+      {/* Status Bar Scrim so PDF content never collides with iOS status bar icons */}
+      {!isLandscape && insets.top > 0 && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: insets.top,
+            backgroundColor: isDark ? 'rgba(18, 18, 20, 0.88)' : 'rgba(243, 244, 246, 0.88)',
+            zIndex: 25,
+          }}
+        />
+      )}
 
       {/* Single Floating Auto-Hiding Header (Hides after 3s, or on scroll down, zoom, or rotate) */}
       <Animated.View
@@ -586,10 +661,12 @@ export default function AssignmentDetailScreen() {
             {pdfBase64 ? (
               <WebView
                 originWhitelist={['*']}
-                source={{ html: getPdfViewerHtml(pdfBase64, isDark) }}
+                source={{
+                  html: getPdfViewerHtml(pdfBase64, isDark, defaultHeaderClearance, 64),
+                }}
                 injectedJavaScript={WEBVIEW_GESTURE_BRIDGE_JS}
                 onMessage={handleWebViewMessage}
-                style={{ flex: 1, backgroundColor: colors.background }}
+                style={{ flex: 1, backgroundColor: isDark ? '#121214' : '#F3F4F6' }}
               />
             ) : (
               <View style={styles.centerContainer}>
@@ -624,7 +701,7 @@ export default function AssignmentDetailScreen() {
         <ScrollView
           contentContainerStyle={{
             paddingHorizontal: spacing.md,
-            paddingTop: topPad + 62,
+            paddingTop: defaultHeaderClearance,
             paddingBottom: Math.max(insets.bottom, 20) + 24,
           }}
           showsVerticalScrollIndicator={false}

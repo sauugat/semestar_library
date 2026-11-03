@@ -90,8 +90,7 @@ export function CommentItem({
           url={comment.isDeleted ? null : avatarUrl}
           name={comment.isDeleted ? '?' : comment.name}
           size="sm"
-          enableViewer={!comment.isDeleted && Boolean(avatarUrl)}
-          onPress={!avatarUrl && !comment.isDeleted ? () => navigateToProfile(comment.studentId) : undefined}
+          onPress={!comment.isDeleted ? () => navigateToProfile(comment.studentId) : undefined}
         />
 
         <View style={styles.commentContent}>
@@ -292,8 +291,7 @@ export function CommentItem({
                       url={reply.isDeleted ? null : replyAvatar}
                       name={reply.isDeleted ? '?' : reply.name}
                       size="xs"
-                      enableViewer={!reply.isDeleted && Boolean(replyAvatar)}
-                      onPress={!replyAvatar && !reply.isDeleted ? () => navigateToProfile(reply.studentId) : undefined}
+                      onPress={!reply.isDeleted ? () => navigateToProfile(reply.studentId) : undefined}
                     />
 
                   <View style={styles.commentContent}>

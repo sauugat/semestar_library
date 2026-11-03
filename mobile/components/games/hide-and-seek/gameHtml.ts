@@ -4277,7 +4277,7 @@ export function getHideAndSeekHtml(): string {
           })
         );
         // Rotate so Machhapuchhre and Annapurna range sit centered directly above courtyard building (matches reference screenshot)
-        skySphere.rotation.y = Math.PI - 0.22;
+        skySphere.rotation.y = 0.35;
         skySphere.renderOrder = -10;
         this.skyGroup.add(skySphere);
 

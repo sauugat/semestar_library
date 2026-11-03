@@ -29,7 +29,12 @@ import { UnrecognizedRoleView } from '@/components/admin/UnrecognizedRoleView';
 import { resolveAppRole } from '@/utils/roles';
 import { useAdminMode } from '@/context/AdminModeContext';
 import { useAdaptiveNavScroll } from '@/context/NavScrollContext';
-import { fetchUnseenCount } from '@/services/notifications';
+import * as Notifications from 'expo-notifications';
+import {
+  fetchUnseenCount,
+  fetchInAppNotifications,
+  subscribeToRealtimeNotifications,
+} from '@/services/notifications';
 import * as ImagePicker from 'expo-image-picker';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -582,20 +587,224 @@ function StudentHomeScreenInner() {
   const [assignments, setAssignments] = useState<FeedAssignment[]>([]);
 
   const [unseenNotifCount, setUnseenNotifCount] = useState(0);
+  const lastAnnouncedCountRef = useRef<number>(0);
+  const bubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [notifBubble, setNotifBubble] = useState<{
+    visible: boolean;
+    likeCount: number;
+    commentCount: number;
+    otherCount: number;
+    avatarUrl: string | null;
+    actorName: string | null;
+  }>({
+    visible: false,
+    likeCount: 0,
+    commentCount: 0,
+    otherCount: 0,
+    avatarUrl: null,
+    actorName: null,
+  });
+
+  const notifPopScale = useRef(new Animated.Value(0)).current;
+  const notifPopTranslateY = useRef(new Animated.Value(-8)).current;
+  const bellShakeAnim = useRef(new Animated.Value(0)).current;
+  const floatHeartOpacity = useRef(new Animated.Value(0)).current;
+  const floatHeartTranslateY = useRef(new Animated.Value(0)).current;
+  const floatHeartScale = useRef(new Animated.Value(0.4)).current;
+
+  const triggerNotifActivityPop = useCallback(
+    (payload: {
+      likeCount: number;
+      commentCount: number;
+      otherCount: number;
+      avatarUrl: string | null;
+      actorName: string | null;
+    }) => {
+      if (bubbleTimerRef.current) {
+        clearTimeout(bubbleTimerRef.current);
+      }
+
+      setNotifBubble({
+        visible: true,
+        ...payload,
+      });
+
+      notifPopScale.setValue(0.4);
+      notifPopTranslateY.setValue(-8);
+      bellShakeAnim.setValue(0);
+
+      // Bell icon shake + Instagram-style spring pop
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(bellShakeAnim, { toValue: 1, duration: 70, useNativeDriver: true }),
+          Animated.timing(bellShakeAnim, { toValue: -1, duration: 70, useNativeDriver: true }),
+          Animated.timing(bellShakeAnim, { toValue: 0.7, duration: 65, useNativeDriver: true }),
+          Animated.timing(bellShakeAnim, { toValue: -0.7, duration: 65, useNativeDriver: true }),
+          Animated.timing(bellShakeAnim, { toValue: 0, duration: 60, useNativeDriver: true }),
+        ]),
+        Animated.spring(notifPopScale, {
+          toValue: 1,
+          friction: 5,
+          tension: 130,
+          useNativeDriver: true,
+        }),
+        Animated.spring(notifPopTranslateY, {
+          toValue: 0,
+          friction: 6,
+          tension: 120,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
+      // Floating love heart burst when a like notification arrives
+      if (payload.likeCount > 0) {
+        floatHeartOpacity.setValue(1);
+        floatHeartTranslateY.setValue(0);
+        floatHeartScale.setValue(0.5);
+        Animated.parallel([
+          Animated.spring(floatHeartScale, {
+            toValue: 1.25,
+            friction: 4,
+            tension: 110,
+            useNativeDriver: true,
+          }),
+          Animated.timing(floatHeartTranslateY, {
+            toValue: -26,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+          Animated.timing(floatHeartOpacity, {
+            toValue: 0,
+            duration: 900,
+            delay: 150,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+
+      bubbleTimerRef.current = setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(notifPopScale, {
+            toValue: 0,
+            duration: 180,
+            useNativeDriver: true,
+          }),
+          Animated.timing(notifPopTranslateY, {
+            toValue: -6,
+            duration: 180,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          setNotifBubble((prev) => ({ ...prev, visible: false }));
+        });
+      }, 4200);
+    },
+    [bellShakeAnim, floatHeartOpacity, floatHeartScale, floatHeartTranslateY, notifPopScale, notifPopTranslateY]
+  );
+
+  const inspectLatestUnseenAndPop = useCallback(
+    async (activityHint?: string) => {
+      try {
+        const inbox = await fetchInAppNotifications({ tab: 'all', limit: 10 });
+        const unseenCount = Number(inbox.unseenCount || 0);
+        setUnseenNotifCount(unseenCount);
+
+        const unseenItems = (inbox.notifications || []).filter((n) => !n.isSeen || !n.isRead);
+        if (unseenCount > 0 && (unseenCount > lastAnnouncedCountRef.current || activityHint)) {
+          lastAnnouncedCountRef.current = unseenCount;
+          let likes = 0;
+          let comments = 0;
+          let others = 0;
+          let latestAvatar: string | null = null;
+          let latestActorName: string | null = null;
+
+          const sourceList = unseenItems.length > 0 ? unseenItems : inbox.notifications.slice(0, 1);
+          for (const item of sourceList) {
+            if (!latestAvatar) {
+              latestAvatar =
+                item.actor?.avatarUrl ||
+                item.metadata?.actorAvatar ||
+                item.metadata?.actors?.[0]?.avatarUrl ||
+                null;
+            }
+            if (!latestActorName && item.actor?.name) {
+              latestActorName = item.actor.name;
+            }
+            if (item.type === 'post_reaction' || item.type === 'comment_reaction') {
+              likes += Number(item.metadata?.totalCount || 1);
+            } else if (item.type === 'post_comment' || item.type === 'comment_reply') {
+              comments += 1;
+            } else {
+              others += 1;
+            }
+          }
+
+          if (likes === 0 && comments === 0 && activityHint) {
+            if (activityHint === 'post_reaction' || activityHint === 'comment_reaction') likes = 1;
+            else if (activityHint === 'post_comment' || activityHint === 'comment_reply') comments = 1;
+            else others = Math.max(1, unseenCount);
+          }
+
+          triggerNotifActivityPop({
+            likeCount: likes,
+            commentCount: comments,
+            otherCount: others,
+            avatarUrl: latestAvatar,
+            actorName: latestActorName,
+          });
+        } else if (unseenCount === 0) {
+          lastAnnouncedCountRef.current = 0;
+        }
+      } catch {
+        const count = await fetchUnseenCount();
+        setUnseenNotifCount(count);
+      }
+    },
+    [triggerNotifActivityPop]
+  );
 
   const refreshUnseenCount = useCallback(() => {
     if (!token) return;
-    void (async () => {
-      const count = await fetchUnseenCount();
-      setUnseenNotifCount(count);
-    })();
-  }, [token]);
+    void inspectLatestUnseenAndPop();
+  }, [token, inspectLatestUnseenAndPop]);
 
   useFocusEffect(
     useCallback(() => {
       refreshUnseenCount();
     }, [refreshUnseenCount])
   );
+
+  // Instant real-time notification listener (SSE stream + foreground Expo push listener)
+  useEffect(() => {
+    if (!token) return;
+
+    const unsubscribeSse = subscribeToRealtimeNotifications((ev) => {
+      if (ev.type === 'badge_update' && typeof ev.unseenCount === 'number') {
+        setUnseenNotifCount(ev.unseenCount);
+        if (ev.unseenCount === 0) {
+          lastAnnouncedCountRef.current = 0;
+        }
+      } else if (ev.type === 'notification') {
+        if (typeof ev.unseenCount === 'number') {
+          setUnseenNotifCount(ev.unseenCount);
+        }
+        void inspectLatestUnseenAndPop(ev.activityType);
+      }
+    });
+
+    const pushReceivedSub = Notifications.addNotificationReceivedListener((notification) => {
+      const data = notification?.request?.content?.data as Record<string, any> | undefined;
+      void inspectLatestUnseenAndPop(data?.type);
+    });
+
+    return () => {
+      unsubscribeSse();
+      pushReceivedSub.remove();
+      if (bubbleTimerRef.current) {
+        clearTimeout(bubbleTimerRef.current);
+      }
+    };
+  }, [token, inspectLatestUnseenAndPop]);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [files, setFiles] = useState<LibraryFile[]>([]);
@@ -1902,40 +2111,172 @@ function StudentHomeScreenInner() {
             <Ionicons name="add" size={22} color={colors.text} />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => router.push('/notifications' as any)}
-            style={[
-              styles.headerActionBtn,
-              {
-                backgroundColor: colors.surfaceRaised,
-                borderColor: colors.border,
-                position: 'relative',
-              },
-            ]}
-            accessibilityLabel="Notifications"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="notifications-outline" size={19} color={colors.text} />
-            {unseenNotifCount > 0 && (
-              <View
-                style={[
-                  styles.headerBellBadge,
-                  { backgroundColor: colors.text },
-                ]}
+          <View style={{ position: 'relative' }}>
+            <TouchableOpacity
+              onPress={() => {
+                setNotifBubble((prev) => ({ ...prev, visible: false }));
+                router.push('/notifications' as any);
+              }}
+              style={[
+                styles.headerActionBtn,
+                {
+                  backgroundColor: colors.surfaceRaised,
+                  borderColor: colors.border,
+                  position: 'relative',
+                },
+              ]}
+              accessibilityLabel="Notifications"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Animated.View
+                style={{
+                  transform: [
+                    {
+                      rotate: bellShakeAnim.interpolate({
+                        inputRange: [-1, 1],
+                        outputRange: ['-18deg', '18deg'],
+                      }),
+                    },
+                  ],
+                }}
               >
-                <Text
+                <Ionicons
+                  name={notifBubble.visible && notifBubble.likeCount > 0 ? 'heart' : 'notifications-outline'}
+                  size={19}
+                  color={notifBubble.visible && notifBubble.likeCount > 0 ? '#FF3040' : colors.text}
+                />
+              </Animated.View>
+              {unseenNotifCount > 0 && (
+                <View
+                  style={[
+                    styles.headerBellBadge,
+                    { backgroundColor: notifBubble.likeCount > 0 ? '#FF3040' : colors.text },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      color: notifBubble.likeCount > 0 ? '#FFFFFF' : colors.surface,
+                      fontSize: unseenNotifCount > 9 ? 8 : 9,
+                      fontWeight: '800',
+                      lineHeight: unseenNotifCount > 9 ? 9 : 10,
+                    }}
+                  >
+                    {unseenNotifCount > 99 ? '99+' : unseenNotifCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Floating Love Heart Burst above Bell Icon */}
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                top: -6,
+                left: 8,
+                opacity: floatHeartOpacity,
+                transform: [
+                  { translateY: floatHeartTranslateY },
+                  { scale: floatHeartScale },
+                ],
+                zIndex: 100,
+              }}
+            >
+              <Ionicons name="heart" size={20} color="#FF3040" />
+            </Animated.View>
+
+            {/* Instagram-Style Love & Comment Floating Activity Bubble */}
+            {notifBubble.visible && (
+              <Animated.View
+                style={{
+                  position: 'absolute',
+                  top: 42,
+                  right: 0,
+                  zIndex: 200,
+                  transform: [
+                    { scale: notifPopScale },
+                    { translateY: notifPopTranslateY },
+                  ],
+                }}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    setNotifBubble((prev) => ({ ...prev, visible: false }));
+                    router.push('/notifications' as any);
+                  }}
                   style={{
-                    color: colors.surface,
-                    fontSize: unseenNotifCount > 9 ? 8 : 9,
-                    fontWeight: '800',
-                    lineHeight: unseenNotifCount > 9 ? 9 : 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#FF3040',
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 999,
+                    gap: 6,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.28,
+                    shadowRadius: 8,
+                    elevation: 8,
                   }}
                 >
-                  {unseenNotifCount > 99 ? '99+' : unseenNotifCount}
-                </Text>
-              </View>
+                  {/* Top pointer triangle */}
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -5,
+                      right: 12,
+                      width: 10,
+                      height: 10,
+                      backgroundColor: '#FF3040',
+                      transform: [{ rotate: '45deg' }],
+                    }}
+                  />
+
+                  {Boolean(notifBubble.avatarUrl) && (
+                    <Image
+                      source={{ uri: getFullImageUrl(notifBubble.avatarUrl) || notifBubble.avatarUrl! }}
+                      style={{
+                        width: 18,
+                        height: 18,
+                        borderRadius: 9,
+                        borderWidth: 1,
+                        borderColor: '#FFFFFF',
+                      }}
+                      contentFit="cover"
+                    />
+                  )}
+
+                  {notifBubble.likeCount > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Ionicons name="heart" size={13} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>
+                        {notifBubble.likeCount}
+                      </Text>
+                    </View>
+                  )}
+
+                  {notifBubble.commentCount > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Ionicons name="chatbubble" size={12} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>
+                        {notifBubble.commentCount}
+                      </Text>
+                    </View>
+                  )}
+
+                  {notifBubble.likeCount === 0 && notifBubble.commentCount === 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Ionicons name="notifications" size={12} color="#FFFFFF" />
+                      <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '800' }}>
+                        {Math.max(1, notifBubble.otherCount)}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
             )}
-          </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -2144,41 +2485,6 @@ function StudentHomeScreenInner() {
               Syllabus
             </Text>
           </TouchableOpacity>
-
-          {isStaff && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setUploadModalOpen(true)}
-              style={{
-                flex: 1,
-                backgroundColor: colors.surface,
-                borderColor: colors.border,
-                borderWidth: 1,
-                borderRadius: radii.md,
-                paddingVertical: 10,
-                paddingHorizontal: 6,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: colors.surfaceRaised,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: 4,
-                }}
-              >
-                <Ionicons name="cloud-upload-outline" size={17} color={colors.primary} />
-              </View>
-              <Text variant="xs" weight="700" numberOfLines={1}>
-                Upload
-              </Text>
-            </TouchableOpacity>
-          )}
         </View>
       </View>
 
@@ -2898,29 +3204,6 @@ function StudentHomeScreenInner() {
               ) : (
                 <>
 
-              {/* Title Input (Hidden for General posts) */}
-              {postCategory !== 'general' && (
-                <TextInput
-                  placeholder="Title (optional)"
-                  placeholderTextColor={colors.textMuted}
-                  value={postTitle}
-                  onChangeText={setPostTitle}
-                  maxLength={200}
-                  style={[
-                    styles.titleInput,
-                    {
-                      color: colors.text,
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
-                      borderRadius: radii.md,
-                      paddingHorizontal: spacing.md,
-                      paddingVertical: 10,
-                      marginBottom: spacing.sm,
-                    },
-                  ]}
-                />
-              )}
-
               {/* Category, Audience, & Target Semesters Selectors */}
               <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -3026,6 +3309,29 @@ function StudentHomeScreenInner() {
                   </TouchableOpacity>
                 )}
               </View>
+
+              {/* Title Input (Hidden for General posts) */}
+              {postCategory !== 'general' && (
+                <TextInput
+                  placeholder="Title (optional)"
+                  placeholderTextColor={colors.textMuted}
+                  value={postTitle}
+                  onChangeText={setPostTitle}
+                  maxLength={200}
+                  style={[
+                    styles.titleInput,
+                    {
+                      color: colors.text,
+                      backgroundColor: colors.surface,
+                      borderColor: colors.border,
+                      borderRadius: radii.md,
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: 10,
+                      marginBottom: spacing.sm,
+                    },
+                  ]}
+                />
+              )}
 
               {/* Error Banner */}
               {composerError && (

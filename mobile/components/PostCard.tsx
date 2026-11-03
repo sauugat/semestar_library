@@ -15,7 +15,6 @@ import { PostMediaGallery } from '@/components/PostMediaGallery';
 import { PostFileAttachments } from '@/components/PostFileAttachments';
 import { Post } from '@/services/posts';
 import { formatTimeAgo } from '@/utils/date';
-import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
 import { PostMarkdown } from '@/components/PostMarkdown';
 
 export interface PostCardProps {
@@ -132,7 +131,6 @@ export function PostCard({
   const router = useRouter();
   const { colors, spacing, radii } = useTheme();
   const [expanded, setExpanded] = useState(false);
-  const [avatarViewerVisible, setAvatarViewerVisible] = useState(false);
 
   const badge = getTypeBadgeProps(post.type, post.is_official, colors);
   const authorStudentId = post.studentId || post.user_id;
@@ -145,17 +143,6 @@ export function PostCard({
       router.push(`/notice/${post.id}` as any);
     } else {
       router.push(`/post/${post.id}` as any);
-    }
-  };
-
-  const handleAvatarPress = () => {
-    if (avatarUrl) {
-      setAvatarViewerVisible(true);
-    } else if (authorStudentId) {
-      router.push({
-        pathname: '/user/[id]',
-        params: { id: authorStudentId },
-      });
     }
   };
 
@@ -181,7 +168,7 @@ export function PostCard({
       {/* Post Author & Header */}
       <View style={styles.postAuthorRow}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <TouchableOpacity activeOpacity={0.8} onPress={handleAvatarPress}>
+          <TouchableOpacity activeOpacity={0.8} onPress={handleAuthorPress}>
             <Avatar
               url={avatarUrl}
               name={post.name}
@@ -253,9 +240,7 @@ export function PostCard({
               accessibilityLabel="Post options"
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Text style={[styles.optionsMenuIcon, { color: colors.textSecondary }]}>
-                {'\u22EE'}
-              </Text>
+              <Ionicons name="ellipsis-horizontal" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
         </View>
@@ -397,16 +382,6 @@ export function PostCard({
             View all {post.comment_count} {post.comment_count === 1 ? 'comment' : 'comments'}
           </Text>
         </TouchableOpacity>
-      )}
-
-      {/* Full-Screen Avatar Viewer Modal */}
-      {Boolean(avatarUrl) && (
-        <FullScreenImageViewer
-          visible={avatarViewerVisible}
-          imageUri={avatarUrl}
-          imageTitle={post.name || 'Profile Picture'}
-          onClose={() => setAvatarViewerVisible(false)}
-        />
       )}
     </View>
   );

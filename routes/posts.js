@@ -161,6 +161,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     }
   });
   const router = express.Router();
+  let postsSchemaPromise = null;
   router.use(requireLogin);
   router.use(async (req, res, next) => {
     try {
@@ -169,6 +170,13 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       } else if (typeof db.initSchema === 'function') {
         await db.initSchema();
       }
+      if (!postsSchemaPromise) {
+        postsSchemaPromise = ensurePostsSchema(db).catch((err) => {
+          postsSchemaPromise = null;
+          throw err;
+        });
+      }
+      await postsSchemaPromise;
       const callerId = req.student?.studentId || req.user?.studentId || req.session?.studentId;
       req.postUser = req.student || req.user || (callerId ? await db.get('SELECT * FROM students WHERE studentId = ?', callerId) : null);
       if (!req.postUser && req.method !== 'GET') {
@@ -1201,11 +1209,13 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           postId: newPostId,
           authorStudentId: req.postUser.studentId,
           authorName: req.postUser.name,
+          authorAvatar: req.postUser.avatarUrl || null,
           type,
           isOfficial,
           role: req.postUser.role,
           title: passedTitle || null,
           content: trimmedContent,
+          subject: req.body?.subject || null,
           semester: req.postUser.semester,
           cohortId: publishScope.cohortId,
           semesterNo: publishScope.semesterNo,
@@ -1428,21 +1438,26 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           try {
             const notifService = require('../lib/notifications-service');
             const actorName = req.postUser.name || 'A classmate';
-            const postPreview = (post.content || 'your post').slice(0, 60);
+            const postPreview = (post.content || '').trim().slice(0, 80);
             await notifService.createNotification(db, {
               type: 'post_reaction',
               actorId: req.postUser.studentId,
               actorName,
               actorAvatar: req.postUser.avatarUrl || null,
-              title: `${actorName} reacted to your post`,
-              body: `liked "${postPreview}"`,
+              title: `${actorName} liked your post`,
+              body: postPreview ? `Liked your post: "${postPreview}"` : 'Liked your post',
               entityType: 'post',
               entityId: String(post.id),
               deepLink: `/post/${post.id}`,
               webPath: `dashboard.html?post=${post.id}`,
               groupKey: `post:${post.id}:reactions`,
               recipientUserIds: [post.user_id],
-              metadata: { preview: postPreview },
+              metadata: {
+                preview: postPreview || 'your post',
+                actorName,
+                actorAvatar: req.postUser.avatarUrl || null,
+                postId: Number(post.id),
+              },
             });
           } catch (notifErr) {
             console.warn('[Post Like Notification Error]:', notifErr.message);

@@ -455,36 +455,6 @@ export function SearchOverlay({
                   </View>
                 </View>
               )}
-
-              {/* Suggested Categories (Files, Subjects, Students, Assignments) */}
-              <View style={styles.emptyStateSection}>
-                <View style={styles.emptyStateSectionHeader}>
-                  <Text variant="xs" weight="700" color="secondary" style={styles.sectionTitle}>
-                    {filterType === 'files' ? 'SUGGESTED STUDY CATEGORIES' : 'SUGGESTED CATEGORIES'}
-                  </Text>
-                </View>
-
-                <View style={styles.categoryGrid}>
-                  {(filterType === 'files' ? LIBRARY_CATEGORIES : GLOBAL_CATEGORIES).map((cat) => (
-                    <SearchSuggestionRow
-                      key={cat.id}
-                      label={cat.label}
-                      description={cat.description}
-                      icon={cat.icon}
-                      onPress={() => {
-                        if (cat.id === 'syllabus') {
-                          handleClose();
-                          router.push('/syllabus' as any);
-                          return;
-                        }
-                        setQuery(cat.query);
-                        setDebouncedQuery(cat.query);
-                        void saveRecentSearch(cat.query);
-                      }}
-                    />
-                  ))}
-                </View>
-              </View>
             </ScrollView>
           ) : (
             <ScrollView

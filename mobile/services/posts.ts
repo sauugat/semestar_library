@@ -1,4 +1,4 @@
-import { api, apiFetch, ApiError, getBaseUrl } from './api';
+import { api, apiFetch, ApiError, getBaseUrl, getAuthToken } from './api';
 import { LibraryFile, toggleFileLike } from './library';
 import { Advertisement } from './advertisements';
 import { normalizeUploadFile, validateFileSize, RawFileAsset } from '../utils/file-upload';
@@ -354,9 +354,10 @@ export async function uploadPostAttachment(
   file: RawFileAsset | { uri: string; name?: string; type?: string; size?: number; fileName?: string; mimeType?: string },
   onProgress?: (percent: number) => void
 ): Promise<UploadedAttachment> {
-  const assetName = (file as any).name || (file as any).fileName || `post_${Date.now()}`;
-  const assetMime = (file as any).type || (file as any).mimeType || 'application/octet-stream';
-  const assetSize = (file as any).size || (file as any).fileSize;
+  const normalized = normalizeUploadFile(file as RawFileAsset, `post_${Date.now()}`);
+  const assetName = normalized.name;
+  const assetMime = normalized.type;
+  const assetSize = normalized.size;
 
   if (assetSize && assetSize > MAX_ATTACHMENT_BYTES_PER_FILE) {
     throw new ApiError(
@@ -367,19 +368,23 @@ export async function uploadPostAttachment(
 
   const formData = new FormData();
   formData.append('file', {
-    uri: file.uri,
+    uri: normalized.uri,
     name: assetName,
     type: assetMime,
   } as any);
 
   if (typeof XMLHttpRequest !== 'undefined' && onProgress) {
-    const rawBaseUrl = await getBaseUrl();
+    const [rawBaseUrl, token] = await Promise.all([getBaseUrl(), getAuthToken()]);
     const baseUrl = (rawBaseUrl || '').replace(/\/+$/, '');
     const url = `${baseUrl}/api/posts/attachments`;
 
     return new Promise<UploadedAttachment>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', url);
+      xhr.setRequestHeader('Accept', 'application/json');
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
       if (xhr.upload) {
         xhr.upload.onprogress = (evt) => {
           if (evt.lengthComputable && evt.total > 0) {

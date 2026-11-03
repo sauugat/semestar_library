@@ -3226,6 +3226,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
           semester,
           department: uploaderDepartment,
           subject,
+          chapter,
           uploaderStudentId,
           uploaderName,
           cohortId: publishScope.cohortId,

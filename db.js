@@ -1407,10 +1407,14 @@ async function verifyStartupReady() {
     try {
       if (isPostgres && pgPool) {
         const res = await pgPool.query(
-          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl, to_regclass('public.exam_configurations') AS exam_cfg_tbl, to_regclass('public.student_marks') AS student_marks_tbl, to_regclass('public.marks_audit_logs') AS marks_audit_tbl, to_regclass('public.advertisements') AS ads_tbl"
+          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl, to_regclass('public.post_attachment_staging') AS post_staging_tbl, to_regclass('public.post_media') AS post_media_tbl, to_regclass('public.exam_configurations') AS exam_cfg_tbl, to_regclass('public.student_marks') AS student_marks_tbl, to_regclass('public.marks_audit_logs') AS marks_audit_tbl, to_regclass('public.advertisements') AS ads_tbl"
         );
         const row = res.rows && res.rows[0];
         if (row && row.students_tbl && row.posts_tbl) {
+          if (!row.post_staging_tbl || !row.post_media_tbl) {
+            const { ensurePostsSchema } = require('./lib/posts');
+            await ensurePostsSchema({ exec, run, isPostgres });
+          }
           if (!row.exam_cfg_tbl || !row.student_marks_tbl || !row.marks_audit_tbl) {
             const { ensureMarksSchema } = require('./lib/marks-service');
             await ensureMarksSchema({ exec, isPostgres });

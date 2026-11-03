@@ -4,7 +4,7 @@ import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
-import { apiFetch, isQaMode, isLocalAddress, getBaseUrl } from '@/services/api';
+import { apiFetch, isQaMode, isLocalAddress, getBaseUrl, getAuthToken } from '@/services/api';
 
 export const PUSH_TOKEN_STORAGE_KEY = 'semester_library_expo_push_token';
 
@@ -1180,6 +1180,10 @@ export function navigateToNotificationTarget(notification: InAppNotification): v
         const materialId = deepLink.replace('/material/', '');
         router.push(`/material/${materialId}` as any);
         return;
+      } else if (deepLink.startsWith('/assignments/')) {
+        const assignmentId = deepLink.replace('/assignments/', '');
+        router.push(`/assignments/${assignmentId}` as any);
+        return;
       } else if (deepLink.startsWith('/routine')) {
         router.push('/routine' as any);
         return;
@@ -1210,7 +1214,16 @@ export function navigateToNotificationTarget(notification: InAppNotification): v
     }
 
     if (entityType === 'notice' || type === 'official_notice' || type === 'notice') {
+      if (entityType === 'system' || String(entityId).startsWith('broadcast_')) {
+        router.push('/(tabs)');
+        return;
+      }
       router.push(`/notice/${entityId}` as any);
+      return;
+    }
+
+    if (entityType === 'assignment' || type === 'assignment') {
+      router.push(`/assignments/${entityId}` as any);
       return;
     }
 
@@ -1239,4 +1252,121 @@ export function navigateToNotificationTarget(notification: InAppNotification): v
     if (__DEV__) console.warn('[Notifications] Navigation error:', err);
     router.push('/(tabs)');
   }
+}
+
+export interface RealtimeNotificationEvent {
+  type: 'connected' | 'notification' | 'badge_update' | string;
+  notificationId?: string;
+  unseenCount?: number;
+  activityType?: string;
+}
+
+/**
+ * Subscribe to the live Server-Sent Events (/api/notifications/stream) channel
+ * for instant notification alerts, love/comment animations, and badge updates.
+ */
+export function subscribeToRealtimeNotifications(
+  onEvent: (event: RealtimeNotificationEvent) => void
+): () => void {
+  let closed = false;
+  let activeXhr: XMLHttpRequest | null = null;
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const connect = async () => {
+    if (closed) return;
+    try {
+      const [baseUrl, token] = await Promise.all([getBaseUrl(), getAuthToken()]);
+      if (closed || !token) return;
+
+      const url = `${(baseUrl || '').replace(/\/+$/, '')}/api/notifications/stream`;
+      const xhr = new XMLHttpRequest();
+      activeXhr = xhr;
+      let processedLen = 0;
+
+      xhr.open('GET', url, true);
+      xhr.setRequestHeader('Accept', 'text/event-stream');
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      xhr.onprogress = () => {
+        if (closed) return;
+        const text = xhr.responseText || '';
+        const chunk = text.slice(processedLen);
+        processedLen = text.length;
+
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('data:')) {
+            const jsonStr = trimmed.slice(5).trim();
+            if (!jsonStr) continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              onEvent(parsed);
+            } catch {}
+          }
+        }
+      };
+
+      const scheduleReconnect = () => {
+        if (closed) return;
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => {
+          void connect();
+        }, 4000);
+      };
+
+      xhr.onerror = scheduleReconnect;
+      xhr.onload = scheduleReconnect;
+      xhr.send();
+    } catch {
+      if (!closed) {
+        reconnectTimer = setTimeout(() => {
+          void connect();
+        }, 5000);
+      }
+    }
+  };
+
+  void connect();
+
+  return () => {
+    closed = true;
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (activeXhr) {
+      try {
+        activeXhr.abort();
+      } catch {}
+      activeXhr = null;
+    }
+  };
+}
+
+export interface AdminPushBroadcastParams {
+  title?: string;
+  body: string;
+  targetAudience?: 'all' | 'students_only' | 'teachers_only' | 'semester';
+  targetSemesters?: number[];
+  priority?: 'normal' | 'high' | 'urgent';
+  deepLink?: string;
+}
+
+export async function sendAdminPushNotification(
+  params: AdminPushBroadcastParams
+): Promise<{
+  success: boolean;
+  message: string;
+  notificationId?: string;
+  recipientCount?: number;
+  pushCount?: number;
+}> {
+  const res = await apiFetch('/api/admin/push-notification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.message || `Failed to send push notification (HTTP ${res.status})`);
+  }
+  return data;
 }

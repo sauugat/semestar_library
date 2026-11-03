@@ -382,6 +382,33 @@ router.post('/assignments', requireLogin, async (req, res) => {
         // F3: Respond immediately to caller before background indexing
         res.json({ message: 'Assignment created', id: assignmentId, questionIds });
 
+        // Push & In-App Notification for newly uploaded assignment
+        void (async () => {
+            try {
+                const { enqueueAssignmentPush, dispatchImmediateOutbox } = require('../../lib/push-notifications');
+                const enqueueRes = await enqueueAssignmentPush(db, {
+                    assignmentId,
+                    title,
+                    subject: subject || null,
+                    semester: finalSemester,
+                    uploaderStudentId: studentId,
+                    uploaderName: req.user?.name || req.session?.studentName || null,
+                    cohortId: publishScope.cohortId || null,
+                    semesterNo: publishScope.semesterNo || null,
+                    audienceScope: publishScope.audienceScope || 'cohort'
+                });
+                if (enqueueRes && enqueueRes.enqueuedCount > 0) {
+                    await dispatchImmediateOutbox(db, {
+                        eventType: 'assignment',
+                        eventId: String(assignmentId),
+                        timeoutMs: 3500
+                    });
+                }
+            } catch (notifErr) {
+                console.warn('[Assignment Notification Dispatch Warning]:', notifErr.message);
+            }
+        })();
+
         // KYANA AI 3.0 Knowledge Indexing Hook (Non-blocking via waitUntil / setImmediate)
         const assignmentSyncData = {
             id: assignmentId,

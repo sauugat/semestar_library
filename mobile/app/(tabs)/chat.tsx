@@ -45,9 +45,10 @@ import * as Clipboard from "expo-clipboard";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { StickyComposer, KeyboardContentBoundary } from "@/components/ui/StickyComposer";
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
+import { FluidChatBackground, useChatBackSwipeResponder } from "@/components/chat/FluidChatBackground";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
-import { UnifiedChatInbox } from "@/components/chat/UnifiedChatInbox";
+import { UnifiedChatInbox, type ActiveNowPerson } from "@/components/chat/UnifiedChatInbox";
 import { fetchDmStatus, fetchDmConversations, createOrGetDmConversation, type DmConversationItem as RawDmItem } from "@/services/dm";
 import { getCachedDmConversations, saveCachedDmConversations } from "@/services/dm-db";
 import {
@@ -80,6 +81,7 @@ import {
   updateCachedReaction,
   deleteCachedMessage,
   upsertChatMessages,
+  getCachedCohortPreview,
 } from "@/services/chat-db";
 
 import { useAuth } from "@/context/AuthContext";
@@ -227,6 +229,7 @@ function ChatScreenInner() {
   // Cohort state
   const [adminRooms, setAdminRooms] = useState<AdminChatRoom[]>([]);
   const [studentConfig, setStudentConfig] = useState<ChatConfig | null>(null);
+  const [studentPreview, setStudentPreview] = useState<{ latestMessage?: string | null; latestMessageAt?: string | null } | undefined>(undefined);
   const [cohortsLoading, setCohortsLoading] = useState(false);
   const [cohortsRefreshing, setCohortsRefreshing] = useState(false);
   const [cohortError, setCohortError] = useState<string | null>(null);
@@ -259,6 +262,10 @@ function ChatScreenInner() {
       } else {
         const config = await fetchChatConfig();
         setStudentConfig(config);
+        try {
+          const preview = await getCachedCohortPreview();
+          if (preview) setStudentPreview(preview);
+        } catch {}
       }
     } catch (err: any) {
       setCohortError(err?.message || "Failed to load cohort conversations.");
@@ -341,6 +348,7 @@ function ChatScreenInner() {
     setSelectedCohortRoom(null);
     setAdminRooms([]);
     setStudentConfig(null);
+    setStudentPreview(undefined);
     setDmConversations([]);
     setCohortError(null);
     setDmError(null);
@@ -377,17 +385,25 @@ function ChatScreenInner() {
       kyanaConversation: kyanaItem,
       adminRooms: (isAdmin || isTeacher) ? adminRooms : undefined,
       studentConfig: !(isAdmin || isTeacher) ? studentConfig : null,
+      studentPreview: !(isAdmin || isTeacher) ? studentPreview : undefined,
       dmConversations: dmEnabled ? dmConversations : undefined,
     });
-  }, [kyanaItem, isAdmin, isTeacher, adminRooms, studentConfig, dmEnabled, dmConversations]);
+  }, [kyanaItem, isAdmin, isTeacher, adminRooms, studentConfig, studentPreview, dmEnabled, dmConversations]);
+
+  const activePresenceGroupId = (isAdmin || isTeacher)
+    ? (selectedCohortRoom?.chatGroupId || adminRooms[0]?.chatGroupId || null)
+    : null;
+  const shouldSubscribeClassChat = (isAdmin || isTeacher)
+    ? Boolean(activePresenceGroupId && user?.studentId)
+    : Boolean(user?.studentId);
 
   const chatOptions = useMemo(
     () => ({
       onNewIncomingMessage: handleNewIncomingMessage,
       authToken: token,
-      selectedChatGroupId: (isAdmin || isTeacher) ? selectedCohortRoom?.chatGroupId : null,
+      selectedChatGroupId: activePresenceGroupId,
     }),
-    [handleNewIncomingMessage, token, isAdmin, isTeacher, selectedCohortRoom?.chatGroupId]
+    [handleNewIncomingMessage, token, activePresenceGroupId]
   );
 
   // State
@@ -410,7 +426,45 @@ function ChatScreenInner() {
     markRead,
     context,
     roomGeneration,
-  } = useClassChat(selectedCohortRoom ? user?.studentId : undefined, serverUrl, chatOptions);
+  } = useClassChat(shouldSubscribeClassChat ? user?.studentId : undefined, serverUrl, chatOptions);
+
+  // Keep student Semester Group preview live from real-time / synced messages
+  useEffect(() => {
+    if (isAdmin || isTeacher || messages.length === 0) return;
+    const newest = messages.find((m) => m.id > 0) || messages[0];
+    if (!newest) return;
+    const senderFirst = (newest.name || 'Classmate').trim().split(/\s+/)[0];
+    const body = newest.text?.trim() || newest.attachmentOriginalName || 'Shared an attachment';
+    const formatted = `${senderFirst}: ${body}`;
+    setStudentPreview((prev) => {
+      if (prev?.latestMessage === formatted && prev?.latestMessageAt === newest.createdAt) {
+        return prev;
+      }
+      return {
+        latestMessage: formatted,
+        latestMessageAt: newest.createdAt,
+      };
+    });
+  }, [isAdmin, isTeacher, messages]);
+
+  // Compute per-member talk frequency and latest message timestamp from group chat history
+  const memberTalkStats = useMemo(() => {
+    const stats: Record<string, { count: number; lastAt: number }> = {};
+    for (const msg of messages) {
+      const sid = String(msg.studentId || '');
+      if (!sid || sid === String(user?.studentId || '')) continue;
+      const epoch = msg.createdAt ? Date.parse(msg.createdAt) : 0;
+      const validEpoch = Number.isFinite(epoch) ? epoch : 0;
+      const existing = stats[sid];
+      if (existing) {
+        existing.count += 1;
+        if (validEpoch > existing.lastAt) existing.lastAt = validEpoch;
+      } else {
+        stats[sid] = { count: 1, lastAt: validEpoch };
+      }
+    }
+    return stats;
+  }, [messages, user?.studentId]);
 
   const { targetMessageId, targetChatGroupId, dmConversationId, directStudentId } = useLocalSearchParams<{
     targetMessageId?: string;
@@ -503,6 +557,51 @@ function ChatScreenInner() {
     router.push('/kyana' as any);
   }, [router]);
 
+  const openingOnlineUserRef = useRef(false);
+  const handleSelectOnlineUser = useCallback(async (person: ActiveNowPerson) => {
+    if (!person?.studentId || openingOnlineUserRef.current) return;
+    const existing = dmConversations.find(
+      (c) => String(c.participant?.studentId) === String(person.studentId)
+    );
+    if (existing?.id) {
+      router.push({
+        pathname: '/dm/[id]',
+        params: {
+          id: existing.id,
+          peerId: person.studentId,
+          peerName: existing.participant?.name || person.name,
+          peerRole: existing.participant?.role || person.role || 'student',
+          peerAvatar: existing.participant?.avatarUrl || person.avatarUrl || '',
+          peerAvatarUrl: existing.participant?.avatarUrl || person.avatarUrl || '',
+        },
+      });
+      return;
+    }
+    openingOnlineUserRef.current = true;
+    try {
+      const { conversation, conversationId } = await createOrGetDmConversation(person.studentId);
+      const convId = conversation?.id || conversationId;
+      const peer = conversation?.participant;
+      if (convId) {
+        router.push({
+          pathname: '/dm/[id]',
+          params: {
+            id: convId,
+            peerId: peer?.studentId || person.studentId,
+            peerName: peer?.name || person.name || 'Conversation',
+            peerRole: peer?.role || person.role || 'student',
+            peerAvatar: peer?.avatarUrl || person.avatarUrl || '',
+            peerAvatarUrl: peer?.avatarUrl || person.avatarUrl || '',
+          },
+        });
+      }
+    } catch (err: any) {
+      Alert.alert('Cannot Start Chat', err?.message || 'Could not open conversation.');
+    } finally {
+      openingOnlineUserRef.current = false;
+    }
+  }, [dmConversations, router]);
+
   const handleNewMessage = useCallback(() => {
     if (dmEnabled) {
       router.push('/dm/new');
@@ -517,9 +616,12 @@ function ChatScreenInner() {
   const handleBackToInbox = useCallback(() => {
     setSelectedCohortRoom(null);
   }, []);
+  const backSwipeHandlers = useChatBackSwipeResponder(handleBackToInbox, Boolean(selectedCohortRoom));
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [starredMessageIds, setStarredMessageIds] = useState<Set<number>>(new Set());
+  const [readByInspectMessage, setReadByInspectMessage] = useState<ChatMessage | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [panel, setPanel] = useState<"search" | "members" | null>(null);
   const [query, setQuery] = useState("");
@@ -782,6 +884,27 @@ function ChatScreenInner() {
     const index = messages.findIndex((m) => m.id === id);
     setPanel(null);
     if (index < 0) {
+      if (context?.chatGroupId && id > 0) {
+        const start = captureChatSession();
+        void (async () => {
+          try {
+            const fetched = await fetchExactChatMessage(context.chatGroupId, id);
+            if (!isCurrentChatSession(start)) return;
+            await upsertChatMessages([fetched]);
+            if (!isCurrentChatSession(start)) return;
+            setMessages((prev) => mergeChatMessages(prev, [fetched]));
+            setHighlightedMessageId(id);
+          } catch {
+            if (isCurrentChatSession(start)) {
+              Alert.alert(
+                "Earlier message",
+                "This message is further back in the conversation. Scroll up to load earlier messages.",
+              );
+            }
+          }
+        })();
+        return;
+      }
       Alert.alert(
         "Earlier message",
         "This message is further back in the conversation. Scroll up to load earlier messages.",
@@ -798,7 +921,7 @@ function ChatScreenInner() {
     setTimeout(() => {
       setHighlightedMessageId((cur) => (cur === id ? null : cur));
     }, 1500);
-  }, [messages]);
+  }, [messages, context?.chatGroupId, setMessages]);
 
   // Deep Link: automatically jump and highlight exact message from push notification
   const handledTargetRef = useRef<string | null>(null);
@@ -1496,6 +1619,7 @@ function ChatScreenInner() {
           downloadingFileId={downloadingFileId}
           isInitialLoadItem={isInitial}
           isHighlighted={isHighlighted}
+          isStarred={starredMessageIds.has(item.id)}
           onLongPress={handleOpenActions}
           onSwipeReply={handleSwipeReply}
           onJumpToReply={jumpToMessage}
@@ -1505,12 +1629,14 @@ function ChatScreenInner() {
           onRetry={handleRetryMessage}
           onPressAuthor={handlePressAuthor}
           onPressMention={handlePressMention}
+          onPressReadBy={(msg) => setReadByInspectMessage(msg)}
         />
       );
     },
     [
       messages,
       highlightedMessageId,
+      starredMessageIds,
       user?.studentId,
       readReceipts,
       serverUrl,
@@ -1528,6 +1654,18 @@ function ChatScreenInner() {
     ]
   );
 
+  const handleRefreshInbox = useCallback(() => {
+    void loadAll(true);
+  }, [loadAll]);
+
+  const handleRetryCohortInbox = useCallback(() => {
+    void loadCohorts(false);
+  }, [loadCohorts]);
+
+  const handleRetryDmInbox = useCallback(() => {
+    void loadDms(false);
+  }, [loadDms]);
+
   if (!selectedCohortRoom) {
     return (
       <TabSwipeContainer tabIndex={2} disabled={false}>
@@ -1541,12 +1679,19 @@ function ChatScreenInner() {
             dmError={dmError}
             dmEnabled={dmEnabled}
             isTeacher={isTeacher}
-            onRefresh={() => void loadAll(true)}
-            onRetryCohort={() => void loadCohorts(false)}
-            onRetryDm={() => void loadDms(false)}
+            onlineIds={onlineIds}
+            cohortMembers={members}
+            memberTalkStats={memberTalkStats}
+            currentUserId={user?.studentId}
+            serverUrl={serverUrl}
+            authToken={token}
+            onRefresh={handleRefreshInbox}
+            onRetryCohort={handleRetryCohortInbox}
+            onRetryDm={handleRetryDmInbox}
             onSelectCohort={handleSelectCohort}
             onSelectDm={handleSelectDm}
             onSelectKyana={handleSelectKyana}
+            onSelectOnlineUser={handleSelectOnlineUser}
             onNewMessage={handleNewMessage}
           />
         </View>
@@ -1558,6 +1703,7 @@ function ChatScreenInner() {
     <TabSwipeContainer tabIndex={2} disabled={true}>
       <View style={styles.screenContainer}>
       <StatusBar barStyle="light-content" />
+      <FluidChatBackground />
 
       {/* Header — Cohort Class Chat */}
       <View
@@ -1574,7 +1720,7 @@ function ChatScreenInner() {
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Back to inbox"
         >
-          <Ionicons name="arrow-back" size={22} color="#f5f5f5" />
+          <Ionicons name="chevron-back" size={22} color="#f5f5f5" />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -1585,19 +1731,43 @@ function ChatScreenInner() {
         >
           {/* Circular group icon */}
           <View style={styles.groupAvatarCircle}>
-            <Ionicons name="people" size={17} color="#e4e4e7" />
+            <Ionicons name="people" size={18} color="#F4F4F5" />
           </View>
 
           <View style={styles.headerTextGroup}>
-            <Text variant="md" weight="700" style={styles.headerGroupName} numberOfLines={1}>
-              {context
-                ? `${context.cohortDisplayName || (context.groupCode.charAt(0) + context.groupCode.slice(1).toLowerCase())} • ${context.cohortStatus === "graduated" ? "Graduated" : `Semester ${context.currentSemester}`}`
-                : (selectedCohortRoom?.title || "Class Chat")}
-            </Text>
-            <Text variant="xs" style={styles.headerSubtitle} numberOfLines={1}>
-              {headerSubtitle}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text variant="md" weight="700" style={styles.headerGroupName} numberOfLines={1}>
+                {context
+                  ? `${context.cohortDisplayName || (context.groupCode.charAt(0) + context.groupCode.slice(1).toLowerCase())} • ${context.cohortStatus === "graduated" ? "Graduated" : `Semester ${context.currentSemester}`}`
+                  : (selectedCohortRoom?.title || "Class Chat")}
+              </Text>
+              <Ionicons name="chevron-forward" size={14} color="#A1A1AA" style={{ marginLeft: 3 }} />
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 1 }}>
+              {isConnected && onlineIds.length > 0 && typingNames.length === 0 && !error && (
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#22C55E", marginRight: 5 }} />
+              )}
+              <Text
+                variant="xs"
+                style={[
+                  styles.headerSubtitle,
+                  typingNames.length > 0 && { color: "#22C55E", fontWeight: "600" },
+                ]}
+                numberOfLines={1}
+              >
+                {headerSubtitle}
+              </Text>
+            </View>
           </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          accessibilityLabel="View class members"
+          style={[styles.headerSearchBtn, { marginRight: 4 }]}
+          onPress={() => void openMembers()}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="people-outline" size={20} color="#f5f5f5" />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -1609,12 +1779,12 @@ function ChatScreenInner() {
           }}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="search-outline" size={21} color="#f5f5f5" />
+          <Ionicons name="search-outline" size={20} color="#f5f5f5" />
         </TouchableOpacity>
       </View>
 
-      {/* Class Chat Container */}
-      <View style={{ flex: 1 }}>
+      {/* Class Chat Container (swipe right outside bubble goes back to inbox) */}
+      <View style={{ flex: 1 }} {...backSwipeHandlers}>
 
       {/* Archived Banner */}
       {isArchived && (
@@ -1716,13 +1886,6 @@ function ChatScreenInner() {
               minIndexForVisible: 0,
               autoscrollToTopThreshold: 80,
             }}
-            onContentSizeChange={() => {
-              if (isNearBottomRef.current)
-                flatListRef.current?.scrollToOffset({
-                  offset: 0,
-                  animated: false,
-                });
-            }}
             onScrollToIndexFailed={({ index, averageItemLength }) => {
               flatListRef.current?.scrollToOffset({
                 offset: index * averageItemLength,
@@ -1798,7 +1961,7 @@ function ChatScreenInner() {
       </KeyboardContentBoundary>
 
       {/* Replying banner, Attachment Preview, and Message Composer */}
-      <StickyComposer bordered>
+      <StickyComposer bordered={false} style={{ backgroundColor: "transparent", paddingHorizontal: 0 }}>
         {isArchived ? (
           <View style={styles.archivedComposerNotice}>
             <Ionicons name="lock-closed-outline" size={18} color="#a1a1aa" style={{ marginRight: 8 }} />
@@ -1827,6 +1990,7 @@ function ChatScreenInner() {
             members={members}
             serverUrl={serverUrl}
             currentUserId={user?.studentId}
+            roomKey={context?.chatGroupId || selectedCohortRoom?.chatGroupId || "default"}
           />
         )}
       </StickyComposer>
@@ -1931,8 +2095,8 @@ function ChatScreenInner() {
                             {member.name}
                           </Text>
                           <Text style={styles.panelSecondary}>
-                            {member.role === "admin"
-                              ? "Admin"
+                            {member.username
+                              ? `@${member.username}`
                               : member.semester
                                 ? `Semester ${member.semester}`
                                 : "Class member"}
@@ -2005,17 +2169,44 @@ function ChatScreenInner() {
         busy={actionBusy}
         canPin={canPin}
         isPinned={pinned?.messageId === actionMessage?.id}
+        isStarred={Boolean(actionMessage && starredMessageIds.has(actionMessage.id))}
         isOwnerOrAdmin={Boolean(
           user?.isAdmin ||
             user?.role === "admin" ||
             String(actionMessage?.studentId) === String(user?.studentId),
         )}
+        currentUserId={user?.studentId}
         onClose={() => !actionBusy && setActionMessage(null)}
         onReact={(msg, emoji) => void handleToggleReaction(msg, emoji)}
         onReply={(msg) => {
           setReplyTo(msg);
           setActionMessage(null);
           inputRef.current?.focus();
+        }}
+        onForward={(msg) => {
+          setActionMessage(null);
+          const forwardedBody = msg.text ? `↪ Forwarded:\n${msg.text}` : `↪ Forwarded attachment: ${msg.attachmentOriginalName || msg.attachmentName || "File"}`;
+          void Clipboard.setStringAsync(forwardedBody);
+          Alert.alert(
+            "Forward Message",
+            "Choose where to forward this message (also copied to clipboard):",
+            [
+              {
+                text: "Forward to Direct Message",
+                onPress: () => router.push("/dm/new"),
+              },
+              { text: "Cancel", style: "cancel" },
+            ]
+          );
+        }}
+        onToggleStar={(msg) => {
+          setActionMessage(null);
+          setStarredMessageIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(msg.id)) next.delete(msg.id);
+            else next.add(msg.id);
+            return next;
+          });
         }}
         onCopy={(msg) => {
           if (msg.text) {
@@ -2026,6 +2217,62 @@ function ChatScreenInner() {
         onPin={(msg) => void handleTogglePin(msg)}
         onDelete={(msg) => handleDeleteMessage(msg)}
       />
+
+      {/* Seen By / Who-Read Modal for Group Messages (Item 17) */}
+      <Modal
+        visible={Boolean(readByInspectMessage)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReadByInspectMessage(null)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setReadByInspectMessage(null)}
+        >
+          <View
+            style={[
+              styles.attachSheetContainer,
+              { paddingBottom: Math.max(insets.bottom, 20), maxHeight: 380 },
+            ]}
+          >
+            <Text variant="md" weight="700" style={{ color: "#f5f5f5", marginBottom: 10 }}>
+              Seen by
+            </Text>
+            <ScrollView style={{ maxHeight: 280 }}>
+              {readByInspectMessage &&
+                readReceipts
+                  .filter(
+                    (r) =>
+                      String(r.studentId) !== String(user?.studentId) &&
+                      r.lastReadMessageId >= readByInspectMessage.id
+                  )
+                  .map((r) => {
+                    const matchedMember = members.find(
+                      (m) => String(m.studentId) === String(r.studentId)
+                    );
+                    const displayName = matchedMember?.name || (r as any).name || `Member ${r.studentId}`;
+                    return (
+                      <View
+                        key={r.studentId}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          paddingVertical: 10,
+                          borderBottomWidth: StyleSheet.hairlineWidth,
+                          borderBottomColor: "#27272a",
+                        }}
+                      >
+                        <Ionicons name="checkmark-done" size={16} color="#22c55e" style={{ marginRight: 10 }} />
+                        <Text variant="sm" weight="600" style={{ color: "#f4f4f5", flex: 1 }}>
+                          {displayName}
+                        </Text>
+                      </View>
+                    );
+                  })}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Attachment Action Sheet (Rendered in-tree to prevent Android native Dialog window conflicts) */}
       {showAttachModal && (
@@ -2151,15 +2398,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
     paddingBottom: 10,
-    backgroundColor: "#101010",
+    // Base tokens: backgroundColor: "#101010", borderBottomColor: "#282828"
+    backgroundColor: "rgba(10, 10, 14, 0.38)",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#282828",
+    borderBottomColor: "rgba(255, 255, 255, 0.06)",
   },
   headerBackBtn: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(32, 32, 38, 0.72)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255, 255, 255, 0.16)",
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 6,
   },
   headerTitleContainer: {
     flex: 1,
@@ -2172,9 +2425,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#1C1C1C",
+    backgroundColor: "rgba(32, 32, 38, 0.78)",
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#282828",
+    borderColor: "rgba(255, 255, 255, 0.16)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
@@ -2186,6 +2439,7 @@ const styles = StyleSheet.create({
   headerGroupName: {
     color: "#f5f5f5",
     fontSize: 15,
+    flexShrink: 1,
   },
   headerSubtitle: {
     color: "#a1a1aa",
@@ -2193,8 +2447,12 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   headerSearchBtn: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(32, 32, 38, 0.72)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255, 255, 255, 0.16)",
     alignItems: "center",
     justifyContent: "center",
   },

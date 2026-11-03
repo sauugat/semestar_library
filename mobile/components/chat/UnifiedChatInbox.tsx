@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   StyleSheet,
   FlatList,
+  ScrollView,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
@@ -14,6 +15,8 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/Typography';
 import { Monochrome } from '@/constants/theme';
+import { DEFAULT_SERVER_URL } from '@/services/api';
+import type { ChatMember } from '@/services/chat';
 import {
   type UnifiedConversationItem,
   type CohortConversationItem,
@@ -23,7 +26,19 @@ import {
   filterUnifiedConversations,
   searchUnifiedConversations,
   sortUnifiedConversations,
+  partitionInboxSections,
 } from '@/services/unified-inbox';
+
+export interface ActiveNowPerson {
+  studentId: string;
+  name: string;
+  username?: string | null;
+  avatarUrl?: string | null;
+  role?: string;
+  isOnline?: boolean;
+  talkScore?: number;
+  lastActiveEpoch?: number;
+}
 
 function getInitials(name?: string): string {
   if (!name) return '?';
@@ -32,12 +47,41 @@ function getInitials(name?: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function getFirstName(name?: string): string {
+  if (!name) return 'Student';
+  const trimmed = name.trim();
+  if (!trimmed) return 'Student';
+  return trimmed.split(/\s+/)[0];
+}
+
+function resolveAvatarUri(rawUrl?: string | null, serverUrl?: string, studentId?: string | null): string | null {
+  const base = (serverUrl || DEFAULT_SERVER_URL || '').replace(/\/+$/, '');
+  if (rawUrl && typeof rawUrl === 'string') {
+    const trimmed = rawUrl.trim();
+    if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') {
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('file://') || trimmed.startsWith('data:')) {
+        return trimmed;
+      }
+      if (base) {
+        return `${base}/${trimmed.replace(/^\/+/, '')}`;
+      }
+    }
+  }
+  if (studentId && typeof studentId === 'string' && studentId.trim() && base) {
+    return `${base}/api/avatar/student/${encodeURIComponent(studentId.trim())}`;
+  }
+  return null;
+}
+
+const SHORT_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 function formatRelativeTime(iso?: string | null): string {
   if (!iso) return '';
   const date = new Date(iso);
   if (isNaN(date.getTime())) return '';
   const now = new Date();
-  const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const diffSec = Math.max(0, Math.floor((now.getTime() - date.getTime()) / 1000));
   const diffMin = Math.floor(diffSec / 60);
   const diffHours = Math.floor(diffMin / 60);
   const diffDays = Math.floor(diffHours / 24);
@@ -45,9 +89,8 @@ function formatRelativeTime(iso?: string | null): string {
   if (diffMin < 1) return 'now';
   if (diffMin < 60) return `${diffMin}m`;
   if (diffHours < 24) return `${diffHours}h`;
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return `${diffDays}d`;
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  if (diffDays < 7) return SHORT_DAYS[date.getDay()];
+  return `${date.getDate()} ${SHORT_MONTHS[date.getMonth()]}`;
 }
 
 const COHORT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -57,6 +100,120 @@ const COHORT_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   mars: 'flame-outline',
 };
 
+type InboxListEntry =
+  | { entryKey: 'header:pinned'; entryType: 'section_header'; title: 'PINNED' }
+  | { entryKey: 'header:messages'; entryType: 'section_header'; title: 'MESSAGES' }
+  | { entryKey: string; entryType: 'item'; item: UnifiedConversationItem };
+
+function AvatarWithFallback({
+  uri,
+  name,
+  size = 54,
+  headers,
+  preferSilhouette = false,
+}: {
+  uri: string | null;
+  name: string;
+  size?: number;
+  headers?: Record<string, string>;
+  preferSilhouette?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  const radius = size / 2;
+
+  useEffect(() => {
+    setFailed(false);
+  }, [uri]);
+
+  if (uri && !failed) {
+    return (
+      <Image
+        source={{ uri, headers, cacheKey: uri }}
+        cachePolicy="memory-disk"
+        transition={0}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: radius,
+          backgroundColor: '#18181B',
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: '#27272A',
+        }}
+        contentFit="cover"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  if (preferSilhouette) {
+    return (
+      <View
+        style={[
+          styles.silhouetteAvatar,
+          { width: size, height: size, borderRadius: radius },
+        ]}
+      >
+        <Ionicons name="person" size={Math.round(size * 0.5)} color="#E4E4E7" />
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.dmAvatarFallback,
+        { width: size, height: size, borderRadius: radius },
+      ]}
+    >
+      <Text style={[styles.dmAvatarInitialText, { fontSize: Math.max(13, Math.round(size * 0.32)) }]}>
+        {getInitials(name)}
+      </Text>
+    </View>
+  );
+}
+
+function SemesterGroupAvatar({
+  cohortItem,
+  collageUris,
+  headers,
+}: {
+  cohortItem: CohortConversationItem;
+  collageUris: string[];
+  headers?: Record<string, string>;
+}) {
+  const slot = (cohortItem.groupCode || '').toLowerCase();
+  const iconName = COHORT_ICONS[slot] || 'planet-outline';
+
+  return (
+    <View style={styles.groupAvatarWrapper}>
+      {collageUris.length >= 2 ? (
+        <View style={styles.collageCircle}>
+          {[0, 1, 2, 3].map((idx) => {
+            const uri = collageUris[idx % collageUris.length];
+            return (
+              <View key={idx} style={styles.collageQuadrant}>
+                <Image
+                  source={{ uri, headers, cacheKey: uri }}
+                  cachePolicy="memory-disk"
+                  style={styles.collageImage}
+                  contentFit="cover"
+                />
+              </View>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.cohortAvatar}>
+          <Ionicons name={iconName} size={22} color={Monochrome.cohortAvatarIcon} />
+        </View>
+      )}
+      <View style={styles.groupBadgeOverlay}>
+        <Ionicons name="people" size={11} color="#F4F4F5" />
+      </View>
+    </View>
+  );
+}
+
 export interface UnifiedChatInboxProps {
   items: UnifiedConversationItem[];
   loading: boolean;
@@ -65,12 +222,19 @@ export interface UnifiedChatInboxProps {
   dmError?: string | null;
   dmEnabled: boolean;
   isTeacher?: boolean;
+  onlineIds?: string[];
+  cohortMembers?: ChatMember[];
+  memberTalkStats?: Record<string, { count: number; lastAt: number }>;
+  currentUserId?: string;
+  serverUrl?: string;
+  authToken?: string | null;
   onRefresh: () => void;
   onRetryCohort?: () => void;
   onRetryDm?: () => void;
   onSelectCohort: (item: CohortConversationItem) => void;
   onSelectDm: (item: DmConversationItem) => void;
   onSelectKyana?: () => void;
+  onSelectOnlineUser?: (person: ActiveNowPerson) => void;
   onNewMessage: () => void;
 }
 
@@ -82,41 +246,235 @@ export function UnifiedChatInbox({
   dmError,
   dmEnabled,
   isTeacher = false,
+  onlineIds = [],
+  cohortMembers = [],
+  memberTalkStats = {},
+  currentUserId,
+  serverUrl,
+  authToken,
   onRefresh,
   onRetryCohort,
   onRetryDm,
   onSelectCohort,
   onSelectDm,
   onSelectKyana,
+  onSelectOnlineUser,
   onNewMessage,
 }: UnifiedChatInboxProps) {
   const insets = useSafeAreaInsets();
   const [activeFilter, setActiveFilter] = useState<InboxFilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 1. Sort deterministically by activity recency
-  const sortedItems = useMemo(() => sortUnifiedConversations(items), [items]);
+  const imageHeaders = useMemo(
+    () => (authToken ? { Authorization: `Bearer ${authToken}` } : undefined),
+    [authToken]
+  );
 
-  // 2. Filter by tab ('all' | 'unread' | 'groups')
+  // Stable online IDs signature so Active Now never remounts or blinks when array reference changes
+  const onlineIdsSignature = useMemo(
+    () =>
+      onlineIds
+        .map((id) => (id ? String(id).trim() : ''))
+        .filter(Boolean)
+        .sort()
+        .join(','),
+    [onlineIds]
+  );
+
+  // Set of currently online student IDs from real-time presence
+  const onlineSet = useMemo(() => {
+    const set = new Set<string>();
+    if (!onlineIdsSignature) return set;
+    for (const id of onlineIdsSignature.split(',')) {
+      if (id) set.add(id);
+    }
+    return set;
+  }, [onlineIdsSignature]);
+
+  // Always show classmate/peer avatars in the horizontal circle row:
+  // - Online users appear in front with the green online dot
+  // - Offline users (and ties among online users) are ordered by who talks more (highest message/DM activity & recency)
+  const carouselClassmates = useMemo(() => {
+    const byId = new Map<string, ActiveNowPerson>();
+
+    // Index DM activity per peer
+    const dmStatsByPeer = new Map<string, { dmBonus: number; lastDmEpoch: number; item: DmConversationItem }>();
+    items.forEach((item, index) => {
+      if (item.type !== 'dm') return;
+      const peerId = String(item.peerId || '');
+      if (!peerId || peerId === String(currentUserId || '')) return;
+      const dmEpoch = item.timestamp ? Date.parse(item.timestamp) : 0;
+      const recencyRankBonus = Math.max(1, 50 - index);
+      const dmBonus = (item.subtitle ? 25 : 10) + (item.unreadCount || 0) * 5 + recencyRankBonus;
+      dmStatsByPeer.set(peerId, {
+        dmBonus,
+        lastDmEpoch: Number.isFinite(dmEpoch) ? dmEpoch : 0,
+        item,
+      });
+    });
+
+    // 1. Add all authorized semester cohort members
+    for (const member of cohortMembers) {
+      const id = String(member.studentId || '');
+      if (!id || id === String(currentUserId || '') || byId.has(id)) continue;
+      const groupStat = memberTalkStats[id];
+      const dmStat = dmStatsByPeer.get(id);
+      const isOnline = onlineSet.has(id);
+      const talkScore = (groupStat?.count || 0) * 3 + (dmStat?.dmBonus || 0);
+      const lastActiveEpoch = Math.max(groupStat?.lastAt || 0, dmStat?.lastDmEpoch || 0);
+      byId.set(id, {
+        studentId: id,
+        name: member.name || dmStat?.item.title || 'Student',
+        username: member.username || dmStat?.item.peerUsername || null,
+        avatarUrl: member.avatarUrl || dmStat?.item.peerAvatarUrl || null,
+        role: member.role || dmStat?.item.peerRole || 'student',
+        isOnline,
+        talkScore,
+        lastActiveEpoch,
+      });
+    }
+
+    // 2. Also include any DM conversation peers not already in cohortMembers
+    for (const [peerId, dmStat] of dmStatsByPeer.entries()) {
+      if (byId.has(peerId)) continue;
+      const groupStat = memberTalkStats[peerId];
+      const isOnline = onlineSet.has(peerId);
+      const talkScore = (groupStat?.count || 0) * 3 + dmStat.dmBonus;
+      const lastActiveEpoch = Math.max(groupStat?.lastAt || 0, dmStat.lastDmEpoch);
+      byId.set(peerId, {
+        studentId: peerId,
+        name: dmStat.item.title,
+        username: dmStat.item.peerUsername,
+        avatarUrl: dmStat.item.peerAvatarUrl,
+        role: dmStat.item.peerRole,
+        isOnline,
+        talkScore,
+        lastActiveEpoch,
+      });
+    }
+
+    return Array.from(byId.values()).sort((a, b) => {
+      // 1. Online people always in front
+      if (Boolean(a.isOnline) !== Boolean(b.isOnline)) {
+        return a.isOnline ? -1 : 1;
+      }
+      // 2. Person who talks more comes first
+      const scoreDiff = (b.talkScore || 0) - (a.talkScore || 0);
+      if (scoreDiff !== 0) return scoreDiff;
+      // 3. More recent message activity
+      const timeDiff = (b.lastActiveEpoch || 0) - (a.lastActiveEpoch || 0);
+      if (timeDiff !== 0) return timeDiff;
+      // 4. Alphabetical fallback
+      return a.name.localeCompare(b.name);
+    });
+  }, [cohortMembers, items, currentUserId, memberTalkStats, onlineSet]);
+
+  const onlineCount = useMemo(
+    () => carouselClassmates.filter((p) => p.isOnline).length,
+    [carouselClassmates]
+  );
+
+  // Member avatar URLs for the Semester Group 2x2 collage avatar
+  const collageUris = useMemo(() => {
+    const uris: string[] = [];
+    const seen = new Set<string>();
+    for (const member of cohortMembers) {
+      const resolved = resolveAvatarUri(member.avatarUrl, serverUrl);
+      if (resolved && !seen.has(resolved)) {
+        seen.add(resolved);
+        uris.push(resolved);
+        if (uris.length >= 4) break;
+      }
+    }
+    if (uris.length < 4) {
+      for (const item of items) {
+        if (item.type === 'dm' && item.peerAvatarUrl) {
+          const resolved = resolveAvatarUri(item.peerAvatarUrl, serverUrl);
+          if (resolved && !seen.has(resolved)) {
+            seen.add(resolved);
+            uris.push(resolved);
+            if (uris.length >= 4) break;
+          }
+        }
+      }
+    }
+    return uris;
+  }, [cohortMembers, items, serverUrl]);
+
+  // Count how many cohort items exist (1 for students, multiple for admins)
+  const totalCohortCount = useMemo(
+    () => items.filter((i) => i.type === 'cohort').length,
+    [items]
+  );
+
+  // Preserve pure helpers for test compatibility & deterministic ordering
+  const sortedItems = useMemo(() => sortUnifiedConversations(items), [items]);
   const filteredItems = useMemo(
     () => filterUnifiedConversations(sortedItems, activeFilter),
     [sortedItems, activeFilter]
   );
-
-  // 3. Filter by search query
   const displayedItems = useMemo(
     () => searchUnifiedConversations(filteredItems, searchQuery),
     [filteredItems, searchQuery]
   );
 
-  // Compute unread totals
-  const totalUnread = useMemo(
-    () => items.reduce((sum, item) => sum + (item.unreadCount || 0), 0),
-    [items]
+  // Partition into PINNED (Kyana AI + Semester Group) and MESSAGES (individual DMs only)
+  const { pinned: pinnedItems, messages: messageItems } = useMemo(
+    () => partitionInboxSections(items, activeFilter, searchQuery),
+    [items, activeFilter, searchQuery]
   );
 
-  const renderItem = useCallback(
-    ({ item }: { item: UnifiedConversationItem }) => {
+  // Flatten into sectioned list entries for FlatList
+  const listEntries = useMemo<InboxListEntry[]>(() => {
+    const entries: InboxListEntry[] = [];
+    if (pinnedItems.length > 0) {
+      entries.push({
+        entryKey: 'header:pinned',
+        entryType: 'section_header',
+        title: 'PINNED',
+      });
+      for (const item of pinnedItems) {
+        entries.push({
+          entryKey: `pinned:${item.key}`,
+          entryType: 'item',
+          item,
+        });
+      }
+    }
+    if (messageItems.length > 0) {
+      entries.push({
+        entryKey: 'header:messages',
+        entryType: 'section_header',
+        title: 'MESSAGES',
+      });
+      for (const item of messageItems) {
+        entries.push({
+          entryKey: item.key,
+          entryType: 'item',
+          item,
+        });
+      }
+    }
+    return entries;
+  }, [pinnedItems, messageItems]);
+
+  const renderEntry = useCallback(
+    ({ item: entry }: { item: InboxListEntry }) => {
+      if (entry.entryType === 'section_header') {
+        return (
+          <View
+            style={[
+              styles.sectionHeaderRow,
+              entry.title === 'MESSAGES' && styles.sectionHeaderMessages,
+            ]}
+          >
+            <Text style={styles.sectionHeaderText}>{entry.title}</Text>
+          </View>
+        );
+      }
+
+      const { item } = entry;
+
       // 0. Render Kyana AI pinned assistant row
       if (item.type === 'kyana') {
         const kyanaItem = item as KyanaConversationItem;
@@ -149,17 +507,14 @@ export function UnifiedChatInbox({
                   <Text variant="md" weight="600" style={styles.itemTitle} numberOfLines={1}>
                     {kyanaItem.title}
                   </Text>
-                  <View style={styles.aiBadge}>
-                    <Text style={styles.aiBadgeText}>AI</Text>
-                  </View>
                 </View>
                 <View style={styles.headerRightContainer}>
-                  <Ionicons name="pin" size={13} color="#71717A" style={styles.pinIcon} />
                   {time ? (
                     <Text variant="xs" style={styles.itemTime}>
                       {time}
                     </Text>
                   ) : null}
+                  <Ionicons name="pin" size={13} color="#8E8E93" style={styles.pinIcon} />
                 </View>
               </View>
 
@@ -177,13 +532,15 @@ export function UnifiedChatInbox({
         );
       }
 
-      const isCohort = item.type === 'cohort';
-
-      if (isCohort) {
+      // 1. Render Pinned Semester Group / Cohort Row
+      if (item.type === 'cohort') {
         const cohortItem = item as CohortConversationItem;
-        const slot = (cohortItem.groupCode || '').toLowerCase();
-        const iconName = COHORT_ICONS[slot] || 'planet-outline';
         const time = formatRelativeTime(cohortItem.timestamp);
+        const hasUnread = (cohortItem.unreadCount || 0) > 0;
+        const displayTitle =
+          !isTeacher && totalCohortCount === 1
+            ? 'Semester Group'
+            : cohortItem.title;
 
         return (
           <Pressable
@@ -193,37 +550,46 @@ export function UnifiedChatInbox({
             ]}
             onPress={() => onSelectCohort(cohortItem)}
             accessibilityRole="button"
-            accessibilityLabel={`${cohortItem.title} class cohort`}
+            accessibilityLabel={`${displayTitle} class cohort`}
           >
-            {/* Charcoal monochrome cohort avatar */}
-            <View style={styles.cohortAvatar}>
-              <Ionicons name={iconName} size={20} color={Monochrome.cohortAvatarIcon} />
-            </View>
+            <SemesterGroupAvatar
+              cohortItem={cohortItem}
+              collageUris={collageUris}
+              headers={imageHeaders}
+            />
 
             {/* Conversation Details */}
             <View style={styles.itemContent}>
               <View style={styles.itemHeaderRow}>
                 <View style={styles.titleWithBadge}>
-                  <Text variant="md" weight="600" style={styles.itemTitle} numberOfLines={1}>
-                    {cohortItem.title}
+                  <Text
+                    variant="md"
+                    weight={hasUnread ? '700' : '600'}
+                    style={[styles.itemTitle, hasUnread && styles.itemTitleUnread]}
+                    numberOfLines={1}
+                  >
+                    {displayTitle}
                   </Text>
                 </View>
-                {time ? (
-                  <Text variant="xs" style={styles.itemTime}>
-                    {time}
-                  </Text>
-                ) : null}
+                <View style={styles.headerRightContainer}>
+                  {time ? (
+                    <Text variant="xs" style={styles.itemTime}>
+                      {time}
+                    </Text>
+                  ) : null}
+                  <Ionicons name="pin" size={13} color="#8E8E93" style={styles.pinIcon} />
+                </View>
               </View>
 
               <View style={styles.itemFooterRow}>
                 <Text
                   variant="sm"
-                  style={[styles.itemSubtitle, (cohortItem.unreadCount || 0) > 0 && styles.itemSubtitleUnread]}
+                  style={[styles.itemSubtitle, hasUnread && styles.itemSubtitleUnread]}
                   numberOfLines={1}
                 >
                   {cohortItem.subtitle || 'Class conversation'}
                 </Text>
-                {(cohortItem.unreadCount || 0) > 0 && (
+                {hasUnread && (
                   <View style={styles.unreadBadge}>
                     <Text variant="xs" weight="700" style={styles.unreadBadgeText}>
                       {cohortItem.unreadCount}
@@ -236,10 +602,28 @@ export function UnifiedChatInbox({
         );
       }
 
-      // DM Conversation Item
+      // 2. Render Individual DM Conversation Item in MESSAGES
       const dmItem = item as DmConversationItem;
       const time = formatRelativeTime(dmItem.timestamp);
-      const isPeerSpecial = dmItem.peerRole === 'admin' || dmItem.peerRole === 'teacher';
+      const isOnline = onlineSet.has(String(dmItem.peerId));
+      const hasUnread = dmItem.unreadCount > 0;
+      const matchedMember = cohortMembers.find((m) => String(m.studentId) === String(dmItem.peerId));
+      const avatarUri = resolveAvatarUri(
+        dmItem.peerAvatarUrl || matchedMember?.avatarUrl,
+        serverUrl,
+        dmItem.peerId
+      );
+
+      let previewText = dmItem.subtitle || 'Direct message';
+      if (
+        dmItem.subtitle &&
+        dmItem.lastMessageSenderId &&
+        currentUserId &&
+        String(dmItem.lastMessageSenderId) === String(currentUserId) &&
+        !dmItem.subtitle.startsWith('You: ')
+      ) {
+        previewText = `You: ${dmItem.subtitle}`;
+      }
 
       return (
         <Pressable
@@ -251,41 +635,38 @@ export function UnifiedChatInbox({
           accessibilityRole="button"
           accessibilityLabel={`Conversation with ${dmItem.title}`}
         >
-          {/* User Avatar */}
+          {/* User Avatar + Online Presence Indicator */}
           <View style={styles.dmAvatarContainer}>
-            {dmItem.peerAvatarUrl ? (
-              <Image source={{ uri: dmItem.peerAvatarUrl }} style={styles.dmAvatarImage} />
-            ) : (
-              <View style={styles.dmAvatarFallback}>
-                <Text style={styles.dmAvatarInitialText}>
-                  {getInitials(dmItem.title)}
-                </Text>
-              </View>
-            )}
-            {dmItem.isBlocked && (
+            <AvatarWithFallback
+              uri={avatarUri}
+              name={dmItem.title}
+              size={54}
+              headers={imageHeaders}
+            />
+            {dmItem.isBlocked ? (
               <View style={styles.blockedBadge}>
                 <Ionicons name="ban" size={10} color={Monochrome.textTertiary} />
               </View>
-            )}
+            ) : isOnline ? (
+              <View style={styles.onlineDotAvatar} />
+            ) : null}
           </View>
 
           {/* Conversation Details */}
           <View style={styles.itemContent}>
             <View style={styles.itemHeaderRow}>
               <View style={styles.titleWithBadge}>
-                <Text variant="md" weight="600" style={styles.itemTitle} numberOfLines={1}>
+                <Text
+                  variant="md"
+                  weight={hasUnread ? '700' : '600'}
+                  style={[styles.itemTitle, hasUnread && styles.itemTitleUnread]}
+                  numberOfLines={1}
+                >
                   {dmItem.title}
                 </Text>
-                {isPeerSpecial && (
-                  <View style={styles.roleChip}>
-                    <Text style={styles.roleChipText}>
-                      {dmItem.peerRole.toLowerCase()}
-                    </Text>
-                  </View>
-                )}
               </View>
               {time ? (
-                <Text variant="xs" style={styles.itemTime}>
+                <Text variant="xs" style={[styles.itemTime, hasUnread && styles.itemTimeUnread]}>
                   {time}
                 </Text>
               ) : null}
@@ -294,12 +675,12 @@ export function UnifiedChatInbox({
             <View style={styles.itemFooterRow}>
               <Text
                 variant="sm"
-                style={[styles.itemSubtitle, dmItem.unreadCount > 0 && styles.itemSubtitleUnread]}
+                style={[styles.itemSubtitle, hasUnread && styles.itemSubtitleUnread]}
                 numberOfLines={1}
               >
-                {dmItem.subtitle || 'Direct message'}
+                {previewText}
               </Text>
-              {dmItem.unreadCount > 0 && (
+              {hasUnread && (
                 <View style={styles.unreadBadge}>
                   <Text variant="xs" weight="700" style={styles.unreadBadgeText}>
                     {dmItem.unreadCount}
@@ -311,8 +692,96 @@ export function UnifiedChatInbox({
         </Pressable>
       );
     },
-    [onSelectCohort, onSelectDm]
+    [
+      onSelectKyana,
+      onSelectCohort,
+      onSelectDm,
+      isTeacher,
+      totalCohortCount,
+      collageUris,
+      imageHeaders,
+      onlineSet,
+      cohortMembers,
+      serverUrl,
+      currentUserId,
+    ]
   );
+
+  // Memoized React element (NOT a component function) so FlatList reconciles in-place
+  // without unmounting the horizontal ScrollView or snapping scroll position back to top.
+  const listHeaderElement = useMemo(() => {
+    if (carouselClassmates.length === 0 || searchQuery.trim().length > 0) {
+      return undefined;
+    }
+
+    return (
+      <View style={styles.activeNowSection}>
+        <View style={styles.activeNowHeader}>
+          <View style={styles.activeNowTitleRow}>
+            <View
+              style={[
+                styles.activeNowHeaderDot,
+                onlineCount === 0 && { backgroundColor: '#52525B' },
+              ]}
+            />
+            <Text style={styles.activeNowTitle}>Active now</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.activeNowCountBtn}
+            onPress={onNewMessage}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${onlineCount} classmates online`}
+          >
+            <Text style={styles.activeNowCountText}>
+              {onlineCount} online
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color="#8E8E93" />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          horizontal
+          nestedScrollEnabled
+          directionalLockEnabled
+          scrollEventThrottle={16}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.activeNowScrollContent}
+        >
+          {carouselClassmates.map((person) => {
+            const uri = resolveAvatarUri(person.avatarUrl, serverUrl, person.studentId);
+            return (
+              <TouchableOpacity
+                key={person.studentId}
+                style={styles.activeNowItem}
+                activeOpacity={0.85}
+                onPress={() => onSelectOnlineUser?.(person)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  person.isOnline
+                    ? `Message ${person.name}, online now`
+                    : `Message ${person.name}`
+                }
+              >
+                <View style={styles.activeNowAvatarWrap}>
+                  <AvatarWithFallback
+                    uri={uri}
+                    name={person.name}
+                    size={58}
+                    headers={imageHeaders}
+                  />
+                  {person.isOnline && <View style={styles.activeNowOnlineDot} />}
+                </View>
+                <Text style={styles.activeNowName} numberOfLines={1}>
+                  {getFirstName(person.name)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  }, [carouselClassmates, onlineCount, searchQuery, onNewMessage, serverUrl, imageHeaders, onSelectOnlineUser]);
 
   // Full Screen Error (if cohort loading fails and no items available)
   const isFatalError = !loading && items.length === 0 && Boolean(cohortError || (dmEnabled && dmError));
@@ -335,53 +804,55 @@ export function UnifiedChatInbox({
     );
   }
 
+  const hasAnyVisibleRows = listEntries.length > 0 && displayedItems.length >= 0;
+
   return (
     <View style={styles.container}>
-      {/* Top Header Row with Minimalist Title and Outline New Message Action */}
-      <View style={[styles.inboxHeader, { paddingTop: insets.top + 14 }]}>
+      {/* Top Header Row: Large Chats Title and Rounded-Square Compose Button */}
+      <View style={[styles.inboxHeader, { paddingTop: Math.max(insets.top + 6, 16) }]}>
         <Text style={styles.inboxTitle}>
           Chats
         </Text>
 
-        {dmEnabled && (
-          <TouchableOpacity
-            style={styles.newChatBtn}
-            onPress={onNewMessage}
-            accessibilityRole="button"
-            accessibilityLabel="Start new conversation"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="create-outline" size={20} color={Monochrome.textPrimary} />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={styles.newChatBtn}
+          onPress={onNewMessage}
+          accessibilityRole="button"
+          accessibilityLabel="Start new conversation"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="create-outline" size={21} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
 
-      {/* Compact Monochrome Search Bar */}
+      {/* Full-Width Rounded Search Field (~50px height) */}
       <View style={styles.searchBar}>
-        <Ionicons name="search" size={15} color={Monochrome.textTertiary} style={{ marginRight: 8 }} />
+        <Ionicons name="search" size={18} color="#8E8E93" style={{ marginRight: 10 }} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search conversations..."
-          placeholderTextColor={Monochrome.textTertiary}
+          placeholderTextColor="#8E8E93"
           value={searchQuery}
           onChangeText={setSearchQuery}
           returnKeyType="search"
           clearButtonMode="while-editing"
           autoCorrect={false}
           autoCapitalize="none"
+          keyboardAppearance="dark"
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="close-circle" size={15} color={Monochrome.textTertiary} />
+            <Ionicons name="close-circle" size={17} color="#8E8E93" />
           </TouchableOpacity>
         )}
       </View>
 
-      {/* Understated Filter Controls: All, Unread, Groups */}
+      {/* Compact Pill Filter Controls: All, Unread, Groups */}
       <View style={styles.filterRow}>
         <TouchableOpacity
           style={[styles.filterChip, activeFilter === 'all' ? styles.filterChipActive : styles.filterChipInactive]}
           onPress={() => setActiveFilter('all')}
+          activeOpacity={0.75}
         >
           <Text style={[styles.filterChipText, activeFilter === 'all' && styles.filterChipTextActive]}>
             All
@@ -391,22 +862,17 @@ export function UnifiedChatInbox({
         <TouchableOpacity
           style={[styles.filterChip, activeFilter === 'unread' ? styles.filterChipActive : styles.filterChipInactive]}
           onPress={() => setActiveFilter('unread')}
+          activeOpacity={0.75}
         >
           <Text style={[styles.filterChipText, activeFilter === 'unread' && styles.filterChipTextActive]}>
             Unread
           </Text>
-          {totalUnread > 0 && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>
-                {totalUnread}
-              </Text>
-            </View>
-          )}
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.filterChip, activeFilter === 'groups' ? styles.filterChipActive : styles.filterChipInactive]}
           onPress={() => setActiveFilter('groups')}
+          activeOpacity={0.75}
         >
           <Text style={[styles.filterChipText, activeFilter === 'groups' && styles.filterChipTextActive]}>
             Groups
@@ -447,54 +913,59 @@ export function UnifiedChatInbox({
         </View>
       )}
 
-      {/* Continuous Conversation List */}
+      {/* Sectioned Conversation List (Active Now + PINNED + MESSAGES) */}
       {loading && items.length === 0 ? (
         <View style={styles.centerLoadingContainer}>
           <ActivityIndicator size="large" color={Monochrome.textPrimary} />
         </View>
-      ) : displayedItems.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons
-            name={
-              searchQuery
-                ? 'search-outline'
+      ) : !hasAnyVisibleRows ? (
+        <View style={{ flex: 1 }}>
+          {listHeaderElement}
+          <View style={styles.emptyContainer}>
+            <Ionicons
+              name={
+                searchQuery
+                  ? 'search-outline'
+                  : isTeacher
+                  ? 'school-outline'
+                  : activeFilter === 'unread'
+                  ? 'mail-open-outline'
+                  : 'chatbubbles-outline'
+              }
+              size={40}
+              color={Monochrome.textTertiary}
+            />
+            <Text style={styles.emptyTitle}>
+              {searchQuery
+                ? 'No matching conversations'
                 : isTeacher
-                ? 'school-outline'
+                ? 'Faculty Communications'
                 : activeFilter === 'unread'
-                ? 'mail-open-outline'
-                : 'chatbubbles-outline'
-            }
-            size={40}
-            color={Monochrome.textTertiary}
-          />
-          <Text style={styles.emptyTitle}>
-            {searchQuery
-              ? 'No matching conversations'
-              : isTeacher
-              ? 'Faculty Communications'
-              : activeFilter === 'unread'
-              ? 'No unread messages'
-              : activeFilter === 'groups'
-              ? 'No class groups found'
-              : 'No conversations yet'}
-          </Text>
-          <Text style={styles.emptySubtitle}>
-            {searchQuery
-              ? `No chats found for "${searchQuery}"`
-              : isTeacher
-              ? 'Cohort group chats are restricted to enrolled student sections. Direct messages will appear here when initiated.'
-              : activeFilter === 'unread'
-              ? 'You are all caught up.'
-              : dmEnabled
-              ? 'Start a direct message with a classmate or check back for class announcements.'
-              : 'Your class announcements and cohort discussions will appear here.'}
-          </Text>
+                ? 'No unread messages'
+                : activeFilter === 'groups'
+                ? 'No class groups found'
+                : 'No conversations yet'}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {searchQuery
+                ? `No chats found for "${searchQuery}"`
+                : isTeacher
+                ? 'Cohort group chats are restricted to enrolled student sections. Direct messages will appear here when initiated.'
+                : activeFilter === 'unread'
+                ? 'You are all caught up.'
+                : dmEnabled
+                ? 'Start a direct message with a classmate or check back for class announcements.'
+                : 'Your class announcements and cohort discussions will appear here.'}
+            </Text>
+          </View>
         </View>
       ) : (
         <FlatList
-          data={displayedItems}
-          keyExtractor={(item) => item.key}
-          renderItem={renderItem}
+          data={listEntries}
+          keyExtractor={(entry) => entry.entryKey}
+          renderItem={renderEntry}
+          ListHeaderComponent={listHeaderElement}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -505,6 +976,7 @@ export function UnifiedChatInbox({
           contentContainerStyle={styles.listContent}
           keyboardDismissMode="on-drag"
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         />
       )}
     </View>
@@ -514,92 +986,163 @@ export function UnifiedChatInbox({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Monochrome.background,
+    backgroundColor: '#000000',
   },
   inboxHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 10,
   },
   inboxTitle: {
-    fontSize: 28,
-    lineHeight: 36,
+    fontSize: 34,
+    lineHeight: 40,
     fontWeight: '700',
-    letterSpacing: -0.5,
-    color: Monochrome.textPrimary,
+    letterSpacing: -0.6,
+    color: '#FFFFFF',
   },
   newChatBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Monochrome.surface,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#141416',
     borderWidth: 1,
-    borderColor: Monochrome.border,
+    borderColor: '#262629',
     justifyContent: 'center',
     alignItems: 'center',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Monochrome.surface,
-    borderRadius: 10,
+    backgroundColor: '#141416',
+    borderRadius: 24,
     marginHorizontal: 16,
-    marginBottom: 10,
-    paddingHorizontal: 12,
-    height: 38,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    height: 48,
     borderWidth: 1,
-    borderColor: Monochrome.border,
+    borderColor: '#222225',
   },
   searchInput: {
     flex: 1,
-    color: Monochrome.textPrimary,
-    fontSize: 14,
+    color: '#FFFFFF',
+    fontSize: 15.5,
     padding: 0,
   },
   filterRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 10,
-    gap: 8,
+    marginBottom: 8,
+    gap: 6,
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 18,
+    borderRadius: 20,
   },
   filterChipActive: {
-    backgroundColor: '#242424',
-    borderColor: '#383838',
+    backgroundColor: '#262629',
   },
   filterChipInactive: {
     backgroundColor: 'transparent',
-    borderColor: 'transparent',
   },
   filterChipText: {
-    color: Monochrome.textTertiary,
-    fontSize: 13,
+    color: '#8E8E93',
+    fontSize: 14,
     fontWeight: '500',
   },
   filterChipTextActive: {
-    color: Monochrome.textPrimary,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
-  filterBadge: {
-    backgroundColor: Monochrome.borderStrong,
-    borderRadius: 8,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    marginLeft: 5,
+  activeNowSection: {
+    paddingTop: 6,
+    paddingBottom: 10,
   },
-  filterBadgeText: {
-    color: Monochrome.textPrimary,
-    fontSize: 10,
+  activeNowHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  activeNowTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activeNowHeaderDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22C55E',
+  },
+  activeNowTitle: {
+    color: '#FFFFFF',
+    fontSize: 15,
     fontWeight: '700',
+  },
+  activeNowCountBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  activeNowCountText: {
+    color: '#8E8E93',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  activeNowScrollContent: {
+    paddingHorizontal: 16,
+    gap: 16,
+  },
+  activeNowItem: {
+    alignItems: 'center',
+    width: 62,
+  },
+  activeNowAvatarWrap: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activeNowOnlineDot: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#22C55E',
+    borderWidth: 2.5,
+    borderColor: '#000000',
+  },
+  activeNowName: {
+    color: '#D4D4D8',
+    fontSize: 12,
+    fontWeight: '400',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+  sectionHeaderRow: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  sectionHeaderMessages: {
+    paddingTop: 14,
+  },
+  sectionHeaderText: {
+    color: '#8E8E93',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.8,
   },
   partialErrorBanner: {
     flexDirection: 'row',
@@ -626,65 +1169,122 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   listContent: {
-    paddingVertical: 2,
-    paddingBottom: 90,
+    paddingTop: 2,
+    paddingBottom: 110,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 11,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Monochrome.borderSubtle,
+    borderBottomColor: '#18181B',
   },
   itemRowPressed: {
-    backgroundColor: Monochrome.surface,
+    backgroundColor: '#121214',
+  },
+  groupAvatarWrapper: {
+    width: 54,
+    height: 54,
+    marginRight: 14,
+    position: 'relative',
+  },
+  collageCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    backgroundColor: '#18181B',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#27272A',
+  },
+  collageQuadrant: {
+    width: '50%',
+    height: '50%',
+    padding: 0.5,
+  },
+  collageImage: {
+    width: '100%',
+    height: '100%',
+  },
+  groupBadgeOverlay: {
+    position: 'absolute',
+    bottom: -1,
+    right: -1,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#18181B',
+    borderWidth: 2,
+    borderColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cohortAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: Monochrome.cohortAvatarBg,
     borderWidth: 1,
     borderColor: Monochrome.cohortAvatarBorder,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
   },
   dmAvatarContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    marginRight: 12,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    marginRight: 14,
     position: 'relative',
   },
   dmAvatarImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: Monochrome.surfaceElevated,
   },
+  silhouetteAvatar: {
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1,
+    borderColor: '#2C2C2E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
   dmAvatarFallback: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Monochrome.surfaceElevated,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#1C1C1E',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Monochrome.border,
+    borderColor: '#2C2C2E',
   },
   dmAvatarInitialText: {
-    color: Monochrome.textPrimary,
-    fontSize: 14,
-    fontWeight: '600',
+    color: '#F4F4F5',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  onlineDotAvatar: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#22C55E',
+    borderWidth: 2.5,
+    borderColor: '#000000',
   },
   blockedBadge: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
+    bottom: -1,
+    right: -1,
     backgroundColor: Monochrome.surface,
-    borderRadius: 6,
+    borderRadius: 7,
     padding: 2,
   },
   itemContent: {
@@ -695,7 +1295,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 3,
+    marginBottom: 4,
   },
   titleWithBadge: {
     flexDirection: 'row',
@@ -705,28 +1305,22 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   itemTitle: {
-    color: Monochrome.textPrimary,
-    fontSize: 15.5,
+    color: '#FFFFFF',
+    fontSize: 16.5,
     fontWeight: '600',
   },
-  roleChip: {
-    backgroundColor: Monochrome.surfaceSubtle,
-    borderWidth: 1,
-    borderColor: Monochrome.border,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  roleChipText: {
-    color: Monochrome.textSecondary,
-    fontSize: 10,
-    fontWeight: '500',
-    textTransform: 'capitalize',
+  itemTitleUnread: {
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   itemTime: {
-    color: Monochrome.textTertiary,
-    fontSize: 12,
+    color: '#8E8E93',
+    fontSize: 13,
     fontWeight: '400',
+  },
+  itemTimeUnread: {
+    color: '#D4D4D8',
+    fontWeight: '500',
   },
   itemFooterRow: {
     flexDirection: 'row',
@@ -734,18 +1328,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemSubtitle: {
-    color: Monochrome.textSecondary,
-    fontSize: 13.5,
+    color: '#8E8E93',
+    fontSize: 14.5,
     fontWeight: '400',
     flex: 1,
     marginRight: 8,
   },
   itemSubtitleUnread: {
-    color: Monochrome.textPrimary,
-    fontWeight: '500',
+    color: '#F4F4F5',
+    fontWeight: '600',
   },
   unreadBadge: {
-    backgroundColor: Monochrome.unreadBadgeBg,
+    backgroundColor: '#FFFFFF',
     borderRadius: 9,
     minWidth: 18,
     height: 18,
@@ -754,7 +1348,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   unreadBadgeText: {
-    color: Monochrome.unreadBadgeText,
+    color: '#000000',
     fontSize: 10.5,
     fontWeight: '700',
   },
@@ -768,7 +1362,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: Monochrome.background,
+    backgroundColor: '#000000',
   },
   retryBtn: {
     backgroundColor: Monochrome.surfaceElevated,
@@ -783,7 +1377,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
-    marginTop: 60,
+    marginTop: 48,
   },
   emptyTitle: {
     color: Monochrome.textPrimary,
@@ -801,45 +1395,33 @@ const styles = StyleSheet.create({
   },
   kyanaPinnedRow: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#27272A',
+    borderBottomColor: '#18181B',
   },
   kyanaAvatarContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#18181B',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#141416',
     borderWidth: 1,
-    borderColor: '#27272A',
+    borderColor: '#262629',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
     overflow: 'hidden',
   },
   kyanaAvatarImage: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
   },
   aiBadge: {
-    backgroundColor: '#27272A',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-    marginLeft: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#3F3F46',
-  },
-  aiBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#A1A1AA',
-    letterSpacing: 0.5,
+    display: 'none',
   },
   headerRightContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
   },
   pinIcon: {
-    opacity: 0.8,
+    opacity: 0.85,
   },
 });

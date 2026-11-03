@@ -176,10 +176,15 @@ let notificationNavigationCompleted = false;
 let lastHandledNotificationId: string | null = null;
 let lastHandledTimestamp = 0;
 let isChatScreenActive = false;
+let activeDmConversationId: string | null = null;
 let navigationGeneration = 0;
 
 export function setChatScreenActive(active: boolean): void {
   isChatScreenActive = active;
+}
+
+export function setActiveDmConversation(conversationId: string | null): void {
+  activeDmConversationId = conversationId;
 }
 
 export function isNotificationNavigating(): boolean {
@@ -230,9 +235,13 @@ Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const data = notification?.request?.content?.data as Record<string, any> | undefined;
     const isChat = data?.type === 'chat';
+    const isDm = data?.type === 'dm';
 
-    if (isChat && isChatScreenActive) {
-      // User is actively reading the chat in foreground; suppress intrusive heads-up banner and let Realtime UI handle it
+    if (
+      (isChat && isChatScreenActive) ||
+      (isDm && (isChatScreenActive || (activeDmConversationId !== null && data?.conversationId === activeDmConversationId)))
+    ) {
+      // User is actively reading the chat or DM in foreground; suppress intrusive heads-up banner and let Realtime UI handle it
       return {
         shouldShowBanner: false,
         shouldShowList: true,
@@ -1195,6 +1204,18 @@ export function navigateToNotificationTarget(notification: InAppNotification): v
           messageId: params.get('messageId') || params.get('targetMessageId') || notification.metadata?.messageId,
         }, true);
         return;
+      } else if (deepLink.startsWith('/dm/')) {
+        const parts = deepLink.replace('/dm/', '').split('?');
+        const convId = parts[0];
+        const params = new URLSearchParams(parts[1] || '');
+        if (convId) {
+          navigateFromNotification({
+            type: 'dm',
+            conversationId: convId,
+            messageId: params.get('messageId') || params.get('targetMessageId') || notification.metadata?.messageId,
+          }, true);
+          return;
+        }
       }
     }
 
@@ -1244,6 +1265,18 @@ export function navigateToNotificationTarget(notification: InAppNotification): v
         messageId: notification.metadata?.messageId || secondaryEntityId,
       }, true);
       return;
+    }
+
+    if (entityType === 'dm' || type === 'dm') {
+      const convId = notification.metadata?.conversationId || String(entityId || '');
+      if (convId) {
+        navigateFromNotification({
+          type: 'dm',
+          conversationId: convId,
+          messageId: notification.metadata?.messageId || secondaryEntityId,
+        }, true);
+        return;
+      }
     }
 
     // Default: Go to home

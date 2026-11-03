@@ -210,7 +210,7 @@ function RootLayoutNav() {
       <Stack.Screen name="assignments/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="assignment/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications', headerBackTitle: 'Back' }} />
-      <Stack.Screen name="dm/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="dm/[id]" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="dm/new" options={{ headerShown: false }} />
       <Stack.Screen name="kyana" options={{ headerShown: false }} />
       <Stack.Screen name="notification-settings" options={{ title: 'Notification Settings', headerBackTitle: 'Notifications' }} />

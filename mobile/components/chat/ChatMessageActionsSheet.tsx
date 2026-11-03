@@ -20,10 +20,14 @@ interface ChatMessageActionsSheetProps {
   busy: boolean;
   canPin: boolean;
   isPinned?: boolean;
+  isStarred?: boolean;
   isOwnerOrAdmin: boolean;
+  currentUserId?: string;
   onClose: () => void;
   onReact: (message: ChatMessage, emoji: string) => void;
   onReply: (message: ChatMessage) => void;
+  onForward?: (message: ChatMessage) => void;
+  onToggleStar?: (message: ChatMessage) => void;
   onCopy: (message: ChatMessage) => void;
   onPin: (message: ChatMessage) => void;
   onDelete: (message: ChatMessage) => void;
@@ -37,10 +41,14 @@ export function ChatMessageActionsSheet({
   busy,
   canPin,
   isPinned,
+  isStarred,
   isOwnerOrAdmin,
+  currentUserId,
   onClose,
   onReact,
   onReply,
+  onForward,
+  onToggleStar,
   onCopy,
   onPin,
   onDelete,
@@ -82,20 +90,35 @@ export function ChatMessageActionsSheet({
           {/* Subtle handle bar */}
           <View style={styles.handle} />
 
-          {/* Quick Reaction Row */}
+  {/* Quick Reaction Row */}
           {confirmed && <View style={styles.reactionsBar}>
-            {REACTION_EMOJIS.map((emoji) => (
-              <TouchableOpacity
-                key={emoji}
-                disabled={busy}
-                onPress={() => handleReact(emoji)}
-                style={styles.reactionButton}
-                activeOpacity={0.65}
-                accessibilityLabel={`React with ${emoji}`}
-              >
-                <RNText style={styles.reactionEmoji} allowFontScaling={false}>{emoji}</RNText>
-              </TouchableOpacity>
-            ))}
+            {REACTION_EMOJIS.map((emoji) => {
+              const isSelected = Boolean(
+                currentUserId &&
+                  message.reactions?.some(
+                    (r) => r.emoji === emoji && r.studentId === currentUserId,
+                  ),
+              );
+              return (
+                <TouchableOpacity
+                  key={emoji}
+                  disabled={busy}
+                  onPress={() => handleReact(emoji)}
+                  style={[
+                    styles.reactionButton,
+                    isSelected && {
+                      backgroundColor: 'rgba(255, 255, 255, 0.14)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255, 255, 255, 0.28)',
+                    },
+                  ]}
+                  activeOpacity={0.65}
+                  accessibilityLabel={`React with ${emoji}`}
+                >
+                  <RNText style={styles.reactionEmoji} allowFontScaling={false}>{emoji}</RNText>
+                </TouchableOpacity>
+              );
+            })}
           </View>}
 
           {/* Action List */}
@@ -114,6 +137,40 @@ export function ChatMessageActionsSheet({
                 Reply
               </Text>
             </TouchableOpacity>}
+
+            {/* Forward Action */}
+            {confirmed && onForward && Boolean(message.text && message.text.trim()) && (
+              <TouchableOpacity
+                disabled={busy}
+                style={styles.actionRow}
+                activeOpacity={0.7}
+                onPress={() => onForward(message)}
+              >
+                <View style={styles.actionIconBox}>
+                  <Ionicons name="arrow-redo-outline" size={20} color="#e4e4e7" />
+                </View>
+                <Text variant="md" weight="500" style={styles.actionLabel}>
+                  Forward message
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Star / Bookmark Action */}
+            {confirmed && onToggleStar && (
+              <TouchableOpacity
+                disabled={busy}
+                style={styles.actionRow}
+                activeOpacity={0.7}
+                onPress={() => onToggleStar(message)}
+              >
+                <View style={styles.actionIconBox}>
+                  <Ionicons name={isStarred ? 'star' : 'star-outline'} size={20} color="#e4e4e7" />
+                </View>
+                <Text variant="md" weight="500" style={styles.actionLabel}>
+                  {isStarred ? 'Remove star' : 'Star message'}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             {/* Copy Text Action */}
             {Boolean(message.text && message.text.trim()) && (

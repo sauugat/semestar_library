@@ -90,6 +90,7 @@ module.exports = function directMessagingRouter(service) {
       before: req.query.before,
       since: req.query.since || req.query.after,
       limit: req.query.limit,
+      q: req.query.q,
       callerUser: getCallerUser(req),
     });
   }));
@@ -130,6 +131,15 @@ module.exports = function directMessagingRouter(service) {
   // 8. Clear Conversation
   router.post('/conversations/:id/clear', asyncRoute(async req => {
     return service.clearConversation(getCallerId(req), req.params.id, {
+      callerUser: getCallerUser(req),
+    });
+  }));
+
+  // 8b. Mute / Unmute Conversation
+  router.post('/conversations/:id/mute', asyncRoute(async req => {
+    const isMuted = req.body?.isMuted !== false;
+    return service.setConversationMute(getCallerId(req), req.params.id, {
+      isMuted,
       callerUser: getCallerUser(req),
     });
   }));

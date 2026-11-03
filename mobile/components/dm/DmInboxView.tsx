@@ -15,6 +15,7 @@ import { Image } from 'expo-image';
 import { useTheme } from '@/constants/useTheme';
 import { Text } from '@/components/ui/Typography';
 import { useAuth } from '@/context/AuthContext';
+import { DEFAULT_SERVER_URL } from '@/services/api';
 import {
   fetchDmConversations,
   type DmConversationItem,
@@ -29,6 +30,46 @@ function getInitials(name?: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function resolveAvatarUri(rawUrl?: string | null, serverUrl?: string, studentId?: string | null): string | null {
+  const base = (serverUrl || DEFAULT_SERVER_URL || '').replace(/\/+$/, '');
+  if (rawUrl && typeof rawUrl === 'string') {
+    const trimmed = rawUrl.trim();
+    if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') {
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('file://') || trimmed.startsWith('data:')) {
+        return trimmed;
+      }
+      if (base) return `${base}/${trimmed.replace(/^\/+/, '')}`;
+    }
+  }
+  if (studentId && typeof studentId === 'string' && studentId.trim() && base) {
+    return `${base}/api/avatar/student/${encodeURIComponent(studentId.trim())}`;
+  }
+  return null;
+}
+
+function DmPeerAvatar({ uri, name, colors }: { uri: string | null; name?: string; colors: any }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [uri]);
+  if (uri && !failed) {
+    return (
+      <Image
+        source={{ uri, cacheKey: uri }}
+        cachePolicy="memory-disk"
+        style={styles.avatarImage}
+        contentFit="cover"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <Text variant="sm" weight="700" style={{ color: colors.text }}>
+      {getInitials(name)}
+    </Text>
+  );
 }
 
 function formatRelativeTime(iso?: string | null): string {
@@ -55,7 +96,7 @@ export interface DmInboxViewProps {
 
 export function DmInboxView({ onUnreadCountChange }: DmInboxViewProps = {}) {
   const { colors, spacing, radii } = useTheme();
-  const { user } = useAuth();
+  const { user, serverUrl } = useAuth();
   const router = useRouter();
 
   const [conversations, setConversations] = useState<DmConversationItem[]>([]);
@@ -163,7 +204,7 @@ export function DmInboxView({ onUnreadCountChange }: DmInboxViewProps = {}) {
     ({ item }: { item: DmConversationItem }) => {
       const peer = item.participant;
       const isUnread = item.unreadCount > 0;
-      const role = (peer.role || '').toLowerCase();
+      const resolvedAvatar = resolveAvatarUri(peer.avatarUrl, serverUrl, peer.studentId);
 
       let preview = 'No messages yet';
       let isDeleted = false;
@@ -190,13 +231,7 @@ export function DmInboxView({ onUnreadCountChange }: DmInboxViewProps = {}) {
         >
           {/* Avatar */}
           <View style={[styles.avatarContainer, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-            {peer.avatarUrl ? (
-              <Image source={{ uri: peer.avatarUrl }} style={styles.avatarImage} contentFit="cover" />
-            ) : (
-              <Text variant="sm" weight="700" style={{ color: colors.text }}>
-                {getInitials(peer.name)}
-              </Text>
-            )}
+            <DmPeerAvatar uri={resolvedAvatar} name={peer.name} colors={colors} />
           </View>
 
           {/* Details */}
@@ -206,13 +241,6 @@ export function DmInboxView({ onUnreadCountChange }: DmInboxViewProps = {}) {
                 <Text variant="md" weight={isUnread ? '700' : '600'} numberOfLines={1} style={{ color: colors.text }}>
                   {peer.name}
                 </Text>
-                {role && role !== 'student' ? (
-                  <View style={[styles.roleBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-                    <Text variant="xs" weight="700" style={styles.roleBadgeText}>
-                      {role.toUpperCase()}
-                    </Text>
-                  </View>
-                ) : null}
               </View>
               <Text variant="xs" style={{ color: colors.textMuted }}>
                 {formatRelativeTime(item.lastMessageAt || item.lastMessage?.createdAt)}

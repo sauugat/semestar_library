@@ -16,6 +16,8 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/useTheme';
 import { Text } from '@/components/ui/Typography';
+import { useAuth } from '@/context/AuthContext';
+import { DEFAULT_SERVER_URL } from '@/services/api';
 import { searchDmUsers, createOrGetDmConversation, type DmParticipant } from '@/services/dm';
 
 function getInitials(name?: string): string {
@@ -25,8 +27,49 @@ function getInitials(name?: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
+function resolveUserAvatarUri(rawUrl?: string | null, serverUrl?: string, studentId?: string | null): string | null {
+  const base = (serverUrl || DEFAULT_SERVER_URL || '').replace(/\/+$/, '');
+  if (rawUrl && typeof rawUrl === 'string') {
+    const trimmed = rawUrl.trim();
+    if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') {
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('file://') || trimmed.startsWith('data:')) {
+        return trimmed;
+      }
+      if (base) return `${base}/${trimmed.replace(/^\/+/, '')}`;
+    }
+  }
+  if (studentId && typeof studentId === 'string' && studentId.trim() && base) {
+    return `${base}/api/avatar/student/${encodeURIComponent(studentId.trim())}`;
+  }
+  return null;
+}
+
+function UserAvatarCell({ uri, name, colors }: { uri: string | null; name?: string; colors: any }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [uri]);
+  if (uri && !failed) {
+    return (
+      <Image
+        source={{ uri, cacheKey: uri }}
+        cachePolicy="memory-disk"
+        style={styles.avatarImage}
+        contentFit="cover"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return (
+    <Text variant="sm" weight="700" style={{ color: colors.text }}>
+      {getInitials(name)}
+    </Text>
+  );
+}
+
 export default function NewDmScreen() {
   const { colors } = useTheme();
+  const { serverUrl } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -103,9 +146,11 @@ export default function NewDmScreen() {
         pathname: '/dm/[id]',
         params: {
           id: conversation.id,
+          peerId: targetUser.studentId,
           peerName: targetUser.name,
           peerRole: targetUser.role,
           peerAvatar: targetUser.avatarUrl || '',
+          peerAvatarUrl: targetUser.avatarUrl || '',
         },
       });
     } catch (err: any) {
@@ -116,7 +161,7 @@ export default function NewDmScreen() {
   };
 
   const renderItem = ({ item }: { item: DmParticipant }) => {
-    const role = (item.role || 'student').toLowerCase();
+    const avatarUri = resolveUserAvatarUri(item.avatarUrl, serverUrl, item.studentId);
     return (
       <Pressable
         style={({ pressed }) => [
@@ -129,13 +174,7 @@ export default function NewDmScreen() {
         onPress={() => handleSelectUser(item)}
       >
         <View style={[styles.avatar, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-          {item.avatarUrl ? (
-            <Image source={{ uri: item.avatarUrl }} style={styles.avatarImage} contentFit="cover" />
-          ) : (
-            <Text variant="sm" weight="700" style={{ color: colors.text }}>
-              {getInitials(item.name)}
-            </Text>
-          )}
+          <UserAvatarCell uri={avatarUri} name={item.name} colors={colors} />
         </View>
 
         <View style={styles.userInfo}>
@@ -143,13 +182,6 @@ export default function NewDmScreen() {
             <Text variant="md" weight="600" numberOfLines={1} style={{ color: colors.text }}>
               {item.name}
             </Text>
-            {role !== 'student' ? (
-              <View style={[styles.roleBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
-                <Text variant="xs" weight="700" style={styles.roleBadgeText}>
-                  {role.toUpperCase()}
-                </Text>
-              </View>
-            ) : null}
           </View>
 
           <View style={styles.metaRow}>

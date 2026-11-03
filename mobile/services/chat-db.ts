@@ -95,6 +95,22 @@ export async function getCachedChatMessages(limit = 50, beforeId?: number): Prom
 export async function getNewestCachedMessageId(): Promise<number> {
   return Math.max(0, ...(await getCachedChatMessages()).map(m => m.id));
 }
+
+export async function getCachedCohortPreview(): Promise<{
+  latestMessage: string | null;
+  latestMessageAt: string | null;
+} | null> {
+  const cached = await getCachedChatMessages(20);
+  const newest = cached.find(m => m.id > 0);
+  if (!newest) return null;
+  const body = newest.text || newest.attachmentOriginalName || 'Attachment';
+  const latestMessage = newest.name ? `${newest.name}: ${body}` : body;
+  return {
+    latestMessage,
+    latestMessageAt: newest.createdAt || null,
+  };
+}
+
 export function upsertChatMessages(messages: ChatMessage[]) {
   const room = getChatSession().context?.chatGroupId;
   return mutate(previous => mergeChatMessages(previous, messages.filter(m => m.chatGroupId === room)));

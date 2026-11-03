@@ -2079,14 +2079,15 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
         {/* Pinned Brand Header */}
         {renderBrandHeader()}
 
-        {/* Borderless, Hardware-Accelerated 2-Section Switcher Bar */}
-        {renderSectionSwitcher()}
+        {/* Borderless, Hardware-Accelerated 2-Section Switcher Bar (Hidden when inside a Subject/Chapter) */}
+        {!selectedSubject && renderSectionSwitcher()}
 
         {/* Butter-Smooth Native Horizontal Pager */}
         <Animated.ScrollView
           ref={horizontalPagerRef as any}
           horizontal
           pagingEnabled
+          scrollEnabled={!selectedSubject}
           showsHorizontalScrollIndicator={false}
           bounces={false}
           directionalLockEnabled
@@ -2216,12 +2217,6 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
                       Chapters
                     </Text>
                   </TouchableOpacity>
-
-                  <View style={styles.breadcrumbTextContainer}>
-                    <Caption color="muted" numberOfLines={1}>
-                      {selectedSubject.code} › {selectedChapter.shortTitle || selectedChapter.title}
-                    </Caption>
-                  </View>
                 </View>
 
                 <Card
@@ -2431,12 +2426,6 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
                       {currentSemester.shortLabel} Subjects
                     </Text>
                   </TouchableOpacity>
-
-                  <View style={styles.breadcrumbTextContainer}>
-                    <Caption color="muted" numberOfLines={1}>
-                      {currentSemester.shortLabel} › {selectedSubject.code}
-                    </Caption>
-                  </View>
                 </View>
 
                 {/* Clean, Compact, Well-Aligned Subject Card (No View Syllabus button here!) */}

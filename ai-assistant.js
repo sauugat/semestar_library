@@ -228,7 +228,7 @@ const NON_KNOWLEDGE_DIRECT_KINDS = [
 
 function isPersonalOrDetailedAssignmentQuery(route, message) {
   return route?.kind === 'assignments' &&
-    /\b(did\s+i\s+submit|have\s+i\s+submitted|submit\s+gare|submit\s+vayo|submit\s+bhayo|my\s+submission|submission\s+status|submission\s+date|released\s+grade|my\s+(?:assignment\s+)?(?:grade|marks?|score|remarks?)|questions?|problems?)\b/i.test(String(message || ''));
+    /\b(did\s+i\s+submit|have\s+i\s+(?:not\s+)?submitted|haven'?t\s+submitted|not\s+submitted|unsubmitted|pending\s+to\s+submit|left\s+to\s+submit|remaining\s+assignments?|submit\s+gare|submit\s+gareko\s+(?:xaina|chaina)|submit\s+nagareko|nabujhako|baki\s+assignments?|submit\s+vayo|submit\s+bhayo|my\s+submission|submission\s+status|submission\s+date|released\s+grade|my\s+(?:assignment\s+)?(?:grade|marks?|score|remarks?)|questions?|problems?)\b|बुझाउन\s*बाँकी|बुझाएको\s*छैन/i.test(String(message || ''));
 }
 
 function isKnowledgeQuery(route, message, v3Enabled = false) {
@@ -549,14 +549,17 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   const contextStartedAt = Date.now();
   // Resolve academic context server-side for semester authorization and cross-student role checks
   let academicContext = options.academicContext || null;
+  let contextResolutionFailed = false;
   if (!academicContext && db && (studentInfo?.studentId || studentInfo?.id)) {
     try {
       const resolvedCtx = await getAcademicContext(db, studentInfo);
+      if (resolvedCtx?.dbError) contextResolutionFailed = true;
       academicContext = (resolvedCtx && resolvedCtx.authenticated)
         ? resolvedCtx
         : (studentInfo?.authenticated === true ? studentInfo : resolvedCtx);
     } catch (e) {
       console.warn('[AI Assistant] academicContext resolve error:', e.message);
+      contextResolutionFailed = true;
       if (studentInfo?.authenticated === true) academicContext = studentInfo;
     }
   }
@@ -713,6 +716,56 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     result.reply = 'Kun resource open garne ho? Paila search garam hai.';
     onDelta(result.reply);
     return result;
+  }
+
+  // Honest database failure handling when academicContext resolution threw a DB error
+  if (contextResolutionFailed && (!academicContext || !academicContext.authenticated) && ['attendance', 'results', 'assignments', 'notices', 'posts', 'notes', 'routine', 'teacher_classroom'].includes(route.kind)) {
+    result.reply = "I couldn't reach the Semester Library database right now. Please try again in a moment.";
+    onDelta(result.reply);
+    return result;
+  }
+
+  // Enforce explicit cross-semester and teacher-subject restrictions consistently before V3 searchKnowledge
+  if (academicContext?.authenticated && ['notes', 'notices', 'posts', 'assignments', 'routine'].includes(route.kind)) {
+    const reqSem = route.filters?.semester;
+    const reqSubj = route.filters?.subject;
+    const reqSubjSem = reqSubj ? semesterNumber(courses.find(c => c.title === reqSubj)?.semester) : null;
+
+    if (['student', 'cr'].includes(academicContext.role)) {
+      const authSem = academicContext.cohort?.currentSemester || academicContext.currentSemester || semesterNumber(academicContext.semester) || null;
+      if (authSem && reqSem && reqSem !== authSem) {
+        result.reply = `You're registered in Semester ${authSem}. I can only show ${route.kind} for Semester ${authSem}.`;
+        onDelta(result.reply);
+        return result;
+      }
+      if (authSem && !reqSem && reqSubj && reqSubjSem && reqSubjSem !== authSem && ['notes', 'assignments', 'routine'].includes(route.kind)) {
+        result.reply = `${reqSubj} is a Semester ${reqSubjSem} subject. You are registered in Semester ${authSem}, so I can only show ${route.kind} for your semester.`;
+        onDelta(result.reply);
+        return result;
+      }
+    } else if (academicContext.role === 'teacher') {
+      const hasTeacherScope = Array.isArray(academicContext.assignedSemesters) || Array.isArray(academicContext.assignedSubjects);
+      const canViewAll = Boolean(academicContext.canViewAllCohorts && !hasTeacherScope);
+      if (!canViewAll) {
+        const tSems = Array.isArray(academicContext.assignedSemesters) ? academicContext.assignedSemesters : null;
+        if (tSems && reqSem && !tSems.includes(reqSem)) {
+          result.reply = `You are assigned to teach Semester(s) ${tSems.join(', ')}. You can only access ${route.kind} for your assigned semesters.`;
+          onDelta(result.reply);
+          return result;
+        }
+        const { teacherSubjectAliases } = require('./lib/kyana-access');
+        const allowedSubjs = teacherSubjectAliases(academicContext);
+        if (reqSubj && allowedSubjs !== null && ['notes', 'assignments', 'routine'].includes(route.kind)) {
+          const { subjectAliases } = require('./lib/chat-tools');
+          const aliases = subjectAliases(reqSubj).map(a => String(a || '').trim().toLowerCase());
+          if (!allowedSubjs.length || !aliases.some(a => allowedSubjs.includes(a))) {
+            result.reply = `${reqSubj} is not in your assigned teaching subjects.`;
+            onDelta(result.reply);
+            return result;
+          }
+        }
+      }
+    }
   }
 
   // --- STEP 5: KYANA AI 3.0 Knowledge Retrieval Path ---
@@ -1144,9 +1197,6 @@ ${evidenceBlocks}
           : {}),
       ...(route.filters.unitNumber != null && route.kind === 'syllabus'
           ? { unit: route.filters.unitNumber }
-          : {}),
-      ...(paginationExcludeIds.length > 0
-          ? { excludeIds: paginationExcludeIds }
           : {})
     };
     const data = await toolkit.executeTool(directTool, directArgs);

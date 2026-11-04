@@ -448,11 +448,11 @@ test('Phase 2C.3 — Show More pagination excludes already-shown records across 
     assert.ok(capturedExcludeIds.includes('note:102') || capturedExcludeIds.includes('102'));
     assert.deepEqual(turn2.resourceCards.map(c => c.id), [103, 104]);
 
-    // Turn 3: Genuine new search resets pagination
+    // Turn 3: Genuine new search in the student's authorized semester resets pagination
     let turn3ExcludeIds = null;
     await handleChat(
       fakeDb,
-      'Show me DBMS notes',
+      'Show me Computer Networks notes',
       studentCtx,
       [...historyAfterTurn1, { role: 'user', content: 'Arko xa?' }, { role: 'assistant', content: turn2.reply, resourceCards: turn2.resourceCards }],
       sessionId,
@@ -462,10 +462,12 @@ test('Phase 2C.3 — Show More pagination excludes already-shown records across 
           turn3ExcludeIds = opts.excludeIds || [];
           return [];
         },
-        generateReply: async () => ({ reply: 'No DBMS notes.' })
+        generateReply: async () => ({ reply: 'No Computer Networks notes.' })
       }
     );
     assert.deepEqual(turn3ExcludeIds, [], 'New search must reset pagination excludeIds');
+    delete process.env.KYANA_KNOWLEDGE_V3;
+    delete process.env.KYANA_KNOWLEDGE_V3_USERS;
   });
 });
 

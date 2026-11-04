@@ -372,6 +372,10 @@ export default function KyanaChatScreen() {
             accumulatedStream += deltaText;
             setStreamingText(accumulatedStream);
           },
+          onReplace: (fullReplyText: string) => {
+            accumulatedStream = fullReplyText;
+            setStreamingText(fullReplyText);
+          },
           signal: controller.signal,
         });
 

@@ -526,7 +526,7 @@ export default function SettingsScreen() {
             }}
           >
             <Text variant="xs" color="muted" style={{ marginTop: 8 }}>
-              Version 1.0.0 (Build 50)
+              Version 1.6.0 (Build 8)
             </Text>
           </TouchableOpacity>
         </View>

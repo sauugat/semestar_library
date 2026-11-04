@@ -34,7 +34,7 @@ export default function ModalScreen() {
 
       <Heading style={{ marginBottom: 4 }}>Semester Library</Heading>
       <Caption color="muted" style={{ marginBottom: spacing.md }}>
-        Version 1.0.0 (Production Build)
+        Version 1.6.0 (Production Build)
       </Caption>
 
       <View

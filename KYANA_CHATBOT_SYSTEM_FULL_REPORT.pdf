@@ -1,0 +1,2164 @@
+%PDF-1.4
+%âãÏÓ
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [8 0 R 10 0 R 12 0 R 14 0 R 16 0 R 18 0 R 20 0 R 22 0 R 24 0 R 26 0 R] /Count 10 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Title (Semester Library Chatbot Ecosystem - Comprehensive Technical Architecture Report) /Author (Semester Library Engineering) /Subject (Kyana AI 3.0 RAG Architecture, Multi-Provider LLM Engine, Security, Web & Mobile Clients) /Producer (Semester Library PDF 1.4 Engine) >>
+endobj
+7 0 obj
+<< /Length 11079 >>
+stream
+0.059 0.090 0.165 rg
+0.059 0.090 0.165 RG
+1.00 w
+42.00 675.89 511.28 118.00 re B
+0.231 0.510 0.965 rg
+42.00 675.89 5.00 118.00 re f
+0.576 0.773 0.992 rg
+BT /F2 8.00 Tf 58.00 775.89 Td (ENGINEERING ARCHITECTURE & SYSTEM AUDIT REPORT) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 14.50 Tf 58.00 755.89 Td (Technical Architecture and Operational Analysis of the Semester) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 14.50 Tf 58.00 737.89 Td (Library Chatbot Ecosystem) Tj ET
+0.796 0.835 0.882 rg
+BT /F1 8.80 Tf 58.00 719.89 Td (End-to-End Inspection of Kyana AI 3.0 RAG Engine, Multi-Provider LLM Orchestration, Cultural Persona System, RBAC) Tj ET
+0.796 0.835 0.882 rg
+BT /F1 8.80 Tf 58.00 707.89 Td (Security, Web & Mobile Clients, and Peer Messaging Subsystems) Tj ET
+0.580 0.639 0.722 rg
+BT /F2 7.80 Tf 58.00 685.89 Td (Platform: Semester Library \(Gandaki University BIT\) | Repository: /Users/sauu_gat/semester-library | Date: Nov 3, 2026) Tj ET
+0.118 0.227 0.541 rg
+42.00 637.89 3.50 16.00 re f
+0.059 0.090 0.165 rg
+BT /F2 12.50 Tf 51.00 641.89 Td (1. Executive Overview and System Taxonomy) Tj ET
+0.118 0.227 0.541 RG
+1.00 w
+42.00 635.89 m 553.28 635.89 l S
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 616.89 Td (The conversational infrastructure within the Semester Library platform is engineered as a multi-layered ecosystem serving) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 603.89 Td (Bachelor of Information Technology \(BIT\) students, class representatives \(CRs\), faculty members, and administrators at) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 590.89 Td (Gandaki University. Rather than relying on a single monolithic chat script, the repository partitions conversational) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 577.89 Td (capabilities into three strictly isolated domains: the Kyana AI Study Companion \(an autonomous, retrieval-augmented) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 564.89 Td (academic assistant\), the Cohort Group Chat System \(semester-bound peer and faculty rooms\), and the Direct Messaging) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 551.89 Td (\(DM\) System \(one-to-one private messaging\).) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 533.89 Td (At the center of the artificial intelligence layer is Kyana AI , which operates across both a deterministic tool-dispatch) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 520.89 Td (pipeline and the unified Kyana AI 3.0 Knowledge Engine . Kyana AI is architected to solve two fundamental engineering) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 507.89 Td (challenges inherent to university platforms operating in Nepal:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 490.39 Td (1.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 490.39 Td (Cross-Region Serverless and Database Latency:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 477.89 Td (Because the application's serverless compute \( vercel.json \) and managed PostgreSQL 16 database \( db.js on Neon) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 465.69 Td (Serverless US East us-east-1 \) reside in North America, each sequential network round-trip from Kathmandu or Pokhara) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 453.49 Td (incurs approximately 900ms to 950ms of network latency, as documented in the Kyana 3.0 Architecture Audit . The) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 441.29 Td (chatbot architecture minimizes round-trips via single-query hybrid retrieval, zero-model-round-trip deterministic lookups for) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 429.09 Td (timetables and syllabi, and asynchronous message persistence.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 413.39 Td (2.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 413.39 Td (Linguistic and Cultural Code-Switching:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 400.89 Td (Students communicate across four distinct linguistic modes - English, Romanized Nepali with informal phonetic variations) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 388.69 Td (\( "xa" , "xaina" , "khojdeu" , "bujhaideu" \), mixed Nepali-English code-switching, and Devanagari script - while) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 376.49 Td (referencing local temporal expressions grounded in Nepal Standard Time \( UTC+05:45 \) and the Bikram Sambat \(BS\)) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 364.29 Td (calendar via lib/nepali-dates.js .) Tj ET
+0.059 0.090 0.165 rg
+0.059 0.090 0.165 RG
+0.50 w
+42.00 320.09 511.28 29.00 re B
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 47.00 338.09 Td (Subsystem) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 47.00 327.59 Td (Domain) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+123.80 349.09 m 123.80 320.09 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 128.80 338.09 Td (Primary Orchestrator) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 128.80 327.59 Td (Modules) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+231.17 349.09 m 231.17 320.09 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 236.17 338.09 Td (Database Persistence) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 236.17 327.59 Td (Tables) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+348.77 349.09 m 348.77 320.09 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 353.77 338.09 Td (Transport Protocol) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+445.91 349.09 m 445.91 320.09 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 450.91 338.09 Td (Access & Isolation) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 450.91 327.59 Td (Boundary) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 249.09 511.28 71.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 309.09 Td (Kyana AI) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 298.59 Td (Assistant) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+123.80 320.09 m 123.80 249.09 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 128.80 309.09 Td (ai-assistant.js ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 128.80 298.59 Td (lib/chat-http.js ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 128.80 288.09 Td (lib/ai-chat-service.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+231.17 320.09 m 231.17 249.09 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 309.09 Td (ai_conversations ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 298.59 Td (ai_messages ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 288.09 Td (knowledge_resources ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 277.59 Td (knowledge_chunks ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 267.09 Td (knowledge_jobs ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 256.59 Td (note_search_documents) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+348.77 320.09 m 348.77 249.09 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 309.09 Td (HTTP POST with) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 298.59 Td (Server-Sent Events \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 288.09 Td (text/event-stream \) &) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 277.59 Td (JSON fallback) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+445.91 320.09 m 445.91 249.09 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 309.09 Td (Server-resolved) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 298.59 Td (academicContext enforcing) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 288.09 Td (student cohort and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 277.59 Td (registered semester \( 1 - 8 \)) Tj ET
+0.973 0.980 0.988 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 178.09 511.28 71.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 238.09 Td (Cohort Group Chat) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+123.80 249.09 m 123.80 178.09 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 128.80 238.09 Td (lib/cohort-chat.js ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 128.80 227.59 Td (routes/cohort-chat.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+231.17 249.09 m 231.17 178.09 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 238.09 Td (cohorts , chat_groups ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 227.59 Td (chat_group_slots ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 217.09 Td (chat_messages ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 206.59 Td (chat_reactions ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 196.09 Td (chat_room_read_receipts ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 185.59 Td (chat_realtime_outbox) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+348.77 249.09 m 348.77 178.09 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 238.09 Td (REST mutations +) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 227.59 Td (Supabase Realtime) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 217.09 Td (broadcast channels \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 206.59 Td (public:chat_messages \)) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+445.91 249.09 m 445.91 178.09 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 238.09 Td (Active BIT cohort) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 227.59 Td (membership or assigned) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 217.09 Td (faculty teaching semesters) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 117.59 511.28 60.50 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 167.09 Td (Direct Messaging) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 156.59 Td (\(DM\)) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+123.80 178.09 m 123.80 117.59 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 128.80 167.09 Td (lib/dm-service.js ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 128.80 156.59 Td (routes/direct-messaging.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+231.17 178.09 m 231.17 117.59 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 167.09 Td (dm_conversations ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 156.59 Td (dm_participants ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 146.09 Td (dm_messages , dm_blocks ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 135.59 Td (dm_rate_limits ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 236.17 125.09 Td (dm_realtime_outbox) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+348.77 178.09 m 348.77 117.59 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 167.09 Td (REST mutations +) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 156.59 Td (transactional outbox) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 146.09 Td (drained to Supabase) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 353.77 135.59 Td (Realtime & Push) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+445.91 178.09 m 445.91 117.59 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 167.09 Td (Verified account status,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 156.59 Td (participant pair enrollment,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 146.09 Td (and bilateral block-list) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 135.59 Td (checks) Tj ET
+0.118 0.227 0.541 rg
+42.00 85.59 3.50 16.00 re f
+0.059 0.090 0.165 rg
+BT /F2 12.50 Tf 51.00 89.59 Td (2. End-to-End Request Lifecycle and Transport Layer) Tj ET
+0.118 0.227 0.541 RG
+1.00 w
+42.00 83.59 m 553.28 83.59 l S
+0.796 0.835 0.882 RG
+0.50 w
+42.00 36 m 553.28 36 l S
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 42.00 26 Td (GANDAKI UNIVERSITY | SEMESTER LIBRARY | KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.278 0.333 0.412 rg
+BT /F2 7.50 Tf 512.05 26 Td (Page 1 of 10) Tj ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 7 0 R >>
+endobj
+9 0 obj
+<< /Length 10847 >>
+stream
+0.796 0.835 0.882 RG
+0.60 w
+42.00 809.89 m 553.28 809.89 l S
+0.392 0.455 0.545 rg
+BT /F2 7.50 Tf 42.00 815.89 Td (SEMESTER LIBRARY - KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 454.13 815.89 Td (GANDAKI UNIVERSITY \(BIT\)) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 779.89 Td (2.1 HTTP and Server-Sent Events \(SSE\) Entry Point) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 761.89 Td (All client interactions with the AI chatbot converge on the POST /api/ai/chat route mounted in server.js and handled by) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 748.89 Td (createChatHandler\(db, assistant\) in lib/chat-http.js . The transport layer supports both real-time token streaming via) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 735.89 Td (Server-Sent Events \( text/event-stream \) and standard JSON responses.) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 717.89 Td (When a request arrives at lib/chat-http.js , the handler executes a strict seven-stage pipeline:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 700.39 Td (1.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 700.39 Td (Payload Validation:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 687.89 Td (Validates that req.body.message is a non-empty string between 1 and 8,000 characters. Requests outside this boundary) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 675.69 Td (immediately receive an HTTP 400 Bad Request .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 659.99 Td (2.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 659.99 Td (Identity Resolution and Untrusted History Filtering:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 647.49 Td (Extracts studentId from the authenticated request \( req.user?.studentId || req.student?.studentId || req.session?.studentId \).) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 635.29 Td (A critical security boundary is enforced here: client-supplied assistant turns and resource cards are never trusted for) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 623.09 Td (authenticated users. If studentId is present, client-provided history is discarded in favor of authoritative database history;) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 610.89 Td (for unauthenticated guests, only prior user turns \(up to the last 8 messages, truncated to 6,000 characters each\) are) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 598.69 Td (retained.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 582.99 Td (3.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 582.99 Td (Conversation Resolution and Non-Blocking User Message Persistence:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 570.49 Td (For authenticated students, lib/chat-http.js verifies ownership of the requested conversationId against ai_conversations) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 558.29 Td (via lib/ai-chat-service.js , or provisions a default conversation \( kyana_${studentId}_default \). It loads the 12 most recent) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 546.09 Td (messages from ai_messages to reconstruct multi-turn context. Crucially, saving the incoming user message \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 533.89 Td (aiChatService.saveUserMessage \) is dispatched asynchronously - and registered with @vercel/functions waitUntil when) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 521.69 Td (available - so the database INSERT does not delay Time to First Token \(TTFT\).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 505.99 Td (4.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 505.99 Td (Session Mode Persistence:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 493.49 Td (Evaluates whether the user is toggling between roast \(playful senior persona\) and formal mode via resolveChatMode in) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 481.29 Td (lib/chat-mode.js . If req.session.chatMode changes, the session is saved to the database before SSE headers are flushed) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 469.09 Td (so that first-time guests receive a persistent session cookie.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 453.39 Td (5.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 453.39 Td (SSE Stream Initialization and Heartbeat Management:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 440.89 Td (If req.body.stream === true or the Accept header includes text/event-stream , the handler writes HTTP 200 headers \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 428.69 Td (Content-Type: text/event-stream; charset=utf-8 , Cache-Control: no-cache, no-transform , X-Accel-Buffering: no \), flushes) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 416.49 Td (headers immediately, and starts a 15-second : keepalive\\n\\n heartbeat timer to prevent reverse proxies or serverless) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 404.29 Td (gateways from dropping idle connections during retrieval. An AbortController is wired to req.on\('aborted'\) and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 392.09 Td (res.on\('close'\) to cancel downstream database queries and LLM streams immediately if the user disconnects or taps the) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 379.89 Td (stop button.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 364.19 Td (6.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 364.19 Td (Core Assistant Execution:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 351.69 Td (Invokes assistant.handleChat\(...\) in ai-assistant.js , passing an onDelta callback that emits event: delta\\ndata:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 339.49 Td ({"text":"..."}\\n\\n frames as tokens arrive.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 323.79 Td (7.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 323.79 Td (Assistant Turn Persistence and Terminal Frame:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 311.29 Td (Once handleChat resolves, saveUserPromise is awaited to guarantee chronological ordering in ai_messages , followed by) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 299.09 Td (aiChatService.saveAssistantMessage\(db, studentId, conversationId, result.reply, result\) , which stores the reply alongside) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 286.89 Td (a JSON metadata snapshot containing resourceCards , evidenceReferences , and a cryptographic accessContext hash.) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 274.69 Td (Finally, the server emits event: result\\ndata: {...}\\n\\n and closes the stream.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 249.49 Td (2.2 Companion AI Routes) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 231.49 Td (Beyond the primary chat stream, server.js exposes eight supporting routes for conversation management, inbox previews,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 218.49 Td (and live resource revalidation:) Tj ET
+0.059 0.090 0.165 rg
+0.059 0.090 0.165 RG
+0.50 w
+42.00 185.49 511.28 20.00 re B
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 47.00 194.49 Td (HTTP Method & Path) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+164.71 205.49 m 164.71 185.49 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 169.71 194.49 Td (Handler Module) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+277.19 205.49 m 277.19 185.49 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 282.19 194.49 Td (Authentication) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+358.99 205.49 m 358.99 185.49 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 363.99 194.49 Td (Functional Responsibility) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 156.49 511.28 29.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 174.49 Td (POST /api/ai/chat) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 185.49 m 164.71 156.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 174.49 Td (lib/chat-http.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 185.49 m 277.19 156.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 174.49 Td (Optional \(Guest or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 163.99 Td (Auth\)) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 185.49 m 358.99 156.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 174.49 Td (Primary streaming SSE and JSON chat execution) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 163.99 Td (pipeline) Tj ET
+0.973 0.980 0.988 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 127.49 511.28 29.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 145.49 Td (GET /api/ai/preview) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 156.49 m 164.71 127.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 145.49 Td (lib/ai-chat-service.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 156.49 m 277.19 127.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 145.49 Td (Optional) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 156.49 m 358.99 127.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 145.49 Td (Returns pinned inbox preview \( title , subtitle ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 134.99 Td (timestamp \) for unified chat lists) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 87.99 511.28 39.50 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 116.49 Td (GET) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 105.99 Td (/api/ai/resources/:type/:id/op) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 95.49 Td (en) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 127.49 m 164.71 87.99 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 116.49 Td (lib/kyana-resource-http.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 127.49 m 277.19 87.99 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 116.49 Td (requireLogin) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 127.49 m 358.99 87.99 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 116.49 Td (Revalidates user permission against live source) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 105.99 Td (tables before redirecting or returning JSON card) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 95.49 Td (metadata) Tj ET
+0.973 0.980 0.988 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 58.99 511.28 29.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 76.99 Td (GET /api/ai/conversations) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 87.99 m 164.71 58.99 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 76.99 Td (lib/ai-chat-service.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 87.99 m 277.19 58.99 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 76.99 Td (requireLogin) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 87.99 m 358.99 58.99 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 76.99 Td (Lists all ai_conversations belonging to the) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 66.49 Td (authenticated student ordered by updated_at DESC) Tj ET
+0.796 0.835 0.882 RG
+0.50 w
+42.00 36 m 553.28 36 l S
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 42.00 26 Td (GANDAKI UNIVERSITY | SEMESTER LIBRARY | KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.278 0.333 0.412 rg
+BT /F2 7.50 Tf 509.70 26 Td (Page 2 of 10) Tj ET
+endstream
+endobj
+10 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 9 0 R >>
+endobj
+11 0 obj
+<< /Length 11552 >>
+stream
+0.796 0.835 0.882 RG
+0.60 w
+42.00 809.89 m 553.28 809.89 l S
+0.392 0.455 0.545 rg
+BT /F2 7.50 Tf 42.00 815.89 Td (SEMESTER LIBRARY - KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 454.13 815.89 Td (GANDAKI UNIVERSITY \(BIT\)) Tj ET
+0.059 0.090 0.165 rg
+0.059 0.090 0.165 RG
+0.50 w
+42.00 773.89 511.28 20.00 re B
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 47.00 782.89 Td (HTTP Method & Path) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+164.71 793.89 m 164.71 773.89 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 169.71 782.89 Td (Handler Module) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+277.19 793.89 m 277.19 773.89 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 282.19 782.89 Td (Authentication) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+358.99 793.89 m 358.99 773.89 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 363.99 782.89 Td (Functional Responsibility) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 734.39 511.28 39.50 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 762.89 Td (GET) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 752.39 Td (/api/ai/conversations/:id/mes) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 741.89 Td (sages) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 773.89 m 164.71 734.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 762.89 Td (lib/ai-chat-service.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 773.89 m 277.19 734.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 762.89 Td (requireLogin) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 773.89 m 358.99 734.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 762.89 Td (Fetches up to 100 messages for a conversation and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 752.39 Td (revalidates every historical assistant message's) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 741.89 Td (accessContext and resourceCards) Tj ET
+0.973 0.980 0.988 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 705.39 511.28 29.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 723.39 Td (POST /api/ai/conversations) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 734.39 m 164.71 705.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 723.39 Td (lib/ai-chat-service.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 734.39 m 277.19 705.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 723.39 Td (requireLogin) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 734.39 m 358.99 705.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 723.39 Td (Creates a new conversation record \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 712.89 Td (chat_${Date.now\(\)}_${random} \)) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 665.89 511.28 39.50 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 694.39 Td (POST) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 683.89 Td (/api/ai/conversations/:id/clea) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 673.39 Td (r) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 705.39 m 164.71 665.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 694.39 Td (lib/ai-chat-service.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 705.39 m 277.19 665.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 694.39 Td (requireLogin) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 705.39 m 358.99 665.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 694.39 Td (Deletes all rows in ai_messages for the) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 683.89 Td (conversation while preserving the ai_conversations) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 673.39 Td (container) Tj ET
+0.973 0.980 0.988 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 636.89 511.28 29.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 654.89 Td (DELETE) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 644.39 Td (/api/ai/conversations/:id) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 665.89 m 164.71 636.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 654.89 Td (lib/ai-chat-service.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 665.89 m 277.19 636.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 654.89 Td (requireLogin) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 665.89 m 358.99 636.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 654.89 Td (Permanently deletes both ai_messages and the) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 644.39 Td (parent ai_conversations row) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 618.39 511.28 18.50 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 625.89 Td (GET /api/ai/suggestions) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 636.89 m 164.71 618.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 625.89 Td (server.js) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 636.89 m 277.19 618.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 625.89 Td (Public) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 636.89 m 358.99 618.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 625.89 Td (Returns starter prompt chips for empty chat states) Tj ET
+0.118 0.227 0.541 rg
+42.00 586.39 3.50 16.00 re f
+0.059 0.090 0.165 rg
+BT /F2 12.50 Tf 51.00 590.39 Td (3. Core Orchestration Engine and Intent Routing) Tj ET
+0.118 0.227 0.541 RG
+1.00 w
+42.00 584.39 m 553.28 584.39 l S
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 560.39 Td (3.1 Context Window Compaction and Academic Context Resolution) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 542.39 Td (Inside handleChat in ai-assistant.js , incoming messages are trimmed to 8,000 characters and passed through) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 529.39 Td (resolveChatMode \( lib/chat-mode.js \) and sensitiveRequest \( lib/chat-security.js \). To prevent context window bloat on long) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 516.39 Td (conversations while preserving topical continuity, handleChat compacts conversation histories exceeding 12 messages: it) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 503.39 Td (extracts the first 40 characters of up to 3 distinct earlier user turns, synthesizes a [Earlier context summary: student) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 490.39 Td (previously discussed ...] prefix message, and retains the 8 most recent turns in full \(up to 6,000 characters per turn\).) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 472.39 Td (Next, handleChat resolves the user's authoritative academic permissions via getAcademicContext\(db, studentInfo\) in) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 459.39 Td (lib/academic-context.js . This server-side lookup queries students , cohorts , and teacher_subjects to construct an) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 446.39 Td (immutable permission object containing the user's role \( student , cr , teacher , or admin \), permanent cohort.id , dynamic) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 433.39 Td (cohort.currentSemester \(1 - 8\), and assignedSemesters \(for teachers\). A SHA-256 digest of this permission state is) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 420.39 Td (computed via contextKey\(academicContext\) in lib/chat-security.js and attached to every response and cache entry.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 397.39 Td (3.2 Deterministic NLU and Multi-Turn Intent Router) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 379.39 Td (Before invoking an LLM or querying the database, lib/chat-tools.js executes routeQuery\(message, cleanHistory\) , a) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 366.39 Td (deterministic Natural Language Understanding \(NLU\) classifier that parses English, Romanized Nepali, and Devanagari) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 353.39 Td (queries into structured routing intents:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 335.89 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 335.89 Td (Subject and Semester Entity Extraction \( extractFilters \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 323.39 Td (Maps Roman numerals \( I - VIII \), English ordinals \( first - eighth , 1st - 8th \), and numeric strings \( sem 3 , semester 2 \) to) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 311.19 Td (canonical integer semesters 1 - 8 . Matches 26 BIT courses from public/syllabus-data.json against a curated alias) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 298.99 Td (dictionary \( SUBJECT_ALIASES in lib/chat-tools.js , such as 'dbms' -> 'Database Management System' , 'dsa' -> 'Data) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 286.79 Td (Structure and Algorithms' , 'coa' -> 'Microprocessor and Computer Architecture' \), sorting by longest alias match so) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 274.59 Td ("Mathematics II" never falsely triggers "Mathematics I" . Also infers implicit subjects from 29 topic clusters in) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 262.39 Td (lib/chat-topics.js \(e.g., mapping "1nf" , "bcnf" , or "functional dependency" to Database Management System in Semester) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 250.19 Td (3, or "k-map" and "flip flop" to Digital Logic in Semester 2\).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 234.49 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 234.49 Td (Nepali Temporal Expression Resolution \( parseNepaliDateExpression \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 221.99 Td (Invokes lib/nepali-dates.js to convert natural Nepali time words into Asia/Kathmandu \( UTC+05:45 \) ISO date strings \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 209.79 Td (YYYY-MM-DD \) and date ranges: aaja / aile \(today\), voli / bholi \(tomorrow\), parsi \(day after tomorrow\), hijo \(yesterday\),) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 197.59 Td (asti \(2 days ago\), yo hapta \(this week\), arko hapta \(next week\), and gako hapta \(last week\).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 181.89 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 181.89 Td (Short Semester Follow-Ups:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 169.39 Td (If a user asks "What's in the syllabus?" and follows up with "and sem 3?" or "what about 2nd semester?" , routeQuery) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 157.19 Td (inherits the prior intent \( notes , syllabus , or routine \) and updates filters.semester .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 141.49 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 141.49 Td (Query Refinement \( matra / only \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 128.99 Td (Short follow-ups containing "matra" or "only" \(up to 4 words, such as "CSS ko matra" \) inherit the prior search category \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 116.79 Td (notes , posts , notices , assignments \) and narrow the subject/topic filter.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 101.09 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 101.09 Td (Pagination \( arko xa? / more \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 88.59 Td (Follow-ups like "arko xa?" , "aru dekhauna" , or "any more?" re-dispatch the previous search with isMore: true .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 72.89 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 72.89 Td (Relative Reference Resolution \( relative_reference \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 60.39 Td (Phrases combining ordinal or deictic markers \( "first" , "second" , "2nd" , "pahilo" , "dosro" , "tesro" , "tyo" , "arko" \)) Tj ET
+0.796 0.835 0.882 RG
+0.50 w
+42.00 36 m 553.28 36 l S
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 42.00 26 Td (GANDAKI UNIVERSITY | SEMESTER LIBRARY | KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.278 0.333 0.412 rg
+BT /F2 7.50 Tf 509.70 26 Td (Page 3 of 10) Tj ET
+endstream
+endobj
+12 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 11 0 R >>
+endobj
+13 0 obj
+<< /Length 13524 >>
+stream
+0.796 0.835 0.882 RG
+0.60 w
+42.00 809.89 m 553.28 809.89 l S
+0.392 0.455 0.545 rg
+BT /F2 7.50 Tf 42.00 815.89 Td (SEMESTER LIBRARY - KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 454.13 815.89 Td (GANDAKI UNIVERSITY \(BIT\)) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 785.39 Td (with open actions \( "khola" , "open" , "view" , "dekhauna" , "heram" \) route to kind: 'relative_reference' with a) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 773.19 Td (zero-based index . In ai-assistant.js , this resolves against the previous turn's resourceCards \(from history, ai_messages) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 760.99 Td (metadata via getLastCardsForConversation , or the in-memory lastCardsPerSession map\), revalidates permissions via) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 748.79 Td (revalidateCards , and returns the targeted card with "${targetCard.title} open gardai chu." in zero LLM calls.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 723.59 Td (3.3 Execution Path Bifurcation: Kyana v3 Knowledge Path vs. Legacy Path) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 705.59 Td (Once routeQuery determines the intent, ai-assistant.js checks isKnowledgeV3Enabled\(studentId\) from) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 692.59 Td (lib/knowledge-schema.js :) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 675.09 Td (1.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 675.09 Td (Path A - Kyana AI 3.0 Unified Knowledge Retrieval \( v3Enabled && isKnowledgeQuery \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 662.59 Td (Triggered when KYANA_KNOWLEDGE_V3 === 'true' and the student is covered by KYANA_KNOWLEDGE_V3_USERS) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 650.39 Td (\( '*' or comma-separated student ID allowlist\), for all queries touching posts , notices , assignments , notes , university) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 638.19 Td (policy, or academic explanations. Executes a single hybrid vector + Full-Text Search \(FTS\) query against Neon) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 625.99 Td (PostgreSQL \( searchKnowledge in lib/knowledge-search.js \), resolves deictic follow-ups \( "yo notice ko meaning) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 613.79 Td (bujhaideu" \), wraps retrieved records in <untrusted_campus_record> tags, performs one single streaming LLM call with) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 601.59 Td (tools: [] , extracts <referenced_records> IDs, and revalidates the referenced cards against live database permissions.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 585.89 Td (2.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 585.89 Td (Path B - Deterministic Zero-LLM Lookups \( directTool \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 573.39 Td (When v3Enabled is active, get_syllabus , get_routine , and web_search remain on the direct tool execution path because) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 561.19 Td (syllabus JSON and exam timetable tables are deterministic. When v3Enabled is off, search_notes , search_notices ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 548.99 Td (search_posts , and search_assignments also use directTool to format results via formatToolResult and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 536.79 Td (styleLookupReply \( lib/chat-personality.js \) with zero LLM round-trips.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 521.09 Td (3.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 521.09 Td (Path C - General Academic, Code, and Multi-Tool Agent Loop:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 508.59 Td (For route.kind === 'direct' \(when v3Enabled is off\) or route.kind === 'tools' , ai-assistant.js pre-fetches up to 2 matching) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 496.39 Td (study note passages from lib/note-search.js if the message is an academic query, injects them into noteEvidencePrompt ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 484.19 Td (and calls generateReply in lib/chat-provider.js .) Tj ET
+0.118 0.227 0.541 rg
+42.00 450.99 3.50 16.00 re f
+0.059 0.090 0.165 rg
+BT /F2 12.50 Tf 51.00 454.99 Td (4. Multi-Provider LLM Engine and Tool-Calling Protocol) Tj ET
+0.118 0.227 0.541 RG
+1.00 w
+42.00 448.99 m 553.28 448.99 l S
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 424.99 Td (4.1 Provider Priority Chain and Model Selection) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 406.99 Td (The LLM communication layer in lib/chat-provider.js is implemented using native Node 18+ fetch and Web Streams without) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 393.99 Td (heavy third-party SDK dependencies. It supports five upstream AI providers arranged in an automatic failover chain: Gemini) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 380.99 Td (-> Groq -> OpenRouter -> OpenAI -> DeepSeek .) Tj ET
+0.059 0.090 0.165 rg
+0.059 0.090 0.165 RG
+0.50 w
+42.00 328.49 511.28 39.50 re B
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 47.00 356.99 Td (Priority) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 47.00 346.49 Td (Order) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+98.24 367.99 m 98.24 328.49 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 103.24 356.99 Td (Provider) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 103.24 346.49 Td (Identifier) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+159.59 367.99 m 159.59 328.49 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 164.59 356.99 Td (Endpoint Contract) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+261.85 367.99 m 261.85 328.49 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 266.85 356.99 Td (Default Standard) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 266.85 346.49 Td (Model \( complex:) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 266.85 335.99 Td (false \)) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+353.88 367.99 m 353.88 328.49 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 358.88 356.99 Td (Default Complex) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 358.88 346.49 Td (Model \( complex:) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 358.88 335.99 Td (true \)) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+445.91 367.99 m 445.91 328.49 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 450.91 356.99 Td (Intra-Provider Candidate) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 450.91 346.49 Td (Fallbacks) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 278.49 511.28 50.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 317.49 Td (1 \(Primary\)) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+98.24 328.49 m 98.24 278.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 103.24 317.49 Td (gemini) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+159.59 328.49 m 159.59 278.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 317.49 Td (Google AI REST) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 306.99 Td (streamGenerateContent?a) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 296.49 Td (lt=sse) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+261.85 328.49 m 261.85 278.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 317.49 Td (GEMINI_MODEL or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 306.99 Td (gemini-3-flash-preview) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+353.88 328.49 m 353.88 278.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 317.49 Td (GEMINI_COMPLEX_) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 306.99 Td (MODEL or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 296.49 Td (gemini-3-flash-preview) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+445.91 328.49 m 445.91 278.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 317.49 Td (gemini-3-flash-preview ->) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 306.99 Td (gemini-3.1-flash-lite-previe) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 296.49 Td (w -> gemini-flash-latest \(on) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 285.99 Td (HTTP 404/429/503\)) Tj ET
+0.973 0.980 0.988 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 228.49 511.28 50.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 267.49 Td (2) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+98.24 278.49 m 98.24 228.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 103.24 267.49 Td (groq) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+159.59 278.49 m 159.59 228.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 267.49 Td (OpenAI-compatible) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 256.99 Td (/openai/v1/chat/completio) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 246.49 Td (ns) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+261.85 278.49 m 261.85 228.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 267.49 Td (GROQ_MODEL or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 256.99 Td (llama-3.3-70b-versatile) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+353.88 278.49 m 353.88 228.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 267.49 Td (GROQ_COMPLEX_M) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 256.99 Td (ODEL or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 246.49 Td (llama-3.3-70b-versatile) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+445.91 278.49 m 445.91 228.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 267.49 Td (llama-3.3-70b-versatile ->) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 256.99 Td (qwen/qwen3.8-27b ->) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 246.49 Td (openai/gpt-oss-120b \(on) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 235.99 Td (HTTP 404\)) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 178.49 511.28 50.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 217.49 Td (3) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+98.24 228.49 m 98.24 178.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 103.24 217.49 Td (openrouter) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+159.59 228.49 m 159.59 178.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 217.49 Td (OpenAI-compatible) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 206.99 Td (/api/v1/chat/completions) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+261.85 228.49 m 261.85 178.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 217.49 Td (OPENROUTER_MODE) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 206.99 Td (L or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 196.49 Td (google/gemini-3.1-flash) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 185.99 Td (-lite) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+353.88 228.49 m 353.88 178.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 217.49 Td (OPENROUTER_COMP) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 206.99 Td (LEX_MODEL or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 196.49 Td (google/gemini-3.1-pro-p) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 185.99 Td (review) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+445.91 228.49 m 445.91 178.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 217.49 Td (Configured via OpenRouter) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 206.99 Td (routing) Tj ET
+0.973 0.980 0.988 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 149.49 511.28 29.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 167.49 Td (4) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+98.24 178.49 m 98.24 149.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 103.24 167.49 Td (openai) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+159.59 178.49 m 159.59 149.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 167.49 Td (OpenAI REST) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 156.99 Td (/v1/chat/completions) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+261.85 178.49 m 261.85 149.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 167.49 Td (OPENAI_MODEL or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 156.99 Td (gpt-4o-mini) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+353.88 178.49 m 353.88 149.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 167.49 Td (OPENAI_COMPLEX_) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 156.99 Td (MODEL or gpt-4o) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+445.91 178.49 m 445.91 149.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 167.49 Td (None) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 120.49 511.28 29.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 138.49 Td (5) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+98.24 149.49 m 98.24 120.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 103.24 138.49 Td (deepseek) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+159.59 149.49 m 159.59 120.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 138.49 Td (OpenAI-compatible) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 164.59 127.99 Td (/chat/completions) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+261.85 149.49 m 261.85 120.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 138.49 Td (DEEPSEEK_MODEL) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 266.85 127.99 Td (or deepseek-chat) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+353.88 149.49 m 353.88 120.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 138.49 Td (DEEPSEEK_MODEL) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 358.88 127.99 Td (or deepseek-chat) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+445.91 149.49 m 445.91 120.49 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 450.91 138.49 Td (None) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 101.49 Td (Generation parameters are standardized at temperature: 0.25 and maxOutputTokens: 3000 \( 5000 when complex: true \). For) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 88.49 Td (Gemini 2.5 Flash models, thinkingConfig: { thinkingBudget: 0 } is set; for Gemini 3 Flash models, thinkingConfig: {) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 75.49 Td (thinkingLevel: 'minimal' } is passed to minimize time-to-first-token latency.) Tj ET
+0.796 0.835 0.882 RG
+0.50 w
+42.00 36 m 553.28 36 l S
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 42.00 26 Td (GANDAKI UNIVERSITY | SEMESTER LIBRARY | KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.278 0.333 0.412 rg
+BT /F2 7.50 Tf 509.70 26 Td (Page 4 of 10) Tj ET
+endstream
+endobj
+14 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 13 0 R >>
+endobj
+15 0 obj
+<< /Length 8728 >>
+stream
+0.796 0.835 0.882 RG
+0.60 w
+42.00 809.89 m 553.28 809.89 l S
+0.392 0.455 0.545 rg
+BT /F2 7.50 Tf 42.00 815.89 Td (SEMESTER LIBRARY - KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 454.13 815.89 Td (GANDAKI UNIVERSITY \(BIT\)) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 779.89 Td (4.2 Bounded Two-Round Tool Execution and Speculative Prose Buffering) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 761.89 Td (When tools are provided to generateReply in lib/chat-provider.js , the provider runs a strictly bounded loop of at most 2) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 748.89 Td (rounds and at most 4 parallel tool calls \( MAX_TOOL_CALLS = 4 \):) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 731.39 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 731.39 Td (Round 0 \(Tool Selection & Execution\):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 718.89 Td (Tools are enabled \( allowTools = true \). Because some LLMs emit speculative prose before emitting a function call,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 706.69 Td (onDelta chunks during Round 0 are buffered in pendingChunks rather than streamed immediately to the client. If the model) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 694.49 Td (finishes Round 0 without calling any tools, the buffered chunks are flushed to the user.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 678.79 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 678.79 Td (Strict Argument Validation \( argumentsFor \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 666.29 Td (Each tool call is validated against the JSON Schema in TOOLS before execution: prototype pollution keys \( __proto__ ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 654.09 Td (prototype , constructor \) are rejected, unknown properties throw INVALID_TOOL_CALL , string lengths are capped at) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 641.89 Td (maxLength \(default 2,000 characters, total JSON payload <= 16,000 bytes\), and numeric bounds \( minimum: 1, maximum: 8) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 629.69 Td (for semesters\) are enforced.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 613.99 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 613.99 Td (Deduplicated Parallel Execution:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 601.49 Td (Tool calls are deduplicated by JSON.stringify\([call.name, call.args]\) and executed concurrently via Promise.all , wrapped) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 589.29 Td (in withDeadline \(default 15,000ms timeout, configurable via CHAT_TIMEOUT_MS between 1,000ms and 30,000ms\). Tool) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 577.09 Td (outputs exceeding 64,000 serialized bytes are replaced with { error: 'RESULT_TOO_LARGE', message: 'Narrow the) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 564.89 Td (search by subject or semester.' } .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 549.19 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 549.19 Td (Round 1 \(Final Synthesis\):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 536.69 Td (Tool outputs are appended to contents \(preserving exact thought signatures for Gemini functionResponse turns\) or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 524.49 Td (messages , tools are disabled \( allowTools = false \), and the final synthesis tokens are streamed directly to the client.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 508.79 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 508.79 Td (Clean Failover Guarantee:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 496.29 Td (If a provider fails before any visible text is emitted to the user \( !visibleText \), generateReply catches the error and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 484.09 Td (transparently falls back to the next configured provider in defaultChain . Once any token has been streamed to the client,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 471.89 Td (failover is prohibited to prevent concatenating two partial answers.) Tj ET
+0.118 0.227 0.541 rg
+42.00 438.69 3.50 16.00 re f
+0.059 0.090 0.165 rg
+BT /F2 12.50 Tf 51.00 442.69 Td (5. Kyana AI 3.0 Unified Knowledge Engine \(RAG Pipeline\)) Tj ET
+0.118 0.227 0.541 RG
+1.00 w
+42.00 436.69 m 553.28 436.69 l S
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 412.69 Td (5.1 Unified PostgreSQL Schema \( pgvector + Weighted Multilingual FTS\)) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 394.69 Td (Defined in migrations/20261014_kyana_v3_knowledge.up.sql and managed by lib/knowledge-schema.js , the Kyana 3.0) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 381.69 Td (RAG engine consolidates eight campus resource types \( post , notice , assignment , note , routine , syllabus , gu_official ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 368.69 Td (comment \) into three tables in Neon PostgreSQL 16:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 351.19 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 351.19 Td (knowledge_resources :) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 338.69 Td (Stores canonical metadata \( id formatted as ${type}:${canonicalId} , title , source_authority_tier 1 - 5 \), denormalized) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 326.49 Td (scoping columns \( author_id , author_role , cohort_id , semester_no , audience_scope , target_all_semesters , visibility) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 314.29 Td (\), pre-computed client routes \( web_url , mobile_route , mobile_params \), lifecycle timestamps \( created_at , updated_at) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 302.09 Td (, deleted_at , hidden_at \), and a deterministic SHA-256 content_hash .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 286.39 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 286.39 Td (knowledge_chunks :) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 273.89 Td (Stores segmented text passages \( id formatted as ${resource_id}:c${chunk_index} \), optional PDF/slide page_number ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 261.69 Td (768-dimensional embeddings \( embedding vector\(768\) indexed via USING hnsw \(embedding vector_cosine_ops\) \), and a) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 249.49 Td (generated stored tsvector column \( tsv_content \) combining English stemming \( setweight\(to_tsvector\('english', content\),) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 237.29 Td ('A'\) \) with dictionary-agnostic token matching for Romanized Nepali and code \( setweight\(to_tsvector\('simple', content\),) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 225.09 Td ('B'\) \), indexed via USING GIN \(tsv_content\) .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 209.39 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 209.39 Td (knowledge_jobs :) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 196.89 Td (A persistent, serverless-safe retry queue tracking asynchronous indexing operations \( index , update , delete , sync \) with) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 184.69 Td (revision counters, attempts / max_attempts \(5\), locked_at timestamps, and a partial unique index) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 172.49 Td (uq_kj_pending_resource_op preventing duplicate pending jobs for the same resource.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 147.29 Td (5.2 Document Ingestion, Chunking, and Embedding Pipeline) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 129.29 Td (When campus content is created or updated, lib/knowledge-builder.js transforms raw database rows into structured {) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 116.29 Td (resource, chunks } payloads:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 98.79 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 98.79 Td (Contextual Chunking \( chunkText \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 86.29 Td (Text bodies are normalized and split into chunks targeting 750 characters \(600 - 800 range\) with a 100-character sliding) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 74.09 Td (overlap , breaking cleanly on paragraph newlines, sentence periods, or word spaces past the 70% mark. Every chunk is) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 61.89 Td (prepended with a bracketed metadata header - such as [Type: Notice | Title: ... | Subject: ... | Audience: ...] - so that vector) Tj ET
+0.796 0.835 0.882 RG
+0.50 w
+42.00 36 m 553.28 36 l S
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 42.00 26 Td (GANDAKI UNIVERSITY | SEMESTER LIBRARY | KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.278 0.333 0.412 rg
+BT /F2 7.50 Tf 509.70 26 Td (Page 5 of 10) Tj ET
+endstream
+endobj
+16 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 15 0 R >>
+endobj
+17 0 obj
+<< /Length 9400 >>
+stream
+0.796 0.835 0.882 RG
+0.60 w
+42.00 809.89 m 553.28 809.89 l S
+0.392 0.455 0.545 rg
+BT /F2 7.50 Tf 42.00 815.89 Td (SEMESTER LIBRARY - KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 454.13 815.89 Td (GANDAKI UNIVERSITY \(BIT\)) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 785.39 Td (embeddings capture document identity on every passage.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 769.69 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 769.69 Td (Page-Aware Study Material Extraction \( lib/note-search.js \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 757.19 Td (Uploaded files \(up to MAX_FILE_BYTES = 20 MB and MAX_TEXT_CHARS = 1,000,000 \) are fetched from Supabase) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 744.99 Td (Storage \( library_files bucket\), local /uploads \( /tmp/uploads on Vercel\), or the file_blobs table. PDFs are parsed via) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 732.79 Td (pdfjs-dist/legacy/build/pdf.mjs up to 500 pages, joining pages with form-feed \( \\f \) delimiters so buildNoteKnowledge) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 720.59 Td (preserves exact 1-indexed pageNumber values per chunk. DOCX and PPTX files are validated against zip-bomb attacks via) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 708.39 Td (central-directory inspection \( checkDocxSize , capping expanded size at 60 MB\) before extracting text with mammoth or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 696.19 Td (node-pptx-parser .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 680.49 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 680.49 Td (Vector Embeddings \( lib/knowledge-embeddings.js \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 667.99 Td (Calls Google's gemini-embedding-001 model \( embedContent for single queries with taskType: 'RETRIEVAL_QUERY' ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 655.79 Td (and batchEmbedContents in batches of up to 100 chunks with taskType: 'RETRIEVAL_DOCUMENT' \), requesting) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 643.59 Td (outputDimensionality: 768 and L2-normalizing every returned vector.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 618.39 Td (5.3 Real-Time Sync Hooks, Background Worker, and Gandaki University Sync) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 600.39 Td (To keep the knowledge index synchronized with live campus activity without slowing down user mutations,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 587.39 Td (lib/knowledge-sync.js and lib/knowledge-worker.js implement a dual-mode synchronization strategy:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 569.89 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 569.89 Td (Immediate Non-Blocking Upserts:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 557.39 Td (When a resource is created or edited, persistKnowledgeResource compares the new SHA-256 content_hash against) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 545.19 Td (knowledge_resources.content_hash . If unchanged, it updates metadata columns in place without re-embedding. If) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 532.99 Td (changed, it attempts to batch-embed and transactionally replace chunks within HOOK_TIMEOUT_MS \(8,000ms\). If) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 520.79 Td (embedding fails or times out, it indexes the text chunks with embedding = NULL \(so keyword FTS works immediately\) and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 508.59 Td (enqueues a retry job in knowledge_jobs .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 492.89 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 492.89 Td (Synchronous Revocation on Deletion or Moderation:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 480.39 Td (Deletions and content moderation hides execute synchronously before the HTTP response returns, setting deleted_at =) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 468.19 Td (CURRENT_TIMESTAMP or hidden_at = CURRENT_TIMESTAMP on both the resource and any child comment records.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 452.49 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 452.49 Td (Internal Worker & Gandaki University Portal Sync \( routes/internal-knowledge.js \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 439.99 Td (Protected by constant-time crypto.timingSafeEqual verification of INTERNAL_CRON_SECRET , four endpoints maintain) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 427.79 Td (index health: /api/internal/knowledge/worker \(drains pending jobs using FOR UPDATE SKIP LOCKED \),) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 415.59 Td (/api/internal/knowledge/reconcile \(detects missing or orphaned records and hash drift\),) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 403.39 Td (/api/internal/knowledge/sync-university \(polls Gandaki University's WordPress REST API via lib/university-sync.js and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 391.19 Td (indexes official notices at Tier 1\), and /api/internal/knowledge/timings \(exposes the 50-request latency ring buffer from) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 378.99 Td (lib/knowledge-timing.js \).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 353.79 Td (5.4 Single-Query Hybrid Retrieval and Relevance Reranking) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 335.79 Td (When searchKnowledge\(db, academicContext, query, options\) in lib/knowledge-search.js executes against PostgreSQL, it) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 322.79 Td (performs three stages:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 305.29 Td (1.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 305.29 Td (Query Tokenization, Synonym Expansion, and Embedding:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 292.79 Td (lib/knowledge-relevance.js strips English, Romanized Nepali, and Devanagari stopwords and expands terms through) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 280.59 Td (ALIASES \(mapping Devanagari terms like -> exam , -> notice , -> routine , -> assignment , and common student typos like) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 268.39 Td (normalisation -> normalization , pythn -> python \). Concurrently, embedText computes the 768-dim query vector with a) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 256.19 Td (2,000ms timeout.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 240.49 Td (2.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 240.49 Td (In-SQL Live Table Authorization Join and Passage Diversification:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 227.99 Td (Executes a single SQL CTE \( WITH candidates AS \(...\) \) that joins knowledge_resources and knowledge_chunks directly) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 215.79 Td (against the live source tables \( posts , assignments , files , note_search_documents , routine , post_comments \) and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 203.59 Td (injects the role-and-semester SQL predicates generated by resourceFilter \( lib/kyana-access.js \). A window function \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 191.39 Td (ROW_NUMBER\(\) OVER \(PARTITION BY id ORDER BY fts_score DESC, vector_sim DESC\) \) caps passages at 3 chunks) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 179.19 Td (per resource.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 163.49 Td (3.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 163.49 Td (Live Freshness Verification and Hybrid Reranking \( isFresh & rankCandidates \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 150.99 Td (Every returned candidate row is verified against its live source JSON via isFresh\(row, row.source\) , recomputing the) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 138.79 Td (canonical content_hash on the fly. Next, validateRelevance enforces a Named Entity Gate \( extractNamedEntities \) to) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 126.59 Td (eliminate false-positive semantic matches on out-of-domain proper nouns, and rankCandidates computes the composite) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 114.39 Td (score \(requiring score >= 0.35 \): Score = ExactTitleBonus\(1.0\) + \(0.65 x TermCoverage\) + \(0.20 x TitleCoverage\) + \(0.10 x) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 102.19 Td (VectorSim\) + \(0.05 x \(6 - AuthorityTier\) / 5\)) Tj ET
+0.059 0.090 0.165 rg
+0.059 0.090 0.165 RG
+0.50 w
+42.00 57.99 511.28 29.00 re B
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 47.00 75.99 Td (Source Authority Tier) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+164.71 86.99 m 164.71 57.99 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 169.71 75.99 Td (Assigned Resource) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 169.71 65.49 Td (Categories) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+277.19 86.99 m 277.19 57.99 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 282.19 75.99 Td (Prompt Attribution) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 282.19 65.49 Td (Label) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+358.99 86.99 m 358.99 57.99 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 363.99 75.99 Td (Conflict Resolution Weight) Tj ET
+0.796 0.835 0.882 RG
+0.50 w
+42.00 36 m 553.28 36 l S
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 42.00 26 Td (GANDAKI UNIVERSITY | SEMESTER LIBRARY | KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.278 0.333 0.412 rg
+BT /F2 7.50 Tf 509.70 26 Td (Page 6 of 10) Tj ET
+endstream
+endobj
+18 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 17 0 R >>
+endobj
+19 0 obj
+<< /Length 10857 >>
+stream
+0.796 0.835 0.882 RG
+0.60 w
+42.00 809.89 m 553.28 809.89 l S
+0.392 0.455 0.545 rg
+BT /F2 7.50 Tf 42.00 815.89 Td (SEMESTER LIBRARY - KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 454.13 815.89 Td (GANDAKI UNIVERSITY \(BIT\)) Tj ET
+0.059 0.090 0.165 rg
+0.059 0.090 0.165 RG
+0.50 w
+42.00 764.89 511.28 29.00 re B
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 47.00 782.89 Td (Source Authority Tier) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+164.71 793.89 m 164.71 764.89 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 169.71 782.89 Td (Assigned Resource) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 169.71 772.39 Td (Categories) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+277.19 793.89 m 277.19 764.89 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 282.19 782.89 Td (Prompt Attribution) Tj ET
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 282.19 772.39 Td (Label) Tj ET
+0.200 0.255 0.333 RG
+0.40 w
+358.99 793.89 m 358.99 764.89 l S
+1.000 1.000 1.000 rg
+BT /F2 8.00 Tf 363.99 782.89 Td (Conflict Resolution Weight) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 714.89 511.28 50.00 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 753.89 Td (Tier 1) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 764.89 m 164.71 714.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 753.89 Td (Gandaki University Official) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 743.39 Td (Portal \( gu_official \), Admin) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 732.89 Td (Notices, Admin Comments,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 722.39 Td (Exam Routines) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 764.89 m 277.19 714.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 753.89 Td (Official College) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 743.39 Td (Notice) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 764.89 m 358.99 714.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 753.89 Td (Highest institutional authority; overrides informal) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 743.39 Td (posts) Tj ET
+0.973 0.980 0.988 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 675.39 511.28 39.50 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 703.89 Td (Tier 2) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 714.89 m 164.71 675.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 703.89 Td (Teacher Notices, Teacher) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 693.39 Td (Assignments \( assignments) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 682.89 Td (\), Teacher Comments) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 714.89 m 277.19 675.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 703.89 Td (Teacher) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 693.39 Td (Assignment /) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 682.89 Td (Teacher Notice) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 714.89 m 358.99 675.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 703.89 Td (Authoritative for course-level deadlines and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 693.39 Td (clarifications) Tj ET
+1.000 1.000 1.000 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 614.89 511.28 60.50 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 664.39 Td (Tier 3) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 675.39 m 164.71 614.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 664.39 Td (Class Representative \(CR\)) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 653.89 Td (Announcements, CR) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 643.39 Td (Comments, Teacher/CR) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 632.89 Td (Uploaded Notes) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 675.39 m 277.19 614.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 664.39 Td (Class) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 653.89 Td (Representative \(CR\)) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 643.39 Td (Announcement /) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 632.89 Td (Course Study) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 622.39 Td (Material \(File\)) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 675.39 m 358.99 614.89 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 664.39 Td (Cohort-level coordination and official lecture slides) Tj ET
+0.973 0.980 0.988 rg
+0.796 0.835 0.882 RG
+0.50 w
+42.00 575.39 511.28 39.50 re B
+0.059 0.090 0.165 rg
+BT /F2 7.80 Tf 47.00 603.89 Td (Tier 4) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+164.71 614.89 m 164.71 575.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 603.89 Td (Student Community Posts \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 593.39 Td (posts \), Student Comments,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 169.71 582.89 Td (Student Uploaded Notes) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+277.19 614.89 m 277.19 575.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 603.89 Td (Student Community) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 593.39 Td (Post / Course Study) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 282.19 582.89 Td (Material \(File\)) Tj ET
+0.886 0.910 0.941 RG
+0.40 w
+358.99 614.89 m 358.99 575.39 l S
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 603.89 Td (Peer discussion; explicitly never treated as) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 7.80 Tf 363.99 593.39 Td (university policy) Tj ET
+0.118 0.227 0.541 rg
+42.00 543.39 3.50 16.00 re f
+0.059 0.090 0.165 rg
+BT /F2 12.50 Tf 51.00 547.39 Td (6. Persona Engineering, Language Adaptation, and Security Architecture) Tj ET
+0.118 0.227 0.541 RG
+1.00 w
+42.00 541.39 m 553.28 541.39 l S
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 517.39 Td (6.1 Cultural Persona and Four-Way Language Adaptation) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 499.39 Td (All persona rules are centralized in lib/chat-personality.js \( PERSONALITY_VERSION = '2.2.0' \), which serves as the) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 486.39 Td (single source of truth across Web and Mobile. Kyana is engineered to sound like a sharp, supportive Nepali university senior) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 473.39 Td (rather than a corporate chatbot:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 455.89 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 455.89 Td (Anti-Robotic Guardrails:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 443.39 Td (Strictly forbids canned openings \( "Certainly!" , "Great question!" , "As an AI assistant..." \), bans unsolicited closing) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 431.19 Td (questions \( "Bujheu?" , "Kehi help chaiyo?" \), prevents repeating the user's prompt verbatim, and forbids fabricating) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 418.99 Td (human experiences.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 403.29 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 403.29 Td (Four-Way Language Detection \( detectLanguage & detectExplicitLanguageSwitch \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 390.79 Td (Automatically detects Devanagari Nepali \(Unicode range [\\u0900-\\u097F] \), Romanized Nepali \(matched against) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 378.59 Td (NEPALI_MARKERS such as xa , xaina , hunxa , vayo , garxu , bujhaideu , khojdeu , voli , yrr , huss , dami , babal , jhyau \),) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 366.39 Td (Mixed Nepali-English Code-Switching , and English , while honoring explicit switch commands \( "English ma explain gara") Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 354.19 Td (, "Feri Nepali ma vana" \).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 338.49 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 338.49 Td (Dynamic Session Modes \( toneInstructions \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 325.99 Td (Switches between Empathetic Support Mode \(triggered automatically when stressed\(message\) detects exam anxiety or) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 313.79 Td (panic keywords like "padhei sakiyena" , "tension" , "voli exam" , or \), Formal / Restrained Mode \(toggled via) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 301.59 Td (lib/chat-mode.js \), and Roast / Friendly & Witty Mode \(default\).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 276.39 Td (6.2 Multi-Layered Security, Access Control, and Prompt Injection Defense) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 258.39 Td (Security across the chatbot system is enforced through six independent layers in lib/chat-security.js , lib/kyana-access.js ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 245.39 Td (and lib/chat-ratelimit.js :) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 227.89 Td (1.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 227.89 Td (Pre-Flight Prompt Injection & Secret Exfiltration Filter \( sensitiveRequest \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 215.39 Td (Normalizes input using Unicode NFKC and blocks any request attempting to extract system prompts, developer) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 203.19 Td (instructions, environment variables, DATABASE_URL , API keys, session tokens, admin credentials, student password) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 190.99 Td (hashes, or unpublished exam papers, as well as instruction-override patterns \( "ignore/disregard/bypass previous/system) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 178.79 Td (instructions" \).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 163.09 Td (2.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 163.09 Td (Untrusted Data Encapsulation \( <untrusted_campus_record> \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 150.59 Td (Every database passage injected into the LLM prompt has XML boundary tags stripped/escaped from its title and body) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 138.39 Td (and is wrapped in an XML block accompanied by system instructions declaring that record contents are untrusted user) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 126.19 Td (data and must never be followed as instructions.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 110.49 Td (3.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 110.49 Td (In-SQL Semester and Cohort Isolation \( resourceFilter & canReadResource \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 97.99 Td (Students and CRs are strictly bound to their own cohort_id \(or audience_scope = 'all_students' \) and their current) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 85.79 Td (registered semester \( cohorts.current_semester \). Teachers are restricted to assignedSemesters resolved from) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 73.59 Td (teacher_subjects , while Admins have full read access across Semesters 1 - 8.) Tj ET
+0.796 0.835 0.882 RG
+0.50 w
+42.00 36 m 553.28 36 l S
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 42.00 26 Td (GANDAKI UNIVERSITY | SEMESTER LIBRARY | KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.278 0.333 0.412 rg
+BT /F2 7.50 Tf 509.70 26 Td (Page 7 of 10) Tj ET
+endstream
+endobj
+20 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 19 0 R >>
+endobj
+21 0 obj
+<< /Length 8503 >>
+stream
+0.796 0.835 0.882 RG
+0.60 w
+42.00 809.89 m 553.28 809.89 l S
+0.392 0.455 0.545 rg
+BT /F2 7.50 Tf 42.00 815.89 Td (SEMESTER LIBRARY - KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 454.13 815.89 Td (GANDAKI UNIVERSITY \(BIT\)) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 785.39 Td (4.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 785.39 Td (Post-Generation Output Sanitization and Card Filtering \( unsafeOutput & revalidateCards \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 772.89 Td (Scans responses against all sensitive process.env values, strips raw URLs from LLM prose in the Kyana v3 path, and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 760.69 Td (constructs resource cards only for record IDs that were physically returned in the SQL query result set and pass a live) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 748.49 Td (permission and sourceVersion SHA-256 check.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 732.79 Td (5.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 732.79 Td (Historical Conversation Revalidation \( lib/ai-chat-service.js \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 720.29 Td (Whenever historical messages are loaded via getMessages , each assistant turn's stored metadata.accessContext is) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 708.09 Td (compared against the user's current contextKey\(context\) and its evidenceReferences are revalidated against live tables) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 695.89 Td (via revalidateCards . If permissions changed or a referenced source was deleted, hidden, or modified, the historical) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 683.69 Td (message is replaced with "This earlier reply is no longer available. Search again to check current sources.") Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 667.99 Td (6.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 667.99 Td (Rate Limiting \( lib/chat-ratelimit.js \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 655.49 Td (Provides a configurable hourly sliding-window rate limiter \( HOURLY_LIMIT = 100 messages per hour keyed by) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 643.29 Td (student:${studentId} , session:${sessionID} , or ip:${req.ip} \).) Tj ET
+0.118 0.227 0.541 rg
+42.00 610.09 3.50 16.00 re f
+0.059 0.090 0.165 rg
+BT /F2 12.50 Tf 51.00 614.09 Td (7. Web and Mobile Client Architectures) Tj ET
+0.118 0.227 0.541 RG
+1.00 w
+42.00 608.09 m 553.28 608.09 l S
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 584.09 Td (7.1 Web Workspace Client \( chatbot.html , chatbot.js , chatbot.css \)) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 566.09 Td (The web interface in public/chatbot.html and public/chatbot.js implements a full-page monochrome workspace guarded by) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 553.09 Td (SemesterAuth.protectPage\(\) :) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 535.59 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 535.59 Td (Streaming SSE Parser \( createEventStreamParser & readChatResponse \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 523.09 Td (Reads response.body.getReader\(\) using a streaming TextDecoder , handling arbitrary byte splits across \\r\\n boundaries,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 510.89 Td (enforcing a 1 MB maximum event size guard, and batching DOM updates via requestAnimationFrame .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 495.19 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 495.19 Td (Code Block Protection, Custom Lexer, and "Run in Compiler" Integration \( KyanaCodeBlock \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 482.69 Td (Shields fenced and inline code blocks \( ___KYANA_PROTECTED_CODE_${counter}___ \) during LaTeX delimiter) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 470.49 Td (normalization, highlights syntax via Prism.js or a zero-dependency single-pass sequential lexer in public/chatbot.js , and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 458.29 Td (injects a Run in Compiler button for supported languages \( java , c , cpp , html , css , javascript , python , sql \) that bridges) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 446.09 Td (directly into public/compiler.html via sessionStorage .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 430.39 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 430.39 Td (Markdown and KaTeX Math Rendering \( renderFormattedContent \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 417.89 Td (Parses Markdown via marked \( v12.0.2 \), sanitizes HTML through DOMPurify \( v3.1.6 \), and renders scientific notation via) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 405.69 Td (KaTeX \( v0.16.11 \).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 389.99 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 389.99 Td (Interactive Resource Cards \( KyanaSourceCard \) & Session Sync:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 377.49 Td (Renders clickable cards beneath assistant responses pointing to /api/ai/resources/${card.type}/${card.id}/open and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 365.29 Td (synchronizes local browser sessions with /api/ai/conversations .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 10.50 Tf 42.00 340.09 Td (7.2 React Native / Expo Mobile Client \( kyana.tsx , kyana.ts , kyana-db.ts \)) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 322.09 Td (The mobile client in mobile/app/kyana.tsx , mobile/services/kyana.ts , and mobile/services/kyana-db.ts provides a native) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 309.09 Td (iOS and Android experience:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 291.59 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 291.59 Td (XHR Incremental SSE Streaming \( sendKyanaMessage \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 279.09 Td (Implements SSE streaming over XMLHttpRequest using xhr.onprogress , slicing xhr.responseText.slice\(processedIndex\)) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 266.89 Td (to parse data: lines in real time and invoking onDelta as tokens arrive, with a 60-second timeout and AbortSignal) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 254.69 Td (cancellation.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 238.99 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 238.99 Td (Local SQLite WAL Persistence \( mobile/services/kyana-db.ts \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 226.49 Td (Uses expo-sqlite \( semester_library_chat.db \) in Write-Ahead Logging \( PRAGMA journal_mode = WAL \) mode with a) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 214.29 Td (serialized writeQueue transaction lock \( withExclusiveTransactionAsync \) and an in-memory map \( memoryMessages \).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 198.59 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 198.59 Td (Native Gestures and Revalidated Card Routing:) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 186.09 Td (Renders an inverted FlatList with KyanaSwipeableBubble \(swipe-right-to-reply with expo-haptics feedback\),) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 173.89 Td (PostMarkdown rendering, and native resource cards that call resolveKyanaResource\(card\) before pushing the target Expo) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 161.69 Td (Router screen.) Tj ET
+0.118 0.227 0.541 rg
+42.00 128.49 3.50 16.00 re f
+0.059 0.090 0.165 rg
+BT /F2 12.50 Tf 51.00 132.49 Td (8. Peer-to-Peer Chat Subsystems \(Cohort Chat and Direct Messaging\)) Tj ET
+0.118 0.227 0.541 RG
+1.00 w
+42.00 126.49 m 553.28 126.49 l S
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 107.49 Td (Alongside Kyana AI, the platform includes two human-to-human messaging systems that are intentionally isolated from AI) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 94.49 Td (tables:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 76.99 Td (1.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 76.99 Td (Cohort Group Chat \( lib/cohort-chat.js & routes/cohort-chat.js \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 64.49 Td (Assigns each BIT intake cohort to one of 8 named group slots \( MERCURY , VENUS , EARTH , MARS , JUPITER ,) Tj ET
+0.796 0.835 0.882 RG
+0.50 w
+42.00 36 m 553.28 36 l S
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 42.00 26 Td (GANDAKI UNIVERSITY | SEMESTER LIBRARY | KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.278 0.333 0.412 rg
+BT /F2 7.50 Tf 509.70 26 Td (Page 8 of 10) Tj ET
+endstream
+endobj
+22 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 21 0 R >>
+endobj
+23 0 obj
+<< /Length 9558 >>
+stream
+0.796 0.835 0.882 RG
+0.60 w
+42.00 809.89 m 553.28 809.89 l S
+0.392 0.455 0.545 rg
+BT /F2 7.50 Tf 42.00 815.89 Td (SEMESTER LIBRARY - KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 454.13 815.89 Td (GANDAKI UNIVERSITY \(BIT\)) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 785.39 Td (SATURN , URANUS , NEPTUNE in migrations/002-cohort-chat.js \). Enforces transactional room locking \( FOR UPDATE \),) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 773.19 Td (idempotent message sending via chat_send_keys tombstones, @username mentions, emoji reactions, read receipts,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 760.99 Td (4-second coalesced typing indicators, 75-second online session heartbeats, CR/Admin pinned announcements, and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 748.79 Td (lifecycle operations \(semester advancement, graduation, epoch rotation, and slot recycling\).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 733.09 Td (2.) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 733.09 Td (One-to-One Direct Messaging \( lib/dm-service.js & routes/direct-messaging.js \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 720.59 Td (Enforces verified-user checks \( verification_status = 'verified' \), canonical sorted participant pairs, bilateral blocking \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 708.39 Td (dm_blocks \), distributed PostgreSQL rate-limiting \( dm_rate_limits \), single-CTE PostgreSQL message insertion, and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 696.19 Td (background outbox draining \( drainDmRealtimeOutbox and drainDmPushOutbox \).) Tj ET
+0.118 0.227 0.541 rg
+42.00 662.99 3.50 16.00 re f
+0.059 0.090 0.165 rg
+BT /F2 12.50 Tf 51.00 666.99 Td (9. Evaluation Suites, Benchmarks, and Architectural Findings) Tj ET
+0.118 0.227 0.541 RG
+1.00 w
+42.00 660.99 m 553.28 660.99 l S
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 641.99 Td (The repository includes three automated evaluation harnesses that benchmark the chatbot's conversational quality, hybrid) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.20 Tf 42.00 628.99 Td (retrieval precision, and local note extraction:) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 611.49 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 611.49 Td (150-Scenario Conversational Benchmark \( scripts/eval-kyana-conversational.js & tests/data/kyana-evaluation-dataset.json \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 598.99 Td (Tests 14 categories including greetings , slang , spelling_variations , exam_stress , humor_and_transparency ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 586.79 Td (academic_english , academic_romanized_nepali , academic_mixed , academic_devanagari , language_switching ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 574.59 Td (multi_turn_context , library_search , nepali_dates , and semester_security .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 558.89 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 558.89 Td (Hybrid Retrieval Benchmark \( scripts/evaluate-kyana-retrieval.js \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 546.39 Td (Evaluates Recall@5 , Precision@5 , MRR \(Mean Reciprocal Rank\), falsePositiveRate , noAnswerAccuracy , and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 534.19 Td (p95SearchMs across keyword_only and hybrid modes in an isolated disposable PostgreSQL schema.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 518.49 Td (-) Tj ET
+0.059 0.090 0.165 rg
+BT /F2 9.00 Tf 58.00 518.49 Td (Local Notes Extraction & Search Benchmark \( scripts/evaluate-kyana-local-notes.js \):) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 505.99 Td (Indexes 60 real study note files from the local snapshot into a disposable PostgreSQL schema and measures Recall@5 ,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 493.79 Td (MRR , and indexing throughput \( resourcesPerSecond \).) Tj ET
+0.118 0.227 0.541 rg
+42.00 460.59 3.50 16.00 re f
+0.059 0.090 0.165 rg
+BT /F2 12.50 Tf 51.00 464.59 Td (10. References and Source Code Index) Tj ET
+0.118 0.227 0.541 RG
+1.00 w
+42.00 458.59 m 553.28 458.59 l S
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 440.09 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 440.09 Td (ai-assistant.js - Core Kyana AI orchestrator, system prompt assembly, v3 knowledge retrieval flow, and tool dispatch.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 424.89 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 424.89 Td (server.js - Express application entry point, authentication middleware, /api/ai/* routes, and /api/chat/* mounts.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 409.69 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 409.69 Td (lib/chat-http.js - Streaming SSE \( text/event-stream \) and JSON HTTP transport handler for Kyana AI.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 394.49 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 394.49 Td (lib/ai-chat-service.js - Conversation and message persistence \( ai_conversations , ai_messages \) with historical) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 382.29 Td (permission revalidation.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 367.09 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 367.09 Td (lib/chat-provider.js - Multi-provider LLM client \(Gemini, Groq, OpenRouter, OpenAI, DeepSeek\), SSE reader, tool-calling) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 354.89 Td (loop, and live web search grounding.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 339.69 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 339.69 Td (lib/chat-personality.js - Persona prompt \( v2.2.0 \), 26 few-shot examples, 4-way language detector, and emotional/stress) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 327.49 Td (tone adaptation.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 312.29 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 312.29 Td (lib/chat-mode.js - Session mode switcher \( roast vs. formal \) with code-block masking.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 297.09 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 297.09 Td (lib/chat-tools.js - Deterministic NLU intent router \( routeQuery \), subject/semester entity extractor, and tool executor \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 284.89 Td (TOOLS \).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 269.69 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 269.69 Td (lib/chat-topics.js - Academic topic-to-course mapping dictionary across BIT semesters.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 254.49 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 254.49 Td (lib/ai-search-tools.js - Semester-authorized SQL search functions for posts, notices, assignments, and files.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 239.29 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 239.29 Td (lib/knowledge-schema.js - Kyana 3.0 feature-flag allowlist \( isKnowledgeV3Enabled \) and migration manager.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 224.09 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 224.09 Td (migrations/20261014_kyana_v3_knowledge.up.sql - PostgreSQL pgvector and weighted FTS schema for) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 211.89 Td (knowledge_resources , knowledge_chunks , and knowledge_jobs .) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 196.69 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 196.69 Td (lib/knowledge-builder.js - Contextual text chunker \(600 - 800 chars, 100-char overlap\), SHA-256 content hashing, and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 184.49 Td (authority tier assignment.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 169.29 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 169.29 Td (lib/knowledge-embeddings.js - gemini-embedding-001 768-dimensional vector embedding client with batching and L2) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 157.09 Td (normalization.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 141.89 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 141.89 Td (lib/knowledge-search.js - Single-query hybrid vector + FTS search engine with in-SQL RBAC joins and live hash) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 129.69 Td (freshness checks.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 114.49 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 114.49 Td (lib/knowledge-relevance.js - Nepali/English stopword filtering, Devanagari/typo alias expansion, named entity gating, and) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 102.29 Td (candidate scoring.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 87.09 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 87.09 Td (lib/knowledge-sync.js - Real-time lifecycle indexing hooks for posts, comments, assignments, and study notes.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 71.89 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 71.89 Td (lib/knowledge-worker.js - Background retry worker \( FOR UPDATE SKIP LOCKED \) and drift reconciliation engine.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 56.69 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 56.69 Td (lib/knowledge-timing.js - Privacy-preserving per-request latency telemetry ring buffer.) Tj ET
+0.796 0.835 0.882 RG
+0.50 w
+42.00 36 m 553.28 36 l S
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 42.00 26 Td (GANDAKI UNIVERSITY | SEMESTER LIBRARY | KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.278 0.333 0.412 rg
+BT /F2 7.50 Tf 509.70 26 Td (Page 9 of 10) Tj ET
+endstream
+endobj
+24 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 23 0 R >>
+endobj
+25 0 obj
+<< /Length 3360 >>
+stream
+0.796 0.835 0.882 RG
+0.60 w
+42.00 809.89 m 553.28 809.89 l S
+0.392 0.455 0.545 rg
+BT /F2 7.50 Tf 42.00 815.89 Td (SEMESTER LIBRARY - KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 454.13 815.89 Td (GANDAKI UNIVERSITY \(BIT\)) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 785.39 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 785.39 Td (lib/kyana-access.js - Role, cohort, and semester SQL filter generator \( resourceFilter \) and live card revalidator \() Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 773.19 Td (revalidateCards \).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 757.99 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 757.99 Td (lib/kyana-resource-http.js - Revalidated resource redirect and metadata endpoint \( /api/ai/resources/:type/:id/open \).) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 742.79 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 742.79 Td (lib/note-search.js - PDF, DOCX, PPTX, TXT, MD, and CSV text extractor and FTS5/GIN note search index.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 727.59 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 727.59 Td (lib/university-sync.js - Gandaki University WordPress REST API synchronizer for Tier 1 official notices.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 712.39 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 712.39 Td (lib/nepali-dates.js - Nepal Standard Time \( UTC+05:45 \) temporal expression parser.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 697.19 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 697.19 Td (lib/chat-security.js - Prompt injection filter, secret leak detector, and contextKey SHA-256 generator.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 681.99 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 681.99 Td (lib/chat-ratelimit.js - Hourly sliding-window rate limiter per student, session, or IP.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 666.79 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 666.79 Td (routes/internal-knowledge.js - Cron-authenticated worker, reconciliation, university sync, and timing telemetry endpoints.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 651.59 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 651.59 Td (public/chatbot.html & public/chatbot.js - Web AI workspace UI, SSE stream consumer, custom syntax highlighter,) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 639.39 Td (KaTeX/DOMPurify renderer, and Code Lab compiler bridge.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 624.19 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 624.19 Td (mobile/app/kyana.tsx , mobile/services/kyana.ts , & mobile/services/kyana-db.ts - Expo React Native chat screen, XHR) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 611.99 Td (SSE client, and local SQLite WAL cache.) Tj ET
+0.118 0.227 0.541 rg
+BT /F2 9.00 Tf 44.00 596.79 Td (-) Tj ET
+0.118 0.161 0.231 rg
+BT /F1 9.00 Tf 58.00 596.79 Td (lib/cohort-chat.js & lib/dm-service.js - Peer-to-peer Cohort Group Chat and Direct Messaging services.) Tj ET
+0.796 0.835 0.882 RG
+0.50 w
+42.00 36 m 553.28 36 l S
+0.392 0.455 0.545 rg
+BT /F1 7.50 Tf 42.00 26 Td (GANDAKI UNIVERSITY | SEMESTER LIBRARY | KYANA AI CHATBOT ECOSYSTEM ARCHITECTURE REPORT) Tj ET
+0.278 0.333 0.412 rg
+BT /F2 7.50 Tf 507.51 26 Td (Page 10 of 10) Tj ET
+endstream
+endobj
+26 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 25 0 R >>
+endobj
+xref
+0 27
+0000000000 65535 f 
+0000000019 00000 n 
+0000000068 00000 n 
+0000000189 00000 n 
+0000000286 00000 n 
+0000000388 00000 n 
+0000000483 00000 n 
+0000000777 00000 n 
+0000011908 00000 n 
+0000012060 00000 n 
+0000022959 00000 n 
+0000023112 00000 n 
+0000034717 00000 n 
+0000034871 00000 n 
+0000048448 00000 n 
+0000048602 00000 n 
+0000057382 00000 n 
+0000057536 00000 n 
+0000066988 00000 n 
+0000067142 00000 n 
+0000078052 00000 n 
+0000078206 00000 n 
+0000086761 00000 n 
+0000086915 00000 n 
+0000096525 00000 n 
+0000096679 00000 n 
+0000100091 00000 n 
+trailer
+<< /Size 27 /Root 1 0 R /Info 6 0 R >>
+startxref
+100245
+%%EOF

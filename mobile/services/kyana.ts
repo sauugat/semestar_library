@@ -5,7 +5,9 @@ export interface KyanaResourceCard {
   id: string | number;
   title: string;
   subject?: string;
+  chapter?: string;
   semester?: number | string;
+  deadline?: string | null;
   action: 'open_note' | 'view_post' | 'view_notice' | 'view_assignment' | 'view_routine';
   deepLink?: string;
   viewUrl?: string;
@@ -59,6 +61,7 @@ export interface SendKyanaMessageParams {
   conversationId?: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   onDelta?: (deltaText: string) => void;
+  onReplace?: (fullReplyText: string) => void;
   signal?: AbortSignal;
 }
 
@@ -75,6 +78,158 @@ export interface SendKyanaMessageResult {
   webSources?: any[];
   actions?: any[];
   chatMode?: string;
+  replacedStream?: boolean;
+}
+
+export interface SseStreamCallbacks {
+  onDelta?: (deltaText: string) => void;
+  onReplace?: (fullReplyText: string) => void;
+  onResult?: (result: SendKyanaMessageResult) => void;
+  onDone?: (payload?: any) => void;
+  onError?: (errorMessage: string, payload?: any) => void;
+}
+
+/**
+ * Stateful SSE parser for XMLHttpRequest progressive `responseText`.
+ * - Never discards incomplete SSE frames.
+ * - Advances `processedIndex` only through complete event boundaries (`\n\n` or `\r\n\r\n`).
+ * - Handles events split across multiple network packets and multiple events in one packet.
+ * - Handles `delta`, `result`, `done`, and `error` events, plus final buffered event on close (`flush = true`).
+ */
+export function createKyanaSseParser(callbacks: SseStreamCallbacks = {}) {
+  let processedIndex = 0;
+  let accumulatedText = '';
+  let finalResult: SendKyanaMessageResult | null = null;
+  let streamError: string | null = null;
+  let isDone = false;
+
+  function processEventBlock(rawBlock: string) {
+    const trimmedBlock = rawBlock.trim();
+    if (!trimmedBlock) return;
+
+    const lines = rawBlock.split(/\r?\n/);
+    let eventType = '';
+    const dataLines: string[] = [];
+
+    for (const line of lines) {
+      if (!line || line.startsWith(':')) {
+        // SSE comment / keepalive
+        continue;
+      }
+      if (line.startsWith('event:')) {
+        eventType = line.slice(6).trim().toLowerCase();
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trimStart());
+      }
+    }
+
+    if (dataLines.length === 0) {
+      if (eventType === 'done') {
+        isDone = true;
+        callbacks.onDone?.({});
+      }
+      return;
+    }
+
+    const rawData = dataLines.join('\n').trim();
+    if (!rawData) return;
+
+    if (rawData === '[DONE]') {
+      isDone = true;
+      callbacks.onDone?.({ done: true });
+      return;
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(rawData);
+    } catch {
+      return;
+    }
+
+    if (!parsed || typeof parsed !== 'object') return;
+
+    const resolvedType =
+      eventType ||
+      (typeof parsed.error === 'string' ? 'error' : '') ||
+      (typeof parsed.reply === 'string' ? 'result' : '') ||
+      (typeof parsed.text === 'string' ? 'delta' : '') ||
+      (parsed.done === true ? 'done' : '');
+
+    if (resolvedType === 'delta') {
+      if (typeof parsed.text === 'string' && parsed.text.length > 0) {
+        accumulatedText += parsed.text;
+        callbacks.onDelta?.(parsed.text);
+      }
+      return;
+    }
+
+    if (resolvedType === 'result') {
+      if (typeof parsed.reply === 'string') {
+        if (parsed.replacedStream && parsed.reply !== accumulatedText) {
+          accumulatedText = parsed.reply;
+          callbacks.onReplace?.(parsed.reply);
+        } else if (!accumulatedText) {
+          accumulatedText = parsed.reply;
+        }
+        finalResult = parsed as SendKyanaMessageResult;
+        callbacks.onResult?.(finalResult);
+      }
+      return;
+    }
+
+    if (resolvedType === 'done') {
+      isDone = true;
+      if (typeof parsed.reply === 'string' && !finalResult) {
+        finalResult = parsed as SendKyanaMessageResult;
+        callbacks.onResult?.(finalResult);
+      }
+      callbacks.onDone?.(parsed);
+      return;
+    }
+
+    if (resolvedType === 'error') {
+      const msg =
+        (typeof parsed.message === 'string' && parsed.message) ||
+        (typeof parsed.error === 'string' && parsed.error) ||
+        'Couldn’t finish that reply. Try again in a moment.';
+      streamError = msg;
+      callbacks.onError?.(msg, parsed);
+    }
+  }
+
+  function feed(fullResponseText: string, flush = false) {
+    if (typeof fullResponseText !== 'string') return;
+    if (fullResponseText.length < processedIndex) {
+      processedIndex = 0;
+    }
+
+    while (processedIndex < fullResponseText.length) {
+      const slice = fullResponseText.slice(processedIndex);
+      const boundaryMatch = /\r?\n\r?\n/.exec(slice);
+
+      if (!boundaryMatch) {
+        if (flush) {
+          processedIndex = fullResponseText.length;
+          processEventBlock(slice);
+        }
+        break;
+      }
+
+      const eventBlock = slice.slice(0, boundaryMatch.index);
+      processedIndex += boundaryMatch.index + boundaryMatch[0].length;
+      processEventBlock(eventBlock);
+    }
+  }
+
+  return {
+    feed,
+    getProcessedIndex: () => processedIndex,
+    getAccumulatedText: () => accumulatedText,
+    getFinalResult: () => finalResult,
+    getStreamError: () => streamError,
+    isDone: () => isDone,
+  };
 }
 
 /**
@@ -172,7 +327,7 @@ export async function createKyanaConversation(title?: string): Promise<KyanaConv
 export async function sendKyanaMessage(
   params: SendKyanaMessageParams
 ): Promise<SendKyanaMessageResult> {
-  const { message, conversationId, history, onDelta, signal } = params;
+  const { message, conversationId, history, onDelta, onReplace, signal } = params;
   const [baseUrl, token] = await Promise.all([getBaseUrl(), getAuthToken()]);
   const url = `${baseUrl.replace(/\/+$/, '')}/api/ai/chat`;
 
@@ -189,9 +344,10 @@ export async function sendKyanaMessage(
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     }
 
-    let processedIndex = 0;
-    let accumulatedText = '';
-    let finalResult: SendKyanaMessageResult | null = null;
+    const sseParser = createKyanaSseParser({
+      onDelta,
+      onReplace,
+    });
 
     const abortHandler = () => {
       try {
@@ -201,36 +357,11 @@ export async function sendKyanaMessage(
     };
     signal?.addEventListener('abort', abortHandler);
 
-    function parseSseText(rawText: string) {
-      const slice = rawText.slice(processedIndex);
-      processedIndex = rawText.length;
-
-      const lines = slice.split('\n');
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('data:')) {
-          const jsonStr = trimmed.slice(5).trim();
-          try {
-            const data = JSON.parse(jsonStr);
-            if (data && typeof data.text === 'string') {
-              accumulatedText += data.text;
-              onDelta?.(data.text);
-            }
-            if (data && typeof data.reply === 'string') {
-              finalResult = data as SendKyanaMessageResult;
-            }
-          } catch {
-            // Partial chunk or non-JSON data line
-          }
-        }
-      }
-    }
-
     xhr.onprogress = () => {
       try {
         const current = xhr.responseText || '';
-        if (current.length > processedIndex) {
-          parseSseText(current);
+        if (current.length > sseParser.getProcessedIndex()) {
+          sseParser.feed(current, false);
         }
       } catch {}
     };
@@ -240,26 +371,36 @@ export async function sendKyanaMessage(
       const status = xhr.status;
 
       if (status >= 200 && status < 300) {
+        const fullResponse = xhr.responseText || '';
         try {
-          const fullResponse = xhr.responseText || '';
-          if (fullResponse.length > processedIndex) {
-            parseSseText(fullResponse);
-          }
+          // Flush any remaining complete or final buffered SSE event at connection close
+          sseParser.feed(fullResponse, true);
 
+          const finalResult = sseParser.getFinalResult();
           if (finalResult) {
             return resolve(finalResult);
           }
 
-          // Try parsing standard JSON response
+          const streamError = sseParser.getStreamError();
+          if (streamError && !sseParser.getAccumulatedText()) {
+            return reject(new ApiError(streamError, 503));
+          }
+
+          // Try parsing standard non-SSE JSON response fallback
           const json = JSON.parse(fullResponse);
           if (json && typeof json.reply === 'string') {
             return resolve(json);
           }
         } catch {}
 
+        const streamError = sseParser.getStreamError();
+        if (streamError && !sseParser.getAccumulatedText()) {
+          return reject(new ApiError(streamError, 503));
+        }
+
         // Fallback with accumulated text
         return resolve({
-          reply: accumulatedText || 'Kyana was unable to complete this reply.',
+          reply: sseParser.getAccumulatedText() || 'Kyana was unable to complete this reply.',
           conversationId,
         });
       }

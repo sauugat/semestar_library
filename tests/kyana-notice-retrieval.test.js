@@ -588,4 +588,309 @@ describe('Kyana AI — Critical Notice Retrieval & Unified Policy Regression Sui
     assert.equal(notices[idxOlder].superseded, true, 'Older notice (id=201) must be marked as superseded');
     assert.equal(notices[idxOlder].supersededBy, 202, 'Older notice must reference supersededBy = 202');
   });
+
+  test('9. Production schema compatibility: notice retrieval succeeds on exact production schema (no moderation_status, deleted_at, hidden_at, subject, semester columns, title=null with Subject in content)', async () => {
+    const prodDb = createTestDb();
+    await prodDb.exec(`
+      CREATE TABLE students (
+        studentId TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'student',
+        avatarUrl TEXT
+      );
+      CREATE TABLE posts (
+        id INTEGER PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT,
+        content TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'notice',
+        category TEXT NOT NULL DEFAULT 'notice',
+        visibility TEXT NOT NULL DEFAULT 'everyone',
+        target_all_semesters INTEGER NOT NULL DEFAULT 1,
+        audience_scope TEXT NOT NULL DEFAULT 'all_students',
+        cohort_id TEXT,
+        semester_no INTEGER,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        edited_at TEXT
+      );
+      CREATE TABLE post_target_semesters (
+        post_id INTEGER NOT NULL,
+        semester INTEGER NOT NULL,
+        PRIMARY KEY (post_id, semester)
+      );
+      CREATE TABLE routine (
+        id INTEGER PRIMARY KEY,
+        semester INTEGER,
+        subject_name TEXT
+      );
+      CREATE TABLE assignments (
+        id INTEGER PRIMARY KEY,
+        title TEXT
+      );
+      CREATE TABLE files (
+        id INTEGER PRIMARY KEY,
+        title TEXT
+      );
+    `);
+
+    await prodDb.run(
+      `INSERT INTO students (studentId, name, role) VALUES (?, ?, ?)`,
+      '12345678', 'Sau Gat', 'admin'
+    );
+    await prodDb.run(
+      `INSERT INTO students (studentId, name, role) VALUES (?, ?, ?)`,
+      'STU_CALLER', 'Student User', 'student'
+    );
+
+    // Seed post 184 exactly matching production database state
+    await prodDb.run(
+      `INSERT INTO posts (id, user_id, title, content, type, category, visibility, target_all_semesters, audience_scope, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      184,
+      '12345678',
+      null,
+      'Date: 3 November 2026\r\nSubject: Resumption of Regular Classes\r\n\r\nThis is to inform all BIT students that regular academic classes will resume following the Dashain vacation as per the updated academic schedule.All students are requested to attend their respective classes regularly and follow the timetable provided by the department.Students are also advised to check the official notice board and Semester Library platform for further academic updates.\r\nYour cooperation and punctuality are highly appreciated.\r\n\r\nBIT Department\r\nGandaki University',
+      'notice',
+      'notice',
+      'everyone',
+      1,
+      'all_students',
+      '2026-11-03T17:44:01.916Z'
+    );
+
+    const callerContext = {
+      authenticated: true,
+      studentId: 'STU_CALLER',
+      name: 'Student User',
+      role: 'student',
+      semester: 'Semester III',
+      currentSemester: 3,
+      cohortId: 'COHORT_2025'
+    };
+
+    // 1. searchNotices directly
+    const foundNotices = await searchNotices(prodDb, callerContext, { query: 'Hamro class kaile bata ho?' });
+    assert.ok(foundNotices.length >= 1, 'searchNotices must find post 184 on production schema');
+    const notice184 = foundNotices.find(n => n.id === 184);
+    assert.ok(notice184, 'Notice 184 must be in results');
+    assert.equal(notice184.title, 'Resumption of Regular Classes', 'Title must be extracted from Subject: line');
+    assert.equal(notice184.authorName, 'Sau Gat');
+    assert.equal(notice184.authorRole, 'admin');
+
+    // 2. Full handleChat pipeline
+    const chatRes = await handleChat(prodDb, 'Hamro class kaile bata ho?', callerContext);
+    assert.equal(chatRes.intent, 'notices');
+    assert.ok(
+      !chatRes.reply.includes('No matching notices found.'),
+      'Must NEVER return "No matching notices found."'
+    );
+    assert.ok(
+      chatRes.reply.includes('Resumption of Regular Classes'),
+      'Must include notice title "Resumption of Regular Classes"'
+    );
+    assert.ok(
+      chatRes.reply.includes('Sau Gat'),
+      'Must credit author Sau Gat'
+    );
+    assert.ok(
+      chatRes.resourceCards.some(c => c.id === 184 && c.title === 'Resumption of Regular Classes'),
+      'Must attach resourceCard with id 184 and correct title'
+    );
+  });
+
+  test('10. Security: Student creating post with type="notice" and category="NOTICE" is NEVER classified as an official notice, while genuine admin notice is verified and discoverable', async () => {
+    const db = createTestDb();
+    await db.exec(`
+      CREATE TABLE students (
+        studentId TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'student',
+        avatarUrl TEXT
+      );
+      CREATE TABLE posts (
+        id INTEGER PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT,
+        content TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'notice',
+        category TEXT NOT NULL DEFAULT 'notice',
+        visibility TEXT NOT NULL DEFAULT 'everyone',
+        target_all_semesters INTEGER NOT NULL DEFAULT 1,
+        audience_scope TEXT NOT NULL DEFAULT 'all_students',
+        cohort_id TEXT,
+        semester_no INTEGER,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      CREATE TABLE post_target_semesters (
+        post_id INTEGER NOT NULL,
+        semester INTEGER NOT NULL,
+        PRIMARY KEY (post_id, semester)
+      );
+      CREATE TABLE routine (
+        id INTEGER PRIMARY KEY,
+        semester INTEGER,
+        subject_name TEXT
+      );
+      CREATE TABLE assignments (
+        id INTEGER PRIMARY KEY,
+        title TEXT
+      );
+      CREATE TABLE files (
+        id INTEGER PRIMARY KEY,
+        title TEXT
+      );
+    `);
+
+    // Student user
+    await db.run(
+      `INSERT INTO students (studentId, name, role) VALUES (?, ?, ?)`,
+      'STU_SITA', 'Sita Sharma', 'student'
+    );
+    // Admin user
+    await db.run(
+      `INSERT INTO students (studentId, name, role) VALUES (?, ?, ?)`,
+      'ADMIN_SAU', 'Admin Sau Gat', 'admin'
+    );
+    // Student caller
+    await db.run(
+      `INSERT INTO students (studentId, name, role) VALUES (?, ?, ?)`,
+      'STU_CALLER', 'Caller Student', 'student'
+    );
+
+    // 1. Fake notice authored by a student with type='notice' and category='NOTICE'
+    await db.run(
+      `INSERT INTO posts (id, user_id, title, content, type, category, visibility, target_all_semesters, audience_scope, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      501,
+      'STU_SITA',
+      'Urgent Class Cancellation Notice',
+      'All classes and exams are cancelled for the rest of the semester by class representative.',
+      'notice',
+      'NOTICE',
+      'everyone',
+      1,
+      'all_students',
+      '2026-11-04T10:00:00.000Z'
+    );
+
+    // 2. Genuine official notice authored by an admin
+    await db.run(
+      `INSERT INTO posts (id, user_id, title, content, type, category, visibility, target_all_semesters, audience_scope, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      502,
+      'ADMIN_SAU',
+      null,
+      'Subject: Resumption of Regular Classes\r\nRegular BIT classes resume following Dashain vacation as per the updated academic schedule.',
+      'notice',
+      'notice',
+      'everyone',
+      1,
+      'all_students',
+      '2026-11-03T17:44:00.000Z'
+    );
+
+    const callerContext = {
+      authenticated: true,
+      studentId: 'STU_CALLER',
+      name: 'Caller Student',
+      role: 'student',
+      semester: 'Semester III',
+      currentSemester: 3,
+      cohortId: 'COHORT_2025'
+    };
+
+    // A. searchNotices must NEVER return the student fake notice
+    const notices = await searchNotices(db, callerContext, { query: 'classes' });
+    const fakeNotice = notices.find(n => n.id === 501);
+    assert.strictEqual(fakeNotice, undefined, 'Student post with type=notice must NEVER be returned by searchNotices');
+
+    // B. searchNotices MUST find the genuine admin notice with author role verified from database
+    const genuineNotice = notices.find(n => n.id === 502);
+    assert.ok(genuineNotice, 'Genuine admin notice must be found by searchNotices');
+    assert.strictEqual(genuineNotice.authorRole, 'admin', 'Author role must be verified as admin through database record');
+    assert.strictEqual(genuineNotice.authorName, 'Admin Sau Gat');
+    assert.strictEqual(genuineNotice.type, 'notice');
+    assert.strictEqual(genuineNotice.resourceType, 'notice');
+    assert.strictEqual(genuineNotice.resourceCard.type, 'notice');
+    assert.strictEqual(genuineNotice.resourceCard.action, 'view_notice');
+
+    // C. searchPosts (general post search) must not elevate the student post to official notice
+    const allPosts = await searchPosts(db, callerContext, { query: 'classes' });
+    const mappedStudentPost = allPosts.find(p => p.id === 501);
+    assert.ok(mappedStudentPost, 'Student post is discoverable as a regular post');
+    assert.strictEqual(mappedStudentPost.isOfficialNotice, false, 'Student post isOfficialNotice must be false');
+    assert.strictEqual(mappedStudentPost.resourceType, 'post', 'Student post resourceType must be post, not notice');
+    assert.strictEqual(mappedStudentPost.resourceCard.type, 'post', 'Student post card type must be post');
+    assert.strictEqual(mappedStudentPost.resourceCard.action, 'view_post', 'Student post card action must be view_post');
+    assert.strictEqual(mappedStudentPost.authorRole, 'student', 'Author role must be student');
+
+    // D. handleChat for the class resumption inquiry must return the genuine admin notice and not the fake student notice
+    const chatRes = await handleChat(db, 'Hamro class kaile bata ho?', callerContext);
+    assert.ok(chatRes.reply.includes('Resumption of Regular Classes'), 'Must return genuine admin notice title');
+    assert.ok(!chatRes.reply.includes('All classes and exams are cancelled'), 'Must not return student fake cancellation');
+  });
+
+  test('11. Schema introspection works for SQLite and PostgreSQL, and cache prevents cross-connection contamination', async () => {
+    const { getPostTableColumns } = require('../lib/ai-search-tools');
+
+    // 1. Real SQLite database connection
+    const sqliteDb = createTestDb();
+    await sqliteDb.exec(`
+      CREATE TABLE posts (
+        id INTEGER PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT,
+        content TEXT NOT NULL
+      );
+    `);
+
+    const sqliteCols = await getPostTableColumns(sqliteDb);
+    assert.ok(sqliteCols.has('id'), 'SQLite columns must contain id');
+    assert.ok(sqliteCols.has('user_id'), 'SQLite columns must contain user_id');
+    assert.strictEqual(sqliteCols.has('moderation_status'), false, 'SQLite columns must not contain moderation_status');
+    assert.strictEqual(sqliteCols.has('deleted_at'), false, 'SQLite columns must not contain deleted_at');
+
+    // 2. Simulated PostgreSQL database connection with different columns
+    const pgDb = {
+      isPostgres: true,
+      all: async (sql) => {
+        if (sql.includes('information_schema.columns')) {
+          return [
+            { column_name: 'id' },
+            { column_name: 'user_id' },
+            { column_name: 'title' },
+            { column_name: 'moderation_status' },
+            { column_name: 'deleted_at' }
+          ];
+        }
+        return [];
+      }
+    };
+
+    const pgCols = await getPostTableColumns(pgDb);
+    assert.ok(pgCols.has('moderation_status'), 'PostgreSQL columns must contain moderation_status');
+    assert.ok(pgCols.has('deleted_at'), 'PostgreSQL columns must contain deleted_at');
+
+    // 3. Verify cross-connection cache isolation (WeakMap ensures neither connection can leak into the other)
+    const sqliteColsAgain = await getPostTableColumns(sqliteDb);
+    assert.strictEqual(sqliteColsAgain.has('moderation_status'), false, 'SQLite connection cache must NEVER have moderation_status from pgDb');
+    assert.strictEqual(sqliteColsAgain.has('deleted_at'), false, 'SQLite connection cache must NEVER have deleted_at from pgDb');
+
+    const pgColsAgain = await getPostTableColumns(pgDb);
+    assert.strictEqual(pgColsAgain.has('moderation_status'), true, 'pgDb connection cache must retain moderation_status');
+
+    // 4. A third connection with a completely different column set
+    const db3 = {
+      all: async (sql) => {
+        if (sql.includes('PRAGMA table_info')) {
+          return [{ name: 'id' }, { name: 'custom_col' }];
+        }
+        return [];
+      }
+    };
+    const db3Cols = await getPostTableColumns(db3);
+    assert.ok(db3Cols.has('custom_col'), 'db3 must contain custom_col');
+    assert.strictEqual(sqliteColsAgain.has('custom_col'), false, 'SQLite must not have custom_col');
+    assert.strictEqual(pgColsAgain.has('custom_col'), false, 'PostgreSQL must not have custom_col');
+  });
 });

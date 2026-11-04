@@ -213,6 +213,7 @@ describe('KYANA 3.0 Step 1 — Card Navigation & Deep Link Resolution', () => {
             category: 'announcement',
             created_at: '2026-10-14',
             author_name: 'Admin Test',
+            author_role: 'admin',
             author_avatar: null
           }
         ]

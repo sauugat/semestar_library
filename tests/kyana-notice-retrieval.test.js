@@ -363,12 +363,15 @@ describe('Kyana AI — Critical Notice Retrieval & Unified Policy Regression Sui
     }
   });
 
-  test('3. Romanized Nepali, Devanagari, and English queries retrieve the same relevant notice', async () => {
+  test('3. Romanized Nepali, Devanagari, and English queries (including all 6 required test queries) retrieve the same relevant notice', async () => {
     const queries = [
+      'Hamro class kaile bata ho?',
+      'Class kahile suru hunxa?',
+      'When do our classes start?',
+      'Dashain pachi class kaile start hunxa?',
+      'Is there any update about regular BIT classes?',
       'Hamro class kaile bata xa?',
       'When do classes start?',
-      'Class kahile suru hunxa?',
-      'Dashain pachi class kaile start hunxa?',
       'Any update about class resumption?',
       'हाम्रो कक्षा कहिले बाट सुरु हुन्छ?'
     ];
@@ -383,6 +386,18 @@ describe('Kyana AI — Critical Notice Retrieval & Unified Policy Regression Sui
         `Query "${q}" must retrieve "Resumption of Regular Classes" (id=101)`
       );
     }
+
+    // Also verify "Any notice from another semester?" routes to notices and retrieves the Semester 7 notice (id=104) with its actual semester labeled
+    const crossSemRoute = routeQuery('Any notice from another semester?');
+    assert.equal(crossSemRoute.kind, 'notices');
+    const crossSemNotices = await searchNotices(db, sem3StudentContext, {
+      query: 'Any notice from another semester?',
+      otherSemesterOnly: true
+    });
+    assert.ok(
+      crossSemNotices.some(n => n.id === 104 && n.semester === 'Semester 7'),
+      'Query "Any notice from another semester?" must discover the Semester 7 notice (id=104) with semester="Semester 7"'
+    );
   });
 
   test('4. Regular student post is NOT treated as an official notice even if category="NOTICE" or title claims authority', async () => {
@@ -415,12 +430,37 @@ describe('Kyana AI — Critical Notice Retrieval & Unified Policy Regression Sui
     assert.equal(builtStudent.resource.source_authority_tier, 4);
   });
 
-  test('5. Notice for another restricted semester (Semester 7) is NOT exposed to a Semester 3 student', async () => {
-    const notices = await searchNotices(db, sem3StudentContext, { query: 'class resumption' });
+  test('5. Notice for another semester (Semester 7) IS discoverable as general academic information with its actual source semester clearly preserved, while private/teachers_only notices remain protected', async () => {
+    const notices = await searchNotices(db, sem3StudentContext, { query: 'Semester 7 Cloud Computing Class Resumption' });
+    const sem7Notice = notices.find(n => n.id === 104);
+    assert.ok(
+      sem7Notice,
+      'Visible Semester 7 notice (id=104) must be discoverable by a Semester 3 student'
+    );
+    assert.equal(sem7Notice.semester, 'Semester 7', 'Semester 7 notice must retain its actual source semester ("Semester 7"), never Semester 3');
+    assert.equal(sem7Notice.semesterNo, 7);
+
+    // Verify private / teachers_only notice is strictly blocked for students
+    await db.run(
+      `INSERT INTO posts (id, user_id, title, content, type, category, semester_no, visibility, target_all_semesters, audience_scope, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      105,
+      'ADMIN_SAUGAT',
+      'Confidential Faculty Meeting Notice on Class Resumption',
+      'Faculty-only meeting regarding class resumption.',
+      'notice',
+      'NOTICE',
+      4,
+      'teachers_only',
+      1,
+      'all_students',
+      '2026-11-03T10:30:00Z'
+    );
+    const afterPrivate = await searchNotices(db, sem3StudentContext, { query: 'Confidential Faculty Meeting Notice' });
     assert.equal(
-      notices.some(n => n.id === 104),
+      afterPrivate.some(n => n.id === 105),
       false,
-      'Semester 7 restricted notice (id=104) must never be exposed to a Semester 3 student'
+      'Private / teachers_only notice (id=105) must never be exposed to a student'
     );
   });
 
@@ -434,7 +474,7 @@ describe('Kyana AI — Critical Notice Retrieval & Unified Policy Regression Sui
     try {
       const chatRes = await handleChat({
         db,
-        message: 'Hamro class kaile bata xa?',
+        message: 'Hamro class kaile bata ho?',
         studentInfo: sem3StudentContext,
         academicContext: sem3StudentContext
       });

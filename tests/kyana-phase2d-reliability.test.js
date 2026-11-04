@@ -698,8 +698,10 @@ test('Phase 2D.4 — Multi-turn conversation understanding ("Explain deadlock in
   history.push({ role: 'assistant', content: t5.reply });
 
   const t6 = await handleChat(db, 'Yesko notes xa?', student, history, sessionId);
-  // Because topic switched to DBMS (Semester 3) and Anita is in Semester 4, she should get a Semester 3 vs 4 restriction for DBMS, NOT OS deadlock notes!
-  assert.match(t6.reply, /Database Management System is a Semester 3 subject.*Semester 4/i);
+  // Because topic switched to DBMS (Semester 3), Anita gets DBMS notes from Semester 3 with Semester 3 clearly labeled, NOT OS deadlock notes!
+  assert.match(t6.reply, /Database Management System/i);
+  assert.match(t6.reply, /Semester 3/i);
+  assert.ok(!/OS Deadlock/i.test(t6.reply), 'Old OS deadlock context must not leak after switching topic to DBMS');
 });
 
 // ============================================================================
@@ -725,16 +727,20 @@ test('Phase 2D.5 — Privacy and authorization: cross-student block, cross-semes
     assert.equal(rSubNep.intent, 'cross_student');
   });
 
-  await t.test('Student must not access another semester\'s restricted information (notes, assignments, routine, notices)', async () => {
-    // Saugat is in Semester 3; Operating Systems is in Semester 4
+  await t.test('Student routine remains semester-restricted while explicit cross-semester notes and assignments work without exposing submissions', async () => {
+    // Saugat is in Semester 3; Operating Systems is in Semester 4 (explicitly named cross-semester subject)
     const rNotes = await handleChat(db, 'Show me Operating Systems notes', { studentId: 'stu_saugat' });
-    assert.match(rNotes.reply, /Operating Systems is a Semester 4 subject.*Semester 3/i);
-    assert.equal(rNotes.matchedFiles.length, 0);
+    assert.match(rNotes.reply, /OS Deadlock & Banker Algorithm Notes/i);
+    assert.match(rNotes.reply, /Semester 4/i);
+    assert.equal(rNotes.matchedFiles.length, 1);
 
+    // Explicit cross-semester assignment request works without exposing any student's submission
     const rAssign = await handleChat(db, 'Show me assignments for Semester 4', { studentId: 'stu_saugat' });
-    assert.match(rAssign.reply, /registered in Semester 3/i);
-    assert.equal(rAssign.matchedAssignments.length, 0);
+    assert.match(rAssign.reply, /OS Lab 1: Banker Algorithm in C/i);
+    assert.equal(rAssign.matchedAssignments.length, 1);
+    assert.equal(rAssign.matchedAssignments[0].studentSubmission, null);
 
+    // Routine remains restricted to the student's registered semester
     const rRoutine = await handleChat(db, 'What is the exam routine for Semester 4?', { studentId: 'stu_saugat' });
     assert.match(rRoutine.reply, /registered in Semester 3/i);
   });

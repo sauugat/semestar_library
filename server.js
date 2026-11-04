@@ -4005,6 +4005,11 @@ app.patch(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, r
   }
 
   const updatedFile = await db.get('SELECT * FROM files WHERE id = ?', fileId);
+  noteSearch.invalidateSearchCache(db);
+  if (updatedFile) {
+    await require('./lib/knowledge-sync').onNoteSaved(db, updatedFile).catch(() => {});
+  }
+  require('./ai-assistant').invalidateCache(db);
   res.json({ success: true, file: updatedFile });
 });
 
@@ -4056,6 +4061,11 @@ app.put(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, res
   }
 
   const updatedFile = await db.get('SELECT * FROM files WHERE id = ?', fileId);
+  noteSearch.invalidateSearchCache(db);
+  if (updatedFile) {
+    await require('./lib/knowledge-sync').onNoteSaved(db, updatedFile).catch(() => {});
+  }
+  require('./ai-assistant').invalidateCache(db);
   res.json({ success: true, file: updatedFile });
 });
 
@@ -6771,9 +6781,15 @@ app.get('/api/students/suggested', requireLogin, async (req, res) => {
 // --- AI Assistant Service ---
 const aiAssistant = require('./ai-assistant');
 const aiChatService = require('./lib/ai-chat-service');
+const { createHourlyRateLimiter, createActionConfirmRateLimiter } = require('./lib/chat-ratelimit');
+const kyanaChatRateLimiter = createHourlyRateLimiter({ db });
+const kyanaActionConfirmRateLimiter = createActionConfirmRateLimiter({ db });
 
-// Unlimited AI Chat: Users can chat with Kyana without message caps or rate limits
-app.post('/api/ai/chat', require('./lib/chat-http').createChatHandler(db, aiAssistant));
+// Distributed DB-backed rate limiting on Kyana chat & action confirmation endpoints
+app.post('/api/ai/chat', kyanaChatRateLimiter, require('./lib/chat-http').createChatHandler(db, aiAssistant));
+app.post('/api/ai/actions/confirm', requireLogin, kyanaActionConfirmRateLimiter, async (req, res) => {
+  return res.status(501).json({ message: 'Action confirmation engine is not enabled in this phase.' });
+});
 
 // Kyana AI inbox preview for mobile chat list and web widget
 app.get('/api/ai/preview', async (req, res) => {

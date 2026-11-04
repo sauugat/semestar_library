@@ -58,6 +58,12 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
     const result = await db.run(`INSERT INTO routine (${FIELDS.join(', ')}) VALUES (${FIELDS.map(() => '?').join(', ')})`, ...FIELDS.map(field => value[field]));
     const row = await db.get('SELECT * FROM routine WHERE id = ?', result.lastInsertRowid);
     invalidateCache();
+    try {
+      const knowledgeSync = require('../lib/knowledge-sync');
+      if (typeof knowledgeSync.onRoutineSaved === 'function' && row) {
+        await knowledgeSync.onRoutineSaved(db, row);
+      }
+    } catch (_) {}
     notifyRoutineUpdate(db, value.semester, value.subject_name, value.exam_date).catch(() => {});
     res.status(201).json(row);
   }));
@@ -66,14 +72,27 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
     if (error) return res.status(400).json({ error });
     const result = await db.run(`UPDATE routine SET ${FIELDS.map(field => `${field} = ?`).join(', ')}, updated_at = ? WHERE id = ?`, ...FIELDS.map(field => value[field]), new Date().toISOString(), req.routineId);
     if (!result.changes) return res.status(404).json({ error: 'This exam no longer exists. Refresh the list.' });
+    const updatedRow = await db.get('SELECT * FROM routine WHERE id = ?', req.routineId);
     invalidateCache();
+    try {
+      const knowledgeSync = require('../lib/knowledge-sync');
+      if (typeof knowledgeSync.onRoutineSaved === 'function' && updatedRow) {
+        await knowledgeSync.onRoutineSaved(db, updatedRow);
+      }
+    } catch (_) {}
     notifyRoutineUpdate(db, value.semester, value.subject_name, value.exam_date).catch(() => {});
-    res.json(await db.get('SELECT * FROM routine WHERE id = ?', req.routineId));
+    res.json(updatedRow);
   }));
   router.delete('/:id', requireLogin, requireAdmin, checkId, handle(async (req, res) => {
     const result = await db.run('DELETE FROM routine WHERE id = ?', req.routineId);
     if (!result.changes) return res.status(404).json({ error: 'This exam no longer exists. Refresh the list.' });
     invalidateCache();
+    try {
+      const knowledgeSync = require('../lib/knowledge-sync');
+      if (typeof knowledgeSync.onRoutineDeleted === 'function') {
+        await knowledgeSync.onRoutineDeleted(db, req.routineId);
+      }
+    } catch (_) {}
     res.json({ success: true });
   }));
   async function notifyRoutineUpdate(db, semester, subjectName, examDate) {

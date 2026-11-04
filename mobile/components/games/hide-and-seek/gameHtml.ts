@@ -1,5 +1,8 @@
 import { THREE_MIN_JS } from './threeMinJs';
 import { HORROR_CONFIG } from './horrorConfig';
+import { GLTF_LOADER_R128_JS } from './gltfLoaderR128';
+import { LIBRARY_GLB_DATA_URI } from './libraryGlbBase64';
+import { UNIFIED_SKY_DOME_BASE64 } from './unifiedSkyDomeBase64';
 
 export function getHideAndSeekHtml(): string {
   const configJson = JSON.stringify(HORROR_CONFIG);
@@ -500,9 +503,12 @@ export function getHideAndSeekHtml(): string {
     #toast.show { opacity: 1; }
   </style>
 
-  <!-- Embedded Three.js Library -->
+  <!-- Embedded Three.js Library & Three.js r128 GLTFLoader -->
   <script>
     ${THREE_MIN_JS}
+    ${GLTF_LOADER_R128_JS}
+    window.LIBRARY_GLB_DATA_URI = ${JSON.stringify(LIBRARY_GLB_DATA_URI)};
+    window.UNIFIED_SKY_DOME_URI = ${JSON.stringify(UNIFIED_SKY_DOME_BASE64)};
   </script>
 </head>
 <body>
@@ -595,7 +601,7 @@ export function getHideAndSeekHtml(): string {
 
   <div id="campus-banner">
     <div class="beacon"></div>
-    <span id="campus-zone-text">GANDAKI UNIVERSITY BLUEPRINT • MAIN PARKING PLAZA</span>
+    <span id="campus-zone-text">GANDAKI UNIVERSITY • LAXMI PUJA NIGHT • CENTRAL COURTYARD</span>
   </div>
 
   <div id="action-prompt">
@@ -4235,110 +4241,474 @@ export function getHideAndSeekHtml(): string {
           this.scene.remove(this.skyGroup);
         }
         this.skyGroup = new THREE.Group();
+        this.skyGroup.name = 'NightHorrorSkyAndSilhouettes';
 
-        const skyCanvas = document.createElement('canvas');
-        skyCanvas.width = 512;
-        skyCanvas.height = 256;
-        const sCtx = skyCanvas.getContext('2d');
+        // ---------------------------------------------------------------------
+        // 1. UNIFIED CELESTIAL SKY DOME WITH REAL HIMALAYAS & POKHARA VALLEY
+        // One seamless sphere: zero cylinder rims, zero seams, zero clipping!
+        // Directly composited from authentic high-resolution Pokhara photographs
+        // ---------------------------------------------------------------------
+        const skyImg = (typeof Image !== 'undefined')
+          ? new Image()
+          : ((typeof document !== 'undefined' && document.createElement) ? document.createElement('img') : null);
+        const skyTex = skyImg ? new THREE.Texture(skyImg) : new THREE.Texture();
+        skyTex.wrapS = THREE.RepeatWrapping;
+        skyTex.wrapT = THREE.ClampToEdgeWrapping;
+        if (THREE.SRGBColorSpace) skyTex.colorSpace = THREE.SRGBColorSpace;
+        else if (THREE.sRGBEncoding) skyTex.encoding = THREE.sRGBEncoding;
 
-        // Deep Himalayan Autumn Tihar (Kartik Aunsi / Laxmi Puja) Night Sky with Subtle Valley Festival Horizon Glow
-        const grad = sCtx.createLinearGradient(0, 0, 0, 256);
-        grad.addColorStop(0.0, '#02050b');
-        grad.addColorStop(0.32, '#050d1a');
-        grad.addColorStop(0.62, '#0a1728');
-        grad.addColorStop(0.84, '#112236');
-        grad.addColorStop(0.95, '#1c2430');
-        grad.addColorStop(1.0, '#241c18');
-        sCtx.fillStyle = grad;
-        sCtx.fillRect(0, 0, 512, 256);
-
-        // Crisp post-monsoon Himalayan autumn stars across upper sky dome
-        for (let st = 0; st < 110; st++) {
-          const sx = (st * 73 + 19) % 510;
-          const sy = (st * 41 + 11) % 145;
-          const sr = (st % 5 === 0) ? 1.15 : 0.72;
-          const sa = 0.22 + ((st * 17) % 55) * 0.01;
-          sCtx.fillStyle = (st % 7 === 0) ? ('rgba(255, 232, 185, ' + sa + ')') : ('rgba(218, 234, 252, ' + sa + ')');
-          sCtx.beginPath();
-          sCtx.arc(sx, sy, sr, 0, Math.PI * 2);
-          sCtx.fill();
+        if (skyImg) {
+          skyImg.onload = function() {
+            skyTex.needsUpdate = true;
+          };
+          const skySrc = (typeof window !== 'undefined' && window.UNIFIED_SKY_DOME_URI)
+            ? window.UNIFIED_SKY_DOME_URI
+            : '';
+          skyImg.src = skySrc;
         }
 
-        // Subtle distant Tihar warm amber horizon scatter from Pokhara / Gandaki valley settlements
-        const tiharHorizonGlow = sCtx.createLinearGradient(0, 182, 0, 256);
-        tiharHorizonGlow.addColorStop(0.0, 'rgba(255, 146, 43, 0.0)');
-        tiharHorizonGlow.addColorStop(0.65, 'rgba(255, 140, 36, 0.08)');
-        tiharHorizonGlow.addColorStop(1.0, 'rgba(255, 128, 24, 0.16)');
-        sCtx.fillStyle = tiharHorizonGlow;
-        sCtx.fillRect(0, 182, 512, 74);
-
-        const moonGlow = sCtx.createRadialGradient(340, 74, 4, 340, 74, 96);
-        moonGlow.addColorStop(0.0, 'rgba(205, 228, 246, 0.58)');
-        moonGlow.addColorStop(0.22, 'rgba(125, 168, 204, 0.30)');
-        moonGlow.addColorStop(0.55, 'rgba(48, 84, 116, 0.12)');
-        moonGlow.addColorStop(1.0, 'rgba(10, 22, 36, 0.0)');
-        sCtx.fillStyle = moonGlow;
-        sCtx.fillRect(0, 0, 512, 256);
-
-        sCtx.fillStyle = 'rgba(232, 244, 255, 0.84)';
-        sCtx.beginPath();
-        sCtx.arc(340, 74, 9.5, 0, Math.PI * 2);
-        sCtx.fill();
-
-        [68, 92].forEach((bandY, bIdx) => {
-          const bandGrad = sCtx.createLinearGradient(0, bandY - 12, 0, bandY + 12);
-          bandGrad.addColorStop(0.0, 'rgba(10, 20, 30, 0.0)');
-          bandGrad.addColorStop(0.5, bIdx === 0 ? 'rgba(48, 76, 94, 0.12)' : 'rgba(30, 50, 64, 0.10)');
-          bandGrad.addColorStop(1.0, 'rgba(10, 20, 30, 0.0)');
-          sCtx.fillStyle = bandGrad;
-          sCtx.fillRect(0, bandY - 12, 512, 24);
-        });
-
-        const skyTex = new THREE.CanvasTexture(skyCanvas);
         const skySphere = new THREE.Mesh(
-          new THREE.SphereGeometry(116, 20, 14),
-          new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false })
-        );
-        this.skyGroup.add(skySphere);
-
-        const ridgeConfigs = [
-          { radius: 110, height: 34, color: 0x142533, opacity: 0.82, seed: 1.1, freq1: 5, freq2: 11 },
-          { radius: 101, height: 24, color: 0x101f2b, opacity: 0.88, seed: 2.7, freq1: 7, freq2: 13 },
-          { radius: 92,  height: 15, color: 0x0c1720, opacity: 0.94, seed: 4.3, freq1: 9, freq2: 17 },
-        ];
-
-        ridgeConfigs.forEach(rc => {
-          const rGeo = new THREE.CylinderGeometry(rc.radius, rc.radius, rc.height, 48, 1, true);
-          const posAttr = rGeo.attributes.position;
-          for (let i = 0; i < posAttr.count; i++) {
-            const vy = posAttr.getY(i);
-            if (vy > 0) {
-              const vx = posAttr.getX(i);
-              const vz = posAttr.getZ(i);
-              const ang = Math.atan2(vx, vz);
-              const peakWave =
-                Math.sin(ang * rc.freq1 + rc.seed) * 0.34 +
-                Math.cos(ang * rc.freq2 - rc.seed) * 0.18 +
-                Math.sin(ang * 3.0) * 0.22;
-              posAttr.setY(i, (rc.height * 0.5) * (0.65 + peakWave));
-            } else {
-              posAttr.setY(i, -4.0);
-            }
-          }
-          rGeo.computeVertexNormals();
-          const rMat = new THREE.MeshBasicMaterial({
-            color: rc.color,
-            transparent: true,
-            opacity: rc.opacity,
+          new THREE.SphereGeometry(180, 48, 32),
+          new THREE.MeshBasicMaterial({
+            map: skyTex,
             side: THREE.BackSide,
             fog: false,
-          });
-          const rMesh = new THREE.Mesh(rGeo, rMat);
-          rMesh.position.y = rc.height * 0.32;
-          this.skyGroup.add(rMesh);
+            depthWrite: false
+          })
+        );
+        // Rotate so Machhapuchhre and Annapurna range sit centered directly above courtyard building (matches reference screenshot)
+        skySphere.rotation.y = 0.35;
+        skySphere.renderOrder = -10;
+        this.skyGroup.add(skySphere);
+
+        // ---------------------------------------------------------------------
+        // 2. NATURAL HIMALAYAN CELESTIAL STARFIELD (Strictly overhead in zenith void)
+        // High overhead (phi <= 0.35 rad) - ZERO stars on mountains or twilight sky!
+        // ---------------------------------------------------------------------
+        const starCount = 650;
+        const starGeom = new THREE.BufferGeometry();
+        const starPositions = new Float32Array(starCount * 3);
+        const starColors = new Float32Array(starCount * 3);
+        const starSizes = new Float32Array(starCount);
+        const starPhases = new Float32Array(starCount);
+
+        const R_STAR = 176.0;
+        let sIdx = 0;
+
+        while (sIdx < starCount) {
+          const h1 = Math.sin(sIdx * 127.1 + 311.7) * 43758.5453;
+          const h2 = Math.sin(sIdx * 269.5 + 183.3) * 43758.5453;
+          const u = h1 - Math.floor(h1);
+          const v = h2 - Math.floor(h2);
+
+          const theta = u * Math.PI * 2.0 - Math.PI;
+          // Strictly overhead in celestial zenith: phi <= 0.32 rad (elevation > +72 deg). Never touches mountains or twilight sky!
+          const maxPhi = 0.32;
+          const phi = Math.pow(v, 1.6) * (maxPhi - 0.04) + 0.04;
+
+          const spX = R_STAR * Math.sin(phi) * Math.cos(theta);
+          const spY = R_STAR * Math.cos(phi);
+          const spZ = R_STAR * Math.sin(phi) * Math.sin(theta);
+
+          starPositions[sIdx * 3 + 0] = spX;
+          starPositions[sIdx * 3 + 1] = spY;
+          starPositions[sIdx * 3 + 2] = spZ;
+
+          const tempType = sIdx % 10;
+          let r = 0.92, g = 0.95, b = 1.0;
+          let sz = 0.90 + (sIdx % 5) * 0.22;
+          if (tempType === 0 || tempType === 1) {
+            r = 0.78; g = 0.88; b = 1.00; sz *= 1.05;
+          } else if (tempType === 2) {
+            r = 1.00; g = 0.92; b = 0.75; sz *= 1.08;
+          } else if (tempType === 3) {
+            r = 1.00; g = 0.78; b = 0.55; sz *= 1.10;
+          } else {
+            r = 0.96; g = 0.98; b = 1.00;
+          }
+
+          starColors[sIdx * 3 + 0] = r;
+          starColors[sIdx * 3 + 1] = g;
+          starColors[sIdx * 3 + 2] = b;
+          starSizes[sIdx] = sz;
+          starPhases[sIdx] = sIdx * 2.37;
+          sIdx++;
+        }
+
+        starGeom.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        starGeom.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+        starGeom.setAttribute('aStarSize', new THREE.BufferAttribute(starSizes, 1));
+        starGeom.setAttribute('aStarPhase', new THREE.BufferAttribute(starPhases, 1));
+
+        // Soft Circular Star Texture (Pure Gaussian falloff, zero harsh cross strokes!)
+        const starCanvas = document.createElement('canvas');
+        starCanvas.width = 32;
+        starCanvas.height = 32;
+        const starCtx = starCanvas.getContext('2d');
+        if (starCtx) {
+          const sGrad = starCtx.createRadialGradient(16, 16, 1, 16, 16, 15);
+          sGrad.addColorStop(0.00, 'rgba(255, 255, 255, 1.0)');
+          sGrad.addColorStop(0.20, 'rgba(235, 245, 255, 0.85)');
+          sGrad.addColorStop(0.50, 'rgba(180, 215, 255, 0.28)');
+          sGrad.addColorStop(0.80, 'rgba(120, 165, 245, 0.06)');
+          sGrad.addColorStop(1.00, 'rgba(0, 0, 0, 0.0)');
+          starCtx.fillStyle = sGrad;
+          starCtx.fillRect(0, 0, 32, 32);
+        }
+        const starTexture = new THREE.CanvasTexture(starCanvas);
+
+        const starMaterial = new THREE.PointsMaterial({
+          map: starTexture,
+          size: 0.95,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.70,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          fog: false,
         });
 
+        // Atmospheric Scintillation (Twinkle Shader Injection into project_vertex)
+        const skyUniforms = { uSkyTime: { value: 0.0 } };
+        this._skyUniforms = skyUniforms;
+
+        starMaterial.onBeforeCompile = (shader) => {
+          shader.uniforms.uSkyTime = skyUniforms.uSkyTime;
+          shader.vertexShader = 'uniform float uSkyTime;\\nattribute float aStarSize;\\nattribute float aStarPhase;\\n' + shader.vertexShader;
+          shader.vertexShader = shader.vertexShader.replace(
+            '#include <project_vertex>',
+            '#include <project_vertex>\\n' +
+            'float tw = sin(uSkyTime * 3.6 + aStarPhase * 37.1) * 0.34 + sin(uSkyTime * 8.2 + aStarPhase * 61.3) * 0.16;\\n' +
+            'gl_PointSize = aStarSize * (1.0 + tw * 0.30) * (220.0 / -mvPosition.z);\\n'
+          );
+        };
+
+        const starPoints = new THREE.Points(starGeom, starMaterial);
+        starPoints.rotation.y = skySphere.rotation.y;
+        starPoints.renderOrder = -12;
+        this.skyGroup.add(starPoints);
+
+        // ---------------------------------------------------------------------
+        // 3. POKHARA VALLEY FESTIVAL LIGHTS
+        // Photorealistically integrated directly into the unified celestial dome
+        // along the southern valley horizon for authentic Deepawali ambience.
+        // ---------------------------------------------------------------------
+
+        // ---------------------------------------------------------------------
+        // 4. MAJESTIC AUTUMN MOON (HIGH-DEFINITION CRATER SURFACE & OPTICAL HALO)
+        // ---------------------------------------------------------------------
+        const moonPos = new THREE.Vector3(-48, 88, -118);
+
+        // 4A. High-Definition Procedural Lunar Disc Texture (512x512)
+        const moonCanvas = document.createElement('canvas');
+        moonCanvas.width = 512;
+        moonCanvas.height = 512;
+        const mCtx = moonCanvas.getContext('2d');
+        if (mCtx) {
+          // Lunar Disc Base with Physical Limb Darkening
+          const moonDisc = mCtx.createRadialGradient(242, 242, 10, 256, 256, 224);
+          moonDisc.addColorStop(0.00, '#f0f6ff'); // Bright highland core
+          moonDisc.addColorStop(0.55, '#d6e4f4');
+          moonDisc.addColorStop(0.82, '#b2c7de');
+          moonDisc.addColorStop(0.96, '#7e98b4'); // Limb darkening
+          moonDisc.addColorStop(0.99, '#506880');
+          moonDisc.addColorStop(1.00, 'rgba(80, 104, 128, 0.0)');
+          mCtx.fillStyle = moonDisc;
+          mCtx.beginPath();
+          mCtx.arc(256, 256, 224, 0, Math.PI * 2);
+          mCtx.fill();
+
+          // Authentic Lunar Maria (Dark Basalt Plains)
+          const mariaList = [
+            // Oceanus Procellarum (Ocean of Storms - vast western dark expanse)
+            { x: 175, y: 220, rx: 75, ry: 95, rot: 0.18, a: 0.44 },
+            // Mare Imbrium (Sea of Rains - massive circular sea in north-west)
+            { x: 215, y: 155, rx: 55, ry: 48, rot: -0.12, a: 0.48 },
+            // Mare Serenitatis (Sea of Serenity)
+            { x: 300, y: 165, rx: 42, ry: 38, rot: 0.20, a: 0.45 },
+            // Mare Tranquillitatis (Sea of Tranquility)
+            { x: 345, y: 225, rx: 48, ry: 38, rot: -0.15, a: 0.46 },
+            // Mare Fecunditatis
+            { x: 385, y: 280, rx: 38, ry: 32, rot: 0.32, a: 0.42 },
+            // Mare Crisium (Crisium Basin - distinct oval isolated sea in east)
+            { x: 410, y: 185, rx: 28, ry: 24, rot: 0.08, a: 0.52 },
+            // Mare Nectaris
+            { x: 340, y: 310, rx: 30, ry: 25, rot: -0.22, a: 0.40 },
+            // Mare Nubium
+            { x: 230, y: 305, rx: 42, ry: 36, rot: 0.15, a: 0.42 },
+            // Mare Humorum
+            { x: 160, y: 295, rx: 26, ry: 24, rot: -0.10, a: 0.46 },
+          ];
+
+          mariaList.forEach(m => {
+            mCtx.save();
+            mCtx.translate(m.x, m.y);
+            mCtx.rotate(m.rot);
+            mCtx.scale(1.0, m.ry / m.rx);
+            const mGrad = mCtx.createRadialGradient(0, 0, 2, 0, 0, m.rx);
+            mGrad.addColorStop(0.00, 'rgba(52, 68, 88, ' + m.a + ')');
+            mGrad.addColorStop(0.60, 'rgba(68, 86, 108, ' + (m.a * 0.85) + ')');
+            mGrad.addColorStop(0.85, 'rgba(92, 112, 136, ' + (m.a * 0.45) + ')');
+            mGrad.addColorStop(1.00, 'rgba(120, 145, 175, 0.0)');
+            mCtx.fillStyle = mGrad;
+            mCtx.beginPath();
+            mCtx.arc(0, 0, m.rx, 0, Math.PI * 2);
+            mCtx.fill();
+            mCtx.restore();
+          });
+
+          // Brilliant Crater Ray Systems (Tycho, Copernicus, Kepler)
+          // 1. Tycho Crater (Southern Highlands)
+          const tychoX = 265, tychoY = 390;
+          mCtx.save();
+          mCtx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+          mCtx.lineWidth = 1.8;
+          for (let ray = 0; ray < 18; ray++) {
+            const rayAng = (ray / 18) * Math.PI * 2 + 0.08;
+            const rayLen = 110 + ((ray * 37) % 75);
+            mCtx.beginPath();
+            mCtx.moveTo(tychoX, tychoY);
+            mCtx.lineTo(tychoX + Math.cos(rayAng) * rayLen, tychoY + Math.sin(rayAng) * rayLen);
+            mCtx.stroke();
+          }
+          // Tycho Central Peak & Rim
+          mCtx.fillStyle = 'rgba(255, 255, 255, 0.98)';
+          mCtx.beginPath();
+          mCtx.arc(tychoX, tychoY, 7.5, 0, Math.PI * 2);
+          mCtx.fill();
+          mCtx.restore();
+
+          // 2. Copernicus Crater (Near Mare Imbrium)
+          const copX = 210, copY = 220;
+          mCtx.save();
+          mCtx.strokeStyle = 'rgba(255, 255, 255, 0.48)';
+          mCtx.lineWidth = 1.4;
+          for (let ray = 0; ray < 12; ray++) {
+            const rayAng = (ray / 12) * Math.PI * 2;
+            const rayLen = 50 + ((ray * 23) % 40);
+            mCtx.beginPath();
+            mCtx.moveTo(copX, copY);
+            mCtx.lineTo(copX + Math.cos(rayAng) * rayLen, copY + Math.sin(rayAng) * rayLen);
+            mCtx.stroke();
+          }
+          mCtx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+          mCtx.beginPath();
+          mCtx.arc(copX, copY, 6.0, 0, Math.PI * 2);
+          mCtx.fill();
+          mCtx.restore();
+
+          // 3. Aristarchus Plateau (Brightest feature on the moon)
+          mCtx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+          mCtx.beginPath();
+          mCtx.arc(155, 175, 5.0, 0, Math.PI * 2);
+          mCtx.fill();
+
+          // 4. Kepler Crater
+          mCtx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+          mCtx.beginPath();
+          mCtx.arc(175, 240, 4.0, 0, Math.PI * 2);
+          mCtx.fill();
+        }
+
+        const moonTex = new THREE.CanvasTexture(moonCanvas);
+        const moonSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: moonTex,
+          transparent: true,
+          blending: THREE.NormalBlending,
+          depthWrite: false,
+          fog: false,
+        }));
+        moonSprite.position.copy(moonPos);
+        moonSprite.scale.set(36, 36, 1);
+        moonSprite.renderOrder = -5;
+        this.skyGroup.add(moonSprite);
+
+        // 4B. Inner Delicate Lunar Corona (hugs the limb without washing out craters)
+        const coronaCanvas = document.createElement('canvas');
+        coronaCanvas.width = 256;
+        coronaCanvas.height = 256;
+        const cCtx = coronaCanvas.getContext('2d');
+        if (cCtx) {
+          const cGrad = cCtx.createRadialGradient(128, 128, 60, 128, 128, 126);
+          cGrad.addColorStop(0.00, 'rgba(235, 245, 255, 0.38)');
+          cGrad.addColorStop(0.35, 'rgba(180, 215, 255, 0.16)');
+          cGrad.addColorStop(0.70, 'rgba(100, 155, 230, 0.04)');
+          cGrad.addColorStop(1.00, 'rgba(11, 18, 32, 0.0)');
+          cCtx.fillStyle = cGrad;
+          cCtx.fillRect(0, 0, 256, 256);
+        }
+        const coronaTex = new THREE.CanvasTexture(coronaCanvas);
+        const coronaSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: coronaTex,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          fog: false,
+        }));
+        coronaSprite.position.copy(moonPos);
+        coronaSprite.scale.set(58, 58, 1);
+        coronaSprite.renderOrder = -6;
+        this.skyGroup.add(coronaSprite);
+
+        // 4C. Atmospheric Ice-Crystal Halo (Smooth 22° Gaussian halo with NO sharp rings)
+        const haloRingCanvas = document.createElement('canvas');
+        haloRingCanvas.width = 256;
+        haloRingCanvas.height = 256;
+        const hrCtx = haloRingCanvas.getContext('2d');
+        if (hrCtx) {
+          const haloGrad = hrCtx.createRadialGradient(128, 128, 30, 128, 128, 126);
+          haloGrad.addColorStop(0.00, 'rgba(180, 215, 255, 0.14)');
+          haloGrad.addColorStop(0.45, 'rgba(140, 185, 245, 0.08)');
+          haloGrad.addColorStop(0.70, 'rgba(125, 175, 240, 0.09)'); // 22° ice peak (subtle!)
+          haloGrad.addColorStop(0.85, 'rgba(95, 145, 220, 0.04)');
+          haloGrad.addColorStop(1.00, 'rgba(11, 18, 32, 0.0)');
+          hrCtx.fillStyle = haloGrad;
+          hrCtx.fillRect(0, 0, 256, 256);
+        }
+        const haloRingTex = new THREE.CanvasTexture(haloRingCanvas);
+        const haloRingSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+          map: haloRingTex,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          fog: false,
+        }));
+        haloRingSprite.position.copy(moonPos);
+        haloRingSprite.scale.set(130, 130, 1);
+        haloRingSprite.renderOrder = -6;
+        this.skyGroup.add(haloRingSprite);
+
+        // ---------------------------------------------------------------------
+        // 5. ANIMATED LIVING SKY DYNAMICS: TIHAR SKY LANTERNS & SHOOTING STARS
+        // ---------------------------------------------------------------------
+        const lanternCanvas = document.createElement('canvas');
+        lanternCanvas.width = 64;
+        lanternCanvas.height = 64;
+        const lCtx = lanternCanvas.getContext('2d');
+        if (lCtx) {
+          const lGrad = lCtx.createRadialGradient(32, 32, 2, 32, 32, 28);
+          lGrad.addColorStop(0.00, 'rgba(255, 235, 180, 1.0)');
+          lGrad.addColorStop(0.25, 'rgba(255, 160, 40, 0.85)');
+          lGrad.addColorStop(0.65, 'rgba(230, 80, 15, 0.28)');
+          lGrad.addColorStop(1.00, 'rgba(200, 50, 10, 0.0)');
+          lCtx.fillStyle = lGrad;
+          lCtx.fillRect(0, 0, 64, 64);
+        }
+        const lanternTex = new THREE.CanvasTexture(lanternCanvas);
+        const lanternMat = new THREE.SpriteMaterial({
+          map: lanternTex,
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          fog: false,
+        });
+
+        // 7 authentic floating Tihar sky lanterns bobbing over the southern valley
+        this.skyLanterns = [];
+        for (let l = 0; l < 7; l++) {
+          const lSprite = new THREE.Sprite(lanternMat);
+          const lAng = 2.45 + (l * 0.26) + (Math.sin(l * 1.7) * 0.12);
+          const lDist = 125.0 + (l * 6.5);
+          const baseHeight = 28.0 + (l * 6.2);
+          lSprite.position.set(
+            Math.sin(lAng) * lDist,
+            baseHeight,
+            Math.cos(lAng) * lDist
+          );
+          lSprite.scale.set(4.2, 5.8, 1);
+          lSprite.renderOrder = -4;
+          this.skyGroup.add(lSprite);
+          this.skyLanterns.push({
+            sprite: lSprite,
+            baseX: lSprite.position.x,
+            baseY: baseHeight,
+            baseZ: lSprite.position.z,
+            speed: 0.18 + (l * 0.04),
+            phase: l * 1.45,
+            driftRate: 0.08 + (l * 0.02)
+          });
+        }
+
+        // 5B. Dynamic Shooting Stars (Meteors)
+        const meteorGeo = new THREE.BufferGeometry();
+        const mPos = new Float32Array(6);
+        meteorGeo.setAttribute('position', new THREE.BufferAttribute(mPos, 3));
+        const meteorMat = new THREE.LineBasicMaterial({
+          color: 0xe8f4ff,
+          transparent: true,
+          opacity: 0.0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          linewidth: 2,
+        });
+        const meteorLine = new THREE.Line(meteorGeo, meteorMat);
+        meteorLine.renderOrder = -3;
+        this.skyGroup.add(meteorLine);
+
+        this.shootingStar = {
+          mesh: meteorLine,
+          active: false,
+          progress: 0.0,
+          timer: 5.0,
+          startPos: new THREE.Vector3(),
+          endPos: new THREE.Vector3(),
+        };
+
         this.scene.add(this.skyGroup);
+      }
+
+      updateSky(delta, timeSec) {
+        if (!this.skyGroup) return;
+
+        // 1. Advance GPU Starfield Twinkle
+        if (this._skyUniforms) {
+          this._skyUniforms.uSkyTime.value = timeSec;
+        }
+
+        // 2. Animate Tihar Sky Lanterns (Drifting & Thermal Bobbing)
+        if (this.skyLanterns && this.skyLanterns.length > 0) {
+          for (let i = 0; i < this.skyLanterns.length; i++) {
+            const sl = this.skyLanterns[i];
+            const bob = Math.sin(timeSec * sl.speed + sl.phase) * 1.8;
+            const sway = Math.cos(timeSec * (sl.speed * 0.7) + sl.phase) * 1.2;
+            sl.sprite.position.y = sl.baseY + bob + (timeSec * sl.driftRate) % 24.0;
+            sl.sprite.position.x = sl.baseX + sway;
+          }
+        }
+
+        // 3. Animate High Himalayan Meteors
+        if (this.shootingStar) {
+          const ms = this.shootingStar;
+          if (!ms.active) {
+            ms.timer -= delta;
+            if (ms.timer <= 0) {
+              ms.active = true;
+              ms.progress = 0.0;
+              ms.timer = 24.0 + Math.random() * 20.0;
+              const ang = Math.random() * Math.PI * 2 - Math.PI;
+              const r = 168.0;
+              const y1 = 95.0 + Math.random() * 45.0;
+              const y2 = y1 - 22.0 - Math.random() * 18.0;
+              ms.startPos.set(Math.cos(ang) * r, y1, Math.sin(ang) * r);
+              ms.endPos.set(Math.cos(ang + 0.18) * r, y2, Math.sin(ang + 0.18) * r);
+            }
+          } else {
+            ms.progress += delta * 1.85;
+            if (ms.progress >= 1.0) {
+              ms.active = false;
+              ms.mesh.material.opacity = 0.0;
+            } else {
+              const cur = ms.startPos.clone().lerp(ms.endPos, ms.progress);
+              const tail = ms.startPos.clone().lerp(ms.endPos, Math.max(0.0, ms.progress - 0.22));
+              const posAttr = ms.mesh.geometry.attributes.position;
+              posAttr.setXYZ(0, cur.x, cur.y, cur.z);
+              posAttr.setXYZ(1, tail.x, tail.y, tail.z);
+              posAttr.needsUpdate = true;
+              const fade = Math.sin(ms.progress * Math.PI);
+              ms.mesh.material.opacity = fade * 0.95;
+            }
+          }
+        }
       }
 
       setShadowsOnly(enabled) {
@@ -4986,7 +5356,14 @@ export function getHideAndSeekHtml(): string {
     class ParticleField {
       constructor(scene) {
         // TASK 1: Slow drifting low-opacity mist/dust motes (NO bright floating sparkles!)
-        this.maxParticles = 36;
+        let configuredMax = 64;
+        if (HORROR_CONFIG && HORROR_CONFIG.qualityPresets) {
+          Object.keys(HORROR_CONFIG.qualityPresets).forEach(k => {
+            const pc = HORROR_CONFIG.qualityPresets[k].particleCount;
+            if (typeof pc === 'number' && pc > configuredMax) configuredMax = pc;
+          });
+        }
+        this.maxParticles = Math.max(64, configuredMax);
         this.geo = new THREE.BufferGeometry();
         this.positions = new Float32Array(this.maxParticles * 3);
         this.colors = new Float32Array(this.maxParticles * 3);
@@ -5013,7 +5390,8 @@ export function getHideAndSeekHtml(): string {
         }
         this.geo.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
         this.geo.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
-        this.geo.setDrawRange(0, activePreset.particleCount);
+        const initCount = Math.min((activePreset && activePreset.particleCount) || 30, this.maxParticles);
+        this.geo.setDrawRange(0, initCount);
 
         this.points = new THREE.Points(this.geo, new THREE.PointsMaterial({
           map: softRoundParticleTex,
@@ -5053,9 +5431,10 @@ export function getHideAndSeekHtml(): string {
       }
 
       applyQuality(preset) {
-        this.geo.setDrawRange(0, preset.particleCount);
+        const count = Math.min((preset && preset.particleCount) || 30, this.maxParticles);
+        this.geo.setDrawRange(0, count);
         this.mistPlanes.forEach((m, idx) => {
-          m.mesh.visible = idx < (preset.mistPlaneCount || 4);
+          m.mesh.visible = idx < ((preset && preset.mistPlaneCount) || 4);
         });
       }
 
@@ -5067,7 +5446,8 @@ export function getHideAndSeekHtml(): string {
         const dustAllowed = (typeof exploreTools === 'undefined' || exploreTools.dustEnabled !== false);
         const fogAllowed = (typeof exploreTools === 'undefined' || exploreTools.fogEnabled !== false);
         if (this.points) this.points.visible = dustAllowed;
-        const count = dustAllowed ? activePreset.particleCount : 0;
+        const requestedCount = (activePreset && activePreset.particleCount) || 30;
+        const count = dustAllowed ? Math.min(requestedCount, this.meta.length) : 0;
         const px = playerPos.x, pz = playerPos.z;
         let speedMult = 1.0;
         if (this.windBoostTimer > 0) {
@@ -5077,6 +5457,7 @@ export function getHideAndSeekHtml(): string {
 
         for (let i = 0; i < count; i++) {
           const m = this.meta[i];
+          if (!m) continue;
           const idx = i * 3;
           this.positions[idx + 0] += (m.vx * speedMult + Math.sin(timeSec * 0.4 + m.phase) * 0.06) * delta;
           this.positions[idx + 1] += m.vy * delta;
@@ -5380,63 +5761,89 @@ export function getHideAndSeekHtml(): string {
           }
         }
       } else if (type === 'pale-campus-stucco') {
-        // Modern Gandaki University Prefab Modular Wall Panels (Exact match to aerial drone photos!)
-        // Clean pale sage / mint-cream panel field with vertical joint seams and horizontal mid-line
-        ctx.fillStyle = '#dce7dd';
+        // Natural Clean Warm Cream/Beige Architectural Stucco Wall (Matching Ref Photos 3 & 4!)
+        // Soft matte plaster finish with subtle natural mineral grain (zero harsh corrugated foil stripes)
+        ctx.fillStyle = '#eee8dc';
         ctx.fillRect(0, 0, 512, 512);
         bCtx.fillStyle = '#808080';
         bCtx.fillRect(0, 0, 512, 512);
-
-        // Vertical modular panel seams every 64px
-        for (let x = 0; x < 512; x += 64) {
-          ctx.fillStyle = '#c4d2c5';
-          ctx.fillRect(x - 1, 0, 2, 512);
-          ctx.fillStyle = '#f0f6f0';
-          ctx.fillRect(x + 1, 0, 1, 512);
-          bCtx.fillStyle = '#404040';
-          bCtx.fillRect(x - 1, 0, 2, 512);
-        }
-
-        // Horizontal panel joint seam halfway up
-        ctx.fillStyle = '#c4d2c5';
-        ctx.fillRect(0, 255, 512, 2);
-        ctx.fillStyle = '#f0f6f0';
-        ctx.fillRect(0, 257, 512, 1);
-        bCtx.fillStyle = '#404040';
-        bCtx.fillRect(0, 255, 512, 2);
-      } else if (type === 'interlocking-pavers') {
-        // Rain-Slicked Nepali Grey Flagstone Courtyard Slabs (Dhunga) with Wet Rain Puddles (Ref Photos 1, 4, 6!)
-        ctx.fillStyle = '#1e2530';
-        ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#1c1c1c';
-        bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#525252';
+        rCtx.fillStyle = '#e8e8e8'; // High roughness (0.91) for realistic matte non-reflective architectural stucco
         rCtx.fillRect(0, 0, 512, 512);
 
-        for (let y = 0; y < 512; y += 42) {
-          const rIdx = Math.floor(y / 42);
-          const off = (rIdx % 2) * 32;
-          for (let x = -32; x < 512 + 32; x += 64) {
-            const w = 59 + ((x * 7 + y * 3) % 3);
-            const h = 38 + ((x * 5 + y * 11) % 3);
-            const seed = Math.abs(x * 13 + y * 19);
-            const isWetPuddle = (seed % 7) < 2;
-            const baseLum = isWetPuddle ? (54 + (seed % 14)) : (88 + (seed % 24));
-            ctx.fillStyle = 'rgb(' + baseLum + ',' + (baseLum + 5) + ',' + (baseLum + 11) + ')';
-            ctx.fillRect(x + off + 2, y + 2, w, h);
+        // Soft natural fine plaster/lime micro-texture
+        for (let i = 0; i < 4000; i++) {
+          const sx = (i * 97 + (i % 7) * 13) % 512;
+          const sy = (i * 173 + (i % 11) * 19) % 512;
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 252, 246, 0.12)' : 'rgba(120, 105, 90, 0.04)';
+          ctx.fillRect(sx, sy, 2, 2);
+          bCtx.fillStyle = (i % 2 === 0) ? '#848484' : '#7c7c7c';
+          bCtx.fillRect(sx, sy, 2, 2);
+        }
 
-            // Chiseled stone edge highlight & deep mortar joint shadow
-            ctx.fillStyle = 'rgba(203, 213, 225, 0.18)';
-            ctx.fillRect(x + off + 2, y + 2, w, 2);
-            ctx.fillStyle = 'rgba(10, 15, 24, 0.55)';
-            ctx.fillRect(x + off + 2, y + h, w, 2.5);
+        // Clean subtle horizontal architectural lap/wainscot seams (spaced every 64px, matching Ref Photos 3 & 4)
+        for (let y = 0; y < 512; y += 64) {
+          // Soft subtle shadow groove
+          ctx.fillStyle = 'rgba(80, 70, 60, 0.10)';
+          ctx.fillRect(0, y, 512, 1.5);
+          // Soft subtle highlight edge
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+          ctx.fillRect(0, y + 1.5, 512, 1.2);
 
-            bCtx.fillStyle = '#d1d5db';
-            bCtx.fillRect(x + off + 2.5, y + 2.5, w - 1, h - 1);
+          bCtx.fillStyle = '#7a7a7a';
+          bCtx.fillRect(0, y, 512, 1.5);
+          bCtx.fillStyle = '#868686';
+          bCtx.fillRect(0, y + 1.5, 512, 1.2);
+        }
+      } else if (type === 'interlocking-pavers') {
+        // Authentic Warm Interlocking Courtyard Pavers (Ref Photo 4!)
+        // Clean rectangular paving stones with crisp mortar joints and soft warm lantern diffuse response
+        ctx.fillStyle = '#1e242c'; // Deep clean mortar background
+        ctx.fillRect(0, 0, 512, 512);
+        bCtx.fillStyle = '#656565';
+        bCtx.fillRect(0, 0, 512, 512);
+        rCtx.fillStyle = '#b0b0b0';
+        rCtx.fillRect(0, 0, 512, 512);
 
-            // Mirror-like low roughness in wet rain puddle patches (Ref Photo 1 & 6!)
-            rCtx.fillStyle = isWetPuddle ? '#181818' : '#6e6e6e';
-            rCtx.fillRect(x + off + 2, y + 2, w, h);
+        const paverW = 48;
+        const paverH = 24;
+        const mortar = 2.5;
+        for (let y = 0; y < 512; y += paverH) {
+          const rowIdx = Math.floor(y / paverH);
+          const off = (rowIdx % 2) * (paverW * 0.5);
+          for (let x = -paverW; x < 512 + paverW; x += paverW) {
+            const seed = Math.abs(Math.floor(x * 19 + y * 31));
+            // Warm charcoal-slate tone with subtle earthy terracotta hue (Ref Photo 4)
+            const toneVar = (seed % 24) - 12;
+            const r = Math.min(135, Math.max(70, 92 + toneVar));
+            const g = Math.min(138, Math.max(72, 95 + toneVar + (seed % 4)));
+            const b = Math.min(148, Math.max(78, 102 + toneVar + (seed % 6)));
+
+            const px = x + off + mortar * 0.5;
+            const py = y + mortar * 0.5;
+            const pw = paverW - mortar;
+            const ph = paverH - mortar;
+
+            ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
+            ctx.fillRect(px, py, pw, ph);
+
+            // Bevel highlights on top and left edges catching ambient/lantern light
+            ctx.fillStyle = 'rgba(235, 242, 252, 0.16)';
+            ctx.fillRect(px, py, pw, 1.5);
+            ctx.fillRect(px, py, 1.5, ph);
+
+            // Subtle bottom and right bevel shadow
+            ctx.fillStyle = 'rgba(12, 16, 22, 0.35)';
+            ctx.fillRect(px, py + ph - 1.5, pw, 1.5);
+            ctx.fillRect(px + pw - 1.5, py, 1.5, ph);
+
+            // Bump map: smooth paver body (#969696) with recessed mortar (#656565)
+            bCtx.fillStyle = '#969696';
+            bCtx.fillRect(px + 1, py + 1, pw - 2, ph - 2);
+
+            // Roughness map: uniform realistic stone roughness (~0.72) for soft, cohesive warm sheen (NO mirror specular dots!)
+            const roughVal = 180 + (seed % 20);
+            rCtx.fillStyle = 'rgb(' + roughVal + ',' + roughVal + ',' + roughVal + ')';
+            rCtx.fillRect(px, py, pw, ph);
           }
         }
       } else if (type === 'dachi-appa-brick') {
@@ -5612,245 +6019,191 @@ export function getHideAndSeekHtml(): string {
           }
         }
             } else if (type === 'surveyor-field-grass') {
-        // Step 3: Darker, desaturated green-gray grass
-        ctx.fillStyle = '#101612';
+        // Natural Lush Mountain Grass & Loam Turf (Ref Photo 2!)
+        ctx.fillStyle = '#18261b'; // Rich dark alpine loam
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#404040';
+        bCtx.fillStyle = '#505050';
         bCtx.fillRect(0, 0, 512, 512);
-        const patches = ['#0b100d', '#141c17', '#111813', '#17201a', '#0e1410'];
-        for (let i = 0; i < 5500; i++) {
-          ctx.fillStyle = patches[i % patches.length];
-          ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 7);
-          bCtx.fillStyle = i % 2 === 0 ? '#707070' : '#303030';
-          bCtx.fillRect(Math.random() * 512, Math.random() * 512, 2, 6);
+        rCtx.fillStyle = '#909090';
+        rCtx.fillRect(0, 0, 512, 512);
+
+        const grassTones = ['#233d28', '#2b4d32', '#1f3623', '#33593b', '#28462f', '#3c6645'];
+        for (let i = 0; i < 6200; i++) {
+          const gx = (i * 97 + (i % 13) * 23) % 512;
+          const gy = (i * 173 + (i % 17) * 31) % 512;
+          const bladeW = 1.5 + (i % 2);
+          const bladeH = 5 + (i % 6);
+          ctx.fillStyle = grassTones[i % grassTones.length];
+          ctx.fillRect(gx, gy, bladeW, bladeH);
+          bCtx.fillStyle = (i % 2 === 0) ? '#888888' : '#383838';
+          bCtx.fillRect(gx, gy, bladeW, bladeH - 1);
         }
       } else if (type === 'scuffed-classroom-floor') {
-        // Requirement 4: Scuffed institutional concrete/linoleum tiles with heel marks, chair drag scratches & grime stains
-        ctx.fillStyle = '#1e2630';
+        // Clean Polished Institutional Terrazzo Floor Tiles (No Heel Scuffs or Grime!)
+        ctx.fillStyle = '#262f3a'; // Clean grout background
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#787878';
+        bCtx.fillStyle = '#282828';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#5c5c5c';
+        rCtx.fillStyle = '#484848';
         rCtx.fillRect(0, 0, 512, 512);
 
         const ts = 64;
         for (let y = 0; y < 512; y += ts) {
           for (let x = 0; x < 512; x += ts) {
-            const seed = Math.abs(x * 13 + y * 29);
-            const tone = 30 + (seed % 14);
-            ctx.fillStyle = 'rgb(' + tone + ',' + (tone + 6) + ',' + (tone + 12) + ')';
-            ctx.fillRect(x + 2, y + 2, ts - 3, ts - 3);
-            ctx.fillStyle = '#0d1218';
-            ctx.fillRect(x, y, ts, 2);
-            ctx.fillRect(x, y, 2, ts);
-            bCtx.fillStyle = '#222222';
-            bCtx.fillRect(x, y, ts, 2);
-            bCtx.fillRect(x, y, 2, ts);
-            if (seed % 3 === 0) {
-              ctx.strokeStyle = 'rgba(8, 11, 15, 0.65)';
-              ctx.lineWidth = 2.5;
-              ctx.beginPath();
-              ctx.moveTo(x + 12, y + 18);
-              if (ctx.quadraticCurveTo) ctx.quadraticCurveTo(x + 34, y + 28, x + 48, y + 46); else { ctx.lineTo(x + 34, y + 28); ctx.lineTo(x + 48, y + 46); }
-              ctx.stroke();
-              bCtx.strokeStyle = '#383838';
-              bCtx.lineWidth = 2;
-              bCtx.beginPath();
-              ctx.moveTo(x + 12, y + 18);
-              bCtx.lineTo(x + 48, y + 46);
-              bCtx.stroke();
+            const seed = Math.abs(Math.floor(x * 17 + y * 29));
+            const tone = 168 + (seed % 24);
+            // Elegant light-gray stone tile
+            ctx.fillStyle = 'rgb(' + tone + ',' + (tone + 4) + ',' + (tone + 8) + ')';
+            ctx.fillRect(x + 1.5, y + 1.5, ts - 3, ts - 3);
+
+            // Subtle top/left tile bevel highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
+            ctx.fillRect(x + 1.5, y + 1.5, ts - 3, 1.5);
+            ctx.fillRect(x + 1.5, y + 1.5, 1.5, ts - 3);
+
+            bCtx.fillStyle = '#e2e8f0';
+            bCtx.fillRect(x + 1.5, y + 1.5, ts - 3, ts - 3);
+
+            // Multi-colored fine terrazzo mineral chips (quartz white, dark slate, warm ochre)
+            for (let sp = 0; sp < 18; sp++) {
+              const sx = x + 4 + ((sp * 23 + seed) % (ts - 8));
+              const sy = y + 4 + ((sp * 37 + seed * 3) % (ts - 8));
+              const chipColor = sp % 3 === 0
+                ? 'rgba(255, 255, 255, 0.65)'
+                : (sp % 3 === 1 ? 'rgba(40, 52, 65, 0.45)' : 'rgba(185, 120, 80, 0.35)');
+              ctx.fillStyle = chipColor;
+              ctx.fillRect(sx, sy, 2.5, 2.5);
             }
-            if (seed % 5 === 0) {
-              const sg = ctx.createRadialGradient(x + 32, y + 32, 3, x + 32, y + 32, 26);
-              sg.addColorStop(0.0, 'rgba(10, 14, 18, 0.58)');
-              sg.addColorStop(0.7, 'rgba(18, 26, 22, 0.25)');
-              sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-              ctx.fillStyle = sg;
-              ctx.fillRect(x + 4, y + 4, ts - 8, ts - 8);
-              rCtx.fillStyle = '#282828';
-              rCtx.fillRect(x + 10, y + 10, 36, 36);
-            }
+
+            // Smooth satin finish on terrazzo
+            rCtx.fillStyle = '#383838';
+            rCtx.fillRect(x + 1.5, y + 1.5, ts - 3, ts - 3);
           }
         }
       } else if (type === 'stained-ceiling-tiles') {
-        // Requirement 4: Stained acoustic drop-ceiling tiles with brown roof-leak water rings, mold speckles & sagging seams
-        ctx.fillStyle = '#6c7378';
+        // Clean Modular Acoustic Drop-Ceiling Tiles (No Water Leaks or Mold!)
+        ctx.fillStyle = '#e5ebf2';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#888888';
+        bCtx.fillStyle = '#909090';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#989898';
+        rCtx.fillStyle = '#9a9a9a';
         rCtx.fillRect(0, 0, 512, 512);
 
         const cw = 64, ch = 128;
         for (let y = 0; y < 512; y += ch) {
           for (let x = 0; x < 512; x += cw) {
-            const seed = Math.abs(x * 17 + y * 23);
-            const base = 104 + (seed % 18);
-            ctx.fillStyle = 'rgb(' + base + ',' + (base + 3) + ',' + (base + 5) + ')';
-            ctx.fillRect(x + 3, y + 3, cw - 6, ch - 6);
-            ctx.fillStyle = '#22282e';
-            ctx.fillRect(x, y, cw, 3);
-            ctx.fillRect(x, y, 3, ch);
-            bCtx.fillStyle = '#181818';
-            bCtx.fillRect(x, y, cw, 3);
-            bCtx.fillRect(x, y, 3, ch);
+            const seed = Math.abs(Math.floor(x * 17 + y * 23));
+            const base = 210 + (seed % 14);
+            ctx.fillStyle = 'rgb(' + base + ',' + (base + 3) + ',' + (base + 6) + ')';
+            ctx.fillRect(x + 2, y + 2, cw - 4, ch - 4);
 
-            ctx.fillStyle = 'rgba(20, 26, 30, 0.36)';
+            // Clean metal T-bar suspension grid lines
+            ctx.fillStyle = '#8b96a2';
+            ctx.fillRect(x, y, cw, 2);
+            ctx.fillRect(x, y, 2, ch);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+            ctx.fillRect(x, y + 2, cw, 1);
+            ctx.fillRect(x + 2, y, 1, ch);
+
+            bCtx.fillStyle = '#303030';
+            bCtx.fillRect(x, y, cw, 2);
+            bCtx.fillRect(x, y, 2, ch);
+            bCtx.fillStyle = '#b0b0b0';
+            bCtx.fillRect(x + 2, y + 2, cw - 4, ch - 4);
+
+            // Fine acoustic pin-hole perforations
+            ctx.fillStyle = 'rgba(70, 80, 92, 0.22)';
             for (let py = y + 8; py < y + ch - 6; py += 10) {
               for (let px = x + 8; px < x + cw - 6; px += 10) {
                 ctx.fillRect(px, py, 1.5, 1.5);
-                bCtx.fillStyle = '#404040';
-                bCtx.fillRect(px, py, 2, 2);
               }
-            }
-
-            if (seed % 3 !== 0) {
-              const cx = x + 20 + (seed % 24);
-              const cy = y + 32 + ((seed * 3) % 64);
-              const rad = 18 + (seed % 22);
-              const wg = ctx.createRadialGradient(cx, cy, rad * 0.2, cx, cy, rad);
-              wg.addColorStop(0.0, 'rgba(54, 42, 26, 0.52)');
-              wg.addColorStop(0.68, 'rgba(68, 52, 30, 0.65)');
-              wg.addColorStop(0.88, 'rgba(42, 32, 18, 0.38)');
-              wg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-              ctx.fillStyle = wg;
-              ctx.fillRect(x + 3, y + 3, cw - 6, ch - 6);
             }
           }
         }
       } else if (type === 'peeling-paint-wall') {
-        // Requirement 4: Peeling paint & damp plaster with flaking patches exposing raw dark concrete, cracks & stains
-        ctx.fillStyle = '#6e7874';
+        // Clean Architectural Painted Woodwork & Concrete Trim (Zero Peeling, Zero Cracks!)
+        ctx.fillStyle = '#dce4ec';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#909090';
+        bCtx.fillStyle = '#888888';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#848484';
+        rCtx.fillStyle = '#7a7a7a';
         rCtx.fillRect(0, 0, 512, 512);
 
-        for (let i = 0; i < 900; i++) {
+        // Smooth architectural micro-grain
+        for (let i = 0; i < 1800; i++) {
           const px = (i * 73) % 512;
           const py = (i * 137) % 512;
-          const w = 10 + (i % 26);
-          const h = 8 + ((i * 7) % 24);
-          ctx.fillStyle = (i % 2 === 0) ? 'rgba(42, 52, 48, 0.16)' : 'rgba(148, 158, 152, 0.12)';
-          ctx.fillRect(px, py, w, h);
+          ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.16)' : 'rgba(60, 75, 88, 0.06)';
+          ctx.fillRect(px, py, 3, 3);
+          bCtx.fillStyle = (i % 2 === 0) ? '#929292' : '#7e7e7e';
+          bCtx.fillRect(px, py, 2, 2);
         }
 
-        // Fine horizontal architectural plaster courses & subtle micro-grain (no giant oval bubbles)
-        for (let y = 0; y < 512; y += 32) {
-          ctx.fillStyle = 'rgba(28, 36, 34, 0.14)';
-          ctx.fillRect(0, y, 512, 1.5);
-          ctx.fillStyle = 'rgba(210, 220, 215, 0.08)';
-          ctx.fillRect(0, y + 1.5, 512, 1);
-          bCtx.fillStyle = '#686868';
-          bCtx.fillRect(0, y, 512, 1.5);
-        }
-
-        ctx.strokeStyle = 'rgba(18, 24, 26, 0.65)';
-        ctx.lineWidth = 1.5;
-        bCtx.strokeStyle = '#101010';
-        bCtx.lineWidth = 2.0;
-        for (let cIdx = 0; cIdx < 8; cIdx++) {
-          let cx = 40 + cIdx * 60;
-          let cy = (cIdx % 2 === 0) ? 10 : 320;
-          ctx.beginPath();
-          ctx.moveTo(cx, cy);
-          bCtx.beginPath();
-          bCtx.moveTo(cx, cy);
-          for (let seg = 0; seg < 6; seg++) {
-            cx += ((seg * 13 + cIdx * 7) % 22) - 10;
-            cy += 24 + (seg % 3) * 8;
-            ctx.lineTo(cx, cy);
-            bCtx.lineTo(cx, cy);
-          }
-          ctx.stroke();
-          bCtx.stroke();
+        // Clean architectural horizontal trim reveals every 64px
+        for (let y = 0; y < 512; y += 64) {
+          ctx.fillStyle = 'rgba(45, 58, 70, 0.15)';
+          ctx.fillRect(0, y, 512, 2);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.fillRect(0, y + 2, 512, 2);
+          bCtx.fillStyle = '#404040';
+          bCtx.fillRect(0, y, 512, 2);
+          bCtx.fillStyle = '#b8b8b8';
+          bCtx.fillRect(0, y + 2, 512, 2);
         }
       } else if (type === 'worn-wood-grain') {
-        // Requirement 4: Worn wood grain with knots, scratched varnish, ink stains & bump relief
-        ctx.fillStyle = '#4e2710';
+        // Rich Polished Teak & Sal Hardwood Grain (Clean, Natural, Warm Satin Varnish!)
+        ctx.fillStyle = '#6a381a';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#606060';
+        bCtx.fillStyle = '#707070';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#585858';
+        rCtx.fillStyle = '#505050';
         rCtx.fillRect(0, 0, 512, 512);
 
-        for (let y = 0; y < 512; y += 3) {
-          const wave = Math.floor(Math.sin(y * 0.08) * 10 + Math.cos(y * 0.03) * 8);
-          const r = Math.max(38, Math.min(115, 78 + wave));
-          const g = Math.max(18, Math.min(62, 39 + Math.floor(wave * 0.55)));
-          const b = Math.max(8, Math.min(34, 16 + Math.floor(wave * 0.3)));
+        for (let y = 0; y < 512; y += 2) {
+          const wave = Math.floor(Math.sin(y * 0.05) * 12 + Math.cos(y * 0.02) * 8);
+          const r = Math.max(75, Math.min(145, 108 + wave));
+          const g = Math.max(38, Math.min(88, 58 + Math.floor(wave * 0.55)));
+          const b = Math.max(16, Math.min(48, 28 + Math.floor(wave * 0.3)));
           ctx.fillStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
-          ctx.fillRect(0, y, 512, 3);
-          bCtx.fillStyle = wave > 0 ? '#989898' : '#424242';
-          bCtx.fillRect(0, y, 512, 2);
+          ctx.fillRect(0, y, 512, 2);
+          bCtx.fillStyle = wave > 0 ? '#909090' : '#525252';
+          bCtx.fillRect(0, y, 512, 1.5);
         }
+        // Clean plank seams every 128px
         for (let py = 0; py < 512; py += 128) {
-          ctx.fillStyle = '#1e0d05';
-          ctx.fillRect(0, py, 512, 3);
-          bCtx.fillStyle = '#121212';
-          bCtx.fillRect(0, py, 512, 3);
-        }
-        for (let k = 0; k < 7; k++) {
-          const kx = 48 + ((k * 113) % 420);
-          const ky = 36 + ((k * 79) % 440);
-          ctx.fillStyle = '#291206';
-          ctx.beginPath();
-          ctx.ellipse(kx, ky, 16, 7, 0.15, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#633318';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-        ctx.strokeStyle = 'rgba(168, 122, 82, 0.42)';
-        ctx.lineWidth = 1.5;
-        bCtx.strokeStyle = '#1e1e1e';
-        bCtx.lineWidth = 1.5;
-        for (let sc = 0; sc < 24; sc++) {
-          const sx = (sc * 67) % 480;
-          const sy = (sc * 43) % 480;
-          const ex = sx + 18 + (sc % 28);
-          const ey = sy + ((sc % 3) - 1) * 14;
-          ctx.beginPath();
-          ctx.moveTo(sx, sy);
-          ctx.lineTo(ex, ey);
-          ctx.stroke();
-          bCtx.beginPath();
-          bCtx.moveTo(sx, sy);
-          bCtx.lineTo(ex, ey);
-          bCtx.stroke();
+          ctx.fillStyle = 'rgba(20, 10, 4, 0.40)';
+          ctx.fillRect(0, py, 512, 2);
+          ctx.fillStyle = 'rgba(255, 200, 150, 0.18)';
+          ctx.fillRect(0, py + 2, 512, 1.5);
+          bCtx.fillStyle = '#202020';
+          bCtx.fillRect(0, py, 512, 2);
         }
       } else if (type === 'dirty-window-glass') {
-        // Requirement 4: Dirty glass texture with rain streaks, dried water spots, corner dust buildup & smudges
-        ctx.fillStyle = '#0c1824';
+        // Clean Architectural Night Window Glass (Clear, Reflective, Natural Nocturnal Specular!)
+        ctx.fillStyle = '#101c2b';
         ctx.fillRect(0, 0, 512, 512);
-        bCtx.fillStyle = '#505050';
+        bCtx.fillStyle = '#808080';
         bCtx.fillRect(0, 0, 512, 512);
-        rCtx.fillStyle = '#282828';
+        rCtx.fillStyle = '#1c1c1c'; // Smooth, high-reflectivity glass
         rCtx.fillRect(0, 0, 512, 512);
 
-        const edgeGrime = ctx.createRadialGradient(256, 256, 90, 256, 256, 340);
-        edgeGrime.addColorStop(0.0, 'rgba(12, 24, 36, 0.0)');
-        edgeGrime.addColorStop(0.65, 'rgba(28, 42, 48, 0.38)');
-        edgeGrime.addColorStop(1.0, 'rgba(42, 54, 52, 0.78)');
-        ctx.fillStyle = edgeGrime;
+        // Gentle night sky gradation
+        const glassGrad = ctx.createLinearGradient(0, 0, 0, 512);
+        glassGrad.addColorStop(0.0, 'rgba(40, 65, 92, 0.28)');
+        glassGrad.addColorStop(0.5, 'rgba(20, 36, 54, 0.14)');
+        glassGrad.addColorStop(1.0, 'rgba(10, 18, 28, 0.22)');
+        ctx.fillStyle = glassGrad;
         ctx.fillRect(0, 0, 512, 512);
 
-        for (let rx = 8; rx < 512; rx += 18) {
-          const rw = 3 + (rx % 5);
-          ctx.fillStyle = (rx % 36 === 0) ? 'rgba(94, 118, 128, 0.28)' : 'rgba(5, 10, 16, 0.35)';
-          ctx.fillRect(rx, 0, rw, 512);
-          rCtx.fillStyle = (rx % 36 === 0) ? '#909090' : '#181818';
-          rCtx.fillRect(rx, 0, rw, 512);
-        }
-        for (let sp = 0; sp < 45; sp++) {
-          const sx = (sp * 83) % 500;
-          const sy = (sp * 59) % 500;
-          ctx.fillStyle = 'rgba(110, 130, 138, 0.18)';
-          ctx.beginPath();
-          ctx.arc(sx, sy, 4 + (sp % 9), 0, Math.PI * 2);
-          ctx.fill();
-        }
+        // Diagonal moonlight specular sheen reflection
+        ctx.fillStyle = 'rgba(180, 215, 248, 0.10)';
+        ctx.beginPath();
+        ctx.moveTo(80, 0);
+        ctx.lineTo(240, 0);
+        ctx.lineTo(120, 512);
+        ctx.lineTo(0, 512);
+        ctx.closePath();
+        ctx.fill();
       } else if (type === 'scuffed-board') {
         ctx.fillStyle = '#8b99a6';
         ctx.fillRect(0, 0, 512, 512);
@@ -5863,39 +6216,7 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // Step 3: Darken wall/roof/brick textures by ~35% and add vertical grime & damp stain gradients (Zero new draw calls!)
-      if (type !== 'surveyor-field-grass' && type !== 'interlocking-pavers') {
-        const darkMult = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.materialDarknessMultiplier) || 0.64;
-        const darkAlpha = Math.max(0.15, Math.min(0.55, 1.0 - darkMult));
-        ctx.fillStyle = 'rgba(6, 10, 12, ' + darkAlpha.toFixed(2) + ')';
-        ctx.fillRect(0, 0, 512, 512);
-
-        const topGrime = ctx.createLinearGradient(0, 0, 0, 128);
-        topGrime.addColorStop(0.0, 'rgba(4, 7, 9, 0.58)');
-        topGrime.addColorStop(0.45, 'rgba(10, 16, 14, 0.24)');
-        topGrime.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-        ctx.fillStyle = topGrime;
-        ctx.fillRect(0, 0, 512, 128);
-
-        const botGrime = ctx.createLinearGradient(0, 350, 0, 512);
-        botGrime.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
-        botGrime.addColorStop(0.55, 'rgba(12, 20, 15, 0.32)');
-        botGrime.addColorStop(1.0, 'rgba(5, 9, 7, 0.64)');
-        ctx.fillStyle = botGrime;
-        ctx.fillRect(0, 350, 512, 162);
-
-        for (let sx = 12; sx < 512; sx += 28) {
-          const streakW = 6 + ((sx * 7) % 10);
-          const streakH = 140 + ((sx * 19) % 260);
-          const sGrad = ctx.createLinearGradient(0, 0, 0, streakH);
-          sGrad.addColorStop(0.0, 'rgba(5, 9, 8, 0.32)');
-          sGrad.addColorStop(0.7, 'rgba(8, 14, 11, 0.14)');
-          sGrad.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-          ctx.fillStyle = sGrad;
-          ctx.fillRect(sx, 0, streakW, streakH);
-        }
-      }
-
+      // Natural architectural finish with clean surface response (zero artificial grime streaks)
       };
 
       const map = new THREE.CanvasTexture(c);
@@ -5928,7 +6249,7 @@ export function getHideAndSeekHtml(): string {
           const src = srcImg.data;
           const dstImg = nCtx.createImageData ? nCtx.createImageData(256, 256) : { data: new Uint8ClampedArray(256 * 256 * 4) };
           const dst = dstImg.data;
-          const strength = 2.65;
+          const strength = 0.40;
           for (let y = 0; y < 256; y++) {
             const ym1 = (y - 1) & 255;
             const yp1 = (y + 1) & 255;
@@ -6070,6 +6391,7 @@ export function getHideAndSeekHtml(): string {
       return g;
     }
     const sharedSignageAtlasMat = new THREE.MeshBasicMaterial({ map: signageAtlasTex, side: THREE.DoubleSide });
+    let sharedWinWarmTex = null;
 
     const materials = {
       nepaliRiverStone: new THREE.MeshStandardMaterial({
@@ -6132,78 +6454,45 @@ export function getHideAndSeekHtml(): string {
       })(),
       rotundaBrick: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
-        // High-detail 1024px weathered plaster & exposed brick masonry with damp moss, mortar joints & hairline cracks
+        // High-detail 1024px Clean Ashlar Stone & Architectural Masonry (Zero Spalling, Zero Cracks, Natural Warm Cream/Beige)
         const fineWallTex = createProceduralTexture(1024, 1024, (ctx) => {
-          ctx.fillStyle = '#86909a';
+          ctx.fillStyle = '#e4dccf'; // Warm sand/cream ashlar stone
           ctx.fillRect(0, 0, 1024, 1024);
 
-          // Subtle tonal stone/plaster variation patches
+          // Subtle natural limestone tonal variations across blocks
           for (let py = 0; py < 1024; py += 64) {
             for (let px = 0; px < 1024; px += 64) {
               const v = ((px * 17 + py * 31) % 24) - 12;
-              ctx.fillStyle = v >= 0 ? ('rgba(220, 230, 240, ' + (v * 0.005) + ')') : ('rgba(18, 26, 34, ' + (-v * 0.006) + ')');
+              ctx.fillStyle = v >= 0 ? ('rgba(255, 252, 245, ' + (v * 0.006) + ')') : ('rgba(65, 55, 45, ' + (-v * 0.005) + ')');
               ctx.fillRect(px, py, 64, 64);
             }
           }
 
-          // Crisp horizontal masonry/plaster courses + staggered vertical mortar joints
-          for (let y = 0; y < 1024; y += 24) {
-            ctx.fillStyle = 'rgba(20, 28, 36, 0.24)';
+          // Crisp dressed ashlar stone block courses & neat mortar joints
+          for (let y = 0; y < 1024; y += 32) {
+            // Horizontal recessed mortar joint
+            ctx.fillStyle = 'rgba(55, 45, 35, 0.22)';
             ctx.fillRect(0, y, 1024, 2);
-            ctx.fillStyle = 'rgba(230, 238, 246, 0.12)';
+            // Stone block top bevel highlight
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.26)';
             ctx.fillRect(0, y + 2, 1024, 1.5);
-            const rowOff = ((y / 24) % 2) * 32;
-            ctx.fillStyle = 'rgba(22, 30, 38, 0.15)';
-            for (let x = rowOff; x < 1024; x += 64) {
-              ctx.fillRect(x, y, 1.5, 24);
+            // Staggered vertical mortar joints
+            const rowOff = ((y / 32) % 2) * 48;
+            ctx.fillStyle = 'rgba(55, 45, 35, 0.18)';
+            for (let x = rowOff; x < 1024; x += 96) {
+              ctx.fillRect(x, y, 2, 32);
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
+              ctx.fillRect(x + 2, y, 1, 32);
+              ctx.fillStyle = 'rgba(55, 45, 35, 0.18)';
             }
           }
 
-          // Exposed weathered red-brick spalling patches where old plaster has flaked off (horror realism!)
-          [
-            [140, 310, 95, 58], [620, 190, 110, 64], [380, 680, 88, 52], [810, 540, 96, 62],
-          ].forEach(([bx, by, bw, bh]) => {
-            ctx.fillStyle = 'rgba(32, 22, 20, 0.45)';
-            ctx.fillRect(bx - 4, by - 4, bw + 8, bh + 8);
-            ctx.fillStyle = '#6e3228';
-            ctx.fillRect(bx, by, bw, bh);
-            ctx.fillStyle = 'rgba(24, 14, 12, 0.55)';
-            for (let ry = by; ry < by + bh; ry += 12) {
-              ctx.fillRect(bx, ry, bw, 2);
-              for (let rx = bx + ((ry % 24 === 0) ? 0 : 14); rx < bx + bw; rx += 28) {
-                ctx.fillRect(rx, ry, 2, 12);
-              }
-            }
-          });
-
-          // Hairline structural plaster cracks
-          ctx.strokeStyle = 'rgba(16, 22, 28, 0.48)';
-          ctx.lineWidth = 2;
-          [[210, 80, 245, 260], [740, 120, 710, 340], [490, 420, 530, 640]].forEach(([x0, y0, x1, y1]) => {
-            ctx.beginPath();
-            ctx.moveTo(x0, y0);
-            ctx.lineTo((x0 + x1) * 0.5 + 14, (y0 + y1) * 0.5);
-            ctx.lineTo(x1, y1);
-            ctx.stroke();
-          });
-
-          // Under-eave dark dampness & vertical monsoon rain/moss streaks
-          const topDamp = ctx.createLinearGradient(0, 0, 0, 240);
-          topDamp.addColorStop(0.0, 'rgba(10, 16, 20, 0.58)');
-          topDamp.addColorStop(0.45, 'rgba(18, 28, 30, 0.24)');
-          topDamp.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-          ctx.fillStyle = topDamp;
-          ctx.fillRect(0, 0, 1024, 240);
-
-          for (let sx = 22; sx < 1024; sx += 48) {
-            const sw = 8 + ((sx * 7) % 16);
-            const sh = 240 + ((sx * 29) % 520);
-            const sg = ctx.createLinearGradient(0, 0, 0, sh);
-            sg.addColorStop(0.0, 'rgba(14, 22, 20, 0.38)');
-            sg.addColorStop(0.6, 'rgba(20, 32, 26, 0.16)');
-            sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-            ctx.fillStyle = sg;
-            ctx.fillRect(sx, 0, sw, sh);
+          // Fine natural mineral stippling
+          for (let i = 0; i < 4000; i++) {
+            const gx = (i * 197) % 1024;
+            const gy = (i * 353) % 1024;
+            ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.12)' : 'rgba(50, 42, 32, 0.06)';
+            ctx.fillRect(gx, gy, 2, 2);
           }
         }, 'main-bldg-fine-wall-plaster-1024');
         fineWallTex.wrapS = THREE.RepeatWrapping;
@@ -6215,54 +6504,36 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: fineWallTex,
           bumpMap: fineWallTex,
-          bumpScale: mb.wallNormalScale !== undefined ? mb.wallNormalScale : 0.022,
-          color: mb.wallColor || 0x949ea8,
-          emissive: mb.wallEmissive || 0x0d151e,
-          emissiveIntensity: mb.wallEmissiveIntensity !== undefined ? mb.wallEmissiveIntensity : 0.10,
-          roughness: mb.wallRoughness !== undefined ? mb.wallRoughness : 0.68,
+          bumpScale: mb.wallNormalScale !== undefined ? mb.wallNormalScale : 0.015,
+          color: mb.wallColor || 0xe6dfd3,
+          emissive: mb.wallEmissive || 0x161310,
+          emissiveIntensity: mb.wallEmissiveIntensity !== undefined ? mb.wallEmissiveIntensity : 0.08,
+          roughness: mb.wallRoughness !== undefined ? mb.wallRoughness : 0.62,
           side: THREE.DoubleSide,
         });
       })(),
       rotundaWhiteArch: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
-        // High-contrast classical off-white stone/plaster for columns, pilasters, quoins, floor bands & cornices
+        // Clean classical white stone/plaster for columns, pilasters, quoins, floor bands & cornices
         const colPlasterTex = createProceduralTexture(1024, 1024, (ctx) => {
-          ctx.fillStyle = '#d6dfe6';
+          ctx.fillStyle = '#eef3f8';
           ctx.fillRect(0, 0, 1024, 1024);
 
-          // Subtle dressed-stone block courses & bevel highlights
+          // Dressed-stone block courses & bevel highlights
           for (let y = 0; y < 1024; y += 64) {
-            ctx.fillStyle = 'rgba(30, 42, 54, 0.16)';
+            ctx.fillStyle = 'rgba(40, 52, 65, 0.12)';
             ctx.fillRect(0, y, 1024, 2);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.22)';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
             ctx.fillRect(0, y + 2, 1024, 2);
           }
 
           // Fine stone grain
-          for (let i = 0; i < 900; i++) {
+          for (let i = 0; i < 1800; i++) {
             const gx = (i * 97) % 1024;
             const gy = (i * 163) % 1024;
-            ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.10)' : 'rgba(28, 38, 48, 0.09)';
-            ctx.fillRect(gx, gy, 4, 4);
+            ctx.fillStyle = (i % 2 === 0) ? 'rgba(255, 255, 255, 0.15)' : 'rgba(38, 48, 58, 0.06)';
+            ctx.fillRect(gx, gy, 3, 3);
           }
-
-          // Vertical dark rain/moss streaks along columns and pilasters
-          for (let sx = 28; sx < 1024; sx += 64) {
-            const sw = 10 + ((sx * 11) % 20);
-            const sh = 260 + ((sx * 37) % 540);
-            const sg = ctx.createLinearGradient(0, 0, 0, sh);
-            sg.addColorStop(0.0, 'rgba(18, 26, 24, 0.42)');
-            sg.addColorStop(0.55, 'rgba(26, 36, 32, 0.18)');
-            sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-            ctx.fillStyle = sg;
-            ctx.fillRect(sx, 0, sw, sh);
-          }
-
-          const baseStain = ctx.createLinearGradient(0, 780, 0, 1024);
-          baseStain.addColorStop(0.0, 'rgba(0, 0, 0, 0.0)');
-          baseStain.addColorStop(1.0, 'rgba(16, 24, 22, 0.44)');
-          ctx.fillStyle = baseStain;
-          ctx.fillRect(0, 780, 1024, 244);
         }, 'main-bldg-col-pilaster-plaster-1024');
         colPlasterTex.wrapS = THREE.RepeatWrapping;
         colPlasterTex.wrapT = THREE.RepeatWrapping;
@@ -6273,12 +6544,12 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: colPlasterTex,
           bumpMap: colPlasterTex,
-          bumpScale: mb.pilasterNormalScale !== undefined ? mb.pilasterNormalScale : 0.015,
-          color: mb.pilasterColor || 0xdce4ec,
-          emissive: mb.pilasterEmissive || 0x182430,
-          emissiveIntensity: mb.pilasterEmissiveIntensity !== undefined ? mb.pilasterEmissiveIntensity : 0.16,
-          roughness: mb.pilasterRoughness !== undefined ? mb.pilasterRoughness : 0.54,
-          metalness: 0.06,
+          bumpScale: mb.pilasterNormalScale !== undefined ? mb.pilasterNormalScale : 0.012,
+          color: mb.pilasterColor || 0xf0f4f8,
+          emissive: mb.pilasterEmissive || 0x182028,
+          emissiveIntensity: mb.pilasterEmissiveIntensity !== undefined ? mb.pilasterEmissiveIntensity : 0.12,
+          roughness: mb.pilasterRoughness !== undefined ? mb.pilasterRoughness : 0.50,
+          metalness: 0.04,
         });
       })(),
       rotundaPlinthConcrete: (function() {
@@ -6434,6 +6705,7 @@ export function getHideAndSeekHtml(): string {
         winWarmTex.minFilter = THREE.LinearMipmapLinearFilter;
         winWarmTex.magFilter = THREE.LinearFilter;
         winWarmTex.anisotropy = mb.windowAnisotropy || 8;
+        sharedWinWarmTex = winWarmTex;
         return new THREE.MeshStandardMaterial({
           map: winWarmTex,
           emissiveMap: winWarmTex,
@@ -6447,48 +6719,40 @@ export function getHideAndSeekHtml(): string {
       rotundaWindowRed: (function() {
         const mb = HORROR_CONFIG.mainBuilding || {};
         const sz = mb.windowTextureSize || 1024;
-        const winRedTex = createProceduralTexture(sz, sz, (ctx) => {
-          // Haunted Blood-Red Emergency-Lit Lab 302 Window with Ceiling Fixture, Broken Blinds & Watcher Silhouette!
+        const winWarmStudyTex = createProceduralTexture(sz, sz, (ctx) => {
+          // Warm Evening Study Room & Research Lab Window (Clean, Warm Amber Illumination, Zero Horror Silhouette!)
           const bg = ctx.createLinearGradient(0, sz, 0, 0);
-          bg.addColorStop(0.0, '#ffaa82');
-          bg.addColorStop(0.40, '#ee4426');
-          bg.addColorStop(0.80, '#961610');
-          bg.addColorStop(1.0, '#3d0605');
+          bg.addColorStop(0.0, '#fff4cc');
+          bg.addColorStop(0.35, '#ffcf70');
+          bg.addColorStop(0.70, '#e58e32');
+          bg.addColorStop(1.0, '#6e3814');
           ctx.fillStyle = bg;
           ctx.fillRect(0, 0, sz, sz);
 
-          // Glowing red emergency cage lamp at top-center of room
-          const rad = ctx.createRadialGradient(sz * 0.5, sz * 0.22, sz * 0.02, sz * 0.5, sz * 0.52, sz * 0.58);
-          rad.addColorStop(0.0, 'rgba(255, 235, 215, 0.95)');
-          rad.addColorStop(0.28, 'rgba(255, 96, 64, 0.72)');
-          rad.addColorStop(0.65, 'rgba(210, 32, 22, 0.38)');
-          rad.addColorStop(1.0, 'rgba(20, 2, 2, 0.62)');
+          // Glowing warm study pendant lamp at top-center of room
+          const rad = ctx.createRadialGradient(sz * 0.5, sz * 0.20, sz * 0.02, sz * 0.5, sz * 0.45, sz * 0.55);
+          rad.addColorStop(0.0, 'rgba(255, 255, 245, 0.98)');
+          rad.addColorStop(0.24, 'rgba(255, 220, 140, 0.82)');
+          rad.addColorStop(0.60, 'rgba(255, 160, 50, 0.40)');
+          rad.addColorStop(1.0, 'rgba(35, 15, 4, 0.50)');
           ctx.fillStyle = rad;
           ctx.fillRect(0, 0, sz, sz);
 
-          // Crooked Venetian blinds across top (drawn via polygon paths for universal Canvas2D + headless test compatibility)
-          ctx.fillStyle = 'rgba(28, 4, 4, 0.52)';
-          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.42); by += Math.round(sz * 0.03)) {
-            const tiltY = Math.round(sz * 0.025);
-            const slatH = Math.round(sz * 0.014);
-            ctx.beginPath();
-            ctx.moveTo(0, by);
-            ctx.lineTo(sz, by + tiltY);
-            ctx.lineTo(sz, by + tiltY + slatH);
-            ctx.lineTo(0, by + slatH);
-            ctx.closePath();
-            ctx.fill();
+          // Clean horizontal venetian blinds across upper half
+          ctx.fillStyle = 'rgba(40, 20, 8, 0.40)';
+          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.44); by += Math.round(sz * 0.028)) {
+            ctx.fillRect(0, by, sz, Math.round(sz * 0.013));
           }
 
-          // Eerie dark horror silhouette (The Hollow Proctor / Watcher) standing behind the right pane!
-          ctx.fillStyle = 'rgba(14, 2, 3, 0.76)';
-          ctx.beginPath();
-          ctx.arc(sz * 0.68, sz * 0.52, sz * 0.065, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.beginPath();
-          ctx.ellipse(sz * 0.68, sz * 0.78, sz * 0.14, sz * 0.22, 0, Math.PI, 0, false);
-          ctx.fill();
+          // Warm upward sill light bounce
+          const sillBounce = ctx.createLinearGradient(0, sz, 0, sz * 0.70);
+          sillBounce.addColorStop(0.0, 'rgba(255, 245, 210, 0.82)');
+          sillBounce.addColorStop(0.5, 'rgba(255, 195, 100, 0.35)');
+          sillBounce.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
+          ctx.fillStyle = sillBounce;
+          ctx.fillRect(0, sz * 0.70, sz, sz * 0.30);
 
+          // Clean architectural window frame & mullions
           const fHex = mb.windowFrameHex || '#11171f';
           const bW = Math.round(sz * 0.055);
           const mW = Math.round(sz * 0.036);
@@ -6501,19 +6765,22 @@ export function getHideAndSeekHtml(): string {
           ctx.fillRect(0, Math.round(sz * 0.30), sz, mW);
           ctx.fillRect(0, Math.round(sz * 0.65), sz, Math.round(mW * 0.75));
 
-          ctx.fillStyle = 'rgba(255, 120, 90, 0.40)';
+          // Warm light catching mullion edges
+          ctx.fillStyle = 'rgba(255, 215, 140, 0.42)';
+          ctx.fillRect(Math.round(sz * 0.5 - mW * 0.5) - 2.5, bW, 2.5, sz - bW * 2);
+          ctx.fillRect(bW, Math.round(sz * 0.30) + mW, sz - bW * 2, 3.5);
           ctx.fillRect(bW, sz - bW - 5, sz - bW * 2, 5);
-        }, 'main-bldg-win-red-1024');
-        winRedTex.generateMipmaps = true;
-        winRedTex.minFilter = THREE.LinearMipmapLinearFilter;
-        winRedTex.magFilter = THREE.LinearFilter;
-        winRedTex.anisotropy = mb.windowAnisotropy || 8;
+        }, 'main-bldg-win-warm-study-1024');
+        winWarmStudyTex.generateMipmaps = true;
+        winWarmStudyTex.minFilter = THREE.LinearMipmapLinearFilter;
+        winWarmStudyTex.magFilter = THREE.LinearFilter;
+        winWarmStudyTex.anisotropy = mb.windowAnisotropy || 8;
         return new THREE.MeshStandardMaterial({
-          map: winRedTex,
-          emissiveMap: winRedTex,
-          color: mb.windowRedColor || 0xff7852,
-          emissive: mb.windowRedEmissive || 0xe62e1c,
-          emissiveIntensity: mb.windowRedEmissiveIntensity !== undefined ? mb.windowRedEmissiveIntensity : 1.12,
+          map: winWarmStudyTex,
+          emissiveMap: winWarmStudyTex,
+          color: mb.windowRedColor || 0xffe8b4,
+          emissive: mb.windowRedEmissive || 0xffa036,
+          emissiveIntensity: mb.windowRedEmissiveIntensity !== undefined ? mb.windowRedEmissiveIntensity : 0.95,
           roughness: 0.18,
           metalness: 0.18,
         });
@@ -6522,7 +6789,7 @@ export function getHideAndSeekHtml(): string {
         const mb = HORROR_CONFIG.mainBuilding || {};
         const sz = mb.windowTextureSize || 1024;
         const winDarkTex = createProceduralTexture(sz, sz, (ctx) => {
-          // Dark reflective glass pane with cool night-sky reflection, faint blind slats & cracked corner pane
+          // Clean dark reflective glass pane with cool night-sky reflection & neat closed blinds (No Cracks!)
           const skyRefl = ctx.createLinearGradient(0, 0, sz * 0.65, sz);
           skyRefl.addColorStop(0.0, '#36526e');
           skyRefl.addColorStop(0.35, '#1e3246');
@@ -6531,31 +6798,21 @@ export function getHideAndSeekHtml(): string {
           ctx.fillStyle = skyRefl;
           ctx.fillRect(0, 0, sz, sz);
 
-          // Dimly visible closed interior blinds behind dark glass
-          ctx.fillStyle = 'rgba(6, 11, 18, 0.42)';
-          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.62); by += Math.round(sz * 0.032)) {
-            ctx.fillRect(0, by, sz, Math.round(sz * 0.015));
+          // Neat closed interior blinds behind dark glass
+          ctx.fillStyle = 'rgba(6, 11, 18, 0.38)';
+          for (let by = Math.round(sz * 0.08); by < Math.round(sz * 0.88); by += Math.round(sz * 0.030)) {
+            ctx.fillRect(0, by, sz, Math.round(sz * 0.014));
           }
 
-          // Cool moonlight diagonal specular reflection streak across glass
-          ctx.fillStyle = 'rgba(145, 188, 226, 0.18)';
+          // Cool moonlight diagonal specular reflection streak across clean glass
+          ctx.fillStyle = 'rgba(155, 198, 235, 0.20)';
           ctx.beginPath();
-          ctx.moveTo(sz * 0.10, sz * 0.06);
-          ctx.lineTo(sz * 0.36, sz * 0.06);
-          ctx.lineTo(sz * 0.16, sz * 0.90);
-          ctx.lineTo(sz * 0.04, sz * 0.90);
+          ctx.moveTo(sz * 0.12, sz * 0.05);
+          ctx.lineTo(sz * 0.38, sz * 0.05);
+          ctx.lineTo(sz * 0.18, sz * 0.95);
+          ctx.lineTo(sz * 0.04, sz * 0.95);
           ctx.closePath();
           ctx.fill();
-
-          // Subtle spiderweb crack in bottom-right pane corner
-          ctx.strokeStyle = 'rgba(165, 198, 224, 0.25)';
-          ctx.lineWidth = 2;
-          [[0.92, 0.92, 0.76, 0.82], [0.92, 0.92, 0.81, 0.72], [0.92, 0.92, 0.72, 0.90]].forEach(([x0, y0, x1, y1]) => {
-            ctx.beginPath();
-            ctx.moveTo(sz * x0, sz * y0);
-            ctx.lineTo(sz * x1, sz * y1);
-            ctx.stroke();
-          });
 
           // Crisp dark frame & mullions with moonlight bevel highlight
           const fHex = mb.windowFrameHex || '#11171f';
@@ -6624,14 +6881,13 @@ export function getHideAndSeekHtml(): string {
           ctx.lineWidth = 4;
           ctx.strokeRect(24, 24, sw - 48, sh - 48);
 
-          // Subtle vertical damp/moss weathering streaks across plaque
-          for (let sx = 40; sx < sw; sx += 130) {
-            const sg = ctx.createLinearGradient(0, 0, 0, sh * 0.88);
-            sg.addColorStop(0.0, 'rgba(18, 26, 24, 0.36)');
-            sg.addColorStop(1.0, 'rgba(0, 0, 0, 0.0)');
-            ctx.fillStyle = sg;
-            ctx.fillRect(sx, 0, 24, sh * 0.88);
-          }
+          // Crisp stone tablet border & decorative corner accents
+          ctx.strokeStyle = '#1e2832';
+          ctx.lineWidth = 8;
+          ctx.strokeRect(18, 18, sw - 36, sh - 36);
+          ctx.strokeStyle = 'rgba(240, 246, 252, 0.55)';
+          ctx.lineWidth = 3;
+          ctx.strokeRect(24, 24, sw - 48, sh - 48);
 
           // Chiseled 3D embossed highlight + deep shadow + bold dark-slate "GANDAKI UNIVERSITY" lettering
           ctx.font = '900 112px "Arial Black", Impact, sans-serif';
@@ -6651,12 +6907,12 @@ export function getHideAndSeekHtml(): string {
         return new THREE.MeshStandardMaterial({
           map: signTex,
           bumpMap: signTex,
-          bumpScale: 0.014,
-          color: mb.signPlaqueColor || 0xcfd8e0,
-          emissive: mb.signEmissive || 0x263442,
-          emissiveIntensity: mb.signEmissiveIntensity !== undefined ? mb.signEmissiveIntensity : 0.26,
-          roughness: 0.48,
-          metalness: 0.14,
+          bumpScale: 0.012,
+          color: mb.signPlaqueColor || 0xdbe4ec,
+          emissive: mb.signEmissive || 0x222d38,
+          emissiveIntensity: mb.signEmissiveIntensity !== undefined ? mb.signEmissiveIntensity : 0.22,
+          roughness: 0.45,
+          metalness: 0.12,
         });
       })(),
       rotundaFacadeUplightMat: (function() {
@@ -6750,24 +7006,24 @@ export function getHideAndSeekHtml(): string {
       rotundaTerrazzoFloor: new THREE.MeshStandardMaterial({
         map: terrazzoFloorTex.map,
         bumpMap: terrazzoFloorTex.bumpMap,
-        bumpScale: 0.025,
-        roughness: 0.30,
-        metalness: 0.18,
+        bumpScale: 0.018,
+        roughness: 0.28,
+        metalness: 0.16,
       }),
       rotundaInteriorWall: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.055,
-        color: 0xb8c2cc,
-        roughness: 0.72,
+        bumpScale: 0.024,
+        color: 0xded8ce,
+        roughness: 0.65,
         side: THREE.DoubleSide,
       }),
       stainedCeilingTiles: new THREE.MeshStandardMaterial({
         map: stainedCeilingTex.map,
         bumpMap: stainedCeilingTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x9aa4ad,
-        roughness: 0.82,
+        bumpScale: 0.025,
+        color: 0xe2e8f0,
+        roughness: 0.72,
       }),
       ceilingLightEmissive: new THREE.MeshStandardMaterial({
         color: 0xfff8eb,
@@ -6778,16 +7034,16 @@ export function getHideAndSeekHtml(): string {
       fountainPinkTrim: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x283038,
-        roughness: 0.68,
+        bumpScale: 0.035,
+        color: 0x3a4552,
+        roughness: 0.60,
         metalness: 0.12,
       }),
       fountainWater: new THREE.MeshStandardMaterial({
-        color: 0x09131c,
-        emissive: 0x061018,
-        emissiveIntensity: 0.14,
-        roughness: 0.12,
+        color: 0x0f2438,
+        emissive: 0x0a1a28,
+        emissiveIntensity: 0.18,
+        roughness: 0.10,
         metalness: 0.88,
         transparent: true,
         opacity: 0.88,
@@ -6795,87 +7051,88 @@ export function getHideAndSeekHtml(): string {
       campusStucco: new THREE.MeshStandardMaterial({
         map: stuccoTex.map,
         bumpMap: stuccoTex.bumpMap,
-        bumpScale: 0.022,
-        color: 0x7a8680,
-        roughness: 0.76,
+        bumpScale: 0.001,
+        color: 0xf0ebe1,
+        roughness: 0.94,
+        metalness: 0.0,
         side: THREE.DoubleSide,
       }),
       classroomFloor: new THREE.MeshStandardMaterial({
         map: scuffedFloorTex.map,
         bumpMap: scuffedFloorTex.bumpMap,
-        bumpScale: 0.055,
-        color: 0x7a8896,
-        roughness: 0.48,
-        metalness: 0.14,
+        bumpScale: 0.015,
+        color: 0xc4ced8,
+        roughness: 0.65,
+        metalness: 0.02,
       }),
       interlockingPavers: new THREE.MeshStandardMaterial({
         map: paverTex.map,
         bumpMap: paverTex.bumpMap,
-        bumpScale: 0.055,
+        bumpScale: 0.005,
         roughnessMap: paverTex.roughnessMap,
-        roughness: 0.35,
-        metalness: 0.24,
+        roughness: 0.72,
+        metalness: 0.0,
       }),
       nepalDachiBrick: new THREE.MeshStandardMaterial({
         map: dachiBrickTex.map,
         bumpMap: dachiBrickTex.bumpMap,
-        bumpScale: 0.065,
+        bumpScale: 0.022,
         roughnessMap: dachiBrickTex.roughnessMap,
-        roughness: 0.68,
-        metalness: 0.06,
+        roughness: 0.78,
+        metalness: 0.02,
         side: THREE.DoubleSide,
       }),
       carvedSalWood: new THREE.MeshStandardMaterial({
         map: carvedSalTex.map,
         bumpMap: carvedSalTex.bumpMap,
-        bumpScale: 0.075,
-        roughness: 0.52,
+        bumpScale: 0.065,
+        roughness: 0.48,
         metalness: 0.12,
       }),
       ebonyCarvedWood: new THREE.MeshStandardMaterial({
         map: carvedSalTex.map,
         bumpMap: carvedSalTex.bumpMap,
-        bumpScale: 0.085,
-        color: 0x1a110b,
-        roughness: 0.44,
-        metalness: 0.16,
+        bumpScale: 0.075,
+        color: 0x221812,
+        roughness: 0.42,
+        metalness: 0.14,
       }),
       tikijhyalLattice: new THREE.MeshStandardMaterial({
         map: tikijhyalTex.map,
         bumpMap: tikijhyalTex.bumpMap,
-        bumpScale: 0.08,
-        roughness: 0.48,
+        bumpScale: 0.07,
+        roughness: 0.45,
         metalness: 0.14,
       }),
       jhingatiTerracottaRoof: new THREE.MeshStandardMaterial({
         map: jhingatiRoofTex.map,
         bumpMap: jhingatiRoofTex.bumpMap,
-        bumpScale: 0.085,
-        roughness: 0.46,
+        bumpScale: 0.075,
+        roughness: 0.44,
         metalness: 0.15,
       }),
       teliyaFloorTile: new THREE.MeshStandardMaterial({
         map: teliyaTileTex.map,
         bumpMap: teliyaTileTex.bumpMap,
-        bumpScale: 0.035,
+        bumpScale: 0.030,
         roughnessMap: teliyaTileTex.roughnessMap,
-        roughness: 0.28,
+        roughness: 0.26,
         metalness: 0.16,
       }),
       nepalOchreDado: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x8c3b26,
-        roughness: 0.68,
+        bumpScale: 0.035,
+        color: 0x9a4430,
+        roughness: 0.62,
         side: THREE.DoubleSide,
       }),
       nepalCreamPlaster: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0xc2b6a6,
-        roughness: 0.68,
+        bumpScale: 0.035,
+        color: 0xd2c6b6,
+        roughness: 0.64,
         side: THREE.DoubleSide,
       }),
       diyoFlameGlow: new THREE.MeshStandardMaterial({
@@ -6907,58 +7164,59 @@ export function getHideAndSeekHtml(): string {
       surveyorGrass: new THREE.MeshStandardMaterial({
         map: grassTex.map,
         bumpMap: grassTex.bumpMap,
-        bumpScale: 0.05,
-        roughness: 0.85,
+        bumpScale: 0.045,
+        color: 0x243e2a,
+        roughness: 0.80,
       }),
       lawnStripGreen: new THREE.MeshStandardMaterial({
         map: grassTex.map,
         bumpMap: grassTex.bumpMap,
         bumpScale: 0.04,
-        color: 0x16201a,
-        roughness: 0.90,
+        color: 0x284832,
+        roughness: 0.82,
       }),
       castIronDark: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.025,
-        color: 0x161c26,
+        bumpScale: 0.020,
+        color: 0x1c2430,
         metalness: 0.82,
-        roughness: 0.34,
+        roughness: 0.32,
       }),
       gandakiBluePole: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.03,
+        bumpScale: 0.025,
         color: 0x1d4ed8,
         metalness: 0.58,
-        roughness: 0.42,
+        roughness: 0.40,
       }),
       royalBlueDark: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         color: 0x0f172a,
         metalness: 0.75,
-        roughness: 0.38,
+        roughness: 0.36,
       }),
       whiteTrim: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.045,
-        color: 0x8d97a0,
-        roughness: 0.64,
+        bumpScale: 0.025,
+        color: 0xe2e8f0,
+        roughness: 0.52,
       }),
       concretePillar: new THREE.MeshStandardMaterial({
         map: peelingPaintTex.map,
         bumpMap: peelingPaintTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x9aa6b2,
-        roughness: 0.66,
+        bumpScale: 0.030,
+        color: 0xd8e0e8,
+        roughness: 0.58,
       }),
       plinthDarkConcrete: new THREE.MeshStandardMaterial({
         map: scuffedFloorTex.map,
         bumpMap: scuffedFloorTex.bumpMap,
-        bumpScale: 0.05,
-        color: 0x475569,
-        roughness: 0.76,
+        bumpScale: 0.035,
+        color: 0x64748b,
+        roughness: 0.68,
       }),
       windowGlass: new THREE.MeshStandardMaterial({
         map: dirtyGlassTex.map,
@@ -6971,11 +7229,13 @@ export function getHideAndSeekHtml(): string {
         opacity: 0.72,
       }),
       windowWarmLit: new THREE.MeshStandardMaterial({
-        map: dirtyGlassTex.map,
-        color: 0xffb35c,
-        emissive: HORROR_CONFIG.lighting.windowEmissive || 0xffa84c,
-        emissiveIntensity: HORROR_CONFIG.lighting.windowEmissiveIntensity || 0.62,
-        roughness: 0.36,
+        map: sharedWinWarmTex || dirtyGlassTex.map,
+        emissiveMap: sharedWinWarmTex || dirtyGlassTex.map,
+        color: 0xffe8b4,
+        emissive: HORROR_CONFIG.lighting.windowEmissive || 0xff9c34,
+        emissiveIntensity: HORROR_CONFIG.lighting.windowEmissiveIntensity || 0.88,
+        roughness: 0.20,
+        metalness: 0.06,
       }),
       deskWoodTop: new THREE.MeshStandardMaterial({
         map: wornWoodTex.map,
@@ -7210,21 +7470,21 @@ export function getHideAndSeekHtml(): string {
 
     // Bind synthesized Sobel tangent-space normalMaps & synced UV repeats to PBR architectural/prop materials
     [
-      [riverStoneTex, 0.55],
-      [blueRoofTex, 0.45],
-      [redRoofTex, 0.48],
-      [rotundaBrickTex, 0.52],
-      [stuccoTex, 0.36],
-      [paverTex, 0.50],
-      [grassTex, 0.38],
-      [dachiBrickTex, 0.54],
-      [carvedSalTex, 0.58],
-      [scuffedFloorTex, 0.32],
-      [stainedCeilingTex, 0.30],
-      [peelingPaintTex, 0.38],
-      [wornWoodTex, 0.46],
-      [dirtyGlassTex, 0.22],
-      [scuffedBoardTex, 0.24],
+      [riverStoneTex, 0.28],
+      [blueRoofTex, 0.25],
+      [redRoofTex, 0.26],
+      [rotundaBrickTex, 0.22],
+      [stuccoTex, 0.02],
+      [paverTex, 0.16],
+      [grassTex, 0.20],
+      [dachiBrickTex, 0.24],
+      [carvedSalTex, 0.32],
+      [scuffedFloorTex, 0.18],
+      [stainedCeilingTex, 0.18],
+      [peelingPaintTex, 0.22],
+      [wornWoodTex, 0.25],
+      [dirtyGlassTex, 0.14],
+      [scuffedBoardTex, 0.15],
     ].forEach(([texBundle, nScale]) => {
       if (!texBundle || !texBundle.map) return;
       const rx = texBundle.map.repeat.x;
@@ -7237,7 +7497,7 @@ export function getHideAndSeekHtml(): string {
         if (m && m.isMeshStandardMaterial && m.map === texBundle.map && !m.normalMap && texBundle.normalMap) {
           m.normalMap = texBundle.normalMap;
           m.normalScale = new THREE.Vector2(nScale, nScale);
-          m.envMapIntensity = (m.metalness > 0.4) ? 1.15 : 0.72;
+          m.envMapIntensity = (m.metalness > 0.4) ? 1.15 : 0.25;
         }
       });
     });
@@ -7396,9 +7656,9 @@ export function getHideAndSeekHtml(): string {
           '#include <fog_fragment>',
           '#ifdef USE_FOG\\n' +
           '  #ifdef FOG_EXP2\\n' +
-          '    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * vFogDepth * vFogDepth );\\n' +
+          '    float fogFactor = 1.0 - exp( - fogDensity * fogDensity * fogDepth * fogDepth );\\n' +
           '  #else\\n' +
-          '    float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );\\n' +
+          '    float fogFactor = smoothstep( fogNear, fogFar, fogDepth );\\n' +
           '  #endif\\n' +
           '  fogFactor *= ' + mbFogInfluence.toFixed(3) + ';\\n' +
           '  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\\n' +
@@ -7418,6 +7678,7 @@ export function getHideAndSeekHtml(): string {
       [materials.rotundaCurvedGlass, 1.15, 0.85],
       [materials.rotundaCurvedGlassWarm, 0.65, 0.35],
       [materials.rotundaWindowWarm, 0.0, 0.0],
+      [materials.windowWarmLit, 0.0, 0.0],
       [materials.rotundaWindowRed, 0.0, 0.0],
       [materials.rotundaWindowDark, 0.55, 0.75],
       [materials.rotundaSignMat, 0.45, 1.30],
@@ -8631,58 +8892,64 @@ export function getHideAndSeekHtml(): string {
     }
 
     if (sAtlasCtx) {
-      // Poster 1 (256, 0, 128, 160): Weathered Curfew Notice with torn corner & water stain
-      sAtlasCtx.fillStyle = '#b8c2b0';
+      // Poster 1 (256, 0, 128, 160): University Central Library & Reading Hall Hours
+      sAtlasCtx.fillStyle = '#f0f5fa';
       sAtlasCtx.fillRect(256, 0, 128, 160);
-      sAtlasCtx.fillStyle = 'rgba(42, 34, 22, 0.32)';
-      sAtlasCtx.beginPath();
-      sAtlasCtx.arc(356, 130, 34, 0, Math.PI * 2);
-      sAtlasCtx.fill();
-      sAtlasCtx.fillStyle = '#334155';
+      sAtlasCtx.fillStyle = '#1e3a5f';
       sAtlasCtx.fillRect(264, 10, 112, 26);
-      sAtlasCtx.fillStyle = '#991b1b';
-      sAtlasCtx.font = 'bold 13px serif';
-      sAtlasCtx.fillText('CURFEW NOTICE', 268, 28);
+      sAtlasCtx.fillStyle = '#ffffff';
+      sAtlasCtx.font = 'bold 12px sans-serif';
+      sAtlasCtx.fillText('LIBRARY NOTICE', 270, 27);
       sAtlasCtx.fillStyle = '#1e293b';
-      sAtlasCtx.font = '10px monospace';
-      sAtlasCtx.fillText('NO ENTRY AFTER', 270, 56);
-      sAtlasCtx.fillText('22:00 HRS', 282, 72);
-      sAtlasCtx.fillText('BY ORDER: WARDEN', 266, 102);
+      sAtlasCtx.font = '10px sans-serif';
+      sAtlasCtx.fillText('OPEN STUDY HALLS', 268, 56);
+      sAtlasCtx.fillText('08:00 - 21:00 HRS', 272, 72);
+      sAtlasCtx.fillText('SILENT ZONE ACTIVE', 266, 92);
+      sAtlasCtx.fillStyle = '#0284c7';
+      sAtlasCtx.fillText('WI-FI: GU-CAMPUS', 270, 114);
+      sAtlasCtx.fillStyle = '#64748b';
+      sAtlasCtx.fillText('DEPT. OF ACADEMICS', 266, 138);
 
-      // Poster 2 (384, 0, 128, 160): Faded Exam & Missing Scholar Bulletin
-      sAtlasCtx.fillStyle = '#c4b89b';
+      // Poster 2 (384, 0, 128, 160): Authentic Gandaki University Tihar Celebration Bulletin
+      sAtlasCtx.fillStyle = '#fffbeb';
       sAtlasCtx.fillRect(384, 0, 128, 160);
-      sAtlasCtx.fillStyle = '#7c2d12';
+      sAtlasCtx.fillStyle = '#b45309';
       sAtlasCtx.fillRect(392, 10, 112, 24);
       sAtlasCtx.fillStyle = '#fef3c7';
       sAtlasCtx.font = 'bold 12px sans-serif';
-      sAtlasCtx.fillText('CAMPUS ALERT', 402, 26);
-      sAtlasCtx.fillStyle = '#292524';
-      sAtlasCtx.fillRect(416, 42, 64, 54);
-      sAtlasCtx.fillStyle = '#78716c';
+      sAtlasCtx.fillText('TIHAR MAHOTSAV', 398, 26);
+      sAtlasCtx.fillStyle = '#78350f';
+      sAtlasCtx.font = 'bold 10px serif';
+      sAtlasCtx.fillText('HAPPY LAXMI PUJA', 400, 52);
+      sAtlasCtx.fillStyle = '#d97706';
       sAtlasCtx.beginPath();
-      sAtlasCtx.arc(448, 62, 12, 0, Math.PI * 2);
+      sAtlasCtx.arc(448, 76, 16, 0, Math.PI * 2);
       sAtlasCtx.fill();
-      sAtlasCtx.fillStyle = '#1c1917';
-      sAtlasCtx.font = 'bold 10px monospace';
-      sAtlasCtx.fillText('REPORT UNUSUAL', 398, 114);
-      sAtlasCtx.fillText('NIGHT SOUNDS', 404, 128);
+      sAtlasCtx.fillStyle = '#fffbeb';
+      sAtlasCtx.font = '14px serif';
+      sAtlasCtx.fillText('🪔', 440, 81);
+      sAtlasCtx.fillStyle = '#451a03';
+      sAtlasCtx.font = '10px sans-serif';
+      sAtlasCtx.fillText('CULTURAL PROGRAM', 396, 112);
+      sAtlasCtx.fillText('AT CAMPUS PLAZA', 402, 126);
+      sAtlasCtx.fillStyle = '#b45309';
+      sAtlasCtx.fillText('WELCOME ALL', 412, 144);
 
-      // Poster 3 (256, 160, 128, 120): Stained Science / Lab Safety Chart
-      sAtlasCtx.fillStyle = '#a8b8c0';
+      // Poster 3 (256, 160, 128, 120): Department of Science & Engineering Safety Guidelines
+      sAtlasCtx.fillStyle = '#f1f5f9';
       sAtlasCtx.fillRect(256, 160, 128, 120);
-      sAtlasCtx.strokeStyle = '#1e3a5f';
+      sAtlasCtx.strokeStyle = '#0284c7';
       sAtlasCtx.lineWidth = 3;
       sAtlasCtx.strokeRect(262, 166, 116, 108);
-      sAtlasCtx.fillStyle = '#0f172a';
+      sAtlasCtx.fillStyle = '#0369a1';
       sAtlasCtx.font = 'bold 11px sans-serif';
       sAtlasCtx.fillText('LAB SAFETY RULES', 268, 184);
       for (let ly = 198; ly < 262; ly += 14) {
-        sAtlasCtx.fillStyle = '#334155';
+        sAtlasCtx.fillStyle = '#38bdf8';
         sAtlasCtx.fillRect(270, ly, 96, 4);
       }
 
-      // Poster 4 (384, 160, 128, 120): Torn Cultural Fest Poster
+      // Poster 4 (384, 160, 128, 120): Autumn University Cultural Fest
       sAtlasCtx.fillStyle = '#451a03';
       sAtlasCtx.fillRect(384, 160, 128, 120);
       sAtlasCtx.strokeStyle = '#d97706';
@@ -10746,24 +11013,26 @@ export function getHideAndSeekHtml(): string {
     }
 
     // Helper: Standard / Seminar Classroom Interior (Upgraded with Two-Tone Institutional Dado, Green Bulletin Board, Searchable Teacher Desk Drawer, Openable Storage Cupboard & Chalk Tray)
-    function buildDetailedClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false, layoutVariant = 0) {
+    function buildDetailedClassroomInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle = false, layoutVariant = 0, roomDef = null, roomW = 7.6, roomD = 7.6, doorAxis = 'z', doorDirSign = -1) {
       const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
-      // 1. Two-Tone Institutional Dado Band around Teaching & Side Walls + Raised Dais + Blackboard & Whiteboard with Chalk Tray
-      const boardZ = facingDirZ * -3.1;
+      const wallHalfW = Math.max(3.2, roomW * 0.5 - 0.06);
+      const wallHalfD = Math.max(3.2, roomD * 0.5 - 0.06);
+      const boardZ = facingDirZ * -(wallHalfD - 0.12);
       const dadoMat = isNewariStyle ? materials.nepalOchreDado : interiorSystemMats.corridorDadoGreenGrey;
-      const dadoBand = new THREE.Mesh(new THREE.BoxGeometry(6.8, 1.06, 0.04), dadoMat);
+      const dadoBand = new THREE.Mesh(new THREE.BoxGeometry(roomW - 0.28, 1.06, 0.04), dadoMat);
       dadoBand.position.set(0, 0.53, boardZ + facingDirZ * 0.02);
       cGroup.add(dadoBand);
-      [-3.36, 3.36].forEach(sx => {
-        const sideDado = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.06, 8.0), dadoMat);
+      [-wallHalfW, wallHalfW].forEach(sx => {
+        const sideDado = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.06, roomD - 0.28), dadoMat);
         sideDado.position.set(sx, 0.53, 0);
         cGroup.add(sideDado);
       });
 
-      const dais = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.12, 1.4), materials.rotundaPlinthConcrete);
+      const daisW = Math.min(roomW - 1.2, Math.max(5.8, roomW * 0.58));
+      const dais = new THREE.Mesh(new THREE.BoxGeometry(daisW, 0.12, 1.4), materials.rotundaPlinthConcrete);
       dais.position.set(0, 0.06, boardZ + facingDirZ * 0.82);
       cGroup.add(dais);
-      addUnderFurnitureAO(cGroup, 0, boardZ + facingDirZ * 0.82, 5.85, 1.65);
+      addUnderFurnitureAO(cGroup, 0, boardZ + facingDirZ * 0.82, daisW + 0.25, 1.65);
 
       const wbMesh = new THREE.Mesh(classroomBoardNormalGeo, materials.blackboardGreen);
       wbMesh.position.set(-1.1, 1.85, boardZ);
@@ -10778,32 +11047,59 @@ export function getHideAndSeekHtml(): string {
       chalkTray.position.set(0.55, 1.16, boardZ + facingDirZ * 0.06);
       cGroup.add(chalkTray);
 
-      // Green Felt Bulletin Board on Rear Wall (Matching Reference Screenshot 1)
+      [-0.38, -0.24, 0.82, 1.45].forEach((cxOff, cIdx) => {
+        const chalkMat = cIdx === 1 ? interiorSystemMats.hazardYellow : (cIdx === 2 ? materials.gandakiBluePole : materials.whiteTrim);
+        const chalkPiece = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.075, 6), chalkMat);
+        chalkPiece.rotation.z = Math.PI / 2 + (cIdx - 1.5) * 0.08;
+        chalkPiece.position.set(0.55 + cxOff, 1.193, boardZ + facingDirZ * 0.06);
+        cGroup.add(chalkPiece);
+      });
+      const boardDuster = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.042, 0.052), materials.chairWood);
+      boardDuster.position.set(0.18, 1.206, boardZ + facingDirZ * 0.06);
+      boardDuster.rotation.y = 0.08;
+      cGroup.add(boardDuster);
+
+      const screenCase = new THREE.Mesh(new THREE.BoxGeometry(2.65, 0.09, 0.10), materials.whiteTrim);
+      screenCase.position.set(0.55, 2.72, boardZ + facingDirZ * 0.05);
+      cGroup.add(screenCase);
+      const projMountRod = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.44, 8), materials.deskSteelFrame);
+      projMountRod.position.set(0.55, 3.18, 0.15);
+      cGroup.add(projMountRod);
+      const projBody = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.11, 0.30), materials.whiteTrim);
+      projBody.position.set(0.55, 2.96, 0.15);
+      cGroup.add(projBody);
+      const projLens = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.05, 10), materials.castIronDark);
+      projLens.rotation.x = Math.PI / 2;
+      projLens.position.set(0.55, 2.96, 0.15 - facingDirZ * 0.16);
+      cGroup.add(projLens);
+
+      const rearNoticeZ = facingDirZ * (wallHalfD - 0.08);
       const rearNotice = new THREE.Mesh(step2Geos.noticeBoard, materials.chairWood);
       rearNotice.rotation.set(0.04, Math.PI / 2, 0.02);
-      rearNotice.position.set(0, 1.75, facingDirZ * 3.15);
+      rearNotice.position.set(0, 1.75, rearNoticeZ);
       cGroup.add(rearNotice);
       const rearCork = new THREE.Mesh(step2Geos.noticeCork, interiorSystemMats.bulletinFeltGreen);
       rearCork.rotation.set(0.04, Math.PI / 2, 0.02);
-      rearCork.position.set(0, 1.75, facingDirZ * 3.12);
+      rearCork.position.set(0, 1.75, rearNoticeZ - facingDirZ * 0.03);
       cGroup.add(rearCork);
       [-0.42, 0.05, 0.46].forEach((nx, nIdx) => {
         const nSheet = new THREE.Mesh(step2Geos.noticeNote, step2Mats.paperSheet);
-        nSheet.position.set(nx, 1.76 + (nIdx - 1) * 0.06, facingDirZ * 3.09);
+        nSheet.position.set(nx, 1.76 + (nIdx - 1) * 0.06, rearNoticeZ - facingDirZ * 0.06);
         nSheet.rotation.set(0, Math.PI / 2, (nIdx - 1) * 0.14);
         cGroup.add(nSheet);
       });
 
-      // Side Wall Openable 2-Door Classroom Storage Cupboard + Upper Wall Shelves with Books
       const bcSignX = unitCenterX > 15 ? 1 : -1;
+      const cupboardLocalX = bcSignX * (wallHalfW - 0.32);
+      const cupboardLocalZ = (doorAxis === 'x' && doorDirSign === bcSignX) ? -1.85 : 0.4;
       buildOpenableCupboard(
         cGroup,
         unitCenterX,
         floorY,
         unitCenterZ,
-        bcSignX * 3.02,
+        cupboardLocalX,
         0.0,
-        0.4,
+        cupboardLocalZ,
         bcSignX > 0 ? -Math.PI / 2 : Math.PI / 2,
         'cupboard-' + unitTitle.replace(/\s+/g, '-').toLowerCase(),
         unitTitle + ' Storage Cupboard',
@@ -10811,41 +11107,90 @@ export function getHideAndSeekHtml(): string {
         null
       );
 
+      const lockerBankX = -bcSignX * (wallHalfW - 0.26);
+      const lockerBankZ = (doorAxis === 'x' && doorDirSign === -bcSignX) ? 1.85 : -1.95;
+      const lockerBankMesh = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
+      lockerBankMesh.position.set(lockerBankX, 0.96, lockerBankZ);
+      if (bcSignX < 0) lockerBankMesh.rotation.y = Math.PI;
+      cGroup.add(lockerBankMesh);
+      addUnderFurnitureAO(cGroup, lockerBankX, lockerBankZ, 0.68, 1.95);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + lockerBankX - 0.26, floorY, unitCenterZ + lockerBankZ - 0.90),
+        new THREE.Vector3(unitCenterX + lockerBankX + 0.26, floorY + 1.92, unitCenterZ + lockerBankZ + 0.90)
+      ), 'furniture');
+      [-0.56, 0, 0.56].forEach((lzOff, lIdx) => {
+        const lPivot = new THREE.Group();
+        lPivot.position.set(lockerBankX + bcSignX * 0.24, 1.05, lockerBankZ + lzOff - 0.24);
+        const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
+        lDoor.position.set(0, 0, 0.24);
+        lPivot.add(lDoor);
+        const roomLockerId = 'locker-room-' + unitTitle.replace(/\s+/g, '-').toLowerCase() + '-' + (lIdx + 1);
+        markNoMergeRecursive(lPivot, roomLockerId);
+        cGroup.add(lPivot);
+        registerInteriorInteractable({
+          id: roomLockerId,
+          type: 'locker',
+          name: unitTitle + ' Steel Locker #' + (lIdx + 1),
+          x: unitCenterX + lockerBankX + bcSignX * 0.28,
+          y: floorY,
+          z: unitCenterZ + lockerBankZ + lzOff,
+          interactRadius: 2.35,
+          isOpen: false,
+          rootMesh: lPivot,
+          doorPivot: lPivot,
+          openSign: bcSignX > 0 ? 1 : -1,
+          currentT: 0,
+          targetT: 0,
+          missionItem: null,
+        });
+      });
+      interactiveHidingSpots.push({
+        id: 'classroom-locker-' + unitTitle,
+        name: unitTitle + ' (Classroom Steel Locker)',
+        spotType: 'locker',
+        x: unitCenterX + lockerBankX + bcSignX * 0.68,
+        y: floorY,
+        z: unitCenterZ + lockerBankZ,
+        exitX: unitCenterX + lockerBankX + bcSignX * 0.95,
+        exitY: floorY,
+        exitZ: unitCenterZ + lockerBankZ,
+        zone: unitTitle,
+      });
+
+      const shelfWallX = -bcSignX * (wallHalfW - 0.16);
+      const shelfLocalZOff = (doorAxis === 'x' && doorDirSign === -bcSignX) ? -1.85 : -0.35;
       [1.45, 2.05].forEach((sy, sIdx) => {
         const wShelf = new THREE.Mesh(step2Geos.wallShelf, materials.chairWood);
-        wShelf.position.set(3.18, sy, -0.8 + sIdx * 0.4);
+        wShelf.position.set(shelfWallX, sy, shelfLocalZOff + sIdx * 0.4);
         cGroup.add(wShelf);
         const sBooks = new THREE.Mesh(step2Geos.bookStack, sIdx === 0 ? materials.rotundaRedSteel : materials.gandakiBluePole);
-        sBooks.position.set(3.14, sy + 0.08, -0.8 + sIdx * 0.4);
+        sBooks.position.set(shelfWallX + bcSignX * 0.04, sy + 0.08, shelfLocalZOff + sIdx * 0.4);
         cGroup.add(sBooks);
       });
 
-      // Wall-Mounted Oscillating Fans on both side walls + Window Curtains
-      buildWallMountedFan(cGroup, -3.28, 2.55, -1.5, Math.PI / 2);
-      buildWallMountedFan(cGroup, 3.28, 2.55, 1.2, -Math.PI / 2);
-      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.6, -Math.PI / 2, isNewariStyle);
-      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, 1.8, -Math.PI / 2, isNewariStyle);
+      buildWallMountedFan(cGroup, -(wallHalfW - 0.06), 2.55, -1.5, Math.PI / 2);
+      buildWallMountedFan(cGroup,  (wallHalfW - 0.06), 2.55,  1.2, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, (wallHalfW - 0.08), 1.92, -1.6, -Math.PI / 2, isNewariStyle);
+      buildInteriorWindowCurtains(cGroup, (wallHalfW - 0.08), 1.92,  1.8, -Math.PI / 2, isNewariStyle);
 
-      // Representative Classroom Sub-Breaker Switchboard Panel (Ensures every classroom—starting with West Wing L1 Room 1—has a functional door, searchable drawer, and working electrical switchboard)
       buildInteractiveSwitchboardPanel(
         cGroup,
         unitCenterX,
         floorY,
         unitCenterZ,
-        -bcSignX * 3.12,
+        bcSignX * (wallHalfW - 0.12),
         1.42,
-        facingDirZ * -2.55,
-        bcSignX > 0 ? Math.PI / 2 : -Math.PI / 2,
+        facingDirZ * (wallHalfD - 1.15),
+        bcSignX > 0 ? -Math.PI / 2 : Math.PI / 2,
         'switchboard-classroom-' + unitTitle.replace(/\s+/g, '-').toLowerCase(),
         unitTitle + ' Classroom Electrical Sub-Panel',
         'classroomCircuit_' + unitTitle.replace(/\s+/g, '_'),
         false
       );
 
-      // Teacher Podium & Lecture Desk with Searchable Pull-Out Drawer (Holds Main Switchboard Key in West Wing L1 Room 1!)
       const podiumZ = facingDirZ * -2.1;
       const podium = new THREE.Mesh(sharedGeos.podiumBody, materials.chairWood);
-      podium.position.set(-2.6, 0.64, podiumZ);
+      podium.position.set(-2.6, 0.575, podiumZ);
       cGroup.add(podium);
       addUnderFurnitureAO(cGroup, -2.6, podiumZ, 0.85, 0.85);
       addColliderBox(new THREE.Box3(
@@ -10854,13 +11199,18 @@ export function getHideAndSeekHtml(): string {
       ), 'furniture');
 
       const tDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
-      tDesk.position.set(0.4, 0.42, podiumZ);
+      tDesk.position.set(0.4, 0.34, podiumZ);
       tDesk.rotation.y = facingDirZ === 1 ? 0 : Math.PI;
       cGroup.add(tDesk);
       addUnderFurnitureAO(cGroup, 0.4, podiumZ, 1.55, 0.95);
       const tBook = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
-      tBook.position.set(0.35, 0.86, podiumZ);
+      tBook.position.set(0.35, 0.790, podiumZ);
       cGroup.add(tBook);
+
+      const dustbin = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.42, 10), materials.deskSteelFrame);
+      dustbin.position.set(-1.75, 0.21, podiumZ - facingDirZ * 0.22);
+      cGroup.add(dustbin);
+      addUnderFurnitureAO(cGroup, -1.75, podiumZ - facingDirZ * 0.22, 0.42, 0.42);
 
       const hasMainBreakerKey = (unitTitle === 'West Wing L1 Room 1');
       buildSearchableDrawer(
@@ -10869,7 +11219,7 @@ export function getHideAndSeekHtml(): string {
         floorY,
         unitCenterZ,
         0.4,
-        0.62,
+        0.58,
         podiumZ + facingDirZ * 0.14,
         facingDirZ === 1 ? 0 : Math.PI,
         'drawer-teacher-' + unitTitle.replace(/\s+/g, '-').toLowerCase(),
@@ -10883,7 +11233,7 @@ export function getHideAndSeekHtml(): string {
       );
 
       const tChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
-      tChair.position.set(0.4, 0.50, podiumZ - facingDirZ * 0.5);
+      tChair.position.set(0.4, 0.44, podiumZ - facingDirZ * 0.5);
       tChair.rotation.y = 0.14;
       cGroup.add(tChair);
       addColliderBox(new THREE.Box3(
@@ -10900,23 +11250,25 @@ export function getHideAndSeekHtml(): string {
         zone: unitTitle,
       });
 
-      // Student Desks & Benches with Organic Asymmetry, Under-Desk AO Decals, Bags, Books & Jackets
       const rowOffsetsZ = layoutVariant === 1
         ? [facingDirZ * -0.65, facingDirZ * 0.65, facingDirZ * 1.95]
         : [facingDirZ * -0.45, facingDirZ * 0.85, facingDirZ * 2.10];
-      const colOffsetsX = [-2.35, 0.0, 2.35];
+      const colOffsetsX = roomW >= 13.5
+        ? [-4.80, -2.40, 0.0, 2.40, 4.80]
+        : (roomW >= 9.6
+          ? [-3.15, -1.05, 1.05, 3.15]
+          : [-2.35, 0.0, 2.35]);
       const bagMats = [step2Mats.bagNavy, step2Mats.bagOlive, step2Mats.bagMaroon];
 
       rowOffsetsZ.forEach((rz, rIdx) => {
         colOffsetsX.forEach((cx, cIdx) => {
-          if (layoutVariant === 1 && rIdx === 0 && cIdx === 1) return;
+          if (layoutVariant === 1 && rIdx === 0 && cIdx === Math.floor(colOffsetsX.length / 2)) return;
 
           const deskSeed = roomSeed + rIdx * 11 + cIdx * 19;
           const jitterX = ((deskSeed % 7) - 3) * 0.018;
           const jitterZ = (((deskSeed * 3) % 7) - 3) * 0.016;
           const jitterYaw = (((deskSeed * 5) % 9) - 4) * 0.022;
 
-          // Baked contact AO decal directly under desk & bench footprint
           addUnderFurnitureAO(cGroup, cx + jitterX, rz + jitterZ + facingDirZ * 0.18, 1.52, 1.12, jitterYaw);
 
           const deskGroup = new THREE.Group();
@@ -10924,7 +11276,7 @@ export function getHideAndSeekHtml(): string {
           deskGroup.rotation.y = jitterYaw;
 
           const topMesh = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
-          topMesh.position.y = 0.75;
+          topMesh.position.y = 0.74;
           deskGroup.add(topMesh);
 
           const panelMesh = new THREE.Mesh(sharedGeos.deskModestyPanel, materials.chairWood);
@@ -10932,10 +11284,10 @@ export function getHideAndSeekHtml(): string {
           deskGroup.add(panelMesh);
 
           const legL = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
-          legL.position.set(-0.58, 0.37, 0);
+          legL.position.set(-0.58, 0.362, 0);
           deskGroup.add(legL);
           const legR = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
-          legR.position.set(0.58, 0.37, 0);
+          legR.position.set(0.58, 0.362, 0);
           deskGroup.add(legR);
 
           const benchZ = facingDirZ * 0.44 + ((deskSeed % 5) - 2) * 0.025;
@@ -10951,23 +11303,22 @@ export function getHideAndSeekHtml(): string {
 
           if ((rIdx + cIdx) % 2 === 0) {
             const openBk = new THREE.Mesh(step2Geos.openBook, step2Mats.paperSheet);
-            openBk.position.set(0.22, 0.79, 0.02);
+            openBk.position.set(0.22, 0.781, 0.02);
             openBk.rotation.y = 0.18 * (cIdx - 1);
             deskGroup.add(openBk);
           } else {
             const stackBk = new THREE.Mesh(step2Geos.bookStack, materials.gandakiBluePole);
-            stackBk.position.set(-0.28, 0.83, -0.04);
+            stackBk.position.set(-0.28, 0.828, -0.04);
             stackBk.rotation.y = -0.14;
             deskGroup.add(stackBk);
           }
 
           if ((rIdx * 3 + cIdx) % 2 === 1) {
             const bag = new THREE.Mesh(step2Geos.backpack, bagMats[(rIdx + cIdx) % 3]);
-            bag.position.set(-0.36, 0.64, benchZ);
+            bag.position.set(-0.36, 0.659, benchZ);
             bag.rotation.y = 0.25;
             deskGroup.add(bag);
           } else if (rIdx === 1 && cIdx === 2) {
-            // Draped jacket over bench corner to break symmetry
             const jk = new THREE.Mesh(clutterJacketGeo, step2Mats.jacketBurgundy);
             jk.position.set(0.38, 0.52, benchZ);
             jk.rotation.set(0.25, 0.4, 0.15);
@@ -10989,7 +11340,7 @@ export function getHideAndSeekHtml(): string {
           if ((rIdx + cIdx) % 2 === 0) {
             interactiveHidingSpots.push({
               id: 'desk-' + unitTitle + '-' + rIdx + '-' + cIdx,
-              name: unitTitle + ' Desk #' + (rIdx * 3 + cIdx + 1),
+              name: unitTitle + ' Desk #' + (rIdx * colOffsetsX.length + cIdx + 1),
               x: worldDeskX,
               y: floorY,
               z: worldDeskZ + facingDirZ * 0.68,
@@ -11000,31 +11351,66 @@ export function getHideAndSeekHtml(): string {
       });
     }
 
-    // Specialized Builder: Computer Lab (Rows of Monitors & Chairs, Cable Raceways, Server Rack with LEDs)
-    function buildComputerLabInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
-      const boardZ = facingDirZ * -3.1;
+    // Specialized Builder: Computer & Electronics Lab (Phase 2 Upgraded)
+    function buildComputerLabInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, roomW = 7.6, roomD = 7.6, doorAxis = 'z', doorDirSign = 1) {
+      const halfW = Math.max(3.2, roomW * 0.5 - 0.14);
+      const halfD = Math.max(3.2, roomD * 0.5 - 0.14);
+      const slug = unitTitle.replace(/\s+/g, '-').toLowerCase();
+      const boardZ = facingDirZ * -(halfD - 0.08);
+
+      const wbFrame = new THREE.Mesh(sharedGeos.blackboardFrame, materials.deskSteelFrame);
+      wbFrame.position.set(0, 1.85, boardZ - facingDirZ * 0.02);
+      cGroup.add(wbFrame);
       const wbMesh = new THREE.Mesh(sharedGeos.whiteboard, materials.whiteboardSurface);
       wbMesh.position.set(0, 1.85, boardZ);
       cGroup.add(wbMesh);
+      const trayZ = boardZ + facingDirZ * 0.055;
+      [-0.42, -0.26, -0.10].forEach((mx, mIdx) => {
+        const markerMat = mIdx === 0 ? step2Mats.fireRed : (mIdx === 1 ? materials.gandakiBluePole : materials.castIronDark);
+        const marker = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.13, 6), markerMat);
+        marker.rotation.z = Math.PI / 2;
+        marker.position.set(mx, 1.194, trayZ);
+        cGroup.add(marker);
+      });
+      const wbEraser = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.036, 0.048), materials.castIronDark);
+      wbEraser.position.set(0.28, 1.203, trayZ);
+      cGroup.add(wbEraser);
 
-      buildWallMountedFan(cGroup, -3.28, 2.55, 0, Math.PI / 2);
-      buildWallMountedFan(cGroup, 3.28, 2.55, 0, -Math.PI / 2);
-      buildInteriorWindowCurtains(cGroup, -3.26, 1.92, -1.5, Math.PI / 2, false);
-      buildInteriorWindowCurtains(cGroup, -3.26, 1.92, 1.5, Math.PI / 2, false);
+      const projScreenCase = new THREE.Mesh(new THREE.BoxGeometry(2.50, 0.09, 0.10), materials.whiteTrim);
+      projScreenCase.position.set(0, 2.74, boardZ + facingDirZ * 0.05);
+      cGroup.add(projScreenCase);
+      const projMountRod = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.44, 8), materials.deskSteelFrame);
+      projMountRod.position.set(0.48, 3.18, 0.10);
+      cGroup.add(projMountRod);
+      const projBody = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.11, 0.30), materials.whiteTrim);
+      projBody.position.set(0.48, 2.95, 0.10);
+      cGroup.add(projBody);
+      const projLens = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.036, 0.05, 10), materials.castIronDark);
+      projLens.rotation.x = Math.PI / 2;
+      projLens.position.set(0.48, 2.95, 0.10 - facingDirZ * 0.16);
+      cGroup.add(projLens);
 
-      const srvX = 2.65, srvZ = facingDirZ * -2.35;
+      buildWallMountedFan(cGroup, -(halfW - 0.06), 2.55, 0, Math.PI / 2);
+      buildWallMountedFan(cGroup,  (halfW - 0.06), 2.55, 0, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, -(halfW - 0.04), 1.92, -1.5, Math.PI / 2, false);
+      buildInteriorWindowCurtains(cGroup, -(halfW - 0.04), 1.92,  1.5, Math.PI / 2, false);
+
+      const srvX = halfW - 0.58, srvZ = facingDirZ * -(halfD - 0.72);
       const srvRack = new THREE.Mesh(step2Geos.serverRack, materials.castIronDark);
-      srvRack.position.set(srvX, 1.08, srvZ);
+      srvRack.position.set(srvX, 1.075, srvZ);
       cGroup.add(srvRack);
       addUnderFurnitureAO(cGroup, srvX, srvZ, 1.15, 1.15);
-      [-0.4, 0.0, 0.4, 0.75].forEach((ly, lIdx) => {
+      [-0.65, -0.35, -0.05, 0.25, 0.55, 0.82].forEach((ly, lIdx) => {
         const led = new THREE.Mesh(
           new THREE.BoxGeometry(0.48, 0.035, 0.04),
           lIdx % 2 === 0 ? step2Mats.serverLedGreen : step2Mats.serverLedAmber
         );
-        led.position.set(srvX, 1.15 + ly, srvZ + facingDirZ * 0.43);
+        led.position.set(srvX, 1.12 + ly, srvZ + facingDirZ * 0.43);
         cGroup.add(led);
       });
+      const rackCableRiser = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.26, 0.06), interiorSystemMats.conduitGalvanized);
+      rackCableRiser.position.set(srvX, 2.78, srvZ - facingDirZ * 0.32);
+      cGroup.add(rackCableRiser);
       addColliderBox(new THREE.Box3(
         new THREE.Vector3(unitCenterX + srvX - 0.42, floorY, unitCenterZ + srvZ - 0.45),
         new THREE.Vector3(unitCenterX + srvX + 0.42, floorY + 2.15, unitCenterZ + srvZ + 0.45)
@@ -11038,44 +11424,190 @@ export function getHideAndSeekHtml(): string {
         zone: unitTitle,
       });
 
-      const rowsZ = [facingDirZ * -1.1, facingDirZ * 0.35, facingDirZ * 1.80];
-      const colsX = [-1.85, 1.45];
+      const supX = -(halfW - 1.45), supZ = facingDirZ * -(halfD - 1.05);
+      const supDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
+      supDesk.position.set(supX, 0.34, supZ);
+      supDesk.rotation.y = facingDirZ === 1 ? 0 : Math.PI;
+      cGroup.add(supDesk);
+      addUnderFurnitureAO(cGroup, supX, supZ, 1.68, 0.96);
+      const supChair = new THREE.Mesh(sharedGeos.chairSeat, materials.chairWood);
+      supChair.position.set(supX, 0.44, supZ - facingDirZ * 0.56);
+      supChair.rotation.y = facingDirZ === 1 ? Math.PI : 0;
+      cGroup.add(supChair);
+      const supStand = new THREE.Mesh(step2Geos.monitorStand, materials.castIronDark);
+      supStand.position.set(supX - 0.34, 0.795, supZ - facingDirZ * 0.10);
+      cGroup.add(supStand);
+      const supMon = new THREE.Mesh(step2Geos.monitorPanel, step2Mats.monitorScreenOn);
+      supMon.position.set(supX - 0.34, 0.965, supZ - facingDirZ * 0.08);
+      cGroup.add(supMon);
+      const supKb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
+      supKb.position.set(supX - 0.34, 0.734, supZ + facingDirZ * 0.14);
+      cGroup.add(supKb);
+      const oscMesh = new THREE.Mesh(step2Geos.oscilloscope, interiorSystemMats.panelSteelGrey);
+      oscMesh.position.set(supX + 0.36, 0.835, supZ - facingDirZ * 0.06);
+      oscMesh.rotation.y = facingDirZ === 1 ? -0.18 : (Math.PI - 0.18);
+      cGroup.add(oscMesh);
+      const oscScreen = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.015), interiorSystemMats.missionItemCyan);
+      oscScreen.position.set(supX + 0.31, 0.845, supZ - facingDirZ * 0.06 + facingDirZ * 0.15);
+      oscScreen.rotation.y = oscMesh.rotation.y;
+      cGroup.add(oscScreen);
+      const labBin = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.42, 10), materials.deskSteelFrame);
+      labBin.position.set(supX + 0.96, 0.21, supZ - facingDirZ * 0.12);
+      cGroup.add(labBin);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + supX - 0.82, floorY, unitCenterZ + supZ - 0.46),
+        new THREE.Vector3(unitCenterX + supX + 0.82, floorY + 0.88, unitCenterZ + supZ + 0.46)
+      ), 'furniture');
+
+      buildSearchableDrawer(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        supX + 0.38,
+        0.54,
+        supZ + facingDirZ * 0.26,
+        facingDirZ === 1 ? 0 : Math.PI,
+        'drawer-lab-' + slug,
+        unitTitle + ' Lab Supervisor Desk Drawer',
+        null
+      );
+
+      buildInteractiveSwitchboardPanel(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        -(halfW - 0.35),
+        1.42,
+        facingDirZ * -(halfD - 0.14),
+        facingDirZ === 1 ? 0 : Math.PI,
+        'switchboard-lab-' + slug,
+        unitTitle + ' Lab Electrical Sub-Panel',
+        'labCircuit_' + slug,
+        false
+      );
+
+      buildOpenableCupboard(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        -(halfW - 0.34),
+        0.0,
+        0.25,
+        Math.PI / 2,
+        'cupboard-lab-' + slug,
+        unitTitle + ' Lab Instrument & Component Cupboard',
+        false,
+        null
+      );
+
+      const lockerX = halfW - 0.30;
+      const lockerZ = 0.65;
+      const lockerBankMesh = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
+      lockerBankMesh.position.set(lockerX, 0.96, lockerZ);
+      lockerBankMesh.rotation.y = Math.PI;
+      cGroup.add(lockerBankMesh);
+      addUnderFurnitureAO(cGroup, lockerX, lockerZ, 0.68, 1.95);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + lockerX - 0.26, floorY, unitCenterZ + lockerZ - 0.90),
+        new THREE.Vector3(unitCenterX + lockerX + 0.26, floorY + 1.92, unitCenterZ + lockerZ + 0.90)
+      ), 'furniture');
+      [-0.56, 0, 0.56].forEach((lzOff, lIdx) => {
+        const lPivot = new THREE.Group();
+        lPivot.position.set(lockerX - 0.24, 1.05, lockerZ + lzOff - 0.24);
+        const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
+        lDoor.position.set(0, 0, 0.24);
+        lPivot.add(lDoor);
+        const labLockerId = 'locker-lab-' + slug + '-' + (lIdx + 1);
+        markNoMergeRecursive(lPivot, labLockerId);
+        cGroup.add(lPivot);
+        registerInteriorInteractable({
+          id: labLockerId,
+          type: 'locker',
+          name: unitTitle + ' Lab Steel Locker #' + (lIdx + 1),
+          x: unitCenterX + lockerX - 0.28,
+          y: floorY,
+          z: unitCenterZ + lockerZ + lzOff,
+          interactRadius: 2.35,
+          isOpen: false,
+          rootMesh: lPivot,
+          doorPivot: lPivot,
+          openSign: -1,
+          currentT: 0,
+          targetT: 0,
+          missionItem: null,
+        });
+      });
+      interactiveHidingSpots.push({
+        id: 'lab-locker-' + unitTitle,
+        name: unitTitle + ' (Lab Steel Locker)',
+        spotType: 'locker',
+        x: unitCenterX + lockerX - 0.72,
+        y: floorY,
+        z: unitCenterZ + lockerZ,
+        exitX: unitCenterX + lockerX - 0.98,
+        exitY: floorY,
+        exitZ: unitCenterZ + lockerZ,
+        zone: unitTitle,
+      });
+
+      const rowsZ = [facingDirZ * -0.95, facingDirZ * 0.45, facingDirZ * 1.85];
+      const colsX = roomW >= 9.6 ? [-2.55, 0.0, 2.55] : [-1.75, 1.45];
       rowsZ.forEach((rz, rIdx) => {
         colsX.forEach((cx, cIdx) => {
-          addUnderFurnitureAO(cGroup, cx, rz + facingDirZ * 0.16, 1.50, 1.08, (rIdx - cIdx) * 0.02);
+          addUnderFurnitureAO(cGroup, cx, rz + facingDirZ * 0.16, 1.50, 1.08, (rIdx - cIdx) * 0.015);
           const wGrp = new THREE.Group();
           wGrp.position.set(cx, 0, rz);
-          wGrp.rotation.y = (rIdx - cIdx) * 0.018;
+          wGrp.rotation.y = (rIdx - cIdx) * 0.014;
 
-          const desk = new THREE.Mesh(sharedGeos.deskTop, materials.deskSteelFrame);
-          desk.position.y = 0.75;
+          const desk = new THREE.Mesh(sharedGeos.deskTop, materials.deskWoodTop);
+          desk.position.y = 0.74;
           wGrp.add(desk);
+          [-0.58, 0.58].forEach(lx => {
+            const leg = new THREE.Mesh(sharedGeos.deskLeg, materials.deskSteelFrame);
+            leg.position.set(lx, 0.362, 0);
+            wGrp.add(leg);
+          });
 
           const cableRun = new THREE.Mesh(step2Geos.cableTray, materials.castIronDark);
-          cableRun.position.set(0, 0.52, -facingDirZ * 0.22);
+          cableRun.position.set(0, 0.62, -facingDirZ * 0.20);
           wGrp.add(cableRun);
 
-          [-0.32, 0.32].forEach((mx, mIdx) => {
-            const isOn = (rIdx + cIdx + mIdx) % 2 === 0;
-            const mon = new THREE.Mesh(step2Geos.monitorPanel, isOn ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
-            mon.position.set(mx, 0.98, -facingDirZ * 0.10);
-            mon.rotation.y = (mIdx === 0 ? 0.08 : -0.06);
-            wGrp.add(mon);
-            const stand = new THREE.Mesh(step2Geos.monitorStand, materials.castIronDark);
-            stand.position.set(mx, 0.82, -facingDirZ * 0.12);
-            wGrp.add(stand);
-            const kb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
-            kb.position.set(mx, 0.79, facingDirZ * 0.12);
-            kb.rotation.y = (mIdx === 0 ? -0.05 : 0.09);
-            wGrp.add(kb);
+          const towerX = (cIdx % 2 === 0) ? -0.42 : 0.42;
+          const pcTowerMesh = new THREE.Mesh(step2Geos.pcTower, materials.castIronDark);
+          pcTowerMesh.position.set(towerX, 0.21, -facingDirZ * 0.02);
+          if (facingDirZ === -1) pcTowerMesh.rotation.y = Math.PI;
+          wGrp.add(pcTowerMesh);
+          const pcLed = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.018, 0.015), step2Mats.serverLedGreen);
+          pcLed.position.set(towerX + 0.05, 0.34, -facingDirZ * 0.02 + facingDirZ * 0.22);
+          wGrp.add(pcLed);
 
-            const chairYaw = ((rIdx * 3 + cIdx + mIdx) % 5 - 2) * 0.11;
+          [-0.33, 0.33].forEach((mx, mIdx) => {
+            const isOn = (rIdx + cIdx + mIdx) % 2 === 0;
+            const stand = new THREE.Mesh(step2Geos.monitorStand, materials.castIronDark);
+            stand.position.set(mx, 0.838, -facingDirZ * 0.12);
+            wGrp.add(stand);
+            const mon = new THREE.Mesh(step2Geos.monitorPanel, isOn ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
+            mon.position.set(mx, 1.008, -facingDirZ * 0.10);
+            mon.rotation.y = (mIdx === 0 ? 0.07 : -0.06);
+            wGrp.add(mon);
+            const kb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
+            kb.position.set(mx - 0.04, 0.778, facingDirZ * 0.12);
+            kb.rotation.y = (mIdx === 0 ? -0.04 : 0.06);
+            wGrp.add(kb);
+            const mp = new THREE.Mesh(step2Geos.mouseAndPad, materials.castIronDark);
+            mp.position.set(mx + 0.21, 0.768, facingDirZ * 0.12);
+            wGrp.add(mp);
+
+            const chairYaw = ((rIdx * 3 + cIdx + mIdx) % 5 - 2) * 0.09;
             const chSeat = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
-            chSeat.position.set(mx, 0.46, facingDirZ * 0.44);
+            chSeat.position.set(mx, 0.44, facingDirZ * 0.46);
             chSeat.rotation.y = chairYaw;
             wGrp.add(chSeat);
             const chBack = new THREE.Mesh(sharedGeos.chairBack, materials.castIronDark);
-            chBack.position.set(mx, 0.68, facingDirZ * 0.62);
+            chBack.position.set(mx, 0.68, facingDirZ * 0.64);
             chBack.rotation.y = chairYaw;
             wGrp.add(chBack);
           });
@@ -11083,19 +11615,19 @@ export function getHideAndSeekHtml(): string {
           cGroup.add(wGrp);
           const wx = unitCenterX + cx;
           const wz = unitCenterZ + rz;
-          const zMin = Math.min(wz - 0.26, wz + facingDirZ * 0.56);
-          const zMax = Math.max(wz + 0.26, wz + facingDirZ * 0.56);
+          const zMin = Math.min(wz - 0.28, wz + facingDirZ * 0.58);
+          const zMax = Math.max(wz + 0.28, wz + facingDirZ * 0.58);
           addColliderBox(new THREE.Box3(
-            new THREE.Vector3(wx - 0.60, floorY, zMin),
-            new THREE.Vector3(wx + 0.60, floorY + 0.86, zMax)
+            new THREE.Vector3(wx - 0.62, floorY, zMin),
+            new THREE.Vector3(wx + 0.62, floorY + 0.86, zMax)
           ), 'furniture');
           if ((rIdx + cIdx) % 2 === 0) {
             interactiveHidingSpots.push({
               id: 'lab-desk-' + unitTitle + '-' + rIdx + '-' + cIdx,
-              name: unitTitle + ' Workstation #' + (rIdx * 2 + cIdx + 1),
+              name: unitTitle + ' Workstation #' + (rIdx * colsX.length + cIdx + 1),
               x: wx,
               y: floorY,
-              z: wz + facingDirZ * 0.72,
+              z: wz + facingDirZ * 0.74,
               zone: unitTitle,
             });
           }
@@ -11237,39 +11769,65 @@ export function getHideAndSeekHtml(): string {
     }
 
     // Specialized Builder: Staff Room & Admin Offices (Upgraded with Searchable Filing Drawer, Openable Office Cupboard & Executive Desks)
-    function buildStaffAdminOfficeInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
-      buildWallMountedFan(cGroup, -3.28, 2.55, 0, Math.PI / 2);
-      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.4, -Math.PI / 2, true);
-      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, 1.4, -Math.PI / 2, true);
+    function buildStaffAdminOfficeInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, roomW = 7.6, roomD = 7.6, doorAxis = 'z', doorDirSign = 1) {
+      const halfW = Math.max(3.2, roomW * 0.5 - 0.14);
+      const halfD = Math.max(3.2, roomD * 0.5 - 0.14);
+      const slug = unitTitle.replace(/\s+/g, '-').toLowerCase();
 
+      buildWallMountedFan(cGroup, -(halfW - 0.06), 2.55, -1.1, Math.PI / 2);
+      buildWallMountedFan(cGroup,  (halfW - 0.06), 2.55,  1.1, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, (halfW - 0.04), 1.92, -1.4, -Math.PI / 2, true);
+      buildInteriorWindowCurtains(cGroup, (halfW - 0.04), 1.92,  1.4, -Math.PI / 2, true);
+
+      const nbX = -(halfW - 0.04), nbZ = -1.35;
+      const nbFrame = new THREE.Mesh(step2Geos.noticeBoard, materials.chairWood);
+      nbFrame.position.set(nbX, 1.62, nbZ);
+      cGroup.add(nbFrame);
+      const nbCork = new THREE.Mesh(step2Geos.noticeCork, step2Mats.corkBoard);
+      nbCork.position.set(nbX + 0.01, 1.62, nbZ);
+      cGroup.add(nbCork);
+      [-0.45, -0.12, 0.22, 0.52].forEach((nzOff, nIdx) => {
+        const note = new THREE.Mesh(step2Geos.noticeNote, nIdx % 2 === 0 ? step2Mats.paperSheet : interiorSystemMats.hazardYellow);
+        note.position.set(nbX + 0.045, 1.65 + ((nIdx % 2) - 0.5) * 0.18, nbZ + nzOff);
+        note.rotation.x = (nIdx - 1.5) * 0.05;
+        cGroup.add(note);
+      });
+
+      const mailRack = new THREE.Mesh(step2Geos.pigeonholeMailRack, materials.chairWood);
+      mailRack.position.set(-(halfW - 0.16), 1.58, 0.35);
+      cGroup.add(mailRack);
+      const magRack = new THREE.Mesh(step2Geos.wallMagazineRack, materials.chairWood);
+      magRack.position.set(-(halfW - 0.06), 1.48, 1.55);
+      cGroup.add(magRack);
+
+      const cabZ = -(halfD - 0.42);
       [-2.1, -1.4, -0.7, 0.0].forEach((fx, fIdx) => {
         const cab = new THREE.Mesh(step2Geos.filingCabinet, step2Mats.lockerSteel);
-        cab.position.set(fx, 0.69, -2.75);
+        cab.position.set(fx, 0.68, cabZ);
         cGroup.add(cab);
         if (fIdx % 2 === 0) {
           const pStack = new THREE.Mesh(step2Geos.paperStack, step2Mats.paperSheet);
-          pStack.position.set(fx, 1.46, -2.75);
+          pStack.position.set(fx, 1.44, cabZ);
           pStack.rotation.y = 0.14;
           cGroup.add(pStack);
         }
       });
-      addUnderFurnitureAO(cGroup, -1.05, -2.75, 2.95, 0.90);
+      addUnderFurnitureAO(cGroup, -1.05, cabZ, 2.95, 0.90);
       addColliderBox(new THREE.Box3(
-        new THREE.Vector3(unitCenterX - 2.45, floorY, unitCenterZ - 3.10),
-        new THREE.Vector3(unitCenterX + 0.35, floorY + 1.42, unitCenterZ - 2.40)
+        new THREE.Vector3(unitCenterX - 2.45, floorY, unitCenterZ + cabZ - 0.35),
+        new THREE.Vector3(unitCenterX + 0.35, floorY + 1.42, unitCenterZ + cabZ + 0.35)
       ), 'furniture');
 
-      // Interactive Searchable Filing Cabinet Drawer (Contains Campus Grid Schematic in Office Ground Floor)
       buildSearchableDrawer(
         cGroup,
         unitCenterX,
         floorY,
         unitCenterZ,
         -0.7,
-        0.85,
-        -2.48,
+        0.84,
+        cabZ + 0.27,
         0,
-        'drawer-office-' + unitTitle.replace(/\s+/g, '-').toLowerCase(),
+        'drawer-office-' + slug,
         unitTitle + ' Records Filing Drawer',
         unitTitle === 'Office Ground Floor' ? {
           id: 'item_grid_schematic',
@@ -11279,7 +11837,96 @@ export function getHideAndSeekHtml(): string {
         } : null
       );
 
-      const sofaX = 2.15, sofaZ = 1.85;
+      const wdX = 0.85, wdZ = cabZ + 0.06;
+      const wDisp = new THREE.Mesh(step2Geos.waterDispenser, materials.whiteTrim);
+      wDisp.position.set(wdX, 0.51, wdZ);
+      wDisp.rotation.y = -Math.PI / 2;
+      cGroup.add(wDisp);
+      const wBot = new THREE.Mesh(step2Geos.waterBottle, step2Mats.bottleClearPlastic);
+      wBot.position.set(wdX, 1.21, wdZ);
+      cGroup.add(wBot);
+      addUnderFurnitureAO(cGroup, wdX, wdZ, 0.52, 0.52);
+
+      buildInteractiveSwitchboardPanel(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        1.75,
+        1.42,
+        -(halfD - 0.14),
+        0,
+        'switchboard-office-' + slug,
+        unitTitle + ' Room Electrical Sub-Panel',
+        'roomCircuit_' + slug,
+        false
+      );
+
+      buildOpenableCupboard(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        halfW - 0.34,
+        0.0,
+        -1.65,
+        -Math.PI / 2,
+        'cupboard-office-' + slug,
+        unitTitle + ' Office Stationery & Records Cupboard',
+        false,
+        null
+      );
+
+      const lockerX = -(halfW - 0.30);
+      const lockerZ = -2.15;
+      const lockerBankMesh = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
+      lockerBankMesh.position.set(lockerX, 0.96, lockerZ);
+      cGroup.add(lockerBankMesh);
+      addUnderFurnitureAO(cGroup, lockerX, lockerZ, 0.68, 1.95);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + lockerX - 0.26, floorY, unitCenterZ + lockerZ - 0.90),
+        new THREE.Vector3(unitCenterX + lockerX + 0.26, floorY + 1.92, unitCenterZ + lockerZ + 0.90)
+      ), 'furniture');
+      [-0.56, 0, 0.56].forEach((lzOff, lIdx) => {
+        const lPivot = new THREE.Group();
+        lPivot.position.set(lockerX + 0.24, 1.05, lockerZ + lzOff - 0.24);
+        const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
+        lDoor.position.set(0, 0, 0.24);
+        lPivot.add(lDoor);
+        const offLockerId = 'locker-office-' + slug + '-' + (lIdx + 1);
+        markNoMergeRecursive(lPivot, offLockerId);
+        cGroup.add(lPivot);
+        registerInteriorInteractable({
+          id: offLockerId,
+          type: 'locker',
+          name: unitTitle + ' Staff Locker #' + (lIdx + 1),
+          x: unitCenterX + lockerX + 0.28,
+          y: floorY,
+          z: unitCenterZ + lockerZ + lzOff,
+          interactRadius: 2.35,
+          isOpen: false,
+          rootMesh: lPivot,
+          doorPivot: lPivot,
+          openSign: 1,
+          currentT: 0,
+          targetT: 0,
+          missionItem: null,
+        });
+      });
+      interactiveHidingSpots.push({
+        id: 'office-locker-' + unitTitle,
+        name: unitTitle + ' (Staff Steel Locker)',
+        spotType: 'locker',
+        x: unitCenterX + lockerX + 0.72,
+        y: floorY,
+        z: unitCenterZ + lockerZ,
+        exitX: unitCenterX + lockerX + 0.98,
+        exitY: floorY,
+        exitZ: unitCenterZ + lockerZ,
+        zone: unitTitle,
+      });
+
+      const sofaX = Math.min(2.35, halfW - 1.15), sofaZ = 1.85;
       const sBase = new THREE.Mesh(step2Geos.sofaBase, step2Mats.sofaLeather);
       sBase.position.set(sofaX, 0.21, sofaZ);
       cGroup.add(sBase);
@@ -11292,36 +11939,84 @@ export function getHideAndSeekHtml(): string {
         sArm.position.set(sofaX + ax, 0.28, sofaZ);
         cGroup.add(sArm);
       });
+      const cTable = new THREE.Mesh(step2Geos.coffeeTable, materials.deskWoodTop);
+      cTable.position.set(sofaX, 0.0, sofaZ - 0.82);
+      cGroup.add(cTable);
+      addUnderFurnitureAO(cGroup, sofaX, sofaZ - 0.82, 1.36, 0.78);
+      const cBook = new THREE.Mesh(step2Geos.openBook, step2Mats.openBookPage);
+      cBook.position.set(sofaX - 0.18, 0.443, sofaZ - 0.80);
+      cBook.rotation.y = 0.24;
+      cGroup.add(cBook);
+      const armChair = new THREE.Mesh(step2Geos.loungeArmchair, step2Mats.sofaLeather);
+      armChair.position.set(sofaX + 1.05, 0.0, sofaZ - 0.82);
+      armChair.rotation.y = -Math.PI / 2;
+      cGroup.add(armChair);
       addColliderBox(new THREE.Box3(
-        new THREE.Vector3(unitCenterX + sofaX - 1.0, floorY, unitCenterZ + sofaZ - 0.44),
-        new THREE.Vector3(unitCenterX + sofaX + 1.0, floorY + 0.85, unitCenterZ + sofaZ + 0.44)
+        new THREE.Vector3(unitCenterX + sofaX - 1.0, floorY, unitCenterZ + sofaZ - 1.18),
+        new THREE.Vector3(unitCenterX + sofaX + 1.38, floorY + 0.85, unitCenterZ + sofaZ + 0.44)
       ), 'furniture');
 
+      const deskXSpan = roomW >= 9.6 ? 2.15 : 1.65;
       const deskCoords = [
-        [-1.65, -0.85], [1.65, -0.85],
-        [-1.65,  1.25],
+        [-deskXSpan, -0.85], [deskXSpan, -0.85],
+        [-deskXSpan,  1.25],
       ];
       deskCoords.forEach(([dx, dz], dIdx) => {
         const oDesk = new THREE.Mesh(step2Geos.officeDesk, materials.deskWoodTop);
-        oDesk.position.set(dx, 0.38, dz);
-        oDesk.rotation.y = (dIdx - 1) * 0.025;
+        oDesk.position.set(dx, 0.34, dz);
+        oDesk.rotation.y = (dIdx - 1) * 0.022;
         cGroup.add(oDesk);
         addUnderFurnitureAO(cGroup, dx, dz + 0.10, 1.72, 1.18, oDesk.rotation.y);
 
+        const mStand = new THREE.Mesh(step2Geos.monitorStand, materials.castIronDark);
+        mStand.position.set(dx - 0.28, 0.795, dz - 0.14);
+        cGroup.add(mStand);
         const mon = new THREE.Mesh(step2Geos.monitorPanel, dIdx === 0 ? step2Mats.monitorScreenOn : step2Mats.monitorScreenOff);
-        mon.position.set(dx - 0.28, 0.94, dz - 0.12);
+        mon.position.set(dx - 0.28, 0.965, dz - 0.12);
         mon.rotation.y = 0.12;
         cGroup.add(mon);
-
+        const kb = new THREE.Mesh(step2Geos.keyboard, materials.deskSteelFrame);
+        kb.position.set(dx - 0.26, 0.734, dz + 0.12);
+        kb.rotation.y = 0.06;
+        cGroup.add(kb);
+        const mp = new THREE.Mesh(step2Geos.mouseAndPad, materials.castIronDark);
+        mp.position.set(dx + 0.02, 0.725, dz + 0.12);
+        cGroup.add(mp);
+        const phone = new THREE.Mesh(step2Geos.desktopPhone, materials.castIronDark);
+        phone.position.set(dx + 0.48, 0.725, dz - 0.16);
+        phone.rotation.y = -0.24;
+        cGroup.add(phone);
         const papers = new THREE.Mesh(step2Geos.paperStack, step2Mats.paperSheet);
-        papers.position.set(dx + 0.36, 0.84, dz + 0.08);
+        papers.position.set(dx + 0.34, 0.805, dz + 0.12);
         papers.rotation.y = -0.18;
         cGroup.add(papers);
+        const pcTower = new THREE.Mesh(step2Geos.pcTower, materials.castIronDark);
+        pcTower.position.set(dx - 0.84, 0.21, dz - 0.05);
+        cGroup.add(pcTower);
 
         const chair = new THREE.Mesh(sharedGeos.chairSeat, materials.castIronDark);
-        chair.position.set(dx + (dIdx === 1 ? 0.10 : -0.06), 0.46, dz + 0.56);
+        chair.position.set(dx + (dIdx === 1 ? 0.10 : -0.06), 0.44, dz + 0.56);
         chair.rotation.y = (dIdx === 1 ? -0.28 : 0.19);
         cGroup.add(chair);
+
+        if (dIdx === 0) {
+          const bin = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.42, 10), materials.deskSteelFrame);
+          bin.position.set(dx + 0.88, 0.21, dz + 0.08);
+          cGroup.add(bin);
+          buildSearchableDrawer(
+            cGroup,
+            unitCenterX,
+            floorY,
+            unitCenterZ,
+            dx - 0.48,
+            0.54,
+            dz + 0.28,
+            0,
+            'drawer-exec-' + slug,
+            unitTitle + ' Executive Desk Drawer',
+            null
+          );
+        }
 
         const wx = unitCenterX + dx;
         const wz = unitCenterZ + dz;
@@ -11408,37 +12103,178 @@ export function getHideAndSeekHtml(): string {
     }
 
     // Specialized Builder: Campus Canteen (Serving Counter, Snack Case, Dining Tables, Kitchen Stove & Pantry)
-    function buildCanteenRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle, isKitchen = false) {
-      buildWallMountedFan(cGroup, 3.28, 2.55, 0, -Math.PI / 2);
-      buildInteriorWindowCurtains(cGroup, 3.26, 1.92, -1.5, -Math.PI / 2, true);
+    function buildCanteenRoomInterior(cGroup, unitCenterX, unitCenterZ, floorY, unitTitle, isKitchen = false, roomW = 7.6, roomD = 7.6, doorAxis = 'z', doorDirSign = 1) {
+      const halfW = Math.max(3.2, roomW * 0.5 - 0.14);
+      const halfD = Math.max(3.2, roomD * 0.5 - 0.14);
+      const slug = unitTitle.replace(/\s+/g, '-').toLowerCase();
+
+      buildWallMountedFan(cGroup, -(halfW - 0.06), 2.55, -1.1, Math.PI / 2);
+      buildWallMountedFan(cGroup,  (halfW - 0.06), 2.55,  1.1, -Math.PI / 2);
+      buildInteriorWindowCurtains(cGroup, (halfW - 0.04), 1.92, -1.5, -Math.PI / 2, true);
+      buildInteriorWindowCurtains(cGroup, (halfW - 0.04), 1.92,  1.5, -Math.PI / 2, true);
+
+      // Wall-Mounted Canteen Electrical Sub-Breaker Panel (Switches Canteen/Kitchen Lights ON/OFF in sync with doorway switch)
+      buildInteractiveSwitchboardPanel(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        -(halfW - 0.45),
+        1.42,
+        -(halfD - 0.14),
+        0,
+        'switchboard-canteen-' + slug,
+        unitTitle + ' Canteen Electrical Sub-Panel',
+        'roomCircuit_' + slug,
+        false
+      );
+
+      // Openable 2-Door Pantry & Cutlery Cupboard (Grounded at y = 0.000m on Back-West Wall)
+      buildOpenableCupboard(
+        cGroup,
+        unitCenterX,
+        floorY,
+        unitCenterZ,
+        -(halfW - 0.34),
+        0.0,
+        -1.95,
+        Math.PI / 2,
+        'cupboard-canteen-' + slug,
+        unitTitle + ' Canteen Supply Cupboard',
+        false,
+        null
+      );
+
+      // Interactive 3-Door Steel Canteen Staff Locker Bank on East Wall (Grounded at y = 0.000m + Hiding Spot)
+      const lockerX = halfW - 0.30;
+      const lockerZ = 2.05;
+      const lockerBankMesh = new THREE.Mesh(step2Geos.lockerBank, step2Mats.lockerSteel);
+      lockerBankMesh.position.set(lockerX, 0.96, lockerZ);
+      lockerBankMesh.rotation.y = Math.PI;
+      cGroup.add(lockerBankMesh);
+      addUnderFurnitureAO(cGroup, lockerX, lockerZ, 0.68, 1.95);
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + lockerX - 0.26, floorY, unitCenterZ + lockerZ - 0.90),
+        new THREE.Vector3(unitCenterX + lockerX + 0.26, floorY + 1.92, unitCenterZ + lockerZ + 0.90)
+      ), 'furniture');
+      [-0.56, 0, 0.56].forEach((lzOff, lIdx) => {
+        const lPivot = new THREE.Group();
+        lPivot.position.set(lockerX - 0.24, 1.05, lockerZ + lzOff - 0.24);
+        const lDoor = new THREE.Mesh(step2Geos.lockerDoor, step2Mats.lockerDoorBlue);
+        lDoor.position.set(0, 0, 0.24);
+        lPivot.add(lDoor);
+        const canLockerId = 'locker-canteen-' + slug + '-' + (lIdx + 1);
+        markNoMergeRecursive(lPivot, canLockerId);
+        cGroup.add(lPivot);
+        registerInteriorInteractable({
+          id: canLockerId,
+          type: 'locker',
+          name: unitTitle + ' Canteen Locker #' + (lIdx + 1),
+          x: unitCenterX + lockerX - 0.28,
+          y: floorY,
+          z: unitCenterZ + lockerZ + lzOff,
+          interactRadius: 2.35,
+          isOpen: false,
+          rootMesh: lPivot,
+          doorPivot: lPivot,
+          openSign: -1,
+          currentT: 0,
+          targetT: 0,
+          missionItem: null,
+        });
+      });
+      interactiveHidingSpots.push({
+        id: 'canteen-locker-' + unitTitle,
+        name: unitTitle + ' (Canteen Steel Locker)',
+        spotType: 'locker',
+        x: unitCenterX + lockerX - 0.72,
+        y: floorY,
+        z: unitCenterZ + lockerZ,
+        exitX: unitCenterX + lockerX - 0.98,
+        exitY: floorY,
+        exitZ: unitCenterZ + lockerZ,
+        zone: unitTitle,
+      });
 
       if (isKitchen) {
+        // Commercial Stainless Prep & Cooking Line (y = 0.490m -> bottom at y = 0.000m, top at y = 0.980m)
+        const prepX = 1.85, prepZ = -0.35;
         const prep = new THREE.Mesh(step2Geos.canteenCounter, step2Mats.stainlessSteel);
-        prep.position.set(1.85, 0.49, 0);
+        prep.position.set(prepX, 0.49, prepZ);
         cGroup.add(prep);
-        addUnderFurnitureAO(cGroup, 1.85, 0, 1.15, 4.45);
-        const hood = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.55, 2.60), step2Mats.stainlessSteel);
-        hood.position.set(2.45, 2.25, -0.4);
-        cGroup.add(hood);
+        addUnderFurnitureAO(cGroup, prepX, prepZ, 1.15, 4.45);
 
+        // 4-Burner Commercial Gas Range Stove (bottom -0.070m + 1.050m = 0.980m flush on prep counter) + Stainless Stockpots
+        const stove = new THREE.Mesh(step2Geos.commercialStove, step2Mats.stainlessSteel);
+        stove.position.set(prepX, 1.05, prepZ - 0.55);
+        cGroup.add(stove);
+        [-0.95, -0.55].forEach((pz, pIdx) => {
+          const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.22, 10), step2Mats.stainlessSteel);
+          pot.position.set(prepX + (pIdx === 0 ? -0.14 : 0.14), 1.24, prepZ + pz); // Bottom -0.11m + 1.24m = 1.13m flush on burner grate
+          cGroup.add(pot);
+        });
+
+        // Stainless Steel Overhead Exhaust Hood & Vertical Duct Riser to Ceiling
+        const hood = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.55, 2.60), step2Mats.stainlessSteel);
+        hood.position.set(prepX + 0.35, 2.25, prepZ - 0.4);
+        cGroup.add(hood);
+        const hoodDuct = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.88, 0.52), interiorSystemMats.conduitGalvanized);
+        hoodDuct.position.set(prepX + 0.35, 2.94, prepZ - 0.4);
+        cGroup.add(hoodDuct);
+
+        // Searchable Chef Prep Counter Drawer
+        buildSearchableDrawer(
+          cGroup,
+          unitCenterX,
+          floorY,
+          unitCenterZ,
+          prepX - 0.42,
+          0.74,
+          prepZ + 0.85,
+          -Math.PI / 2,
+          'drawer-canteen-' + slug,
+          unitTitle + ' Kitchen Chef Prep Drawer',
+          null
+        );
+
+        // Grounded Commercial Double-Basin Dishwashing Sink Counter along Back Wall (h = 0.84m, y = 0.420m -> bottom at y = 0.000m)
+        const sinkZ = -(halfD - 0.44);
+        const dishCounter = new THREE.Mesh(step2Geos.sinkCounter, step2Mats.stainlessSteel);
+        dishCounter.rotation.y = Math.PI / 2;
+        dishCounter.position.set(0.15, 0.42, sinkZ);
+        cGroup.add(dishCounter);
+        addUnderFurnitureAO(cGroup, 0.15, sinkZ, 2.55, 0.78);
+        [-0.45, 0.45].forEach(bx => {
+          const basin = new THREE.Mesh(step2Geos.sinkBasin, materials.castIronDark);
+          basin.rotation.y = Math.PI / 2;
+          basin.position.set(0.15 + bx, 0.85, sinkZ);
+          cGroup.add(basin);
+        });
+
+        // Grounded 4-Tier Steel Pantry Rack (y = 1.050m -> bottom at y = 0.000m) with Crates Flush on Shelves (y = 0.380m, 0.980m, 1.580m)
+        const rackX = -1.85, rackZ = 0.35;
         const rack = new THREE.Mesh(step2Geos.storageShelf, materials.deskSteelFrame);
-        rack.position.set(-1.85, 1.05, -1.4);
+        rack.position.set(rackX, 1.05, rackZ);
         cGroup.add(rack);
-        addUnderFurnitureAO(cGroup, -1.85, -1.4, 0.92, 2.45);
-        [-2.1, -1.4, -0.7].forEach(cz => {
-          const crate = new THREE.Mesh(step2Geos.crateBox, step2Mats.cardboardCrate);
-          crate.position.set(-1.85, 0.72, cz);
-          cGroup.add(crate);
+        addUnderFurnitureAO(cGroup, rackX, rackZ, 0.92, 2.45);
+        [0.38, 0.98, 1.58].forEach((cy, sIdx) => {
+          [-0.65, 0.05, 0.72].forEach((czOff, cIdx) => {
+            if ((sIdx + cIdx) % 2 === 0) {
+              const crate = new THREE.Mesh(step2Geos.crateBox, step2Mats.cardboardCrate);
+              crate.position.set(rackX, cy, rackZ + czOff);
+              crate.rotation.y = (cIdx - 1) * 0.08;
+              cGroup.add(crate);
+            }
+          });
         });
 
         addColliderBox(new THREE.Box3(
-          new THREE.Vector3(unitCenterX + 1.38, floorY, unitCenterZ - 2.15),
-          new THREE.Vector3(unitCenterX + 2.35, floorY + 1.02, unitCenterZ + 2.15)
+          new THREE.Vector3(unitCenterX + prepX - 0.46, floorY, unitCenterZ + prepZ - 2.15),
+          new THREE.Vector3(unitCenterX + prepX + 0.48, floorY + 1.02, unitCenterZ + prepZ + 2.15)
         ), 'furniture');
-        // West storage shelf & crate rack box collider
         addColliderBox(new THREE.Box3(
-          new THREE.Vector3(unitCenterX - 1.85 - 0.34, floorY, unitCenterZ - 1.4 - 1.15),
-          new THREE.Vector3(unitCenterX - 1.85 + 0.34, floorY + 2.10, unitCenterZ - 1.4 + 1.15)
+          new THREE.Vector3(unitCenterX + rackX - 0.34, floorY, unitCenterZ + rackZ - 1.15),
+          new THREE.Vector3(unitCenterX + rackX + 0.34, floorY + 2.10, unitCenterZ + rackZ + 1.15)
         ), 'furniture');
 
         interactiveHidingSpots.push({
@@ -11446,49 +12282,122 @@ export function getHideAndSeekHtml(): string {
           name: unitTitle + ' (Canteen Kitchen Prep Counter)',
           x: unitCenterX + 0.65,
           y: floorY,
-          z: unitCenterZ,
+          z: unitCenterZ + prepZ,
           zone: unitTitle,
         });
       } else {
+        // Canteen Dining Hall: Grounded Serving Counter (y = 0.490m -> bottom at y = 0.000m, top at y = 0.980m)
+        const cntX = Math.min(2.25, halfW - 1.15), cntZ = -0.55;
         const counter = new THREE.Mesh(step2Geos.canteenCounter, materials.chairWood);
-        counter.position.set(1.95, 0.49, -0.6);
+        counter.position.set(cntX, 0.49, cntZ);
         cGroup.add(counter);
-        addUnderFurnitureAO(cGroup, 1.95, -0.6, 1.15, 4.45);
+        addUnderFurnitureAO(cGroup, cntX, cntZ, 1.15, 4.45);
+
+        // Framed 2-Tier Glass Snack & Samosa Display Case (bottom -0.240m + 1.220m = 0.980m flush on counter top)
         const sCase = new THREE.Mesh(step2Geos.snackCase, materials.windowWarmLit);
-        sCase.position.set(1.95, 1.22, -1.2);
+        sCase.position.set(cntX, 1.22, cntZ - 1.15);
         cGroup.add(sCase);
 
+        // 3 Stainless Steel Bain-Marie Food Warmer Trays flush on Counter Top (h = 0.05m, y = 1.005m -> bottom at 0.980m)
+        [-0.05, 0.48, 1.01].forEach(bzOff => {
+          const tray = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.05, 0.38), step2Mats.stainlessSteel);
+          tray.position.set(cntX - 0.06, 1.005, cntZ + bzOff);
+          cGroup.add(tray);
+        });
+
+        // Electronic POS Cash Register Terminal flush on Counter Top (h = 0.14m, y = 1.050m -> bottom at 0.980m)
+        const cashReg = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.14, 0.34), materials.castIronDark);
+        cashReg.position.set(cntX - 0.05, 1.05, cntZ + 1.62);
+        cGroup.add(cashReg);
+
+        // Searchable Cashier Counter Drawer
+        buildSearchableDrawer(
+          cGroup,
+          unitCenterX,
+          floorY,
+          unitCenterZ,
+          cntX - 0.42,
+          0.74,
+          cntZ + 1.55,
+          -Math.PI / 2,
+          'drawer-canteen-' + slug,
+          unitTitle + ' Cashier Counter Drawer',
+          null
+        );
+
+        // Grounded Upright Glass-Door Beverage Cooler (h = 1.88m, y = 0.940m -> bottom at y = 0.000m flush on floor)
+        const coolerX = cntX + 0.12, coolerZ = -(halfD - 0.56);
+        const cooler = new THREE.Mesh(step2Geos.beverageCooler, interiorSystemMats.panelSteelGrey);
+        cooler.position.set(coolerX, 0.94, coolerZ);
+        cGroup.add(cooler);
+        const coolerGlass = new THREE.Mesh(new THREE.BoxGeometry(0.56, 1.32, 0.04), materials.windowWarmLit);
+        coolerGlass.position.set(coolerX, 0.92, coolerZ + 0.35);
+        cGroup.add(coolerGlass);
+        addUnderFurnitureAO(cGroup, coolerX, coolerZ, 0.85, 0.85);
+
+        // Grounded Hot/Cold Drinking Water Dispenser & Carboy (stand bottom -0.51m + 0.51m = 0.000m flush on floor)
+        const wdX = 0.45, wdZ = -(halfD - 0.44);
+        const wDisp = new THREE.Mesh(step2Geos.waterDispenser, materials.whiteTrim);
+        wDisp.position.set(wdX, 0.51, wdZ);
+        cGroup.add(wDisp);
+        const wBot = new THREE.Mesh(step2Geos.waterBottle, step2Mats.bottleClearPlastic);
+        wBot.position.set(wdX, 1.21, wdZ);
+        cGroup.add(wBot);
+        addUnderFurnitureAO(cGroup, wdX, wdZ, 0.52, 0.52);
+
+        // Wall-Mounted Canteen Daily Menu Chalkboard above Serving Line
+        const menuBoard = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.88, 2.20), materials.blackboardGreen);
+        menuBoard.position.set(halfW - 0.05, 2.05, cntZ - 0.35);
+        cGroup.add(menuBoard);
+
         addColliderBox(new THREE.Box3(
-          new THREE.Vector3(unitCenterX + 1.48, floorY, unitCenterZ - 2.75),
-          new THREE.Vector3(unitCenterX + 2.42, floorY + 1.10, unitCenterZ + 1.55)
+          new THREE.Vector3(unitCenterX + cntX - 0.48, floorY, unitCenterZ + cntZ - 2.15),
+          new THREE.Vector3(unitCenterX + cntX + 0.48, floorY + 1.25, unitCenterZ + cntZ + 2.15)
         ), 'furniture');
 
-        [-1.45, 1.25].forEach((tz, tIdx) => {
-          const tx = -1.25;
-          const tbl = new THREE.Mesh(step2Geos.readingTable, materials.deskWoodTop);
-          tbl.position.set(tx, 0.38, tz);
-          tbl.rotation.y = (tIdx === 0 ? 0.03 : -0.025);
-          cGroup.add(tbl);
-          addUnderFurnitureAO(cGroup, tx, tz, 1.85, 1.65, tbl.rotation.y);
-          [-0.65, 0.65].forEach((bz, bIdx) => {
-            const bnc = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
-            bnc.position.set(tx + (bIdx === 0 ? 0.04 : -0.05), 0.44, tz + bz);
-            bnc.rotation.y = (bIdx === 0 ? 0.05 : -0.04);
-            cGroup.add(bnc);
-          });
-          const wx = unitCenterX + tx;
-          const wz = unitCenterZ + tz;
-          addColliderBox(new THREE.Box3(
-            new THREE.Vector3(wx - 0.82, floorY, wz - 0.72),
-            new THREE.Vector3(wx + 0.82, floorY + 0.80, wz + 0.72)
-          ), 'furniture');
-          interactiveHidingSpots.push({
-            id: 'canteen-table-' + unitTitle + '-' + tIdx,
-            name: unitTitle + ' Dining Table #' + (tIdx + 1),
-            x: wx,
-            y: floorY,
-            z: wz + 0.96,
-            zone: unitTitle,
+        // Grounded 4-Seater Dining Tables (y = 0.380m -> bottom at y = 0.000m, top at y = 0.760m) & Benches (y = 0.440m -> bottom at y = 0.000m)
+        const tableRowsZ = [-1.45, 1.25];
+        const tableColsX = [-1.35];
+        tableRowsZ.forEach((tz, rIdx) => {
+          tableColsX.forEach((tx, cIdx) => {
+            const tIdx = rIdx * tableColsX.length + cIdx;
+            const tbl = new THREE.Mesh(step2Geos.readingTable, materials.deskWoodTop);
+            tbl.position.set(tx, 0.38, tz);
+            tbl.rotation.y = (tIdx % 2 === 0 ? 0.025 : -0.02);
+            cGroup.add(tbl);
+            addUnderFurnitureAO(cGroup, tx, tz, 1.85, 1.65, tbl.rotation.y);
+
+            // Stainless Steel Meal Trays (Thali plates, h = 0.016m -> y = 0.768m flush on 0.760m tabletop) & Water Bottle (h = 0.22m -> y = 0.870m)
+            [-0.36, 0.36].forEach((pxOff, pIdx) => {
+              const thali = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.016, 0.26), step2Mats.stainlessSteel);
+              thali.position.set(tx + pxOff, 0.768, tz + (pIdx === 0 ? -0.22 : 0.22));
+              thali.rotation.y = (pIdx - 0.5) * 0.12;
+              cGroup.add(thali);
+            });
+            const tableBottle = new THREE.Mesh(clutterBottleGeo, step2Mats.bottleClearPlastic);
+            tableBottle.position.set(tx + 0.05, 0.87, tz - 0.04);
+            cGroup.add(tableBottle);
+
+            [-0.65, 0.65].forEach((bz, bIdx) => {
+              const bnc = new THREE.Mesh(step2Geos.benchLongSeat, materials.chairWood);
+              bnc.position.set(tx + (bIdx === 0 ? 0.03 : -0.04), 0.44, tz + bz);
+              bnc.rotation.y = (bIdx === 0 ? 0.04 : -0.035);
+              cGroup.add(bnc);
+            });
+            const wx = unitCenterX + tx;
+            const wz = unitCenterZ + tz;
+            addColliderBox(new THREE.Box3(
+              new THREE.Vector3(wx - 0.82, floorY, wz - 0.72),
+              new THREE.Vector3(wx + 0.82, floorY + 0.80, wz + 0.72)
+            ), 'furniture');
+            interactiveHidingSpots.push({
+              id: 'canteen-table-' + unitTitle + '-' + tIdx,
+              name: unitTitle + ' Dining Table #' + (tIdx + 1),
+              x: wx,
+              y: floorY,
+              z: wz + 0.96,
+              zone: unitTitle,
+            });
           });
         });
       }
@@ -11646,10 +12555,10 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-l1-r1-door', x: -10.6, y: 0.18, z: -28.0, kind: 'door' }, { id: 'wp-l1-r1-in', x: -7.5, y: 0.18, z: -28.0, kind: 'interior' }],
       },
       'West Wing L1 Room 2': {
-        id: 'West Wing L1 Room 2', building: 'L1', archetype: 'classroom_seminar', lightMood: 'moonlight',
+        id: 'West Wing L1 Room 2', building: 'L1', archetype: 'computer_lab', lightMood: 'dying_tube',
         bounds: { minX: -10.3, maxX: -2.7, minZ: -23.0, maxZ: -13.0, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['teacher_podium', 'teacher_desk', 'seminar_desks_u', 'side_bookshelf', 'wall_shelves', 'ceiling_fan'],
-        hidingSpots: ['podium', 'student_desks'],
+        furniture: ['server_rack_leds', 'dual_monitor_workstations_3x3', 'cable_raceways', 'whiteboard', 'oscilloscope_bench', 'wall_fans'],
+        hidingSpots: ['server_rack', 'workstation_desks', 'lab_locker'],
         waypoints: [{ id: 'wp-l1-r2-door', x: -10.6, y: 0.18, z: -18.0, kind: 'door' }, { id: 'wp-l1-r2-in', x: -6.5, y: 0.18, z: -18.6, kind: 'interior' }],
       },
       'West Wing L1 Room 3': {
@@ -11702,10 +12611,10 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-r1-r1-door', x: 10.4, y: 0.18, z: -32.67, kind: 'door' }, { id: 'wp-r1-r1-in', x: 14.5, y: 0.18, z: -32.67, kind: 'interior' }],
       },
       'East Wing R1 Room 2': {
-        id: 'East Wing R1 Room 2', building: 'R1', archetype: 'staff_office', lightMood: 'dying_tube',
+        id: 'East Wing R1 Room 2', building: 'R1', archetype: 'canteen_dining', lightMood: 'dying_tube',
         bounds: { minX: 10.7, maxX: 18.3, minZ: -28.33, maxZ: -19.67, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['filing_cabinets_x4', 'faculty_lounge_sofa', 'office_desks_x3', 'monitors'],
-        hidingSpots: ['office_desk_1', 'office_desk_2', 'office_desk_3'],
+        furniture: ['serving_counter', 'glass_snack_case', 'beverage_cooler', 'dining_tables_x2', 'benches'],
+        hidingSpots: ['dining_table_1', 'dining_table_2', 'canteen_locker'],
         waypoints: [{ id: 'wp-r1-r2-door', x: 10.4, y: 0.18, z: -24.0, kind: 'door' }, { id: 'wp-r1-r2-in', x: 14.5, y: 0.18, z: -24.0, kind: 'interior' }],
       },
       'East Wing R1 Room 3': {
@@ -11737,25 +12646,31 @@ export function getHideAndSeekHtml(): string {
         waypoints: [{ id: 'wp-r2-r3-door', x: 21.4, y: 0.18, z: -5.33, kind: 'door' }, { id: 'wp-r2-r3-in', x: 25.5, y: 0.18, z: -5.33, kind: 'interior' }],
       },
       'East Wing R4 Room 1': {
-        id: 'East Wing R4 Room 1', building: 'R4', archetype: 'canteen_dining', lightMood: 'warm_lamp',
-        bounds: { minX: 21.7, maxX: 29.3, minZ: 6.0, maxZ: 15.33, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['serving_counter', 'glass_snack_case', 'dining_tables_x2', 'benches'],
-        hidingSpots: ['dining_table_1', 'dining_table_2'],
-        waypoints: [{ id: 'wp-r4-r1-door', x: 21.4, y: 0.18, z: 10.67, kind: 'door' }, { id: 'wp-r4-r1-in', x: 25.5, y: 0.18, z: 10.67, kind: 'interior' }],
+        id: 'East Wing R4 Room 1', building: 'R4', archetype: 'library_production_glb', lightMood: 'warm_lamp',
+        bounds: { minX: 23.7, maxX: 33.3, minZ: 8.25, maxZ: 29.75, floorY: 1.62, ceilingY: 5.17 },
+        furniture: ['circulation_desk', 'librarian_terminal', 'reading_tables_x3', 'tall_bookshelves_x4', 'archive_cabinets', 'banker_lamps'],
+        hidingSpots: ['behind_bookshelf', 'inside_archive_cabinet', 'under_reading_table', 'behind_reception_counter'],
+        waypoints: [
+          { id: 'wp-r4-door', x: 23.7, y: 1.62, z: 19.0, kind: 'door' },
+          { id: 'wp-r4-reception', x: 26.5, y: 1.62, z: 16.5, kind: 'interior' },
+          { id: 'wp-r4-reading-hall', x: 28.5, y: 1.62, z: 19.0, kind: 'interior' },
+          { id: 'wp-r4-bookshelves', x: 28.5, y: 1.62, z: 24.5, kind: 'interior' },
+          { id: 'wp-r4-archive', x: 28.5, y: 1.62, z: 27.5, kind: 'interior' }
+        ],
       },
       'East Wing R4 Room 2': {
-        id: 'East Wing R4 Room 2', building: 'R4', archetype: 'canteen_dining', lightMood: 'dark',
-        bounds: { minX: 21.7, maxX: 29.3, minZ: 15.33, maxZ: 24.67, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['serving_counter', 'glass_snack_case', 'dining_tables_x2', 'benches'],
-        hidingSpots: ['dining_table_1', 'dining_table_2'],
-        waypoints: [{ id: 'wp-r4-r2-door', x: 21.4, y: 0.18, z: 20.0, kind: 'door' }, { id: 'wp-r4-r2-in', x: 25.5, y: 0.18, z: 20.0, kind: 'interior' }],
+        id: 'East Wing R4 Room 2', building: 'R4', archetype: 'library_production_glb', lightMood: 'warm_lamp',
+        bounds: { minX: 23.7, maxX: 33.3, minZ: 19.0, maxZ: 29.75, floorY: 1.62, ceilingY: 5.17 },
+        furniture: ['tall_bookshelves_x4', 'archive_cabinets', 'study_carrels'],
+        hidingSpots: ['behind_bookshelf', 'inside_archive_cabinet'],
+        waypoints: [{ id: 'wp-r4-r2-in', x: 28.5, y: 1.62, z: 24.5, kind: 'interior' }],
       },
       'East Wing R4 Room 3': {
-        id: 'East Wing R4 Room 3', building: 'R4', archetype: 'canteen_kitchen', lightMood: 'emergency_red',
-        bounds: { minX: 21.7, maxX: 29.3, minZ: 24.67, maxZ: 34.0, floorY: 0.18, ceilingY: 3.56 },
-        furniture: ['stainless_prep_counter', 'exhaust_hood', 'pantry_storage_shelf', 'crates'],
-        hidingSpots: ['kitchen_prep_counter'],
-        waypoints: [{ id: 'wp-r4-r3-door', x: 21.4, y: 0.18, z: 29.33, kind: 'door' }, { id: 'wp-r4-r3-in', x: 25.5, y: 0.18, z: 29.33, kind: 'interior' }],
+        id: 'East Wing R4 Room 3', building: 'R4', archetype: 'library_production_glb', lightMood: 'dark',
+        bounds: { minX: 23.7, maxX: 33.3, minZ: 26.0, maxZ: 29.75, floorY: 1.62, ceilingY: 5.17 },
+        furniture: ['filing_cabinets', 'archive_storage_cupboard', 'cardboard_document_boxes'],
+        hidingSpots: ['inside_archive_cabinet'],
+        waypoints: [{ id: 'wp-r4-r3-in', x: 28.5, y: 1.62, z: 27.5, kind: 'interior' }],
       },
       'Newari Heritage Block W1 Room 1': {
         id: 'Newari Heritage Block W1 Room 1', building: 'W1', archetype: 'classroom_standard', lightMood: 'warm_lamp',
@@ -11982,7 +12897,9 @@ export function getHideAndSeekHtml(): string {
         : (doorAxis === 'z' ? (cz + doorDirSign * (halfD - 0.62)) : cz);
       if (ROOM_DEFINITIONS[roomId]) {
         ROOM_DEFINITIONS[roomId].lightMood = normalizeRoomLightMood(ROOM_DEFINITIONS[roomId].lightMood);
-        ROOM_DEFINITIONS[roomId].bounds = { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + 3.4 };
+        const ceilH = ROOM_DEFINITIONS[roomId].archetype === 'library_production_glb' ? 3.55 : 3.4;
+        ROOM_DEFINITIONS[roomId].bounds = { minX: cx - halfW, maxX: cx + halfW, minZ: cz - halfD, maxZ: cz + halfD, floorY: floorY, ceilingY: floorY + ceilH };
+        ROOM_DEFINITIONS[roomId].door = { x: doorWpX, y: floorY, z: doorWpZ };
         ROOM_DEFINITIONS[roomId].waypoints = [
           { id: 'wp-' + roomId + '-door', x: doorWpX, y: floorY, z: doorWpZ, kind: 'door' },
           { id: 'wp-' + roomId + '-in', x: inWpX, y: floorY, z: inWpZ, kind: 'interior' },
@@ -12017,7 +12934,7 @@ export function getHideAndSeekHtml(): string {
       if (roomDef) roomDef.lightMood = mood;
       const moodsCfg = HORROR_CONFIG.roomLightMoods || {};
       const mCfg = moodsCfg[mood] || {
-        color: 0xb4f0e4,
+        color: 0xffb84d,
         intensity: 3.6,
         distance: 10.5,
         ambientScale: 0.48,
@@ -12028,7 +12945,6 @@ export function getHideAndSeekHtml(): string {
       const isMainBldg = (roomDef && roomDef.building === 'ROTUNDA');
       const isClassroom = !!(roomDef && (roomDef.archetype === 'classroom_standard' || roomDef.archetype === 'classroom_seminar' || roomDef.archetype === 'rotunda_lecture' || roomDef.archetype === 'rotunda_seminar'));
 
-      // 1. Cold moonlight through windows as hard-edged shafts + floor & desk window patches with mullion shadows
       if (isClassroom || mood === 'moonlight' || (isMainBldg && mood !== 'emergency_red')) {
         const winX = windowSideSignX * (roomW * 0.46);
         const inDirX = -windowSideSignX;
@@ -12039,16 +12955,26 @@ export function getHideAndSeekHtml(): string {
         }
       }
 
-      // 2. Classroom 3-Tube Ceiling Array: 1 steady-dim, 1 stuttering (irregular on/off bursts), 1 dead (merged into static room before bake)
-      const tubeY = isMainBldg ? 2.86 : 3.28;
+      // Warm Blinking Fluorescent Tubes aligned directly inside the ceiling reflector hoods at (0.95, 0.98) and (-1.65, -1.85)
+      const tubeY = isMainBldg ? 2.86 : 3.27;
       const stutterTubeMat = step2Mats.dyingTubeMat.clone();
       const stutterTube = new THREE.Mesh(tubeStripGeo, stutterTubeMat);
-      stutterTube.position.set(roomW * 0.14, tubeY, roomD * 0.12);
+      stutterTube.position.set(isMainBldg ? (roomW * 0.14) : 0.95, tubeY, isMainBldg ? (roomD * 0.12) : 0.98);
       stutterTube.userData.noMerge = true;
       cGroup.add(stutterTube);
 
+      const steadyTubeMat = step2Mats.steadyDimTubeMat.clone();
+      const steadyTubeDynamic = new THREE.Mesh(tubeStripGeo, steadyTubeMat);
+      steadyTubeDynamic.position.set(isMainBldg ? (-roomW * 0.18) : -1.65, tubeY, isMainBldg ? (-roomD * 0.16) : -1.85);
+      steadyTubeDynamic.userData.noMerge = true;
+      cGroup.add(steadyTubeDynamic);
+      if (mood === 'dark') {
+        stutterTubeMat.emissiveIntensity = 0.0;
+        steadyTubeMat.emissiveIntensity = 0.0;
+      }
+
       const spillCfg = cCfg.tubeSpill || {};
-      const spillColor = (mood === 'emergency_red') ? 0xdc2626 : (spillCfg.color || 0xaef2e2);
+      const spillColor = (mood === 'emergency_red') ? 0xdc2626 : (spillCfg.color || 0xffc670);
       const floorSpillMat = new THREE.MeshBasicMaterial({
         map: softRadialGlowTex,
         color: spillColor,
@@ -12059,7 +12985,7 @@ export function getHideAndSeekHtml(): string {
       });
       const floorSpill = new THREE.Mesh(aoSharedPlaneGeo, floorSpillMat);
       floorSpill.rotation.x = -Math.PI / 2;
-      floorSpill.position.set(roomW * 0.12, 0.021, roomD * 0.10);
+      floorSpill.position.set(isMainBldg ? (roomW * 0.12) : 0.95, 0.021, isMainBldg ? (roomD * 0.10) : 0.98);
       floorSpill.scale.set(4.8, 4.8, 1.0);
       floorSpill.userData.noMerge = true;
       cGroup.add(floorSpill);
@@ -12079,7 +13005,6 @@ export function getHideAndSeekHtml(): string {
       deskSpill.userData.noMerge = true;
       cGroup.add(deskSpill);
 
-      // 3. At most ONE warm accent per room (desk lamp in warm_lamp rooms; single doorway hallway glow in others; red exit sign in emergency_red)
       if (mood === 'warm_lamp') {
         const lampX = (roomDef && roomDef.archetype === 'library') ? 1.75 : 0.42;
         const lampZ = (roomDef && roomDef.archetype === 'library') ? -1.35 : -roomD * 0.25;
@@ -12112,6 +13037,7 @@ export function getHideAndSeekHtml(): string {
           bulbMat,
           poolMat: warmPoolMat,
           stutterTubeMat,
+          steadyTubeMat,
           floorSpillMat,
           deskSpillMat,
           worldX: unitCenterX + lampX,
@@ -12126,7 +13052,6 @@ export function getHideAndSeekHtml(): string {
           seed,
         });
       } else if (mood === 'emergency_red') {
-        // Dim red emergency mood with a visible glowing red EXIT sign above the classroom doorway
         const redMat = step2Mats.exitSignRedMat.clone();
         const exitSign = new THREE.Mesh(step2Geos.exitSignBox, redMat);
         exitSign.position.set(-windowSideSignX * (halfW - 0.14), 2.58, 0.0);
@@ -12141,6 +13066,7 @@ export function getHideAndSeekHtml(): string {
           bulbMat: redMat,
           poolMat: floorSpillMat,
           stutterTubeMat,
+          steadyTubeMat,
           floorSpillMat,
           deskSpillMat,
           worldX: unitCenterX - windowSideSignX * (halfW - 0.8),
@@ -12155,7 +13081,6 @@ export function getHideAndSeekHtml(): string {
           seed,
         });
       } else {
-        // Single subtle warm hallway glow spilling through the doorway for cold/warm contrast
         const doorGlowMat = new THREE.MeshBasicMaterial({
           map: softRadialGlowTex,
           color: (cCfg.warmAccent && cCfg.warmAccent.doorwayGlowColor) || 0xff8a2a,
@@ -12178,15 +13103,16 @@ export function getHideAndSeekHtml(): string {
           bulbMat: stutterTubeMat,
           poolMat: floorSpillMat,
           stutterTubeMat,
+          steadyTubeMat,
           floorSpillMat,
           deskSpillMat,
-          worldX: unitCenterX + (mood === 'moonlight' ? windowSideSignX * (roomW * 0.22) : roomW * 0.14),
+          worldX: unitCenterX + (mood === 'moonlight' ? windowSideSignX * (roomW * 0.22) : 0.95),
           worldY: floorY + (mood === 'moonlight' ? 2.15 : 2.82),
           worldZ: unitCenterZ,
           floorY,
           halfW,
           halfD,
-          color: mCfg.color || (mood === 'moonlight' ? 0x84b6e6 : 0xb4f0e4),
+          color: mCfg.color || (mood === 'moonlight' ? 0x84b6e6 : 0xffb84d),
           baseIntensity: mood === 'dark' ? 0.0 : (mCfg.intensity || 3.8),
           distance: mCfg.distance || 11.8,
           seed,
@@ -12205,12 +13131,12 @@ export function getHideAndSeekHtml(): string {
         }
       }
       const moodsCfg = HORROR_CONFIG.roomLightMoods || {};
-      const mCfg = moodsCfg[m] || { color: 0xb4f0e4, intensity: 4.1, distance: 11.8 };
+      const mCfg = moodsCfg[m] || { color: 0xffb84d, intensity: 4.1, distance: 11.8 };
       for (let i = 0; i < roomMoodFixtures.length; i++) {
         const rf = roomMoodFixtures[i];
         if (rf.roomId === roomId) {
           rf.mood = m;
-          rf.color = mCfg.color || 0xb4f0e4;
+          rf.color = mCfg.color || 0xffb84d;
           rf.baseIntensity = (m === 'dark') ? 0.0 : (mCfg.intensity || 3.9);
           rf.distance = mCfg.distance || 11.8;
           if (rf.bulbMat && rf.bulbMat.emissive) {
@@ -12218,6 +13144,16 @@ export function getHideAndSeekHtml(): string {
           }
           if (rf.poolMat && rf.poolMat.color) {
             rf.poolMat.color.setHex(rf.color);
+          }
+          if (m === 'dark') {
+            if (rf.stutterTubeMat) rf.stutterTubeMat.emissiveIntensity = 0.0;
+            if (rf.steadyTubeMat) rf.steadyTubeMat.emissiveIntensity = 0.0;
+            if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 0.0;
+            if (rf.floorSpillMat) rf.floorSpillMat.opacity = 0.0;
+            if (rf.deskSpillMat) rf.deskSpillMat.opacity = 0.0;
+            if (rf.poolMat) rf.poolMat.opacity = 0.0;
+          } else {
+            if (rf.steadyTubeMat) rf.steadyTubeMat.emissiveIntensity = 0.65;
           }
         }
       }
@@ -12234,26 +13170,38 @@ export function getHideAndSeekHtml(): string {
       const tStates = cCfg.tubeStates || {};
       const tSpill = cCfg.tubeSpill || {};
 
-      // Animate classroom ceiling fans with 1 bent blade when room is visible
       for (let f = 0; f < animatedClassroomFans.length; f++) {
         const fn = animatedClassroomFans[f];
         if (!fn.roomGroup || !fn.roomGroup.visible) continue;
         fn.hub.rotation.y = Math.sin(timeSec * (fn.speed || 0.85) + fn.seed) * 0.42;
       }
 
-      // Animate ULTRA-only doorway ground mist planes when room is visible
       for (let m = 0; m < classroomDoorMistPlanes.length; m++) {
         const dm = classroomDoorMistPlanes[m];
-        if (!dm.mesh.visible) continue;
-        dm.mesh.position.x = dm.baseX + Math.sin(timeSec * 0.34 + dm.phase) * 0.22;
-        dm.mesh.position.z = dm.baseZ + Math.cos(timeSec * 0.28 + dm.phase) * 0.18;
+        if (!dm || !dm.mesh || !dm.mesh.visible) continue;
+        const bx = (typeof dm.baseX === 'number') ? dm.baseX : dm.mesh.position.x;
+        const bz = (typeof dm.baseZ === 'number') ? dm.baseZ : dm.mesh.position.z;
+        const ph = (typeof dm.phase === 'number') ? dm.phase : 0;
+        dm.mesh.position.x = bx + Math.sin(timeSec * 0.34 + ph) * 0.22;
+        dm.mesh.position.z = bz + Math.cos(timeSec * 0.28 + ph) * 0.18;
       }
 
       for (let i = 0; i < roomMoodFixtures.length; i++) {
         const rf = roomMoodFixtures[i];
         if (!rf.group || !rf.group.visible) continue;
 
-        // Irregular stuttering fluorescent tube burst math (simplified on FAST)
+        const isSwitchedOff = (roomLightSwitchStates[rf.roomId] === false) || (rf.mood === 'dark');
+        if (isSwitchedOff) {
+          if (rf.stutterTubeMat) rf.stutterTubeMat.emissiveIntensity = 0.0;
+          if (rf.steadyTubeMat) rf.steadyTubeMat.emissiveIntensity = 0.0;
+          if (rf.bulbMat) rf.bulbMat.emissiveIntensity = 0.0;
+          if (rf.floorSpillMat) rf.floorSpillMat.opacity = 0.0;
+          if (rf.deskSpillMat) rf.deskSpillMat.opacity = 0.0;
+          if (rf.poolMat) rf.poolMat.opacity = 0.0;
+          rf.currentMult = 0.0;
+          continue;
+        }
+
         let tubeStutter = 0.22;
         if (calmTube) {
           tubeStutter = 0.88 + 0.08 * Math.sin(timeSec * 7.85 + rf.seed);
@@ -12267,8 +13215,11 @@ export function getHideAndSeekHtml(): string {
           tubeStutter = (w1 > -0.22 ? (0.72 + 0.28 * w2) : 0.08) * dropout;
         }
         if (rf.stutterTubeMat) {
-          const peak = (rf.mood === 'dark') ? 0.32 : (tStates.stutterPeakIntensity || 1.55);
-          rf.stutterTubeMat.emissiveIntensity = Math.max(tStates.stutterMinIntensity || 0.04, peak * tubeStutter);
+          const peak = tStates.stutterPeakIntensity || 1.65;
+          rf.stutterTubeMat.emissiveIntensity = Math.max(tStates.stutterMinIntensity || 0.05, peak * tubeStutter);
+        }
+        if (rf.steadyTubeMat) {
+          rf.steadyTubeMat.emissiveIntensity = 0.58 + 0.08 * Math.sin(timeSec * 5.2 + rf.seed);
         }
         if (rf.floorSpillMat && rf.mood !== 'emergency_red') {
           rf.floorSpillMat.opacity = (tSpill.floorSpillOpacity || 0.16) * (0.35 + 0.65 * tubeStutter);
@@ -12302,7 +13253,6 @@ export function getHideAndSeekHtml(): string {
         }
         rf.currentMult = mult;
 
-        // Check if player is physically inside this room's bounds
         if (Math.abs(playerPos.y - rf.floorY) < 2.2) {
           const hw = rf.halfW || 7.0;
           const hd = rf.halfD || 6.8;
@@ -12331,15 +13281,567 @@ export function getHideAndSeekHtml(): string {
       }
     }
 
+    // Production Blender University Library GLB Builder (Phase 11)
+    // Integrates the Blender 5.2.2 LTS generated production University Library into the campus
+    function buildProductionBlenderLibraryInterior(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle) {
+      // 1. Register physics colliders matching the production library layout
+      // Reception & Circulation Counter
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.55, floorY, unitCenterZ - 3.80),
+        new THREE.Vector3(unitCenterX - 1.85, floorY + 1.10, unitCenterZ - 1.20)
+      ), 'furniture');
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.75, floorY, unitCenterZ - 3.80),
+        new THREE.Vector3(unitCenterX - 2.55, floorY + 1.10, unitCenterZ - 3.20)
+      ), 'furniture');
+
+      // Librarian Workdesk & Chair
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 1.75, floorY, unitCenterZ - 3.20),
+        new THREE.Vector3(unitCenterX - 1.05, floorY + 0.80, unitCenterZ - 1.80)
+      ), 'furniture');
+
+      // Student Bag Cubbies (South Wall)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.30, floorY, unitCenterZ - 10.15),
+        new THREE.Vector3(unitCenterX - 1.10, floorY + 1.55, unitCenterZ - 9.75)
+      ), 'furniture');
+
+      // Noticeboard / Waiting area
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 0.80, floorY, unitCenterZ - 10.15),
+        new THREE.Vector3(unitCenterX + 3.20, floorY + 2.50, unitCenterZ - 9.85)
+      ), 'wall');
+
+      // Study Table 1 (South-West)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.60, floorY, unitCenterZ - 7.70),
+        new THREE.Vector3(unitCenterX - 1.40, floorY + 0.80, unitCenterZ - 5.30)
+      ), 'furniture');
+
+      // Study Table 2 (South-East)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 1.40, floorY, unitCenterZ - 7.70),
+        new THREE.Vector3(unitCenterX + 2.60, floorY + 0.80, unitCenterZ - 5.30)
+      ), 'furniture');
+
+      // Study Table 3 (Central-West)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 2.60, floorY, unitCenterZ + 1.30),
+        new THREE.Vector3(unitCenterX - 1.40, floorY + 0.80, unitCenterZ + 3.70)
+      ), 'furniture');
+
+      // Study Carrel Desks (Central-East)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 1.40, floorY, unitCenterZ + 1.40),
+        new THREE.Vector3(unitCenterX + 2.60, floorY + 1.30, unitCenterZ + 3.60)
+      ), 'furniture');
+
+      // Bookshelf Stacks Row 1 (Y = +4.60m)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.95, floorY, unitCenterZ + 4.25),
+        new THREE.Vector3(unitCenterX - 0.65, floorY + 2.30, unitCenterZ + 4.95)
+      ), 'furniture');
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 0.65, floorY, unitCenterZ + 4.25),
+        new THREE.Vector3(unitCenterX + 3.95, floorY + 2.30, unitCenterZ + 4.95)
+      ), 'furniture');
+
+      // Bookshelf Stacks Row 2 (Y = +5.90m)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.95, floorY, unitCenterZ + 5.55),
+        new THREE.Vector3(unitCenterX - 0.65, floorY + 2.30, unitCenterZ + 6.25)
+      ), 'furniture');
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 0.65, floorY, unitCenterZ + 5.55),
+        new THREE.Vector3(unitCenterX + 3.95, floorY + 2.30, unitCenterZ + 6.25)
+      ), 'furniture');
+
+      // Archive Partition Wall at Z = +7.20m (Leaves 1.1m clear doorway opening at X in [-0.55, 0.55])
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 4.60, floorY, unitCenterZ + 7.10),
+        new THREE.Vector3(unitCenterX - 0.55, floorY + 3.50, unitCenterZ + 7.30)
+      ), 'wall');
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 0.55, floorY, unitCenterZ + 7.10),
+        new THREE.Vector3(unitCenterX + 4.60, floorY + 3.50, unitCenterZ + 7.30)
+      ), 'wall');
+
+      // Archive Filing Cabinets (West wall)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 4.10, floorY, unitCenterZ + 8.25),
+        new THREE.Vector3(unitCenterX - 3.50, floorY + 1.50, unitCenterZ + 8.95)
+      ), 'furniture');
+
+      // Archive Storage Cupboard (East wall)
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 3.40, floorY, unitCenterZ + 8.00),
+        new THREE.Vector3(unitCenterX + 4.20, floorY + 2.15, unitCenterZ + 9.20)
+      ), 'furniture');
+
+      // Archive Box Shelving along North wall
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 3.10, floorY, unitCenterZ + 9.50),
+        new THREE.Vector3(unitCenterX + 3.10, floorY + 2.25, unitCenterZ + 10.10)
+      ), 'furniture');
+
+      // Concrete Structural Pillars
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX - 1.85, floorY, unitCenterZ - 3.25),
+        new THREE.Vector3(unitCenterX - 1.35, floorY + 3.50, unitCenterZ - 2.75)
+      ), 'pillar');
+      addColliderBox(new THREE.Box3(
+        new THREE.Vector3(unitCenterX + 1.35, floorY, unitCenterZ - 3.25),
+        new THREE.Vector3(unitCenterX + 1.85, floorY + 3.50, unitCenterZ - 2.75)
+      ), 'pillar');
+
+      // 2. Register 4 Interactive Hiding Spots
+      // Hiding Spot 1: Behind Tall Bookshelf (Aisle corner)
+      interactiveHidingSpots.push({
+        id: 'hiding-library-bookshelf',
+        name: unitTitle + ' (Behind Tall Bookshelf)',
+        x: unitCenterX - 3.60,
+        y: floorY,
+        z: unitCenterZ + 6.50,
+        zone: unitTitle,
+      });
+
+      // Hiding Spot 2: Inside Archive Cabinet
+      interactiveHidingSpots.push({
+        id: 'hiding-library-archive-cabinet',
+        name: unitTitle + ' (Inside Archive Cabinet)',
+        x: unitCenterX + 3.60,
+        y: floorY,
+        z: unitCenterZ + 8.60,
+        zone: unitTitle,
+      });
+
+      // Hiding Spot 3: Under Reading Table
+      interactiveHidingSpots.push({
+        id: 'hiding-library-table',
+        name: unitTitle + ' (Under Reading Table)',
+        x: unitCenterX - 2.00,
+        y: floorY,
+        z: unitCenterZ - 6.50,
+        zone: unitTitle,
+      });
+
+      // Hiding Spot 4: Behind Reception Counter
+      interactiveHidingSpots.push({
+        id: 'hiding-library-reception',
+        name: unitTitle + ' (Behind Reception Counter)',
+        x: unitCenterX - 1.80,
+        y: floorY,
+        z: unitCenterZ - 2.50,
+        zone: unitTitle,
+      });
+
+      // 3. Register All 10 Interior Interactables Synchronously
+      const entranceDoorPivot = new THREE.Group();
+      entranceDoorPivot.position.set(unitCenterX - 4.60, floorY, unitCenterZ);
+      cGroup.add(entranceDoorPivot);
+      const entranceDoorObj = {
+        id: 'door-library-entrance',
+        pivot: entranceDoorPivot,
+        x: unitCenterX - 4.60,
+        y: floorY,
+        z: unitCenterZ,
+        closedAngleY: 0.0,
+        ajarAngleY: -0.45,
+        openAngleY: -1.55,
+        minAngleY: -1.57,
+        maxAngleY: 0.0,
+        currentAngleY: -0.45,
+        targetAngleY: -0.45,
+        isOpen: true,
+        manuallyClosed: false,
+        holdTimer: 0,
+        collider: null,
+      };
+      entranceDoorPivot.rotation.y = entranceDoorObj.ajarAngleY;
+      swingingDoors.push(entranceDoorObj);
+      const entranceDoorInteractable = registerInteriorInteractable({
+        id: 'door-library-entrance',
+        type: 'door',
+        name: unitTitle + ' Main Entrance Door',
+        x: unitCenterX - 4.60,
+        y: floorY,
+        z: unitCenterZ,
+        interactRadius: 2.8,
+        isOpen: true,
+        rootMesh: null,
+        doorRef: entranceDoorObj,
+      });
+
+      const archiveDoorPivot = new THREE.Group();
+      archiveDoorPivot.position.set(unitCenterX, floorY, unitCenterZ + 7.20);
+      cGroup.add(archiveDoorPivot);
+      const archiveDoorObj = {
+        id: 'door-library-archive',
+        pivot: archiveDoorPivot,
+        x: unitCenterX,
+        y: floorY,
+        z: unitCenterZ + 7.20,
+        closedAngleY: 0.0,
+        ajarAngleY: 0.0,
+        openAngleY: 1.55,
+        minAngleY: 0.0,
+        maxAngleY: 1.57,
+        currentAngleY: 0.0,
+        targetAngleY: 0.0,
+        isOpen: false,
+        manuallyClosed: false,
+        holdTimer: 0,
+        collider: null,
+      };
+      archiveDoorPivot.rotation.y = archiveDoorObj.closedAngleY;
+      swingingDoors.push(archiveDoorObj);
+      const archiveDoorInteractable = registerInteriorInteractable({
+        id: 'door-library-archive',
+        type: 'door',
+        name: unitTitle + ' Archive Partition Door',
+        x: unitCenterX,
+        y: floorY,
+        z: unitCenterZ + 7.20,
+        interactRadius: 2.6,
+        isOpen: false,
+        rootMesh: null,
+        doorRef: archiveDoorObj,
+      });
+
+      const keyRecord = {
+        id: 'item_library_archive_key',
+        name: 'Library Archive Master Key',
+        kind: 'key',
+        roomTitle: unitTitle,
+        discovered: false,
+        collected: false,
+        mesh: null,
+      };
+      missionItemsRegistry.push(keyRecord);
+
+      const recDrawerInteractable = registerInteriorInteractable({
+        id: 'drawer-library-reception',
+        type: 'drawer',
+        name: unitTitle + ' Circulation Desk Drawer',
+        x: unitCenterX - 2.20,
+        y: floorY + 0.75,
+        z: unitCenterZ - 2.20,
+        interactRadius: 2.5,
+        isOpen: false,
+        rootMesh: null,
+        drawerGroup: null,
+        closedX: -2.20,
+        closedZ: -2.20,
+        openX: -2.20,
+        openZ: -1.85,
+        currentT: 0,
+        targetT: 0,
+        missionItem: keyRecord,
+      });
+
+      const filingDrawerInteractable = registerInteriorInteractable({
+        id: 'drawer-library-filing',
+        type: 'drawer',
+        name: unitTitle + ' Archive Filing Cabinet Drawer',
+        x: unitCenterX - 3.80,
+        y: floorY + 1.24,
+        z: unitCenterZ + 8.56,
+        interactRadius: 2.4,
+        isOpen: false,
+        rootMesh: null,
+        drawerGroup: null,
+        closedX: -3.80,
+        closedZ: 8.56,
+        openX: -3.80,
+        openZ: 8.21,
+        currentT: 0,
+        targetT: 0,
+      });
+
+      const archiveCabInteractable = registerInteriorInteractable({
+        id: 'cupboard-library-archive',
+        type: 'cupboard',
+        name: unitTitle + ' Archive Storage Cupboard',
+        x: unitCenterX + 3.80,
+        y: floorY + 1.05,
+        z: unitCenterZ + 8.60,
+        interactRadius: 2.5,
+        isOpen: false,
+        rootMesh: null,
+        leftPivot: null,
+        rightPivot: null,
+        currentT: 0,
+        targetT: 0,
+      });
+
+      const rareBookInteractable = registerInteriorInteractable({
+        id: 'book-library-gandaki-ledger',
+        type: 'bookshelf',
+        name: 'Gandaki University Founding Ledger (1998)',
+        x: unitCenterX - 1.20,
+        y: floorY + 1.22,
+        z: unitCenterZ + 5.72,
+        interactRadius: 2.4,
+        rootMesh: null,
+        isExamined: false,
+        onInteract: function(it) {
+          it.isExamined = true;
+          if (typeof soundEngine.playPageFlipSfx === 'function') soundEngine.playPageFlipSfx();
+          else if (typeof soundEngine.playPaperSfx === 'function') soundEngine.playPaperSfx();
+          showToast('Founding Record (1998): "On Laxmi Puja night, Gandaki University opened its doors..."');
+          return true;
+        }
+      });
+
+      const terminalInteractable = registerInteriorInteractable({
+        id: 'terminal-library-librarian',
+        type: 'monitor',
+        name: 'Librarian Catalog Terminal',
+        x: unitCenterX - 1.22,
+        y: floorY + 0.92,
+        z: unitCenterZ - 2.50,
+        interactRadius: 2.4,
+        isOn: true,
+        rootMesh: null,
+        onInteract: function(it) {
+          it.isOn = !it.isOn;
+          if (it.rootMesh && it.rootMesh.material) {
+            it.rootMesh.material.emissiveIntensity = it.isOn ? 2.2 : 0.0;
+          }
+          if (typeof soundEngine.playTubeFlickerBuzzSfx === 'function') soundEngine.playTubeFlickerBuzzSfx();
+          else soundEngine.playFuseRepairSfx();
+          showToast('Catalog Terminal: ' + (it.isOn ? 'ONLINE (Accessing Book Database)' : 'STANDBY'));
+          return true;
+        }
+      });
+
+      const deskLampInteractable = registerInteriorInteractable({
+        id: 'lamp-library-banker-1',
+        type: 'desk_lamp',
+        name: 'Reading Table Brass Banker Lamp',
+        x: unitCenterX - 2.00,
+        y: floorY + 1.05,
+        z: unitCenterZ - 6.50,
+        interactRadius: 2.4,
+        isOn: true,
+        rootMesh: null,
+        bulbMesh: null,
+        onInteract: function(it) {
+          it.isOn = !it.isOn;
+          if (it.bulbMesh && it.bulbMesh.material) {
+            it.bulbMesh.material.emissiveIntensity = it.isOn ? 4.0 : 0.0;
+          }
+          soundEngine.playFuseRepairSfx();
+          showToast('Banker Lamp: ' + (it.isOn ? 'ON' : 'OFF'));
+          return true;
+        }
+      });
+
+      const tubeLightMeshes = [];
+      const switchboardInteractable = registerInteriorInteractable({
+        id: 'switchboard-library-r4',
+        type: 'switchboard',
+        name: unitTitle + ' Main Circuit Breaker',
+        powerKey: 'library_r4_circuit',
+        controlsCampusLights: false,
+        x: unitCenterX - 4.50,
+        y: floorY + 1.50,
+        z: unitCenterZ - 1.20,
+        interactRadius: 2.5,
+        isOpen: true,
+        isOn: true,
+        rootMesh: null,
+        leverPivot: null,
+        doorPivot: null,
+        tubeMeshes: tubeLightMeshes,
+        onToggle: function(isOn) {
+          this.isOn = isOn;
+          tubeLightMeshes.forEach(m => {
+            if (m.material) {
+              m.material.emissiveIntensity = isOn ? 3.0 : 0.0;
+            }
+          });
+          if (typeof roomMoodFixtures !== 'undefined') {
+            const fix = roomMoodFixtures.find(f => f.roomId === unitTitle);
+            if (fix) {
+              fix.baseIntensity = isOn ? 1.6 : 0.0;
+            }
+          }
+        }
+      });
+
+      const secondarySwitchInteractable = registerInteriorInteractable({
+        id: 'switch-library-secondary',
+        type: 'light_switch',
+        roomId: unitTitle,
+        name: unitTitle + ' Reading Hall Light Switch',
+        x: unitCenterX - 4.55,
+        y: floorY + 1.40,
+        z: unitCenterZ + 2.00,
+        interactRadius: 2.4,
+        isOn: true,
+        rootMesh: null,
+        defaultActiveMood: 'warm_lamp',
+      });
+
+      // 4. Load Exported Blender 5.2.2 LTS Production GLB & Bind 3D Nodes
+      if (typeof THREE.GLTFLoader === 'function') {
+        try {
+          const gltfLoader = new THREE.GLTFLoader();
+          const glbSrc = (typeof window !== 'undefined' && window.LIBRARY_GLB_DATA_URI)
+            ? window.LIBRARY_GLB_DATA_URI
+            : './models/library_production.glb';
+
+          gltfLoader.load(
+            glbSrc,
+            function (gltf) {
+              const blenderScene = gltf.scene;
+              blenderScene.name = 'BlenderProductionLibraryScene';
+              blenderScene.rotation.y = 0;
+              blenderScene.position.set(0, 0, 0);
+
+              let doorLeafMesh = null;
+              let doorPivot = null;
+              let archDoorMesh = null;
+              let archDoorPivot = null;
+              let recDrawerMesh = null;
+              let keyMesh = null;
+              let filingDrawerMesh = null;
+              let archiveCabDoorMesh = null;
+              let archiveCabPivot = null;
+              let rareBookMesh = null;
+              let monitorScreenMesh = null;
+              let bankerLamp1Mesh = null;
+              let bankerBulb1Mesh = null;
+              let switchboardMesh = null;
+              let interiorSwitchMesh = null;
+
+              blenderScene.traverse(function (child) {
+                if (child.isLight) {
+                  child.visible = false;
+                }
+                if (child.isMesh) {
+                  child.userData.noMerge = true;
+                  child.castShadow = true;
+                  child.receiveShadow = true;
+
+                  if (child.name === 'Door_Leaf_Library_Entrance') doorLeafMesh = child;
+                  else if (child.name === 'Door_Leaf_Archive') archDoorMesh = child;
+                  else if (child.name === 'Reception_Desk_Drawer') recDrawerMesh = child;
+                  else if (child.name === 'Item_Library_Key') keyMesh = child;
+                  else if (child.name === 'Filing_Cabinet_Drawer') filingDrawerMesh = child;
+                  else if (child.name === 'Archive_Cabinet_Door') archiveCabDoorMesh = child;
+                  else if (child.name === 'Bookshelf_Interaction') rareBookMesh = child;
+                  else if (child.name === 'Librarian_Monitor') monitorScreenMesh = child;
+                  else if (child.name === 'Desk_Lamp_Banker_1') bankerLamp1Mesh = child;
+                  else if (child.name === 'Desk_Lamp_Banker_1_Bulb') bankerBulb1Mesh = child;
+                  else if (child.name === 'Library_Switchboard') switchboardMesh = child;
+                  else if (child.name === 'Interior_Light_Switch') interiorSwitchMesh = child;
+                  else if (child.name && child.name.indexOf('Fluorescent_Tube') !== -1) tubeLightMeshes.push(child);
+                  else if (child.name && child.name.indexOf('Window_Glass') !== -1) {
+                    child.material.transparent = true;
+                    child.material.opacity = 0.25;
+                    child.material.roughness = 0.05;
+                    child.material.depthWrite = false;
+                    child.castShadow = false;
+                  }
+                } else {
+                  if (child.name === 'Door_Library_Entrance_Pivot') doorPivot = child;
+                  else if (child.name === 'Door_Archive_Pivot') archDoorPivot = child;
+                  else if (child.name === 'Archive_Cabinet_Door_Pivot') archiveCabPivot = child;
+                }
+              });
+
+              // Bind loaded 3D nodes to registered interactables
+              if (doorLeafMesh) {
+                doorLeafMesh.userData.isSwingingDoor = true;
+                entranceDoorObj.pivot = doorPivot || doorLeafMesh;
+                entranceDoorInteractable.rootMesh = doorLeafMesh;
+                if (entranceDoorObj.pivot) entranceDoorObj.pivot.rotation.y = entranceDoorObj.ajarAngleY;
+              }
+
+              if (archDoorMesh) {
+                archDoorMesh.userData.isSwingingDoor = true;
+                archiveDoorObj.pivot = archDoorPivot || archDoorMesh;
+                archiveDoorInteractable.rootMesh = archDoorMesh;
+                if (archiveDoorObj.pivot) archiveDoorObj.pivot.rotation.y = archiveDoorObj.closedAngleY;
+              }
+
+              if (keyMesh) {
+                keyMesh.userData.noMerge = true;
+                keyRecord.mesh = keyMesh;
+              }
+
+              if (recDrawerMesh) {
+                recDrawerInteractable.rootMesh = recDrawerMesh;
+                recDrawerInteractable.drawerGroup = recDrawerMesh;
+                recDrawerInteractable.closedX = recDrawerMesh.position.x;
+                recDrawerInteractable.closedZ = recDrawerMesh.position.z;
+                recDrawerInteractable.openX = recDrawerMesh.position.x;
+                recDrawerInteractable.openZ = recDrawerMesh.position.z + 0.35;
+              }
+
+              if (filingDrawerMesh) {
+                filingDrawerInteractable.rootMesh = filingDrawerMesh;
+                filingDrawerInteractable.drawerGroup = filingDrawerMesh;
+                filingDrawerInteractable.closedX = filingDrawerMesh.position.x;
+                filingDrawerInteractable.closedZ = filingDrawerMesh.position.z;
+                filingDrawerInteractable.openX = filingDrawerMesh.position.x;
+                filingDrawerInteractable.openZ = filingDrawerMesh.position.z - 0.35;
+              }
+
+              if (archiveCabDoorMesh) {
+                archiveCabInteractable.rootMesh = archiveCabDoorMesh;
+                archiveCabInteractable.leftPivot = archiveCabPivot || archiveCabDoorMesh;
+              }
+
+              if (rareBookMesh) {
+                rareBookInteractable.rootMesh = rareBookMesh;
+              }
+
+              if (monitorScreenMesh) {
+                terminalInteractable.rootMesh = monitorScreenMesh;
+              }
+
+              if (bankerLamp1Mesh) {
+                deskLampInteractable.rootMesh = bankerLamp1Mesh;
+                deskLampInteractable.bulbMesh = bankerBulb1Mesh;
+              }
+
+              if (switchboardMesh) {
+                switchboardInteractable.rootMesh = switchboardMesh;
+                switchboardInteractable.doorPivot = switchboardMesh;
+              }
+
+              if (interiorSwitchMesh) {
+                secondarySwitchInteractable.rootMesh = interiorSwitchMesh;
+              }
+
+              cGroup.add(blenderScene);
+              cGroup.userData.hasBlenderProductionMesh = true;
+            },
+            undefined,
+            function (err) {
+              console.warn('[Hide & Seek] Library Production GLB load fallback to procedural geometry:', err);
+            }
+          );
+        } catch (e) {
+          console.warn('[Hide & Seek] Library GLB loader error:', e);
+        }
+      }
+    }
+
     const ROOM_ARCHETYPE_BUILDERS = {
-      classroom_standard: (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 0),
-      classroom_seminar:  (cGroup, cx, cz, fy, dirZ, title, isNewari) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 1),
-      computer_lab:       (cGroup, cx, cz, fy, dirZ, title) => buildComputerLabInterior(cGroup, cx, cz, fy, dirZ, title),
+      classroom_standard: (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 0, roomDef, rw, rd, dAxis, dSign),
+      classroom_seminar:  (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildDetailedClassroomInterior(cGroup, cx, cz, fy, dirZ, title, isNewari, 1, roomDef, rw, rd, dAxis, dSign),
+      computer_lab:       (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildComputerLabInterior(cGroup, cx, cz, fy, dirZ, title, rw, rd, dAxis, dSign),
       library:            (cGroup, cx, cz, fy, dirZ, title) => buildLibraryRoomInterior(cGroup, cx, cz, fy, dirZ, title),
-      staff_office:       (cGroup, cx, cz, fy, dirZ, title) => buildStaffAdminOfficeInterior(cGroup, cx, cz, fy, dirZ, title),
+      library_production_glb: (cGroup, cx, cz, fy, dirZ, title) => buildProductionBlenderLibraryInterior(cGroup, cx, cz, fy, dirZ, title),
+      staff_office:       (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildStaffAdminOfficeInterior(cGroup, cx, cz, fy, dirZ, title, rw, rd, dAxis, dSign),
       toilets:            (cGroup, cx, cz, fy, dirZ, title) => buildToiletsRoomInterior(cGroup, cx, cz, fy, title),
-      canteen_dining:     (cGroup, cx, cz, fy, dirZ, title) => buildCanteenRoomInterior(cGroup, cx, cz, fy, title, false),
-      canteen_kitchen:    (cGroup, cx, cz, fy, dirZ, title) => buildCanteenRoomInterior(cGroup, cx, cz, fy, title, true),
+      canteen_dining:     (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildCanteenRoomInterior(cGroup, cx, cz, fy, title, false, rw, rd, dAxis, dSign),
+      canteen_kitchen:    (cGroup, cx, cz, fy, dirZ, title, isNewari, roomDef, rw, rd, dAxis, dSign) => buildCanteenRoomInterior(cGroup, cx, cz, fy, title, true, rw, rd, dAxis, dSign),
       storeroom:          (cGroup, cx, cz, fy, dirZ, title) => buildElectricalMaintenanceRoomInterior(cGroup, cx, cz, fy, title),
       electrical:         (cGroup, cx, cz, fy, dirZ, title) => buildElectricalMaintenanceRoomInterior(cGroup, cx, cz, fy, title),
     };
@@ -12348,7 +13850,10 @@ export function getHideAndSeekHtml(): string {
       const cGroup = new THREE.Group();
       cGroup.position.set(unitCenterX, floorY, unitCenterZ);
       scene.add(cGroup);
-      const roomDef = getOrRegisterRoomDefinition(unitTitle, unitCenterX, unitCenterZ, floorY, 3.8, 4.6, 'OTHER', 'classroom_standard', doorAxis, doorDirSign);
+      const isLib = (unitTitle.indexOf('East Wing R4') !== -1);
+      const halfW = isLib ? 4.8 : 3.8;
+      const halfD = isLib ? 10.75 : 4.6;
+      const roomDef = getOrRegisterRoomDefinition(unitTitle, unitCenterX, unitCenterZ, floorY, halfW, halfD, isLib ? 'R4' : 'OTHER', isLib ? 'library_production_glb' : 'classroom_standard', doorAxis, doorDirSign);
       const cCfg = (HORROR_CONFIG && HORROR_CONFIG.classroom) || {};
       if (cCfg.moods && cCfg.moods[unitTitle]) {
         roomDef.lightMood = cCfg.moods[unitTitle];
@@ -12356,78 +13861,84 @@ export function getHideAndSeekHtml(): string {
       const windowSideSignX = unitCenterX < 0 ? -1 : 1;
       const roomSeed = Math.abs(Math.round(unitCenterX * 13 + unitCenterZ * 7));
 
-      // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3 Fluorescent Tube Hoods
-      const ceilPanel = new THREE.Mesh(
-        new THREE.BoxGeometry(6.8, 0.06, 8.2),
-        isNewariStyle ? materials.carvedSalWood : materials.stainedCeilingTiles
-      );
-      ceilPanel.position.set(0, 3.38, 0);
-      cGroup.add(ceilPanel);
+      const isProductionGlb = (roomDef.archetype === 'library_production_glb');
 
-      [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz], tIdx) => {
-        const hood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
-        hood.position.set(tx, 3.30, tz);
-        cGroup.add(hood);
-        if (tIdx === 0) {
-          const steadyTube = new THREE.Mesh(tubeStripGeo, step2Mats.steadyDimTubeMat);
-          steadyTube.position.set(tx, 3.27, tz);
-          cGroup.add(steadyTube);
-        } else if (tIdx === 2) {
-          const deadTube = new THREE.Mesh(tubeStripGeo, step2Mats.deadTubeMat);
-          deadTube.position.set(tx, 3.27, tz);
-          cGroup.add(deadTube);
+      if (!isProductionGlb) {
+        // 1. Stained Acoustic Tile Ceiling Panel (or Carved Sal Wood in Newari Wing) + 3 Fluorescent Tube Hoods
+        const ceilPanel = new THREE.Mesh(
+          new THREE.BoxGeometry(6.8, 0.06, 8.2),
+          isNewariStyle ? materials.carvedSalWood : materials.stainedCeilingTiles
+        );
+        ceilPanel.position.set(0, 3.38, 0);
+        cGroup.add(ceilPanel);
+
+        [ [-1.65, -1.85], [0.95, 0.98], [-1.65, 2.05] ].forEach(([tx, tz], tIdx) => {
+          const hood = new THREE.Mesh(step2Geos.pendantTubeFixture, materials.deskSteelFrame);
+          hood.position.set(tx, 3.30, tz);
+          cGroup.add(hood);
+          if (tIdx === 2) {
+            const deadTube = new THREE.Mesh(tubeStripGeo, step2Mats.deadTubeMat);
+            deadTube.position.set(tx, 3.27, tz);
+            cGroup.add(deadTube);
+          }
+        });
+
+        // Ceiling Fan with 1 Bent Blade
+        const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.deskSteelFrame);
+        fanRod.position.set(0, 3.16, -0.4);
+        cGroup.add(fanRod);
+        const fanHub = new THREE.Group();
+        fanHub.position.set(0, 2.96, -0.4);
+        fanHub.userData.noMerge = true;
+        const bentAng = (cCfg.propDensity && cCfg.propDensity.ceilingFanBentBladeRad) || 0.28;
+        for (let b = 0; b < 3; b++) {
+          const ang = (b * Math.PI * 2) / 3;
+          const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.deskSteelFrame);
+          blade.position.set(Math.sin(ang) * 0.44, b === 0 ? -0.09 : 0.0, Math.cos(ang) * 0.44);
+          blade.rotation.y = ang;
+          if (b === 0) blade.rotation.x = bentAng;
+          blade.userData.noMerge = true;
+          fanHub.add(blade);
         }
-      });
+        cGroup.add(fanHub);
+        animatedClassroomFans.push({
+          hub: fanHub,
+          roomGroup: cGroup,
+          seed: roomSeed,
+          speed: (cCfg.propDensity && cCfg.propDensity.fanSwaySpeed) || 0.85,
+        });
 
-      // Ceiling Fan with 1 Bent Blade
-      const fanRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.38, 6), materials.deskSteelFrame);
-      fanRod.position.set(0, 3.16, -0.4);
-      cGroup.add(fanRod);
-      const fanHub = new THREE.Group();
-      fanHub.position.set(0, 2.96, -0.4);
-      fanHub.userData.noMerge = true;
-      const bentAng = (cCfg.propDensity && cCfg.propDensity.ceilingFanBentBladeRad) || 0.28;
-      for (let b = 0; b < 3; b++) {
-        const ang = (b * Math.PI * 2) / 3;
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.78), materials.deskSteelFrame);
-        blade.position.set(Math.sin(ang) * 0.44, b === 0 ? -0.09 : 0.0, Math.cos(ang) * 0.44);
-        blade.rotation.y = ang;
-        if (b === 0) blade.rotation.x = bentAng;
-        blade.userData.noMerge = true;
-        fanHub.add(blade);
+        // Working Wall Light Switch mounted right inside the room doorway
+        const swLocalX = doorAxis === 'x' ? (doorDirSign * 3.22) : 1.25;
+        const swLocalZ = doorAxis === 'z' ? (doorDirSign * 3.45) : 1.25;
+        const swRotY = doorAxis === 'x' ? (-doorDirSign * Math.PI / 2) : (doorDirSign === 1 ? Math.PI : 0);
+        buildRoomLightSwitch(cGroup, unitCenterX, floorY, unitCenterZ, swLocalX, 1.32, swLocalZ, swRotY, roomDef.id, roomDef.lightMood);
       }
-      cGroup.add(fanHub);
-      animatedClassroomFans.push({
-        hub: fanHub,
-        roomGroup: cGroup,
-        seed: roomSeed,
-        speed: (cCfg.propDensity && cCfg.propDensity.fanSwaySpeed) || 0.85,
-      });
-
-      // Working Wall Light Switch mounted right inside the room doorway
-      const swLocalX = doorAxis === 'x' ? (doorDirSign * 3.22) : 1.25;
-      const swLocalZ = doorAxis === 'z' ? (doorDirSign * 3.45) : 1.25;
-      const swRotY = doorAxis === 'x' ? (-doorDirSign * Math.PI / 2) : (doorDirSign === 1 ? Math.PI : 0);
-      buildRoomLightSwitch(cGroup, unitCenterX, floorY, unitCenterZ, swLocalX, 1.32, swLocalZ, swRotY, roomDef.id, roomDef.lightMood);
 
       // 2. Data-Driven Archetype Dispatch via ROOM_DEFINITIONS
       const builderFn = ROOM_ARCHETYPE_BUILDERS[roomDef.archetype] || ROOM_ARCHETYPE_BUILDERS.classroom_standard;
-      builderFn(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, roomDef);
+      const rw = (unitTitle.indexOf('West Wing L1') !== -1 || unitTitle.indexOf('West Wing L2') !== -1) ? 10.83 : 6.8;
+      const rd = 7.6;
+      builderFn(cGroup, unitCenterX, unitCenterZ, floorY, facingDirZ, unitTitle, isNewariStyle, roomDef, rw, rd, doorAxis, doorDirSign);
 
-      // 3. Shared Classroom Horror Decay, Props & Deterministic "Wrong" Detail
-      if (roomDef.archetype === 'classroom_standard' || roomDef.archetype === 'classroom_seminar') {
-        addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, 6.8, 8.2, windowSideSignX, roomSeed);
+      if (!isProductionGlb) {
+        // 3. Shared Classroom Horror Decay, Props & Deterministic "Wrong" Detail
+        if (roomDef.archetype === 'classroom_standard' || roomDef.archetype === 'classroom_seminar') {
+          addSharedClassroomHorrorDecayAndProps(cGroup, roomDef, unitCenterX, unitCenterZ, floorY, facingDirZ, 6.8, 8.2, windowSideSignX, roomSeed);
+        }
+
+        // 4. Deep Dark Corners & Under-Desk Baked AO + Small Clutter & Asymmetry
+        addRoomBakedAO(cGroup, 6.8, 8.2, 3.38);
+        populateRoomClutterAndAsymmetry(cGroup, 6.6, 7.8, unitCenterX * 3.1 + unitCenterZ * 7.3, false);
+
+        cGroup.userData.isRoomGroup = true;
+        bakeStaticGroup(cGroup, true);
       }
 
-      // 4. Deep Dark Corners & Under-Desk Baked AO + Small Clutter & Asymmetry
-      addRoomBakedAO(cGroup, 6.8, 8.2, 3.38);
-      populateRoomClutterAndAsymmetry(cGroup, 6.6, 7.8, unitCenterX * 3.1 + unitCenterZ * 7.3, false);
-
-      cGroup.userData.isRoomGroup = true;
-      bakeStaticGroup(cGroup, true);
-
-      // 5. Per-Room Light Mood Fixtures, Stuttering Tube, Spill Gradients, Window Shafts & Dust Motes
-      applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, 6.8, 8.2, windowSideSignX);
+      if (!isProductionGlb) {
+        // 5. Per-Room Light Mood Fixtures, Stuttering Tube, Spill Gradients, Window Shafts & Dust Motes
+        applyRoomLightMoodFixtures(cGroup, roomDef, unitCenterX, floorY, unitCenterZ, 6.8, 8.2, windowSideSignX);
+      }
 
       cGroup.userData.roomDef = roomDef;
       roomVisibilityList.push({
@@ -12647,18 +14158,21 @@ export function getHideAndSeekHtml(): string {
 
       // Enterable Classrooms along doorSideX
       const doorWallX = cx + doorSideX * (width / 2);
-      const numRooms = length >= 26 ? 3 : 2;
+      const isLibraryWing = (blockLabel === 'East Wing R4');
+      const numRooms = isLibraryWing ? 1 : (length >= 26 ? 3 : 2);
       const roomLen = length / numRooms;
       const doorW = 1.9;
       const doorZCoords = [];
 
-      for (let i = 1; i < numRooms; i++) {
-        const pZ = cz - length / 2 + roomLen * i;
-        buildWallSegment(cx, floorH, pZ, width - 0.32, wallH, wallT, materials.campusStucco);
+      if (!isLibraryWing) {
+        for (let i = 1; i < numRooms; i++) {
+          const pZ = cz - length / 2 + roomLen * i;
+          buildWallSegment(cx, floorH, pZ, width - 0.32, wallH, wallT, materials.campusStucco);
+        }
       }
 
       for (let rIdx = 0; rIdx < numRooms; rIdx++) {
-        const rCenterZ = cz - length / 2 + roomLen * (rIdx + 0.5);
+        const rCenterZ = isLibraryWing ? cz : (cz - length / 2 + roomLen * (rIdx + 0.5));
         doorZCoords.push(rCenterZ);
         const flankLen = (roomLen - doorW) / 2;
 
@@ -12677,20 +14191,22 @@ export function getHideAndSeekHtml(): string {
         // Door frame jamb colliders (leaves 1.66m clear walkable opening)
         addDoorFrameColliders(doorWallX, floorH, rCenterZ, doorW, wallT, true);
 
-        // Swinging wooden door leaf opened into the room with brass handle & room plaque
-        buildSwingingDoor(
-          scene,
-          doorWallX - doorSideX * 0.16,
-          floorH,
-          rCenterZ - doorW * 0.46,
-          doorSideX === -1 ? 0.35 : (Math.PI - 0.35),
-          materials.gandakiBluePole,
-          'door-' + blockLabel + '-r' + (rIdx + 1)
-        );
+        if (!isLibraryWing) {
+          // Swinging wooden door leaf opened into the room with brass handle & room plaque
+          buildSwingingDoor(
+            scene,
+            doorWallX - doorSideX * 0.16,
+            floorH,
+            rCenterZ - doorW * 0.46,
+            doorSideX === -1 ? 0.35 : (Math.PI - 0.35),
+            materials.gandakiBluePole,
+            'door-' + blockLabel + '-r' + (rIdx + 1)
+          );
+        }
 
         if (flankLen > 1.8) {
-          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ - doorW / 2 - flankLen / 2, 0, rIdx === 0, doorSideX);
-          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ + doorW / 2 + flankLen / 2, 0, false, doorSideX);
+          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ - doorW / 2 - flankLen / 2, 0, (rIdx % 2 === 0), doorSideX);
+          buildDetailedWindow(doorWallX + doorSideX * 0.14, floorH + 1.9, rCenterZ + doorW / 2 + flankLen / 2, 0, (rIdx % 3 !== 1), doorSideX);
         }
 
         populateClassroomUnit(cx, rCenterZ, floorH, 1, blockLabel + ' Room ' + (rIdx + 1), false, 'x', doorSideX);
@@ -12825,8 +14341,8 @@ export function getHideAndSeekHtml(): string {
           doorArch.position.set(roomCenterX, floorH + wallH - 0.92, frontZ);
           scene.add(doorArch);
           if (sideSegW > 2.2) {
-            buildDetailedWindow(roomCenterX - doorW / 2 - sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, roomIdx === 0);
-            buildDetailedWindow(roomCenterX + doorW / 2 + sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, false);
+            buildDetailedWindow(roomCenterX - doorW / 2 - sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, (roomIdx % 2 === 0));
+            buildDetailedWindow(roomCenterX + doorW / 2 + sideSegW * 0.5, floorH + 1.9, frontZ + doorSide * 0.14, doorSide, (roomIdx % 3 === 0));
           }
         }
 
@@ -12931,9 +14447,9 @@ export function getHideAndSeekHtml(): string {
 
       for (let wx = cx - width / 2 + 4.5; wx <= cx + width / 2 - 4.5; wx += 6.5) {
         if (Math.abs(wx - cx) > 2.4) {
-          buildDetailedWindow(wx, floorH + 1.85, frontZ + doorSide * 0.14, doorSide, false);
+          buildDetailedWindow(wx, floorH + 1.85, frontZ + doorSide * 0.14, doorSide, (Math.round(wx) % 2 === 0));
         }
-        buildDetailedWindow(wx, floorH + 1.85, backZ - doorSide * 0.14, -doorSide, false);
+        buildDetailedWindow(wx, floorH + 1.85, backZ - doorSide * 0.14, -doorSide, (Math.round(wx) % 3 === 0));
       }
 
       getOrRegisterRoomDefinition(blockLabel + ' Room 1', cx, cz, floorH, width * 0.5 - 0.4, depth * 0.5 - 0.4, 'BLDG_15', 'computer_lab', 'z', doorSide);
@@ -13054,30 +14570,34 @@ export function getHideAndSeekHtml(): string {
        1. GROUND AREAS, TERRACE PLATFORM, RETAINING WALLS & ROADS FROM JSON
           Single Source of Truth: /semester-library/gandaki-campus-layout.json
        ========================================================================= */
-    // Seamless Organic Dark Night Ground & Asphalt Micro-Grain Textures (Zero 16x16 pixel grid squares!)
+    // Seamless Organic Dark Loam Night Ground & Rain-Slicked Asphalt Textures (Ref Photos 1 & 2)
     const naturalGroundTex = createProceduralTexture(1024, 1024, (ctx) => {
-      ctx.fillStyle = '#28302c';
+      ctx.fillStyle = '#1e2621';
       ctx.fillRect(0, 0, 1024, 1024);
-      // Soft overlapping organic soil/moss/slate clouds instead of hard pixel squares
-      for (let i = 0; i < 140; i++) {
+      // Soft overlapping organic mountain soil, humus, and nocturnal moss patches
+      for (let i = 0; i < 160; i++) {
         const cx = (i * 173) % 1024;
         const cy = (i * 289) % 1024;
-        const rad = 64 + (i % 72);
+        const rad = 56 + (i % 84);
         const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, rad);
-        if (i % 2 === 0) {
-          g.addColorStop(0.0, 'rgba(56, 66, 60, 0.16)');
-          g.addColorStop(1.0, 'rgba(56, 66, 60, 0.0)');
+        if (i % 3 === 0) {
+          g.addColorStop(0.0, 'rgba(44, 62, 48, 0.22)'); // rich nocturnal mossy turf
+          g.addColorStop(1.0, 'rgba(44, 62, 48, 0.0)');
+        } else if (i % 3 === 1) {
+          g.addColorStop(0.0, 'rgba(38, 48, 40, 0.20)'); // fertile dark loam
+          g.addColorStop(1.0, 'rgba(38, 48, 40, 0.0)');
         } else {
-          g.addColorStop(0.0, 'rgba(18, 24, 21, 0.18)');
-          g.addColorStop(1.0, 'rgba(18, 24, 21, 0.0)');
+          g.addColorStop(0.0, 'rgba(14, 18, 15, 0.24)'); // moist humus shadow
+          g.addColorStop(1.0, 'rgba(14, 18, 15, 0.0)');
         }
         ctx.fillStyle = g;
         ctx.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
       }
+      // Fine mineral loam and rounded river-gravel specks
       for (let i = 0; i < 9000; i++) {
         const gx = (i * 197 + (i % 7) * 13) % 1024;
         const gy = (i * 353 + (i % 11) * 19) % 1024;
-        ctx.fillStyle = (i % 3 === 0) ? 'rgba(145, 160, 152, 0.05)' : 'rgba(10, 14, 12, 0.08)';
+        ctx.fillStyle = (i % 3 === 0) ? 'rgba(155, 172, 162, 0.06)' : 'rgba(10, 15, 12, 0.09)';
         ctx.fillRect(gx, gy, 2, 2);
       }
     }, 'natural-compound-ground-seamless-1024');
@@ -13086,13 +14606,34 @@ export function getHideAndSeekHtml(): string {
     naturalGroundTex.repeat.set(1, 1);
 
     const asphaltRoadTex = createProceduralTexture(512, 512, (ctx) => {
-      ctx.fillStyle = '#141920';
+      // Clean, natural rain-slicked dark tarmac (Ref Photo 1)
+      ctx.fillStyle = '#1c232c';
       ctx.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 5500; i++) {
+
+      // Soft moisture sheen gradients catching streetlamp reflections
+      for (let i = 0; i < 40; i++) {
+        const px = (i * 137) % 512;
+        const py = (i * 239) % 512;
+        const pr = 45 + (i % 55);
+        const g = ctx.createRadialGradient(px, py, 2, px, py, pr);
+        g.addColorStop(0.0, 'rgba(46, 58, 72, 0.16)');
+        g.addColorStop(1.0, 'rgba(46, 58, 72, 0.0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(px - pr, py - pr, pr * 2, pr * 2);
+      }
+
+      // Multi-scale crushed stone aggregate & bituminous binder
+      for (let i = 0; i < 6500; i++) {
         const ax = (i * 131 + (i % 5) * 7) % 512;
         const ay = (i * 257 + (i % 9) * 11) % 512;
-        ctx.fillStyle = (i % 2 === 0) ? 'rgba(110, 125, 142, 0.05)' : 'rgba(5, 8, 12, 0.10)';
-        ctx.fillRect(ax, ay, 2, 2);
+        if (i % 3 === 0) {
+          ctx.fillStyle = 'rgba(125, 144, 164, 0.08)'; // quartz fleck
+        } else if (i % 3 === 1) {
+          ctx.fillStyle = 'rgba(8, 12, 16, 0.14)'; // tar pore
+        } else {
+          ctx.fillStyle = 'rgba(64, 76, 90, 0.06)'; // granite grain
+        }
+        ctx.fillRect(ax, ay, (i % 5 === 0) ? 2 : 1.5, (i % 5 === 0) ? 2 : 1.5);
       }
     }, 'campus-asphalt-road-seamless-512');
     asphaltRoadTex.wrapS = THREE.RepeatWrapping;
@@ -13101,34 +14642,35 @@ export function getHideAndSeekHtml(): string {
     materials.asphaltRoad = new THREE.MeshStandardMaterial({
       map: asphaltRoadTex,
       bumpMap: asphaltRoadTex,
-      bumpScale: 0.010,
-      color: 0x1a2028,
-      roughness: 0.86,
-      metalness: 0.06,
+      bumpScale: 0.003,
+      color: 0x242a32,
+      roughness: 0.76,
+      metalness: 0.0,
     });
     materials.lowerGroundDirtGravel = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,
       bumpMap: naturalGroundTex,
-      bumpScale: 0.014,
-      color: 0x1e2522,
-      roughness: 0.92,
-      metalness: 0.02,
+      bumpScale: 0.012,
+      color: 0x263028,
+      roughness: 0.88,
+      metalness: 0.0,
     });
     materials.terraceConcrete = new THREE.MeshStandardMaterial({
-      map: naturalGroundTex,
-      bumpMap: naturalGroundTex,
-      bumpScale: 0.012,
-      color: 0x2c343a,
-      roughness: 0.88,
-      metalness: 0.03,
+      map: paverTex.map,
+      bumpMap: paverTex.bumpMap,
+      bumpScale: 0.005,
+      roughnessMap: paverTex.roughnessMap,
+      color: 0x484d54,
+      roughness: 0.72,
+      metalness: 0.0,
     });
     materials.retainingRubbleStone = new THREE.MeshStandardMaterial({
       map: riverStoneTex.map,
       bumpMap: riverStoneTex.bumpMap,
-      bumpScale: 0.06,
-      color: 0x222930,
-      roughness: 0.88,
-      metalness: 0.04,
+      bumpScale: 0.04,
+      color: 0x303a42,
+      roughness: 0.85,
+      metalness: 0.0,
     });
 
     // Authoritative 128x128 Sculpted Terrain Heightmap Mesh from gandaki-campus-layout.json
@@ -13181,11 +14723,11 @@ export function getHideAndSeekHtml(): string {
     const sculptedTerrainMat = new THREE.MeshStandardMaterial({
       map: naturalGroundTex,
       bumpMap: naturalGroundTex,
-      bumpScale: 0.014,
-      color: 0x546066,
+      bumpScale: 0.010,
+      color: 0x505e57,
       vertexColors: true,
       roughness: 0.88,
-      metalness: 0.03,
+      metalness: 0.0,
     });
 
     const terrainMesh = new THREE.Mesh(terrainGeo, sculptedTerrainMat);
@@ -14065,11 +15607,11 @@ export function getHideAndSeekHtml(): string {
       floorY: 0.54,
       stepHeights: [0.18, 0.36],
       interiorCutoffDistance: 25.0,
-      mossAmountA: 0.65,
-      mossAmountB: 0.92,
-      glassBreakageA: 0.35,
-      glassBreakageB: 0.72,
-      vineCountUltra: 14,
+      mossAmountA: 0.0,
+      mossAmountB: 0.0,
+      glassBreakageA: 0.0,
+      glassBreakageB: 0.0,
+      vineCountUltra: 0,
       plateNumberA: 'ग १ ख ९४९१',
       plateNumberB: 'ग १ ख ७२६२',
       routeSignDevanagari: 'पोखरा',
@@ -14079,25 +15621,25 @@ export function getHideAndSeekHtml(): string {
       doorOpenAngleB: 0.42,
     };
 
-    // ── 1:1 PHOTO-ACCURATE ASHOK LEYLAND HORROR COACH TEXTURE SUITE (IMG_6025 3.JPG) ──
-    // Dedicated UV-mapped procedural textures so every panel, decal, shattered pane, and vine matches the reference photo.
+    // ── 1:1 PHOTO-ACCURATE ASHOK LEYLAND CAMPUS COACH TEXTURE SUITE (Ref Photos 1 & 2) ──
+    // Dedicated UV-mapped procedural textures with clean university livery matching the reference photos.
     function createBusMasterAtlasTex() {
       const canvas = document.createElement('canvas');
       canvas.width = 2048;
       canvas.height = 1024;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // Base weathered ochre-yellow coach paint (#b9851e)
-        ctx.fillStyle = '#b9851e';
+        // Base vibrant ochre-yellow coach paint
+        ctx.fillStyle = '#dca026';
         ctx.fillRect(0, 0, 2048, 1024);
 
         // ── BAND 1 (Y: 0..420): FULL SIDE WAIST LIVERY ("GANDAKI [Crest] UNIVERSITY", Navy Stripes, Riveted Seams, Access Hatches, Yellow Notice Boards) ──
         const sideGrad = ctx.createLinearGradient(0, 0, 0, 420);
-        sideGrad.addColorStop(0.0, '#8f6312');
-        sideGrad.addColorStop(0.12, '#c48f24');
-        sideGrad.addColorStop(0.68, '#a67418');
-        sideGrad.addColorStop(0.88, '#6e490c');
-        sideGrad.addColorStop(1.0, '#2e1d08');
+        sideGrad.addColorStop(0.0, '#a5781a');
+        sideGrad.addColorStop(0.12, '#deb036');
+        sideGrad.addColorStop(0.68, '#c89524');
+        sideGrad.addColorStop(0.88, '#926310');
+        sideGrad.addColorStop(1.0, '#4e3309');
         ctx.fillStyle = sideGrad;
         ctx.fillRect(0, 0, 2048, 420);
 
@@ -14221,48 +15763,39 @@ export function getHideAndSeekHtml(): string {
         ctx.font = 'bold 12px sans-serif';
         ctx.fillText('CAMPUS SHUTTLE', 1842, 118);
 
-        // Heavy rain-runoff grime streaks, rust patches, and green moss stains across Band 1
-        for (let i = 0; i < 260; i++) {
-          const rx = (i * 89) % 2048;
-          const ry = (i * 53) % 400;
-          const rw = 6 + (i % 34);
-          const rh = 14 + (i % 65);
-          if (i % 3 === 0) {
-            ctx.fillStyle = 'rgba(42, 64, 20, 0.52)'; // green moss/algae patch
-          } else if (i % 3 === 1) {
-            ctx.fillStyle = 'rgba(72, 34, 10, 0.44)'; // rust patch
-          } else {
-            ctx.fillStyle = 'rgba(22, 16, 10, 0.36)'; // vertical soot/grime streak
-          }
+        // Clean, well-maintained bus finish with subtle automotive panel highlights
+        for (let i = 0; i < 40; i++) {
+          const rx = (i * 127) % 2048;
+          const ry = (i * 61) % 400;
+          const rw = 16 + (i % 24);
+          const rh = 8 + (i % 16);
+          ctx.fillStyle = 'rgba(255, 240, 200, 0.05)';
           ctx.fillRect(rx, ry, rw, rh);
         }
 
-        // ── BAND 2 (Y: 430..740): GENERAL WEATHERED YELLOW PAINT (Left: 0..1024) & SIGNAGE / PLATES (Right: 1024..2048) ──
+        // ── BAND 2 (Y: 430..740): GENERAL WARM YELLOW COACH PAINT (Left: 0..1024) & SIGNAGE / PLATES (Right: 1024..2048) ──
         const bodyGrad = ctx.createLinearGradient(0, 430, 0, 740);
-        bodyGrad.addColorStop(0.0, '#7c5813');
-        bodyGrad.addColorStop(0.25, '#bd8920');
-        bodyGrad.addColorStop(0.75, '#9b6c15');
-        bodyGrad.addColorStop(1.0, '#4f3409');
+        bodyGrad.addColorStop(0.0, '#a47718');
+        bodyGrad.addColorStop(0.25, '#d49b26');
+        bodyGrad.addColorStop(0.75, '#be871e');
+        bodyGrad.addColorStop(1.0, '#734e0c');
         ctx.fillStyle = bodyGrad;
         ctx.fillRect(0, 430, 1024, 310);
-        for (let i = 0; i < 160; i++) {
-          ctx.fillStyle = i % 2 === 0 ? 'rgba(48, 68, 22, 0.45)' : 'rgba(64, 32, 10, 0.42)';
-          ctx.fillRect((i * 67) % 1000, 435 + ((i * 39) % 290), 12 + (i % 28), 10 + (i % 32));
+        for (let i = 0; i < 30; i++) {
+          ctx.fillStyle = 'rgba(255, 230, 160, 0.04)';
+          ctx.fillRect((i * 67) % 1000, 435 + ((i * 39) % 290), 20 + (i % 20), 12 + (i % 16));
         }
 
         // Top Destination Board (X: 1040..1820, Y: 440..545): "GP62 | GANDAKI UNIVERSITY"
-        ctx.fillStyle = '#22262c';
+        ctx.fillStyle = '#1e242d';
         ctx.fillRect(1040, 440, 780, 105);
         ctx.strokeStyle = '#94a3b8';
         ctx.lineWidth = 6;
         ctx.strokeRect(1044, 444, 772, 97);
-        ctx.fillStyle = '#cbd5e1';
+        ctx.fillStyle = '#e2e8f0';
         ctx.font = 'bold 54px "Arial Narrow", sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText((busConfig.fleetCodeA || 'GP62') + '  |  GANDAKI UNIVERSITY', 1068, 512);
-        // Moss stain over left GP62 corner
-        ctx.fillStyle = 'rgba(48, 72, 22, 0.58)';
-        ctx.fillRect(1048, 446, 175, 48);
 
         // Roof Cant-Rail Fleet Stencil "GP62" (X: 1840..2030, Y: 445..535)
         ctx.fillStyle = '#b07e1b';
@@ -14328,17 +15861,18 @@ export function getHideAndSeekHtml(): string {
         ctx.font = 'bold 36px sans-serif';
         ctx.fillText('गण्डकी • पोखरा', 1830, 710);
 
-        // ── BAND 3 (Y: 750..1024): INTERIOR TORN BLUE-GREEN SEAT VINYL (Left) & RIBBED RUBBER FLOOR MAT (Right) ──
-        ctx.fillStyle = '#2b474b';
+        // ── BAND 3 (Y: 750..1024): INTERIOR CLEAN BLUE-GREEN SEAT FABRIC (Left) & RIBBED RUBBER FLOOR MAT (Right) ──
+        ctx.fillStyle = '#1e333a';
         ctx.fillRect(0, 750, 1024, 274);
-        for (let i = 0; i < 120; i++) {
-          ctx.fillStyle = i % 2 === 0 ? 'rgba(148, 136, 114, 0.36)' : 'rgba(16, 26, 28, 0.48)';
-          ctx.fillRect((i * 53) % 990, 755 + ((i * 29) % 250), 18 + (i % 24), 12 + (i % 18));
+        for (let i = 0; i < 60; i++) {
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(38, 58, 64, 0.45)' : 'rgba(18, 30, 36, 0.45)';
+          ctx.fillRect((i * 53) % 990, 755 + ((i * 29) % 250), 22 + (i % 20), 16 + (i % 16));
         }
-        // Exposed yellow foam gashes on torn seats
-        ctx.fillStyle = '#8c7248';
-        ctx.fillRect(180, 810, 22, 95);
-        ctx.fillRect(640, 835, 28, 84);
+        // Neat stitched seam accent along cushions
+        ctx.strokeStyle = 'rgba(70, 100, 115, 0.40)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(40, 780, 440, 200);
+        ctx.strokeRect(520, 780, 440, 200);
 
         // Ribbed dark rubber floor mat (X: 1024..2048, Y: 750..1024)
         ctx.fillStyle = '#1c1e21';
@@ -14355,7 +15889,7 @@ export function getHideAndSeekHtml(): string {
       return tex;
     }
 
-    // Dedicated Shattered Windshield & Broken Side Window Texture with Alpha Cutout Holes
+    // Clean Architectural Vehicle Glass Texture with Clear Stencils (Ref Photos 1 & 2)
     function createBusShatteredGlassTex() {
       const canvas = document.createElement('canvas');
       canvas.width = 1024;
@@ -14363,66 +15897,29 @@ export function getHideAndSeekHtml(): string {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, 1024, 512);
-        // Base dirty smoky glass fill
-        ctx.fillStyle = 'rgba(44, 50, 56, 0.82)';
+        // Clean tinted translucent safety glass
+        ctx.fillStyle = 'rgba(28, 40, 54, 0.72)';
         ctx.fillRect(0, 0, 1024, 512);
 
-        // Grime streaks & dust mottling on glass
-        for (let i = 0; i < 180; i++) {
-          ctx.fillStyle = i % 2 === 0 ? 'rgba(96, 88, 74, 0.34)' : 'rgba(18, 22, 26, 0.42)';
-          ctx.fillRect((i * 47) % 1024, (i * 31) % 512, 16 + (i % 36), 24 + (i % 48));
-        }
+        // Soft ambient reflection gradient across glass panes
+        const gGrad = ctx.createLinearGradient(0, 0, 0, 512);
+        gGrad.addColorStop(0.0, 'rgba(160, 195, 230, 0.15)');
+        gGrad.addColorStop(0.5, 'rgba(60, 90, 120, 0.05)');
+        gGrad.addColorStop(1.0, 'rgba(20, 35, 50, 0.18)');
+        ctx.fillStyle = gGrad;
+        ctx.fillRect(0, 0, 1024, 512);
 
-        // Left Windshield Pane (X: 0..320, Y: 0..512): Top "GANDAKI" Stencil + Bottom Sinhala/Nepali Stencil + Jagged Center Hole
-        ctx.fillStyle = 'rgba(226, 232, 240, 0.86)';
+        // Left Windshield Pane (X: 0..320, Y: 0..512): Top "GANDAKI" Stencil + Bottom Nepali Stencil
+        ctx.fillStyle = 'rgba(235, 242, 250, 0.90)';
         ctx.font = 'bold 48px "Arial Narrow", sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('GANDAKI', 160, 74);
         ctx.font = 'bold 18px sans-serif';
         ctx.fillText('गण्डकी विश्वविद्यालय - १२००', 160, 478);
 
-        // Right Windshield Pane (X: 320..640, Y: 0..512): Top "UNIVERSITY" Stencil + Jagged Center Hole
+        // Right Windshield Pane (X: 320..640, Y: 0..512): Top "UNIVERSITY" Stencil
         ctx.font = 'bold 46px "Arial Narrow", sans-serif';
         ctx.fillText('UNIVERSITY', 480, 74);
-
-        // Punch out jagged shattered holes (alpha = 0) in Left Windshield, Right Windshield, and Broken Side Window Pane (X: 640..832)
-        ctx.save();
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(0,0,0,1)';
-        [
-          // Left windshield jagged hole
-          [[58, 130], [115, 108], [185, 122], [255, 112], [272, 210], [248, 340], [268, 420], [190, 438], [112, 425], [48, 390], [66, 260]],
-          // Right windshield jagged hole
-          [[368, 126], [440, 104], [528, 118], [595, 135], [582, 265], [602, 395], [535, 432], [445, 418], [362, 405], [380, 275]],
-          // Broken side window pane hole (X: 640..832)
-          [[675, 150], [735, 115], [798, 155], [812, 275], [785, 395], [720, 415], [668, 365], [658, 245]],
-        ].forEach(poly => {
-          ctx.beginPath();
-          poly.forEach(([px, py], idx) => {
-            if (idx === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-          });
-          ctx.closePath();
-          ctx.fill();
-        });
-        ctx.restore();
-
-        // Draw bright fracture crack lines around the jagged hole perimeters
-        ctx.strokeStyle = 'rgba(203, 213, 225, 0.75)';
-        ctx.lineWidth = 2.5;
-        [
-          [[58, 130], [115, 108], [185, 122], [255, 112], [272, 210], [248, 340], [268, 420], [190, 438], [112, 425], [48, 390], [66, 260]],
-          [[368, 126], [440, 104], [528, 118], [595, 135], [582, 265], [602, 395], [535, 432], [445, 418], [362, 405], [380, 275]],
-          [[675, 150], [735, 115], [798, 155], [812, 275], [785, 395], [720, 415], [668, 365], [658, 245]],
-        ].forEach(poly => {
-          ctx.beginPath();
-          poly.forEach(([px, py], idx) => {
-            if (idx === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-          });
-          ctx.closePath();
-          ctx.stroke();
-        });
       }
       const tex = new THREE.CanvasTexture(canvas);
       tex.needsUpdate = true;
@@ -14437,39 +15934,26 @@ export function getHideAndSeekHtml(): string {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, 512, 512);
-        // Top half (Y: 0..260): Dense moss mat with irregular organic lower fringe
-        for (let i = 0; i < 420; i++) {
-          const mx = (i * 37) % 512;
-          const my = (i * 19) % 210;
-          const mr = 8 + (i % 18);
-          ctx.fillStyle = i % 3 === 0 ? '#2d4418' : (i % 3 === 1 ? '#3f5c22' : '#1e2f0f');
-          ctx.beginPath();
-          ctx.arc(mx, my, mr, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        // Hanging vine stems & pointed ivy/creeper leaves (Y: 40..500)
-        for (let s = 0; s < 18; s++) {
-          const baseX = 14 + s * 28;
-          const maxLen = 220 + ((s * 67) % 260);
+        // Soft lush creeping vine stems & pointed leaves
+        for (let s = 0; s < 12; s++) {
+          const baseX = 24 + s * 40;
+          const maxLen = 140 + ((s * 53) % 180);
           ctx.strokeStyle = '#263814';
-          ctx.lineWidth = 3.5;
+          ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.moveTo(baseX, 20);
-          for (let y = 40; y <= maxLen; y += 24) {
-            const sway = Math.sin(y * 0.04 + s) * 10;
+          ctx.moveTo(baseX, 10);
+          for (let y = 30; y <= maxLen; y += 24) {
+            const sway = Math.sin(y * 0.04 + s) * 8;
             ctx.lineTo(baseX + sway, y);
           }
           ctx.stroke();
 
-          // Pointed creeper leaves along each stem
-          for (let y = 36; y <= maxLen; y += 16) {
-            const sway = Math.sin(y * 0.04 + s) * 10;
-            const lx = baseX + sway + ((y % 32 === 0) ? -9 : 9);
-            const lw = 11 + ((s + y) % 9);
-            const lh = 15 + ((s * 3 + y) % 10);
-            ctx.fillStyle = (y + s) % 3 === 0 ? '#3a571f' : ((y + s) % 3 === 1 ? '#4d6b28' : '#243812');
+          for (let y = 30; y <= maxLen; y += 18) {
+            const sway = Math.sin(y * 0.04 + s) * 8;
+            const lx = baseX + sway + ((y % 36 === 0) ? -8 : 8);
+            ctx.fillStyle = (y + s) % 2 === 0 ? '#385621' : '#496c2a';
             ctx.beginPath();
-            ctx.ellipse(lx, y, lw * 0.55, lh * 0.55, ((y % 32 === 0) ? -0.45 : 0.45), 0, Math.PI * 2);
+            ctx.ellipse(lx, y, 6, 8, ((y % 36 === 0) ? -0.4 : 0.4), 0, Math.PI * 2);
             ctx.fill();
           }
         }
@@ -14481,7 +15965,7 @@ export function getHideAndSeekHtml(): string {
       return tex;
     }
 
-    // Procedural Sheet-Metal Dent, Rivet & Rust-Pit Bump/Roughness Map (512x256)
+    // Procedural Sheet-Metal Seams & Rivet Row Bump Map (512x256)
     function createBusDentBumpTex() {
       const canvas = document.createElement('canvas');
       canvas.width = 512;
@@ -14492,22 +15976,13 @@ export function getHideAndSeekHtml(): string {
         ctx.fillRect(0, 0, 512, 256);
         // Vertical panel seams & raised rivet rows
         for (let x = 32; x < 512; x += 64) {
-          ctx.fillStyle = '#383838';
+          ctx.fillStyle = '#484848';
           ctx.fillRect(x, 0, 2, 256);
-          ctx.fillStyle = '#d8d8d8';
+          ctx.fillStyle = '#c0c0c0';
           for (let y = 8; y < 256; y += 14) {
             ctx.fillRect(x - 3, y, 2, 2);
             ctx.fillRect(x + 2, y, 2, 2);
           }
-        }
-        // Concave sheet-metal dents, impact creases & rust pitting
-        for (let i = 0; i < 95; i++) {
-          const dx = (i * 59) % 490;
-          const dy = (i * 41) % 240;
-          const dw = 10 + (i % 28);
-          const dh = 6 + (i % 22);
-          ctx.fillStyle = i % 2 === 0 ? 'rgba(28,28,28,0.55)' : 'rgba(215,215,215,0.45)';
-          ctx.fillRect(dx, dy, dw, dh);
         }
       }
       const tex = new THREE.CanvasTexture(canvas);
@@ -14522,21 +15997,21 @@ export function getHideAndSeekHtml(): string {
     const busFoliageVineTex = createBusFoliageVineTex();
     const busDentBumpTex = createBusDentBumpTex();
 
-    // Shared Bus Materials (with real bump-mapped sheet-metal dents & rivets)
+    // Shared Bus Materials (with clean automotive specular response matching Ref Photos 1 & 2)
     const busExteriorPaintMat = new THREE.MeshStandardMaterial({
-      color: 0xd8a63a,
+      color: 0xdfa028,
       map: busMasterAtlasTex,
       bumpMap: busDentBumpTex,
-      bumpScale: 0.046,
-      roughness: 0.74,
-      metalness: 0.22,
+      bumpScale: 0.018,
+      roughness: 0.42, // Smooth automotive paint reflecting streetlamps
+      metalness: 0.18,
     });
     const busDarkTrimMat = new THREE.MeshStandardMaterial({
-      color: 0x1a2028,
+      color: 0x181e26,
       bumpMap: busDentBumpTex,
-      bumpScale: 0.025,
-      roughness: 0.64,
-      metalness: 0.42,
+      bumpScale: 0.016,
+      roughness: 0.54,
+      metalness: 0.38,
     });
     const busChromeTrimMat = new THREE.MeshStandardMaterial({
       color: 0xc8d2dc,
@@ -14544,24 +16019,23 @@ export function getHideAndSeekHtml(): string {
       metalness: 0.84,
     });
     const busDirtyGlassMat = new THREE.MeshStandardMaterial({
-      color: 0xdbe4ee,
+      color: 0xc4d8e8,
       map: busShatteredGlassTex,
-      roughness: 0.22,
-      metalness: 0.18,
+      roughness: 0.12,
+      metalness: 0.22,
       transparent: true,
-      alphaTest: 0.18,
-      opacity: 0.86,
+      opacity: 0.60,
       side: THREE.DoubleSide,
     });
     const busMossVineMat = new THREE.MeshStandardMaterial({
       color: 0x84a955,
       map: busFoliageVineTex,
       bumpMap: busFoliageVineTex,
-      bumpScale: 0.035,
-      roughness: 0.92,
+      bumpScale: 0.02,
+      roughness: 0.90,
       metalness: 0.04,
-      alphaTest: 0.24,
       transparent: true,
+      opacity: 0.0, // Bus kept clean and well maintained as in reference photos
       side: THREE.DoubleSide,
     });
     const busHeadlightEmissiveMat = new THREE.MeshStandardMaterial({
@@ -14576,7 +16050,7 @@ export function getHideAndSeekHtml(): string {
       emissiveIntensity: 0.55,
       roughness: 0.32,
     });
-    // Blinking Warm Amber & Blood-Red Horror Ceiling Tube Materials
+    // Warm Welcoming Interior Bus Lighting Materials
     const busWarmTubeBaseMat = new THREE.MeshStandardMaterial({
       color: 0xffe4b5,
       emissive: 0xff9922,
@@ -14584,9 +16058,9 @@ export function getHideAndSeekHtml(): string {
       roughness: 0.25,
     });
     const busRedTubeBaseMat = new THREE.MeshStandardMaterial({
-      color: 0xffb4b4,
-      emissive: 0xff1e1e,
-      emissiveIntensity: 1.45,
+      color: 0xffedd0,
+      emissive: 0xffa836,
+      emissiveIntensity: 1.35,
       roughness: 0.25,
     });
     const busWarmGlowBaseMat = new THREE.MeshBasicMaterial({
@@ -14597,9 +16071,9 @@ export function getHideAndSeekHtml(): string {
       side: THREE.DoubleSide,
     });
     const busRedGlowBaseMat = new THREE.MeshBasicMaterial({
-      color: 0xef4444,
+      color: 0xffa234,
       transparent: true,
-      opacity: 0.16,
+      opacity: 0.12,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
@@ -18090,16 +19564,16 @@ export function getHideAndSeekHtml(): string {
             'vec3 tipCol  = vec3(0.86, 0.24, 0.04);\\n' +
             'vec3 fCol = mix(coreCol, midCol, smoothstep(0.0, 0.52, vFlameH));\\n' +
             'fCol = mix(fCol, tipCol, smoothstep(0.52, 1.0, vFlameH));\\n' +
-            'diffuseColor.rgb = fCol * vFlicker;'
+            'diffuseColor.rgb = fCol * vFlicker * 1.55;'
           );
         };
 
         // Warm 1950K Surface Light Pool Material for Clay Diyos (mediump-safe GPU non-synchronized pulse)
         this.diyoPoolMat = new THREE.MeshBasicMaterial({
           map: this.diyoPoolTex,
-          color: 0xff9830,
+          color: 0xff9a32,
           transparent: true,
-          opacity: 0.42,
+          opacity: 0.48,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
           polygonOffset: true,
@@ -18168,7 +19642,7 @@ export function getHideAndSeekHtml(): string {
           shader.fragmentShader = shader.fragmentShader.replace(
             '#include <color_fragment>',
             '#include <color_fragment>\\n' +
-            'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 0.98, 0.90), 0.28) * vTwinkle * uElectricPower;'
+            'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 0.98, 0.92), 0.32) * vTwinkle * uElectricPower * 1.45;'
           );
         };
 
@@ -18244,7 +19718,7 @@ export function getHideAndSeekHtml(): string {
         this.diyoPoolGeo = new THREE.PlaneGeometry(0.85, 0.85).clone();
         this.diyoPoolGeo.rotateX(-Math.PI / 2);
 
-        this.maxDiyos = 750;
+        this.maxDiyos = 1600;
         this.diyoCount = 0;
         this.poolCount = 0;
 
@@ -18267,10 +19741,11 @@ export function getHideAndSeekHtml(): string {
         this.rootGroup.add(this.instDiyoPools);
 
         // D. Jhilimili Electric String Light Bulbs (Individual LED bulbs with per-instance color)
-        this.bulbGeo = new THREE.SphereGeometry(0.036, 6, 5).clone();
-        this.maxBulbs = 2400;
+        this.bulbGeo = new THREE.SphereGeometry(0.052, 6, 5).clone();
+        this.maxBulbs = 4500;
         this.bulbCount = 0;
         this.instJhilimiliBulbs = new THREE.InstancedMesh(this.bulbGeo, this.jhilimiliBulbMat, this.maxBulbs);
+        this.instJhilimiliBulbs.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.maxBulbs * 3), 3);
         this.instJhilimiliBulbs.count = 0;
         this.instJhilimiliBulbs.frustumCulled = false;
         this.instJhilimiliBulbs.userData.noMerge = true;
@@ -18278,9 +19753,10 @@ export function getHideAndSeekHtml(): string {
 
         // E. Sayapatri & Makhamali Flower Garland Blossom Clusters
         this.blossomGeo = new THREE.DodecahedronGeometry(0.058, 0).clone();
-        this.maxBlossoms = 2400;
+        this.maxBlossoms = 4000;
         this.blossomCount = 0;
         this.instGarlandBlossoms = new THREE.InstancedMesh(this.blossomGeo, this.garlandBlossomMat, this.maxBlossoms);
+        this.instGarlandBlossoms.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.maxBlossoms * 3), 3);
         this.instGarlandBlossoms.count = 0;
         this.instGarlandBlossoms.frustumCulled = false;
         this.instGarlandBlossoms.userData.noMerge = true;
@@ -18582,6 +20058,81 @@ export function getHideAndSeekHtml(): string {
     window.__TIHAR_NIGHT_SYSTEM__ = tiharNightMod;
 
     (function populateGandakiTiharNightCampus() {
+      const b1FrontZ = b1Obj.position.z - 3.75;
+      const b5FloorY = (typeof b5Obj.position.y === 'number' ? b5Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const r1FloorY = (typeof r1Obj.position.y === 'number' ? r1Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const r2FloorY = (typeof r2Obj.position.y === 'number' ? r2Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const r4FloorY = (typeof r4Obj.position.y === 'number' ? r4Obj.position.y : 1.4) + PLINTH_HEIGHT;
+      const l2FloorY = (typeof l2Obj.position.y === 'number' ? l2Obj.position.y : 1.4) + PLINTH_HEIGHT;
+
+      // -----------------------------------------------------------------------
+      // FOCAL ZONE 0: SOUTH GATE ARRIVAL DRIVEWAY & SPAWN PLAZA (Zone A — Player Start at x: -2.5, z: -48.0)
+      // -----------------------------------------------------------------------
+      // 0A. Centerpiece Laxmi Puja Lotus Rangoli Mandala at the Spawn Plaza with Sacred Clay Diyos & Laxmi Footprints
+      const spawnMandalaY = getTerrainHeightAt(-2.5, -45.5);
+      tiharNightMod.addTiharMandalaAndFootprints(
+        -2.5, spawnMandalaY, -45.5,
+        1.65, 0, 12,
+        -2.5, -36.5, l1FloorY
+      );
+      tiharNightMod.addFocalLight(-2.5, spawnMandalaY + 1.4, -45.5, 0xff9428, 7.8, 14.0, false);
+
+      // 0B. Secondary Laxmi Puja Mandala at the South Gate Entrance
+      const gateMandalaY = getTerrainHeightAt(0.0, -61.5);
+      tiharNightMod.addTiharMandalaAndFootprints(
+        0.0, gateMandalaY, -61.5,
+        1.35, 1, 8,
+        0.0, -52.0, spawnMandalaY
+      );
+      tiharNightMod.addFocalLight(0.0, gateMandalaY + 1.25, -61.5, 0xff9428, 6.8, 12.0, false);
+
+      // 0C. Disciplined Continuous Rows of Clay Diyos Lining the Main South Gate Driveway Approach (-67.0 to -35.0)
+      // Left Driveway Curb (x = -4.2)
+      tiharNightMod.addDiyoLine(
+        -4.2, getTerrainHeightAt(-4.2, -67.0) + 0.04, -67.0,
+        -4.2, getTerrainHeightAt(-4.2, -35.0) + 0.04, -35.0,
+        22, 0, 2, 1.2
+      );
+      // Right Driveway Curb (x = +4.2)
+      tiharNightMod.addDiyoLine(
+        4.2, getTerrainHeightAt(4.2, -67.0) + 0.04, -67.0,
+        4.2, getTerrainHeightAt(4.2, -35.0) + 0.04, -35.0,
+        22, Math.PI, 2, 1.2
+      );
+      // Arrival Plaza Cross-Walk Diyo Rows flanking the spawn position
+      tiharNightMod.addDiyoLine(-8.5, getTerrainHeightAt(-8.5, -48.0) + 0.04, -48.0, -3.2, getTerrainHeightAt(-3.2, -48.0) + 0.04, -48.0, 7, -Math.PI / 2, 2, 1.1);
+      tiharNightMod.addDiyoLine(3.2, getTerrainHeightAt(3.2, -48.0) + 0.04, -48.0, 8.5, getTerrainHeightAt(8.5, -48.0) + 0.04, -48.0, 7, Math.PI / 2, 2, 1.1);
+
+      // 0D. Radiant Overhead Jhilimili LED String Light Canopy criss-crossing the Arrival & Spawn Plaza
+      const spawnHubY = spawnMandalaY + 4.35;
+      [
+        [-4.2, getTerrainHeightAt(-4.2, -58.0) + 4.2, -58.0, 'nepaliMulti', 18],
+        [4.2,  getTerrainHeightAt(4.2, -58.0) + 4.2,  -58.0, 'warmGold', 18],
+        [-12.0, l1FloorY + 3.4,                       -38.0, 'warmGold', 20],
+        [b1Obj.position.x - 3.5, b1FloorY + 3.6,      b1FrontZ, 'nepaliMulti', 20],
+        [0.0,  getTerrainHeightAt(0.0, -36.0) + 4.2,  -36.0, 'warmGold', 18],
+      ].forEach(([tx, ty, tz, pal, count]) => {
+        tiharNightMod.addJhilimiliCatenary(-2.5, spawnHubY, -48.0, tx, ty, tz, 0.65, count, pal, true);
+      });
+
+      // Overhead festive festoon directly above the player spawn position
+      tiharNightMod.addJhilimiliCatenary(-7.5, spawnHubY - 0.45, -48.0, 2.5, spawnHubY - 0.45, -48.0, 0.45, 18, 'warmGold', true);
+
+      // South Gate to Mid-Driveway Canopies
+      tiharNightMod.addJhilimiliCatenary(-4.5, ghFloorY + 4.2, -67.5, ghX - 1.2, ghFloorY + 3.2, ghZ - 2.0, 0.55, 18, 'warmGold', true);
+      tiharNightMod.addJhilimiliCatenary(4.5, ghFloorY + 4.2, -67.5, -4.2, getTerrainHeightAt(-4.2, -58.0) + 4.2, -58.0, 0.55, 18, 'nepaliMulti', true);
+      tiharNightMod.addJhilimiliCatenary(ghX - 1.2, ghFloorY + 3.2, ghZ - 2.0, 4.2, getTerrainHeightAt(4.2, -58.0) + 4.2, -58.0, 0.55, 18, 'warmGold', true);
+      tiharNightMod.addJhilimiliCatenary(-4.2, getTerrainHeightAt(-4.2, -58.0) + 4.2, -58.0, 4.2, getTerrainHeightAt(4.2, -58.0) + 4.2, -58.0, 0.50, 16, 'nepaliMulti', true);
+
+      // 0E. Traditional Sayapatri Flower Garlands & Torana Arches Framing South Gate & Driveway
+      tiharNightMod.addDoorwayToranGarland(0.0, ghFloorY, -67.5, 4.8, 3.6, false);
+      tiharNightMod.addSayapatriSwag(-8.5, ghFloorY + 1.25, -67.5, -4.5, ghFloorY + 1.25, -67.5, 0.22, 12);
+      tiharNightMod.addSayapatriSwag(4.5, ghFloorY + 1.25, -67.5, 8.5, ghFloorY + 1.25, -67.5, 0.22, 12);
+
+      // Flower swags along the driveway curb barriers flanking spawn
+      tiharNightMod.addSayapatriSwag(-4.2, getTerrainHeightAt(-4.2, -52.0) + 0.75, -52.0, -4.2, getTerrainHeightAt(-4.2, -44.0) + 0.75, -44.0, 0.20, 14);
+      tiharNightMod.addSayapatriSwag(4.2, getTerrainHeightAt(4.2, -52.0) + 0.75, -52.0, 4.2, getTerrainHeightAt(4.2, -44.0) + 0.75, -44.0, 0.20, 14);
+
       // -----------------------------------------------------------------------
       // FOCAL ZONE 1: GRAND ROTUNDA COMPLEX & FORECOURT FOUNTAIN PLAZA (Laxmi Puja Centerpiece)
       // -----------------------------------------------------------------------
@@ -18667,6 +20218,11 @@ export function getHideAndSeekHtml(): string {
         tiharNightMod.addJhilimiliCatenary(x1, y1, z1, x2, y2, z2, 0.65, 20, idx === 1 ? 'nepaliMulti' : 'warmGold', true);
       });
 
+      // Additional festoons bridging Central Courtyard between West Wing L2 and East Wing R2
+      tiharNightMod.addJhilimiliCatenary(l2Obj.position.x - 4.0, l2FloorY + 3.4, l2Obj.position.z, courtHubX, courtHubY + 4.2, courtHubZ, 0.65, 20, 'warmGold', true);
+      tiharNightMod.addJhilimiliCatenary(courtHubX, courtHubY + 4.2, courtHubZ, r2Obj.position.x - 3.8, r2FloorY + 3.4, r2Obj.position.z, 0.65, 20, 'nepaliMulti', true);
+      tiharNightMod.addJhilimiliCatenary(b5Obj.position.x - 4.0, b5FloorY + 3.4, b5Obj.position.z, r4Obj.position.x - 4.8, r4FloorY + 3.4, r4Obj.position.z, 0.85, 24, 'warmGold', true);
+
       // Clay Diyos lining the Central Courtyard Pathway Curbs & Terrace Access Ramp
       tiharNightMod.addDiyoLine(-12.5, getTerrainHeightAt(-12.5, -15.5) + 0.04, -15.5, 10.5, getTerrainHeightAt(10.5, -15.5) + 0.04, -15.5, 14, 0, 2, 1.15);
       tiharNightMod.addDiyoLine(-28.0, getTerrainHeightAt(-28.0, -28.0) + 0.04, -28.0, -14.0, getTerrainHeightAt(-14.0, -18.0) + 0.04, -18.0, 10, 0, 2, 1.15);
@@ -18686,6 +20242,9 @@ export function getHideAndSeekHtml(): string {
         l1Obj.position.x, l1FrontZ - 0.2, l1FloorY
       );
       tiharNightMod.addFocalLight(l1Obj.position.x, l1FloorY + 1.85, l1FrontZ - 1.6, 0xff9a38, 6.6, 11.5, true);
+      for (let wz = l1Obj.position.z - 11.0; wz <= l1Obj.position.z + 11.0; wz += 4.5) {
+        tiharNightMod.addDiyo(l1Obj.position.x - 3.8, l1FloorY + 1.22, wz, Math.PI / 2, true, 0.95);
+      }
 
       // West Wing L2 (-4.5, 1.4, 4.0, span 33.0m x 7.6m)
       const l2FrontZ = l2Obj.position.z - 3.8;
@@ -18693,9 +20252,11 @@ export function getHideAndSeekHtml(): string {
       tiharNightMod.addDiyoLine(l2Obj.position.x - 14.5, l2FloorY + 0.02, l2FrontZ - 2.15, l2Obj.position.x + 14.5, l2FloorY + 0.02, l2FrontZ - 2.15, 14, Math.PI, 2, 1.05);
       tiharNightMod.addDoorwayToranGarland(l2Obj.position.x, l2FloorY, l2FrontZ, 1.95, 2.55, false);
       tiharNightMod.addFocalLight(l2Obj.position.x, l2FloorY + 1.85, l2FrontZ - 1.6, 0xff9428, 6.2, 11.0, false);
+      for (let wz = l2Obj.position.z - 11.0; wz <= l2Obj.position.z + 11.0; wz += 4.5) {
+        tiharNightMod.addDiyo(l2Obj.position.x - 3.8, l2FloorY + 1.22, wz, Math.PI / 2, true, 0.95);
+      }
 
       // West Wing L3 Computer & Electronic Labs (bldg_5 at -4.5, 1.4, 18.0)
-      const b5FloorY = (typeof b5Obj.position.y === 'number' ? b5Obj.position.y : 1.4) + PLINTH_HEIGHT;
       const b5FrontZ = b5Obj.position.z - 4.0;
       tiharNightMod.addDiyoLine(b5Obj.position.x - 12.0, b5FloorY + 0.02, b5FrontZ - 2.1, b5Obj.position.x + 12.0, b5FloorY + 0.02, b5FrontZ - 2.1, 12, Math.PI, 2, 1.05);
       tiharNightMod.addDoorwayToranGarland(b5Obj.position.x, b5FloorY, b5FrontZ, 1.95, 2.55, false);
@@ -18704,7 +20265,6 @@ export function getHideAndSeekHtml(): string {
       // FOCAL ZONE 4: EAST WING CAFETERIA (R1), MULTIPURPOSE HALL (R2) & LIBRARY (R4)
       // -----------------------------------------------------------------------
       // East Wing R1 Cafeteria (3.0, 1.4, -25.5, 18.1m x 11.5m) — Festive Student Gathering Area
-      const r1FloorY = (typeof r1Obj.position.y === 'number' ? r1Obj.position.y : 1.4) + PLINTH_HEIGHT;
       const r1FrontZ = r1Obj.position.z - 5.75;
       tiharNightMod.addBuildingEaveJhilimiliFringe(r1Obj.position.x - 8.8, r1FloorY + 3.32, r1FrontZ - 2.1, r1Obj.position.x + 8.8, r1FrontZ - 2.1, 1.5, 1.15, 'nepaliMulti', 0, -1);
       tiharNightMod.addDiyoLine(r1Obj.position.x - 8.2, r1FloorY + 0.02, r1FrontZ - 2.15, r1Obj.position.x + 8.2, r1FloorY + 0.02, r1FrontZ - 2.15, 12, Math.PI, 2, 1.15);
@@ -18732,7 +20292,6 @@ export function getHideAndSeekHtml(): string {
       tiharNightMod.addFocalLight(r2FrontX - 1.8, r2FloorY + 1.8, r2Obj.position.z, 0xff9428, 6.5, 11.5, false);
 
       // East Wing R4 Library (28.5, 1.4, 19.0, longitudinal wing facing -X) — Peaceful Warm Golden Tihar Illumination
-      const r4FloorY = (typeof r4Obj.position.y === 'number' ? r4Obj.position.y : 1.4) + PLINTH_HEIGHT;
       const r4FrontX = r4Obj.position.x - 4.8;
       tiharNightMod.addBuildingEaveJhilimiliFringe(r4FrontX - 2.1, r4FloorY + 3.32, r4Obj.position.z - 10.2, r4FrontX - 2.1, r4Obj.position.z + 10.2, 1.8, 1.05, 'warmGold', -1, 0);
       tiharNightMod.addDiyoLine(r4FrontX - 2.15, r4FloorY + 0.02, r4Obj.position.z - 9.5, r4FrontX - 2.15, r4FloorY + 0.02, r4Obj.position.z + 9.5, 12, -Math.PI / 2, 2, 1.1);
@@ -18748,7 +20307,6 @@ export function getHideAndSeekHtml(): string {
       // -----------------------------------------------------------------------
       // FOCAL ZONE 5: 2-STOREY ADMINISTRATIVE OFFICE (bldg_1) & SOUTH GATE GUARDHOUSE
       // -----------------------------------------------------------------------
-      const b1FrontZ = b1Obj.position.z - 3.75;
       tiharNightMod.addBuildingEaveJhilimiliFringe(b1Obj.position.x - 7.6, b1FloorY + 6.55, b1FrontZ - 0.18, b1Obj.position.x + 7.6, b1FrontZ - 0.18, 1.6, 1.35, 'warmGold', 0, -1);
       tiharNightMod.addDiyoLine(b1Obj.position.x - 6.8, b1FloorY + 0.03, b1FrontZ - 0.24, b1Obj.position.x - 1.4, b1FloorY + 0.03, b1FrontZ - 0.24, 7, Math.PI, 2, 1.05);
       tiharNightMod.addDiyoLine(b1Obj.position.x + 1.4, b1FloorY + 0.03, b1FrontZ - 0.24, b1Obj.position.x + 6.8, b1FloorY + 0.03, b1FrontZ - 0.24, 7, Math.PI, 2, 1.05);
@@ -19037,8 +20595,10 @@ export function getHideAndSeekHtml(): string {
       const maxDoorDist = cullInterior + 8.0;
       for (let d = 0; d < swingingDoors.length; d++) {
         const dr = swingingDoors[d];
-        const dDist = Math.hypot(dr.x - playerPos.x, dr.z - playerPos.z);
-        dr.pivot.visible = (dDist <= maxDoorDist) && (Math.abs(dr.y - playerPos.y) <= 2.6);
+        if (dr && dr.pivot) {
+          const dDist = Math.hypot(dr.x - playerPos.x, dr.z - playerPos.z);
+          dr.pivot.visible = (dDist <= maxDoorDist) && (Math.abs(dr.y - playerPos.y) <= 2.6);
+        }
       }
 
       // 3. Building & Courtyard Sector Distance & Shadow-Caster Culling (Full horizon visibility when outdoors so poles & buildings stay visible across screen!)
@@ -21222,6 +22782,12 @@ export function getHideAndSeekHtml(): string {
     exploreTools.initUI = () => exploreTools.init();
     exploreTools.init();
     window.exploreTools = exploreTools;
+    window.playerPhysics = playerPhysics;
+    window.camera = camera;
+    window.scene = scene;
+    window.atmosphere = atmosphere;
+    window.renderer = renderer;
+    window.physicsDebug = physicsDebug;
 
     // STEP 1: Headless Scripted Input Runner
     window.__TEST_HARNESS__ = {
@@ -21960,6 +23526,13 @@ export function getHideAndSeekHtml(): string {
         }
         return true;
       }
+      if (typeof it.onInteract === 'function') {
+        const res = it.onInteract(it, options);
+        if (res !== false) {
+          multiplayerStateStore.interactableStates[it.id] = { state: it.state, isOn: it.isOn, isOpen: it.isOpen };
+          return true;
+        }
+      }
       return false;
     }
 
@@ -22395,11 +23968,20 @@ export function getHideAndSeekHtml(): string {
       const spotDist = spot ? Math.hypot(playerPhysics.pos.x - spot.x, playerPhysics.pos.z - spot.z) : 999;
 
       if (nearInt && (nearInt.type !== 'door' ? intDist <= spotDist + 0.35 : !spot)) {
-        const verb = (nearInt.type === 'light_switch' || nearInt.type === 'switchboard')
-          ? (nearInt.isOn ? 'SWITCH OFF: ' : 'SWITCH ON: ')
-          : (nearInt.isOpen ? 'CLOSE: ' : 'OPEN / SEARCH: ');
+        let verb = 'INTERACT: ';
+        let btnText = 'USE';
+        if (nearInt.type === 'light_switch' || nearInt.type === 'switchboard' || nearInt.type === 'monitor' || nearInt.type === 'desk_lamp') {
+          verb = nearInt.isOn ? 'SWITCH OFF: ' : 'SWITCH ON: ';
+          btnText = nearInt.isOn ? 'OFF' : 'ON';
+        } else if (nearInt.type === 'bookshelf' || nearInt.type === 'book') {
+          verb = 'READ / EXAMINE: ';
+          btnText = 'EXAMINE';
+        } else {
+          verb = nearInt.isOpen ? 'CLOSE: ' : 'OPEN / SEARCH: ';
+          btnText = nearInt.isOpen ? 'CLOSE' : 'OPEN';
+        }
         labelEl.textContent = verb + nearInt.name + ' (E)';
-        btnLabel.textContent = (nearInt.type === 'light_switch' || nearInt.type === 'switchboard') ? 'SWITCH' : (nearInt.isOpen ? 'CLOSE' : 'OPEN');
+        btnLabel.textContent = btnText;
         promptEl.classList.add('active');
         crosshairEl.classList.add('active');
       } else if (spot) {
@@ -22877,6 +24459,7 @@ export function getHideAndSeekHtml(): string {
           camera.lookAt(sb.mesh.position.x, sb.mesh.position.y + 1.2, sb.mesh.position.z);
         }
       } else if (playerPhysics.cameraMode === 'first' || exploreTools.freeFly) {
+        if (playerCharacter) playerCharacter.visible = false;
         const cosYaw = Math.cos(playerPhysics.yaw);
         const sinYaw = Math.sin(playerPhysics.yaw);
         camera.position.set(
@@ -22928,6 +24511,7 @@ export function getHideAndSeekHtml(): string {
         camera.lookAt(headX, headY + 0.15 * vertRatio, headZ);
 
         if (playerCharacter) {
+          playerCharacter.visible = true;
           const fadeStart = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.cameraFadeStartDist) || 0.60;
           const fadeEnd = (HORROR_CONFIG.physics && HORROR_CONFIG.physics.cameraFadeEndDist) || 0.15;
           const charOpacity = Math.max(0.0, Math.min(1.0, (playerPhysics.camDist - fadeEnd) / (fadeStart - fadeEnd)));
@@ -23943,6 +25527,7 @@ export function getHideAndSeekHtml(): string {
         prayerFlagUniforms.uTime.value = timeSec;
 
         // Keep sky dome centered at player camera position
+        if (atmosphere.updateSky) { atmosphere.updateSky(delta, timeSec); }
         if (atmosphere.skyGroup && camera) {
           atmosphere.skyGroup.position.copy(camera.position);
         }
@@ -24026,7 +25611,7 @@ export function getHideAndSeekHtml(): string {
         atmosphere.renderFrame(timeSec);
 
         // Step 1 FPS Guard: If average FPS < 40 for 3.0 seconds, disable the color grade pass automatically!
-        if (rawDelta > 0.001 && rawDelta < 0.5 && atmosphere.isColorGradePassActive()) {
+        if (sessionTelemetry.elapsedSec > 4.5 && rawDelta > 0.001 && rawDelta < 0.5 && atmosphere.isColorGradePassActive()) {
           atmosphere._gradeFpsCount = (atmosphere._gradeFpsCount || 0) + 1;
           atmosphere._gradeFpsAccum = (atmosphere._gradeFpsAccum || 0.0) + rawDelta;
           const guardWin = (HORROR_CONFIG.grade && HORROR_CONFIG.grade.fpsGuardWindowSec) || 3.0;
@@ -24085,6 +25670,11 @@ export function getHideAndSeekHtml(): string {
         }
       } catch (loopErr) {
         console.error('[HideAndSeek] Frame error:', loopErr);
+        try {
+          if (atmosphere && typeof atmosphere.renderFrame === 'function') {
+            atmosphere.renderFrame(Date.now() * 0.001);
+          }
+        } catch (rErr) {}
       }
     }
     animate();

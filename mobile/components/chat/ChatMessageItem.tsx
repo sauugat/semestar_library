@@ -25,6 +25,7 @@ import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/Typography';
 import { Monochrome } from '@/constants/theme';
+import { markBubbleTouchStart, markBubbleTouchEnd } from './FluidChatBackground';
 import { ChatMessage, ChatReadReceipt } from '@/services/chat';
 import { parseChatDate, formatFileSubtitle, formatFileExtension } from '@/services/chat-state';
 import { formatMessageTime as safeFormatTime, formatChatDateSeparator as safeFormatSeparator } from '@/utils/date';
@@ -76,6 +77,7 @@ interface ChatMessageItemProps {
   isInitialLoadItem: boolean;
   isHighlighted: boolean;
   isDelivered?: boolean;
+  isStarred?: boolean;
   singleTapDelayMs?: number;
   onLongPress: (item: ChatMessage) => void;
   onSwipeReply: (item: ChatMessage) => void;
@@ -86,6 +88,7 @@ interface ChatMessageItemProps {
   onRetry?: (item: ChatMessage) => void;
   onPressAuthor?: (studentId: string) => void;
   onPressMention?: (handle: string, item: ChatMessage) => void;
+  onPressReadBy?: (item: ChatMessage) => void;
 }
 
 function formatMessageTime(isoString: string): string {
@@ -136,6 +139,21 @@ function getFileExtension(filename?: string | null): string {
   return 'FILE';
 }
 
+function extractFirstUrl(text?: string | null): { url: string; domain: string; path: string } | null {
+  if (!text) return null;
+  const match = text.match(/https?:\/\/[^\s<]+[^<.,:;"')\]\s]/i);
+  if (!match || !match[0]) return null;
+  try {
+    const raw = match[0];
+    const parsed = new URL(raw);
+    const domain = parsed.hostname.replace(/^www\./i, '');
+    const path = parsed.pathname && parsed.pathname !== '/' ? parsed.pathname : '';
+    return { url: raw, domain, path };
+  } catch {
+    return null;
+  }
+}
+
 function renderMessageTextWithLinks(
   text: string,
   isMe: boolean,
@@ -178,7 +196,7 @@ function renderMessageTextWithLinks(
               style={[
                 baseStyle,
                 styles.urlLink,
-                { color: isMe ? '#111111' : '#F5F5F5' },
+                { color: isMe ? '#FFFFFF' : '#F5F5F5' },
               ]}
               onPress={() => Linking.openURL(token.value).catch(() => {})}
             >
@@ -213,18 +231,24 @@ function MessageStatusMeta({
   isMe,
   timeString,
   isRead,
+  readByCount = 0,
   isDelivered,
   isEdited,
+  isStarred,
   onRetry,
+  onPressReadBy,
   overlay = false,
 }: {
   status?: 'sent' | 'pending' | 'failed';
   isMe: boolean;
   timeString: string;
   isRead: boolean;
+  readByCount?: number;
   isDelivered?: boolean;
   isEdited?: boolean;
+  isStarred?: boolean;
   onRetry?: () => void;
+  onPressReadBy?: () => void;
   overlay?: boolean;
 }) {
   const isPending = status === 'pending';
@@ -251,19 +275,27 @@ function MessageStatusMeta({
         onPress={onRetry}
         style={{ flexDirection: 'row', alignItems: 'center' }}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel="Retry sending message"
       >
-        {Boolean(timeString) && (
-          <Text style={[timeStyle, { color: '#ef4444' }]}>
-            {timeString}
-          </Text>
-        )}
-        <Ionicons name="alert-circle" size={13} color="#ef4444" style={{ marginLeft: 3 }} />
+        <Text style={[timeStyle, { color: '#fca5a5' }]}>
+          Tap to retry
+        </Text>
+        <Ionicons name="alert-circle" size={13} color="#fca5a5" style={{ marginLeft: 3 }} />
       </TouchableOpacity>
     );
   }
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {Boolean(isStarred) && (
+        <Ionicons
+          name="star"
+          size={10}
+          color={isMe ? '#F4F4F5' : '#A1A1AA'}
+          style={{ marginRight: 3 }}
+        />
+      )}
       {Boolean(isEdited) && (
         <Text style={editedStyle}>
           Edited{' '}
@@ -281,12 +313,24 @@ function MessageStatusMeta({
             style={{ marginLeft: 3 }}
           />
         ) : isRead ? (
-          <Ionicons
-            name="checkmark-done"
-            size={13}
-            color={iconColor}
-            style={{ marginLeft: 3 }}
-          />
+          <TouchableOpacity
+            disabled={!onPressReadBy || readByCount <= 0}
+            onPress={onPressReadBy}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            style={{ flexDirection: 'row', alignItems: 'center' }}
+          >
+            <Ionicons
+              name="checkmark-done"
+              size={13}
+              color={iconColor}
+              style={{ marginLeft: 3 }}
+            />
+            {readByCount > 1 && (
+              <Text style={[editedStyle, { marginLeft: 2, fontSize: 9.5 }]}>
+                {readByCount}
+              </Text>
+            )}
+          </TouchableOpacity>
         ) : (
           <Ionicons
             name="checkmark"
@@ -315,6 +359,7 @@ function areMessagePropsEqual(
   if (prev.isHighlighted !== next.isHighlighted) return false;
   if (prev.downloadingFileId !== next.downloadingFileId) return false;
   if (prev.isDelivered !== next.isDelivered) return false;
+  if (prev.isStarred !== next.isStarred) return false;
   if (prev.index !== next.index) return false;
 
   // Compare reactions
@@ -370,6 +415,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   isInitialLoadItem,
   isHighlighted,
   isDelivered: isDeliveredProp,
+  isStarred,
   singleTapDelayMs,
   onLongPress,
   onSwipeReply,
@@ -380,6 +426,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   onRetry,
   onPressAuthor,
   onPressMention,
+  onPressReadBy,
 }: ChatMessageItemProps) {
   const { width: screenWidth } = useWindowDimensions();
   const maxBubbleWidth = Math.round(screenWidth * 0.8);
@@ -436,13 +483,23 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
   const [avatarLoadError, setAvatarLoadError] = useState(false);
   const avatarFullUrl = useMemo(() => {
-    if (!item.avatarUrl) return null;
-    if (item.avatarUrl.startsWith('http://') || item.avatarUrl.startsWith('https://')) {
-      return item.avatarUrl;
+    const base = (serverUrl || 'https://semestar-library.vercel.app').replace(/\/+$/, '');
+    if (item.avatarUrl && typeof item.avatarUrl === 'string' && item.avatarUrl.trim()) {
+      const trimmed = item.avatarUrl.trim();
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+        return trimmed;
+      }
+      return `${base}/${trimmed.replace(/^\/+/, '')}`;
     }
-    const base = serverUrl || 'https://semestar-library.vercel.app';
-    return `${base.replace(/\/+$/, '')}/${item.avatarUrl.replace(/^\/+/, '')}`;
-  }, [item.avatarUrl, serverUrl]);
+    if (item.studentId && String(item.studentId).trim()) {
+      return `${base}/api/avatar/student/${encodeURIComponent(String(item.studentId).trim())}`;
+    }
+    return null;
+  }, [item.avatarUrl, item.studentId, serverUrl]);
+
+  useEffect(() => {
+    setAvatarLoadError(false);
+  }, [avatarFullUrl]);
 
   // Image natural aspect ratio tracking & measurement
   const [imageDims, setImageDims] = useState<{ width: number; height: number } | null>(() => {
@@ -488,10 +545,15 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   }, [imageDims, targetImageWidth]);
 
   // Read receipts check: someone else read up to this message
-  const isRead = isMe && readReceipts.some(
-    (r) => String(r.studentId) !== String(currentUserId) && r.lastReadMessageId >= item.id
-  );
+  const readByCount = useMemo(() => {
+    if (!isMe || item.id <= 0) return 0;
+    return readReceipts.filter(
+      (r) => String(r.studentId) !== String(currentUserId) && r.lastReadMessageId >= item.id
+    ).length;
+  }, [isMe, item.id, readReceipts, currentUserId]);
+  const isRead = readByCount > 0;
   const isDelivered = isMe && (isDeliveredProp || isRead || (item.status === 'sent' && item.id > 0 && Boolean((item as any).delivered)));
+  const linkPreview = useMemo(() => extractFirstUrl(item.text), [item.text]);
 
   // Grouped Reactions: map to emoji -> count & userReacted
   const reactionMap = useMemo(() => {
@@ -531,25 +593,41 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
     }
   }, [isHighlighted, highlightAnim]);
 
-  // Swipe-to-reply PanResponder
+  // Swipe-to-reply PanResponder (strictly on the message bubble itself)
   const translateX = useRef(new Animated.Value(0)).current;
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          return (
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          const claim =
             gestureState.dx > 10 &&
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5 &&
-            Math.abs(gestureState.dy) < 25
-          );
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
+            Math.abs(gestureState.dy) < 28;
+          if (claim) markBubbleTouchStart();
+          return claim;
         },
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          const claim =
+            gestureState.dx > 10 &&
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
+            Math.abs(gestureState.dy) < 28;
+          if (claim) markBubbleTouchStart();
+          return claim;
+        },
+        onPanResponderGrant: () => {
+          markBubbleTouchStart();
+        },
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
         onPanResponderMove: (_, gestureState) => {
+          markBubbleTouchStart();
           if (gestureState.dx > 0) {
             translateX.setValue(Math.min(gestureState.dx * 0.65, 55));
           }
         },
         onPanResponderRelease: (_, gestureState) => {
-          if (gestureState.dx > 45) {
+          markBubbleTouchEnd();
+          if (gestureState.dx > 42) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             if (item.id > 0) onSwipeReply(item);
           }
@@ -561,6 +639,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
           }).start();
         },
         onPanResponderTerminate: () => {
+          markBubbleTouchEnd();
           Animated.spring(translateX, {
             toValue: 0,
             friction: 6,
@@ -752,10 +831,11 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
         </View>
       )}
 
-      {/* Swipeable Container */}
-      <View style={styles.swipeRowWrapper} {...panResponder.panHandlers}>
-        {/* Reply Icon Indicator revealed on swipe right */}
+      {/* Message Row Container (only the bubble itself is swipeable for reply) */}
+      <View style={styles.swipeRowWrapper}>
+        {/* Reply Icon Indicator revealed on bubble swipe right */}
         <Animated.View
+          pointerEvents="none"
           style={[
             styles.swipeReplyIconBox,
             {
@@ -784,8 +864,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
             styles.bubbleRowAnimated,
             isMe ? styles.bubbleRowRight : styles.bubbleRowLeft,
             {
-              marginTop: isConsecutive ? 2 : 10,
-              transform: [{ translateX }],
+              marginTop: isConsecutive ? 3 : 12,
             },
           ]}
         >
@@ -823,8 +902,14 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
             </View>
           )}
 
-          {/* Bubble Container & Reactions */}
-          <View style={{ maxWidth: maxBubbleWidth }}>
+          {/* Bubble Container & Reactions (PanResponder attached strictly to bubble) */}
+          <Animated.View
+            style={{ maxWidth: maxBubbleWidth, transform: [{ translateX }] }}
+            onTouchStart={markBubbleTouchStart}
+            onTouchEnd={markBubbleTouchEnd}
+            onTouchCancel={markBubbleTouchEnd}
+            {...panResponder.panHandlers}
+          >
             <Pressable
               onPress={handleBubblePress}
               onLongPress={handleLongPress}
@@ -901,7 +986,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                   <Text
                     style={[
                       styles.replySenderText,
-                      { color: isMe ? '#111111' : '#F5F5F5' },
+                      { color: '#F5F5F5' },
                     ]}
                     numberOfLines={1}
                   >
@@ -910,7 +995,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                   <Text
                     style={[
                       styles.replyPreviewText,
-                      { color: isMe ? '#555555' : '#A1A1A1' },
+                      { color: isMe ? '#E4E4E7' : '#A1A1A1' },
                     ]}
                     numberOfLines={1}
                   >
@@ -1021,9 +1106,12 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                         isMe={isMe}
                         timeString={timeString}
                         isRead={isRead}
+                        readByCount={readByCount}
                         isDelivered={isDelivered}
                         isEdited={Boolean((item as any).isEdited)}
+                        isStarred={isStarred}
                         onRetry={() => onRetry?.(item)}
+                        onPressReadBy={onPressReadBy ? () => onPressReadBy(item) : undefined}
                         overlay
                       />
                     </View>
@@ -1096,8 +1184,34 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                     <Text style={styles.invisibleMetaSpacer} pointerEvents="none">
                       {'   '}{timeString}{isMe ? '  ✓✓' : ''}
                       {Boolean((item as any).isEdited) ? '  Edited' : ''}
+                      {Boolean(isStarred) ? ' ★' : ''}
                     </Text>
                   </View>
+
+                  {/* Link Preview Card (Item 15) */}
+                  {linkPreview && (
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={() => Linking.openURL(linkPreview.url).catch(() => {})}
+                      style={[
+                        styles.linkPreviewCard,
+                        isMe ? styles.linkPreviewCardMe : styles.linkPreviewCardOther,
+                      ]}
+                    >
+                      <View style={styles.linkPreviewIconWrap}>
+                        <Ionicons name="globe-outline" size={16} color="#E4E4E7" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.linkPreviewDomain} numberOfLines={1}>
+                          {linkPreview.domain}
+                        </Text>
+                        <Text style={styles.linkPreviewUrl} numberOfLines={1}>
+                          {linkPreview.url}
+                        </Text>
+                      </View>
+                      <Ionicons name="open-outline" size={14} color="#A1A1AA" style={{ marginLeft: 6 }} />
+                    </TouchableOpacity>
+                  )}
 
                   {/* Absolute inline metadata placed at bottom-right */}
                   <View style={styles.inlineMetaBox}>
@@ -1106,9 +1220,12 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                       isMe={isMe}
                       timeString={timeString}
                       isRead={isRead}
+                      readByCount={readByCount}
                       isDelivered={isDelivered}
                       isEdited={Boolean((item as any).isEdited)}
+                      isStarred={isStarred}
                       onRetry={() => onRetry?.(item)}
+                      onPressReadBy={onPressReadBy ? () => onPressReadBy(item) : undefined}
                     />
                   </View>
                 </View>
@@ -1122,9 +1239,12 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                     isMe={isMe}
                     timeString={timeString}
                     isRead={isRead}
+                    readByCount={readByCount}
                     isDelivered={isDelivered}
                     isEdited={Boolean((item as any).isEdited)}
+                    isStarred={isStarred}
                     onRetry={() => onRetry?.(item)}
+                    onPressReadBy={onPressReadBy ? () => onPressReadBy(item) : undefined}
                   />
                 </View>
               )}
@@ -1157,7 +1277,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                 ))}
               </View>
             )}
-          </View>
+          </Animated.View>
         </Animated.View>
       </View>
     </Animated.View>
@@ -1173,17 +1293,17 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   dateSeparatorPill: {
-    backgroundColor: '#141414',
-    paddingHorizontal: 10,
-    paddingVertical: 3.5,
+    backgroundColor: 'rgba(18, 18, 22, 0.82)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#282828',
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   dateSeparatorText: {
     fontSize: 11,
-    fontWeight: '500',
-    color: '#737373',
+    fontWeight: '600',
+    color: '#A1A1AA',
   },
   swipeRowWrapper: {
     width: '100%',
@@ -1197,7 +1317,9 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#27272a',
+    backgroundColor: 'rgba(39, 39, 42, 0.85)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
@@ -1206,6 +1328,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     width: '100%',
+    // marginTop: isConsecutive ? 2 : 10
   },
   bubbleRowRight: {
     justifyContent: 'flex-end',
@@ -1223,12 +1346,16 @@ const styles = StyleSheet.create({
     height: 28,
     borderRadius: 14,
     backgroundColor: '#27272a',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   avatarInitial: {
     width: 28,
     height: 28,
     borderRadius: 14,
     backgroundColor: '#27272a',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1242,20 +1369,26 @@ const styles = StyleSheet.create({
     height: 1,
   },
   messageBubble: {
-    paddingHorizontal: 13,
-    paddingTop: 8,
-    paddingBottom: 7,
-    borderRadius: 18,
-    borderWidth: 0,
+    paddingHorizontal: 15,
+    paddingTop: 10,
+    paddingBottom: 8,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.32,
+    shadowRadius: 5,
+    elevation: 2,
   },
   bubbleMe: {
     backgroundColor: '#626262',
+    borderColor: 'rgba(255, 255, 255, 0.16)',
   },
   bubbleOther: {
     backgroundColor: '#171717',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: '#282828',
+    borderColor: 'rgba(255, 255, 255, 0.09)',
   },
   imageBubbleTightPadding: {
     paddingHorizontal: 0,
@@ -1552,11 +1685,48 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   mentionTextMe: {
-    color: '#111111',
+    color: '#FFFFFF',
     textDecorationLine: 'underline',
   },
   mentionTextOther: {
     color: '#F5F5F5',
     textDecorationLine: 'underline',
+  },
+  linkPreviewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    marginBottom: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  linkPreviewCardMe: {
+    backgroundColor: 'rgba(0,0,0,0.22)',
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  linkPreviewCardOther: {
+    backgroundColor: '#1E1E22',
+    borderColor: '#2E2E32',
+  },
+  linkPreviewIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  linkPreviewDomain: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#F4F4F5',
+  },
+  linkPreviewUrl: {
+    fontSize: 11,
+    color: '#A1A1AA',
+    marginTop: 1,
   },
 });

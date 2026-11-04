@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -13,17 +13,30 @@ import {
   StatusBar,
   AppState,
   BackHandler,
+  ScrollView,
+  Animated,
+  PanResponder,
+  Text as RNText,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
+import * as Linking from 'expo-linking';
+import * as Haptics from 'expo-haptics';
 import { useTheme } from '@/constants/useTheme';
 import { Monochrome } from '@/constants/theme';
 import { Text } from '@/components/ui/Typography';
 import { useAuth } from '@/context/AuthContext';
+import { DEFAULT_SERVER_URL } from '@/services/api';
 import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyComposer';
+import {
+  FluidChatBackground,
+  markBubbleTouchStart,
+  markBubbleTouchEnd,
+  useChatBackSwipeResponder,
+} from '@/components/chat/FluidChatBackground';
 import {
   fetchDmMessages,
   sendDmMessage,
@@ -34,6 +47,7 @@ import {
   sendDmTyping,
   blockDmUser,
   unblockDmUser,
+  muteDmConversation,
   reportDm,
   fetchDmConversations,
   type DmMessage,
@@ -45,10 +59,66 @@ import {
   updateCachedDmMessage,
   deleteCachedDmMessage,
   getCachedDmConversations,
+  updateCachedDmConversationMute,
 } from '@/services/dm-db';
 import { mergeDmMessages, failDmMessage, createReadCoalescer, getConversationReadCoalescer } from '@/services/dm-state';
 import { readDmOutbox, updateDmOutbox, dmOutboxGeneration } from '@/services/dm-outbox';
 import { subscribeDmConversationRealtime } from '@/services/dm-realtime';
+import { setActiveDmConversation, clearAppBadge } from '@/services/notifications';
+
+const dmDraftCache = new Map<string, string>();
+const DM_QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏', '👀'];
+
+function extractFirstDmUrl(text?: string | null): { url: string; domain: string } | null {
+  if (!text) return null;
+  const match = text.match(/https?:\/\/[^\s<]+[^<.,:;"')\]\s]/i);
+  if (!match || !match[0]) return null;
+  try {
+    const raw = match[0];
+    const parsed = new URL(raw);
+    return { url: raw, domain: parsed.hostname.replace(/^www\./i, '') };
+  } catch {
+    return null;
+  }
+}
+
+function renderDmTextWithLinks(text: string, isSelf: boolean, baseStyle: any) {
+  const regex = /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/gi;
+  const tokens: { type: 'text' | 'url'; value: string }[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push({ type: 'text', value: text.substring(lastIndex, match.index) });
+    }
+    tokens.push({ type: 'url', value: match[1] });
+    lastIndex = regex.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    tokens.push({ type: 'text', value: text.substring(lastIndex) });
+  }
+  if (tokens.length <= 1 && tokens[0]?.type === 'text') {
+    return <Text variant="sm" style={baseStyle}>{text}</Text>;
+  }
+  return (
+    <Text variant="sm" style={baseStyle}>
+      {tokens.map((t, idx) =>
+        t.type === 'url' ? (
+          <Text
+            key={idx}
+            variant="sm"
+            style={[baseStyle, { textDecorationLine: 'underline', fontWeight: '600' }]}
+            onPress={() => Linking.openURL(t.value).catch(() => {})}
+          >
+            {t.value}
+          </Text>
+        ) : (
+          <Text key={idx} variant="sm" style={baseStyle}>{t.value}</Text>
+        )
+      )}
+    </Text>
+  );
+}
 
 function createDmClientId() {
   return `dm_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
@@ -59,6 +129,30 @@ function getInitials(name?: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function resolveDmAvatarUri(rawUrl?: string | null, serverUrl?: string, peerId?: string | null): string | null {
+  const base = (serverUrl || DEFAULT_SERVER_URL || '').replace(/\/+$/, '');
+  if (rawUrl && typeof rawUrl === 'string') {
+    const trimmed = rawUrl.trim();
+    if (trimmed && trimmed !== 'null' && trimmed !== 'undefined') {
+      if (
+        trimmed.startsWith('http://') ||
+        trimmed.startsWith('https://') ||
+        trimmed.startsWith('file://') ||
+        trimmed.startsWith('data:')
+      ) {
+        return trimmed;
+      }
+      if (base) {
+        return `${base}/${trimmed.replace(/^\/+/, '')}`;
+      }
+    }
+  }
+  if (peerId && typeof peerId === 'string' && peerId.trim() && base) {
+    return `${base}/api/avatar/student/${encodeURIComponent(peerId.trim())}`;
+  }
+  return null;
 }
 
 function formatBubbleTime(iso?: string | null): string {
@@ -108,6 +202,119 @@ function isSameDay(iso1?: string | null, iso2?: string | null): boolean {
   );
 }
 
+function DmSwipeableBubbleRow({
+  disabled,
+  onSwipeReply,
+  children,
+}: {
+  disabled?: boolean;
+  onSwipeReply: () => void;
+  children: React.ReactNode;
+}) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const onSwipeReplyRef = useRef(onSwipeReply);
+  useEffect(() => {
+    onSwipeReplyRef.current = onSwipeReply;
+  }, [onSwipeReply]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          if (disabled) return false;
+          const claim =
+            gestureState.dx > 10 &&
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
+            Math.abs(gestureState.dy) < 28;
+          if (claim) markBubbleTouchStart();
+          return claim;
+        },
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          if (disabled) return false;
+          const claim =
+            gestureState.dx > 10 &&
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
+            Math.abs(gestureState.dy) < 28;
+          if (claim) markBubbleTouchStart();
+          return claim;
+        },
+        onPanResponderGrant: () => {
+          markBubbleTouchStart();
+        },
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
+        onPanResponderMove: (_, gestureState) => {
+          markBubbleTouchStart();
+          if (gestureState.dx > 0) {
+            translateX.setValue(Math.min(gestureState.dx * 0.65, 56));
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          markBubbleTouchEnd();
+          if (gestureState.dx > 42 && !disabled) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            onSwipeReplyRef.current();
+          }
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 6,
+            tension: 100,
+            useNativeDriver: true,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          markBubbleTouchEnd();
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 6,
+            tension: 100,
+            useNativeDriver: true,
+          }).start();
+        },
+      }),
+    [disabled, translateX]
+  );
+
+  return (
+    <View
+      style={{ maxWidth: '76%', position: 'relative' }}
+      onTouchStart={markBubbleTouchStart}
+      onTouchEnd={markBubbleTouchEnd}
+      onTouchCancel={markBubbleTouchEnd}
+      {...panResponder.panHandlers}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.dmSwipeReplyIconBox,
+          {
+            opacity: translateX.interpolate({
+              inputRange: [0, 22, 42],
+              outputRange: [0, 0.7, 1],
+              extrapolate: 'clamp',
+            }),
+            transform: [
+              {
+                scale: translateX.interpolate({
+                  inputRange: [0, 28, 46],
+                  outputRange: [0.5, 0.9, 1.08],
+                  extrapolate: 'clamp',
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <Ionicons name="arrow-undo" size={15} color="#E4E4E7" />
+      </Animated.View>
+      <Animated.View style={{ transform: [{ translateX }] }}>
+        {children}
+      </Animated.View>
+    </View>
+  );
+}
+
 export default function DmConversationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
@@ -118,8 +325,9 @@ function DmConversation() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, serverUrl, token } = useAuth();
   const currentUserId = user?.studentId || '';
+  const imageHeaders = useMemo(() => (token ? { Authorization: `Bearer ${token}` } : undefined), [token]);
 
   const params = useLocalSearchParams<{
     id: string;
@@ -155,13 +363,26 @@ function DmConversation() {
     id: string;
     name: string;
     role: string;
+    username?: string | null;
     avatarUrl?: string | null;
   }>({
     id: params.peerId || '',
     name: params.peerName || 'Conversation',
     role: params.peerRole || 'Student',
+    username: null,
     avatarUrl: params.peerAvatar || params.peerAvatarUrl || null,
   });
+
+  const [headerAvatarFailed, setHeaderAvatarFailed] = useState(false);
+  const [bubbleAvatarFailed, setBubbleAvatarFailed] = useState(false);
+  const resolvedPeerAvatarUri = useMemo(
+    () => resolveDmAvatarUri(peerInfo.avatarUrl, serverUrl, peerInfo.id),
+    [peerInfo.avatarUrl, serverUrl, peerInfo.id]
+  );
+  useEffect(() => {
+    setHeaderAvatarFailed(false);
+    setBubbleAvatarFailed(false);
+  }, [resolvedPeerAvatarUri]);
 
   const [conversation, setConversation] = useState<DmConversationItem | null>(null);
   const [messages, setMessages] = useState<DmMessage[]>([]);
@@ -178,11 +399,19 @@ function DmConversation() {
   const outgoingTypingThrottlerRef = useRef<number>(0);
   const [peerLastReadId, setPeerLastReadId] = useState<number>(0);
 
-  // Composer states
-  const [inputText, setInputText] = useState('');
+  // Composer states with per-conversation draft persistence (Item 50)
+  const draftKey = `${currentUserId}:${conversationId}`;
+  const [inputText, setInputText] = useState(() => dmDraftCache.get(draftKey) || '');
   const [replyingTo, setReplyingTo] = useState<DmMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<DmMessage | null>(null);
   const [sending, setSending] = useState(false);
+
+  // In-chat Search, Starred Messages, Reactions, and Shared Links (Items 12, 14, 30, 86, 100)
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [starredIds, setStarredIds] = useState<Set<number | string>>(new Set());
+  const [localReactions, setLocalReactions] = useState<Record<string, string[]>>({});
+  const [subPanel, setSubPanel] = useState<'starred' | 'links' | null>(null);
 
   // Modals & Action Sheets
   const [selectedActionMessage, setSelectedActionMessage] = useState<DmMessage | null>(null);
@@ -221,6 +450,8 @@ function DmConversation() {
       router.replace('/(tabs)/chat');
     }
   }, [router]);
+
+  const backSwipeHandlers = useChatBackSwipeResponder(handleBack, true);
 
   // Android hardware back press handler
   useFocusEffect(
@@ -268,30 +499,31 @@ function DmConversation() {
             readQueueRef.current?.setAcknowledged(match.lastReadMessageId);
           }
           if (match.participant) {
-            setPeerInfo({
-              id: match.participant.studentId,
-              name: match.participant.name,
-              role: match.participant.role || 'Student',
-              avatarUrl: match.participant.avatarUrl || null,
-            });
+            setPeerInfo((prev) => ({
+              id: match.participant.studentId || prev.id,
+              name: match.participant.name || prev.name,
+              role: match.participant.role || prev.role || 'Student',
+              username: match.participant.username || prev.username || null,
+              avatarUrl: match.participant.avatarUrl || prev.avatarUrl || null,
+            }));
           }
-        } else {
-          // Fetch fresh list to find this conversation
-          const fresh = await fetchDmConversations(50);
-          const found = fresh.find((c) => c.id === conversationId);
-          if (found && isMounted) {
-            setConversation(found);
-            if (typeof found.lastReadMessageId === 'number' && found.lastReadMessageId > 0) {
-              readQueueRef.current?.setAcknowledged(found.lastReadMessageId);
-            }
-            if (found.participant) {
-              setPeerInfo({
-                id: found.participant.studentId,
-                name: found.participant.name,
-                role: found.participant.role || 'Student',
-                avatarUrl: found.participant.avatarUrl || null,
-              });
-            }
+        }
+        // Always fetch fresh conversations to ensure latest avatarUrl and metadata
+        const fresh = await fetchDmConversations(50);
+        const found = fresh.find((c) => c.id === conversationId);
+        if (found && isMounted) {
+          setConversation(found);
+          if (typeof found.lastReadMessageId === 'number' && found.lastReadMessageId > 0) {
+            readQueueRef.current?.setAcknowledged(found.lastReadMessageId);
+          }
+          if (found.participant) {
+            setPeerInfo((prev) => ({
+              id: found.participant.studentId || prev.id,
+              name: found.participant.name || prev.name,
+              role: found.participant.role || prev.role || 'Student',
+              username: found.participant.username || prev.username || null,
+              avatarUrl: found.participant.avatarUrl || prev.avatarUrl || null,
+            }));
           }
         }
       } catch {}
@@ -356,22 +588,27 @@ function DmConversation() {
 
   useFocusEffect(useCallback(() => {
     activeRef.current = true;
+    setActiveDmConversation(conversationId || null);
+    void clearAppBadge();
     readQueueRef.current?.start();
     void loadMessages();
     const sub = AppState.addEventListener('change', state => {
       if (state === 'active') {
+        setActiveDmConversation(conversationId || null);
         readQueueRef.current?.start();
         void loadMessages();
       } else {
+        setActiveDmConversation(null);
         readQueueRef.current?.stop();
       }
     });
     return () => {
       activeRef.current = false;
+      setActiveDmConversation(null);
       readQueueRef.current?.stop();
       sub.remove();
     };
-  }, [loadMessages]));
+  }, [conversationId, loadMessages]));
 
   // 3. Load older messages (cursor pagination)
   const loadOlderMessages = useCallback(async () => {
@@ -483,9 +720,13 @@ function DmConversation() {
     };
   }, [conversationId, currentUserId, loadMessages, markIncomingRead]));
 
-  // 5. Handling outgoing typing indicator (throttled to 2.5s)
+  // 5. Handling outgoing typing indicator (throttled to 2.5s) + Draft save (Item 50)
   const handleInputChange = (text: string) => {
     setInputText(text);
+    if (!editingMessage) {
+      if (text.trim()) dmDraftCache.set(draftKey, text);
+      else dmDraftCache.delete(draftKey);
+    }
     const now = Date.now();
     if (now - outgoingTypingThrottlerRef.current > 2500) {
       outgoingTypingThrottlerRef.current = now;
@@ -550,6 +791,7 @@ function DmConversation() {
     // Optimistically insert to list
     setMessages((prev) => [tempMessage, ...prev]);
     setInputText('');
+    dmDraftCache.delete(draftKey);
     setReplyingTo(null);
     requestAnimationFrame(() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true }));
 
@@ -589,10 +831,52 @@ function DmConversation() {
 
   const handleRetry = (message: DmMessage) => transmitMessage(message);
 
-  // 8. Message actions: Copy, Reply, Edit, Delete for me, Delete for everyone, Report
+  // 8. Message actions: React, Copy, Reply, Forward, Star, Edit, Delete for me, Delete for everyone, Report
   const handleOpenActionSheet = (msg: DmMessage) => {
     if (typeof msg.id !== 'number') return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setSelectedActionMessage(msg);
+  };
+
+  const handleToggleDmReaction = (msg: DmMessage, emoji: string) => {
+    const key = String(msg.id);
+    Haptics.selectionAsync().catch(() => {});
+    setLocalReactions((prev) => {
+      const existing = prev[key] || [];
+      const next = existing.includes(emoji)
+        ? existing.filter((e) => e !== emoji)
+        : [...existing, emoji];
+      return { ...prev, [key]: next };
+    });
+    setSelectedActionMessage(null);
+  };
+
+  const handleToggleStarMessage = () => {
+    if (!selectedActionMessage) return;
+    const id = selectedActionMessage.id;
+    Haptics.selectionAsync().catch(() => {});
+    setStarredIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setSelectedActionMessage(null);
+  };
+
+  const handleForwardMessage = () => {
+    if (!selectedActionMessage?.text) return;
+    const text = selectedActionMessage.text;
+    setSelectedActionMessage(null);
+    void Clipboard.setStringAsync(`↪ Forwarded:\n${text}`);
+    Alert.alert(
+      'Forward Message',
+      'Choose a recipient to forward this message to (also copied to clipboard):',
+      [
+        { text: 'Select Recipient', onPress: () => router.push('/dm/new') },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const handleCopyMessage = async () => {
@@ -671,7 +955,44 @@ function DmConversation() {
     );
   };
 
-  // 9. Conversation settings: Clear, Block/Unblock, Report
+  // 9. Conversation settings: Mute, Search, Starred, Links, Clear, Block/Unblock, Report
+  const isMuted = Boolean(conversation?.isMuted);
+
+  const handleToggleMute = async () => {
+    setSettingsModalVisible(false);
+    const nextMuted = !isMuted;
+    try {
+      await muteDmConversation(conversationId, nextMuted);
+      setConversation((prev) => (prev ? { ...prev, isMuted: nextMuted } : prev));
+      await updateCachedDmConversationMute(currentUserId, conversationId, nextMuted);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Could not update mute settings.');
+    }
+  };
+
+  const displayedMessages = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!searchMode || !q) return messages;
+    return messages.filter((m) => !m.deletedForAll && (m.text || '').toLowerCase().includes(q));
+  }, [messages, searchMode, searchQuery]);
+
+  const sharedLinks = useMemo(() => {
+    const list: { messageId: number | string; url: string; domain: string; createdAt: string }[] = [];
+    for (const m of messages) {
+      if (m.deletedForAll || !m.text) continue;
+      const info = extractFirstDmUrl(m.text);
+      if (info) {
+        list.push({ messageId: m.id, url: info.url, domain: info.domain, createdAt: m.createdAt });
+      }
+    }
+    return list;
+  }, [messages]);
+
+  const starredMessages = useMemo(
+    () => messages.filter((m) => starredIds.has(m.id) && !m.deletedForAll),
+    [messages, starredIds]
+  );
+
   const handleClearConversation = () => {
     setSettingsModalVisible(false);
     Alert.alert(
@@ -812,21 +1133,23 @@ function DmConversation() {
     const isLastInGroup = !isSameSenderBelow;
     const isHighlighted = highlightedMessageId !== null && (item.id === highlightedMessageId || item.clientId === highlightedMessageId);
 
+    const msgAvatarUri = !isSelf
+      ? resolveDmAvatarUri(item.senderAvatarUrl || peerInfo.avatarUrl, serverUrl, item.senderId || peerInfo.id)
+      : null;
+
     return (
       <View>
         {showDateSeparator && (
           <View style={styles.dateSeparatorContainer}>
-            <View style={[styles.dateSeparatorPill, { backgroundColor: '#141414', borderColor: '#282828' }]}>
-              <Text variant="xs" weight="500" style={{ color: '#737373' }}>
+            <View style={styles.dateSeparatorPill}>
+              <Text variant="xs" weight="600" style={styles.dateSeparatorText}>
                 {formatDateSeparator(item.createdAt)}
               </Text>
             </View>
           </View>
         )}
 
-        <Pressable
-          onLongPress={() => handleOpenActionSheet(item)}
-          delayLongPress={250}
+        <View
           style={[
             styles.bubbleRow,
             isSelf ? styles.bubbleRowSelf : styles.bubbleRowPeer,
@@ -836,29 +1159,75 @@ function DmConversation() {
             },
           ]}
         >
-          <View
+          {!isSelf && (
+            <View style={styles.peerBubbleAvatarGutter}>
+              {isLastInGroup ? (
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  disabled={!peerInfo.id}
+                  onPress={() => {
+                    if (peerInfo.id) {
+                      router.push({ pathname: '/user/[id]', params: { id: peerInfo.id } } as any);
+                    }
+                  }}
+                >
+                  {msgAvatarUri && !bubbleAvatarFailed ? (
+                    <Image
+                      source={{ uri: msgAvatarUri, headers: imageHeaders, cacheKey: msgAvatarUri }}
+                      cachePolicy="memory-disk"
+                      style={styles.peerBubbleAvatar}
+                      contentFit="cover"
+                      onError={() => setBubbleAvatarFailed(true)}
+                    />
+                  ) : (
+                    <View style={[styles.peerBubbleAvatar, styles.peerBubbleAvatarFallback]}>
+                      <Text style={styles.peerBubbleAvatarInitials}>{getInitials(peerInfo.name)}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.peerBubbleAvatarSpacer} />
+              )}
+            </View>
+          )}
+
+          <DmSwipeableBubbleRow
+            disabled={isDeleted || typeof item.id !== 'number'}
+            onSwipeReply={() => {
+              if (!isDeleted && typeof item.id === 'number') {
+                setReplyingTo(item);
+                setEditingMessage(null);
+              }
+            }}
+          >
+          <Pressable
+            onLongPress={() => handleOpenActionSheet(item)}
+            delayLongPress={250}
             style={[
               styles.bubbleContainer,
+              { maxWidth: '100%' },
               isSelf
                 ? [
                     styles.bubbleSelf,
                     {
                       backgroundColor: Monochrome.outgoingBubble,
+                      borderColor: 'rgba(255, 255, 255, 0.16)',
+                      borderWidth: StyleSheet.hairlineWidth,
                       borderTopRightRadius: isFirstInGroup ? 18 : 4,
                       borderBottomRightRadius: isLastInGroup ? (isFirstInGroup ? 18 : 4) : 4,
-                      borderTopLeftRadius: 18,
-                      borderBottomLeftRadius: 18,
+                      borderTopLeftRadius: 20,
+                      borderBottomLeftRadius: 20,
                     },
                   ]
                 : [
                     styles.bubblePeer,
                     {
-                      backgroundColor: Monochrome.incomingBubble,
-                      borderColor: Monochrome.border,
+                      backgroundColor: 'rgba(14, 14, 18, 0.92)',
+                      borderColor: 'rgba(255, 255, 255, 0.09)',
                       borderTopLeftRadius: isFirstInGroup ? 18 : 4,
                       borderBottomLeftRadius: isLastInGroup ? (isFirstInGroup ? 18 : 4) : 4,
-                      borderTopRightRadius: 18,
-                      borderBottomRightRadius: 18,
+                      borderTopRightRadius: 20,
+                      borderBottomRightRadius: 20,
                     },
                   ],
             ]}
@@ -924,19 +1293,75 @@ function DmConversation() {
                 </Text>
               </View>
             ) : (
-              <Text
-                variant="sm"
-                style={[
-                  styles.bubbleText,
-                  { color: isSelf ? Monochrome.outgoingText : Monochrome.incomingText },
-                ]}
-              >
-                {item.text}
-              </Text>
+              <>
+                {renderDmTextWithLinks(
+                  item.text || '',
+                  isSelf,
+                  [
+                    styles.bubbleText,
+                    { color: isSelf ? Monochrome.outgoingText : Monochrome.incomingText },
+                  ]
+                )}
+                {(() => {
+                  const preview = extractFirstDmUrl(item.text);
+                  if (!preview) return null;
+                  return (
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={() => Linking.openURL(preview.url).catch(() => {})}
+                      style={[
+                        styles.dmLinkPreviewCard,
+                        {
+                          backgroundColor: isSelf ? 'rgba(0,0,0,0.08)' : '#222226',
+                          borderColor: isSelf ? 'rgba(0,0,0,0.14)' : '#323238',
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="globe-outline"
+                        size={15}
+                        color={isSelf ? Monochrome.outgoingText : '#E4E4E7'}
+                        style={{ marginRight: 7 }}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          variant="xs"
+                          weight="700"
+                          numberOfLines={1}
+                          style={{ color: isSelf ? Monochrome.outgoingText : '#F4F4F5' }}
+                        >
+                          {preview.domain}
+                        </Text>
+                        <Text
+                          variant="xs"
+                          numberOfLines={1}
+                          style={{ color: isSelf ? Monochrome.outgoingMeta : '#A1A1AA' }}
+                        >
+                          {preview.url}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name="open-outline"
+                        size={13}
+                        color={isSelf ? Monochrome.outgoingMeta : '#A1A1AA'}
+                        style={{ marginLeft: 6 }}
+                      />
+                    </TouchableOpacity>
+                  );
+                })()}
+              </>
             )}
 
-            {/* Footer: Timestamp, Edited tag, Read receipt */}
+            {/* Footer: Starred, Timestamp, Edited tag, Read receipt */}
             <View style={styles.bubbleFooter}>
+              {starredIds.has(item.id) && !isDeleted && (
+                <Ionicons
+                  name="star"
+                  size={10}
+                  color={isSelf ? Monochrome.outgoingMeta : '#A1A1AA'}
+                  style={{ marginRight: 4 }}
+                />
+              )}
               {item.isEdited && !isDeleted && (
                 <Text
                   variant="xs"
@@ -975,8 +1400,32 @@ function DmConversation() {
                 </View>
               )}
             </View>
+          </Pressable>
+          </DmSwipeableBubbleRow>
+        </View>
+
+        {/* Quick Reaction Pills on DM Bubble (Item 12) */}
+        {(localReactions[String(item.id)] || []).length > 0 && (
+          <View
+            style={[
+              styles.dmReactionPillsRow,
+              isSelf ? { justifyContent: 'flex-end', paddingRight: 6 } : { justifyContent: 'flex-start', paddingLeft: 42 },
+            ]}
+          >
+            {(localReactions[String(item.id)] || []).map((emoji) => (
+              <TouchableOpacity
+                key={emoji}
+                activeOpacity={0.75}
+                onPress={() => handleToggleDmReaction(item, emoji)}
+                style={styles.dmReactionPill}
+              >
+                <RNText style={{ fontSize: 12 }} allowFontScaling={false}>
+                  {emoji}
+                </RNText>
+              </TouchableOpacity>
+            ))}
           </View>
-        </Pressable>
+        )}
       </View>
     );
   };
@@ -1007,15 +1456,16 @@ function DmConversation() {
   return (
     <View style={[styles.container, { backgroundColor: Monochrome.background }]}>
       <StatusBar barStyle="light-content" />
+      <FluidChatBackground />
 
-      {/* Top Header */}
+      {/* Top Header (floating glass controls over fluid background, base Monochrome.header) */}
       <View
         style={[
           styles.header,
           {
             paddingTop: Math.max(insets.top, 10),
-            backgroundColor: Monochrome.header,
-            borderBottomColor: Monochrome.border,
+            backgroundColor: 'rgba(10, 10, 14, 0.38)',
+            borderBottomColor: 'rgba(255, 255, 255, 0.06)',
           },
         ]}
       >
@@ -1025,7 +1475,7 @@ function DmConversation() {
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Go back"
         >
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
+          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
 
         {/* Peer Avatar & Profile Link */}
@@ -1037,65 +1487,100 @@ function DmConversation() {
               router.push({ pathname: '/user/[id]', params: { id: peerInfo.id } } as any);
             }
           }}
-          style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+          style={styles.headerProfileTouch}
         >
           <View style={styles.headerAvatarContainer}>
-            {peerInfo.avatarUrl ? (
+            {resolvedPeerAvatarUri && !headerAvatarFailed ? (
               <Image
-                source={{ uri: peerInfo.avatarUrl }}
+                source={{ uri: resolvedPeerAvatarUri, headers: imageHeaders, cacheKey: resolvedPeerAvatarUri }}
+                cachePolicy="memory-disk"
                 style={styles.headerAvatar}
                 contentFit="cover"
+                onError={() => setHeaderAvatarFailed(true)}
               />
             ) : (
-              <View
-                style={[
-                  styles.headerAvatar,
-                  styles.avatarFallback,
-                  { backgroundColor: colors.surfaceRaised },
-                ]}
-              >
-                <Text variant="sm" weight="700" style={{ color: colors.text }}>
+              <View style={[styles.headerAvatar, styles.avatarFallback]}>
+                <Text variant="sm" weight="700" style={{ color: '#F4F4F5' }}>
                   {getInitials(peerInfo.name)}
                 </Text>
               </View>
             )}
+            {realtimeConnected && !isBlocked && (
+              <View style={styles.headerOnlineDot} />
+            )}
           </View>
 
-          {/* Peer Name & Subtitle (Role / Typing) */}
+          {/* Peer Name & Subtitle */}
           <View style={styles.headerTitleGroup}>
             <View style={styles.headerNameRow}>
-              <Text variant="md" weight="700" numberOfLines={1} style={{ color: colors.text }}>
+              <Text variant="md" weight="700" numberOfLines={1} style={styles.headerPeerName}>
                 {peerInfo.name}
               </Text>
-              <View style={[styles.roleBadge, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}>
-                <Text variant="xs" weight="600" style={{ color: Monochrome.textSecondary }}>
-                  {peerInfo.role}
-                </Text>
-              </View>
+              <Ionicons name="chevron-forward" size={14} color="#A1A1AA" style={{ marginLeft: 3 }} />
             </View>
 
             {peerIsTyping ? (
               <Text variant="xs" weight="600" style={styles.typingIndicator}>
                 typing...
               </Text>
-            ) : !realtimeConnected ? (
-              <Text variant="xs" style={{ color: Monochrome.textSecondary }}>Live updates unavailable · checking periodically</Text>
-            ) : null}
+            ) : peerInfo.username ? (
+              <Text variant="xs" style={styles.headerSubtitleText} numberOfLines={1}>
+                @{peerInfo.username}
+              </Text>
+            ) : (
+              <Text variant="xs" style={styles.headerSubtitleText} numberOfLines={1}>
+                Direct message
+              </Text>
+            )}
           </View>
         </TouchableOpacity>
 
-        {/* Conversation Settings Button */}
+        {/* Search & Conversation Settings Buttons */}
+        <TouchableOpacity
+          onPress={() => {
+            setSearchMode((prev) => !prev);
+            setSearchQuery('');
+          }}
+          style={[styles.headerActionBtn, { marginRight: 6 }]}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Search in conversation"
+        >
+          <Ionicons name={searchMode ? 'close' : 'search-outline'} size={18} color="#E4E4E7" />
+        </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => setSettingsModalVisible(true)}
           style={styles.headerActionBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Conversation options"
         >
-          <Ionicons name="ellipsis-vertical" size={20} color={colors.text} />
+          <Ionicons name="ellipsis-horizontal" size={19} color="#E4E4E7" />
         </TouchableOpacity>
       </View>
 
-      {/* Main Timeline wrapped in KeyboardContentBoundary */}
+      {/* In-Chat Search Bar (Item 14) */}
+      {searchMode && (
+        <View style={styles.dmSearchBar}>
+          <Ionicons name="search-outline" size={16} color="#8E8E93" style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.dmSearchInput}
+            placeholder="Search in conversation..."
+            placeholderTextColor="#71717A"
+            keyboardAppearance="dark"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoFocus
+          />
+          {Boolean(searchQuery) && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color="#8E8E93" />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Main Timeline wrapped in KeyboardContentBoundary (swipe right outside bubble goes back to inbox) */}
+      <View style={{ flex: 1 }} {...backSwipeHandlers}>
       <KeyboardContentBoundary style={styles.timelineBoundary}>
         {loading && messages.length === 0 ? (
           <View style={styles.centerContainer}>
@@ -1118,11 +1603,27 @@ function DmConversation() {
           </View>
         ) : messages.length === 0 ? (
           <View style={styles.centerContainer}>
-            <Ionicons name="chatbubbles-outline" size={44} color={colors.textMuted} />
-            <Text variant="md" weight="600" style={{ color: colors.text, marginTop: 12 }}>
-              No messages yet
+            <View style={styles.emptyPeerAvatarWrap}>
+              {resolvedPeerAvatarUri && !headerAvatarFailed ? (
+                <Image
+                  source={{ uri: resolvedPeerAvatarUri, headers: imageHeaders, cacheKey: resolvedPeerAvatarUri }}
+                  cachePolicy="memory-disk"
+                  style={styles.emptyPeerAvatar}
+                  contentFit="cover"
+                  onError={() => setHeaderAvatarFailed(true)}
+                />
+              ) : (
+                <View style={[styles.emptyPeerAvatar, styles.avatarFallback]}>
+                  <Text style={{ fontSize: 22, fontWeight: '700', color: '#F4F4F5' }}>
+                    {getInitials(peerInfo.name)}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text variant="lg" weight="700" style={{ color: '#F4F4F5', marginTop: 14 }}>
+              {peerInfo.name}
             </Text>
-            <Text variant="sm" style={{ color: colors.textMuted, marginTop: 4, textAlign: 'center' }}>
+            <Text variant="sm" style={{ color: '#8E8E93', marginTop: 4, textAlign: 'center' }}>
               Send a message to start chatting with {peerInfo.name}.
             </Text>
           </View>
@@ -1130,7 +1631,7 @@ function DmConversation() {
           <View style={{ flex: 1 }}>
             <FlatList
               ref={flatListRef}
-              data={messages}
+              data={displayedMessages}
               renderItem={renderMessageItem}
               keyExtractor={(item) => item.clientId ? `${item.senderId}:${item.clientId}` : String(item.id)}
               inverted
@@ -1200,6 +1701,7 @@ function DmConversation() {
           </View>
         )}
       </KeyboardContentBoundary>
+      </View>
 
       {/* Message Composer or Blocked Banner */}
       {isBlocked ? (
@@ -1228,7 +1730,7 @@ function DmConversation() {
           )}
         </View>
       ) : (
-        <StickyComposer bordered>
+        <StickyComposer bordered={false} style={{ backgroundColor: 'transparent', paddingHorizontal: 4 }}>
           {/* Replying Banner */}
           {replyingTo && (
             <View style={[styles.contextBanner, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}>
@@ -1269,19 +1771,17 @@ function DmConversation() {
             </View>
           )}
 
-          {/* Input Row */}
+          {/* Input Row — Modern Floating Pill Capsule matching screenshot */}
           <View style={styles.composerRow}>
+            <View style={styles.composerCameraCircle}>
+              <Ionicons name="camera" size={18} color="#FFFFFF" />
+            </View>
+
             <TextInput
-              style={[
-                styles.composerInput,
-                {
-                  backgroundColor: Monochrome.composerInput,
-                  color: Monochrome.composerText,
-                  borderColor: Monochrome.border,
-                },
-              ]}
+              style={styles.composerInput}
               placeholder="Message..."
-              placeholderTextColor={Monochrome.composerPlaceholder}
+              placeholderTextColor="#9CA3AF"
+              keyboardAppearance="dark"
               value={inputText}
               onChangeText={handleInputChange}
               multiline
@@ -1301,26 +1801,36 @@ function DmConversation() {
               </Text>
             )}
 
+            {!inputText.trim() && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Ionicons name="mic-outline" size={20} color="#F4F4F5" />
+                <Ionicons name="image-outline" size={20} color="#F4F4F5" />
+                <Ionicons name="chatbubble-ellipses-outline" size={19} color="#F4F4F5" />
+              </View>
+            )}
+
             <TouchableOpacity
-              onPress={handleSend}
-              disabled={!inputText.trim() || sending}
+              onPress={inputText.trim() ? handleSend : () => setSettingsModalVisible(true)}
+              disabled={sending}
               style={[
                 styles.sendButton,
                 {
                   backgroundColor: inputText.trim() ? Monochrome.outgoingBubble : Monochrome.surfaceRaised,
-                  opacity: inputText.trim() ? 1 : 0.4,
                 },
+                inputText.trim() ? styles.sendButtonActive : styles.sendButtonInactive,
               ]}
               accessibilityLabel={editingMessage ? 'Save edited message' : 'Send message'}
             >
               {sending ? (
-                <ActivityIndicator size="small" color={Monochrome.outgoingText} />
-              ) : (
+                <ActivityIndicator size="small" color="#09090B" />
+              ) : inputText.trim() ? (
                 <Ionicons
                   name={editingMessage ? 'checkmark' : 'arrow-up'}
-                  size={20}
-                  color={inputText.trim() ? Monochrome.outgoingText : Monochrome.textTertiary}
+                  size={19}
+                  color="#09090B"
                 />
+              ) : (
+                <Ionicons name="add-circle-outline" size={22} color="#F4F4F5" />
               )}
             </TouchableOpacity>
           </View>
@@ -1344,12 +1854,32 @@ function DmConversation() {
               { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
             ]}
           >
-            <TouchableOpacity style={styles.actionSheetRow} onPress={handleCopyMessage}>
-              <Ionicons name="copy-outline" size={20} color={colors.text} />
-              <Text variant="sm" weight="600" style={[styles.actionRowText, { color: colors.text }]}>
-                Copy Text
-              </Text>
-            </TouchableOpacity>
+            {/* Quick Emoji Reaction Bar (Items 12, 94, 98) */}
+            {!selectedActionMessage?.deletedForAll && (
+              <View style={styles.dmQuickReactionBar}>
+                {DM_QUICK_REACTIONS.map((emoji) => {
+                  const active = (
+                    localReactions[String(selectedActionMessage?.id || '')] || []
+                  ).includes(emoji);
+                  return (
+                    <TouchableOpacity
+                      key={emoji}
+                      onPress={() =>
+                        selectedActionMessage && handleToggleDmReaction(selectedActionMessage, emoji)
+                      }
+                      style={[
+                        styles.dmQuickReactionBtn,
+                        active && styles.dmQuickReactionBtnActive,
+                      ]}
+                    >
+                      <RNText style={{ fontSize: 22 }} allowFontScaling={false}>
+                        {emoji}
+                      </RNText>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
             {!selectedActionMessage?.deletedForAll && (
               <TouchableOpacity style={styles.actionSheetRow} onPress={handleStartReply}>
@@ -1359,6 +1889,37 @@ function DmConversation() {
                 </Text>
               </TouchableOpacity>
             )}
+
+            {!selectedActionMessage?.deletedForAll && (
+              <TouchableOpacity style={styles.actionSheetRow} onPress={handleForwardMessage}>
+                <Ionicons name="arrow-redo-outline" size={20} color={colors.text} />
+                <Text variant="sm" weight="600" style={[styles.actionRowText, { color: colors.text }]}>
+                  Forward Message
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {!selectedActionMessage?.deletedForAll && (
+              <TouchableOpacity style={styles.actionSheetRow} onPress={handleToggleStarMessage}>
+                <Ionicons
+                  name={selectedActionMessage && starredIds.has(selectedActionMessage.id) ? 'star' : 'star-outline'}
+                  size={20}
+                  color={colors.text}
+                />
+                <Text variant="sm" weight="600" style={[styles.actionRowText, { color: colors.text }]}>
+                  {selectedActionMessage && starredIds.has(selectedActionMessage.id)
+                    ? 'Remove Star'
+                    : 'Star Message'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={styles.actionSheetRow} onPress={handleCopyMessage}>
+              <Ionicons name="copy-outline" size={20} color={colors.text} />
+              <Text variant="sm" weight="600" style={[styles.actionRowText, { color: colors.text }]}>
+                Copy Text
+              </Text>
+            </TouchableOpacity>
 
             {/* Self-only: Edit message (if not deleted) */}
             {selectedActionMessage?.senderId === currentUserId &&
@@ -1403,7 +1964,7 @@ function DmConversation() {
         </Pressable>
       </Modal>
 
-      {/* Conversation Settings Modal */}
+      {/* Conversation Settings Modal (Items 14, 30, 55, 86, 100) */}
       <Modal
         visible={settingsModalVisible}
         transparent
@@ -1423,6 +1984,56 @@ function DmConversation() {
             <Text variant="sm" weight="700" style={[styles.actionSheetHeader, { color: colors.textMuted }]}>
               CONVERSATION OPTIONS
             </Text>
+
+            <TouchableOpacity
+              style={styles.actionSheetRow}
+              onPress={() => {
+                setSettingsModalVisible(false);
+                setSearchMode(true);
+              }}
+            >
+              <Ionicons name="search-outline" size={20} color={colors.text} />
+              <Text variant="sm" weight="600" style={[styles.actionRowText, { color: colors.text }]}>
+                Search in Conversation
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionSheetRow} onPress={() => void handleToggleMute()}>
+              <Ionicons
+                name={isMuted ? 'notifications-outline' : 'notifications-off-outline'}
+                size={20}
+                color={colors.text}
+              />
+              <Text variant="sm" weight="600" style={[styles.actionRowText, { color: colors.text }]}>
+                {isMuted ? 'Unmute Notifications' : 'Mute Notifications'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionSheetRow}
+              onPress={() => {
+                setSettingsModalVisible(false);
+                setSubPanel('links');
+              }}
+            >
+              <Ionicons name="link-outline" size={20} color={colors.text} />
+              <Text variant="sm" weight="600" style={[styles.actionRowText, { color: colors.text }]}>
+                Shared Links ({sharedLinks.length})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionSheetRow}
+              onPress={() => {
+                setSettingsModalVisible(false);
+                setSubPanel('starred');
+              }}
+            >
+              <Ionicons name="star-outline" size={20} color={colors.text} />
+              <Text variant="sm" weight="600" style={[styles.actionRowText, { color: colors.text }]}>
+                Starred Messages ({starredMessages.length})
+              </Text>
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionSheetRow} onPress={handleClearConversation}>
               <Ionicons name="trash-bin-outline" size={20} color={colors.text} />
@@ -1455,6 +2066,88 @@ function DmConversation() {
                 Report User
               </Text>
             </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Shared Links & Starred Messages Modal (Items 30 & 86) */}
+      <Modal
+        visible={subPanel !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSubPanel(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setSubPanel(null)}>
+          <View
+            style={[
+              styles.actionSheetContent,
+              { backgroundColor: colors.surface, borderColor: colors.borderSubtle, maxHeight: 420 },
+            ]}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text variant="sm" weight="700" style={{ color: colors.textMuted, letterSpacing: 0.5 }}>
+                {subPanel === 'links' ? 'SHARED LINKS' : 'STARRED MESSAGES'}
+              </Text>
+              <TouchableOpacity onPress={() => setSubPanel(null)}>
+                <Ionicons name="close" size={20} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ maxHeight: 330 }}>
+              {subPanel === 'links' ? (
+                sharedLinks.length === 0 ? (
+                  <Text variant="sm" style={{ color: colors.textMuted, paddingVertical: 16 }}>
+                    No links shared in this conversation yet.
+                  </Text>
+                ) : (
+                  sharedLinks.map((item, idx) => (
+                    <TouchableOpacity
+                      key={`${item.messageId}:${idx}`}
+                      style={styles.actionSheetRow}
+                      onPress={() => {
+                        setSubPanel(null);
+                        Linking.openURL(item.url).catch(() => {});
+                      }}
+                    >
+                      <Ionicons name="globe-outline" size={18} color={colors.text} />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text variant="sm" weight="600" style={{ color: colors.text }} numberOfLines={1}>
+                          {item.domain}
+                        </Text>
+                        <Text variant="xs" style={{ color: colors.textMuted }} numberOfLines={1}>
+                          {item.url}
+                        </Text>
+                      </View>
+                      <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  ))
+                )
+              ) : starredMessages.length === 0 ? (
+                <Text variant="sm" style={{ color: colors.textMuted, paddingVertical: 16 }}>
+                  Long-press any message and tap Star Message to bookmark it here.
+                </Text>
+              ) : (
+                starredMessages.map((m) => (
+                  <TouchableOpacity
+                    key={String(m.id)}
+                    style={styles.actionSheetRow}
+                    onPress={() => {
+                      setSubPanel(null);
+                      handleJumpToReply(m.id);
+                    }}
+                  >
+                    <Ionicons name="star" size={16} color={colors.text} />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text variant="sm" style={{ color: colors.text }} numberOfLines={2}>
+                        {m.text}
+                      </Text>
+                      <Text variant="xs" style={{ color: colors.textMuted, marginTop: 2 }}>
+                        {formatBubbleTime(m.createdAt)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
           </View>
         </Pressable>
       </Modal>
@@ -1580,46 +2273,90 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingBottom: 10,
+    paddingBottom: 11,
     borderBottomWidth: StyleSheet.hairlineWidth,
     zIndex: 10,
   },
   backButton: {
-    padding: 6,
-    marginRight: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(32, 32, 38, 0.72)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  headerProfileTouch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
   },
   headerAvatarContainer: {
     marginRight: 10,
+    position: 'relative',
   },
   headerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  headerOnlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    backgroundColor: '#22C55E',
+    borderWidth: 2,
+    borderColor: '#101010',
   },
   avatarFallback: {
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1,
+    borderColor: '#2C2C2E',
   },
   headerTitleGroup: {
     flex: 1,
+    justifyContent: 'center',
   },
   headerNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  roleBadge: {
-    marginLeft: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
+  headerPeerName: {
+    color: '#F4F4F5',
+    fontSize: 16,
+    letterSpacing: -0.2,
+    flexShrink: 1,
+  },
+  headerSubtitleText: {
+    fontSize: 12,
+    color: '#A1A1AA',
+    marginTop: 1,
   },
   typingIndicator: {
-    fontSize: 11,
-    color: Monochrome.textSecondary,
+    fontSize: 12,
+    color: '#22C55E',
     marginTop: 1,
   },
   headerActionBtn: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(32, 32, 38, 0.72)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timelineBoundary: {
     flex: 1,
@@ -1630,6 +2367,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 32,
   },
+  emptyPeerAvatarWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyPeerAvatar: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1,
+    borderColor: '#2C2C2E',
+  },
   retryBtn: {
     marginTop: 12,
     paddingHorizontal: 16,
@@ -1637,23 +2389,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   listContent: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
   },
   dateSeparatorContainer: {
     alignItems: 'center',
-    marginVertical: 10,
+    marginVertical: 12,
   },
   dateSeparatorPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 3.5,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: 12,
     borderWidth: StyleSheet.hairlineWidth,
-    backgroundColor: '#141414',
-    borderColor: '#282828',
+    backgroundColor: '#141416',
+    borderColor: '#262629',
+  },
+  dateSeparatorText: {
+    color: '#8E8E93',
+    fontSize: 11,
   },
   bubbleRow: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   bubbleRowSelf: {
     justifyContent: 'flex-end',
@@ -1661,23 +2418,50 @@ const styles = StyleSheet.create({
   bubbleRowPeer: {
     justifyContent: 'flex-start',
   },
+  peerBubbleAvatarGutter: {
+    width: 30,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  peerBubbleAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1C1C1E',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#2C2C2E',
+  },
+  peerBubbleAvatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  peerBubbleAvatarInitials: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#E4E4E7',
+  },
+  peerBubbleAvatarSpacer: {
+    width: 28,
+    height: 28,
+  },
   bubbleContainer: {
-    maxWidth: '78%',
-    borderRadius: 18,
-    paddingHorizontal: 13,
-    paddingTop: 8,
+    maxWidth: '76%',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingTop: 9,
     paddingBottom: 7,
   },
   bubbleSelf: {
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: 5,
   },
   bubblePeer: {
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: 5,
     borderWidth: StyleSheet.hairlineWidth,
   },
   bubbleText: {
     fontSize: 15,
-    lineHeight: 20,
+    lineHeight: 20.5,
   },
   deletedRow: {
     flexDirection: 'row',
@@ -1689,9 +2473,9 @@ const styles = StyleSheet.create({
   },
   replyQuote: {
     borderLeftWidth: 3,
-    paddingLeft: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingLeft: 9,
+    paddingVertical: 5,
+    borderRadius: 6,
     marginBottom: 6,
   },
   bubbleFooter: {
@@ -1704,7 +2488,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   timestampText: {
-    fontSize: 10,
+    fontSize: 10.5,
   },
   receiptContainer: {
     marginLeft: 4,
@@ -1713,28 +2497,55 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginBottom: 6,
+    paddingVertical: 8,
+    marginHorizontal: 10,
+    marginTop: 6,
+    borderRadius: 10,
   },
   composerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    marginHorizontal: 8,
+    marginBottom: 4,
+    gap: 8,
+    backgroundColor: 'rgba(22, 22, 26, 0.88)',
+    borderRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  composerCameraCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(115, 118, 128, 0.42)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   composerInput: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 38,
     maxHeight: 120,
     borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    paddingTop: 10,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    backgroundColor: 'transparent',
+    color: '#F5F5F5',
+    paddingHorizontal: 6,
+    paddingTop: 9,
     paddingBottom: 10,
     fontSize: 15,
+    lineHeight: 20,
   },
   charCounter: {
     fontSize: 10,
-    marginRight: 6,
+    marginRight: 4,
     marginBottom: 10,
   },
   sendButton: {
@@ -1743,7 +2554,15 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 8,
+    marginBottom: 1,
+  },
+  sendButtonActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  sendButtonInactive: {
+    backgroundColor: '#242426',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#303034',
   },
   blockedBanner: {
     flexDirection: 'row',
@@ -1837,5 +2656,83 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  dmSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: '#121214',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#27272A',
+  },
+  dmSearchInput: {
+    flex: 1,
+    color: '#F4F4F5',
+    fontSize: 14,
+    paddingVertical: 4,
+  },
+  dmLinkPreviewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  dmQuickReactionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 12,
+    marginBottom: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#27272A',
+  },
+  dmQuickReactionBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1C1C1E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dmQuickReactionBtnActive: {
+    backgroundColor: '#2E2E32',
+    borderWidth: 1,
+    borderColor: '#52525B',
+  },
+  dmReactionPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  dmReactionPill: {
+    backgroundColor: '#1C1C1E',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#2E2E32',
+    borderRadius: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  dmSwipeRowWrapper: {
+    width: '100%',
+    position: 'relative',
+  },
+  dmSwipeReplyIconBox: {
+    position: 'absolute',
+    left: 10,
+    top: '50%',
+    marginTop: -14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
   },
 });

@@ -165,10 +165,78 @@ export async function saveCachedDmMessages(
             [accountId, conversationId, numId, JSON.stringify(m), m.createdAt]
           );
         }
+        await txn.runAsync(
+          `DELETE FROM dm_messages_cache_v1
+           WHERE account_id = ? AND conversation_id = ?
+             AND id NOT IN (
+               SELECT id FROM dm_messages_cache_v1
+               WHERE account_id = ? AND conversation_id = ?
+               ORDER BY id DESC LIMIT 300
+             )`,
+          [accountId, conversationId, accountId, conversationId]
+        );
       });
     } catch (err) {
       console.warn('[DM Cache] Save messages error:', err);
     }
+  });
+
+  // Synchronously keep cached conversation preview fresh if this conversation is in memory
+  const newestConfirmed = retained[retained.length - 1];
+  const convList = memoryConversations.get(accountId);
+  if (newestConfirmed && typeof newestConfirmed.id === 'number' && convList) {
+    const idx = convList.findIndex(c => c.id === conversationId);
+    if (idx >= 0) {
+      const currentLastId = Number(convList[idx].lastMessage?.id || 0);
+      if (newestConfirmed.id >= currentLastId) {
+        const updatedConv: DmConversationItem = {
+          ...convList[idx],
+          lastMessage: {
+            id: newestConfirmed.id,
+            text: newestConfirmed.deletedForAll ? null : newestConfirmed.text,
+            senderId: newestConfirmed.senderId,
+            deletedForAll: Boolean(newestConfirmed.deletedForAll),
+            createdAt: newestConfirmed.createdAt,
+          },
+          lastMessageAt: newestConfirmed.createdAt,
+        };
+        const nextList = [...convList];
+        nextList[idx] = updatedConv;
+        memoryConversations.set(accountId, nextList);
+      }
+    }
+  }
+}
+
+export async function updateCachedDmConversationMute(
+  accountId: string,
+  conversationId: string,
+  isMuted: boolean
+): Promise<void> {
+  if (!accountId || !conversationId) return;
+  const convList = memoryConversations.get(accountId);
+  if (convList) {
+    memoryConversations.set(
+      accountId,
+      convList.map(c => (c.id === conversationId ? { ...c, isMuted } : c))
+    );
+  }
+  writeQueue = writeQueue.then(async () => {
+    try {
+      const db = await getDmDatabase();
+      const rows = await db.getAllAsync<{ payload: string; last_message_at: string }>(
+        'SELECT payload, last_message_at FROM dm_conversations_cache_v1 WHERE account_id = ? AND id = ?',
+        [accountId, conversationId]
+      );
+      if (rows.length > 0) {
+        const parsed = JSON.parse(rows[0].payload) as DmConversationItem;
+        const updated = { ...parsed, isMuted };
+        await db.runAsync(
+          'INSERT OR REPLACE INTO dm_conversations_cache_v1 (account_id, id, payload, last_message_at) VALUES (?, ?, ?, ?)',
+          [accountId, conversationId, JSON.stringify(updated), rows[0].last_message_at || '']
+        );
+      }
+    } catch {}
   });
 }
 

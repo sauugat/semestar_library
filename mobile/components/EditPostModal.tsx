@@ -651,33 +651,6 @@ export function EditPostModal({
           contentContainerStyle={{ padding: spacing.md, paddingBottom: 60 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Title Input (Hidden for General posts) */}
-          {category !== 'general' && (
-            <>
-              <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 6, textTransform: 'uppercase' }}>
-                Title (Optional)
-              </Text>
-              <TextInput
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Post title..."
-                placeholderTextColor={colors.textMuted}
-                maxLength={200}
-                editable={!saving}
-                style={[
-                  styles.singleLineInput,
-                  {
-                    backgroundColor: colors.surfaceRaised,
-                    color: colors.text,
-                    borderColor: colors.border,
-                    borderRadius: radii.md,
-                    marginBottom: spacing.md,
-                  },
-                ]}
-              />
-            </>
-          )}
-
           {/* Category, Audience, & Semester Selectors */}
           <View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -766,6 +739,33 @@ export function EditPostModal({
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Title Input (Hidden for General posts) */}
+          {category !== 'general' && (
+            <>
+              <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 6, textTransform: 'uppercase' }}>
+                Title (Optional)
+              </Text>
+              <TextInput
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Post title..."
+                placeholderTextColor={colors.textMuted}
+                maxLength={200}
+                editable={!saving}
+                style={[
+                  styles.singleLineInput,
+                  {
+                    backgroundColor: colors.surfaceRaised,
+                    color: colors.text,
+                    borderColor: colors.border,
+                    borderRadius: radii.md,
+                    marginBottom: spacing.md,
+                  },
+                ]}
+              />
+            </>
+          )}
 
           {/* Caption Input */}
           <Text variant="xs" weight="700" color="muted" style={{ marginBottom: 6, textTransform: 'uppercase' }}>

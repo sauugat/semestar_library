@@ -165,6 +165,8 @@ const camelMap = {
   lastinsertrowid: 'lastInsertRowid', uploadername: 'uploaderName',
   uploaderavatar: 'uploaderAvatar', uploaderrole: 'uploaderRole',
   likecount: 'likeCount', commentcount: 'commentCount',
+  upcount: 'upCount', downcount: 'downCount', myvote: 'myVote',
+  up_count: 'upCount', down_count: 'downCount', my_vote: 'myVote',
   commentername: 'commenterName', isfollowing: 'isFollowing',
   followerscount: 'followersCount', followingcount: 'followingCount',
   replytoid: 'replyToId', linktitle: 'linkTitle', linkdesc: 'linkDesc',
@@ -328,7 +330,7 @@ async function run(sql, ...params) {
     const hasReturning = /RETURNING/i.test(sql);
 
     if (isInsert && !hasReturning) {
-      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_submissions', 'mobile_tokens', 'login_attempts', 'student_device_tokens', 'student_notification_preferences', 'push_receipt_tickets', 'cohort_audit_logs', 'admin_audit_logs', 'dm_participants', 'dm_blocks', 'dm_message_deletions', 'dm_rate_limits', 'attendance_settings', 'teacher_drive_connections'];
+      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'file_votes', 'assignment_votes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_votes', 'post_submissions', 'mobile_tokens', 'login_attempts', 'student_device_tokens', 'student_notification_preferences', 'push_receipt_tickets', 'cohort_audit_logs', 'admin_audit_logs', 'dm_participants', 'dm_blocks', 'dm_message_deletions', 'dm_rate_limits', 'attendance_settings', 'teacher_drive_connections'];
       const isNoIdTable = noIdTables.some(tbl => new RegExp(`INSERT\\s+INTO\\s+${tbl}\\b`, 'i').test(sql));
       if (!isNoIdTable) {
         pgSql += ' RETURNING id';
@@ -545,9 +547,31 @@ async function initSchema() {
             PRIMARY KEY (fileId, studentId)
           );
 
+          CREATE TABLE IF NOT EXISTS file_votes (
+            fileId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            vote_type INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (fileId, studentId)
+          );
+
           CREATE TABLE IF NOT EXISTS file_comments (
             id SERIAL PRIMARY KEY,
             fileId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            commentText TEXT NOT NULL,
+            createdAt TIMESTAMPTZ NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS assignment_votes (
+            assignmentId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            vote_type INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (assignmentId, studentId)
+          );
+
+          CREATE TABLE IF NOT EXISTS assignment_comments (
+            id SERIAL PRIMARY KEY,
+            assignmentId INTEGER NOT NULL,
             studentId TEXT NOT NULL,
             commentText TEXT NOT NULL,
             createdAt TIMESTAMPTZ NOT NULL
@@ -777,9 +801,31 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
             PRIMARY KEY (fileId, studentId)
           );
 
+          CREATE TABLE IF NOT EXISTS file_votes (
+            fileId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            vote_type INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (fileId, studentId)
+          );
+
           CREATE TABLE IF NOT EXISTS file_comments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fileId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            commentText TEXT NOT NULL,
+            createdAt TEXT NOT NULL
+          );
+
+          CREATE TABLE IF NOT EXISTS assignment_votes (
+            assignmentId INTEGER NOT NULL,
+            studentId TEXT NOT NULL,
+            vote_type INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (assignmentId, studentId)
+          );
+
+          CREATE TABLE IF NOT EXISTS assignment_comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            assignmentId INTEGER NOT NULL,
             studentId TEXT NOT NULL,
             commentText TEXT NOT NULL,
             createdAt TEXT NOT NULL
@@ -1395,6 +1441,98 @@ async function cleanupExpiredSessions() {
 
 let startupReadyPromise = null;
 
+let interactionsSchemaReady = false;
+let interactionsSchemaPromise = null;
+async function ensureInteractionsSchema() {
+  if (interactionsSchemaReady) return;
+  if (interactionsSchemaPromise) return interactionsSchemaPromise;
+  interactionsSchemaPromise = (async () => {
+    try {
+      const idDef = isPostgres ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+      const tsDef = isPostgres ? 'TIMESTAMPTZ' : 'TEXT';
+      const ddlStmts = [
+        `CREATE TABLE IF NOT EXISTS post_votes (
+          post_id INTEGER NOT NULL,
+          user_id TEXT NOT NULL,
+          vote_type INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (post_id, user_id)
+        )`,
+        `CREATE TABLE IF NOT EXISTS file_votes (
+          fileId INTEGER NOT NULL,
+          studentId TEXT NOT NULL,
+          vote_type INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (fileId, studentId)
+        )`,
+        `CREATE TABLE IF NOT EXISTS file_comments (
+          id ${idDef},
+          fileId INTEGER NOT NULL,
+          studentId TEXT NOT NULL,
+          commentText TEXT NOT NULL,
+          parent_comment_id INTEGER,
+          reply_to_user_id TEXT,
+          updated_at ${tsDef},
+          createdAt ${tsDef} NOT NULL
+        )`,
+        `CREATE TABLE IF NOT EXISTS file_comment_reactions (
+          id ${idDef},
+          comment_id INTEGER NOT NULL,
+          user_id TEXT NOT NULL,
+          reaction_type TEXT NOT NULL DEFAULT 'like',
+          created_at ${tsDef} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(comment_id, user_id, reaction_type)
+        )`,
+        `CREATE TABLE IF NOT EXISTS assignment_votes (
+          assignmentId INTEGER NOT NULL,
+          studentId TEXT NOT NULL,
+          vote_type INTEGER NOT NULL DEFAULT 1,
+          PRIMARY KEY (assignmentId, studentId)
+        )`,
+        `CREATE TABLE IF NOT EXISTS assignment_comments (
+          id ${idDef},
+          assignmentId INTEGER NOT NULL,
+          studentId TEXT NOT NULL,
+          commentText TEXT NOT NULL,
+          parent_comment_id INTEGER,
+          reply_to_user_id TEXT,
+          updated_at ${tsDef},
+          createdAt ${tsDef} NOT NULL
+        )`,
+        `CREATE TABLE IF NOT EXISTS assignment_comment_reactions (
+          id ${idDef},
+          comment_id INTEGER NOT NULL,
+          user_id TEXT NOT NULL,
+          reaction_type TEXT NOT NULL DEFAULT 'like',
+          created_at ${tsDef} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(comment_id, user_id, reaction_type)
+        )`,
+      ];
+      for (const ddl of ddlStmts) {
+        try {
+          await exec(ddl);
+        } catch (_) {}
+      }
+
+      const alterStmts = [
+        `ALTER TABLE file_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}parent_comment_id INTEGER`,
+        `ALTER TABLE file_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}reply_to_user_id TEXT`,
+        `ALTER TABLE file_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}updated_at ${tsDef}`,
+        `ALTER TABLE assignment_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}parent_comment_id INTEGER`,
+        `ALTER TABLE assignment_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}reply_to_user_id TEXT`,
+        `ALTER TABLE assignment_comments ADD COLUMN ${isPostgres ? 'IF NOT EXISTS ' : ''}updated_at ${tsDef}`,
+      ];
+      for (const sql of alterStmts) {
+        try {
+          await run(sql);
+        } catch (_) {}
+      }
+      interactionsSchemaReady = true;
+    } finally {
+      interactionsSchemaPromise = null;
+    }
+  })();
+  return interactionsSchemaPromise;
+}
+
 /**
  * Fast startup readiness check (<15ms on warm/pooled connection).
  * On serverless cold starts (when schema already exists in Postgres), verifies
@@ -1407,10 +1545,17 @@ async function verifyStartupReady() {
     try {
       if (isPostgres && pgPool) {
         const res = await pgPool.query(
-          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl, to_regclass('public.exam_configurations') AS exam_cfg_tbl, to_regclass('public.student_marks') AS student_marks_tbl, to_regclass('public.marks_audit_logs') AS marks_audit_tbl, to_regclass('public.advertisements') AS ads_tbl"
+          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl, to_regclass('public.post_attachment_staging') AS post_staging_tbl, to_regclass('public.post_media') AS post_media_tbl, to_regclass('public.exam_configurations') AS exam_cfg_tbl, to_regclass('public.student_marks') AS student_marks_tbl, to_regclass('public.marks_audit_logs') AS marks_audit_tbl, to_regclass('public.advertisements') AS ads_tbl, to_regclass('public.post_votes') AS post_votes_tbl, to_regclass('public.file_votes') AS file_votes_tbl, to_regclass('public.assignment_votes') AS assign_votes_tbl, to_regclass('public.assignment_comments') AS assign_comments_tbl, to_regclass('public.file_comment_reactions') AS file_react_tbl, to_regclass('public.assignment_comment_reactions') AS assign_react_tbl"
         );
         const row = res.rows && res.rows[0];
         if (row && row.students_tbl && row.posts_tbl) {
+          if (!row.post_staging_tbl || !row.post_media_tbl || !row.post_votes_tbl) {
+            const { ensurePostsSchema } = require('./lib/posts');
+            await ensurePostsSchema({ exec, run, isPostgres });
+          }
+          if (!row.file_votes_tbl || !row.assign_votes_tbl || !row.assign_comments_tbl || !row.file_react_tbl || !row.assign_react_tbl) {
+            await ensureInteractionsSchema();
+          }
           if (!row.exam_cfg_tbl || !row.student_marks_tbl || !row.marks_audit_tbl) {
             const { ensureMarksSchema } = require('./lib/marks-service');
             await ensureMarksSchema({ exec, isPostgres });
@@ -1423,6 +1568,7 @@ async function verifyStartupReady() {
         }
       }
       await initSchema();
+      await ensureInteractionsSchema();
       return { ready: true, mode: "full-init" };
     } catch (err) {
       startupReadyPromise = null;
@@ -1434,7 +1580,9 @@ async function verifyStartupReady() {
 }
 
 if (process.env.SEMESTER_DB_SKIP_INIT !== '1' && !isPostgres) {
-  initSchema().catch(err => console.error('[DB Engine]: Schema init fatal error:', err));
+  initSchema()
+    .then(() => ensureInteractionsSchema())
+    .catch(err => console.error('[DB Engine]: Schema init fatal error:', err));
 }
 
 module.exports = {
@@ -1449,6 +1597,7 @@ module.exports = {
   close,
   initSchema,
   verifyStartupReady,
+  ensureInteractionsSchema,
   saveFileBlob,
   getFileBlob,
   deleteFileBlob,

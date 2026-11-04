@@ -382,6 +382,33 @@ router.post('/assignments', requireLogin, async (req, res) => {
         // F3: Respond immediately to caller before background indexing
         res.json({ message: 'Assignment created', id: assignmentId, questionIds });
 
+        // Push & In-App Notification for newly uploaded assignment
+        void (async () => {
+            try {
+                const { enqueueAssignmentPush, dispatchImmediateOutbox } = require('../../lib/push-notifications');
+                const enqueueRes = await enqueueAssignmentPush(db, {
+                    assignmentId,
+                    title,
+                    subject: subject || null,
+                    semester: finalSemester,
+                    uploaderStudentId: studentId,
+                    uploaderName: req.user?.name || req.session?.studentName || null,
+                    cohortId: publishScope.cohortId || null,
+                    semesterNo: publishScope.semesterNo || null,
+                    audienceScope: publishScope.audienceScope || 'cohort'
+                });
+                if (enqueueRes && enqueueRes.enqueuedCount > 0) {
+                    await dispatchImmediateOutbox(db, {
+                        eventType: 'assignment',
+                        eventId: String(assignmentId),
+                        timeoutMs: 3500
+                    });
+                }
+            } catch (notifErr) {
+                console.warn('[Assignment Notification Dispatch Warning]:', notifErr.message);
+            }
+        })();
+
         // KYANA AI 3.0 Knowledge Indexing Hook (Non-blocking via waitUntil / setImmediate)
         const assignmentSyncData = {
             id: assignmentId,
@@ -427,6 +454,7 @@ router.post('/assignments', requireLogin, async (req, res) => {
 
 // ── GET /assignments — list with server-authoritative cohort filtering ─────────
 router.get('/assignments', async (req, res) => {
+    if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
     const context = await getAcademicContext(db, req);
     const currentStudentId = (context && context.studentId) || (req.user && req.user.studentId) || (req.session && req.session.studentId) || null;
     const { subject, semester, cohortId, cohort_id } = req.query;
@@ -469,16 +497,23 @@ router.get('/assignments', async (req, res) => {
     const mySubSql = currentStudentId
         ? `(SELECT COUNT(DISTINCT COALESCE(sub.questionId, sub.id)) FROM submissions sub WHERE sub.assignmentId = a.id AND sub.studentId = ?) AS mySubmissionCount`
         : `0 AS mySubmissionCount`;
+    const myVoteSql = currentStudentId
+        ? `COALESCE((SELECT av.vote_type FROM assignment_votes av WHERE av.assignmentId = a.id AND av.studentId = ?), 0) AS myVote`
+        : `0 AS myVote`;
 
     const releasedCond = db.isPostgres ? 'sg.released = TRUE' : 'sg.released = 1';
-    const avatarExpr = `CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) || '-' || SUBSTR(s.avatarUrl, -12) ELSE s.avatarUrl END`;
+    const avatarExpr = `CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) ELSE s.avatarUrl END`;
 
     const selectFields = `
         a.*, s.name AS teacherName, ${avatarExpr} AS avatarUrl, ${avatarExpr} AS teacherAvatar,
         (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
         (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
         (SELECT COUNT(DISTINCT sub.studentId) FROM submissions sub JOIN submission_grades sg ON sg.questionId = sub.questionId AND sg.studentId = sub.studentId WHERE sub.assignmentId = a.id AND ${releasedCond}) AS checkedStudentCount,
-        ${mySubSql}
+        COALESCE((SELECT SUM(CASE WHEN av.vote_type = 1 THEN 1 ELSE 0 END) FROM assignment_votes av WHERE av.assignmentId = a.id), 0) AS upCount,
+        COALESCE((SELECT SUM(CASE WHEN av.vote_type = -1 THEN 1 ELSE 0 END) FROM assignment_votes av WHERE av.assignmentId = a.id), 0) AS downCount,
+        COALESCE((SELECT COUNT(*) FROM assignment_comments ac WHERE ac.assignmentId = a.id), 0) AS commentCount,
+        ${mySubSql},
+        ${myVoteSql}
     `;
 
     const sql = `
@@ -488,7 +523,7 @@ router.get('/assignments', async (req, res) => {
         WHERE ${whereClauses.join(' AND ')}
         ORDER BY a.createdAt DESC`;
 
-    const params = currentStudentId ? [currentStudentId, ...whereParams] : whereParams;
+    const params = currentStudentId ? [currentStudentId, currentStudentId, ...whereParams] : whereParams;
     const [assignments, adminUser] = await Promise.all([
         db.all(sql, ...params),
         currentStudentId ? isAdmin(currentStudentId) : Promise.resolve(false)
@@ -496,12 +531,26 @@ router.get('/assignments', async (req, res) => {
     const enriched = assignments.map(a => {
         const pUrl = a.pdfUrl || a.pdfurl || null;
         const pName = a.pdfName || a.pdfname || null;
+        const upCount = Number(a.upCount ?? a.upcount ?? 0);
+        const downCount = Number(a.downCount ?? a.downcount ?? 0);
+        const myVote = Number(a.myVote ?? a.myvote ?? 0);
+        const commentCount = Number(a.commentCount ?? a.commentcount ?? 0);
         return {
             ...a,
             pdfUrl: pUrl,
             pdfName: pName,
             pdfurl: pUrl,
             pdfname: pName,
+            upCount,
+            downCount,
+            myVote,
+            up_count: upCount,
+            down_count: downCount,
+            my_vote: myVote,
+            likeCount: upCount,
+            liked: myVote === 1,
+            commentCount,
+            comment_count: commentCount,
             canDelete: !!(currentStudentId && (a.createdBy === currentStudentId || adminUser))
         };
     });
@@ -611,23 +660,431 @@ router.delete('/assignments/:id', requireLogin, async (req, res) => {
     }
 });
 
+// ── POST /assignments/:id/vote & /assignments/:id/like — Reddit-style upvote/downvote on assignment
+router.post(['/assignments/:id/vote', '/assignments/:id/like'], requireLogin, async (req, res) => {
+    try {
+        if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+        const assignmentId = Number(req.params.id);
+        const studentId = (req.user && req.user.studentId) || (req.student && req.student.studentId) || (req.session && req.session.studentId);
+        if (!Number.isInteger(assignmentId) || assignmentId <= 0 || !studentId) {
+            return res.status(400).json({ message: 'Invalid assignment ID.' });
+        }
+
+        const assignment = await db.get('SELECT * FROM assignments WHERE id = ?', assignmentId);
+        if (!assignment) return res.status(404).json({ message: 'Assignment not found.' });
+
+        const rawVote = req.body?.vote ?? req.body?.voteType ?? req.body?.direction;
+        const currentRow = await db.get('SELECT vote_type FROM assignment_votes WHERE assignmentId = ? AND studentId = ?', assignmentId, studentId);
+        const currentVote = Number(currentRow?.vote_type || 0);
+
+        let nextVote;
+        if (rawVote === 'up' || rawVote === 1 || rawVote === '1') {
+            nextVote = (req.body?.toggle !== false && currentVote === 1) ? 0 : 1;
+        } else if (rawVote === 'down' || rawVote === -1 || rawVote === '-1') {
+            nextVote = (req.body?.toggle !== false && currentVote === -1) ? 0 : -1;
+        } else if (rawVote === 'none' || rawVote === 0 || rawVote === '0') {
+            nextVote = 0;
+        } else {
+            nextVote = currentVote === 1 ? 0 : 1;
+        }
+
+        if (nextVote === 0) {
+            await db.run('DELETE FROM assignment_votes WHERE assignmentId = ? AND studentId = ?', assignmentId, studentId);
+        } else {
+            await db.run(
+                `INSERT INTO assignment_votes (assignmentId, studentId, vote_type) VALUES (?, ?, ?)
+                 ON CONFLICT (assignmentId, studentId) DO UPDATE SET vote_type = EXCLUDED.vote_type`,
+                assignmentId, studentId, nextVote
+            );
+        }
+
+        const summary = await db.get(
+            `SELECT
+               COALESCE(SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END), 0) AS upCount,
+               COALESCE(SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END), 0) AS downCount
+             FROM assignment_votes WHERE assignmentId = ?`,
+            assignmentId
+        );
+        const upCount = Number(summary?.upCount || summary?.upcount || 0);
+        const downCount = Number(summary?.downCount || summary?.downcount || 0);
+
+        if (assignment.createdBy && assignment.createdBy !== studentId) {
+            const isNewUpMilestone = nextVote === 1 && currentVote !== 1 && upCount >= 10 && upCount % 10 === 0;
+            const isNewDownMilestone = nextVote === -1 && currentVote !== -1 && downCount >= 10 && downCount % 10 === 0;
+            if (isNewUpMilestone || isNewDownMilestone) {
+                try {
+                    const notifService = require('../../lib/notifications-service');
+                    const mCount = isNewUpMilestone ? upCount : downCount;
+                    const actionWord = isNewUpMilestone ? 'upvoted' : 'downvoted';
+                    const titleText = `${mCount} people ${actionWord} your assignment`;
+                    await notifService.createNotification(db, {
+                        type: 'post_reaction',
+                        actorId: null,
+                        actorName: null,
+                        actorAvatar: null,
+                        title: titleText,
+                        body: `${titleText}: "${assignment.title || 'Assignment'}"`,
+                        entityType: 'assignment',
+                        entityId: String(assignmentId),
+                        deepLink: `/assignments/${assignmentId}`,
+                        webPath: `code-lab/assignment.html?id=${assignmentId}`,
+                        groupKey: `assignment:${assignmentId}:${isNewUpMilestone ? 'up' : 'down'}_milestone:${mCount}`,
+                        recipientUserIds: [assignment.createdBy],
+                        metadata: { fromApp: true, anonymousVoteMilestone: true, voteType: isNewUpMilestone ? 'up' : 'down', milestoneCount: mCount },
+                    });
+                } catch (notifErr) {
+                    console.warn('[Assignment vote milestone notification error]:', notifErr.message);
+                }
+            }
+        }
+
+        return res.json({
+            upCount,
+            downCount,
+            myVote: nextVote,
+            up_count: upCount,
+            down_count: downCount,
+            my_vote: nextVote,
+            likeCount: upCount,
+            liked: nextVote === 1,
+        });
+    } catch (err) {
+        console.error('[Code Lab] Assignment vote error:', err);
+        return res.status(500).json({ message: 'Failed to record vote.' });
+    }
+});
+
+function formatAssignmentCommentRow(c, assignmentId, currentStudentId, currentRole) {
+    const rawAvatar = c.avatarUrl || c.avatarurl || null;
+    const avatarUrl = rawAvatar && String(rawAvatar).startsWith('data:')
+        ? `/api/avatar/student/${c.studentId}?v=${String(rawAvatar).length}`
+        : rawAvatar;
+    const rawCreated = c.createdAt || c.created_at;
+    let createdAt = rawCreated;
+    if (typeof rawCreated === 'string') {
+        const t = rawCreated.trim();
+        if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(t)) {
+            createdAt = t.replace(' ', 'T') + 'Z';
+        }
+    }
+    const isAuthor = Boolean(currentStudentId && c.studentId === currentStudentId);
+    const isAdminUser = currentRole === 'admin';
+    const replyToUser = (c.reply_to_user_id && c.reply_to_name) ? {
+        studentId: c.reply_to_user_id,
+        name: c.reply_to_name
+    } : null;
+    return {
+        id: Number(c.id),
+        assignmentId,
+        postId: assignmentId,
+        userId: c.studentId,
+        studentId: c.studentId,
+        commentText: c.commentText,
+        content: c.commentText,
+        createdAt,
+        updatedAt: c.updated_at || null,
+        edited: Boolean(c.updated_at),
+        parentCommentId: c.parent_comment_id ? Number(c.parent_comment_id) : null,
+        replyToUserId: c.reply_to_user_id || null,
+        replyToUser,
+        commenterName: c.commenterName,
+        name: c.commenterName,
+        avatarUrl,
+        role: c.role || 'student',
+        reactionCount: Number(c.reaction_count || 0),
+        reactedByMe: Boolean(c.reacted_by_me),
+        replyCount: Number(c.reply_count || 0),
+        replies: Array.isArray(c.replies) ? c.replies : [],
+        canDelete: isAuthor || isAdminUser,
+        canEdit: isAuthor
+    };
+}
+
+// ── GET /assignments/:id/comments — list comments & nested replies on an assignment
+router.get('/assignments/:id/comments', requireLogin, async (req, res) => {
+    try {
+        if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+        const assignmentId = Number(req.params.id);
+        const currentStudentId = (req.user && req.user.studentId) || (req.student && req.student.studentId) || (req.session && req.session.studentId) || '';
+        const currentRole = (req.user && req.user.role) || (req.student && req.student.role) || (req.session && req.session.role) || 'student';
+        const rows = await db.all(
+            `SELECT ac.id, ac.assignmentId, ac.studentId, ac.commentText, ac.createdAt,
+                    ac.parent_comment_id, ac.reply_to_user_id, ac.updated_at,
+                    s.name AS commenterName,
+                    CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) ELSE s.avatarUrl END AS avatarUrl,
+                    s.role,
+                    r_s.name AS reply_to_name,
+                    COALESCE(rc.reaction_count, 0) AS reaction_count,
+                    (mine_r.user_id IS NOT NULL) AS reacted_by_me
+             FROM assignment_comments ac
+             JOIN students s ON s.studentId = ac.studentId
+             LEFT JOIN students r_s ON r_s.studentId = ac.reply_to_user_id
+             LEFT JOIN (
+               SELECT comment_id, COUNT(*) AS reaction_count
+               FROM assignment_comment_reactions
+               GROUP BY comment_id
+             ) rc ON rc.comment_id = ac.id
+             LEFT JOIN assignment_comment_reactions mine_r ON mine_r.comment_id = ac.id AND mine_r.user_id = ?
+             WHERE ac.assignmentId = ?
+             ORDER BY ac.id ASC`,
+            currentStudentId, assignmentId
+        );
+
+        const repliesByParent = new Map();
+        for (const r of rows) {
+            const pid = r.parent_comment_id ?? r.parentCommentId;
+            if (pid != null) {
+                const numPid = Number(pid);
+                if (!repliesByParent.has(numPid)) repliesByParent.set(numPid, []);
+                repliesByParent.get(numPid).push(formatAssignmentCommentRow(r, assignmentId, currentStudentId, currentRole));
+            }
+        }
+
+        const rootComments = [];
+        for (const r of rows) {
+            const pid = r.parent_comment_id ?? r.parentCommentId;
+            if (pid == null) {
+                const rootId = Number(r.id);
+                const childReplies = repliesByParent.get(rootId) || [];
+                r.replies = childReplies;
+                r.reply_count = childReplies.length;
+                rootComments.push(formatAssignmentCommentRow(r, assignmentId, currentStudentId, currentRole));
+            }
+        }
+        res.json(rootComments);
+    } catch (err) {
+        console.error('[Code Lab] Fetch assignment comments error:', err);
+        res.status(500).json({ message: 'Failed to load comments.' });
+    }
+});
+
+// ── POST /assignments/:id/comments — add a comment or reply to an assignment
+router.post('/assignments/:id/comments', requireLogin, async (req, res) => {
+    try {
+        if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+        const assignmentId = Number(req.params.id);
+        const text = (req.body.text || req.body.content || '').trim();
+        if (!text) return res.status(400).json({ message: 'Comment cannot be empty' });
+        if (text.length > 1000) return res.status(400).json({ message: 'Comment too long' });
+
+        const currentStudentId = (req.user && req.user.studentId) || (req.student && req.student.studentId) || (req.session && req.session.studentId);
+        const currentUser = await db.get('SELECT name, avatarUrl, role FROM students WHERE studentId = ?', currentStudentId);
+        const currentName = currentUser?.name || req.user?.name || req.session?.studentName || 'Someone';
+
+        const assignment = await db.get('SELECT id, title, createdBy FROM assignments WHERE id = ?', assignmentId);
+        if (!assignment) return res.status(404).json({ message: 'Assignment not found.' });
+
+        const rawParentId = req.body.parent_comment_id ?? req.body.parentCommentId ?? null;
+        let resolvedParentId = null;
+        let resolvedReplyToUserId = req.body.reply_to_user_id ?? req.body.replyToUserId ?? null;
+        let replyToName = null;
+
+        if (rawParentId) {
+            const targetComment = await db.get('SELECT id, studentId, parent_comment_id FROM assignment_comments WHERE id = ? AND assignmentId = ?', Number(rawParentId), assignmentId);
+            if (targetComment) {
+                resolvedParentId = targetComment.parent_comment_id ? Number(targetComment.parent_comment_id) : Number(targetComment.id);
+                if (!resolvedReplyToUserId) resolvedReplyToUserId = targetComment.studentId;
+            }
+        }
+        if (resolvedReplyToUserId) {
+            const rt = await db.get('SELECT name FROM students WHERE studentId = ?', resolvedReplyToUserId);
+            replyToName = rt?.name || null;
+        }
+
+        const now = new Date().toISOString();
+        const result = await db.run(
+            'INSERT INTO assignment_comments (assignmentId, studentId, commentText, parent_comment_id, reply_to_user_id, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+            assignmentId, currentStudentId, text, resolvedParentId, resolvedReplyToUserId, now
+        );
+
+        const rawAvatar = currentUser?.avatarUrl || null;
+        const cleanAvatar = rawAvatar && String(rawAvatar).startsWith('data:')
+            ? `/api/avatar/student/${currentStudentId}?v=${String(rawAvatar).length}`
+            : rawAvatar;
+
+        if (assignment.createdBy && assignment.createdBy !== currentStudentId) {
+            try {
+                const notifService = require('../../lib/notifications-service');
+                await notifService.createNotification(db, {
+                    type: 'post_comment',
+                    actorId: currentStudentId,
+                    actorName: currentName,
+                    actorAvatar: cleanAvatar,
+                    title: currentName,
+                    body: `Commented on your assignment: ${text.slice(0, 90)}`,
+                    entityType: 'assignment',
+                    entityId: String(assignmentId),
+                    secondaryEntityId: String(result.lastInsertRowid || ''),
+                    deepLink: `/assignments/${assignmentId}`,
+                    webPath: `code-lab/assignment.html?id=${assignmentId}`,
+                    groupKey: `assignment:${assignmentId}:comments`,
+                    recipientUserIds: [assignment.createdBy],
+                });
+            } catch (_) {}
+        }
+
+        const countRow = await db.get('SELECT COUNT(*) AS c FROM assignment_comments WHERE assignmentId = ?', assignmentId);
+        res.json({
+            commentId: result.lastInsertRowid,
+            comment: {
+                id: Number(result.lastInsertRowid),
+                assignmentId,
+                postId: assignmentId,
+                userId: currentStudentId,
+                studentId: currentStudentId,
+                commentText: text,
+                content: text,
+                createdAt: now,
+                parentCommentId: resolvedParentId,
+                replyToUserId: resolvedReplyToUserId,
+                replyToUser: (resolvedReplyToUserId && replyToName) ? { studentId: resolvedReplyToUserId, name: replyToName } : null,
+                commenterName: currentName,
+                name: currentName,
+                avatarUrl: cleanAvatar,
+                role: currentUser?.role || 'student',
+                reactionCount: 0,
+                reactedByMe: false,
+                replyCount: 0,
+                replies: [],
+                canDelete: true,
+                canEdit: true
+            },
+            commentCount: Number(countRow?.c || 1),
+            comment_count: Number(countRow?.c || 1)
+        });
+    } catch (err) {
+        console.error('[Code Lab] Add assignment comment error:', err);
+        res.status(500).json({ message: 'Failed to add comment.' });
+    }
+});
+
+// ── PUT /assignments/:id/comments/:commentId — edit an assignment comment
+router.put('/assignments/:id/comments/:commentId', requireLogin, async (req, res) => {
+    try {
+        if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+        const assignmentId = Number(req.params.id);
+        const commentId = Number(req.params.commentId);
+        const text = (req.body.text || req.body.content || '').trim();
+        if (!text) return res.status(400).json({ message: 'Comment cannot be empty' });
+        if (text.length > 1000) return res.status(400).json({ message: 'Comment too long' });
+
+        const currentStudentId = (req.user && req.user.studentId) || (req.student && req.student.studentId) || (req.session && req.session.studentId);
+        const comment = await db.get('SELECT * FROM assignment_comments WHERE id = ? AND assignmentId = ?', commentId, assignmentId);
+        if (!comment) return res.status(404).json({ message: 'Comment not found' });
+        if (comment.studentId !== currentStudentId) {
+            return res.status(403).json({ message: 'Only the comment author can edit this comment' });
+        }
+
+        const now = new Date().toISOString();
+        await db.run('UPDATE assignment_comments SET commentText = ?, updated_at = ? WHERE id = ?', text, now, commentId);
+        res.json({
+            message: 'Comment updated',
+            comment: {
+                id: commentId,
+                content: text,
+                commentText: text,
+                updatedAt: now,
+                edited: true
+            }
+        });
+    } catch (err) {
+        console.error('[Code Lab] Edit assignment comment error:', err);
+        res.status(500).json({ message: 'Failed to update comment.' });
+    }
+});
+
+// ── POST /assignments/:id/comments/:commentId/like — toggle heart reaction on assignment comment
+router.post('/assignments/:id/comments/:commentId/like', requireLogin, async (req, res) => {
+    try {
+        if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+        const commentId = Number(req.params.commentId);
+        const currentStudentId = (req.user && req.user.studentId) || (req.student && req.student.studentId) || (req.session && req.session.studentId);
+        if (!commentId || !currentStudentId) return res.status(400).json({ message: 'Invalid request' });
+
+        const existing = await db.get(
+            'SELECT id FROM assignment_comment_reactions WHERE comment_id = ? AND user_id = ? AND reaction_type = ?',
+            commentId, currentStudentId, 'like'
+        );
+        let reacted = false;
+        if (existing) {
+            await db.run('DELETE FROM assignment_comment_reactions WHERE comment_id = ? AND user_id = ?', commentId, currentStudentId);
+            reacted = false;
+        } else {
+            await db.run(
+                'INSERT INTO assignment_comment_reactions (comment_id, user_id, reaction_type, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (comment_id, user_id, reaction_type) DO NOTHING',
+                commentId, currentStudentId, 'like', new Date().toISOString()
+            );
+            reacted = true;
+        }
+        const countRow = await db.get('SELECT COUNT(*) AS c FROM assignment_comment_reactions WHERE comment_id = ?', commentId);
+        const reactionCount = Number(countRow?.c || 0);
+        res.json({ reacted, reactedByMe: reacted, reactionCount, reaction_count: reactionCount });
+    } catch (err) {
+        console.error('[Code Lab] Like assignment comment error:', err);
+        res.status(500).json({ message: 'Failed to update reaction.' });
+    }
+});
+
+// ── DELETE /assignments/:id/comments/:commentId — delete a comment on an assignment
+router.delete('/assignments/:id/comments/:commentId', requireLogin, async (req, res) => {
+    try {
+        if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+        const assignmentId = Number(req.params.id);
+        const commentId = Number(req.params.commentId);
+        const currentStudentId = (req.user && req.user.studentId) || (req.student && req.student.studentId) || (req.session && req.session.studentId);
+        const currentRole = (req.user && req.user.role) || (req.student && req.student.role) || (req.session && req.session.role) || 'student';
+
+        const comment = await db.get('SELECT studentId FROM assignment_comments WHERE id = ? AND assignmentId = ?', commentId, assignmentId);
+        if (!comment) return res.status(404).json({ message: 'Comment not found' });
+        if (comment.studentId !== currentStudentId && currentRole !== 'admin') {
+            return res.status(403).json({ message: 'Unauthorized to delete this comment' });
+        }
+
+        await db.run('DELETE FROM assignment_comments WHERE id = ? OR parent_comment_id = ?', commentId, commentId);
+        const countRow = await db.get('SELECT COUNT(*) AS c FROM assignment_comments WHERE assignmentId = ?', assignmentId);
+        res.json({ message: 'Comment deleted', commentCount: Number(countRow?.c || 0), comment_count: Number(countRow?.c || 0) });
+    } catch (err) {
+        console.error('[Code Lab] Delete assignment comment error:', err);
+        res.status(500).json({ message: 'Failed to delete comment.' });
+    }
+});
+
 // ── GET /assignments/:id — single assignment with nested questions ──────────
 router.get('/assignments/:id', async (req, res) => {
+    if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
     const assignmentId = Number(req.params.id);
     if (!Number.isInteger(assignmentId) || assignmentId <= 0) {
         return res.status(400).json({ message: 'Invalid assignment ID.' });
     }
 
+    const context = await getAcademicContext(db, req);
+    const currentStudentId =
+        (context && context.studentId) ||
+        (req.user && req.user.studentId) ||
+        (req.student && req.student.studentId) ||
+        (req.session && req.session.studentId) ||
+        null;
+
+    const myVoteSql = currentStudentId
+        ? `COALESCE((SELECT av.vote_type FROM assignment_votes av WHERE av.assignmentId = a.id AND av.studentId = ?), 0) AS myVote`
+        : `0 AS myVote`;
+    const avatarExpr = `CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) ELSE s.avatarUrl END`;
+
     const assignment = await db.get(
-        `SELECT a.*, s.name AS teacherName, s.avatarUrl AS avatarUrl, s.avatarUrl AS teacherAvatar
+        `SELECT a.*, s.name AS teacherName, ${avatarExpr} AS avatarUrl, ${avatarExpr} AS teacherAvatar,
+                (SELECT COUNT(*) FROM assignment_questions aq WHERE aq.assignmentId = a.id) AS questionCount,
+                (SELECT COUNT(DISTINCT studentId) FROM submissions sub WHERE sub.assignmentId = a.id) AS submissionCount,
+                COALESCE((SELECT SUM(CASE WHEN av.vote_type = 1 THEN 1 ELSE 0 END) FROM assignment_votes av WHERE av.assignmentId = a.id), 0) AS upCount,
+                COALESCE((SELECT SUM(CASE WHEN av.vote_type = -1 THEN 1 ELSE 0 END) FROM assignment_votes av WHERE av.assignmentId = a.id), 0) AS downCount,
+                COALESCE((SELECT COUNT(*) FROM assignment_comments ac WHERE ac.assignmentId = a.id), 0) AS commentCount,
+                ${myVoteSql}
          FROM assignments a
          LEFT JOIN students s ON s.studentId = a.createdBy
          WHERE a.id = ?`,
-        assignmentId
+        ...(currentStudentId ? [currentStudentId, assignmentId] : [assignmentId])
     );
     if (!assignment) return res.status(404).json({ message: 'Assignment not found.' });
 
-    const context = await getAcademicContext(db, req);
     if (!assertContentAccess(context, assignment)) {
         return res.status(404).json({ message: 'Assignment not found.' });
     }
@@ -642,7 +1099,6 @@ router.get('/assignments/:id', async (req, res) => {
     );
 
     // Fetch student's existing submissions if logged in so their code is restored in editor
-    const currentStudentId = req.session && req.session.studentId;
     let userSubmissions = [];
     let adminUser = false;
     if (currentStudentId) {
@@ -682,6 +1138,12 @@ router.get('/assignments/:id', async (req, res) => {
 
     const resolvedPdfUrl = assignment.pdfUrl || assignment.pdfurl || null;
     const resolvedPdfName = assignment.pdfName || assignment.pdfname || null;
+    const upCount = Number(assignment.upCount ?? assignment.upcount ?? 0);
+    const downCount = Number(assignment.downCount ?? assignment.downcount ?? 0);
+    const myVote = Number(assignment.myVote ?? assignment.myvote ?? 0);
+    const commentCount = Number(assignment.commentCount ?? assignment.commentcount ?? 0);
+    const submissionCount = Number(assignment.submissionCount ?? assignment.submissioncount ?? 0);
+    const questionCount = Number(assignment.questionCount ?? assignment.questioncount ?? questionsWithSub.length);
 
     res.json({
         ...assignment,
@@ -689,6 +1151,18 @@ router.get('/assignments/:id', async (req, res) => {
         pdfName: resolvedPdfName,
         pdfurl: resolvedPdfUrl,
         pdfname: resolvedPdfName,
+        upCount,
+        downCount,
+        myVote,
+        up_count: upCount,
+        down_count: downCount,
+        my_vote: myVote,
+        likeCount: upCount,
+        liked: myVote === 1,
+        commentCount,
+        comment_count: commentCount,
+        submissionCount,
+        questionCount,
         canDelete: !!(currentStudentId && (assignment.createdBy === currentStudentId || adminUser)),
         currentStudentId: currentStudentId || null,
         questions: questionsWithSub

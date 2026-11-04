@@ -1,10 +1,28 @@
-import { api, apiFetch, ApiError, getBaseUrl } from './api';
-import { LibraryFile, toggleFileLike } from './library';
+import { api, apiFetch, ApiError, getBaseUrl, getAuthToken } from './api';
+import {
+  LibraryFile,
+  toggleFileLike,
+  voteFile,
+  getFileComments,
+  addFileComment,
+  editFileComment,
+  toggleFileCommentReaction,
+  deleteFileComment,
+  FileComment,
+} from './library';
 import { Advertisement } from './advertisements';
 import { normalizeUploadFile, validateFileSize, RawFileAsset } from '../utils/file-upload';
 
-export type { LibraryFile };
-export { toggleFileLike };
+export type { LibraryFile, FileComment };
+export {
+  toggleFileLike,
+  voteFile,
+  getFileComments,
+  addFileComment,
+  editFileComment,
+  toggleFileCommentReaction,
+  deleteFileComment,
+};
 
 export const MAX_ATTACHMENT_BYTES_PER_FILE = 4 * 1024 * 1024; // 4.0 MB per attachment (stays below Vercel request ceiling)
 export const MAX_POST_ATTACHMENT_BYTES = MAX_ATTACHMENT_BYTES_PER_FILE; // Alias for backward compatibility
@@ -79,6 +97,12 @@ export interface Post {
   avatarUrl: string | null;
   studentId: string;
   like_count: number;
+  up_count?: number;
+  down_count?: number;
+  my_vote?: number;
+  upCount?: number;
+  downCount?: number;
+  myVote?: number;
   comment_count: number;
   submission_count: number;
   liked_by_me: boolean;
@@ -131,6 +155,12 @@ export interface ToggleLikeResult {
   likeCount: number;
   liked_by_me: boolean;
   like_count: number;
+  up_count?: number;
+  down_count?: number;
+  my_vote?: number;
+  upCount?: number;
+  downCount?: number;
+  myVote?: number;
 }
 
 /**
@@ -233,13 +263,15 @@ export async function getPostById(postId: number): Promise<Post> {
 }
 
 /**
- * Fetch uploaded library files for merging into the Campus Feed.
+ * Fetch uploaded library files for merging into the Campus/Library Feed.
  */
 export async function getFeedFiles(feedQuery: string = '?feed=1'): Promise<LibraryFile[]> {
   try {
     const q = feedQuery ? (feedQuery.startsWith('?') ? feedQuery : `?${feedQuery}`) : '?feed=1';
     const res = await api.get<LibraryFile[]>(`/api/files${q}`);
-    return Array.isArray(res) ? res : [];
+    const list = Array.isArray(res) ? res : [];
+    const { applyCachedFileVotes } = require('./library');
+    return await applyCachedFileVotes(list);
   } catch (err) {
     console.warn('Failed to fetch /api/files for feed:', err);
     return [];
@@ -249,11 +281,179 @@ export async function getFeedFiles(feedQuery: string = '?feed=1'): Promise<Libra
 /**
  * Toggle like for a post. If already liked, sends DELETE; otherwise sends POST.
  */
-export async function toggleLike(postId: number, currentLiked: boolean = false): Promise<ToggleLikeResult> {
+export async function votePost(
+  postId: number,
+  vote: 'up' | 'down'
+): Promise<ToggleLikeResult> {
+  return api.post<ToggleLikeResult>(`/api/posts/${postId}/vote`, { vote });
+}
+
+export async function toggleLike(
+  postId: number,
+  currentLiked: boolean = false,
+  voteDirection?: 'up' | 'down'
+): Promise<ToggleLikeResult> {
+  if (voteDirection) {
+    return votePost(postId, voteDirection);
+  }
   if (currentLiked) {
     return api.delete<ToggleLikeResult>(`/api/posts/${postId}/like`);
   }
   return api.post<ToggleLikeResult>(`/api/posts/${postId}/like`);
+}
+
+const ASSIGNMENT_VOTES_STORAGE_KEY = 'semester_library_assignment_votes_v1';
+let cachedAssignmentVotes: Record<string, { myVote: number; upCount?: number; downCount?: number }> | null = null;
+
+async function loadCachedAssignmentVotes(): Promise<Record<string, { myVote: number; upCount?: number; downCount?: number }>> {
+  if (cachedAssignmentVotes) return cachedAssignmentVotes;
+  try {
+    const SecureStore = require('expo-secure-store');
+    const raw = await SecureStore.getItemAsync(ASSIGNMENT_VOTES_STORAGE_KEY);
+    cachedAssignmentVotes = raw ? JSON.parse(raw) : {};
+  } catch {
+    cachedAssignmentVotes = {};
+  }
+  return cachedAssignmentVotes || {};
+}
+
+async function saveCachedAssignmentVote(
+  assignmentId: number,
+  state: { myVote: number; upCount: number; downCount: number }
+): Promise<void> {
+  const map = await loadCachedAssignmentVotes();
+  map[String(assignmentId)] = state;
+  cachedAssignmentVotes = map;
+  try {
+    const SecureStore = require('expo-secure-store');
+    await SecureStore.setItemAsync(ASSIGNMENT_VOTES_STORAGE_KEY, JSON.stringify(map));
+  } catch {}
+}
+
+export async function applyCachedAssignmentVotes<T extends { id: number; upCount?: number; downCount?: number; myVote?: number; likeCount?: number; liked?: boolean }>(
+  assignments: T[]
+): Promise<T[]> {
+  if (!Array.isArray(assignments) || assignments.length === 0) return [];
+  const map = await loadCachedAssignmentVotes();
+  return assignments.map((a) => {
+    const serverUp = Number((a as any).upCount ?? (a as any).up_count ?? a.likeCount ?? 0);
+    const serverDown = Number((a as any).downCount ?? (a as any).down_count ?? 0);
+    const hasServerMyVote = a.myVote !== undefined || (a as any).my_vote !== undefined;
+    const serverMyVote = Number(a.myVote ?? (a as any).my_vote ?? (a.liked ? 1 : 0));
+    const local = map[String(a.id)];
+
+    if (local && (!hasServerMyVote || (serverMyVote === 0 && local.myVote !== 0))) {
+      const upCount = local.myVote === 1 ? Math.max(serverUp, local.upCount ?? 1) : serverUp;
+      const downCount = local.myVote === -1 ? Math.max(serverDown, local.downCount ?? 1) : serverDown;
+      return {
+        ...a,
+        upCount,
+        downCount,
+        myVote: local.myVote,
+        likeCount: upCount,
+        liked: local.myVote === 1,
+      };
+    }
+
+    return {
+      ...a,
+      upCount: serverUp,
+      downCount: serverDown,
+      myVote: serverMyVote,
+      likeCount: serverUp,
+      liked: serverMyVote === 1,
+    };
+  });
+}
+
+export async function voteAssignment(
+  assignmentId: number,
+  vote: 'up' | 'down',
+  currentState?: { upCount?: number; downCount?: number; myVote?: number }
+): Promise<{ upCount: number; downCount: number; myVote: number; liked: boolean; likeCount: number }> {
+  const numId = Number(assignmentId);
+  const map = await loadCachedAssignmentVotes();
+  const prevVote = Number(currentState?.myVote ?? map[String(numId)]?.myVote ?? 0);
+  const prevUp = Number(currentState?.upCount ?? map[String(numId)]?.upCount ?? 0);
+  const prevDown = Number(currentState?.downCount ?? map[String(numId)]?.downCount ?? 0);
+  const desiredVote = vote === 'down' ? -1 : 1;
+  const computedNextVote = prevVote === desiredVote ? 0 : desiredVote;
+  const computedNextUp = Math.max(0, prevUp + (computedNextVote === 1 ? 1 : 0) - (prevVote === 1 ? 1 : 0));
+  const computedNextDown = Math.max(0, prevDown + (computedNextVote === -1 ? 1 : 0) - (prevVote === -1 ? 1 : 0));
+
+  try {
+    const res = await api.post<any>(`/api/code-lab/assignments/${numId}/vote`, { vote });
+    const upCount = Number(res.upCount ?? res.up_count ?? res.likeCount ?? computedNextUp);
+    const downCount = Number(res.downCount ?? res.down_count ?? computedNextDown);
+    const myVote = Number(res.myVote ?? res.my_vote ?? computedNextVote);
+    await saveCachedAssignmentVote(numId, { myVote, upCount, downCount });
+    return {
+      upCount,
+      downCount,
+      myVote,
+      liked: myVote === 1,
+      likeCount: upCount,
+    };
+  } catch {
+    await saveCachedAssignmentVote(numId, {
+      myVote: computedNextVote,
+      upCount: computedNextUp,
+      downCount: computedNextDown,
+    });
+    return {
+      upCount: computedNextUp,
+      downCount: computedNextDown,
+      myVote: computedNextVote,
+      liked: computedNextVote === 1,
+      likeCount: computedNextUp,
+    };
+  }
+}
+
+export async function getAssignmentComments(assignmentId: number): Promise<FileComment[]> {
+  const res = await api.get<any>(`/api/code-lab/assignments/${assignmentId}/comments`);
+  return Array.isArray(res) ? res : [];
+}
+
+export async function addAssignmentComment(
+  assignmentId: number,
+  text: string,
+  options?: {
+    parentCommentId?: number | null;
+    replyToUserId?: string | null;
+  }
+): Promise<{ commentId: number; comment?: FileComment; commentCount: number }> {
+  return api.post(`/api/code-lab/assignments/${assignmentId}/comments`, {
+    text,
+    content: text,
+    parent_comment_id: options?.parentCommentId ?? null,
+    reply_to_user_id: options?.replyToUserId ?? null,
+  });
+}
+
+export async function editAssignmentComment(
+  assignmentId: number,
+  commentId: number,
+  content: string
+): Promise<{ comment: FileComment; message: string }> {
+  return api.put(`/api/code-lab/assignments/${assignmentId}/comments/${commentId}`, {
+    content,
+    text: content,
+  });
+}
+
+export async function toggleAssignmentCommentReaction(
+  assignmentId: number,
+  commentId: number
+): Promise<{ reacted: boolean; reactionCount: number; reaction_count: number }> {
+  return api.post(`/api/code-lab/assignments/${assignmentId}/comments/${commentId}/like`, {});
+}
+
+export async function deleteAssignmentComment(
+  assignmentId: number,
+  commentId: number
+): Promise<{ message: string; commentCount: number }> {
+  return api.delete(`/api/code-lab/assignments/${assignmentId}/comments/${commentId}`);
 }
 
 /**
@@ -354,9 +554,10 @@ export async function uploadPostAttachment(
   file: RawFileAsset | { uri: string; name?: string; type?: string; size?: number; fileName?: string; mimeType?: string },
   onProgress?: (percent: number) => void
 ): Promise<UploadedAttachment> {
-  const assetName = (file as any).name || (file as any).fileName || `post_${Date.now()}`;
-  const assetMime = (file as any).type || (file as any).mimeType || 'application/octet-stream';
-  const assetSize = (file as any).size || (file as any).fileSize;
+  const normalized = normalizeUploadFile(file as RawFileAsset, `post_${Date.now()}`);
+  const assetName = normalized.name;
+  const assetMime = normalized.type;
+  const assetSize = normalized.size;
 
   if (assetSize && assetSize > MAX_ATTACHMENT_BYTES_PER_FILE) {
     throw new ApiError(
@@ -367,19 +568,23 @@ export async function uploadPostAttachment(
 
   const formData = new FormData();
   formData.append('file', {
-    uri: file.uri,
+    uri: normalized.uri,
     name: assetName,
     type: assetMime,
   } as any);
 
   if (typeof XMLHttpRequest !== 'undefined' && onProgress) {
-    const rawBaseUrl = await getBaseUrl();
+    const [rawBaseUrl, token] = await Promise.all([getBaseUrl(), getAuthToken()]);
     const baseUrl = (rawBaseUrl || '').replace(/\/+$/, '');
     const url = `${baseUrl}/api/posts/attachments`;
 
     return new Promise<UploadedAttachment>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', url);
+      xhr.setRequestHeader('Accept', 'application/json');
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
       if (xhr.upload) {
         xhr.upload.onprogress = (evt) => {
           if (evt.lengthComputable && evt.total > 0) {

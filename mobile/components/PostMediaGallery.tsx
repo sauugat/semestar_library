@@ -46,8 +46,15 @@ export function PostMediaGallery({
   const { width: viewerWidth } = useWindowDimensions();
   const [zoomed, setZoomed] = useState(false);
   const [aspect, setAspect] = useState(1);
-  const [heart] = useState(() => new Animated.Value(0));
+  const [heartScale] = useState(() => new Animated.Value(0));
+  const [heartOpacity] = useState(() => new Animated.Value(0));
+  const [heartTranslateY] = useState(() => new Animated.Value(0));
+  const [heartRotate] = useState(() => new Animated.Value(0));
+  const [ringScale] = useState(() => new Animated.Value(0.3));
+  const [ringOpacity] = useState(() => new Animated.Value(0));
+  const tapTiltDir = useRef<number>(1);
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTappedIndex = useRef<number>(0);
   useEffect(() => () => { if (tapTimer.current) clearTimeout(tapTimer.current); }, []);
 
   const resolveUrl = useCallback(
@@ -78,7 +85,6 @@ export function PostMediaGallery({
   const [modalVisible, setModalVisible] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList<string>>(null);
-  
 
   // Android Back Handler for Fullscreen Modal
   useEffect(() => {
@@ -114,19 +120,150 @@ export function PostMediaGallery({
     }
   };
 
-  const handlePhotoPress = () => {
-    if (tapTimer.current) {
-      clearTimeout(tapTimer.current); tapTimer.current = null;
-      onDoubleTap?.();
-      heart.setValue(0);
+  const triggerTikTokInstagramHeart = () => {
+    tapTiltDir.current = tapTiltDir.current * -1;
+    heartScale.setValue(0.2);
+    heartOpacity.setValue(1);
+    heartTranslateY.setValue(8);
+    heartRotate.setValue(tapTiltDir.current * 0.45);
+    ringScale.setValue(0.35);
+    ringOpacity.setValue(0.85);
+
+    Animated.parallel([
+      Animated.timing(ringScale, {
+        toValue: 1.85,
+        duration: 520,
+        useNativeDriver: true,
+      }),
+      Animated.timing(ringOpacity, {
+        toValue: 0,
+        duration: 520,
+        useNativeDriver: true,
+      }),
       Animated.sequence([
-        Animated.spring(heart, { toValue: 1, friction: 5, useNativeDriver: true }),
-        Animated.delay(400),
-        Animated.timing(heart, { toValue: 0, duration: 220, useNativeDriver: true }),
-      ]).start();
+        Animated.parallel([
+          Animated.spring(heartScale, {
+            toValue: 1.28,
+            friction: 4,
+            tension: 150,
+            useNativeDriver: true,
+          }),
+          Animated.spring(heartRotate, {
+            toValue: tapTiltDir.current * -0.18,
+            friction: 4,
+            tension: 130,
+            useNativeDriver: true,
+          }),
+          Animated.timing(heartTranslateY, {
+            toValue: 0,
+            duration: 140,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.spring(heartScale, {
+            toValue: 1.0,
+            friction: 5,
+            tension: 120,
+            useNativeDriver: true,
+          }),
+          Animated.spring(heartRotate, {
+            toValue: 0,
+            friction: 5,
+            tension: 120,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.delay(140),
+        Animated.parallel([
+          Animated.timing(heartTranslateY, {
+            toValue: -54,
+            duration: 340,
+            useNativeDriver: true,
+          }),
+          Animated.timing(heartScale, {
+            toValue: 1.38,
+            duration: 340,
+            useNativeDriver: true,
+          }),
+          Animated.timing(heartOpacity, {
+            toValue: 0,
+            duration: 320,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+    ]).start();
+  };
+
+  const handlePhotoPress = (index = 0) => {
+    if (tapTimer.current && lastTappedIndex.current === index) {
+      clearTimeout(tapTimer.current);
+      tapTimer.current = null;
+      onDoubleTap?.();
+      triggerTikTokInstagramHeart();
     } else {
-      tapTimer.current = setTimeout(() => { tapTimer.current = null; openFullscreen(0); }, 280);
+      if (tapTimer.current) clearTimeout(tapTimer.current);
+      lastTappedIndex.current = index;
+      tapTimer.current = setTimeout(() => {
+        tapTimer.current = null;
+        openFullscreen(index);
+      }, 260);
     }
+  };
+
+  const renderHeartBurstOverlay = () => {
+    const rotateDeg = heartRotate.interpolate({
+      inputRange: [-1, 1],
+      outputRange: ['-28deg', '28deg'],
+    });
+    return (
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', zIndex: 20 }]}>
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            width: 112,
+            height: 112,
+            borderRadius: 56,
+            borderWidth: 2.5,
+            borderColor: '#FF2D55',
+            opacity: ringOpacity,
+            transform: [{ scale: ringScale }],
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="heart" size={18} color="#FF2D55" style={{ position: 'absolute', top: -12, left: 14, transform: [{ rotate: '-22deg' }] }} />
+          <Ionicons name="heart" size={16} color="#EF4444" style={{ position: 'absolute', top: -10, right: 12, transform: [{ rotate: '24deg' }] }} />
+          <Ionicons name="heart" size={14} color="#FB7185" style={{ position: 'absolute', bottom: 8, left: -10, transform: [{ rotate: '-32deg' }] }} />
+          <Ionicons name="heart" size={15} color="#FF2D55" style={{ position: 'absolute', bottom: 10, right: -10, transform: [{ rotate: '28deg' }] }} />
+        </Animated.View>
+
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            opacity: heartOpacity,
+            transform: [
+              { translateY: heartTranslateY },
+              { scale: heartScale },
+              { rotate: rotateDeg },
+            ],
+          }}
+        >
+          <Ionicons
+            name="heart"
+            size={104}
+            color="#FF2D55"
+            style={{
+              textShadowColor: 'rgba(255, 45, 85, 0.55)',
+              textShadowRadius: 22,
+              textShadowOffset: { width: 0, height: 6 },
+            }}
+          />
+        </Animated.View>
+      </View>
+    );
   };
 
   if (urls.length === 0) return null;
@@ -136,8 +273,8 @@ export function PostMediaGallery({
     return (
       <View style={styles.container}>
         <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={handlePhotoPress}
+          activeOpacity={0.95}
+          onPress={() => handlePhotoPress(0)}
           style={[
             styles.singleImageContainer,
             { aspectRatio: Math.max(4 / 5, aspect) },
@@ -155,9 +292,7 @@ export function PostMediaGallery({
             contentFit="cover"
             transition={150}
           />
-          <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', opacity: heart, transform: [{ scale: heart.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }] }]}>
-            <Ionicons name="heart" size={100} color="#fff" style={{ textShadowColor: '#0006', textShadowRadius: 16, textShadowOffset: { width: 0, height: 3 } }} />
-          </Animated.View>
+          {renderHeartBurstOverlay()}
         </TouchableOpacity>
         {renderFullscreenModal()}
       </View>
@@ -168,10 +303,10 @@ export function PostMediaGallery({
   if (urls.length === 2) {
     return (
       <View style={styles.container}>
-        <View style={styles.twoImageLayout}>
+        <View style={[styles.twoImageLayout, { position: 'relative' }]}>
           <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => openFullscreen(0)}
+            activeOpacity={0.95}
+            onPress={() => handlePhotoPress(0)}
             style={[
               styles.twoImageCol,
               {
@@ -189,8 +324,8 @@ export function PostMediaGallery({
             />
           </TouchableOpacity>
           <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => openFullscreen(1)}
+            activeOpacity={0.95}
+            onPress={() => handlePhotoPress(1)}
             style={[
               styles.twoImageCol,
               {
@@ -207,6 +342,7 @@ export function PostMediaGallery({
               transition={150}
             />
           </TouchableOpacity>
+          {renderHeartBurstOverlay()}
         </View>
         {renderFullscreenModal()}
       </View>
@@ -217,11 +353,11 @@ export function PostMediaGallery({
   if (urls.length === 3) {
     return (
       <View style={styles.container}>
-        <View style={styles.threeImageLayout}>
+        <View style={[styles.threeImageLayout, { position: 'relative' }]}>
           {/* Main Left Image */}
           <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => openFullscreen(0)}
+            activeOpacity={0.95}
+            onPress={() => handlePhotoPress(0)}
             style={[
               styles.threeImageMain,
               {
@@ -242,8 +378,8 @@ export function PostMediaGallery({
           {/* Right Stack (2 images) */}
           <View style={styles.threeImageStack}>
             <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => openFullscreen(1)}
+              activeOpacity={0.95}
+              onPress={() => handlePhotoPress(1)}
               style={[
                 styles.threeImageStackedItem,
                 {
@@ -262,8 +398,8 @@ export function PostMediaGallery({
             </TouchableOpacity>
 
             <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => openFullscreen(2)}
+              activeOpacity={0.95}
+              onPress={() => handlePhotoPress(2)}
               style={[
                 styles.threeImageStackedItem,
                 {
@@ -281,6 +417,7 @@ export function PostMediaGallery({
               />
             </TouchableOpacity>
           </View>
+          {renderHeartBurstOverlay()}
         </View>
         {renderFullscreenModal()}
       </View>
@@ -291,12 +428,12 @@ export function PostMediaGallery({
   const remainingCount = urls.length - 4;
   return (
     <View style={styles.container}>
-      <View style={styles.fourGridContainer}>
+      <View style={[styles.fourGridContainer, { position: 'relative' }]}>
         {/* Row 1: Images 0 & 1 */}
         <View style={styles.gridRow}>
           <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => openFullscreen(0)}
+            activeOpacity={0.95}
+            onPress={() => handlePhotoPress(0)}
             style={[
               styles.gridItem,
               {
@@ -314,8 +451,8 @@ export function PostMediaGallery({
             />
           </TouchableOpacity>
           <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => openFullscreen(1)}
+            activeOpacity={0.95}
+            onPress={() => handlePhotoPress(1)}
             style={[
               styles.gridItem,
               {
@@ -337,8 +474,8 @@ export function PostMediaGallery({
         {/* Row 2: Images 2 & 3 (Image 3 has +N badge if > 4) */}
         <View style={styles.gridRow}>
           <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => openFullscreen(2)}
+            activeOpacity={0.95}
+            onPress={() => handlePhotoPress(2)}
             style={[
               styles.gridItem,
               {
@@ -357,8 +494,8 @@ export function PostMediaGallery({
           </TouchableOpacity>
 
           <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => openFullscreen(3)}
+            activeOpacity={0.95}
+            onPress={() => handlePhotoPress(3)}
             style={[
               styles.gridItem,
               {
@@ -381,6 +518,7 @@ export function PostMediaGallery({
             )}
           </TouchableOpacity>
         </View>
+        {renderHeartBurstOverlay()}
       </View>
       {renderFullscreenModal()}
     </View>

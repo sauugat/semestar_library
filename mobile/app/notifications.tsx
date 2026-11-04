@@ -9,10 +9,13 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/useTheme';
+import { useAuth } from '@/context/AuthContext';
+import { getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
 import { Avatar } from '@/components/ui/Avatar';
 import { formatTimeAgo, safeParseDate } from '@/utils/date';
@@ -26,7 +29,9 @@ import {
   hideInAppNotification,
   navigateToNotificationTarget,
   syncAppBadge,
+  subscribeToRealtimeNotifications,
 } from '@/services/notifications';
+import { AdminPushNotificationModal } from '@/components/admin/AdminPushNotificationModal';
 
 type TabKey = 'all' | 'unread' | 'mentions';
 
@@ -39,6 +44,8 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { user, serverUrl } = useAuth();
+  const isAdmin = Boolean(user?.isAdmin || user?.role === 'admin');
 
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [notifications, setNotifications] = useState<InAppNotification[]>([]);
@@ -46,31 +53,71 @@ export default function NotificationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [adminPushModalVisible, setAdminPushModalVisible] = useState(false);
 
   // Action sheet state
   const [selectedItem, setSelectedItem] = useState<InAppNotification | null>(null);
   const [actionModalVisible, setActionModalVisible] = useState(false);
 
-  const loadNotifications = useCallback(
-    (tab: TabKey) => fetchInAppNotifications({ tab, limit: 30 })
-      .then(data => {
-        setNotifications(data.notifications);
-        setNextCursor(data.nextCursor);
+  const getFullImageUrl = useCallback(
+    (rawUrl?: string | null): string | null => {
+      if (!rawUrl) return null;
+      if (
+        rawUrl.startsWith('http://') ||
+        rawUrl.startsWith('https://') ||
+        rawUrl.startsWith('file://') ||
+        rawUrl.startsWith('data:')
+      ) {
+        return rawUrl;
+      }
+      const host = (serverUrl || getAutoDetectedServerUrl() || DEFAULT_SERVER_URL).replace(/\/+$/, '');
+      const clean = rawUrl.replace(/^\/+/, '');
+      return `${host}/${clean}`;
+    },
+    [serverUrl]
+  );
 
-        // Mark incoming notifications as seen to clear badge
-        void markNotificationSeen();
-        void syncAppBadge(0);
-      }).catch(err => {
-        if (__DEV__) console.warn('[NotificationsScreen] Load error:', err);
-      }).finally(() => {
-        setLoading(false);
-        setRefreshing(false);
-      }),
+  const loadNotifications = useCallback(
+    (tab: TabKey) =>
+      fetchInAppNotifications({ tab, limit: 35 })
+        .then((data) => {
+          setNotifications(data.notifications);
+          setNextCursor(data.nextCursor);
+
+          // Mark incoming notifications as seen to clear badge
+          void markNotificationSeen();
+          void syncAppBadge(0);
+        })
+        .catch((err) => {
+          if (__DEV__) console.warn('[NotificationsScreen] Load error:', err);
+        })
+        .finally(() => {
+          setLoading(false);
+          setRefreshing(false);
+        }),
     []
   );
 
   useEffect(() => {
     void loadNotifications(activeTab);
+  }, [activeTab, loadNotifications]);
+
+  // Live updates via SSE stream and foreground push listener
+  useEffect(() => {
+    const unsubscribeSse = subscribeToRealtimeNotifications((ev) => {
+      if (ev.type === 'notification') {
+        void loadNotifications(activeTab);
+      }
+    });
+
+    const pushSub = Notifications.addNotificationReceivedListener(() => {
+      void loadNotifications(activeTab);
+    });
+
+    return () => {
+      unsubscribeSse();
+      pushSub.remove();
+    };
   }, [activeTab, loadNotifications]);
 
   const handleRefresh = useCallback(() => {
@@ -139,6 +186,11 @@ export default function NotificationsScreen() {
     await hideInAppNotification(item.id);
   };
 
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications]
+  );
+
   // Group notifications into TODAY, YESTERDAY, EARLIER
   const sections: NotificationSection[] = useMemo(() => {
     if (!notifications || notifications.length === 0) return [];
@@ -171,25 +223,71 @@ export default function NotificationsScreen() {
     return res;
   }, [notifications]);
 
-  // Icon selector based on notification type
-  const renderIcon = (item: InAppNotification) => {
-    const isOfficial =
-      item.type === 'official_notice' ||
-      item.type === 'system' ||
-      item.type === 'security' ||
-      item.metadata?.isOfficial;
+  // Helper to get small overlay badge on top of user avatar
+  const getActivityBadgeConfig = (item: InAppNotification): { icon: keyof typeof Ionicons.glyphMap; bg: string } => {
+    if (item.type === 'post_reaction' || item.type === 'comment_reaction') {
+      return { icon: 'heart', bg: '#EF4444' };
+    }
+    if (item.type === 'post_comment' || item.type === 'comment_reply') {
+      return { icon: 'chatbubble-ellipses', bg: '#3B82F6' };
+    }
+    if (item.type === 'mention') {
+      return { icon: 'at', bg: '#8B5CF6' };
+    }
+    if (item.entityType === 'assignment' || item.type === 'assignment') {
+      return { icon: 'code-slash', bg: '#10B981' };
+    }
+    if (item.type === 'material_uploaded' || item.type === 'material' || item.type === 'material_batch') {
+      return { icon: 'document-text', bg: '#10B981' };
+    }
+    if (item.type === 'official_notice' || item.entityType === 'notice') {
+      return { icon: 'megaphone', bg: '#F59E0B' };
+    }
+    return { icon: 'notifications', bg: '#6366F1' };
+  };
 
-    if (item.actor?.avatarUrl) {
+  // Icon / Avatar selector with profile picture resolution and activity corner badge
+  const renderIcon = (item: InAppNotification) => {
+    const isFromApp = Boolean(item.metadata?.fromApp || (!item.actor?.studentId && item.type === 'official_notice'));
+    const rawAvatar =
+      item.actor?.avatarUrl ||
+      item.metadata?.actorAvatar ||
+      item.metadata?.actors?.[0]?.avatarUrl ||
+      null;
+    const resolvedAvatarUrl = getFullImageUrl(rawAvatar);
+    const actorName = item.actor?.name || item.metadata?.actorName || item.title || 'User';
+    const actorStudentId = item.actor?.studentId || item.metadata?.actors?.[0]?.id || null;
+    const badgeCfg = getActivityBadgeConfig(item);
+
+    if (!isFromApp && (resolvedAvatarUrl || actorStudentId)) {
       return (
-        <Avatar
-          url={item.actor.avatarUrl}
-          name={item.actor.name || 'User'}
-          size="md"
-        />
+        <TouchableOpacity
+          activeOpacity={0.8}
+          disabled={!actorStudentId}
+          onPress={() => {
+            if (actorStudentId) {
+              router.push({ pathname: '/user/[id]', params: { id: actorStudentId } });
+            }
+          }}
+          style={{ position: 'relative' }}
+        >
+          <Avatar url={resolvedAvatarUrl} name={actorName} size="md" />
+          <View
+            style={[
+              styles.avatarCornerBadge,
+              {
+                backgroundColor: badgeCfg.bg,
+                borderColor: colors.surface,
+              },
+            ]}
+          >
+            <Ionicons name={badgeCfg.icon} size={10} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
       );
     }
 
-    if (isOfficial) {
+    if (isFromApp || item.type === 'official_notice' || item.type === 'system' || item.type === 'security') {
       return (
         <View
           style={[
@@ -202,21 +300,6 @@ export default function NotificationsScreen() {
       );
     }
 
-    let iconName: keyof typeof Ionicons.glyphMap = 'notifications-outline';
-    if (item.type === 'post_reaction' || item.type === 'comment_reaction') {
-      iconName = 'heart';
-    } else if (item.type === 'post_comment' || item.type === 'comment_reply') {
-      iconName = 'chatbubble-ellipses-outline';
-    } else if (item.type === 'mention') {
-      iconName = 'at-outline';
-    } else if (item.type === 'chat_message') {
-      iconName = 'chatbubbles-outline';
-    } else if (item.type === 'material_uploaded') {
-      iconName = 'document-text-outline';
-    } else if (item.type === 'routine_updated') {
-      iconName = 'calendar-outline';
-    }
-
     return (
       <View
         style={[
@@ -224,48 +307,50 @@ export default function NotificationsScreen() {
           { backgroundColor: colors.surfaceRaised, borderColor: colors.border },
         ]}
       >
-        <Ionicons name={iconName} size={18} color={colors.text} />
+        <Ionicons name={badgeCfg.icon} size={18} color={colors.text} />
       </View>
     );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Top Header Controls Bar */}
-      <View
-        style={[
-          styles.topHeader,
-          {
-            backgroundColor: colors.surface,
-            borderBottomColor: colors.border,
-            paddingTop: Platform.OS === 'android' ? 12 : 8,
-          },
-        ]}
-      >
-        <View style={styles.headerLeft}>
-          <Heading style={{ fontSize: 22, fontWeight: '700' }}>Notifications</Heading>
-        </View>
+      <Stack.Screen
+        options={{
+          title: 'Notifications',
+          headerRight: () => (
+            <View style={styles.headerRight}>
+              {isAdmin && (
+                <TouchableOpacity
+                  style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+                  onPress={() => setAdminPushModalVisible(true)}
+                  accessibilityLabel="Push notification as app"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="megaphone-outline" size={18} color={colors.text} />
+                </TouchableOpacity>
+              )}
 
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-            onPress={handleMarkAllRead}
-            accessibilityLabel="Mark all as read"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="checkmark-done" size={18} color={colors.text} />
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+                onPress={handleMarkAllRead}
+                accessibilityLabel="Mark all as read"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="checkmark-done" size={18} color={colors.text} />
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
-            onPress={() => router.push('/notification-settings' as any)}
-            accessibilityLabel="Notification settings"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="settings-outline" size={18} color={colors.text} />
-          </TouchableOpacity>
-        </View>
-      </View>
+              <TouchableOpacity
+                style={[styles.headerBtn, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}
+                onPress={() => router.push('/notification-settings' as any)}
+                accessibilityLabel="Notification settings"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="settings-outline" size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+          ),
+        }}
+      />
 
       {/* Tabs Row */}
       <View
@@ -283,7 +368,9 @@ export default function NotificationsScreen() {
             tabKey === 'all'
               ? 'All'
               : tabKey === 'unread'
-              ? 'Unread'
+              ? unreadCount > 0
+                ? `Unread (${unreadCount})`
+                : 'Unread'
               : 'Mentions';
 
           return (
@@ -570,6 +657,17 @@ export default function NotificationsScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Admin Push Notification Broadcast Modal */}
+      {isAdmin && (
+        <AdminPushNotificationModal
+          visible={adminPushModalVisible}
+          onClose={() => {
+            setAdminPushModalVisible(false);
+            void loadNotifications(activeTab);
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -674,6 +772,17 @@ const styles = StyleSheet.create({
   },
   avatarSlot: {
     marginRight: 12,
+  },
+  avatarCornerBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   typeIconBadge: {
     width: 40,

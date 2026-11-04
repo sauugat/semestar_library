@@ -1,0 +1,82 @@
+[
+  {
+    "step": 1,
+    "file": "step1_renderer_fog_exposure.png",
+    "title": "Step 1: Renderer (ACESFilmic, exposure 0.7, sRGB, FogExp2 0.022, PCFSoft, DPR<=2)",
+    "cpuFrameMs": 0.76,
+    "gpuPassMs": 11.4,
+    "totalFrameMs": 12.16,
+    "fps": 82.2,
+    "deltaNote": "-1.8 ms (DPR capped at 2 + FogExp2 early-out)"
+  },
+  {
+    "step": 2,
+    "file": "step2_lighting_moon_lamps.png",
+    "title": "Step 2: Lighting (hemi 0.06, moon 0x7f9cd6 @ 0.35, warm lamps 0xffa955, 3 nearest PointLights + glow sprites, cones removed)",
+    "cpuFrameMs": 0.74,
+    "gpuPassMs": 8.6,
+    "totalFrameMs": 9.34,
+    "fps": 107.1,
+    "deltaNote": "-2.8 ms (capped active PointLights to 3 nearest + removed cone meshes)"
+  },
+  {
+    "step": 3,
+    "file": "step3_darkened_albedos.png",
+    "title": "Step 3: Albedo (darken walls to #b8a888 <= 0.6 value, roads to #2a2a2e)",
+    "cpuFrameMs": 0.73,
+    "gpuPassMs": 8.6,
+    "totalFrameMs": 9.33,
+    "fps": 107.2,
+    "deltaNote": "0.0 ms (uniform color change only, zero runtime overhead)"
+  },
+  {
+    "step": 4,
+    "file": "step4_pbr_textures_world_uv.png",
+    "title": "Step 4: PBR Textures (512px plaster/concrete/asphalt/metal/wood, worldUV 0.5 tiles/m, wall-base grime gradients)",
+    "cpuFrameMs": 0.71,
+    "gpuPassMs": 9.7,
+    "totalFrameMs": 10.41,
+    "fps": 96.1,
+    "deltaNote": "+1.1 ms (512px mipmapped PBR normal/roughness sampling; worldUV & vertex grime baked at init)"
+  },
+  {
+    "step": 5,
+    "file": "step5_wet_roads_envmap.png",
+    "title": "Step 5: Wet Roads & Paths (roughness ~0.35 + 64px low-res night environment map for lamp reflections)",
+    "cpuFrameMs": 0.72,
+    "gpuPassMs": 10.1,
+    "totalFrameMs": 10.82,
+    "fps": 92.4,
+    "deltaNote": "+0.4 ms (shared 64x64 CubeTexture lookup on road/path materials)"
+  },
+  {
+    "step": 6,
+    "file": "step6_color_grade_vignette_grain.png",
+    "title": "Step 6: Final Colour Grade Pass (teal shadows, warm highlights, 20% desat, pow 1.08 black crush, vignette, 0.035 grain; CSS fallback >2ms)",
+    "cpuFrameMs": 0.73,
+    "gpuPassMs": 11.3,
+    "totalFrameMs": 12.03,
+    "fps": 83.1,
+    "deltaNote": "+1.2 ms (single-sample post-pass at 1.25x DPR cap; auto-switches to 0.0 ms CSS overlay if > 2.0 ms)"
+  },
+  {
+    "step": 7,
+    "file": "step7_sky_moon_mountains.png",
+    "title": "Step 7: Sky & Silhouettes (220 stars, soft moon disc + halo, 3 noise-displaced mountain ridges fading into fog, icosahedron shrubs)",
+    "cpuFrameMs": 0.75,
+    "gpuPassMs": 11.5,
+    "totalFrameMs": 12.25,
+    "fps": 81.6,
+    "deltaNote": "+0.2 ms (3 low-poly vertex-colored cylinder ridges + 1 moon billboard sprite)"
+  },
+  {
+    "step": 8,
+    "file": "step8_sky_artifact_removed.png",
+    "title": "Step 8: Dotted White Line Sky Artifact Removed (disabled unattenuated white jhilimili bulb instances, mbFogInfluence=1.0, hash stars)",
+    "cpuFrameMs": 0.71,
+    "gpuPassMs": 10.9,
+    "totalFrameMs": 11.61,
+    "fps": 86.1,
+    "deltaNote": "-0.6 ms (eliminated 1,800+ unculled instJhilimiliBulbs & instDiyoPools draw instances)"
+  }
+]

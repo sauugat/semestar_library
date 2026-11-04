@@ -161,6 +161,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     }
   });
   const router = express.Router();
+  let postsSchemaPromise = null;
   router.use(requireLogin);
   router.use(async (req, res, next) => {
     try {
@@ -169,6 +170,13 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       } else if (typeof db.initSchema === 'function') {
         await db.initSchema();
       }
+      if (!postsSchemaPromise) {
+        postsSchemaPromise = ensurePostsSchema(db).catch((err) => {
+          postsSchemaPromise = null;
+          throw err;
+        });
+      }
+      await postsSchemaPromise;
       const callerId = req.student?.studentId || req.user?.studentId || req.session?.studentId;
       req.postUser = req.student || req.user || (callerId ? await db.get('SELECT * FROM students WHERE studentId = ?', callerId) : null);
       if (!req.postUser && req.method !== 'GET') {
@@ -186,19 +194,39 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       : "WHERE deleted_at IS NULL";
     return `
       SELECT p.*, s.name, s.role,
-        CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) || '-' || SUBSTR(s.avatarUrl, -12) ELSE s.avatarUrl END AS "avatarUrl",
+        CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) ELSE s.avatarUrl END AS "avatarUrl",
         s.studentId AS "studentId",
-        COALESCE(l.like_count, 0) AS like_count,
+        COALESCE(v.up_count, l.like_count, 0) AS like_count,
+        COALESCE(v.up_count, l.like_count, 0) AS up_count,
+        COALESCE(v.down_count, 0) AS down_count,
+        COALESCE(mine.vote_type, 0) AS my_vote,
         COALESCE(c.comment_count, 0) AS comment_count,
         COALESCE(sub.submission_count, 0) AS submission_count,
-        (mine.user_id IS NOT NULL) AS liked_by_me
+        (COALESCE(mine.vote_type, 0) = 1) AS liked_by_me
       FROM posts p
       LEFT JOIN students s ON s.studentId = p.user_id
       LEFT JOIN (SELECT post_id, COUNT(*) AS like_count FROM post_likes GROUP BY post_id) l
         ON l.post_id = p.id
+      LEFT JOIN (
+        SELECT post_id,
+          SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END) AS up_count,
+          SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END) AS down_count
+        FROM (
+          SELECT post_id, user_id, vote_type FROM post_votes
+          UNION ALL
+          SELECT pl.post_id, pl.user_id, 1 AS vote_type FROM post_likes pl
+          WHERE NOT EXISTS (SELECT 1 FROM post_votes pv WHERE pv.post_id = pl.post_id AND pv.user_id = pl.user_id)
+        ) combined_votes
+        GROUP BY post_id
+      ) v ON v.post_id = p.id
       LEFT JOIN (SELECT post_id, COUNT(*) AS comment_count FROM post_comments ${commentFilter} GROUP BY post_id) c
         ON c.post_id = p.id
-      LEFT JOIN post_likes mine ON mine.post_id = p.id AND mine.user_id = ?
+      LEFT JOIN (
+        SELECT post_id, user_id, vote_type FROM post_votes
+        UNION ALL
+        SELECT pl.post_id, pl.user_id, 1 AS vote_type FROM post_likes pl
+        WHERE NOT EXISTS (SELECT 1 FROM post_votes pv WHERE pv.post_id = pl.post_id AND pv.user_id = pl.user_id)
+      ) mine ON mine.post_id = p.id AND mine.user_id = ?
       LEFT JOIN (SELECT post_id, COUNT(*) AS submission_count FROM post_submissions GROUP BY post_id) sub
         ON sub.post_id = p.id AND p.type = 'assignment'`;
   }
@@ -466,6 +494,12 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
       edited_at: post.edited_at || null,
       edited: Boolean(post.edited_at),
       like_count: Number(post.like_count),
+      up_count: Number(post.up_count ?? post.like_count ?? 0),
+      down_count: Number(post.down_count || 0),
+      my_vote: Number(post.my_vote ?? (post.liked_by_me ? 1 : 0)),
+      upCount: Number(post.up_count ?? post.like_count ?? 0),
+      downCount: Number(post.down_count || 0),
+      myVote: Number(post.my_vote ?? (post.liked_by_me ? 1 : 0)),
       comment_count: Number(post.comment_count || 0),
       submission_count: Number(post.submission_count),
       liked_by_me: Boolean(post.liked_by_me),
@@ -1201,11 +1235,13 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
           postId: newPostId,
           authorStudentId: req.postUser.studentId,
           authorName: req.postUser.name,
+          authorAvatar: req.postUser.avatarUrl || null,
           type,
           isOfficial,
           role: req.postUser.role,
           title: passedTitle || null,
           content: trimmedContent,
+          subject: req.body?.subject || null,
           semester: req.postUser.semester,
           cohortId: publishScope.cohortId,
           semesterNo: publishScope.semesterNo,
@@ -1415,61 +1451,157 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     return post;
   }
 
-  async function setLike(req, res, next) {
+  async function notifyVoteMilestoneIfNeeded(post, voteType, newCount) {
+    if (!post.user_id || newCount < 10 || newCount % 10 !== 0) return;
+    try {
+      const notifService = require('../lib/notifications-service');
+      const isUp = voteType === 1;
+      const actionLabel = isUp ? 'upvoted' : 'downvoted';
+      const postPreview = (post.title || post.content || '').trim().slice(0, 80);
+      const titleText = `${newCount} people ${actionLabel} your post`;
+      const bodyText = postPreview
+        ? `${titleText}: "${postPreview}"`
+        : `${titleText}.`;
+      await notifService.createNotification(db, {
+        type: 'post_reaction',
+        actorId: null,
+        actorName: null,
+        actorAvatar: null,
+        title: titleText,
+        body: bodyText,
+        entityType: post.type === 'notice' ? 'notice' : 'post',
+        entityId: String(post.id),
+        deepLink: post.type === 'notice' ? `/notice/${post.id}` : `/post/${post.id}`,
+        webPath: `dashboard.html?post=${post.id}`,
+        groupKey: `post:${post.id}:${isUp ? 'up' : 'down'}_milestone:${newCount}`,
+        recipientUserIds: [post.user_id],
+        metadata: {
+          fromApp: true,
+          anonymousVoteMilestone: true,
+          voteType: isUp ? 'up' : 'down',
+          milestoneCount: newCount,
+          postId: Number(post.id),
+        },
+      });
+    } catch (notifErr) {
+      console.warn('[Post Vote Milestone Notification Error]:', notifErr.message);
+    }
+  }
+
+  async function getPostVoteSummary(postId, studentId) {
+    const counts = await db.get(
+      `SELECT
+         COALESCE(SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END), 0) AS up_count,
+         COALESCE(SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END), 0) AS down_count
+       FROM (
+         SELECT post_id, user_id, vote_type FROM post_votes WHERE post_id = ?
+         UNION ALL
+         SELECT pl.post_id, pl.user_id, 1 AS vote_type FROM post_likes pl
+         WHERE pl.post_id = ? AND NOT EXISTS (
+           SELECT 1 FROM post_votes pv WHERE pv.post_id = pl.post_id AND pv.user_id = pl.user_id
+         )
+       ) t`,
+      postId,
+      postId
+    );
+    const mine = studentId
+      ? await db.get(
+          `SELECT vote_type FROM (
+             SELECT post_id, user_id, vote_type FROM post_votes WHERE post_id = ? AND user_id = ?
+             UNION ALL
+             SELECT pl.post_id, pl.user_id, 1 AS vote_type FROM post_likes pl
+             WHERE pl.post_id = ? AND pl.user_id = ? AND NOT EXISTS (
+               SELECT 1 FROM post_votes pv WHERE pv.post_id = pl.post_id AND pv.user_id = pl.user_id
+             )
+           ) m LIMIT 1`,
+          postId,
+          studentId,
+          postId,
+          studentId
+        )
+      : null;
+    const upCount = Number(counts?.up_count || 0);
+    const downCount = Number(counts?.down_count || 0);
+    const myVote = Number(mine?.vote_type || 0);
+    return { upCount, downCount, myVote };
+  }
+
+  async function handleVote(req, res, next) {
     try {
       const post = await getAndAuthorizePost(req, Number(req.params.id));
       if (!post) return res.status(404).json({ message: 'Post not found.' });
 
-      const liked = req.method === 'POST';
-      if (liked) {
-        await db.run(`INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)
-          ON CONFLICT (post_id, user_id) DO NOTHING`, post.id, req.postUser.studentId);
+      const rawVote = req.body?.vote ?? req.body?.voteType ?? req.body?.direction;
+      let desiredVote;
+      if (rawVote === 'up' || rawVote === 1 || rawVote === '1') desiredVote = 1;
+      else if (rawVote === 'down' || rawVote === -1 || rawVote === '-1') desiredVote = -1;
+      else if (rawVote === 'none' || rawVote === 0 || rawVote === '0' || rawVote === null) desiredVote = 0;
+      else desiredVote = req.method === 'DELETE' ? 0 : 1;
 
-        if (post.user_id && post.user_id !== req.postUser.studentId) {
-          try {
-            const notifService = require('../lib/notifications-service');
-            const actorName = req.postUser.name || 'A classmate';
-            const postPreview = (post.content || 'your post').slice(0, 60);
-            await notifService.createNotification(db, {
-              type: 'post_reaction',
-              actorId: req.postUser.studentId,
-              actorName,
-              actorAvatar: req.postUser.avatarUrl || null,
-              title: `${actorName} reacted to your post`,
-              body: `liked "${postPreview}"`,
-              entityType: 'post',
-              entityId: String(post.id),
-              deepLink: `/post/${post.id}`,
-              webPath: `dashboard.html?post=${post.id}`,
-              groupKey: `post:${post.id}:reactions`,
-              recipientUserIds: [post.user_id],
-              metadata: { preview: postPreview },
-            });
-          } catch (notifErr) {
-            console.warn('[Post Like Notification Error]:', notifErr.message);
-          }
-        }
-      } else {
+      const current = await getPostVoteSummary(post.id, req.postUser.studentId);
+      const toggleIfSame = req.body?.toggle !== false && rawVote !== undefined;
+      const nextVote = (toggleIfSame && current.myVote === desiredVote) ? 0 : desiredVote;
+
+      if (nextVote === 0) {
+        await db.run('DELETE FROM post_votes WHERE post_id = ? AND user_id = ?', post.id, req.postUser.studentId);
         await db.run('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', post.id, req.postUser.studentId);
-        try {
-          const notifService = require('../lib/notifications-service');
-          await notifService.removeReactionFromGroup(db, {
-            groupKey: `post:${post.id}:reactions`,
-            actorId: req.postUser.studentId,
-          });
-        } catch (unreactErr) {
-          console.warn('[Post Unlike Notification Error]:', unreactErr.message);
+      } else {
+        await db.run(
+          `INSERT INTO post_votes (post_id, user_id, vote_type) VALUES (?, ?, ?)
+           ON CONFLICT (post_id, user_id) DO UPDATE SET vote_type = EXCLUDED.vote_type`,
+          post.id,
+          req.postUser.studentId,
+          nextVote
+        );
+        if (nextVote === 1) {
+          await db.run(
+            `INSERT INTO post_likes (post_id, user_id) VALUES (?, ?)
+             ON CONFLICT (post_id, user_id) DO NOTHING`,
+            post.id,
+            req.postUser.studentId
+          );
+        } else {
+          await db.run('DELETE FROM post_likes WHERE post_id = ? AND user_id = ?', post.id, req.postUser.studentId);
         }
       }
-      const count = await db.get('SELECT COUNT(*) AS c FROM post_likes WHERE post_id = ?', post.id);
-      res.json({ liked_by_me: liked, like_count: Number(count.c), liked, likeCount: Number(count.c) });
+
+      const updated = await getPostVoteSummary(post.id, req.postUser.studentId);
+      if (nextVote === 1 && current.myVote !== 1 && post.user_id !== req.postUser.studentId) {
+        await notifyVoteMilestoneIfNeeded(post, 1, updated.upCount);
+      } else if (nextVote === -1 && current.myVote !== -1 && post.user_id !== req.postUser.studentId) {
+        await notifyVoteMilestoneIfNeeded(post, -1, updated.downCount);
+      }
+
+      const liked = updated.myVote === 1;
+      if (req.path.endsWith('/like') && rawVote === undefined) {
+        return res.json({
+          liked_by_me: liked,
+          like_count: updated.upCount,
+          liked,
+          likeCount: updated.upCount,
+        });
+      }
+
+      res.json({
+        up_count: updated.upCount,
+        down_count: updated.downCount,
+        my_vote: updated.myVote,
+        upCount: updated.upCount,
+        downCount: updated.downCount,
+        myVote: updated.myVote,
+        liked_by_me: liked,
+        like_count: updated.upCount,
+        liked,
+        likeCount: updated.upCount,
+      });
     } catch (err) {
       next(err);
     }
   }
 
-  router.post('/:id/like', setLike);
-  router.delete('/:id/like', setLike);
+  router.post('/:id/like', handleVote);
+  router.delete('/:id/like', handleVote);
+  router.post('/:id/vote', handleVote);
 
   router.get('/:id/comments', async (req, res, next) => {
     try {

@@ -751,6 +751,38 @@ app.get('/compiler', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'compiler.html'));
 });
 
+// Semester Library — Hide & Seek Web Edition (/games/hide-and-seek)
+const hideAndSeekWebEngine = require('./lib/hide-and-seek-web-engine');
+
+app.get(['/games/hide-and-seek', '/games/hide-and-seek/', '/hide-and-seek', '/hide-and-seek.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+  res.sendFile(path.join(__dirname, 'public', 'games', 'hide-and-seek', 'index.html'));
+});
+
+app.get(['/api/games/hide-and-seek/metadata'], (req, res) => {
+  try {
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.json(hideAndSeekWebEngine.getWebEditionMetadata());
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to load Hide & Seek metadata', error: err.message });
+  }
+});
+
+app.get(['/api/games/hide-and-seek/engine', '/games/hide-and-seek/engine.html'], (req, res) => {
+  try {
+    const html = hideAndSeekWebEngine.buildWebEditionEngineHtml();
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    res.send(html);
+  } catch (err) {
+    const staticEngine = path.join(__dirname, 'public', 'games', 'hide-and-seek', 'engine.html');
+    if (fs.existsSync(staticEngine)) {
+      return res.sendFile(staticEngine);
+    }
+    res.status(500).send('Failed to compile Hide & Seek Web Engine: ' + err.message);
+  }
+});
+
 app.get(['/login', '/login.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
@@ -3194,6 +3226,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
           semester,
           department: uploaderDepartment,
           subject,
+          chapter,
           uploaderStudentId,
           uploaderName,
           cohortId: publishScope.cohortId,
@@ -3598,8 +3631,9 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
 
 // Fetch details of a single file/material by ID
 app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
   const fileId = req.params.id;
-  const currentStudentId = req.student?.studentId || req.session?.studentId;
+  const currentStudentId = req.student?.studentId || req.user?.studentId || req.session?.studentId;
 
   if (!fileId || isNaN(parseInt(fileId, 10))) {
     return res.status(400).json({ message: 'Invalid file ID' });
@@ -3608,7 +3642,12 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
   const query = `
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope,
-      students.name AS uploaderName, students.avatarUrl AS uploaderAvatar, students.role AS uploaderRole,
+      students.name AS uploaderName,
+      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) ELSE students.avatarUrl END AS uploaderAvatar,
+      students.role AS uploaderRole,
+      COALESCE((SELECT SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END) FROM (SELECT fileId, studentId, vote_type FROM file_votes WHERE fileId = files.id UNION ALL SELECT fl.fileId, fl.studentId, 1 AS vote_type FROM file_likes fl WHERE fl.fileId = files.id AND NOT EXISTS (SELECT 1 FROM file_votes fv WHERE fv.fileId = fl.fileId AND fv.studentId = fl.studentId)) t), 0) AS upCount,
+      COALESCE((SELECT SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END) FROM file_votes WHERE file_votes.fileId = files.id), 0) AS downCount,
+      COALESCE((SELECT vote_type FROM (SELECT fileId, studentId, vote_type FROM file_votes WHERE fileId = files.id UNION ALL SELECT fl.fileId, fl.studentId, 1 AS vote_type FROM file_likes fl WHERE fl.fileId = files.id AND NOT EXISTS (SELECT 1 FROM file_votes fv WHERE fv.fileId = fl.fileId AND fv.studentId = fl.studentId)) m WHERE m.studentId = ? LIMIT 1), 0) AS myVote,
       (SELECT COUNT(*) FROM file_likes WHERE file_likes.fileId = files.id) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
       (SELECT COUNT(*) FROM file_comments WHERE file_comments.fileId = files.id) AS commentCount
@@ -3619,7 +3658,7 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
 
   const [viewerIsAdmin, file, context] = await Promise.all([
     req.student ? Promise.resolve(req.student.role === 'admin') : isStudentAdmin(currentStudentId),
-    db.get(query, currentStudentId, parseInt(fileId, 10)),
+    db.get(query, currentStudentId, currentStudentId, parseInt(fileId, 10)),
     getAcademicContext(db, req)
   ]);
 
@@ -3627,8 +3666,23 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
     return res.status(404).json({ message: 'Material not found' });
   }
 
+  const upCountSingle = Number(file.upCount ?? file.upcount ?? file.likeCount ?? file.likecount ?? 0);
+  const downCountSingle = Number(file.downCount ?? file.downcount ?? 0);
+  const myVoteSingle = Number(file.myVote ?? file.myvote ?? (file.liked ? 1 : 0));
+  const commentCountSingle = Number(file.commentCount ?? file.commentcount ?? 0);
+
   const processed = {
     ...file,
+    upCount: upCountSingle,
+    downCount: downCountSingle,
+    myVote: myVoteSingle,
+    up_count: upCountSingle,
+    down_count: downCountSingle,
+    my_vote: myVoteSingle,
+    likeCount: upCountSingle,
+    liked: myVoteSingle === 1,
+    commentCount: commentCountSingle,
+    comment_count: commentCountSingle,
     cohortId: file.cohort_id || file.cohortId || null,
     cohort_id: file.cohort_id || file.cohortId || null,
     semesterNo: file.semester_no !== undefined ? file.semester_no : (file.semesterNo !== undefined ? file.semesterNo : null),
@@ -3644,6 +3698,7 @@ app.get(['/api/files/:id', '/api/library/files/:id'], requireLogin, async (req, 
 });
 
 app.get('/api/files', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
   const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200) : 100;
   const offset = req.query.offset ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
 
@@ -3707,14 +3762,34 @@ app.get('/api/files', requireLogin, async (req, res) => {
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope, COALESCE(files.sort_order, 0) AS sort_order,
       students.name AS uploaderName,
-      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) || '-' || SUBSTR(students.avatarUrl, -12) ELSE students.avatarUrl END AS uploaderAvatar,
+      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) ELSE students.avatarUrl END AS uploaderAvatar,
       students.role AS uploaderRole,
-      COALESCE(fl.likeCount, 0) AS likeCount,
-      EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
+      COALESCE(fv.upCount, fl.likeCount, 0) AS likeCount,
+      COALESCE(fv.upCount, fl.likeCount, 0) AS upCount,
+      COALESCE(fv.downCount, 0) AS downCount,
+      COALESCE(fm.vote_type, 0) AS myVote,
+      (COALESCE(fm.vote_type, 0) = 1) AS liked,
       COALESCE(fc.commentCount, 0) AS commentCount
     FROM files
     JOIN students ON students.studentId = files.uploadedBy
     LEFT JOIN (SELECT fileId, COUNT(*) AS likeCount FROM file_likes GROUP BY fileId) fl ON fl.fileId = files.id
+    LEFT JOIN (
+      SELECT fileId,
+        SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END) AS upCount,
+        SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END) AS downCount
+      FROM (
+        SELECT fileId, studentId, vote_type FROM file_votes
+        UNION ALL
+        SELECT fl2.fileId, fl2.studentId, 1 AS vote_type FROM file_likes fl2
+        WHERE NOT EXISTS (SELECT 1 FROM file_votes fv2 WHERE fv2.fileId = fl2.fileId AND fv2.studentId = fl2.studentId)
+      ) cv GROUP BY fileId
+    ) fv ON fv.fileId = files.id
+    LEFT JOIN (
+      SELECT fileId, studentId, vote_type FROM file_votes
+      UNION ALL
+      SELECT fl3.fileId, fl3.studentId, 1 AS vote_type FROM file_likes fl3
+      WHERE NOT EXISTS (SELECT 1 FROM file_votes fv3 WHERE fv3.fileId = fl3.fileId AND fv3.studentId = fl3.studentId)
+    ) fm ON fm.fileId = files.id AND fm.studentId = ?
     LEFT JOIN (SELECT fileId, COUNT(*) AS commentCount FROM file_comments GROUP BY fileId) fc ON fc.fileId = files.id
     WHERE ${whereSql}${teacherFeedSql}
     ORDER BY CASE WHEN COALESCE(files.sort_order, 0) > 0 THEN 0 ELSE 1 END ASC, COALESCE(files.sort_order, 0) ASC, files.uploadedAt DESC
@@ -3738,18 +3813,34 @@ app.get('/api/files', requireLogin, async (req, res) => {
     ]).filter(Boolean)
   );
 
-  const processed = files.map(f => ({
-    ...f,
-    cohortId: f.cohort_id || f.cohortId || null,
-    cohort_id: f.cohort_id || f.cohortId || null,
-    semesterNo: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
-    semester_no: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
-    audienceScope: f.audience_scope || f.audienceScope || 'cohort',
-    audience_scope: f.audience_scope || f.audienceScope || 'cohort',
-    uploaderRole: f.uploaderRole || 'student',
-    isOfficial: f.uploaderRole === 'admin',
-    canDelete: viewerIsAdmin || f.uploadedBy === currentViewerId || (context.role === 'teacher' && teacherSubjectSet.has(String(f.subject || '').trim().toLowerCase()))
-  }));
+  const processed = files.map(f => {
+    const upCount = Number(f.upCount ?? f.upcount ?? f.likeCount ?? f.likecount ?? 0);
+    const downCount = Number(f.downCount ?? f.downcount ?? 0);
+    const myVote = Number(f.myVote ?? f.myvote ?? (f.liked ? 1 : 0));
+    const commentCount = Number(f.commentCount ?? f.commentcount ?? 0);
+    return {
+      ...f,
+      upCount,
+      downCount,
+      myVote,
+      up_count: upCount,
+      down_count: downCount,
+      my_vote: myVote,
+      likeCount: upCount,
+      liked: myVote === 1,
+      commentCount,
+      comment_count: commentCount,
+      cohortId: f.cohort_id || f.cohortId || null,
+      cohort_id: f.cohort_id || f.cohortId || null,
+      semesterNo: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+      semester_no: f.semester_no !== undefined ? f.semester_no : (f.semesterNo !== undefined ? f.semesterNo : null),
+      audienceScope: f.audience_scope || f.audienceScope || 'cohort',
+      audience_scope: f.audience_scope || f.audienceScope || 'cohort',
+      uploaderRole: f.uploaderRole || 'student',
+      isOfficial: f.uploaderRole === 'admin',
+      canDelete: viewerIsAdmin || f.uploadedBy === currentViewerId || (context.role === 'teacher' && teacherSubjectSet.has(String(f.subject || '').trim().toLowerCase()))
+    };
+  });
 
   res.json(processed);
 });
@@ -4316,119 +4407,266 @@ app.get('/api/files/:id/view', requireLogin, async (req, res) => {
   res.download(filePath, file.originalName);
 });
 
-// Toggle/set like on a file (retry-safe)
-app.post('/api/files/:id/like', requireLogin, async (req, res) => {
-  const fileId = req.params.id;
-  const studentId = req.session.studentId;
+// Toggle/set vote or like on a file (supports Reddit-style up/down votes and anonymous 10-vote milestone notifications)
+app.post(['/api/files/:id/like', '/api/files/:id/vote'], requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const fileId = Number(req.params.id);
+  const studentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  if (!studentId || !fileId) return res.status(400).json({ message: 'Invalid request' });
+
+  const rawVote = req.body?.vote ?? req.body?.voteType ?? req.body?.direction;
   const explicitAction = req.body && (req.body.action || (typeof req.body.liked === 'boolean' ? (req.body.liked ? 'like' : 'unlike') : null));
 
-  const existing = await db.get('SELECT 1 FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
-  let shouldLike;
+  const currentRow = await db.get(
+    `SELECT vote_type FROM (
+       SELECT fileId, studentId, vote_type FROM file_votes WHERE fileId = ? AND studentId = ?
+       UNION ALL
+       SELECT fl.fileId, fl.studentId, 1 AS vote_type FROM file_likes fl
+       WHERE fl.fileId = ? AND fl.studentId = ? AND NOT EXISTS (
+         SELECT 1 FROM file_votes fv WHERE fv.fileId = fl.fileId AND fv.studentId = fl.studentId
+       )
+     ) m LIMIT 1`,
+    fileId, studentId, fileId, studentId
+  );
+  const currentVote = Number(currentRow?.vote_type || 0);
 
-  if (explicitAction === 'like') {
-    shouldLike = true;
+  let nextVote;
+  if (rawVote === 'up' || rawVote === 1 || rawVote === '1') {
+    nextVote = (req.body?.toggle !== false && currentVote === 1) ? 0 : 1;
+  } else if (rawVote === 'down' || rawVote === -1 || rawVote === '-1') {
+    nextVote = (req.body?.toggle !== false && currentVote === -1) ? 0 : -1;
+  } else if (rawVote === 'none' || rawVote === 0 || rawVote === '0') {
+    nextVote = 0;
+  } else if (explicitAction === 'like') {
+    nextVote = 1;
   } else if (explicitAction === 'unlike') {
-    shouldLike = false;
+    nextVote = 0;
   } else {
-    shouldLike = !existing;
+    nextVote = currentVote === 1 ? 0 : 1;
   }
 
-  if (shouldLike) {
-    if (!existing) {
+  if (nextVote === 0) {
+    await db.run('DELETE FROM file_votes WHERE fileId = ? AND studentId = ?', fileId, studentId);
+    await db.run('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
+  } else {
+    await db.run(
+      `INSERT INTO file_votes (fileId, studentId, vote_type) VALUES (?, ?, ?)
+       ON CONFLICT (fileId, studentId) DO UPDATE SET vote_type = EXCLUDED.vote_type`,
+      fileId, studentId, nextVote
+    );
+    if (nextVote === 1) {
       if (db.isPostgres) {
         await db.run('INSERT INTO file_likes (fileId, studentId) VALUES (?, ?) ON CONFLICT (fileId, studentId) DO NOTHING', fileId, studentId);
       } else {
         await db.run('INSERT OR IGNORE INTO file_likes (fileId, studentId) VALUES (?, ?)', fileId, studentId);
       }
-      // Create notification via notification center
-      const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
-      if (file && file.uploadedBy !== studentId) {
-        try {
-          const notifService = require('./lib/notifications-service');
-          const likerName = req.session?.studentName || req.user?.name || 'Someone';
-          await notifService.createNotification(db, {
-            type: 'material_reaction',
-            actorId: studentId,
-            actorName: likerName,
-            title: `${likerName} liked your file`,
-            body: `${likerName} liked your file: ${file.originalName || 'Study Material'}`,
-            entityType: 'material',
-            entityId: String(fileId),
-            deepLink: `/material/${fileId}`,
-            webPath: `files.html?highlight=${fileId}`,
-            groupKey: `material:${fileId}:reactions`,
-            recipientUserIds: [file.uploadedBy],
-          });
-        } catch (notifErr) {
-          console.warn('[File like notification error]:', notifErr.message);
-        }
-      }
-    }
-  } else {
-    if (existing) {
+    } else {
       await db.run('DELETE FROM file_likes WHERE fileId = ? AND studentId = ?', fileId, studentId);
-      try {
-        const notifService = require('./lib/notifications-service');
-        await notifService.removeReactionFromGroup(db, {
-          groupKey: `material:${fileId}:reactions`,
-          actorId: studentId,
-        });
-      } catch (_) {}
     }
   }
 
-  const countRow = await db.get('SELECT COUNT(*) AS c FROM file_likes WHERE fileId = ?', fileId);
-  const count = Number(countRow?.c || countRow?.count || 0);
-  res.json({ liked: shouldLike, likeCount: count });
+  const summary = await db.get(
+    `SELECT
+       COALESCE(SUM(CASE WHEN vote_type = 1 THEN 1 ELSE 0 END), 0) AS upCount,
+       COALESCE(SUM(CASE WHEN vote_type = -1 THEN 1 ELSE 0 END), 0) AS downCount
+     FROM (
+       SELECT fileId, studentId, vote_type FROM file_votes WHERE fileId = ?
+       UNION ALL
+       SELECT fl.fileId, fl.studentId, 1 AS vote_type FROM file_likes fl
+       WHERE fl.fileId = ? AND NOT EXISTS (
+         SELECT 1 FROM file_votes fv WHERE fv.fileId = fl.fileId AND fv.studentId = fl.studentId
+       )
+     ) t`,
+    fileId, fileId
+  );
+  const upCount = Number(summary?.upCount || summary?.upcount || 0);
+  const downCount = Number(summary?.downCount || summary?.downcount || 0);
+
+  const file = await db.get('SELECT uploadedBy, title, originalName FROM files WHERE id = ?', fileId);
+  if (file && file.uploadedBy && file.uploadedBy !== studentId) {
+    const isNewUpMilestone = nextVote === 1 && currentVote !== 1 && upCount >= 10 && upCount % 10 === 0;
+    const isNewDownMilestone = nextVote === -1 && currentVote !== -1 && downCount >= 10 && downCount % 10 === 0;
+    if (isNewUpMilestone || isNewDownMilestone) {
+      try {
+        const notifService = require('./lib/notifications-service');
+        const mCount = isNewUpMilestone ? upCount : downCount;
+        const actionWord = isNewUpMilestone ? 'upvoted' : 'downvoted';
+        const label = file.title || file.originalName || 'Note';
+        const titleText = `${mCount} people ${actionWord} your note`;
+        await notifService.createNotification(db, {
+          type: 'material_reaction',
+          actorId: null,
+          actorName: null,
+          actorAvatar: null,
+          title: titleText,
+          body: `${titleText}: "${label}"`,
+          entityType: 'material',
+          entityId: String(fileId),
+          deepLink: `/material/${fileId}`,
+          webPath: `files.html?highlight=${fileId}`,
+          groupKey: `material:${fileId}:${isNewUpMilestone ? 'up' : 'down'}_milestone:${mCount}`,
+          recipientUserIds: [file.uploadedBy],
+          metadata: { fromApp: true, anonymousVoteMilestone: true, voteType: isNewUpMilestone ? 'up' : 'down', milestoneCount: mCount },
+        });
+      } catch (notifErr) {
+        console.warn('[File vote milestone notification error]:', notifErr.message);
+      }
+    }
+  }
+
+  res.json({
+    liked: nextVote === 1,
+    likeCount: upCount,
+    upCount,
+    downCount,
+    myVote: nextVote,
+    up_count: upCount,
+    down_count: downCount,
+    my_vote: nextVote,
+  });
 });
 
-// List comments on a file
-app.get('/api/files/:id/comments', requireLogin, async (req, res) => {
-  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
-  const currentRole = req.session?.role || req.user?.role || req.student?.role || 'student';
-
-  const comments = await db.all(`
-    SELECT file_comments.id, file_comments.studentId, file_comments.commentText, file_comments.createdAt,
-           students.name AS commenterName, students.avatarUrl, students.role
-    FROM file_comments
-    JOIN students ON students.studentId = file_comments.studentId
-    WHERE fileId = ?
-    ORDER BY file_comments.createdAt ASC
-  `, req.params.id);
-
-  const formatted = comments.map(c => ({
-    id: c.id,
-    fileId: Number(req.params.id),
+function formatFileCommentRow(c, fileId, currentStudentId, currentRole) {
+  const rawAvatar = c.avatarUrl || c.avatarurl || null;
+  const avatarUrl = rawAvatar && String(rawAvatar).startsWith('data:')
+    ? `/api/avatar/student/${c.studentId}?v=${String(rawAvatar).length}`
+    : rawAvatar;
+  const rawCreated = c.createdAt || c.created_at;
+  let createdAt = rawCreated;
+  if (typeof rawCreated === 'string') {
+    const t = rawCreated.trim();
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(\.\d+)?$/.test(t)) {
+      createdAt = t.replace(' ', 'T') + 'Z';
+    }
+  }
+  const isAuthor = Boolean(currentStudentId && c.studentId === currentStudentId);
+  const isAdminUser = currentRole === 'admin';
+  const replyToUser = (c.reply_to_user_id && c.reply_to_name) ? {
+    studentId: c.reply_to_user_id,
+    name: c.reply_to_name
+  } : null;
+  return {
+    id: Number(c.id),
+    fileId,
+    postId: fileId,
+    userId: c.studentId,
     studentId: c.studentId,
     commentText: c.commentText,
     content: c.commentText,
-    createdAt: c.createdAt,
+    createdAt,
+    updatedAt: c.updated_at || null,
+    edited: Boolean(c.updated_at),
+    parentCommentId: c.parent_comment_id ? Number(c.parent_comment_id) : null,
+    replyToUserId: c.reply_to_user_id || null,
+    replyToUser,
     commenterName: c.commenterName,
     name: c.commenterName,
-    avatarUrl: c.avatarUrl,
+    avatarUrl,
     role: c.role || 'student',
-    canDelete: c.studentId === currentStudentId || currentRole === 'admin'
-  }));
+    reactionCount: Number(c.reaction_count || 0),
+    reactedByMe: Boolean(c.reacted_by_me),
+    replyCount: Number(c.reply_count || 0),
+    replies: Array.isArray(c.replies) ? c.replies : [],
+    canDelete: isAuthor || isAdminUser,
+    canEdit: isAuthor
+  };
+}
 
-  res.json(formatted);
+// List comments on a file
+app.get('/api/files/:id/comments', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const fileId = Number(req.params.id);
+  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId || '';
+  const currentRole = req.session?.role || req.user?.role || req.student?.role || 'student';
+
+  const rows = await db.all(`
+    SELECT fc.id, fc.studentId, fc.commentText, fc.createdAt,
+           fc.parent_comment_id, fc.reply_to_user_id, fc.updated_at,
+           students.name AS commenterName,
+           CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) ELSE students.avatarUrl END AS avatarUrl,
+           students.role,
+           r_s.name AS reply_to_name,
+           COALESCE(rc.reaction_count, 0) AS reaction_count,
+           (mine_r.user_id IS NOT NULL) AS reacted_by_me
+    FROM file_comments fc
+    JOIN students ON students.studentId = fc.studentId
+    LEFT JOIN students r_s ON r_s.studentId = fc.reply_to_user_id
+    LEFT JOIN (
+      SELECT comment_id, COUNT(*) AS reaction_count
+      FROM file_comment_reactions
+      GROUP BY comment_id
+    ) rc ON rc.comment_id = fc.id
+    LEFT JOIN file_comment_reactions mine_r ON mine_r.comment_id = fc.id AND mine_r.user_id = ?
+    WHERE fc.fileId = ?
+    ORDER BY fc.id ASC
+  `, currentStudentId, fileId);
+
+  const repliesByParent = new Map();
+  for (const r of rows) {
+    const pid = r.parent_comment_id ?? r.parentCommentId;
+    if (pid != null) {
+      const numPid = Number(pid);
+      if (!repliesByParent.has(numPid)) repliesByParent.set(numPid, []);
+      repliesByParent.get(numPid).push(formatFileCommentRow(r, fileId, currentStudentId, currentRole));
+    }
+  }
+
+  const rootComments = [];
+  for (const r of rows) {
+    const pid = r.parent_comment_id ?? r.parentCommentId;
+    if (pid == null) {
+      const rootId = Number(r.id);
+      const childReplies = repliesByParent.get(rootId) || [];
+      r.replies = childReplies;
+      r.reply_count = childReplies.length;
+      rootComments.push(formatFileCommentRow(r, fileId, currentStudentId, currentRole));
+    }
+  }
+
+  res.json(rootComments);
 });
 
-// Add a comment to a file
+// Add a comment or reply to a file
 app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const fileId = Number(req.params.id);
   const text = (req.body.text || req.body.content || '').trim();
   if (!text) return res.status(400).json({ message: 'Comment cannot be empty' });
-  if (text.length > 500) return res.status(400).json({ message: 'Comment too long' });
+  if (text.length > 1000) return res.status(400).json({ message: 'Comment too long' });
 
   const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
-  const currentName = req.session?.name || req.user?.name || req.student?.name || 'Someone';
+  const currentUser = await db.get('SELECT name, avatarUrl, role FROM students WHERE studentId = ?', currentStudentId);
+  const currentName = currentUser?.name || req.session?.name || req.user?.name || req.student?.name || 'Someone';
 
+  const rawParentId = req.body.parent_comment_id ?? req.body.parentCommentId ?? null;
+  let resolvedParentId = null;
+  let resolvedReplyToUserId = req.body.reply_to_user_id ?? req.body.replyToUserId ?? null;
+  let replyToName = null;
+
+  if (rawParentId) {
+    const targetComment = await db.get('SELECT id, studentId, parent_comment_id FROM file_comments WHERE id = ? AND fileId = ?', Number(rawParentId), fileId);
+    if (targetComment) {
+      resolvedParentId = targetComment.parent_comment_id ? Number(targetComment.parent_comment_id) : Number(targetComment.id);
+      if (!resolvedReplyToUserId) resolvedReplyToUserId = targetComment.studentId;
+    }
+  }
+  if (resolvedReplyToUserId) {
+    const rt = await db.get('SELECT name FROM students WHERE studentId = ?', resolvedReplyToUserId);
+    replyToName = rt?.name || null;
+  }
+
+  const now = new Date().toISOString();
   const result = await db.run(`
-    INSERT INTO file_comments (fileId, studentId, commentText, createdAt) VALUES (?, ?, ?, ?)
-  `, req.params.id, currentStudentId, text, new Date().toISOString());
+    INSERT INTO file_comments (fileId, studentId, commentText, parent_comment_id, reply_to_user_id, createdAt) VALUES (?, ?, ?, ?, ?, ?)
+  `, fileId, currentStudentId, text, resolvedParentId, resolvedReplyToUserId, now);
+
+  const rawAvatar = currentUser?.avatarUrl || null;
+  const cleanAvatar = rawAvatar && String(rawAvatar).startsWith('data:')
+    ? `/api/avatar/student/${currentStudentId}?v=${String(rawAvatar).length}`
+    : rawAvatar;
 
   // Create notification via notification center
-  const fileId = req.params.id;
-  const file = await db.get('SELECT uploadedBy, originalName FROM files WHERE id = ?', fileId);
+  const file = await db.get('SELECT uploadedBy, originalName, title FROM files WHERE id = ?', fileId);
   if (file && file.uploadedBy !== currentStudentId) {
     try {
       const notifService = require('./lib/notifications-service');
@@ -4436,8 +4674,9 @@ app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
         type: 'material_comment',
         actorId: currentStudentId,
         actorName: currentName,
+        actorAvatar: cleanAvatar,
         title: `${currentName} commented on your file`,
-        body: `${currentName} commented on your file: ${file.originalName || 'Study Material'}`,
+        body: `${currentName} commented on your file: ${file.title || file.originalName || 'Study Material'}`,
         entityType: 'material',
         entityId: String(fileId),
         secondaryEntityId: String(result.lastInsertRowid || ''),
@@ -4451,37 +4690,100 @@ app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
     }
   }
 
-  const newComment = await db.get(`
-    SELECT file_comments.id, file_comments.studentId, file_comments.commentText, file_comments.createdAt,
-           students.name AS commenterName, students.avatarUrl, students.role
-    FROM file_comments
-    JOIN students ON students.studentId = file_comments.studentId
-    WHERE file_comments.id = ?
-  `, result.lastInsertRowid);
-
-  const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', req.params.id);
+  const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', fileId);
 
   res.json({
     commentId: result.lastInsertRowid,
-    comment: newComment ? {
-      id: newComment.id,
-      fileId: Number(req.params.id),
-      studentId: newComment.studentId,
-      commentText: newComment.commentText,
-      content: newComment.commentText,
-      createdAt: newComment.createdAt,
-      commenterName: newComment.commenterName,
-      name: newComment.commenterName,
-      avatarUrl: newComment.avatarUrl,
-      role: newComment.role || 'student',
-      canDelete: true
-    } : null,
-    commentCount: Number(count?.c || 1)
+    comment: {
+      id: Number(result.lastInsertRowid),
+      fileId,
+      postId: fileId,
+      userId: currentStudentId,
+      studentId: currentStudentId,
+      commentText: text,
+      content: text,
+      createdAt: now,
+      parentCommentId: resolvedParentId,
+      replyToUserId: resolvedReplyToUserId,
+      replyToUser: (resolvedReplyToUserId && replyToName) ? { studentId: resolvedReplyToUserId, name: replyToName } : null,
+      commenterName: currentName,
+      name: currentName,
+      avatarUrl: cleanAvatar,
+      role: currentUser?.role || 'student',
+      reactionCount: 0,
+      reactedByMe: false,
+      replyCount: 0,
+      replies: [],
+      canDelete: true,
+      canEdit: true
+    },
+    commentCount: Number(count?.c || 1),
+    comment_count: Number(count?.c || 1)
   });
+});
+
+// Edit a comment on a file
+app.put('/api/files/:id/comments/:commentId', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const fileId = Number(req.params.id);
+  const commentId = Number(req.params.commentId);
+  const text = (req.body.text || req.body.content || '').trim();
+  if (!text) return res.status(400).json({ message: 'Comment cannot be empty' });
+  if (text.length > 1000) return res.status(400).json({ message: 'Comment too long' });
+
+  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  const comment = await db.get('SELECT * FROM file_comments WHERE id = ? AND fileId = ?', commentId, fileId);
+  if (!comment) return res.status(404).json({ message: 'Comment not found' });
+  if (comment.studentId !== currentStudentId) {
+    return res.status(403).json({ message: 'Only the comment author can edit this comment' });
+  }
+
+  const now = new Date().toISOString();
+  await db.run('UPDATE file_comments SET commentText = ?, updated_at = ? WHERE id = ?', text, now, commentId);
+  res.json({
+    message: 'Comment updated',
+    comment: {
+      id: commentId,
+      content: text,
+      commentText: text,
+      updatedAt: now,
+      edited: true
+    }
+  });
+});
+
+// Toggle heart reaction on a file comment
+app.post('/api/files/:id/comments/:commentId/like', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const commentId = Number(req.params.commentId);
+  const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
+  if (!commentId || !currentStudentId) return res.status(400).json({ message: 'Invalid request' });
+
+  const existing = await db.get(
+    'SELECT id FROM file_comment_reactions WHERE comment_id = ? AND user_id = ? AND reaction_type = ?',
+    commentId, currentStudentId, 'like'
+  );
+  let reacted = false;
+  if (existing) {
+    await db.run('DELETE FROM file_comment_reactions WHERE comment_id = ? AND user_id = ?', commentId, currentStudentId);
+    reacted = false;
+  } else {
+    await db.run(
+      'INSERT INTO file_comment_reactions (comment_id, user_id, reaction_type, created_at) VALUES (?, ?, ?, ?) ON CONFLICT (comment_id, user_id, reaction_type) DO NOTHING',
+      commentId, currentStudentId, 'like', new Date().toISOString()
+    );
+    reacted = true;
+  }
+  const countRow = await db.get('SELECT COUNT(*) AS c FROM file_comment_reactions WHERE comment_id = ?', commentId);
+  const reactionCount = Number(countRow?.c || 0);
+  res.json({ reacted, reactedByMe: reacted, reactionCount, reaction_count: reactionCount });
 });
 
 // Delete a comment on a file
 app.delete('/api/files/:id/comments/:commentId', requireLogin, async (req, res) => {
+  if (typeof db.ensureInteractionsSchema === 'function') await db.ensureInteractionsSchema();
+  const fileId = Number(req.params.id);
+  const commentId = Number(req.params.commentId);
   const currentStudentId = req.session?.studentId || req.user?.studentId || req.student?.studentId;
   const currentRole = req.session?.role || req.user?.role || req.student?.role || 'student';
 
@@ -4491,9 +4793,9 @@ app.delete('/api/files/:id/comments/:commentId', requireLogin, async (req, res) 
     return res.status(403).json({ message: 'Unauthorized to delete this comment' });
   }
 
-  await db.run('DELETE FROM file_comments WHERE id = ?', req.params.commentId);
-  const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', req.params.id);
-  res.json({ message: 'Comment deleted', commentCount: Number(count?.c || 0) });
+  await db.run('DELETE FROM file_comments WHERE id = ? OR parent_comment_id = ?', commentId, commentId);
+  const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', fileId);
+  res.json({ message: 'Comment deleted', commentCount: Number(count?.c || 0), comment_count: Number(count?.c || 0) });
 });
 
 // --- Routine/Exam Endpoints ---
@@ -4959,7 +5261,7 @@ app.get('/api/library/files', async (req, res) => {
     SELECT files.id, files.originalName, files.title, files.semester, files.subject, files.chapter, files.sizeBytes, files.uploadedAt, files.uploadedBy,
       files.cohort_id, files.semester_no, files.audience_scope, COALESCE(files.sort_order, 0) AS sort_order,
       students.name AS uploaderName,
-      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) || '-' || SUBSTR(students.avatarUrl, -12) ELSE students.avatarUrl END AS uploaderAvatar,
+      CASE WHEN students.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || students.studentId || '?v=' || LENGTH(students.avatarUrl) ELSE students.avatarUrl END AS uploaderAvatar,
       students.role AS uploaderRole,
       COALESCE(fl.likeCount, 0) AS likeCount,
       EXISTS(SELECT 1 FROM file_likes WHERE fileId = files.id AND studentId = ?) AS liked,
@@ -5299,7 +5601,7 @@ app.get('/api/chat/members', requireLogin, async (req, res) => {
     const [members, lastMessages] = await Promise.all([
       db.all(`
         SELECT s.studentId, s.name, s.username,
-          CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) || '-' || SUBSTR(s.avatarUrl, -12) ELSE s.avatarUrl END AS avatarUrl,
+          CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) ELSE s.avatarUrl END AS avatarUrl,
           s.semester, s.department, s.role,
           r.lastReadMessageId
         FROM students s
@@ -5985,7 +6287,7 @@ const uploadCover = multer({
 async function getStudentProfile(targetStudentId, viewerStudentId) {
   let student = await db.get(`
     SELECT studentId, username, name,
-      CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId || '?v=' || LENGTH(avatarUrl) || '-' || SUBSTR(avatarUrl, -12) ELSE avatarUrl END AS avatarUrl,
+      CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId || '?v=' || LENGTH(avatarUrl) ELSE avatarUrl END AS avatarUrl,
       coverUrl, coverPosition, bio, department, semester, cohort_id, githubUrl, linkedinUrl, role, verification_status, email
     FROM students
     WHERE studentId = ?
@@ -5994,7 +6296,7 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
   if (!student && targetStudentId) {
     student = await db.get(`
       SELECT studentId, username, name,
-        CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId || '?v=' || LENGTH(avatarUrl) || '-' || SUBSTR(avatarUrl, -12) ELSE avatarUrl END AS avatarUrl,
+        CASE WHEN avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || studentId || '?v=' || LENGTH(avatarUrl) ELSE avatarUrl END AS avatarUrl,
         coverUrl, coverPosition, bio, department, semester, cohort_id, githubUrl, linkedinUrl, role, verification_status, email
       FROM students
       WHERE LOWER(username) = LOWER(?)

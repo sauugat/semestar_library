@@ -21,6 +21,7 @@ import { apiFetch } from '@/services/api';
 import { AdminAuditModal } from './AdminAuditModal';
 import { AdminCohortsModal } from './AdminCohortsModal';
 import { AdminAdvertisementsModal } from './AdminAdvertisementsModal';
+import { AdminPushNotificationModal } from './AdminPushNotificationModal';
 
 export function AdminDashboardView() {
   const { colors, radii, spacing } = useTheme();
@@ -31,6 +32,7 @@ export function AdminDashboardView() {
   const [auditModalVisible, setAuditModalVisible] = useState(false);
   const [cohortsModalVisible, setCohortsModalVisible] = useState(false);
   const [adsModalVisible, setAdsModalVisible] = useState(false);
+  const [pushModalVisible, setPushModalVisible] = useState(false);
 
   const { data, isLoading, isError, error, refetch, isRefetching } = useQuery({
     queryKey: ['admin-overview'],
@@ -160,6 +162,24 @@ export function AdminDashboardView() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              onPress={() => setPushModalVisible(true)}
+              style={[styles.auditShortcut, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]}
+              accessibilityLabel="Push Notification Broadcast"
+              testID="admin-open-push-notification-btn"
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={[styles.shortcutIconWrap, { backgroundColor: colors.surfaceRaised, marginRight: 12, marginBottom: 0 }]}>
+                  <Ionicons name="notifications-outline" size={20} color={colors.text} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.shortcutTitle, { color: colors.text }]}>Push Notification (App Broadcast)</Text>
+                  <Caption style={{ color: colors.textSecondary }}>Send official app-level notices & push alerts to users</Caption>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               onPress={() => setAuditModalVisible(true)}
               style={[styles.auditShortcut, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]}
             >
@@ -251,6 +271,7 @@ export function AdminDashboardView() {
       <AdminAuditModal visible={auditModalVisible} onClose={() => setAuditModalVisible(false)} />
       <AdminCohortsModal visible={cohortsModalVisible} onClose={() => setCohortsModalVisible(false)} />
       <AdminAdvertisementsModal visible={adsModalVisible} onClose={() => setAdsModalVisible(false)} />
+      <AdminPushNotificationModal visible={pushModalVisible} onClose={() => setPushModalVisible(false)} />
     </SafeAreaView>
   );
 }

@@ -2480,6 +2480,143 @@ function createAdminDashboardRouter(arg1, arg2) {
     }
   });
 
+  /**
+   * 20. POST /api/admin/push-notification
+   * Broadcasts an official app-level push & in-app notification from Semester Library POV.
+   */
+  router.post('/push-notification', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const rawTitle = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+      const rawBody = typeof req.body?.body === 'string'
+        ? req.body.body.trim()
+        : (typeof req.body?.message === 'string' ? req.body.message.trim() : '');
+      const targetAudience = String(req.body?.targetAudience || 'all').toLowerCase();
+      const targetSemesters = Array.isArray(req.body?.targetSemesters)
+        ? req.body.targetSemesters.map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 8)
+        : [];
+      const priority = ['normal', 'high', 'urgent'].includes(String(req.body?.priority || '').toLowerCase())
+        ? String(req.body.priority).toLowerCase()
+        : 'high';
+      const deepLink = typeof req.body?.deepLink === 'string' && req.body.deepLink.trim()
+        ? req.body.deepLink.trim()
+        : '/(tabs)';
+
+      if (!rawBody) {
+        return res.status(400).json({ message: 'Notification message is required.' });
+      }
+      if (rawBody.length > 1000) {
+        return res.status(400).json({ message: 'Notification message must be 1,000 characters or fewer.' });
+      }
+
+      const finalTitle = rawTitle || 'Semester Library';
+
+      // Resolve recipient student IDs according to targetAudience and targetSemesters
+      let recipientRows = [];
+      if (targetAudience === 'semester' && targetSemesters.length > 0) {
+        const semPatterns = [];
+        for (const semNum of targetSemesters) {
+          semPatterns.push(`Semester ${semNum}`, `Semester${semNum}`, String(semNum));
+        }
+        const placeholders = semPatterns.map(() => '?').join(',');
+        const semNumPlaceholders = targetSemesters.map(() => '?').join(',');
+        try {
+          recipientRows = await db.all(
+            `SELECT DISTINCT s.studentId
+             FROM students s
+             LEFT JOIN cohorts c ON s.cohort_id = c.id
+             WHERE (s.account_status IS NULL OR s.account_status != 'suspended')
+               AND (s.semester IN (${placeholders}) OR c.current_semester IN (${semNumPlaceholders}))`,
+            ...semPatterns,
+            ...targetSemesters
+          );
+        } catch (_) {
+          recipientRows = await db.all(
+            `SELECT DISTINCT studentId FROM students WHERE semester IN (${placeholders})`,
+            ...semPatterns
+          );
+        }
+      } else if (targetAudience === 'students_only') {
+        recipientRows = await db.all(
+          `SELECT DISTINCT studentId FROM students WHERE (role IS NULL OR role IN ('student', 'cr'))`
+        );
+      } else if (targetAudience === 'teachers_only') {
+        recipientRows = await db.all(
+          `SELECT DISTINCT studentId FROM students WHERE role = 'teacher'`
+        );
+      } else {
+        recipientRows = await db.all(`SELECT DISTINCT studentId FROM students`);
+      }
+
+      const recipientIds = (recipientRows || [])
+        .map((r) => r.studentId || r.studentid)
+        .filter(Boolean);
+
+      if (recipientIds.length === 0) {
+        return res.status(400).json({ message: 'No eligible recipients matched the selected target audience.' });
+      }
+
+      const notifService = require('../lib/notifications-service');
+      const broadcastEntityId = `broadcast_${Date.now()}`;
+
+      // Create notification with actorId = null so it is delivered from the App POV ("Semester Library")
+      // and reaches all targeted recipients (including admin devices for verification).
+      const notifRes = await notifService.createNotification(db, {
+        type: 'official_notice',
+        actorId: null,
+        actorName: 'Semester Library',
+        actorAvatar: null,
+        title: finalTitle,
+        body: rawBody,
+        entityType: 'system',
+        entityId: broadcastEntityId,
+        deepLink,
+        webPath: 'notices.html',
+        priority,
+        recipientUserIds: recipientIds,
+        metadata: {
+          isOfficial: true,
+          fromApp: true,
+          targetAudience,
+          targetSemesters,
+          sentByAdminId: req.adminStudentId,
+        },
+      });
+
+      try {
+        await recordAdminAudit(db, {
+          actorUserId: req.adminStudentId,
+          action: 'admin_push_notification_broadcast',
+          entityType: 'notification',
+          entityId: String(notifRes?.notificationId || broadcastEntityId),
+          beforeState: null,
+          afterState: {
+            title: finalTitle,
+            body: rawBody,
+            targetAudience,
+            targetSemesters,
+            recipientCount: notifRes?.recipientCount || recipientIds.length,
+            pushCount: notifRes?.pushCount || 0,
+          },
+          metadata: {
+            adminId: req.adminStudentId,
+            priority,
+          },
+        });
+      } catch (_) {}
+
+      res.status(201).json({
+        success: true,
+        message: `Push notification sent to ${notifRes?.recipientCount || recipientIds.length} users.`,
+        notificationId: notifRes?.notificationId,
+        recipientCount: notifRes?.recipientCount || recipientIds.length,
+        pushCount: notifRes?.pushCount || 0,
+      });
+    } catch (err) {
+      console.error('[Admin Push Broadcast Error]:', err);
+      res.status(500).json({ message: err.message || 'Failed to broadcast push notification.' });
+    }
+  });
+
   return router;
 }
 

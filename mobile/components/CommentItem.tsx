@@ -3,26 +3,44 @@ import {
   View,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
+  Pressable,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
-import { Text, Caption } from '@/components/ui/Typography';
+import { Text } from '@/components/ui/Typography';
 import { Avatar } from '@/components/ui/Avatar';
-import { formatTimeAgo } from '@/utils/date';
+import { safeParseDate } from '@/utils/date';
 import { PostComment } from '@/services/posts';
 
 interface CommentItemProps {
   comment: PostComment;
-  onReply: (comment: PostComment) => void;
-  onEdit: (comment: PostComment) => void;
+  onReply?: (comment: PostComment) => void;
+  onEdit?: (comment: PostComment) => void;
   onDelete: (comment: PostComment) => void;
-  onToggleReaction: (comment: PostComment) => void;
+  onToggleReaction?: (comment: PostComment) => void;
   getFullUrl: (path?: any) => string | null;
   currentUserId?: string | null;
   isAdmin?: boolean;
   highlightCommentId?: number | null;
+  onNavigateProfile?: (studentId: string) => void;
+}
+
+function formatCompactTime(dateVal: unknown): string {
+  const date = safeParseDate(dateVal);
+  if (!date) return 'now';
+  const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (diffSec < 60) return 'now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d`;
+  const diffWeek = Math.floor(diffDay / 7);
+  if (diffWeek < 52) return `${diffWeek}w`;
+  return `${Math.floor(diffWeek / 52)}y`;
 }
 
 export function CommentItem({
@@ -35,9 +53,10 @@ export function CommentItem({
   currentUserId,
   isAdmin,
   highlightCommentId,
+  onNavigateProfile,
 }: CommentItemProps) {
   const router = useRouter();
-  const { colors, spacing, radii } = useTheme();
+  const { colors } = useTheme();
 
   const replies = comment.replies || [];
   const replyCount = comment.replyCount ?? replies.length;
@@ -48,6 +67,11 @@ export function CommentItem({
     highlightCommentId && replies.some((r) => r.id === highlightCommentId)
   );
   const [repliesExpanded, setRepliesExpanded] = useState(containsHighlightedReply);
+  const [longPressTarget, setLongPressTarget] = useState<{
+    item: PostComment;
+    canEdit: boolean;
+    canDelete: boolean;
+  } | null>(null);
 
   React.useEffect(() => {
     if (containsHighlightedReply) {
@@ -60,85 +84,98 @@ export function CommentItem({
   const isAuthor = Boolean(
     currentUserId && (comment.userId === currentUserId || comment.studentId === currentUserId)
   );
-  const canDeleteComment = !comment.isDeleted && (comment.canDelete || isAuthor || isAdmin);
-  const canEditComment = !comment.isDeleted && (comment.canEdit || isAuthor);
+  const canDeleteComment = Boolean(!comment.isDeleted && (comment.canDelete || isAuthor || isAdmin));
+  const canEditComment = Boolean(!comment.isDeleted && Boolean(onEdit) && (comment.canEdit || isAuthor));
 
   const avatarUrl = getFullUrl(comment.avatarUrl);
-  const isCommentAuthorAdmin = comment.role === 'admin';
-  const isCR = comment.role === 'cr';
+  const roleLower = (comment.role || '').toLowerCase();
+  const roleBadgeLabel =
+    roleLower === 'admin'
+      ? 'Admin'
+      : roleLower === 'teacher' || roleLower === 'faculty'
+      ? 'Teacher'
+      : roleLower === 'cr'
+      ? 'CR'
+      : null;
+
   const navigateToProfile = (studentId?: string | null) => {
-    if (studentId) {
-      router.push({ pathname: '/user/[id]', params: { id: studentId } });
+    if (!studentId) return;
+    if (onNavigateProfile) {
+      onNavigateProfile(studentId);
+      return;
     }
+    router.push({ pathname: '/user/[id]', params: { id: studentId } });
+  };
+
+  const handleOpenLongPressMenu = (
+    target: PostComment,
+    canEdit: boolean,
+    canDelete: boolean
+  ) => {
+    if (target.isDeleted) return;
+    if (!onReply && !canEdit && !canDelete) return;
+    setLongPressTarget({ item: target, canEdit, canDelete });
   };
 
   return (
     <View style={styles.container}>
-      {/* Root Comment Container */}
-      <View
-        style={[
-          styles.commentCard,
-          {
-            backgroundColor: colors.surface,
-            borderColor: isHighlighted ? colors.primary : colors.border,
-            borderWidth: isHighlighted ? 1.5 : 1,
-            opacity: comment.isDeleted ? 0.7 : 1,
+      {/* Flat Instagram-style Root Comment Row (long-press opens Reply / Edit / Delete action sheet) */}
+      <Pressable
+        delayLongPress={260}
+        onLongPress={() => handleOpenLongPressMenu(comment, canEditComment, canDeleteComment)}
+        style={({ pressed }) => [
+          styles.commentRow,
+          (isHighlighted || (pressed && !comment.isDeleted)) && {
+            backgroundColor: colors.surfaceRaised,
+            borderRadius: 12,
           },
+          comment.isDeleted && { opacity: 0.65 },
         ]}
       >
         <Avatar
           url={comment.isDeleted ? null : avatarUrl}
           name={comment.isDeleted ? '?' : comment.name}
           size="sm"
-          enableViewer={!comment.isDeleted && Boolean(avatarUrl)}
-          onPress={!avatarUrl && !comment.isDeleted ? () => navigateToProfile(comment.studentId) : undefined}
+          onPress={!comment.isDeleted ? () => navigateToProfile(comment.studentId) : undefined}
         />
 
-        <View style={styles.commentContent}>
-          {/* Header: Name, badges, time, options */}
-          <View style={styles.commentHeader}>
+        <View style={styles.commentCenter}>
+          {/* Top line: Username + compact relative time + role badge */}
+          <View style={styles.headerLine}>
             <TouchableOpacity
               activeOpacity={comment.isDeleted ? 1 : 0.7}
               onPress={() => !comment.isDeleted && navigateToProfile(comment.studentId)}
+              onLongPress={() => handleOpenLongPressMenu(comment, canEditComment, canDeleteComment)}
+              delayLongPress={260}
               disabled={Boolean(comment.isDeleted)}
-              style={styles.nameRow}
+              style={styles.nameGroup}
             >
-              <Text variant="sm" weight="700" numberOfLines={1}>
-                {comment.isDeleted ? 'Deleted Comment' : comment.name}
+              <Text weight="700" numberOfLines={1} style={[styles.usernameText, { color: colors.text }]}>
+                {comment.isDeleted ? 'Deleted Comment' : comment.name || 'Student'}
               </Text>
 
-              {!comment.isDeleted && isCommentAuthorAdmin && (
-                <View style={[styles.badge, { backgroundColor: colors.primaryLight }]}>
-                  <Text variant="xs" weight="700" style={{ color: colors.primary, fontSize: 9 }}>
-                    Admin
-                  </Text>
-                </View>
-              )}
-
-              {!comment.isDeleted && isCR && (
-                <View style={[styles.badge, { backgroundColor: colors.surfaceRaised }]}>
-                  <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 9 }}>
-                    CR
+              {!comment.isDeleted && roleBadgeLabel && (
+                <View style={[styles.roleBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                  <Text weight="700" style={{ color: colors.textSecondary, fontSize: 9 }}>
+                    {roleBadgeLabel}
                   </Text>
                 </View>
               )}
             </TouchableOpacity>
 
-            <View style={styles.rightHeaderActions}>
-              <Caption color="muted" style={styles.timeText}>
-                {formatTimeAgo(comment.createdAt)}
-              </Caption>
-              {comment.edited && !comment.isDeleted && (
-                <Caption color="muted" style={styles.editedText}>
-                  · edited
-                </Caption>
-              )}
-            </View>
+            <Text style={[styles.timeText, { color: colors.textMuted }]}>
+              {formatCompactTime(comment.createdAt || (comment as any).created_at)}
+            </Text>
+
+            {comment.edited && !comment.isDeleted && (
+              <Text style={[styles.editedText, { color: colors.textMuted }]}>
+                · edited
+              </Text>
+            )}
           </View>
 
-          {/* Comment Body */}
+          {/* Comment Text Body */}
           <Text
-            variant="sm"
             style={[
               styles.commentBody,
               {
@@ -146,118 +183,73 @@ export function CommentItem({
                 fontStyle: comment.isDeleted ? 'italic' : 'normal',
               },
             ]}
-            selectable={!comment.isDeleted}
           >
             {comment.content}
           </Text>
 
-          {/* Action Row: Like, Reply, Edit, Delete */}
-          {!comment.isDeleted && (
-            <View style={styles.actionRow}>
-              {/* Like / Heart Reaction Button */}
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => onToggleReaction(comment)}
-                style={styles.actionBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-              >
-                <Ionicons
-                  name={comment.reactedByMe ? 'heart' : 'heart-outline'}
-                  size={15}
-                  color={comment.reactedByMe ? (colors.error || '#EF4444') : colors.textSecondary}
-                />
-                {(comment.reactionCount ?? 0) > 0 && (
-                  <Text
-                    variant="xs"
-                    weight={comment.reactedByMe ? '700' : '500'}
-                    style={{
-                      marginLeft: 4,
-                      color: comment.reactedByMe ? (colors.error || '#EF4444') : colors.textSecondary,
-                      fontSize: 12,
-                    }}
-                  >
-                    {comment.reactionCount}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              <Text variant="xs" color="muted" style={styles.bulletDot}>
-                ·
-              </Text>
-
-              {/* Reply Button */}
+          {/* Inline sub-action below comment: ONLY Reply is shown inline; Edit/Delete appear on long-press */}
+          {!comment.isDeleted && onReply && (
+            <View style={styles.subActionRow}>
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={() => onReply(comment)}
-                style={styles.actionBtn}
-                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                onLongPress={() => handleOpenLongPressMenu(comment, canEditComment, canDeleteComment)}
+                delayLongPress={260}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
               >
-                <Text variant="xs" weight="600" color="secondary" style={{ fontSize: 12 }}>
+                <Text weight="600" style={[styles.subActionText, { color: colors.textMuted }]}>
                   Reply
                 </Text>
               </TouchableOpacity>
-
-              {/* Edit Button (author only) */}
-              {canEditComment && (
-                <>
-                  <Text variant="xs" color="muted" style={styles.bulletDot}>
-                    ·
-                  </Text>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => onEdit(comment)}
-                    style={styles.actionBtn}
-                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                  >
-                    <Ionicons name="pencil-outline" size={13} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </>
-              )}
-
-              {/* Delete Button (author or admin) */}
-              {canDeleteComment && (
-                <>
-                  <Text variant="xs" color="muted" style={styles.bulletDot}>
-                    ·
-                  </Text>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => onDelete(comment)}
-                    style={styles.actionBtn}
-                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                  >
-                    <Ionicons name="trash-outline" size={13} color={colors.error || '#EF4444'} />
-                  </TouchableOpacity>
-                </>
-              )}
             </View>
           )}
         </View>
-      </View>
 
-      {/* Expand / Collapse Replies Toggle */}
+        {/* Right Heart Reaction Column (Lowered slightly so it aligns with comment body) */}
+        {!comment.isDeleted && onToggleReaction && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => onToggleReaction(comment)}
+            style={styles.likeColumn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={comment.reactedByMe ? 'heart' : 'heart-outline'}
+              size={16}
+              color={comment.reactedByMe ? '#FF2D55' : colors.textMuted}
+            />
+            {(comment.reactionCount ?? 0) > 0 && (
+              <Text
+                weight={comment.reactedByMe ? '700' : '500'}
+                style={[
+                  styles.likeCountText,
+                  { color: comment.reactedByMe ? '#FF2D55' : colors.textMuted },
+                ]}
+              >
+                {comment.reactionCount}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+      </Pressable>
+
+      {/* Expand / Collapse Replies Line ("— View N more replies") */}
       {hasReplies && (
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={() => setRepliesExpanded(!repliesExpanded)}
-          style={[styles.threadToggleBtn, { marginLeft: 44 }]}
+          style={styles.threadToggleBtn}
         >
-          <View style={[styles.threadGuideLineHorizontal, { backgroundColor: colors.border }]} />
-          <Ionicons
-            name={repliesExpanded ? 'chevron-up' : 'chevron-down'}
-            size={14}
-            color={colors.primary}
-            style={{ marginRight: 4 }}
-          />
-          <Text variant="xs" weight="700" color="primary">
+          <View style={[styles.threadGuideLineHorizontal, { backgroundColor: colors.borderStrong || colors.border }]} />
+          <Text weight="600" style={[styles.viewRepliesText, { color: colors.textSecondary }]}>
             {repliesExpanded
               ? 'Hide replies'
-              : `View ${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`}
+              : `View ${replyCount} more ${replyCount === 1 ? 'reply' : 'replies'}`}
           </Text>
         </TouchableOpacity>
       )}
 
-      {/* Replies List (Flattened under Root Comment) */}
+      {/* Indented Replies List */}
       {hasReplies && repliesExpanded && (
         <View style={styles.repliesListContainer}>
           {replies.map((reply) => {
@@ -265,275 +257,374 @@ export function CommentItem({
             const isReplyAuthor = Boolean(
               currentUserId && (reply.userId === currentUserId || reply.studentId === currentUserId)
             );
-            const canDeleteReply = !reply.isDeleted && (reply.canDelete || isReplyAuthor || isAdmin);
-            const canEditReply = !reply.isDeleted && (reply.canEdit || isReplyAuthor);
-            const isReplyAdmin = reply.role === 'admin';
-
+            const canDeleteReply = Boolean(!reply.isDeleted && (reply.canDelete || isReplyAuthor || isAdmin));
+            const canEditReply = Boolean(!reply.isDeleted && Boolean(onEdit) && (reply.canEdit || isReplyAuthor));
+            const replyRoleLower = (reply.role || '').toLowerCase();
+            const replyBadge =
+              replyRoleLower === 'admin'
+                ? 'Admin'
+                : replyRoleLower === 'teacher' || replyRoleLower === 'faculty'
+                ? 'Teacher'
+                : replyRoleLower === 'cr'
+                ? 'CR'
+                : null;
             const isReplyHighlighted = highlightCommentId != null && reply.id === highlightCommentId;
 
             return (
-              <View key={reply.id} style={styles.replyRow}>
-                {/* Visual Thread Guide Line */}
-                <View style={[styles.threadGuideLineVertical, { backgroundColor: colors.border }]} />
+              <Pressable
+                key={reply.id}
+                delayLongPress={260}
+                onLongPress={() => handleOpenLongPressMenu(reply, canEditReply, canDeleteReply)}
+                style={({ pressed }) => [
+                  styles.replyRow,
+                  (isReplyHighlighted || (pressed && !reply.isDeleted)) && {
+                    backgroundColor: colors.surfaceRaised,
+                    borderRadius: 10,
+                  },
+                  reply.isDeleted && { opacity: 0.65 },
+                ]}
+              >
+                <Avatar
+                  url={reply.isDeleted ? null : replyAvatar}
+                  name={reply.isDeleted ? '?' : reply.name}
+                  size="xs"
+                  onPress={!reply.isDeleted ? () => navigateToProfile(reply.studentId) : undefined}
+                />
 
-                {/* Reply Bubble Card */}
-                <View
-                  style={[
-                    styles.replyCard,
-                    {
-                      backgroundColor: colors.surfaceRaised,
-                      borderColor: isReplyHighlighted ? colors.primary : colors.border,
-                      borderWidth: isReplyHighlighted ? 1.5 : 1,
-                      opacity: reply.isDeleted ? 0.7 : 1,
-                    },
-                  ]}
-                >
-                    <Avatar
-                      url={reply.isDeleted ? null : replyAvatar}
-                      name={reply.isDeleted ? '?' : reply.name}
-                      size="xs"
-                      enableViewer={!reply.isDeleted && Boolean(replyAvatar)}
-                      onPress={!replyAvatar && !reply.isDeleted ? () => navigateToProfile(reply.studentId) : undefined}
-                    />
-
-                  <View style={styles.commentContent}>
-                    {/* Header */}
-                    <View style={styles.commentHeader}>
-                      <TouchableOpacity
-                        activeOpacity={reply.isDeleted ? 1 : 0.7}
-                        onPress={() => !reply.isDeleted && navigateToProfile(reply.studentId)}
-                        disabled={Boolean(reply.isDeleted)}
-                        style={styles.nameRow}
-                      >
-                        <Text variant="xs" weight="700" numberOfLines={1}>
-                          {reply.isDeleted ? 'Deleted Reply' : reply.name}
-                        </Text>
-                        {!reply.isDeleted && isReplyAdmin && (
-                          <View style={[styles.badge, { backgroundColor: colors.primaryLight }]}>
-                            <Text variant="xs" weight="700" style={{ color: colors.primary, fontSize: 8 }}>
-                              Admin
-                            </Text>
-                          </View>
-                        )}
-                      </TouchableOpacity>
-
-                      <View style={styles.rightHeaderActions}>
-                        <Caption color="muted" style={styles.timeText}>
-                          {formatTimeAgo(reply.createdAt)}
-                        </Caption>
-                        {reply.edited && !reply.isDeleted && (
-                          <Caption color="muted" style={styles.editedText}>
-                            · edited
-                          </Caption>
-                        )}
-                      </View>
-                    </View>
-
-                    {/* Content with Reply-to Mention */}
-                    <Text
-                      variant="sm"
-                      style={[
-                        styles.commentBody,
-                        {
-                          color: reply.isDeleted ? colors.textMuted : colors.text,
-                          fontStyle: reply.isDeleted ? 'italic' : 'normal',
-                        },
-                      ]}
-                      selectable={!reply.isDeleted}
+                <View style={styles.replyCenter}>
+                  <View style={styles.headerLine}>
+                    <TouchableOpacity
+                      activeOpacity={reply.isDeleted ? 1 : 0.7}
+                      onPress={() => !reply.isDeleted && navigateToProfile(reply.studentId)}
+                      onLongPress={() => handleOpenLongPressMenu(reply, canEditReply, canDeleteReply)}
+                      delayLongPress={260}
+                      disabled={Boolean(reply.isDeleted)}
+                      style={styles.nameGroup}
                     >
-                      {!reply.isDeleted && reply.replyToUser?.name && (
-                        <Text
-                          variant="sm"
-                          weight="700"
-                          style={{ color: colors.primary }}
-                          onPress={() => navigateToProfile(reply.replyToUser?.studentId)}
-                        >
-                          @{reply.replyToUser.name}{' '}
-                        </Text>
+                      <Text weight="700" numberOfLines={1} style={[styles.replyUsernameText, { color: colors.text }]}>
+                        {reply.isDeleted ? 'Deleted Reply' : reply.name || 'Student'}
+                      </Text>
+                      {!reply.isDeleted && replyBadge && (
+                        <View style={[styles.roleBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
+                          <Text weight="700" style={{ color: colors.textSecondary, fontSize: 8 }}>
+                            {replyBadge}
+                          </Text>
+                        </View>
                       )}
-                      {reply.content}
+                    </TouchableOpacity>
+
+                    <Text style={[styles.timeText, { color: colors.textMuted }]}>
+                      {formatCompactTime(reply.createdAt || (reply as any).created_at)}
                     </Text>
 
-                    {/* Actions: Like, Reply, Edit, Delete */}
-                    {!reply.isDeleted && (
-                      <View style={styles.actionRow}>
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => onToggleReaction(reply)}
-                          style={styles.actionBtn}
-                          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                        >
-                          <Ionicons
-                            name={reply.reactedByMe ? 'heart' : 'heart-outline'}
-                            size={14}
-                            color={reply.reactedByMe ? (colors.error || '#EF4444') : colors.textSecondary}
-                          />
-                          {(reply.reactionCount ?? 0) > 0 && (
-                            <Text
-                              variant="xs"
-                              weight={reply.reactedByMe ? '700' : '500'}
-                              style={{
-                                marginLeft: 4,
-                                color: reply.reactedByMe ? (colors.error || '#EF4444') : colors.textSecondary,
-                                fontSize: 11,
-                              }}
-                            >
-                              {reply.reactionCount}
-                            </Text>
-                          )}
-                        </TouchableOpacity>
-
-                        <Text variant="xs" color="muted" style={styles.bulletDot}>
-                          ·
-                        </Text>
-
-                        {/* Reply to this reply */}
-                        <TouchableOpacity
-                          activeOpacity={0.7}
-                          onPress={() => onReply(reply)}
-                          style={styles.actionBtn}
-                          hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                        >
-                          <Text variant="xs" weight="600" color="secondary" style={{ fontSize: 11 }}>
-                            Reply
-                          </Text>
-                        </TouchableOpacity>
-
-                        {canEditReply && (
-                          <>
-                            <Text variant="xs" color="muted" style={styles.bulletDot}>
-                              ·
-                            </Text>
-                            <TouchableOpacity
-                              activeOpacity={0.7}
-                              onPress={() => onEdit(reply)}
-                              style={styles.actionBtn}
-                              hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                            >
-                              <Ionicons name="pencil-outline" size={12} color={colors.textSecondary} />
-                            </TouchableOpacity>
-                          </>
-                        )}
-
-                        {canDeleteReply && (
-                          <>
-                            <Text variant="xs" color="muted" style={styles.bulletDot}>
-                              ·
-                            </Text>
-                            <TouchableOpacity
-                              activeOpacity={0.7}
-                              onPress={() => onDelete(reply)}
-                              style={styles.actionBtn}
-                              hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                            >
-                              <Ionicons name="trash-outline" size={12} color={colors.error || '#EF4444'} />
-                            </TouchableOpacity>
-                          </>
-                        )}
-                      </View>
+                    {reply.edited && !reply.isDeleted && (
+                      <Text style={[styles.editedText, { color: colors.textMuted }]}>
+                        · edited
+                      </Text>
                     )}
                   </View>
+
+                  <Text
+                    style={[
+                      styles.commentBody,
+                      {
+                        color: reply.isDeleted ? colors.textMuted : colors.text,
+                        fontStyle: reply.isDeleted ? 'italic' : 'normal',
+                      },
+                    ]}
+                  >
+                    {!reply.isDeleted && reply.replyToUser?.name && (
+                      <Text
+                        weight="600"
+                        style={{ color: colors.primary, fontSize: 13.5 }}
+                        onPress={() => navigateToProfile(reply.replyToUser?.studentId)}
+                      >
+                        @{reply.replyToUser.name}{' '}
+                      </Text>
+                    )}
+                    {reply.content}
+                  </Text>
+
+                  {!reply.isDeleted && onReply && (
+                    <View style={styles.subActionRow}>
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => onReply(reply)}
+                        onLongPress={() => handleOpenLongPressMenu(reply, canEditReply, canDeleteReply)}
+                        delayLongPress={260}
+                        hitSlop={{ top: 8, bottom: 8, left: 6, right: 8 }}
+                      >
+                        <Text weight="600" style={[styles.subActionText, { color: colors.textMuted }]}>
+                          Reply
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
-              </View>
+
+                {!reply.isDeleted && onToggleReaction && (
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => onToggleReaction(reply)}
+                    style={styles.likeColumn}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <Ionicons
+                      name={reply.reactedByMe ? 'heart' : 'heart-outline'}
+                      size={14}
+                      color={reply.reactedByMe ? '#FF2D55' : colors.textMuted}
+                    />
+                    {(reply.reactionCount ?? 0) > 0 && (
+                      <Text
+                        weight={reply.reactedByMe ? '700' : '500'}
+                        style={[
+                          styles.likeCountText,
+                          { color: reply.reactedByMe ? '#FF2D55' : colors.textMuted },
+                        ]}
+                      >
+                        {reply.reactionCount}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </Pressable>
             );
           })}
         </View>
       )}
+
+      {/* Clean Long-Press Action Menu (Reply / Edit / Delete) */}
+      <Modal
+        visible={Boolean(longPressTarget)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLongPressTarget(null)}
+      >
+        <Pressable
+          style={styles.actionModalBackdrop}
+          onPress={() => setLongPressTarget(null)}
+        >
+          <View
+            style={[
+              styles.actionSheetCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={[styles.actionSheetHeader, { borderBottomColor: colors.border }]}>
+              <Text weight="700" numberOfLines={1} style={{ fontSize: 13, color: colors.textSecondary }}>
+                {longPressTarget?.item.name || 'Comment'}
+              </Text>
+              <Text numberOfLines={2} style={{ fontSize: 12, color: colors.textMuted, marginTop: 2 }}>
+                {longPressTarget?.item.content}
+              </Text>
+            </View>
+
+            {onReply && longPressTarget && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.actionOptionRow, { borderBottomColor: colors.border }]}
+                onPress={() => {
+                  const target = longPressTarget.item;
+                  setLongPressTarget(null);
+                  onReply(target);
+                }}
+              >
+                <Ionicons name="return-down-forward-outline" size={18} color={colors.text} />
+                <Text weight="600" style={{ fontSize: 15, color: colors.text }}>
+                  Reply
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {longPressTarget?.canEdit && onEdit && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.actionOptionRow, { borderBottomColor: colors.border }]}
+                onPress={() => {
+                  const target = longPressTarget.item;
+                  setLongPressTarget(null);
+                  onEdit(target);
+                }}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.text} />
+                <Text weight="600" style={{ fontSize: 15, color: colors.text }}>
+                  Edit Comment
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {longPressTarget?.canDelete && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[styles.actionOptionRow, { borderBottomColor: colors.border }]}
+                onPress={() => {
+                  const target = longPressTarget.item;
+                  setLongPressTarget(null);
+                  onDelete(target);
+                }}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.error || '#EF4444'} />
+                <Text weight="600" style={{ fontSize: 15, color: colors.error || '#EF4444' }}>
+                  Delete Comment
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.actionCancelRow}
+              onPress={() => setLongPressTarget(null)}
+            >
+              <Text weight="700" style={{ fontSize: 15, color: colors.textSecondary }}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12,
+    marginBottom: 14,
   },
-  commentCard: {
+  commentRow: {
     flexDirection: 'row',
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
+    alignItems: 'flex-start',
+    paddingVertical: 5,
+    paddingHorizontal: 4,
   },
-  commentContent: {
+  commentCenter: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 12,
+    marginRight: 8,
   },
-  commentHeader: {
+  headerLine: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 6,
+  },
+  nameGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     flexShrink: 1,
   },
-  badge: {
+  usernameText: {
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  replyUsernameText: {
+    fontSize: 12.5,
+    lineHeight: 16,
+  },
+  roleBadge: {
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4,
-  },
-  rightHeaderActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   timeText: {
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 16,
   },
   editedText: {
     fontSize: 11,
+    lineHeight: 16,
   },
   commentBody: {
-    lineHeight: 20,
-    marginTop: 2,
-    marginBottom: 6,
-  },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    fontSize: 14,
+    lineHeight: 19,
     marginTop: 2,
   },
-  actionBtn: {
+  subActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 2,
+    gap: 16,
+    marginTop: 5,
   },
-  bulletDot: {
-    marginHorizontal: 8,
+  subActionText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  likeColumn: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 12,
+    minWidth: 28,
+  },
+  likeCountText: {
     fontSize: 11,
+    lineHeight: 14,
+    marginTop: 2,
   },
   threadToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: 48,
     marginTop: 6,
-    paddingVertical: 4,
+    paddingVertical: 3,
   },
   threadGuideLineHorizontal: {
-    width: 16,
-    height: 1.5,
-    marginRight: 6,
+    width: 24,
+    height: 1,
+    marginRight: 10,
+  },
+  viewRepliesText: {
+    fontSize: 12,
   },
   repliesListContainer: {
     marginTop: 8,
-    marginLeft: 22,
+    marginLeft: 48,
+    gap: 10,
   },
   replyRow: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
   },
-  threadGuideLineVertical: {
-    width: 2,
-    marginRight: 10,
-    borderRadius: 1,
-  },
-  replyCard: {
+  replyCenter: {
     flex: 1,
+    marginLeft: 10,
+    marginRight: 8,
+  },
+  actionModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 28,
+  },
+  actionSheetCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  actionSheetHeader: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  actionOptionRow: {
     flexDirection: 'row',
-    padding: 10,
-    borderRadius: 12,
-    borderWidth: 1,
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  actionCancelRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
   },
 });

@@ -1,13 +1,13 @@
 /**
- * Unified Chat Inbox Data Foundation (Stage A)
+ * Unified Chat Inbox Data Foundation (Stage A & Redesign)
  *
  * Provides pure, network-free data structures, normalization adapters,
- * deterministic sorting, and filtering for combining cohort conversations
- * and private 1-to-1 conversations.
+ * deterministic sorting, section partitioning, and filtering for combining
+ * Kyana AI, cohort group conversations, and private 1-to-1 conversations.
  *
  * Strictly adheres to:
  * - Genuine API fields only (no invented fields or manufactured dates).
- * - Stable, namespaced presentation keys ('cohort:<id>', 'dm:<id>').
+ * - Stable, namespaced presentation keys ('kyana', 'cohort:<id>', 'dm:<id>').
  * - Failure and permission isolation (presentation-only layer).
  */
 
@@ -43,6 +43,7 @@ export interface CohortConversationItem {
   readonly roomStatus: string;
   readonly cohortStatus?: string;
   readonly canPin?: boolean;
+  readonly isPinned?: boolean;
 }
 
 export interface DmConversationItem {
@@ -61,6 +62,7 @@ export interface DmConversationItem {
   readonly isBlocked: boolean;
   readonly isBlockedByMe: boolean;
   readonly isBlockedByPeer: boolean;
+  readonly lastMessageSenderId?: string | null;
 }
 
 export type UnifiedConversationItem = CohortConversationItem | DmConversationItem | KyanaConversationItem;
@@ -181,6 +183,7 @@ export function adaptDmConversation(
   // Last message preview handling
   let subtitle: string | null = null;
   let rawTimestamp: string | null = null;
+  let lastMessageSenderId: string | null = null;
 
   if (convo.lastMessage && typeof convo.lastMessage === 'object') {
     if (!convo.lastMessage.deletedForAll && typeof convo.lastMessage.text === 'string' && convo.lastMessage.text.trim()) {
@@ -188,6 +191,9 @@ export function adaptDmConversation(
     }
     if (typeof convo.lastMessage.createdAt === 'string') {
       rawTimestamp = convo.lastMessage.createdAt;
+    }
+    if (convo.lastMessage.senderId) {
+      lastMessageSenderId = String(convo.lastMessage.senderId).trim();
     }
   }
 
@@ -201,7 +207,7 @@ export function adaptDmConversation(
     ? convo.unreadCount
     : 0;
 
-  return {
+  const adapted: DmConversationItem = {
     key: `dm:${conversationId}`,
     type: 'dm',
     conversationId,
@@ -218,6 +224,12 @@ export function adaptDmConversation(
     isBlockedByMe: Boolean(convo.blockedByMe),
     isBlockedByPeer: Boolean(convo.blockedByPeer),
   };
+
+  if (lastMessageSenderId) {
+    (adapted as any).lastMessageSenderId = lastMessageSenderId;
+  }
+
+  return adapted;
 }
 
 /**
@@ -368,9 +380,57 @@ export function searchUnifiedConversations(
   return items.filter(item => {
     if (item.title.toLowerCase().includes(term)) return true;
     if (item.subtitle && item.subtitle.toLowerCase().includes(term)) return true;
-    if (item.type === 'cohort' && item.groupCode.toLowerCase().includes(term)) return true;
+    if (item.type === 'cohort' && (item.groupCode.toLowerCase().includes(term) || 'semester group'.includes(term))) return true;
     if (item.type === 'dm' && item.peerUsername && item.peerUsername.toLowerCase().includes(term)) return true;
     if (item.type === 'kyana' && ('kyana'.includes(term) || 'ai'.includes(term))) return true;
     return false;
   });
+}
+
+/**
+ * Partitions unified conversations into two strict, non-overlapping sections:
+ * 1. `pinned`: Always contains Kyana AI first and the user's Semester Group(s) second
+ *    (filtered consistently by active tab and search query).
+ * 2. `messages`: Individual 1-to-1 DM conversations only, sorted by most recent activity.
+ *    Never duplicates Kyana AI or Semester Group conversations.
+ */
+export function partitionInboxSections(
+  items: readonly UnifiedConversationItem[],
+  filter: InboxFilterTab,
+  searchQuery = ''
+): {
+  pinned: (KyanaConversationItem | CohortConversationItem)[];
+  messages: DmConversationItem[];
+} {
+  const searched = searchUnifiedConversations(items, searchQuery);
+
+  const kyanaItems = searched.filter((i): i is KyanaConversationItem => i.type === 'kyana');
+  const cohortItems = searched.filter((i): i is CohortConversationItem => i.type === 'cohort');
+  const dmItems = sortUnifiedConversations(
+    searched.filter((i): i is DmConversationItem => i.type === 'dm')
+  ) as DmConversationItem[];
+
+  if (filter === 'groups') {
+    return {
+      pinned: [...cohortItems],
+      messages: [],
+    };
+  }
+
+  if (filter === 'unread') {
+    return {
+      pinned: [
+        ...kyanaItems.filter(i => (i.unreadCount || 0) > 0),
+        ...cohortItems.filter(i => i.unreadCount !== null && i.unreadCount > 0),
+      ],
+      messages: dmItems.filter(i => i.unreadCount > 0),
+    };
+  }
+
+  // 'all' tab: Kyana AI + Semester Group(s) are permanently pinned at the top;
+  // individual DMs appear in MESSAGES sorted by most recent activity.
+  return {
+    pinned: [...kyanaItems, ...cohortItems],
+    messages: dmItems,
+  };
 }

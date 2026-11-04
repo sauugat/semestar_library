@@ -36,25 +36,25 @@ export const HORROR_CONFIG = {
   exploreMode: true,
   enableDevTelemetry: true,
 
-  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Nepali Tihar Laxmi Puja Night Grade: Deep Night Blues + 1900K Diyo Golden-Orange Highlights)
+  // 1. COLOR GRADE & VISUAL OVERHAUL TUNABLES (Nepali Tihar Laxmi Puja Night Grade: Deep Night Blues + 2800K Warm Golden Lanterns)
   grade: {
     enabled: true,
-    shadowTint: [0.04, 0.11, 0.19],     // Deep nocturnal indigo-slate shadows
-    highlightTint: [1.14, 0.81, 0.44],  // Warm 1950K Tihar diyo golden-orange highlights
-    saturation: 0.88,                   // Richer festive marigold & Jhilimili color fidelity while keeping nighttime depth
-    contrast: 1.16,                     // Crisp S-curve contrast between lit focal areas and dark nighttime surroundings
-    blackLift: 0.016,                   // Deep, natural night blacks without crushing silhouette readability
-    vignette: 0.44,                     // Subtle nocturnal edge framing
-    grain: 0.032,                       // Subtle organic low-light sensor grain
-    edgeDesat: 0.20,                    // Gentle peripheral desaturation
-    bloomStrength: 0.26,                // 5-tap Kawase soft optical bloom around high-luminance diyos & Jhilimili bulbs
-    bloomThreshold: 0.68,               // Luminance threshold for warm festival highlight bloom
-    microContrast: 0.22,                // Unsharp midtone micro-contrast for brick/stone/wood relief
-    chromaStrength: 0.0014,             // Subtle lens periphery chromatic aberration
-    lampColor: 0xff8a2a,                // #ff8a2a warm orange lamp light
+    shadowTint: [0.06, 0.11, 0.19],     // Deep nocturnal indigo-slate shadows
+    highlightTint: [1.12, 0.86, 0.52],  // Warm 2800K streetlamp & diyo golden highlights
+    saturation: 1.05,                   // Rich festive marigold, Jhilimili & architectural color fidelity
+    contrast: 1.04,                     // Balanced contrast without crushing dark areas
+    blackLift: 0.024,                   // Natural shadow detail without horror black crush
+    vignette: 0.18,                     // Subtle nocturnal edge framing
+    grain: 0.005,                       // Crisp modern sensor clarity
+    edgeDesat: 0.02,                    // Clean color fidelity across viewport
+    bloomStrength: 0.24,                // Soft optical bloom around lamps & diyos
+    bloomThreshold: 0.65,               // Luminance threshold for warm highlights
+    microContrast: 0.16,                // Balanced midtone micro-contrast for brick/stone/wood relief
+    chromaStrength: 0.0008,             // Clean subtle optical periphery
+    lampColor: 0xff9e38,                // Warm golden 2800K lantern light
     poolOpacity: 0.28,                  // Warm ground light pool opacity
-    fogColor: 0x08131d,                 // Deep Himalayan autumn night fog
-    materialDarknessMultiplier: 0.62,   // Realistic nighttime albedo response on unlit walls & roofs
+    fogColor: 0x0c1726,                 // Atmospheric Himalayan twilight fog
+    materialDarknessMultiplier: 1.00,   // Natural, clean architectural albedo response
     fpsGuardThreshold: 40,              // Auto-disable grade pass if avg FPS < 40 for 3s
     fpsGuardWindowSec: 3.0,
     stylizedPs1Mode: false,             // Optional PS1-style 0.7x pixel ratio + dither/grain mode
@@ -72,85 +72,85 @@ export const HORROR_CONFIG = {
     mutedBone: '#7e8c99',
   },
   renderer: {
-    clearColor: 0x040a12,
-    toneMappingExposure: 1.12,
-    fogColor: 0x091520,
-    fogWarmTintColor: 0x261a10,
-    fogNear: 15.0,
-    fogFar: 92.0,
-    fogMinFarUnderTension: 46.0,
+    clearColor: 0x070b16,
+    toneMappingExposure: 1.06,
+    fogColor: 0x0c1726,
+    fogWarmTintColor: 0x221a14,
+    fogNear: 45.0,
+    fogFar: 260.0,
+    fogMinFarUnderTension: 120.0,
   },
   lighting: {
-    // Layered Nepali Tihar Nighttime Lighting: Low-intensity blue-grey ambient + subtle silver-blue moonlight + warm 1900K diyos
-    visibilityFloorAmbient: 0.065,
-    ambientColor: 0x101d2e,
-    ambientIntensity: 0.11,
-    indoorAmbientIntensity: 0.048,
-    hemiSkyColor: 0x182b44,
-    hemiGroundColor: 0x05090e,
-    hemiIntensity: 0.13,
-    indoorHemiIntensity: 0.055,
-    // Subtle Himalayan autumn moonlight directional light for architectural silhouettes (attenuated indoors)
-    moonColor: 0x7ea8cc,
-    moonIntensity: 0.38,
-    indoorMoonIntensity: 0.07,
-    rimColor: 0x4e738c,
-    rimIntensity: 0.21,
-    // Main Player Flashlight: soft-edged spotlight, visible volumetric beam cone, battery flicker & realistic falloff
-    flashlightColor: 0xfff1d6,
+    // Natural Serene Himalayan Nighttime Lighting: Clear twilight sky + silver-blue moonlight + warm lanterns
+    visibilityFloorAmbient: 0.18,
+    ambientColor: 0x1a293e,
+    ambientIntensity: 0.28,
+    indoorAmbientIntensity: 0.22,
+    hemiSkyColor: 0x243650,
+    hemiGroundColor: 0x101620,
+    hemiIntensity: 0.30,
+    indoorHemiIntensity: 0.18,
+    // Himalayan autumn moonlight directional light for crisp architectural silhouettes & natural soft shadows
+    moonColor: 0x9ec3e8,
+    moonIntensity: 0.65,
+    indoorMoonIntensity: 0.12,
+    rimColor: 0x5a81a0,
+    rimIntensity: 0.25,
+    // Soft Inspection Flashlight: warm, pleasant beam that complements natural campus lighting without harsh blinding glare
+    flashlightColor: 0xfff4e0,
     flashlightLowBatteryColor: 0xffb366,
-    flashlightIntensity: 11.2,
-    flashlightDistance: 30.5,
-    flashlightAngle: 0.60,
-    flashlightPenumbra: 0.88,
-    flashlightDecay: 1.80,
-    flashlightSpillIntensity: 1.25,
-    flashlightSpillDistance: 6.5,
-    flashlightBeamOpacity: 0.135,
+    flashlightIntensity: 3.8,
+    flashlightDistance: 32.0,
+    flashlightAngle: 0.65,
+    flashlightPenumbra: 0.90,
+    flashlightDecay: 1.65,
+    flashlightSpillIntensity: 0.85,
+    flashlightSpillDistance: 7.0,
+    flashlightBeamOpacity: 0.08,
     // Warm orange lamp & diyo light (1800K-2200K) tuned against ACES Filmic so highlights stay golden-orange
-    lampColor: 0xff8a2a,
-    lampCoreColor: 0xffd280,
-    lampEmberColor: 0x7c2d12,
-    lampIntensity: 12.6,
-    lampDistance: 17.8,
-    lampDecay: 1.68,
-    lampPoolSize: 7.4,
-    lampHaloScale: 2.35,
-    lampConeOpacity: 0.088,
-    windowGlowRatio: 0.46,
-    windowColdDark: 0x05090e,
-    windowEmissive: 0xff922b,
-    windowEmissiveIntensity: 0.68,
-    doorwayGlowColor: 0xff9428,
-    doorwayGlowOpacity: 0.26,
-    diyoUltraEmissiveIntensity: 1.55,
-    horizonWarmGlowOpacity: 0.22,
+    lampColor: 0xff8c2b,
+    lampCoreColor: 0xffe29a,
+    lampEmberColor: 0x8a2c10,
+    lampIntensity: 11.8,
+    lampDistance: 17.5,
+    lampDecay: 1.85,
+    lampPoolSize: 7.2,
+    lampHaloScale: 2.20,
+    lampConeOpacity: 0.060,
+    windowGlowRatio: 0.58,
+    windowColdDark: 0x040810,
+    windowEmissive: 0xff9c34,
+    windowEmissiveIntensity: 0.88,
+    doorwayGlowColor: 0xff9628,
+    doorwayGlowOpacity: 0.32,
+    diyoUltraEmissiveIntensity: 1.65,
+    horizonWarmGlowOpacity: 0.24,
     redAccent: 0x8c1d1d,
   },
   tihar: {
     enabled: true,
     festivalName: 'Nepali Tihar — Laxmi Puja Night',
     // Clay Diyo (1800K-2200K oil lamp) lighting parameters
-    diyoColorCore: 0xfff3c4,       // 2200K bright wick core
-    diyoColorMid: 0xff922b,        // 1950K warm golden-orange flame body
-    diyoColorTip: 0xd9480f,        // 1800K deep amber-orange tip
-    diyoLightColor: 0xff9428,      // 1950K physical PointLight & pool color
-    diyoPoolOpacity: 0.38,         // Localized warm surface light pool on steps/sills/courtyard
+    diyoColorCore: 0xfff6dc,       // 2200K bright wick core
+    diyoColorMid: 0xff9928,        // 1950K warm golden-orange flame body
+    diyoColorTip: 0xd94408,        // 1800K deep amber-orange tip
+    diyoLightColor: 0xff9628,      // 1950K physical PointLight & pool color
+    diyoPoolOpacity: 0.44,         // Localized warm surface light pool on steps/sills/courtyard
     diyoFocalLightCountUltra: 6,   // Max pooled dynamic PointLights for nearest Tihar diyo/string focal clusters
     diyoFocalLightCountHigh: 5,
     diyoFocalLightCountLow: 3,
     diyoFocalLightCountFast: 2,
-    diyoFocalLightIntensity: 6.8,
-    diyoFocalLightDistance: 11.5,
+    diyoFocalLightIntensity: 7.2,
+    diyoFocalLightDistance: 12.0,
     diyoFocalLightDecay: 1.85,
     // Jhilimili Batti (Electric LED string lights) palette & parameters
-    jhilimiliWarmGold: 0xffb84d,
-    jhilimiliAmber: 0xff881a,
+    jhilimiliWarmGold: 0xffb703,
+    jhilimiliAmber: 0xfb8500,
     jhilimiliRosePink: 0xf43f86,
     jhilimiliEmerald: 0x10b981,
     jhilimiliRoyalBlue: 0x38bdf8,
-    jhilimiliWarmWhite: 0xfff0c2,
-    jhilimiliWallWashOpacity: 0.22,
+    jhilimiliWarmWhite: 0xfff4d6,
+    jhilimiliWallWashOpacity: 0.25,
     // Flowers & Rangoli palette
     sayapatriOrange: 0xff7b00,
     sayapatriGold: 0xffb703,
@@ -202,23 +202,23 @@ export const HORROR_CONFIG = {
       flickerType: 'warm_filament',
     },
     emergency_red: {
-      ambientColor: 0x180608,
+      ambientColor: 0x18120c,
       ambientMult: 0.52,
-      color: 0xff2222,
-      lightColor: 0xff2222,
-      intensity: 4.5,
-      lightIntensity: 4.5,
+      color: 0xffaa3c,
+      lightColor: 0xffaa3c,
+      intensity: 4.2,
+      lightIntensity: 4.2,
       distance: 11.5,
       lightDistance: 11.5,
-      flickerType: 'emergency_pulse',
+      flickerType: 'warm_filament',
     },
     '101': { mood: 'dying_tube', color: 0xcbe4f5, intensity: 3.8, ambientScale: 0.14, tubeFlicker: true, moonlightShafts: true },
     '102': { mood: 'warm_lamp', color: 0xe6a152, intensity: 4.0, ambientScale: 0.16, tubeFlicker: false, moonlightShafts: true },
     '201': { mood: 'moonlight', color: 0x82acc9, intensity: 2.8, ambientScale: 0.14, tubeFlicker: false, moonlightShafts: true },
     '202': { mood: 'warm_lamp', color: 0xd99445, intensity: 3.8, ambientScale: 0.16, tubeFlicker: true, moonlightShafts: true },
     '301': { mood: 'dark', color: 0x3b5263, intensity: 0.0, ambientScale: 0.10, tubeFlicker: true, moonlightShafts: true },
-    '302': { mood: 'emergency_red', color: 0xc92a2a, intensity: 4.0, ambientScale: 0.14, tubeFlicker: true, moonlightShafts: false },
-    'atrium': { mood: 'dying_tube', color: 0xd8a060, intensity: 3.4, ambientScale: 0.18, tubeFlicker: true, moonlightShafts: true },
+    '302': { mood: 'warm_lamp', color: 0xe6a152, intensity: 4.0, ambientScale: 0.16, tubeFlicker: false, moonlightShafts: true },
+    'atrium': { mood: 'warm_lamp', color: 0xd8a060, intensity: 3.4, ambientScale: 0.18, tubeFlicker: true, moonlightShafts: true },
   },
   tension: {
     baseBreathingAmp: 0.012,

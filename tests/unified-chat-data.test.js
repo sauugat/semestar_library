@@ -793,4 +793,71 @@ describe('Step 5B.3.4A — Unified Chat Data Foundation', () => {
     assert.equal(searchMars.length, 1);
     assert.equal(searchMars[0].title, 'Mars Class');
   });
+
+  // 30. Section partitioning: PINNED (Kyana AI + Semester Group) vs MESSAGES (individual DMs only)
+  test('30. partitionInboxSections pins Kyana AI and Semester Group without duplicating in MESSAGES', () => {
+    const items = inbox.normalizeUnifiedConversations({
+      kyanaConversation: {
+        key: 'kyana',
+        type: 'kyana',
+        title: 'Kyana AI',
+        subtitle: 'How can I help you today?',
+        timestamp: '2026-10-08T10:00:00.000Z',
+        unreadCount: 0,
+        isPinned: true,
+      },
+      studentConfig: {
+        studentId: '26020266',
+        chatGroupId: 'group-earth',
+        cohortId: 'c-earth',
+        groupCode: 'EARTH',
+        cohortDisplayName: 'Earth',
+        currentSemester: 5,
+        roomStatus: 'active',
+        realtimeEpoch: 1,
+      },
+      studentPreview: {
+        latestMessage: "Rohan: Let's meet today?",
+        latestMessageAt: '2026-10-08T11:00:00.000Z',
+        unreadCount: 0,
+      },
+      dmConversations: [
+        {
+          id: 'dm-older',
+          participant: { studentId: 's1', name: 'Sau Gat', role: 'admin' },
+          lastMessage: { id: 1, text: 'Direct message', senderId: 's1', deletedForAll: false, createdAt: '2026-10-08T09:00:00.000Z' },
+          unreadCount: 0,
+        },
+        {
+          id: 'dm-newer',
+          participant: { studentId: 's2', name: 'Saugat Subedi', role: 'student' },
+          lastMessage: { id: 2, text: 'hey', senderId: '26020266', deletedForAll: false, createdAt: '2026-10-08T18:00:00.000Z' },
+          unreadCount: 2,
+        },
+      ],
+    });
+
+    // 'all' tab: PINNED has Kyana AI + Semester Group; MESSAGES has DMs sorted by recency
+    const allSections = inbox.partitionInboxSections(items, 'all', '');
+    assert.deepEqual(allSections.pinned.map(i => i.key), ['kyana', 'cohort:group-earth']);
+    assert.deepEqual(allSections.messages.map(i => i.key), ['dm:dm-newer', 'dm:dm-older']);
+    assert.equal(allSections.messages[0].lastMessageSenderId, '26020266');
+
+    // Never duplicated across pinned and messages
+    const pinnedKeys = new Set(allSections.pinned.map(i => i.key));
+    for (const msg of allSections.messages) {
+      assert.equal(pinnedKeys.has(msg.key), false);
+      assert.equal(msg.type, 'dm');
+    }
+
+    // 'unread' tab: only unread items in their respective sections
+    const unreadSections = inbox.partitionInboxSections(items, 'unread', '');
+    assert.equal(unreadSections.pinned.length, 0);
+    assert.deepEqual(unreadSections.messages.map(i => i.key), ['dm:dm-newer']);
+
+    // 'groups' tab: only cohort group in pinned, no individual DMs in messages
+    const groupSections = inbox.partitionInboxSections(items, 'groups', '');
+    assert.deepEqual(groupSections.pinned.map(i => i.key), ['cohort:group-earth']);
+    assert.equal(groupSections.messages.length, 0);
+  });
 });

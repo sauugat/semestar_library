@@ -149,12 +149,15 @@ export async function searchDmUsers(query: string, limit = 20): Promise<DmPartic
 
 export async function fetchDmMessages(
   conversationId: string,
-  options: { before?: number; limit?: number } = {}
+  options: { before?: number; limit?: number; q?: string } = {}
 ): Promise<{ messages: DmMessage[]; hasMore: boolean; peerLastReadMessageId: number; lastReadMessageId?: number }> {
-  const { before, limit = 40 } = options;
+  const { before, limit = 40, q } = options;
   let url = `/api/dm/conversations/${encodeURIComponent(conversationId)}/messages?limit=${limit}`;
   if (before) {
     url += `&before=${before}`;
+  }
+  if (q && q.trim()) {
+    url += `&q=${encodeURIComponent(q.trim())}`;
   }
   const res = await apiFetch(url, { cache: 'no-store' });
   if (!res.ok) {
@@ -248,6 +251,21 @@ export async function clearDmConversation(
   return await res.json();
 }
 
+export async function muteDmConversation(
+  conversationId: string,
+  isMuted: boolean
+): Promise<{ conversationId: string; isMuted: boolean }> {
+  const res = await apiFetch(`/api/dm/conversations/${encodeURIComponent(conversationId)}/mute`, {
+    method: 'POST',
+    body: JSON.stringify({ isMuted }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || 'Failed to update mute setting');
+  }
+  return await res.json();
+}
+
 export async function markDmConversationRead(
   conversationId: string,
   lastReadMessageId: number
@@ -305,9 +323,14 @@ export async function reportDm(payload: {
   reason: string;
   description?: string;
 }): Promise<{ reportId: string; status: string }> {
+  const rawReason = String(payload.reason || '').trim().toLowerCase();
+  const normalizedPayload = {
+    ...payload,
+    reason: rawReason === 'inappropriate' ? 'inappropriate_content' : rawReason,
+  };
   const res = await apiFetch('/api/dm/reports', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(normalizedPayload),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

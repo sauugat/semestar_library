@@ -12,6 +12,7 @@ import {
   Keyboard,
   StatusBar,
   Animated,
+  PanResponder,
   Platform,
   type TextInputInstance,
 } from 'react-native';
@@ -28,6 +29,12 @@ import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
 import { PostMarkdown } from '@/components/PostMarkdown';
 import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyComposer';
+import {
+  FluidChatBackground,
+  markBubbleTouchStart,
+  markBubbleTouchEnd,
+  useChatBackSwipeResponder,
+} from '@/components/chat/FluidChatBackground';
 import {
   fetchKyanaConversations,
   resolveKyanaResource,
@@ -140,17 +147,104 @@ function TypingDots() {
   );
 }
 
+function KyanaSwipeableBubble({
+  onSwipeReply,
+  style,
+  children,
+}: {
+  onSwipeReply: () => void;
+  style?: any;
+  children: React.ReactNode;
+}) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const onSwipeReplyRef = useRef(onSwipeReply);
+  useEffect(() => {
+    onSwipeReplyRef.current = onSwipeReply;
+  }, [onSwipeReply]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          const claim =
+            gestureState.dx > 10 &&
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
+            Math.abs(gestureState.dy) < 28;
+          if (claim) markBubbleTouchStart();
+          return claim;
+        },
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          const claim =
+            gestureState.dx > 10 &&
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
+            Math.abs(gestureState.dy) < 28;
+          if (claim) markBubbleTouchStart();
+          return claim;
+        },
+        onPanResponderGrant: () => {
+          markBubbleTouchStart();
+        },
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
+        onPanResponderMove: (_, gestureState) => {
+          markBubbleTouchStart();
+          if (gestureState.dx > 0) {
+            translateX.setValue(Math.min(gestureState.dx * 0.65, 55));
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          markBubbleTouchEnd();
+          if (gestureState.dx > 42) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            onSwipeReplyRef.current();
+          }
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 6,
+            tension: 100,
+            useNativeDriver: true,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          markBubbleTouchEnd();
+          Animated.spring(translateX, {
+            toValue: 0,
+            friction: 6,
+            tension: 100,
+            useNativeDriver: true,
+          }).start();
+        },
+      }),
+    [translateX]
+  );
+
+  return (
+    <Animated.View
+      style={[style, { transform: [{ translateX }] }]}
+      onTouchStart={markBubbleTouchStart}
+      onTouchEnd={markBubbleTouchEnd}
+      onTouchCancel={markBubbleTouchEnd}
+      {...panResponder.panHandlers}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
 export default function KyanaChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { user } = useAuth();
   const studentId = user?.studentId || 'guest';
+  const backSwipeHandlers = useChatBackSwipeResponder(() => router.back(), true);
 
   // State
   const [conversation, setConversation] = useState<KyanaConversation | null>(null);
   const [messages, setMessages] = useState<KyanaMessage[]>([]);
   const [inputText, setInputText] = useState('');
+  const [replyingTo, setReplyingTo] = useState<KyanaMessage | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [isLoadingInitial, setIsLoadingInitial] = useState(true);
@@ -229,10 +323,14 @@ export default function KyanaChatScreen() {
   // 2. Send message handler
   const handleSend = useCallback(
     async (textOverride?: string) => {
-      const textToSend = (textOverride || inputText).trim();
-      if (!textToSend || isGenerating) return;
+      const rawText = (textOverride || inputText).trim();
+      if (!rawText || isGenerating) return;
+      const textToSend = replyingTo && !textOverride
+        ? `> ${replyingTo.text.slice(0, 140)}\n\n${rawText}`
+        : rawText;
 
       setInputText('');
+      setReplyingTo(null);
       Keyboard.dismiss();
 
       const userMsgId = `local_user_${Date.now()}`;
@@ -537,7 +635,14 @@ export default function KyanaChatScreen() {
               </View>
             )}
 
-            {/* Bubble */}
+            {/* Bubble (swipe right on bubble to reply) */}
+            <KyanaSwipeableBubble
+              style={{ maxWidth: isUser ? '82%' : '90%' }}
+              onSwipeReply={() => {
+                setReplyingTo(item);
+                inputRef.current?.focus();
+              }}
+            >
             <TouchableOpacity
               activeOpacity={0.92}
               onLongPress={() => void handleCopyMessage(item)}
@@ -545,6 +650,7 @@ export default function KyanaChatScreen() {
               style={[
                 styles.bubble,
                 isUser ? styles.userBubble : styles.assistantBubble,
+                { maxWidth: '100%' },
                 isError && styles.errorBubble,
               ]}
             >
@@ -658,6 +764,7 @@ export default function KyanaChatScreen() {
                 )}
               </View>
             </TouchableOpacity>
+            </KyanaSwipeableBubble>
           </View>
         </View>
       );
@@ -668,6 +775,7 @@ export default function KyanaChatScreen() {
   return (
     <View style={[styles.container, { backgroundColor: Monochrome.background }]}>
       <StatusBar barStyle="light-content" />
+      <FluidChatBackground />
 
       {/* TOP HEADER */}
       <View
@@ -684,7 +792,7 @@ export default function KyanaChatScreen() {
           accessibilityLabel="Back to chat list"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="arrow-back" size={21} color="#FFFFFF" />
+          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={styles.headerTitleBox}>
@@ -697,7 +805,8 @@ export default function KyanaChatScreen() {
           </View>
           <View style={styles.headerTextCol}>
             <View style={styles.headerTitleRow}>
-              <Text style={styles.headerTitle}>Kyana AI</Text>
+              <Text style={styles.headerTitle}>Kyana</Text>
+              <Ionicons name="chevron-forward" size={14} color="#A1A1AA" />
               <View style={styles.headerAiPill}>
                 <Text style={styles.headerAiPillText}>AI</Text>
               </View>
@@ -714,7 +823,7 @@ export default function KyanaChatScreen() {
           accessibilityLabel="Conversation options"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="ellipsis-vertical" size={19} color="#A1A1AA" />
+          <Ionicons name="ellipsis-horizontal" size={19} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -728,7 +837,8 @@ export default function KyanaChatScreen() {
         </View>
       )}
 
-      {/* MAIN VIEWPORT WRAPPED IN KEYBOARD CONTENT BOUNDARY */}
+      {/* MAIN VIEWPORT WRAPPED IN KEYBOARD CONTENT BOUNDARY (swipe right outside bubble goes back) */}
+      <View style={{ flex: 1, width: '100%' }} {...backSwipeHandlers}>
       <KeyboardContentBoundary style={styles.timelineBoundary}>
         {isLoadingInitial && messages.length === 0 ? (
           <View style={styles.loadingContainer}>
@@ -833,17 +943,50 @@ export default function KyanaChatScreen() {
           </TouchableOpacity>
         )}
       </KeyboardContentBoundary>
+      </View>
 
       {/* DOCKED STICKY COMPOSER */}
-      <StickyComposer bordered>
+      <StickyComposer bordered={false} style={{ backgroundColor: 'transparent' }}>
+        {replyingTo && (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: 'rgba(24, 24, 28, 0.90)',
+              borderRadius: 12,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: 'rgba(255, 255, 255, 0.14)',
+              paddingHorizontal: 12,
+              paddingVertical: 7,
+              marginBottom: 6,
+              gap: 8,
+            }}
+          >
+            <Ionicons name="arrow-undo" size={15} color="#A1A1AA" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#F4F4F5' }}>
+                Replying to {replyingTo.sender === 'user' ? 'yourself' : 'Kyana'}
+              </Text>
+              <Text numberOfLines={1} style={{ fontSize: 12, color: '#A1A1AA', marginTop: 1 }}>
+                {replyingTo.text}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyingTo(null)} hitSlop={8}>
+              <Ionicons name="close" size={17} color="#A1A1AA" />
+            </TouchableOpacity>
+          </View>
+        )}
         <View style={styles.composerRow}>
+          <View style={styles.composerCameraCircle}>
+            <Ionicons name="camera" size={18} color="#FFFFFF" />
+          </View>
           <TextInput
             ref={inputRef}
             style={styles.composerInput}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Message Kyana..."
-            placeholderTextColor={Monochrome.composerPlaceholder}
+            placeholder="Message..."
+            placeholderTextColor="#9CA3AF"
             multiline
             maxLength={4000}
             editable={!isGenerating}
@@ -864,24 +1007,30 @@ export default function KyanaChatScreen() {
             >
               <View style={styles.stopIconSquare} />
             </TouchableOpacity>
-          ) : (
+          ) : inputText.trim() ? (
             <TouchableOpacity
               onPress={() => void handleSend()}
-              disabled={!inputText.trim()}
-              style={[
-                styles.composerActionBtn,
-                styles.sendBtn,
-                !inputText.trim() && styles.sendBtnDisabled,
-              ]}
+              style={[styles.composerActionBtn, styles.sendBtn]}
               accessibilityLabel="Send message"
               hitSlop={8}
             >
-              <Ionicons
-                name="arrow-up"
-                size={18}
-                color={inputText.trim() ? '#000000' : Monochrome.textTertiary}
-              />
+              <Ionicons name="arrow-up" size={18} color="#000000" />
             </TouchableOpacity>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 4 }}>
+              <TouchableOpacity onPress={() => inputRef.current?.focus()} hitSlop={6}>
+                <Ionicons name="mic-outline" size={21} color="#F4F4F5" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => inputRef.current?.focus()} hitSlop={6}>
+                <Ionicons name="image-outline" size={21} color="#F4F4F5" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => inputRef.current?.focus()} hitSlop={6}>
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#F4F4F5" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowOptionsMenu(true)} hitSlop={6}>
+                <Ionicons name="add-circle-outline" size={22} color="#F4F4F5" />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </StickyComposer>
@@ -974,17 +1123,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingBottom: 11,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Monochrome.border,
-    backgroundColor: Monochrome.header,
+    borderBottomColor: 'rgba(255, 255, 255, 0.06)',
+    backgroundColor: 'rgba(10, 10, 14, 0.38)',
     zIndex: 10,
   },
   headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(32, 32, 38, 0.72)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1110,25 +1262,27 @@ const styles = StyleSheet.create({
     height: 16,
   },
   bubble: {
-    borderRadius: 18,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
   userBubble: {
     backgroundColor: Monochrome.outgoingBubble,
-    borderBottomRightRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderBottomRightRadius: 5,
     maxWidth: '82%',
   },
   userBubbleText: {
     color: '#FFFFFF',
-    fontSize: 14.5,
+    fontSize: 15,
     lineHeight: 21,
   },
   assistantBubble: {
-    backgroundColor: Monochrome.surface,
-    borderWidth: 1,
-    borderColor: Monochrome.border,
-    borderBottomLeftRadius: 4,
+    backgroundColor: 'rgba(14, 14, 18, 0.92)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+    borderBottomLeftRadius: 5,
     maxWidth: '92%',
     minWidth: 90,
   },
@@ -1273,15 +1427,28 @@ const styles = StyleSheet.create({
   },
   composerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: Monochrome.composerInput,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: Monochrome.border,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    minHeight: 44,
+    alignItems: 'center',
+    backgroundColor: 'rgba(22, 22, 26, 0.88)',
+    borderRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    minHeight: 48,
     gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  composerCameraCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(115, 118, 128, 0.42)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   composerInput: {
     flex: 1,

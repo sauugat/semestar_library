@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 import { useTheme } from '@/constants/useTheme';
 import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
+import { getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
 
@@ -25,6 +26,24 @@ const SIZE_MAP: Record<AvatarSize, { dimension: number; fontSize: number }> = {
   xxl: { dimension: 80, fontSize: 30 },
 };
 
+function resolveAvatarUrl(rawUrl?: string | null): string | null {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return null;
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('file:') ||
+    trimmed.startsWith('blob:')
+  ) {
+    return trimmed;
+  }
+  const base = (getAutoDetectedServerUrl() || DEFAULT_SERVER_URL || '').replace(/\/+$/, '');
+  const cleanPath = trimmed.replace(/^\/+/, '');
+  return base ? `${base}/${cleanPath}` : trimmed;
+}
+
 export function Avatar({
   url,
   name,
@@ -37,6 +56,12 @@ export function Avatar({
   const { colors } = useTheme();
   const [loadError, setLoadError] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
+
+  const resolvedUrl = useMemo(() => resolveAvatarUrl(url), [url]);
+
+  useEffect(() => {
+    setLoadError(false);
+  }, [resolvedUrl]);
 
   const { dimension, fontSize } = SIZE_MAP[size];
 
@@ -61,12 +86,13 @@ export function Avatar({
   ];
 
   const content = (
-    url && !loadError ? (
+    resolvedUrl && !loadError ? (
       <Image
-        source={{ uri: url }}
+        source={{ uri: resolvedUrl }}
         style={[styles.image, { borderRadius: dimension / 2 }]}
         contentFit="cover"
         transition={150}
+        cachePolicy="memory-disk"
         onError={() => setLoadError(true)}
       />
     ) : (
@@ -89,12 +115,12 @@ export function Avatar({
   const handlePress = () => {
     if (onPress) {
       onPress();
-    } else if (enableViewer && url && !loadError) {
+    } else if (enableViewer && resolvedUrl && !loadError) {
       setViewerVisible(true);
     }
   };
 
-  const isClickable = Boolean(onPress || (enableViewer && url && !loadError));
+  const isClickable = Boolean(onPress || (enableViewer && resolvedUrl && !loadError));
 
   return (
     <>
@@ -110,10 +136,10 @@ export function Avatar({
         <View style={containerStyle}>{content}</View>
       )}
 
-      {enableViewer && Boolean(url && !loadError) && (
+      {enableViewer && Boolean(resolvedUrl && !loadError) && (
         <FullScreenImageViewer
           visible={viewerVisible}
-          imageUri={url || null}
+          imageUri={resolvedUrl || null}
           imageTitle={viewerTitle || name || 'Profile Photo'}
           onClose={() => setViewerVisible(false)}
         />

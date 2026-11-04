@@ -59,6 +59,15 @@ export function useClassChat(
   const onlineExpiry = useRef(new Map<string, number>());
   const lastHeartbeat = useRef(0);
 
+  const updateOnlineIdsIfChanged = useCallback((nextIds: string[]) => {
+    setOnlineIds((prev) => {
+      if (prev.length === nextIds.length && prev.every((id, idx) => id === nextIds[idx])) {
+        return prev;
+      }
+      return nextIds;
+    });
+  }, []);
+
   const readCoalescerRef = useRef<ReadReceiptCoalescer | null>(null);
   useEffect(() => {
     const coalescer = createReadCoalescer(
@@ -244,7 +253,7 @@ export function useClassChat(
         lastHeartbeat.current=Date.now();
         const epoch = generation.current;
         try { const data = await sendChatHeartbeat(); if (active.current && epoch === generation.current) {
-          onlineExpiry.current = new Map(data.members.map(m => [m.studentId,Date.parse(m.expiresAt)])); setOnlineIds(data.onlineIds);
+          onlineExpiry.current = new Map(data.members.map(m => [m.studentId,Date.parse(m.expiresAt)])); updateOnlineIdsIfChanged(data.onlineIds);
         } } catch {}
       };
       void refresh().then(heartbeat);
@@ -315,7 +324,7 @@ export function useClassChat(
           }
         },
         onOnlineUsers: (members) => {
-          if (active.current) { onlineExpiry.current = new Map(members.map(m => [m.studentId,Date.parse(m.expiresAt)])); setOnlineIds(members.filter(m => Date.parse(m.expiresAt)>Date.now()).map(m=>m.studentId)); }
+          if (active.current) { onlineExpiry.current = new Map(members.map(m => [m.studentId,Date.parse(m.expiresAt)])); updateOnlineIdsIfChanged(members.filter(m => Date.parse(m.expiresAt)>Date.now()).map(m=>m.studentId)); }
         },
         onRefreshNeeded: () => { if (Date.now()-lastRefresh>5000) void refresh(); },
         onConnectionChange: (connected) => {
@@ -330,9 +339,13 @@ export function useClassChat(
       void sync();
       void refreshPinned();
 
-      // Prune expired typers
+      // Prune expired typers without creating new onlineIds array references when unchanged
       const pruneInterval = setInterval(() => {
-        setOnlineIds(previous => previous.filter(id => (onlineExpiry.current.get(id) || 0)>Date.now()));
+        setOnlineIds((previous) => {
+          const now = Date.now();
+          const next = previous.filter((id) => (onlineExpiry.current.get(id) || 0) > now);
+          return next.length === previous.length ? previous : next;
+        });
         setActiveTypers((prev) => {
           const now = Date.now();
           let changed = false;

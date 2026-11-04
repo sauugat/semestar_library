@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -11,8 +11,11 @@ import { Image } from "expo-image";
 import { Text } from "@/components/ui/Typography";
 import { COMPOSER_GEOMETRY } from "@/constants/composerGeometry";
 import { ChatMember, ChatMessage, sendChatTyping } from "@/services/chat";
+import { formatFileSubtitle } from "@/services/chat-state";
 import { ChatSendButton } from "./ChatSendButton";
 import { MentionSuggestions } from "./MentionSuggestions";
+
+const composerDraftCache = new Map<string, string>();
 
 export interface ChatComposerProps {
   replyTo: ChatMessage | null;
@@ -29,7 +32,7 @@ export interface ChatComposerProps {
   onPickCamera: () => void;
   onSendMessage: (payload: {
     text: string;
-    file: { uri: string; name: string; mimeType: string; isImage?: boolean } | null;
+    file: { uri: string; name: string; mimeType: string; isImage?: boolean; size?: number } | null;
     replyTo: ChatMessage | null;
     mentions?: string[];
   }) => void;
@@ -39,6 +42,7 @@ export interface ChatComposerProps {
   members?: ChatMember[];
   serverUrl?: string;
   currentUserId?: string;
+  roomKey?: string;
 }
 
 export const ChatComposer = React.memo(function ChatComposer({
@@ -55,13 +59,20 @@ export const ChatComposer = React.memo(function ChatComposer({
   members = [],
   serverUrl = "",
   currentUserId,
+  roomKey = "default",
 }: ChatComposerProps) {
-  const [inputText, setInputText] = useState("");
+  const [inputText, setInputText] = useState(() => composerDraftCache.get(roomKey) || "");
   const [inputFocused, setInputFocused] = useState(false);
   const [selection, setSelection] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const selectedMentionsRef = useRef<Map<string, string>>(new Map());
   const lastTypingSentRef = useRef<number>(0);
+
+  useEffect(() => {
+    setInputText(composerDraftCache.get(roomKey) || "");
+    setMentionQuery(null);
+    selectedMentionsRef.current.clear();
+  }, [roomKey]);
 
   const checkMentionTrigger = useCallback((text: string, cursorIndex: number) => {
     const textBefore = text.slice(0, cursorIndex);
@@ -75,6 +86,11 @@ export const ChatComposer = React.memo(function ChatComposer({
 
   const handleTextChange = useCallback((text: string) => {
     setInputText(text);
+    if (text) {
+      composerDraftCache.set(roomKey, text);
+    } else {
+      composerDraftCache.delete(roomKey);
+    }
     checkMentionTrigger(text, text.length);
 
     const now = Date.now();
@@ -82,7 +98,7 @@ export const ChatComposer = React.memo(function ChatComposer({
       lastTypingSentRef.current = now;
       void sendChatTyping();
     }
-  }, [checkMentionTrigger]);
+  }, [checkMentionTrigger, roomKey]);
 
   const handleSelectionChange = useCallback((e: any) => {
     const sel = e.nativeEvent.selection;
@@ -108,6 +124,7 @@ export const ChatComposer = React.memo(function ChatComposer({
 
     selectedMentionsRef.current.set(handle.toLowerCase(), candidate.studentId);
     setInputText(newText);
+    composerDraftCache.set(roomKey, newText);
     setMentionQuery(null);
 
     setTimeout(() => {
@@ -115,7 +132,7 @@ export const ChatComposer = React.memo(function ChatComposer({
         selection: { start: newCursor, end: newCursor },
       });
     }, 50);
-  }, [inputText, selection, inputRef]);
+  }, [inputText, selection, inputRef, roomKey]);
 
   const handleSend = useCallback(() => {
     const trimmed = inputText.trim();
@@ -152,6 +169,7 @@ export const ChatComposer = React.memo(function ChatComposer({
 
     // Clear state before sending
     setInputText("");
+    composerDraftCache.delete(roomKey);
     setMentionQuery(null);
     selectedMentionsRef.current.clear();
     onCancelReply();
@@ -169,11 +187,13 @@ export const ChatComposer = React.memo(function ChatComposer({
     replyTo,
     members,
     currentUserId,
+    roomKey,
     onCancelReply,
     onSendMessage,
   ]);
 
   const hasContent = Boolean(inputText.trim() || selectedAttachment);
+  const nearCharLimit = inputText.length >= 1800;
 
   return (
     <View style={styles.outerContainer}>
@@ -229,6 +249,13 @@ export const ChatComposer = React.memo(function ChatComposer({
               <Text variant="sm" weight="600" numberOfLines={1} style={{ color: "#f5f5f5" }}>
                 {selectedAttachment.name}
               </Text>
+              <Text variant="xs" style={{ color: "#a1a1aa", marginTop: 1 }}>
+                {formatFileSubtitle(
+                  selectedAttachment.name,
+                  selectedAttachment.size,
+                  selectedAttachment.mimeType
+                )}
+              </Text>
             </View>
           </View>
           <TouchableOpacity
@@ -242,6 +269,14 @@ export const ChatComposer = React.memo(function ChatComposer({
         </View>
       )}
 
+      {nearCharLimit && (
+        <View style={{ paddingHorizontal: 16, paddingTop: 4, alignItems: "flex-end" }}>
+          <Text variant="xs" style={{ color: inputText.length >= 1980 ? "#ef4444" : "#a1a1aa" }}>
+            {inputText.length}/2000
+          </Text>
+        </View>
+      )}
+
       {/* Message Composer Bar */}
       <View
         style={[
@@ -249,60 +284,98 @@ export const ChatComposer = React.memo(function ChatComposer({
           paddingBottom > 0 && { paddingBottom },
         ]}
       >
-        {/* Attach '+' button */}
-        <TouchableOpacity
-          style={styles.actionTouchArea}
-          onPress={onOpenAttachModal}
-          activeOpacity={0.7}
-          accessibilityLabel="Add attachment"
-        >
-          <View style={styles.actionIconCircle}>
-            <Ionicons name="add" size={22} color="#f5f5f5" />
-          </View>
-        </TouchableOpacity>
-
-        {/* Pill-shaped text input */}
-        <TextInput
-          ref={inputRef}
-          accessibilityLabel="Message your class"
-          keyboardAppearance="dark"
+        <View
           style={[
-            styles.pillTextInput,
-            inputFocused && { borderColor: "#383838" },
+            styles.modernCapsuleBar,
+            inputFocused && styles.modernCapsuleBarFocused,
           ]}
-          placeholder="Message…"
-          placeholderTextColor="#808080"
-          multiline
-          maxLength={2000}
-          value={inputText}
-          onChangeText={handleTextChange}
-          onSelectionChange={handleSelectionChange}
-          onFocus={() => setInputFocused(true)}
-          onBlur={() => {
-            setInputFocused(false);
-          }}
-          editable={userAvailable}
-        />
-
-        {/* Send button when content exists, otherwise camera button */}
-        {hasContent ? (
-          <ChatSendButton
-            disabled={!hasContent || !userAvailable}
-            onPress={handleSend}
-          />
-        ) : (
+        >
+          {/* Left Circular Camera Button inside capsule */}
           <TouchableOpacity
-            style={styles.actionTouchArea}
+            style={styles.cameraCircleBtn}
             onPress={onPickCamera}
             disabled={!userAvailable}
-            activeOpacity={0.7}
+            activeOpacity={0.75}
             accessibilityLabel="Share photo"
           >
-            <View style={styles.actionIconCircle}>
-              <Ionicons name="camera-outline" size={20} color="#f5f5f5" />
-            </View>
+            <Ionicons name="camera" size={19} color="#FFFFFF" />
           </TouchableOpacity>
-        )}
+
+          {/* Pill-shaped text input */}
+          <TextInput
+            ref={inputRef}
+            accessibilityLabel="Message your class"
+            keyboardAppearance="dark"
+            style={[
+              styles.pillTextInput,
+              inputFocused && { borderColor: "transparent" },
+            ]}
+            placeholder="Message..."
+            placeholderTextColor="#9CA3AF"
+            multiline
+            maxLength={2000}
+            value={inputText}
+            onChangeText={handleTextChange}
+            onSelectionChange={handleSelectionChange}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => {
+              setInputFocused(false);
+            }}
+            editable={userAvailable}
+          />
+
+          {/* Send button when content exists, otherwise modern quick icons */}
+          {hasContent ? (
+            <ChatSendButton
+              disabled={!hasContent || !userAvailable}
+              onPress={handleSend}
+            />
+          ) : (
+            <View style={styles.rightIconsRow}>
+              <TouchableOpacity
+                style={styles.inlineIconTouch}
+                onPress={() => inputRef.current?.focus()}
+                disabled={!userAvailable}
+                activeOpacity={0.7}
+                accessibilityLabel="Voice input"
+              >
+                <Ionicons name="mic-outline" size={21} color="#F4F4F5" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.inlineIconTouch}
+                onPress={onOpenAttachModal}
+                disabled={!userAvailable}
+                activeOpacity={0.7}
+                accessibilityLabel="Attach image"
+              >
+                <Ionicons name="image-outline" size={21} color="#F4F4F5" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.inlineIconTouch}
+                onPress={() => inputRef.current?.focus()}
+                disabled={!userAvailable}
+                activeOpacity={0.7}
+                accessibilityLabel="Quick message"
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#F4F4F5" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionTouchArea}
+                onPress={onOpenAttachModal}
+                disabled={!userAvailable}
+                activeOpacity={0.7}
+                accessibilityLabel="Add attachment"
+              >
+                <View style={styles.actionIconCircle}>
+                  <Ionicons name="add-circle-outline" size={22} color="#F4F4F5" />
+                </View>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -311,47 +384,86 @@ export const ChatComposer = React.memo(function ChatComposer({
 const styles = StyleSheet.create({
   outerContainer: {
     width: "100%",
-    backgroundColor: "#171717",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#303030",
+    backgroundColor: "transparent",
   },
   composerContainer: {
     flexDirection: "row",
-    alignItems: "flex-end",
-    gap: COMPOSER_GEOMETRY.innerHorizontalGap,
+    alignItems: "center",
     paddingHorizontal: 10,
-    paddingTop: 8,
+    paddingTop: 6,
     paddingBottom: 8,
+  },
+  modernCapsuleBar: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(22, 22, 26, 0.88)",
+    borderRadius: 28,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255, 255, 255, 0.14)",
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    minHeight: 48,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  modernCapsuleBarFocused: {
+    borderColor: "rgba(255, 255, 255, 0.26)",
+    backgroundColor: "rgba(26, 26, 31, 0.94)",
+  },
+  cameraCircleBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(115, 118, 128, 0.42)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 6,
+    flexShrink: 0,
   },
   pillTextInput: {
     flex: 1,
-    backgroundColor: "#242424",
+    // Base token: backgroundColor: "#242424"
+    backgroundColor: "transparent",
     borderRadius: COMPOSER_GEOMETRY.borderRadius,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#303030",
-    paddingHorizontal: COMPOSER_GEOMETRY.inputPaddingHorizontal,
+    borderWidth: 0,
+    borderColor: "transparent",
+    paddingHorizontal: 8,
     paddingTop: COMPOSER_GEOMETRY.inputPaddingTop,
     paddingBottom: COMPOSER_GEOMETRY.inputPaddingBottom,
     color: "#F5F5F5",
     fontSize: COMPOSER_GEOMETRY.fontSize,
     lineHeight: COMPOSER_GEOMETRY.lineHeight,
-    minHeight: COMPOSER_GEOMETRY.minInputHeight,
+    minHeight: 38,
     maxHeight: COMPOSER_GEOMETRY.maxInputHeight,
   },
+  rightIconsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    marginLeft: 4,
+  },
+  inlineIconTouch: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   actionTouchArea: {
-    width: COMPOSER_GEOMETRY.minActionTouchTarget,
-    height: COMPOSER_GEOMETRY.minActionTouchTarget,
+    width: 38,
+    height: 38,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
   },
   actionIconCircle: {
-    width: COMPOSER_GEOMETRY.actionButtonSize,
-    height: COMPOSER_GEOMETRY.actionButtonSize,
-    borderRadius: COMPOSER_GEOMETRY.actionButtonRadius,
-    backgroundColor: "#242424",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#303030",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "transparent",
     alignItems: "center",
     justifyContent: "center",
   },

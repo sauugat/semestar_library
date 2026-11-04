@@ -4071,25 +4071,37 @@
           </button>`
         : '';
 
+      const subjectTag = a.subject ? `<span class="post-tag">${escapeHtml(a.subject)}</span>` : '';
+      const semesterTag = a.semester ? `<span class="post-tag">${escapeHtml(String(a.semester).startsWith('Semester') ? a.semester : 'Sem ' + a.semester)}</span>` : '';
+      const deadlineTag = a.deadline ? `<span class="post-tag">Due ${escapeHtml(new Date(a.deadline).toLocaleDateString())}</span>` : '';
+
       return renderPostShell({
-        kind: 'assignment', id: a.id, className: 'assignment-post-card',
+        kind: 'assignment', id: a.id, className: 'notice',
         profileUrl: 'profile.html?id=' + encodeURIComponent(a.createdBy),
         avatar: (a.avatarUrl || a.avatar_url || a.teacherAvatar) ? `<img src="${escapeHtml(a.avatarUrl || a.avatar_url || a.teacherAvatar)}" alt="${escapeHtml(a.teacherName || 'Faculty')}" class="post-avatar-img">` : escapeHtml(initials),
         name: a.teacherName || 'Faculty Member', badge: '<span class="post-verified-badge post-admin-badge"><svg viewBox="0 0 24 24" width="9.5" height="9.5" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>Teacher</span>',
-        meta: `<span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span> &middot; <time class="post-timestamp" datetime="${escapeHtml(a.createdAt)}">${timeAgo(a.createdAt)}</time>`,
+        meta: `<span class="post-student-handle">@${escapeHtml(a.createdBy || 'faculty')}</span> <span class="post-meta-sep">&middot;</span> <time class="post-timestamp" datetime="${escapeHtml(a.createdAt)}">${timeAgo(a.createdAt)}</time>`,
         controls: deleteBtnHtml,
         body: `
-            <div class="post-tags-row"><span class="post-monochrome-badge post-category-tag">ASSIGNMENT</span></div>
-            ${a.description ? `<div class="post-content" style="margin-bottom: 12px;"><div class="status-post-text">${escapeHtml(a.description)}</div></div>` : ''}
+            <div class="post-content">
+              ${a.title ? `<h3 class="post-title">${escapeHtml(a.title)}</h3>` : ''}
+              ${(subjectTag || semesterTag || deadlineTag) ? `<div class="post-tags">${subjectTag}${semesterTag}${deadlineTag}</div>` : ''}
+              ${a.description ? `<div class="status-post-text" style="margin-top: 6px;">${escapeHtml(a.description)}</div>` : ''}
+            </div>
+
             <div class="file-attachment">
               <div class="file-icon file-icon-lab">
-                <span>LAB</span>
+                <span>${escapeHtml((a.pdfUrl ? 'PDF' : (a.language || 'LAB')).toUpperCase())}</span>
               </div>
               <div class="file-info">
-                <p class="file-name" title="${escapeHtml(a.title)}">${escapeHtml(a.title)}</p>
-                <span class="file-meta">${qCount > 0 ? `${qCount} Problem${qCount !== 1 ? 's' : ''} &middot; ` : ''}${escapeHtml(a.subject || 'Curriculum')}${a.semester ? ` &middot; Sem ${escapeHtml(a.semester)}` : ''}${a.deadline ? ` &middot; Due ${new Date(a.deadline).toLocaleDateString()}` : ''}</span>
+                <p class="file-name" title="${escapeHtml(a.pdfName || a.title)}">${escapeHtml(a.pdfName || a.title)}</p>
+                <span class="file-meta">${qCount > 0 ? `${qCount} Problem${qCount !== 1 ? 's' : ''} &middot; ` : ''}Assignment Resource</span>
               </div>
               <div class="file-actions">
+                ${a.pdfUrl ? `<a href="${escapeHtml(a.pdfUrl)}" target="_blank" rel="noopener" class="file-action" title="Preview assignment PDF">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span>View</span>
+                </a>` : ''}
                 <a href="/code-lab/assignment.html?id=${a.id}" class="file-action primary" title="Open and solve assignment">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                   <span>Open</span>

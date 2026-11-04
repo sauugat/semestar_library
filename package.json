@@ -5,6 +5,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "mobile": "npm --prefix mobile run start -- --clear",
+    "mobile:start": "npm --prefix mobile run start",
     "test": "NODE_ENV=test node --test --test-concurrency=1 tests/*.test.js test/*.test.js",
     "seed": "node seed.js",
     "test:chat": "node --test tests/chat-*.test.js test/chat-provider.test.js tests/note-search.test.js",
@@ -46,6 +48,6 @@
     "pptxgenjs": "^4.0.1"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": "24.x"
   }
 }

@@ -664,7 +664,10 @@ export default function KyanaChatScreen() {
                 </Text>
               ) : (
                 <View style={styles.markdownWrapper}>
-                  <PostMarkdown content={item.text} />
+                  <PostMarkdown
+                    content={item.text}
+                    onPressInternalLink={(url) => router.push(url.replace(/\.html$/i, '') as any)}
+                  />
                   {resourceCards.length > 0 && (
                     <View style={styles.resourceCardsContainer}>
                       {resourceCards.map((card, cIdx) => {
@@ -892,7 +895,11 @@ export default function KyanaChatScreen() {
                   <View style={[styles.bubble, styles.assistantBubble, styles.streamingBubble]}>
                     {streamingText ? (
                       <View style={styles.markdownWrapper}>
-                        <PostMarkdown content={streamingText} />
+                        <PostMarkdown
+                          content={streamingText}
+                          streaming={true}
+                          onPressInternalLink={(url) => router.push(url.replace(/\.html$/i, '') as any)}
+                        />
                       </View>
                     ) : (
                       <TypingDots />

@@ -17,14 +17,93 @@
 
   function safeLink(value, externalOnly = false) {
     if (typeof value !== 'string' || !value.trim()) return null;
+    const trimmed = value.trim();
+    if (/^(?:javascript|data|vbscript):/i.test(trimmed)) return null;
     try {
-      const url = new URL(value, 'https://semester-library.local/');
+      const url = new URL(trimmed, 'https://semester-library.local/');
       if (!['https:', 'http:'].includes(url.protocol)) return null;
-      if (externalOnly && !/^https?:\/\//i.test(value)) return null;
-      return value;
+      if (externalOnly && !/^https?:\/\//i.test(trimmed)) return null;
+      return trimmed;
     } catch (_) {
       return null;
     }
+  }
+
+  /**
+   * Stabilizes incomplete streaming Markdown so partial code fences, math blocks,
+   * tables, and inline emphasis render cleanly without layout jumps or flickering.
+   */
+  function stabilizeStreamingMarkdown(rawMarkdown) {
+    if (!rawMarkdown || typeof rawMarkdown !== 'string') return '';
+    let text = String(rawMarkdown).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // 1. Check for unclosed fenced code block (``` or ~~~)
+    const lines = text.split('\n');
+    let openFence = null;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!openFence) {
+        const m = line.match(/^\s*(`{3,}|~{3,})([\w+#.-]*)[ \t]*$/);
+        if (m) {
+          openFence = m[1];
+        }
+      } else {
+        const closeRe = new RegExp(`^\\s*${openFence[0]}{${openFence.length},}[ \\t]*$`);
+        if (closeRe.test(line)) {
+          openFence = null;
+        }
+      }
+    }
+    if (openFence) {
+      return `${text}\n${openFence}`;
+    }
+
+    // 2. Stabilize unclosed block LaTeX ($$ or \[) outside code blocks
+    const { text: withoutCode, tokenMap } = protectCodeBlocks(text);
+    let stabilized = withoutCode;
+
+    const doubleDollarMatches = stabilized.match(/\$\$/g) || [];
+    if (doubleDollarMatches.length % 2 === 1) {
+      stabilized += '\n$$';
+    }
+    const openBracketCount = (stabilized.match(/\\\[/g) || []).length;
+    const closeBracketCount = (stabilized.match(/\\\]/g) || []).length;
+    if (openBracketCount > closeBracketCount) {
+      stabilized += '\n\\]';
+    }
+    const openParenCount = (stabilized.match(/\\\(/g) || []).length;
+    const closeParenCount = (stabilized.match(/\\\)/g) || []).length;
+    if (openParenCount > closeParenCount) {
+      stabilized += '\\)';
+    }
+
+    // 3. Stabilize incomplete trailing Markdown table delimiter row
+    const sLines = stabilized.split('\n');
+    if (sLines.length >= 2) {
+      const prevLine = sLines[sLines.length - 2].trim();
+      const lastLine = sLines[sLines.length - 1].trim();
+      if (prevLine.includes('|') && /^\|?[\s|:-]*$/.test(lastLine) && lastLine.includes('|') && !/^\s*\|?(\s*:?-{1,}:?\s*\|)+\s*:?-{1,}:?\s*\|?\s*$/.test(lastLine)) {
+        const colCount = prevLine.replace(/^\||\|$/g, '').split('|').length;
+        sLines[sLines.length - 1] = '| ' + Array(colCount).fill('---').join(' | ') + ' |';
+        stabilized = sLines.join('\n');
+      }
+    }
+
+    // 4. Stabilize unclosed inline tokens on the final line
+    const finalLines = stabilized.split('\n');
+    let last = finalLines[finalLines.length - 1] || '';
+    if (last && !/^\s*(?:`|~|>|#|-|\*|\d+\.|\|)/.test(last)) {
+      const backticks = (last.match(/`/g) || []).length;
+      if (backticks % 2 === 1) last += '`';
+      const bolds = (last.match(/\*\*/g) || []).length;
+      if (bolds % 2 === 1) last += '**';
+      const strikes = (last.match(/~~/g) || []).length;
+      if (strikes % 2 === 1) last += '~~';
+      finalLines[finalLines.length - 1] = last;
+      stabilized = finalLines.join('\n');
+    }
+
+    return restoreCodeBlocks(stabilized, tokenMap);
   }
 
   function protectCodeBlocks(markdown) {
@@ -66,29 +145,290 @@
   }
 
   function fallbackMarkdown(text) {
+    if (!text || !String(text).trim()) return '';
+
+    function parseInline(raw) {
+      if (!raw) return '';
+      const inlinePlaceholders = [];
+      // 1. Protect inline code (`...`)
+      let s = String(raw).replace(/`([^`\n]+)`/g, (_, c) => {
+        const idx = inlinePlaceholders.length;
+        inlinePlaceholders.push(`<code>${escapeHtml(c)}</code>`);
+        return `\x01INLINE_${idx}\x02`;
+      });
+
+      // 2. Protect inline LaTeX (\(...\) and $...$)
+      s = s.replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => {
+        const idx = inlinePlaceholders.length;
+        inlinePlaceholders.push(`<span class="kyana-math-inline">$${escapeHtml(expr.trim())}$</span>`);
+        return `\x01INLINE_${idx}\x02`;
+      });
+      s = s.replace(/(^|[^$\\])\$(?!\$)([^$\n]+?)\$(?!\$)/g, (match, prefix, expr) => {
+        if (/^\d+(?:[.,]\d+)?$/.test(expr.trim())) return match;
+        const idx = inlinePlaceholders.length;
+        inlinePlaceholders.push(`<span class="kyana-math-inline">$${escapeHtml(expr.trim())}$</span>`);
+        return `${prefix}\x01INLINE_${idx}\x02`;
+      });
+
+      // Escape raw HTML for strict XSS prevention
+      s = escapeHtml(s);
+
+      // Bold + Italic: ***text***
+      s = s.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+
+      // Bold: **text** or __text__
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+
+      // Italic: *text* or _text_
+      s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      s = s.replace(/(^|[^\w])_([^_]+)_(?=[^\w]|$)/g, '$1<em>$2</em>');
+
+      // Strikethrough: ~~text~~
+      s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+
+      // Links: [text](url) — supports https://, /path, and relative campus page links
+      s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+|\/[\w./#%?=&-]+|[\w-]+\.html[^\s\)]*)\)/gi, (_, title, url) => {
+        const safe = safeLink(url);
+        if (!safe) return title;
+        return `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${title}</a>`;
+      });
+
+      // Standalone URLs: https://...
+      s = s.replace(/(^|[^"'>])(https?:\/\/[^\s<)]+)/gi, (_, prefix, url) => {
+        const safe = safeLink(url, true);
+        if (!safe) return prefix + url;
+        return `${prefix}<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
+      });
+
+      // Restore inline code and math
+      s = s.replace(/\x01INLINE_(\d+)\x02/g, (_, idx) => inlinePlaceholders[Number(idx)] || '');
+      return s;
+    }
+
+    function isTableDelimiter(str) {
+      if (!str || !str.includes('|')) return false;
+      const cells = str.trim().replace(/^\||\|$/g, '').split('|');
+      if (cells.length === 0) return false;
+      return cells.every(c => /^\s*:?-{1,}:?\s*$/.test(c));
+    }
+
+    function splitTableRow(rowStr) {
+      const safe = (rowStr || '').trim().replace(/\\\|/g, '\x00PIPE\x00');
+      const unbordered = safe.replace(/^\||\|$/g, '');
+      return unbordered.split('|').map(c => c.replace(/\x00PIPE\x00/g, '|').trim());
+    }
+
+    const normalized = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const codeBlocks = [];
+    const mathBlocks = [];
+    let textWithoutCode = normalized.replace(/(^|\n)(`{3,}|~{3,})([\w+#.-]*)[ \t]*\n([\s\S]*?)(?:\n\2[ \t]*(?=\n|$)|$)/g, (match, prefix, fence, lang, code) => {
+      const index = codeBlocks.length;
+      codeBlocks.push({
+        lang: (lang || '').trim().toLowerCase() || 'code',
+        code: (code || '').replace(/\n+$/, '')
+      });
+      return `${prefix || ''}\x01BLOCK_CODE_${index}\x02\n`;
+    });
+
+    // Extract display LaTeX blocks ($$...$$ and \[...\]) so multiline equations are preserved
+    textWithoutCode = textWithoutCode
+      .replace(/\$\$([\s\S]*?)\$\$/g, (_, expr) => {
+        const idx = mathBlocks.length;
+        mathBlocks.push(expr.trim());
+        return `\n\x01BLOCK_MATH_${idx}\x02\n`;
+      })
+      .replace(/\\\[([\s\S]*?)\\\]/g, (_, expr) => {
+        const idx = mathBlocks.length;
+        mathBlocks.push(expr.trim());
+        return `\n\x01BLOCK_MATH_${idx}\x02\n`;
+      });
+
+    const lines = textWithoutCode.split('\n');
     const output = [];
-    let fence = null;
-    let code = [];
-    const finishCode = () => {
-      output.push(`<pre><code${fence.language ? ` class="language-${escapeHtml(fence.language)}"` : ''}>${escapeHtml(code.join('\n'))}</code></pre>`);
-      code = [];
-      fence = null;
+    const listStack = []; // [{ type: 'ul'|'ol', indent: number }]
+    let inQuote = false;
+    let quoteLines = [];
+    let paraLines = [];
+
+    const flushPara = () => {
+      if (paraLines.length > 0) {
+        const pText = paraLines.map(l => parseInline(l)).join('<br>');
+        output.push(`<p>${pText}</p>`);
+        paraLines = [];
+      }
     };
-    for (const line of String(text).split('\n')) {
-      if (fence) {
-        if (new RegExp(`^\\s*${fence.character}{${fence.length},}\\s*$`).test(line)) finishCode();
-        else code.push(line);
+
+    const flushQuote = () => {
+      if (inQuote) {
+        const qText = quoteLines.map(l => parseInline(l)).join('<br>');
+        output.push(`<blockquote>${qText}</blockquote>`);
+        quoteLines = [];
+        inQuote = false;
+      }
+    };
+
+    const flushList = () => {
+      while (listStack.length > 0) {
+        const top = listStack.pop();
+        output.push(`</${top.type}>`);
+      }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Fenced Code Block Placeholder
+      const codeMatch = trimmed.match(/^\x01BLOCK_CODE_(\d+)\x02$/);
+      if (codeMatch) {
+        flushQuote();
+        flushList();
+        flushPara();
+        const block = codeBlocks[Number(codeMatch[1])];
+        if (block) {
+          output.push(`<pre><code class="language-${escapeHtml(block.lang)}">${escapeHtml(block.code)}</code></pre>`);
+        }
         continue;
       }
-      const match = line.match(/^\s*(`{3,}|~{3,})([\w+-]*)[^\n]*$/);
-      if (match) fence = { character: match[1][0], length: match[1].length, language: match[2] };
-      else {
-        let escapedLine = escapeHtml(line);
-        escapedLine = escapedLine.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-        output.push(escapedLine + '<br>');
+
+      // Display Math Block Placeholder
+      const mathMatch = trimmed.match(/^\x01BLOCK_MATH_(\d+)\x02$/);
+      if (mathMatch) {
+        flushQuote();
+        flushList();
+        flushPara();
+        const expr = mathBlocks[Number(mathMatch[1])];
+        if (expr !== undefined) {
+          output.push(`<div class="kyana-math-block">$$${escapeHtml(expr)}$$</div>`);
+        }
+        continue;
       }
+
+      // Horizontal Rule (--- or *** or ___)
+      if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+        flushQuote();
+        flushList();
+        flushPara();
+        output.push('<hr class="kyana-divider">');
+        continue;
+      }
+
+      // Markdown Table: Header row followed by delimiter row
+      if (line.includes('|') && i + 1 < lines.length && isTableDelimiter(lines[i + 1])) {
+        flushQuote();
+        flushList();
+        flushPara();
+
+        const headerCells = splitTableRow(line);
+        const alignCells = splitTableRow(lines[i + 1]);
+        const alignments = alignCells.map(c => {
+          const t = c.trim();
+          const left = t.startsWith(':');
+          const right = t.endsWith(':');
+          if (left && right) return 'center';
+          if (right) return 'right';
+          return 'left';
+        });
+
+        const dataRows = [];
+        let j = i + 2;
+        while (j < lines.length) {
+          const dLine = lines[j].trim();
+          if (!dLine || !dLine.includes('|') || isTableDelimiter(dLine)) break;
+          dataRows.push(splitTableRow(dLine));
+          j++;
+        }
+        i = j - 1; // Advance loop index
+
+        let tableHtml = '<div class="kyana-table-wrapper"><table class="kyana-table"><thead><tr>';
+        for (let c = 0; c < headerCells.length; c++) {
+          const align = alignments[c] || 'left';
+          tableHtml += `<th style="text-align: ${align};">${parseInline(headerCells[c])}</th>`;
+        }
+        tableHtml += '</tr></thead><tbody>';
+
+        for (const row of dataRows) {
+          tableHtml += '<tr>';
+          for (let c = 0; c < headerCells.length; c++) {
+            const align = alignments[c] || 'left';
+            tableHtml += `<td style="text-align: ${align};">${parseInline(row[c] || '')}</td>`;
+          }
+          tableHtml += '</tr>';
+        }
+        tableHtml += '</tbody></table></div>';
+        output.push(tableHtml);
+        continue;
+      }
+
+      // Headings: #, ##, ###, ####
+      const hMatch = line.match(/^(#{1,4})\s+(.+)$/);
+      if (hMatch) {
+        flushQuote();
+        flushList();
+        flushPara();
+        const level = hMatch[1].length;
+        output.push(`<h${level}>${parseInline(hMatch[2])}</h${level}>`);
+        continue;
+      }
+
+      // Blockquote: > text
+      const qMatch = line.match(/^>\s?(.*)$/);
+      if (qMatch) {
+        flushList();
+        flushPara();
+        inQuote = true;
+        quoteLines.push(qMatch[1]);
+        continue;
+      } else {
+        flushQuote();
+      }
+
+      // Ordered or Unordered list item (supports nested indentation)
+      const listMatch = line.match(/^(\s*)([\*\-\+]|\d+\.)\s+(.*)$/);
+      if (listMatch) {
+        flushQuote();
+        flushPara();
+        const indent = listMatch[1].replace(/\t/g, '  ').length;
+        const listType = /^\d+\./.test(listMatch[2]) ? 'ol' : 'ul';
+        const itemContent = parseInline(listMatch[3]);
+
+        while (listStack.length > 0 && indent < listStack[listStack.length - 1].indent) {
+          const popped = listStack.pop();
+          output.push(`</${popped.type}>`);
+        }
+
+        if (listStack.length === 0 || indent > listStack[listStack.length - 1].indent) {
+          output.push(`<${listType}>`);
+          listStack.push({ type: listType, indent });
+        } else if (listStack[listStack.length - 1].type !== listType) {
+          const popped = listStack.pop();
+          output.push(`</${popped.type}>`);
+          output.push(`<${listType}>`);
+          listStack.push({ type: listType, indent });
+        }
+
+        output.push(`<li>${itemContent}</li>`);
+        continue;
+      }
+
+      // Non-list line
+      flushList();
+
+      // Empty line separates paragraphs
+      if (!trimmed) {
+        flushPara();
+        continue;
+      }
+
+      // Regular line in paragraph
+      paraLines.push(line);
     }
-    if (fence) finishCode();
+
+    flushQuote();
+    flushList();
+    flushPara();
+
     return output.join('');
   }
 
@@ -130,7 +470,8 @@
     const prismLangMap = {
       'c': 'c', 'cpp': 'cpp', 'c++': 'cpp',
       'java': 'java', 'python': 'python', 'py': 'python',
-      'javascript': 'javascript', 'js': 'javascript',
+      'javascript': 'javascript', 'js': 'javascript', 'typescript': 'javascript', 'ts': 'javascript',
+      'php': 'php',
       'html': 'markup', 'markup': 'markup', 'xml': 'markup',
       'css': 'css', 'json': 'json', 'sql': 'sql', 'bash': 'bash', 'sh': 'bash'
     };
@@ -147,6 +488,7 @@
     // 2. High-fidelity sequential lexer
     const isHtml = l === 'html' || l === 'xml' || l === 'markup';
     const isPy = l === 'python' || l === 'py';
+    const isPhp = l === 'php';
     const isCpp = l === 'cpp' || l === 'c++';
     const isC = l === 'c' || isCpp;
 
@@ -159,14 +501,16 @@
       'virtual', 'override', 'namespace', 'using', 'auto', 'sizeof', 'final', 'abstract',
       'let', 'var', 'function', 'async', 'await', 'select', 'where', 'insert',
       'delete', 'update', 'into', 'values', 'set', 'null', 'undefined', 'true', 'false',
-      'True', 'False', 'None', 'self', 'this', 'super', 'template', 'typename', 'pass', 'raise'
+      'True', 'False', 'None', 'self', 'this', 'super', 'template', 'typename', 'pass', 'raise',
+      'echo', 'foreach', 'endforeach', 'elseif', 'endif', 'array', 'use', 'trait', 'implements',
+      'extends', 'parent', 'global', 'isset', 'empty', 'unset', 'die', 'exit', 'require', 'require_once', 'include_once', 'fn', 'match'
     ]);
 
     const builtins = new Set([
       'System', 'out', 'println', 'print', 'Scanner', 'cin', 'cout', 'endl', 'cerr',
       'vector', 'string', 'map', 'set', 'list', 'pair', 'printf', 'scanf', 'NULL', 'nullptr',
       'console', 'log', 'warn', 'error', 'document', 'window', 'Math', 'JSON', 'Promise',
-      'main', 'len', 'range', 'input'
+      'main', 'len', 'range', 'input', 'count', 'strlen', 'json_encode', 'json_decode', 'PDO'
     ]);
 
     let html = '';
@@ -243,6 +587,24 @@
         html += `<span class="token string">${escapeHtml(rawCode.slice(i, j))}</span>`;
         i = j;
         continue;
+      }
+
+      // PHP open/close tags (<?php, <?= , ?>)
+      if ((isPhp || rawCode.startsWith('<?php', i)) && (rawCode.startsWith('<?php', i) || rawCode.startsWith('<?=', i) || rawCode.startsWith('?>', i))) {
+        const phpTag = rawCode.startsWith('<?php', i) ? '<?php' : (rawCode.startsWith('<?=', i) ? '<?=' : '?>');
+        html += `<span class="token keyword directive">${escapeHtml(phpTag)}</span>`;
+        i += phpTag.length;
+        continue;
+      }
+
+      // PHP / Shell Variables ($var)
+      if (rawCode[i] === '$' && /^[a-zA-Z_]\w*/.test(rawCode.slice(i + 1))) {
+        const varMatch = rawCode.slice(i).match(/^\$[a-zA-Z_]\w*/);
+        if (varMatch) {
+          html += `<span class="token variable">${escapeHtml(varMatch[0])}</span>`;
+          i += varMatch[0].length;
+          continue;
+        }
       }
 
       // HTML/XML Tags
@@ -398,6 +760,7 @@
       readChatResponse,
       escapeHtml,
       safeLink,
+      stabilizeStreamingMarkdown,
       protectCodeBlocks,
       restoreCodeBlocks,
       fallbackMarkdown,
@@ -531,26 +894,59 @@
     }
   };
 
-  // Markdown Formatter with KaTeX
+  // Markdown Formatter with KaTeX & Streaming Stabilization
   function renderFormattedContent(element, rawMarkdown, streaming = false) {
     if (!element) return;
-    const normalized = normalizeLatexDelimiters(rawMarkdown);
-    if (window.marked && typeof window.marked.parse === 'function' &&
-        window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
-      element.innerHTML = window.DOMPurify.sanitize(window.marked.parse(normalized), {
-        ADD_ATTR: ['target', 'rel'],
-        FORBID_TAGS: ['style', 'iframe', 'form', 'input', 'button'],
-        FORBID_ATTR: ['style']
-      });
+    const inputMarkdown = streaming ? stabilizeStreamingMarkdown(rawMarkdown) : String(rawMarkdown || '');
+    const normalized = normalizeLatexDelimiters(inputMarkdown);
+    if (window.marked && typeof window.marked.parse === 'function') {
+      try {
+        if (!window.__KYANA_MARKED_CONFIGURED__) {
+          window.__KYANA_MARKED_CONFIGURED__ = true;
+          if (typeof window.marked.use === 'function') {
+            window.marked.use({ breaks: true, gfm: true });
+          } else if (typeof window.marked.setOptions === 'function') {
+            window.marked.setOptions({ breaks: true, gfm: true });
+          }
+        }
+        // Protect block math before marked.parse so underscores/backslashes are not stripped
+        const mathHolders = [];
+        const mathProtected = normalized.replace(/\$\$([\s\S]*?)\$\$/g, (_, expr) => {
+          const idx = mathHolders.length;
+          mathHolders.push(`<div class="kyana-math-block">$$${escapeHtml(expr.trim())}$$</div>`);
+          return `\n\n@@KYANA_MATH_BLOCK_${idx}@@\n\n`;
+        });
+        let parsed = window.marked.parse(mathProtected);
+        parsed = parsed.replace(/(?:<p>)?@@KYANA_MATH_BLOCK_(\d+)@@(?:<\/p>)?/g, (_, idx) => mathHolders[Number(idx)] || '');
+        if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+          element.innerHTML = window.DOMPurify.sanitize(parsed, {
+            ADD_ATTR: ['target', 'rel', 'class'],
+            FORBID_TAGS: ['style', 'iframe', 'form', 'input', 'button'],
+            FORBID_ATTR: ['style']
+          });
+        } else {
+          element.innerHTML = parsed;
+        }
+      } catch (_) {
+        element.innerHTML = fallbackMarkdown(normalized);
+      }
     } else {
       element.innerHTML = fallbackMarkdown(normalized);
     }
 
+    // Ensure all tables are wrapped in horizontally scrollable .kyana-table-wrapper
+    element.querySelectorAll('table').forEach(tbl => {
+      if (!tbl.classList.contains('kyana-table')) tbl.classList.add('kyana-table');
+      if (!tbl.parentElement || !tbl.parentElement.classList.contains('kyana-table-wrapper')) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'kyana-table-wrapper';
+        tbl.parentNode.insertBefore(wrapper, tbl);
+        wrapper.appendChild(tbl);
+      }
+    });
+
     assertAndCleanPlaceholders(element);
-
     element.querySelectorAll('a[target="_blank"]').forEach(link => { link.rel = 'noopener noreferrer'; });
-
-    if (streaming) return;
 
     KyanaCodeBlock.enhance(element);
     assertAndCleanPlaceholders(element);

@@ -15,16 +15,398 @@ import { useTheme } from '@/constants/useTheme';
 
 export interface PostMarkdownProps {
   content: string;
+  streaming?: boolean;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
   maxPreviewLength?: number;
   onPressText?: () => void;
+  onPressInternalLink?: (url: string) => void;
   style?: StyleProp<ViewStyle>;
 }
 
 interface CodeBlock {
   lang: string;
   code: string;
+}
+
+/**
+ * Stabilizes incomplete Markdown tokens during live streaming so mobile bubbles
+ * never flicker or render raw unclosed fences/delimiters mid-stream.
+ */
+export function stabilizeStreamingMarkdown(rawMarkdown: string): string {
+  if (!rawMarkdown) return '';
+  let text = String(rawMarkdown).replace(/\r\n/g, '\n');
+
+  // 1. Check for unclosed fenced code block (``` or ~~~)
+  const lines = text.split('\n');
+  let inFence = false;
+  let fenceMarker = '```';
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (!inFence) {
+      const openMatch = trimmed.match(/^(`{3,}|~{3,})/);
+      if (openMatch) {
+        inFence = true;
+        fenceMarker = openMatch[1].slice(0, 3);
+      }
+    } else if (trimmed.startsWith(fenceMarker) && /^(`{3,}|~{3,})\s*$/.test(trimmed)) {
+      inFence = false;
+    }
+  }
+  if (inFence) {
+    return `${text}\n${fenceMarker}`;
+  }
+
+  // 2. Check for unclosed display math block ($$ or \[)
+  const doubleDollarMatches = text.match(/\$\$/g);
+  if (doubleDollarMatches && doubleDollarMatches.length % 2 === 1) {
+    return `${text}\n$$`;
+  }
+  const openBracketMath = (text.match(/\\\[/g) || []).length;
+  const closeBracketMath = (text.match(/\\\]/g) || []).length;
+  if (openBracketMath > closeBracketMath) {
+    return `${text}\n\\]`;
+  }
+  const openParenMath = (text.match(/\\\(/g) || []).length;
+  const closeParenMath = (text.match(/\\\)/g) || []).length;
+  if (openParenMath > closeParenMath) {
+    text = `${text}\\)`;
+  }
+
+  // 3. Stabilize trailing partial table delimiter line
+  if (lines.length >= 2) {
+    const lastLine = lines[lines.length - 1];
+    const prevLine = lines[lines.length - 2];
+    if (prevLine.includes('|') && /^\s*\|?[\s|:-]*$/.test(lastLine) && lastLine.includes('|')) {
+      const colCount = prevLine.trim().replace(/^\||\|$/g, '').split('|').length;
+      if (colCount >= 2 && !/^\s*\|?(\s*:?-{1,}:?\s*\|)+\s*:?-{1,}:?\s*\|?\s*$/.test(lastLine)) {
+        lines[lines.length - 1] = `| ${Array(colCount).fill('---').join(' | ')} |`;
+        text = lines.join('\n');
+      }
+    }
+  }
+
+  // 4. Close unclosed inline formatting on the final active line
+  const finalLines = text.split('\n');
+  let lastLine = finalLines[finalLines.length - 1];
+  const backticks = (lastLine.match(/`/g) || []).length;
+  if (backticks % 2 === 1) {
+    lastLine += '`';
+  } else {
+    const boldMarkers = (lastLine.match(/\*\*/g) || []).length;
+    if (boldMarkers % 2 === 1) {
+      lastLine += '**';
+    }
+    const strikeMarkers = (lastLine.match(/~~/g) || []).length;
+    if (strikeMarkers % 2 === 1) {
+      lastLine += '~~';
+    }
+  }
+  finalLines[finalLines.length - 1] = lastLine;
+  return finalLines.join('\n');
+}
+
+const GREEK_AND_MATH_SYMBOLS: Record<string, string> = {
+  '\\alpha': 'α',
+  '\\beta': 'β',
+  '\\gamma': 'γ',
+  '\\delta': 'δ',
+  '\\epsilon': 'ε',
+  '\\theta': 'θ',
+  '\\lambda': 'λ',
+  '\\mu': 'μ',
+  '\\pi': 'π',
+  '\\sigma': 'σ',
+  '\\tau': 'τ',
+  '\\phi': 'φ',
+  '\\omega': 'ω',
+  '\\Delta': 'Δ',
+  '\\Sigma': 'Σ',
+  '\\Omega': 'Ω',
+  '\\Pi': 'Π',
+  '\\Theta': 'Θ',
+  '\\infty': '∞',
+  '\\sum': '∑',
+  '\\prod': '∏',
+  '\\int': '∫',
+  '\\partial': '∂',
+  '\\nabla': '∇',
+  '\\pm': '±',
+  '\\mp': '∓',
+  '\\times': '×',
+  '\\div': '÷',
+  '\\cdot': '·',
+  '\\leq': '≤',
+  '\\le': '≤',
+  '\\geq': '≥',
+  '\\ge': '≥',
+  '\\neq': '≠',
+  '\\ne': '≠',
+  '\\approx': '≈',
+  '\\equiv': '≡',
+  '\\rightarrow': '→',
+  '\\to': '→',
+  '\\leftarrow': '←',
+  '\\Rightarrow': '⇒',
+  '\\iff': '⇔',
+  '\\in': '∈',
+  '\\notin': '∉',
+  '\\subset': '⊂',
+  '\\subseteq': '⊆',
+  '\\cup': '∪',
+  '\\cap': '∩',
+  '\\forall': '∀',
+  '\\exists': '∃',
+};
+
+const SUPERSCRIPT_MAP: Record<string, string> = {
+  '0': '⁰',
+  '1': '¹',
+  '2': '²',
+  '3': '³',
+  '4': '⁴',
+  '5': '⁵',
+  '6': '⁶',
+  '7': '⁷',
+  '8': '⁸',
+  '9': '⁹',
+  '+': '⁺',
+  '-': '⁻',
+  '=': '⁼',
+  '(': '⁽',
+  ')': '⁾',
+  n: 'ⁿ',
+  i: 'ⁱ',
+};
+
+const SUBSCRIPT_MAP: Record<string, string> = {
+  '0': '₀',
+  '1': '₁',
+  '2': '₂',
+  '3': '₃',
+  '4': '₄',
+  '5': '₅',
+  '6': '₆',
+  '7': '₇',
+  '8': '₈',
+  '9': '₉',
+  '+': '₊',
+  '-': '₋',
+  '=': '₌',
+  '(': '₍',
+  ')': '₎',
+  a: 'ₐ',
+  e: 'ₑ',
+  i: 'ᵢ',
+  j: 'ⱼ',
+  k: 'ₖ',
+  n: 'ₙ',
+  o: 'ₒ',
+  r: 'ᵣ',
+  s: 'ₛ',
+  t: 'ₜ',
+  u: 'ᵤ',
+  v: 'ᵥ',
+  x: 'ₓ',
+};
+
+/**
+ * Formats TeX / LaTeX math expressions into clean, readable mathematical notation
+ * for native mobile rendering without external WebViews.
+ */
+export function formatMathExpression(tex: string): string {
+  if (!tex) return '';
+  let out = String(tex)
+    .trim()
+    .replace(/^\$\$|\$\$$/g, '')
+    .replace(/^\\\[|\\\]$/g, '')
+    .replace(/^\\\(|\\\)$/g, '')
+    .replace(/^\$|\$$/g, '')
+    .trim();
+
+  // Remove \begin{aligned} / \end{aligned} / alignment markers
+  out = out
+    .replace(/\\begin\{[^}]+\}/g, '')
+    .replace(/\\end\{[^}]+\}/g, '')
+    .replace(/\\\\/g, '\n')
+    .replace(/&=/g, '=')
+    .replace(/&/g, ' ');
+
+  // \text{...}, \mathrm{...}, \mathbf{...}
+  out = out.replace(/\\(?:text|mathrm|mathbf|mathit)\{([^{}]*)\}/g, '$1');
+
+  // \frac{a}{b} -> (a)/(b) or a/b
+  for (let pass = 0; pass < 3; pass++) {
+    out = out.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (_, num, den) => {
+      const cleanNum = num.trim();
+      const cleanDen = den.trim();
+      const left = cleanNum.length > 2 ? `(${cleanNum})` : cleanNum;
+      const right = cleanDen.length > 2 ? `(${cleanDen})` : cleanDen;
+      return `${left}/${right}`;
+    });
+  }
+
+  // \sqrt{x} -> √(x)
+  out = out.replace(/\\sqrt\{([^{}]+)\}/g, (_, inner) =>
+    inner.trim().length > 1 ? `√(${inner.trim()})` : `√${inner.trim()}`
+  );
+
+  // Replace Greek & math operators
+  for (const [cmd, sym] of Object.entries(GREEK_AND_MATH_SYMBOLS)) {
+    const escaped = cmd.replace(/\\/g, '\\\\');
+    out = out.replace(new RegExp(`${escaped}(?![a-zA-Z])`, 'g'), sym);
+  }
+
+  // Superscripts ^{...} or ^x
+  out = out.replace(/\^\{([^{}]+)\}/g, (_, exp) => {
+    const chars = exp.split('');
+    if (chars.every((c: string) => SUPERSCRIPT_MAP[c])) {
+      return chars.map((c: string) => SUPERSCRIPT_MAP[c]).join('');
+    }
+    return `^(${exp})`;
+  });
+  out = out.replace(/\^([0-9ni+-])/g, (_, ch) => SUPERSCRIPT_MAP[ch] || `^${ch}`);
+
+  // Subscripts _{...} or _x
+  out = out.replace(/_\{([^{}]+)\}/g, (_, sub) => {
+    const chars = sub.split('');
+    if (chars.every((c: string) => SUBSCRIPT_MAP[c])) {
+      return chars.map((c: string) => SUBSCRIPT_MAP[c]).join('');
+    }
+    return `_(${sub})`;
+  });
+  out = out.replace(/_([0-9aeijknorstuvx+-])/g, (_, ch) => SUBSCRIPT_MAP[ch] || `_${ch}`);
+
+  // Clean remaining braces and spacing commands
+  out = out
+    .replace(/\\(?:left|right|quad|qquad|,|;|!)/g, ' ')
+    .replace(/[{}]/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+
+  return out;
+}
+
+const CODE_KEYWORDS = new Set([
+  'abstract', 'and', 'as', 'async', 'await', 'begin', 'boolean', 'break', 'byte', 'case', 'catch',
+  'char', 'class', 'const', 'continue', 'create', 'def', 'default', 'delete', 'do', 'double',
+  'drop', 'echo', 'elif', 'else', 'elseif', 'end', 'endforeach', 'endif', 'enum', 'except',
+  'export', 'extends', 'false', 'final', 'finally', 'float', 'fn', 'for', 'foreach', 'from',
+  'fun', 'function', 'global', 'goto', 'group', 'having', 'if', 'implements', 'import', 'in',
+  'include', 'include_once', 'insert', 'instanceof', 'int', 'interface', 'into', 'is', 'join',
+  'lambda', 'let', 'limit', 'long', 'match', 'namespace', 'native', 'new', 'nil', 'nonlocal',
+  'not', 'null', 'or', 'order', 'package', 'pass', 'private', 'protected', 'public', 'raise',
+  'readonly', 'require', 'require_once', 'return', 'select', 'self', 'set', 'short', 'sizeof',
+  'static', 'struct', 'super', 'switch', 'synchronized', 'table', 'then', 'this', 'throw',
+  'throws', 'trait', 'true', 'try', 'type', 'typedef', 'typeof', 'union', 'unsigned', 'update',
+  'use', 'using', 'val', 'values', 'var', 'virtual', 'void', 'volatile', 'where', 'while',
+  'with', 'yield', 'TRUE', 'FALSE', 'NULL', 'None', 'True', 'False', 'SELECT', 'FROM', 'WHERE',
+  'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE', 'CREATE', 'TABLE', 'JOIN', 'LEFT',
+  'RIGHT', 'INNER', 'ORDER', 'BY', 'GROUP', 'LIMIT', 'HAVING', 'AS', 'ON', 'AND', 'OR', 'NOT',
+]);
+
+/**
+ * Lightweight syntax highlighter for mobile fenced code blocks (JS/TS, Python, PHP, C/C++, Java, SQL, etc.)
+ * that preserves exact literal code characters while coloring tokens cleanly.
+ */
+function renderHighlightedCode(code: string, isDark: boolean): React.ReactNode[] {
+  if (!code) return [];
+  const tokenRegex = new RegExp(
+    [
+      '(\\/\\*[\\s\\S]*?\\*\\/|\\/\\/[^\\n]*|#[^\\n]*|--[^\\n]*)', // 1: comment
+      '("(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\'|`(?:\\\\.|[^`\\\\])*`)', // 2: string
+      '(<\\?php|<\\?=|\\?>)', // 3: php tag
+      '(\\$[a-zA-Z_][a-zA-Z0-9_]*)', // 4: php/shell variable
+      '\\b(\\d+(?:\\.\\d+)?)\\b', // 5: number
+      '\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(?=\\s*\\()', // 6: function call
+      '\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b', // 7: identifier / keyword
+    ].join('|'),
+    'g'
+  );
+
+  const palette = isDark
+    ? {
+        default: '#f4f4f5',
+        comment: '#71717a',
+        string: '#86efac',
+        keyword: '#93c5fd',
+        variable: '#f9a8d4',
+        number: '#fcd34d',
+        func: '#c4b5fd',
+      }
+    : {
+        default: '#18181b',
+        comment: '#71717a',
+        string: '#15803d',
+        keyword: '#1d4ed8',
+        variable: '#be185d',
+        number: '#b45309',
+        func: '#6d28d9',
+      };
+
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let tokenIdx = 0;
+
+  while ((match = tokenRegex.exec(code)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(
+        <Text key={`c-plain-${tokenIdx++}`} style={{ color: palette.default }}>
+          {code.slice(lastIndex, match.index)}
+        </Text>
+      );
+    }
+
+    const full = match[0];
+    let tokenColor = palette.default;
+    let tokenWeight: '400' | '600' = '400';
+
+    if (match[1]) {
+      tokenColor = palette.comment;
+    } else if (match[2]) {
+      tokenColor = palette.string;
+    } else if (match[3]) {
+      tokenColor = palette.keyword;
+      tokenWeight = '600';
+    } else if (match[4]) {
+      tokenColor = palette.variable;
+    } else if (match[5]) {
+      tokenColor = palette.number;
+    } else if (match[6]) {
+      tokenColor = CODE_KEYWORDS.has(match[6]) ? palette.keyword : palette.func;
+      if (CODE_KEYWORDS.has(match[6])) tokenWeight = '600';
+    } else if (match[7]) {
+      if (CODE_KEYWORDS.has(match[7])) {
+        tokenColor = palette.keyword;
+        tokenWeight = '600';
+      }
+    }
+
+    nodes.push(
+      <Text
+        key={`c-tok-${tokenIdx++}`}
+        style={{
+          color: tokenColor,
+          fontWeight: tokenWeight,
+        }}
+      >
+        {full}
+      </Text>
+    );
+
+    lastIndex = tokenRegex.lastIndex;
+  }
+
+  if (lastIndex < code.length) {
+    nodes.push(
+      <Text key={`c-tail-${tokenIdx}`} style={{ color: palette.default }}>
+        {code.slice(lastIndex)}
+      </Text>
+    );
+  }
+
+  return nodes;
 }
 
 /**
@@ -72,13 +454,14 @@ function renderInlineTokens(
   textColor: string,
   isDark: boolean,
   borderColor: string,
-  onPressText?: () => void
+  onPressText?: () => void,
+  onPressInternalLink?: (url: string) => void
 ): React.ReactNode[] {
   if (!text) return [];
 
   // Split with capturing group to keep matched tokens in parts array
   const parts = text.split(
-    /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\(https?:\/\/[^\s\)]+\)|https?:\/\/[^\s<)]+)/g
+    /(`[^`]+`|\\\([\s\S]+?\\\)|\$(?!\s)[^$\n]+?(?<!\s)\$|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|(?<![a-zA-Z0-9])_[^_\n]+_(?![a-zA-Z0-9])|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\((?:https?:\/\/|\/)[^\s\)]+\)|https?:\/\/[^\s<)]+)/g
   );
 
   return parts
@@ -105,8 +488,45 @@ function renderInlineTokens(
         );
       }
 
-      // 2. Bold: **text**
-      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      // 2. Inline math: \(...\) or $...$
+      if (
+        (part.startsWith('\\(') && part.endsWith('\\)') && part.length >= 4) ||
+        (part.startsWith('$') && part.endsWith('$') && !part.startsWith('$$') && part.length >= 3)
+      ) {
+        return (
+          <Text
+            key={key}
+            style={[
+              styles.inlineMath,
+              {
+                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                color: textColor,
+              },
+            ]}
+          >
+            {formatMathExpression(part)}
+          </Text>
+        );
+      }
+
+      // 3. Bold + Italic: ***text***
+      if (part.startsWith('***') && part.endsWith('***') && part.length >= 6) {
+        return (
+          <Text
+            key={key}
+            style={{ fontWeight: '700', fontStyle: 'italic', color: textColor }}
+            onPress={onPressText}
+          >
+            {part.slice(3, -3)}
+          </Text>
+        );
+      }
+
+      // 4. Bold: **text** or __text__
+      if (
+        (part.startsWith('**') && part.endsWith('**') && part.length >= 4) ||
+        (part.startsWith('__') && part.endsWith('__') && part.length >= 4)
+      ) {
         return (
           <Text
             key={key}
@@ -118,8 +538,11 @@ function renderInlineTokens(
         );
       }
 
-      // 3. Italic: *text*
-      if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
+      // 5. Italic: *text* or _text_
+      if (
+        (part.startsWith('*') && part.endsWith('*') && part.length >= 2) ||
+        (part.startsWith('_') && part.endsWith('_') && part.length >= 2)
+      ) {
         return (
           <Text
             key={key}
@@ -131,7 +554,7 @@ function renderInlineTokens(
         );
       }
 
-      // 4. Underline: <u>text</u>
+      // 6. Underline: <u>text</u>
       if (part.startsWith('<u>') && part.endsWith('</u>') && part.length >= 7) {
         return (
           <Text
@@ -144,7 +567,7 @@ function renderInlineTokens(
         );
       }
 
-      // 5. Strikethrough: ~~text~~
+      // 7. Strikethrough: ~~text~~
       if (part.startsWith('~~') && part.endsWith('~~') && part.length >= 4) {
         return (
           <Text
@@ -157,9 +580,9 @@ function renderInlineTokens(
         );
       }
 
-      // 6. Link: [title](url)
+      // 8. Link: [title](url) — external https:// or internal /route
       if (part.startsWith('[') && part.includes('](')) {
-        const linkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)$/);
+        const linkMatch = part.match(/^\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s\)]+)\)$/);
         if (linkMatch) {
           const [, title, url] = linkMatch;
           return (
@@ -167,6 +590,10 @@ function renderInlineTokens(
               key={key}
               style={[styles.link, { color: textColor }]}
               onPress={() => {
+                if (url.startsWith('/') && onPressInternalLink) {
+                  onPressInternalLink(url);
+                  return;
+                }
                 Linking.openURL(url).catch(() => {});
               }}
             >
@@ -176,7 +603,7 @@ function renderInlineTokens(
         }
       }
 
-      // 7. Direct URL: https://...
+      // 9. Direct URL: https://...
       if (/^https?:\/\//.test(part)) {
         return (
           <Text
@@ -191,7 +618,7 @@ function renderInlineTokens(
         );
       }
 
-      // 8. Plain text segment
+      // 10. Plain text segment
       return (
         <Text key={key} style={{ color: textColor }} onPress={onPressText}>
           {part}
@@ -203,10 +630,12 @@ function renderInlineTokens(
 
 function PostMarkdownInternal({
   content,
+  streaming = false,
   isExpanded = true,
   onToggleExpand,
   maxPreviewLength,
   onPressText,
+  onPressInternalLink,
   style,
 }: PostMarkdownProps) {
   const { colors, isDark } = useTheme();
@@ -220,26 +649,46 @@ function PostMarkdownInternal({
     content.length > maxPreviewLength
   );
 
-  const displayContent = isTruncated
+  const rawDisplayContent = isTruncated
     ? content.slice(0, maxPreviewLength).trim()
     : content;
 
-  // Extract fenced code blocks first
+  // Always stabilize incomplete code fences / math blocks during streaming or when an unclosed fence exists
+  const hasUnclosedFence = ((rawDisplayContent.match(/```/g) || []).length % 2) === 1;
+  const displayContent = (streaming || hasUnclosedFence)
+    ? stabilizeStreamingMarkdown(rawDisplayContent)
+    : rawDisplayContent;
+
+  // 1. Extract fenced code blocks first
   const codeBlocks: CodeBlock[] = [];
   const normalized = displayContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const textWithoutCode = normalized.replace(
-    /```([a-zA-Z0-9_#-]*)[ \t]*\n([\s\S]*?)```/g,
+    /```([a-zA-Z0-9_+#-]*)[ \t]*\n?([\s\S]*?)```/g,
     (_, lang, code) => {
       const idx = codeBlocks.length;
       codeBlocks.push({
         lang: (lang || 'CODE').trim().toUpperCase(),
         code: (code || '').replace(/\n+$/, ''),
       });
-      return `\x01CODE_BLOCK_${idx}\x02`;
+      return `\n\x01CODE_BLOCK_${idx}\x02\n`;
     }
   );
 
-  const lines = textWithoutCode.split('\n');
+  // 2. Extract multiline / display math blocks ($$...$$ and \[...\])
+  const mathBlocks: string[] = [];
+  const textWithoutCodeAndMath = textWithoutCode
+    .replace(/\$\$([\s\S]*?)\$\$/g, (_, expr) => {
+      const idx = mathBlocks.length;
+      mathBlocks.push(expr || '');
+      return `\n\x01MATH_BLOCK_${idx}\x02\n`;
+    })
+    .replace(/\\\[([\s\S]*?)\\\]/g, (_, expr) => {
+      const idx = mathBlocks.length;
+      mathBlocks.push(expr || '');
+      return `\n\x01MATH_BLOCK_${idx}\x02\n`;
+    });
+
+  const lines = textWithoutCodeAndMath.split('\n');
   const renderedElements: React.ReactNode[] = [];
 
   function isTableDelimiter(str: string): boolean {
@@ -267,7 +716,15 @@ function PostMarkdownInternal({
       const fullPara = paraBuffer.join('\n');
       renderedElements.push(
         <Text key={key} style={[styles.paragraph, { color: colors.text }]} onPress={onPressText}>
-          {renderInlineTokens(fullPara, key, colors.text, isDark, colors.border, onPressText)}
+          {renderInlineTokens(
+            fullPara,
+            key,
+            colors.text,
+            isDark,
+            colors.border,
+            onPressText,
+            onPressInternalLink
+          )}
         </Text>
       );
       paraBuffer = [];
@@ -330,7 +787,7 @@ function PostMarkdownInternal({
               horizontal
               nestedScrollEnabled={true}
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ padding: 10 }}
+              contentContainerStyle={{ padding: 12 }}
             >
               <Text
                 style={[
@@ -340,12 +797,45 @@ function PostMarkdownInternal({
                   },
                 ]}
               >
-                {block.code}
+                {renderHighlightedCode(block.code, isDark)}
               </Text>
             </ScrollView>
           </View>
         );
       }
+      continue;
+    }
+
+    // 1b. Display Math Block placeholder
+    const mathMatch = trimmed.match(/^\x01MATH_BLOCK_(\d+)\x02$/);
+    if (mathMatch) {
+      flushParagraph(`p-before-math-${i}`);
+      const mathIndex = Number(mathMatch[1]);
+      const rawExpr = mathBlocks[mathIndex] || '';
+      const formattedMath = formatMathExpression(rawExpr);
+      renderedElements.push(
+        <View
+          key={`math-block-${i}`}
+          style={[
+            styles.mathBlockContainer,
+            {
+              backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <ScrollView
+            horizontal
+            nestedScrollEnabled={true}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.mathBlockScrollContent}
+          >
+            <Text style={[styles.mathBlockText, { color: colors.text }]}>
+              {formattedMath}
+            </Text>
+          </ScrollView>
+        </View>
+      );
       continue;
     }
 
@@ -427,7 +917,15 @@ function PostMarkdownInternal({
                         },
                       ]}
                     >
-                      {cellText}
+                      {renderInlineTokens(
+                        cellText,
+                        `th-${i}-${colIdx}`,
+                        colors.text,
+                        isDark,
+                        colors.border,
+                        onPressText,
+                        onPressInternalLink
+                      )}
                     </Text>
                   </View>
                 ))}
@@ -459,7 +957,15 @@ function PostMarkdownInternal({
                           },
                         ]}
                       >
-                        {rowCells[colIdx] || ''}
+                        {renderInlineTokens(
+                          rowCells[colIdx] || '',
+                          `td-${i}-${rIdx}-${colIdx}`,
+                          colors.text,
+                          isDark,
+                          colors.border,
+                          onPressText,
+                          onPressInternalLink
+                        )}
                       </Text>
                     </View>
                   ))}
@@ -472,15 +978,30 @@ function PostMarkdownInternal({
       continue;
     }
 
-    // 4. Headings: #, ##, ###
-    const hMatch = line.match(/^(#{1,3})\s+(.*)$/);
+    // 4. Headings: #, ##, ###, ####
+    const hMatch = line.match(/^(#{1,4})\s+(.*)$/);
     if (hMatch) {
       flushParagraph(`p-before-h-${i}`);
       const level = hMatch[1].length;
-      const headingStyle = level === 1 ? styles.h1 : level === 2 ? styles.h2 : styles.h3;
+      const headingStyle =
+        level === 1
+          ? styles.h1
+          : level === 2
+          ? styles.h2
+          : level === 3
+          ? styles.h3
+          : styles.h4;
       renderedElements.push(
         <Text key={`h-${i}`} style={[headingStyle, { color: colors.text }]} onPress={onPressText}>
-          {renderInlineTokens(hMatch[2], `h-${i}`, colors.text, isDark, colors.border, onPressText)}
+          {renderInlineTokens(
+            hMatch[2],
+            `h-${i}`,
+            colors.text,
+            isDark,
+            colors.border,
+            onPressText,
+            onPressInternalLink
+          )}
         </Text>
       );
       continue;
@@ -502,23 +1023,49 @@ function PostMarkdownInternal({
           ]}
         >
           <Text style={[styles.blockquoteText, { color: colors.textSecondary }]} onPress={onPressText}>
-            {renderInlineTokens(qMatch[1], `q-${i}`, colors.textSecondary, isDark, colors.border, onPressText)}
+            {renderInlineTokens(
+              qMatch[1],
+              `q-${i}`,
+              colors.textSecondary,
+              isDark,
+              colors.border,
+              onPressText,
+              onPressInternalLink
+            )}
           </Text>
         </View>
       );
       continue;
     }
 
-    // 6. List items: - or * or 1.
-    const listMatch = line.match(/^([\*\-]|(\d+\.))\s+(.*)$/);
+    // 6. List items (including nested lists via leading spaces): - or * or + or 1.
+    const listMatch = line.match(/^(\s*)([\*\-\+]|(\d+\.))\s+(.*)$/);
     if (listMatch) {
       flushParagraph(`p-before-li-${i}`);
-      const bullet = listMatch[1].includes('.') ? listMatch[1] : '•';
+      const indentSpaces = (listMatch[1] || '').replace(/\t/g, '  ').length;
+      const depth = Math.min(Math.floor(indentSpaces / 2), 4);
+      const isOrdered = listMatch[2].includes('.');
+      const unorderedGlyphs = ['•', '◦', '▪', '▫'];
+      const bullet = isOrdered ? listMatch[2] : unorderedGlyphs[depth % unorderedGlyphs.length];
       renderedElements.push(
-        <View key={`li-${i}`} style={styles.listItemRow}>
+        <View
+          key={`li-${i}`}
+          style={[
+            styles.listItemRow,
+            { paddingLeft: 4 + depth * 14 },
+          ]}
+        >
           <Text style={[styles.listBullet, { color: colors.textSecondary }]}>{bullet}</Text>
           <Text style={[styles.listContent, { color: colors.text }]} onPress={onPressText}>
-            {renderInlineTokens(listMatch[3], `li-${i}`, colors.text, isDark, colors.border, onPressText)}
+            {renderInlineTokens(
+              listMatch[4],
+              `li-${i}`,
+              colors.text,
+              isDark,
+              colors.border,
+              onPressText,
+              onPressInternalLink
+            )}
           </Text>
         </View>
       );
@@ -588,8 +1135,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   paragraph: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 14.5,
+    lineHeight: 22.5,
     marginBottom: 10,
   },
   h1: {
@@ -613,6 +1160,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 4,
   },
+  h4: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 19,
+    marginTop: 8,
+    marginBottom: 3,
+  },
   inlineCode: {
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     fontSize: 12.5,
@@ -621,13 +1175,20 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
   },
+  inlineMath: {
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontSize: 13,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
   link: {
     textDecorationLine: 'underline',
     fontWeight: '600',
   },
   codeBlockContainer: {
     marginVertical: 8,
-    borderRadius: 8,
+    borderRadius: 10,
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -657,7 +1218,22 @@ const styles = StyleSheet.create({
   codeText: {
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     fontSize: 12.5,
-    lineHeight: 18,
+    lineHeight: 19,
+  },
+  mathBlockContainer: {
+    marginVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  mathBlockScrollContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  mathBlockText: {
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontSize: 13.5,
+    lineHeight: 20,
   },
   tableWrapper: {
     marginVertical: 8,
@@ -675,7 +1251,7 @@ const styles = StyleSheet.create({
   tableCell: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    minWidth: 90,
+    minWidth: 96,
   },
   tableHeaderText: {
     fontSize: 12.5,
@@ -683,40 +1259,40 @@ const styles = StyleSheet.create({
   },
   tableCellText: {
     fontSize: 12.5,
-    lineHeight: 17,
+    lineHeight: 18,
   },
   blockquote: {
     borderLeftWidth: 3,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     marginVertical: 6,
     borderRadius: 2,
   },
   blockquoteText: {
     fontSize: 13.5,
     fontStyle: 'italic',
-    lineHeight: 19,
+    lineHeight: 20,
   },
   listItemRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginVertical: 2,
+    marginVertical: 2.5,
     paddingLeft: 4,
   },
   listBullet: {
-    width: 18,
+    width: 22,
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 21,
     fontWeight: '600',
   },
   listContent: {
     flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 14.5,
+    lineHeight: 21.5,
   },
   divider: {
     height: 1,
-    marginVertical: 8,
+    marginVertical: 10,
     width: '100%',
   },
   expandBtn: {

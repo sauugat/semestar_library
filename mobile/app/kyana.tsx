@@ -197,7 +197,7 @@ function KyanaSwipeableBubble({
         onPanResponderRelease: (_, gestureState) => {
           markBubbleTouchEnd();
           if (gestureState.dx > 42) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
             onSwipeReplyRef.current();
           }
           Animated.spring(translateX, {
@@ -306,7 +306,7 @@ export default function KyanaChatScreen() {
               setMessages(data.messages);
               await saveCachedKyanaMessages(studentId, activeConv.id, data.messages);
             }
-          } catch (_) {}
+          } catch (_) { }
         }
       } catch (err: any) {
         console.warn('[Kyana] Initialization warning:', err?.message || err);
@@ -408,14 +408,14 @@ export default function KyanaChatScreen() {
             prev
               ? { ...prev, id: finalResponse.conversationId! }
               : {
-                  id: finalResponse.conversationId!,
-                  title: 'Chat with Kyana',
-                  studentId,
-                  lastMessage: null,
-                  lastMessageAt: null,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                }
+                id: finalResponse.conversationId!,
+                title: 'Chat with Kyana',
+                studentId,
+                lastMessage: null,
+                lastMessageAt: null,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+              }
           );
         }
       } catch (err: any) {
@@ -485,7 +485,7 @@ export default function KyanaChatScreen() {
       await Clipboard.setStringAsync(msg.text);
       await Haptics.selectionAsync();
       showToast('Copied to clipboard');
-    } catch (_) {}
+    } catch (_) { }
   }, [showToast]);
 
   // 6. Copy entire conversation
@@ -519,7 +519,7 @@ export default function KyanaChatScreen() {
               try {
                 await clearKyanaConversation(conversation.id);
                 await clearCachedKyanaMessages(studentId, conversation.id);
-              } catch (_) {}
+              } catch (_) { }
             }
             setMessages([]);
             setStreamingText('');
@@ -539,14 +539,14 @@ export default function KyanaChatScreen() {
       setMessages([]);
       setStreamingText('');
       showToast('New conversation started');
-    } catch (_) {}
+    } catch (_) { }
   }, [showToast]);
 
   // Handle resource card navigation
   const handleCardPress = useCallback(async (card: KyanaResourceCard) => {
     try {
       const checked = await resolveKyanaResource(card);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
       if (checked?.mobileRoute) {
         router.push({ pathname: checked.mobileRoute, params: checked.mobileParams || {} } as any);
         return;
@@ -581,38 +581,38 @@ export default function KyanaChatScreen() {
         ? ((Array.isArray(item.metadata.resourceCards) && item.metadata.resourceCards.length > 0)
           ? item.metadata.resourceCards
           : [
-              ...(item.metadata.matchedFiles || []).map((f: any) => ({
-                type: 'note' as const,
-                id: f.id,
-                title: f.title || f.originalName,
-                subject: f.subject,
-                semester: f.semester,
-                action: 'open_note' as const,
-                mobileRoute: `/material/${f.id}`,
-              })),
-              ...(item.metadata.matchedNotices || []).map((n: any) => ({
-                type: 'notice' as const,
-                id: n.id,
-                title: n.title,
-                action: 'view_notice' as const,
-                mobileRoute: `/notice/${n.id}`,
-              })),
-              ...(item.metadata.matchedPosts || []).map((p: any) => ({
-                type: 'post' as const,
-                id: p.id,
-                title: p.title,
-                action: 'view_post' as const,
-                mobileRoute: `/post/${p.id}`,
-              })),
-              ...(item.metadata.matchedAssignments || []).map((a: any) => ({
-                type: 'assignment' as const,
-                id: a.id,
-                title: a.title,
-                subject: a.subject,
-                action: 'view_assignment' as const,
-                mobileRoute: `/assignments/${a.id}`,
-              })),
-            ])
+            ...(item.metadata.matchedFiles || []).map((f: any) => ({
+              type: 'note' as const,
+              id: f.id,
+              title: f.title || f.originalName,
+              subject: f.subject,
+              semester: f.semester,
+              action: 'open_note' as const,
+              mobileRoute: `/material/${f.id}`,
+            })),
+            ...(item.metadata.matchedNotices || []).map((n: any) => ({
+              type: 'notice' as const,
+              id: n.id,
+              title: n.title,
+              action: 'view_notice' as const,
+              mobileRoute: `/notice/${n.id}`,
+            })),
+            ...(item.metadata.matchedPosts || []).map((p: any) => ({
+              type: 'post' as const,
+              id: p.id,
+              title: p.title,
+              action: 'view_post' as const,
+              mobileRoute: `/post/${p.id}`,
+            })),
+            ...(item.metadata.matchedAssignments || []).map((a: any) => ({
+              type: 'assignment' as const,
+              id: a.id,
+              title: a.title,
+              subject: a.subject,
+              action: 'view_assignment' as const,
+              mobileRoute: `/assignments/${a.id}`,
+            })),
+          ])
         : [];
 
       return (
@@ -652,166 +652,166 @@ export default function KyanaChatScreen() {
                 inputRef.current?.focus();
               }}
             >
-            <TouchableOpacity
-              activeOpacity={0.92}
-              onPress={() => {
-                if (isUser) return;
-                const now = Date.now();
-                const last = lastBubbleTapRef.current[item.id] || 0;
-                if (now - last < 350) {
-                  setReaderMessage(item);
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                } else {
-                  lastBubbleTapRef.current[item.id] = now;
-                }
-              }}
-              onLongPress={() => void handleCopyMessage(item)}
-              delayLongPress={280}
-              style={[
-                styles.bubble,
-                isUser ? styles.userBubble : styles.assistantBubble,
-                { maxWidth: '100%' },
-                isError && styles.errorBubble,
-              ]}
-            >
-              {isUser ? (
-                <Text style={styles.userBubbleText}>
-                  {item.text}
-                </Text>
-              ) : (
-                <View style={styles.markdownWrapper}>
-                  <PostMarkdown
-                    content={item.text}
-                    onPressInternalLink={(url) => {
-                      if (url.startsWith('prompt:')) {
-                        void handleSend(decodeURIComponent(url.slice(7)));
-                        return;
-                      }
-                      router.push(url.replace(/\.html$/i, '') as any);
-                    }}
-                  />
-                  {resourceCards.length > 0 && (
-                    <View style={styles.resourceCardsContainer}>
-                      {resourceCards.map((card, cIdx) => {
-                        const iconName = card.type === 'note'
-                          ? 'document-text-outline'
-                          : card.type === 'notice'
-                          ? 'megaphone-outline'
-                          : card.type === 'assignment' || card.type === 'post_assignment'
-                          ? 'code-slash-outline'
-                          : card.type === 'routine'
-                          ? 'calendar-outline'
-                          : 'chatbubbles-outline';
-
-                        const typeLabel = card.type === 'note'
-                          ? 'STUDY NOTE'
-                          : card.type === 'notice'
-                          ? 'CAMPUS NOTICE'
-                          : card.type === 'assignment' || card.type === 'post_assignment'
-                          ? 'ASSIGNMENT'
-                          : card.type === 'routine'
-                          ? 'ROUTINE'
-                          : 'COMMUNITY';
-
-                        const actionText = card.type === 'note'
-                          ? 'Open Note'
-                          : card.type === 'notice'
-                          ? 'View Notice'
-                          : card.type === 'assignment' || card.type === 'post_assignment'
-                          ? 'View Assignment'
-                          : card.type === 'routine'
-                          ? 'View Routine'
-                          : 'View Post';
-
-                        return (
-                          <TouchableOpacity
-                            key={`rc-${card.type}-${card.id}-${cIdx}`}
-                            activeOpacity={0.8}
-                            onPress={() => handleCardPress(card)}
-                            style={styles.resourceCard}
-                          >
-                            <View style={styles.resourceCardHeader}>
-                              <View style={styles.resourceCardBadge}>
-                                <Ionicons name={iconName as any} size={11} color="#D4D4D8" />
-                                <Text style={styles.resourceCardBadgeText}>
-                                  {card.authority ? card.authority.toUpperCase() : typeLabel}
-                                </Text>
-                              </View>
-                              {Boolean(card.subject || card.publishedDate) && (
-                                <Text style={styles.resourceCardSubject} numberOfLines={1}>
-                                  {[card.subject, card.publishedDate].filter(Boolean).join(' · ')}
-                                </Text>
-                              )}
-                            </View>
-                            <Text style={styles.resourceCardTitle} numberOfLines={2}>
-                              {card.title}
-                            </Text>
-                            {Boolean(card.excerpt) && (
-                              <Text style={styles.resourceCardSubject} numberOfLines={2}>
-                                {card.excerpt}
-                              </Text>
-                            )}
-                            <View style={styles.resourceCardActionRow}>
-                              <Text style={styles.resourceCardActionText}>{actionText}</Text>
-                              <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  )}
-                </View>
-              )}
-
-              {/* Bottom Meta Bar */}
-              <View
+              <TouchableOpacity
+                activeOpacity={0.92}
+                onPress={() => {
+                  if (isUser) return;
+                  const now = Date.now();
+                  const last = lastBubbleTapRef.current[item.id] || 0;
+                  if (now - last < 350) {
+                    setReaderMessage(item);
+                    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  } else {
+                    lastBubbleTapRef.current[item.id] = now;
+                  }
+                }}
+                onLongPress={() => void handleCopyMessage(item)}
+                delayLongPress={280}
                 style={[
-                  styles.metaRow,
-                  isUser ? styles.userMetaRow : styles.assistantMetaRow,
+                  styles.bubble,
+                  isUser ? styles.userBubble : styles.assistantBubble,
+                  { maxWidth: '100%' },
+                  isError && styles.errorBubble,
                 ]}
               >
-                <Text style={styles.timestampText}>
-                  {formatBubbleTime(item.createdAt)}
-                </Text>
-
-                {/* Subtle Action Buttons on Assistant Message */}
-                {!isUser && (
-                  <View style={styles.quickActions}>
-                    <TouchableOpacity
-                      onPress={() => {
-                        setReaderMessage(item);
-                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                {isUser ? (
+                  <Text style={styles.userBubbleText}>
+                    {item.text}
+                  </Text>
+                ) : (
+                  <View style={styles.markdownWrapper}>
+                    <PostMarkdown
+                      content={item.text}
+                      onPressInternalLink={(url) => {
+                        if (url.startsWith('prompt:')) {
+                          void handleSend(decodeURIComponent(url.slice(7)));
+                          return;
+                        }
+                        router.push(url.replace(/\.html$/i, '') as any);
                       }}
-                      style={styles.actionIconBtn}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityLabel="Open in full screen study reader"
-                    >
-                      <Ionicons name="expand-outline" size={13} color="#71717A" />
-                    </TouchableOpacity>
+                    />
+                    {resourceCards.length > 0 && (
+                      <View style={styles.resourceCardsContainer}>
+                        {resourceCards.map((card, cIdx) => {
+                          const iconName = card.type === 'note'
+                            ? 'document-text-outline'
+                            : card.type === 'notice'
+                              ? 'megaphone-outline'
+                              : card.type === 'assignment' || card.type === 'post_assignment'
+                                ? 'code-slash-outline'
+                                : card.type === 'routine'
+                                  ? 'calendar-outline'
+                                  : 'chatbubbles-outline';
 
-                    <TouchableOpacity
-                      onPress={() => void handleCopyMessage(item)}
-                      style={styles.actionIconBtn}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      accessibilityLabel="Copy message"
-                    >
-                      <Ionicons name="copy-outline" size={13} color="#71717A" />
-                    </TouchableOpacity>
+                          const typeLabel = card.type === 'note'
+                            ? 'STUDY NOTE'
+                            : card.type === 'notice'
+                              ? 'CAMPUS NOTICE'
+                              : card.type === 'assignment' || card.type === 'post_assignment'
+                                ? 'ASSIGNMENT'
+                                : card.type === 'routine'
+                                  ? 'ROUTINE'
+                                  : 'COMMUNITY';
 
-                    {(isLatestAssistant || isError) && (
-                      <TouchableOpacity
-                        onPress={() => void handleRegenerate()}
-                        style={styles.actionIconBtn}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        accessibilityLabel="Regenerate response"
-                      >
-                        <Ionicons name="reload-outline" size={13} color="#71717A" />
-                      </TouchableOpacity>
+                          const actionText = card.type === 'note'
+                            ? 'Open Note'
+                            : card.type === 'notice'
+                              ? 'View Notice'
+                              : card.type === 'assignment' || card.type === 'post_assignment'
+                                ? 'View Assignment'
+                                : card.type === 'routine'
+                                  ? 'View Routine'
+                                  : 'View Post';
+
+                          return (
+                            <TouchableOpacity
+                              key={`rc-${card.type}-${card.id}-${cIdx}`}
+                              activeOpacity={0.8}
+                              onPress={() => handleCardPress(card)}
+                              style={styles.resourceCard}
+                            >
+                              <View style={styles.resourceCardHeader}>
+                                <View style={styles.resourceCardBadge}>
+                                  <Ionicons name={iconName as any} size={11} color="#D4D4D8" />
+                                  <Text style={styles.resourceCardBadgeText}>
+                                    {card.authority ? card.authority.toUpperCase() : typeLabel}
+                                  </Text>
+                                </View>
+                                {Boolean(card.subject || card.publishedDate) && (
+                                  <Text style={styles.resourceCardSubject} numberOfLines={1}>
+                                    {[card.subject, card.publishedDate].filter(Boolean).join(' · ')}
+                                  </Text>
+                                )}
+                              </View>
+                              <Text style={styles.resourceCardTitle} numberOfLines={2}>
+                                {card.title}
+                              </Text>
+                              {Boolean(card.excerpt) && (
+                                <Text style={styles.resourceCardSubject} numberOfLines={2}>
+                                  {card.excerpt}
+                                </Text>
+                              )}
+                              <View style={styles.resourceCardActionRow}>
+                                <Text style={styles.resourceCardActionText}>{actionText}</Text>
+                                <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     )}
                   </View>
                 )}
-              </View>
-            </TouchableOpacity>
+
+                {/* Bottom Meta Bar */}
+                <View
+                  style={[
+                    styles.metaRow,
+                    isUser ? styles.userMetaRow : styles.assistantMetaRow,
+                  ]}
+                >
+                  <Text style={styles.timestampText}>
+                    {formatBubbleTime(item.createdAt)}
+                  </Text>
+
+                  {/* Subtle Action Buttons on Assistant Message */}
+                  {!isUser && (
+                    <View style={styles.quickActions}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setReaderMessage(item);
+                          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }}
+                        style={styles.actionIconBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityLabel="Open in full screen study reader"
+                      >
+                        <Ionicons name="expand-outline" size={13} color="#71717A" />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() => void handleCopyMessage(item)}
+                        style={styles.actionIconBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityLabel="Copy message"
+                      >
+                        <Ionicons name="copy-outline" size={13} color="#71717A" />
+                      </TouchableOpacity>
+
+                      {(isLatestAssistant || isError) && (
+                        <TouchableOpacity
+                          onPress={() => void handleRegenerate()}
+                          style={styles.actionIconBtn}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          accessibilityLabel="Regenerate response"
+                        >
+                          <Ionicons name="reload-outline" size={13} color="#71717A" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
             </KyanaSwipeableBubble>
           </View>
         </View>
@@ -854,10 +854,6 @@ export default function KyanaChatScreen() {
           <View style={styles.headerTextCol}>
             <View style={styles.headerTitleRow}>
               <Text style={styles.headerTitle}>Kyana</Text>
-              <Ionicons name="chevron-forward" size={14} color="#A1A1AA" />
-              <View style={styles.headerAiPill}>
-                <Text style={styles.headerAiPillText}>AI</Text>
-              </View>
             </View>
             <Text style={styles.headerSubtitle}>
               {isGenerating ? 'Thinking…' : 'Your study companion'}
@@ -887,120 +883,120 @@ export default function KyanaChatScreen() {
 
       {/* MAIN VIEWPORT WRAPPED IN KEYBOARD CONTENT BOUNDARY (swipe right outside bubble goes back) */}
       <View style={{ flex: 1, width: '100%' }} {...backSwipeHandlers}>
-      <KeyboardContentBoundary style={styles.timelineBoundary}>
-        {isLoadingInitial && messages.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#A1A1AA" />
-            <Text style={styles.loadingText}>Opening Kyana AI…</Text>
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={invertedMessages}
-            keyExtractor={item => String(item.id)}
-            renderItem={renderItem}
-            inverted
-            keyboardDismissMode="on-drag"
-            keyboardShouldPersistTaps="handled"
-            scrollEventThrottle={100}
-            onScroll={event => {
-              const offsetY = event.nativeEvent.contentOffset.y;
-              // In inverted FlatList, offsetY <= 60 indicates user is at the bottom
-              const nearBottom = offsetY <= 60;
-              isNearBottomRef.current = nearBottom;
-              if (showScrollBottom !== !nearBottom) {
-                setShowScrollBottom(!nearBottom);
+        <KeyboardContentBoundary style={styles.timelineBoundary}>
+          {isLoadingInitial && messages.length === 0 ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#A1A1AA" />
+              <Text style={styles.loadingText}>Opening Kyana AI…</Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={invertedMessages}
+              keyExtractor={item => String(item.id)}
+              renderItem={renderItem}
+              inverted
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
+              scrollEventThrottle={100}
+              onScroll={event => {
+                const offsetY = event.nativeEvent.contentOffset.y;
+                // In inverted FlatList, offsetY <= 60 indicates user is at the bottom
+                const nearBottom = offsetY <= 60;
+                isNearBottomRef.current = nearBottom;
+                if (showScrollBottom !== !nearBottom) {
+                  setShowScrollBottom(!nearBottom);
+                }
+              }}
+              maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 60 }}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+              // In inverted list, ListHeaderComponent sits at index 0 (the bottom)
+              ListHeaderComponent={
+                isGenerating ? (
+                  <View style={styles.liveGenerationRow}>
+                    <View style={styles.assistantAvatarSmall}>
+                      <Image
+                        source={require('../assets/images/kyana-logo.png')}
+                        style={styles.assistantAvatarImage}
+                        contentFit="contain"
+                      />
+                    </View>
+                    <View style={[styles.bubble, styles.assistantBubble, styles.streamingBubble]}>
+                      {streamingText ? (
+                        <View style={styles.markdownWrapper}>
+                          <PostMarkdown
+                            content={streamingText}
+                            streaming={true}
+                            onPressInternalLink={(url) => {
+                              if (url.startsWith('prompt:')) {
+                                void handleSend(decodeURIComponent(url.slice(7)));
+                                return;
+                              }
+                              router.push(url.replace(/\.html$/i, '') as any);
+                            }}
+                          />
+                        </View>
+                      ) : (
+                        <TypingDots />
+                      )}
+                    </View>
+                  </View>
+                ) : undefined
               }
-            }}
-            maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 60 }}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            // In inverted list, ListHeaderComponent sits at index 0 (the bottom)
-            ListHeaderComponent={
-              isGenerating ? (
-                <View style={styles.liveGenerationRow}>
-                  <View style={styles.assistantAvatarSmall}>
-                    <Image
-                      source={require('../assets/images/kyana-logo.png')}
-                      style={styles.assistantAvatarImage}
-                      contentFit="contain"
-                    />
-                  </View>
-                  <View style={[styles.bubble, styles.assistantBubble, styles.streamingBubble]}>
-                    {streamingText ? (
-                      <View style={styles.markdownWrapper}>
-                        <PostMarkdown
-                          content={streamingText}
-                          streaming={true}
-                          onPressInternalLink={(url) => {
-                            if (url.startsWith('prompt:')) {
-                              void handleSend(decodeURIComponent(url.slice(7)));
-                              return;
-                            }
-                            router.push(url.replace(/\.html$/i, '') as any);
-                          }}
-                        />
-                      </View>
-                    ) : (
-                      <TypingDots />
-                    )}
-                  </View>
-                </View>
-              ) : undefined
-            }
-            // In inverted list, ListFooterComponent sits at the very top of history
-            ListFooterComponent={
-              messages.length === 0 ? (
-                <View style={styles.emptyStateContainer}>
-                  <View style={styles.emptyAvatarLarge}>
-                    <Image
-                      source={require('../assets/images/kyana-logo.png')}
-                      style={styles.emptyAvatarLargeImage}
-                      contentFit="contain"
-                    />
-                  </View>
-                  <Text style={styles.emptyTitle}>Meet Kyana AI</Text>
-                  <Text style={styles.emptyDesc}>
-                    Your study companion for concepts, syllabus, code syntax, and notes.
-                  </Text>
+              // In inverted list, ListFooterComponent sits at the very top of history
+              ListFooterComponent={
+                messages.length === 0 ? (
+                  <View style={styles.emptyStateContainer}>
+                    <View style={styles.emptyAvatarLarge}>
+                      <Image
+                        source={require('../assets/images/kyana-logo.png')}
+                        style={styles.emptyAvatarLargeImage}
+                        contentFit="contain"
+                      />
+                    </View>
+                    <Text style={styles.emptyTitle}>Meet Kyana AI</Text>
+                    <Text style={styles.emptyDesc}>
+                      Your study companion for concepts, syllabus, code syntax, and notes.
+                    </Text>
 
-                  <View style={styles.suggestionsContainer}>
-                    <Text style={styles.suggestionsTitle}>QUICK QUESTIONS</Text>
-                    {QUICK_SUGGESTIONS.map((item, idx) => (
-                      <TouchableOpacity
-                        key={idx}
-                        style={styles.suggestionChip}
-                        onPress={() => void handleSend(item.prompt)}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={styles.suggestionLabel}>{item.label}</Text>
-                        <Ionicons name="arrow-forward" size={14} color="#71717A" />
-                      </TouchableOpacity>
-                    ))}
+                    <View style={styles.suggestionsContainer}>
+                      <Text style={styles.suggestionsTitle}>QUICK QUESTIONS</Text>
+                      {QUICK_SUGGESTIONS.map((item, idx) => (
+                        <TouchableOpacity
+                          key={idx}
+                          style={styles.suggestionChip}
+                          onPress={() => void handleSend(item.prompt)}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={styles.suggestionLabel}>{item.label}</Text>
+                          <Ionicons name="arrow-forward" size={14} color="#71717A" />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
-                </View>
-              ) : (
-                <View style={styles.historyStartPadding} />
-              )
-            }
-          />
-        )}
+                ) : (
+                  <View style={styles.historyStartPadding} />
+                )
+              }
+            />
+          )}
 
-        {/* Floating Scroll to Bottom Button */}
-        {showScrollBottom && (
-          <TouchableOpacity
-            style={styles.scrollBottomBtn}
-            onPress={() => {
-              flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-            }}
-            hitSlop={8}
-            activeOpacity={0.85}
-            accessibilityLabel="Scroll to bottom"
-          >
-            <Ionicons name="chevron-down" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
-        )}
-      </KeyboardContentBoundary>
+          {/* Floating Scroll to Bottom Button */}
+          {showScrollBottom && (
+            <TouchableOpacity
+              style={styles.scrollBottomBtn}
+              onPress={() => {
+                flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+              }}
+              hitSlop={8}
+              activeOpacity={0.85}
+              accessibilityLabel="Scroll to bottom"
+            >
+              <Ionicons name="chevron-down" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
+        </KeyboardContentBoundary>
       </View>
 
       {/* DOCKED STICKY COMPOSER */}

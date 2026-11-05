@@ -93,7 +93,7 @@ export function CommentItem({
   const isKyana = String(comment.userId || '').toLowerCase() === 'kyana_ai' || String(comment.studentId || '').toLowerCase() === 'kyana_ai' || (comment.name && comment.name.toLowerCase() === 'kyana ai') || roleLower === 'bot' || roleLower === 'assistant';
   const roleBadgeLabel =
     isKyana
-      ? 'Kyana AI'
+      ? null
       : roleLower === 'admin'
       ? 'Admin'
       : roleLower === 'teacher' || roleLower === 'faculty'
@@ -158,14 +158,6 @@ export function CommentItem({
                 {comment.isDeleted ? 'Deleted Comment' : comment.name || 'Student'}
               </Text>
 
-              {!comment.isDeleted && isKyana && (
-                <View style={[styles.roleBadge, { backgroundColor: 'rgba(59, 130, 246, 0.12)', borderColor: 'rgba(59, 130, 246, 0.35)', flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
-                  <Ionicons name="sparkles" size={8} color="#2563eb" />
-                  <Text weight="700" style={{ color: '#2563eb', fontSize: 8.5 }}>
-                    Kyana AI
-                  </Text>
-                </View>
-              )}
               {!comment.isDeleted && !isKyana && roleBadgeLabel && (
                 <View style={[styles.roleBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                   <Text weight="700" style={{ color: colors.textSecondary, fontSize: 9 }}>
@@ -282,7 +274,7 @@ export function CommentItem({
             const isKyanaReply = String(reply.userId || '').toLowerCase() === 'kyana_ai' || String(reply.studentId || '').toLowerCase() === 'kyana_ai' || (reply.name && String(reply.name).toLowerCase() === 'kyana ai');
             const replyBadge =
               isKyanaReply
-                ? 'Kyana AI'
+                ? null
                 : replyRoleLower === 'admin'
                 ? 'Admin'
                 : replyRoleLower === 'teacher' || replyRoleLower === 'faculty'
@@ -326,14 +318,6 @@ export function CommentItem({
                       <Text weight="700" numberOfLines={1} style={[styles.replyUsernameText, { color: colors.text }]}>
                         {reply.isDeleted ? 'Deleted Reply' : reply.name || 'Student'}
                       </Text>
-                      {!reply.isDeleted && isKyanaReply && (
-                        <View style={[styles.roleBadge, { backgroundColor: 'rgba(59, 130, 246, 0.12)', borderColor: 'rgba(59, 130, 246, 0.35)', flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
-                          <Ionicons name="sparkles" size={8} color="#2563eb" />
-                          <Text weight="700" style={{ color: '#2563eb', fontSize: 8 }}>
-                            Kyana AI
-                          </Text>
-                        </View>
-                      )}
                       {!reply.isDeleted && !isKyanaReply && replyBadge && (
                         <View style={[styles.roleBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                           <Text weight="700" style={{ color: colors.textSecondary, fontSize: 8 }}>

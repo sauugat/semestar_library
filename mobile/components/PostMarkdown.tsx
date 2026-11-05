@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Pressable,
   Linking,
   Platform,
   StyleProp,
@@ -4067,5 +4068,15 @@ const styles = StyleSheet.create({
   promptPillText: {
     fontSize: 12.5,
     fontWeight: '500',
+  },
+  traceCtrlBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  traceCtrlBtnText: {
+    fontSize: 11.5,
+    fontWeight: '600',
   },
 });

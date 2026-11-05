@@ -258,7 +258,9 @@ export default function KyanaChatScreen() {
   const activeAbortController = useRef<AbortController | null>(null);
   const isNearBottomRef = useRef(true);
   const messagesRef = useRef<KyanaMessage[]>([]);
+  const streamingTextRef = useRef<string>('');
   messagesRef.current = messages;
+  streamingTextRef.current = streamingText;
 
   // Inverted data: newest messages are at index 0 (the bottom of the list)
   const invertedMessages = useMemo(() => {
@@ -415,12 +417,12 @@ export default function KyanaChatScreen() {
         }
       } catch (err: any) {
         if (err.name === 'AbortError' || controller.signal.aborted) {
-          if (streamingText.trim()) {
+          if (streamingTextRef.current.trim()) {
             const stoppedMsg: KyanaMessage = {
               id: `asst_stopped_${Date.now()}`,
               conversationId: conversation?.id || 'default',
               sender: 'assistant',
-              text: streamingText.trim(),
+              text: streamingTextRef.current.trim(),
               createdAt: new Date().toISOString(),
               status: 'sent',
             };
@@ -444,7 +446,7 @@ export default function KyanaChatScreen() {
         activeAbortController.current = null;
       }
     },
-    [inputText, isGenerating, conversation, studentId, streamingText]
+    [inputText, isGenerating, conversation, studentId]
   );
 
   // 3. Stop response generation

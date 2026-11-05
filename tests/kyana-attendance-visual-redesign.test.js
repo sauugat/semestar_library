@@ -350,7 +350,7 @@ test('8. Web and Mobile rendering consistency: both platforms implement parseAtt
   assert.match(chatbotCssSource, /\.kyana-att-svg-fill\.is-low\s*\{\s*fill:\s*#ef4444;/);
   assert.match(postMarkdownSource, /export function parseAttendanceBlock/);
   assert.match(postMarkdownSource, /function renderAttendanceCard/);
-  assert.match(postMarkdownSource, /block\.lang === 'ATTENDANCE'/);
+  assert.match(postMarkdownSource, /VISUAL_BLOCK_KINDS\.includes\(block\.lang\)/);
   assert.match(postMarkdownSource, /Low Attendance/);
   assert.match(postMarkdownSource, /Other subjects/);
 });

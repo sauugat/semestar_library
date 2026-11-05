@@ -194,6 +194,1179 @@ export function parseAttendanceBlock(rawBlock: string): ParsedAttendanceData {
   return data;
 }
 
+
+export const VISUAL_BLOCK_KINDS = [
+  'ATTENDANCE',
+  'RESULTS',
+  'ASSIGNMENTS',
+  'NOTES',
+  'NOTICES',
+  'ROUTINE',
+  'POSTS',
+  'DIRECTORY',
+  'SYLLABUS',
+  'DIAGRAM',
+  'FLOWCHART',
+  'TRACE',
+  'COMPARISON',
+  'QUIZ',
+  'ROADMAP',
+  'COMPLEXITY',
+];
+
+export function parseKyanaVisualBlock(kind: string, rawBlock: string): any {
+  const normKind = String(kind || '').trim().toLowerCase();
+  const text = String(rawBlock || '').replace(/\r\n/g, '\n').trim();
+  if (normKind === 'attendance') {
+    return { kind: 'attendance', ...parseAttendanceBlock(text) };
+  }
+
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  if (normKind === 'results') {
+    const items: any[] = [];
+    let aggregateLabel: string | null = null;
+    let aggregateScore: string | null = null;
+    let aggregatePct: number | null = null;
+
+    for (const line of lines) {
+      const aggMatch = line.match(
+        /\*\*([^*]*Aggregate[^*]*):\*\*\s*([0-9.]+\s*\/\s*[0-9.]+)(?:\s*\(([^)]+)\))?/i
+      );
+      if (aggMatch) {
+        aggregateLabel = aggMatch[1].trim().replace(/:$/, '');
+        aggregateScore = aggMatch[2].trim();
+        const pctM = (aggMatch[3] || '').match(/(\d+(?:\.\d+)?)%/);
+        if (pctM) aggregatePct = Number(pctM[1]);
+        continue;
+      }
+
+      const bulletMatch = line.match(
+        /^(?:[-•*]|\d+\.)\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?\s*(?:—|-|:)\s*(.+)$/
+      );
+      if (bulletMatch) {
+        const subject = bulletMatch[1].trim();
+        const code = (bulletMatch[2] || '').trim();
+        const rest = bulletMatch[3].trim();
+        const examMatch = rest.match(/\*([^*]+)\*/);
+        const examType = examMatch ? examMatch[1].trim() : 'Exam';
+        const semMatch = rest.match(/\(Semester\s+(\d+)\)/i);
+        const semester = semMatch ? Number(semMatch[1]) : null;
+        const isAbsent = /\bAbsent\b/i.test(rest);
+        const isUnpublished = /\b(?:Unpublished|Pending|Not published)\b/i.test(rest);
+        const scoreMatch = rest.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
+        const pctMatch = rest.match(/(\d+(?:\.\d+)?)%/);
+        const obtained = scoreMatch ? Number(scoreMatch[1]) : null;
+        const max = scoreMatch ? Number(scoreMatch[2]) : null;
+        const pct = pctMatch
+          ? Number(pctMatch[1])
+          : obtained !== null && max
+          ? Math.round((obtained / max) * 10000) / 100
+          : null;
+        const isLow = isAbsent || (pct !== null && pct < 40);
+        const scoreLabel = isAbsent
+          ? rest.match(/Absent\s*\([^)]+\)/i)?.[0] || 'Absent'
+          : isUnpublished
+          ? 'Unpublished'
+          : scoreMatch
+          ? `${obtained} / ${max}`
+          : rest.replace(/\*[^*]+\*[:\s—-]*/g, '').replace(/\*\*/g, '').trim();
+
+        items.push({
+          subject,
+          code,
+          examType,
+          semester,
+          obtained,
+          max,
+          pct,
+          isAbsent,
+          isUnpublished,
+          isLow,
+          scoreLabel,
+        });
+      }
+    }
+
+    if (!aggregatePct && items.length > 0) {
+      const scored = items.filter(
+        (i) => i.obtained !== null && i.max !== null && !i.isAbsent
+      );
+      if (scored.length > 0) {
+        const sumObt = scored.reduce((a, b) => a + b.obtained, 0);
+        const sumMax = scored.reduce((a, b) => a + b.max, 0);
+        if (sumMax > 0) {
+          if (!aggregateScore) {
+            aggregateScore = `${Math.round(sumObt * 100) / 100} / ${Math.round(sumMax * 100) / 100}`;
+          }
+          aggregatePct = Math.round((sumObt / sumMax) * 10000) / 100;
+        }
+      }
+    }
+
+    return {
+      kind: 'results',
+      aggregateLabel: aggregateLabel || 'Overall score',
+      aggregateScore,
+      aggregatePct,
+      items,
+    };
+  }
+
+  if (normKind === 'assignments') {
+    const items: any[] = [];
+    let currentItem: any = null;
+
+    for (const rawLine of text.split('\n')) {
+      const trimmed = rawLine.trim();
+      if (!trimmed) continue;
+
+      if (
+        /^[-*]\s+\*\*([^*]+)\*\*/.test(trimmed) &&
+        !/^•/.test(trimmed) &&
+        !/^\s{2,}/.test(rawLine)
+      ) {
+        const m = trimmed.match(
+          /^[-*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(?:\s*\[([^\]]+)\])?(?:\s*(?:—|-|:)\s*(.+))?$/
+        );
+        if (m) {
+          const title = m[1].trim();
+          const subject = (m[2] || 'General').trim();
+          const semester = (m[3] || '').trim();
+          const tail = (m[4] || '').trim();
+          const isOverdue = /\b(?:Missed|Overdue)\b/i.test(tail);
+          const isChecked = /\b(?:Checked|Graded)\b/i.test(tail);
+          const isSubmitted = isChecked || /\bSubmitted\b/i.test(tail);
+          const dueMatch = tail.match(
+            /(?:due|Deadline:|Was due on)\s*\*\*?([^*(]+?)\*\*?(?:\s*\(|$)/i
+          );
+          const deadline = dueMatch ? dueMatch[1].trim() : null;
+          const statusLabel = isOverdue
+            ? 'Overdue'
+            : isChecked
+            ? 'Checked'
+            : isSubmitted
+            ? 'Submitted'
+            : 'Pending';
+
+          currentItem = {
+            title,
+            subject,
+            semester,
+            deadline,
+            statusLabel,
+            isOverdue,
+            isSubmitted,
+            isChecked,
+            author: null,
+            description: null,
+            questions: null,
+            grade: null,
+          };
+          items.push(currentItem);
+          continue;
+        }
+      }
+
+      if (currentItem && /^[•*-]\s+/.test(trimmed)) {
+        const cleanDetail = trimmed.replace(/^[•*-]\s+/, '');
+        const kv = cleanDetail.match(/^\*\*([^:]+):\*\*\s*(.+)$/);
+        if (kv) {
+          const k = kv[1].trim().toLowerCase();
+          const v = kv[2].trim().replace(/\*\*/g, '');
+          if (k === 'author') currentItem.author = v;
+          else if (k === 'description') currentItem.description = v;
+          else if (k.startsWith('questions')) currentItem.questions = v;
+          else if (k.includes('submission status')) {
+            currentItem.statusLabel = v;
+            if (/Overdue|Missed/i.test(v)) currentItem.isOverdue = true;
+            if (/Submitted/i.test(v) && !/Not submitted/i.test(v))
+              currentItem.isSubmitted = true;
+          } else if (k.includes('grade')) {
+            currentItem.grade = v;
+            if (/Checked/i.test(v)) currentItem.isChecked = true;
+          }
+        }
+      }
+    }
+    return { kind: 'assignments', items };
+  }
+
+  if (normKind === 'notes') {
+    const items: any[] = [];
+    for (const line of lines) {
+      const m = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(.*)$/);
+      if (m) {
+        const title = m[1].trim();
+        const metaRaw = (m[2] || '').trim();
+        const parts = metaRaw.split('|').map((p) => p.trim());
+        const primaryParts = (parts[0] || '')
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean);
+        const subject = primaryParts[0] || 'Study Material';
+        const semester = primaryParts.find((p) => /semester/i.test(p)) || null;
+        const chapter = primaryParts.find((p) => /chapter|unit/i.test(p)) || null;
+        const folderPart = parts.find((p) => /^Folder:/i.test(p));
+        const folder = folderPart ? folderPart.replace(/^Folder:\s*/i, '').trim() : null;
+        const ext = (title.match(/\.([a-zA-Z0-9]{2,4})$/)?.[1] || 'PDF').toUpperCase();
+        items.push({ title, subject, semester, chapter, folder, fileType: ext });
+      }
+    }
+    return { kind: 'notes', items };
+  }
+
+  if (normKind === 'routine') {
+    const items: any[] = [];
+    for (const line of lines) {
+      const m = line.match(/^[-•*]\s+\*\*([^*]+)\*\*\s*(?:—|-)\s*(.+)$/);
+      if (m) {
+        const subject = m[1].trim();
+        const rest = m[2].trim();
+        const dayMatch = rest.match(/\(([^)]+)\)/);
+        const day = dayMatch ? dayMatch[1].trim() : null;
+        const roomMatch = rest.match(/Room\s+([^,]+)/i);
+        const room = roomMatch ? roomMatch[1].trim() : null;
+        const timeMatch = rest.match(
+          /(\d{1,2}:\d{2}\s*(?:AM|PM)?(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM)?)?)/i
+        );
+        const time = timeMatch ? timeMatch[1].trim() : null;
+        const datePart = rest.split(',')[0].replace(/\([^)]*\)/g, '').trim();
+        items.push({ subject, date: datePart, day, time, room, rawMeta: rest });
+      }
+    }
+    return { kind: 'routine', items };
+  }
+
+    if (normKind === 'notices' || normKind === 'posts' || normKind === 'directory') {
+    const items: any[] = [];
+    for (const line of lines) {
+      const m = line.match(
+        /^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\[([^\]]+)\])?(?:\s*\(([^)]+)\))?(?:\s*(?:—|-|:)\s*(.+))?$/
+      );
+      if (m) {
+        items.push({
+          title: m[1].trim(),
+          badge: (m[2] || m[3] || '').trim() || null,
+          meta: (m[2] && m[3] ? m[3] : '').trim() || null,
+          summary: (m[4] || '').trim().replace(/\*\*/g, '') || null,
+          isOfficial: normKind === 'notices' && !/community|student post/i.test(m[2] || ''),
+        });
+      }
+    }
+    return { kind: normKind, items };
+  }
+
+  if (normKind === 'syllabus') {
+    const items: any[] = [];
+    let courseTitle: string | null = null;
+    let courseCode: string | null = null;
+    let semester: number | null = null;
+    let credits: string | null = null;
+    let nature: string | null = null;
+    let totalHours: string | null = null;
+    let objectives: string | null = null;
+    let labs: string | null = null;
+    let textbooks: string | null = null;
+    let currentUnit: any = null;
+
+    for (const rawLine of text.split('\n')) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      const courseMatch = line.match(/^[-*]\s+\*\*Course:\*\*\s*([^(]+?)(?:\s*\(([^)]+)\))?(?:\s*[·•|]\s*(.+))?$/i);
+      if (courseMatch) {
+        courseTitle = courseMatch[1].trim();
+        courseCode = (courseMatch[2] || '').trim();
+        const meta = courseMatch[3] || '';
+        const semM = meta.match(/Semester\s+(\d+)/i);
+        if (semM) semester = Number(semM[1]);
+        const credM = meta.match(/(\d+)\s*Credits?/i);
+        if (credM) credits = credM[1];
+        const natM = meta.match(/Nature:\s*([A-Za-z +]+)/i);
+        if (natM) nature = natM[1].trim();
+        const hrsM = meta.match(/Total:\s*(\d+\s*hrs?)/i);
+        if (hrsM) totalHours = hrsM[1].trim();
+        continue;
+      }
+
+      const semHeaderMatch = line.match(/^[-*]\s+\*\*Semester:\*\*\s*(.+)$/i);
+      if (semHeaderMatch) {
+        courseTitle = semHeaderMatch[1].trim();
+        continue;
+      }
+
+      const objMatch = line.match(/^[-*]\s+\*\*Objectives?:\*\*\s*(.+)$/i);
+      if (objMatch) {
+        objectives = objMatch[1].trim();
+        continue;
+      }
+
+      const labMatch = line.match(/^[-*]\s+\*\*Labs?:\*\*\s*(.+)$/i);
+      if (labMatch) {
+        labs = labMatch[1].trim();
+        continue;
+      }
+
+      const tbMatch = line.match(/^[-*]\s+\*\*Textbooks?:\*\*\s*(.+)$/i);
+      if (tbMatch) {
+        textbooks = tbMatch[1].trim();
+        continue;
+      }
+
+      const unitMatch = line.match(/^[-*]\s+\*\*(?:Unit\s+)?(\d{1,2}):\s*([^*]+)\*\*(?:\s*[—–-]\s*(.+))?$/i);
+      if (unitMatch) {
+        const uNum = Number(unitMatch[1]);
+        const uTitle = unitMatch[2].trim();
+        const rest = unitMatch[3] || '';
+        const hrsM = rest.match(/(\d+\s*hrs?)/i);
+        const pctM = rest.match(/(\d+(?:\.\d+)?)%/);
+        currentUnit = {
+          unitNumber: uNum,
+          title: uTitle,
+          hours: hrsM ? hrsM[1].trim() : null,
+          pct: pctM ? Number(pctM[1]) : null,
+          topics: '',
+        };
+        items.push(currentUnit);
+        continue;
+      }
+
+      if (currentUnit && /^[•*-]\s*(?:Topics?:)?\s*(.+)$/i.test(line)) {
+        const tMatch = line.match(/^[•*-]\s*(?:Topics?:)?\s*(.+)$/i);
+        if (tMatch) {
+          currentUnit.topics = currentUnit.topics ? `${currentUnit.topics}; ${tMatch[1].trim()}` : tMatch[1].trim();
+        }
+        continue;
+      }
+
+      const courseListMatch = line.match(/^[-*]\s+\*\*([^*:]+):\*\*\s*(.+)$/);
+      if (courseListMatch && !line.startsWith('- **Unit')) {
+        const code = courseListMatch[1].trim();
+        const rest = courseListMatch[2].trim();
+        const parts = rest.split(/[·•|]/).map((p) => p.trim());
+        items.push({
+          code,
+          title: parts[0] || code,
+          credits: parts[1] || null,
+          nature: parts[2] || null,
+          details: parts.slice(3).join(' · ') || null,
+        });
+      }
+    }
+
+    return {
+      kind: 'syllabus',
+      courseTitle,
+      courseCode,
+      semester,
+      credits,
+      nature,
+      totalHours,
+      objectives,
+      labs,
+      textbooks,
+      items,
+    };
+  }
+
+  if (normKind === 'diagram') {
+    let title = 'System Architecture & Concept Diagram';
+    const diagramLines: string[] = [];
+    for (const line of lines) {
+      const titleMatch = line.match(/^\[([A-Za-z0-9\s_-]+)\]$/);
+      if (titleMatch && diagramLines.length === 0) {
+        title = titleMatch[1].trim();
+      } else if (line.startsWith('- ') || line.startsWith('* ')) {
+        diagramLines.push(line.replace(/^[-*]\s+/, ''));
+      } else if (/[|\-+_=><]/.test(line)) {
+        diagramLines.push(line);
+      }
+    }
+    const items = diagramLines.filter((l) => l.trim().length > 0);
+    return {
+      kind: 'diagram',
+      title,
+      diagramText: diagramLines.join('\n').trim(),
+      items,
+    };
+  }
+
+  if (normKind === 'flowchart' || normKind === 'trace') {
+    const items: any[] = [];
+    for (const line of lines) {
+      const stepMatch = line.match(/^(?:\[([^\]]+)\]|([A-Za-z0-9\s_-]+:))\s*(.+)$/);
+      if (stepMatch) {
+        const stepLabel = (stepMatch[1] || stepMatch[2] || 'Step').replace(/:$/, '').trim();
+        const content = stepMatch[3].trim();
+        items.push({ label: stepLabel, content });
+      } else if (/^[-*]\s+/.test(line)) {
+        items.push({ label: `Step ${items.length + 1}`, content: line.replace(/^[-*]\s+/, '').trim() });
+      }
+    }
+    return { kind: normKind, items };
+  }
+
+  if (normKind === 'comparison') {
+    const items: any[] = [];
+    for (const line of lines) {
+      if (line.includes('|')) {
+        const parts = line.split('|').map((p) => p.trim().replace(/^[-*]\s+/, ''));
+        if (parts.length >= 2) {
+          const col1 = parts[0].replace(/\*\*/g, '').trim();
+          const col2 = parts[1].replace(/\*\*/g, '').trim();
+          const col3 = parts[2] ? parts[2].replace(/\*\*/g, '').trim() : null;
+          items.push({ col1, col2, col3 });
+        }
+      }
+    }
+    return { kind: 'comparison', items };
+  }
+
+  if (normKind === 'quiz') {
+    let question: string | null = null;
+    const options: any[] = [];
+    let answer: string | null = null;
+    let explanation: string | null = null;
+
+    for (const line of lines) {
+      const qMatch = line.match(/^[-*]\s+\*\*Question:\*\*\s*(.+)$/i);
+      if (qMatch) { question = qMatch[1].trim(); continue; }
+
+      const optMatch = line.match(/^[-*]\s+\*\*Option\s+([A-D]):\*\*\s*(.+)$/i);
+      if (optMatch) {
+        options.push({ key: optMatch[1].toUpperCase(), text: optMatch[2].trim() });
+        continue;
+      }
+
+      const ansMatch = line.match(/^[-*]\s+\*\*Answer:\*\*\s*(.+)$/i);
+      if (ansMatch) { answer = ansMatch[1].trim(); continue; }
+
+      const expMatch = line.match(/^[-*]\s+\*\*Explanation:\*\*\s*(.+)$/i);
+      if (expMatch) { explanation = expMatch[1].trim(); continue; }
+    }
+    const items = options.map((o) => ({ key: o.key, text: o.text }));
+    return {
+      kind: 'quiz',
+      question,
+      options,
+      answer,
+      explanation,
+      items,
+    };
+  }
+
+  if (normKind === 'roadmap') {
+    const items: any[] = [];
+    for (const line of lines) {
+      const m = line.match(/^[-*]\s+\[([ xX])\]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(?:\s*[—–-]\s*(.+))?$/);
+      if (m) {
+        const done = m[1].toLowerCase() === 'x';
+        const title = m[2].trim();
+        const tag = (m[3] || '').trim();
+        const desc = (m[4] || '').trim();
+        items.push({ done, title, tag, desc });
+      }
+    }
+    return { kind: 'roadmap', items };
+  }
+
+  if (normKind === 'complexity') {
+    const items: any[] = [];
+    for (const line of lines) {
+      if (line.includes('|')) {
+        const parts = line.split('|').map((p) => p.trim().replace(/^[-*]\s+/, ''));
+        if (parts.length >= 2) {
+          items.push({
+            label: parts[0].replace(/\*\*/g, '').trim(),
+            best: parts[1] ? parts[1].replace(/\*\*/g, '').trim() : null,
+            average: parts[2] ? parts[2].replace(/\*\*/g, '').trim() : null,
+            worst: parts[3] ? parts[3].replace(/\*\*/g, '').trim() : null,
+            space: parts[4] ? parts[4].replace(/\*\*/g, '').trim() : null,
+          });
+        }
+      }
+    }
+    return { kind: 'complexity', items };
+  }
+
+  return { kind: normKind, items: [] };
+}
+
+function KyanaQuizCard({
+  parsed,
+  cardBg,
+  raisedBg,
+  colors,
+  isDark,
+  keyPrefix,
+}: {
+  parsed: any;
+  cardBg: string;
+  raisedBg: string;
+  colors: any;
+  isDark: boolean;
+  keyPrefix: string;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <View
+      key={keyPrefix}
+      style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+      accessibilityLabel="Interactive Self-Assessment Quiz"
+    >
+      <View style={styles.attHeaderRow}>
+        <Text style={[styles.attSectionTitle, { color: colors.text }]}>Self-Assessment Quiz</Text>
+        <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Interactive</Text>
+        </View>
+      </View>
+      <Text style={[styles.quizQuestion, { color: colors.text }]}>{parsed.question}</Text>
+      <View style={styles.quizOptionsList}>
+        {parsed.options.map((opt: any, idx: number) => (
+          <View key={`opt-${idx}`} style={[styles.quizOptionRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+            <Text style={styles.quizOptKey}>{opt.key}</Text>
+            <Text style={[styles.quizOptText, { color: colors.text }]}>{opt.text}</Text>
+          </View>
+        ))}
+      </View>
+      <TouchableOpacity
+        onPress={() => setRevealed(!revealed)}
+        style={[styles.quizRevealBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}
+        accessibilityRole="button"
+      >
+        <Text style={[styles.quizRevealBtnText, { color: colors.text }]}>
+          {revealed ? 'Hide Explanation' : 'Reveal Answer & Explanation'}
+        </Text>
+      </TouchableOpacity>
+      {revealed && (
+        <View style={[styles.quizRevealContent, { backgroundColor: isDark ? 'rgba(22,93,255,0.1)' : 'rgba(22,93,255,0.06)', borderColor: isDark ? 'rgba(22,93,255,0.3)' : 'rgba(22,93,255,0.2)' }]}>
+          <Text style={[styles.quizCorrectAnswer, { color: colors.text }]}>
+            Correct Answer: {parsed.answer}
+          </Text>
+          {Boolean(parsed.explanation) && (
+            <Text style={[styles.quizExplanation, { color: colors.textSecondary }]}>
+              {parsed.explanation}
+            </Text>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function renderKyanaVisualCard(
+  kind: string,
+  rawBlock: string,
+  keyPrefix: string,
+  colors: any,
+  isDark: boolean
+): React.ReactNode {
+  const normKind = String(kind || '').trim().toLowerCase();
+  if (normKind === 'attendance') {
+    return renderAttendanceCard(rawBlock, keyPrefix, colors, isDark);
+  }
+
+  const parsed = parseKyanaVisualBlock(normKind, rawBlock);
+  if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) {
+    return null;
+  }
+
+  const cardBg = isDark ? '#0e0f13' : '#f8f9fa';
+  const raisedBg = isDark ? '#181920' : '#ffffff';
+  const trackBg = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
+  const normalFill = isDark ? '#8e8e93' : '#3f3f46';
+  const lowRed = '#ef4444';
+
+  if (normKind === 'quiz') {
+    return (
+      <KyanaQuizCard
+        key={keyPrefix}
+        parsed={parsed}
+        cardBg={cardBg}
+        raisedBg={raisedBg}
+        colors={colors}
+        isDark={isDark}
+        keyPrefix={keyPrefix}
+      />
+    );
+  }
+
+  if (normKind === 'syllabus') {
+    return (
+      <View
+        key={keyPrefix}
+        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+        accessibilityLabel="Course Syllabus Breakdown"
+      >
+        <View style={styles.attHeaderRow}>
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+              {parsed.courseTitle || 'Course Syllabus'}
+            </Text>
+            {Boolean(parsed.courseCode) && (
+              <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 2 }]}>
+                {parsed.courseCode}
+              </Text>
+            )}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap' }}>
+            {Boolean(parsed.semester) && (
+              <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
+                  {`Sem ${parsed.semester}`}
+                </Text>
+              </View>
+            )}
+            {Boolean(parsed.credits) && (
+              <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
+                  {`${parsed.credits} Cr`}
+                </Text>
+              </View>
+            )}
+            {Boolean(parsed.totalHours) && (
+              <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
+                  {parsed.totalHours}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {Boolean(parsed.objectives) && (
+          <View style={[styles.syllabusObjBox, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>Learning Objectives</Text>
+            <Text style={[styles.syllabusObjText, { color: colors.text }]}>{parsed.objectives}</Text>
+          </View>
+        )}
+
+        <View style={styles.attSubjectsList}>
+          {parsed.items.map((item: any, idx: number) => {
+            if (item.unitNumber) {
+              const barW = item.pct !== null ? Math.min(100, Math.max(4, item.pct)) : 0;
+              return (
+                <View key={`unit-${idx}`} style={styles.attSubjItem}>
+                  <View style={styles.attSubjTopRow}>
+                    <View style={styles.attSubjInfo}>
+                      <Text style={[styles.attSubjName, { color: colors.text }]}>
+                        {`Unit ${item.unitNumber}: ${item.title}`}
+                      </Text>
+                      {Boolean(item.hours) && (
+                        <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
+                          {`${item.hours}${item.pct ? ` · ${item.pct}% workload` : ''}`}
+                        </Text>
+                      )}
+                    </View>
+                    {item.pct !== null && (
+                      <Text style={[styles.attSubjPct, { color: colors.text }]}>
+                        {`${item.pct}%`}
+                      </Text>
+                    )}
+                  </View>
+                  {barW > 0 && (
+                    <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
+                      <View style={[styles.attBarFill, { width: `${barW}%`, backgroundColor: normalFill }]} />
+                    </View>
+                  )}
+                  {Boolean(item.topics) && (
+                    <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 4 }]}>
+                      {item.topics}
+                    </Text>
+                  )}
+                </View>
+              );
+            }
+            return (
+              <View key={`course-${idx}`} style={styles.attSubjItem}>
+                <View style={styles.attSubjTopRow}>
+                  <View style={styles.attSubjInfo}>
+                    <Text style={[styles.attSubjName, { color: colors.text }]}>
+                      {`${item.code}: ${item.title}`}
+                    </Text>
+                    {Boolean(item.credits) && (
+                      <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
+                        {`${item.credits} Credits · ${item.nature || ''}`}
+                      </Text>
+                    )}
+                  </View>
+                  {Boolean(item.details) && (
+                    <View style={[styles.attNoRecordPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                      <Text style={[styles.attNoRecordPillText, { color: colors.textSecondary }]}>
+                        {item.details}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {Boolean(parsed.labs) && (
+          <View style={[styles.syllabusSectionBox, { borderColor: colors.border }]}>
+            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>Laboratory Practicals</Text>
+            <Text style={[styles.syllabusFooterText, { color: colors.textSecondary }]}>{parsed.labs}</Text>
+          </View>
+        )}
+        {Boolean(parsed.textbooks) && (
+          <View style={[styles.syllabusSectionBox, { borderColor: colors.border }]}>
+            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>Recommended Textbooks</Text>
+            <Text style={[styles.syllabusFooterText, { color: colors.textSecondary }]}>{parsed.textbooks}</Text>
+          </View>
+        )}
+      </View>
+    );
+  }
+
+  if (normKind === 'diagram') {
+    return (
+      <View
+        key={keyPrefix}
+        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+        accessibilityLabel="Architecture Diagram"
+      >
+        <View style={styles.attHeaderRow}>
+          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+            {parsed.title || 'Architecture & Concept Diagram'}
+          </Text>
+          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Diagram</Text>
+          </View>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+          <View style={[styles.codeBlockContainer, { backgroundColor: isDark ? '#141416' : '#f4f4f5', borderColor: colors.border, padding: 12 }]}>
+            <Text style={[styles.codeText, { color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }]}>
+              {parsed.diagramText}
+            </Text>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (normKind === 'flowchart' || normKind === 'trace') {
+    return (
+      <View
+        key={keyPrefix}
+        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+        accessibilityLabel="Step-by-step Execution Trace"
+      >
+        <View style={styles.attHeaderRow}>
+          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+            Step-by-step execution trace
+          </Text>
+          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
+              {`${parsed.items.length} ${parsed.items.length === 1 ? 'step' : 'steps'}`}
+            </Text>
+          </View>
+        </View>
+        <View style={{ gap: 8, marginTop: 8 }}>
+          {parsed.items.map((item: any, idx: number) => (
+            <View key={`step-${idx}`} style={[styles.traceStepRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+              <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
+                <Text style={[styles.attNoRecordPillText, { color: colors.text, fontWeight: '700' }]}>
+                  {item.label}
+                </Text>
+              </View>
+              <Text style={[styles.attSubjMeta, { color: colors.textSecondary, flex: 1 }]}>
+                {item.content}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  if (normKind === 'comparison') {
+    return (
+      <View
+        key={keyPrefix}
+        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+        accessibilityLabel="Feature & Concept Comparison"
+      >
+        <View style={styles.attHeaderRow}>
+          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+            Feature & Concept Comparison
+          </Text>
+          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
+              {`${parsed.items.length} criteria`}
+            </Text>
+          </View>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+          <View style={{ minWidth: 320 }}>
+            {parsed.items.map((item: any, idx: number) => (
+              <View key={`comp-${idx}`} style={[styles.compRow, { backgroundColor: idx % 2 === 0 ? raisedBg : 'transparent', borderColor: colors.border }]}>
+                <Text style={[styles.compCriteriaText, { color: colors.text }]}>{item.col1}</Text>
+                <Text style={[styles.compValText, { color: colors.textSecondary }]}>{item.col2}</Text>
+                {Boolean(item.col3) && (
+                  <Text style={[styles.compValText, { color: colors.textSecondary }]}>{item.col3}</Text>
+                )}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  if (normKind === 'roadmap') {
+    return (
+      <View
+        key={keyPrefix}
+        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+        accessibilityLabel="Learning & Revision Roadmap"
+      >
+        <View style={styles.attHeaderRow}>
+          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+            Learning & Revision Roadmap
+          </Text>
+          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
+              {`${parsed.items.length} topics`}
+            </Text>
+          </View>
+        </View>
+        <View style={{ gap: 8, marginTop: 8 }}>
+          {parsed.items.map((item: any, idx: number) => (
+            <View key={`road-${idx}`} style={[styles.roadmapItemRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+              <Text style={{ color: item.done ? '#10b981' : colors.textSecondary, fontWeight: '700', width: 20 }}>
+                {item.done ? '✓' : '○'}
+              </Text>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={[styles.attSubjName, { color: colors.text }]}>{item.title}</Text>
+                {Boolean(item.tag) && (
+                  <Text style={[styles.attSubjMeta, { color: '#67D8FF' }]}>{item.tag}</Text>
+                )}
+                {Boolean(item.desc) && (
+                  <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{item.desc}</Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  if (normKind === 'complexity') {
+    return (
+      <View
+        key={keyPrefix}
+        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+        accessibilityLabel="Asymptotic Complexity Breakdown"
+      >
+        <View style={styles.attHeaderRow}>
+          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+            Asymptotic Time & Space Complexity
+          </Text>
+          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Big-O</Text>
+          </View>
+        </View>
+        <View style={{ gap: 6, marginTop: 8 }}>
+          {parsed.items.map((item: any, idx: number) => (
+            <View key={`cx-${idx}`} style={[styles.compRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+              <Text style={[styles.compCriteriaText, { color: colors.text }]}>{item.label}</Text>
+              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+                {Boolean(item.best) && (
+                  <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
+                    <Text style={[styles.attNoRecordPillText, { color: colors.textSecondary }]}>{`Best: ${item.best}`}</Text>
+                  </View>
+                )}
+                {Boolean(item.average) && (
+                  <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
+                    <Text style={[styles.attNoRecordPillText, { color: colors.textSecondary }]}>{`Avg: ${item.average}`}</Text>
+                  </View>
+                )}
+                {Boolean(item.worst) && (
+                  <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
+                    <Text style={[styles.attNoRecordPillText, { color: colors.textSecondary }]}>{`Worst: ${item.worst}`}</Text>
+                  </View>
+                )}
+                {Boolean(item.space) && (
+                  <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
+                    <Text style={[styles.attNoRecordPillText, { color: colors.textSecondary }]}>{`Space: ${item.space}`}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
+  if (normKind === 'results') {
+    const hasAgg = parsed.aggregatePct !== null || Boolean(parsed.aggregateScore);
+    const aggLow = parsed.aggregatePct !== null && parsed.aggregatePct < 40;
+    const aggBarW =
+      parsed.aggregatePct !== null
+        ? Math.min(100, Math.max(2, parsed.aggregatePct))
+        : 0;
+
+    return (
+      <View
+        key={keyPrefix}
+        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+        accessibilityLabel="Academic results breakdown"
+      >
+        <View style={styles.attHeaderRow}>
+          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+            Academic results
+          </Text>
+          <View
+            style={[
+              styles.attStatusPill,
+              { backgroundColor: raisedBg, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
+              {`${parsed.items.length} published ${parsed.items.length === 1 ? 'exam' : 'exams'}`}
+            </Text>
+          </View>
+        </View>
+
+        {hasAgg && (
+          <>
+            <View style={styles.attHeroRow}>
+              <View style={styles.attHeroLeft}>
+                <Text
+                  style={[
+                    styles.attHeroPct,
+                    { color: aggLow ? lowRed : colors.text },
+                  ]}
+                >
+                  {parsed.aggregatePct !== null
+                    ? `${parsed.aggregatePct}%`
+                    : parsed.aggregateScore}
+                </Text>
+                <Text style={[styles.attHeroSub, { color: colors.textSecondary }]}>
+                  {parsed.aggregateLabel || 'Overall aggregate'}
+                </Text>
+              </View>
+              {Boolean(parsed.aggregateScore) && (
+                <View style={styles.attHeroRight}>
+                  <Text style={[styles.attHeroRatio, { color: colors.text }]}>
+                    {parsed.aggregateScore}
+                  </Text>
+                  <Text style={[styles.attHeroSub, { color: colors.textSecondary }]}>
+                    Total marks
+                  </Text>
+                </View>
+              )}
+            </View>
+            {parsed.aggregatePct !== null && (
+              <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
+                <View
+                  style={[
+                    styles.attBarFill,
+                    {
+                      width: `${aggBarW}%` as any,
+                      backgroundColor: aggLow ? lowRed : normalFill,
+                    },
+                  ]}
+                />
+              </View>
+            )}
+            <View style={[styles.attDivider, { backgroundColor: colors.border }]} />
+          </>
+        )}
+
+        <View style={styles.attSubjectsList}>
+          {parsed.items.map((item: any, idx: number) => {
+            const metaLabel = [
+              item.code,
+              item.examType,
+              item.semester ? `Semester ${item.semester}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ');
+            const barW =
+              item.pct !== null
+                ? Math.min(100, Math.max(item.pct === 0 ? 2 : 0, item.pct))
+                : 0;
+
+            return (
+              <View key={`res-item-${idx}`} style={styles.attSubjItem}>
+                <View style={styles.attSubjTopRow}>
+                  <View style={styles.attSubjInfo}>
+                    <Text style={[styles.attSubjName, { color: colors.text }]}>
+                      {item.subject}
+                    </Text>
+                    <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
+                      {metaLabel}
+                    </Text>
+                  </View>
+                  <View style={styles.attSubjPctCol}>
+                    <Text
+                      style={[
+                        styles.attSubjPct,
+                        { color: item.isLow ? lowRed : colors.text },
+                      ]}
+                    >
+                      {item.scoreLabel}
+                    </Text>
+                    {item.pct !== null && (
+                      <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
+                        {`${item.pct}%`}
+                      </Text>
+                    )}
+                    {item.isAbsent && (
+                      <View style={styles.attLowBadge}>
+                        <Text style={styles.attLowBadgeText}>Absent</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                {item.pct !== null && !item.isUnpublished && (
+                  <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
+                    <View
+                      style={[
+                        styles.attBarFill,
+                        {
+                          width: `${barW}%` as any,
+                          backgroundColor: item.isLow ? lowRed : normalFill,
+                        },
+                      ]}
+                    />
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  }
+
+  const headerMap: Record<string, string> = {
+    assignments: 'Assignments',
+    notes: 'Library resources',
+    routine: 'Schedule & routine',
+    notices: 'Official notices & announcements',
+    posts: 'Campus discussions',
+    directory: 'Academic overview',
+  };
+
+  return (
+    <View
+      key={keyPrefix}
+      style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+    >
+      <View style={styles.attHeaderRow}>
+        <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+          {headerMap[normKind] || 'Overview'}
+        </Text>
+        <View
+          style={[
+            styles.attStatusPill,
+            { backgroundColor: raisedBg, borderColor: colors.border },
+          ]}
+        >
+          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
+            {`${parsed.items.length} ${parsed.items.length === 1 ? 'item' : 'items'}`}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.attSubjectsList}>
+        {parsed.items.map((item: any, idx: number) => {
+          const title = item.title || item.subject || 'Item';
+          const metaLabel = [
+            item.subject && item.title ? item.subject : null,
+            item.semester,
+            item.chapter,
+            item.folder ? `Folder: ${item.folder}` : null,
+            item.date,
+            item.day,
+            item.time,
+            item.deadline ? `Due ${item.deadline}` : null,
+            item.author ? `By ${item.author}` : null,
+            item.meta,
+          ]
+            .filter(Boolean)
+            .join(' · ');
+          const rightBadge =
+            item.statusLabel ||
+            item.fileType ||
+            (item.room ? `Room ${item.room}` : null) ||
+            item.badge ||
+            null;
+          const isAlert = Boolean(item.isOverdue);
+
+          return (
+            <View key={`vis-item-${idx}`} style={styles.attSubjItem}>
+              <View style={styles.attSubjTopRow}>
+                <View style={styles.attSubjInfo}>
+                  <Text style={[styles.attSubjName, { color: colors.text }]}>
+                    {title}
+                  </Text>
+                  {Boolean(metaLabel) && (
+                    <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
+                      {metaLabel}
+                    </Text>
+                  )}
+                </View>
+                {Boolean(rightBadge) &&
+                  (isAlert ? (
+                    <View style={styles.attLowBadge}>
+                      <Text style={styles.attLowBadgeText}>{rightBadge}</Text>
+                    </View>
+                  ) : (
+                    <View
+                      style={[
+                        styles.attNoRecordPill,
+                        { backgroundColor: raisedBg, borderColor: colors.border },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.attNoRecordPillText,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
+                        {rightBadge}
+                      </Text>
+                    </View>
+                  ))}
+              </View>
+              {Boolean(item.description || item.summary || item.detail) && (
+                <Text
+                  style={[
+                    styles.attSubjMeta,
+                    { color: colors.textSecondary, marginTop: 4 },
+                  ]}
+                >
+                  {item.description || item.summary || item.detail}
+                </Text>
+              )}
+              {Boolean(item.grade) && (
+                <Text
+                  style={[
+                    styles.attSubjMeta,
+                    { color: colors.text, marginTop: 3, fontWeight: '600' },
+                  ]}
+                >
+                  {`Grade: ${item.grade}`}
+                </Text>
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 /**
  * Stabilizes incomplete Markdown tokens during live streaming so mobile bubbles
  * never flicker or render raw unclosed fences/delimiters mid-stream.
@@ -1187,9 +2360,9 @@ function PostMarkdownInternal({
     return cells.every((c) => /^\s*:?-{1,}:?\s*$/.test(c));
   }
 
-  async function handleCopyCode(code: string, index: number) {
+  async function handleCopyCode(rawCode: string, index: number) {
     try {
-      await Clipboard.setStringAsync(code);
+      await Clipboard.setStringAsync(rawCode);
       setCopiedIndex(index);
       setTimeout(() => {
         setCopiedIndex((cur) => (cur === index ? null : cur));
@@ -1231,15 +2404,16 @@ function PostMarkdownInternal({
       const blockIndex = Number(codeMatch[1]);
       const block = codeBlocks[blockIndex];
       if (block) {
-        if (block.lang === 'ATTENDANCE') {
-          const attNode = renderAttendanceCard(
+        if (VISUAL_BLOCK_KINDS.includes(block.lang)) {
+          const visNode = renderKyanaVisualCard(
+            block.lang,
             block.code,
-            `att-card-${i}`,
+            `vis-card-${i}`,
             colors,
             isDark
           );
-          if (attNode) {
-            renderedElements.push(attNode);
+          if (visNode) {
+            renderedElements.push(visNode);
             continue;
           }
         }
@@ -1990,5 +3164,118 @@ const styles = StyleSheet.create({
   expandBtnText: {
     fontSize: 12.5,
     fontWeight: '700',
+  },
+  quizQuestion: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 10,
+    lineHeight: 20,
+  },
+  quizOptionsList: {
+    gap: 6,
+    marginBottom: 10,
+  },
+  quizOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  quizOptKey: {
+    fontWeight: '700',
+    color: '#67D8FF',
+    minWidth: 16,
+  },
+  quizOptText: {
+    fontSize: 13,
+    flex: 1,
+  },
+  quizRevealBtn: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+  },
+  quizRevealBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  quizRevealContent: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  quizCorrectAnswer: {
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  quizExplanation: {
+    fontSize: 12.5,
+    lineHeight: 18,
+  },
+  syllabusObjBox: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  syllabusLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  syllabusObjText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  syllabusSectionBox: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+  },
+  syllabusFooterText: {
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  traceStepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  compRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginBottom: 4,
+  },
+  compCriteriaText: {
+    fontSize: 13,
+    fontWeight: '600',
+    flex: 1,
+  },
+  compValText: {
+    fontSize: 12.5,
+    flex: 1,
+  },
+  roadmapItemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
   },
 });

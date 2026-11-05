@@ -18,7 +18,7 @@
   function safeLink(value, externalOnly = false) {
     if (typeof value !== 'string' || !value.trim()) return null;
     const trimmed = value.trim();
-    if (/^(?:javascript|data|vbscript):/i.test(trimmed) || trimmed.startsWith('//')) return null;
+    if (/^(?:javascript|data|vbscript):/i.test(trimmed)) return null;
     try {
       const url = new URL(trimmed, 'https://semester-library.local/');
       if (!['https:', 'http:'].includes(url.protocol)) return null;
@@ -380,6 +380,873 @@
     return html;
   }
 
+
+  const VISUAL_BLOCK_KINDS = new Set([
+    'attendance',
+    'results',
+    'assignments',
+    'notes',
+    'notices',
+    'routine',
+    'posts',
+    'directory',
+    'syllabus',
+    'diagram',
+    'flowchart',
+    'trace',
+    'comparison',
+    'quiz',
+    'roadmap',
+    'complexity'
+  ]);
+
+  function parseKyanaVisualBlock(kind, rawBlock) {
+    const normKind = String(kind || '').trim().toLowerCase();
+    const text = String(rawBlock || '').replace(/\r\n/g, '\n').trim();
+    if (normKind === 'attendance') {
+      return { kind: 'attendance', ...parseAttendanceBlock(text) };
+    }
+
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+    if (normKind === 'results') {
+      const items = [];
+      let aggregateLabel = null;
+      let aggregateScore = null;
+      let aggregatePct = null;
+
+      for (const line of lines) {
+        const aggMatch = line.match(/\*\*([^*]*Aggregate[^*]*):\*\*\s*([0-9.]+\s*\/\s*[0-9.]+)(?:\s*\(([^)]+)\))?/i);
+        if (aggMatch) {
+          aggregateLabel = aggMatch[1].trim().replace(/:$/, '');
+          aggregateScore = aggMatch[2].trim();
+          const pctM = (aggMatch[3] || '').match(/(\d+(?:\.\d+)?)%/);
+          if (pctM) aggregatePct = Number(pctM[1]);
+          continue;
+        }
+
+        const bulletMatch = line.match(/^(?:[-•*]|\d+\.)\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?\s*(?:—|-|:)\s*(.+)$/);
+        if (bulletMatch) {
+          const subject = bulletMatch[1].trim();
+          const code = (bulletMatch[2] || '').trim();
+          const rest = bulletMatch[3].trim();
+          const examMatch = rest.match(/\*([^*]+)\*/);
+          const examType = examMatch ? examMatch[1].trim() : 'Exam';
+          const semMatch = rest.match(/\(Semester\s+(\d+)\)/i);
+          const semester = semMatch ? Number(semMatch[1]) : null;
+          const isAbsent = /\bAbsent\b/i.test(rest);
+          const isUnpublished = /\b(?:Unpublished|Pending|Not published)\b/i.test(rest);
+          const scoreMatch = rest.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
+          const pctMatch = rest.match(/(\d+(?:\.\d+)?)%/);
+          const obtained = scoreMatch ? Number(scoreMatch[1]) : null;
+          const max = scoreMatch ? Number(scoreMatch[2]) : null;
+          const pct = pctMatch
+            ? Number(pctMatch[1])
+            : (obtained !== null && max ? Math.round((obtained / max) * 10000) / 100 : null);
+          const isLow = isAbsent || (pct !== null && pct < 40);
+          const scoreLabel = isAbsent
+            ? (rest.match(/Absent\s*\([^)]+\)/i)?.[0] || 'Absent')
+            : (isUnpublished ? 'Unpublished' : (scoreMatch ? `${obtained} / ${max}` : rest.replace(/\*[^*]+\*[:\s—-]*/g, '').replace(/\*\*/g, '').trim()));
+
+          items.push({
+            subject,
+            code,
+            examType,
+            semester,
+            obtained,
+            max,
+            pct,
+            isAbsent,
+            isUnpublished,
+            isLow,
+            scoreLabel
+          });
+        }
+      }
+
+      if (!aggregatePct && items.length > 0) {
+        const scored = items.filter(i => i.obtained !== null && i.max !== null && !i.isAbsent);
+        if (scored.length > 0) {
+          const sumObt = scored.reduce((a, b) => a + b.obtained, 0);
+          const sumMax = scored.reduce((a, b) => a + b.max, 0);
+          if (sumMax > 0) {
+            if (!aggregateScore) aggregateScore = `${Math.round(sumObt * 100) / 100} / ${Math.round(sumMax * 100) / 100}`;
+            aggregatePct = Math.round((sumObt / sumMax) * 10000) / 100;
+          }
+        }
+      }
+
+      return {
+        kind: 'results',
+        aggregateLabel: aggregateLabel || 'Overall score',
+        aggregateScore,
+        aggregatePct,
+        items
+      };
+    }
+
+    if (normKind === 'assignments') {
+      const items = [];
+      let currentItem = null;
+
+      for (const rawLine of text.split('\n')) {
+        const trimmed = rawLine.trim();
+        if (!trimmed) continue;
+
+        if (/^[-*]\s+\*\*([^*]+)\*\*/.test(trimmed) && !/^•/.test(trimmed) && !/^\s{2,}/.test(rawLine)) {
+          const m = trimmed.match(/^[-*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(?:\s*\[([^\]]+)\])?(?:\s*(?:—|-|:)\s*(.+))?$/);
+          if (m) {
+            const title = m[1].trim();
+            const subject = (m[2] || 'General').trim();
+            const semester = (m[3] || '').trim();
+            const tail = (m[4] || '').trim();
+            const isOverdue = /\b(?:Missed|Overdue)\b/i.test(tail);
+            const isChecked = /\b(?:Checked|Graded)\b/i.test(tail);
+            const isSubmitted = isChecked || /\bSubmitted\b/i.test(tail);
+            const dueMatch = tail.match(/(?:due|Deadline:|Was due on)\s*\*\*?([^*(]+?)\*\*?(?:\s*\(|$)/i);
+            const deadline = dueMatch ? dueMatch[1].trim() : null;
+            const statusLabel = isOverdue ? 'Overdue' : (isChecked ? 'Checked' : (isSubmitted ? 'Submitted' : 'Pending'));
+
+            currentItem = {
+              title,
+              subject,
+              semester,
+              deadline,
+              statusLabel,
+              isOverdue,
+              isSubmitted,
+              isChecked,
+              author: null,
+              description: null,
+              questions: null,
+              grade: null,
+              details: []
+            };
+            items.push(currentItem);
+            continue;
+          }
+        }
+
+        if (currentItem && /^[•*-]\s+/.test(trimmed)) {
+          const cleanDetail = trimmed.replace(/^[•*-]\s+/, '');
+          const kv = cleanDetail.match(/^\*\*([^:]+):\*\*\s*(.+)$/);
+          if (kv) {
+            const k = kv[1].trim().toLowerCase();
+            const v = kv[2].trim().replace(/\*\*/g, '');
+            if (k === 'author') currentItem.author = v;
+            else if (k === 'description') currentItem.description = v;
+            else if (k.startsWith('questions')) currentItem.questions = v;
+            else if (k.includes('submission status')) {
+              currentItem.statusLabel = v;
+              if (/Overdue|Missed/i.test(v)) currentItem.isOverdue = true;
+              if (/Submitted/i.test(v) && !/Not submitted/i.test(v)) currentItem.isSubmitted = true;
+            } else if (k.includes('grade')) {
+              currentItem.grade = v;
+              if (/Checked/i.test(v)) currentItem.isChecked = true;
+            } else {
+              currentItem.details.push(`${kv[1].trim()}: ${v}`);
+            }
+          }
+        }
+      }
+      return { kind: 'assignments', items };
+    }
+
+    if (normKind === 'notes') {
+      const items = [];
+      for (const line of lines) {
+        const m = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(.*)$/);
+        if (m) {
+          const title = m[1].trim();
+          const metaRaw = (m[2] || '').trim();
+          const extra = (m[3] || '').trim();
+          const parts = metaRaw.split('|').map(p => p.trim());
+          const primaryParts = (parts[0] || '').split(',').map(p => p.trim()).filter(Boolean);
+          const subject = primaryParts[0] || 'Study Material';
+          const semester = primaryParts.find(p => /semester/i.test(p)) || null;
+          const chapter = primaryParts.find(p => /chapter|unit/i.test(p)) || null;
+          const folderPart = parts.find(p => /^Folder:/i.test(p));
+          const folder = folderPart ? folderPart.replace(/^Folder:\s*/i, '').trim() : null;
+          const ext = (title.match(/\.([a-zA-Z0-9]{2,4})$/)?.[1] || 'PDF').toUpperCase();
+          items.push({
+            title,
+            subject,
+            semester,
+            chapter,
+            folder,
+            fileType: ext,
+            extra: extra.replace(/^[:\s—-]+/, '').trim() || null
+          });
+        }
+      }
+      return { kind: 'notes', items };
+    }
+
+    if (normKind === 'routine') {
+      const items = [];
+      for (const line of lines) {
+        const m = line.match(/^[-•*]\s+\*\*([^*]+)\*\*\s*(?:—|-)\s*(.+)$/);
+        if (m) {
+          const subject = m[1].trim();
+          const rest = m[2].trim();
+          const dayMatch = rest.match(/\(([^)]+)\)/);
+          const day = dayMatch ? dayMatch[1].trim() : null;
+          const roomMatch = rest.match(/Room\s+([^,]+)/i);
+          const room = roomMatch ? roomMatch[1].trim() : null;
+          const timeMatch = rest.match(/(\d{1,2}:\d{2}\s*(?:AM|PM)?(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM)?)?)/i);
+          const time = timeMatch ? timeMatch[1].trim() : null;
+          const datePart = rest.split(',')[0].replace(/\([^)]*\)/g, '').trim();
+          items.push({ subject, date: datePart, day, time, room, rawMeta: rest });
+        }
+      }
+      return { kind: 'routine', items };
+    }
+
+    if (normKind === 'notices' || normKind === 'posts' || normKind === 'directory') {
+      const items = [];
+      for (const line of lines) {
+        const m = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\[([^\]]+)\])?(?:\s*\(([^)]+)\))?(?:\s*(?:—|-|:)\s*(.+))?$/);
+        if (m) {
+          items.push({
+            title: m[1].trim(),
+            badge: (m[2] || m[3] || '').trim() || null,
+            meta: (m[2] && m[3] ? m[3] : '').trim() || null,
+            summary: (m[4] || '').trim().replace(/\*\*/g, '') || null,
+            isOfficial: normKind === 'notices' && !/community|student post/i.test(m[2] || '')
+          });
+        }
+      }
+      return { kind: normKind, items };
+    }
+
+    if (normKind === 'syllabus') {
+      const items = [];
+      let courseTitle = null;
+      let courseCode = null;
+      let semester = null;
+      let credits = null;
+      let nature = null;
+      let totalHours = null;
+      let objectives = null;
+      let labs = null;
+      let textbooks = null;
+      let currentUnit = null;
+
+      for (const rawLine of text.split('\n')) {
+        const line = rawLine.trim();
+        if (!line) continue;
+
+        const courseMatch = line.match(/^[-*]\s+\*\*Course:\*\*\s*([^(]+?)(?:\s*\(([^)]+)\))?(?:\s*[·•|]\s*(.+))?$/i);
+        if (courseMatch) {
+          courseTitle = courseMatch[1].trim();
+          courseCode = (courseMatch[2] || '').trim();
+          const meta = courseMatch[3] || '';
+          const semM = meta.match(/Semester\s+(\d+)/i);
+          if (semM) semester = Number(semM[1]);
+          const credM = meta.match(/(\d+)\s*Credits?/i);
+          if (credM) credits = credM[1];
+          const natM = meta.match(/Nature:\s*([A-Za-z +]+)/i);
+          if (natM) nature = natM[1].trim();
+          const hrsM = meta.match(/Total:\s*(\d+\s*hrs?)/i);
+          if (hrsM) totalHours = hrsM[1].trim();
+          continue;
+        }
+
+        const semHeaderMatch = line.match(/^[-*]\s+\*\*Semester:\*\*\s*(.+)$/i);
+        if (semHeaderMatch) {
+          courseTitle = semHeaderMatch[1].trim();
+          continue;
+        }
+
+        const objMatch = line.match(/^[-*]\s+\*\*Objectives?:\*\*\s*(.+)$/i);
+        if (objMatch) {
+          objectives = objMatch[1].trim();
+          continue;
+        }
+
+        const labMatch = line.match(/^[-*]\s+\*\*Labs?:\*\*\s*(.+)$/i);
+        if (labMatch) {
+          labs = labMatch[1].trim();
+          continue;
+        }
+
+        const tbMatch = line.match(/^[-*]\s+\*\*Textbooks?:\*\*\s*(.+)$/i);
+        if (tbMatch) {
+          textbooks = tbMatch[1].trim();
+          continue;
+        }
+
+        const unitMatch = line.match(/^[-*]\s+\*\*(?:Unit\s+)?(\d{1,2}):\s*([^*]+)\*\*(?:\s*[—–-]\s*(.+))?$/i);
+        if (unitMatch) {
+          const uNum = Number(unitMatch[1]);
+          const uTitle = unitMatch[2].trim();
+          const rest = unitMatch[3] || '';
+          const hrsM = rest.match(/(\d+\s*hrs?)/i);
+          const pctM = rest.match(/(\d+(?:\.\d+)?)%/);
+          currentUnit = {
+            unitNumber: uNum,
+            title: uTitle,
+            hours: hrsM ? hrsM[1].trim() : null,
+            pct: pctM ? Number(pctM[1]) : null,
+            topics: ''
+          };
+          items.push(currentUnit);
+          continue;
+        }
+
+        if (currentUnit && /^[•*-]\s*(?:Topics?:)?\s*(.+)$/i.test(line)) {
+          const tMatch = line.match(/^[•*-]\s*(?:Topics?:)?\s*(.+)$/i);
+          if (tMatch) {
+            currentUnit.topics = currentUnit.topics ? `${currentUnit.topics}; ${tMatch[1].trim()}` : tMatch[1].trim();
+          }
+          continue;
+        }
+
+        const courseListMatch = line.match(/^[-*]\s+\*\*([^*:]+):\*\*\s*(.+)$/);
+        if (courseListMatch && !line.startsWith('- **Unit')) {
+          const code = courseListMatch[1].trim();
+          const rest = courseListMatch[2].trim();
+          const parts = rest.split(/[·•|]/).map(p => p.trim());
+          items.push({
+            code,
+            title: parts[0] || code,
+            credits: parts[1] || null,
+            nature: parts[2] || null,
+            details: parts.slice(3).join(' · ') || null
+          });
+        }
+      }
+
+      return {
+        kind: 'syllabus',
+        courseTitle,
+        courseCode,
+        semester,
+        credits,
+        nature,
+        totalHours,
+        objectives,
+        labs,
+        textbooks,
+        items
+      };
+    }
+
+    if (normKind === 'diagram') {
+      let title = 'System Architecture & Concept Diagram';
+      const diagramLines = [];
+      for (const line of lines) {
+        const titleMatch = line.match(/^\[([A-Za-z0-9\s_-]+)\]$/);
+        if (titleMatch && diagramLines.length === 0) {
+          title = titleMatch[1].trim();
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+          diagramLines.push(line.replace(/^[-*]\s+/, ''));
+        } else if (/[|\-+_=><]/.test(line)) {
+          diagramLines.push(line);
+        }
+      }
+      const items = diagramLines.filter(l => l.trim().length > 0);
+      return {
+        kind: 'diagram',
+        title,
+        diagramText: diagramLines.join('\n').trim(),
+        items
+      };
+    }
+
+    if (normKind === 'flowchart' || normKind === 'trace') {
+      const items = [];
+      for (const line of lines) {
+        const stepMatch = line.match(/^(?:\[([^\]]+)\]|([A-Za-z0-9\s_-]+:))\s*(.+)$/);
+        if (stepMatch) {
+          const stepLabel = (stepMatch[1] || stepMatch[2] || 'Step').replace(/:$/, '').trim();
+          const content = stepMatch[3].trim();
+          items.push({ label: stepLabel, content });
+        } else if (/^[-*]\s+/.test(line)) {
+          items.push({ label: `Step ${items.length + 1}`, content: line.replace(/^[-*]\s+/, '').trim() });
+        }
+      }
+      return { kind: normKind, items };
+    }
+
+    if (normKind === 'comparison') {
+      const items = [];
+      for (const line of lines) {
+        if (line.includes('|')) {
+          const parts = line.split('|').map(p => p.trim().replace(/^[-*]\s+/, ''));
+          if (parts.length >= 2) {
+            const col1 = parts[0].replace(/\*\*/g, '').trim();
+            const col2 = parts[1].replace(/\*\*/g, '').trim();
+            const col3 = parts[2] ? parts[2].replace(/\*\*/g, '').trim() : null;
+            items.push({ col1, col2, col3 });
+          }
+        }
+      }
+      return { kind: 'comparison', items };
+    }
+
+    if (normKind === 'quiz') {
+      let question = null;
+      const options = [];
+      let answer = null;
+      let explanation = null;
+
+      for (const line of lines) {
+        const qMatch = line.match(/^[-*]\s+\*\*Question:\*\*\s*(.+)$/i);
+        if (qMatch) { question = qMatch[1].trim(); continue; }
+
+        const optMatch = line.match(/^[-*]\s+\*\*Option\s+([A-D]):\*\*\s*(.+)$/i);
+        if (optMatch) {
+          options.push({ key: optMatch[1].toUpperCase(), text: optMatch[2].trim() });
+          continue;
+        }
+
+        const ansMatch = line.match(/^[-*]\s+\*\*Answer:\*\*\s*(.+)$/i);
+        if (ansMatch) { answer = ansMatch[1].trim(); continue; }
+
+        const expMatch = line.match(/^[-*]\s+\*\*Explanation:\*\*\s*(.+)$/i);
+        if (expMatch) { explanation = expMatch[1].trim(); continue; }
+      }
+      const items = options.map(o => ({ key: o.key, text: o.text }));
+      return {
+        kind: 'quiz',
+        question,
+        options,
+        answer,
+        explanation,
+        items
+      };
+    }
+
+    if (normKind === 'roadmap') {
+      const items = [];
+      for (const line of lines) {
+        const m = line.match(/^[-*]\s+\[([ xX])\]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(?:\s*[—–-]\s*(.+))?$/);
+        if (m) {
+          const done = m[1].toLowerCase() === 'x';
+          const title = m[2].trim();
+          const tag = (m[3] || '').trim();
+          const desc = (m[4] || '').trim();
+          items.push({ done, title, tag, desc });
+        }
+      }
+      return { kind: 'roadmap', items };
+    }
+
+    if (normKind === 'complexity') {
+      const items = [];
+      for (const line of lines) {
+        if (line.includes('|')) {
+          const parts = line.split('|').map(p => p.trim().replace(/^[-*]\s+/, ''));
+          if (parts.length >= 2) {
+            items.push({
+              label: parts[0].replace(/\*\*/g, '').trim(),
+              best: parts[1] ? parts[1].replace(/\*\*/g, '').trim() : null,
+              average: parts[2] ? parts[2].replace(/\*\*/g, '').trim() : null,
+              worst: parts[3] ? parts[3].replace(/\*\*/g, '').trim() : null,
+              space: parts[4] ? parts[4].replace(/\*\*/g, '').trim() : null
+            });
+          }
+        }
+      }
+      return { kind: 'complexity', items };
+    }
+
+    return { kind: normKind, items: [] };
+  }
+
+  function renderKyanaVisualBlockHtml(kind, rawBlock) {
+    const normKind = String(kind || '').trim().toLowerCase();
+    if (normKind === 'attendance') {
+      return renderAttendanceChartHtml(rawBlock);
+    }
+
+    const parsed = parseKyanaVisualBlock(normKind, rawBlock);
+    if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) {
+      return '';
+    }
+
+    if (normKind === 'results') {
+      const hasAgg = parsed.aggregatePct !== null || parsed.aggregateScore;
+      const aggBarW = parsed.aggregatePct !== null ? Math.min(100, Math.max(2, parsed.aggregatePct)) : 0;
+      const aggLow = parsed.aggregatePct !== null && parsed.aggregatePct < 40;
+
+      let html = `<div class="kyana-attendance-card kyana-results-card" data-visual-kind="results">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">Academic results</span>
+          <span class="kyana-att-status-pill">${parsed.items.length} published ${parsed.items.length === 1 ? 'exam' : 'exams'}</span>
+        </div>`;
+
+      if (hasAgg) {
+        html += `
+        <div class="kyana-att-hero-row">
+          <div class="kyana-att-hero-col">
+            <div class="kyana-att-hero-pct-wrap">
+              <span class="kyana-att-hero-pct ${aggLow ? 'is-low' : ''}">${escapeHtml(parsed.aggregatePct !== null ? `${parsed.aggregatePct}%` : parsed.aggregateScore)}</span>
+            </div>
+            <span class="kyana-att-hero-sub">${escapeHtml(parsed.aggregateLabel || 'Overall aggregate')}</span>
+          </div>
+          ${parsed.aggregateScore ? `
+          <div class="kyana-att-hero-col is-right">
+            <span class="kyana-att-hero-ratio">${escapeHtml(parsed.aggregateScore)}</span>
+            <span class="kyana-att-hero-sub">Total marks</span>
+          </div>` : ''}
+        </div>`;
+        if (parsed.aggregatePct !== null) {
+          html += `
+          <div class="kyana-att-bar-track" role="progressbar" aria-valuenow="${parsed.aggregatePct}" aria-valuemin="0" aria-valuemax="100">
+            <svg class="kyana-att-bar-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+              <rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="8" rx="4"></rect>
+              <rect class="kyana-att-svg-fill ${aggLow ? 'is-low' : ''}" x="0" y="0" width="${aggBarW}" height="8" rx="4"></rect>
+            </svg>
+          </div>`;
+        }
+        html += `<div class="kyana-att-divider"></div>`;
+      }
+
+      html += `<div class="kyana-att-subjects-list">`;
+      for (const item of parsed.items) {
+        const metaParts = [item.code, item.examType, item.semester ? `Semester ${item.semester}` : null].filter(Boolean).join(' · ');
+        const barW = item.pct !== null ? Math.min(100, Math.max(item.pct === 0 ? 2 : 0, item.pct)) : 0;
+
+        html += `
+        <div class="kyana-att-subj-item" data-subject-code="${escapeHtml(item.code)}">
+          <div class="kyana-att-subj-top">
+            <div class="kyana-att-subj-info">
+              <span class="kyana-att-subj-name">${escapeHtml(item.subject)}</span>
+              <span class="kyana-att-subj-meta">${escapeHtml(metaParts)}</span>
+            </div>
+            <div class="kyana-att-subj-pct-col">
+              <span class="kyana-att-subj-pct ${item.isLow ? 'is-low' : ''}">${escapeHtml(item.scoreLabel)}</span>
+              ${item.pct !== null ? `<span class="kyana-att-subj-meta">${escapeHtml(String(item.pct))}%</span>` : ''}
+              ${item.isAbsent ? '<span class="kyana-att-low-badge">Absent</span>' : (item.isUnpublished ? '<span class="kyana-att-norecord-pill">Unpublished</span>' : '')}
+            </div>
+          </div>
+          ${item.pct !== null && !item.isUnpublished ? `
+          <div class="kyana-att-bar-track" role="progressbar" aria-valuenow="${item.pct}" aria-valuemin="0" aria-valuemax="100">
+            <svg class="kyana-att-bar-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+              <rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="8" rx="4"></rect>
+              <rect class="kyana-att-svg-fill ${item.isLow ? 'is-low' : ''}" x="0" y="0" width="${barW}" height="8" rx="4"></rect>
+            </svg>
+          </div>` : ''}
+        </div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    if (normKind === 'assignments') {
+      let html = `<div class="kyana-attendance-card kyana-assignments-card" data-visual-kind="assignments">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">Assignments</span>
+          <span class="kyana-att-status-pill">${parsed.items.length} ${parsed.items.length === 1 ? 'item' : 'items'}</span>
+        </div>
+        <div class="kyana-att-subjects-list">`;
+
+      for (const item of parsed.items) {
+        const metaParts = [item.subject, item.semester, item.author ? `By ${item.author}` : null, item.deadline ? `Due ${item.deadline}` : null].filter(Boolean).join(' · ');
+        const pillHtml = item.isOverdue
+          ? `<span class="kyana-att-low-badge">${escapeHtml(item.statusLabel)}</span>`
+          : `<span class="kyana-att-norecord-pill">${escapeHtml(item.statusLabel)}</span>`;
+
+        html += `
+        <div class="kyana-att-subj-item">
+          <div class="kyana-att-subj-top">
+            <div class="kyana-att-subj-info">
+              <span class="kyana-att-subj-name">${escapeHtml(item.title)}</span>
+              <span class="kyana-att-subj-meta">${escapeHtml(metaParts)}</span>
+            </div>
+            <div class="kyana-att-subj-pct-col">${pillHtml}</div>
+          </div>
+          ${item.description ? `<div class="kyana-att-item-desc">${escapeHtml(item.description)}</div>` : ''}
+          ${item.questions ? `<div class="kyana-att-item-sub">${escapeHtml(item.questions)}</div>` : ''}
+          ${item.grade ? `<div class="kyana-att-item-sub">Grade: ${escapeHtml(item.grade)}</div>` : ''}
+        </div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    if (normKind === 'notes') {
+      let html = `<div class="kyana-attendance-card kyana-notes-card" data-visual-kind="notes">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">Library resources</span>
+          <span class="kyana-att-status-pill">${parsed.items.length} ${parsed.items.length === 1 ? 'file' : 'files'}</span>
+        </div>
+        <div class="kyana-att-other-list">`;
+
+      for (const item of parsed.items) {
+        const metaParts = [item.subject, item.semester, item.chapter, item.folder ? `Folder: ${item.folder}` : null].filter(Boolean).join(' · ');
+        html += `
+        <div class="kyana-att-other-row">
+          <div class="kyana-att-subj-info">
+            <span class="kyana-att-subj-name">${escapeHtml(item.title)}</span>
+            <span class="kyana-att-subj-meta">${escapeHtml(metaParts)}</span>
+          </div>
+          <span class="kyana-att-norecord-pill">${escapeHtml(item.fileType || 'PDF')}</span>
+        </div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    if (normKind === 'routine') {
+      let html = `<div class="kyana-attendance-card kyana-routine-card" data-visual-kind="routine">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">Schedule & routine</span>
+          <span class="kyana-att-status-pill">${parsed.items.length} ${parsed.items.length === 1 ? 'session' : 'sessions'}</span>
+        </div>
+        <div class="kyana-att-other-list">`;
+
+      for (const item of parsed.items) {
+        const metaParts = [item.date, item.day, item.time].filter(Boolean).join(' · ');
+        html += `
+        <div class="kyana-att-other-row">
+          <div class="kyana-att-subj-info">
+            <span class="kyana-att-subj-name">${escapeHtml(item.subject)}</span>
+            <span class="kyana-att-subj-meta">${escapeHtml(metaParts || item.rawMeta)}</span>
+          </div>
+          ${item.room ? `<span class="kyana-att-norecord-pill">Room ${escapeHtml(item.room)}</span>` : ''}
+        </div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    if (normKind === 'notices' || normKind === 'posts' || normKind === 'directory') {
+      const headingMap = {
+        notices: 'Official notices & announcements',
+        posts: 'Campus discussions',
+        directory: 'Academic overview'
+      };
+      let html = `<div class="kyana-attendance-card kyana-${normKind}-card" data-visual-kind="${normKind}">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">${escapeHtml(headingMap[normKind] || 'Overview')}</span>
+          <span class="kyana-att-status-pill">${parsed.items.length} ${parsed.items.length === 1 ? 'item' : 'items'}</span>
+        </div>
+        <div class="kyana-att-subjects-list">`;
+
+      for (const item of parsed.items) {
+        html += `
+        <div class="kyana-att-subj-item">
+          <div class="kyana-att-subj-top">
+            <div class="kyana-att-subj-info">
+              <span class="kyana-att-subj-name">${escapeHtml(item.title)}</span>
+              ${item.meta ? `<span class="kyana-att-subj-meta">${escapeHtml(item.meta)}</span>` : ''}
+            </div>
+            ${item.badge ? `<span class="kyana-att-norecord-pill">${escapeHtml(item.badge)}</span>` : ''}
+          </div>
+          ${item.summary ? `<div class="kyana-att-item-desc">${escapeHtml(item.summary)}</div>` : ''}
+        </div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    if (normKind === 'syllabus') {
+      let html = `<div class="kyana-attendance-card kyana-syllabus-card" data-visual-kind="syllabus">
+        <div class="kyana-att-header">
+          <div class="kyana-att-title-group">
+            <span class="kyana-att-title">${escapeHtml(parsed.courseTitle || 'Course Syllabus')}</span>
+            ${parsed.courseCode ? `<span class="kyana-syllabus-code-badge">${escapeHtml(parsed.courseCode)}</span>` : ''}
+          </div>
+          <div class="kyana-syllabus-badges">
+            ${parsed.semester ? `<span class="kyana-att-status-pill">Semester ${parsed.semester}</span>` : ''}
+            ${parsed.credits ? `<span class="kyana-att-status-pill">${escapeHtml(parsed.credits)} Cr</span>` : ''}
+            ${parsed.totalHours ? `<span class="kyana-att-status-pill">${escapeHtml(parsed.totalHours)}</span>` : ''}
+          </div>
+        </div>`;
+
+      if (parsed.objectives) {
+        html += `<div class="kyana-syllabus-objectives">
+          <span class="kyana-syllabus-section-label">Learning Objectives:</span>
+          <p>${escapeHtml(parsed.objectives)}</p>
+        </div>`;
+      }
+
+      html += `<div class="kyana-att-subjects-list">`;
+      for (const item of parsed.items) {
+        if (item.unitNumber) {
+          html += `
+          <div class="kyana-att-subj-item kyana-syllabus-unit-item">
+            <div class="kyana-att-subj-top">
+              <div class="kyana-att-subj-info">
+                <span class="kyana-att-subj-name">Unit ${item.unitNumber}: ${escapeHtml(item.title)}</span>
+                ${item.hours ? `<span class="kyana-att-subj-meta">${escapeHtml(item.hours)}${item.pct ? ` · ${item.pct}% workload` : ''}</span>` : ''}
+              </div>
+              ${item.pct ? `<span class="kyana-att-subj-pct">${item.pct}%</span>` : ''}
+            </div>
+            ${item.pct ? `
+            <div class="kyana-att-bar-track">
+              <div class="kyana-att-bar-fill" style="width: ${Math.min(100, Math.max(4, item.pct))}%;"></div>
+            </div>` : ''}
+            ${item.topics ? `<div class="kyana-syllabus-unit-topics">${escapeHtml(item.topics)}</div>` : ''}
+          </div>`;
+        } else {
+          // Course in semester list
+          html += `
+          <div class="kyana-att-subj-item">
+            <div class="kyana-att-subj-top">
+              <div class="kyana-att-subj-info">
+                <span class="kyana-att-subj-name">${escapeHtml(item.code)}: ${escapeHtml(item.title)}</span>
+                ${item.credits ? `<span class="kyana-att-subj-meta">${escapeHtml(item.credits)} · ${escapeHtml(item.nature || '')}</span>` : ''}
+              </div>
+              ${item.details ? `<span class="kyana-att-norecord-pill">${escapeHtml(item.details)}</span>` : ''}
+            </div>
+          </div>`;
+        }
+      }
+      html += `</div>`;
+
+      if (parsed.labs) {
+        html += `<div class="kyana-syllabus-footer-section">
+          <span class="kyana-syllabus-section-label">Laboratory Practicals:</span>
+          <p class="kyana-syllabus-footer-text">${escapeHtml(parsed.labs)}</p>
+        </div>`;
+      }
+      if (parsed.textbooks) {
+        html += `<div class="kyana-syllabus-footer-section">
+          <span class="kyana-syllabus-section-label">Recommended Textbooks:</span>
+          <p class="kyana-syllabus-footer-text">${escapeHtml(parsed.textbooks)}</p>
+        </div>`;
+      }
+
+      html += `</div>`;
+      return html;
+    }
+
+    if (normKind === 'quiz') {
+      let html = `<div class="kyana-attendance-card kyana-quiz-card" data-visual-kind="quiz">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">Self-Assessment Quiz</span>
+          <span class="kyana-att-status-pill">Interactive</span>
+        </div>
+        <div class="kyana-quiz-body">
+          <div class="kyana-quiz-question">${escapeHtml(parsed.question || '')}</div>
+          <div class="kyana-quiz-options">`;
+      for (const opt of parsed.options) {
+        html += `<div class="kyana-quiz-option">
+          <span class="kyana-quiz-opt-key">${escapeHtml(opt.key)}</span>
+          <span class="kyana-quiz-opt-text">${escapeHtml(opt.text)}</span>
+        </div>`;
+      }
+      html += `</div>
+        <div class="kyana-quiz-action-bar">
+          <button type="button" class="kyana-quiz-reveal-btn" onclick="(function(btn){
+            var c = btn.closest('.kyana-quiz-card').querySelector('.kyana-quiz-reveal-content');
+            if (c) {
+              var isHidden = c.style.display === 'none';
+              c.style.display = isHidden ? 'block' : 'none';
+              btn.textContent = isHidden ? 'Hide Explanation' : 'Reveal Answer & Explanation';
+            }
+          })(this)">Reveal Answer & Explanation</button>
+        </div>
+        <div class="kyana-quiz-reveal-content" style="display: none;">
+          <div class="kyana-quiz-correct-answer">
+            <strong>Correct Answer:</strong> ${escapeHtml(parsed.answer || '')}
+          </div>
+          ${parsed.explanation ? `<div class="kyana-quiz-explanation">${escapeHtml(parsed.explanation)}</div>` : ''}
+        </div>
+      </div></div>`;
+      return html;
+    }
+
+    if (normKind === 'diagram') {
+      let html = `<div class="kyana-attendance-card kyana-diagram-card" data-visual-kind="diagram">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">${escapeHtml(parsed.title || 'Architecture & Concept Diagram')}</span>
+          <span class="kyana-att-status-pill">Diagram</span>
+        </div>
+        <div class="kyana-diagram-content"><pre class="kyana-diagram-pre"><code>${escapeHtml(parsed.diagramText)}</code></pre></div>
+      </div>`;
+      return html;
+    }
+
+    if (normKind === 'flowchart' || normKind === 'trace') {
+      let html = `<div class="kyana-attendance-card kyana-trace-card" data-visual-kind="${normKind}">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">Step-by-step execution trace</span>
+          <span class="kyana-att-status-pill">${parsed.items.length} ${parsed.items.length === 1 ? 'step' : 'steps'}</span>
+        </div>
+        <div class="kyana-trace-list">`;
+      for (const item of parsed.items) {
+        html += `
+        <div class="kyana-trace-step-item">
+          <span class="kyana-trace-step-badge">${escapeHtml(item.label)}</span>
+          <span class="kyana-trace-step-content">${escapeHtml(item.content)}</span>
+        </div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    if (normKind === 'comparison') {
+      let html = `<div class="kyana-attendance-card kyana-comparison-card" data-visual-kind="comparison">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">Feature & Concept Comparison</span>
+          <span class="kyana-att-status-pill">${parsed.items.length} criteria</span>
+        </div>
+        <div class="kyana-comparison-list">`;
+      for (const item of parsed.items) {
+        html += `
+        <div class="kyana-comparison-row">
+          <div class="kyana-comp-criteria">${escapeHtml(item.col1)}</div>
+          <div class="kyana-comp-val kyana-comp-val1">${escapeHtml(item.col2)}</div>
+          ${item.col3 ? `<div class="kyana-comp-val kyana-comp-val2">${escapeHtml(item.col3)}</div>` : ''}
+        </div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    if (normKind === 'roadmap') {
+      let html = `<div class="kyana-attendance-card kyana-roadmap-card" data-visual-kind="roadmap">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">Learning & Revision Roadmap</span>
+          <span class="kyana-att-status-pill">${parsed.items.length} topics</span>
+        </div>
+        <div class="kyana-roadmap-list">`;
+      for (const item of parsed.items) {
+        html += `
+        <div class="kyana-roadmap-item ${item.done ? 'is-completed' : 'is-pending'}">
+          <div class="kyana-roadmap-status-dot">${item.done ? '✓' : '○'}</div>
+          <div class="kyana-roadmap-info">
+            <span class="kyana-roadmap-title">${escapeHtml(item.title)}</span>
+            ${item.tag ? `<span class="kyana-roadmap-tag">${escapeHtml(item.tag)}</span>` : ''}
+            ${item.desc ? `<span class="kyana-roadmap-desc">${escapeHtml(item.desc)}</span>` : ''}
+          </div>
+        </div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    if (normKind === 'complexity') {
+      let html = `<div class="kyana-attendance-card kyana-complexity-card" data-visual-kind="complexity">
+        <div class="kyana-att-header">
+          <span class="kyana-att-title">Asymptotic Time & Space Complexity</span>
+          <span class="kyana-att-status-pill">Big-O</span>
+        </div>
+        <div class="kyana-complexity-list">`;
+      for (const item of parsed.items) {
+        html += `
+        <div class="kyana-complexity-row">
+          <span class="kyana-comp-op">${escapeHtml(item.label)}</span>
+          <div class="kyana-comp-metrics">
+            ${item.best ? `<span class="kyana-comp-badge">Best: ${escapeHtml(item.best)}</span>` : ''}
+            ${item.average ? `<span class="kyana-comp-badge">Avg: ${escapeHtml(item.average)}</span>` : ''}
+            ${item.worst ? `<span class="kyana-comp-badge">Worst: ${escapeHtml(item.worst)}</span>` : ''}
+            ${item.space ? `<span class="kyana-comp-badge">Space: ${escapeHtml(item.space)}</span>` : ''}
+          </div>
+        </div>`;
+      }
+      html += `</div></div>`;
+      return html;
+    }
+
+    return '';
+  }
+
   function fallbackMarkdown(text) {
     if (!text || !String(text).trim()) return '';
 
@@ -523,13 +1390,6 @@
         flushPara();
         const block = codeBlocks[Number(codeMatch[1])];
         if (block) {
-          if (block.lang === 'attendance') {
-            const chartHtml = renderAttendanceChartHtml(block.code);
-            if (chartHtml) {
-              output.push(chartHtml);
-              continue;
-            }
-          }
           output.push(`<pre><code class="language-${escapeHtml(block.lang)}">${escapeHtml(block.code)}</code></pre>`);
         }
         continue;
@@ -725,7 +1585,7 @@
         if (highlighted && typeof highlighted === 'string') {
           return assertAndCleanPlaceholders(highlighted);
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     // 2. High-fidelity sequential lexer
@@ -991,7 +1851,7 @@
       if (!terminal) throw new Error('The reply was interrupted. Please try again.');
       return result;
     } finally {
-      await reader.cancel().catch(() => {});
+      await reader.cancel().catch(() => { });
       reader.releaseLock();
     }
   }
@@ -1006,8 +1866,6 @@
       stabilizeStreamingMarkdown,
       protectCodeBlocks,
       restoreCodeBlocks,
-      parseAttendanceBlock,
-      renderAttendanceChartHtml,
       fallbackMarkdown,
       normalizeLatexDelimiters,
       highlightChatCode,
@@ -1055,7 +1913,7 @@
       loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js'),
       loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js')
     ]);
-  }).catch(() => {});
+  }).catch(() => { });
 
   // --- 3. Component Architecture Definitions ---
 
@@ -1067,18 +1925,7 @@
         if (pre.parentElement.classList.contains('kyana-code-block')) return;
 
         const rawCode = codeBlock.textContent || '';
-        const langMatch = codeBlock.className.match(/language-([\w+#.-]+)/);
-        if (langMatch && langMatch[1].toLowerCase() === 'attendance') {
-          const chartHtml = renderAttendanceChartHtml(rawCode);
-          if (chartHtml) {
-            const holder = document.createElement('div');
-            holder.innerHTML = chartHtml;
-            if (holder.firstElementChild) {
-              pre.parentNode.replaceChild(holder.firstElementChild, pre);
-              return;
-            }
-          }
-        }
+        const langMatch = codeBlock.className.match(/language-(\w+)/);
         const langName = langMatch ? langMatch[1] : 'Code';
         const langKey = langName.toLowerCase();
         const compilerSupported = /^(java|c|cpp|c\+\+|html|css|javascript|js|python|py|sql)$/.test(langKey);
@@ -1138,7 +1985,7 @@
                 lang: langKey
               }));
               window.location.href = 'compiler.html';
-            } catch (_) {}
+            } catch (_) { }
           });
         }
 
@@ -1165,8 +2012,9 @@
             window.marked.setOptions({ breaks: true, gfm: true });
           }
         }
-        // Protect block and inline math before marked.parse so underscores/backslashes are not stripped
+        // Protect block math before marked.parse so underscores/backslashes are not stripped
         const mathHolders = [];
+        const inlineMathHolders = [];
         const mathProtected = normalized
           .replace(/\$\$([\s\S]*?)\$\$/g, (_, expr) => {
             const idx = mathHolders.length;
@@ -1175,12 +2023,13 @@
           })
           .replace(/(^|[^$\\])\$(?!\$)([^$\n]+?)\$(?!\$)/g, (m, prefix, expr) => {
             if (/^\d+(?:[.,]\d+)?$/.test(expr.trim())) return m;
-            const idx = mathHolders.length;
-            mathHolders.push(`<span class="kyana-math-inline">${escapeHtml(expr.trim())}$</span>`);
-            return `${prefix}@@KYANA_MATH_BLOCK_${idx}@@`;
+            const idx = inlineMathHolders.length;
+            inlineMathHolders.push(`<span class="kyana-math-inline">$${escapeHtml(expr.trim())}$</span>`);
+            return `${prefix}___KYANA_INLINE_MATH_${idx}___`;
           });
         let parsed = window.marked.parse(mathProtected);
         parsed = parsed.replace(/(?:<p>)?@@KYANA_MATH_BLOCK_(\d+)@@(?:<\/p>)?/g, (_, idx) => mathHolders[Number(idx)] || '');
+        parsed = parsed.replace(/___KYANA_INLINE_MATH_(\d+)___/g, (_, idx) => inlineMathHolders[Number(idx)] || '');
         if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
           element.innerHTML = window.DOMPurify.sanitize(parsed, {
             ADD_ATTR: ['target', 'rel', 'class'],
@@ -1225,7 +2074,7 @@
           ],
           throwOnError: false
         });
-      } catch (_) {}
+      } catch (_) { }
     }
 
     assertAndCleanPlaceholders(element);
@@ -1261,7 +2110,7 @@
         resourceCards.forEach(card => {
           const el = document.createElement('a');
           el.className = 'kyana-source-card';
-          el.href = ['note','post','notice','assignment','post_assignment','routine'].includes(card.type) && /^\d+$/.test(String(card.id)) ? `/api/ai/resources/${card.type}/${card.id}/open` : '#';
+          el.href = ['note', 'post', 'notice', 'assignment', 'post_assignment', 'routine'].includes(card.type) && /^\d+$/.test(String(card.id)) ? `/api/ai/resources/${card.type}/${card.id}/open` : '#';
           if (card.action === 'open_note' || card.type === 'note') {
             el.target = '_blank';
             el.rel = 'noopener noreferrer';
@@ -1734,7 +2583,7 @@
         const next = curr === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', next);
         document.body.classList.toggle('dark-mode', next === 'dark');
-        try { localStorage.setItem('theme', next); } catch (_) {}
+        try { localStorage.setItem('theme', next); } catch (_) { }
       }
     });
   }
@@ -2243,7 +3092,7 @@
     try {
       const token = window.SemesterAuth?.getAccessToken?.();
       if (token) reqHeaders['Authorization'] = `Bearer ${token}`;
-    } catch (_) {}
+    } catch (_) { }
 
     try {
       const response = await fetch('/api/ai/chat', {
@@ -2448,7 +3297,7 @@
           }
         }
       }
-    } catch (_) {}
+    } catch (_) { }
   }
   syncServerConversations();
 
@@ -2461,6 +3310,6 @@
         handleSend(initialQuery.trim());
       }, 300);
     }
-  } catch (_) {}
+  } catch (_) { }
 
 })();

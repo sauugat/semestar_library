@@ -258,3 +258,300 @@
     font-size: 18px;
   }
 }
+
+.kyana-att-item-desc {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ky-text-secondary);
+  margin-top: 6px;
+}
+.kyana-att-item-sub {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ky-text-muted);
+  margin-top: 4px;
+}
+
+/* --- Kyana Academic Visual Learning Blocks --- */
+.kyana-syllabus-code-badge {
+  font-family: var(--ky-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border);
+  color: var(--ky-text-secondary);
+}
+.kyana-syllabus-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.kyana-syllabus-objectives {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ky-text-secondary);
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  background: var(--ky-surface-raised);
+  border-radius: 8px;
+  border-left: 3px solid var(--ky-aura-royal-blue);
+}
+.kyana-syllabus-section-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ky-text-muted);
+  margin-bottom: 4px;
+}
+.kyana-syllabus-unit-topics {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ky-text-muted);
+  margin-top: 5px;
+  padding-left: 2px;
+}
+.kyana-syllabus-footer-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ky-border-subtle);
+}
+.kyana-syllabus-footer-text {
+  font-size: 12.5px;
+  color: var(--ky-text-secondary);
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+/* Quiz Card */
+.kyana-quiz-question {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ky-text-primary);
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
+.kyana-quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.kyana-quiz-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-subtle);
+  font-size: 13px;
+}
+.kyana-quiz-opt-key {
+  font-family: var(--ky-font-mono);
+  font-weight: 700;
+  color: var(--ky-aura-cyan);
+  min-width: 18px;
+}
+.kyana-quiz-opt-text {
+  color: var(--ky-text-primary);
+  flex: 1;
+}
+.kyana-quiz-action-bar {
+  margin-top: 10px;
+}
+.kyana-quiz-reveal-btn {
+  background: var(--ky-surface-raised);
+  color: var(--ky-text-primary);
+  border: 1px solid var(--ky-border-strong);
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.kyana-quiz-reveal-btn:hover {
+  background: var(--ky-surface-hover);
+  border-color: var(--ky-text-secondary);
+}
+.kyana-quiz-reveal-content {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(22, 93, 255, 0.08);
+  border: 1px solid rgba(22, 93, 255, 0.2);
+}
+.kyana-quiz-correct-answer {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ky-text-primary);
+  margin-bottom: 6px;
+}
+.kyana-quiz-explanation {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ky-text-secondary);
+}
+
+/* Diagram Card */
+.kyana-diagram-content {
+  margin-top: 10px;
+  overflow-x: auto;
+}
+.kyana-diagram-pre {
+  margin: 0;
+  padding: 12px;
+  background: var(--ky-code-bg);
+  border-radius: 8px;
+  border: 1px solid var(--ky-border-subtle);
+  font-family: var(--ky-font-mono);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--ky-text-primary);
+}
+
+/* Trace Card */
+.kyana-trace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.kyana-trace-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--ky-surface-raised);
+  border-radius: 8px;
+  border: 1px solid var(--ky-border-subtle);
+}
+.kyana-trace-step-badge {
+  font-family: var(--ky-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ky-text-primary);
+  white-space: nowrap;
+}
+.kyana-trace-step-content {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ky-text-secondary);
+  flex: 1;
+}
+
+/* Comparison Card */
+.kyana-comparison-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.kyana-comparison-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-subtle);
+  font-size: 12.5px;
+}
+.kyana-comp-criteria {
+  font-weight: 600;
+  color: var(--ky-text-primary);
+}
+.kyana-comp-val {
+  color: var(--ky-text-secondary);
+}
+
+/* Roadmap Card */
+.kyana-roadmap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.kyana-roadmap-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-subtle);
+}
+.kyana-roadmap-status-dot {
+  font-size: 13px;
+  font-weight: 700;
+  width: 18px;
+  text-align: center;
+  color: var(--ky-text-secondary);
+}
+.kyana-roadmap-item.is-completed .kyana-roadmap-status-dot {
+  color: #10b981;
+}
+.kyana-roadmap-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.kyana-roadmap-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ky-text-primary);
+}
+.kyana-roadmap-tag {
+  font-size: 11px;
+  color: var(--ky-aura-cyan);
+}
+.kyana-roadmap-desc {
+  font-size: 12px;
+  color: var(--ky-text-muted);
+}
+
+/* Complexity Card */
+.kyana-complexity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.kyana-complexity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-subtle);
+  flex-wrap: wrap;
+}
+.kyana-comp-op {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ky-text-primary);
+}
+.kyana-comp-metrics {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.kyana-comp-badge {
+  font-family: var(--ky-font-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ky-text-secondary);
+}

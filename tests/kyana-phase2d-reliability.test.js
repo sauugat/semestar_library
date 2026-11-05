@@ -562,13 +562,13 @@ test('Phase 2D.2 — Library intelligence: BIT technical question, note explanat
   await t.test('Ask for an explanation from Library notes and ask which chapter contains a particular concept', async () => {
     const rExplain = await handleChat(
       db,
-      'Explain BCNF in DBMS.',
+      'Explain BCNF in DBMS from notes.',
       { studentId: 'stu_saugat' },
       [],
       'sess-lib-bcnf',
       {
         generateReply: async ({ onDelta }) => {
-          const text = 'This is extracted from **DBMS Normalization & BCNF Guide** (Subject: Database Management System, Chapter: Chapter 3, Page: 2): Boyce-Codd Normal Form (BCNF) requires that for every non-trivial functional dependency X -> Y, X is a superkey.';
+          const text = 'This is extracted from **DBMS Normalization & BCNF Guide** (Subject: Database Management System, Chapter: Chapter 3, Page: 2): In DBMS Normalization & BCNF Guide (Chapter 3), Boyce-Codd Normal Form (BCNF) requires that for every non-trivial functional dependency X -> Y, X is a superkey.';
           onDelta(text);
           return { reply: text };
         }

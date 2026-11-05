@@ -1702,12 +1702,17 @@ ${evidenceBlocks}
       });
       result.reply = grounded.reply;
       if (!grounded.fallbackUsed) {
-        const visualEnrichment = buildDeterministicVisualEnrichment(message, academicClassification, result.reply);
-        if (visualEnrichment) {
-          result.reply += visualEnrichment;
-          if (streamedEvidenceText.length > 0) {
-            onDelta(visualEnrichment);
-            streamedEvidenceText += visualEnrichment;
+        const wantsVisualExplicitly = Boolean(academicClassification?.needsAlgorithmTrace) ||
+          /(?:diagram|flowchart|visualiz|trace|graph|chart|simulate|simulation|quiz|test\s+me|roadmap|steps?\s+trace)/i.test(message) ||
+          /\b(recursion|recursive|call\s+stack)\b/i.test(message);
+        if (wantsVisualExplicitly) {
+          const visualEnrichment = buildDeterministicVisualEnrichment(message, academicClassification, result.reply);
+          if (visualEnrichment) {
+            result.reply += visualEnrichment;
+            if (streamedEvidenceText.length > 0) {
+              onDelta(visualEnrichment);
+              streamedEvidenceText += visualEnrichment;
+            }
           }
         }
       }
@@ -1765,12 +1770,17 @@ ${evidenceBlocks}
       });
       result.reply = grounded.reply;
       if (!grounded.fallbackUsed) {
-        const visualEnrichment = buildDeterministicVisualEnrichment(message, academicClassification, result.reply);
-        if (visualEnrichment) {
-          result.reply += visualEnrichment;
-          if (streamedChunks.length > 0) {
-            onDelta(visualEnrichment);
-            streamedChunks += visualEnrichment;
+        const wantsVisualExplicitly = Boolean(academicClassification?.needsAlgorithmTrace) ||
+          /(?:diagram|flowchart|visualiz|trace|graph|chart|simulate|simulation|quiz|test\s+me|roadmap|steps?\s+trace)/i.test(message) ||
+          /\b(recursion|recursive|call\s+stack)\b/i.test(message);
+        if (wantsVisualExplicitly) {
+          const visualEnrichment = buildDeterministicVisualEnrichment(message, academicClassification, result.reply);
+          if (visualEnrichment) {
+            result.reply += visualEnrichment;
+            if (streamedChunks.length > 0) {
+              onDelta(visualEnrichment);
+              streamedChunks += visualEnrichment;
+            }
           }
         }
       }

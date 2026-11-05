@@ -14,6 +14,13 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/constants/useTheme';
 
+let OptionalWebView: any = null;
+try {
+  OptionalWebView = require('react-native-webview').WebView;
+} catch (_) {
+  OptionalWebView = null;
+}
+
 export interface PostMarkdownProps {
   content: string;
   streaming?: boolean;
@@ -2377,12 +2384,127 @@ const CODE_KEYWORDS = new Set([
   'RIGHT', 'INNER', 'ORDER', 'BY', 'GROUP', 'LIMIT', 'HAVING', 'AS', 'ON', 'AND', 'OR', 'NOT',
 ]);
 
+const CONTROL_KEYWORDS = new Set([
+  'if', 'else', 'elif', 'elseif', 'endif', 'for', 'while', 'do', 'switch', 'case', 'break',
+  'continue', 'return', 'try', 'catch', 'finally', 'throw', 'throws', 'yield', 'import',
+  'from', 'as', 'with', 'pass', 'raise', 'match', 'endforeach', 'foreach'
+]);
+
+const CSS_ELEMENT_SELECTORS = new Set([
+  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'a', 'body', 'html',
+  'ul', 'ol', 'li', 'button', 'input', 'textarea', 'form', 'table', 'tr', 'td',
+  'th', 'header', 'footer', 'section', 'article', 'nav', 'main', 'img', 'code', 'pre', '*'
+]);
+
 /**
- * Lightweight syntax highlighter for mobile fenced code blocks (JS/TS, Python, PHP, C/C++, Java, SQL, etc.)
- * that preserves exact literal code characters while coloring tokens cleanly.
+ * High-fidelity syntax highlighter for mobile code blocks (HTML, CSS, JS/TS, Python, C/C++, Java, SQL, etc.)
+ * matching authentic Antigravity macOS / VS Code Dark+ palette.
  */
-function renderHighlightedCode(code: string, isDark: boolean): React.ReactNode[] {
+function renderHighlightedCode(code: string, isDark: boolean, lang?: string): React.ReactNode[] {
   if (!code) return [];
+  const l = (lang || '').toLowerCase();
+
+  const palette = isDark
+    ? {
+        default: '#d4d4d4',
+        comment: '#6a9955',
+        string: '#ce9178',
+        keyword: '#569cd6',
+        control: '#c586c0',
+        variable: '#9cdcfe',
+        number: '#b5cea8',
+        func: '#dcdcaa',
+        type: '#4ec9b0',
+        selector: '#d7ba7d',
+        tag: '#569cd6',
+        attrName: '#9cdcfe',
+        attrVal: '#ce9178',
+        operator: '#d4d4d4',
+      }
+    : {
+        default: '#1f2328',
+        comment: '#57606a',
+        string: '#a31515',
+        keyword: '#0000ff',
+        control: '#af00db',
+        variable: '#001080',
+        number: '#098658',
+        func: '#795e26',
+        type: '#267f99',
+        selector: '#800000',
+        tag: '#800000',
+        attrName: '#e50000',
+        attrVal: '#0000ff',
+        operator: '#000000',
+      };
+
+  // 1. Dedicated HTML syntax highlighter
+  if (l === 'html' || l === 'xml') {
+    const htmlRegex = /(<!--[\s\S]*?-->)|(<\/?[a-zA-Z][\w:-]*)|([a-zA-Z_:][\w:.-]*)(?=\s*=)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\/?>)|([<>=])/g;
+    const nodes: React.ReactNode[] = [];
+    let last = 0;
+    let m: RegExpExecArray | null;
+    let idx = 0;
+    while ((m = htmlRegex.exec(code)) !== null) {
+      if (m.index > last) {
+        nodes.push(<Text key={`h-pl-${idx++}`} style={{ color: palette.default }}>{code.slice(last, m.index)}</Text>);
+      }
+      if (m[1]) {
+        nodes.push(<Text key={`h-cm-${idx++}`} style={{ color: palette.comment, fontStyle: 'italic' }}>{m[1]}</Text>);
+      } else if (m[2]) {
+        nodes.push(<Text key={`h-tg-${idx++}`} style={{ color: palette.tag }}>{m[2]}</Text>);
+      } else if (m[3]) {
+        nodes.push(<Text key={`h-at-${idx++}`} style={{ color: palette.attrName }}>{m[3]}</Text>);
+      } else if (m[4]) {
+        nodes.push(<Text key={`h-av-${idx++}`} style={{ color: palette.attrVal }}>{m[4]}</Text>);
+      } else if (m[5] || m[6]) {
+        nodes.push(<Text key={`h-op-${idx++}`} style={{ color: palette.operator }}>{m[5] || m[6]}</Text>);
+      }
+      last = htmlRegex.lastIndex;
+    }
+    if (last < code.length) {
+      nodes.push(<Text key={`h-tail-${idx}`} style={{ color: palette.default }}>{code.slice(last)}</Text>);
+    }
+    return nodes;
+  }
+
+  // 2. Dedicated CSS syntax highlighter
+  if (l === 'css') {
+    const cssRegex = /(\/\*[\s\S]*?\*\/)|([.#][a-zA-Z_-][\w-]*)|([a-zA-Z_-][\w-]*)(?=\s*:)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\b\d+(?:\.\d+)?(?:px|em|rem|%|vh|vw|ms|s)?\b)|(\b[a-zA-Z_-][\w-]*\b)|([{}:;])/g;
+    const nodes: React.ReactNode[] = [];
+    let last = 0;
+    let m: RegExpExecArray | null;
+    let idx = 0;
+    while ((m = cssRegex.exec(code)) !== null) {
+      if (m.index > last) {
+        nodes.push(<Text key={`c-pl-${idx++}`} style={{ color: palette.default }}>{code.slice(last, m.index)}</Text>);
+      }
+      if (m[1]) {
+        nodes.push(<Text key={`c-cm-${idx++}`} style={{ color: palette.comment, fontStyle: 'italic' }}>{m[1]}</Text>);
+      } else if (m[2]) {
+        nodes.push(<Text key={`c-sl-${idx++}`} style={{ color: palette.selector }}>{m[2]}</Text>);
+      } else if (m[3]) {
+        nodes.push(<Text key={`c-pr-${idx++}`} style={{ color: palette.variable }}>{m[3]}</Text>);
+      } else if (m[4]) {
+        nodes.push(<Text key={`c-st-${idx++}`} style={{ color: palette.string }}>{m[4]}</Text>);
+      } else if (m[5]) {
+        nodes.push(<Text key={`c-nm-${idx++}`} style={{ color: palette.number }}>{m[5]}</Text>);
+      } else if (m[6]) {
+        const word = m[6].toLowerCase();
+        const color = CSS_ELEMENT_SELECTORS.has(word) ? palette.selector : palette.string;
+        nodes.push(<Text key={`c-wd-${idx++}`} style={{ color }}>{m[6]}</Text>);
+      } else if (m[7]) {
+        nodes.push(<Text key={`c-pn-${idx++}`} style={{ color: palette.operator }}>{m[7]}</Text>);
+      }
+      last = cssRegex.lastIndex;
+    }
+    if (last < code.length) {
+      nodes.push(<Text key={`c-tail-${idx}`} style={{ color: palette.default }}>{code.slice(last)}</Text>);
+    }
+    return nodes;
+  }
+
+  // 3. Multi-language lexer (JS/TS, Python, C/C++, Java, PHP, SQL)
   const tokenRegex = new RegExp(
     [
       '(\\/\\*[\\s\\S]*?\\*\\/|\\/\\/[^\\n]*|#[^\\n]*|--[^\\n]*)', // 1: comment
@@ -2395,26 +2517,6 @@ function renderHighlightedCode(code: string, isDark: boolean): React.ReactNode[]
     ].join('|'),
     'g'
   );
-
-  const palette = isDark
-    ? {
-        default: '#f4f4f5',
-        comment: '#71717a',
-        string: '#86efac',
-        keyword: '#93c5fd',
-        variable: '#f9a8d4',
-        number: '#fcd34d',
-        func: '#c4b5fd',
-      }
-    : {
-        default: '#18181b',
-        comment: '#71717a',
-        string: '#15803d',
-        keyword: '#1d4ed8',
-        variable: '#be185d',
-        number: '#b45309',
-        func: '#6d28d9',
-      };
 
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -2432,7 +2534,6 @@ function renderHighlightedCode(code: string, isDark: boolean): React.ReactNode[]
 
     const full = match[0];
     let tokenColor = palette.default;
-    let tokenWeight: '400' | '600' = '400';
 
     if (match[1]) {
       tokenColor = palette.comment;
@@ -2440,18 +2541,19 @@ function renderHighlightedCode(code: string, isDark: boolean): React.ReactNode[]
       tokenColor = palette.string;
     } else if (match[3]) {
       tokenColor = palette.keyword;
-      tokenWeight = '600';
     } else if (match[4]) {
       tokenColor = palette.variable;
     } else if (match[5]) {
       tokenColor = palette.number;
     } else if (match[6]) {
-      tokenColor = CODE_KEYWORDS.has(match[6]) ? palette.keyword : palette.func;
-      if (CODE_KEYWORDS.has(match[6])) tokenWeight = '600';
+      tokenColor = CONTROL_KEYWORDS.has(match[6]) ? palette.control : (CODE_KEYWORDS.has(match[6]) ? palette.keyword : palette.func);
     } else if (match[7]) {
-      if (CODE_KEYWORDS.has(match[7])) {
+      if (CONTROL_KEYWORDS.has(match[7])) {
+        tokenColor = palette.control;
+      } else if (CODE_KEYWORDS.has(match[7])) {
         tokenColor = palette.keyword;
-        tokenWeight = '600';
+      } else if (/^[A-Z][a-zA-Z0-9_]*$/.test(match[7])) {
+        tokenColor = palette.type;
       }
     }
 
@@ -2460,7 +2562,7 @@ function renderHighlightedCode(code: string, isDark: boolean): React.ReactNode[]
         key={`c-tok-${tokenIdx++}`}
         style={{
           color: tokenColor,
-          fontWeight: tokenWeight,
+          fontStyle: match[1] ? 'italic' : 'normal',
         }}
       >
         {full}
@@ -3030,6 +3132,16 @@ function PostMarkdownInternal({
 }: PostMarkdownProps) {
   const { colors, isDark } = useTheme();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [unwrappedBlocks, setUnwrappedBlocks] = useState<Record<number, boolean>>({});
+  const [previewBlocks, setPreviewBlocks] = useState<Record<number, boolean>>({});
+
+  const toggleWrap = (idx: number) => {
+    setUnwrappedBlocks(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
+  const togglePreview = (idx: number) => {
+    setPreviewBlocks(prev => ({ ...prev, [idx]: !prev[idx] }));
+  };
 
   if (!content || typeof content !== 'string' || !content.trim()) return null;
 
@@ -3147,14 +3259,18 @@ function PostMarkdownInternal({
           }
         }
         const isCopied = copiedIndex === blockIndex;
+        const isUnwrapped = Boolean(unwrappedBlocks[blockIndex]);
+        const isPreviewOpen = Boolean(previewBlocks[blockIndex]);
+        const isPreviewable = /^(html|css|javascript|js|web)$/i.test(block.lang);
+
         renderedElements.push(
           <View
             key={`code-block-${i}`}
             style={[
               styles.codeBlockContainer,
               {
-                backgroundColor: isDark ? '#141416' : '#f4f4f5',
-                borderColor: colors.border,
+                backgroundColor: isDark ? '#1e1e1e' : '#f4f4f5',
+                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
               },
             ]}
           >
@@ -3162,43 +3278,142 @@ function PostMarkdownInternal({
               style={[
                 styles.codeHeader,
                 {
-                  borderBottomColor: colors.border,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+                  borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+                  backgroundColor: isDark ? '#252526' : '#e4e4e7',
                 },
               ]}
             >
-              <Text style={[styles.codeLang, { color: colors.textSecondary }]}>
-                {block.lang}
-              </Text>
-              <TouchableOpacity
-                onPress={() => handleCopyCode(block.code, blockIndex)}
-                style={[
-                  styles.copyBtn,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: isCopied ? colors.surfaceRaised : 'transparent',
-                  },
-                ]}
-                activeOpacity={0.7}
-                accessibilityLabel="Copy code"
-              >
-                <Text style={[styles.copyBtnText, { color: colors.text }]}>
-                  {isCopied ? 'Copied!' : 'Copy'}
+              <View style={styles.codeLangGroup}>
+                <Text style={[styles.codeIconText, { color: isDark ? '#71717a' : '#a1a1aa' }]}>&lt;/&gt;</Text>
+                <Text style={[styles.codeLang, { color: isDark ? '#a1a1aa' : '#52525b' }]}>
+                  {(block.lang || 'Code').toUpperCase()}
                 </Text>
-              </TouchableOpacity>
+              </View>
+              <View style={styles.codeActionsRow}>
+                <TouchableOpacity
+                  onPress={() => toggleWrap(blockIndex)}
+                  style={[
+                    styles.codeActionBtn,
+                    {
+                      borderColor: isUnwrapped ? (isDark ? 'rgba(96,165,250,0.3)' : '#bfdbfe') : 'transparent',
+                      backgroundColor: isUnwrapped ? (isDark ? 'rgba(96,165,250,0.15)' : '#eff6ff') : 'transparent',
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Toggle word wrap"
+                >
+                  <Text style={[styles.codeActionBtnText, { color: isUnwrapped ? '#60a5fa' : colors.textSecondary }]}>
+                    {isUnwrapped ? 'No Wrap' : 'Wrap'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handleCopyCode(block.code, blockIndex)}
+                  style={[
+                    styles.codeActionBtn,
+                    {
+                      borderColor: isCopied ? (isDark ? 'rgba(74,222,128,0.3)' : '#bbf7d0') : 'transparent',
+                      backgroundColor: isCopied ? (isDark ? 'rgba(74,222,128,0.15)' : '#f0fdf4') : 'transparent',
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Copy code"
+                >
+                  <Text style={[styles.codeActionBtnText, { color: isCopied ? '#22c55e' : colors.textSecondary }]}>
+                    {isCopied ? '✓ Copied' : 'Copy'}
+                  </Text>
+                </TouchableOpacity>
+                {isPreviewable && (
+                  <TouchableOpacity
+                    onPress={() => togglePreview(blockIndex)}
+                    style={[
+                      styles.codeActionBtn,
+                      {
+                        borderColor: isPreviewOpen ? (isDark ? 'rgba(34,197,94,0.3)' : '#bbf7d0') : 'transparent',
+                        backgroundColor: isPreviewOpen ? (isDark ? 'rgba(34,197,94,0.15)' : '#f0fdf4') : 'transparent',
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Interactive live preview"
+                  >
+                    <Text style={[styles.codeActionBtnText, { color: isPreviewOpen ? '#22c55e' : colors.textSecondary }]}>
+                      {isPreviewOpen ? 'Hide' : '▶ Preview'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
             <View style={styles.codeContentWrapper}>
-              <Text
-                style={[
-                  styles.codeText,
-                  {
-                    color: isDark ? '#f4f4f5' : '#18181b',
-                  },
-                ]}
-              >
-                {renderHighlightedCode(block.code, isDark)}
-              </Text>
+              {isUnwrapped ? (
+                <ScrollView horizontal nestedScrollEnabled={true} showsHorizontalScrollIndicator={false}>
+                  <Text
+                    style={[
+                      styles.codeText,
+                      {
+                        color: isDark ? '#d4d4d4' : '#1f2328',
+                        flexWrap: 'nowrap',
+                      },
+                    ]}
+                  >
+                    {renderHighlightedCode(block.code, isDark, block.lang)}
+                  </Text>
+                </ScrollView>
+              ) : (
+                <Text
+                  style={[
+                    styles.codeText,
+                    {
+                      color: isDark ? '#d4d4d4' : '#1f2328',
+                    },
+                  ]}
+                >
+                  {renderHighlightedCode(block.code, isDark, block.lang)}
+                </Text>
+              )}
             </View>
+            {isPreviewOpen && (
+              <View style={[styles.mobilePreviewBox, { borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}>
+                <View style={[styles.mobilePreviewHeader, { backgroundColor: isDark ? '#202023' : '#f4f4f5' }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={styles.mobilePreviewDot} />
+                    <Text style={[styles.mobilePreviewTitle, { color: isDark ? '#f4f4f5' : '#18181b' }]}>Live Preview</Text>
+                    <View style={styles.mobilePreviewBadge}>
+                      <Text style={styles.mobilePreviewBadgeText}>Sandbox</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity onPress={() => togglePreview(blockIndex)}>
+                    <Text style={{ color: isDark ? '#a1a1aa' : '#71717a', fontSize: 13, fontWeight: '600' }}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.mobilePreviewFrame}>
+                  {OptionalWebView ? (
+                    <OptionalWebView
+                      originWhitelist={['*']}
+                      source={{
+                        html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:12px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#18181b;background:#ffffff;line-height:1.5;} ${
+                          block.lang.toLowerCase() === 'html'
+                            ? codeBlocks.filter(b => b.lang.toLowerCase() === 'css').map(b => b.code).join('\n')
+                            : (block.lang.toLowerCase() === 'css' ? block.code : '')
+                        }</style></head><body>${
+                          block.lang.toLowerCase() === 'html'
+                            ? block.code
+                            : (block.lang.toLowerCase() === 'css'
+                                ? (codeBlocks.find(b => b.lang.toLowerCase() === 'html')?.code || '<div class="student"><h3>Class .student Example</h3><p>Styled with your CSS rules.</p></div>')
+                                : `<script>${block.code}<\/script><div>Running snippet...</div>`)
+                        }</body></html>`
+                      }}
+                      style={{ width: '100%', height: 130, backgroundColor: '#ffffff' }}
+                      scrollEnabled={true}
+                    />
+                  ) : (
+                    <View style={{ padding: 14 }}>
+                      <Text style={{ color: '#18181b', fontSize: 13 }}>
+                        [Interactive preview rendered on device]
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
           </View>
         );
       }
@@ -3605,8 +3820,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   codeBlockContainer: {
-    marginVertical: 8,
-    borderRadius: 10,
+    marginVertical: 10,
+    borderRadius: 12,
     borderWidth: 1,
     overflow: 'hidden',
     width: '100%',
@@ -3616,13 +3831,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderBottomWidth: 1,
+  },
+  codeLangGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  codeIconText: {
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontSize: 11,
+    fontWeight: '700',
   },
   codeLang: {
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  codeActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  codeActionBtn: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 5,
+    borderWidth: 1,
+  },
+  codeActionBtnText: {
+    fontSize: 10.5,
+    fontWeight: '600',
   },
   copyBtn: {
     paddingHorizontal: 8,
@@ -3637,13 +3877,51 @@ const styles = StyleSheet.create({
   codeText: {
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     fontSize: 12.5,
-    lineHeight: 19,
+    lineHeight: 18.5,
     flexWrap: 'wrap',
   },
   codeContentWrapper: {
     padding: 12,
     paddingRight: 24,
     width: '100%',
+  },
+  mobilePreviewBox: {
+    borderTopWidth: 1,
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+  },
+  mobilePreviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)',
+  },
+  mobilePreviewTitle: {
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  mobilePreviewDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#22c55e',
+  },
+  mobilePreviewBadge: {
+    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 3,
+  },
+  mobilePreviewBadgeText: {
+    color: '#16a34a',
+    fontSize: 9.5,
+    fontWeight: '700',
+  },
+  mobilePreviewFrame: {
+    backgroundColor: '#ffffff',
   },
   mathBlockContainer: {
     marginVertical: 8,

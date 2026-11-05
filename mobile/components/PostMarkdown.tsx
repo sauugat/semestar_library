@@ -224,24 +224,57 @@ export function parseKyanaVisualBlock(kind: string, rawBlock: string): any {
   if (normKind === 'attendance') {
     return { kind: 'attendance', ...parseAttendanceBlock(text) };
   }
+  if (!text || text.length > 32768) {
+    return { kind: normKind, items: [] };
+  }
+  if (
+    /<script\b|<\/script>|javascript\s*:|vbscript\s*:|data\s*:\s*text\/html|java\s*&#|&#x0*6a;|\\u006a\s*avascript|<iframe\b|<object\b|<embed\b|<foreignObject\b|<animate\b|<set\b|xlink\s*:\s*href|\bon[a-z]{2,}\s*=|\beval\s*\(|new\s+Function\s*\(|"__proto__"|"constructor"\s*:|"prototype"\s*:/i.test(
+      text
+    )
+  ) {
+    return { kind: normKind, items: [] };
+  }
 
   if (
-    text.startsWith('{') &&
-    ['syllabus', 'diagram', 'flowchart', 'graph', 'trace', 'quiz', 'roadmap', 'comparison', 'complexity'].includes(
-      normKind
-    )
+    (text.startsWith('{') || ['simulation', 'code_preview', 'illustration'].includes(normKind)) &&
+    [
+      'syllabus',
+      'diagram',
+      'flowchart',
+      'graph',
+      'trace',
+      'quiz',
+      'roadmap',
+      'comparison',
+      'complexity',
+      'simulation',
+      'code_preview',
+      'illustration',
+    ].includes(normKind)
   ) {
     try {
       const parsedJson = JSON.parse(text);
-      if (parsedJson && typeof parsedJson === 'object') {
+      if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) {
+        if (normKind === 'simulation' && !parsedJson.simulationType) return { kind: normKind, items: [] };
+        if (normKind === 'code_preview' && !parsedJson.html && !parsedJson.css && !parsedJson.code)
+          return { kind: normKind, items: [] };
+        if (normKind === 'illustration' && !parsedJson.sceneType && !parsedJson.panels)
+          return { kind: normKind, items: [] };
         const items =
           parsedJson.units ||
           parsedJson.nodes ||
           parsedJson.steps ||
           parsedJson.series ||
           parsedJson.questions ||
+          parsedJson.controls ||
+          parsedJson.annotations ||
+          parsedJson.panels ||
           parsedJson.items ||
-          (parsedJson.unit ? [parsedJson.unit] : []);
+          (parsedJson.unit
+            ? [parsedJson.unit]
+            : parsedJson.simulationType || parsedJson.sceneType || parsedJson.html
+              ? [parsedJson]
+              : []);
         return {
           kind: normKind,
           ...parsedJson,
@@ -249,7 +282,7 @@ export function parseKyanaVisualBlock(kind: string, rawBlock: string): any {
         };
       }
     } catch (_) {
-      // Fall through to line-based parser during streaming or if non-JSON
+      return { kind: normKind, items: [] };
     }
   }
 
@@ -745,6 +778,264 @@ export function parseKyanaVisualBlock(kind: string, rawBlock: string): any {
   }
 
   return { kind: normKind, items: [] };
+}
+
+function KyanaSimulationCard({
+  parsed,
+  cardBg,
+  raisedBg,
+  colors,
+  keyPrefix,
+}: {
+  parsed: any;
+  cardBg: string;
+  raisedBg: string;
+  colors: any;
+  keyPrefix: string;
+}) {
+  const simType = String(parsed.simulationType || 'generic').toLowerCase();
+  const [paddingVal, setPaddingVal] = useState<number>(Number(parsed.defaults?.padding ?? 16));
+  const [marginVal, setMarginVal] = useState<number>(Number(parsed.defaults?.margin ?? 12));
+  const [v0Val, setV0Val] = useState<number>(Number(parsed.defaults?.v0 ?? parsed.computed?.v0 ?? 25));
+  const [thetaVal, setThetaVal] = useState<number>(Number(parsed.defaults?.thetaDeg ?? parsed.computed?.thetaDeg ?? 45));
+  const [ampVal, setAmpVal] = useState<number>(Number(parsed.defaults?.amplitude ?? 2));
+  const [freqVal, setFreqVal] = useState<number>(Number(parsed.defaults?.frequency ?? 2));
+
+  const rad = (thetaVal * Math.PI) / 180;
+  const g = Number(parsed.defaults?.g ?? 9.8);
+  const projRange = (((v0Val * v0Val) * Math.sin(2 * rad)) / g).toFixed(2);
+  const projHeight = (((v0Val * v0Val) * Math.pow(Math.sin(rad), 2)) / (2 * g)).toFixed(2);
+  const projTime = ((2 * v0Val * Math.sin(rad)) / g).toFixed(2);
+
+  return (
+    <View
+      key={keyPrefix}
+      style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+      accessibilityLabel={parsed.title || 'Interactive Academic Simulation'}
+    >
+      <View style={styles.attHeaderRow}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+            {parsed.title || 'Interactive Academic Simulation'}
+          </Text>
+          {Boolean(parsed.subtitle) && (
+            <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{parsed.subtitle}</Text>
+          )}
+        </View>
+        <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Interactive Lab</Text>
+        </View>
+      </View>
+
+      {simType === 'box_model' && (
+        <View style={{ gap: 10, marginTop: 8 }}>
+          <View style={{ padding: Math.max(4, Math.round(marginVal / 2)), borderRadius: 8, backgroundColor: '#eab308' }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#18181b', textAlign: 'center' }}>
+              {`Margin: ${marginVal}px`}
+            </Text>
+            <View style={{ padding: 8, borderRadius: 6, backgroundColor: '#84cc16', marginTop: 4 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#18181b', textAlign: 'center' }}>Border</Text>
+              <View style={{ padding: Math.max(4, Math.round(paddingVal / 2)), borderRadius: 6, backgroundColor: '#93c5fd', marginTop: 4 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#18181b', textAlign: 'center' }}>
+                  {`Padding: ${paddingVal}px`}
+                </Text>
+                <View style={{ padding: 12, borderRadius: 4, backgroundColor: '#2563eb', marginTop: 4 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffff', textAlign: 'center' }}>CONTENT</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[styles.attSubjMeta, { color: colors.text }]}>{`Adjust padding: ${paddingVal}px`}</Text>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <Pressable onPress={() => setPaddingVal((p) => Math.max(0, p - 4))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>- 4px</Text>
+              </Pressable>
+              <Pressable onPress={() => setPaddingVal((p) => Math.min(40, p + 4))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ 4px</Text>
+              </Pressable>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[styles.attSubjMeta, { color: colors.text }]}>{`Adjust margin: ${marginVal}px`}</Text>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <Pressable onPress={() => setMarginVal((m) => Math.max(0, m - 4))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>- 4px</Text>
+              </Pressable>
+              <Pressable onPress={() => setMarginVal((m) => Math.min(40, m + 4))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ 4px</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {simType === 'projectile_motion' && (
+        <View style={{ gap: 10, marginTop: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <View style={[styles.attStatBox, { backgroundColor: raisedBg, borderColor: colors.border, flex: 1 }]}>
+              <Text style={[styles.attStatNum, { color: colors.text }]}>{`${projRange} m`}</Text>
+              <Text style={[styles.attStatLabel, { color: colors.textSecondary }]}>Range (R)</Text>
+            </View>
+            <View style={[styles.attStatBox, { backgroundColor: raisedBg, borderColor: colors.border, flex: 1 }]}>
+              <Text style={[styles.attStatNum, { color: colors.text }]}>{`${projHeight} m`}</Text>
+              <Text style={[styles.attStatLabel, { color: colors.textSecondary }]}>Max Height (H)</Text>
+            </View>
+            <View style={[styles.attStatBox, { backgroundColor: raisedBg, borderColor: colors.border, flex: 1 }]}>
+              <Text style={[styles.attStatNum, { color: colors.text }]}>{`${projTime} s`}</Text>
+              <Text style={[styles.attStatLabel, { color: colors.textSecondary }]}>Flight Time (T)</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[styles.attSubjMeta, { color: colors.text }]}>{`Velocity (v₀): ${v0Val} m/s`}</Text>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <Pressable onPress={() => setV0Val((v) => Math.max(5, v - 5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>- 5 m/s</Text>
+              </Pressable>
+              <Pressable onPress={() => setV0Val((v) => Math.min(50, v + 5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ 5 m/s</Text>
+              </Pressable>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[styles.attSubjMeta, { color: colors.text }]}>{`Launch Angle (θ): ${thetaVal}°`}</Text>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <Pressable onPress={() => setThetaVal((t) => Math.max(10, t - 5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>- 5°</Text>
+              </Pressable>
+              <Pressable onPress={() => setThetaVal((t) => Math.min(85, t + 5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ 5°</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {simType === 'wave_motion' && (
+        <View style={{ gap: 8, marginTop: 8 }}>
+          <Text style={[styles.attSubjMeta, { color: colors.text }]}>
+            {`Amplitude A = ${ampVal} m · Frequency f = ${freqVal} Hz · Period T = ${(1 / freqVal).toFixed(2)} s`}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <Pressable onPress={() => setAmpVal((a) => Math.min(5, a + 0.5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+              <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ Amplitude</Text>
+            </Pressable>
+            <Pressable onPress={() => setFreqVal((f) => Math.min(6, f + 0.5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+              <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ Frequency</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {simType === 'binary_search' && (
+        <View style={{ gap: 8, marginTop: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {(Array.isArray(parsed.array) ? parsed.array : [2, 5, 8, 12, 16, 23, 38, 56]).map((val: any, idx: number) => (
+              <View
+                key={`bs-${idx}`}
+                style={[
+                  styles.attNoRecordPill,
+                  {
+                    backgroundColor: val === (parsed.defaultTarget ?? 23) ? 'rgba(16, 185, 129, 0.16)' : raisedBg,
+                    borderColor: val === (parsed.defaultTarget ?? 23) ? '#10b981' : colors.border,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                  },
+                ]}
+              >
+                <Text style={{ fontWeight: '700', fontSize: 13, color: colors.text }}>{String(val)}</Text>
+                <Text style={{ fontSize: 10, color: colors.textSecondary }}>{`idx ${idx}`}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {Boolean(parsed.takeaway || parsed.note) && (
+        <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 8 }]}>
+          {parsed.takeaway || parsed.note}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+function KyanaCodePreviewCard({
+  parsed,
+  cardBg,
+  raisedBg,
+  colors,
+  keyPrefix,
+}: {
+  parsed: any;
+  cardBg: string;
+  raisedBg: string;
+  colors: any;
+  keyPrefix: string;
+}) {
+  const [activeTab, setActiveTab] = useState<'html' | 'css' | 'preview'>('html');
+  return (
+    <View
+      key={keyPrefix}
+      style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+      accessibilityLabel={parsed.title || 'Live Concept Demonstration'}
+    >
+      <View style={styles.attHeaderRow}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+            {parsed.title || 'Live concept demonstration'}
+          </Text>
+          {Boolean(parsed.subtitle) && (
+            <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{parsed.subtitle}</Text>
+          )}
+        </View>
+        <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>HTML & CSS</Text>
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+        {(['html', 'css', 'preview'] as const).map((tab) => (
+          <Pressable
+            key={tab}
+            onPress={() => setActiveTab(tab)}
+            style={[
+              styles.traceCtrlBtn,
+              {
+                backgroundColor: activeTab === tab ? colors.text : raisedBg,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.traceCtrlBtnText, { color: activeTab === tab ? cardBg : colors.text }]}>
+              {tab === 'html' ? 'HTML' : tab === 'css' ? 'CSS' : 'Preview'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {activeTab === 'html' && (
+        <View style={{ padding: 10, borderRadius: 8, backgroundColor: raisedBg, borderColor: colors.border, borderWidth: 1, marginTop: 8 }}>
+          <Text style={{ fontFamily: 'monospace', fontSize: 12, color: colors.text }}>{parsed.html || ''}</Text>
+        </View>
+      )}
+      {activeTab === 'css' && (
+        <View style={{ padding: 10, borderRadius: 8, backgroundColor: raisedBg, borderColor: colors.border, borderWidth: 1, marginTop: 8 }}>
+          <Text style={{ fontFamily: 'monospace', fontSize: 12, color: colors.text }}>{parsed.css || ''}</Text>
+        </View>
+      )}
+      {activeTab === 'preview' && (
+        <View style={{ padding: 14, borderRadius: 10, backgroundColor: raisedBg, borderColor: colors.border, borderWidth: 1, marginTop: 8, gap: 4 }}>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>CIT 215 · Web Tech</Text>
+          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Hello Student!</Text>
+          <Text style={{ fontSize: 13, color: colors.textSecondary }}>
+            CSS selectors target specific HTML elements for styling.
+          </Text>
+        </View>
+      )}
+      {Boolean(parsed.caption) && (
+        <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 8 }]}>{parsed.caption}</Text>
+      )}
+    </View>
+  );
 }
 
 function KyanaQuizCard({
@@ -1460,6 +1751,59 @@ function renderKyanaVisualCard(
             </View>
           ))}
         </View>
+      </View>
+    );
+  }
+
+  if (normKind === 'simulation') {
+    return (
+      <KyanaSimulationCard
+        key={keyPrefix}
+        parsed={parsed}
+        cardBg={cardBg}
+        raisedBg={raisedBg}
+        colors={colors}
+        keyPrefix={keyPrefix}
+      />
+    );
+  }
+
+  if (normKind === 'code_preview') {
+    return (
+      <KyanaCodePreviewCard
+        key={keyPrefix}
+        parsed={parsed}
+        cardBg={cardBg}
+        raisedBg={raisedBg}
+        colors={colors}
+        keyPrefix={keyPrefix}
+      />
+    );
+  }
+
+  if (normKind === 'illustration') {
+    return (
+      <View
+        key={keyPrefix}
+        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+        accessibilityLabel={parsed.title || 'Scientific Vector Illustration'}
+      >
+        <View style={styles.attHeaderRow}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+              {parsed.title || 'Scientific & Conceptual Illustration'}
+            </Text>
+            {Boolean(parsed.subtitle) && (
+              <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{parsed.subtitle}</Text>
+            )}
+          </View>
+          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Vector Figure</Text>
+          </View>
+        </View>
+        {Boolean(parsed.caption) && (
+          <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 8 }]}>{parsed.caption}</Text>
+        )}
       </View>
     );
   }

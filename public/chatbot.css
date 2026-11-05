@@ -1124,3 +1124,185 @@ a[href^="prompt:"]:active {
   transform: translateY(0);
 }
 
+/* --- Intelligent Visual Learning Components (Simulations, Code Previews, Charts, Illustrations) --- */
+.kyana-seq-actors {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.kyana-seq-actor-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(168, 85, 247, 0.14);
+  border: 1px solid rgba(168, 85, 247, 0.32);
+  color: var(--ky-text-primary);
+}
+.kyana-seq-arrow {
+  opacity: 0.7;
+}
+.kyana-vchart-wrap,
+.kyana-proj-canvas-wrap,
+.kyana-illus-canvas {
+  width: 100%;
+  overflow-x: auto;
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--ky-border-subtle, rgba(255, 255, 255, 0.08));
+}
+.kyana-vchart-svg,
+.kyana-proj-svg,
+.kyana-wave-svg,
+.kyana-illus-svg {
+  width: 100%;
+  max-width: 540px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+.kyana-vchart-bar {
+  fill: #9d4edd;
+  transition: height 0.2s ease, y 0.2s ease;
+}
+.kyana-boxmodel-stage {
+  margin: 14px 0;
+  display: flex;
+  justify-content: center;
+}
+.kyana-bm-margin {
+  background: #eab308;
+  color: #18181b;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  transition: padding 0.15s ease;
+}
+.kyana-bm-border {
+  background: #84cc16;
+  padding: 10px;
+  border-radius: 8px;
+  border: 2px solid #713f12;
+  margin-top: 6px;
+}
+.kyana-bm-padding {
+  background: #93c5fd;
+  border-radius: 6px;
+  margin-top: 6px;
+  transition: padding 0.15s ease;
+}
+.kyana-bm-content {
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  padding: 14px;
+  border-radius: 6px;
+  margin-top: 6px;
+}
+.kyana-sim-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.kyana-sim-slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.kyana-sim-slider-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ky-text-primary);
+}
+.kyana-sim-range {
+  width: 100%;
+  accent-color: #ffffff;
+  cursor: pointer;
+}
+.kyana-sim-slider-readout {
+  font-size: 12px;
+  color: var(--ky-text-secondary);
+}
+.kyana-bsearch-array {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+.kyana-bsearch-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--ky-border-strong, rgba(255, 255, 255, 0.15));
+  background: rgba(255, 255, 255, 0.03);
+}
+.kyana-bsearch-cell.is-target {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.14);
+}
+.kyana-bsearch-val {
+  font-weight: 700;
+  font-size: 14px;
+}
+.kyana-bsearch-idx {
+  font-size: 10px;
+  opacity: 0.7;
+}
+.kyana-cp-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 10px;
+}
+.kyana-cp-tab {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--ky-border-strong, rgba(255, 255, 255, 0.14));
+  background: transparent;
+  color: var(--ky-text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.kyana-cp-tab.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--ky-text-primary);
+}
+.kyana-cp-pre {
+  margin: 0;
+  padding: 14px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.28);
+  overflow-x: auto;
+  font-size: 12.5px;
+}
+.kyana-cp-live-box {
+  padding: 16px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--ky-border-strong, rgba(255, 255, 255, 0.2));
+}
+.kyana-cp-annotations {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+}
+.kyana-cp-caption {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ky-text-secondary);
+}
+
+

@@ -1622,7 +1622,7 @@ ${evidenceBlocks}
     const isAcademicIntent = userIntent.category === 'CATEGORY_B' || userIntent.category === 'CATEGORY_C' || userIntent.category === 'CATEGORY_D' || academicRequest(message) || codeRequest(message);
 
     // If route.kind === 'scope_check' and not an academic question or syllabus topic, refuse with safe unverified reply
-    if (!isAcademicIntent && route.kind === 'scope_check' && !isSyllabusTopic && matchingNotesEvidence.length === 0) {
+    if (route.kind === 'scope_check' && !isSyllabusTopic && !academicRequest(message) && !codeRequest(message) && matchingNotesEvidence.length === 0) {
       const safeReply = getSafeUnverifiedReply(detectLanguage(message));
       result.reply = safeReply;
       logScopeDecision({ decision: recordedScopeDecision, scopeDecisionMs: totalScopeDecisionMs, contextLoadMs, totalMs: Date.now() - requestStartedAt });
@@ -1723,7 +1723,10 @@ ${evidenceBlocks}
           result.replacedStream = true;
         }
       } else {
-        onDelta(result.reply);
+        onDelta(grounded.reply);
+        if (result.reply.length > grounded.reply.length) {
+          onDelta(result.reply.slice(grounded.reply.length));
+        }
       }
 
       const wantsNoteCards = route.kind === 'notes' || /\b(?:notes?|files?|pdfs?|materials?|resources?|download|slides?)\b/i.test(message);

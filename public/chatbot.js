@@ -407,25 +407,47 @@
     'illustration'
   ]);
 
+  function isSafeVisualPayload(normKind, text) {
+    if (!VISUAL_BLOCK_KINDS.has(normKind)) return false;
+    if (!text || text.length > 32768) return false;
+    if (/<script\b|<\/script>|javascript\s*:|vbscript\s*:|data\s*:\s*text\/html|java\s*&#|&#x0*6a;|\\u006a\s*avascript|<iframe\b|<object\b|<embed\b|<foreignObject\b|<animate\b|<set\b|xlink\s*:\s*href|\bon[a-z]{2,}\s*=|\beval\s*\(|new\s+Function\s*\(|"__proto__"|"constructor"\s*:|"prototype"\s*:/i.test(text)) {
+      return false;
+    }
+    return true;
+  }
+
   function parseKyanaVisualBlock(kind, rawBlock) {
     const normKind = String(kind || '').trim().toLowerCase();
     const text = String(rawBlock || '').replace(/\r\n/g, '\n').trim();
     if (normKind === 'attendance') {
       return { kind: 'attendance', ...parseAttendanceBlock(text) };
     }
+    if (!isSafeVisualPayload(normKind, text)) {
+      return { kind: normKind, items: [] };
+    }
 
-    if (text.startsWith('{') && ['syllabus', 'diagram', 'flowchart', 'graph', 'trace', 'quiz', 'roadmap', 'comparison', 'complexity', 'simulation', 'code_preview', 'illustration'].includes(normKind)) {
+    if ((text.startsWith('{') || ['simulation', 'code_preview', 'illustration'].includes(normKind)) && ['syllabus', 'diagram', 'flowchart', 'graph', 'trace', 'quiz', 'roadmap', 'comparison', 'complexity', 'simulation', 'code_preview', 'illustration'].includes(normKind)) {
       try {
         const parsedJson = JSON.parse(text);
-        if (parsedJson && typeof parsedJson === 'object') {
+        if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) {
+          if (Array.isArray(parsedJson.nodes) && parsedJson.nodes.length > 24) return { kind: normKind, items: [] };
+          if (Array.isArray(parsedJson.series) && parsedJson.series.length > 50) return { kind: normKind, items: [] };
+          if (Array.isArray(parsedJson.steps) && parsedJson.steps.length > 20) return { kind: normKind, items: [] };
+          if (Array.isArray(parsedJson.questions) && parsedJson.questions.length > 10) return { kind: normKind, items: [] };
+          if (normKind === 'simulation' && !parsedJson.simulationType) return { kind: normKind, items: [] };
+          if (normKind === 'code_preview' && !parsedJson.html && !parsedJson.css && !parsedJson.code) return { kind: normKind, items: [] };
+          if (normKind === 'illustration' && !parsedJson.sceneType && !parsedJson.panels) return { kind: normKind, items: [] };
           const items =
             parsedJson.units ||
             parsedJson.nodes ||
             parsedJson.steps ||
             parsedJson.series ||
             parsedJson.questions ||
+            parsedJson.controls ||
+            parsedJson.annotations ||
+            parsedJson.panels ||
             parsedJson.items ||
-            (parsedJson.unit ? [parsedJson.unit] : []);
+            (parsedJson.unit ? [parsedJson.unit] : (parsedJson.simulationType || parsedJson.sceneType || parsedJson.html ? [parsedJson] : []));
           return {
             kind: normKind,
             ...parsedJson,
@@ -1273,20 +1295,25 @@
     }
 
     if (normKind === 'diagram') {
-      let html = `<div class="kyana-attendance-card kyana-diagram-card" data-visual-kind="diagram">
+      const isSeq = parsed.diagramType === 'sequence';
+      let html = `<div class="kyana-attendance-card kyana-diagram-card" data-visual-kind="diagram" data-diagram-type="${escapeHtml(parsed.diagramType || 'flowchart')}">
         <div class="kyana-att-header">
           <div class="kyana-att-title-group">
             <span class="kyana-att-title">${escapeHtml(parsed.title || 'Architecture & Concept Diagram')}</span>
             ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
           </div>
-          <span class="kyana-att-status-pill">Concept Diagram</span>
+          <span class="kyana-att-status-pill">${isSeq ? 'Sequence Diagram' : 'Concept Diagram'}</span>
         </div>`;
 
       if (Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
         html += `<div class="kyana-diagram-nodes-flow">`;
         parsed.nodes.forEach((node, idx) => {
+          const actorHeader = (node.actorFrom && node.actorTo)
+            ? `<div class="kyana-seq-actors"><span class="kyana-seq-actor-pill">${escapeHtml(node.actorFrom)}</span><span class="kyana-seq-arrow">→</span><span class="kyana-seq-actor-pill">${escapeHtml(node.actorTo)}</span></div>`
+            : '';
           html += `
           <div class="kyana-diagram-node-box">
+            ${actorHeader}
             <div class="kyana-diagram-node-title">${escapeHtml(node.label || node.id || `Stage ${idx + 1}`)}</div>
             ${node.detail ? `<div class="kyana-diagram-node-detail">${escapeHtml(node.detail)}</div>` : ''}
           </div>`;
@@ -1305,16 +1332,64 @@
 
     if (normKind === 'graph') {
       const series = Array.isArray(parsed.series) ? parsed.series : parsed.items;
-      let html = `<div class="kyana-attendance-card kyana-graph-card" data-visual-kind="graph">
+      const chartType = String(parsed.chartType || 'bar').toLowerCase();
+      let html = `<div class="kyana-attendance-card kyana-graph-card" data-visual-kind="graph" data-chart-type="${escapeHtml(chartType)}">
         <div class="kyana-att-header">
           <div class="kyana-att-title-group">
             <span class="kyana-att-title">${escapeHtml(parsed.title || 'Quantitative & Complexity Graph')}</span>
             ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
           </div>
           <span class="kyana-att-status-pill">Visual Plot</span>
-        </div>
-        <div class="kyana-att-subjects-list">`;
+        </div>`;
 
+      if ((chartType === 'vertical_bar' || chartType === 'line' || chartType === 'scatter') && series.length > 0) {
+        const maxVal = Math.max(10, ...series.map(s => Number(s.value ?? s.y ?? s.pct ?? 0)));
+        const svgW = 520;
+        const svgH = 220;
+        const padL = 44;
+        const padR = 20;
+        const padT = 18;
+        const padB = 34;
+        const plotW = svgW - padL - padR;
+        const plotH = svgH - padT - padB;
+        let svgInner = '';
+        for (let g = 0; g <= 4; g++) {
+          const gy = Math.round(padT + (plotH * (4 - g)) / 4);
+          const gVal = Math.round((maxVal * g) / 4);
+          svgInner += `<line x1="${padL}" y1="${gy}" x2="${svgW - padR}" y2="${gy}" stroke="currentColor" stroke-opacity="0.12" stroke-dasharray="3 3" />`;
+          svgInner += `<text x="${padL - 8}" y="${gy + 4}" text-anchor="end" font-size="10" fill="currentColor" opacity="0.65">${gVal}</text>`;
+        }
+        if (chartType === 'vertical_bar') {
+          const slotW = plotW / series.length;
+          const barW = Math.min(64, Math.max(18, slotW * 0.62));
+          series.forEach((s, idx) => {
+            const v = Number(s.value ?? s.pct ?? 0);
+            const bh = Math.max(4, Math.round((v / maxVal) * plotH));
+            const bx = Math.round(padL + idx * slotW + (slotW - barW) / 2);
+            const by = padT + plotH - bh;
+            svgInner += `<rect class="kyana-vchart-bar" x="${bx}" y="${by}" width="${barW}" height="${bh}" rx="6" />`;
+            svgInner += `<text x="${Math.round(bx + barW / 2)}" y="${svgH - 12}" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.85">${escapeHtml(s.label || s.title || String(idx + 1))}</text>`;
+          });
+        } else {
+          const pts = series.map((s, idx) => {
+            const v = Number(s.value ?? s.y ?? s.pct ?? 0);
+            const px = Math.round(padL + (series.length > 1 ? (idx / (series.length - 1)) * plotW : plotW / 2));
+            const py = Math.round(padT + plotH - (v / maxVal) * plotH);
+            return { px, py, label: s.label || s.title || String(s.x ?? idx + 1), v };
+          });
+          if (chartType === 'line' && pts.length > 1) {
+            const poly = pts.map(p => `${p.px},${p.py}`).join(' ');
+            svgInner += `<polyline fill="none" stroke="#a855f7" stroke-width="2.5" points="${poly}" />`;
+          }
+          pts.forEach(p => {
+            svgInner += `<circle cx="${p.px}" cy="${p.py}" r="4.5" fill="#a855f7" />`;
+            svgInner += `<text x="${p.px}" y="${svgH - 12}" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.8">${escapeHtml(p.label)}</text>`;
+          });
+        }
+        html += `<div class="kyana-vchart-wrap"><svg class="kyana-vchart-svg" viewBox="0 0 ${svgW} ${svgH}" role="img" aria-label="${escapeHtml(parsed.title || 'Chart')}">${svgInner}</svg></div>`;
+      }
+
+      html += `<div class="kyana-att-subjects-list">`;
       for (const s of series) {
         const valNum = Number(s.value ?? s.pct ?? 50);
         const barW = Math.min(100, Math.max(4, valNum));
@@ -1491,6 +1566,292 @@
       return html;
     }
 
+    if (normKind === 'simulation') {
+      const simType = String(parsed.simulationType || 'generic').toLowerCase();
+      let html = `<div class="kyana-attendance-card kyana-simulation-card" data-visual-kind="simulation" data-simulation-type="${escapeHtml(simType)}">
+        <div class="kyana-att-header">
+          <div class="kyana-att-title-group">
+            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Interactive Academic Simulation')}</span>
+            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
+          </div>
+          <span class="kyana-att-status-pill">Interactive Lab</span>
+        </div>`;
+
+      if (simType === 'box_model') {
+        const defPad = Number(parsed.defaults?.padding ?? 16);
+        const defMar = Number(parsed.defaults?.margin ?? 12);
+        html += `
+        <div class="kyana-boxmodel-stage">
+          <div class="kyana-bm-margin" style="padding: ${defMar}px;">
+            <div class="kyana-bm-label">Margin: <span class="kyana-bm-margin-val">${defMar}px</span></div>
+            <div class="kyana-bm-border">
+              <div class="kyana-bm-label">Border</div>
+              <div class="kyana-bm-padding" style="padding: ${defPad}px;">
+                <div class="kyana-bm-label">Padding: <span class="kyana-bm-padding-val">${defPad}px</span></div>
+                <div class="kyana-bm-content">CONTENT</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="kyana-sim-controls">
+          <label class="kyana-sim-slider-group">
+            <span class="kyana-sim-slider-label">Adjust padding</span>
+            <input type="range" class="kyana-sim-range" min="0" max="40" step="2" value="${defPad}" oninput="(function(inp){
+              var card = inp.closest('.kyana-simulation-card');
+              if (!card) return;
+              var v = inp.value + 'px';
+              var padBox = card.querySelector('.kyana-bm-padding');
+              var padVal = card.querySelector('.kyana-bm-padding-val');
+              var out = inp.parentElement.querySelector('.kyana-sim-slider-readout');
+              if (padBox) padBox.style.padding = v;
+              if (padVal) padVal.textContent = v;
+              if (out) out.textContent = v;
+            })(this)" />
+            <span class="kyana-sim-slider-readout">${defPad}px</span>
+          </label>
+          <label class="kyana-sim-slider-group">
+            <span class="kyana-sim-slider-label">Adjust margin</span>
+            <input type="range" class="kyana-sim-range" min="0" max="40" step="2" value="${defMar}" oninput="(function(inp){
+              var card = inp.closest('.kyana-simulation-card');
+              if (!card) return;
+              var v = inp.value + 'px';
+              var marBox = card.querySelector('.kyana-bm-margin');
+              var marVal = card.querySelector('.kyana-bm-margin-val');
+              var out = inp.parentElement.querySelector('.kyana-sim-slider-readout');
+              if (marBox) marBox.style.padding = v;
+              if (marVal) marVal.textContent = v;
+              if (out) out.textContent = v;
+            })(this)" />
+            <span class="kyana-sim-slider-readout">${defMar}px</span>
+          </label>
+        </div>`;
+      } else if (simType === 'projectile_motion') {
+        const comp = parsed.computed || { v0: 25, thetaDeg: 45, g: 9.8, range: 63.78, maxHeight: 15.94, timeOfFlight: 3.61 };
+        html += `
+        <div class="kyana-proj-canvas-wrap">
+          <svg class="kyana-proj-svg" viewBox="0 0 480 180" role="img" aria-label="Projectile parabolic trajectory">
+            <line x1="30" y1="155" x2="460" y2="155" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5" />
+            <line x1="30" y1="15" x2="30" y2="155" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5" />
+            <path class="kyana-proj-path" d="M 30 155 Q 235 25 440 155" fill="none" stroke="#38bdf8" stroke-width="3" />
+            <circle class="kyana-proj-apex" cx="235" cy="90" r="4.5" fill="#f59e0b" />
+            <text x="235" y="78" text-anchor="middle" font-size="11" fill="currentColor">H_max = <tspan class="kyana-proj-h-svg">${escapeHtml(String(comp.maxHeight))} m</tspan></text>
+            <text x="435" y="172" text-anchor="end" font-size="11" fill="currentColor">Range R = <tspan class="kyana-proj-r-svg">${escapeHtml(String(comp.range))} m</tspan></text>
+          </svg>
+        </div>
+        <div class="kyana-att-stat-grid kyana-proj-metrics">
+          <div class="kyana-att-stat-box">
+            <span class="kyana-att-stat-num kyana-proj-range-val">${escapeHtml(String(comp.range))} m</span>
+            <span class="kyana-att-stat-label">Horizontal Range (R)</span>
+          </div>
+          <div class="kyana-att-stat-box">
+            <span class="kyana-att-stat-num kyana-proj-height-val">${escapeHtml(String(comp.maxHeight))} m</span>
+            <span class="kyana-att-stat-label">Max Height (H)</span>
+          </div>
+          <div class="kyana-att-stat-box">
+            <span class="kyana-att-stat-num kyana-proj-time-val">${escapeHtml(String(comp.timeOfFlight))} s</span>
+            <span class="kyana-att-stat-label">Time of Flight (T)</span>
+          </div>
+        </div>
+        <div class="kyana-sim-controls" data-v0="${comp.v0}" data-theta="${comp.thetaDeg}" data-g="${comp.g || 9.8}">
+          <label class="kyana-sim-slider-group">
+            <span class="kyana-sim-slider-label">Initial Velocity (v₀)</span>
+            <input type="range" class="kyana-sim-range" data-param="v0" min="5" max="50" step="1" value="${comp.v0}" oninput="(function(inp){
+              var card = inp.closest('.kyana-simulation-card');
+              if (!card) return;
+              var ctrl = card.querySelector('.kyana-sim-controls');
+              ctrl.setAttribute('data-v0', inp.value);
+              inp.parentElement.querySelector('.kyana-sim-slider-readout').textContent = inp.value + ' m/s';
+              var v0 = parseFloat(ctrl.getAttribute('data-v0')) || 25;
+              var th = parseFloat(ctrl.getAttribute('data-theta')) || 45;
+              var g = parseFloat(ctrl.getAttribute('data-g')) || 9.8;
+              var rad = th * Math.PI / 180;
+              var R = ((v0 * v0 * Math.sin(2 * rad)) / g).toFixed(2);
+              var H = ((v0 * v0 * Math.pow(Math.sin(rad), 2)) / (2 * g)).toFixed(2);
+              var T = ((2 * v0 * Math.sin(rad)) / g).toFixed(2);
+              card.querySelector('.kyana-proj-range-val').textContent = R + ' m';
+              card.querySelector('.kyana-proj-height-val').textContent = H + ' m';
+              card.querySelector('.kyana-proj-time-val').textContent = T + ' s';
+              var hSvg = card.querySelector('.kyana-proj-h-svg'); if (hSvg) hSvg.textContent = H + ' m';
+              var rSvg = card.querySelector('.kyana-proj-r-svg'); if (rSvg) rSvg.textContent = R + ' m';
+            })(this)" />
+            <span class="kyana-sim-slider-readout">${comp.v0} m/s</span>
+          </label>
+          <label class="kyana-sim-slider-group">
+            <span class="kyana-sim-slider-label">Launch Angle (θ)</span>
+            <input type="range" class="kyana-sim-range" data-param="theta" min="10" max="85" step="5" value="${comp.thetaDeg}" oninput="(function(inp){
+              var card = inp.closest('.kyana-simulation-card');
+              if (!card) return;
+              var ctrl = card.querySelector('.kyana-sim-controls');
+              ctrl.setAttribute('data-theta', inp.value);
+              inp.parentElement.querySelector('.kyana-sim-slider-readout').textContent = inp.value + '°';
+              var v0 = parseFloat(ctrl.getAttribute('data-v0')) || 25;
+              var th = parseFloat(ctrl.getAttribute('data-theta')) || 45;
+              var g = parseFloat(ctrl.getAttribute('data-g')) || 9.8;
+              var rad = th * Math.PI / 180;
+              var R = ((v0 * v0 * Math.sin(2 * rad)) / g).toFixed(2);
+              var H = ((v0 * v0 * Math.pow(Math.sin(rad), 2)) / (2 * g)).toFixed(2);
+              var T = ((2 * v0 * Math.sin(rad)) / g).toFixed(2);
+              card.querySelector('.kyana-proj-range-val').textContent = R + ' m';
+              card.querySelector('.kyana-proj-height-val').textContent = H + ' m';
+              card.querySelector('.kyana-proj-time-val').textContent = T + ' s';
+              var hSvg = card.querySelector('.kyana-proj-h-svg'); if (hSvg) hSvg.textContent = H + ' m';
+              var rSvg = card.querySelector('.kyana-proj-r-svg'); if (rSvg) rSvg.textContent = R + ' m';
+            })(this)" />
+            <span class="kyana-sim-slider-readout">${comp.thetaDeg}°</span>
+          </label>
+        </div>`;
+      } else if (simType === 'wave_motion') {
+        const amp = Number(parsed.defaults?.amplitude ?? 2);
+        const freq = Number(parsed.defaults?.frequency ?? 2);
+        html += `
+        <div class="kyana-proj-canvas-wrap">
+          <svg class="kyana-wave-svg" viewBox="0 0 480 150" role="img" aria-label="Harmonic wave simulation">
+            <line x1="20" y1="75" x2="460" y2="75" stroke="currentColor" stroke-opacity="0.25" stroke-dasharray="4 4" />
+            <path class="kyana-wave-path" d="M 20 75 Q 75 20 130 75 T 240 75 T 350 75 T 460 75" fill="none" stroke="#a855f7" stroke-width="3" />
+          </svg>
+        </div>
+        <div class="kyana-sim-controls" data-amp="${amp}" data-freq="${freq}">
+          <label class="kyana-sim-slider-group">
+            <span class="kyana-sim-slider-label">Amplitude (A)</span>
+            <input type="range" class="kyana-sim-range" min="1" max="5" step="0.5" value="${amp}" oninput="(function(inp){
+              inp.parentElement.querySelector('.kyana-sim-slider-readout').textContent = inp.value + ' m';
+            })(this)" />
+            <span class="kyana-sim-slider-readout">${amp} m</span>
+          </label>
+          <label class="kyana-sim-slider-group">
+            <span class="kyana-sim-slider-label">Frequency (f)</span>
+            <input type="range" class="kyana-sim-range" min="1" max="6" step="0.5" value="${freq}" oninput="(function(inp){
+              inp.parentElement.querySelector('.kyana-sim-slider-readout').textContent = inp.value + ' Hz';
+            })(this)" />
+            <span class="kyana-sim-slider-readout">${freq} Hz</span>
+          </label>
+        </div>`;
+      } else if (simType === 'binary_search') {
+        const arr = Array.isArray(parsed.array) ? parsed.array : [2, 5, 8, 12, 16, 23, 38, 56];
+        const steps = Array.isArray(parsed.steps) ? parsed.steps : [];
+        html += `<div class="kyana-bsearch-array">`;
+        arr.forEach((val, idx) => {
+          const isTarget = val === (parsed.defaultTarget ?? 23);
+          html += `<div class="kyana-bsearch-cell ${isTarget ? 'is-target' : ''}"><span class="kyana-bsearch-val">${escapeHtml(String(val))}</span><span class="kyana-bsearch-idx">idx ${idx}</span></div>`;
+        });
+        html += `</div>`;
+        if (steps.length > 0) {
+          html += `<div class="kyana-trace-list">`;
+          steps.forEach(s => {
+            html += `<div class="kyana-trace-step-item"><span class="kyana-trace-step-badge">Step ${escapeHtml(String(s.step))}</span><div class="kyana-trace-step-body"><div class="kyana-trace-step-action">low=${escapeHtml(String(s.low))}, mid=${escapeHtml(String(s.mid))}, high=${escapeHtml(String(s.high))}</div><div class="kyana-trace-step-highlight">${escapeHtml(s.comparison || '')}</div></div></div>`;
+          });
+          html += `</div>`;
+        }
+      }
+
+      if (parsed.takeaway || parsed.note) {
+        html += `<div class="kyana-syllabus-footer-section"><p class="kyana-syllabus-footer-text">${escapeHtml(parsed.takeaway || parsed.note)}</p></div>`;
+      }
+      html += `</div>`;
+      return html;
+    }
+
+    if (normKind === 'code_preview') {
+      const htmlCode = parsed.html || '';
+      const cssCode = parsed.css || '';
+      const annotations = Array.isArray(parsed.annotations) ? parsed.annotations : [];
+      let html = `<div class="kyana-attendance-card kyana-code-preview-card" data-visual-kind="code_preview">
+        <div class="kyana-att-header">
+          <div class="kyana-att-title-group">
+            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Live concept demonstration')}</span>
+            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
+          </div>
+          <span class="kyana-att-status-pill">HTML & CSS</span>
+        </div>
+        <div class="kyana-cp-tabs" role="tablist">
+          <button type="button" class="kyana-cp-tab is-active" data-tab="html" onclick="(function(btn){
+            var card = btn.closest('.kyana-code-preview-card');
+            card.querySelectorAll('.kyana-cp-tab').forEach(function(b){ b.classList.remove('is-active'); });
+            btn.classList.add('is-active');
+            card.querySelectorAll('.kyana-cp-pane').forEach(function(p){ p.style.display = p.getAttribute('data-pane') === 'html' ? 'block' : 'none'; });
+          })(this)">HTML</button>
+          <button type="button" class="kyana-cp-tab" data-tab="css" onclick="(function(btn){
+            var card = btn.closest('.kyana-code-preview-card');
+            card.querySelectorAll('.kyana-cp-tab').forEach(function(b){ b.classList.remove('is-active'); });
+            btn.classList.add('is-active');
+            card.querySelectorAll('.kyana-cp-pane').forEach(function(p){ p.style.display = p.getAttribute('data-pane') === 'css' ? 'block' : 'none'; });
+          })(this)">CSS</button>
+          <button type="button" class="kyana-cp-tab" data-tab="preview" onclick="(function(btn){
+            var card = btn.closest('.kyana-code-preview-card');
+            card.querySelectorAll('.kyana-cp-tab').forEach(function(b){ b.classList.remove('is-active'); });
+            btn.classList.add('is-active');
+            card.querySelectorAll('.kyana-cp-pane').forEach(function(p){ p.style.display = p.getAttribute('data-pane') === 'preview' ? 'block' : 'none'; });
+          })(this)">Preview</button>
+        </div>
+        <div class="kyana-cp-pane" data-pane="html" style="display: block;">
+          <pre class="kyana-cp-pre"><code>${escapeHtml(htmlCode)}</code></pre>
+        </div>
+        <div class="kyana-cp-pane" data-pane="css" style="display: none;">
+          <pre class="kyana-cp-pre"><code>${escapeHtml(cssCode)}</code></pre>
+        </div>
+        <div class="kyana-cp-pane" data-pane="preview" style="display: none;">
+          <div class="kyana-cp-live-box">
+            <div class="kyana-cp-demo-card">
+              <span class="kyana-cp-demo-badge">CIT 215 · Web Tech</span>
+              <h4 class="kyana-cp-demo-h2">Hello Student!</h4>
+              <p class="kyana-cp-demo-p">CSS selectors target specific HTML elements for styling.</p>
+            </div>
+          </div>
+        </div>`;
+      if (annotations.length > 0) {
+        html += `<div class="kyana-cp-annotations">`;
+        annotations.forEach(a => {
+          html += `<div class="kyana-cp-annot-row"><strong>${escapeHtml(a.selector || '')}</strong> <span class="kyana-att-norecord-pill">Specificity: ${escapeHtml(a.specificity || '')}</span> — <span>${escapeHtml(a.description || '')}</span></div>`;
+        });
+        html += `</div>`;
+      }
+      if (parsed.caption) {
+        html += `<div class="kyana-cp-caption">${escapeHtml(parsed.caption)}</div>`;
+      }
+      html += `</div>`;
+      return html;
+    }
+
+    if (normKind === 'illustration') {
+      const sceneType = String(parsed.sceneType || 'scientific').toLowerCase();
+      let svgGraphic = '';
+      if (sceneType === 'electromagnetic_induction') {
+        svgGraphic = `<svg class="kyana-illus-svg" viewBox="0 0 460 160" role="img" aria-label="Electromagnetic Induction Diagram">
+          <rect x="25" y="58" width="65" height="44" rx="4" fill="#ef4444" />
+          <rect x="90" y="58" width="65" height="44" rx="4" fill="#3b82f6" />
+          <text x="57" y="85" text-anchor="middle" fill="#fff" font-weight="700" font-size="14">S</text>
+          <text x="122" y="85" text-anchor="middle" fill="#fff" font-weight="700" font-size="14">N</text>
+          <path d="M 162 80 L 205 80" stroke="#f59e0b" stroke-width="2.5" />
+          <text x="184" y="70" text-anchor="middle" fill="currentColor" font-size="11">v →</text>
+          <path d="M 230 50 C 245 30, 260 130, 275 50 C 290 30, 305 130, 320 50 C 335 30, 350 130, 365 50" fill="none" stroke="#a855f7" stroke-width="3" />
+          <circle cx="410" cy="80" r="24" fill="none" stroke="currentColor" stroke-width="2" />
+          <text x="410" y="85" text-anchor="middle" fill="currentColor" font-weight="700" font-size="13">G</text>
+        </svg>`;
+      } else {
+        svgGraphic = `<svg class="kyana-illus-svg" viewBox="0 0 460 160" role="img" aria-label="${escapeHtml(parsed.title || 'Scientific Illustration')}">
+          <line x1="40" y1="135" x2="420" y2="135" stroke="currentColor" stroke-opacity="0.4" stroke-width="2" />
+          <line x1="40" y1="135" x2="40" y2="25" stroke="currentColor" stroke-opacity="0.4" stroke-width="2" />
+          <line x1="40" y1="135" x2="135" y2="55" stroke="#10b981" stroke-width="3" />
+          <line x1="40" y1="135" x2="135" y2="135" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="4 4" />
+          <line x1="135" y1="135" x2="135" y2="55" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="4 4" />
+          <text x="92" y="150" text-anchor="middle" fill="currentColor" font-size="11">v_x = v₀ cos θ</text>
+          <text x="175" y="95" fill="currentColor" font-size="11">v_y = v₀ sin θ</text>
+        </svg>`;
+      }
+      let html = `<div class="kyana-attendance-card kyana-illustration-card" data-visual-kind="illustration" data-scene-type="${escapeHtml(sceneType)}">
+        <div class="kyana-att-header">
+          <div class="kyana-att-title-group">
+            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Scientific & Conceptual Illustration')}</span>
+            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
+          </div>
+          <span class="kyana-att-status-pill">Vector Figure</span>
+        </div>
+        <div class="kyana-illus-canvas">${svgGraphic}</div>
+        ${parsed.caption ? `<div class="kyana-cp-caption">${escapeHtml(parsed.caption)}</div>` : ''}
+      </div>`;
+      return html;
+    }
+
     return '';
   }
 
@@ -1646,8 +2007,8 @@
             const visualHtml = renderKyanaVisualBlockHtml(VISUAL_BLOCK_KINDS.has(block.lang) ? block.lang : 'diagram', block.code);
             if (visualHtml) {
               output.push(visualHtml);
-              continue;
             }
+            continue;
           }
           output.push(`<pre><code class="language-${escapeHtml(block.lang)}">${escapeHtml(block.code)}</code></pre>`);
         }
@@ -2186,12 +2547,26 @@
     enhance(container) {
       container.querySelectorAll('pre code').forEach((codeBlock) => {
         const pre = codeBlock.parentElement;
-        if (pre.parentElement.classList.contains('kyana-code-block')) return;
+        if (!pre || !pre.parentNode || pre.parentElement.classList.contains('kyana-code-block')) return;
 
         const rawCode = codeBlock.textContent || '';
-        const langMatch = codeBlock.className.match(/language-(\w+)/);
+        const langMatch = codeBlock.className.match(/language-([\w-]+)/);
         const langName = langMatch ? langMatch[1] : 'Code';
         const langKey = langName.toLowerCase();
+        const isAsciiFigure = /^\s*\+[+\-]{3,}\+/m.test(rawCode) && /\|\s*[A-Za-z0-9_-]/m.test(rawCode);
+        if (VISUAL_BLOCK_KINDS.has(langKey) || isAsciiFigure) {
+          const visualHtml = renderKyanaVisualBlockHtml(VISUAL_BLOCK_KINDS.has(langKey) ? langKey : 'diagram', rawCode);
+          if (visualHtml) {
+            const temp = document.createElement('div');
+            temp.innerHTML = visualHtml;
+            if (temp.firstElementChild) {
+              pre.parentNode.replaceChild(temp.firstElementChild, pre);
+              return;
+            }
+          }
+          pre.parentNode.removeChild(pre);
+          return;
+        }
         const compilerSupported = /^(java|c|cpp|c\+\+|html|css|javascript|js|python|py|sql)$/.test(langKey);
 
         codeBlock.dataset.rawCode = rawCode;

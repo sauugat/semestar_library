@@ -73,19 +73,7 @@ test('2. Long educational explanations: structured headings, paragraphs, and bul
   assert.match(html, /<ul>[\s\S]*<li><strong>1NF \(First Normal Form\):<\/strong>/);
 });
 
-test('3. Attendance reports: mobile-friendly bullet layout, progress bar, and accurate eligibility rules', () => {
-  assert.equal(
-    formatEligibilityLabel({ eligibilityStatus: 'eligible', configuredThreshold: 75 }),
-    'Eligible for exams (Required threshold: 75%)'
-  );
-  assert.equal(
-    formatEligibilityLabel({ eligibilityStatus: 'ineligible', configuredThreshold: 75 }),
-    'Below exam eligibility threshold (Required threshold: 75%)'
-  );
-  assert.equal(
-    formatEligibilityLabel({ eligibilityStatus: 'unconfigured', configuredThreshold: null }),
-    'Cannot determine eligibility (threshold not configured)'
-  );
+test('3. Attendance reports: visual attendance block, <50% Low Attendance rule, No records rule, and zero exam eligibility text', () => {
   assert.equal(buildAttendanceProgressBar(80), '████████░░');
 
   const formatted = formatToolResult('get_my_attendance', {
@@ -96,8 +84,6 @@ test('3. Attendance reports: mobile-friendly bullet layout, progress bar, and ac
       presentCount: 39,
       absentCount: 12,
       totalSessions: 51,
-      eligibilityStatus: 'eligible',
-      configuredThreshold: 75,
     },
     subjects: [
       {
@@ -107,18 +93,14 @@ test('3. Attendance reports: mobile-friendly bullet layout, progress bar, and ac
         presentCount: 17,
         absentCount: 3,
         totalSessions: 20,
-        eligibilityStatus: 'eligible',
-        configuredThreshold: 75,
       },
       {
         name: 'Operating Systems',
         code: 'CSC207',
-        attendancePercentage: 65,
-        presentCount: 13,
-        absentCount: 7,
+        attendancePercentage: 45,
+        presentCount: 9,
+        absentCount: 11,
         totalSessions: 20,
-        eligibilityStatus: 'ineligible',
-        configuredThreshold: 75,
       },
       {
         name: 'Computer Networks',
@@ -127,26 +109,24 @@ test('3. Attendance reports: mobile-friendly bullet layout, progress bar, and ac
         presentCount: 0,
         absentCount: 0,
         totalSessions: 0,
-        eligibilityStatus: 'not_applicable',
-        configuredThreshold: 75,
       },
     ],
   });
 
-  // Must start directly with the overall summary, use bullets instead of wide tables, and format progress bars and No records cleanly
-  assert.match(formatted, /\*\*Semester 3 Attendance/);
+  assert.match(formatted, /Your overall recorded attendance in Semester 3 is \*\*76\.5%\*\*/);
   assert.ok(!formatted.includes('| Subject |'), 'Must not use wide Markdown tables for attendance');
+  assert.doesNotMatch(formatted, /Exam Eligibility|Cannot determine eligibility|Required threshold|Eligible for exams/i);
   assert.match(
     formatted,
-    /- \*\*Database Management Systems\*\* \(CSC206\): \*\*85%\*\* \[█████████░\] \(17 present, 3 absent out of 20 classes\) — Eligible for exams \(Required threshold: 75%\)/
+    /- \*\*Database Management Systems\*\* \(CSC206\): \*\*85%\*\* \| 20 recorded classes \| Present: 17 \| Absent: 3/
   );
   assert.match(
     formatted,
-    /- \*\*Operating Systems\*\* \(CSC207\): \*\*65%\*\* \[███████░░░\] \(13 present, 7 absent out of 20 classes\) — Below exam eligibility threshold \(Required threshold: 75%\)/
+    /- \*\*Operating Systems\*\* \(CSC207\): \*\*45%\*\* — Low Attendance \| 20 recorded classes \| Present: 9 \| Absent: 11/
   );
   assert.match(
     formatted,
-    /- \*\*Computer Networks\*\* \(CSC208\): \*\*No records\*\* — Undetermined \(No records\)/
+    /- \*\*Computer Networks\*\* \(CSC208\): \*\*No records\*\*/
   );
 });
 

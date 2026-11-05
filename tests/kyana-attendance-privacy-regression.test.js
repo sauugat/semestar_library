@@ -235,7 +235,7 @@ describe('Kyana AI — Personal Attendance & Results Privacy and Reporting Regre
       assert.match(res.reply, /32 present/i);
       assert.match(res.reply, /6 missed\/absent/i);
       assert.match(res.reply, /84\.21%/);
-      assert.match(res.reply, /Eligible for exams \(Required threshold: 80%\)/i);
+      assert.doesNotMatch(res.reply, /Eligible for exams|Required threshold/i);
     } finally {
       db.close();
     }
@@ -313,7 +313,7 @@ describe('Kyana AI — Personal Attendance & Results Privacy and Reporting Regre
       assert.match(res.reply, /90%/);
       assert.match(res.reply, /77\.78%/);
       assert.match(res.reply, /84\.21%/);
-      assert.match(res.reply, /Required threshold: 80%/);
+      assert.doesNotMatch(res.reply, /Required threshold|Exam Eligibility/i);
     } finally {
       db.close();
     }
@@ -329,7 +329,7 @@ describe('Kyana AI — Personal Attendance & Results Privacy and Reporting Regre
       const resSubj = await handleChat(db, 'What is my attendance in DSA?', { studentId: 'stu_saugat' });
       assert.match(resSubj.reply, /Data Structure and Algorithms.*\(CIT211\)/);
       assert.match(resSubj.reply, /77\.78%/);
-      assert.match(resSubj.reply, /Below exam eligibility threshold \(Required threshold: 80%\)/);
+      assert.doesNotMatch(resSubj.reply, /Below exam eligibility threshold|Required threshold/i);
     } finally {
       db.close();
     }

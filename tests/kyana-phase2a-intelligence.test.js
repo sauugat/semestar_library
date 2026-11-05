@@ -492,15 +492,15 @@ describe('Kyana AI — Phase 2A: Core Personal and Academic Data Intelligence', 
     assert.equal(r1.intent, 'attendance');
     assert.match(r1.reply, /83\.33%/, 'Overall attendance must be 5/6 = 83.33%');
     assert.match(r1.reply, /5 present, 1 missed\/absent out of 6 total classes/);
-    assert.match(r1.reply, /Eligible for exams \(Required threshold: 75%\)/);
+    assert.doesNotMatch(r1.reply, /Eligible for exams|Required threshold/i);
 
     // 1b. "Am I eligible for exams?"
     const r2 = await handleChat(db, 'Am I eligible for exams?', { studentId: 'stu_saugat', role: 'student' }, [], 'sess_att_2', {
       academicContext: stuCtx
     });
     assert.equal(r2.intent, 'attendance');
-    assert.match(r2.reply, /Eligible for exams/i);
-    assert.match(r2.reply, /75%/);
+    assert.match(r2.reply, /83\.33%/);
+    assert.doesNotMatch(r2.reply, /Eligible for exams/i);
 
     // 1c. "DBMS ma kati class miss gare?"
     const r3 = await handleChat(db, 'DBMS ma kati class miss gare?', { studentId: 'stu_saugat', role: 'student' }, [], 'sess_att_3', {

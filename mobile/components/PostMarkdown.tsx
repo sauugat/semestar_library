@@ -29,6 +29,171 @@ interface CodeBlock {
   code: string;
 }
 
+export interface ParsedAttendanceSubject {
+  name: string;
+  code: string;
+  pct: number;
+  isLow: boolean;
+  classes: number;
+  present: number;
+  absent: number;
+}
+
+export interface ParsedUnrecordedSubject {
+  name: string;
+  code: string;
+}
+
+export interface ParsedAttendanceData {
+  hasOverview: boolean;
+  hasRecords: boolean;
+  semester: number | null;
+  overallPct: number | null;
+  isLow: boolean;
+  attendedLabel: string;
+  present: number;
+  absent: number;
+  totalClasses: number;
+  recordedSubjects: number;
+  totalSubjects: number;
+  recordedItems: ParsedAttendanceSubject[];
+  unrecordedItems: ParsedUnrecordedSubject[];
+}
+
+/**
+ * Parses a structured ```attendance block (including partial streaming blocks)
+ * into overview metrics, recorded subject horizontal bar chart items, and unrecorded subjects.
+ */
+export function parseAttendanceBlock(rawBlock: string): ParsedAttendanceData {
+  const lines = String(rawBlock || '').replace(/\r\n/g, '\n').split('\n');
+  const data: ParsedAttendanceData = {
+    hasOverview: false,
+    hasRecords: false,
+    semester: null,
+    overallPct: null,
+    isLow: false,
+    attendedLabel: '0 / 0',
+    present: 0,
+    absent: 0,
+    totalClasses: 0,
+    recordedSubjects: 0,
+    totalSubjects: 0,
+    recordedItems: [],
+    unrecordedItems: [],
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (/^Overview:/i.test(line)) {
+      data.hasOverview = true;
+      const parts = line
+        .replace(/^Overview:\s*/i, '')
+        .split('|')
+        .map((p) => p.trim());
+      const first = parts[0] || '';
+      if (/No records/i.test(first)) {
+        data.hasRecords = false;
+        data.overallPct = null;
+        data.isLow = false;
+      } else {
+        const pctMatch = first.match(/(\d+(?:\.\d+)?)%/);
+        if (pctMatch) {
+          data.hasRecords = true;
+          data.overallPct = Number(pctMatch[1]);
+          data.isLow = data.overallPct < 50 || /Low Attendance/i.test(first);
+        }
+      }
+      for (const part of parts.slice(1)) {
+        const attMatch = part.match(/^(\d+)\s*\/\s*(\d+)\s+classes/i);
+        if (attMatch) {
+          data.present = Number(attMatch[1]);
+          data.totalClasses = Number(attMatch[2]);
+          data.attendedLabel = `${attMatch[1]} / ${attMatch[2]}`;
+          continue;
+        }
+        const presMatch = part.match(/^Present:\s*(\d+)/i);
+        if (presMatch) {
+          data.present = Number(presMatch[1]);
+          continue;
+        }
+        const absMatch = part.match(/^Absent:\s*(\d+)/i);
+        if (absMatch) {
+          data.absent = Number(absMatch[1]);
+          continue;
+        }
+        const subjMatch = part.match(/^(\d+)\s+of\s+(\d+)\s+subjects/i);
+        if (subjMatch) {
+          data.recordedSubjects = Number(subjMatch[1]);
+          data.totalSubjects = Number(subjMatch[2]);
+          continue;
+        }
+        const semMatch = part.match(/^Semester\s+(\d+)/i);
+        if (semMatch) {
+          data.semester = Number(semMatch[1]);
+        }
+      }
+      continue;
+    }
+
+    const itemMatch = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?:\s*(.+)$/);
+    if (itemMatch) {
+      const name = itemMatch[1].trim();
+      const code = (itemMatch[2] || '').trim();
+      const rest = itemMatch[3].trim();
+      if (/\*\*No records\*\*|^No records$/i.test(rest)) {
+        data.unrecordedItems.push({ name, code });
+      } else {
+        const pctMatch = rest.match(/\*\*(\d+(?:\.\d+)?)%\*\*|(\d+(?:\.\d+)?)%/);
+        if (pctMatch) {
+          const pct = Number(pctMatch[1] ?? pctMatch[2]);
+          const isLow = pct < 50 || /Low Attendance/i.test(rest);
+          const classesMatch =
+            rest.match(/(\d+)\s+recorded\s+class/i) ||
+            rest.match(/out\s+of\s+(\d+)\s+class/i);
+          const presMatch =
+            rest.match(/Present:\s*(\d+)/i) || rest.match(/(\d+)\s+present/i);
+          const absMatch =
+            rest.match(/Absent:\s*(\d+)/i) ||
+            rest.match(/(\d+)\s+(?:missed\/)?absent/i);
+          const present = presMatch ? Number(presMatch[1]) : 0;
+          const absent = absMatch ? Number(absMatch[1]) : 0;
+          const classes = classesMatch ? Number(classesMatch[1]) : present + absent;
+          data.recordedItems.push({
+            name,
+            code,
+            pct,
+            isLow,
+            classes,
+            present,
+            absent,
+          });
+        }
+      }
+    }
+  }
+
+  if (!data.hasOverview && (data.recordedItems.length > 0 || data.unrecordedItems.length > 0)) {
+    const totalPres = data.recordedItems.reduce((acc, r) => acc + r.present, 0);
+    const totalAbs = data.recordedItems.reduce((acc, r) => acc + r.absent, 0);
+    const totalCls = data.recordedItems.reduce((acc, r) => acc + r.classes, 0);
+    data.present = totalPres;
+    data.absent = totalAbs;
+    data.totalClasses = totalCls;
+    data.attendedLabel = `${totalPres} / ${totalCls}`;
+    data.recordedSubjects = data.recordedItems.length;
+    data.totalSubjects = data.recordedItems.length + data.unrecordedItems.length;
+    if (totalCls > 0) {
+      data.hasRecords = true;
+      data.overallPct = Math.round((totalPres / totalCls) * 10000) / 100;
+      data.isLow = data.overallPct < 50;
+    }
+  }
+
+  return data;
+}
+
 /**
  * Stabilizes incomplete Markdown tokens during live streaming so mobile bubbles
  * never flicker or render raw unclosed fences/delimiters mid-stream.
@@ -37,73 +202,93 @@ export function stabilizeStreamingMarkdown(rawMarkdown: string): string {
   if (!rawMarkdown) return '';
   let text = String(rawMarkdown).replace(/\r\n/g, '\n');
 
-  // 1. Check for unclosed fenced code block (``` or ~~~)
+  // 1. Check for unclosed fenced code block (``` or ~~~), respecting fence length for nested fences
   const lines = text.split('\n');
-  let inFence = false;
-  let fenceMarker = '```';
+  let openFence: string | null = null;
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
-    if (!inFence) {
-      const openMatch = trimmed.match(/^(`{3,}|~{3,})/);
+    if (!openFence) {
+      const openMatch = trimmed.match(/^(`{3,}|~{3,})([\w+#.-]*)[ \t]*$/);
       if (openMatch) {
-        inFence = true;
-        fenceMarker = openMatch[1].slice(0, 3);
+        openFence = openMatch[1];
       }
-    } else if (trimmed.startsWith(fenceMarker) && /^(`{3,}|~{3,})\s*$/.test(trimmed)) {
-      inFence = false;
+    } else {
+      const closeRe = new RegExp(`^${openFence[0]}{${openFence.length},}[ \\t]*$`);
+      if (closeRe.test(trimmed)) {
+        openFence = null;
+      }
     }
   }
-  if (inFence) {
-    return `${text}\n${fenceMarker}`;
+  if (openFence) {
+    return `${text}\n${openFence}`;
   }
 
-  // 2. Check for unclosed display math block ($$ or \[)
-  const doubleDollarMatches = text.match(/\$\$/g);
+  // Mask closed code blocks before checking math or inline delimiters
+  const codeHolders: string[] = [];
+  let masked = text.replace(
+    /(^|\n)(`{3,}|~{3,})([\w+#.-]*)[ \t]*\n([\s\S]*?)\n\2[ \t]*(?=\n|$)/g,
+    (match, prefix) => {
+      const idx = codeHolders.length;
+      codeHolders.push(match);
+      return `${prefix || ''}___MOBILE_CODE_MASK_${idx}___`;
+    }
+  );
+
+  // 2. Check for unclosed display math block ($$ or \[) outside code blocks
+  const doubleDollarMatches = masked.match(/\$\$/g);
   if (doubleDollarMatches && doubleDollarMatches.length % 2 === 1) {
-    return `${text}\n$$`;
+    masked = `${masked}\n$$`;
   }
-  const openBracketMath = (text.match(/\\\[/g) || []).length;
-  const closeBracketMath = (text.match(/\\\]/g) || []).length;
+  const openBracketMath = (masked.match(/\\\[/g) || []).length;
+  const closeBracketMath = (masked.match(/\\\]/g) || []).length;
   if (openBracketMath > closeBracketMath) {
-    return `${text}\n\\]`;
+    masked = `${masked}\n\\]`;
   }
-  const openParenMath = (text.match(/\\\(/g) || []).length;
-  const closeParenMath = (text.match(/\\\)/g) || []).length;
+  const openParenMath = (masked.match(/\\\(/g) || []).length;
+  const closeParenMath = (masked.match(/\\\)/g) || []).length;
   if (openParenMath > closeParenMath) {
-    text = `${text}\\)`;
+    masked = `${masked}\\)`;
   }
 
   // 3. Stabilize trailing partial table delimiter line
-  if (lines.length >= 2) {
-    const lastLine = lines[lines.length - 1];
-    const prevLine = lines[lines.length - 2];
+  const maskedLines = masked.split('\n');
+  if (maskedLines.length >= 2) {
+    const lastLine = maskedLines[maskedLines.length - 1];
+    const prevLine = maskedLines[maskedLines.length - 2];
     if (prevLine.includes('|') && /^\s*\|?[\s|:-]*$/.test(lastLine) && lastLine.includes('|')) {
       const colCount = prevLine.trim().replace(/^\||\|$/g, '').split('|').length;
       if (colCount >= 2 && !/^\s*\|?(\s*:?-{1,}:?\s*\|)+\s*:?-{1,}:?\s*\|?\s*$/.test(lastLine)) {
-        lines[lines.length - 1] = `| ${Array(colCount).fill('---').join(' | ')} |`;
-        text = lines.join('\n');
+        maskedLines[maskedLines.length - 1] = `| ${Array(colCount).fill('---').join(' | ')} |`;
+        masked = maskedLines.join('\n');
       }
     }
   }
 
   // 4. Close unclosed inline formatting on the final active line
-  const finalLines = text.split('\n');
+  const finalLines = masked.split('\n');
   let lastLine = finalLines[finalLines.length - 1];
-  const backticks = (lastLine.match(/`/g) || []).length;
-  if (backticks % 2 === 1) {
-    lastLine += '`';
-  } else {
-    const boldMarkers = (lastLine.match(/\*\*/g) || []).length;
-    if (boldMarkers % 2 === 1) {
-      lastLine += '**';
+  if (!/___MOBILE_CODE_MASK_\d+___/.test(lastLine)) {
+    const backticks = (lastLine.match(/`/g) || []).length;
+    if (backticks % 2 === 1) {
+      lastLine += '`';
+    } else {
+      const boldMarkers = (lastLine.match(/\*\*/g) || []).length;
+      if (boldMarkers % 2 === 1) {
+        lastLine += '**';
+      }
+      const strikeMarkers = (lastLine.match(/~~/g) || []).length;
+      if (strikeMarkers % 2 === 1) {
+        lastLine += '~~';
+      }
     }
-    const strikeMarkers = (lastLine.match(/~~/g) || []).length;
-    if (strikeMarkers % 2 === 1) {
-      lastLine += '~~';
-    }
+    finalLines[finalLines.length - 1] = lastLine;
   }
-  finalLines[finalLines.length - 1] = lastLine;
-  return finalLines.join('\n');
+
+  let restored = finalLines.join('\n');
+  for (let i = 0; i < codeHolders.length; i++) {
+    restored = restored.split(`___MOBILE_CODE_MASK_${i}___`).join(codeHolders[i]);
+  }
+  return restored;
 }
 
 const GREEK_AND_MATH_SYMBOLS: Record<string, string> = {
@@ -212,7 +397,7 @@ const SUBSCRIPT_MAP: Record<string, string> = {
 
 /**
  * Formats TeX / LaTeX math expressions into clean, readable mathematical notation
- * for native mobile rendering without external WebViews.
+ * for native mobile rendering, evaluating inner braced commands before outer fractions.
  */
 export function formatMathExpression(tex: string): string {
   if (!tex) return '';
@@ -224,7 +409,21 @@ export function formatMathExpression(tex: string): string {
     .replace(/^\$|\$$/g, '')
     .trim();
 
-  // Remove \begin{aligned} / \end{aligned} / alignment markers
+  // Format matrix environments (\begin{pmatrix}, \begin{bmatrix}, \begin{matrix}) with [ row ] brackets
+  out = out.replace(
+    /\\begin\{(?:p|b|v|V)?matrix\}([\s\S]*?)\\end\{(?:p|b|v|V)?matrix\}/g,
+    (_, body) => {
+      const rows = String(body)
+        .trim()
+        .split(/\\\\/)
+        .map((r) => r.trim())
+        .filter(Boolean)
+        .map((r) => `[ ${r.split('&').map((c) => c.trim()).join('  ')} ]`);
+      return rows.join('\n');
+    }
+  );
+
+  // Remove other alignment environments
   out = out
     .replace(/\\begin\{[^}]+\}/g, '')
     .replace(/\\end\{[^}]+\}/g, '')
@@ -232,11 +431,36 @@ export function formatMathExpression(tex: string): string {
     .replace(/&=/g, '=')
     .replace(/&/g, ' ');
 
-  // \text{...}, \mathrm{...}, \mathbf{...}
-  out = out.replace(/\\(?:text|mathrm|mathbf|mathit)\{([^{}]*)\}/g, '$1');
+  // Replace Greek & math operators first so inner braces have clean symbols
+  for (const [cmd, sym] of Object.entries(GREEK_AND_MATH_SYMBOLS)) {
+    const escaped = cmd.replace(/\\/g, '\\\\');
+    out = out.replace(new RegExp(`${escaped}(?![a-zA-Z])`, 'g'), sym);
+  }
 
-  // \frac{a}{b} -> (a)/(b) or a/b
-  for (let pass = 0; pass < 3; pass++) {
+  // Inside-out resolution loop for \text{...}, ^{...}, _{...}, \sqrt{...}, and \frac{...}{...}
+  for (let pass = 0; pass < 5; pass++) {
+    out = out.replace(/\\(?:text|mathrm|mathbf|mathit)\{([^{}]*)\}/g, '$1');
+
+    out = out.replace(/\^\{([^{}]+)\}/g, (_, exp) => {
+      const chars = exp.split('');
+      if (chars.every((c: string) => SUPERSCRIPT_MAP[c])) {
+        return chars.map((c: string) => SUPERSCRIPT_MAP[c]).join('');
+      }
+      return `^(${exp})`;
+    });
+
+    out = out.replace(/_\{([^{}]+)\}/g, (_, sub) => {
+      const chars = sub.split('');
+      if (chars.every((c: string) => SUBSCRIPT_MAP[c])) {
+        return chars.map((c: string) => SUBSCRIPT_MAP[c]).join('');
+      }
+      return `_(${sub})`;
+    });
+
+    out = out.replace(/\\sqrt\{([^{}]+)\}/g, (_, inner) =>
+      inner.trim().length > 1 ? `√(${inner.trim()})` : `√${inner.trim()}`
+    );
+
     out = out.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (_, num, den) => {
       const cleanNum = num.trim();
       const cleanDen = den.trim();
@@ -246,38 +470,9 @@ export function formatMathExpression(tex: string): string {
     });
   }
 
-  // \sqrt{x} -> √(x)
-  out = out.replace(/\\sqrt\{([^{}]+)\}/g, (_, inner) =>
-    inner.trim().length > 1 ? `√(${inner.trim()})` : `√${inner.trim()}`
-  );
-
-  // Replace Greek & math operators
-  for (const [cmd, sym] of Object.entries(GREEK_AND_MATH_SYMBOLS)) {
-    const escaped = cmd.replace(/\\/g, '\\\\');
-    out = out.replace(new RegExp(`${escaped}(?![a-zA-Z])`, 'g'), sym);
-  }
-
-  // Superscripts ^{...} or ^x
-  out = out.replace(/\^\{([^{}]+)\}/g, (_, exp) => {
-    const chars = exp.split('');
-    if (chars.every((c: string) => SUPERSCRIPT_MAP[c])) {
-      return chars.map((c: string) => SUPERSCRIPT_MAP[c]).join('');
-    }
-    return `^(${exp})`;
-  });
   out = out.replace(/\^([0-9ni+-])/g, (_, ch) => SUPERSCRIPT_MAP[ch] || `^${ch}`);
-
-  // Subscripts _{...} or _x
-  out = out.replace(/_\{([^{}]+)\}/g, (_, sub) => {
-    const chars = sub.split('');
-    if (chars.every((c: string) => SUBSCRIPT_MAP[c])) {
-      return chars.map((c: string) => SUBSCRIPT_MAP[c]).join('');
-    }
-    return `_(${sub})`;
-  });
   out = out.replace(/_([0-9aeijknorstuvx+-])/g, (_, ch) => SUBSCRIPT_MAP[ch] || `_${ch}`);
 
-  // Clean remaining braces and spacing commands
   out = out
     .replace(/\\(?:left|right|quad|qquad|,|;|!)/g, ' ')
     .replace(/[{}]/g, '')
@@ -410,6 +605,300 @@ function renderHighlightedCode(code: string, isDark: boolean): React.ReactNode[]
 }
 
 /**
+ * Renders the monochromatic Kyana Attendance Overview + Horizontal Subject Bar Chart + Other Subjects
+ * component in React Native. Red (#ef4444) is strictly reserved for attendance below 50%.
+ */
+function renderAttendanceCard(
+  rawBlock: string,
+  keyPrefix: string,
+  colors: any,
+  isDark: boolean
+): React.ReactNode {
+  const data = parseAttendanceBlock(rawBlock);
+  if (!data.hasOverview && data.recordedItems.length === 0 && data.unrecordedItems.length === 0) {
+    return null;
+  }
+
+  const cardBg = isDark ? '#0e0f13' : '#f8f9fa';
+  const raisedBg = isDark ? '#181920' : '#ffffff';
+  const trackBg = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
+  const normalFill = isDark ? '#8e8e93' : '#3f3f46';
+  const lowRed = '#ef4444';
+  const pillText = !data.hasRecords
+    ? 'No records'
+    : data.isLow
+    ? 'Low Attendance'
+    : 'Recorded data';
+  const overallPctDisplay =
+    data.hasRecords && data.overallPct !== null ? `${data.overallPct}%` : 'No records';
+  const overallBarWidth =
+    data.hasRecords && data.overallPct !== null
+      ? Math.min(100, Math.max(data.overallPct === 0 ? 2 : 0, data.overallPct))
+      : 0;
+  const scopeHint =
+    data.totalSubjects > 1 &&
+    data.recordedSubjects > 0 &&
+    data.recordedSubjects < data.totalSubjects
+      ? ` · ${data.recordedSubjects} of ${data.totalSubjects} subjects`
+      : '';
+
+  return (
+    <View
+      key={keyPrefix}
+      style={[
+        styles.attCard,
+        {
+          backgroundColor: cardBg,
+          borderColor: colors.border,
+        },
+      ]}
+      accessibilityLabel="Attendance overview and subject-wise breakdown"
+    >
+      {/* Header Row */}
+      <View style={styles.attHeaderRow}>
+        <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+          Attendance overview
+        </Text>
+        <View
+          style={[
+            styles.attStatusPill,
+            {
+              backgroundColor:
+                data.hasRecords && data.isLow
+                  ? 'rgba(239,68,68,0.12)'
+                  : raisedBg,
+              borderColor:
+                data.hasRecords && data.isLow
+                  ? 'rgba(239,68,68,0.32)'
+                  : colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.attStatusPillText,
+              {
+                color:
+                  data.hasRecords && data.isLow ? lowRed : colors.textSecondary,
+              },
+            ]}
+          >
+            {pillText}
+          </Text>
+        </View>
+      </View>
+
+      {/* Hero Stats Row */}
+      <View style={styles.attHeroRow}>
+        <View style={styles.attHeroLeft}>
+          <View style={styles.attHeroPctRow}>
+            <Text
+              style={[
+                styles.attHeroPct,
+                !data.hasRecords && styles.attHeroNoRecord,
+                {
+                  color: !data.hasRecords
+                    ? colors.textSecondary
+                    : data.isLow
+                    ? lowRed
+                    : colors.text,
+                },
+              ]}
+            >
+              {overallPctDisplay}
+            </Text>
+            {data.hasRecords && data.isLow && (
+              <View style={styles.attLowBadge}>
+                <Text style={styles.attLowBadgeText}>Low Attendance</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.attHeroSub, { color: colors.textSecondary }]}>
+            {`Overall attendance${scopeHint}`}
+          </Text>
+        </View>
+
+        <View style={styles.attHeroRight}>
+          <Text style={[styles.attHeroRatio, { color: colors.text }]}>
+            {data.hasRecords ? data.attendedLabel : '0 / 0'}
+          </Text>
+          <Text style={[styles.attHeroSub, { color: colors.textSecondary }]}>
+            Classes attended
+          </Text>
+        </View>
+      </View>
+
+      {/* Overall Progress Bar + Present/Absent Stat Boxes */}
+      {data.hasRecords && (
+        <>
+          <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
+            <View
+              style={[
+                styles.attBarFill,
+                {
+                  width: `${overallBarWidth}%` as any,
+                  backgroundColor: data.isLow ? lowRed : normalFill,
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.attStatGrid}>
+            <View
+              style={[
+                styles.attStatBox,
+                { backgroundColor: raisedBg, borderColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.attStatNum, { color: colors.text }]}>
+                {data.present}
+              </Text>
+              <Text style={[styles.attStatLabel, { color: colors.textSecondary }]}>
+                Present
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.attStatBox,
+                { backgroundColor: raisedBg, borderColor: colors.border },
+              ]}
+            >
+              <Text style={[styles.attStatNum, { color: colors.text }]}>
+                {data.absent}
+              </Text>
+              <Text style={[styles.attStatLabel, { color: colors.textSecondary }]}>
+                Absent
+              </Text>
+            </View>
+          </View>
+        </>
+      )}
+
+      {/* Subject-wise Horizontal Bar Chart (Recorded Subjects Only) */}
+      {data.recordedItems.length > 0 && (
+        <>
+          <View style={[styles.attDivider, { backgroundColor: colors.border }]} />
+          <Text style={[styles.attSubSectionHeading, { color: colors.text }]}>
+            Subject-wise attendance
+          </Text>
+          <View style={styles.attSubjectsList}>
+            {data.recordedItems.map((item, idx) => {
+              const barW = Math.min(
+                100,
+                Math.max(item.pct === 0 ? 2 : 0, item.pct)
+              );
+              const metaLabel = [
+                item.code,
+                `${item.classes} recorded ${item.classes === 1 ? 'class' : 'classes'}`,
+              ]
+                .filter(Boolean)
+                .join(' · ');
+
+              return (
+                <View key={`att-rec-${idx}`} style={styles.attSubjItem}>
+                  <View style={styles.attSubjTopRow}>
+                    <View style={styles.attSubjInfo}>
+                      <Text style={[styles.attSubjName, { color: colors.text }]}>
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={[styles.attSubjMeta, { color: colors.textSecondary }]}
+                      >
+                        {metaLabel}
+                      </Text>
+                    </View>
+                    <View style={styles.attSubjPctCol}>
+                      <Text
+                        style={[
+                          styles.attSubjPct,
+                          { color: item.isLow ? lowRed : colors.text },
+                        ]}
+                      >
+                        {`${item.pct}%`}
+                      </Text>
+                      {item.isLow && (
+                        <View style={styles.attLowBadge}>
+                          <Text style={styles.attLowBadgeText}>Low Attendance</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
+                    <View
+                      style={[
+                        styles.attBarFill,
+                        {
+                          width: `${barW}%` as any,
+                          backgroundColor: item.isLow ? lowRed : normalFill,
+                        },
+                      ]}
+                    />
+                  </View>
+
+                  <View style={styles.attSubjCountsRow}>
+                    <Text
+                      style={[
+                        styles.attSubjCountText,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {`Present: ${item.present}`}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.attSubjCountText,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {`Absent: ${item.absent}`}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </>
+      )}
+
+      {/* Other Subjects (Zero Recorded Classes — Never Plotted as 0% Bars) */}
+      {data.unrecordedItems.length > 0 && (
+        <>
+          <View style={[styles.attDivider, { backgroundColor: colors.border }]} />
+          <Text style={[styles.attSubSectionHeading, { color: colors.text }]}>
+            {data.recordedItems.length > 0 ? 'Other subjects' : 'Subjects'}
+          </Text>
+          <View style={styles.attOtherList}>
+            {data.unrecordedItems.map((u, idx) => (
+              <View key={`att-unrec-${idx}`} style={styles.attOtherRow}>
+                <Text style={[styles.attOtherName, { color: colors.text }]}>
+                  {u.name}
+                </Text>
+                <View
+                  style={[
+                    styles.attNoRecordPill,
+                    { backgroundColor: raisedBg, borderColor: colors.border },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.attNoRecordPillText,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    No records
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
+/**
  * Robust Error Boundary to guarantee that malformed markdown or edge cases
  * NEVER crash the application. Falls back safely to plain text.
  */
@@ -459,9 +948,9 @@ function renderInlineTokens(
 ): React.ReactNode[] {
   if (!text) return [];
 
-  // Split with capturing group to keep matched tokens in parts array
+  // Split with capturing group to keep matched tokens in parts array (rejecting protocol-relative // links)
   const parts = text.split(
-    /(`[^`]+`|\\\([\s\S]+?\\\)|\$(?!\s)[^$\n]+?(?<!\s)\$|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|(?<![a-zA-Z0-9])_[^_\n]+_(?![a-zA-Z0-9])|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\((?:https?:\/\/|\/)[^\s\)]+\)|https?:\/\/[^\s<)]+)/g
+    /(`[^`]+`|\\\([\s\S]+?\\\)|\$(?!\s)[^$\n]+?(?<!\s)\$|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|(?<![a-zA-Z0-9])_[^_\n]+_(?![a-zA-Z0-9])|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\((?:https?:\/\/|\/(?!\/))[^\s\)]+\)|https?:\/\/[^\s<)]+)/g
   );
 
   return parts
@@ -580,9 +1069,9 @@ function renderInlineTokens(
         );
       }
 
-      // 8. Link: [title](url) — external https:// or internal /route
+      // 8. Link: [title](url) — external https:// or internal /route (excluding //)
       if (part.startsWith('[') && part.includes('](')) {
-        const linkMatch = part.match(/^\[([^\]]+)\]\(((?:https?:\/\/|\/)[^\s\)]+)\)$/);
+        const linkMatch = part.match(/^\[([^\]]+)\]\(((?:https?:\/\/|\/(?!\/))[^\s\)]+)\)$/);
         if (linkMatch) {
           const [, title, url] = linkMatch;
           return (
@@ -590,7 +1079,7 @@ function renderInlineTokens(
               key={key}
               style={[styles.link, { color: textColor }]}
               onPress={() => {
-                if (url.startsWith('/') && onPressInternalLink) {
+                if (url.startsWith('/') && !url.startsWith('//') && onPressInternalLink) {
                   onPressInternalLink(url);
                   return;
                 }
@@ -659,18 +1148,18 @@ function PostMarkdownInternal({
     ? stabilizeStreamingMarkdown(rawDisplayContent)
     : rawDisplayContent;
 
-  // 1. Extract fenced code blocks first
+  // 1. Extract fenced code blocks (supporting nested backtick fence lengths)
   const codeBlocks: CodeBlock[] = [];
   const normalized = displayContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const textWithoutCode = normalized.replace(
-    /```([a-zA-Z0-9_+#-]*)[ \t]*\n?([\s\S]*?)```/g,
-    (_, lang, code) => {
+    /(^|\n)(`{3,}|~{3,})([a-zA-Z0-9_+#-]*)[ \t]*\n?([\s\S]*?)\2[ \t]*(?=\n|$)/g,
+    (_, prefix, _fence, lang, code) => {
       const idx = codeBlocks.length;
       codeBlocks.push({
         lang: (lang || 'CODE').trim().toUpperCase(),
         code: (code || '').replace(/\n+$/, ''),
       });
-      return `\n\x01CODE_BLOCK_${idx}\x02\n`;
+      return `${prefix || ''}\n\x01CODE_BLOCK_${idx}\x02\n`;
     }
   );
 
@@ -735,13 +1224,25 @@ function PostMarkdownInternal({
     const line = lines[i];
     const trimmed = line.trim();
 
-    // 1. Code Block placeholder
+    // 1. Code Block or Attendance Visual Block placeholder
     const codeMatch = trimmed.match(/^\x01CODE_BLOCK_(\d+)\x02$/);
     if (codeMatch) {
       flushParagraph(`p-before-code-${i}`);
       const blockIndex = Number(codeMatch[1]);
       const block = codeBlocks[blockIndex];
       if (block) {
+        if (block.lang === 'ATTENDANCE') {
+          const attNode = renderAttendanceCard(
+            block.code,
+            `att-card-${i}`,
+            colors,
+            isDark
+          );
+          if (attNode) {
+            renderedElements.push(attNode);
+            continue;
+          }
+        }
         const isCopied = copiedIndex === blockIndex;
         renderedElements.push(
           <View
@@ -1234,6 +1735,192 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     fontSize: 13.5,
     lineHeight: 20,
+  },
+  attCard: {
+    marginVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  attHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  attSectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  attStatusPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  attStatusPillText: {
+    fontSize: 11.5,
+    fontWeight: '500',
+  },
+  attHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  attHeroLeft: {
+    flex: 1,
+    marginRight: 12,
+  },
+  attHeroPctRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  attHeroPct: {
+    fontSize: 30,
+    fontWeight: '700',
+    lineHeight: 34,
+  },
+  attHeroNoRecord: {
+    fontSize: 20,
+    lineHeight: 26,
+  },
+  attHeroRight: {
+    alignItems: 'flex-end',
+  },
+  attHeroRatio: {
+    fontSize: 18,
+    fontWeight: '600',
+    lineHeight: 24,
+  },
+  attHeroSub: {
+    fontSize: 12.5,
+    marginTop: 2,
+  },
+  attLowBadge: {
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderColor: 'rgba(239,68,68,0.28)',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  attLowBadgeText: {
+    color: '#ef4444',
+    fontSize: 10.5,
+    fontWeight: '600',
+  },
+  attBarTrack: {
+    width: '100%',
+    height: 8,
+    borderRadius: 999,
+    overflow: 'hidden',
+    marginVertical: 8,
+  },
+  attBarFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  attStatGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  attStatBox: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  attStatNum: {
+    fontSize: 19,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  attStatLabel: {
+    fontSize: 12.5,
+    marginTop: 2,
+  },
+  attDivider: {
+    height: 1,
+    width: '100%',
+    marginVertical: 14,
+  },
+  attSubSectionHeading: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  attSubjectsList: {
+    gap: 14,
+  },
+  attSubjItem: {
+    width: '100%',
+  },
+  attSubjTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  attSubjInfo: {
+    flex: 1,
+  },
+  attSubjName: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  attSubjMeta: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  attSubjPctCol: {
+    alignItems: 'flex-end',
+    gap: 3,
+  },
+  attSubjPct: {
+    fontSize: 17,
+    fontWeight: '700',
+    lineHeight: 21,
+  },
+  attSubjCountsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 1,
+  },
+  attSubjCountText: {
+    fontSize: 12,
+  },
+  attOtherList: {
+    gap: 10,
+  },
+  attOtherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  attOtherName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 20,
+  },
+  attNoRecordPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  attNoRecordPillText: {
+    fontSize: 11.5,
+    fontWeight: '500',
   },
   tableWrapper: {
     marginVertical: 8,

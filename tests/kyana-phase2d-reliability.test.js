@@ -478,7 +478,7 @@ test('Phase 2D.1 — Personal academic information: attendance, subject attendan
     assert.match(rOverall.reply, /80%/);
     assert.match(rOverall.reply, /4 present/i);
     assert.match(rOverall.reply, /1 missed\/absent/i);
-    assert.match(rOverall.reply, /Eligible for exams/i);
+    assert.doesNotMatch(rOverall.reply, /Eligible for exams/i);
 
     const rSubject = await handleChat(db, 'DBMS ma kati class miss gare?', { studentId: 'stu_saugat' });
     assert.match(rSubject.reply, /Database Management System/i);
@@ -486,7 +486,8 @@ test('Phase 2D.1 — Personal academic information: attendance, subject attendan
 
     const rEligible = await handleChat(db, 'Am I eligible for exams?', { studentId: 'stu_rahul' });
     assert.match(rEligible.reply, /40%/);
-    assert.match(rEligible.reply, /Below exam eligibility threshold/i);
+    assert.match(rEligible.reply, /Low Attendance/i);
+    assert.doesNotMatch(rEligible.reply, /Below exam eligibility threshold/i);
   });
 
   await t.test('Ask for my published results (exposes published midterm marks, hides draft pre-board marks)', async () => {

@@ -207,6 +207,7 @@ export const VISUAL_BLOCK_KINDS = [
   'SYLLABUS',
   'DIAGRAM',
   'FLOWCHART',
+  'GRAPH',
   'TRACE',
   'COMPARISON',
   'QUIZ',
@@ -219,6 +220,34 @@ export function parseKyanaVisualBlock(kind: string, rawBlock: string): any {
   const text = String(rawBlock || '').replace(/\r\n/g, '\n').trim();
   if (normKind === 'attendance') {
     return { kind: 'attendance', ...parseAttendanceBlock(text) };
+  }
+
+  if (
+    text.startsWith('{') &&
+    ['syllabus', 'diagram', 'flowchart', 'graph', 'trace', 'quiz', 'roadmap', 'comparison', 'complexity'].includes(
+      normKind
+    )
+  ) {
+    try {
+      const parsedJson = JSON.parse(text);
+      if (parsedJson && typeof parsedJson === 'object') {
+        const items =
+          parsedJson.units ||
+          parsedJson.nodes ||
+          parsedJson.steps ||
+          parsedJson.series ||
+          parsedJson.questions ||
+          parsedJson.items ||
+          (parsedJson.unit ? [parsedJson.unit] : []);
+        return {
+          kind: normKind,
+          ...parsedJson,
+          items: Array.isArray(items) ? items : [],
+        };
+      }
+    } catch (_) {
+      // Fall through to line-based parser during streaming or if non-JSON
+    }
   }
 
   const lines = text
@@ -711,7 +740,27 @@ function KyanaQuizCard({
   isDark: boolean;
   keyPrefix: string;
 }) {
-  const [revealed, setRevealed] = useState(false);
+  const [revealedMap, setRevealedMap] = useState<Record<number, boolean>>({});
+  const [selectedMap, setSelectedMap] = useState<Record<number, number>>({});
+
+  const questionsList =
+    Array.isArray(parsed.questions) && parsed.questions.length > 0
+      ? parsed.questions
+      : [
+          {
+            id: 'q1',
+            question: parsed.question || '',
+            options: Array.isArray(parsed.options)
+              ? parsed.options.map((o: any) =>
+                  typeof o === 'string' ? o : `${o.key}) ${o.text}`
+                )
+              : [],
+            correctIndex: 0,
+            answer: parsed.answer || '',
+            explanation: parsed.explanation || '',
+          },
+        ];
+
   return (
     <View
       key={keyPrefix}
@@ -719,41 +768,228 @@ function KyanaQuizCard({
       accessibilityLabel="Interactive Self-Assessment Quiz"
     >
       <View style={styles.attHeaderRow}>
-        <Text style={[styles.attSectionTitle, { color: colors.text }]}>Self-Assessment Quiz</Text>
+        <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+          {parsed.title || 'Interactive Self-Assessment Quiz'}
+        </Text>
         <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Interactive</Text>
+          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
+            {`${questionsList.length} ${questionsList.length === 1 ? 'question' : 'questions'}`}
+          </Text>
         </View>
       </View>
-      <Text style={[styles.quizQuestion, { color: colors.text }]}>{parsed.question}</Text>
-      <View style={styles.quizOptionsList}>
-        {parsed.options.map((opt: any, idx: number) => (
-          <View key={`opt-${idx}`} style={[styles.quizOptionRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-            <Text style={styles.quizOptKey}>{opt.key}</Text>
-            <Text style={[styles.quizOptText, { color: colors.text }]}>{opt.text}</Text>
+
+      {questionsList.map((q: any, qIdx: number) => {
+        const opts = Array.isArray(q.options) ? q.options : [];
+        const selectedIdx = selectedMap[qIdx];
+        const isRevealed = Boolean(revealedMap[qIdx]);
+        const correctIdx = typeof q.correctIndex === 'number' ? q.correctIndex : -1;
+        const correctAnswerText =
+          q.answer || (correctIdx >= 0 && opts[correctIdx] ? opts[correctIdx] : '');
+
+        return (
+          <View key={`q-${qIdx}`} style={{ marginTop: qIdx > 0 ? 12 : 4 }}>
+            <Text style={[styles.quizQuestion, { color: colors.text }]}>
+              {questionsList.length > 1 ? `Q${qIdx + 1}. ${q.question}` : q.question}
+            </Text>
+            <View style={styles.quizOptionsList}>
+              {opts.map((opt: any, oIdx: number) => {
+                const optStr = typeof opt === 'string' ? opt : `${opt.key}) ${opt.text}`;
+                const isSelected = selectedIdx === oIdx;
+                const isCorrect = isSelected && oIdx === correctIdx;
+                const isWrong = isSelected && correctIdx >= 0 && oIdx !== correctIdx;
+                return (
+                  <TouchableOpacity
+                    key={`opt-${oIdx}`}
+                    onPress={() => {
+                      setSelectedMap((prev) => ({ ...prev, [qIdx]: oIdx }));
+                      if (oIdx === correctIdx) {
+                        setRevealedMap((prev) => ({ ...prev, [qIdx]: true }));
+                      }
+                    }}
+                    style={[
+                      styles.quizOptionRow,
+                      {
+                        backgroundColor: isCorrect
+                          ? 'rgba(16, 185, 129, 0.14)'
+                          : isWrong
+                          ? 'rgba(239, 68, 68, 0.12)'
+                          : raisedBg,
+                        borderColor: isCorrect
+                          ? '#10b981'
+                          : isWrong
+                          ? '#ef4444'
+                          : colors.border,
+                      },
+                    ]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={[styles.quizOptText, { color: colors.text }]}>{optStr}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              onPress={() =>
+                setRevealedMap((prev) => ({ ...prev, [qIdx]: !prev[qIdx] }))
+              }
+              style={[styles.quizRevealBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.quizRevealBtnText, { color: colors.text }]}>
+                {isRevealed ? 'Hide Explanation' : 'Reveal Answer & Explanation'}
+              </Text>
+            </TouchableOpacity>
+            {isRevealed && (
+              <View
+                style={[
+                  styles.quizRevealContent,
+                  {
+                    backgroundColor: isDark
+                      ? 'rgba(255,255,255,0.05)'
+                      : 'rgba(0,0,0,0.04)',
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.quizCorrectAnswer, { color: colors.text }]}>
+                  Correct Answer: {correctAnswerText}
+                </Text>
+                {Boolean(q.explanation) && (
+                  <Text style={[styles.quizExplanation, { color: colors.textSecondary }]}>
+                    {q.explanation}
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
-        ))}
-      </View>
-      <TouchableOpacity
-        onPress={() => setRevealed(!revealed)}
-        style={[styles.quizRevealBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}
-        accessibilityRole="button"
-      >
-        <Text style={[styles.quizRevealBtnText, { color: colors.text }]}>
-          {revealed ? 'Hide Explanation' : 'Reveal Answer & Explanation'}
-        </Text>
-      </TouchableOpacity>
-      {revealed && (
-        <View style={[styles.quizRevealContent, { backgroundColor: isDark ? 'rgba(22,93,255,0.1)' : 'rgba(22,93,255,0.06)', borderColor: isDark ? 'rgba(22,93,255,0.3)' : 'rgba(22,93,255,0.2)' }]}>
-          <Text style={[styles.quizCorrectAnswer, { color: colors.text }]}>
-            Correct Answer: {parsed.answer}
+        );
+      })}
+    </View>
+  );
+}
+
+function KyanaTraceCard({
+  parsed,
+  cardBg,
+  raisedBg,
+  colors,
+  keyPrefix,
+}: {
+  parsed: any;
+  cardBg: string;
+  raisedBg: string;
+  colors: any;
+  keyPrefix: string;
+}) {
+  const steps =
+    Array.isArray(parsed.steps) && parsed.steps.length > 0
+      ? parsed.steps.map((s: any, idx: number) => ({
+          label: `Step ${s.step || idx + 1}`,
+          action: s.action || s.label || `Step ${idx + 1}`,
+          state: Array.isArray(s.state) ? s.state : s.content ? [s.content] : [],
+          highlight: s.highlight || null,
+        }))
+      : parsed.items.map((item: any, idx: number) => ({
+          label: item.label || `Step ${idx + 1}`,
+          action: item.label || `Step ${idx + 1}`,
+          state: [item.content || ''],
+          highlight: null,
+        }));
+
+  const [activeStep, setActiveStep] = useState<number | null>(null);
+  const visibleSteps = activeStep === null ? steps : [steps[activeStep]].filter(Boolean);
+
+  return (
+    <View
+      key={keyPrefix}
+      style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+      accessibilityLabel="Step-by-step Execution Trace"
+    >
+      <View style={styles.attHeaderRow}>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+            {parsed.title || 'Step-by-step execution trace'}
           </Text>
-          {Boolean(parsed.explanation) && (
-            <Text style={[styles.quizExplanation, { color: colors.textSecondary }]}>
-              {parsed.explanation}
+          {Boolean(parsed.subtitle) && (
+            <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 2 }]}>
+              {parsed.subtitle}
             </Text>
           )}
         </View>
-      )}
+        <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
+            {`${steps.length} ${steps.length === 1 ? 'step' : 'steps'}`}
+          </Text>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+        <TouchableOpacity
+          onPress={() =>
+            setActiveStep((prev) => (prev === null ? 0 : Math.max(0, prev - 1)))
+          }
+          style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.attStatusPillText, { color: colors.text }]}>◀ Step Back</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() =>
+            setActiveStep((prev) =>
+              prev === null ? 0 : Math.min(steps.length - 1, prev + 1)
+            )
+          }
+          style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.attStatusPillText, { color: colors.text }]}>Step Forward ▶</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setActiveStep(null)}
+          style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Show All</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ gap: 8, marginTop: 8 }}>
+        {visibleSteps.map((item: any, idx: number) => (
+          <View
+            key={`step-${idx}`}
+            style={[styles.traceStepRow, { backgroundColor: raisedBg, borderColor: colors.border }]}
+          >
+            <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
+              <Text style={[styles.attNoRecordPillText, { color: colors.text, fontWeight: '700' }]}>
+                {item.label}
+              </Text>
+            </View>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={[styles.attSubjName, { color: colors.text }]}>{item.action}</Text>
+              {Array.isArray(item.state) &&
+                item.state.map((st: string, sIdx: number) => (
+                  <Text
+                    key={`st-${sIdx}`}
+                    style={[
+                      styles.attSubjMeta,
+                      {
+                        color: colors.text,
+                        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+                      },
+                    ]}
+                  >
+                    {st}
+                  </Text>
+                ))}
+              {Boolean(item.highlight) && (
+                <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
+                  {item.highlight}
+                </Text>
+              )}
+            </View>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
@@ -796,6 +1032,16 @@ function renderKyanaVisualCard(
   }
 
   if (normKind === 'syllabus') {
+    const creditVal = parsed.credits || parsed.credit || null;
+    const totalHrsVal = parsed.totalHours
+      ? typeof parsed.totalHours === 'number'
+        ? `${parsed.totalHours} hrs`
+        : String(parsed.totalHours)
+      : null;
+    const objVal = parsed.officialObjectives || parsed.objectives || null;
+    const labVal = parsed.officialLab || parsed.labs || null;
+    const tbVal = parsed.officialTextbooks || parsed.textbooks || null;
+
     return (
       <View
         key={keyPrefix}
@@ -814,6 +1060,9 @@ function renderKyanaVisualCard(
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap' }}>
+            <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+              <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Official Syllabus</Text>
+            </View>
             {Boolean(parsed.semester) && (
               <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
                 <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
@@ -821,34 +1070,47 @@ function renderKyanaVisualCard(
                 </Text>
               </View>
             )}
-            {Boolean(parsed.credits) && (
+            {Boolean(creditVal) && (
               <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
                 <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-                  {`${parsed.credits} Cr`}
+                  {`${creditVal} Cr`}
                 </Text>
               </View>
             )}
-            {Boolean(parsed.totalHours) && (
+            {Boolean(totalHrsVal) && (
               <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
                 <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-                  {parsed.totalHours}
+                  {totalHrsVal}
                 </Text>
               </View>
             )}
           </View>
         </View>
 
-        {Boolean(parsed.objectives) && (
+        {Boolean(objVal) && (
           <View style={[styles.syllabusObjBox, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>Learning Objectives</Text>
-            <Text style={[styles.syllabusObjText, { color: colors.text }]}>{parsed.objectives}</Text>
+            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>
+              Official University Syllabus · Learning Objectives
+            </Text>
+            <Text style={[styles.syllabusObjText, { color: colors.text }]}>{objVal}</Text>
           </View>
         )}
 
         <View style={styles.attSubjectsList}>
           {parsed.items.map((item: any, idx: number) => {
             if (item.unitNumber) {
-              const barW = item.pct !== null ? Math.min(100, Math.max(4, item.pct)) : 0;
+              const hrsText = item.teachingHours || item.hours || null;
+              const pctVal =
+                item.sharePct !== undefined && item.sharePct !== null
+                  ? item.sharePct
+                  : item.pct !== undefined
+                  ? item.pct
+                  : null;
+              const barW = pctVal !== null ? Math.min(100, Math.max(4, pctVal)) : 0;
+              const topicStr = Array.isArray(item.topics)
+                ? item.topics.map((t: any) => (t.code ? `${t.code} ${t.text}` : t.text)).join(' · ')
+                : item.topics || '';
+
               return (
                 <View key={`unit-${idx}`} style={styles.attSubjItem}>
                   <View style={styles.attSubjTopRow}>
@@ -856,15 +1118,15 @@ function renderKyanaVisualCard(
                       <Text style={[styles.attSubjName, { color: colors.text }]}>
                         {`Unit ${item.unitNumber}: ${item.title}`}
                       </Text>
-                      {Boolean(item.hours) && (
+                      {Boolean(hrsText) && (
                         <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
-                          {`${item.hours}${item.pct ? ` · ${item.pct}% workload` : ''}`}
+                          {`${hrsText}${pctVal ? ` · ${pctVal}% workload` : ''}`}
                         </Text>
                       )}
                     </View>
-                    {item.pct !== null && (
+                    {pctVal !== null && (
                       <Text style={[styles.attSubjPct, { color: colors.text }]}>
-                        {`${item.pct}%`}
+                        {`${pctVal}%`}
                       </Text>
                     )}
                   </View>
@@ -873,9 +1135,9 @@ function renderKyanaVisualCard(
                       <View style={[styles.attBarFill, { width: `${barW}%`, backgroundColor: normalFill }]} />
                     </View>
                   )}
-                  {Boolean(item.topics) && (
+                  {Boolean(topicStr) && (
                     <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 4 }]}>
-                      {item.topics}
+                      {topicStr}
                     </Text>
                   )}
                 </View>
@@ -907,16 +1169,32 @@ function renderKyanaVisualCard(
           })}
         </View>
 
-        {Boolean(parsed.labs) && (
+        {Boolean(labVal) && (
           <View style={[styles.syllabusSectionBox, { borderColor: colors.border }]}>
-            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>Laboratory Practicals</Text>
-            <Text style={[styles.syllabusFooterText, { color: colors.textSecondary }]}>{parsed.labs}</Text>
+            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>
+              Official University Syllabus · Laboratory Practicals
+            </Text>
+            <Text style={[styles.syllabusFooterText, { color: colors.textSecondary }]}>{labVal}</Text>
           </View>
         )}
-        {Boolean(parsed.textbooks) && (
+        {Boolean(tbVal) && (
           <View style={[styles.syllabusSectionBox, { borderColor: colors.border }]}>
-            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>Recommended Textbooks</Text>
-            <Text style={[styles.syllabusFooterText, { color: colors.textSecondary }]}>{parsed.textbooks}</Text>
+            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>
+              Official University Syllabus · Recommended Textbooks
+            </Text>
+            <Text style={[styles.syllabusFooterText, { color: colors.textSecondary }]}>{tbVal}</Text>
+          </View>
+        )}
+        {Boolean(parsed.aiGuidance) && (
+          <View style={[styles.syllabusSectionBox, { borderColor: colors.border }]}>
+            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>
+              AI Study Guide & Learning Roadmap (Advisory)
+            </Text>
+            {Array.isArray(parsed.aiGuidance.studySequence) && (
+              <Text style={[styles.syllabusFooterText, { color: colors.textSecondary }]}>
+                {parsed.aiGuidance.studySequence.join(' → ')}
+              </Text>
+            )}
           </View>
         )}
       </View>
@@ -928,59 +1206,98 @@ function renderKyanaVisualCard(
       <View
         key={keyPrefix}
         style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-        accessibilityLabel="Architecture Diagram"
+        accessibilityLabel="Architecture & Concept Diagram"
       >
         <View style={styles.attHeaderRow}>
-          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
+          <Text style={[styles.attSectionTitle, { color: colors.text, flex: 1 }]}>
             {parsed.title || 'Architecture & Concept Diagram'}
           </Text>
           <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
             <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Diagram</Text>
           </View>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-          <View style={[styles.codeBlockContainer, { backgroundColor: isDark ? '#141416' : '#f4f4f5', borderColor: colors.border, padding: 12 }]}>
-            <Text style={[styles.codeText, { color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }]}>
-              {parsed.diagramText}
-            </Text>
+        {Array.isArray(parsed.nodes) && parsed.nodes.length > 0 ? (
+          <View style={{ gap: 6, marginTop: 8 }}>
+            {parsed.nodes.map((node: any, idx: number) => (
+              <View key={`node-${idx}`} style={{ gap: 4 }}>
+                <View style={[styles.roadmapItemRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.attSubjName, { color: colors.text }]}>{node.label || node.id}</Text>
+                    {Boolean(node.detail) && (
+                      <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{node.detail}</Text>
+                    )}
+                  </View>
+                </View>
+                {idx < parsed.nodes.length - 1 && (
+                  <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 12 }}>↓</Text>
+                )}
+              </View>
+            ))}
           </View>
-        </ScrollView>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+            <View style={[styles.codeBlockContainer, { backgroundColor: isDark ? '#141416' : '#f4f4f5', borderColor: colors.border, padding: 12 }]}>
+              <Text style={[styles.codeText, { color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }]}>
+                {parsed.diagramText}
+              </Text>
+            </View>
+          </ScrollView>
+        )}
+      </View>
+    );
+  }
+
+  if (normKind === 'graph') {
+    const series = Array.isArray(parsed.series) ? parsed.series : parsed.items;
+    return (
+      <View
+        key={keyPrefix}
+        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
+        accessibilityLabel="Quantitative & Complexity Graph"
+      >
+        <View style={styles.attHeaderRow}>
+          <Text style={[styles.attSectionTitle, { color: colors.text, flex: 1 }]}>
+            {parsed.title || 'Quantitative & Complexity Graph'}
+          </Text>
+          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Visual Plot</Text>
+          </View>
+        </View>
+        <View style={styles.attSubjectsList}>
+          {series.map((s: any, idx: number) => {
+            const valNum = Number(s.value ?? s.pct ?? 50);
+            const barW = Math.min(100, Math.max(4, valNum));
+            return (
+              <View key={`gr-${idx}`} style={styles.attSubjItem}>
+                <View style={styles.attSubjTopRow}>
+                  <Text style={[styles.attSubjName, { color: colors.text, flex: 1 }]}>
+                    {s.label || s.title}
+                  </Text>
+                  <Text style={[styles.attSubjPct, { color: colors.text }]}>
+                    {s.displayValue || `${valNum}`}
+                  </Text>
+                </View>
+                <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
+                  <View style={[styles.attBarFill, { width: `${barW}%`, backgroundColor: normalFill }]} />
+                </View>
+              </View>
+            );
+          })}
+        </View>
       </View>
     );
   }
 
   if (normKind === 'flowchart' || normKind === 'trace') {
     return (
-      <View
+      <KyanaTraceCard
         key={keyPrefix}
-        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-        accessibilityLabel="Step-by-step Execution Trace"
-      >
-        <View style={styles.attHeaderRow}>
-          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-            Step-by-step execution trace
-          </Text>
-          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-              {`${parsed.items.length} ${parsed.items.length === 1 ? 'step' : 'steps'}`}
-            </Text>
-          </View>
-        </View>
-        <View style={{ gap: 8, marginTop: 8 }}>
-          {parsed.items.map((item: any, idx: number) => (
-            <View key={`step-${idx}`} style={[styles.traceStepRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-              <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
-                <Text style={[styles.attNoRecordPillText, { color: colors.text, fontWeight: '700' }]}>
-                  {item.label}
-                </Text>
-              </View>
-              <Text style={[styles.attSubjMeta, { color: colors.textSecondary, flex: 1 }]}>
-                {item.content}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </View>
+        parsed={parsed}
+        cardBg={cardBg}
+        raisedBg={raisedBg}
+        colors={colors}
+        keyPrefix={keyPrefix}
+      />
     );
   }
 
@@ -1019,6 +1336,15 @@ function renderKyanaVisualCard(
   }
 
   if (normKind === 'roadmap') {
+    const roadItems =
+      Array.isArray(parsed.steps) && parsed.steps.length > 0
+        ? parsed.steps.map((s: any) => ({
+            done: Boolean(s.done),
+            title: s.title || '',
+            tag: s.phase || '',
+            desc: s.detail || '',
+          }))
+        : parsed.items;
     return (
       <View
         key={keyPrefix}
@@ -1026,17 +1352,17 @@ function renderKyanaVisualCard(
         accessibilityLabel="Learning & Revision Roadmap"
       >
         <View style={styles.attHeaderRow}>
-          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-            Learning & Revision Roadmap
+          <Text style={[styles.attSectionTitle, { color: colors.text, flex: 1 }]}>
+            {parsed.title || 'Learning & Revision Roadmap'}
           </Text>
           <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
             <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-              {`${parsed.items.length} topics`}
+              {`${roadItems.length} stages`}
             </Text>
           </View>
         </View>
         <View style={{ gap: 8, marginTop: 8 }}>
-          {parsed.items.map((item: any, idx: number) => (
+          {roadItems.map((item: any, idx: number) => (
             <View key={`road-${idx}`} style={[styles.roadmapItemRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
               <Text style={{ color: item.done ? '#10b981' : colors.textSecondary, fontWeight: '700', width: 20 }}>
                 {item.done ? '✓' : '○'}
@@ -1044,7 +1370,7 @@ function renderKyanaVisualCard(
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={[styles.attSubjName, { color: colors.text }]}>{item.title}</Text>
                 {Boolean(item.tag) && (
-                  <Text style={[styles.attSubjMeta, { color: '#67D8FF' }]}>{item.tag}</Text>
+                  <Text style={[styles.attSubjMeta, { color: colors.textSecondary, fontWeight: '600' }]}>{item.tag}</Text>
                 )}
                 {Boolean(item.desc) && (
                   <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{item.desc}</Text>

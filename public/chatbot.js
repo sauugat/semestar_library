@@ -18,7 +18,7 @@
   function safeLink(value, externalOnly = false) {
     if (typeof value !== 'string' || !value.trim()) return null;
     const trimmed = value.trim();
-    if (/^(?:javascript|data|vbscript):/i.test(trimmed)) return null;
+    if (trimmed.startsWith('//') || /^(?:javascript|data|vbscript):/i.test(trimmed)) return null;
     try {
       const url = new URL(trimmed, 'https://semester-library.local/');
       if (!['https:', 'http:'].includes(url.protocol)) return null;
@@ -393,6 +393,7 @@
     'syllabus',
     'diagram',
     'flowchart',
+    'graph',
     'trace',
     'comparison',
     'quiz',
@@ -405,6 +406,29 @@
     const text = String(rawBlock || '').replace(/\r\n/g, '\n').trim();
     if (normKind === 'attendance') {
       return { kind: 'attendance', ...parseAttendanceBlock(text) };
+    }
+
+    if (text.startsWith('{') && ['syllabus', 'diagram', 'flowchart', 'graph', 'trace', 'quiz', 'roadmap', 'comparison', 'complexity'].includes(normKind)) {
+      try {
+        const parsedJson = JSON.parse(text);
+        if (parsedJson && typeof parsedJson === 'object') {
+          const items =
+            parsedJson.units ||
+            parsedJson.nodes ||
+            parsedJson.steps ||
+            parsedJson.series ||
+            parsedJson.questions ||
+            parsedJson.items ||
+            (parsedJson.unit ? [parsedJson.unit] : []);
+          return {
+            kind: normKind,
+            ...parsedJson,
+            items: Array.isArray(items) ? items : []
+          };
+        }
+      } catch (_) {
+        return { kind: normKind, items: [] };
+      }
     }
 
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
@@ -1044,6 +1068,12 @@
     }
 
     if (normKind === 'syllabus') {
+      const creditVal = parsed.credits || parsed.credit || null;
+      const totalHrsVal = parsed.totalHours ? (typeof parsed.totalHours === 'number' ? `${parsed.totalHours} hrs` : String(parsed.totalHours)) : null;
+      const objVal = parsed.officialObjectives || parsed.objectives || null;
+      const labVal = parsed.officialLab || parsed.labs || null;
+      const tbVal = parsed.officialTextbooks || parsed.textbooks || null;
+
       let html = `<div class="kyana-attendance-card kyana-syllabus-card" data-visual-kind="syllabus">
         <div class="kyana-att-header">
           <div class="kyana-att-title-group">
@@ -1051,45 +1081,59 @@
             ${parsed.courseCode ? `<span class="kyana-syllabus-code-badge">${escapeHtml(parsed.courseCode)}</span>` : ''}
           </div>
           <div class="kyana-syllabus-badges">
-            ${parsed.semester ? `<span class="kyana-att-status-pill">Semester ${parsed.semester}</span>` : ''}
-            ${parsed.credits ? `<span class="kyana-att-status-pill">${escapeHtml(parsed.credits)} Cr</span>` : ''}
-            ${parsed.totalHours ? `<span class="kyana-att-status-pill">${escapeHtml(parsed.totalHours)}</span>` : ''}
+            <span class="kyana-att-status-pill kyana-official-badge">Official Syllabus</span>
+            ${parsed.semester ? `<span class="kyana-att-status-pill">Semester ${escapeHtml(String(parsed.semester))}</span>` : ''}
+            ${creditVal ? `<span class="kyana-att-status-pill">${escapeHtml(String(creditVal))} Cr</span>` : ''}
+            ${parsed.nature ? `<span class="kyana-att-status-pill">${escapeHtml(String(parsed.nature))}</span>` : ''}
+            ${totalHrsVal ? `<span class="kyana-att-status-pill">${escapeHtml(totalHrsVal)}</span>` : ''}
           </div>
         </div>`;
 
-      if (parsed.objectives) {
+      if (parsed.instructor) {
+        html += `<div class="kyana-syllabus-instructor">Assigned Faculty: <strong>${escapeHtml(parsed.instructor)}</strong></div>`;
+      }
+
+      if (objVal) {
         html += `<div class="kyana-syllabus-objectives">
-          <span class="kyana-syllabus-section-label">Learning Objectives:</span>
-          <p>${escapeHtml(parsed.objectives)}</p>
+          <span class="kyana-syllabus-section-label">Official University Syllabus · Learning Objectives</span>
+          <p>${escapeHtml(objVal)}</p>
         </div>`;
       }
 
       html += `<div class="kyana-att-subjects-list">`;
       for (const item of parsed.items) {
         if (item.unitNumber) {
+          const hrsText = item.teachingHours || item.hours || null;
+          const pctVal = item.sharePct !== undefined && item.sharePct !== null ? item.sharePct : (item.pct !== undefined ? item.pct : null);
+          const topicStr = Array.isArray(item.topics)
+            ? item.topics.map(t => (t.code ? `${t.code} ${t.text}` : t.text)).join(' · ')
+            : (item.topics || '');
+
           html += `
           <div class="kyana-att-subj-item kyana-syllabus-unit-item">
             <div class="kyana-att-subj-top">
               <div class="kyana-att-subj-info">
-                <span class="kyana-att-subj-name">Unit ${item.unitNumber}: ${escapeHtml(item.title)}</span>
-                ${item.hours ? `<span class="kyana-att-subj-meta">${escapeHtml(item.hours)}${item.pct ? ` · ${item.pct}% workload` : ''}</span>` : ''}
+                <span class="kyana-att-subj-name">Unit ${escapeHtml(String(item.unitNumber))}: ${escapeHtml(item.title)}</span>
+                ${hrsText ? `<span class="kyana-att-subj-meta">${escapeHtml(String(hrsText))}${pctVal ? ` · ${pctVal}% of course hours` : ''}</span>` : (item.workloadShare ? `<span class="kyana-att-subj-meta">${escapeHtml(String(item.workloadShare))}</span>` : '')}
               </div>
-              ${item.pct ? `<span class="kyana-att-subj-pct">${item.pct}%</span>` : ''}
+              ${pctVal ? `<span class="kyana-att-subj-pct">${escapeHtml(String(pctVal))}%</span>` : ''}
             </div>
-            ${item.pct ? `
-            <div class="kyana-att-bar-track">
-              <div class="kyana-att-bar-fill" style="width: ${Math.min(100, Math.max(4, item.pct))}%;"></div>
+            ${pctVal ? `
+            <div class="kyana-att-bar-track" role="progressbar" aria-valuenow="${pctVal}" aria-valuemin="0" aria-valuemax="100">
+              <svg class="kyana-att-bar-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+                <rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="8" rx="4"></rect>
+                <rect class="kyana-att-svg-fill" x="0" y="0" width="${Math.min(100, Math.max(4, pctVal))}" height="8" rx="4"></rect>
+              </svg>
             </div>` : ''}
-            ${item.topics ? `<div class="kyana-syllabus-unit-topics">${escapeHtml(item.topics)}</div>` : ''}
+            ${topicStr ? `<div class="kyana-syllabus-unit-topics">${escapeHtml(topicStr)}</div>` : ''}
           </div>`;
         } else {
-          // Course in semester list
           html += `
           <div class="kyana-att-subj-item">
             <div class="kyana-att-subj-top">
               <div class="kyana-att-subj-info">
                 <span class="kyana-att-subj-name">${escapeHtml(item.code)}: ${escapeHtml(item.title)}</span>
-                ${item.credits ? `<span class="kyana-att-subj-meta">${escapeHtml(item.credits)} · ${escapeHtml(item.nature || '')}</span>` : ''}
+                ${item.credits ? `<span class="kyana-att-subj-meta">${escapeHtml(String(item.credits))} · ${escapeHtml(item.nature || '')}</span>` : ''}
               </div>
               ${item.details ? `<span class="kyana-att-norecord-pill">${escapeHtml(item.details)}</span>` : ''}
             </div>
@@ -1098,16 +1142,37 @@
       }
       html += `</div>`;
 
-      if (parsed.labs) {
+      if (parsed.connections) {
         html += `<div class="kyana-syllabus-footer-section">
-          <span class="kyana-syllabus-section-label">Laboratory Practicals:</span>
-          <p class="kyana-syllabus-footer-text">${escapeHtml(parsed.labs)}</p>
+          <span class="kyana-syllabus-section-label">AI Study Guide · Unit Progression</span>
+          <p class="kyana-syllabus-footer-text"><strong>Builds On:</strong> ${escapeHtml(parsed.connections.buildsOn || '')} &nbsp;·&nbsp; <strong>Leads To:</strong> ${escapeHtml(parsed.connections.leadsTo || '')}</p>
         </div>`;
       }
-      if (parsed.textbooks) {
+
+      if (labVal) {
         html += `<div class="kyana-syllabus-footer-section">
-          <span class="kyana-syllabus-section-label">Recommended Textbooks:</span>
-          <p class="kyana-syllabus-footer-text">${escapeHtml(parsed.textbooks)}</p>
+          <span class="kyana-syllabus-section-label">Official University Syllabus · Laboratory Practicals</span>
+          <p class="kyana-syllabus-footer-text">${escapeHtml(labVal)}</p>
+        </div>`;
+      }
+      if (tbVal) {
+        html += `<div class="kyana-syllabus-footer-section">
+          <span class="kyana-syllabus-section-label">Official University Syllabus · Recommended Textbooks</span>
+          <p class="kyana-syllabus-footer-text">${escapeHtml(tbVal)}</p>
+        </div>`;
+      }
+
+      if (parsed.aiGuidance) {
+        const g = parsed.aiGuidance;
+        html += `<div class="kyana-syllabus-ai-guide">
+          <div class="kyana-syllabus-ai-header">
+            <span class="kyana-syllabus-section-label">AI Study Guide & Learning Roadmap</span>
+            <span class="kyana-att-norecord-pill">Advisory · Not Official Requirement</span>
+          </div>
+          ${Array.isArray(g.prerequisites) && g.prerequisites.length ? `<div class="kyana-ai-guide-row"><strong>Prerequisites:</strong> ${escapeHtml(g.prerequisites.join(' · '))}</div>` : ''}
+          ${Array.isArray(g.keyConcepts) && g.keyConcepts.length ? `<div class="kyana-ai-guide-row"><strong>High-Focus Concepts:</strong> ${escapeHtml(g.keyConcepts.join(' · '))}</div>` : ''}
+          ${Array.isArray(g.studySequence) && g.studySequence.length ? `<div class="kyana-ai-guide-row"><strong>Suggested Study Sequence:</strong> ${escapeHtml(g.studySequence.join(' → '))}</div>` : ''}
+          ${Array.isArray(g.studyTips) && g.studyTips.length ? `<div class="kyana-ai-guide-row"><strong>Study Tips:</strong> ${escapeHtml(g.studyTips.join(' '))}</div>` : ''}
         </div>`;
       }
 
@@ -1116,64 +1181,208 @@
     }
 
     if (normKind === 'quiz') {
+      const questionsList = Array.isArray(parsed.questions) && parsed.questions.length > 0
+        ? parsed.questions
+        : [{
+            id: 'q1',
+            question: parsed.question || '',
+            options: Array.isArray(parsed.options) ? parsed.options.map(o => typeof o === 'string' ? o : `${o.key}) ${o.text}`) : [],
+            correctIndex: 0,
+            answer: parsed.answer || '',
+            explanation: parsed.explanation || ''
+          }];
+
       let html = `<div class="kyana-attendance-card kyana-quiz-card" data-visual-kind="quiz">
         <div class="kyana-att-header">
-          <span class="kyana-att-title">Self-Assessment Quiz</span>
-          <span class="kyana-att-status-pill">Interactive</span>
-        </div>
-        <div class="kyana-quiz-body">
-          <div class="kyana-quiz-question">${escapeHtml(parsed.question || '')}</div>
-          <div class="kyana-quiz-options">`;
-      for (const opt of parsed.options) {
-        html += `<div class="kyana-quiz-option">
-          <span class="kyana-quiz-opt-key">${escapeHtml(opt.key)}</span>
-          <span class="kyana-quiz-opt-text">${escapeHtml(opt.text)}</span>
+          <span class="kyana-att-title">${escapeHtml(parsed.title || 'Interactive Self-Assessment Quiz')}</span>
+          <span class="kyana-att-status-pill">${questionsList.length} ${questionsList.length === 1 ? 'question' : 'questions'}</span>
         </div>`;
-      }
-      html += `</div>
-        <div class="kyana-quiz-action-bar">
-          <button type="button" class="kyana-quiz-reveal-btn" onclick="(function(btn){
-            var c = btn.closest('.kyana-quiz-card').querySelector('.kyana-quiz-reveal-content');
-            if (c) {
-              var isHidden = c.style.display === 'none';
-              c.style.display = isHidden ? 'block' : 'none';
-              btn.textContent = isHidden ? 'Hide Explanation' : 'Reveal Answer & Explanation';
-            }
-          })(this)">Reveal Answer & Explanation</button>
-        </div>
-        <div class="kyana-quiz-reveal-content" style="display: none;">
-          <div class="kyana-quiz-correct-answer">
-            <strong>Correct Answer:</strong> ${escapeHtml(parsed.answer || '')}
+
+      questionsList.forEach((q, qIdx) => {
+        const opts = Array.isArray(q.options) ? q.options : [];
+        const correctIdx = typeof q.correctIndex === 'number' ? q.correctIndex : -1;
+        const correctAnswerText = q.answer || (correctIdx >= 0 && opts[correctIdx] ? opts[correctIdx] : '');
+
+        html += `<div class="kyana-quiz-body" data-quiz-index="${qIdx}">
+          <div class="kyana-quiz-question">${questionsList.length > 1 ? `<strong>Q${qIdx + 1}.</strong> ` : ''}${escapeHtml(q.question || '')}</div>
+          <div class="kyana-quiz-options">`;
+
+        opts.forEach((opt, oIdx) => {
+          const optStr = typeof opt === 'string' ? opt : `${opt.key}) ${opt.text}`;
+          const isCorrectOpt = oIdx === correctIdx;
+          html += `<button type="button" class="kyana-quiz-option" data-correct="${isCorrectOpt ? 'true' : 'false'}" onclick="(function(btn){
+            var parent = btn.closest('.kyana-quiz-body');
+            if (!parent) return;
+            parent.querySelectorAll('.kyana-quiz-option').forEach(function(el){ el.classList.remove('is-selected', 'is-correct', 'is-wrong'); });
+            btn.classList.add('is-selected');
+            btn.classList.add(btn.getAttribute('data-correct') === 'true' ? 'is-correct' : 'is-wrong');
+            var rev = parent.querySelector('.kyana-quiz-reveal-content');
+            if (rev && btn.getAttribute('data-correct') === 'true') { rev.style.display = 'block'; }
+          })(this)">
+            <span class="kyana-quiz-opt-text">${escapeHtml(optStr)}</span>
+          </button>`;
+        });
+
+        html += `</div>
+          <div class="kyana-quiz-action-bar">
+            <button type="button" class="kyana-quiz-reveal-btn" onclick="(function(btn){
+              var c = btn.closest('.kyana-quiz-body').querySelector('.kyana-quiz-reveal-content');
+              if (c) {
+                var isHidden = c.style.display === 'none';
+                c.style.display = isHidden ? 'block' : 'none';
+                btn.textContent = isHidden ? 'Hide Explanation' : 'Reveal Answer & Explanation';
+              }
+            })(this)">Reveal Answer & Explanation</button>
           </div>
-          ${parsed.explanation ? `<div class="kyana-quiz-explanation">${escapeHtml(parsed.explanation)}</div>` : ''}
-        </div>
-      </div></div>`;
+          <div class="kyana-quiz-reveal-content" style="display: none;">
+            <div class="kyana-quiz-correct-answer">
+              <strong>Correct Answer:</strong> ${escapeHtml(correctAnswerText)}
+            </div>
+            ${q.explanation ? `<div class="kyana-quiz-explanation">${escapeHtml(q.explanation)}</div>` : ''}
+          </div>
+        </div>`;
+      });
+
+      html += `</div>`;
       return html;
     }
 
     if (normKind === 'diagram') {
       let html = `<div class="kyana-attendance-card kyana-diagram-card" data-visual-kind="diagram">
         <div class="kyana-att-header">
-          <span class="kyana-att-title">${escapeHtml(parsed.title || 'Architecture & Concept Diagram')}</span>
-          <span class="kyana-att-status-pill">Diagram</span>
+          <div class="kyana-att-title-group">
+            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Architecture & Concept Diagram')}</span>
+            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
+          </div>
+          <span class="kyana-att-status-pill">Concept Diagram</span>
+        </div>`;
+
+      if (Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
+        html += `<div class="kyana-diagram-nodes-flow">`;
+        parsed.nodes.forEach((node, idx) => {
+          html += `
+          <div class="kyana-diagram-node-box">
+            <div class="kyana-diagram-node-title">${escapeHtml(node.label || node.id || `Stage ${idx + 1}`)}</div>
+            ${node.detail ? `<div class="kyana-diagram-node-detail">${escapeHtml(node.detail)}</div>` : ''}
+          </div>`;
+          if (idx < parsed.nodes.length - 1) {
+            html += `<div class="kyana-diagram-arrow" aria-hidden="true">↓</div>`;
+          }
+        });
+        html += `</div>`;
+      } else if (parsed.diagramText) {
+        html += `<div class="kyana-diagram-content"><pre class="kyana-diagram-pre"><code>${escapeHtml(parsed.diagramText)}</code></pre></div>`;
+      }
+
+      html += `</div>`;
+      return html;
+    }
+
+    if (normKind === 'graph') {
+      const series = Array.isArray(parsed.series) ? parsed.series : parsed.items;
+      let html = `<div class="kyana-attendance-card kyana-graph-card" data-visual-kind="graph">
+        <div class="kyana-att-header">
+          <div class="kyana-att-title-group">
+            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Quantitative & Complexity Graph')}</span>
+            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
+          </div>
+          <span class="kyana-att-status-pill">Visual Plot</span>
         </div>
-        <div class="kyana-diagram-content"><pre class="kyana-diagram-pre"><code>${escapeHtml(parsed.diagramText)}</code></pre></div>
-      </div>`;
+        <div class="kyana-att-subjects-list">`;
+
+      for (const s of series) {
+        const valNum = Number(s.value ?? s.pct ?? 50);
+        const barW = Math.min(100, Math.max(4, valNum));
+        html += `
+        <div class="kyana-att-subj-item">
+          <div class="kyana-att-subj-top">
+            <span class="kyana-att-subj-name">${escapeHtml(s.label || s.title || '')}</span>
+            <span class="kyana-att-subj-pct">${escapeHtml(s.displayValue || `${valNum}`)}</span>
+          </div>
+          <div class="kyana-att-bar-track" role="progressbar" aria-valuenow="${barW}" aria-valuemin="0" aria-valuemax="100">
+            <svg class="kyana-att-bar-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+              <rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="8" rx="4"></rect>
+              <rect class="kyana-att-svg-fill" x="0" y="0" width="${barW}" height="8" rx="4"></rect>
+            </svg>
+          </div>
+        </div>`;
+      }
+
+      if (parsed.xAxisLabel || parsed.yAxisLabel) {
+        html += `<div class="kyana-graph-axes-meta">
+          ${parsed.xAxisLabel ? `<span>X-Axis: ${escapeHtml(parsed.xAxisLabel)}</span>` : ''}
+          ${parsed.yAxisLabel ? `<span>Y-Axis: ${escapeHtml(parsed.yAxisLabel)}</span>` : ''}
+        </div>`;
+      }
+
+      html += `</div></div>`;
       return html;
     }
 
     if (normKind === 'flowchart' || normKind === 'trace') {
-      let html = `<div class="kyana-attendance-card kyana-trace-card" data-visual-kind="${normKind}">
+      const steps = Array.isArray(parsed.steps) && parsed.steps.length > 0
+        ? parsed.steps.map((s, idx) => ({
+            label: `Step ${s.step || idx + 1}`,
+            action: s.action || s.label || `Step ${idx + 1}`,
+            state: Array.isArray(s.state) ? s.state : (s.content ? [s.content] : []),
+            highlight: s.highlight || null
+          }))
+        : parsed.items.map((item, idx) => ({
+            label: item.label || `Step ${idx + 1}`,
+            action: item.label || `Step ${idx + 1}`,
+            state: [item.content || ''],
+            highlight: null
+          }));
+
+      let html = `<div class="kyana-attendance-card kyana-trace-card" data-visual-kind="${normKind}" data-active-step="all">
         <div class="kyana-att-header">
-          <span class="kyana-att-title">Step-by-step execution trace</span>
-          <span class="kyana-att-status-pill">${parsed.items.length} ${parsed.items.length === 1 ? 'step' : 'steps'}</span>
+          <div class="kyana-att-title-group">
+            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Step-by-step execution trace')}</span>
+            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
+          </div>
+          <div class="kyana-syllabus-badges">
+            ${parsed.complexity?.time ? `<span class="kyana-att-status-pill">Time: ${escapeHtml(parsed.complexity.time)}</span>` : ''}
+            ${parsed.complexity?.space ? `<span class="kyana-att-status-pill">Space: ${escapeHtml(parsed.complexity.space)}</span>` : ''}
+            <span class="kyana-att-status-pill">${steps.length} ${steps.length === 1 ? 'step' : 'steps'}</span>
+          </div>
+        </div>
+        <div class="kyana-trace-controls">
+          <button type="button" class="kyana-trace-ctrl-btn" onclick="(function(btn){
+            var card = btn.closest('.kyana-trace-card');
+            if (!card) return;
+            var items = card.querySelectorAll('.kyana-trace-step-item');
+            var cur = card.getAttribute('data-active-step');
+            var idx = cur === 'all' ? 0 : Math.max(0, parseInt(cur, 10) - 1);
+            card.setAttribute('data-active-step', String(idx));
+            items.forEach(function(el, i){ el.style.display = i === idx ? 'flex' : 'none'; });
+          })(this)">◀ Step Back</button>
+          <button type="button" class="kyana-trace-ctrl-btn" onclick="(function(btn){
+            var card = btn.closest('.kyana-trace-card');
+            if (!card) return;
+            var items = card.querySelectorAll('.kyana-trace-step-item');
+            var cur = card.getAttribute('data-active-step');
+            var idx = cur === 'all' ? 0 : Math.min(items.length - 1, parseInt(cur, 10) + 1);
+            card.setAttribute('data-active-step', String(idx));
+            items.forEach(function(el, i){ el.style.display = i === idx ? 'flex' : 'none'; });
+          })(this)">Step Forward ▶</button>
+          <button type="button" class="kyana-trace-ctrl-btn" onclick="(function(btn){
+            var card = btn.closest('.kyana-trace-card');
+            if (!card) return;
+            card.setAttribute('data-active-step', 'all');
+            card.querySelectorAll('.kyana-trace-step-item').forEach(function(el){ el.style.display = 'flex'; });
+          })(this)">Show All Steps</button>
         </div>
         <div class="kyana-trace-list">`;
-      for (const item of parsed.items) {
+
+      for (const item of steps) {
         html += `
         <div class="kyana-trace-step-item">
           <span class="kyana-trace-step-badge">${escapeHtml(item.label)}</span>
-          <span class="kyana-trace-step-content">${escapeHtml(item.content)}</span>
+          <div class="kyana-trace-step-body">
+            <div class="kyana-trace-step-action">${escapeHtml(item.action)}</div>
+            ${item.state.length > 0 ? `<div class="kyana-trace-state-pills">${item.state.map(st => `<code class="kyana-trace-state-pill">${escapeHtml(st)}</code>`).join('')}</div>` : ''}
+            ${item.highlight ? `<div class="kyana-trace-step-highlight">${escapeHtml(item.highlight)}</div>` : ''}
+          </div>
         </div>`;
       }
       html += `</div></div>`;
@@ -1200,19 +1409,32 @@
     }
 
     if (normKind === 'roadmap') {
+      const roadItems = Array.isArray(parsed.steps) && parsed.steps.length > 0
+        ? parsed.steps.map(s => ({ done: Boolean(s.done), title: s.title || '', tag: s.phase || '', desc: s.detail || '' }))
+        : parsed.items;
+
       let html = `<div class="kyana-attendance-card kyana-roadmap-card" data-visual-kind="roadmap">
         <div class="kyana-att-header">
-          <span class="kyana-att-title">Learning & Revision Roadmap</span>
-          <span class="kyana-att-status-pill">${parsed.items.length} topics</span>
+          <div class="kyana-att-title-group">
+            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Learning & Revision Roadmap')}</span>
+            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
+          </div>
+          <span class="kyana-att-status-pill">${roadItems.length} stages</span>
         </div>
         <div class="kyana-roadmap-list">`;
-      for (const item of parsed.items) {
+      for (const item of roadItems) {
         html += `
-        <div class="kyana-roadmap-item ${item.done ? 'is-completed' : 'is-pending'}">
+        <div class="kyana-roadmap-item ${item.done ? 'is-completed' : 'is-pending'}" onclick="(function(el){
+          el.classList.toggle('is-completed');
+          var dot = el.querySelector('.kyana-roadmap-status-dot');
+          if (dot) dot.textContent = el.classList.contains('is-completed') ? '✓' : '○';
+        })(this)">
           <div class="kyana-roadmap-status-dot">${item.done ? '✓' : '○'}</div>
           <div class="kyana-roadmap-info">
-            <span class="kyana-roadmap-title">${escapeHtml(item.title)}</span>
-            ${item.tag ? `<span class="kyana-roadmap-tag">${escapeHtml(item.tag)}</span>` : ''}
+            <div class="kyana-roadmap-title-row">
+              ${item.tag ? `<span class="kyana-roadmap-tag">${escapeHtml(item.tag)}</span>` : ''}
+              <span class="kyana-roadmap-title">${escapeHtml(item.title)}</span>
+            </div>
             ${item.desc ? `<span class="kyana-roadmap-desc">${escapeHtml(item.desc)}</span>` : ''}
           </div>
         </div>`;
@@ -1390,6 +1612,13 @@
         flushPara();
         const block = codeBlocks[Number(codeMatch[1])];
         if (block) {
+          if (VISUAL_BLOCK_KINDS.has(block.lang)) {
+            const visualHtml = renderKyanaVisualBlockHtml(block.lang, block.code);
+            if (visualHtml) {
+              output.push(visualHtml);
+              continue;
+            }
+          }
           output.push(`<pre><code class="language-${escapeHtml(block.lang)}">${escapeHtml(block.code)}</code></pre>`);
         }
         continue;
@@ -1869,7 +2098,12 @@
       fallbackMarkdown,
       normalizeLatexDelimiters,
       highlightChatCode,
-      assertAndCleanPlaceholders
+      assertAndCleanPlaceholders,
+      parseAttendanceBlock,
+      renderAttendanceChartHtml,
+      parseKyanaVisualBlock,
+      renderKyanaVisualBlockHtml,
+      VISUAL_BLOCK_KINDS
     };
     return;
   }

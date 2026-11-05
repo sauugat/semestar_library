@@ -555,3 +555,144 @@
   background: rgba(255, 255, 255, 0.06);
   color: var(--ky-text-secondary);
 }
+
+/* Enhanced Academic Tutor & Interactive Visual Components */
+.kyana-syllabus-instructor {
+  font-size: 12px;
+  color: var(--ky-text-secondary);
+  margin-bottom: 6px;
+}
+.kyana-syllabus-ai-guide {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--ky-surface-raised);
+  border: 1px dashed var(--ky-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kyana-syllabus-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.kyana-ai-guide-row {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ky-text-secondary);
+}
+.kyana-ai-guide-row strong {
+  color: var(--ky-text-primary);
+}
+.kyana-diagram-nodes-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  margin-top: 8px;
+}
+.kyana-diagram-node-box {
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-subtle);
+}
+.kyana-diagram-node-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ky-text-primary);
+}
+.kyana-diagram-node-detail {
+  font-size: 11.5px;
+  color: var(--ky-text-secondary);
+  margin-top: 2px;
+}
+.kyana-diagram-arrow {
+  text-align: center;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ky-text-muted);
+}
+.kyana-graph-axes-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--ky-border-subtle);
+  font-size: 11px;
+  color: var(--ky-text-muted);
+}
+.kyana-trace-controls {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 6px 0 8px;
+}
+.kyana-trace-ctrl-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--ky-border-subtle);
+  background: var(--ky-surface-raised);
+  color: var(--ky-text-primary);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.kyana-trace-ctrl-btn:hover {
+  opacity: 0.88;
+}
+.kyana-trace-step-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.kyana-trace-step-action {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ky-text-primary);
+}
+.kyana-trace-state-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.kyana-trace-state-pill {
+  font-family: var(--ky-font-mono);
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: rgba(127, 127, 127, 0.12);
+  color: var(--ky-text-primary);
+}
+.kyana-trace-step-highlight {
+  font-size: 11.5px;
+  color: var(--ky-text-secondary);
+}
+.kyana-quiz-option {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.kyana-quiz-option.is-correct {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.12) !important;
+}
+.kyana-quiz-option.is-wrong {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.10) !important;
+}
+.kyana-roadmap-item {
+  cursor: pointer;
+}
+.kyana-roadmap-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}

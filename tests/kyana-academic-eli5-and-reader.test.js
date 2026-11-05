@@ -225,8 +225,36 @@ test('Mobile Reader & Code Layout: mobile/app/kyana.tsx and PostMarkdown.tsx sup
   assert.ok(kyanaTsx.includes('readerScrollView'));
   assert.ok(kyanaTsx.includes('readerCloseBtn'));
 
-  // 2. Mobile PostMarkdown has horizontal scroll indicators and proper padding
+  // 2. Mobile PostMarkdown has horizontal scroll indicators, table alignment, and wrapping code
   assert.ok(postMarkdownTsx.includes('showsHorizontalScrollIndicator={true}'));
   assert.ok(postMarkdownTsx.includes('paddingRight: 24'));
   assert.ok(postMarkdownTsx.includes('maxWidth: 220'));
+  assert.ok(postMarkdownTsx.includes('colWidths = headerCells.map'));
+  assert.ok(postMarkdownTsx.includes('{ width: colWidths[colIdx] }'));
+  assert.ok(postMarkdownTsx.includes('codeContentWrapper'));
+  assert.ok(postMarkdownTsx.includes('isAsciiFigure'));
+});
+
+test('Professionalism & Design: replies omit casual emojis, wrap code lines, and format figures in CSS', () => {
+  const { buildAcademicTutorPrompt, buildDeterministicVisualEnrichment } = require('../lib/academic-intelligence');
+  const chatbotCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'chatbot.css'), 'utf8');
+  const chatbotJs = fs.readFileSync(path.join(__dirname, '..', 'public', 'chatbot.js'), 'utf8');
+
+  // 1. Directives enforce professional tone and prohibit casual emojis
+  const prompt = buildAcademicTutorPrompt('what is session and cookies management', { category: 'concept_explanation' });
+  assert.ok(prompt.includes('PROFESSIONAL TONE WITHOUT EMOJIS'));
+  assert.ok(prompt.includes('NO RAW ASCII / TEXT ART FIGURES'));
+  assert.ok(prompt.includes('CODE FORMATTING & WRAPPING'));
+
+  // 2. Visual lifecycle block has 0 decorative emojis
+  const visualBlock = buildDeterministicVisualEnrichment('what is session and cookies management', { category: 'concept_explanation' });
+  assert.ok(!/[🍪🔐🌐🖥️⚡📦🔄]/.test(visualBlock), 'Visual block should not contain decorative emojis');
+  assert.ok(visualBlock.includes('Client vs Server: Session & Cookie Lifecycle'));
+
+  // 3. CSS wraps code lines when they exceed container width
+  assert.ok(chatbotCss.includes('white-space: pre-wrap !important'));
+  assert.ok(chatbotCss.includes('.kyana-diagram-node-box'));
+
+  // 4. Web chatbot.js intercepts ASCII figures and converts them into CSS diagram nodes
+  assert.ok(chatbotJs.includes('isAsciiFigure'));
 });

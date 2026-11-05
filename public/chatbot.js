@@ -759,20 +759,39 @@
     if (normKind === 'diagram') {
       let title = 'System Architecture & Concept Diagram';
       const diagramLines = [];
+      const nodes = [];
       for (const line of lines) {
         const titleMatch = line.match(/^\[([A-Za-z0-9\s_-]+)\]$/);
         if (titleMatch && diagramLines.length === 0) {
           title = titleMatch[1].trim();
-        } else if (line.startsWith('- ') || line.startsWith('* ')) {
-          diagramLines.push(line.replace(/^[-*]\s+/, ''));
-        } else if (/[|\-+_=><]/.test(line)) {
-          diagramLines.push(line);
+          continue;
+        }
+        diagramLines.push(line);
+        const isAsciiBorder = /^[+\-|=_\s]+$/.test(line);
+        if (isAsciiBorder) continue;
+
+        const cleanContent = line.replace(/^[|/\s+-]+|[|/\s+-]+$/g, '').trim();
+        if (!cleanContent) continue;
+
+        const stepMatch = cleanContent.match(/^(?:(?:\d+\.|\*|-)\s+)?([A-Za-z0-9\s_()/-]+?)(?:\s*(?:—|:|\s->\s|\s<-\s)\s*(.+))?$/);
+        if (stepMatch && stepMatch[1] && stepMatch[1].trim().length > 1) {
+          nodes.push({
+            id: `step-${nodes.length + 1}`,
+            label: stepMatch[1].trim(),
+            detail: stepMatch[2] ? stepMatch[2].trim() : undefined
+          });
+        } else {
+          nodes.push({
+            id: `step-${nodes.length + 1}`,
+            label: cleanContent
+          });
         }
       }
-      const items = diagramLines.filter(l => l.trim().length > 0);
+      const items = nodes.length > 0 ? nodes : diagramLines.filter(l => l.trim().length > 0);
       return {
         kind: 'diagram',
         title,
+        nodes: nodes.length > 0 ? nodes : undefined,
         diagramText: diagramLines.join('\n').trim(),
         items
       };
@@ -1612,8 +1631,9 @@
         flushPara();
         const block = codeBlocks[Number(codeMatch[1])];
         if (block) {
-          if (VISUAL_BLOCK_KINDS.has(block.lang)) {
-            const visualHtml = renderKyanaVisualBlockHtml(block.lang, block.code);
+          const isAsciiFigure = /^\s*\+[+\-]{3,}\+/m.test(block.code) && /\|\s*[A-Za-z0-9_-]/m.test(block.code);
+          if (VISUAL_BLOCK_KINDS.has(block.lang) || isAsciiFigure) {
+            const visualHtml = renderKyanaVisualBlockHtml(VISUAL_BLOCK_KINDS.has(block.lang) ? block.lang : 'diagram', block.code);
             if (visualHtml) {
               output.push(visualHtml);
               continue;

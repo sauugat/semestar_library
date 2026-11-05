@@ -591,29 +591,41 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 4px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 10px;
+  position: relative;
 }
 .kyana-diagram-node-box {
-  padding: 9px 12px;
-  border-radius: 8px;
+  padding: 12px 14px;
+  border-radius: 10px;
   background: var(--ky-surface-raised);
-  border: 1px solid var(--ky-border-subtle);
+  border: 1px solid var(--ky-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.10);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.kyana-diagram-node-box:hover {
+  border-color: var(--ky-border-strong);
 }
 .kyana-diagram-node-title {
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 650;
   color: var(--ky-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .kyana-diagram-node-detail {
-  font-size: 11.5px;
+  font-size: 12px;
+  line-height: 1.5;
   color: var(--ky-text-secondary);
-  margin-top: 2px;
+  margin-top: 4px;
 }
 .kyana-diagram-arrow {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
   font-size: 13px;
-  line-height: 1;
   color: var(--ky-text-muted);
 }
 .kyana-graph-axes-meta {
@@ -789,12 +801,21 @@
   scrollbar-width: thin;
 }
 
+.kyana-code-pre code,
+.kyana-code-pre,
+pre code,
+pre {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+
 .kyana-diagram-pre {
   font-family: var(--ky-font-mono);
   font-size: 12.5px;
   line-height: 1.48;
   letter-spacing: -0.01em;
-  white-space: pre;
+  white-space: pre-wrap;
   padding: 14px 16px;
 }
 

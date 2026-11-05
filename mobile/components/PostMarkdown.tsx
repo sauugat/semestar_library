@@ -605,20 +605,39 @@ export function parseKyanaVisualBlock(kind: string, rawBlock: string): any {
   if (normKind === 'diagram') {
     let title = 'System Architecture & Concept Diagram';
     const diagramLines: string[] = [];
+    const nodes: Array<{ id: string; label: string; detail?: string }> = [];
     for (const line of lines) {
       const titleMatch = line.match(/^\[([A-Za-z0-9\s_-]+)\]$/);
       if (titleMatch && diagramLines.length === 0) {
         title = titleMatch[1].trim();
-      } else if (line.startsWith('- ') || line.startsWith('* ')) {
-        diagramLines.push(line.replace(/^[-*]\s+/, ''));
-      } else if (/[|\-+_=><]/.test(line)) {
-        diagramLines.push(line);
+        continue;
+      }
+      diagramLines.push(line);
+      const isAsciiBorder = /^[+\-|=_\s]+$/.test(line);
+      if (isAsciiBorder) continue;
+
+      const cleanContent = line.replace(/^[|/\s+-]+|[|/\s+-]+$/g, '').trim();
+      if (!cleanContent) continue;
+
+      const stepMatch = cleanContent.match(/^(?:(?:\d+\.|\*|-)\s+)?([A-Za-z0-9\s_()/-]+?)(?:\s*(?:—|:|\s->\s|\s<-\s)\s*(.+))?$/);
+      if (stepMatch && stepMatch[1] && stepMatch[1].trim().length > 1) {
+        nodes.push({
+          id: `step-${nodes.length + 1}`,
+          label: stepMatch[1].trim(),
+          detail: stepMatch[2] ? stepMatch[2].trim() : undefined,
+        });
+      } else {
+        nodes.push({
+          id: `step-${nodes.length + 1}`,
+          label: cleanContent,
+        });
       }
     }
-    const items = diagramLines.filter((l) => l.trim().length > 0);
+    const items = nodes.length > 0 ? nodes : diagramLines.filter((l) => l.trim().length > 0);
     return {
       kind: 'diagram',
       title,
+      nodes: nodes.length > 0 ? nodes : undefined,
       diagramText: diagramLines.join('\n').trim(),
       items,
     };
@@ -1220,28 +1239,39 @@ function renderKyanaVisualCard(
           <View style={{ gap: 6, marginTop: 8 }}>
             {parsed.nodes.map((node: any, idx: number) => (
               <View key={`node-${idx}`} style={{ gap: 4 }}>
-                <View style={[styles.roadmapItemRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <View style={[styles.diagramNodeBox, { backgroundColor: raisedBg, borderColor: colors.border }]}>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.attSubjName, { color: colors.text }]}>{node.label || node.id}</Text>
+                    <Text style={[styles.diagramNodeTitle, { color: colors.text }]}>{node.label || node.id}</Text>
                     {Boolean(node.detail) && (
-                      <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{node.detail}</Text>
+                      <Text style={[styles.diagramNodeDetail, { color: colors.textSecondary }]}>{node.detail}</Text>
                     )}
                   </View>
                 </View>
                 {idx < parsed.nodes.length - 1 && (
-                  <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 12 }}>↓</Text>
+                  <Text style={[styles.diagramArrow, { color: colors.textSecondary }]}>↓</Text>
                 )}
               </View>
             ))}
           </View>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={{ marginTop: 8 }} contentContainerStyle={{ minWidth: '100%' }}>
-            <View style={[styles.codeBlockContainer, { backgroundColor: isDark ? '#141416' : '#f4f4f5', borderColor: colors.border, padding: 12, paddingRight: 24, minWidth: '100%' }]}>
-              <Text style={[styles.codeText, { color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }]}>
-                {parsed.diagramText}
-              </Text>
-            </View>
-          </ScrollView>
+          <View style={{ gap: 6, marginTop: 8 }}>
+            {Array.isArray(parsed.items) && parsed.items.length > 0 ? (
+              parsed.items.map((it: any, idx: number) => {
+                const lineText = typeof it === 'string' ? it : (it.label || it.text || '');
+                const cleanLine = lineText.replace(/^[|/\s+-]+|[|/\s+-]+$/g, '').trim();
+                if (!cleanLine) return null;
+                return (
+                  <View key={`d-line-${idx}`} style={[styles.diagramNodeBox, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                    <Text style={[styles.diagramNodeTitle, { color: colors.text }]}>{cleanLine}</Text>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={[styles.diagramNodeBox, { backgroundColor: raisedBg, borderColor: colors.border }]}>
+                <Text style={[styles.codeText, { color: colors.text, flexWrap: 'wrap' }]}>{parsed.diagramText}</Text>
+              </View>
+            )}
+          </View>
         )}
       </View>
     );
@@ -2730,9 +2760,10 @@ function PostMarkdownInternal({
       const blockIndex = Number(codeMatch[1]);
       const block = codeBlocks[blockIndex];
       if (block) {
-        if (VISUAL_BLOCK_KINDS.includes(block.lang)) {
+        const isAsciiFigure = /^\s*\+[+\-]{3,}\+/m.test(block.code) && /\|\s*[A-Za-z0-9_-]/m.test(block.code);
+        if (VISUAL_BLOCK_KINDS.includes(block.lang) || isAsciiFigure) {
           const visNode = renderKyanaVisualCard(
-            block.lang,
+            VISUAL_BLOCK_KINDS.includes(block.lang) ? block.lang : 'DIAGRAM',
             block.code,
             `vis-card-${i}`,
             colors,
@@ -2784,12 +2815,7 @@ function PostMarkdownInternal({
                 </Text>
               </TouchableOpacity>
             </View>
-            <ScrollView
-              horizontal
-              nestedScrollEnabled={true}
-              showsHorizontalScrollIndicator={true}
-              contentContainerStyle={{ padding: 12, paddingRight: 24, minWidth: '100%' }}
-            >
+            <View style={styles.codeContentWrapper}>
               <Text
                 style={[
                   styles.codeText,
@@ -2800,7 +2826,7 @@ function PostMarkdownInternal({
               >
                 {renderHighlightedCode(block.code, isDark)}
               </Text>
-            </ScrollView>
+            </View>
           </View>
         );
       }
@@ -2873,6 +2899,23 @@ function PostMarkdownInternal({
       }
       i = j - 1;
 
+      const numCols = headerCells.length;
+      const colWidths = headerCells.map((headerText, colIdx) => {
+        let maxLen = (headerText || '').length;
+        for (const row of dataRows) {
+          if (row && row[colIdx]) {
+            maxLen = Math.max(maxLen, String(row[colIdx]).length);
+          }
+        }
+        if (numCols === 2) {
+          return Math.max(130, Math.min(220, Math.max(140, maxLen * 7 + 24)));
+        }
+        if (numCols === 3) {
+          return Math.max(115, Math.min(180, Math.max(120, maxLen * 6.5 + 20)));
+        }
+        return Math.max(95, Math.min(180, maxLen * 6.5 + 16));
+      });
+
       renderedElements.push(
         <View
           key={`table-${i}`}
@@ -2906,6 +2949,7 @@ function PostMarkdownInternal({
                     key={`th-${colIdx}`}
                     style={[
                       styles.tableCell,
+                      { width: colWidths[colIdx] },
                       colIdx < headerCells.length - 1 && { borderRightColor: colors.border, borderRightWidth: 1 },
                     ]}
                   >
@@ -2946,6 +2990,7 @@ function PostMarkdownInternal({
                       key={`td-${colIdx}`}
                       style={[
                         styles.tableCell,
+                        { width: colWidths[colIdx] },
                         colIdx < headerCells.length - 1 && { borderRightColor: colors.border, borderRightWidth: 1 },
                       ]}
                     >
@@ -3221,7 +3266,12 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     fontSize: 12.5,
     lineHeight: 19,
-    flexShrink: 0,
+    flexWrap: 'wrap',
+  },
+  codeContentWrapper: {
+    padding: 12,
+    paddingRight: 24,
+    width: '100%',
   },
   mathBlockContainer: {
     marginVertical: 8,
@@ -3443,7 +3493,7 @@ const styles = StyleSheet.create({
     minWidth: 85,
     maxWidth: 220,
     justifyContent: 'center',
-    flexShrink: 1,
+    flexShrink: 0,
   },
   tableHeaderText: {
     fontSize: 12.5,
@@ -3455,6 +3505,26 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     lineHeight: 18,
     flexWrap: 'wrap',
+  },
+  diagramNodeBox: {
+    padding: 11,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  diagramNodeTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+  },
+  diagramNodeDetail: {
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  diagramArrow: {
+    textAlign: 'center',
+    fontSize: 13,
+    marginVertical: 2,
   },
   blockquote: {
     borderLeftWidth: 3,

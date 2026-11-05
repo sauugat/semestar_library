@@ -278,28 +278,30 @@ test('Taxonomy & Multi-Type Pedagogy: System instructs paired code blocks, indiv
   assert.match(tutorPrompt, /\[Option Label\]\(prompt:Question%20To%20Ask\)/i);
 });
 
-test('Deterministic Visuals & Quizzes: CSS Selectors generates Specificity hierarchy diagram, quiz, and prompt links', () => {
+test('Deterministic Visuals & Quizzes: CSS Selectors generates Small DOM targeting demonstration, with diagram and quiz when requested', () => {
   const { buildDeterministicVisualEnrichment } = require('../lib/academic-intelligence');
   const classification = classifyAcademicQuestion('what is css selector');
-  const enrichment = buildDeterministicVisualEnrichment('what is css selector', classification);
+  
+  // 1. Least complicated representation: DOM targeting demonstration (code_preview) + next steps
+  const baseEnrichment = buildDeterministicVisualEnrichment('what is css selector', classification);
+  assert.ok(baseEnrichment.includes('```code_preview'), 'Must include code_preview block for DOM demonstration');
+  assert.ok(baseEnrichment.includes('Live Concept Demonstration — HTML & CSS Selectors'));
+  assert.ok(baseEnrichment.includes('### Next Steps & Deep Dives'));
+  assert.ok(baseEnrichment.includes('prompt:Explain%20CSS%20Combinator%20Selectors'));
+  assert.ok(baseEnrichment.includes('prompt:Explain%20CSS%20Pseudo-classes'));
 
-  // 1. Diagram block
-  assert.ok(enrichment.includes('```diagram'), 'Must include diagram block');
-  assert.ok(enrichment.includes('CSS Selector Specificity & Selection Hierarchy'));
-  assert.ok(enrichment.includes('Universal Selector (*)'));
-  assert.ok(enrichment.includes('Class Selector (.student)'));
-  assert.ok(enrichment.includes('ID Selector (#heading)'));
-
-  // 2. Quiz block
-  assert.ok(enrichment.includes('```quiz'), 'Must include quiz block');
-  assert.ok(enrichment.includes('CSS Selectors Self-Assessment Quiz'));
-  assert.ok(enrichment.includes('highest specificity weight'));
-  assert.ok(enrichment.includes('Which symbol is used to define a class selector'));
-
-  // 3. Interactive continuation options
-  assert.ok(enrichment.includes('### Next Steps & Deep Dives'));
-  assert.ok(enrichment.includes('prompt:Explain%20CSS%20Combinator%20Selectors'));
-  assert.ok(enrichment.includes('prompt:Explain%20CSS%20Pseudo-classes'));
+  // 2. Full enrichment with diagram and quiz when explicitly requested
+  const fullEnrichment = buildDeterministicVisualEnrichment('what is css selector specificity diagram and quiz', classification);
+  assert.ok(fullEnrichment.includes('```code_preview'), 'Must include code_preview');
+  assert.ok(fullEnrichment.includes('```diagram'), 'Must include diagram block when requested');
+  assert.ok(fullEnrichment.includes('CSS Selector Specificity & Selection Hierarchy'));
+  assert.ok(fullEnrichment.includes('Universal Selector (*)'));
+  assert.ok(fullEnrichment.includes('Class Selector (.student)'));
+  assert.ok(fullEnrichment.includes('ID Selector (#heading)'));
+  assert.ok(fullEnrichment.includes('```quiz'), 'Must include quiz block when requested');
+  assert.ok(fullEnrichment.includes('CSS Selectors Self-Assessment Quiz'));
+  assert.ok(fullEnrichment.includes('highest specificity weight'));
+  assert.ok(fullEnrichment.includes('Which symbol is used to define a class selector'));
 });
 
 test('Interactive Follow-Up Pills: Web and Mobile render and handle prompt: links as interactive pills', () => {

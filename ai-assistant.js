@@ -1702,10 +1702,11 @@ ${evidenceBlocks}
       });
       result.reply = grounded.reply;
       if (!grounded.fallbackUsed) {
-        const wantsVisualExplicitly = Boolean(academicClassification?.needsAlgorithmTrace) ||
+        const wantsVisual = Boolean(visualPlan?.needsVisual) ||
+          Boolean(academicClassification?.needsAlgorithmTrace) ||
           /(?:diagram|flowchart|visualiz|trace|graph|chart|simulate|simulation|quiz|test\s+me|roadmap|steps?\s+trace)/i.test(message) ||
           /\b(recursion|recursive|call\s+stack)\b/i.test(message);
-        if (wantsVisualExplicitly) {
+        if (wantsVisual) {
           const visualEnrichment = buildDeterministicVisualEnrichment(message, academicClassification, result.reply);
           if (visualEnrichment) {
             result.reply += visualEnrichment;
@@ -1770,10 +1771,11 @@ ${evidenceBlocks}
       });
       result.reply = grounded.reply;
       if (!grounded.fallbackUsed) {
-        const wantsVisualExplicitly = Boolean(academicClassification?.needsAlgorithmTrace) ||
+        const wantsVisual = Boolean(visualPlan?.needsVisual) ||
+          Boolean(academicClassification?.needsAlgorithmTrace) ||
           /(?:diagram|flowchart|visualiz|trace|graph|chart|simulate|simulation|quiz|test\s+me|roadmap|steps?\s+trace)/i.test(message) ||
           /\b(recursion|recursive|call\s+stack)\b/i.test(message);
-        if (wantsVisualExplicitly) {
+        if (wantsVisual) {
           const visualEnrichment = buildDeterministicVisualEnrichment(message, academicClassification, result.reply);
           if (visualEnrichment) {
             result.reply += visualEnrichment;

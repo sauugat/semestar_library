@@ -2472,12 +2472,196 @@
     }
   };
 
-  // KyanaResponseActions Component with Subtle Single-Pass Completion Shimmer
+  // KyanaReaderModal Component (Full-Screen Immersive Academic Reading Mode)
+  const KyanaReaderModal = {
+    activeOverlay: null,
+    currentZoom: 1,
+
+    init() {
+      if (document.getElementById('kyanaReaderOverlay')) {
+        this.activeOverlay = document.getElementById('kyanaReaderOverlay');
+        return;
+      }
+      const overlay = document.createElement('div');
+      overlay.id = 'kyanaReaderOverlay';
+      overlay.className = 'kyana-reader-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-modal', 'true');
+      overlay.setAttribute('aria-label', 'Academic Focus View');
+      overlay.innerHTML = `
+        <div class="kyana-reader-backdrop" data-close="true"></div>
+        <div class="kyana-reader-window">
+          <div class="kyana-reader-header">
+            <div class="kyana-reader-brand-group">
+              <span class="kyana-reader-logo-slot"></span>
+              <div class="kyana-reader-meta">
+                <span class="kyana-reader-title">Kyana AI</span>
+                <span class="kyana-reader-badge">Academic Focus View</span>
+              </div>
+            </div>
+            <div class="kyana-reader-controls">
+              <span class="kyana-reader-hint">Double-tap or Esc to close</span>
+              <div class="kyana-reader-zoom-controls">
+                <button type="button" class="kyana-reader-tool-btn" id="kyanaReaderZoomOut" title="Decrease font size">A−</button>
+                <button type="button" class="kyana-reader-tool-btn" id="kyanaReaderZoomIn" title="Increase font size">A+</button>
+              </div>
+              <button type="button" class="kyana-reader-tool-btn kyana-reader-copy-btn" id="kyanaReaderCopyBtn" title="Copy answer">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <span>Copy</span>
+              </button>
+              <button type="button" class="kyana-reader-close-btn" id="kyanaReaderCloseBtn" title="Close focus view (Esc)">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="kyana-reader-body" id="kyanaReaderBody"></div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+      this.activeOverlay = overlay;
+
+      // Mount logo
+      const logoSlot = overlay.querySelector('.kyana-reader-logo-slot');
+      if (logoSlot && typeof KyanaLogo !== 'undefined') {
+        logoSlot.appendChild(KyanaLogo.create({ size: 24, animated: false }));
+      }
+
+      // Close handlers
+      const closeBtn = overlay.querySelector('#kyanaReaderCloseBtn');
+      if (closeBtn) closeBtn.addEventListener('click', () => this.close());
+
+      const backdrop = overlay.querySelector('.kyana-reader-backdrop');
+      if (backdrop) backdrop.addEventListener('click', () => this.close());
+
+      // Zoom controls
+      const bodyEl = overlay.querySelector('#kyanaReaderBody');
+      const zoomInBtn = overlay.querySelector('#kyanaReaderZoomIn');
+      const zoomOutBtn = overlay.querySelector('#kyanaReaderZoomOut');
+      if (zoomInBtn && bodyEl) {
+        zoomInBtn.addEventListener('click', () => {
+          if (this.currentZoom < 1.4) {
+            this.currentZoom = Number((this.currentZoom + 0.1).toFixed(1));
+            bodyEl.style.fontSize = `${15 * this.currentZoom}px`;
+          }
+        });
+      }
+      if (zoomOutBtn && bodyEl) {
+        zoomOutBtn.addEventListener('click', () => {
+          if (this.currentZoom > 0.85) {
+            this.currentZoom = Number((this.currentZoom - 0.1).toFixed(1));
+            bodyEl.style.fontSize = `${15 * this.currentZoom}px`;
+          }
+        });
+      }
+
+      // Copy button
+      const copyBtn = overlay.querySelector('#kyanaReaderCopyBtn');
+      if (copyBtn && bodyEl) {
+        copyBtn.addEventListener('click', () => {
+          const text = bodyEl.innerText || bodyEl.textContent || '';
+          navigator.clipboard.writeText(text).then(() => {
+            copyBtn.innerHTML = `<span>✓ Copied!</span>`;
+            setTimeout(() => {
+              copyBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                </svg>
+                <span>Copy</span>
+              `;
+            }, 2000);
+          });
+        });
+      }
+
+      // Double-click or double-tap inside modal window closes it
+      const win = overlay.querySelector('.kyana-reader-window');
+      if (win) {
+        win.addEventListener('dblclick', (e) => {
+          if (e.target.closest('button, a, input, select, textarea, pre, code')) return;
+          this.close();
+        });
+
+        let lastWinTap = 0;
+        win.addEventListener('touchend', (e) => {
+          if (e.target.closest('button, a, input, select, textarea, pre, code')) return;
+          const now = Date.now();
+          if (now - lastWinTap < 320 && now - lastWinTap > 60) {
+            this.close();
+          }
+          lastWinTap = now;
+        });
+      }
+
+      // Escape key closes
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay.classList.contains('active')) {
+          this.close();
+        }
+      });
+    },
+
+    open(sourceDocElement) {
+      this.init();
+      if (!this.activeOverlay || !sourceDocElement) return;
+
+      const bodyEl = this.activeOverlay.querySelector('#kyanaReaderBody');
+      if (!bodyEl) return;
+
+      this.currentZoom = 1;
+      bodyEl.style.fontSize = '15px';
+      bodyEl.innerHTML = sourceDocElement.innerHTML;
+
+      // Copy buttons in cloned code blocks
+      bodyEl.querySelectorAll('.kyana-copy-code-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const pre = btn.closest('.kyana-code-block')?.querySelector('pre');
+          if (pre) {
+            navigator.clipboard.writeText(pre.innerText).then(() => {
+              btn.innerHTML = '<span>✓ Copied!</span>';
+              setTimeout(() => { btn.innerHTML = '<span>Copy</span>'; }, 2000);
+            });
+          }
+        });
+      });
+
+      this.activeOverlay.classList.remove('closing');
+      this.activeOverlay.classList.add('active');
+      document.body.classList.add('kyana-reader-open');
+      bodyEl.scrollTop = 0;
+    },
+
+    close() {
+      if (!this.activeOverlay || !this.activeOverlay.classList.contains('active')) return;
+      this.activeOverlay.classList.add('closing');
+      setTimeout(() => {
+        this.activeOverlay.classList.remove('active', 'closing');
+        document.body.classList.remove('kyana-reader-open');
+        const bodyEl = this.activeOverlay.querySelector('#kyanaReaderBody');
+        if (bodyEl) bodyEl.innerHTML = '';
+      }, 220);
+    }
+  };
+
+  // KyanaResponseActions Component with Subtle Single-Pass Completion Shimmer & Focus View Action
   const KyanaResponseActions = {
     render(container, textToCopy, onRegenerate, isFreshComplete = false) {
       const actions = document.createElement('div');
       actions.className = 'kyana-response-actions' + (isFreshComplete ? ' kyana-completion-pulse' : '');
       actions.innerHTML = `
+        <button type="button" class="kyana-action-btn kyana-fullscreen-btn" title="Expand to Full Screen Focus View (or double-tap message)">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+          </svg>
+          <span>Expand</span>
+        </button>
         <button type="button" class="kyana-action-btn kyana-copy-btn" title="Copy response">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -2504,6 +2688,16 @@
           <span>Regenerate</span>
         </button>` : ''}
       `;
+
+      const expandBtn = actions.querySelector('.kyana-fullscreen-btn');
+      if (expandBtn) {
+        expandBtn.addEventListener('click', () => {
+          const doc = container.querySelector('.kyana-response-doc') || container.closest('.kyana-response-row')?.querySelector('.kyana-response-doc');
+          if (doc && doc.innerHTML.trim()) {
+            KyanaReaderModal.open(doc);
+          }
+        });
+      }
 
       const copyBtn = actions.querySelector('.kyana-copy-btn');
       copyBtn.addEventListener('click', () => {
@@ -2555,12 +2749,48 @@
     }
   };
 
-  // KyanaResponse Component (Clean Typography — No Redundant Header)
+  // KyanaResponse Component (Clean Typography & Double-Tap Full-Screen Trigger)
   const KyanaResponse = {
     create() {
       const row = document.createElement('div');
       row.className = 'kyana-response-row';
+      row.setAttribute('data-kyana-expandable', 'true');
+      row.setAttribute('title', 'Double-tap or double-click to view in full screen');
       row.innerHTML = `<div class="kyana-response-doc"></div>`;
+
+      // Desktop double click trigger
+      row.addEventListener('dblclick', (e) => {
+        if (e.target.closest('button, a, input, select, textarea, .kyana-quiz-option')) return;
+        const doc = row.querySelector('.kyana-response-doc');
+        if (doc && doc.innerHTML.trim()) {
+          KyanaReaderModal.open(doc);
+        }
+      });
+
+      // Mobile double tap trigger
+      let lastTapTime = 0;
+      let lastTapX = 0;
+      let lastTapY = 0;
+      row.addEventListener('touchend', (e) => {
+        if (e.target.closest('button, a, input, select, textarea, .kyana-quiz-option')) return;
+        const now = Date.now();
+        const touch = e.changedTouches ? e.changedTouches[0] : null;
+        if (!touch) return;
+        const timeDiff = now - lastTapTime;
+        const dist = Math.hypot(touch.clientX - lastTapX, touch.clientY - lastTapY);
+
+        if (timeDiff < 320 && timeDiff > 60 && dist < 25) {
+          e.preventDefault();
+          const doc = row.querySelector('.kyana-response-doc');
+          if (doc && doc.innerHTML.trim()) {
+            KyanaReaderModal.open(doc);
+          }
+        }
+        lastTapTime = now;
+        lastTapX = touch.clientX;
+        lastTapY = touch.clientY;
+      }, { passive: false });
+
       return row;
     }
   };

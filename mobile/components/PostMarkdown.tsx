@@ -2887,7 +2887,7 @@ function PostMarkdownInternal({
           <ScrollView
             horizontal
             nestedScrollEnabled={true}
-            showsHorizontalScrollIndicator={false}
+            showsHorizontalScrollIndicator={true}
           >
             <View>
               {/* Header Row */}
@@ -3423,8 +3423,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   tableWrapper: {
-    marginVertical: 8,
-    borderRadius: 8,
+    marginVertical: 10,
+    borderRadius: 10,
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -3433,16 +3433,18 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   tableHeaderRow: {
-    borderBottomWidth: 1,
+    borderBottomWidth: 1.5,
   },
   tableCell: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: 96,
+    paddingVertical: 9,
+    minWidth: 105,
+    justifyContent: 'center',
   },
   tableHeaderText: {
     fontSize: 12.5,
     fontWeight: '700',
+    letterSpacing: -0.1,
   },
   tableCellText: {
     fontSize: 12.5,

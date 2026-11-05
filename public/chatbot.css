@@ -696,3 +696,374 @@
   gap: 6px;
   flex-wrap: wrap;
 }
+
+/* ==========================================================================
+   Chat Stream Table & Diagram Arrangement (Modern, Polished Layout)
+   ========================================================================== */
+.kyana-table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 16px 0;
+  border-radius: 10px;
+  border: 1px solid var(--ky-border);
+  background-color: var(--ky-surface);
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ky-border-strong) transparent;
+}
+
+.kyana-table-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+.kyana-table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kyana-table-wrapper::-webkit-scrollbar-thumb {
+  background: var(--ky-border-strong);
+  border-radius: 4px;
+}
+
+.kyana-table {
+  width: 100%;
+  min-width: 440px;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.kyana-table th {
+  background-color: var(--ky-surface-raised);
+  color: var(--ky-text-primary);
+  font-weight: 650;
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--ky-border-strong);
+  border-right: 1px solid var(--ky-border-subtle);
+  letter-spacing: -0.01em;
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+.kyana-table th:last-child {
+  border-right: none;
+}
+
+.kyana-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--ky-border-subtle);
+  border-right: 1px solid var(--ky-border-subtle);
+  color: var(--ky-text-secondary);
+  line-height: 1.55;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+
+.kyana-table td:last-child {
+  border-right: none;
+}
+
+.kyana-table tr:nth-child(even) td {
+  background-color: rgba(255, 255, 255, 0.018);
+}
+
+:root[data-theme="light"] .kyana-table tr:nth-child(even) td {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.kyana-table tr:hover td {
+  background-color: var(--ky-surface-hover);
+  color: var(--ky-text-primary);
+}
+
+.kyana-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Diagram Content & Code Pre Polish */
+.kyana-diagram-content,
+.kyana-code-pre {
+  position: relative;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.kyana-diagram-pre {
+  font-family: var(--ky-font-mono);
+  font-size: 12.5px;
+  line-height: 1.48;
+  letter-spacing: -0.01em;
+  white-space: pre;
+  padding: 14px 16px;
+}
+
+/* Response Row Expand Hint & Fullscreen Action */
+.kyana-response-row[data-kyana-expandable="true"] {
+  position: relative;
+}
+
+.kyana-fullscreen-btn {
+  gap: 5px;
+}
+
+/* ==========================================================================
+   Kyana Academic Focus View (Full Screen Reader Modal)
+   ========================================================================== */
+.kyana-reader-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.kyana-reader-overlay.active {
+  display: flex;
+}
+
+.kyana-reader-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 7, 10, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kyana-reader-overlay.active .kyana-reader-backdrop {
+  opacity: 1;
+}
+
+.kyana-reader-window {
+  position: relative;
+  width: min(980px, 94vw);
+  height: min(88vh, 920px);
+  background-color: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-strong);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--ky-border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 2;
+  opacity: 0;
+  transform: scale(0.94) translateY(12px);
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kyana-reader-overlay.active .kyana-reader-window {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.kyana-reader-overlay.closing .kyana-reader-backdrop {
+  opacity: 0;
+}
+
+.kyana-reader-overlay.closing .kyana-reader-window {
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+}
+
+body.kyana-reader-open {
+  overflow: hidden !important;
+}
+
+.kyana-reader-header {
+  height: 56px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--ky-border);
+  background: var(--ky-surface);
+  flex-shrink: 0;
+}
+
+.kyana-reader-brand-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kyana-reader-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kyana-reader-title {
+  font-family: var(--ky-font-brand);
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--ky-text-primary);
+}
+
+.kyana-reader-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  background: rgba(22, 93, 255, 0.12);
+  color: var(--ky-aura-cyan);
+  border: 1px solid rgba(103, 216, 255, 0.25);
+  letter-spacing: 0.02em;
+}
+
+.kyana-reader-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kyana-reader-hint {
+  font-size: 11.5px;
+  color: var(--ky-text-muted);
+  display: inline-block;
+}
+
+.kyana-reader-zoom-controls {
+  display: flex;
+  align-items: center;
+  background: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.kyana-reader-tool-btn {
+  background: transparent;
+  border: none;
+  color: var(--ky-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.kyana-reader-tool-btn:hover {
+  background: var(--ky-surface-hover);
+  color: var(--ky-text-primary);
+}
+
+.kyana-reader-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--ky-text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.kyana-reader-close-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  transform: scale(1.05);
+}
+
+.kyana-reader-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 32px 36px 60px;
+  font-family: var(--ky-font-sans);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--ky-text-primary);
+  -webkit-overflow-scrolling: touch;
+}
+
+.kyana-reader-body h1, .kyana-reader-body h2, .kyana-reader-body h3 {
+  font-family: var(--ky-font-brand);
+  color: var(--ky-text-primary);
+  margin: 24px 0 12px;
+  letter-spacing: -0.015em;
+}
+
+.kyana-reader-body p {
+  margin: 0 0 14px;
+}
+
+.kyana-reader-body ul, .kyana-reader-body ol {
+  margin: 10px 0 16px;
+  padding-left: 24px;
+}
+
+.kyana-reader-body li {
+  margin-bottom: 6px;
+}
+
+/* Expanded Tables in Modal */
+.kyana-reader-body .kyana-table-wrapper {
+  margin: 20px 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+}
+
+.kyana-reader-body .kyana-table {
+  min-width: 100%;
+  font-size: 13.5px;
+}
+
+.kyana-reader-body .kyana-table th {
+  padding: 12px 18px;
+  font-size: 13.5px;
+}
+
+.kyana-reader-body .kyana-table td {
+  padding: 12px 18px;
+  font-size: 13.5px;
+}
+
+/* Expanded Diagrams and Code in Modal */
+.kyana-reader-body .kyana-code-block,
+.kyana-reader-body .kyana-diagram-content {
+  margin: 20px 0;
+  border-radius: 12px;
+}
+
+.kyana-reader-body .kyana-code-pre,
+.kyana-reader-body .kyana-diagram-pre {
+  font-size: 13.5px;
+  line-height: 1.55;
+  padding: 18px 20px;
+}
+
+@media (max-width: 768px) {
+  .kyana-reader-overlay {
+    padding: 0;
+  }
+  .kyana-reader-window {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    border: none;
+  }
+  .kyana-reader-header {
+    height: 52px;
+    padding: 0 14px;
+  }
+  .kyana-reader-hint {
+    display: none;
+  }
+  .kyana-reader-body {
+    padding: 20px 16px 40px;
+    font-size: 14.5px;
+  }
+}

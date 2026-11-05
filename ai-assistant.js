@@ -1723,7 +1723,8 @@ ${evidenceBlocks}
         onDelta(result.reply);
       }
 
-      if (!grounded.fallbackUsed && noteEvidenceCards.length > 0) {
+      const wantsNoteCards = route.kind === 'notes' || /\b(?:notes?|files?|pdfs?|materials?|resources?|download|slides?)\b/i.test(message);
+      if (!grounded.fallbackUsed && noteEvidenceCards.length > 0 && wantsNoteCards) {
         for (const card of noteEvidenceCards) {
           if (!result.resourceCards.some(c => c.id === card.id && c.type === 'note')) {
             result.resourceCards.push(card);
@@ -1783,6 +1784,15 @@ ${evidenceBlocks}
   }
 
   addToolResults(result, toolkit.results);
+  const wantsNoteCardsFinal = route.kind === 'notes' || /\b(?:notes?|files?|pdfs?|materials?|resources?|download|slides?)\b/i.test(message);
+  if (!wantsNoteCardsFinal && (academicRequest(message) || codeRequest(message) || route.kind === 'scope_check' || route.kind === 'direct')) {
+    result.resourceCards = (result.resourceCards || []).filter(c => c && c.type !== 'note');
+  }
+
+  if (result.reply) {
+    result.reply = result.reply.replace(/^This is extracted from\s+\*\*?[^*]+?\*\*?\s*\([^)]*?\):\s*/i, '');
+  }
+
   if (result.resourceCards.length) {
     try {
       const checked = await revalidateCards(db, academicContext, result.resourceCards);

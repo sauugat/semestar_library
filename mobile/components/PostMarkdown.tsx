@@ -1235,8 +1235,8 @@ function renderKyanaVisualCard(
             ))}
           </View>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-            <View style={[styles.codeBlockContainer, { backgroundColor: isDark ? '#141416' : '#f4f4f5', borderColor: colors.border, padding: 12 }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={true} style={{ marginTop: 8 }} contentContainerStyle={{ minWidth: '100%' }}>
+            <View style={[styles.codeBlockContainer, { backgroundColor: isDark ? '#141416' : '#f4f4f5', borderColor: colors.border, padding: 12, paddingRight: 24, minWidth: '100%' }]}>
               <Text style={[styles.codeText, { color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }]}>
                 {parsed.diagramText}
               </Text>
@@ -2787,8 +2787,8 @@ function PostMarkdownInternal({
             <ScrollView
               horizontal
               nestedScrollEnabled={true}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ padding: 12 }}
+              showsHorizontalScrollIndicator={true}
+              contentContainerStyle={{ padding: 12, paddingRight: 24, minWidth: '100%' }}
             >
               <Text
                 style={[
@@ -3192,6 +3192,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     overflow: 'hidden',
+    width: '100%',
   },
   codeHeader: {
     flexDirection: 'row',
@@ -3220,6 +3221,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     fontSize: 12.5,
     lineHeight: 19,
+    flexShrink: 0,
   },
   mathBlockContainer: {
     marginVertical: 8,
@@ -3436,19 +3438,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
   },
   tableCell: {
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    minWidth: 105,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: 85,
+    maxWidth: 220,
     justifyContent: 'center',
+    flexShrink: 1,
   },
   tableHeaderText: {
     fontSize: 12.5,
     fontWeight: '700',
     letterSpacing: -0.1,
+    flexWrap: 'wrap',
   },
   tableCellText: {
     fontSize: 12.5,
     lineHeight: 18,
+    flexWrap: 'wrap',
   },
   blockquote: {
     borderLeftWidth: 3,

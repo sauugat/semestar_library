@@ -3,6 +3,7 @@ import {
   View,
   StyleSheet,
   FlatList,
+  ScrollView,
   TextInput,
   TouchableOpacity,
   Pressable,
@@ -251,12 +252,14 @@ export default function KyanaChatScreen() {
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [readerMessage, setReaderMessage] = useState<KyanaMessage | null>(null);
 
   // References
   const flatListRef = useRef<FlatList<any>>(null);
   const inputRef = useRef<TextInputInstance>(null);
   const activeAbortController = useRef<AbortController | null>(null);
   const isNearBottomRef = useRef(true);
+  const lastBubbleTapRef = useRef<{ [key: string]: number }>({});
   const messagesRef = useRef<KyanaMessage[]>([]);
   const streamingTextRef = useRef<string>('');
   messagesRef.current = messages;
@@ -643,7 +646,7 @@ export default function KyanaChatScreen() {
 
             {/* Bubble (swipe right on bubble to reply) */}
             <KyanaSwipeableBubble
-              style={{ maxWidth: isUser ? '82%' : '90%' }}
+              style={{ maxWidth: isUser ? '82%' : '94%' }}
               onSwipeReply={() => {
                 setReplyingTo(item);
                 inputRef.current?.focus();
@@ -651,6 +654,17 @@ export default function KyanaChatScreen() {
             >
             <TouchableOpacity
               activeOpacity={0.92}
+              onPress={() => {
+                if (isUser) return;
+                const now = Date.now();
+                const last = lastBubbleTapRef.current[item.id] || 0;
+                if (now - last < 350) {
+                  setReaderMessage(item);
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                } else {
+                  lastBubbleTapRef.current[item.id] = now;
+                }
+              }}
               onLongPress={() => void handleCopyMessage(item)}
               delayLongPress={280}
               style={[
@@ -757,6 +771,18 @@ export default function KyanaChatScreen() {
                 {/* Subtle Action Buttons on Assistant Message */}
                 {!isUser && (
                   <View style={styles.quickActions}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setReaderMessage(item);
+                        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                      style={styles.actionIconBtn}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Open in full screen study reader"
+                    >
+                      <Ionicons name="expand-outline" size={13} color="#71717A" />
+                    </TouchableOpacity>
+
                     <TouchableOpacity
                       onPress={() => void handleCopyMessage(item)}
                       style={styles.actionIconBtn}
@@ -1130,6 +1156,82 @@ export default function KyanaChatScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* FULL-SCREEN FOCUS STUDY READER MODAL */}
+      <Modal
+        visible={!!readerMessage}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setReaderMessage(null)}
+      >
+        <View
+          style={[
+            styles.readerContainer,
+            {
+              paddingTop: Math.max(insets.top, 16),
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}
+        >
+          <StatusBar barStyle="light-content" />
+          {/* Header */}
+          <View style={styles.readerHeader}>
+            <TouchableOpacity
+              onPress={() => setReaderMessage(null)}
+              style={styles.readerCloseBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Close study reader"
+            >
+              <Ionicons name="close" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.readerHeaderCenter}>
+              <View style={styles.readerBadge}>
+                <Ionicons name="book-outline" size={11} color="#A1A1AA" />
+                <Text style={styles.readerBadgeText}>KYANA STUDY READER</Text>
+              </View>
+              <Text style={styles.readerHeaderSubtitle}>Focus Mode • Full Width</Text>
+            </View>
+
+            <View style={styles.readerHeaderRight}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (readerMessage) void handleCopyMessage(readerMessage);
+                }}
+                style={styles.readerHeaderActionBtn}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityLabel="Copy text"
+              >
+                <Ionicons name="copy-outline" size={17} color="#D4D4D8" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Reader Scrollable Content */}
+          <ScrollView
+            style={styles.readerScrollView}
+            contentContainerStyle={styles.readerScrollContent}
+            showsVerticalScrollIndicator={true}
+          >
+            {readerMessage && (
+              <PostMarkdown
+                content={readerMessage.text}
+                onPressInternalLink={(url) => {
+                  setReaderMessage(null);
+                  router.push(url.replace(/\.html$/i, '') as any);
+                }}
+              />
+            )}
+          </ScrollView>
+
+          {/* Reader Footer hint */}
+          <View style={styles.readerFooter}>
+            <Text style={styles.readerFooterText}>
+              Double-tap on chat bubble or tap ✕ to exit reader
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1303,8 +1405,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(255, 255, 255, 0.10)',
     borderBottomLeftRadius: 5,
-    maxWidth: '92%',
+    maxWidth: '96%',
     minWidth: 90,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   streamingBubble: {
     minHeight: 38,
@@ -1670,5 +1774,88 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  readerContainer: {
+    flex: 1,
+    backgroundColor: '#09090b',
+  },
+  readerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.10)',
+    backgroundColor: 'rgba(14, 14, 18, 0.95)',
+  },
+  readerCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readerHeaderCenter: {
+    alignItems: 'center',
+  },
+  readerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.10)',
+  },
+  readerBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    color: '#D4D4D8',
+    letterSpacing: 0.6,
+  },
+  readerHeaderSubtitle: {
+    fontSize: 11,
+    color: '#71717A',
+    marginTop: 2,
+  },
+  readerHeaderRight: {
+    width: 36,
+    alignItems: 'flex-end',
+  },
+  readerHeaderActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  readerScrollView: {
+    flex: 1,
+  },
+  readerScrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  readerFooter: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: 'rgba(14, 14, 18, 0.95)',
+    alignItems: 'center',
+  },
+  readerFooterText: {
+    fontSize: 11.5,
+    color: '#71717A',
   },
 });

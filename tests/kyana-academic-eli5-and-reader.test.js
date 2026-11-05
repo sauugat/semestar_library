@@ -125,6 +125,18 @@ test('Attribution: Academic concept explanation omits "This is extracted from" a
   assert.match(result.reply, /Cookies vs\. Sessions/i);
   assert.match(result.reply, /Key Differences/i);
   assert.match(result.reply, /Pro Tips/i);
+  assert.equal(result.resourceCards.length, 0, 'Must not return unsolicited resourceCards for academic concept explanations');
+});
+
+test('Visuals: buildDeterministicVisualEnrichment provides interactive lifecycle diagram for sessions and cookies', () => {
+  const { buildDeterministicVisualEnrichment } = require('../lib/academic-intelligence');
+  const classification = classifyAcademicQuestion('what is session and cookies management');
+  const enrichment = buildDeterministicVisualEnrichment('what is session and cookies management', classification);
+
+  assert.ok(enrichment.includes('```diagram'), 'Must include diagram block');
+  assert.ok(enrichment.includes('Session & Cookie Lifecycle'), 'Must have descriptive title');
+  assert.ok(enrichment.includes('Browser submits credentials'));
+  assert.ok(enrichment.includes('Server validates SID'));
 });
 
 test('Links: formatToolResult omits [Full syllabus] when user does not ask for links', () => {
@@ -198,4 +210,23 @@ test('Styling: public/chatbot.css includes reader modal animations, table scroll
   // 3. Diagram preformatting
   assert.ok(chatbotCss.includes('.kyana-diagram-pre'));
   assert.ok(chatbotCss.includes('white-space: pre'));
+});
+
+test('Mobile Reader & Code Layout: mobile/app/kyana.tsx and PostMarkdown.tsx support double-tap, full-screen reader modal, and clean code alignment', () => {
+  const kyanaTsx = fs.readFileSync(path.join(__dirname, '..', 'mobile', 'app', 'kyana.tsx'), 'utf8');
+  const postMarkdownTsx = fs.readFileSync(path.join(__dirname, '..', 'mobile', 'components', 'PostMarkdown.tsx'), 'utf8');
+
+  // 1. Mobile kyana.tsx has readerMessage state, double tap handler, and reader modal
+  assert.ok(kyanaTsx.includes('const [readerMessage, setReaderMessage] = useState<KyanaMessage | null>(null);'));
+  assert.ok(kyanaTsx.includes('lastBubbleTapRef.current[item.id]'));
+  assert.ok(kyanaTsx.includes('now - last < 350'));
+  assert.ok(kyanaTsx.includes('name="expand-outline"'));
+  assert.ok(kyanaTsx.includes('KYANA STUDY READER'));
+  assert.ok(kyanaTsx.includes('readerScrollView'));
+  assert.ok(kyanaTsx.includes('readerCloseBtn'));
+
+  // 2. Mobile PostMarkdown has horizontal scroll indicators and proper padding
+  assert.ok(postMarkdownTsx.includes('showsHorizontalScrollIndicator={true}'));
+  assert.ok(postMarkdownTsx.includes('paddingRight: 24'));
+  assert.ok(postMarkdownTsx.includes('maxWidth: 220'));
 });

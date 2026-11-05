@@ -5531,8 +5531,11 @@
 
       const isSpecial = c.role === 'admin' || c.role === 'teacher' || c.role === 'faculty';
       const isCR = c.role === 'cr' || c.role === 'class_rep';
+      const isKyana = c.userId === 'KYANA_AI' || c.studentId === 'KYANA_AI' || c.role === 'bot' || c.role === 'assistant';
       let roleBadge = '';
-      if (c.role === 'admin') {
+      if (isKyana) {
+        roleBadge = `<span class="post-verified-badge" style="font-size: 9.5px; padding: 1px 6px; line-height: 1.2; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 999px;">Kyana AI</span>`;
+      } else if (c.role === 'admin') {
         roleBadge = `<span class="post-verified-badge post-admin-badge" style="font-size: 9.5px; padding: 1px 5px; line-height: 1.2;">Admin</span>`;
       } else if (c.role === 'teacher' || c.role === 'faculty') {
         roleBadge = `<span class="post-verified-badge post-admin-badge" style="font-size: 9.5px; padding: 1px 5px; line-height: 1.2;">Teacher</span>`;

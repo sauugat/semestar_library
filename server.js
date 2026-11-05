@@ -4690,7 +4690,29 @@ app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
     }
   }
 
+  // KYANA AI: Detect and handle @kyana mention in note / file comments
+  let kyanaReply = null;
+  try {
+    const { handleCommentMention, hasKyanaMention } = require('./lib/kyana-comment-agent');
+    if (hasKyanaMention(text)) {
+      const awaitReply = Boolean(req.query?.await_kyana || req.body?.await_kyana || process.env.NODE_ENV === 'test');
+      kyanaReply = await handleCommentMention(db, {
+        entityType: 'file',
+        entityId: fileId,
+        commentId: result.lastInsertRowid,
+        commentText: text,
+        user: { studentId: currentStudentId, name: currentName, role: currentUser?.role || 'student' },
+        parentCommentId: resolvedParentId || result.lastInsertRowid,
+        targetComment: { id: result.lastInsertRowid, studentId: currentStudentId, user_id: currentStudentId, parent_comment_id: resolvedParentId },
+        awaitReply
+      });
+    }
+  } catch (kyanaErr) {
+    console.warn('[Kyana File Comment Mention Warning]:', kyanaErr.message);
+  }
+
   const count = await db.get('SELECT COUNT(*) AS c FROM file_comments WHERE fileId = ?', fileId);
+  const finalCount = Number(count?.c || 1) + (kyanaReply?.replyComment ? 1 : 0);
 
   res.json({
     commentId: result.lastInsertRowid,
@@ -4717,8 +4739,9 @@ app.post('/api/files/:id/comments', requireLogin, async (req, res) => {
       canDelete: true,
       canEdit: true
     },
-    commentCount: Number(count?.c || 1),
-    comment_count: Number(count?.c || 1)
+    commentCount: finalCount,
+    comment_count: finalCount,
+    ...(kyanaReply ? { kyanaReply, kyana_reply: kyanaReply } : {})
   });
 });
 

@@ -89,8 +89,11 @@ export function CommentItem({
 
   const avatarUrl = getFullUrl(comment.avatarUrl);
   const roleLower = (comment.role || '').toLowerCase();
+  const isKyana = comment.userId === 'KYANA_AI' || comment.studentId === 'KYANA_AI' || roleLower === 'bot' || roleLower === 'assistant';
   const roleBadgeLabel =
-    roleLower === 'admin'
+    isKyana
+      ? 'Kyana AI'
+      : roleLower === 'admin'
       ? 'Admin'
       : roleLower === 'teacher' || roleLower === 'faculty'
       ? 'Teacher'

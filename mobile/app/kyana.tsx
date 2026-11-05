@@ -708,17 +708,24 @@ export default function KyanaChatScreen() {
                             <View style={styles.resourceCardHeader}>
                               <View style={styles.resourceCardBadge}>
                                 <Ionicons name={iconName as any} size={11} color="#D4D4D8" />
-                                <Text style={styles.resourceCardBadgeText}>{typeLabel}</Text>
+                                <Text style={styles.resourceCardBadgeText}>
+                                  {card.authority ? card.authority.toUpperCase() : typeLabel}
+                                </Text>
                               </View>
-                              {Boolean(card.subject) && (
+                              {Boolean(card.subject || card.publishedDate) && (
                                 <Text style={styles.resourceCardSubject} numberOfLines={1}>
-                                  {card.subject}
+                                  {[card.subject, card.publishedDate].filter(Boolean).join(' · ')}
                                 </Text>
                               )}
                             </View>
                             <Text style={styles.resourceCardTitle} numberOfLines={2}>
                               {card.title}
                             </Text>
+                            {Boolean(card.excerpt) && (
+                              <Text style={styles.resourceCardSubject} numberOfLines={2}>
+                                {card.excerpt}
+                              </Text>
+                            )}
                             <View style={styles.resourceCardActionRow}>
                               <Text style={styles.resourceCardActionText}>{actionText}</Text>
                               <Ionicons name="arrow-forward" size={12} color="#FFFFFF" />

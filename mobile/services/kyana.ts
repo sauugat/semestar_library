@@ -6,7 +6,13 @@ export interface KyanaResourceCard {
   title: string;
   subject?: string;
   chapter?: string;
+  folderPath?: string;
   semester?: number | string;
+  authority?: string;
+  authorName?: string;
+  authorRole?: string;
+  publishedDate?: string | null;
+  excerpt?: string | null;
   deadline?: string | null;
   action: 'open_note' | 'view_post' | 'view_notice' | 'view_assignment' | 'view_routine';
   deepLink?: string;

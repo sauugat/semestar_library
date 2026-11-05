@@ -621,13 +621,19 @@
             view_post: 'Open Post',
             view_assignment: 'Open Assignment'
           }[card.action] || 'Open';
-          const meta = [card.subject, card.semester ? `Sem ${card.semester}` : '', actionText].filter(Boolean).join(' · ');
+          const semDisplay = card.semester ? (/^sem/i.test(String(card.semester)) ? String(card.semester) : `Sem ${card.semester}`) : '';
+          const pubDisplay = card.publishedDate || (card.createdAt ? String(card.createdAt).slice(0, 10) : '');
+          const meta = [card.authority, card.subject, semDisplay, pubDisplay, actionText].filter(Boolean).join(' · ');
+          const excerptHtml = card.excerpt
+            ? `<span class="kyana-source-excerpt" style="display:block;font-size:11px;opacity:0.78;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(String(card.excerpt).slice(0, 140))}</span>`
+            : '';
           el.innerHTML = `
             <div class="kyana-source-left">
               <div class="kyana-source-icon">${escapeHtml(iconType)}</div>
               <div class="kyana-source-info">
                 <span class="kyana-source-title">${escapeHtml(card.title || 'Resource')}</span>
                 <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+                ${excerptHtml}
               </div>
             </div>
             <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>

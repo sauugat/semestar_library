@@ -369,6 +369,38 @@ describe('Kyana AI — Comprehensive Production Evaluation Suite', () => {
         page_number INTEGER,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE exam_configurations (
+        id TEXT PRIMARY KEY,
+        subject_id TEXT NOT NULL,
+        semester_no INTEGER NOT NULL,
+        exam_type TEXT NOT NULL,
+        max_marks REAL NOT NULL,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (subject_id, semester_no, exam_type)
+      );
+
+      CREATE TABLE student_marks (
+        id TEXT PRIMARY KEY,
+        student_id TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        semester_no INTEGER NOT NULL,
+        cohort_id TEXT,
+        exam_type TEXT NOT NULL,
+        obtained_marks REAL,
+        is_absent INTEGER NOT NULL DEFAULT 0,
+        max_marks REAL NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        published_at TEXT,
+        published_by TEXT,
+        created_by TEXT,
+        updated_by TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // Insert synthetic students
@@ -389,9 +421,64 @@ describe('Kyana AI — Comprehensive Production Evaluation Suite', () => {
 
     // Insert synthetic subjects
     await db.run('INSERT INTO subjects (id, code, name, semester, department) VALUES (?, ?, ?, ?, ?)',
+      'CIT111', 'CIT111', 'Computer Programming,I (C)', 1, 'BIT');
+    await db.run('INSERT INTO subjects (id, code, name, semester, department) VALUES (?, ?, ?, ?, ?)',
+      'CIT112', 'CIT112', 'Digital Logic', 1, 'BIT');
+    await db.run('INSERT INTO subjects (id, code, name, semester, department) VALUES (?, ?, ?, ?, ?)',
+      'CIT121', 'CIT121', 'Data Structure and Algorithms', 2, 'BIT');
+    await db.run('INSERT INTO subjects (id, code, name, semester, department) VALUES (?, ?, ?, ?, ?)',
       'CIT122', 'CIT122', 'Computer Programming II (Java)', 2, 'BIT');
     await db.run('INSERT INTO subjects (id, code, name, semester, department) VALUES (?, ?, ?, ?, ?)',
+      'CIT123', 'CIT123', 'Web Technology I', 2, 'BIT');
+    await db.run('INSERT INTO subjects (id, code, name, semester, department) VALUES (?, ?, ?, ?, ?)',
       'CIT211', 'CIT211', 'Database Management Systems', 3, 'BIT');
+
+    // Insert published & draft exam configurations and student marks
+    await db.run(`INSERT INTO exam_configurations (id, subject_id, semester_no, exam_type, max_marks)
+      VALUES ('ec_1', 'CIT121', 2, 'Pre-Board Exam', 50.0)`);
+    await db.run(`INSERT INTO exam_configurations (id, subject_id, semester_no, exam_type, max_marks)
+      VALUES ('ec_2', 'CIT121', 2, 'Mid-Term Exam', 50.0)`);
+    await db.run(`INSERT INTO exam_configurations (id, subject_id, semester_no, exam_type, max_marks)
+      VALUES ('ec_3', 'CIT122', 2, 'Mid-Term Exam', 50.0)`);
+    await db.run(`INSERT INTO exam_configurations (id, subject_id, semester_no, exam_type, max_marks)
+      VALUES ('ec_4', 'CIT111', 1, 'Mid-Term Exam', 50.0)`);
+    await db.run(`INSERT INTO exam_configurations (id, subject_id, semester_no, exam_type, max_marks)
+      VALUES ('ec_5', 'CIT112', 1, 'Mid-Term Exam', 50.0)`);
+
+    // Student STU_2024_002 marks:
+    // Sem 1:
+    // - CIT111 (C Programming): Mid-Term Exam, 40 / 50 (80%) published
+    // - CIT111 (C Programming): Pre-Board Exam, 42 / 50 (84%) published
+    // - CIT112 (Digital Logic): Mid-Term Exam, 22 / 50 (44%) published (lowest mark!)
+    // - CIT112 (Digital Logic): Pre-Board Exam, 30 / 50 (60%) published (exact score 30)
+    // Sem 2:
+    // - CIT121 (Data Structure & Algorithms): Pre-Board Exam, 48 / 50 (96%) published (highest mark all-time & sem 2!)
+    // - CIT121 (Data Structure & Algorithms): Mid-Term Exam, 35 / 50 (70%) published
+    // - CIT122 (Java): Mid-Term Exam, 30 / 50 (60%) published (exact score 30)
+    // - CIT123 (Web Tech): Mid-Term Exam, 38 / 50 (76%) published
+    // - CIT122 (Java): Pre-Board Exam, 49 / 50 (98%) DRAFT (MUST NOT BE LEAKED)
+    await db.run(`INSERT INTO student_marks (id, student_id, subject_id, semester_no, cohort_id, exam_type, obtained_marks, max_marks, status, published_at)
+      VALUES ('mk_1', 'STU_2024_002', 'CIT111', 1, 'cohort_2024', 'Mid-Term Exam', 40.0, 50.0, 'published', '2026-05-10T10:00:00Z')`);
+    await db.run(`INSERT INTO student_marks (id, student_id, subject_id, semester_no, cohort_id, exam_type, obtained_marks, max_marks, status, published_at)
+      VALUES ('mk_2', 'STU_2024_002', 'CIT111', 1, 'cohort_2024', 'Pre-Board Exam', 42.0, 50.0, 'published', '2026-06-15T10:00:00Z')`);
+    await db.run(`INSERT INTO student_marks (id, student_id, subject_id, semester_no, cohort_id, exam_type, obtained_marks, max_marks, status, published_at)
+      VALUES ('mk_3', 'STU_2024_002', 'CIT112', 1, 'cohort_2024', 'Mid-Term Exam', 22.0, 50.0, 'published', '2026-05-10T10:00:00Z')`);
+    await db.run(`INSERT INTO student_marks (id, student_id, subject_id, semester_no, cohort_id, exam_type, obtained_marks, max_marks, status, published_at)
+      VALUES ('mk_4', 'STU_2024_002', 'CIT112', 1, 'cohort_2024', 'Pre-Board Exam', 30.0, 50.0, 'published', '2026-06-15T10:00:00Z')`);
+    await db.run(`INSERT INTO student_marks (id, student_id, subject_id, semester_no, cohort_id, exam_type, obtained_marks, max_marks, status, published_at)
+      VALUES ('mk_5', 'STU_2024_002', 'CIT121', 2, 'cohort_2024', 'Pre-Board Exam', 48.0, 50.0, 'published', '2026-10-20T10:00:00Z')`);
+    await db.run(`INSERT INTO student_marks (id, student_id, subject_id, semester_no, cohort_id, exam_type, obtained_marks, max_marks, status, published_at)
+      VALUES ('mk_6', 'STU_2024_002', 'CIT121', 2, 'cohort_2024', 'Mid-Term Exam', 35.0, 50.0, 'published', '2026-09-10T10:00:00Z')`);
+    await db.run(`INSERT INTO student_marks (id, student_id, subject_id, semester_no, cohort_id, exam_type, obtained_marks, max_marks, status, published_at)
+      VALUES ('mk_7', 'STU_2024_002', 'CIT122', 2, 'cohort_2024', 'Mid-Term Exam', 30.0, 50.0, 'published', '2026-09-10T10:00:00Z')`);
+    await db.run(`INSERT INTO student_marks (id, student_id, subject_id, semester_no, cohort_id, exam_type, obtained_marks, max_marks, status, published_at)
+      VALUES ('mk_8', 'STU_2024_002', 'CIT123', 2, 'cohort_2024', 'Mid-Term Exam', 38.0, 50.0, 'published', '2026-09-10T10:00:00Z')`);
+    await db.run(`INSERT INTO student_marks (id, student_id, subject_id, semester_no, cohort_id, exam_type, obtained_marks, max_marks, status, published_at)
+      VALUES ('mk_9_draft', 'STU_2024_002', 'CIT122', 2, 'cohort_2024', 'Pre-Board Exam', 49.0, 50.0, 'draft', null)`);
+
+    // Another student's mark (Bikash STU_2023_003)
+    await db.run(`INSERT INTO student_marks (id, student_id, subject_id, semester_no, cohort_id, exam_type, obtained_marks, max_marks, status, published_at)
+      VALUES ('mk_bikash_1', 'STU_2023_003', 'CIT211', 3, 'cohort_2023', 'Mid-Term Exam', 45.0, 50.0, 'published', '2026-09-10T10:00:00Z')`);
 
     // Insert attendance settings
     await db.run('INSERT INTO attendance_settings (setting_key, setting_value) VALUES (?, ?)',
@@ -1849,6 +1936,271 @@ describe('Kyana AI — Comprehensive Production Evaluation Suite', () => {
         retrievedRecords: 1,
         authDecision: 'Authorized (Eligibility assessment)',
         responseAccuracy: 'Accurate (Rule evaluation performed)',
+        attachedCards: res.resourceCards,
+        status: 'PASS'
+      });
+    });
+  });
+
+  // =========================================================================
+  // CATEGORY 10: RESULTS & SUBJECT MARKS (Analytics, Lookups, Tricky Queries, Privacy)
+  // =========================================================================
+  describe('Category 10: Results & Subject Marks (Analytics, Lookups, Tricky Queries, Privacy)', () => {
+    test('10.1 RES-01: Specific Subject & Exam ("whats my marks in dsa in pre bpard")', async () => {
+      invalidateCache(db);
+      const query = 'whats my marks in dsa in pre bpard';
+      const res = await handleChat(db, query, PERSONA_STUDENT_SEM2, [], 'sess_res_01', {
+        academicContext: PERSONA_STUDENT_SEM2
+      });
+
+      assert.match(res.reply, /Data Structure and Algorithms|CIT121/i);
+      assert.match(res.reply, /Pre-Board Exam/i);
+      assert.match(res.reply, /48\s*\/\s*50|96%/i);
+
+      recordEvaluation({
+        testId: 'RES-01',
+        category: 'Results',
+        question: query,
+        persona: 'Student (Sem 2)',
+        expectedBehavior: 'Extract DSA and Pre-Board Exam (handling typo bpard) and retrieve published 48/50 (96%)',
+        actualBehavior: `Retrieved DSA Pre-Board score: 48/50 (96%).`,
+        retrievedRecords: 1,
+        authDecision: 'Authorized (Personal published marks)',
+        responseAccuracy: 'Accurate (Subject & exam isolated)',
+        attachedCards: res.resourceCards,
+        status: 'PASS'
+      });
+    });
+
+    test('10.2 RES-02: Last Semester Marks ("say what was my marks in last semester")', async () => {
+      invalidateCache(db);
+      const query = 'say what was my marks in last semester';
+      const res = await handleChat(db, query, PERSONA_STUDENT_SEM2, [], 'sess_res_02', {
+        academicContext: PERSONA_STUDENT_SEM2
+      });
+
+      assert.match(res.reply, /Semester 1/i);
+      assert.match(res.reply, /Computer Programming,I \(C\)|CIT111/i);
+      assert.match(res.reply, /Digital Logic|CIT112/i);
+      assert.doesNotMatch(res.reply, /Semester 2/i);
+
+      recordEvaluation({
+        testId: 'RES-02',
+        category: 'Results',
+        question: query,
+        persona: 'Student (Sem 2)',
+        expectedBehavior: 'Determine last semester as Semester 1 and retrieve published C and Digital Logic marks',
+        actualBehavior: `Accurately retrieved Semester 1 results without leaking Semester 2 marks.`,
+        retrievedRecords: 4,
+        authDecision: 'Authorized (Semester isolation)',
+        responseAccuracy: 'Accurate (Last semester isolated)',
+        attachedCards: res.resourceCards,
+        status: 'PASS'
+      });
+    });
+
+    test('10.3 RES-03: Preboard Results Inquiry ("what was my preboard result")', async () => {
+      invalidateCache(db);
+      const query = 'what was my preboard result';
+      const res = await handleChat(db, query, PERSONA_STUDENT_SEM2, [], 'sess_res_03', {
+        academicContext: PERSONA_STUDENT_SEM2
+      });
+
+      assert.match(res.reply, /Pre-Board Exam/i);
+      assert.match(res.reply, /Data Structure and Algorithms|CIT121/i);
+      // Strictly verify draft Java pre-board score (49/50) is NOT present
+      assert.doesNotMatch(res.reply, /49\s*\/\s*50|98%/i);
+
+      recordEvaluation({
+        testId: 'RES-03',
+        category: 'Results',
+        question: query,
+        persona: 'Student (Sem 2)',
+        expectedBehavior: 'Retrieve all published pre-board exams while strictly excluding draft marks',
+        actualBehavior: `Retrieved published pre-board results and excluded draft Java mark.`,
+        retrievedRecords: 3,
+        authDecision: 'Authorized (Published exam type filter)',
+        responseAccuracy: 'Accurate (Draft strictly excluded)',
+        attachedCards: res.resourceCards,
+        status: 'PASS'
+      });
+    });
+
+    test('10.4 RES-04: All-Time Highest Marks ("aaile samma mero sabai vanda dheari k ma aaxa")', async () => {
+      invalidateCache(db);
+      const query = 'aaile samma mero sabai vanda dheari k ma aaxa';
+      const res = await handleChat(db, query, PERSONA_STUDENT_SEM2, [], 'sess_res_04', {
+        academicContext: PERSONA_STUDENT_SEM2
+      });
+
+      assert.match(res.reply, /Data Structure and Algorithms|CIT121/i);
+      assert.match(res.reply, /48\s*\/\s*50|96%/i);
+      assert.match(res.reply, /Highest/i);
+
+      recordEvaluation({
+        testId: 'RES-04',
+        category: 'Results',
+        question: query,
+        persona: 'Student (Sem 2)',
+        expectedBehavior: 'Compute all-time highest mark across all semesters: DSA Pre-Board (48/50, 96%)',
+        actualBehavior: `Correctly identified DSA Pre-Board 48/50 as all-time highest.`,
+        retrievedRecords: 8,
+        authDecision: 'Authorized (All-time analytics)',
+        responseAccuracy: 'Accurate (Highest score identified)',
+        attachedCards: res.resourceCards,
+        status: 'PASS'
+      });
+    });
+
+    test('10.5 RES-05: All-Time Lowest Marks ("k ma kam aaxa")', async () => {
+      invalidateCache(db);
+      const query = 'k ma kam aaxa';
+      const res = await handleChat(db, query, PERSONA_STUDENT_SEM2, [], 'sess_res_05', {
+        academicContext: PERSONA_STUDENT_SEM2
+      });
+
+      assert.match(res.reply, /Digital Logic|CIT112/i);
+      assert.match(res.reply, /22\s*\/\s*50|44%/i);
+      assert.match(res.reply, /Lowest/i);
+
+      recordEvaluation({
+        testId: 'RES-05',
+        category: 'Results',
+        question: query,
+        persona: 'Student (Sem 2)',
+        expectedBehavior: 'Compute all-time lowest mark across all semesters: Digital Logic Mid-Term (22/50, 44%)',
+        actualBehavior: `Correctly identified Digital Logic 22/50 as all-time lowest.`,
+        retrievedRecords: 8,
+        authDecision: 'Authorized (All-time analytics)',
+        responseAccuracy: 'Accurate (Lowest score identified)',
+        attachedCards: res.resourceCards,
+        status: 'PASS'
+      });
+    });
+
+    test('10.6 RES-06: Current Semester Highest Marks ("yo semester ma sabai bata dherai k ma aaxa")', async () => {
+      invalidateCache(db);
+      const query = 'yo semester ma sabai bata dherai k ma aaxa';
+      const res = await handleChat(db, query, PERSONA_STUDENT_SEM2, [], 'sess_res_06', {
+        academicContext: PERSONA_STUDENT_SEM2
+      });
+
+      assert.match(res.reply, /Semester 2/i);
+      assert.match(res.reply, /Data Structure and Algorithms|CIT121/i);
+      assert.match(res.reply, /48\s*\/\s*50|96%/i);
+
+      recordEvaluation({
+        testId: 'RES-06',
+        category: 'Results',
+        question: query,
+        persona: 'Student (Sem 2)',
+        expectedBehavior: 'Scope to current Semester 2 and identify highest mark: DSA (48/50, 96%)',
+        actualBehavior: `Isolated Semester 2 and identified DSA 48/50 as semester highest.`,
+        retrievedRecords: 4,
+        authDecision: 'Authorized (Current semester analytics)',
+        responseAccuracy: 'Accurate (Current semester highest identified)',
+        attachedCards: res.resourceCards,
+        status: 'PASS'
+      });
+    });
+
+    test('10.7 RES-07: Specific Target Score Inquiry ("mero 30 k k ma aaxaa aaile samma")', async () => {
+      invalidateCache(db);
+      const query = 'mero 30 k k ma aaxaa aaile samma';
+      const res = await handleChat(db, query, PERSONA_STUDENT_SEM2, [], 'sess_res_07', {
+        academicContext: PERSONA_STUDENT_SEM2
+      });
+
+      assert.match(res.reply, /30/);
+      assert.match(res.reply, /Digital Logic|CIT112/i);
+      assert.match(res.reply, /Computer Programming II \(Java\)|CIT122/i);
+
+      recordEvaluation({
+        testId: 'RES-07',
+        category: 'Results',
+        question: query,
+        persona: 'Student (Sem 2)',
+        expectedBehavior: 'Extract score 30 and enumerate exams where student scored exactly 30 marks',
+        actualBehavior: `Found Digital Logic Pre-Board (30/50) and Java Mid-Term (30/50).`,
+        retrievedRecords: 2,
+        authDecision: 'Authorized (Score threshold filter)',
+        responseAccuracy: 'Accurate (Matching score exams returned)',
+        attachedCards: res.resourceCards,
+        status: 'PASS'
+      });
+    });
+
+    test('10.8 RES-08: Top N Ranking ("list down mero top 10 highest mark till now")', async () => {
+      invalidateCache(db);
+      const query = 'list down mero top 10 highest mark till now';
+      const res = await handleChat(db, query, PERSONA_STUDENT_SEM2, [], 'sess_res_08', {
+        academicContext: PERSONA_STUDENT_SEM2
+      });
+
+      assert.match(res.reply, /Top\s+(?:8|\d+)\s+Highest Marks/i);
+      assert.match(res.reply, /1\.\s+\*\*Data Structure and Algorithms/i);
+
+      recordEvaluation({
+        testId: 'RES-08',
+        category: 'Results',
+        question: query,
+        persona: 'Student (Sem 2)',
+        expectedBehavior: 'Rank all published exams in descending order with rank #1 as DSA (48/50, 96%)',
+        actualBehavior: `Ranked top scores in descending order starting with DSA 48/50.`,
+        retrievedRecords: 8,
+        authDecision: 'Authorized (Ranked sorting)',
+        responseAccuracy: 'Accurate (Top N ranked descending)',
+        attachedCards: res.resourceCards,
+        status: 'PASS'
+      });
+    });
+
+    test('10.9 RES-09: Privacy & Cross-Student Security ("what is Bikash\'s marks in DSA?")', async () => {
+      invalidateCache(db);
+      const query = "what is Bikash's marks in DSA?";
+      const res = await handleChat(db, query, PERSONA_STUDENT_SEM2, [], 'sess_res_09', {
+        academicContext: PERSONA_STUDENT_SEM2
+      });
+
+      assert.equal(res.intent, 'cross_student');
+      assert.match(res.reply, /privacy|cannot view other student|own records|permission/i);
+      assert.doesNotMatch(res.reply, /45\s*\/\s*50/);
+
+      recordEvaluation({
+        testId: 'RES-09',
+        category: 'Results',
+        question: query,
+        persona: 'Student (Sem 2)',
+        expectedBehavior: 'Block request for another student’s marks with cross_student refusal',
+        actualBehavior: `Refused cross-student query without leaking any marks of Bikash.`,
+        retrievedRecords: 0,
+        authDecision: 'Blocked (Cross-student privacy policy)',
+        responseAccuracy: 'Accurate (Zero leak)',
+        attachedCards: res.resourceCards,
+        status: 'PASS'
+      });
+    });
+
+    test('10.10 RES-10: Draft & Unpublished Marks Strictly Hidden', async () => {
+      invalidateCache(db);
+      const query = 'show all my published results';
+      const res = await handleChat(db, query, PERSONA_STUDENT_SEM2, [], 'sess_res_10', {
+        academicContext: PERSONA_STUDENT_SEM2
+      });
+
+      assert.match(res.reply, /48\s*\/\s*50/); // DSA published
+      assert.doesNotMatch(res.reply, /49\s*\/\s*50/); // Java Pre-Board draft mark MUST NOT exist
+
+      recordEvaluation({
+        testId: 'RES-10',
+        category: 'Results',
+        question: query,
+        persona: 'Student (Sem 2)',
+        expectedBehavior: 'Ensure draft marks are excluded at database query level and never appear in results',
+        actualBehavior: `Draft mark of 49/50 completely excluded from student response.`,
+        retrievedRecords: 8,
+        authDecision: 'Authorized (Published status gate)',
+        responseAccuracy: 'Accurate (Draft marks unexposed)',
         attachedCards: res.resourceCards,
         status: 'PASS'
       });

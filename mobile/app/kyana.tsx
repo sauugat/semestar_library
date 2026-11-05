@@ -682,7 +682,13 @@ export default function KyanaChatScreen() {
                 <View style={styles.markdownWrapper}>
                   <PostMarkdown
                     content={item.text}
-                    onPressInternalLink={(url) => router.push(url.replace(/\.html$/i, '') as any)}
+                    onPressInternalLink={(url) => {
+                      if (url.startsWith('prompt:')) {
+                        void handleSend(decodeURIComponent(url.slice(7)));
+                        return;
+                      }
+                      router.push(url.replace(/\.html$/i, '') as any);
+                    }}
                   />
                   {resourceCards.length > 0 && (
                     <View style={styles.resourceCardsContainer}>
@@ -926,7 +932,13 @@ export default function KyanaChatScreen() {
                         <PostMarkdown
                           content={streamingText}
                           streaming={true}
-                          onPressInternalLink={(url) => router.push(url.replace(/\.html$/i, '') as any)}
+                          onPressInternalLink={(url) => {
+                            if (url.startsWith('prompt:')) {
+                              void handleSend(decodeURIComponent(url.slice(7)));
+                              return;
+                            }
+                            router.push(url.replace(/\.html$/i, '') as any);
+                          }}
                         />
                       </View>
                     ) : (
@@ -1218,6 +1230,10 @@ export default function KyanaChatScreen() {
                 content={readerMessage.text}
                 onPressInternalLink={(url) => {
                   setReaderMessage(null);
+                  if (url.startsWith('prompt:')) {
+                    void handleSend(decodeURIComponent(url.slice(7)));
+                    return;
+                  }
                   router.push(url.replace(/\.html$/i, '') as any);
                 }}
               />

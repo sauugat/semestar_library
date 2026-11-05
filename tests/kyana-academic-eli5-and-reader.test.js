@@ -258,3 +258,69 @@ test('Professionalism & Design: replies omit casual emojis, wrap code lines, and
   // 4. Web chatbot.js intercepts ASCII figures and converts them into CSS diagram nodes
   assert.ok(chatbotJs.includes('isAsciiFigure'));
 });
+
+// ============================================================================
+// 3. Taxonomy & Multi-Type Pedagogy (CSS Selectors, Paired Code Blocks & Follow-Up Pills)
+// ============================================================================
+
+test('Taxonomy & Multi-Type Pedagogy: System instructs paired code blocks, individual breakdown, and continuation pills for CSS selectors', () => {
+  const classification = classifyAcademicQuestion('what is css selector');
+  const tutorPrompt = buildAcademicTutorPrompt('what is css selector', classification);
+
+  // Must instruct explicit taxonomy rules
+  assert.match(tutorPrompt, /MANDATORY RULE FOR TAXONOMY & MULTI-TYPE CONCEPTS/i);
+  assert.match(tutorPrompt, /NEVER just dump a bulleted list of types/i);
+  assert.match(tutorPrompt, /1\. Basic example.*SEPARATE paired code boxes/i);
+  assert.match(tutorPrompt, /In-Depth Subtype Breakdown with SEPARATE PAIRED CODE BOXES/i);
+  assert.match(tutorPrompt, /provide an HTML: code box.*then a CSS: code box/i);
+  assert.match(tutorPrompt, /Systematic Comparison Matrix/i);
+  assert.match(tutorPrompt, /Progressive Pacing & Interactive Next Steps/i);
+  assert.match(tutorPrompt, /\[Option Label\]\(prompt:Question%20To%20Ask\)/i);
+});
+
+test('Deterministic Visuals & Quizzes: CSS Selectors generates Specificity hierarchy diagram, quiz, and prompt links', () => {
+  const { buildDeterministicVisualEnrichment } = require('../lib/academic-intelligence');
+  const classification = classifyAcademicQuestion('what is css selector');
+  const enrichment = buildDeterministicVisualEnrichment('what is css selector', classification);
+
+  // 1. Diagram block
+  assert.ok(enrichment.includes('```diagram'), 'Must include diagram block');
+  assert.ok(enrichment.includes('CSS Selector Specificity & Selection Hierarchy'));
+  assert.ok(enrichment.includes('Universal Selector (*)'));
+  assert.ok(enrichment.includes('Class Selector (.student)'));
+  assert.ok(enrichment.includes('ID Selector (#heading)'));
+
+  // 2. Quiz block
+  assert.ok(enrichment.includes('```quiz'), 'Must include quiz block');
+  assert.ok(enrichment.includes('CSS Selectors Self-Assessment Quiz'));
+  assert.ok(enrichment.includes('highest specificity weight'));
+  assert.ok(enrichment.includes('Which symbol is used to define a class selector'));
+
+  // 3. Interactive continuation options
+  assert.ok(enrichment.includes('### Next Steps & Deep Dives'));
+  assert.ok(enrichment.includes('prompt:Explain%20CSS%20Combinator%20Selectors'));
+  assert.ok(enrichment.includes('prompt:Explain%20CSS%20Pseudo-classes'));
+});
+
+test('Interactive Follow-Up Pills: Web and Mobile render and handle prompt: links as interactive pills', () => {
+  const chatbotJs = fs.readFileSync(path.join(__dirname, '..', 'public', 'chatbot.js'), 'utf8');
+  const chatbotCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'chatbot.css'), 'utf8');
+  const postMarkdownTsx = fs.readFileSync(path.join(__dirname, '..', 'mobile', 'components', 'PostMarkdown.tsx'), 'utf8');
+  const kyanaTsx = fs.readFileSync(path.join(__dirname, '..', 'mobile', 'app', 'kyana.tsx'), 'utf8');
+
+  // 1. Web safeLink allows prompt: protocol
+  assert.ok(chatbotJs.includes("trimmed.startsWith('prompt:')"));
+  assert.ok(chatbotJs.includes('kyana-prompt-pill'));
+  assert.ok(chatbotJs.includes("pill.dataset.prompt || decodeURIComponent"));
+  assert.ok(chatbotCss.includes('.kyana-prompt-pill'));
+  assert.ok(chatbotCss.includes('a[href^="prompt:"]'));
+
+  // 2. Mobile PostMarkdown supports prompt: links and renders promptPill
+  assert.ok(postMarkdownTsx.includes('prompt:'));
+  assert.ok(postMarkdownTsx.includes('styles.promptPill'));
+  assert.ok(postMarkdownTsx.includes('styles.promptPillText'));
+
+  // 3. Mobile kyana.tsx dispatches prompt: to handleSend
+  assert.ok(kyanaTsx.includes("url.startsWith('prompt:')"));
+  assert.ok(kyanaTsx.includes("void handleSend(decodeURIComponent(url.slice(7)))"));
+});

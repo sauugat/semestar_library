@@ -47,6 +47,8 @@ const {
   resolveSyllabusTopic,
   classifyUserIntent,
   classifyAcademicQuestion,
+  planVisualExplanation,
+  validateVisualBlockPayload,
   buildDeterministicVisualEnrichment,
   buildAcademicTutorPrompt
 } = require('./lib/chat-tools');
@@ -1629,6 +1631,7 @@ ${evidenceBlocks}
     }
 
     const academicClassification = classifyAcademicQuestion(message, route, cleanHistory);
+      const visualPlan = planVisualExplanation(message, route, cleanHistory);
     const academicTutorPrompt = buildAcademicTutorPrompt(message, academicClassification);
 
     // Dynamic syllabus topic resolution (e.g. "session and cookies management" -> CIT123 Unit 5)

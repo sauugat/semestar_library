@@ -213,6 +213,9 @@ export const VISUAL_BLOCK_KINDS = [
   'QUIZ',
   'ROADMAP',
   'COMPLEXITY',
+  'SIMULATION',
+  'CODE_PREVIEW',
+  'ILLUSTRATION',
 ];
 
 export function parseKyanaVisualBlock(kind: string, rawBlock: string): any {
@@ -2479,7 +2482,7 @@ function renderInlineTokens(
 
   // Split with capturing group to keep matched tokens in parts array (rejecting protocol-relative // links)
   const parts = text.split(
-    /(`[^`]+`|\\\([\s\S]+?\\\)|\$(?!\s)[^$\n]+?(?<!\s)\$|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|(?<![a-zA-Z0-9])_[^_\n]+_(?![a-zA-Z0-9])|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\((?:https?:\/\/|\/(?!\/))[^\s\)]+\)|https?:\/\/[^\s<)]+)/g
+    /(`[^`]+`|\\\([\s\S]+?\\\)|\$(?!\s)[^$\n]+?(?<!\s)\$|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|(?<![a-zA-Z0-9])_[^_\n]+_(?![a-zA-Z0-9])|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\((?:https?:\/\/|\/(?!\/)|prompt:)[^\s\)]+\)|https?:\/\/[^\s<)]+)/g
   );
 
   return parts
@@ -2598,11 +2601,35 @@ function renderInlineTokens(
         );
       }
 
-      // 8. Link: [title](url) — external https:// or internal /route (excluding //)
+      // 8. Link: [title](url) — external https://, internal /route (excluding //), or prompt: queries
       if (part.startsWith('[') && part.includes('](')) {
-        const linkMatch = part.match(/^\[([^\]]+)\]\(((?:https?:\/\/|\/(?!\/))[^\s\)]+)\)$/);
+        const linkMatch = part.match(/^\[([^\]]+)\]\(((?:https?:\/\/|\/(?!\/)|prompt:)[^\s\)]+)\)$/);
         if (linkMatch) {
           const [, title, url] = linkMatch;
+          if (url.startsWith('prompt:')) {
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[
+                  styles.promptPill,
+                  {
+                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                    borderColor: borderColor,
+                  },
+                ]}
+                onPress={() => {
+                  if (onPressInternalLink) {
+                    onPressInternalLink(url);
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.promptPillText, { color: textColor }]}>
+                  {title}
+                </Text>
+              </TouchableOpacity>
+            );
+          }
           return (
             <Text
               key={key}
@@ -3681,5 +3708,20 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
+  },
+  promptPill: {
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginVertical: 4,
+    marginRight: 6,
+  },
+  promptPillText: {
+    fontSize: 12.5,
+    fontWeight: '500',
   },
 });

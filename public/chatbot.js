@@ -19,6 +19,9 @@
     if (typeof value !== 'string' || !value.trim()) return null;
     const trimmed = value.trim();
     if (trimmed.startsWith('//') || /^(?:javascript|data|vbscript):/i.test(trimmed)) return null;
+    if (trimmed.startsWith('prompt:')) {
+      return externalOnly ? null : trimmed;
+    }
     try {
       const url = new URL(trimmed, 'https://semester-library.local/');
       if (!['https:', 'http:'].includes(url.protocol)) return null;
@@ -398,7 +401,10 @@
     'comparison',
     'quiz',
     'roadmap',
-    'complexity'
+    'complexity',
+    'simulation',
+    'code_preview',
+    'illustration'
   ]);
 
   function parseKyanaVisualBlock(kind, rawBlock) {
@@ -408,7 +414,7 @@
       return { kind: 'attendance', ...parseAttendanceBlock(text) };
     }
 
-    if (text.startsWith('{') && ['syllabus', 'diagram', 'flowchart', 'graph', 'trace', 'quiz', 'roadmap', 'comparison', 'complexity'].includes(normKind)) {
+    if (text.startsWith('{') && ['syllabus', 'diagram', 'flowchart', 'graph', 'trace', 'quiz', 'roadmap', 'comparison', 'complexity', 'simulation', 'code_preview', 'illustration'].includes(normKind)) {
       try {
         const parsedJson = JSON.parse(text);
         if (parsedJson && typeof parsedJson === 'object') {
@@ -1531,10 +1537,14 @@
       // Strikethrough: ~~text~~
       s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
 
-      // Links: [text](url) — supports https://, /path, and relative campus page links
-      s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+|\/[\w./#%?=&-]+|[\w-]+\.html[^\s\)]*)\)/gi, (_, title, url) => {
+      // Links: [text](url) — supports https://, /path, prompt: queries, and relative campus page links
+      s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+|\/[\w./#%?=&-]+|[\w-]+\.html[^\s\)]*|prompt:[^\s\)]+)\)/gi, (_, title, url) => {
         const safe = safeLink(url);
         if (!safe) return title;
+        if (safe.startsWith('prompt:')) {
+          const promptText = decodeURIComponent(safe.slice(7));
+          return `<a href="${escapeHtml(safe)}" class="kyana-prompt-pill" data-prompt="${escapeHtml(promptText)}">${title}</a>`;
+        }
         return `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${title}</a>`;
       });
 
@@ -2313,6 +2323,13 @@
 
     assertAndCleanPlaceholders(element);
     element.querySelectorAll('a[target="_blank"]').forEach(link => { link.rel = 'noopener noreferrer'; });
+    element.querySelectorAll('a[href^="prompt:"]').forEach(link => {
+      link.classList.add('kyana-prompt-pill');
+      link.removeAttribute('target');
+      link.removeAttribute('rel');
+      const href = link.getAttribute('href') || '';
+      link.dataset.prompt = decodeURIComponent(href.slice(7));
+    });
 
     KyanaCodeBlock.enhance(element);
     assertAndCleanPlaceholders(element);
@@ -3455,8 +3472,17 @@
   if (newChatBtn) newChatBtn.addEventListener('click', startNewChat);
   if (headerNewChatBtn) headerNewChatBtn.addEventListener('click', startNewChat);
 
-  // Suggestion card clicks delegate
+  // Suggestion card & interactive prompt pill clicks delegate
   document.addEventListener('click', (e) => {
+    const pill = e.target.closest('.kyana-prompt-pill, a[href^="prompt:"]');
+    if (pill) {
+      e.preventDefault();
+      const promptText = pill.dataset.prompt || decodeURIComponent((pill.getAttribute('href') || '').slice(7));
+      if (promptText) {
+        handleSend(promptText);
+      }
+      return;
+    }
     const card = e.target.closest('.kyana-suggestion-card');
     if (card && card.dataset.prompt) {
       handleSend(card.dataset.prompt);

@@ -1572,9 +1572,8 @@
 
     .post-comment-text {
       font-size: 13.5px;
-      line-height: 1.45;
+      line-height: 1.5;
       color: var(--text-primary, #18181b);
-      white-space: pre-wrap;
       word-break: break-word;
       margin: 0;
     }
@@ -1582,6 +1581,209 @@
     [data-theme="dark"] .post-comment-text,
     body.dark-mode .post-comment-text {
       color: #e4e4e7 !important;
+    }
+
+    .post-comment-text.formatted-comment p.comment-p {
+      margin: 0 0 6px 0;
+      line-height: 1.5;
+    }
+    .post-comment-text.formatted-comment p.comment-p:last-child {
+      margin-bottom: 0;
+    }
+
+    .post-comment-text.formatted-comment strong {
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+    }
+    [data-theme="dark"] .post-comment-text.formatted-comment strong,
+    body.dark-mode .post-comment-text.formatted-comment strong {
+      color: #f8fafc !important;
+    }
+
+    .post-comment-text.formatted-comment em {
+      font-style: italic;
+    }
+
+    .post-comment-text.formatted-comment code.comment-inline-code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      padding: 1.5px 5.5px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: #e11d48;
+    }
+    [data-theme="dark"] .post-comment-text.formatted-comment code.comment-inline-code,
+    body.dark-mode .post-comment-text.formatted-comment code.comment-inline-code {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #fb7185;
+    }
+
+    .post-comment-text.formatted-comment ul.comment-list,
+    .post-comment-text.formatted-comment ol.comment-list {
+      margin: 4px 0 6px 0;
+      padding-left: 20px;
+    }
+    .post-comment-text.formatted-comment ul.comment-list:last-child,
+    .post-comment-text.formatted-comment ol.comment-list:last-child {
+      margin-bottom: 0;
+    }
+    .post-comment-text.formatted-comment li.comment-list-item {
+      margin: 2px 0;
+      line-height: 1.45;
+    }
+
+    .post-comment-text.formatted-comment .comment-heading {
+      font-size: 13.5px;
+      margin: 6px 0 4px 0;
+      color: var(--text-primary, #0f172a);
+    }
+    [data-theme="dark"] .post-comment-text.formatted-comment .comment-heading,
+    body.dark-mode .post-comment-text.formatted-comment .comment-heading {
+      color: #f8fafc !important;
+    }
+
+    .post-comment-text.formatted-comment blockquote.comment-quote {
+      margin: 4px 0 6px 0;
+      padding: 4px 10px;
+      border-left: 3px solid #3b82f6;
+      background: rgba(59, 130, 246, 0.06);
+      border-radius: 0 6px 6px 0;
+      font-size: 13px;
+      color: var(--text-secondary, #475569);
+    }
+    [data-theme="dark"] .post-comment-text.formatted-comment blockquote.comment-quote,
+    body.dark-mode .post-comment-text.formatted-comment blockquote.comment-quote {
+      background: rgba(59, 130, 246, 0.12);
+      color: #cbd5e1;
+    }
+
+    .post-comment-text.formatted-comment .comment-code-block {
+      margin: 6px 0;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      background: #18181b;
+      color: #f4f4f5;
+    }
+    .post-comment-text.formatted-comment .comment-code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 11px;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      color: #a1a1aa;
+    }
+    .post-comment-text.formatted-comment .comment-code-copy-btn {
+      background: none;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #e4e4e7;
+      padding: 1px 6px;
+      font-size: 10px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .post-comment-text.formatted-comment .comment-code-pre {
+      margin: 0;
+      padding: 8px 10px;
+      font-size: 12px;
+      line-height: 1.4;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      overflow-x: auto;
+    }
+
+    .post-comment-text.formatted-comment .comment-mention-badge {
+      display: inline-block;
+      font-weight: 600;
+      padding: 0 4px;
+      border-radius: 4px;
+      background: rgba(59, 130, 246, 0.12);
+      color: #2563eb;
+      font-size: 12.5px;
+    }
+    .post-comment-text.formatted-comment .comment-mention-badge.kyana-mention {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(99, 102, 241, 0.18));
+      color: #4f46e5;
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      font-weight: 700;
+    }
+    [data-theme="dark"] .post-comment-text.formatted-comment .comment-mention-badge,
+    body.dark-mode .post-comment-text.formatted-comment .comment-mention-badge {
+      background: rgba(59, 130, 246, 0.25);
+      color: #93c5fd;
+    }
+    [data-theme="dark"] .post-comment-text.formatted-comment .comment-mention-badge.kyana-mention,
+    body.dark-mode .post-comment-text.formatted-comment .comment-mention-badge.kyana-mention {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(99, 102, 241, 0.3));
+      color: #a5b4fc;
+      border-color: rgba(165, 180, 252, 0.35);
+    }
+
+    /* Kyana AI Specific Comment Bubble & Glow */
+    .post-comment-item.kyana-comment-item .post-comment-bubble {
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.06);
+    }
+    [data-theme="dark"] .post-comment-item.kyana-comment-item .post-comment-bubble,
+    body.dark-mode .post-comment-item.kyana-comment-item .post-comment-bubble {
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.06) 100%) !important;
+      border: 1px solid rgba(99, 102, 241, 0.35) !important;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    }
+    .comment-avatar-img.kyana-avatar-glow {
+      border: 1.5px solid #3b82f6 !important;
+      background: #eff6ff !important;
+      box-shadow: 0 0 6px rgba(59, 130, 246, 0.3);
+    }
+    [data-theme="dark"] .comment-avatar-img.kyana-avatar-glow,
+    body.dark-mode .comment-avatar-img.kyana-avatar-glow {
+      border-color: #6366f1 !important;
+      background: #1e1e24 !important;
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+    }
+
+    /* Kyana AI Live Replying / Thinking Indicator */
+    .kyana-thinking-bubble {
+      padding: 8px 12px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(99, 102, 241, 0.05));
+      border: 1px dashed rgba(59, 130, 246, 0.35);
+      animation: kyanaThinkingPulse 2s infinite ease-in-out;
+    }
+    @keyframes kyanaThinkingPulse {
+      0%, 100% { border-color: rgba(59, 130, 246, 0.3); box-shadow: 0 0 0 rgba(59, 130, 246, 0); }
+      50% { border-color: rgba(99, 102, 241, 0.65); box-shadow: 0 0 8px rgba(99, 102, 241, 0.2); }
+    }
+    .kyana-thinking-dots-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+    .kyana-pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3b82f6;
+      display: inline-block;
+      animation: kyanaDotBounce 1.4s infinite ease-in-out both;
+    }
+    .kyana-pulse-dot:nth-child(1) { animation-delay: -0.32s; }
+    .kyana-pulse-dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes kyanaDotBounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1.1); opacity: 1; }
+    }
+    .kyana-thinking-label {
+      font-size: 12px;
+      color: var(--text-muted, #64748b);
+      margin-left: 4px;
+      font-style: italic;
     }
 
     .post-comment-reply-mention {
@@ -5520,21 +5722,104 @@
       return (u && u.name) ? `Comment as ${escapeHtml(u.name)}…` : 'Write a comment…';
     }
 
+    const pendingKyanaMentions = new Map(); // postId -> { userCommentId, parentCommentId, timer, attempts }
+
+    function renderKyanaThinkingIndicatorHtml(postId) {
+      return `
+        <div class="post-comment-item kyana-comment-item kyana-thinking-item" id="kyana-thinking-${postId}">
+          <div class="post-comment-avatar">
+            <img src="/images/kyana-mono-thinking.png" alt="Kyana AI" class="comment-avatar-img kyana-avatar-glow">
+          </div>
+          <div class="post-comment-body">
+            <div class="post-comment-bubble kyana-comment-bubble kyana-thinking-bubble">
+              <div class="post-comment-header">
+                <span class="post-comment-author">Kyana AI</span>
+                <span class="post-verified-badge post-kyana-badge" style="font-size: 9.5px; padding: 1.5px 6px; line-height: 1.2; background: linear-gradient(135deg, #2563eb, #6366f1); color: #fff; font-weight: 700; border-radius: 9999px; display: inline-flex; align-items: center; gap: 3px;"><svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><path d="M12 2L14.4 7.6L20 10L14.4 12.4L12 18L9.6 12.4L4 10L9.6 7.6L12 2Z"/></svg>Kyana AI</span>
+              </div>
+              <div class="kyana-thinking-dots-row">
+                <span class="kyana-pulse-dot"></span><span class="kyana-pulse-dot"></span><span class="kyana-pulse-dot"></span>
+                <span class="kyana-thinking-label">Kyana is analyzing post and preparing reply…</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function pollForKyanaReply(postId, userCommentId, parentCommentId) {
+      const pid = Number(postId);
+      if (!pid) return;
+
+      if (pendingKyanaMentions.has(pid)) {
+        const existing = pendingKyanaMentions.get(pid);
+        if (existing.timer) clearInterval(existing.timer);
+      }
+
+      pendingKyanaMentions.set(pid, {
+        userCommentId: Number(userCommentId || 0),
+        parentCommentId: Number(parentCommentId || userCommentId || 0),
+        timer: null,
+        attempts: 0
+      });
+
+      // Immediately sync UI so the thinking indicator appears right below the user comment
+      syncAllCommentListsForPost(pid);
+
+      let attempts = 0;
+      const maxAttempts = 16; // 16 * 1100ms = ~17.6s
+      const timer = setInterval(async () => {
+        attempts++;
+        try {
+          const comments = await loadCommentsForPost(pid, true);
+          const hasKyanaReply = Array.isArray(comments) && comments.some(root => {
+            const isKyanaRoot = (String(root.studentId).toLowerCase() === 'kyana_ai' || String(root.userId).toLowerCase() === 'kyana_ai') && Number(root.id) > Number(userCommentId);
+            const isKyanaChild = Array.isArray(root.replies) && root.replies.some(r =>
+              (String(r.studentId).toLowerCase() === 'kyana_ai' || String(r.userId).toLowerCase() === 'kyana_ai') && Number(r.id) > Number(userCommentId)
+            );
+            return isKyanaRoot || isKyanaChild;
+          });
+
+          if (hasKyanaReply || attempts >= maxAttempts) {
+            clearInterval(timer);
+            pendingKyanaMentions.delete(pid);
+            syncAllCommentListsForPost(pid);
+            if (hasKyanaReply) {
+              const newEl = document.querySelector(`.kyana-comment-item[data-comment-id]`);
+              if (newEl) {
+                newEl.style.transition = 'background-color 0.4s ease';
+                newEl.style.backgroundColor = 'rgba(59, 130, 246, 0.08)';
+                setTimeout(() => { newEl.style.backgroundColor = ''; }, 1800);
+              }
+            }
+          }
+        } catch (_) {
+          if (attempts >= maxAttempts) {
+            clearInterval(timer);
+            pendingKyanaMentions.delete(pid);
+            syncAllCommentListsForPost(pid);
+          }
+        }
+      }, 1100);
+
+      const rec = pendingKyanaMentions.get(pid);
+      if (rec) rec.timer = timer;
+    }
+
     function renderPostCommentItem(c, postIdOverride) {
       const postId = postIdOverride || c.postId || c.post_id || activeCommentComposerState.postId || 0;
       const studentId = c.studentId || c.student_id || c.userId || '';
-      const profileUrl = 'profile.html?id=' + encodeURIComponent(studentId);
-      const avatarUrl = safePostUrl(c.avatarUrl || c.avatar_url);
+      const isKyana = (String(studentId).toLowerCase() === 'kyana_ai' || String(c.userId).toLowerCase() === 'kyana_ai' || (c.name && String(c.name).toLowerCase() === 'kyana ai') || c.role === 'bot' || c.role === 'assistant');
+      const profileUrl = isKyana ? '#' : ('profile.html?id=' + encodeURIComponent(studentId));
+      const avatarUrl = isKyana ? '/images/kyana-mono-thinking.png' : safePostUrl(c.avatarUrl || c.avatar_url);
       const avatar = avatarUrl
-        ? `<img src="${avatarUrl}" alt="${escapeHtml(c.name || 'User')}" class="comment-avatar-img">`
+        ? `<img src="${avatarUrl}" alt="${escapeHtml(c.name || (isKyana ? 'Kyana AI' : 'User'))}" class="comment-avatar-img ${isKyana ? 'kyana-avatar-glow' : ''}">`
         : escapeHtml((c.name || 'S').charAt(0).toUpperCase());
 
       const isSpecial = c.role === 'admin' || c.role === 'teacher' || c.role === 'faculty';
       const isCR = c.role === 'cr' || c.role === 'class_rep';
-      const isKyana = c.userId === 'KYANA_AI' || c.studentId === 'KYANA_AI' || c.role === 'bot' || c.role === 'assistant';
       let roleBadge = '';
       if (isKyana) {
-        roleBadge = `<span class="post-verified-badge" style="font-size: 9.5px; padding: 1px 6px; line-height: 1.2; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 999px;">Kyana AI</span>`;
+        roleBadge = `<span class="post-verified-badge post-kyana-badge" style="font-size: 9.5px; padding: 1.5px 6px; line-height: 1.2; background: linear-gradient(135deg, #2563eb, #6366f1); color: #fff; font-weight: 700; border-radius: 9999px; display: inline-flex; align-items: center; gap: 3px; box-shadow: 0 1px 3px rgba(37,99,235,0.2);"><svg viewBox="0 0 24 24" width="9" height="9" fill="currentColor"><path d="M12 2L14.4 7.6L20 10L14.4 12.4L12 18L9.6 12.4L4 10L9.6 7.6L12 2Z"/></svg>Kyana AI</span>`;
       } else if (c.role === 'admin') {
         roleBadge = `<span class="post-verified-badge post-admin-badge" style="font-size: 9.5px; padding: 1px 5px; line-height: 1.2;">Admin</span>`;
       } else if (c.role === 'teacher' || c.role === 'faculty') {
@@ -5543,7 +5828,7 @@
         roleBadge = `<span class="post-verified-badge post-cr-badge" style="font-size: 9.5px; padding: 1px 5px; line-height: 1.2;">Class Rep</span>`;
       }
 
-      const handleHtml = isSpecial && studentId
+      const handleHtml = (isSpecial && !isKyana && studentId)
         ? `<span class="post-student-handle" style="font-size: 11.5px;">@${escapeHtml(studentId)}</span>`
         : '';
 
@@ -5568,24 +5853,38 @@
         </div>
       ` : '';
 
+      const renderedBodyHtml = c.isDeleted
+        ? `${replyMention}${escapeHtml(c.content || 'This comment was deleted.')}`
+        : `${replyMention}${(typeof renderCommentMarkdown === 'function' ? renderCommentMarkdown(c.content || '') : escapeHtml(c.content || ''))}`;
+
+      // Check if this comment has a pending Kyana reply indicator
+      let thinkingIndicatorHtml = '';
+      if (pendingKyanaMentions && pendingKyanaMentions.has(Number(postId))) {
+        const pending = pendingKyanaMentions.get(Number(postId));
+        if (Number(pending.parentCommentId) === Number(c.id) || Number(pending.userCommentId) === Number(c.id)) {
+          thinkingIndicatorHtml = renderKyanaThinkingIndicatorHtml(postId);
+        }
+      }
+
       return `
-        <div class="post-comment-item" data-comment-id="${c.id}">
+        <div class="post-comment-item ${isKyana ? 'kyana-comment-item' : ''}" data-comment-id="${c.id}">
           <a href="${profileUrl}" class="post-comment-avatar">${avatar}</a>
           <div class="post-comment-body">
-            <div class="post-comment-bubble">
+            <div class="post-comment-bubble ${isKyana ? 'kyana-comment-bubble' : ''}">
               <div class="post-comment-header">
-                <a href="${profileUrl}" class="post-comment-author">${escapeHtml(c.name || 'Student')}</a>
+                <a href="${profileUrl}" class="post-comment-author">${escapeHtml(c.name || (isKyana ? 'Kyana AI' : 'Student'))}</a>
                 ${roleBadge}
                 ${handleHtml}
                 <time class="post-comment-time" datetime="${escapeHtml(c.created_at || c.createdAt || '')}">&middot; ${timeAgo(c.created_at || c.createdAt)}</time>
                 ${c.edited && !c.isDeleted ? '<span style="font-size: 10.5px; color: var(--text-muted, #86868b);">· Edited</span>' : ''}
               </div>
-              <p class="post-comment-text" style="${c.isDeleted ? 'font-style: italic; color: var(--text-muted, #86868b);' : ''}">${replyMention}${escapeHtml(c.content || '')}</p>
+              <div class="post-comment-text formatted-comment" style="${c.isDeleted ? 'font-style: italic; color: var(--text-muted, #86868b);' : ''}">${renderedBodyHtml}</div>
             </div>
             ${actionsBarHtml}
-            ${Array.isArray(c.replies) && c.replies.length > 0 ? `
+            ${(Array.isArray(c.replies) && c.replies.length > 0) || thinkingIndicatorHtml ? `
               <div class="post-comment-replies">
-                ${c.replies.map(r => renderPostCommentItem(r, postId)).join('')}
+                ${Array.isArray(c.replies) ? c.replies.map(r => renderPostCommentItem(r, postId)).join('') : ''}
+                ${thinkingIndicatorHtml}
               </div>
             ` : ''}
           </div>
@@ -5815,6 +6114,9 @@
         if (!res.ok) throw new Error(data.message || 'Could not post comment.');
         if (typeof window !== 'undefined' && window.SWR) window.SWR.invalidate('/api/posts');
 
+        const isKyanaMention = /(?:^|\s)@kyana(?:_ai)?\b/i.test(content);
+        const replyingParentId = isReplying ? activeCommentComposerState.parentCommentId : null;
+
         textarea.value = '';
         delete textarea.dataset.wasEditing;
         cancelCommentComposerMode();
@@ -5822,6 +6124,13 @@
         if (data.comment_count !== undefined) {
           updatePostCommentCountEverywhere(pid, data.comment_count);
         }
+
+        if (isKyanaMention && !isEditing) {
+          const userCommentId = data.comment ? data.comment.id : 0;
+          const parentCommentId = replyingParentId || userCommentId;
+          pollForKyanaReply(pid, userCommentId, parentCommentId);
+        }
+
         showToast(isEditing ? 'Comment updated' : 'Comment posted');
       } catch (err) {
         showToast(escapeHtml(err.message || 'Failed to post comment'));

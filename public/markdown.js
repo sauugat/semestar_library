@@ -461,7 +461,7 @@
    */
   function copyCodeSnippet(button) {
     if (!button) return;
-    const block = button.closest('.md-code-block-wrapper');
+    const block = button.closest('.md-code-block-wrapper, .comment-code-block');
     if (!block) return;
     const codeEl = block.querySelector('code');
     if (!codeEl) return;
@@ -480,10 +480,231 @@
     });
   }
 
+  /**
+   * Parse inline Markdown syntax within a comment line or block.
+   * Handles bold (**text**, __text__), italic (*text*, _text_), inline code (`code`),
+   * strikethrough (~~text~~), safe underline (<u>text</u>), links [text](url),
+   * and student/AI mention tags (@kyana, @student).
+   */
+  function parseCommentInline(text) {
+    if (!text) return '';
+
+    // First replace inline code so its contents aren't altered by bold/italic rules
+    const codePlaceholders = [];
+    text = text.replace(/`([^`]+)`/g, (_, code) => {
+      const idx = codePlaceholders.length;
+      codePlaceholders.push(`<code class="comment-inline-code">${escapeHtml(code)}</code>`);
+      return `\x01CCODE_${idx}\x02`;
+    });
+
+    // Safe Underline tag: <u>text</u>
+    text = text.replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/gi, '<u>$1</u>');
+
+    // Bold + Italic: ***text***
+    text = text.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+
+    // Bold: **text** or __text__
+    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+
+    // Italic: *text* or _text_
+    text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
+
+    // Strikethrough: ~~text~~
+    text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+
+    // Mentions: @kyana or @kyana_ai
+    text = text.replace(/(^|\s)@kyana(?:_ai)?\b/gi, '$1<span class="comment-mention-badge kyana-mention">@kyana</span>');
+
+    // General user mentions: @studentId or @username
+    text = text.replace(/(^|\s)@([a-zA-Z0-9_.-]{2,30})\b/g, (match, prefix, user) => {
+      if (/^kyana/i.test(user)) return match;
+      return `${prefix}<span class="comment-mention-badge">@${escapeHtml(user)}</span>`;
+    });
+
+    // Links: [text](https://...)
+    text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/gi, (_, title, url) => {
+      const safe = sanitizeUrl(url);
+      if (!safe) return escapeHtml(title);
+      return `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer" class="comment-link">${escapeHtml(title)}</a>`;
+    });
+
+    // Auto-link standalone URLs
+    text = text.replace(/(^|[^"'>])(https?:\/\/[^\s<)]+)/gi, (_, prefix, url) => {
+      const safe = sanitizeUrl(url);
+      if (!safe) return prefix + url;
+      return `${prefix}<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer" class="comment-link">${escapeHtml(url)}</a>`;
+    });
+
+    // Restore inline code blocks
+    text = text.replace(/\x01CCODE_(\d+)\x02/g, (_, idx) => codePlaceholders[Number(idx)] || '');
+
+    return text;
+  }
+
+  /**
+   * Main Markdown to HTML renderer for comment replies.
+   * Formats lists, bold headers, code snippets, blockquotes, and paragraphs
+   * cleanly and systematically for comment bubbles.
+   */
+  function renderCommentMarkdown(rawText) {
+    if (!rawText || !rawText.trim()) return '';
+
+    // Normalize line endings
+    const normalized = String(rawText).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // Extract fenced code blocks
+    const codeBlocks = [];
+    const textWithoutCode = normalized.replace(/```([a-zA-Z0-9_#-]*)[ \t]*\n([\s\S]*?)```/g, (_, lang, code) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push({
+        lang: (lang || '').trim().toLowerCase() || 'code',
+        code: code.replace(/\n+$/, '')
+      });
+      return `\n\x01COMMENT_CODE_${idx}\x02\n`;
+    });
+
+    function renderCodeBlockHtml(block) {
+      if (!block) return '';
+      const escapedCode = escapeHtml(block.code);
+      const langDisplay = escapeHtml(block.lang || 'code');
+      return (
+        `<div class="comment-code-block">` +
+          `<div class="comment-code-header">` +
+            `<span class="comment-code-lang">${langDisplay}</span>` +
+            `<button type="button" class="comment-code-copy-btn" onclick="copyCodeSnippet(this)" aria-label="Copy code">Copy</button>` +
+          `</div>` +
+          `<pre class="comment-code-pre"><code>${escapedCode}</code></pre>` +
+        `</div>`
+      );
+    }
+
+    function parseInline(text) {
+      if (!text) return '';
+      let parsed = parseCommentInline(text);
+      // Restore any embedded code block tokens
+      parsed = parsed.replace(/\x01COMMENT_CODE_(\d+)\x02/g, (_, idx) => {
+        return renderCodeBlockHtml(codeBlocks[Number(idx)]);
+      });
+      return parsed;
+    }
+
+    const lines = textWithoutCode.split('\n');
+    const output = [];
+    let inList = null; // 'ul' or 'ol'
+    let listItems = [];
+    let paraLines = [];
+
+    function flushList() {
+      if (inList) {
+        output.push(`<${inList} class="comment-list">${listItems.join('')}</${inList}>`);
+        inList = null;
+        listItems = [];
+      }
+    }
+
+    function flushPara() {
+      if (paraLines.length > 0) {
+        const text = paraLines.map(l => parseInline(escapeHtml(l))).join('<br/>');
+        output.push(`<p class="comment-p">${text}</p>`);
+        paraLines = [];
+      }
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Code block placeholder
+      const codeMatch = trimmed.match(/^\x01COMMENT_CODE_(\d+)\x02$/);
+      if (codeMatch) {
+        flushList();
+        flushPara();
+        const block = codeBlocks[Number(codeMatch[1])];
+        if (block) {
+          output.push(renderCodeBlockHtml(block));
+        }
+        continue;
+      }
+
+      // Empty line -> paragraph separator
+      if (!trimmed) {
+        flushList();
+        flushPara();
+        continue;
+      }
+
+      // Blockquote (> text)
+      if (/^&gt;|^>/.test(trimmed)) {
+        flushList();
+        flushPara();
+        const qText = trimmed.replace(/^&gt;\s*|^>\s*/, '');
+        output.push(`<blockquote class="comment-quote">${parseInline(escapeHtml(qText))}</blockquote>`);
+        continue;
+      }
+
+      // Bullet list item: - , * , •
+      const bulletMatch = trimmed.match(/^([-*•])\s+(.+)$/);
+      if (bulletMatch) {
+        flushPara();
+        if (inList !== 'ul') {
+          flushList();
+          inList = 'ul';
+        }
+        listItems.push(`<li class="comment-list-item">${parseInline(escapeHtml(bulletMatch[2]))}</li>`);
+        continue;
+      }
+
+      // Numbered list item: 1. , 2. , 1)
+      const numMatch = trimmed.match(/^(\d+)[.)]\s+(.+)$/);
+      if (numMatch) {
+        flushPara();
+        if (inList !== 'ol') {
+          flushList();
+          inList = 'ol';
+        }
+        listItems.push(`<li class="comment-list-item">${parseInline(escapeHtml(numMatch[2]))}</li>`);
+        continue;
+      }
+
+      // Markdown Headings (### Title, ## Title, # Title)
+      const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+      if (headingMatch) {
+        flushList();
+        flushPara();
+        output.push(`<div class="comment-heading"><strong>${parseInline(escapeHtml(headingMatch[2]))}</strong></div>`);
+        continue;
+      }
+
+      // Regular paragraph line
+      flushList();
+      paraLines.push(line);
+    }
+
+    flushList();
+    flushPara();
+
+    return output.join('');
+  }
+
   // Export functions to global scope
   global.renderPostMarkdown = renderPostMarkdown;
+  global.renderCommentMarkdown = renderCommentMarkdown;
+  global.parseCommentInline = parseCommentInline;
   global.htmlToMarkdown = htmlToMarkdown;
   global.copyCodeSnippet = copyCodeSnippet;
   global.parseInlineMarkdown = parseInlineMarkdown;
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      renderPostMarkdown,
+      renderCommentMarkdown,
+      parseCommentInline,
+      htmlToMarkdown,
+      copyCodeSnippet,
+      parseInlineMarkdown
+    };
+  }
 
 })(typeof window !== 'undefined' ? window : globalThis);

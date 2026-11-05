@@ -479,19 +479,35 @@ describe('Kyana AI — Critical Notice Retrieval & Unified Policy Regression Sui
         academicContext: sem3StudentContext
       });
 
-      assert.ok(chatRes.reply.includes('Resumption of Regular Classes'), 'Reply must include the notice title');
-      assert.ok(chatRes.reply.includes('Sau Gat'), 'Reply must include the author name');
-      assert.ok(/Admin/i.test(chatRes.reply), 'Reply must include the author authority (Admin)');
-      assert.ok(chatRes.reply.includes('2026-11-03'), 'Reply must state the publication date');
-      assert.ok(
-        /publication date,\s*NOT the class start date/i.test(chatRes.reply) ||
-        /No exact class resumption calendar date is stated/i.test(chatRes.reply),
-        'Reply must clearly distinguish publication date from class start date and note that the schedule/timetable determines the exact date'
+      assert.match(
+        chatRes.reply,
+        /latest official notice anusar regular classes resume hune kura cha/i,
+        'Reply must ground in the official notice conversationally'
       );
-      assert.ok(
-        Array.isArray(chatRes.resourceCards) && chatRes.resourceCards.some(c => c.type === 'notice' && c.id === 101),
-        'Reply must preserve the notice resource card for post 101'
+      assert.match(
+        chatRes.reply,
+        /exact (?:starting )?date (?:notice ma )?mention gareko chaina/i,
+        'Reply must note that exact starting date is not stated'
       );
+      assert.match(
+        chatRes.reply,
+        /Updated timetable publish bhayepachi/i,
+        'Reply must indicate updated timetable will confirm'
+      );
+      // Cleanliness checks: No raw notice dumps, metadata headers, or fake attachments
+      assert.doesNotMatch(chatRes.reply, /Based on \*\*Resumption of Regular Classes\*\*/);
+      assert.doesNotMatch(chatRes.reply, /\(Admin — Official Notice\)/);
+      assert.doesNotMatch(chatRes.reply, /\|\s*Semester:/);
+      assert.doesNotMatch(chatRes.reply, /\*\(Related notice attached below\)\*/);
+      assert.doesNotMatch(chatRes.reply, /\[Note: Superseded by a newer notice\]/);
+
+      // Verify ground truth is preserved in the resource card
+      const card = chatRes.resourceCards?.find(c => c.type === 'notice' && c.id === 101);
+      assert.ok(card, 'Reply must preserve the notice resource card for post 101');
+      assert.equal(card.title, 'Resumption of Regular Classes');
+      assert.equal(card.authorName, 'Sau Gat');
+      assert.equal(card.authorRole, 'admin');
+      assert.equal(card.publishedDate, '2026-11-03');
     } finally {
       if (prevFlag === undefined) delete process.env.KYANA_KNOWLEDGE_V3;
       else process.env.KYANA_KNOWLEDGE_V3 = prevFlag;
@@ -684,17 +700,21 @@ describe('Kyana AI — Critical Notice Retrieval & Unified Policy Regression Sui
       !chatRes.reply.includes('No matching notices found.'),
       'Must NEVER return "No matching notices found."'
     );
-    assert.ok(
-      chatRes.reply.includes('Resumption of Regular Classes'),
-      'Must include notice title "Resumption of Regular Classes"'
+    assert.match(
+      chatRes.reply,
+      /latest official notice anusar regular classes resume hune kura cha/i,
+      'Must give conversational answer grounded in latest notice'
     );
-    assert.ok(
-      chatRes.reply.includes('Sau Gat'),
-      'Must credit author Sau Gat'
+    assert.match(
+      chatRes.reply,
+      /exact (?:starting )?date (?:notice ma )?mention gareko chaina/i,
+      'Must note exact starting date is not mentioned'
     );
+    assert.doesNotMatch(chatRes.reply, /Based on \*\*Resumption of Regular Classes\*\*/);
+    assert.doesNotMatch(chatRes.reply, /\*\(Related notice attached below\)\*/);
     assert.ok(
-      chatRes.resourceCards.some(c => c.id === 184 && c.title === 'Resumption of Regular Classes'),
-      'Must attach resourceCard with id 184 and correct title'
+      chatRes.resourceCards.some(c => c.id === 184 && c.title === 'Resumption of Regular Classes' && c.authorName === 'Sau Gat'),
+      'Must attach resourceCard with id 184, correct title, and author Sau Gat'
     );
   });
 
@@ -826,8 +846,12 @@ describe('Kyana AI — Critical Notice Retrieval & Unified Policy Regression Sui
 
     // D. handleChat for the class resumption inquiry must return the genuine admin notice and not the fake student notice
     const chatRes = await handleChat(db, 'Hamro class kaile bata ho?', callerContext);
-    assert.ok(chatRes.reply.includes('Resumption of Regular Classes'), 'Must return genuine admin notice title');
+    assert.match(chatRes.reply, /latest official notice/i);
     assert.ok(!chatRes.reply.includes('All classes and exams are cancelled'), 'Must not return student fake cancellation');
+    assert.ok(
+      chatRes.resourceCards.some(c => c.id === 502 && c.title === 'Resumption of Regular Classes'),
+      'Must attach genuine admin notice resourceCard (id=502)'
+    );
   });
 
   test('11. Schema introspection works for SQLite and PostgreSQL, and cache prevents cross-connection contamination', async () => {

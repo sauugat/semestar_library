@@ -1156,15 +1156,25 @@
       if (!panel.dataset.loaded) {
         const res = await fetch(`/api/files/${fileId}/comments`);
         const comments = await res.json();
-        panel.querySelector('.comment-list').innerHTML = comments.map(c => `
-          <div class="comment-item">
-            <div class="comment-avatar">${escapeHtml(c.commenterName.charAt(0).toUpperCase())}</div>
-            <div style="flex: 1; min-width: 0;">
-              <p class="comment-author">${escapeHtml(c.commenterName)}</p>
-              <p class="comment-text">${escapeHtml(c.commentText)}</p>
+        panel.querySelector('.comment-list').innerHTML = comments.map(c => {
+          const isKyana = (c.studentId === 'kyana_ai' || (c.commenterName && c.commenterName.toLowerCase() === 'kyana ai'));
+          const avatar = isKyana
+            ? `<img src="/images/kyana-mono-thinking.png" alt="Kyana AI" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 1.5px solid #3b82f6;">`
+            : escapeHtml(c.commenterName.charAt(0).toUpperCase());
+          const badge = isKyana
+            ? `<span style="font-size: 9.5px; padding: 1px 6px; line-height: 1.2; background: linear-gradient(135deg, #2563eb, #6366f1); color: #fff; font-weight: 700; border-radius: 9999px; margin-left: 6px;">Kyana AI</span>`
+            : '';
+          const bodyHtml = typeof renderCommentMarkdown === 'function' ? renderCommentMarkdown(c.commentText || '') : escapeHtml(c.commentText || '');
+          return `
+            <div class="comment-item ${isKyana ? 'kyana-comment-item' : ''}" style="${isKyana ? 'border-left: 3px solid #3b82f6; padding-left: 8px; background: rgba(59,130,246,0.04); border-radius: 6px; margin: 4px 0;' : ''}">
+              <div class="comment-avatar">${avatar}</div>
+              <div style="flex: 1; min-width: 0;">
+                <p class="comment-author">${escapeHtml(c.commenterName)}${badge}</p>
+                <div class="comment-text">${bodyHtml}</div>
+              </div>
             </div>
-          </div>
-        `).join('') || '<p class="comment-empty">No comments yet.</p>';
+          `;
+        }).join('') || '<p class="comment-empty">No comments yet.</p>';
         panel.dataset.loaded = 'true';
       }
     }
@@ -1217,6 +1227,7 @@
 
     loadProfile();
   </script>
+  <script src="/markdown.js?v=26"></script>
   <script src="chatbot.js"></script>
   <script src="auth-modal.js"></script>
   <!-- PWA Service Worker Registration -->

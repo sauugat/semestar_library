@@ -322,6 +322,37 @@ export default function PostDetailScreen() {
           }, 100);
         }
       }
+
+      if (/(?:^|\s)@kyana(?:_ai)?\b/i.test(text)) {
+        let pollAttempts = 0;
+        const pollTimer = setInterval(async () => {
+          pollAttempts++;
+          if (pollAttempts > 12) {
+            clearInterval(pollTimer);
+            return;
+          }
+          try {
+            const freshComments = await getComments(post.id);
+            if (Array.isArray(freshComments)) {
+              const foundReply = freshComments.some((root) => {
+                const rootIsKyana =
+                  String(root.studentId).toLowerCase() === 'kyana_ai' || String(root.userId).toLowerCase() === 'kyana_ai';
+                const replyIsKyana =
+                  Array.isArray(root.replies) &&
+                  root.replies.some(
+                    (r: any) =>
+                      String(r.studentId).toLowerCase() === 'kyana_ai' || String(r.userId).toLowerCase() === 'kyana_ai'
+                  );
+                return rootIsKyana || replyIsKyana;
+              });
+              if (foundReply) {
+                setComments(freshComments);
+                clearInterval(pollTimer);
+              }
+            }
+          } catch (_) {}
+        }, 1400);
+      }
     } catch (err: any) {
       Alert.alert('Error', err?.message || 'Could not post comment.');
     } finally {

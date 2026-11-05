@@ -13,6 +13,7 @@ import { Text } from '@/components/ui/Typography';
 import { Avatar } from '@/components/ui/Avatar';
 import { safeParseDate } from '@/utils/date';
 import { PostComment } from '@/services/posts';
+import { PostMarkdown } from '@/components/PostMarkdown';
 
 interface CommentItemProps {
   comment: PostComment;
@@ -89,7 +90,7 @@ export function CommentItem({
 
   const avatarUrl = getFullUrl(comment.avatarUrl);
   const roleLower = (comment.role || '').toLowerCase();
-  const isKyana = comment.userId === 'KYANA_AI' || comment.studentId === 'KYANA_AI' || roleLower === 'bot' || roleLower === 'assistant';
+  const isKyana = String(comment.userId || '').toLowerCase() === 'kyana_ai' || String(comment.studentId || '').toLowerCase() === 'kyana_ai' || (comment.name && comment.name.toLowerCase() === 'kyana ai') || roleLower === 'bot' || roleLower === 'assistant';
   const roleBadgeLabel =
     isKyana
       ? 'Kyana AI'
@@ -157,7 +158,15 @@ export function CommentItem({
                 {comment.isDeleted ? 'Deleted Comment' : comment.name || 'Student'}
               </Text>
 
-              {!comment.isDeleted && roleBadgeLabel && (
+              {!comment.isDeleted && isKyana && (
+                <View style={[styles.roleBadge, { backgroundColor: 'rgba(59, 130, 246, 0.12)', borderColor: 'rgba(59, 130, 246, 0.35)', flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+                  <Ionicons name="sparkles" size={8} color="#2563eb" />
+                  <Text weight="700" style={{ color: '#2563eb', fontSize: 8.5 }}>
+                    Kyana AI
+                  </Text>
+                </View>
+              )}
+              {!comment.isDeleted && !isKyana && roleBadgeLabel && (
                 <View style={[styles.roleBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                   <Text weight="700" style={{ color: colors.textSecondary, fontSize: 9 }}>
                     {roleBadgeLabel}
@@ -178,17 +187,24 @@ export function CommentItem({
           </View>
 
           {/* Comment Text Body */}
-          <Text
-            style={[
-              styles.commentBody,
-              {
-                color: comment.isDeleted ? colors.textMuted : colors.text,
-                fontStyle: comment.isDeleted ? 'italic' : 'normal',
-              },
-            ]}
-          >
-            {comment.content}
-          </Text>
+          {comment.isDeleted ? (
+            <Text
+              style={[
+                styles.commentBody,
+                {
+                  color: colors.textMuted,
+                  fontStyle: 'italic',
+                },
+              ]}
+            >
+              {comment.content}
+            </Text>
+          ) : (
+            <PostMarkdown
+              content={comment.content}
+              style={{ marginTop: 2, marginBottom: 4 }}
+            />
+          )}
 
           {/* Inline sub-action below comment: ONLY Reply is shown inline; Edit/Delete appear on long-press */}
           {!comment.isDeleted && onReply && (
@@ -263,8 +279,11 @@ export function CommentItem({
             const canDeleteReply = Boolean(!reply.isDeleted && (reply.canDelete || isReplyAuthor || isAdmin));
             const canEditReply = Boolean(!reply.isDeleted && Boolean(onEdit) && (reply.canEdit || isReplyAuthor));
             const replyRoleLower = (reply.role || '').toLowerCase();
+            const isKyanaReply = String(reply.userId || '').toLowerCase() === 'kyana_ai' || String(reply.studentId || '').toLowerCase() === 'kyana_ai' || (reply.name && String(reply.name).toLowerCase() === 'kyana ai');
             const replyBadge =
-              replyRoleLower === 'admin'
+              isKyanaReply
+                ? 'Kyana AI'
+                : replyRoleLower === 'admin'
                 ? 'Admin'
                 : replyRoleLower === 'teacher' || replyRoleLower === 'faculty'
                 ? 'Teacher'
@@ -307,7 +326,15 @@ export function CommentItem({
                       <Text weight="700" numberOfLines={1} style={[styles.replyUsernameText, { color: colors.text }]}>
                         {reply.isDeleted ? 'Deleted Reply' : reply.name || 'Student'}
                       </Text>
-                      {!reply.isDeleted && replyBadge && (
+                      {!reply.isDeleted && isKyanaReply && (
+                        <View style={[styles.roleBadge, { backgroundColor: 'rgba(59, 130, 246, 0.12)', borderColor: 'rgba(59, 130, 246, 0.35)', flexDirection: 'row', alignItems: 'center', gap: 3 }]}>
+                          <Ionicons name="sparkles" size={8} color="#2563eb" />
+                          <Text weight="700" style={{ color: '#2563eb', fontSize: 8 }}>
+                            Kyana AI
+                          </Text>
+                        </View>
+                      )}
+                      {!reply.isDeleted && !isKyanaReply && replyBadge && (
                         <View style={[styles.roleBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                           <Text weight="700" style={{ color: colors.textSecondary, fontSize: 8 }}>
                             {replyBadge}
@@ -327,26 +354,32 @@ export function CommentItem({
                     )}
                   </View>
 
-                  <Text
-                    style={[
-                      styles.commentBody,
-                      {
-                        color: reply.isDeleted ? colors.textMuted : colors.text,
-                        fontStyle: reply.isDeleted ? 'italic' : 'normal',
-                      },
-                    ]}
-                  >
-                    {!reply.isDeleted && reply.replyToUser?.name && (
-                      <Text
-                        weight="600"
-                        style={{ color: colors.primary, fontSize: 13.5 }}
-                        onPress={() => navigateToProfile(reply.replyToUser?.studentId)}
-                      >
-                        @{reply.replyToUser.name}{' '}
-                      </Text>
-                    )}
-                    {reply.content}
-                  </Text>
+                  {reply.isDeleted ? (
+                    <Text
+                      style={[
+                        styles.commentBody,
+                        {
+                          color: colors.textMuted,
+                          fontStyle: 'italic',
+                        },
+                      ]}
+                    >
+                      {reply.content}
+                    </Text>
+                  ) : (
+                    <View style={{ marginTop: 2, marginBottom: 4 }}>
+                      {reply.replyToUser?.name && (
+                        <Text
+                          weight="600"
+                          style={{ color: colors.primary, fontSize: 13.5, marginBottom: 2 }}
+                          onPress={() => navigateToProfile(reply.replyToUser?.studentId)}
+                        >
+                          @{reply.replyToUser.name}
+                        </Text>
+                      )}
+                      <PostMarkdown content={reply.content} />
+                    </View>
+                  )}
 
                   {!reply.isDeleted && onReply && (
                     <View style={styles.subActionRow}>

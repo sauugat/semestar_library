@@ -371,12 +371,14 @@ describe('Kyana AI — Source-Grounded Intelligence Upgrade (12 Required Scenari
       chatMode: 'roast'
     });
 
-    assert.match(res.reply, /Resumption of Regular Classes/);
-    assert.match(res.reply, /exact date notice ma mention gareko chaina|no exact class resumption calendar date is stated/i);
-    assert.match(res.reply, /Updated timetable|updated academic schedule/i);
+    assert.match(res.reply, /latest official notice anusar regular classes resume hune kura cha/i);
+    assert.match(res.reply, /exact (?:starting )?date (?:notice ma )?mention gareko chaina/i);
+    assert.match(res.reply, /Updated timetable/i);
+    assert.doesNotMatch(res.reply, /Based on \*\*Resumption of Regular Classes\*\*/);
+    assert.doesNotMatch(res.reply, /\*\(Related notice attached below\)\*/);
     // Must NEVER claim classes start ON 2026-11-03 (the publication date)
     assert.doesNotMatch(res.reply, /classes will start on 2026-11-03|classes resume on 2026-11-03/i);
-    assert.ok(res.resourceCards.some(c => c.id === 1001 && c.type === 'notice'));
+    assert.ok(res.resourceCards.some(c => c.id === 1001 && c.type === 'notice' && c.title === 'Resumption of Regular Classes'));
   });
 
   test('6. Routine-based date questions & multi-source (routine + notice) retrieval', async () => {

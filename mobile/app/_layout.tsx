@@ -198,19 +198,19 @@ function RootLayoutNav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="games" options={{ headerShown: false }} />
       <Stack.Screen name="notices" options={{ title: 'Notices', headerBackTitle: 'Back' }} />
-      <Stack.Screen name="notice/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="post/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="notice/[id]" options={{ title: 'Notice Details', headerBackTitle: 'Notices' }} />
+      <Stack.Screen name="post/[id]" options={{ title: 'Post', headerBackTitle: 'Back' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Profile' }} />
       <Stack.Screen name="admin/teachers" options={{ title: 'Teacher Management', headerBackTitle: '', headerRight: () => null }} />
       <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="routine" options={{ title: 'Class Routine', headerBackTitle: 'Back' }} />
       <Stack.Screen name="attendance" options={{ headerShown: false }} />
+      <Stack.Screen name="marks" options={{ headerShown: false }} />
+      <Stack.Screen name="results" options={{ headerShown: false }} />
       <Stack.Screen name="syllabus" options={{ title: 'BIT Syllabus', headerBackTitle: 'Back' }} />
-      <Stack.Screen name="material/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="assignments/[id]" options={{ headerShown: false }} />
-      <Stack.Screen name="assignment/[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="material/[id]" options={{ title: 'Material Details', headerBackTitle: 'Back' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications', headerBackTitle: 'Back' }} />
-      <Stack.Screen name="dm/[id]" options={{ headerShown: false, gestureEnabled: false }} />
+      <Stack.Screen name="dm/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="dm/new" options={{ headerShown: false }} />
       <Stack.Screen name="kyana" options={{ headerShown: false }} />
       <Stack.Screen name="notification-settings" options={{ title: 'Notification Settings', headerBackTitle: 'Notifications' }} />

@@ -146,6 +146,7 @@
 
     // 2. High-fidelity sequential lexer
     const isHtml = l === 'html' || l === 'xml' || l === 'markup';
+    const isCss = l === 'css';
     const isPy = l === 'python' || l === 'py';
     const isCpp = l === 'cpp' || l === 'c++';
     const isC = l === 'c' || isCpp;
@@ -193,8 +194,8 @@
         continue;
       }
 
-      // Hash comments (Python/Shell/Ruby - not C/C++ preprocessor)
-      if (rawCode[i] === '#' && (isPy || (!isC && !rawCode.slice(i).match(/^#(?:include|define|ifdef|ifndef|endif|pragma)\b/)))) {
+      // Hash comments (Python/Shell/Ruby - not C/C++ preprocessor or CSS ID selectors)
+      if (rawCode[i] === '#' && !isCss && (isPy || (!isC && !rawCode.slice(i).match(/^#(?:include|define|ifdef|ifndef|endif|pragma)\b/)))) {
         let end = rawCode.indexOf('\n', i);
         if (end === -1) end = len;
         html += `<span class="token comment">${escapeHtml(rawCode.slice(i, end))}</span>`;
@@ -251,6 +252,36 @@
         if (tagMatch) {
           html += `<span class="token punctuation">&lt;${tagMatch[0].startsWith('</') ? '/' : ''}</span><span class="token tag">${escapeHtml(tagMatch[1])}</span>`;
           i += tagMatch[0].length;
+          continue;
+        }
+      }
+
+      // HTML attribute name (e.g. class=, id=)
+      if (isHtml) {
+        const attrMatch = rawCode.slice(i).match(/^([a-zA-Z_:][\w:.-]*)\s*=/);
+        if (attrMatch) {
+          html += `<span class="token attr-name">${escapeHtml(attrMatch[1])}</span>`;
+          i += attrMatch[1].length;
+          continue;
+        }
+      }
+
+      // CSS Selectors (.class, #id)
+      if (isCss && (rawCode[i] === '.' || rawCode[i] === '#')) {
+        const selMatch = rawCode.slice(i).match(/^[.#][a-zA-Z0-9_-]+/);
+        if (selMatch) {
+          html += `<span class="token selector">${escapeHtml(selMatch[0])}</span>`;
+          i += selMatch[0].length;
+          continue;
+        }
+      }
+
+      // CSS Properties (e.g. color:, font-size:)
+      if (isCss) {
+        const propMatch = rawCode.slice(i).match(/^([a-zA-Z-][\w-]*)\s*:/);
+        if (propMatch) {
+          html += `<span class="token property">${escapeHtml(propMatch[1])}</span>`;
+          i += propMatch[1].length;
           continue;
         }
       }
@@ -451,17 +482,178 @@
 
   // --- 3. Component Architecture Definitions ---
 
+  function generateSampleHtmlForCss(cssText) {
+    const classMatches = [...cssText.matchAll(/\.([a-zA-Z0-9_-]+)/g)].map(m => m[1]);
+    const idMatches = [...cssText.matchAll(/#([a-zA-Z0-9_-]+)/g)].map(m => m[1]);
+    const tagMatches = [...cssText.matchAll(/\b(h[1-6]|p|button|span|a|ul|li|div)\b/g)].map(m => m[1]);
+
+    const parts = [];
+    if (classMatches.length) {
+      for (const cls of new Set(classMatches)) {
+        parts.push(`<p class="${escapeHtml(cls)}">This paragraph has class="<strong>${escapeHtml(cls)}</strong>"</p>`);
+      }
+    }
+    if (idMatches.length) {
+      for (const id of new Set(idMatches)) {
+        parts.push(`<h2 id="${escapeHtml(id)}">This heading has id="<strong>${escapeHtml(id)}</strong>"</h2>`);
+      }
+    }
+    if (!parts.length && tagMatches.length) {
+      for (const tag of new Set(tagMatches)) {
+        parts.push(`<${tag}>Sample &lt;${tag}&gt; element</${tag}>`);
+      }
+    }
+    if (!parts.length) {
+      parts.push('<p>CSS applied to live output preview canvas</p>');
+    }
+    return parts.join('\n');
+  }
+
+  function toggleCodePreview(wrap, codeBlock, langKey) {
+    const existing = wrap.querySelector('.kyana-code-preview-pane');
+    const pBtn = wrap.querySelector('.kyana-preview-code-btn');
+    if (existing) {
+      existing.remove();
+      if (pBtn) pBtn.classList.remove('active');
+      return;
+    }
+
+    if (pBtn) pBtn.classList.add('active');
+
+    const pane = document.createElement('div');
+    pane.className = 'kyana-code-preview-pane';
+    pane.innerHTML = `
+      <div class="kyana-code-preview-bar">
+        <div class="kyana-code-preview-title">
+          <span class="kyana-preview-pulse"></span>
+          <span>Live Output Preview</span>
+        </div>
+        <div class="kyana-code-preview-actions">
+          <button type="button" class="kyana-preview-bar-btn kyana-preview-refresh-btn" title="Reload preview">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </button>
+          <button type="button" class="kyana-preview-bar-btn kyana-preview-close-btn" title="Close preview">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="kyana-code-preview-canvas">
+        <iframe class="kyana-code-preview-iframe" sandbox="allow-scripts" title="Code Output Preview"></iframe>
+      </div>
+    `;
+
+    const closeBtn = pane.querySelector('.kyana-preview-close-btn');
+    closeBtn.addEventListener('click', () => {
+      pane.remove();
+      if (pBtn) pBtn.classList.remove('active');
+    });
+
+    const refreshBtn = pane.querySelector('.kyana-preview-refresh-btn');
+    refreshBtn.addEventListener('click', () => {
+      renderIframe();
+    });
+
+    function renderIframe() {
+      const iframe = pane.querySelector('.kyana-code-preview-iframe');
+      if (!iframe) return;
+
+      const messageContainer = wrap.closest('.kyana-message-body') || wrap.parentElement;
+      const currentCode = codeBlock.dataset.rawCode || codeBlock.textContent || '';
+
+      let companionCss = '';
+      let companionHtml = '';
+      let companionJs = '';
+
+      if (messageContainer) {
+        messageContainer.querySelectorAll('.kyana-code-block').forEach((otherWrap) => {
+          if (otherWrap === wrap) return;
+          const oLang = (otherWrap.dataset.lang || '').toLowerCase();
+          const otherCodeEl = otherWrap.querySelector('pre code');
+          const otherCode = otherCodeEl ? (otherCodeEl.dataset.rawCode || otherCodeEl.textContent || '') : '';
+
+          if (oLang === 'css') {
+            companionCss += '\n' + otherCode;
+          } else if (oLang === 'html' || oLang === 'xml') {
+            companionHtml += '\n' + otherCode;
+          } else if (oLang === 'javascript' || oLang === 'js') {
+            companionJs += '\n' + otherCode;
+          }
+        });
+      }
+
+      let finalHtml = '';
+      if (langKey === 'html' || langKey === 'xml' || langKey === 'svg') {
+        finalHtml = currentCode;
+      } else if (langKey === 'css') {
+        if (companionHtml.trim()) {
+          finalHtml = companionHtml;
+          companionCss = currentCode + '\n' + companionCss;
+        } else {
+          finalHtml = generateSampleHtmlForCss(currentCode);
+          companionCss = currentCode;
+        }
+      } else if (langKey === 'javascript' || langKey === 'js') {
+        finalHtml = companionHtml.trim() ? companionHtml : '<div id="app"></div>';
+        companionJs = currentCode + '\n' + companionJs;
+      }
+
+      const docContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #1f2937;
+      background-color: #ffffff;
+    }
+    ${companionCss}
+  </style>
+</head>
+<body>
+  ${finalHtml}
+  ${companionJs ? `<script>${companionJs}<\/script>` : ''}
+</body>
+</html>`;
+
+      iframe.srcdoc = docContent;
+      iframe.onload = () => {
+        try {
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          if (doc && doc.body) {
+            const h = Math.max(doc.body.scrollHeight + 32, 70);
+            iframe.style.height = `${Math.min(h, 340)}px`;
+          }
+        } catch (_) {}
+      };
+    }
+
+    wrap.appendChild(pane);
+    renderIframe();
+  }
+
   // KyanaCodeBlock Component
   const KyanaCodeBlock = {
     enhance(container) {
       container.querySelectorAll('pre code').forEach((codeBlock) => {
         const pre = codeBlock.parentElement;
-        if (pre.parentElement.classList.contains('kyana-code-block')) return;
+        if (pre.parentElement && pre.parentElement.classList.contains('kyana-code-block')) return;
 
         const rawCode = codeBlock.textContent || '';
-        const langMatch = codeBlock.className.match(/language-(\w+)/);
+        const langMatch = codeBlock.className.match(/language-([a-zA-Z0-9_#+-]+)/);
         const langName = langMatch ? langMatch[1] : 'Code';
         const langKey = langName.toLowerCase();
+        const isWebCode = /^(html|xml|svg|css|javascript|js)$/.test(langKey);
         const compilerSupported = /^(java|c|cpp|c\+\+|html|css|javascript|js|python|py|sql)$/.test(langKey);
 
         codeBlock.dataset.rawCode = rawCode;
@@ -470,45 +662,84 @@
 
         const wrap = document.createElement('div');
         wrap.className = 'kyana-code-block';
+        wrap.dataset.lang = langKey;
 
         const header = document.createElement('div');
         header.className = 'kyana-code-header';
         header.innerHTML = `
-          <span class="kyana-code-lang">${escapeHtml(langName)}</span>
+          <div class="kyana-code-lang-tag">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="kyana-code-icon">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+            <span class="kyana-code-lang">${escapeHtml(langName.toUpperCase())}</span>
+          </div>
           <div class="kyana-code-actions">
-            <button type="button" class="kyana-code-btn kyana-copy-code-btn">
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+            <button type="button" class="kyana-code-btn kyana-wrap-code-btn" title="Toggle line wrap">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 10 4 15 9 20"/>
+                <path d="M20 4v7a4 4 0 0 1-4 4H4"/>
+              </svg>
+            </button>
+            <button type="button" class="kyana-code-btn kyana-copy-code-btn" title="Copy code">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
               </svg>
-              <span>Copy</span>
             </button>
-            ${compilerSupported ? `
-            <button type="button" class="kyana-code-btn kyana-run-compiler-btn" title="Open in Semester Library Code Lab">
-              <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor">
-                <polygon points="6,3 20,12 6,21"/>
+            ${isWebCode ? `
+            <button type="button" class="kyana-code-btn kyana-preview-code-btn" title="Preview live output">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                <polygon points="6,4 20,12 6,20"/>
               </svg>
-              <span>Run in Compiler</span>
-            </button>` : ''}
+            </button>` : (compilerSupported ? `
+            <button type="button" class="kyana-code-btn kyana-run-compiler-btn" title="Open in Semester Library Code Lab">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                <polygon points="6,4 20,12 6,20"/>
+              </svg>
+            </button>` : '')}
           </div>
         `;
 
-        const copyBtn = header.querySelector('.kyana-copy-code-btn');
-        copyBtn.addEventListener('click', () => {
-          const codeToCopy = codeBlock.dataset.rawCode || codeBlock.innerText;
-          navigator.clipboard.writeText(codeToCopy).then(() => {
-            copyBtn.innerHTML = `<span>✓ Copied!</span>`;
-            setTimeout(() => {
-              copyBtn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-                <span>Copy</span>
-              `;
-            }, 2000);
+        const wrapBtn = header.querySelector('.kyana-wrap-code-btn');
+        if (wrapBtn) {
+          wrapBtn.addEventListener('click', () => {
+            const isWrapped = pre.classList.toggle('is-wrapped');
+            wrapBtn.classList.toggle('active', isWrapped);
+            wrapBtn.title = isWrapped ? 'Disable line wrap' : 'Toggle line wrap';
           });
-        });
+        }
+
+        const copyBtn = header.querySelector('.kyana-copy-code-btn');
+        if (copyBtn) {
+          copyBtn.addEventListener('click', () => {
+            const codeToCopy = codeBlock.dataset.rawCode || codeBlock.innerText;
+            navigator.clipboard.writeText(codeToCopy).then(() => {
+              copyBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              `;
+              copyBtn.classList.add('copied');
+              setTimeout(() => {
+                copyBtn.innerHTML = `
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                `;
+                copyBtn.classList.remove('copied');
+              }, 2000);
+            });
+          });
+        }
+
+        const previewBtn = header.querySelector('.kyana-preview-code-btn');
+        if (previewBtn) {
+          previewBtn.addEventListener('click', () => {
+            toggleCodePreview(wrap, codeBlock, langKey);
+          });
+        }
 
         const runBtn = header.querySelector('.kyana-run-compiler-btn');
         if (runBtn) {

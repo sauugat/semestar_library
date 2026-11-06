@@ -171,4 +171,33 @@ cin >> x;`;
     assert.equal(mockElement.innerHTML, '<pre><code>("%d", &amp;x);</code></pre>');
   });
 
+  await t.test('11. CSS code: class and ID selectors, properties and values are tokenized cleanly with literal fidelity', () => {
+    const rawCss = `.student {
+  color: green;
+}
+#heading {
+  font-size: 24px;
+}`;
+    const highlighted = highlightChatCode(rawCss, 'css');
+
+    assert.doesNotMatch(highlighted, /___CHAT_TOK_\d+___/);
+    assert.match(highlighted, /class="token selector">\.student<\/span>/);
+    assert.match(highlighted, /class="token property">color<\/span>/);
+    assert.match(highlighted, /class="token selector">#heading<\/span>/);
+    assert.match(highlighted, /class="token property">font-size<\/span>/);
+
+    assert.equal(decodeHtml(highlighted), rawCss);
+  });
+
+  await t.test('12. HTML code: class and id attributes are tokenized with attr-name and attr-value', () => {
+    const rawHtml = `<p class="student">Saugat</p>`;
+    const highlighted = highlightChatCode(rawHtml, 'html');
+
+    assert.doesNotMatch(highlighted, /___CHAT_TOK_\d+___/);
+    assert.match(highlighted, /class="token attr-name">class<\/span>/);
+    assert.match(highlighted, /class="token string">&quot;student&quot;<\/span>/);
+
+    assert.equal(decodeHtml(highlighted), rawHtml);
+  });
+
 });

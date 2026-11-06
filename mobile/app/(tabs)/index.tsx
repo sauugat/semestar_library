@@ -1956,6 +1956,41 @@ function StudentHomeScreenInner() {
 
           <TouchableOpacity
             activeOpacity={0.7}
+            onPress={() => router.push('/results' as any)}
+            accessibilityRole="button"
+            accessibilityLabel={user?.role === 'teacher' ? 'Open Marks Entry' : 'Open Results'}
+            style={{
+              flex: 1,
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              borderWidth: 1,
+              borderRadius: radii.md,
+              paddingVertical: 10,
+              paddingHorizontal: 6,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: colors.surfaceRaised,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 4,
+              }}
+            >
+              <Ionicons name="ribbon-outline" size={17} color={colors.primary} />
+            </View>
+            <Text variant="xs" weight="700" numberOfLines={1}>
+              {user?.role === 'teacher' ? 'Marks' : 'Results'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.7}
             onPress={() => router.push('/notices')}
             style={{
               flex: 1,

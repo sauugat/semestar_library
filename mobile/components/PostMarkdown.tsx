@@ -10,6 +10,7 @@ import {
   StyleProp,
   ViewStyle,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/constants/useTheme';
 
@@ -20,6 +21,8 @@ export interface PostMarkdownProps {
   maxPreviewLength?: number;
   onPressText?: () => void;
   style?: StyleProp<ViewStyle>;
+  streaming?: boolean;
+  onPressInternalLink?: (url: string) => void;
 }
 
 interface CodeBlock {
@@ -201,6 +204,214 @@ function renderInlineTokens(
     .filter(Boolean);
 }
 
+const MOBILE_KEYWORDS = new Set([
+  'public', 'private', 'protected', 'class', 'interface', 'static', 'void', 'int',
+  'float', 'double', 'char', 'boolean', 'bool', 'long', 'short', 'String', 'new',
+  'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue',
+  'try', 'catch', 'finally', 'throw', 'import', 'package', 'def', 'elif', 'const',
+  'let', 'var', 'function', 'async', 'await', 'select', 'where', 'from', 'null',
+  'true', 'false', 'True', 'False', 'None', 'self', 'this'
+]);
+
+function generateSampleHtmlForCssMobile(cssText: string): string {
+  const classMatches = [...cssText.matchAll(/\.([a-zA-Z0-9_-]+)/g)].map((m) => m[1]);
+  const idMatches = [...cssText.matchAll(/#([a-zA-Z0-9_-]+)/g)].map((m) => m[1]);
+  const tagMatches = [...cssText.matchAll(/\b(h[1-6]|p|button|span|a|ul|li|div)\b/g)].map((m) => m[1]);
+
+  const parts: string[] = [];
+  if (classMatches.length) {
+    for (const cls of new Set(classMatches)) {
+      parts.push(`<p class="${cls}">Paragraph styled with class="<strong>.${cls}</strong>"</p>`);
+    }
+  }
+  if (idMatches.length) {
+    for (const id of new Set(idMatches)) {
+      parts.push(`<h2 id="${id}">Heading styled with id="<strong>#${id}</strong>"</h2>`);
+    }
+  }
+  if (!parts.length && tagMatches.length) {
+    for (const tag of new Set(tagMatches)) {
+      parts.push(`<${tag}>Sample &lt;${tag}&gt; element</${tag}>`);
+    }
+  }
+  if (!parts.length) {
+    parts.push('<p>CSS applied to live preview canvas</p>');
+  }
+  return parts.join('\n');
+}
+
+function renderHighlightedCodeMobile(code: string, rawLang: string, isWrapped: boolean): React.ReactNode {
+  const l = (rawLang || '').toLowerCase();
+  const isHtml = l === 'html' || l === 'xml' || l === 'markup';
+  const isCss = l === 'css';
+
+  const lines = code.split('\n');
+
+  return (
+    <Text style={[styles.codeText, isWrapped && { flexWrap: 'wrap' }]}>
+      {lines.map((lineText, lineIdx) => {
+        const lineKey = `cl-${lineIdx}`;
+        const tokens: React.ReactNode[] = [];
+
+        let rest = lineText;
+        let tokIdx = 0;
+
+        while (rest.length > 0) {
+          const curKey = `${lineKey}-t-${tokIdx++}`;
+
+          // Comment
+          if (rest.startsWith('//') || (rest.startsWith('#') && !isCss)) {
+            tokens.push(
+              <Text key={curKey} style={{ color: '#71717a', fontStyle: 'italic' }}>
+                {rest}
+              </Text>
+            );
+            break;
+          }
+
+          // String
+          const strMatch = rest.match(/^("[^"]*"|'[^']*'|`[^`]*`)/);
+          if (strMatch) {
+            tokens.push(
+              <Text key={curKey} style={{ color: '#4ade80' }}>
+                {strMatch[0]}
+              </Text>
+            );
+            rest = rest.slice(strMatch[0].length);
+            continue;
+          }
+
+          // HTML Tag
+          if (isHtml && rest.startsWith('<')) {
+            const tagMatch = rest.match(/^<\/?([a-zA-Z][\w:-]*)/);
+            if (tagMatch) {
+              const slash = tagMatch[0].startsWith('</') ? '/' : '';
+              tokens.push(
+                <Text key={curKey} style={{ color: '#94a3b8' }}>
+                  {'<' + slash}
+                </Text>
+              );
+              tokens.push(
+                <Text key={`${curKey}-name`} style={{ color: '#38bdf8', fontWeight: '600' }}>
+                  {tagMatch[1]}
+                </Text>
+              );
+              rest = rest.slice(tagMatch[0].length);
+              continue;
+            }
+          }
+
+          // HTML attribute (e.g. class=)
+          if (isHtml) {
+            const attrMatch = rest.match(/^([a-zA-Z_:][\w:.-]*)\s*=/);
+            if (attrMatch) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#facc15' }}>
+                  {attrMatch[1]}
+                </Text>
+              );
+              tokens.push(
+                <Text key={`${curKey}-eq`} style={{ color: '#94a3b8' }}>
+                  {'='}
+                </Text>
+              );
+              rest = rest.slice(attrMatch[0].length);
+              continue;
+            }
+          }
+
+          // CSS Selectors (.class, #id)
+          if (isCss && (rest.startsWith('.') || rest.startsWith('#'))) {
+            const selMatch = rest.match(/^[.#][a-zA-Z0-9_-]+/);
+            if (selMatch) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#facc15', fontWeight: '600' }}>
+                  {selMatch[0]}
+                </Text>
+              );
+              rest = rest.slice(selMatch[0].length);
+              continue;
+            }
+          }
+
+          // CSS property before :
+          if (isCss) {
+            const propMatch = rest.match(/^([a-zA-Z-][\w-]*)\s*:/);
+            if (propMatch) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#7dd3fc' }}>
+                  {propMatch[1]}
+                </Text>
+              );
+              tokens.push(
+                <Text key={`${curKey}-col`} style={{ color: '#94a3b8' }}>
+                  {':'}
+                </Text>
+              );
+              rest = rest.slice(propMatch[0].length);
+              continue;
+            }
+          }
+
+          // Numbers
+          const numMatch = rest.match(/^\b\d+(\.\d+)?(px|rem|em|%)?\b/);
+          if (numMatch) {
+            tokens.push(
+              <Text key={curKey} style={{ color: '#f87171' }}>
+                {numMatch[0]}
+              </Text>
+            );
+            rest = rest.slice(numMatch[0].length);
+            continue;
+          }
+
+          // Words / Identifiers
+          const wordMatch = rest.match(/^[a-zA-Z_]\w*/);
+          if (wordMatch) {
+            const word = wordMatch[0];
+            if (MOBILE_KEYWORDS.has(word)) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#c084fc', fontWeight: '600' }}>
+                  {word}
+                </Text>
+              );
+            } else if (isCss && /^(red|green|blue|white|black|none|block|flex|bold|center)\b/i.test(word)) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#ce9178' }}>
+                  {word}
+                </Text>
+              );
+            } else {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#e6edf3' }}>
+                  {word}
+                </Text>
+              );
+            }
+            rest = rest.slice(word.length);
+            continue;
+          }
+
+          // Punctuation & operators
+          tokens.push(
+            <Text key={curKey} style={{ color: '#94a3b8' }}>
+              {rest[0]}
+            </Text>
+          );
+          rest = rest.slice(1);
+        }
+
+        return (
+          <Text key={lineKey}>
+            {tokens}
+            {lineIdx < lines.length - 1 ? '\n' : ''}
+          </Text>
+        );
+      })}
+    </Text>
+  );
+}
+
 function PostMarkdownInternal({
   content,
   isExpanded = true,
@@ -211,6 +422,8 @@ function PostMarkdownInternal({
 }: PostMarkdownProps) {
   const { colors, isDark } = useTheme();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [wrappedBlocks, setWrappedBlocks] = useState<Record<number, boolean>>({});
+  const [previewBlocks, setPreviewBlocks] = useState<Record<number, boolean>>({});
 
   if (!content || typeof content !== 'string' || !content.trim()) return null;
 
@@ -286,14 +499,45 @@ function PostMarkdownInternal({
       const block = codeBlocks[blockIndex];
       if (block) {
         const isCopied = copiedIndex === blockIndex;
+        const isWrapped = Boolean(wrappedBlocks[blockIndex]);
+        const isPreviewOpen = Boolean(previewBlocks[blockIndex]);
+        const langLower = block.lang.toLowerCase();
+        const isWeb = /^(html|xml|svg|css|javascript|js)$/.test(langLower);
+
+        let companionCss = '';
+        let companionHtml = '';
+        codeBlocks.forEach((otherBlock, idx) => {
+          if (idx === blockIndex) return;
+          const ol = otherBlock.lang.toLowerCase();
+          if (ol === 'css') companionCss += '\n' + otherBlock.code;
+          else if (ol === 'html' || ol === 'xml') companionHtml += '\n' + otherBlock.code;
+        });
+
+        let finalHtml = '';
+        if (langLower === 'html' || langLower === 'xml' || langLower === 'svg') {
+          finalHtml = block.code;
+        } else if (langLower === 'css') {
+          if (companionHtml.trim()) {
+            finalHtml = companionHtml;
+            companionCss = block.code + '\n' + companionCss;
+          } else {
+            finalHtml = generateSampleHtmlForCssMobile(block.code);
+            companionCss = block.code;
+          }
+        } else {
+          finalHtml = block.code;
+        }
+
+        const previewDoc = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>*{box-sizing:border-box;}body{margin:0;padding:12px;font-family:-apple-system,BlinkMacSystemFont,Roboto,sans-serif;font-size:14px;line-height:1.45;color:#111827;background-color:#ffffff;} ${companionCss}</style></head><body>${finalHtml}</body></html>`;
+
         renderedElements.push(
           <View
             key={`code-block-${i}`}
             style={[
               styles.codeBlockContainer,
               {
-                backgroundColor: isDark ? '#141416' : '#f4f4f5',
-                borderColor: colors.border,
+                backgroundColor: '#212124',
+                borderColor: 'rgba(255,255,255,0.08)',
               },
             ]}
           >
@@ -301,48 +545,139 @@ function PostMarkdownInternal({
               style={[
                 styles.codeHeader,
                 {
-                  borderBottomColor: colors.border,
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+                  borderBottomColor: 'rgba(255,255,255,0.07)',
+                  backgroundColor: 'rgba(255,255,255,0.035)',
                 },
               ]}
             >
-              <Text style={[styles.codeLang, { color: colors.textSecondary }]}>
-                {block.lang}
-              </Text>
-              <TouchableOpacity
-                onPress={() => handleCopyCode(block.code, blockIndex)}
-                style={[
-                  styles.copyBtn,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: isCopied ? colors.surfaceRaised : 'transparent',
-                  },
-                ]}
-                activeOpacity={0.7}
-                accessibilityLabel="Copy code"
-              >
-                <Text style={[styles.copyBtnText, { color: colors.text }]}>
-                  {isCopied ? 'Copied!' : 'Copy'}
+              <View style={styles.codeLangWrap}>
+                <Text style={styles.codeLangIconText}>{'</>'}</Text>
+                <Text style={[styles.codeLang, { color: '#9ca3af' }]}>
+                  {block.lang}
                 </Text>
-              </TouchableOpacity>
+              </View>
+              <View style={styles.codeActions}>
+                <TouchableOpacity
+                  onPress={() =>
+                    setWrappedBlocks((prev) => ({
+                      ...prev,
+                      [blockIndex]: !prev[blockIndex],
+                    }))
+                  }
+                  style={[
+                    styles.codeActionBtn,
+                    {
+                      borderColor: isWrapped ? '#38bdf8' : 'rgba(255,255,255,0.12)',
+                      backgroundColor: isWrapped ? 'rgba(56,189,248,0.12)' : 'transparent',
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Toggle line wrap"
+                >
+                  <Text
+                    style={[
+                      styles.codeActionBtnText,
+                      { color: isWrapped ? '#38bdf8' : '#a1a1aa' },
+                    ]}
+                  >
+                    {isWrapped ? 'Unwrap' : 'Wrap'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => handleCopyCode(block.code, blockIndex)}
+                  style={[
+                    styles.codeActionBtn,
+                    {
+                      borderColor: isCopied ? '#22c55e' : 'rgba(255,255,255,0.12)',
+                      backgroundColor: isCopied ? 'rgba(34,197,94,0.12)' : 'transparent',
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Copy code"
+                >
+                  <Text
+                    style={[
+                      styles.codeActionBtnText,
+                      { color: isCopied ? '#22c55e' : '#a1a1aa' },
+                    ]}
+                  >
+                    {isCopied ? '✓ Copied' : 'Copy'}
+                  </Text>
+                </TouchableOpacity>
+
+                {isWeb && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      setPreviewBlocks((prev) => ({
+                        ...prev,
+                        [blockIndex]: !prev[blockIndex],
+                      }))
+                    }
+                    style={[
+                      styles.codeActionBtn,
+                      {
+                        borderColor: isPreviewOpen ? '#38bdf8' : 'rgba(255,255,255,0.12)',
+                        backgroundColor: isPreviewOpen ? 'rgba(56,189,248,0.15)' : 'transparent',
+                      },
+                    ]}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Preview output"
+                  >
+                    <Text
+                      style={[
+                        styles.codeActionBtnText,
+                        { color: isPreviewOpen ? '#38bdf8' : '#a1a1aa' },
+                      ]}
+                    >
+                      {isPreviewOpen ? 'Hide' : '▶'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
-            <ScrollView
-              horizontal
-              nestedScrollEnabled={true}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ padding: 10 }}
-            >
-              <Text
-                style={[
-                  styles.codeText,
-                  {
-                    color: isDark ? '#f4f4f5' : '#18181b',
-                  },
-                ]}
+
+            {isWrapped ? (
+              <View style={{ padding: 12 }}>
+                {renderHighlightedCodeMobile(block.code, block.lang, true)}
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                nestedScrollEnabled={true}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ padding: 12 }}
               >
-                {block.code}
-              </Text>
-            </ScrollView>
+                {renderHighlightedCodeMobile(block.code, block.lang, false)}
+              </ScrollView>
+            )}
+
+            {isPreviewOpen && (
+              <View style={styles.codePreviewContainer}>
+                <View style={styles.codePreviewBar}>
+                  <View style={styles.codePreviewTitleRow}>
+                    <View style={styles.codePreviewDot} />
+                    <Text style={styles.codePreviewTitle}>Live Output Preview</Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setPreviewBlocks((prev) => ({
+                        ...prev,
+                        [blockIndex]: false,
+                      }))
+                    }
+                  >
+                    <Text style={styles.codePreviewCloseText}>✕ Close</Text>
+                  </TouchableOpacity>
+                </View>
+                <WebView
+                  originWhitelist={['*']}
+                  source={{ html: previewDoc }}
+                  style={styles.codePreviewWebView}
+                  scrollEnabled={true}
+                />
+              </View>
+            )}
           </View>
         );
       }
@@ -626,8 +961,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   codeBlockContainer: {
-    marginVertical: 8,
-    borderRadius: 8,
+    marginVertical: 10,
+    borderRadius: 14,
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -636,28 +971,88 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderBottomWidth: 1,
+  },
+  codeLangWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  codeLangIconText: {
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#71717a',
   },
   codeLang: {
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
-  copyBtn: {
+  codeActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  codeActionBtn: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+    paddingVertical: 3.5,
+    borderRadius: 6,
     borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  copyBtnText: {
+  codeActionBtnText: {
     fontSize: 10.5,
     fontWeight: '600',
   },
   codeText: {
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     fontSize: 12.5,
-    lineHeight: 18,
+    lineHeight: 18.5,
+    color: '#e6edf3',
+  },
+  codePreviewContainer: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: '#ffffff',
+  },
+  codePreviewBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  codePreviewTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  codePreviewDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#22c55e',
+  },
+  codePreviewTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  codePreviewCloseText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  codePreviewWebView: {
+    width: '100%',
+    height: 130,
+    backgroundColor: '#ffffff',
   },
   tableWrapper: {
     marginVertical: 8,

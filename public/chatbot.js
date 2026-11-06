@@ -17,96 +17,14 @@
 
   function safeLink(value, externalOnly = false) {
     if (typeof value !== 'string' || !value.trim()) return null;
-    const trimmed = value.trim();
-    if (trimmed.startsWith('//') || /^(?:javascript|data|vbscript):/i.test(trimmed)) return null;
-    if (trimmed.startsWith('prompt:')) {
-      return externalOnly ? null : trimmed;
-    }
     try {
-      const url = new URL(trimmed, 'https://semester-library.local/');
+      const url = new URL(value, 'https://semester-library.local/');
       if (!['https:', 'http:'].includes(url.protocol)) return null;
-      if (externalOnly && !/^https?:\/\//i.test(trimmed)) return null;
-      return trimmed;
+      if (externalOnly && !/^https?:\/\//i.test(value)) return null;
+      return value;
     } catch (_) {
       return null;
     }
-  }
-
-  /**
-   * Stabilizes incomplete streaming Markdown so partial code fences, math blocks,
-   * tables, and inline emphasis render cleanly without layout jumps or flickering.
-   */
-  function stabilizeStreamingMarkdown(rawMarkdown) {
-    if (!rawMarkdown || typeof rawMarkdown !== 'string') return '';
-    let text = String(rawMarkdown).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-    // 1. Check for unclosed fenced code block (``` or ~~~)
-    const lines = text.split('\n');
-    let openFence = null;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!openFence) {
-        const m = line.match(/^\s*(`{3,}|~{3,})([\w+#.-]*)[ \t]*$/);
-        if (m) {
-          openFence = m[1];
-        }
-      } else {
-        const closeRe = new RegExp(`^\\s*${openFence[0]}{${openFence.length},}[ \\t]*$`);
-        if (closeRe.test(line)) {
-          openFence = null;
-        }
-      }
-    }
-    if (openFence) {
-      return `${text}\n${openFence}`;
-    }
-
-    // 2. Stabilize unclosed block LaTeX ($$ or \[) outside code blocks
-    const { text: withoutCode, tokenMap } = protectCodeBlocks(text);
-    let stabilized = withoutCode;
-
-    const doubleDollarMatches = stabilized.match(/\$\$/g) || [];
-    if (doubleDollarMatches.length % 2 === 1) {
-      stabilized += '\n$$';
-    }
-    const openBracketCount = (stabilized.match(/\\\[/g) || []).length;
-    const closeBracketCount = (stabilized.match(/\\\]/g) || []).length;
-    if (openBracketCount > closeBracketCount) {
-      stabilized += '\n\\]';
-    }
-    const openParenCount = (stabilized.match(/\\\(/g) || []).length;
-    const closeParenCount = (stabilized.match(/\\\)/g) || []).length;
-    if (openParenCount > closeParenCount) {
-      stabilized += '\\)';
-    }
-
-    // 3. Stabilize incomplete trailing Markdown table delimiter row
-    const sLines = stabilized.split('\n');
-    if (sLines.length >= 2) {
-      const prevLine = sLines[sLines.length - 2].trim();
-      const lastLine = sLines[sLines.length - 1].trim();
-      if (prevLine.includes('|') && /^\|?[\s|:-]*$/.test(lastLine) && lastLine.includes('|') && !/^\s*\|?(\s*:?-{1,}:?\s*\|)+\s*:?-{1,}:?\s*\|?\s*$/.test(lastLine)) {
-        const colCount = prevLine.replace(/^\||\|$/g, '').split('|').length;
-        sLines[sLines.length - 1] = '| ' + Array(colCount).fill('---').join(' | ') + ' |';
-        stabilized = sLines.join('\n');
-      }
-    }
-
-    // 4. Stabilize unclosed inline tokens on the final line
-    const finalLines = stabilized.split('\n');
-    let last = finalLines[finalLines.length - 1] || '';
-    if (last && !/^\s*(?:`|~|>|#|-|\*|\d+\.|\|)/.test(last)) {
-      const backticks = (last.match(/`/g) || []).length;
-      if (backticks % 2 === 1) last += '`';
-      const bolds = (last.match(/\*\*/g) || []).length;
-      if (bolds % 2 === 1) last += '**';
-      const strikes = (last.match(/~~/g) || []).length;
-      if (strikes % 2 === 1) last += '~~';
-      finalLines[finalLines.length - 1] = last;
-      stabilized = finalLines.join('\n');
-    }
-
-    return restoreCodeBlocks(stabilized, tokenMap);
   }
 
   function protectCodeBlocks(markdown) {
@@ -147,2011 +65,30 @@
     return restored;
   }
 
-  function parseAttendanceBlock(rawBlock) {
-    const lines = String(rawBlock || '').replace(/\r\n/g, '\n').split('\n');
-    const data = {
-      hasOverview: false,
-      hasRecords: false,
-      semester: null,
-      overallPct: null,
-      isLow: false,
-      attendedLabel: '0 / 0',
-      present: 0,
-      absent: 0,
-      totalClasses: 0,
-      recordedSubjects: 0,
-      totalSubjects: 0,
-      recordedItems: [],
-      unrecordedItems: []
-    };
-
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line) continue;
-
-      if (/^Overview:/i.test(line)) {
-        data.hasOverview = true;
-        const parts = line.replace(/^Overview:\s*/i, '').split('|').map(p => p.trim());
-        const first = parts[0] || '';
-        if (/No records/i.test(first)) {
-          data.hasRecords = false;
-          data.overallPct = null;
-          data.isLow = false;
-        } else {
-          const pctMatch = first.match(/(\d+(?:\.\d+)?)%/);
-          if (pctMatch) {
-            data.hasRecords = true;
-            data.overallPct = Number(pctMatch[1]);
-            data.isLow = data.overallPct < 50 || /Low Attendance/i.test(first);
-          }
-        }
-        for (const part of parts.slice(1)) {
-          const attMatch = part.match(/^(\d+)\s*\/\s*(\d+)\s+classes/i);
-          if (attMatch) {
-            data.present = Number(attMatch[1]);
-            data.totalClasses = Number(attMatch[2]);
-            data.attendedLabel = `${attMatch[1]} / ${attMatch[2]}`;
-            continue;
-          }
-          const presMatch = part.match(/^Present:\s*(\d+)/i);
-          if (presMatch) {
-            data.present = Number(presMatch[1]);
-            continue;
-          }
-          const absMatch = part.match(/^Absent:\s*(\d+)/i);
-          if (absMatch) {
-            data.absent = Number(absMatch[1]);
-            continue;
-          }
-          const subjMatch = part.match(/^(\d+)\s+of\s+(\d+)\s+subjects/i);
-          if (subjMatch) {
-            data.recordedSubjects = Number(subjMatch[1]);
-            data.totalSubjects = Number(subjMatch[2]);
-            continue;
-          }
-          const semMatch = part.match(/^Semester\s+(\d+)/i);
-          if (semMatch) {
-            data.semester = Number(semMatch[1]);
-          }
-        }
-        continue;
-      }
-
-      const itemMatch = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?:\s*(.+)$/);
-      if (itemMatch) {
-        const name = itemMatch[1].trim();
-        const code = (itemMatch[2] || '').trim();
-        const rest = itemMatch[3].trim();
-        if (/\*\*No records\*\*|^No records$/i.test(rest)) {
-          data.unrecordedItems.push({ name, code });
-        } else {
-          const pctMatch = rest.match(/\*\*(\d+(?:\.\d+)?)%\*\*|(\d+(?:\.\d+)?)%/);
-          if (pctMatch) {
-            const pct = Number(pctMatch[1] ?? pctMatch[2]);
-            const isLow = pct < 50 || /Low Attendance/i.test(rest);
-            const classesMatch = rest.match(/(\d+)\s+recorded\s+class/i) || rest.match(/out\s+of\s+(\d+)\s+class/i);
-            const presMatch = rest.match(/Present:\s*(\d+)/i) || rest.match(/(\d+)\s+present/i);
-            const absMatch = rest.match(/Absent:\s*(\d+)/i) || rest.match(/(\d+)\s+(?:missed\/)?absent/i);
-            const present = presMatch ? Number(presMatch[1]) : 0;
-            const absent = absMatch ? Number(absMatch[1]) : 0;
-            const classes = classesMatch ? Number(classesMatch[1]) : (present + absent);
-            data.recordedItems.push({
-              name,
-              code,
-              pct,
-              isLow,
-              classes,
-              present,
-              absent
-            });
-          }
-        }
-      }
-    }
-
-    if (!data.hasOverview && (data.recordedItems.length > 0 || data.unrecordedItems.length > 0)) {
-      const totalPres = data.recordedItems.reduce((acc, r) => acc + r.present, 0);
-      const totalAbs = data.recordedItems.reduce((acc, r) => acc + r.absent, 0);
-      const totalCls = data.recordedItems.reduce((acc, r) => acc + r.classes, 0);
-      data.present = totalPres;
-      data.absent = totalAbs;
-      data.totalClasses = totalCls;
-      data.attendedLabel = `${totalPres} / ${totalCls}`;
-      data.recordedSubjects = data.recordedItems.length;
-      data.totalSubjects = data.recordedItems.length + data.unrecordedItems.length;
-      if (totalCls > 0) {
-        data.hasRecords = true;
-        data.overallPct = Math.round((totalPres / totalCls) * 10000) / 100;
-        data.isLow = data.overallPct < 50;
-      }
-    }
-
-    return data;
-  }
-
-  function renderAttendanceChartHtml(rawBlock) {
-    const data = parseAttendanceBlock(rawBlock);
-    if (!data.hasOverview && data.recordedItems.length === 0 && data.unrecordedItems.length === 0) {
-      return '';
-    }
-
-    const pillClass = !data.hasRecords ? 'is-empty' : (data.isLow ? 'is-low' : 'is-recorded');
-    const pillText = !data.hasRecords ? 'No records' : (data.isLow ? 'Low Attendance' : 'Recorded data');
-    const overallPctStr = data.hasRecords && data.overallPct !== null ? `${data.overallPct}%` : 'No records';
-    const overallBarWidth = data.hasRecords && data.overallPct !== null
-      ? Math.min(100, Math.max(data.overallPct === 0 ? 2 : 0, data.overallPct))
-      : 0;
-    const scopeHint = data.totalSubjects > 1 && data.recordedSubjects > 0 && data.recordedSubjects < data.totalSubjects
-      ? ` · ${data.recordedSubjects} of ${data.totalSubjects} subjects`
-      : '';
-
-    let html = `<div class="kyana-attendance-card" data-attendance-rendered="true">
-      <div class="kyana-att-header">
-        <span class="kyana-att-title">Attendance overview</span>
-        <span class="kyana-att-status-pill ${pillClass}">${escapeHtml(pillText)}</span>
-      </div>
-      <div class="kyana-att-hero-row">
-        <div class="kyana-att-hero-col">
-          <div class="kyana-att-hero-pct-wrap">
-            <span class="kyana-att-hero-pct ${!data.hasRecords ? 'is-norecord' : (data.isLow ? 'is-low' : '')}">${escapeHtml(overallPctStr)}</span>
-            ${data.hasRecords && data.isLow ? '<span class="kyana-att-low-badge">Low Attendance</span>' : ''}
-          </div>
-          <span class="kyana-att-hero-sub">Overall attendance${escapeHtml(scopeHint)}</span>
-        </div>
-        <div class="kyana-att-hero-col is-right">
-          <span class="kyana-att-hero-ratio">${escapeHtml(data.hasRecords ? data.attendedLabel : '0 / 0')}</span>
-          <span class="kyana-att-hero-sub">Classes attended</span>
-        </div>
-      </div>`;
-
-    if (data.hasRecords) {
-      html += `
-      <div class="kyana-att-bar-track" role="progressbar" aria-valuenow="${data.overallPct}" aria-valuemin="0" aria-valuemax="100">
-        <svg class="kyana-att-bar-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
-          <rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="8" rx="4"></rect>
-          <rect class="kyana-att-svg-fill ${data.isLow ? 'is-low' : ''}" x="0" y="0" width="${overallBarWidth}" height="8" rx="4"></rect>
-        </svg>
-      </div>
-      <div class="kyana-att-stat-grid">
-        <div class="kyana-att-stat-box">
-          <span class="kyana-att-stat-num">${data.present}</span>
-          <span class="kyana-att-stat-label">Present</span>
-        </div>
-        <div class="kyana-att-stat-box">
-          <span class="kyana-att-stat-num">${data.absent}</span>
-          <span class="kyana-att-stat-label">Absent</span>
-        </div>
-      </div>`;
-    }
-
-    if (data.recordedItems.length > 0) {
-      html += `
-      <div class="kyana-att-divider"></div>
-      <div class="kyana-att-section-heading">Subject-wise attendance</div>
-      <div class="kyana-att-subjects-list">`;
-
-      for (const item of data.recordedItems) {
-        const barW = Math.min(100, Math.max(item.pct === 0 ? 2 : 0, item.pct));
-        const metaParts = [];
-        if (item.code) metaParts.push(item.code);
-        metaParts.push(`${item.classes} recorded ${item.classes === 1 ? 'class' : 'classes'}`);
-
-        html += `
-        <div class="kyana-att-subj-item" data-subject-code="${escapeHtml(item.code)}" data-subject-pct="${item.pct}">
-          <div class="kyana-att-subj-top">
-            <div class="kyana-att-subj-info">
-              <span class="kyana-att-subj-name">${escapeHtml(item.name)}</span>
-              <span class="kyana-att-subj-meta">${escapeHtml(metaParts.join(' · '))}</span>
-            </div>
-            <div class="kyana-att-subj-pct-col">
-              <span class="kyana-att-subj-pct ${item.isLow ? 'is-low' : ''}">${escapeHtml(String(item.pct))}%</span>
-              ${item.isLow ? '<span class="kyana-att-low-badge">Low Attendance</span>' : ''}
-            </div>
-          </div>
-          <div class="kyana-att-bar-track" role="progressbar" aria-valuenow="${item.pct}" aria-valuemin="0" aria-valuemax="100">
-            <svg class="kyana-att-bar-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
-              <rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="8" rx="4"></rect>
-              <rect class="kyana-att-svg-fill ${item.isLow ? 'is-low' : ''}" x="0" y="0" width="${barW}" height="8" rx="4"></rect>
-            </svg>
-          </div>
-          <div class="kyana-att-subj-counts">
-            <span>Present: ${item.present}</span>
-            <span>Absent: ${item.absent}</span>
-          </div>
-        </div>`;
-      }
-      html += `</div>`;
-    }
-
-    if (data.unrecordedItems.length > 0) {
-      html += `
-      <div class="kyana-att-divider"></div>
-      <div class="kyana-att-section-heading">${data.recordedItems.length > 0 ? 'Other subjects' : 'Subjects'}</div>
-      <div class="kyana-att-other-list">`;
-
-      for (const u of data.unrecordedItems) {
-        html += `
-        <div class="kyana-att-other-row" data-subject-code="${escapeHtml(u.code)}" data-subject-status="no-records">
-          <span class="kyana-att-other-name">${escapeHtml(u.name)}</span>
-          <span class="kyana-att-norecord-pill">No records</span>
-        </div>`;
-      }
-      html += `</div>`;
-    }
-
-    html += `</div>`;
-    return html;
-  }
-
-
-  const VISUAL_BLOCK_KINDS = new Set([
-    'attendance',
-    'results',
-    'assignments',
-    'notes',
-    'notices',
-    'routine',
-    'posts',
-    'directory',
-    'syllabus',
-    'diagram',
-    'flowchart',
-    'graph',
-    'trace',
-    'comparison',
-    'quiz',
-    'roadmap',
-    'complexity',
-    'simulation',
-    'code_preview',
-    'illustration'
-  ]);
-
-  function isSafeVisualPayload(normKind, text) {
-    if (!VISUAL_BLOCK_KINDS.has(normKind)) return false;
-    if (!text || text.length > 32768) return false;
-    if (/<script\b|<\/script>|javascript\s*:|vbscript\s*:|data\s*:\s*text\/html|java\s*&#|&#x0*6a;|\\u006a\s*avascript|<iframe\b|<object\b|<embed\b|<foreignObject\b|<animate\b|<set\b|xlink\s*:\s*href|\bon[a-z]{2,}\s*=|\beval\s*\(|new\s+Function\s*\(|"__proto__"|"constructor"\s*:|"prototype"\s*:/i.test(text)) {
-      return false;
-    }
-    return true;
-  }
-
-  function parseKyanaVisualBlock(kind, rawBlock) {
-    const normKind = String(kind || '').trim().toLowerCase();
-    const text = String(rawBlock || '').replace(/\r\n/g, '\n').trim();
-    if (normKind === 'attendance') {
-      return { kind: 'attendance', ...parseAttendanceBlock(text) };
-    }
-    if (!isSafeVisualPayload(normKind, text)) {
-      return { kind: normKind, items: [] };
-    }
-
-    if ((text.startsWith('{') || ['simulation', 'code_preview', 'illustration'].includes(normKind)) && ['syllabus', 'diagram', 'flowchart', 'graph', 'trace', 'quiz', 'roadmap', 'comparison', 'complexity', 'simulation', 'code_preview', 'illustration'].includes(normKind)) {
-      try {
-        const parsedJson = JSON.parse(text);
-        if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) {
-          if (Array.isArray(parsedJson.nodes) && parsedJson.nodes.length > 24) return { kind: normKind, items: [] };
-          if (Array.isArray(parsedJson.series) && parsedJson.series.length > 50) return { kind: normKind, items: [] };
-          if (Array.isArray(parsedJson.steps) && parsedJson.steps.length > 20) return { kind: normKind, items: [] };
-          if (Array.isArray(parsedJson.questions) && parsedJson.questions.length > 10) return { kind: normKind, items: [] };
-          if (normKind === 'simulation' && !parsedJson.simulationType) return { kind: normKind, items: [] };
-          if (normKind === 'code_preview' && !parsedJson.html && !parsedJson.css && !parsedJson.code) return { kind: normKind, items: [] };
-          if (normKind === 'illustration' && !parsedJson.sceneType && !parsedJson.panels) return { kind: normKind, items: [] };
-          const items =
-            parsedJson.units ||
-            parsedJson.nodes ||
-            parsedJson.steps ||
-            parsedJson.series ||
-            parsedJson.questions ||
-            parsedJson.controls ||
-            parsedJson.annotations ||
-            parsedJson.panels ||
-            parsedJson.items ||
-            (parsedJson.unit ? [parsedJson.unit] : (parsedJson.simulationType || parsedJson.sceneType || parsedJson.html ? [parsedJson] : []));
-          return {
-            kind: normKind,
-            ...parsedJson,
-            items: Array.isArray(items) ? items : []
-          };
-        }
-      } catch (_) {
-        return { kind: normKind, items: [] };
-      }
-    }
-
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-
-    if (normKind === 'results') {
-      const items = [];
-      let aggregateLabel = null;
-      let aggregateScore = null;
-      let aggregatePct = null;
-
-      for (const line of lines) {
-        const aggMatch = line.match(/\*\*([^*]*Aggregate[^*]*):\*\*\s*([0-9.]+\s*\/\s*[0-9.]+)(?:\s*\(([^)]+)\))?/i);
-        if (aggMatch) {
-          aggregateLabel = aggMatch[1].trim().replace(/:$/, '');
-          aggregateScore = aggMatch[2].trim();
-          const pctM = (aggMatch[3] || '').match(/(\d+(?:\.\d+)?)%/);
-          if (pctM) aggregatePct = Number(pctM[1]);
-          continue;
-        }
-
-        const bulletMatch = line.match(/^(?:[-•*]|\d+\.)\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?\s*(?:—|-|:)\s*(.+)$/);
-        if (bulletMatch) {
-          const subject = bulletMatch[1].trim();
-          const code = (bulletMatch[2] || '').trim();
-          const rest = bulletMatch[3].trim();
-          const examMatch = rest.match(/\*([^*]+)\*/);
-          const examType = examMatch ? examMatch[1].trim() : 'Exam';
-          const semMatch = rest.match(/\(Semester\s+(\d+)\)/i);
-          const semester = semMatch ? Number(semMatch[1]) : null;
-          const isAbsent = /\bAbsent\b/i.test(rest);
-          const isUnpublished = /\b(?:Unpublished|Pending|Not published)\b/i.test(rest);
-          const scoreMatch = rest.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
-          const pctMatch = rest.match(/(\d+(?:\.\d+)?)%/);
-          const obtained = scoreMatch ? Number(scoreMatch[1]) : null;
-          const max = scoreMatch ? Number(scoreMatch[2]) : null;
-          const pct = pctMatch
-            ? Number(pctMatch[1])
-            : (obtained !== null && max ? Math.round((obtained / max) * 10000) / 100 : null);
-          const isLow = isAbsent || (pct !== null && pct < 40);
-          const scoreLabel = isAbsent
-            ? (rest.match(/Absent\s*\([^)]+\)/i)?.[0] || 'Absent')
-            : (isUnpublished ? 'Unpublished' : (scoreMatch ? `${obtained} / ${max}` : rest.replace(/\*[^*]+\*[:\s—-]*/g, '').replace(/\*\*/g, '').trim()));
-
-          items.push({
-            subject,
-            code,
-            examType,
-            semester,
-            obtained,
-            max,
-            pct,
-            isAbsent,
-            isUnpublished,
-            isLow,
-            scoreLabel
-          });
-        }
-      }
-
-      if (!aggregatePct && items.length > 0) {
-        const scored = items.filter(i => i.obtained !== null && i.max !== null && !i.isAbsent);
-        if (scored.length > 0) {
-          const sumObt = scored.reduce((a, b) => a + b.obtained, 0);
-          const sumMax = scored.reduce((a, b) => a + b.max, 0);
-          if (sumMax > 0) {
-            if (!aggregateScore) aggregateScore = `${Math.round(sumObt * 100) / 100} / ${Math.round(sumMax * 100) / 100}`;
-            aggregatePct = Math.round((sumObt / sumMax) * 10000) / 100;
-          }
-        }
-      }
-
-      return {
-        kind: 'results',
-        aggregateLabel: aggregateLabel || 'Overall score',
-        aggregateScore,
-        aggregatePct,
-        items
-      };
-    }
-
-    if (normKind === 'assignments') {
-      const items = [];
-      let currentItem = null;
-
-      for (const rawLine of text.split('\n')) {
-        const trimmed = rawLine.trim();
-        if (!trimmed) continue;
-
-        if (/^[-*]\s+\*\*([^*]+)\*\*/.test(trimmed) && !/^•/.test(trimmed) && !/^\s{2,}/.test(rawLine)) {
-          const m = trimmed.match(/^[-*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(?:\s*\[([^\]]+)\])?(?:\s*(?:—|-|:)\s*(.+))?$/);
-          if (m) {
-            const title = m[1].trim();
-            const subject = (m[2] || 'General').trim();
-            const semester = (m[3] || '').trim();
-            const tail = (m[4] || '').trim();
-            const isOverdue = /\b(?:Missed|Overdue)\b/i.test(tail);
-            const isChecked = /\b(?:Checked|Graded)\b/i.test(tail);
-            const isSubmitted = isChecked || /\bSubmitted\b/i.test(tail);
-            const dueMatch = tail.match(/(?:due|Deadline:|Was due on)\s*\*\*?([^*(]+?)\*\*?(?:\s*\(|$)/i);
-            const deadline = dueMatch ? dueMatch[1].trim() : null;
-            const statusLabel = isOverdue ? 'Overdue' : (isChecked ? 'Checked' : (isSubmitted ? 'Submitted' : 'Pending'));
-
-            currentItem = {
-              title,
-              subject,
-              semester,
-              deadline,
-              statusLabel,
-              isOverdue,
-              isSubmitted,
-              isChecked,
-              author: null,
-              description: null,
-              questions: null,
-              grade: null,
-              details: []
-            };
-            items.push(currentItem);
-            continue;
-          }
-        }
-
-        if (currentItem && /^[•*-]\s+/.test(trimmed)) {
-          const cleanDetail = trimmed.replace(/^[•*-]\s+/, '');
-          const kv = cleanDetail.match(/^\*\*([^:]+):\*\*\s*(.+)$/);
-          if (kv) {
-            const k = kv[1].trim().toLowerCase();
-            const v = kv[2].trim().replace(/\*\*/g, '');
-            if (k === 'author') currentItem.author = v;
-            else if (k === 'description') currentItem.description = v;
-            else if (k.startsWith('questions')) currentItem.questions = v;
-            else if (k.includes('submission status')) {
-              currentItem.statusLabel = v;
-              if (/Overdue|Missed/i.test(v)) currentItem.isOverdue = true;
-              if (/Submitted/i.test(v) && !/Not submitted/i.test(v)) currentItem.isSubmitted = true;
-            } else if (k.includes('grade')) {
-              currentItem.grade = v;
-              if (/Checked/i.test(v)) currentItem.isChecked = true;
-            } else {
-              currentItem.details.push(`${kv[1].trim()}: ${v}`);
-            }
-          }
-        }
-      }
-      return { kind: 'assignments', items };
-    }
-
-    if (normKind === 'notes') {
-      const items = [];
-      for (const line of lines) {
-        const m = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(.*)$/);
-        if (m) {
-          const title = m[1].trim();
-          const metaRaw = (m[2] || '').trim();
-          const extra = (m[3] || '').trim();
-          const parts = metaRaw.split('|').map(p => p.trim());
-          const primaryParts = (parts[0] || '').split(',').map(p => p.trim()).filter(Boolean);
-          const subject = primaryParts[0] || 'Study Material';
-          const semester = primaryParts.find(p => /semester/i.test(p)) || null;
-          const chapter = primaryParts.find(p => /chapter|unit/i.test(p)) || null;
-          const folderPart = parts.find(p => /^Folder:/i.test(p));
-          const folder = folderPart ? folderPart.replace(/^Folder:\s*/i, '').trim() : null;
-          const ext = (title.match(/\.([a-zA-Z0-9]{2,4})$/)?.[1] || 'PDF').toUpperCase();
-          items.push({
-            title,
-            subject,
-            semester,
-            chapter,
-            folder,
-            fileType: ext,
-            extra: extra.replace(/^[:\s—-]+/, '').trim() || null
-          });
-        }
-      }
-      return { kind: 'notes', items };
-    }
-
-    if (normKind === 'routine') {
-      const items = [];
-      for (const line of lines) {
-        const m = line.match(/^[-•*]\s+\*\*([^*]+)\*\*\s*(?:—|-)\s*(.+)$/);
-        if (m) {
-          const subject = m[1].trim();
-          const rest = m[2].trim();
-          const dayMatch = rest.match(/\(([^)]+)\)/);
-          const day = dayMatch ? dayMatch[1].trim() : null;
-          const roomMatch = rest.match(/Room\s+([^,]+)/i);
-          const room = roomMatch ? roomMatch[1].trim() : null;
-          const timeMatch = rest.match(/(\d{1,2}:\d{2}\s*(?:AM|PM)?(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM)?)?)/i);
-          const time = timeMatch ? timeMatch[1].trim() : null;
-          const datePart = rest.split(',')[0].replace(/\([^)]*\)/g, '').trim();
-          items.push({ subject, date: datePart, day, time, room, rawMeta: rest });
-        }
-      }
-      return { kind: 'routine', items };
-    }
-
-    if (normKind === 'notices' || normKind === 'posts' || normKind === 'directory') {
-      const items = [];
-      for (const line of lines) {
-        const m = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\[([^\]]+)\])?(?:\s*\(([^)]+)\))?(?:\s*(?:—|-|:)\s*(.+))?$/);
-        if (m) {
-          items.push({
-            title: m[1].trim(),
-            badge: (m[2] || m[3] || '').trim() || null,
-            meta: (m[2] && m[3] ? m[3] : '').trim() || null,
-            summary: (m[4] || '').trim().replace(/\*\*/g, '') || null,
-            isOfficial: normKind === 'notices' && !/community|student post/i.test(m[2] || '')
-          });
-        }
-      }
-      return { kind: normKind, items };
-    }
-
-    if (normKind === 'syllabus') {
-      const items = [];
-      let courseTitle = null;
-      let courseCode = null;
-      let semester = null;
-      let credits = null;
-      let nature = null;
-      let totalHours = null;
-      let objectives = null;
-      let labs = null;
-      let textbooks = null;
-      let currentUnit = null;
-
-      for (const rawLine of text.split('\n')) {
-        const line = rawLine.trim();
-        if (!line) continue;
-
-        const courseMatch = line.match(/^[-*]\s+\*\*Course:\*\*\s*([^(]+?)(?:\s*\(([^)]+)\))?(?:\s*[·•|]\s*(.+))?$/i);
-        if (courseMatch) {
-          courseTitle = courseMatch[1].trim();
-          courseCode = (courseMatch[2] || '').trim();
-          const meta = courseMatch[3] || '';
-          const semM = meta.match(/Semester\s+(\d+)/i);
-          if (semM) semester = Number(semM[1]);
-          const credM = meta.match(/(\d+)\s*Credits?/i);
-          if (credM) credits = credM[1];
-          const natM = meta.match(/Nature:\s*([A-Za-z +]+)/i);
-          if (natM) nature = natM[1].trim();
-          const hrsM = meta.match(/Total:\s*(\d+\s*hrs?)/i);
-          if (hrsM) totalHours = hrsM[1].trim();
-          continue;
-        }
-
-        const semHeaderMatch = line.match(/^[-*]\s+\*\*Semester:\*\*\s*(.+)$/i);
-        if (semHeaderMatch) {
-          courseTitle = semHeaderMatch[1].trim();
-          continue;
-        }
-
-        const objMatch = line.match(/^[-*]\s+\*\*Objectives?:\*\*\s*(.+)$/i);
-        if (objMatch) {
-          objectives = objMatch[1].trim();
-          continue;
-        }
-
-        const labMatch = line.match(/^[-*]\s+\*\*Labs?:\*\*\s*(.+)$/i);
-        if (labMatch) {
-          labs = labMatch[1].trim();
-          continue;
-        }
-
-        const tbMatch = line.match(/^[-*]\s+\*\*Textbooks?:\*\*\s*(.+)$/i);
-        if (tbMatch) {
-          textbooks = tbMatch[1].trim();
-          continue;
-        }
-
-        const unitMatch = line.match(/^[-*]\s+\*\*(?:Unit\s+)?(\d{1,2}):\s*([^*]+)\*\*(?:\s*[—–-]\s*(.+))?$/i);
-        if (unitMatch) {
-          const uNum = Number(unitMatch[1]);
-          const uTitle = unitMatch[2].trim();
-          const rest = unitMatch[3] || '';
-          const hrsM = rest.match(/(\d+\s*hrs?)/i);
-          const pctM = rest.match(/(\d+(?:\.\d+)?)%/);
-          currentUnit = {
-            unitNumber: uNum,
-            title: uTitle,
-            hours: hrsM ? hrsM[1].trim() : null,
-            pct: pctM ? Number(pctM[1]) : null,
-            topics: ''
-          };
-          items.push(currentUnit);
-          continue;
-        }
-
-        if (currentUnit && /^[•*-]\s*(?:Topics?:)?\s*(.+)$/i.test(line)) {
-          const tMatch = line.match(/^[•*-]\s*(?:Topics?:)?\s*(.+)$/i);
-          if (tMatch) {
-            currentUnit.topics = currentUnit.topics ? `${currentUnit.topics}; ${tMatch[1].trim()}` : tMatch[1].trim();
-          }
-          continue;
-        }
-
-        const courseListMatch = line.match(/^[-*]\s+\*\*([^*:]+):\*\*\s*(.+)$/);
-        if (courseListMatch && !line.startsWith('- **Unit')) {
-          const code = courseListMatch[1].trim();
-          const rest = courseListMatch[2].trim();
-          const parts = rest.split(/[·•|]/).map(p => p.trim());
-          items.push({
-            code,
-            title: parts[0] || code,
-            credits: parts[1] || null,
-            nature: parts[2] || null,
-            details: parts.slice(3).join(' · ') || null
-          });
-        }
-      }
-
-      return {
-        kind: 'syllabus',
-        courseTitle,
-        courseCode,
-        semester,
-        credits,
-        nature,
-        totalHours,
-        objectives,
-        labs,
-        textbooks,
-        items
-      };
-    }
-
-    if (normKind === 'diagram') {
-      let title = 'System Architecture & Concept Diagram';
-      const diagramLines = [];
-      const nodes = [];
-      for (const line of lines) {
-        const titleMatch = line.match(/^\[([A-Za-z0-9\s_-]+)\]$/);
-        if (titleMatch && diagramLines.length === 0) {
-          title = titleMatch[1].trim();
-          continue;
-        }
-        diagramLines.push(line);
-        const isAsciiBorder = /^[+\-|=_\s]+$/.test(line);
-        if (isAsciiBorder) continue;
-
-        const cleanContent = line.replace(/^[|/\s+-]+|[|/\s+-]+$/g, '').trim();
-        if (!cleanContent) continue;
-
-        const stepMatch = cleanContent.match(/^(?:(?:\d+\.|\*|-)\s+)?([A-Za-z0-9\s_()/-]+?)(?:\s*(?:—|:|\s->\s|\s<-\s)\s*(.+))?$/);
-        if (stepMatch && stepMatch[1] && stepMatch[1].trim().length > 1) {
-          nodes.push({
-            id: `step-${nodes.length + 1}`,
-            label: stepMatch[1].trim(),
-            detail: stepMatch[2] ? stepMatch[2].trim() : undefined
-          });
-        } else {
-          nodes.push({
-            id: `step-${nodes.length + 1}`,
-            label: cleanContent
-          });
-        }
-      }
-      const items = nodes.length > 0 ? nodes : diagramLines.filter(l => l.trim().length > 0);
-      return {
-        kind: 'diagram',
-        title,
-        nodes: nodes.length > 0 ? nodes : undefined,
-        diagramText: diagramLines.join('\n').trim(),
-        items
-      };
-    }
-
-    if (normKind === 'flowchart' || normKind === 'trace') {
-      const items = [];
-      for (const line of lines) {
-        const stepMatch = line.match(/^(?:\[([^\]]+)\]|([A-Za-z0-9\s_-]+:))\s*(.+)$/);
-        if (stepMatch) {
-          const stepLabel = (stepMatch[1] || stepMatch[2] || 'Step').replace(/:$/, '').trim();
-          const content = stepMatch[3].trim();
-          items.push({ label: stepLabel, content });
-        } else if (/^[-*]\s+/.test(line)) {
-          items.push({ label: `Step ${items.length + 1}`, content: line.replace(/^[-*]\s+/, '').trim() });
-        }
-      }
-      return { kind: normKind, items };
-    }
-
-    if (normKind === 'comparison') {
-      const items = [];
-      for (const line of lines) {
-        if (line.includes('|')) {
-          const parts = line.split('|').map(p => p.trim().replace(/^[-*]\s+/, ''));
-          if (parts.length >= 2) {
-            const col1 = parts[0].replace(/\*\*/g, '').trim();
-            const col2 = parts[1].replace(/\*\*/g, '').trim();
-            const col3 = parts[2] ? parts[2].replace(/\*\*/g, '').trim() : null;
-            items.push({ col1, col2, col3 });
-          }
-        }
-      }
-      return { kind: 'comparison', items };
-    }
-
-    if (normKind === 'quiz') {
-      let question = null;
-      const options = [];
-      let answer = null;
-      let explanation = null;
-
-      for (const line of lines) {
-        const qMatch = line.match(/^[-*]\s+\*\*Question:\*\*\s*(.+)$/i);
-        if (qMatch) { question = qMatch[1].trim(); continue; }
-
-        const optMatch = line.match(/^[-*]\s+\*\*Option\s+([A-D]):\*\*\s*(.+)$/i);
-        if (optMatch) {
-          options.push({ key: optMatch[1].toUpperCase(), text: optMatch[2].trim() });
-          continue;
-        }
-
-        const ansMatch = line.match(/^[-*]\s+\*\*Answer:\*\*\s*(.+)$/i);
-        if (ansMatch) { answer = ansMatch[1].trim(); continue; }
-
-        const expMatch = line.match(/^[-*]\s+\*\*Explanation:\*\*\s*(.+)$/i);
-        if (expMatch) { explanation = expMatch[1].trim(); continue; }
-      }
-      const items = options.map(o => ({ key: o.key, text: o.text }));
-      return {
-        kind: 'quiz',
-        question,
-        options,
-        answer,
-        explanation,
-        items
-      };
-    }
-
-    if (normKind === 'roadmap') {
-      const items = [];
-      for (const line of lines) {
-        const m = line.match(/^[-*]\s+\[([ xX])\]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(?:\s*[—–-]\s*(.+))?$/);
-        if (m) {
-          const done = m[1].toLowerCase() === 'x';
-          const title = m[2].trim();
-          const tag = (m[3] || '').trim();
-          const desc = (m[4] || '').trim();
-          items.push({ done, title, tag, desc });
-        }
-      }
-      return { kind: 'roadmap', items };
-    }
-
-    if (normKind === 'complexity') {
-      const items = [];
-      for (const line of lines) {
-        if (line.includes('|')) {
-          const parts = line.split('|').map(p => p.trim().replace(/^[-*]\s+/, ''));
-          if (parts.length >= 2) {
-            items.push({
-              label: parts[0].replace(/\*\*/g, '').trim(),
-              best: parts[1] ? parts[1].replace(/\*\*/g, '').trim() : null,
-              average: parts[2] ? parts[2].replace(/\*\*/g, '').trim() : null,
-              worst: parts[3] ? parts[3].replace(/\*\*/g, '').trim() : null,
-              space: parts[4] ? parts[4].replace(/\*\*/g, '').trim() : null
-            });
-          }
-        }
-      }
-      return { kind: 'complexity', items };
-    }
-
-    return { kind: normKind, items: [] };
-  }
-
-  function renderKyanaVisualBlockHtml(kind, rawBlock) {
-    const normKind = String(kind || '').trim().toLowerCase();
-    if (normKind === 'attendance') {
-      return renderAttendanceChartHtml(rawBlock);
-    }
-
-    const parsed = parseKyanaVisualBlock(normKind, rawBlock);
-    if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) {
-      return '';
-    }
-
-    if (normKind === 'results') {
-      const hasAgg = parsed.aggregatePct !== null || parsed.aggregateScore;
-      const aggBarW = parsed.aggregatePct !== null ? Math.min(100, Math.max(2, parsed.aggregatePct)) : 0;
-      const aggLow = parsed.aggregatePct !== null && parsed.aggregatePct < 40;
-
-      let html = `<div class="kyana-attendance-card kyana-results-card" data-visual-kind="results">
-        <div class="kyana-att-header">
-          <span class="kyana-att-title">Academic results</span>
-          <span class="kyana-att-status-pill">${parsed.items.length} published ${parsed.items.length === 1 ? 'exam' : 'exams'}</span>
-        </div>`;
-
-      if (hasAgg) {
-        html += `
-        <div class="kyana-att-hero-row">
-          <div class="kyana-att-hero-col">
-            <div class="kyana-att-hero-pct-wrap">
-              <span class="kyana-att-hero-pct ${aggLow ? 'is-low' : ''}">${escapeHtml(parsed.aggregatePct !== null ? `${parsed.aggregatePct}%` : parsed.aggregateScore)}</span>
-            </div>
-            <span class="kyana-att-hero-sub">${escapeHtml(parsed.aggregateLabel || 'Overall aggregate')}</span>
-          </div>
-          ${parsed.aggregateScore ? `
-          <div class="kyana-att-hero-col is-right">
-            <span class="kyana-att-hero-ratio">${escapeHtml(parsed.aggregateScore)}</span>
-            <span class="kyana-att-hero-sub">Total marks</span>
-          </div>` : ''}
-        </div>`;
-        if (parsed.aggregatePct !== null) {
-          html += `
-          <div class="kyana-att-bar-track" role="progressbar" aria-valuenow="${parsed.aggregatePct}" aria-valuemin="0" aria-valuemax="100">
-            <svg class="kyana-att-bar-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
-              <rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="8" rx="4"></rect>
-              <rect class="kyana-att-svg-fill ${aggLow ? 'is-low' : ''}" x="0" y="0" width="${aggBarW}" height="8" rx="4"></rect>
-            </svg>
-          </div>`;
-        }
-        html += `<div class="kyana-att-divider"></div>`;
-      }
-
-      html += `<div class="kyana-att-subjects-list">`;
-      for (const item of parsed.items) {
-        const metaParts = [item.code, item.examType, item.semester ? `Semester ${item.semester}` : null].filter(Boolean).join(' · ');
-        const barW = item.pct !== null ? Math.min(100, Math.max(item.pct === 0 ? 2 : 0, item.pct)) : 0;
-
-        html += `
-        <div class="kyana-att-subj-item" data-subject-code="${escapeHtml(item.code)}">
-          <div class="kyana-att-subj-top">
-            <div class="kyana-att-subj-info">
-              <span class="kyana-att-subj-name">${escapeHtml(item.subject)}</span>
-              <span class="kyana-att-subj-meta">${escapeHtml(metaParts)}</span>
-            </div>
-            <div class="kyana-att-subj-pct-col">
-              <span class="kyana-att-subj-pct ${item.isLow ? 'is-low' : ''}">${escapeHtml(item.scoreLabel)}</span>
-              ${item.pct !== null ? `<span class="kyana-att-subj-meta">${escapeHtml(String(item.pct))}%</span>` : ''}
-              ${item.isAbsent ? '<span class="kyana-att-low-badge">Absent</span>' : (item.isUnpublished ? '<span class="kyana-att-norecord-pill">Unpublished</span>' : '')}
-            </div>
-          </div>
-          ${item.pct !== null && !item.isUnpublished ? `
-          <div class="kyana-att-bar-track" role="progressbar" aria-valuenow="${item.pct}" aria-valuemin="0" aria-valuemax="100">
-            <svg class="kyana-att-bar-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
-              <rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="8" rx="4"></rect>
-              <rect class="kyana-att-svg-fill ${item.isLow ? 'is-low' : ''}" x="0" y="0" width="${barW}" height="8" rx="4"></rect>
-            </svg>
-          </div>` : ''}
-        </div>`;
-      }
-      html += `</div></div>`;
-      return html;
-    }
-
-    if (normKind === 'assignments') {
-      let html = `<div class="kyana-attendance-card kyana-assignments-card" data-visual-kind="assignments">
-        <div class="kyana-att-header">
-          <span class="kyana-att-title">Assignments</span>
-          <span class="kyana-att-status-pill">${parsed.items.length} ${parsed.items.length === 1 ? 'item' : 'items'}</span>
-        </div>
-        <div class="kyana-att-subjects-list">`;
-
-      for (const item of parsed.items) {
-        const metaParts = [item.subject, item.semester, item.author ? `By ${item.author}` : null, item.deadline ? `Due ${item.deadline}` : null].filter(Boolean).join(' · ');
-        const pillHtml = item.isOverdue
-          ? `<span class="kyana-att-low-badge">${escapeHtml(item.statusLabel)}</span>`
-          : `<span class="kyana-att-norecord-pill">${escapeHtml(item.statusLabel)}</span>`;
-
-        html += `
-        <div class="kyana-att-subj-item">
-          <div class="kyana-att-subj-top">
-            <div class="kyana-att-subj-info">
-              <span class="kyana-att-subj-name">${escapeHtml(item.title)}</span>
-              <span class="kyana-att-subj-meta">${escapeHtml(metaParts)}</span>
-            </div>
-            <div class="kyana-att-subj-pct-col">${pillHtml}</div>
-          </div>
-          ${item.description ? `<div class="kyana-att-item-desc">${escapeHtml(item.description)}</div>` : ''}
-          ${item.questions ? `<div class="kyana-att-item-sub">${escapeHtml(item.questions)}</div>` : ''}
-          ${item.grade ? `<div class="kyana-att-item-sub">Grade: ${escapeHtml(item.grade)}</div>` : ''}
-        </div>`;
-      }
-      html += `</div></div>`;
-      return html;
-    }
-
-    if (normKind === 'notes') {
-      let html = `<div class="kyana-attendance-card kyana-notes-card" data-visual-kind="notes">
-        <div class="kyana-att-header">
-          <span class="kyana-att-title">Library resources</span>
-          <span class="kyana-att-status-pill">${parsed.items.length} ${parsed.items.length === 1 ? 'file' : 'files'}</span>
-        </div>
-        <div class="kyana-att-other-list">`;
-
-      for (const item of parsed.items) {
-        const metaParts = [item.subject, item.semester, item.chapter, item.folder ? `Folder: ${item.folder}` : null].filter(Boolean).join(' · ');
-        html += `
-        <div class="kyana-att-other-row">
-          <div class="kyana-att-subj-info">
-            <span class="kyana-att-subj-name">${escapeHtml(item.title)}</span>
-            <span class="kyana-att-subj-meta">${escapeHtml(metaParts)}</span>
-          </div>
-          <span class="kyana-att-norecord-pill">${escapeHtml(item.fileType || 'PDF')}</span>
-        </div>`;
-      }
-      html += `</div></div>`;
-      return html;
-    }
-
-    if (normKind === 'routine') {
-      let html = `<div class="kyana-attendance-card kyana-routine-card" data-visual-kind="routine">
-        <div class="kyana-att-header">
-          <span class="kyana-att-title">Schedule & routine</span>
-          <span class="kyana-att-status-pill">${parsed.items.length} ${parsed.items.length === 1 ? 'session' : 'sessions'}</span>
-        </div>
-        <div class="kyana-att-other-list">`;
-
-      for (const item of parsed.items) {
-        const metaParts = [item.date, item.day, item.time].filter(Boolean).join(' · ');
-        html += `
-        <div class="kyana-att-other-row">
-          <div class="kyana-att-subj-info">
-            <span class="kyana-att-subj-name">${escapeHtml(item.subject)}</span>
-            <span class="kyana-att-subj-meta">${escapeHtml(metaParts || item.rawMeta)}</span>
-          </div>
-          ${item.room ? `<span class="kyana-att-norecord-pill">Room ${escapeHtml(item.room)}</span>` : ''}
-        </div>`;
-      }
-      html += `</div></div>`;
-      return html;
-    }
-
-    if (normKind === 'notices' || normKind === 'posts' || normKind === 'directory') {
-      const headingMap = {
-        notices: 'Official notices & announcements',
-        posts: 'Campus discussions',
-        directory: 'Academic overview'
-      };
-      let html = `<div class="kyana-attendance-card kyana-${normKind}-card" data-visual-kind="${normKind}">
-        <div class="kyana-att-header">
-          <span class="kyana-att-title">${escapeHtml(headingMap[normKind] || 'Overview')}</span>
-          <span class="kyana-att-status-pill">${parsed.items.length} ${parsed.items.length === 1 ? 'item' : 'items'}</span>
-        </div>
-        <div class="kyana-att-subjects-list">`;
-
-      for (const item of parsed.items) {
-        html += `
-        <div class="kyana-att-subj-item">
-          <div class="kyana-att-subj-top">
-            <div class="kyana-att-subj-info">
-              <span class="kyana-att-subj-name">${escapeHtml(item.title)}</span>
-              ${item.meta ? `<span class="kyana-att-subj-meta">${escapeHtml(item.meta)}</span>` : ''}
-            </div>
-            ${item.badge ? `<span class="kyana-att-norecord-pill">${escapeHtml(item.badge)}</span>` : ''}
-          </div>
-          ${item.summary ? `<div class="kyana-att-item-desc">${escapeHtml(item.summary)}</div>` : ''}
-        </div>`;
-      }
-      html += `</div></div>`;
-      return html;
-    }
-
-    if (normKind === 'syllabus') {
-      const creditVal = parsed.credits || parsed.credit || null;
-      const totalHrsVal = parsed.totalHours ? (typeof parsed.totalHours === 'number' ? `${parsed.totalHours} hrs` : String(parsed.totalHours)) : null;
-      const objVal = parsed.officialObjectives || parsed.objectives || null;
-      const labVal = parsed.officialLab || parsed.labs || null;
-      const tbVal = parsed.officialTextbooks || parsed.textbooks || null;
-
-      let html = `<div class="kyana-attendance-card kyana-syllabus-card" data-visual-kind="syllabus">
-        <div class="kyana-att-header">
-          <div class="kyana-att-title-group">
-            <span class="kyana-att-title">${escapeHtml(parsed.courseTitle || 'Course Syllabus')}</span>
-            ${parsed.courseCode ? `<span class="kyana-syllabus-code-badge">${escapeHtml(parsed.courseCode)}</span>` : ''}
-          </div>
-          <div class="kyana-syllabus-badges">
-            <span class="kyana-att-status-pill kyana-official-badge">Official Syllabus</span>
-            ${parsed.semester ? `<span class="kyana-att-status-pill">Semester ${escapeHtml(String(parsed.semester))}</span>` : ''}
-            ${creditVal ? `<span class="kyana-att-status-pill">${escapeHtml(String(creditVal))} Cr</span>` : ''}
-            ${parsed.nature ? `<span class="kyana-att-status-pill">${escapeHtml(String(parsed.nature))}</span>` : ''}
-            ${totalHrsVal ? `<span class="kyana-att-status-pill">${escapeHtml(totalHrsVal)}</span>` : ''}
-          </div>
-        </div>`;
-
-      if (parsed.instructor) {
-        html += `<div class="kyana-syllabus-instructor">Assigned Faculty: <strong>${escapeHtml(parsed.instructor)}</strong></div>`;
-      }
-
-      if (objVal) {
-        html += `<div class="kyana-syllabus-objectives">
-          <span class="kyana-syllabus-section-label">Official University Syllabus · Learning Objectives</span>
-          <p>${escapeHtml(objVal)}</p>
-        </div>`;
-      }
-
-      html += `<div class="kyana-att-subjects-list">`;
-      for (const item of parsed.items) {
-        if (item.unitNumber) {
-          const hrsText = item.teachingHours || item.hours || null;
-          const pctVal = item.sharePct !== undefined && item.sharePct !== null ? item.sharePct : (item.pct !== undefined ? item.pct : null);
-          const topicStr = Array.isArray(item.topics)
-            ? item.topics.map(t => (t.code ? `${t.code} ${t.text}` : t.text)).join(' · ')
-            : (item.topics || '');
-
-          html += `
-          <div class="kyana-att-subj-item kyana-syllabus-unit-item">
-            <div class="kyana-att-subj-top">
-              <div class="kyana-att-subj-info">
-                <span class="kyana-att-subj-name">Unit ${escapeHtml(String(item.unitNumber))}: ${escapeHtml(item.title)}</span>
-                ${hrsText ? `<span class="kyana-att-subj-meta">${escapeHtml(String(hrsText))}${pctVal ? ` · ${pctVal}% of course hours` : ''}</span>` : (item.workloadShare ? `<span class="kyana-att-subj-meta">${escapeHtml(String(item.workloadShare))}</span>` : '')}
-              </div>
-              ${pctVal ? `<span class="kyana-att-subj-pct">${escapeHtml(String(pctVal))}%</span>` : ''}
-            </div>
-            ${pctVal ? `
-            <div class="kyana-att-bar-track" role="progressbar" aria-valuenow="${pctVal}" aria-valuemin="0" aria-valuemax="100">
-              <svg class="kyana-att-bar-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
-                <rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="8" rx="4"></rect>
-                <rect class="kyana-att-svg-fill" x="0" y="0" width="${Math.min(100, Math.max(4, pctVal))}" height="8" rx="4"></rect>
-              </svg>
-            </div>` : ''}
-            ${topicStr ? `<div class="kyana-syllabus-unit-topics">${escapeHtml(topicStr)}</div>` : ''}
-          </div>`;
-        } else {
-          html += `
-          <div class="kyana-att-subj-item">
-            <div class="kyana-att-subj-top">
-              <div class="kyana-att-subj-info">
-                <span class="kyana-att-subj-name">${escapeHtml(item.code)}: ${escapeHtml(item.title)}</span>
-                ${item.credits ? `<span class="kyana-att-subj-meta">${escapeHtml(String(item.credits))} · ${escapeHtml(item.nature || '')}</span>` : ''}
-              </div>
-              ${item.details ? `<span class="kyana-att-norecord-pill">${escapeHtml(item.details)}</span>` : ''}
-            </div>
-          </div>`;
-        }
-      }
-      html += `</div>`;
-
-      if (parsed.connections) {
-        html += `<div class="kyana-syllabus-footer-section">
-          <span class="kyana-syllabus-section-label">AI Study Guide · Unit Progression</span>
-          <p class="kyana-syllabus-footer-text"><strong>Builds On:</strong> ${escapeHtml(parsed.connections.buildsOn || '')} &nbsp;·&nbsp; <strong>Leads To:</strong> ${escapeHtml(parsed.connections.leadsTo || '')}</p>
-        </div>`;
-      }
-
-      if (labVal) {
-        html += `<div class="kyana-syllabus-footer-section">
-          <span class="kyana-syllabus-section-label">Official University Syllabus · Laboratory Practicals</span>
-          <p class="kyana-syllabus-footer-text">${escapeHtml(labVal)}</p>
-        </div>`;
-      }
-      if (tbVal) {
-        html += `<div class="kyana-syllabus-footer-section">
-          <span class="kyana-syllabus-section-label">Official University Syllabus · Recommended Textbooks</span>
-          <p class="kyana-syllabus-footer-text">${escapeHtml(tbVal)}</p>
-        </div>`;
-      }
-
-      if (parsed.aiGuidance) {
-        const g = parsed.aiGuidance;
-        html += `<div class="kyana-syllabus-ai-guide">
-          <div class="kyana-syllabus-ai-header">
-            <span class="kyana-syllabus-section-label">AI Study Guide & Learning Roadmap</span>
-            <span class="kyana-att-norecord-pill">Advisory · Not Official Requirement</span>
-          </div>
-          ${Array.isArray(g.prerequisites) && g.prerequisites.length ? `<div class="kyana-ai-guide-row"><strong>Prerequisites:</strong> ${escapeHtml(g.prerequisites.join(' · '))}</div>` : ''}
-          ${Array.isArray(g.keyConcepts) && g.keyConcepts.length ? `<div class="kyana-ai-guide-row"><strong>High-Focus Concepts:</strong> ${escapeHtml(g.keyConcepts.join(' · '))}</div>` : ''}
-          ${Array.isArray(g.studySequence) && g.studySequence.length ? `<div class="kyana-ai-guide-row"><strong>Suggested Study Sequence:</strong> ${escapeHtml(g.studySequence.join(' → '))}</div>` : ''}
-          ${Array.isArray(g.studyTips) && g.studyTips.length ? `<div class="kyana-ai-guide-row"><strong>Study Tips:</strong> ${escapeHtml(g.studyTips.join(' '))}</div>` : ''}
-        </div>`;
-      }
-
-      html += `</div>`;
-      return html;
-    }
-
-    if (normKind === 'quiz') {
-      const questionsList = Array.isArray(parsed.questions) && parsed.questions.length > 0
-        ? parsed.questions
-        : [{
-            id: 'q1',
-            question: parsed.question || '',
-            options: Array.isArray(parsed.options) ? parsed.options.map(o => typeof o === 'string' ? o : `${o.key}) ${o.text}`) : [],
-            correctIndex: 0,
-            answer: parsed.answer || '',
-            explanation: parsed.explanation || ''
-          }];
-
-      let html = `<div class="kyana-attendance-card kyana-quiz-card" data-visual-kind="quiz">
-        <div class="kyana-att-header">
-          <span class="kyana-att-title">${escapeHtml(parsed.title || 'Interactive Self-Assessment Quiz')}</span>
-          <span class="kyana-att-status-pill">${questionsList.length} ${questionsList.length === 1 ? 'question' : 'questions'}</span>
-        </div>`;
-
-      questionsList.forEach((q, qIdx) => {
-        const opts = Array.isArray(q.options) ? q.options : [];
-        const correctIdx = typeof q.correctIndex === 'number' ? q.correctIndex : -1;
-        const correctAnswerText = q.answer || (correctIdx >= 0 && opts[correctIdx] ? opts[correctIdx] : '');
-
-        html += `<div class="kyana-quiz-body" data-quiz-index="${qIdx}">
-          <div class="kyana-quiz-question">${questionsList.length > 1 ? `<strong>Q${qIdx + 1}.</strong> ` : ''}${escapeHtml(q.question || '')}</div>
-          <div class="kyana-quiz-options">`;
-
-        opts.forEach((opt, oIdx) => {
-          const optStr = typeof opt === 'string' ? opt : `${opt.key}) ${opt.text}`;
-          const isCorrectOpt = oIdx === correctIdx;
-          html += `<button type="button" class="kyana-quiz-option" data-correct="${isCorrectOpt ? 'true' : 'false'}" onclick="(function(btn){
-            var parent = btn.closest('.kyana-quiz-body');
-            if (!parent) return;
-            parent.querySelectorAll('.kyana-quiz-option').forEach(function(el){ el.classList.remove('is-selected', 'is-correct', 'is-wrong'); });
-            btn.classList.add('is-selected');
-            btn.classList.add(btn.getAttribute('data-correct') === 'true' ? 'is-correct' : 'is-wrong');
-            var rev = parent.querySelector('.kyana-quiz-reveal-content');
-            if (rev && btn.getAttribute('data-correct') === 'true') { rev.style.display = 'block'; }
-          })(this)">
-            <span class="kyana-quiz-opt-text">${escapeHtml(optStr)}</span>
-          </button>`;
-        });
-
-        html += `</div>
-          <div class="kyana-quiz-action-bar">
-            <button type="button" class="kyana-quiz-reveal-btn" onclick="(function(btn){
-              var c = btn.closest('.kyana-quiz-body').querySelector('.kyana-quiz-reveal-content');
-              if (c) {
-                var isHidden = c.style.display === 'none';
-                c.style.display = isHidden ? 'block' : 'none';
-                btn.textContent = isHidden ? 'Hide Explanation' : 'Reveal Answer & Explanation';
-              }
-            })(this)">Reveal Answer & Explanation</button>
-          </div>
-          <div class="kyana-quiz-reveal-content" style="display: none;">
-            <div class="kyana-quiz-correct-answer">
-              <strong>Correct Answer:</strong> ${escapeHtml(correctAnswerText)}
-            </div>
-            ${q.explanation ? `<div class="kyana-quiz-explanation">${escapeHtml(q.explanation)}</div>` : ''}
-          </div>
-        </div>`;
-      });
-
-      html += `</div>`;
-      return html;
-    }
-
-    if (normKind === 'diagram') {
-      const isSeq = parsed.diagramType === 'sequence';
-      let html = `<div class="kyana-attendance-card kyana-diagram-card" data-visual-kind="diagram" data-diagram-type="${escapeHtml(parsed.diagramType || 'flowchart')}">
-        <div class="kyana-att-header">
-          <div class="kyana-att-title-group">
-            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Architecture & Concept Diagram')}</span>
-            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
-          </div>
-          <span class="kyana-att-status-pill">${isSeq ? 'Sequence Diagram' : 'Concept Diagram'}</span>
-        </div>`;
-
-      if (Array.isArray(parsed.nodes) && parsed.nodes.length > 0) {
-        html += `<div class="kyana-diagram-nodes-flow">`;
-        parsed.nodes.forEach((node, idx) => {
-          const actorHeader = (node.actorFrom && node.actorTo)
-            ? `<div class="kyana-seq-actors"><span class="kyana-seq-actor-pill">${escapeHtml(node.actorFrom)}</span><span class="kyana-seq-arrow">→</span><span class="kyana-seq-actor-pill">${escapeHtml(node.actorTo)}</span></div>`
-            : '';
-          html += `
-          <div class="kyana-diagram-node-box">
-            ${actorHeader}
-            <div class="kyana-diagram-node-title">${escapeHtml(node.label || node.id || `Stage ${idx + 1}`)}</div>
-            ${node.detail ? `<div class="kyana-diagram-node-detail">${escapeHtml(node.detail)}</div>` : ''}
-          </div>`;
-          if (idx < parsed.nodes.length - 1) {
-            html += `<div class="kyana-diagram-arrow" aria-hidden="true">↓</div>`;
-          }
-        });
-        html += `</div>`;
-      } else if (parsed.diagramText) {
-        html += `<div class="kyana-diagram-content"><pre class="kyana-diagram-pre"><code>${escapeHtml(parsed.diagramText)}</code></pre></div>`;
-      }
-
-      html += `</div>`;
-      return html;
-    }
-
-    if (normKind === 'graph') {
-      const series = Array.isArray(parsed.series) ? parsed.series : parsed.items;
-      const chartType = String(parsed.chartType || 'bar').toLowerCase();
-      let html = `<div class="kyana-attendance-card kyana-graph-card" data-visual-kind="graph" data-chart-type="${escapeHtml(chartType)}">
-        <div class="kyana-att-header">
-          <div class="kyana-att-title-group">
-            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Quantitative & Complexity Graph')}</span>
-            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
-          </div>
-          <span class="kyana-att-status-pill">Visual Plot</span>
-        </div>`;
-
-      if ((chartType === 'vertical_bar' || chartType === 'line' || chartType === 'scatter') && series.length > 0) {
-        const maxVal = Math.max(10, ...series.map(s => Number(s.value ?? s.y ?? s.pct ?? 0)));
-        const svgW = 520;
-        const svgH = 220;
-        const padL = 44;
-        const padR = 20;
-        const padT = 18;
-        const padB = 34;
-        const plotW = svgW - padL - padR;
-        const plotH = svgH - padT - padB;
-        let svgInner = '';
-        for (let g = 0; g <= 4; g++) {
-          const gy = Math.round(padT + (plotH * (4 - g)) / 4);
-          const gVal = Math.round((maxVal * g) / 4);
-          svgInner += `<line x1="${padL}" y1="${gy}" x2="${svgW - padR}" y2="${gy}" stroke="currentColor" stroke-opacity="0.12" stroke-dasharray="3 3" />`;
-          svgInner += `<text x="${padL - 8}" y="${gy + 4}" text-anchor="end" font-size="10" fill="currentColor" opacity="0.65">${gVal}</text>`;
-        }
-        if (chartType === 'vertical_bar') {
-          const slotW = plotW / series.length;
-          const barW = Math.min(64, Math.max(18, slotW * 0.62));
-          series.forEach((s, idx) => {
-            const v = Number(s.value ?? s.pct ?? 0);
-            const bh = Math.max(4, Math.round((v / maxVal) * plotH));
-            const bx = Math.round(padL + idx * slotW + (slotW - barW) / 2);
-            const by = padT + plotH - bh;
-            svgInner += `<rect class="kyana-vchart-bar" x="${bx}" y="${by}" width="${barW}" height="${bh}" rx="6" />`;
-            svgInner += `<text x="${Math.round(bx + barW / 2)}" y="${svgH - 12}" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.85">${escapeHtml(s.label || s.title || String(idx + 1))}</text>`;
-          });
-        } else {
-          const pts = series.map((s, idx) => {
-            const v = Number(s.value ?? s.y ?? s.pct ?? 0);
-            const px = Math.round(padL + (series.length > 1 ? (idx / (series.length - 1)) * plotW : plotW / 2));
-            const py = Math.round(padT + plotH - (v / maxVal) * plotH);
-            return { px, py, label: s.label || s.title || String(s.x ?? idx + 1), v };
-          });
-          if (chartType === 'line' && pts.length > 1) {
-            const poly = pts.map(p => `${p.px},${p.py}`).join(' ');
-            svgInner += `<polyline fill="none" stroke="#a855f7" stroke-width="2.5" points="${poly}" />`;
-          }
-          pts.forEach(p => {
-            svgInner += `<circle cx="${p.px}" cy="${p.py}" r="4.5" fill="#a855f7" />`;
-            svgInner += `<text x="${p.px}" y="${svgH - 12}" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.8">${escapeHtml(p.label)}</text>`;
-          });
-        }
-        html += `<div class="kyana-vchart-wrap"><svg class="kyana-vchart-svg" viewBox="0 0 ${svgW} ${svgH}" role="img" aria-label="${escapeHtml(parsed.title || 'Chart')}">${svgInner}</svg></div>`;
-      }
-
-      html += `<div class="kyana-att-subjects-list">`;
-      for (const s of series) {
-        const valNum = Number(s.value ?? s.pct ?? 50);
-        const barW = Math.min(100, Math.max(4, valNum));
-        html += `
-        <div class="kyana-att-subj-item">
-          <div class="kyana-att-subj-top">
-            <span class="kyana-att-subj-name">${escapeHtml(s.label || s.title || '')}</span>
-            <span class="kyana-att-subj-pct">${escapeHtml(s.displayValue || `${valNum}`)}</span>
-          </div>
-          <div class="kyana-att-bar-track" role="progressbar" aria-valuenow="${barW}" aria-valuemin="0" aria-valuemax="100">
-            <svg class="kyana-att-bar-svg" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
-              <rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="8" rx="4"></rect>
-              <rect class="kyana-att-svg-fill" x="0" y="0" width="${barW}" height="8" rx="4"></rect>
-            </svg>
-          </div>
-        </div>`;
-      }
-
-      if (parsed.xAxisLabel || parsed.yAxisLabel) {
-        html += `<div class="kyana-graph-axes-meta">
-          ${parsed.xAxisLabel ? `<span>X-Axis: ${escapeHtml(parsed.xAxisLabel)}</span>` : ''}
-          ${parsed.yAxisLabel ? `<span>Y-Axis: ${escapeHtml(parsed.yAxisLabel)}</span>` : ''}
-        </div>`;
-      }
-
-      html += `</div></div>`;
-      return html;
-    }
-
-    if (normKind === 'flowchart' || normKind === 'trace') {
-      const steps = Array.isArray(parsed.steps) && parsed.steps.length > 0
-        ? parsed.steps.map((s, idx) => ({
-            label: `Step ${s.step || idx + 1}`,
-            action: s.action || s.label || `Step ${idx + 1}`,
-            state: Array.isArray(s.state) ? s.state : (s.content ? [s.content] : []),
-            highlight: s.highlight || null
-          }))
-        : parsed.items.map((item, idx) => ({
-            label: item.label || `Step ${idx + 1}`,
-            action: item.label || `Step ${idx + 1}`,
-            state: [item.content || ''],
-            highlight: null
-          }));
-
-      let html = `<div class="kyana-attendance-card kyana-trace-card" data-visual-kind="${normKind}" data-active-step="all">
-        <div class="kyana-att-header">
-          <div class="kyana-att-title-group">
-            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Step-by-step execution trace')}</span>
-            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
-          </div>
-          <div class="kyana-syllabus-badges">
-            ${parsed.complexity?.time ? `<span class="kyana-att-status-pill">Time: ${escapeHtml(parsed.complexity.time)}</span>` : ''}
-            ${parsed.complexity?.space ? `<span class="kyana-att-status-pill">Space: ${escapeHtml(parsed.complexity.space)}</span>` : ''}
-            <span class="kyana-att-status-pill">${steps.length} ${steps.length === 1 ? 'step' : 'steps'}</span>
-          </div>
-        </div>
-        <div class="kyana-trace-controls">
-          <button type="button" class="kyana-trace-ctrl-btn" onclick="(function(btn){
-            var card = btn.closest('.kyana-trace-card');
-            if (!card) return;
-            var items = card.querySelectorAll('.kyana-trace-step-item');
-            var cur = card.getAttribute('data-active-step');
-            var idx = cur === 'all' ? 0 : Math.max(0, parseInt(cur, 10) - 1);
-            card.setAttribute('data-active-step', String(idx));
-            items.forEach(function(el, i){ el.style.display = i === idx ? 'flex' : 'none'; });
-          })(this)">◀ Step Back</button>
-          <button type="button" class="kyana-trace-ctrl-btn" onclick="(function(btn){
-            var card = btn.closest('.kyana-trace-card');
-            if (!card) return;
-            var items = card.querySelectorAll('.kyana-trace-step-item');
-            var cur = card.getAttribute('data-active-step');
-            var idx = cur === 'all' ? 0 : Math.min(items.length - 1, parseInt(cur, 10) + 1);
-            card.setAttribute('data-active-step', String(idx));
-            items.forEach(function(el, i){ el.style.display = i === idx ? 'flex' : 'none'; });
-          })(this)">Step Forward ▶</button>
-          <button type="button" class="kyana-trace-ctrl-btn" onclick="(function(btn){
-            var card = btn.closest('.kyana-trace-card');
-            if (!card) return;
-            card.setAttribute('data-active-step', 'all');
-            card.querySelectorAll('.kyana-trace-step-item').forEach(function(el){ el.style.display = 'flex'; });
-          })(this)">Show All Steps</button>
-        </div>
-        <div class="kyana-trace-list">`;
-
-      for (const item of steps) {
-        html += `
-        <div class="kyana-trace-step-item">
-          <span class="kyana-trace-step-badge">${escapeHtml(item.label)}</span>
-          <div class="kyana-trace-step-body">
-            <div class="kyana-trace-step-action">${escapeHtml(item.action)}</div>
-            ${item.state.length > 0 ? `<div class="kyana-trace-state-pills">${item.state.map(st => `<code class="kyana-trace-state-pill">${escapeHtml(st)}</code>`).join('')}</div>` : ''}
-            ${item.highlight ? `<div class="kyana-trace-step-highlight">${escapeHtml(item.highlight)}</div>` : ''}
-          </div>
-        </div>`;
-      }
-      html += `</div></div>`;
-      return html;
-    }
-
-    if (normKind === 'comparison') {
-      let html = `<div class="kyana-attendance-card kyana-comparison-card" data-visual-kind="comparison">
-        <div class="kyana-att-header">
-          <span class="kyana-att-title">Feature & Concept Comparison</span>
-          <span class="kyana-att-status-pill">${parsed.items.length} criteria</span>
-        </div>
-        <div class="kyana-comparison-list">`;
-      for (const item of parsed.items) {
-        html += `
-        <div class="kyana-comparison-row">
-          <div class="kyana-comp-criteria">${escapeHtml(item.col1)}</div>
-          <div class="kyana-comp-val kyana-comp-val1">${escapeHtml(item.col2)}</div>
-          ${item.col3 ? `<div class="kyana-comp-val kyana-comp-val2">${escapeHtml(item.col3)}</div>` : ''}
-        </div>`;
-      }
-      html += `</div></div>`;
-      return html;
-    }
-
-    if (normKind === 'roadmap') {
-      const roadItems = Array.isArray(parsed.steps) && parsed.steps.length > 0
-        ? parsed.steps.map(s => ({ done: Boolean(s.done), title: s.title || '', tag: s.phase || '', desc: s.detail || '' }))
-        : parsed.items;
-
-      let html = `<div class="kyana-attendance-card kyana-roadmap-card" data-visual-kind="roadmap">
-        <div class="kyana-att-header">
-          <div class="kyana-att-title-group">
-            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Learning & Revision Roadmap')}</span>
-            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
-          </div>
-          <span class="kyana-att-status-pill">${roadItems.length} stages</span>
-        </div>
-        <div class="kyana-roadmap-list">`;
-      for (const item of roadItems) {
-        html += `
-        <div class="kyana-roadmap-item ${item.done ? 'is-completed' : 'is-pending'}" onclick="(function(el){
-          el.classList.toggle('is-completed');
-          var dot = el.querySelector('.kyana-roadmap-status-dot');
-          if (dot) dot.textContent = el.classList.contains('is-completed') ? '✓' : '○';
-        })(this)">
-          <div class="kyana-roadmap-status-dot">${item.done ? '✓' : '○'}</div>
-          <div class="kyana-roadmap-info">
-            <div class="kyana-roadmap-title-row">
-              ${item.tag ? `<span class="kyana-roadmap-tag">${escapeHtml(item.tag)}</span>` : ''}
-              <span class="kyana-roadmap-title">${escapeHtml(item.title)}</span>
-            </div>
-            ${item.desc ? `<span class="kyana-roadmap-desc">${escapeHtml(item.desc)}</span>` : ''}
-          </div>
-        </div>`;
-      }
-      html += `</div></div>`;
-      return html;
-    }
-
-    if (normKind === 'complexity') {
-      let html = `<div class="kyana-attendance-card kyana-complexity-card" data-visual-kind="complexity">
-        <div class="kyana-att-header">
-          <span class="kyana-att-title">Asymptotic Time & Space Complexity</span>
-          <span class="kyana-att-status-pill">Big-O</span>
-        </div>
-        <div class="kyana-complexity-list">`;
-      for (const item of parsed.items) {
-        html += `
-        <div class="kyana-complexity-row">
-          <span class="kyana-comp-op">${escapeHtml(item.label)}</span>
-          <div class="kyana-comp-metrics">
-            ${item.best ? `<span class="kyana-comp-badge">Best: ${escapeHtml(item.best)}</span>` : ''}
-            ${item.average ? `<span class="kyana-comp-badge">Avg: ${escapeHtml(item.average)}</span>` : ''}
-            ${item.worst ? `<span class="kyana-comp-badge">Worst: ${escapeHtml(item.worst)}</span>` : ''}
-            ${item.space ? `<span class="kyana-comp-badge">Space: ${escapeHtml(item.space)}</span>` : ''}
-          </div>
-        </div>`;
-      }
-      html += `</div></div>`;
-      return html;
-    }
-
-    if (normKind === 'simulation') {
-      const simType = String(parsed.simulationType || 'generic').toLowerCase();
-      let html = `<div class="kyana-attendance-card kyana-simulation-card" data-visual-kind="simulation" data-simulation-type="${escapeHtml(simType)}">
-        <div class="kyana-att-header">
-          <div class="kyana-att-title-group">
-            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Interactive Academic Simulation')}</span>
-            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
-          </div>
-          <span class="kyana-att-status-pill">Interactive Lab</span>
-        </div>`;
-
-      if (simType === 'box_model') {
-        const defPad = Number(parsed.defaults?.padding ?? 16);
-        const defMar = Number(parsed.defaults?.margin ?? 12);
-        html += `
-        <div class="kyana-boxmodel-stage">
-          <div class="kyana-bm-margin" style="padding: ${defMar}px;">
-            <div class="kyana-bm-label">Margin: <span class="kyana-bm-margin-val">${defMar}px</span></div>
-            <div class="kyana-bm-border">
-              <div class="kyana-bm-label">Border</div>
-              <div class="kyana-bm-padding" style="padding: ${defPad}px;">
-                <div class="kyana-bm-label">Padding: <span class="kyana-bm-padding-val">${defPad}px</span></div>
-                <div class="kyana-bm-content">CONTENT</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="kyana-sim-controls">
-          <label class="kyana-sim-slider-group">
-            <span class="kyana-sim-slider-label">Adjust padding</span>
-            <input type="range" class="kyana-sim-range" min="0" max="40" step="2" value="${defPad}" oninput="(function(inp){
-              var card = inp.closest('.kyana-simulation-card');
-              if (!card) return;
-              var v = inp.value + 'px';
-              var padBox = card.querySelector('.kyana-bm-padding');
-              var padVal = card.querySelector('.kyana-bm-padding-val');
-              var out = inp.parentElement.querySelector('.kyana-sim-slider-readout');
-              if (padBox) padBox.style.padding = v;
-              if (padVal) padVal.textContent = v;
-              if (out) out.textContent = v;
-            })(this)" />
-            <span class="kyana-sim-slider-readout">${defPad}px</span>
-          </label>
-          <label class="kyana-sim-slider-group">
-            <span class="kyana-sim-slider-label">Adjust margin</span>
-            <input type="range" class="kyana-sim-range" min="0" max="40" step="2" value="${defMar}" oninput="(function(inp){
-              var card = inp.closest('.kyana-simulation-card');
-              if (!card) return;
-              var v = inp.value + 'px';
-              var marBox = card.querySelector('.kyana-bm-margin');
-              var marVal = card.querySelector('.kyana-bm-margin-val');
-              var out = inp.parentElement.querySelector('.kyana-sim-slider-readout');
-              if (marBox) marBox.style.padding = v;
-              if (marVal) marVal.textContent = v;
-              if (out) out.textContent = v;
-            })(this)" />
-            <span class="kyana-sim-slider-readout">${defMar}px</span>
-          </label>
-        </div>`;
-      } else if (simType === 'projectile_motion') {
-        const comp = parsed.computed || { v0: 25, thetaDeg: 45, g: 9.8, range: 63.78, maxHeight: 15.94, timeOfFlight: 3.61 };
-        html += `
-        <div class="kyana-proj-canvas-wrap">
-          <svg class="kyana-proj-svg" viewBox="0 0 480 180" role="img" aria-label="Projectile parabolic trajectory">
-            <line x1="30" y1="155" x2="460" y2="155" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5" />
-            <line x1="30" y1="15" x2="30" y2="155" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5" />
-            <path class="kyana-proj-path" d="M 30 155 Q 235 25 440 155" fill="none" stroke="#38bdf8" stroke-width="3" />
-            <circle class="kyana-proj-apex" cx="235" cy="90" r="4.5" fill="#f59e0b" />
-            <text x="235" y="78" text-anchor="middle" font-size="11" fill="currentColor">H_max = <tspan class="kyana-proj-h-svg">${escapeHtml(String(comp.maxHeight))} m</tspan></text>
-            <text x="435" y="172" text-anchor="end" font-size="11" fill="currentColor">Range R = <tspan class="kyana-proj-r-svg">${escapeHtml(String(comp.range))} m</tspan></text>
-          </svg>
-        </div>
-        <div class="kyana-att-stat-grid kyana-proj-metrics">
-          <div class="kyana-att-stat-box">
-            <span class="kyana-att-stat-num kyana-proj-range-val">${escapeHtml(String(comp.range))} m</span>
-            <span class="kyana-att-stat-label">Horizontal Range (R)</span>
-          </div>
-          <div class="kyana-att-stat-box">
-            <span class="kyana-att-stat-num kyana-proj-height-val">${escapeHtml(String(comp.maxHeight))} m</span>
-            <span class="kyana-att-stat-label">Max Height (H)</span>
-          </div>
-          <div class="kyana-att-stat-box">
-            <span class="kyana-att-stat-num kyana-proj-time-val">${escapeHtml(String(comp.timeOfFlight))} s</span>
-            <span class="kyana-att-stat-label">Time of Flight (T)</span>
-          </div>
-        </div>
-        <div class="kyana-sim-controls" data-v0="${comp.v0}" data-theta="${comp.thetaDeg}" data-g="${comp.g || 9.8}">
-          <label class="kyana-sim-slider-group">
-            <span class="kyana-sim-slider-label">Initial Velocity (v₀)</span>
-            <input type="range" class="kyana-sim-range" data-param="v0" min="5" max="50" step="1" value="${comp.v0}" oninput="(function(inp){
-              var card = inp.closest('.kyana-simulation-card');
-              if (!card) return;
-              var ctrl = card.querySelector('.kyana-sim-controls');
-              ctrl.setAttribute('data-v0', inp.value);
-              inp.parentElement.querySelector('.kyana-sim-slider-readout').textContent = inp.value + ' m/s';
-              var v0 = parseFloat(ctrl.getAttribute('data-v0')) || 25;
-              var th = parseFloat(ctrl.getAttribute('data-theta')) || 45;
-              var g = parseFloat(ctrl.getAttribute('data-g')) || 9.8;
-              var rad = th * Math.PI / 180;
-              var R = ((v0 * v0 * Math.sin(2 * rad)) / g).toFixed(2);
-              var H = ((v0 * v0 * Math.pow(Math.sin(rad), 2)) / (2 * g)).toFixed(2);
-              var T = ((2 * v0 * Math.sin(rad)) / g).toFixed(2);
-              card.querySelector('.kyana-proj-range-val').textContent = R + ' m';
-              card.querySelector('.kyana-proj-height-val').textContent = H + ' m';
-              card.querySelector('.kyana-proj-time-val').textContent = T + ' s';
-              var hSvg = card.querySelector('.kyana-proj-h-svg'); if (hSvg) hSvg.textContent = H + ' m';
-              var rSvg = card.querySelector('.kyana-proj-r-svg'); if (rSvg) rSvg.textContent = R + ' m';
-            })(this)" />
-            <span class="kyana-sim-slider-readout">${comp.v0} m/s</span>
-          </label>
-          <label class="kyana-sim-slider-group">
-            <span class="kyana-sim-slider-label">Launch Angle (θ)</span>
-            <input type="range" class="kyana-sim-range" data-param="theta" min="10" max="85" step="5" value="${comp.thetaDeg}" oninput="(function(inp){
-              var card = inp.closest('.kyana-simulation-card');
-              if (!card) return;
-              var ctrl = card.querySelector('.kyana-sim-controls');
-              ctrl.setAttribute('data-theta', inp.value);
-              inp.parentElement.querySelector('.kyana-sim-slider-readout').textContent = inp.value + '°';
-              var v0 = parseFloat(ctrl.getAttribute('data-v0')) || 25;
-              var th = parseFloat(ctrl.getAttribute('data-theta')) || 45;
-              var g = parseFloat(ctrl.getAttribute('data-g')) || 9.8;
-              var rad = th * Math.PI / 180;
-              var R = ((v0 * v0 * Math.sin(2 * rad)) / g).toFixed(2);
-              var H = ((v0 * v0 * Math.pow(Math.sin(rad), 2)) / (2 * g)).toFixed(2);
-              var T = ((2 * v0 * Math.sin(rad)) / g).toFixed(2);
-              card.querySelector('.kyana-proj-range-val').textContent = R + ' m';
-              card.querySelector('.kyana-proj-height-val').textContent = H + ' m';
-              card.querySelector('.kyana-proj-time-val').textContent = T + ' s';
-              var hSvg = card.querySelector('.kyana-proj-h-svg'); if (hSvg) hSvg.textContent = H + ' m';
-              var rSvg = card.querySelector('.kyana-proj-r-svg'); if (rSvg) rSvg.textContent = R + ' m';
-            })(this)" />
-            <span class="kyana-sim-slider-readout">${comp.thetaDeg}°</span>
-          </label>
-        </div>`;
-      } else if (simType === 'wave_motion') {
-        const amp = Number(parsed.defaults?.amplitude ?? 2);
-        const freq = Number(parsed.defaults?.frequency ?? 2);
-        html += `
-        <div class="kyana-proj-canvas-wrap">
-          <svg class="kyana-wave-svg" viewBox="0 0 480 150" role="img" aria-label="Harmonic wave simulation">
-            <line x1="20" y1="75" x2="460" y2="75" stroke="currentColor" stroke-opacity="0.25" stroke-dasharray="4 4" />
-            <path class="kyana-wave-path" d="M 20 75 Q 75 20 130 75 T 240 75 T 350 75 T 460 75" fill="none" stroke="#a855f7" stroke-width="3" />
-          </svg>
-        </div>
-        <div class="kyana-sim-controls" data-amp="${amp}" data-freq="${freq}">
-          <label class="kyana-sim-slider-group">
-            <span class="kyana-sim-slider-label">Amplitude (A)</span>
-            <input type="range" class="kyana-sim-range" min="1" max="5" step="0.5" value="${amp}" oninput="(function(inp){
-              inp.parentElement.querySelector('.kyana-sim-slider-readout').textContent = inp.value + ' m';
-            })(this)" />
-            <span class="kyana-sim-slider-readout">${amp} m</span>
-          </label>
-          <label class="kyana-sim-slider-group">
-            <span class="kyana-sim-slider-label">Frequency (f)</span>
-            <input type="range" class="kyana-sim-range" min="1" max="6" step="0.5" value="${freq}" oninput="(function(inp){
-              inp.parentElement.querySelector('.kyana-sim-slider-readout').textContent = inp.value + ' Hz';
-            })(this)" />
-            <span class="kyana-sim-slider-readout">${freq} Hz</span>
-          </label>
-        </div>`;
-      } else if (simType === 'binary_search') {
-        const arr = Array.isArray(parsed.array) ? parsed.array : [2, 5, 8, 12, 16, 23, 38, 56];
-        const steps = Array.isArray(parsed.steps) ? parsed.steps : [];
-        html += `<div class="kyana-bsearch-array">`;
-        arr.forEach((val, idx) => {
-          const isTarget = val === (parsed.defaultTarget ?? 23);
-          html += `<div class="kyana-bsearch-cell ${isTarget ? 'is-target' : ''}"><span class="kyana-bsearch-val">${escapeHtml(String(val))}</span><span class="kyana-bsearch-idx">idx ${idx}</span></div>`;
-        });
-        html += `</div>`;
-        if (steps.length > 0) {
-          html += `<div class="kyana-trace-list">`;
-          steps.forEach(s => {
-            html += `<div class="kyana-trace-step-item"><span class="kyana-trace-step-badge">Step ${escapeHtml(String(s.step))}</span><div class="kyana-trace-step-body"><div class="kyana-trace-step-action">low=${escapeHtml(String(s.low))}, mid=${escapeHtml(String(s.mid))}, high=${escapeHtml(String(s.high))}</div><div class="kyana-trace-step-highlight">${escapeHtml(s.comparison || '')}</div></div></div>`;
-          });
-          html += `</div>`;
-        }
-      }
-
-      if (parsed.takeaway || parsed.note) {
-        html += `<div class="kyana-syllabus-footer-section"><p class="kyana-syllabus-footer-text">${escapeHtml(parsed.takeaway || parsed.note)}</p></div>`;
-      }
-      html += `</div>`;
-      return html;
-    }
-
-    if (normKind === 'code_preview') {
-      const htmlCode = parsed.html || '';
-      const cssCode = parsed.css || '';
-      const annotations = Array.isArray(parsed.annotations) ? parsed.annotations : [];
-      let html = `<div class="kyana-attendance-card kyana-code-preview-card" data-visual-kind="code_preview">
-        <div class="kyana-att-header">
-          <div class="kyana-att-title-group">
-            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Live concept demonstration')}</span>
-            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
-          </div>
-          <span class="kyana-att-status-pill">HTML & CSS</span>
-        </div>
-        <div class="kyana-cp-tabs" role="tablist">
-          <button type="button" class="kyana-cp-tab is-active" data-tab="html" onclick="(function(btn){
-            var card = btn.closest('.kyana-code-preview-card');
-            card.querySelectorAll('.kyana-cp-tab').forEach(function(b){ b.classList.remove('is-active'); });
-            btn.classList.add('is-active');
-            card.querySelectorAll('.kyana-cp-pane').forEach(function(p){ p.style.display = p.getAttribute('data-pane') === 'html' ? 'block' : 'none'; });
-          })(this)">HTML</button>
-          <button type="button" class="kyana-cp-tab" data-tab="css" onclick="(function(btn){
-            var card = btn.closest('.kyana-code-preview-card');
-            card.querySelectorAll('.kyana-cp-tab').forEach(function(b){ b.classList.remove('is-active'); });
-            btn.classList.add('is-active');
-            card.querySelectorAll('.kyana-cp-pane').forEach(function(p){ p.style.display = p.getAttribute('data-pane') === 'css' ? 'block' : 'none'; });
-          })(this)">CSS</button>
-          <button type="button" class="kyana-cp-tab" data-tab="preview" onclick="(function(btn){
-            var card = btn.closest('.kyana-code-preview-card');
-            card.querySelectorAll('.kyana-cp-tab').forEach(function(b){ b.classList.remove('is-active'); });
-            btn.classList.add('is-active');
-            card.querySelectorAll('.kyana-cp-pane').forEach(function(p){ p.style.display = p.getAttribute('data-pane') === 'preview' ? 'block' : 'none'; });
-          })(this)">Preview</button>
-        </div>
-        <div class="kyana-cp-pane" data-pane="html" style="display: block;">
-          <pre class="kyana-cp-pre"><code>${escapeHtml(htmlCode)}</code></pre>
-        </div>
-        <div class="kyana-cp-pane" data-pane="css" style="display: none;">
-          <pre class="kyana-cp-pre"><code>${escapeHtml(cssCode)}</code></pre>
-        </div>
-        <div class="kyana-cp-pane" data-pane="preview" style="display: none;">
-          <div class="kyana-cp-live-box">
-            <div class="kyana-cp-demo-card">
-              <span class="kyana-cp-demo-badge">CIT 215 · Web Tech</span>
-              <h4 class="kyana-cp-demo-h2">Hello Student!</h4>
-              <p class="kyana-cp-demo-p">CSS selectors target specific HTML elements for styling.</p>
-            </div>
-          </div>
-        </div>`;
-      if (annotations.length > 0) {
-        html += `<div class="kyana-cp-annotations">`;
-        annotations.forEach(a => {
-          html += `<div class="kyana-cp-annot-row"><strong>${escapeHtml(a.selector || '')}</strong> <span class="kyana-att-norecord-pill">Specificity: ${escapeHtml(a.specificity || '')}</span> — <span>${escapeHtml(a.description || '')}</span></div>`;
-        });
-        html += `</div>`;
-      }
-      if (parsed.caption) {
-        html += `<div class="kyana-cp-caption">${escapeHtml(parsed.caption)}</div>`;
-      }
-      html += `</div>`;
-      return html;
-    }
-
-    if (normKind === 'illustration') {
-      const sceneType = String(parsed.sceneType || 'scientific').toLowerCase();
-      let svgGraphic = '';
-      if (sceneType === 'electromagnetic_induction') {
-        svgGraphic = `<svg class="kyana-illus-svg" viewBox="0 0 460 160" role="img" aria-label="Electromagnetic Induction Diagram">
-          <rect x="25" y="58" width="65" height="44" rx="4" fill="#ef4444" />
-          <rect x="90" y="58" width="65" height="44" rx="4" fill="#3b82f6" />
-          <text x="57" y="85" text-anchor="middle" fill="#fff" font-weight="700" font-size="14">S</text>
-          <text x="122" y="85" text-anchor="middle" fill="#fff" font-weight="700" font-size="14">N</text>
-          <path d="M 162 80 L 205 80" stroke="#f59e0b" stroke-width="2.5" />
-          <text x="184" y="70" text-anchor="middle" fill="currentColor" font-size="11">v →</text>
-          <path d="M 230 50 C 245 30, 260 130, 275 50 C 290 30, 305 130, 320 50 C 335 30, 350 130, 365 50" fill="none" stroke="#a855f7" stroke-width="3" />
-          <circle cx="410" cy="80" r="24" fill="none" stroke="currentColor" stroke-width="2" />
-          <text x="410" y="85" text-anchor="middle" fill="currentColor" font-weight="700" font-size="13">G</text>
-        </svg>`;
-      } else {
-        svgGraphic = `<svg class="kyana-illus-svg" viewBox="0 0 460 160" role="img" aria-label="${escapeHtml(parsed.title || 'Scientific Illustration')}">
-          <line x1="40" y1="135" x2="420" y2="135" stroke="currentColor" stroke-opacity="0.4" stroke-width="2" />
-          <line x1="40" y1="135" x2="40" y2="25" stroke="currentColor" stroke-opacity="0.4" stroke-width="2" />
-          <line x1="40" y1="135" x2="135" y2="55" stroke="#10b981" stroke-width="3" />
-          <line x1="40" y1="135" x2="135" y2="135" stroke="#38bdf8" stroke-width="2.5" stroke-dasharray="4 4" />
-          <line x1="135" y1="135" x2="135" y2="55" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="4 4" />
-          <text x="92" y="150" text-anchor="middle" fill="currentColor" font-size="11">v_x = v₀ cos θ</text>
-          <text x="175" y="95" fill="currentColor" font-size="11">v_y = v₀ sin θ</text>
-        </svg>`;
-      }
-      let html = `<div class="kyana-attendance-card kyana-illustration-card" data-visual-kind="illustration" data-scene-type="${escapeHtml(sceneType)}">
-        <div class="kyana-att-header">
-          <div class="kyana-att-title-group">
-            <span class="kyana-att-title">${escapeHtml(parsed.title || 'Scientific & Conceptual Illustration')}</span>
-            ${parsed.subtitle ? `<span class="kyana-att-subj-meta">${escapeHtml(parsed.subtitle)}</span>` : ''}
-          </div>
-          <span class="kyana-att-status-pill">Vector Figure</span>
-        </div>
-        <div class="kyana-illus-canvas">${svgGraphic}</div>
-        ${parsed.caption ? `<div class="kyana-cp-caption">${escapeHtml(parsed.caption)}</div>` : ''}
-      </div>`;
-      return html;
-    }
-
-    return '';
-  }
-
   function fallbackMarkdown(text) {
-    if (!text || !String(text).trim()) return '';
-
-    function parseInline(raw) {
-      if (!raw) return '';
-      const inlinePlaceholders = [];
-      // 1. Protect inline code (`...`)
-      let s = String(raw).replace(/`([^`\n]+)`/g, (_, c) => {
-        const idx = inlinePlaceholders.length;
-        inlinePlaceholders.push(`<code>${escapeHtml(c)}</code>`);
-        return `\x01INLINE_${idx}\x02`;
-      });
-
-      // 2. Protect inline LaTeX (\(...\) and $...$)
-      s = s.replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => {
-        const idx = inlinePlaceholders.length;
-        inlinePlaceholders.push(`<span class="kyana-math-inline">$${escapeHtml(expr.trim())}$</span>`);
-        return `\x01INLINE_${idx}\x02`;
-      });
-      s = s.replace(/(^|[^$\\])\$(?!\$)([^$\n]+?)\$(?!\$)/g, (match, prefix, expr) => {
-        if (/^\d+(?:[.,]\d+)?$/.test(expr.trim())) return match;
-        const idx = inlinePlaceholders.length;
-        inlinePlaceholders.push(`<span class="kyana-math-inline">$${escapeHtml(expr.trim())}$</span>`);
-        return `${prefix}\x01INLINE_${idx}\x02`;
-      });
-
-      // Escape raw HTML for strict XSS prevention
-      s = escapeHtml(s);
-
-      // Bold + Italic: ***text***
-      s = s.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-
-      // Bold: **text** or __text__
-      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-
-      // Italic: *text* or _text_
-      s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-      s = s.replace(/(^|[^\w])_([^_]+)_(?=[^\w]|$)/g, '$1<em>$2</em>');
-
-      // Strikethrough: ~~text~~
-      s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-
-      // Links: [text](url) — supports https://, /path, prompt: queries, and relative campus page links
-      s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+|\/[\w./#%?=&-]+|[\w-]+\.html[^\s\)]*|prompt:[^\s\)]+)\)/gi, (_, title, url) => {
-        const safe = safeLink(url);
-        if (!safe) return title;
-        if (safe.startsWith('prompt:')) {
-          const promptText = decodeURIComponent(safe.slice(7));
-          return `<a href="${escapeHtml(safe)}" class="kyana-prompt-pill" data-prompt="${escapeHtml(promptText)}">${title}</a>`;
-        }
-        return `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${title}</a>`;
-      });
-
-      // Standalone URLs: https://...
-      s = s.replace(/(^|[^"'>])(https?:\/\/[^\s<)]+)/gi, (_, prefix, url) => {
-        const safe = safeLink(url, true);
-        if (!safe) return prefix + url;
-        return `${prefix}<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${escapeHtml(url)}</a>`;
-      });
-
-      // Restore inline code and math
-      s = s.replace(/\x01INLINE_(\d+)\x02/g, (_, idx) => inlinePlaceholders[Number(idx)] || '');
-      return s;
-    }
-
-    function isTableDelimiter(str) {
-      if (!str || !str.includes('|')) return false;
-      const cells = str.trim().replace(/^\||\|$/g, '').split('|');
-      if (cells.length === 0) return false;
-      return cells.every(c => /^\s*:?-{1,}:?\s*$/.test(c));
-    }
-
-    function splitTableRow(rowStr) {
-      const safe = (rowStr || '').trim().replace(/\\\|/g, '\x00PIPE\x00');
-      const unbordered = safe.replace(/^\||\|$/g, '');
-      return unbordered.split('|').map(c => c.replace(/\x00PIPE\x00/g, '|').trim());
-    }
-
-    const normalized = String(text).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    const codeBlocks = [];
-    const mathBlocks = [];
-    let textWithoutCode = normalized.replace(/(^|\n)(`{3,}|~{3,})([\w+#.-]*)[ \t]*\n([\s\S]*?)(?:\n\2[ \t]*(?=\n|$)|$)/g, (match, prefix, fence, lang, code) => {
-      const index = codeBlocks.length;
-      codeBlocks.push({
-        lang: (lang || '').trim().toLowerCase() || 'code',
-        code: (code || '').replace(/\n+$/, '')
-      });
-      return `${prefix || ''}\x01BLOCK_CODE_${index}\x02\n`;
-    });
-
-    // Extract display LaTeX blocks ($$...$$ and \[...\]) so multiline equations are preserved
-    textWithoutCode = textWithoutCode
-      .replace(/\$\$([\s\S]*?)\$\$/g, (_, expr) => {
-        const idx = mathBlocks.length;
-        mathBlocks.push(expr.trim());
-        return `\n\x01BLOCK_MATH_${idx}\x02\n`;
-      })
-      .replace(/\\\[([\s\S]*?)\\\]/g, (_, expr) => {
-        const idx = mathBlocks.length;
-        mathBlocks.push(expr.trim());
-        return `\n\x01BLOCK_MATH_${idx}\x02\n`;
-      });
-
-    const lines = textWithoutCode.split('\n');
     const output = [];
-    const listStack = []; // [{ type: 'ul'|'ol', indent: number }]
-    let inQuote = false;
-    let quoteLines = [];
-    let paraLines = [];
-
-    const flushPara = () => {
-      if (paraLines.length > 0) {
-        const pText = paraLines.map(l => parseInline(l)).join('<br>');
-        output.push(`<p>${pText}</p>`);
-        paraLines = [];
-      }
+    let fence = null;
+    let code = [];
+    const finishCode = () => {
+      output.push(`<pre><code${fence.language ? ` class="language-${escapeHtml(fence.language)}"` : ''}>${escapeHtml(code.join('\n'))}</code></pre>`);
+      code = [];
+      fence = null;
     };
-
-    const flushQuote = () => {
-      if (inQuote) {
-        const qText = quoteLines.map(l => parseInline(l)).join('<br>');
-        output.push(`<blockquote>${qText}</blockquote>`);
-        quoteLines = [];
-        inQuote = false;
-      }
-    };
-
-    const flushList = () => {
-      while (listStack.length > 0) {
-        const top = listStack.pop();
-        output.push(`</${top.type}>`);
-      }
-    };
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const trimmed = line.trim();
-
-      // Fenced Code Block Placeholder
-      const codeMatch = trimmed.match(/^\x01BLOCK_CODE_(\d+)\x02$/);
-      if (codeMatch) {
-        flushQuote();
-        flushList();
-        flushPara();
-        const block = codeBlocks[Number(codeMatch[1])];
-        if (block) {
-          const isAsciiFigure = /^\s*\+[+\-]{3,}\+/m.test(block.code) && /\|\s*[A-Za-z0-9_-]/m.test(block.code);
-          if (VISUAL_BLOCK_KINDS.has(block.lang) || isAsciiFigure) {
-            const visualHtml = renderKyanaVisualBlockHtml(VISUAL_BLOCK_KINDS.has(block.lang) ? block.lang : 'diagram', block.code);
-            if (visualHtml) {
-              output.push(visualHtml);
-            }
-            continue;
-          }
-          output.push(`<pre><code class="language-${escapeHtml(block.lang)}">${escapeHtml(block.code)}</code></pre>`);
-        }
+    for (const line of String(text).split('\n')) {
+      if (fence) {
+        if (new RegExp(`^\\s*${fence.character}{${fence.length},}\\s*$`).test(line)) finishCode();
+        else code.push(line);
         continue;
       }
-
-      // Display Math Block Placeholder
-      const mathMatch = trimmed.match(/^\x01BLOCK_MATH_(\d+)\x02$/);
-      if (mathMatch) {
-        flushQuote();
-        flushList();
-        flushPara();
-        const expr = mathBlocks[Number(mathMatch[1])];
-        if (expr !== undefined) {
-          output.push(`<div class="kyana-math-block">$$${escapeHtml(expr)}$$</div>`);
-        }
-        continue;
+      const match = line.match(/^\s*(`{3,}|~{3,})([\w+-]*)[^\n]*$/);
+      if (match) fence = { character: match[1][0], length: match[1].length, language: match[2] };
+      else {
+        let escapedLine = escapeHtml(line);
+        escapedLine = escapedLine.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+        output.push(escapedLine + '<br>');
       }
-
-      // Horizontal Rule (--- or *** or ___)
-      if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
-        flushQuote();
-        flushList();
-        flushPara();
-        output.push('<hr class="kyana-divider">');
-        continue;
-      }
-
-      // Markdown Table: Header row followed by delimiter row
-      if (line.includes('|') && i + 1 < lines.length && isTableDelimiter(lines[i + 1])) {
-        flushQuote();
-        flushList();
-        flushPara();
-
-        const headerCells = splitTableRow(line);
-        const alignCells = splitTableRow(lines[i + 1]);
-        const alignments = alignCells.map(c => {
-          const t = c.trim();
-          const left = t.startsWith(':');
-          const right = t.endsWith(':');
-          if (left && right) return 'center';
-          if (right) return 'right';
-          return 'left';
-        });
-
-        const dataRows = [];
-        let j = i + 2;
-        while (j < lines.length) {
-          const dLine = lines[j].trim();
-          if (!dLine || !dLine.includes('|') || isTableDelimiter(dLine)) break;
-          dataRows.push(splitTableRow(dLine));
-          j++;
-        }
-        i = j - 1; // Advance loop index
-
-        let tableHtml = '<div class="kyana-table-wrapper"><table class="kyana-table"><thead><tr>';
-        for (let c = 0; c < headerCells.length; c++) {
-          const align = alignments[c] || 'left';
-          tableHtml += `<th style="text-align: ${align};">${parseInline(headerCells[c])}</th>`;
-        }
-        tableHtml += '</tr></thead><tbody>';
-
-        for (const row of dataRows) {
-          tableHtml += '<tr>';
-          for (let c = 0; c < headerCells.length; c++) {
-            const align = alignments[c] || 'left';
-            tableHtml += `<td style="text-align: ${align};">${parseInline(row[c] || '')}</td>`;
-          }
-          tableHtml += '</tr>';
-        }
-        tableHtml += '</tbody></table></div>';
-        output.push(tableHtml);
-        continue;
-      }
-
-      // Headings: #, ##, ###, ####
-      const hMatch = line.match(/^(#{1,4})\s+(.+)$/);
-      if (hMatch) {
-        flushQuote();
-        flushList();
-        flushPara();
-        const level = hMatch[1].length;
-        output.push(`<h${level}>${parseInline(hMatch[2])}</h${level}>`);
-        continue;
-      }
-
-      // Blockquote: > text
-      const qMatch = line.match(/^>\s?(.*)$/);
-      if (qMatch) {
-        flushList();
-        flushPara();
-        inQuote = true;
-        quoteLines.push(qMatch[1]);
-        continue;
-      } else {
-        flushQuote();
-      }
-
-      // Ordered or Unordered list item (supports nested indentation)
-      const listMatch = line.match(/^(\s*)([\*\-\+]|\d+\.)\s+(.*)$/);
-      if (listMatch) {
-        flushQuote();
-        flushPara();
-        const indent = listMatch[1].replace(/\t/g, '  ').length;
-        const listType = /^\d+\./.test(listMatch[2]) ? 'ol' : 'ul';
-        const itemContent = parseInline(listMatch[3]);
-
-        while (listStack.length > 0 && indent < listStack[listStack.length - 1].indent) {
-          const popped = listStack.pop();
-          output.push(`</${popped.type}>`);
-        }
-
-        if (listStack.length === 0 || indent > listStack[listStack.length - 1].indent) {
-          output.push(`<${listType}>`);
-          listStack.push({ type: listType, indent });
-        } else if (listStack[listStack.length - 1].type !== listType) {
-          const popped = listStack.pop();
-          output.push(`</${popped.type}>`);
-          output.push(`<${listType}>`);
-          listStack.push({ type: listType, indent });
-        }
-
-        output.push(`<li>${itemContent}</li>`);
-        continue;
-      }
-
-      // Non-list line
-      flushList();
-
-      // Empty line separates paragraphs
-      if (!trimmed) {
-        flushPara();
-        continue;
-      }
-
-      // Regular line in paragraph
-      paraLines.push(line);
     }
-
-    flushQuote();
-    flushList();
-    flushPara();
-
+    if (fence) finishCode();
     return output.join('');
   }
 
@@ -2193,8 +130,7 @@
     const prismLangMap = {
       'c': 'c', 'cpp': 'cpp', 'c++': 'cpp',
       'java': 'java', 'python': 'python', 'py': 'python',
-      'javascript': 'javascript', 'js': 'javascript', 'typescript': 'javascript', 'ts': 'javascript',
-      'php': 'php',
+      'javascript': 'javascript', 'js': 'javascript',
       'html': 'markup', 'markup': 'markup', 'xml': 'markup',
       'css': 'css', 'json': 'json', 'sql': 'sql', 'bash': 'bash', 'sh': 'bash'
     };
@@ -2205,22 +141,15 @@
         if (highlighted && typeof highlighted === 'string') {
           return assertAndCleanPlaceholders(highlighted);
         }
-      } catch (_) { }
+      } catch (_) {}
     }
 
     // 2. High-fidelity sequential lexer
     const isHtml = l === 'html' || l === 'xml' || l === 'markup';
     const isCss = l === 'css';
     const isPy = l === 'python' || l === 'py';
-    const isPhp = l === 'php';
     const isCpp = l === 'cpp' || l === 'c++';
     const isC = l === 'c' || isCpp;
-
-    const controlKeywords = new Set([
-      'if', 'else', 'elif', 'for', 'while', 'do', 'switch', 'case', 'break',
-      'continue', 'return', 'try', 'catch', 'finally', 'throw', 'throws',
-      'yield', 'import', 'from', 'as', 'with', 'pass', 'raise', 'match'
-    ]);
 
     const keywords = new Set([
       'public', 'private', 'protected', 'class', 'interface', 'static', 'void', 'int',
@@ -2231,22 +160,14 @@
       'virtual', 'override', 'namespace', 'using', 'auto', 'sizeof', 'final', 'abstract',
       'let', 'var', 'function', 'async', 'await', 'select', 'where', 'insert',
       'delete', 'update', 'into', 'values', 'set', 'null', 'undefined', 'true', 'false',
-      'True', 'False', 'None', 'self', 'this', 'super', 'template', 'typename', 'pass', 'raise',
-      'echo', 'foreach', 'endforeach', 'elseif', 'endif', 'array', 'use', 'trait', 'implements',
-      'extends', 'parent', 'global', 'isset', 'empty', 'unset', 'die', 'exit', 'require', 'require_once', 'include_once', 'fn', 'match'
-    ]);
-
-    const cssElements = new Set([
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'a', 'body', 'html', 'ul',
-      'ol', 'li', 'button', 'input', 'textarea', 'form', 'table', 'tr', 'td', 'th', 'header',
-      'footer', 'section', 'article', 'nav', 'main', 'img', 'code', 'pre', '*'
+      'True', 'False', 'None', 'self', 'this', 'super', 'template', 'typename', 'pass', 'raise'
     ]);
 
     const builtins = new Set([
       'System', 'out', 'println', 'print', 'Scanner', 'cin', 'cout', 'endl', 'cerr',
       'vector', 'string', 'map', 'set', 'list', 'pair', 'printf', 'scanf', 'NULL', 'nullptr',
       'console', 'log', 'warn', 'error', 'document', 'window', 'Math', 'JSON', 'Promise',
-      'main', 'len', 'range', 'input', 'count', 'strlen', 'json_encode', 'json_decode', 'PDO'
+      'main', 'len', 'range', 'input'
     ]);
 
     let html = '';
@@ -2273,8 +194,8 @@
         continue;
       }
 
-      // Hash comments (Python/Shell/Ruby - not C/C++ preprocessor)
-      if (rawCode[i] === '#' && (isPy || (!isC && !rawCode.slice(i).match(/^#(?:include|define|ifdef|ifndef|endif|pragma)\b/)))) {
+      // Hash comments (Python/Shell/Ruby - not C/C++ preprocessor or CSS ID selectors)
+      if (rawCode[i] === '#' && !isCss && (isPy || (!isC && !rawCode.slice(i).match(/^#(?:include|define|ifdef|ifndef|endif|pragma)\b/)))) {
         let end = rawCode.indexOf('\n', i);
         if (end === -1) end = len;
         html += `<span class="token comment">${escapeHtml(rawCode.slice(i, end))}</span>`;
@@ -2325,72 +246,29 @@
         continue;
       }
 
-      // PHP open/close tags (<?php, <?= , ?>)
-      if ((isPhp || rawCode.startsWith('<?php', i)) && (rawCode.startsWith('<?php', i) || rawCode.startsWith('<?=', i) || rawCode.startsWith('?>', i))) {
-        const phpTag = rawCode.startsWith('<?php', i) ? '<?php' : (rawCode.startsWith('<?=', i) ? '<?=' : '?>');
-        html += `<span class="token keyword directive">${escapeHtml(phpTag)}</span>`;
-        i += phpTag.length;
-        continue;
-      }
-
-      // PHP / Shell Variables ($var)
-      if (rawCode[i] === '$' && /^[a-zA-Z_]\w*/.test(rawCode.slice(i + 1))) {
-        const varMatch = rawCode.slice(i).match(/^\$[a-zA-Z_]\w*/);
-        if (varMatch) {
-          html += `<span class="token variable">${escapeHtml(varMatch[0])}</span>`;
-          i += varMatch[0].length;
-          continue;
-        }
-      }
-
-      // HTML/XML Tags and Attributes
+      // HTML/XML Tags
       if (isHtml && rawCode[i] === '<') {
         const tagMatch = rawCode.slice(i).match(/^<\/?([a-zA-Z][\w:-]*)/);
         if (tagMatch) {
-          const isClosing = tagMatch[0].startsWith('</');
-          html += `<span class="token punctuation">&lt;${isClosing ? '/' : ''}</span><span class="token tag">${escapeHtml(tagMatch[1])}</span>`;
+          html += `<span class="token punctuation">&lt;${tagMatch[0].startsWith('</') ? '/' : ''}</span><span class="token tag">${escapeHtml(tagMatch[1])}</span>`;
           i += tagMatch[0].length;
-          while (i < len && rawCode[i] !== '>') {
-            if (/\s/.test(rawCode[i])) {
-              html += rawCode[i++];
-              continue;
-            }
-            const attrMatch = rawCode.slice(i).match(/^([a-zA-Z_:][\w:.-]*)/);
-            if (attrMatch) {
-              html += `<span class="token attr-name">${escapeHtml(attrMatch[0])}</span>`;
-              i += attrMatch[0].length;
-              if (i < len && rawCode[i] === '=') {
-                html += `<span class="token punctuation">=</span>`;
-                i++;
-                if (i < len && (rawCode[i] === '"' || rawCode[i] === "'")) {
-                  const quote = rawCode[i];
-                  let endQ = rawCode.indexOf(quote, i + 1);
-                  if (endQ === -1) endQ = len;
-                  else endQ++;
-                  html += `<span class="token attr-value">${escapeHtml(rawCode.slice(i, endQ))}</span>`;
-                  i = endQ;
-                }
-              }
-              continue;
-            }
-            if (rawCode[i] === '/' && rawCode[i + 1] === '>') {
-              html += `<span class="token punctuation">/&gt;</span>`;
-              i += 2;
-              break;
-            }
-            html += escapeHtml(rawCode[i++]);
-          }
-          if (i < len && rawCode[i] === '>') {
-            html += `<span class="token punctuation">&gt;</span>`;
-            i++;
-          }
           continue;
         }
       }
 
-      // CSS Class and ID Selectors (.student, #heading)
+      // HTML attribute name (e.g. class=, id=)
+      if (isHtml) {
+        const attrMatch = rawCode.slice(i).match(/^([a-zA-Z_:][\w:.-]*)\s*=/);
+        if (attrMatch) {
+          html += `<span class="token attr-name">${escapeHtml(attrMatch[1])}</span>`;
+          i += attrMatch[1].length;
+          continue;
+        }
+      }
+
+      // CSS Selectors (.class, #id)
       if (isCss && (rawCode[i] === '.' || rawCode[i] === '#')) {
-        const selMatch = rawCode.slice(i).match(/^[.#][a-zA-Z_-][\w-]*/);
+        const selMatch = rawCode.slice(i).match(/^[.#][a-zA-Z0-9_-]+/);
         if (selMatch) {
           html += `<span class="token selector">${escapeHtml(selMatch[0])}</span>`;
           i += selMatch[0].length;
@@ -2398,30 +276,33 @@
         }
       }
 
+      // CSS Properties (e.g. color:, font-size:)
+      if (isCss) {
+        const propMatch = rawCode.slice(i).match(/^([a-zA-Z-][\w-]*)\s*:/);
+        if (propMatch) {
+          html += `<span class="token property">${escapeHtml(propMatch[1])}</span>`;
+          i += propMatch[1].length;
+          continue;
+        }
+      }
+
       // Numbers
-      const numMatch = rawCode.slice(i).match(/^(?:0x[0-9a-fA-F]+|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?(?:[fFuUlL]+)?(?:px|em|rem|%|vh|vw|ms|s)?)\b/);
+      const numMatch = rawCode.slice(i).match(/^(?:0x[0-9a-fA-F]+|\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?(?:[fFuUlL]+)?)\b/);
       if (numMatch && (i === 0 || !/[a-zA-Z0-9_]/.test(rawCode[i - 1]))) {
         html += `<span class="token number">${escapeHtml(numMatch[0])}</span>`;
         i += numMatch[0].length;
         continue;
       }
 
-      // Identifiers / Keywords / CSS Properties / Builtins / Function calls
-      const identMatch = rawCode.slice(i).match(/^[a-zA-Z_-][\w-]*/);
+      // Identifiers / Keywords / Builtins / Function calls
+      const identMatch = rawCode.slice(i).match(/^[a-zA-Z_]\w*/);
       if (identMatch) {
         const word = identMatch[0];
         const afterPos = i + word.length;
         const isCall = /^\s*\(/.test(rawCode.slice(afterPos));
-        const isCssProp = isCss && /^\s*:/.test(rawCode.slice(afterPos));
 
-        if (controlKeywords.has(word)) {
-          html += `<span class="token keyword control">${escapeHtml(word)}</span>`;
-        } else if (keywords.has(word)) {
+        if (keywords.has(word)) {
           html += `<span class="token keyword">${escapeHtml(word)}</span>`;
-        } else if (isCssProp) {
-          html += `<span class="token property">${escapeHtml(word)}</span>`;
-        } else if (isCss && cssElements.has(word.toLowerCase())) {
-          html += `<span class="token selector">${escapeHtml(word)}</span>`;
         } else if (builtins.has(word)) {
           html += `<span class="token class-name">${escapeHtml(word)}</span>`;
         } else if (isCall) {
@@ -2536,7 +417,7 @@
       if (!terminal) throw new Error('The reply was interrupted. Please try again.');
       return result;
     } finally {
-      await reader.cancel().catch(() => { });
+      await reader.cancel().catch(() => {});
       reader.releaseLock();
     }
   }
@@ -2548,18 +429,12 @@
       readChatResponse,
       escapeHtml,
       safeLink,
-      stabilizeStreamingMarkdown,
       protectCodeBlocks,
       restoreCodeBlocks,
       fallbackMarkdown,
       normalizeLatexDelimiters,
       highlightChatCode,
-      assertAndCleanPlaceholders,
-      parseAttendanceBlock,
-      renderAttendanceChartHtml,
-      parseKyanaVisualBlock,
-      renderKyanaVisualBlockHtml,
-      VISUAL_BLOCK_KINDS
+      assertAndCleanPlaceholders
     };
     return;
   }
@@ -2603,37 +478,183 @@
       loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js'),
       loadScript('https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js')
     ]);
-  }).catch(() => { });
+  }).catch(() => {});
 
   // --- 3. Component Architecture Definitions ---
+
+  function generateSampleHtmlForCss(cssText) {
+    const classMatches = [...cssText.matchAll(/\.([a-zA-Z0-9_-]+)/g)].map(m => m[1]);
+    const idMatches = [...cssText.matchAll(/#([a-zA-Z0-9_-]+)/g)].map(m => m[1]);
+    const tagMatches = [...cssText.matchAll(/\b(h[1-6]|p|button|span|a|ul|li|div)\b/g)].map(m => m[1]);
+
+    const parts = [];
+    if (classMatches.length) {
+      for (const cls of new Set(classMatches)) {
+        parts.push(`<p class="${escapeHtml(cls)}">This paragraph has class="<strong>${escapeHtml(cls)}</strong>"</p>`);
+      }
+    }
+    if (idMatches.length) {
+      for (const id of new Set(idMatches)) {
+        parts.push(`<h2 id="${escapeHtml(id)}">This heading has id="<strong>${escapeHtml(id)}</strong>"</h2>`);
+      }
+    }
+    if (!parts.length && tagMatches.length) {
+      for (const tag of new Set(tagMatches)) {
+        parts.push(`<${tag}>Sample &lt;${tag}&gt; element</${tag}>`);
+      }
+    }
+    if (!parts.length) {
+      parts.push('<p>CSS applied to live output preview canvas</p>');
+    }
+    return parts.join('\n');
+  }
+
+  function toggleCodePreview(wrap, codeBlock, langKey) {
+    const existing = wrap.querySelector('.kyana-code-preview-pane');
+    const pBtn = wrap.querySelector('.kyana-preview-code-btn');
+    if (existing) {
+      existing.remove();
+      if (pBtn) pBtn.classList.remove('active');
+      return;
+    }
+
+    if (pBtn) pBtn.classList.add('active');
+
+    const pane = document.createElement('div');
+    pane.className = 'kyana-code-preview-pane';
+    pane.innerHTML = `
+      <div class="kyana-code-preview-bar">
+        <div class="kyana-code-preview-title">
+          <span class="kyana-preview-pulse"></span>
+          <span>Live Output Preview</span>
+        </div>
+        <div class="kyana-code-preview-actions">
+          <button type="button" class="kyana-preview-bar-btn kyana-preview-refresh-btn" title="Reload preview">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </button>
+          <button type="button" class="kyana-preview-bar-btn kyana-preview-close-btn" title="Close preview">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="kyana-code-preview-canvas">
+        <iframe class="kyana-code-preview-iframe" sandbox="allow-scripts" title="Code Output Preview"></iframe>
+      </div>
+    `;
+
+    const closeBtn = pane.querySelector('.kyana-preview-close-btn');
+    closeBtn.addEventListener('click', () => {
+      pane.remove();
+      if (pBtn) pBtn.classList.remove('active');
+    });
+
+    const refreshBtn = pane.querySelector('.kyana-preview-refresh-btn');
+    refreshBtn.addEventListener('click', () => {
+      renderIframe();
+    });
+
+    function renderIframe() {
+      const iframe = pane.querySelector('.kyana-code-preview-iframe');
+      if (!iframe) return;
+
+      const messageContainer = wrap.closest('.kyana-message-body') || wrap.parentElement;
+      const currentCode = codeBlock.dataset.rawCode || codeBlock.textContent || '';
+
+      let companionCss = '';
+      let companionHtml = '';
+      let companionJs = '';
+
+      if (messageContainer) {
+        messageContainer.querySelectorAll('.kyana-code-block').forEach((otherWrap) => {
+          if (otherWrap === wrap) return;
+          const oLang = (otherWrap.dataset.lang || '').toLowerCase();
+          const otherCodeEl = otherWrap.querySelector('pre code');
+          const otherCode = otherCodeEl ? (otherCodeEl.dataset.rawCode || otherCodeEl.textContent || '') : '';
+
+          if (oLang === 'css') {
+            companionCss += '\n' + otherCode;
+          } else if (oLang === 'html' || oLang === 'xml') {
+            companionHtml += '\n' + otherCode;
+          } else if (oLang === 'javascript' || oLang === 'js') {
+            companionJs += '\n' + otherCode;
+          }
+        });
+      }
+
+      let finalHtml = '';
+      if (langKey === 'html' || langKey === 'xml' || langKey === 'svg') {
+        finalHtml = currentCode;
+      } else if (langKey === 'css') {
+        if (companionHtml.trim()) {
+          finalHtml = companionHtml;
+          companionCss = currentCode + '\n' + companionCss;
+        } else {
+          finalHtml = generateSampleHtmlForCss(currentCode);
+          companionCss = currentCode;
+        }
+      } else if (langKey === 'javascript' || langKey === 'js') {
+        finalHtml = companionHtml.trim() ? companionHtml : '<div id="app"></div>';
+        companionJs = currentCode + '\n' + companionJs;
+      }
+
+      const docContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #1f2937;
+      background-color: #ffffff;
+    }
+    ${companionCss}
+  </style>
+</head>
+<body>
+  ${finalHtml}
+  ${companionJs ? `<script>${companionJs}<\/script>` : ''}
+</body>
+</html>`;
+
+      iframe.srcdoc = docContent;
+      iframe.onload = () => {
+        try {
+          const doc = iframe.contentDocument || iframe.contentWindow.document;
+          if (doc && doc.body) {
+            const h = Math.max(doc.body.scrollHeight + 32, 70);
+            iframe.style.height = `${Math.min(h, 340)}px`;
+          }
+        } catch (_) {}
+      };
+    }
+
+    wrap.appendChild(pane);
+    renderIframe();
+  }
 
   // KyanaCodeBlock Component
   const KyanaCodeBlock = {
     enhance(container) {
       container.querySelectorAll('pre code').forEach((codeBlock) => {
         const pre = codeBlock.parentElement;
-        if (!pre || !pre.parentNode || pre.parentElement.classList.contains('kyana-code-block')) return;
+        if (pre.parentElement && pre.parentElement.classList.contains('kyana-code-block')) return;
 
         const rawCode = codeBlock.textContent || '';
-        const langMatch = codeBlock.className.match(/language-([\w-]+)/);
+        const langMatch = codeBlock.className.match(/language-([a-zA-Z0-9_#+-]+)/);
         const langName = langMatch ? langMatch[1] : 'Code';
         const langKey = langName.toLowerCase();
-        const isAsciiFigure = /^\s*\+[+\-]{3,}\+/m.test(rawCode) && /\|\s*[A-Za-z0-9_-]/m.test(rawCode);
-        if (VISUAL_BLOCK_KINDS.has(langKey) || isAsciiFigure) {
-          const visualHtml = renderKyanaVisualBlockHtml(VISUAL_BLOCK_KINDS.has(langKey) ? langKey : 'diagram', rawCode);
-          if (visualHtml) {
-            const temp = document.createElement('div');
-            temp.innerHTML = visualHtml;
-            if (temp.firstElementChild) {
-              pre.parentNode.replaceChild(temp.firstElementChild, pre);
-              return;
-            }
-          }
-          pre.parentNode.removeChild(pre);
-          return;
-        }
+        const isWebCode = /^(html|xml|svg|css|javascript|js)$/.test(langKey);
         const compilerSupported = /^(java|c|cpp|c\+\+|html|css|javascript|js|python|py|sql)$/.test(langKey);
-        const isPreviewable = /^(html|css|javascript|js)$/.test(langKey);
 
         codeBlock.dataset.rawCode = rawCode;
         codeBlock.innerHTML = highlightChatCode(rawCode, langKey);
@@ -2646,33 +667,33 @@
         const header = document.createElement('div');
         header.className = 'kyana-code-header';
         header.innerHTML = `
-          <div class="kyana-code-lang-label">
-            <svg class="kyana-code-lang-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="16 18 22 12 16 6"></polyline>
-              <polyline points="8 6 2 12 8 18"></polyline>
+          <div class="kyana-code-lang-tag">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="kyana-code-icon">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
             </svg>
-            <span class="kyana-code-lang-name">${escapeHtml((langName || langKey).toUpperCase())}</span>
+            <span class="kyana-code-lang">${escapeHtml(langName.toUpperCase())}</span>
           </div>
           <div class="kyana-code-actions">
-            <button type="button" class="kyana-code-action-btn kyana-wrap-code-btn is-active" title="Toggle word wrap" aria-label="Toggle word wrap">
+            <button type="button" class="kyana-code-btn kyana-wrap-code-btn" title="Toggle line wrap">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 10 4 15 9 20"></polyline>
-                <path d="M20 4v7a4 4 0 0 1-4 4H4"></path>
+                <polyline points="9 10 4 15 9 20"/>
+                <path d="M20 4v7a4 4 0 0 1-4 4H4"/>
               </svg>
             </button>
-            <button type="button" class="kyana-code-action-btn kyana-copy-code-btn" title="Copy code" aria-label="Copy code">
+            <button type="button" class="kyana-code-btn kyana-copy-code-btn" title="Copy code">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                 <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
               </svg>
             </button>
-            ${isPreviewable ? `
-            <button type="button" class="kyana-code-action-btn kyana-preview-code-btn" title="Interactive live preview" aria-label="Interactive live preview">
+            ${isWebCode ? `
+            <button type="button" class="kyana-code-btn kyana-preview-code-btn" title="Preview live output">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
                 <polygon points="6,4 20,12 6,20"/>
               </svg>
             </button>` : (compilerSupported ? `
-            <button type="button" class="kyana-code-action-btn kyana-run-compiler-btn" title="Open in Semester Library Code Lab" aria-label="Open in Code Lab">
+            <button type="button" class="kyana-code-btn kyana-run-compiler-btn" title="Open in Semester Library Code Lab">
               <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
                 <polygon points="6,4 20,12 6,20"/>
               </svg>
@@ -2682,18 +703,10 @@
 
         const wrapBtn = header.querySelector('.kyana-wrap-code-btn');
         if (wrapBtn) {
-          let isWrapping = true;
           wrapBtn.addEventListener('click', () => {
-            isWrapping = !isWrapping;
-            if (isWrapping) {
-              pre.style.whiteSpace = 'pre-wrap';
-              pre.style.wordBreak = 'break-word';
-              wrapBtn.classList.add('is-active');
-            } else {
-              pre.style.whiteSpace = 'pre';
-              pre.style.wordBreak = 'normal';
-              wrapBtn.classList.remove('is-active');
-            }
+            const isWrapped = pre.classList.toggle('is-wrapped');
+            wrapBtn.classList.toggle('active', isWrapped);
+            wrapBtn.title = isWrapped ? 'Disable line wrap' : 'Toggle line wrap';
           });
         }
 
@@ -2702,20 +715,20 @@
           copyBtn.addEventListener('click', () => {
             const codeToCopy = codeBlock.dataset.rawCode || codeBlock.innerText;
             navigator.clipboard.writeText(codeToCopy).then(() => {
-              copyBtn.classList.add('is-copied');
               copyBtn.innerHTML = `
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"></polyline>
+                  <polyline points="20 6 9 17 4 12"/>
                 </svg>
               `;
+              copyBtn.classList.add('copied');
               setTimeout(() => {
-                copyBtn.classList.remove('is-copied');
                 copyBtn.innerHTML = `
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                   </svg>
                 `;
+                copyBtn.classList.remove('copied');
               }, 2000);
             });
           });
@@ -2723,88 +736,8 @@
 
         const previewBtn = header.querySelector('.kyana-preview-code-btn');
         if (previewBtn) {
-          let previewContainer = null;
           previewBtn.addEventListener('click', () => {
-            if (previewContainer && previewContainer.parentNode) {
-              previewContainer.remove();
-              previewContainer = null;
-              previewBtn.classList.remove('is-active');
-              return;
-            }
-            previewBtn.classList.add('is-active');
-            previewContainer = document.createElement('div');
-            previewContainer.className = 'kyana-inline-code-preview';
-
-            const messageContainer = wrap.closest('.kyana-message-body') || wrap.parentElement;
-            let cssCode = '';
-            let htmlCode = '';
-
-            if (langKey === 'html') {
-              htmlCode = rawCode;
-              if (messageContainer) {
-                const cssBlocks = messageContainer.querySelectorAll('.kyana-code-block[data-lang="css"] pre code');
-                cssBlocks.forEach(cb => { cssCode += '\n' + (cb.dataset.rawCode || cb.innerText); });
-              }
-            } else if (langKey === 'css') {
-              cssCode = rawCode;
-              if (messageContainer) {
-                const htmlBlock = messageContainer.querySelector('.kyana-code-block[data-lang="html"] pre code');
-                if (htmlBlock) {
-                  htmlCode = htmlBlock.dataset.rawCode || htmlBlock.innerText;
-                }
-              }
-              if (!htmlCode) {
-                htmlCode = '<div class="student"><h3>Class .student Example</h3><p>Styled with your CSS rules.</p></div>';
-              }
-            } else {
-              htmlCode = `<script>${rawCode}<\/script><div>Running JavaScript snippet...</div>`;
-            }
-
-            previewContainer.innerHTML = `
-              <div class="kyana-icp-header">
-                <div class="kyana-icp-title-group">
-                  <span class="kyana-icp-dot"></span>
-                  <span class="kyana-icp-title">Interactive Live Preview</span>
-                  <span class="kyana-icp-badge">Sandbox</span>
-                </div>
-                <button type="button" class="kyana-code-action-btn kyana-icp-close-btn" title="Close Preview">✕</button>
-              </div>
-              <div class="kyana-icp-frame-container">
-                <iframe class="kyana-icp-iframe" sandbox="allow-scripts"></iframe>
-              </div>
-            `;
-
-            const closeBtn = previewContainer.querySelector('.kyana-icp-close-btn');
-            closeBtn.addEventListener('click', () => {
-              previewContainer.remove();
-              previewContainer = null;
-              previewBtn.classList.remove('is-active');
-            });
-
-            wrap.parentNode.insertBefore(previewContainer, wrap.nextSibling);
-
-            const iframe = previewContainer.querySelector('iframe');
-            const safeHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body {
-      margin: 14px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-      color: #18181b;
-      background: #ffffff;
-      line-height: 1.5;
-    }
-    ${cssCode}
-  </style>
-</head>
-<body>
-  ${htmlCode}
-</body>
-</html>`;
-            iframe.srcdoc = safeHtml;
+            toggleCodePreview(wrap, codeBlock, langKey);
           });
         }
 
@@ -2817,7 +750,7 @@
                 lang: langKey
               }));
               window.location.href = 'compiler.html';
-            } catch (_) { }
+            } catch (_) {}
           });
         }
 
@@ -2829,75 +762,26 @@
     }
   };
 
-  // Markdown Formatter with KaTeX & Streaming Stabilization
+  // Markdown Formatter with KaTeX
   function renderFormattedContent(element, rawMarkdown, streaming = false) {
     if (!element) return;
-    const inputMarkdown = streaming ? stabilizeStreamingMarkdown(rawMarkdown) : String(rawMarkdown || '');
-    const normalized = normalizeLatexDelimiters(inputMarkdown);
-    if (window.marked && typeof window.marked.parse === 'function') {
-      try {
-        if (!window.__KYANA_MARKED_CONFIGURED__) {
-          window.__KYANA_MARKED_CONFIGURED__ = true;
-          if (typeof window.marked.use === 'function') {
-            window.marked.use({ breaks: true, gfm: true });
-          } else if (typeof window.marked.setOptions === 'function') {
-            window.marked.setOptions({ breaks: true, gfm: true });
-          }
-        }
-        // Protect block math before marked.parse so underscores/backslashes are not stripped
-        const mathHolders = [];
-        const inlineMathHolders = [];
-        const mathProtected = normalized
-          .replace(/\$\$([\s\S]*?)\$\$/g, (_, expr) => {
-            const idx = mathHolders.length;
-            mathHolders.push(`<div class="kyana-math-block">$${escapeHtml(expr.trim())}$</div>`);
-            return `\n\n@@KYANA_MATH_BLOCK_${idx}@@\n\n`;
-          })
-          .replace(/(^|[^$\\])\$(?!\$)([^$\n]+?)\$(?!\$)/g, (m, prefix, expr) => {
-            if (/^\d+(?:[.,]\d+)?$/.test(expr.trim())) return m;
-            const idx = inlineMathHolders.length;
-            inlineMathHolders.push(`<span class="kyana-math-inline">$${escapeHtml(expr.trim())}$</span>`);
-            return `${prefix}___KYANA_INLINE_MATH_${idx}___`;
-          });
-        let parsed = window.marked.parse(mathProtected);
-        parsed = parsed.replace(/(?:<p>)?@@KYANA_MATH_BLOCK_(\d+)@@(?:<\/p>)?/g, (_, idx) => mathHolders[Number(idx)] || '');
-        parsed = parsed.replace(/___KYANA_INLINE_MATH_(\d+)___/g, (_, idx) => inlineMathHolders[Number(idx)] || '');
-        if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
-          element.innerHTML = window.DOMPurify.sanitize(parsed, {
-            ADD_ATTR: ['target', 'rel', 'class'],
-            FORBID_TAGS: ['style', 'iframe', 'form', 'input', 'button'],
-            FORBID_ATTR: ['style']
-          });
-        } else {
-          element.innerHTML = parsed;
-        }
-      } catch (_) {
-        element.innerHTML = fallbackMarkdown(normalized);
-      }
+    const normalized = normalizeLatexDelimiters(rawMarkdown);
+    if (window.marked && typeof window.marked.parse === 'function' &&
+        window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+      element.innerHTML = window.DOMPurify.sanitize(window.marked.parse(normalized), {
+        ADD_ATTR: ['target', 'rel'],
+        FORBID_TAGS: ['style', 'iframe', 'form', 'input', 'button'],
+        FORBID_ATTR: ['style']
+      });
     } else {
       element.innerHTML = fallbackMarkdown(normalized);
     }
 
-    // Ensure all tables are wrapped in horizontally scrollable .kyana-table-wrapper
-    element.querySelectorAll('table').forEach(tbl => {
-      if (!tbl.classList.contains('kyana-table')) tbl.classList.add('kyana-table');
-      if (!tbl.parentElement || !tbl.parentElement.classList.contains('kyana-table-wrapper')) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'kyana-table-wrapper';
-        tbl.parentNode.insertBefore(wrapper, tbl);
-        wrapper.appendChild(tbl);
-      }
-    });
-
     assertAndCleanPlaceholders(element);
+
     element.querySelectorAll('a[target="_blank"]').forEach(link => { link.rel = 'noopener noreferrer'; });
-    element.querySelectorAll('a[href^="prompt:"]').forEach(link => {
-      link.classList.add('kyana-prompt-pill');
-      link.removeAttribute('target');
-      link.removeAttribute('rel');
-      const href = link.getAttribute('href') || '';
-      link.dataset.prompt = decodeURIComponent(href.slice(7));
-    });
+
+    if (streaming) return;
 
     KyanaCodeBlock.enhance(element);
     assertAndCleanPlaceholders(element);
@@ -2913,7 +797,7 @@
           ],
           throwOnError: false
         });
-      } catch (_) { }
+      } catch (_) {}
     }
 
     assertAndCleanPlaceholders(element);
@@ -2949,7 +833,7 @@
         resourceCards.forEach(card => {
           const el = document.createElement('a');
           el.className = 'kyana-source-card';
-          el.href = ['note', 'post', 'notice', 'assignment', 'post_assignment', 'routine'].includes(card.type) && /^\d+$/.test(String(card.id)) ? `/api/ai/resources/${card.type}/${card.id}/open` : '#';
+          el.href = ['note','post','notice','assignment','post_assignment','routine'].includes(card.type) && /^\d+$/.test(String(card.id)) ? `/api/ai/resources/${card.type}/${card.id}/open` : '#';
           if (card.action === 'open_note' || card.type === 'note') {
             el.target = '_blank';
             el.rel = 'noopener noreferrer';
@@ -2968,19 +852,13 @@
             view_post: 'Open Post',
             view_assignment: 'Open Assignment'
           }[card.action] || 'Open';
-          const semDisplay = card.semester ? (/^sem/i.test(String(card.semester)) ? String(card.semester) : `Sem ${card.semester}`) : '';
-          const pubDisplay = card.publishedDate || (card.createdAt ? String(card.createdAt).slice(0, 10) : '');
-          const meta = [card.authority, card.subject, semDisplay, pubDisplay, actionText].filter(Boolean).join(' · ');
-          const excerptHtml = card.excerpt
-            ? `<span class="kyana-source-excerpt" style="display:block;font-size:11px;opacity:0.78;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(String(card.excerpt).slice(0, 140))}</span>`
-            : '';
+          const meta = [card.subject, card.semester ? `Sem ${card.semester}` : '', actionText].filter(Boolean).join(' · ');
           el.innerHTML = `
             <div class="kyana-source-left">
               <div class="kyana-source-icon">${escapeHtml(iconType)}</div>
               <div class="kyana-source-info">
                 <span class="kyana-source-title">${escapeHtml(card.title || 'Resource')}</span>
                 <span class="kyana-source-meta">${escapeHtml(meta)}</span>
-                ${excerptHtml}
               </div>
             </div>
             <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
@@ -3077,196 +955,12 @@
     }
   };
 
-  // KyanaReaderModal Component (Full-Screen Immersive Academic Reading Mode)
-  const KyanaReaderModal = {
-    activeOverlay: null,
-    currentZoom: 1,
-
-    init() {
-      if (document.getElementById('kyanaReaderOverlay')) {
-        this.activeOverlay = document.getElementById('kyanaReaderOverlay');
-        return;
-      }
-      const overlay = document.createElement('div');
-      overlay.id = 'kyanaReaderOverlay';
-      overlay.className = 'kyana-reader-overlay';
-      overlay.setAttribute('role', 'dialog');
-      overlay.setAttribute('aria-modal', 'true');
-      overlay.setAttribute('aria-label', 'Academic Focus View');
-      overlay.innerHTML = `
-        <div class="kyana-reader-backdrop" data-close="true"></div>
-        <div class="kyana-reader-window">
-          <div class="kyana-reader-header">
-            <div class="kyana-reader-brand-group">
-              <span class="kyana-reader-logo-slot"></span>
-              <div class="kyana-reader-meta">
-                <span class="kyana-reader-title">Kyana AI</span>
-                <span class="kyana-reader-badge">Academic Focus View</span>
-              </div>
-            </div>
-            <div class="kyana-reader-controls">
-              <span class="kyana-reader-hint">Double-tap or Esc to close</span>
-              <div class="kyana-reader-zoom-controls">
-                <button type="button" class="kyana-reader-tool-btn" id="kyanaReaderZoomOut" title="Decrease font size">A−</button>
-                <button type="button" class="kyana-reader-tool-btn" id="kyanaReaderZoomIn" title="Increase font size">A+</button>
-              </div>
-              <button type="button" class="kyana-reader-tool-btn kyana-reader-copy-btn" id="kyanaReaderCopyBtn" title="Copy answer">
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-                <span>Copy</span>
-              </button>
-              <button type="button" class="kyana-reader-close-btn" id="kyanaReaderCloseBtn" title="Close focus view (Esc)">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </div>
-          </div>
-          <div class="kyana-reader-body" id="kyanaReaderBody"></div>
-        </div>
-      `;
-
-      document.body.appendChild(overlay);
-      this.activeOverlay = overlay;
-
-      // Mount logo
-      const logoSlot = overlay.querySelector('.kyana-reader-logo-slot');
-      if (logoSlot && typeof KyanaLogo !== 'undefined') {
-        logoSlot.appendChild(KyanaLogo.create({ size: 24, animated: false }));
-      }
-
-      // Close handlers
-      const closeBtn = overlay.querySelector('#kyanaReaderCloseBtn');
-      if (closeBtn) closeBtn.addEventListener('click', () => this.close());
-
-      const backdrop = overlay.querySelector('.kyana-reader-backdrop');
-      if (backdrop) backdrop.addEventListener('click', () => this.close());
-
-      // Zoom controls
-      const bodyEl = overlay.querySelector('#kyanaReaderBody');
-      const zoomInBtn = overlay.querySelector('#kyanaReaderZoomIn');
-      const zoomOutBtn = overlay.querySelector('#kyanaReaderZoomOut');
-      if (zoomInBtn && bodyEl) {
-        zoomInBtn.addEventListener('click', () => {
-          if (this.currentZoom < 1.4) {
-            this.currentZoom = Number((this.currentZoom + 0.1).toFixed(1));
-            bodyEl.style.fontSize = `${15 * this.currentZoom}px`;
-          }
-        });
-      }
-      if (zoomOutBtn && bodyEl) {
-        zoomOutBtn.addEventListener('click', () => {
-          if (this.currentZoom > 0.85) {
-            this.currentZoom = Number((this.currentZoom - 0.1).toFixed(1));
-            bodyEl.style.fontSize = `${15 * this.currentZoom}px`;
-          }
-        });
-      }
-
-      // Copy button
-      const copyBtn = overlay.querySelector('#kyanaReaderCopyBtn');
-      if (copyBtn && bodyEl) {
-        copyBtn.addEventListener('click', () => {
-          const text = bodyEl.innerText || bodyEl.textContent || '';
-          navigator.clipboard.writeText(text).then(() => {
-            copyBtn.innerHTML = `<span>✓ Copied!</span>`;
-            setTimeout(() => {
-              copyBtn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-                <span>Copy</span>
-              `;
-            }, 2000);
-          });
-        });
-      }
-
-      // Double-click or double-tap inside modal window closes it
-      const win = overlay.querySelector('.kyana-reader-window');
-      if (win) {
-        win.addEventListener('dblclick', (e) => {
-          if (e.target.closest('button, a, input, select, textarea, pre, code')) return;
-          this.close();
-        });
-
-        let lastWinTap = 0;
-        win.addEventListener('touchend', (e) => {
-          if (e.target.closest('button, a, input, select, textarea, pre, code')) return;
-          const now = Date.now();
-          if (now - lastWinTap < 320 && now - lastWinTap > 60) {
-            this.close();
-          }
-          lastWinTap = now;
-        });
-      }
-
-      // Escape key closes
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && overlay.classList.contains('active')) {
-          this.close();
-        }
-      });
-    },
-
-    open(sourceDocElement) {
-      this.init();
-      if (!this.activeOverlay || !sourceDocElement) return;
-
-      const bodyEl = this.activeOverlay.querySelector('#kyanaReaderBody');
-      if (!bodyEl) return;
-
-      this.currentZoom = 1;
-      bodyEl.style.fontSize = '15px';
-      bodyEl.innerHTML = sourceDocElement.innerHTML;
-
-      // Copy buttons in cloned code blocks
-      bodyEl.querySelectorAll('.kyana-copy-code-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const pre = btn.closest('.kyana-code-block')?.querySelector('pre');
-          if (pre) {
-            navigator.clipboard.writeText(pre.innerText).then(() => {
-              btn.innerHTML = '<span>✓ Copied!</span>';
-              setTimeout(() => { btn.innerHTML = '<span>Copy</span>'; }, 2000);
-            });
-          }
-        });
-      });
-
-      this.activeOverlay.classList.remove('closing');
-      this.activeOverlay.classList.add('active');
-      document.body.classList.add('kyana-reader-open');
-      bodyEl.scrollTop = 0;
-    },
-
-    close() {
-      if (!this.activeOverlay || !this.activeOverlay.classList.contains('active')) return;
-      this.activeOverlay.classList.add('closing');
-      setTimeout(() => {
-        this.activeOverlay.classList.remove('active', 'closing');
-        document.body.classList.remove('kyana-reader-open');
-        const bodyEl = this.activeOverlay.querySelector('#kyanaReaderBody');
-        if (bodyEl) bodyEl.innerHTML = '';
-      }, 220);
-    }
-  };
-
-  // KyanaResponseActions Component with Subtle Single-Pass Completion Shimmer & Focus View Action
+  // KyanaResponseActions Component with Subtle Single-Pass Completion Shimmer
   const KyanaResponseActions = {
     render(container, textToCopy, onRegenerate, isFreshComplete = false) {
       const actions = document.createElement('div');
       actions.className = 'kyana-response-actions' + (isFreshComplete ? ' kyana-completion-pulse' : '');
       actions.innerHTML = `
-        <button type="button" class="kyana-action-btn kyana-fullscreen-btn" title="Expand to Full Screen Focus View (or double-tap message)">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-          </svg>
-          <span>Expand</span>
-        </button>
         <button type="button" class="kyana-action-btn kyana-copy-btn" title="Copy response">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -3293,16 +987,6 @@
           <span>Regenerate</span>
         </button>` : ''}
       `;
-
-      const expandBtn = actions.querySelector('.kyana-fullscreen-btn');
-      if (expandBtn) {
-        expandBtn.addEventListener('click', () => {
-          const doc = container.querySelector('.kyana-response-doc') || container.closest('.kyana-response-row')?.querySelector('.kyana-response-doc');
-          if (doc && doc.innerHTML.trim()) {
-            KyanaReaderModal.open(doc);
-          }
-        });
-      }
 
       const copyBtn = actions.querySelector('.kyana-copy-btn');
       copyBtn.addEventListener('click', () => {
@@ -3354,48 +1038,12 @@
     }
   };
 
-  // KyanaResponse Component (Clean Typography & Double-Tap Full-Screen Trigger)
+  // KyanaResponse Component (Clean Typography — No Redundant Header)
   const KyanaResponse = {
     create() {
       const row = document.createElement('div');
       row.className = 'kyana-response-row';
-      row.setAttribute('data-kyana-expandable', 'true');
-      row.setAttribute('title', 'Double-tap or double-click to view in full screen');
       row.innerHTML = `<div class="kyana-response-doc"></div>`;
-
-      // Desktop double click trigger
-      row.addEventListener('dblclick', (e) => {
-        if (e.target.closest('button, a, input, select, textarea, .kyana-quiz-option')) return;
-        const doc = row.querySelector('.kyana-response-doc');
-        if (doc && doc.innerHTML.trim()) {
-          KyanaReaderModal.open(doc);
-        }
-      });
-
-      // Mobile double tap trigger
-      let lastTapTime = 0;
-      let lastTapX = 0;
-      let lastTapY = 0;
-      row.addEventListener('touchend', (e) => {
-        if (e.target.closest('button, a, input, select, textarea, .kyana-quiz-option')) return;
-        const now = Date.now();
-        const touch = e.changedTouches ? e.changedTouches[0] : null;
-        if (!touch) return;
-        const timeDiff = now - lastTapTime;
-        const dist = Math.hypot(touch.clientX - lastTapX, touch.clientY - lastTapY);
-
-        if (timeDiff < 320 && timeDiff > 60 && dist < 25) {
-          e.preventDefault();
-          const doc = row.querySelector('.kyana-response-doc');
-          if (doc && doc.innerHTML.trim()) {
-            KyanaReaderModal.open(doc);
-          }
-        }
-        lastTapTime = now;
-        lastTapX = touch.clientX;
-        lastTapY = touch.clientY;
-      }, { passive: false });
-
       return row;
     }
   };
@@ -3652,7 +1300,7 @@
         const next = curr === 'dark' ? 'light' : 'dark';
         document.documentElement.setAttribute('data-theme', next);
         document.body.classList.toggle('dark-mode', next === 'dark');
-        try { localStorage.setItem('theme', next); } catch (_) { }
+        try { localStorage.setItem('theme', next); } catch (_) {}
       }
     });
   }
@@ -4040,17 +1688,8 @@
   if (newChatBtn) newChatBtn.addEventListener('click', startNewChat);
   if (headerNewChatBtn) headerNewChatBtn.addEventListener('click', startNewChat);
 
-  // Suggestion card & interactive prompt pill clicks delegate
+  // Suggestion card clicks delegate
   document.addEventListener('click', (e) => {
-    const pill = e.target.closest('.kyana-prompt-pill, a[href^="prompt:"]');
-    if (pill) {
-      e.preventDefault();
-      const promptText = pill.dataset.prompt || decodeURIComponent((pill.getAttribute('href') || '').slice(7));
-      if (promptText) {
-        handleSend(promptText);
-      }
-      return;
-    }
     const card = e.target.closest('.kyana-suggestion-card');
     if (card && card.dataset.prompt) {
       handleSend(card.dataset.prompt);
@@ -4170,7 +1809,7 @@
     try {
       const token = window.SemesterAuth?.getAccessToken?.();
       if (token) reqHeaders['Authorization'] = `Bearer ${token}`;
-    } catch (_) { }
+    } catch (_) {}
 
     try {
       const response = await fetch('/api/ai/chat', {
@@ -4375,7 +2014,7 @@
           }
         }
       }
-    } catch (_) { }
+    } catch (_) {}
   }
   syncServerConversations();
 
@@ -4388,6 +2027,6 @@
         handleSend(initialQuery.trim());
       }, 300);
     }
-  } catch (_) { }
+  } catch (_) {}
 
 })();

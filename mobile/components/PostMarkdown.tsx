@@ -5,2876 +5,29 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Pressable,
   Linking,
   Platform,
   StyleProp,
   ViewStyle,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/constants/useTheme';
 
-let OptionalWebView: any = null;
-try {
-  OptionalWebView = require('react-native-webview').WebView;
-} catch (_) {
-  OptionalWebView = null;
-}
-
 export interface PostMarkdownProps {
   content: string;
-  streaming?: boolean;
   isExpanded?: boolean;
   onToggleExpand?: () => void;
   maxPreviewLength?: number;
   onPressText?: () => void;
-  onPressInternalLink?: (url: string) => void;
   style?: StyleProp<ViewStyle>;
+  streaming?: boolean;
+  onPressInternalLink?: (url: string) => void;
 }
 
 interface CodeBlock {
   lang: string;
   code: string;
-}
-
-export interface ParsedAttendanceSubject {
-  name: string;
-  code: string;
-  pct: number;
-  isLow: boolean;
-  classes: number;
-  present: number;
-  absent: number;
-}
-
-export interface ParsedUnrecordedSubject {
-  name: string;
-  code: string;
-}
-
-export interface ParsedAttendanceData {
-  hasOverview: boolean;
-  hasRecords: boolean;
-  semester: number | null;
-  overallPct: number | null;
-  isLow: boolean;
-  attendedLabel: string;
-  present: number;
-  absent: number;
-  totalClasses: number;
-  recordedSubjects: number;
-  totalSubjects: number;
-  recordedItems: ParsedAttendanceSubject[];
-  unrecordedItems: ParsedUnrecordedSubject[];
-}
-
-/**
- * Parses a structured ```attendance block (including partial streaming blocks)
- * into overview metrics, recorded subject horizontal bar chart items, and unrecorded subjects.
- */
-export function parseAttendanceBlock(rawBlock: string): ParsedAttendanceData {
-  const lines = String(rawBlock || '').replace(/\r\n/g, '\n').split('\n');
-  const data: ParsedAttendanceData = {
-    hasOverview: false,
-    hasRecords: false,
-    semester: null,
-    overallPct: null,
-    isLow: false,
-    attendedLabel: '0 / 0',
-    present: 0,
-    absent: 0,
-    totalClasses: 0,
-    recordedSubjects: 0,
-    totalSubjects: 0,
-    recordedItems: [],
-    unrecordedItems: [],
-  };
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) continue;
-
-    if (/^Overview:/i.test(line)) {
-      data.hasOverview = true;
-      const parts = line
-        .replace(/^Overview:\s*/i, '')
-        .split('|')
-        .map((p) => p.trim());
-      const first = parts[0] || '';
-      if (/No records/i.test(first)) {
-        data.hasRecords = false;
-        data.overallPct = null;
-        data.isLow = false;
-      } else {
-        const pctMatch = first.match(/(\d+(?:\.\d+)?)%/);
-        if (pctMatch) {
-          data.hasRecords = true;
-          data.overallPct = Number(pctMatch[1]);
-          data.isLow = data.overallPct < 50 || /Low Attendance/i.test(first);
-        }
-      }
-      for (const part of parts.slice(1)) {
-        const attMatch = part.match(/^(\d+)\s*\/\s*(\d+)\s+classes/i);
-        if (attMatch) {
-          data.present = Number(attMatch[1]);
-          data.totalClasses = Number(attMatch[2]);
-          data.attendedLabel = `${attMatch[1]} / ${attMatch[2]}`;
-          continue;
-        }
-        const presMatch = part.match(/^Present:\s*(\d+)/i);
-        if (presMatch) {
-          data.present = Number(presMatch[1]);
-          continue;
-        }
-        const absMatch = part.match(/^Absent:\s*(\d+)/i);
-        if (absMatch) {
-          data.absent = Number(absMatch[1]);
-          continue;
-        }
-        const subjMatch = part.match(/^(\d+)\s+of\s+(\d+)\s+subjects/i);
-        if (subjMatch) {
-          data.recordedSubjects = Number(subjMatch[1]);
-          data.totalSubjects = Number(subjMatch[2]);
-          continue;
-        }
-        const semMatch = part.match(/^Semester\s+(\d+)/i);
-        if (semMatch) {
-          data.semester = Number(semMatch[1]);
-        }
-      }
-      continue;
-    }
-
-    const itemMatch = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?:\s*(.+)$/);
-    if (itemMatch) {
-      const name = itemMatch[1].trim();
-      const code = (itemMatch[2] || '').trim();
-      const rest = itemMatch[3].trim();
-      if (/\*\*No records\*\*|^No records$/i.test(rest)) {
-        data.unrecordedItems.push({ name, code });
-      } else {
-        const pctMatch = rest.match(/\*\*(\d+(?:\.\d+)?)%\*\*|(\d+(?:\.\d+)?)%/);
-        if (pctMatch) {
-          const pct = Number(pctMatch[1] ?? pctMatch[2]);
-          const isLow = pct < 50 || /Low Attendance/i.test(rest);
-          const classesMatch =
-            rest.match(/(\d+)\s+recorded\s+class/i) ||
-            rest.match(/out\s+of\s+(\d+)\s+class/i);
-          const presMatch =
-            rest.match(/Present:\s*(\d+)/i) || rest.match(/(\d+)\s+present/i);
-          const absMatch =
-            rest.match(/Absent:\s*(\d+)/i) ||
-            rest.match(/(\d+)\s+(?:missed\/)?absent/i);
-          const present = presMatch ? Number(presMatch[1]) : 0;
-          const absent = absMatch ? Number(absMatch[1]) : 0;
-          const classes = classesMatch ? Number(classesMatch[1]) : present + absent;
-          data.recordedItems.push({
-            name,
-            code,
-            pct,
-            isLow,
-            classes,
-            present,
-            absent,
-          });
-        }
-      }
-    }
-  }
-
-  if (!data.hasOverview && (data.recordedItems.length > 0 || data.unrecordedItems.length > 0)) {
-    const totalPres = data.recordedItems.reduce((acc, r) => acc + r.present, 0);
-    const totalAbs = data.recordedItems.reduce((acc, r) => acc + r.absent, 0);
-    const totalCls = data.recordedItems.reduce((acc, r) => acc + r.classes, 0);
-    data.present = totalPres;
-    data.absent = totalAbs;
-    data.totalClasses = totalCls;
-    data.attendedLabel = `${totalPres} / ${totalCls}`;
-    data.recordedSubjects = data.recordedItems.length;
-    data.totalSubjects = data.recordedItems.length + data.unrecordedItems.length;
-    if (totalCls > 0) {
-      data.hasRecords = true;
-      data.overallPct = Math.round((totalPres / totalCls) * 10000) / 100;
-      data.isLow = data.overallPct < 50;
-    }
-  }
-
-  return data;
-}
-
-
-export const VISUAL_BLOCK_KINDS = [
-  'ATTENDANCE',
-  'RESULTS',
-  'ASSIGNMENTS',
-  'NOTES',
-  'NOTICES',
-  'ROUTINE',
-  'POSTS',
-  'DIRECTORY',
-  'SYLLABUS',
-  'DIAGRAM',
-  'FLOWCHART',
-  'GRAPH',
-  'TRACE',
-  'COMPARISON',
-  'QUIZ',
-  'ROADMAP',
-  'COMPLEXITY',
-  'SIMULATION',
-  'CODE_PREVIEW',
-  'ILLUSTRATION',
-];
-
-export function parseKyanaVisualBlock(kind: string, rawBlock: string): any {
-  const normKind = String(kind || '').trim().toLowerCase();
-  const text = String(rawBlock || '').replace(/\r\n/g, '\n').trim();
-  if (normKind === 'attendance') {
-    return { kind: 'attendance', ...parseAttendanceBlock(text) };
-  }
-  if (!text || text.length > 32768) {
-    return { kind: normKind, items: [] };
-  }
-  if (
-    /<script\b|<\/script>|javascript\s*:|vbscript\s*:|data\s*:\s*text\/html|java\s*&#|&#x0*6a;|\\u006a\s*avascript|<iframe\b|<object\b|<embed\b|<foreignObject\b|<animate\b|<set\b|xlink\s*:\s*href|\bon[a-z]{2,}\s*=|\beval\s*\(|new\s+Function\s*\(|"__proto__"|"constructor"\s*:|"prototype"\s*:/i.test(
-      text
-    )
-  ) {
-    return { kind: normKind, items: [] };
-  }
-
-  if (
-    (text.startsWith('{') || ['simulation', 'code_preview', 'illustration'].includes(normKind)) &&
-    [
-      'syllabus',
-      'diagram',
-      'flowchart',
-      'graph',
-      'trace',
-      'quiz',
-      'roadmap',
-      'comparison',
-      'complexity',
-      'simulation',
-      'code_preview',
-      'illustration',
-    ].includes(normKind)
-  ) {
-    try {
-      const parsedJson = JSON.parse(text);
-      if (parsedJson && typeof parsedJson === 'object' && !Array.isArray(parsedJson)) {
-        if (normKind === 'simulation' && !parsedJson.simulationType) return { kind: normKind, items: [] };
-        if (normKind === 'code_preview' && !parsedJson.html && !parsedJson.css && !parsedJson.code)
-          return { kind: normKind, items: [] };
-        if (normKind === 'illustration' && !parsedJson.sceneType && !parsedJson.panels)
-          return { kind: normKind, items: [] };
-        const items =
-          parsedJson.units ||
-          parsedJson.nodes ||
-          parsedJson.steps ||
-          parsedJson.series ||
-          parsedJson.questions ||
-          parsedJson.controls ||
-          parsedJson.annotations ||
-          parsedJson.panels ||
-          parsedJson.items ||
-          (parsedJson.unit
-            ? [parsedJson.unit]
-            : parsedJson.simulationType || parsedJson.sceneType || parsedJson.html
-              ? [parsedJson]
-              : []);
-        return {
-          kind: normKind,
-          ...parsedJson,
-          items: Array.isArray(items) ? items : [],
-        };
-      }
-    } catch (_) {
-      return { kind: normKind, items: [] };
-    }
-  }
-
-  const lines = text
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean);
-
-  if (normKind === 'results') {
-    const items: any[] = [];
-    let aggregateLabel: string | null = null;
-    let aggregateScore: string | null = null;
-    let aggregatePct: number | null = null;
-
-    for (const line of lines) {
-      const aggMatch = line.match(
-        /\*\*([^*]*Aggregate[^*]*):\*\*\s*([0-9.]+\s*\/\s*[0-9.]+)(?:\s*\(([^)]+)\))?/i
-      );
-      if (aggMatch) {
-        aggregateLabel = aggMatch[1].trim().replace(/:$/, '');
-        aggregateScore = aggMatch[2].trim();
-        const pctM = (aggMatch[3] || '').match(/(\d+(?:\.\d+)?)%/);
-        if (pctM) aggregatePct = Number(pctM[1]);
-        continue;
-      }
-
-      const bulletMatch = line.match(
-        /^(?:[-•*]|\d+\.)\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?\s*(?:—|-|:)\s*(.+)$/
-      );
-      if (bulletMatch) {
-        const subject = bulletMatch[1].trim();
-        const code = (bulletMatch[2] || '').trim();
-        const rest = bulletMatch[3].trim();
-        const examMatch = rest.match(/\*([^*]+)\*/);
-        const examType = examMatch ? examMatch[1].trim() : 'Exam';
-        const semMatch = rest.match(/\(Semester\s+(\d+)\)/i);
-        const semester = semMatch ? Number(semMatch[1]) : null;
-        const isAbsent = /\bAbsent\b/i.test(rest);
-        const isUnpublished = /\b(?:Unpublished|Pending|Not published)\b/i.test(rest);
-        const scoreMatch = rest.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
-        const pctMatch = rest.match(/(\d+(?:\.\d+)?)%/);
-        const obtained = scoreMatch ? Number(scoreMatch[1]) : null;
-        const max = scoreMatch ? Number(scoreMatch[2]) : null;
-        const pct = pctMatch
-          ? Number(pctMatch[1])
-          : obtained !== null && max
-          ? Math.round((obtained / max) * 10000) / 100
-          : null;
-        const isLow = isAbsent || (pct !== null && pct < 40);
-        const scoreLabel = isAbsent
-          ? rest.match(/Absent\s*\([^)]+\)/i)?.[0] || 'Absent'
-          : isUnpublished
-          ? 'Unpublished'
-          : scoreMatch
-          ? `${obtained} / ${max}`
-          : rest.replace(/\*[^*]+\*[:\s—-]*/g, '').replace(/\*\*/g, '').trim();
-
-        items.push({
-          subject,
-          code,
-          examType,
-          semester,
-          obtained,
-          max,
-          pct,
-          isAbsent,
-          isUnpublished,
-          isLow,
-          scoreLabel,
-        });
-      }
-    }
-
-    if (!aggregatePct && items.length > 0) {
-      const scored = items.filter(
-        (i) => i.obtained !== null && i.max !== null && !i.isAbsent
-      );
-      if (scored.length > 0) {
-        const sumObt = scored.reduce((a, b) => a + b.obtained, 0);
-        const sumMax = scored.reduce((a, b) => a + b.max, 0);
-        if (sumMax > 0) {
-          if (!aggregateScore) {
-            aggregateScore = `${Math.round(sumObt * 100) / 100} / ${Math.round(sumMax * 100) / 100}`;
-          }
-          aggregatePct = Math.round((sumObt / sumMax) * 10000) / 100;
-        }
-      }
-    }
-
-    return {
-      kind: 'results',
-      aggregateLabel: aggregateLabel || 'Overall score',
-      aggregateScore,
-      aggregatePct,
-      items,
-    };
-  }
-
-  if (normKind === 'assignments') {
-    const items: any[] = [];
-    let currentItem: any = null;
-
-    for (const rawLine of text.split('\n')) {
-      const trimmed = rawLine.trim();
-      if (!trimmed) continue;
-
-      if (
-        /^[-*]\s+\*\*([^*]+)\*\*/.test(trimmed) &&
-        !/^•/.test(trimmed) &&
-        !/^\s{2,}/.test(rawLine)
-      ) {
-        const m = trimmed.match(
-          /^[-*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(?:\s*\[([^\]]+)\])?(?:\s*(?:—|-|:)\s*(.+))?$/
-        );
-        if (m) {
-          const title = m[1].trim();
-          const subject = (m[2] || 'General').trim();
-          const semester = (m[3] || '').trim();
-          const tail = (m[4] || '').trim();
-          const isOverdue = /\b(?:Missed|Overdue)\b/i.test(tail);
-          const isChecked = /\b(?:Checked|Graded)\b/i.test(tail);
-          const isSubmitted = isChecked || /\bSubmitted\b/i.test(tail);
-          const dueMatch = tail.match(
-            /(?:due|Deadline:|Was due on)\s*\*\*?([^*(]+?)\*\*?(?:\s*\(|$)/i
-          );
-          const deadline = dueMatch ? dueMatch[1].trim() : null;
-          const statusLabel = isOverdue
-            ? 'Overdue'
-            : isChecked
-            ? 'Checked'
-            : isSubmitted
-            ? 'Submitted'
-            : 'Pending';
-
-          currentItem = {
-            title,
-            subject,
-            semester,
-            deadline,
-            statusLabel,
-            isOverdue,
-            isSubmitted,
-            isChecked,
-            author: null,
-            description: null,
-            questions: null,
-            grade: null,
-          };
-          items.push(currentItem);
-          continue;
-        }
-      }
-
-      if (currentItem && /^[•*-]\s+/.test(trimmed)) {
-        const cleanDetail = trimmed.replace(/^[•*-]\s+/, '');
-        const kv = cleanDetail.match(/^\*\*([^:]+):\*\*\s*(.+)$/);
-        if (kv) {
-          const k = kv[1].trim().toLowerCase();
-          const v = kv[2].trim().replace(/\*\*/g, '');
-          if (k === 'author') currentItem.author = v;
-          else if (k === 'description') currentItem.description = v;
-          else if (k.startsWith('questions')) currentItem.questions = v;
-          else if (k.includes('submission status')) {
-            currentItem.statusLabel = v;
-            if (/Overdue|Missed/i.test(v)) currentItem.isOverdue = true;
-            if (/Submitted/i.test(v) && !/Not submitted/i.test(v))
-              currentItem.isSubmitted = true;
-          } else if (k.includes('grade')) {
-            currentItem.grade = v;
-            if (/Checked/i.test(v)) currentItem.isChecked = true;
-          }
-        }
-      }
-    }
-    return { kind: 'assignments', items };
-  }
-
-  if (normKind === 'notes') {
-    const items: any[] = [];
-    for (const line of lines) {
-      const m = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(.*)$/);
-      if (m) {
-        const title = m[1].trim();
-        const metaRaw = (m[2] || '').trim();
-        const parts = metaRaw.split('|').map((p) => p.trim());
-        const primaryParts = (parts[0] || '')
-          .split(',')
-          .map((p) => p.trim())
-          .filter(Boolean);
-        const subject = primaryParts[0] || 'Study Material';
-        const semester = primaryParts.find((p) => /semester/i.test(p)) || null;
-        const chapter = primaryParts.find((p) => /chapter|unit/i.test(p)) || null;
-        const folderPart = parts.find((p) => /^Folder:/i.test(p));
-        const folder = folderPart ? folderPart.replace(/^Folder:\s*/i, '').trim() : null;
-        const ext = (title.match(/\.([a-zA-Z0-9]{2,4})$/)?.[1] || 'PDF').toUpperCase();
-        items.push({ title, subject, semester, chapter, folder, fileType: ext });
-      }
-    }
-    return { kind: 'notes', items };
-  }
-
-  if (normKind === 'routine') {
-    const items: any[] = [];
-    for (const line of lines) {
-      const m = line.match(/^[-•*]\s+\*\*([^*]+)\*\*\s*(?:—|-)\s*(.+)$/);
-      if (m) {
-        const subject = m[1].trim();
-        const rest = m[2].trim();
-        const dayMatch = rest.match(/\(([^)]+)\)/);
-        const day = dayMatch ? dayMatch[1].trim() : null;
-        const roomMatch = rest.match(/Room\s+([^,]+)/i);
-        const room = roomMatch ? roomMatch[1].trim() : null;
-        const timeMatch = rest.match(
-          /(\d{1,2}:\d{2}\s*(?:AM|PM)?(?:\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM)?)?)/i
-        );
-        const time = timeMatch ? timeMatch[1].trim() : null;
-        const datePart = rest.split(',')[0].replace(/\([^)]*\)/g, '').trim();
-        items.push({ subject, date: datePart, day, time, room, rawMeta: rest });
-      }
-    }
-    return { kind: 'routine', items };
-  }
-
-    if (normKind === 'notices' || normKind === 'posts' || normKind === 'directory') {
-    const items: any[] = [];
-    for (const line of lines) {
-      const m = line.match(
-        /^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\[([^\]]+)\])?(?:\s*\(([^)]+)\))?(?:\s*(?:—|-|:)\s*(.+))?$/
-      );
-      if (m) {
-        items.push({
-          title: m[1].trim(),
-          badge: (m[2] || m[3] || '').trim() || null,
-          meta: (m[2] && m[3] ? m[3] : '').trim() || null,
-          summary: (m[4] || '').trim().replace(/\*\*/g, '') || null,
-          isOfficial: normKind === 'notices' && !/community|student post/i.test(m[2] || ''),
-        });
-      }
-    }
-    return { kind: normKind, items };
-  }
-
-  if (normKind === 'syllabus') {
-    const items: any[] = [];
-    let courseTitle: string | null = null;
-    let courseCode: string | null = null;
-    let semester: number | null = null;
-    let credits: string | null = null;
-    let nature: string | null = null;
-    let totalHours: string | null = null;
-    let objectives: string | null = null;
-    let labs: string | null = null;
-    let textbooks: string | null = null;
-    let currentUnit: any = null;
-
-    for (const rawLine of text.split('\n')) {
-      const line = rawLine.trim();
-      if (!line) continue;
-
-      const courseMatch = line.match(/^[-*]\s+\*\*Course:\*\*\s*([^(]+?)(?:\s*\(([^)]+)\))?(?:\s*[·•|]\s*(.+))?$/i);
-      if (courseMatch) {
-        courseTitle = courseMatch[1].trim();
-        courseCode = (courseMatch[2] || '').trim();
-        const meta = courseMatch[3] || '';
-        const semM = meta.match(/Semester\s+(\d+)/i);
-        if (semM) semester = Number(semM[1]);
-        const credM = meta.match(/(\d+)\s*Credits?/i);
-        if (credM) credits = credM[1];
-        const natM = meta.match(/Nature:\s*([A-Za-z +]+)/i);
-        if (natM) nature = natM[1].trim();
-        const hrsM = meta.match(/Total:\s*(\d+\s*hrs?)/i);
-        if (hrsM) totalHours = hrsM[1].trim();
-        continue;
-      }
-
-      const semHeaderMatch = line.match(/^[-*]\s+\*\*Semester:\*\*\s*(.+)$/i);
-      if (semHeaderMatch) {
-        courseTitle = semHeaderMatch[1].trim();
-        continue;
-      }
-
-      const objMatch = line.match(/^[-*]\s+\*\*Objectives?:\*\*\s*(.+)$/i);
-      if (objMatch) {
-        objectives = objMatch[1].trim();
-        continue;
-      }
-
-      const labMatch = line.match(/^[-*]\s+\*\*Labs?:\*\*\s*(.+)$/i);
-      if (labMatch) {
-        labs = labMatch[1].trim();
-        continue;
-      }
-
-      const tbMatch = line.match(/^[-*]\s+\*\*Textbooks?:\*\*\s*(.+)$/i);
-      if (tbMatch) {
-        textbooks = tbMatch[1].trim();
-        continue;
-      }
-
-      const unitMatch = line.match(/^[-*]\s+\*\*(?:Unit\s+)?(\d{1,2}):\s*([^*]+)\*\*(?:\s*[—–-]\s*(.+))?$/i);
-      if (unitMatch) {
-        const uNum = Number(unitMatch[1]);
-        const uTitle = unitMatch[2].trim();
-        const rest = unitMatch[3] || '';
-        const hrsM = rest.match(/(\d+\s*hrs?)/i);
-        const pctM = rest.match(/(\d+(?:\.\d+)?)%/);
-        currentUnit = {
-          unitNumber: uNum,
-          title: uTitle,
-          hours: hrsM ? hrsM[1].trim() : null,
-          pct: pctM ? Number(pctM[1]) : null,
-          topics: '',
-        };
-        items.push(currentUnit);
-        continue;
-      }
-
-      if (currentUnit && /^[•*-]\s*(?:Topics?:)?\s*(.+)$/i.test(line)) {
-        const tMatch = line.match(/^[•*-]\s*(?:Topics?:)?\s*(.+)$/i);
-        if (tMatch) {
-          currentUnit.topics = currentUnit.topics ? `${currentUnit.topics}; ${tMatch[1].trim()}` : tMatch[1].trim();
-        }
-        continue;
-      }
-
-      const courseListMatch = line.match(/^[-*]\s+\*\*([^*:]+):\*\*\s*(.+)$/);
-      if (courseListMatch && !line.startsWith('- **Unit')) {
-        const code = courseListMatch[1].trim();
-        const rest = courseListMatch[2].trim();
-        const parts = rest.split(/[·•|]/).map((p) => p.trim());
-        items.push({
-          code,
-          title: parts[0] || code,
-          credits: parts[1] || null,
-          nature: parts[2] || null,
-          details: parts.slice(3).join(' · ') || null,
-        });
-      }
-    }
-
-    return {
-      kind: 'syllabus',
-      courseTitle,
-      courseCode,
-      semester,
-      credits,
-      nature,
-      totalHours,
-      objectives,
-      labs,
-      textbooks,
-      items,
-    };
-  }
-
-  if (normKind === 'diagram') {
-    let title = 'System Architecture & Concept Diagram';
-    const diagramLines: string[] = [];
-    const nodes: Array<{ id: string; label: string; detail?: string }> = [];
-    for (const line of lines) {
-      const titleMatch = line.match(/^\[([A-Za-z0-9\s_-]+)\]$/);
-      if (titleMatch && diagramLines.length === 0) {
-        title = titleMatch[1].trim();
-        continue;
-      }
-      diagramLines.push(line);
-      const isAsciiBorder = /^[+\-|=_\s]+$/.test(line);
-      if (isAsciiBorder) continue;
-
-      const cleanContent = line.replace(/^[|/\s+-]+|[|/\s+-]+$/g, '').trim();
-      if (!cleanContent) continue;
-
-      const stepMatch = cleanContent.match(/^(?:(?:\d+\.|\*|-)\s+)?([A-Za-z0-9\s_()/-]+?)(?:\s*(?:—|:|\s->\s|\s<-\s)\s*(.+))?$/);
-      if (stepMatch && stepMatch[1] && stepMatch[1].trim().length > 1) {
-        nodes.push({
-          id: `step-${nodes.length + 1}`,
-          label: stepMatch[1].trim(),
-          detail: stepMatch[2] ? stepMatch[2].trim() : undefined,
-        });
-      } else {
-        nodes.push({
-          id: `step-${nodes.length + 1}`,
-          label: cleanContent,
-        });
-      }
-    }
-    const items = nodes.length > 0 ? nodes : diagramLines.filter((l) => l.trim().length > 0);
-    return {
-      kind: 'diagram',
-      title,
-      nodes: nodes.length > 0 ? nodes : undefined,
-      diagramText: diagramLines.join('\n').trim(),
-      items,
-    };
-  }
-
-  if (normKind === 'flowchart' || normKind === 'trace') {
-    const items: any[] = [];
-    for (const line of lines) {
-      const stepMatch = line.match(/^(?:\[([^\]]+)\]|([A-Za-z0-9\s_-]+:))\s*(.+)$/);
-      if (stepMatch) {
-        const stepLabel = (stepMatch[1] || stepMatch[2] || 'Step').replace(/:$/, '').trim();
-        const content = stepMatch[3].trim();
-        items.push({ label: stepLabel, content });
-      } else if (/^[-*]\s+/.test(line)) {
-        items.push({ label: `Step ${items.length + 1}`, content: line.replace(/^[-*]\s+/, '').trim() });
-      }
-    }
-    return { kind: normKind, items };
-  }
-
-  if (normKind === 'comparison') {
-    const items: any[] = [];
-    for (const line of lines) {
-      if (line.includes('|')) {
-        const parts = line.split('|').map((p) => p.trim().replace(/^[-*]\s+/, ''));
-        if (parts.length >= 2) {
-          const col1 = parts[0].replace(/\*\*/g, '').trim();
-          const col2 = parts[1].replace(/\*\*/g, '').trim();
-          const col3 = parts[2] ? parts[2].replace(/\*\*/g, '').trim() : null;
-          items.push({ col1, col2, col3 });
-        }
-      }
-    }
-    return { kind: 'comparison', items };
-  }
-
-  if (normKind === 'quiz') {
-    let question: string | null = null;
-    const options: any[] = [];
-    let answer: string | null = null;
-    let explanation: string | null = null;
-
-    for (const line of lines) {
-      const qMatch = line.match(/^[-*]\s+\*\*Question:\*\*\s*(.+)$/i);
-      if (qMatch) { question = qMatch[1].trim(); continue; }
-
-      const optMatch = line.match(/^[-*]\s+\*\*Option\s+([A-D]):\*\*\s*(.+)$/i);
-      if (optMatch) {
-        options.push({ key: optMatch[1].toUpperCase(), text: optMatch[2].trim() });
-        continue;
-      }
-
-      const ansMatch = line.match(/^[-*]\s+\*\*Answer:\*\*\s*(.+)$/i);
-      if (ansMatch) { answer = ansMatch[1].trim(); continue; }
-
-      const expMatch = line.match(/^[-*]\s+\*\*Explanation:\*\*\s*(.+)$/i);
-      if (expMatch) { explanation = expMatch[1].trim(); continue; }
-    }
-    const items = options.map((o) => ({ key: o.key, text: o.text }));
-    return {
-      kind: 'quiz',
-      question,
-      options,
-      answer,
-      explanation,
-      items,
-    };
-  }
-
-  if (normKind === 'roadmap') {
-    const items: any[] = [];
-    for (const line of lines) {
-      const m = line.match(/^[-*]\s+\[([ xX])\]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(?:\s*[—–-]\s*(.+))?$/);
-      if (m) {
-        const done = m[1].toLowerCase() === 'x';
-        const title = m[2].trim();
-        const tag = (m[3] || '').trim();
-        const desc = (m[4] || '').trim();
-        items.push({ done, title, tag, desc });
-      }
-    }
-    return { kind: 'roadmap', items };
-  }
-
-  if (normKind === 'complexity') {
-    const items: any[] = [];
-    for (const line of lines) {
-      if (line.includes('|')) {
-        const parts = line.split('|').map((p) => p.trim().replace(/^[-*]\s+/, ''));
-        if (parts.length >= 2) {
-          items.push({
-            label: parts[0].replace(/\*\*/g, '').trim(),
-            best: parts[1] ? parts[1].replace(/\*\*/g, '').trim() : null,
-            average: parts[2] ? parts[2].replace(/\*\*/g, '').trim() : null,
-            worst: parts[3] ? parts[3].replace(/\*\*/g, '').trim() : null,
-            space: parts[4] ? parts[4].replace(/\*\*/g, '').trim() : null,
-          });
-        }
-      }
-    }
-    return { kind: 'complexity', items };
-  }
-
-  return { kind: normKind, items: [] };
-}
-
-function KyanaSimulationCard({
-  parsed,
-  cardBg,
-  raisedBg,
-  colors,
-  keyPrefix,
-}: {
-  parsed: any;
-  cardBg: string;
-  raisedBg: string;
-  colors: any;
-  keyPrefix: string;
-}) {
-  const simType = String(parsed.simulationType || 'generic').toLowerCase();
-  const [paddingVal, setPaddingVal] = useState<number>(Number(parsed.defaults?.padding ?? 16));
-  const [marginVal, setMarginVal] = useState<number>(Number(parsed.defaults?.margin ?? 12));
-  const [v0Val, setV0Val] = useState<number>(Number(parsed.defaults?.v0 ?? parsed.computed?.v0 ?? 25));
-  const [thetaVal, setThetaVal] = useState<number>(Number(parsed.defaults?.thetaDeg ?? parsed.computed?.thetaDeg ?? 45));
-  const [ampVal, setAmpVal] = useState<number>(Number(parsed.defaults?.amplitude ?? 2));
-  const [freqVal, setFreqVal] = useState<number>(Number(parsed.defaults?.frequency ?? 2));
-
-  const rad = (thetaVal * Math.PI) / 180;
-  const g = Number(parsed.defaults?.g ?? 9.8);
-  const projRange = (((v0Val * v0Val) * Math.sin(2 * rad)) / g).toFixed(2);
-  const projHeight = (((v0Val * v0Val) * Math.pow(Math.sin(rad), 2)) / (2 * g)).toFixed(2);
-  const projTime = ((2 * v0Val * Math.sin(rad)) / g).toFixed(2);
-
-  return (
-    <View
-      key={keyPrefix}
-      style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-      accessibilityLabel={parsed.title || 'Interactive Academic Simulation'}
-    >
-      <View style={styles.attHeaderRow}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-            {parsed.title || 'Interactive Academic Simulation'}
-          </Text>
-          {Boolean(parsed.subtitle) && (
-            <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{parsed.subtitle}</Text>
-          )}
-        </View>
-        <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Interactive Lab</Text>
-        </View>
-      </View>
-
-      {simType === 'box_model' && (
-        <View style={{ gap: 10, marginTop: 8 }}>
-          <View style={{ padding: Math.max(4, Math.round(marginVal / 2)), borderRadius: 8, backgroundColor: '#eab308' }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#18181b', textAlign: 'center' }}>
-              {`Margin: ${marginVal}px`}
-            </Text>
-            <View style={{ padding: 8, borderRadius: 6, backgroundColor: '#84cc16', marginTop: 4 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#18181b', textAlign: 'center' }}>Border</Text>
-              <View style={{ padding: Math.max(4, Math.round(paddingVal / 2)), borderRadius: 6, backgroundColor: '#93c5fd', marginTop: 4 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#18181b', textAlign: 'center' }}>
-                  {`Padding: ${paddingVal}px`}
-                </Text>
-                <View style={{ padding: 12, borderRadius: 4, backgroundColor: '#2563eb', marginTop: 4 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#ffffff', textAlign: 'center' }}>CONTENT</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={[styles.attSubjMeta, { color: colors.text }]}>{`Adjust padding: ${paddingVal}px`}</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <Pressable onPress={() => setPaddingVal((p) => Math.max(0, p - 4))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>- 4px</Text>
-              </Pressable>
-              <Pressable onPress={() => setPaddingVal((p) => Math.min(40, p + 4))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ 4px</Text>
-              </Pressable>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={[styles.attSubjMeta, { color: colors.text }]}>{`Adjust margin: ${marginVal}px`}</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <Pressable onPress={() => setMarginVal((m) => Math.max(0, m - 4))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>- 4px</Text>
-              </Pressable>
-              <Pressable onPress={() => setMarginVal((m) => Math.min(40, m + 4))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ 4px</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {simType === 'projectile_motion' && (
-        <View style={{ gap: 10, marginTop: 8 }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            <View style={[styles.attStatBox, { backgroundColor: raisedBg, borderColor: colors.border, flex: 1 }]}>
-              <Text style={[styles.attStatNum, { color: colors.text }]}>{`${projRange} m`}</Text>
-              <Text style={[styles.attStatLabel, { color: colors.textSecondary }]}>Range (R)</Text>
-            </View>
-            <View style={[styles.attStatBox, { backgroundColor: raisedBg, borderColor: colors.border, flex: 1 }]}>
-              <Text style={[styles.attStatNum, { color: colors.text }]}>{`${projHeight} m`}</Text>
-              <Text style={[styles.attStatLabel, { color: colors.textSecondary }]}>Max Height (H)</Text>
-            </View>
-            <View style={[styles.attStatBox, { backgroundColor: raisedBg, borderColor: colors.border, flex: 1 }]}>
-              <Text style={[styles.attStatNum, { color: colors.text }]}>{`${projTime} s`}</Text>
-              <Text style={[styles.attStatLabel, { color: colors.textSecondary }]}>Flight Time (T)</Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={[styles.attSubjMeta, { color: colors.text }]}>{`Velocity (v₀): ${v0Val} m/s`}</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <Pressable onPress={() => setV0Val((v) => Math.max(5, v - 5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>- 5 m/s</Text>
-              </Pressable>
-              <Pressable onPress={() => setV0Val((v) => Math.min(50, v + 5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ 5 m/s</Text>
-              </Pressable>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={[styles.attSubjMeta, { color: colors.text }]}>{`Launch Angle (θ): ${thetaVal}°`}</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <Pressable onPress={() => setThetaVal((t) => Math.max(10, t - 5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>- 5°</Text>
-              </Pressable>
-              <Pressable onPress={() => setThetaVal((t) => Math.min(85, t + 5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ 5°</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {simType === 'wave_motion' && (
-        <View style={{ gap: 8, marginTop: 8 }}>
-          <Text style={[styles.attSubjMeta, { color: colors.text }]}>
-            {`Amplitude A = ${ampVal} m · Frequency f = ${freqVal} Hz · Period T = ${(1 / freqVal).toFixed(2)} s`}
-          </Text>
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            <Pressable onPress={() => setAmpVal((a) => Math.min(5, a + 0.5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-              <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ Amplitude</Text>
-            </Pressable>
-            <Pressable onPress={() => setFreqVal((f) => Math.min(6, f + 0.5))} style={[styles.traceCtrlBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-              <Text style={[styles.traceCtrlBtnText, { color: colors.text }]}>+ Frequency</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-
-      {simType === 'binary_search' && (
-        <View style={{ gap: 8, marginTop: 8 }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {(Array.isArray(parsed.array) ? parsed.array : [2, 5, 8, 12, 16, 23, 38, 56]).map((val: any, idx: number) => (
-              <View
-                key={`bs-${idx}`}
-                style={[
-                  styles.attNoRecordPill,
-                  {
-                    backgroundColor: val === (parsed.defaultTarget ?? 23) ? 'rgba(16, 185, 129, 0.16)' : raisedBg,
-                    borderColor: val === (parsed.defaultTarget ?? 23) ? '#10b981' : colors.border,
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                  },
-                ]}
-              >
-                <Text style={{ fontWeight: '700', fontSize: 13, color: colors.text }}>{String(val)}</Text>
-                <Text style={{ fontSize: 10, color: colors.textSecondary }}>{`idx ${idx}`}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {Boolean(parsed.takeaway || parsed.note) && (
-        <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 8 }]}>
-          {parsed.takeaway || parsed.note}
-        </Text>
-      )}
-    </View>
-  );
-}
-
-function KyanaCodePreviewCard({
-  parsed,
-  cardBg,
-  raisedBg,
-  colors,
-  keyPrefix,
-}: {
-  parsed: any;
-  cardBg: string;
-  raisedBg: string;
-  colors: any;
-  keyPrefix: string;
-}) {
-  const [activeTab, setActiveTab] = useState<'html' | 'css' | 'preview'>('html');
-  return (
-    <View
-      key={keyPrefix}
-      style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-      accessibilityLabel={parsed.title || 'Live Concept Demonstration'}
-    >
-      <View style={styles.attHeaderRow}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-            {parsed.title || 'Live concept demonstration'}
-          </Text>
-          {Boolean(parsed.subtitle) && (
-            <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{parsed.subtitle}</Text>
-          )}
-        </View>
-        <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>HTML & CSS</Text>
-        </View>
-      </View>
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-        {(['html', 'css', 'preview'] as const).map((tab) => (
-          <Pressable
-            key={tab}
-            onPress={() => setActiveTab(tab)}
-            style={[
-              styles.traceCtrlBtn,
-              {
-                backgroundColor: activeTab === tab ? colors.text : raisedBg,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.traceCtrlBtnText, { color: activeTab === tab ? cardBg : colors.text }]}>
-              {tab === 'html' ? 'HTML' : tab === 'css' ? 'CSS' : 'Preview'}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-      {activeTab === 'html' && (
-        <View style={{ padding: 10, borderRadius: 8, backgroundColor: raisedBg, borderColor: colors.border, borderWidth: 1, marginTop: 8 }}>
-          <Text style={{ fontFamily: 'monospace', fontSize: 12, color: colors.text }}>{parsed.html || ''}</Text>
-        </View>
-      )}
-      {activeTab === 'css' && (
-        <View style={{ padding: 10, borderRadius: 8, backgroundColor: raisedBg, borderColor: colors.border, borderWidth: 1, marginTop: 8 }}>
-          <Text style={{ fontFamily: 'monospace', fontSize: 12, color: colors.text }}>{parsed.css || ''}</Text>
-        </View>
-      )}
-      {activeTab === 'preview' && (
-        <View style={{ padding: 14, borderRadius: 10, backgroundColor: raisedBg, borderColor: colors.border, borderWidth: 1, marginTop: 8, gap: 4 }}>
-          <Text style={{ fontSize: 11, fontWeight: '700', color: colors.textSecondary }}>CIT 215 · Web Tech</Text>
-          <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>Hello Student!</Text>
-          <Text style={{ fontSize: 13, color: colors.textSecondary }}>
-            CSS selectors target specific HTML elements for styling.
-          </Text>
-        </View>
-      )}
-      {Boolean(parsed.caption) && (
-        <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 8 }]}>{parsed.caption}</Text>
-      )}
-    </View>
-  );
-}
-
-function KyanaQuizCard({
-  parsed,
-  cardBg,
-  raisedBg,
-  colors,
-  isDark,
-  keyPrefix,
-}: {
-  parsed: any;
-  cardBg: string;
-  raisedBg: string;
-  colors: any;
-  isDark: boolean;
-  keyPrefix: string;
-}) {
-  const [revealedMap, setRevealedMap] = useState<Record<number, boolean>>({});
-  const [selectedMap, setSelectedMap] = useState<Record<number, number>>({});
-
-  const questionsList =
-    Array.isArray(parsed.questions) && parsed.questions.length > 0
-      ? parsed.questions
-      : [
-          {
-            id: 'q1',
-            question: parsed.question || '',
-            options: Array.isArray(parsed.options)
-              ? parsed.options.map((o: any) =>
-                  typeof o === 'string' ? o : `${o.key}) ${o.text}`
-                )
-              : [],
-            correctIndex: 0,
-            answer: parsed.answer || '',
-            explanation: parsed.explanation || '',
-          },
-        ];
-
-  return (
-    <View
-      key={keyPrefix}
-      style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-      accessibilityLabel="Interactive Self-Assessment Quiz"
-    >
-      <View style={styles.attHeaderRow}>
-        <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-          {parsed.title || 'Interactive Self-Assessment Quiz'}
-        </Text>
-        <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-            {`${questionsList.length} ${questionsList.length === 1 ? 'question' : 'questions'}`}
-          </Text>
-        </View>
-      </View>
-
-      {questionsList.map((q: any, qIdx: number) => {
-        const opts = Array.isArray(q.options) ? q.options : [];
-        const selectedIdx = selectedMap[qIdx];
-        const isRevealed = Boolean(revealedMap[qIdx]);
-        const correctIdx = typeof q.correctIndex === 'number' ? q.correctIndex : -1;
-        const correctAnswerText =
-          q.answer || (correctIdx >= 0 && opts[correctIdx] ? opts[correctIdx] : '');
-
-        return (
-          <View key={`q-${qIdx}`} style={{ marginTop: qIdx > 0 ? 12 : 4 }}>
-            <Text style={[styles.quizQuestion, { color: colors.text }]}>
-              {questionsList.length > 1 ? `Q${qIdx + 1}. ${q.question}` : q.question}
-            </Text>
-            <View style={styles.quizOptionsList}>
-              {opts.map((opt: any, oIdx: number) => {
-                const optStr = typeof opt === 'string' ? opt : `${opt.key}) ${opt.text}`;
-                const isSelected = selectedIdx === oIdx;
-                const isCorrect = isSelected && oIdx === correctIdx;
-                const isWrong = isSelected && correctIdx >= 0 && oIdx !== correctIdx;
-                return (
-                  <TouchableOpacity
-                    key={`opt-${oIdx}`}
-                    onPress={() => {
-                      setSelectedMap((prev) => ({ ...prev, [qIdx]: oIdx }));
-                      if (oIdx === correctIdx) {
-                        setRevealedMap((prev) => ({ ...prev, [qIdx]: true }));
-                      }
-                    }}
-                    style={[
-                      styles.quizOptionRow,
-                      {
-                        backgroundColor: isCorrect
-                          ? 'rgba(16, 185, 129, 0.14)'
-                          : isWrong
-                          ? 'rgba(239, 68, 68, 0.12)'
-                          : raisedBg,
-                        borderColor: isCorrect
-                          ? '#10b981'
-                          : isWrong
-                          ? '#ef4444'
-                          : colors.border,
-                      },
-                    ]}
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.quizOptText, { color: colors.text }]}>{optStr}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <TouchableOpacity
-              onPress={() =>
-                setRevealedMap((prev) => ({ ...prev, [qIdx]: !prev[qIdx] }))
-              }
-              style={[styles.quizRevealBtn, { backgroundColor: raisedBg, borderColor: colors.border }]}
-              accessibilityRole="button"
-            >
-              <Text style={[styles.quizRevealBtnText, { color: colors.text }]}>
-                {isRevealed ? 'Hide Explanation' : 'Reveal Answer & Explanation'}
-              </Text>
-            </TouchableOpacity>
-            {isRevealed && (
-              <View
-                style={[
-                  styles.quizRevealContent,
-                  {
-                    backgroundColor: isDark
-                      ? 'rgba(255,255,255,0.05)'
-                      : 'rgba(0,0,0,0.04)',
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.quizCorrectAnswer, { color: colors.text }]}>
-                  Correct Answer: {correctAnswerText}
-                </Text>
-                {Boolean(q.explanation) && (
-                  <Text style={[styles.quizExplanation, { color: colors.textSecondary }]}>
-                    {q.explanation}
-                  </Text>
-                )}
-              </View>
-            )}
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-function KyanaTraceCard({
-  parsed,
-  cardBg,
-  raisedBg,
-  colors,
-  keyPrefix,
-}: {
-  parsed: any;
-  cardBg: string;
-  raisedBg: string;
-  colors: any;
-  keyPrefix: string;
-}) {
-  const steps =
-    Array.isArray(parsed.steps) && parsed.steps.length > 0
-      ? parsed.steps.map((s: any, idx: number) => ({
-          label: `Step ${s.step || idx + 1}`,
-          action: s.action || s.label || `Step ${idx + 1}`,
-          state: Array.isArray(s.state) ? s.state : s.content ? [s.content] : [],
-          highlight: s.highlight || null,
-        }))
-      : parsed.items.map((item: any, idx: number) => ({
-          label: item.label || `Step ${idx + 1}`,
-          action: item.label || `Step ${idx + 1}`,
-          state: [item.content || ''],
-          highlight: null,
-        }));
-
-  const [activeStep, setActiveStep] = useState<number | null>(null);
-  const visibleSteps = activeStep === null ? steps : [steps[activeStep]].filter(Boolean);
-
-  return (
-    <View
-      key={keyPrefix}
-      style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-      accessibilityLabel="Step-by-step Execution Trace"
-    >
-      <View style={styles.attHeaderRow}>
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-            {parsed.title || 'Step-by-step execution trace'}
-          </Text>
-          {Boolean(parsed.subtitle) && (
-            <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 2 }]}>
-              {parsed.subtitle}
-            </Text>
-          )}
-        </View>
-        <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-            {`${steps.length} ${steps.length === 1 ? 'step' : 'steps'}`}
-          </Text>
-        </View>
-      </View>
-
-      <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-        <TouchableOpacity
-          onPress={() =>
-            setActiveStep((prev) => (prev === null ? 0 : Math.max(0, prev - 1)))
-          }
-          style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}
-          accessibilityRole="button"
-        >
-          <Text style={[styles.attStatusPillText, { color: colors.text }]}>◀ Step Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() =>
-            setActiveStep((prev) =>
-              prev === null ? 0 : Math.min(steps.length - 1, prev + 1)
-            )
-          }
-          style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}
-          accessibilityRole="button"
-        >
-          <Text style={[styles.attStatusPillText, { color: colors.text }]}>Step Forward ▶</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setActiveStep(null)}
-          style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}
-          accessibilityRole="button"
-        >
-          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Show All</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={{ gap: 8, marginTop: 8 }}>
-        {visibleSteps.map((item: any, idx: number) => (
-          <View
-            key={`step-${idx}`}
-            style={[styles.traceStepRow, { backgroundColor: raisedBg, borderColor: colors.border }]}
-          >
-            <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
-              <Text style={[styles.attNoRecordPillText, { color: colors.text, fontWeight: '700' }]}>
-                {item.label}
-              </Text>
-            </View>
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={[styles.attSubjName, { color: colors.text }]}>{item.action}</Text>
-              {Array.isArray(item.state) &&
-                item.state.map((st: string, sIdx: number) => (
-                  <Text
-                    key={`st-${sIdx}`}
-                    style={[
-                      styles.attSubjMeta,
-                      {
-                        color: colors.text,
-                        fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-                      },
-                    ]}
-                  >
-                    {st}
-                  </Text>
-                ))}
-              {Boolean(item.highlight) && (
-                <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
-                  {item.highlight}
-                </Text>
-              )}
-            </View>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function renderKyanaVisualCard(
-  kind: string,
-  rawBlock: string,
-  keyPrefix: string,
-  colors: any,
-  isDark: boolean
-): React.ReactNode {
-  const normKind = String(kind || '').trim().toLowerCase();
-  if (normKind === 'attendance') {
-    return renderAttendanceCard(rawBlock, keyPrefix, colors, isDark);
-  }
-
-  const parsed = parseKyanaVisualBlock(normKind, rawBlock);
-  if (!parsed || !Array.isArray(parsed.items) || parsed.items.length === 0) {
-    return null;
-  }
-
-  const cardBg = isDark ? '#0e0f13' : '#f8f9fa';
-  const raisedBg = isDark ? '#181920' : '#ffffff';
-  const trackBg = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
-  const normalFill = isDark ? '#8e8e93' : '#3f3f46';
-  const lowRed = '#ef4444';
-
-  if (normKind === 'quiz') {
-    return (
-      <KyanaQuizCard
-        key={keyPrefix}
-        parsed={parsed}
-        cardBg={cardBg}
-        raisedBg={raisedBg}
-        colors={colors}
-        isDark={isDark}
-        keyPrefix={keyPrefix}
-      />
-    );
-  }
-
-  if (normKind === 'syllabus') {
-    const creditVal = parsed.credits || parsed.credit || null;
-    const totalHrsVal = parsed.totalHours
-      ? typeof parsed.totalHours === 'number'
-        ? `${parsed.totalHours} hrs`
-        : String(parsed.totalHours)
-      : null;
-    const objVal = parsed.officialObjectives || parsed.objectives || null;
-    const labVal = parsed.officialLab || parsed.labs || null;
-    const tbVal = parsed.officialTextbooks || parsed.textbooks || null;
-
-    return (
-      <View
-        key={keyPrefix}
-        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-        accessibilityLabel="Course Syllabus Breakdown"
-      >
-        <View style={styles.attHeaderRow}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-              {parsed.courseTitle || 'Course Syllabus'}
-            </Text>
-            {Boolean(parsed.courseCode) && (
-              <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 2 }]}>
-                {parsed.courseCode}
-              </Text>
-            )}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap' }}>
-            <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-              <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Official Syllabus</Text>
-            </View>
-            {Boolean(parsed.semester) && (
-              <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-                  {`Sem ${parsed.semester}`}
-                </Text>
-              </View>
-            )}
-            {Boolean(creditVal) && (
-              <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-                  {`${creditVal} Cr`}
-                </Text>
-              </View>
-            )}
-            {Boolean(totalHrsVal) && (
-              <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-                  {totalHrsVal}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {Boolean(objVal) && (
-          <View style={[styles.syllabusObjBox, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>
-              Official University Syllabus · Learning Objectives
-            </Text>
-            <Text style={[styles.syllabusObjText, { color: colors.text }]}>{objVal}</Text>
-          </View>
-        )}
-
-        <View style={styles.attSubjectsList}>
-          {parsed.items.map((item: any, idx: number) => {
-            if (item.unitNumber) {
-              const hrsText = item.teachingHours || item.hours || null;
-              const pctVal =
-                item.sharePct !== undefined && item.sharePct !== null
-                  ? item.sharePct
-                  : item.pct !== undefined
-                  ? item.pct
-                  : null;
-              const barW = pctVal !== null ? Math.min(100, Math.max(4, pctVal)) : 0;
-              const topicStr = Array.isArray(item.topics)
-                ? item.topics.map((t: any) => (t.code ? `${t.code} ${t.text}` : t.text)).join(' · ')
-                : item.topics || '';
-
-              return (
-                <View key={`unit-${idx}`} style={styles.attSubjItem}>
-                  <View style={styles.attSubjTopRow}>
-                    <View style={styles.attSubjInfo}>
-                      <Text style={[styles.attSubjName, { color: colors.text }]}>
-                        {`Unit ${item.unitNumber}: ${item.title}`}
-                      </Text>
-                      {Boolean(hrsText) && (
-                        <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
-                          {`${hrsText}${pctVal ? ` · ${pctVal}% workload` : ''}`}
-                        </Text>
-                      )}
-                    </View>
-                    {pctVal !== null && (
-                      <Text style={[styles.attSubjPct, { color: colors.text }]}>
-                        {`${pctVal}%`}
-                      </Text>
-                    )}
-                  </View>
-                  {barW > 0 && (
-                    <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
-                      <View style={[styles.attBarFill, { width: `${barW}%`, backgroundColor: normalFill }]} />
-                    </View>
-                  )}
-                  {Boolean(topicStr) && (
-                    <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 4 }]}>
-                      {topicStr}
-                    </Text>
-                  )}
-                </View>
-              );
-            }
-            return (
-              <View key={`course-${idx}`} style={styles.attSubjItem}>
-                <View style={styles.attSubjTopRow}>
-                  <View style={styles.attSubjInfo}>
-                    <Text style={[styles.attSubjName, { color: colors.text }]}>
-                      {`${item.code}: ${item.title}`}
-                    </Text>
-                    {Boolean(item.credits) && (
-                      <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
-                        {`${item.credits} Credits · ${item.nature || ''}`}
-                      </Text>
-                    )}
-                  </View>
-                  {Boolean(item.details) && (
-                    <View style={[styles.attNoRecordPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                      <Text style={[styles.attNoRecordPillText, { color: colors.textSecondary }]}>
-                        {item.details}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            );
-          })}
-        </View>
-
-        {Boolean(labVal) && (
-          <View style={[styles.syllabusSectionBox, { borderColor: colors.border }]}>
-            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>
-              Official University Syllabus · Laboratory Practicals
-            </Text>
-            <Text style={[styles.syllabusFooterText, { color: colors.textSecondary }]}>{labVal}</Text>
-          </View>
-        )}
-        {Boolean(tbVal) && (
-          <View style={[styles.syllabusSectionBox, { borderColor: colors.border }]}>
-            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>
-              Official University Syllabus · Recommended Textbooks
-            </Text>
-            <Text style={[styles.syllabusFooterText, { color: colors.textSecondary }]}>{tbVal}</Text>
-          </View>
-        )}
-        {Boolean(parsed.aiGuidance) && (
-          <View style={[styles.syllabusSectionBox, { borderColor: colors.border }]}>
-            <Text style={[styles.syllabusLabel, { color: colors.textSecondary }]}>
-              AI Study Guide & Learning Roadmap (Advisory)
-            </Text>
-            {Array.isArray(parsed.aiGuidance.studySequence) && (
-              <Text style={[styles.syllabusFooterText, { color: colors.textSecondary }]}>
-                {parsed.aiGuidance.studySequence.join(' → ')}
-              </Text>
-            )}
-          </View>
-        )}
-      </View>
-    );
-  }
-
-  if (normKind === 'diagram') {
-    return (
-      <View
-        key={keyPrefix}
-        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-        accessibilityLabel="Architecture & Concept Diagram"
-      >
-        <View style={styles.attHeaderRow}>
-          <Text style={[styles.attSectionTitle, { color: colors.text, flex: 1 }]}>
-            {parsed.title || 'Architecture & Concept Diagram'}
-          </Text>
-          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Diagram</Text>
-          </View>
-        </View>
-        {Array.isArray(parsed.nodes) && parsed.nodes.length > 0 ? (
-          <View style={{ gap: 6, marginTop: 8 }}>
-            {parsed.nodes.map((node: any, idx: number) => (
-              <View key={`node-${idx}`} style={{ gap: 4 }}>
-                <View style={[styles.diagramNodeBox, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.diagramNodeTitle, { color: colors.text }]}>{node.label || node.id}</Text>
-                    {Boolean(node.detail) && (
-                      <Text style={[styles.diagramNodeDetail, { color: colors.textSecondary }]}>{node.detail}</Text>
-                    )}
-                  </View>
-                </View>
-                {idx < parsed.nodes.length - 1 && (
-                  <Text style={[styles.diagramArrow, { color: colors.textSecondary }]}>↓</Text>
-                )}
-              </View>
-            ))}
-          </View>
-        ) : (
-          <View style={{ gap: 6, marginTop: 8 }}>
-            {Array.isArray(parsed.items) && parsed.items.length > 0 ? (
-              parsed.items.map((it: any, idx: number) => {
-                const lineText = typeof it === 'string' ? it : (it.label || it.text || '');
-                const cleanLine = lineText.replace(/^[|/\s+-]+|[|/\s+-]+$/g, '').trim();
-                if (!cleanLine) return null;
-                return (
-                  <View key={`d-line-${idx}`} style={[styles.diagramNodeBox, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                    <Text style={[styles.diagramNodeTitle, { color: colors.text }]}>{cleanLine}</Text>
-                  </View>
-                );
-              })
-            ) : (
-              <View style={[styles.diagramNodeBox, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-                <Text style={[styles.codeText, { color: colors.text, flexWrap: 'wrap' }]}>{parsed.diagramText}</Text>
-              </View>
-            )}
-          </View>
-        )}
-      </View>
-    );
-  }
-
-  if (normKind === 'graph') {
-    const series = Array.isArray(parsed.series) ? parsed.series : parsed.items;
-    return (
-      <View
-        key={keyPrefix}
-        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-        accessibilityLabel="Quantitative & Complexity Graph"
-      >
-        <View style={styles.attHeaderRow}>
-          <Text style={[styles.attSectionTitle, { color: colors.text, flex: 1 }]}>
-            {parsed.title || 'Quantitative & Complexity Graph'}
-          </Text>
-          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Visual Plot</Text>
-          </View>
-        </View>
-        <View style={styles.attSubjectsList}>
-          {series.map((s: any, idx: number) => {
-            const valNum = Number(s.value ?? s.pct ?? 50);
-            const barW = Math.min(100, Math.max(4, valNum));
-            return (
-              <View key={`gr-${idx}`} style={styles.attSubjItem}>
-                <View style={styles.attSubjTopRow}>
-                  <Text style={[styles.attSubjName, { color: colors.text, flex: 1 }]}>
-                    {s.label || s.title}
-                  </Text>
-                  <Text style={[styles.attSubjPct, { color: colors.text }]}>
-                    {s.displayValue || `${valNum}`}
-                  </Text>
-                </View>
-                <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
-                  <View style={[styles.attBarFill, { width: `${barW}%`, backgroundColor: normalFill }]} />
-                </View>
-              </View>
-            );
-          })}
-        </View>
-      </View>
-    );
-  }
-
-  if (normKind === 'flowchart' || normKind === 'trace') {
-    return (
-      <KyanaTraceCard
-        key={keyPrefix}
-        parsed={parsed}
-        cardBg={cardBg}
-        raisedBg={raisedBg}
-        colors={colors}
-        keyPrefix={keyPrefix}
-      />
-    );
-  }
-
-  if (normKind === 'comparison') {
-    return (
-      <View
-        key={keyPrefix}
-        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-        accessibilityLabel="Feature & Concept Comparison"
-      >
-        <View style={styles.attHeaderRow}>
-          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-            Feature & Concept Comparison
-          </Text>
-          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-              {`${parsed.items.length} criteria`}
-            </Text>
-          </View>
-        </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-          <View style={{ minWidth: 320 }}>
-            {parsed.items.map((item: any, idx: number) => (
-              <View key={`comp-${idx}`} style={[styles.compRow, { backgroundColor: idx % 2 === 0 ? raisedBg : 'transparent', borderColor: colors.border }]}>
-                <Text style={[styles.compCriteriaText, { color: colors.text }]}>{item.col1}</Text>
-                <Text style={[styles.compValText, { color: colors.textSecondary }]}>{item.col2}</Text>
-                {Boolean(item.col3) && (
-                  <Text style={[styles.compValText, { color: colors.textSecondary }]}>{item.col3}</Text>
-                )}
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-      </View>
-    );
-  }
-
-  if (normKind === 'roadmap') {
-    const roadItems =
-      Array.isArray(parsed.steps) && parsed.steps.length > 0
-        ? parsed.steps.map((s: any) => ({
-            done: Boolean(s.done),
-            title: s.title || '',
-            tag: s.phase || '',
-            desc: s.detail || '',
-          }))
-        : parsed.items;
-    return (
-      <View
-        key={keyPrefix}
-        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-        accessibilityLabel="Learning & Revision Roadmap"
-      >
-        <View style={styles.attHeaderRow}>
-          <Text style={[styles.attSectionTitle, { color: colors.text, flex: 1 }]}>
-            {parsed.title || 'Learning & Revision Roadmap'}
-          </Text>
-          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-              {`${roadItems.length} stages`}
-            </Text>
-          </View>
-        </View>
-        <View style={{ gap: 8, marginTop: 8 }}>
-          {roadItems.map((item: any, idx: number) => (
-            <View key={`road-${idx}`} style={[styles.roadmapItemRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-              <Text style={{ color: item.done ? '#10b981' : colors.textSecondary, fontWeight: '700', width: 20 }}>
-                {item.done ? '✓' : '○'}
-              </Text>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[styles.attSubjName, { color: colors.text }]}>{item.title}</Text>
-                {Boolean(item.tag) && (
-                  <Text style={[styles.attSubjMeta, { color: colors.textSecondary, fontWeight: '600' }]}>{item.tag}</Text>
-                )}
-                {Boolean(item.desc) && (
-                  <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{item.desc}</Text>
-                )}
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-  }
-
-  if (normKind === 'complexity') {
-    return (
-      <View
-        key={keyPrefix}
-        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-        accessibilityLabel="Asymptotic Complexity Breakdown"
-      >
-        <View style={styles.attHeaderRow}>
-          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-            Asymptotic Time & Space Complexity
-          </Text>
-          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Big-O</Text>
-          </View>
-        </View>
-        <View style={{ gap: 6, marginTop: 8 }}>
-          {parsed.items.map((item: any, idx: number) => (
-            <View key={`cx-${idx}`} style={[styles.compRow, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-              <Text style={[styles.compCriteriaText, { color: colors.text }]}>{item.label}</Text>
-              <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-                {Boolean(item.best) && (
-                  <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
-                    <Text style={[styles.attNoRecordPillText, { color: colors.textSecondary }]}>{`Best: ${item.best}`}</Text>
-                  </View>
-                )}
-                {Boolean(item.average) && (
-                  <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
-                    <Text style={[styles.attNoRecordPillText, { color: colors.textSecondary }]}>{`Avg: ${item.average}`}</Text>
-                  </View>
-                )}
-                {Boolean(item.worst) && (
-                  <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
-                    <Text style={[styles.attNoRecordPillText, { color: colors.textSecondary }]}>{`Worst: ${item.worst}`}</Text>
-                  </View>
-                )}
-                {Boolean(item.space) && (
-                  <View style={[styles.attNoRecordPill, { backgroundColor: cardBg, borderColor: colors.border }]}>
-                    <Text style={[styles.attNoRecordPillText, { color: colors.textSecondary }]}>{`Space: ${item.space}`}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-    );
-  }
-
-  if (normKind === 'simulation') {
-    return (
-      <KyanaSimulationCard
-        key={keyPrefix}
-        parsed={parsed}
-        cardBg={cardBg}
-        raisedBg={raisedBg}
-        colors={colors}
-        keyPrefix={keyPrefix}
-      />
-    );
-  }
-
-  if (normKind === 'code_preview') {
-    return (
-      <KyanaCodePreviewCard
-        key={keyPrefix}
-        parsed={parsed}
-        cardBg={cardBg}
-        raisedBg={raisedBg}
-        colors={colors}
-        keyPrefix={keyPrefix}
-      />
-    );
-  }
-
-  if (normKind === 'illustration') {
-    return (
-      <View
-        key={keyPrefix}
-        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-        accessibilityLabel={parsed.title || 'Scientific Vector Illustration'}
-      >
-        <View style={styles.attHeaderRow}>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-              {parsed.title || 'Scientific & Conceptual Illustration'}
-            </Text>
-            {Boolean(parsed.subtitle) && (
-              <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>{parsed.subtitle}</Text>
-            )}
-          </View>
-          <View style={[styles.attStatusPill, { backgroundColor: raisedBg, borderColor: colors.border }]}>
-            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>Vector Figure</Text>
-          </View>
-        </View>
-        {Boolean(parsed.caption) && (
-          <Text style={[styles.attSubjMeta, { color: colors.textSecondary, marginTop: 8 }]}>{parsed.caption}</Text>
-        )}
-      </View>
-    );
-  }
-
-  if (normKind === 'results') {
-    const hasAgg = parsed.aggregatePct !== null || Boolean(parsed.aggregateScore);
-    const aggLow = parsed.aggregatePct !== null && parsed.aggregatePct < 40;
-    const aggBarW =
-      parsed.aggregatePct !== null
-        ? Math.min(100, Math.max(2, parsed.aggregatePct))
-        : 0;
-
-    return (
-      <View
-        key={keyPrefix}
-        style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-        accessibilityLabel="Academic results breakdown"
-      >
-        <View style={styles.attHeaderRow}>
-          <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-            Academic results
-          </Text>
-          <View
-            style={[
-              styles.attStatusPill,
-              { backgroundColor: raisedBg, borderColor: colors.border },
-            ]}
-          >
-            <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-              {`${parsed.items.length} published ${parsed.items.length === 1 ? 'exam' : 'exams'}`}
-            </Text>
-          </View>
-        </View>
-
-        {hasAgg && (
-          <>
-            <View style={styles.attHeroRow}>
-              <View style={styles.attHeroLeft}>
-                <Text
-                  style={[
-                    styles.attHeroPct,
-                    { color: aggLow ? lowRed : colors.text },
-                  ]}
-                >
-                  {parsed.aggregatePct !== null
-                    ? `${parsed.aggregatePct}%`
-                    : parsed.aggregateScore}
-                </Text>
-                <Text style={[styles.attHeroSub, { color: colors.textSecondary }]}>
-                  {parsed.aggregateLabel || 'Overall aggregate'}
-                </Text>
-              </View>
-              {Boolean(parsed.aggregateScore) && (
-                <View style={styles.attHeroRight}>
-                  <Text style={[styles.attHeroRatio, { color: colors.text }]}>
-                    {parsed.aggregateScore}
-                  </Text>
-                  <Text style={[styles.attHeroSub, { color: colors.textSecondary }]}>
-                    Total marks
-                  </Text>
-                </View>
-              )}
-            </View>
-            {parsed.aggregatePct !== null && (
-              <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
-                <View
-                  style={[
-                    styles.attBarFill,
-                    {
-                      width: `${aggBarW}%` as any,
-                      backgroundColor: aggLow ? lowRed : normalFill,
-                    },
-                  ]}
-                />
-              </View>
-            )}
-            <View style={[styles.attDivider, { backgroundColor: colors.border }]} />
-          </>
-        )}
-
-        <View style={styles.attSubjectsList}>
-          {parsed.items.map((item: any, idx: number) => {
-            const metaLabel = [
-              item.code,
-              item.examType,
-              item.semester ? `Semester ${item.semester}` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ');
-            const barW =
-              item.pct !== null
-                ? Math.min(100, Math.max(item.pct === 0 ? 2 : 0, item.pct))
-                : 0;
-
-            return (
-              <View key={`res-item-${idx}`} style={styles.attSubjItem}>
-                <View style={styles.attSubjTopRow}>
-                  <View style={styles.attSubjInfo}>
-                    <Text style={[styles.attSubjName, { color: colors.text }]}>
-                      {item.subject}
-                    </Text>
-                    <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
-                      {metaLabel}
-                    </Text>
-                  </View>
-                  <View style={styles.attSubjPctCol}>
-                    <Text
-                      style={[
-                        styles.attSubjPct,
-                        { color: item.isLow ? lowRed : colors.text },
-                      ]}
-                    >
-                      {item.scoreLabel}
-                    </Text>
-                    {item.pct !== null && (
-                      <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
-                        {`${item.pct}%`}
-                      </Text>
-                    )}
-                    {item.isAbsent && (
-                      <View style={styles.attLowBadge}>
-                        <Text style={styles.attLowBadgeText}>Absent</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-                {item.pct !== null && !item.isUnpublished && (
-                  <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
-                    <View
-                      style={[
-                        styles.attBarFill,
-                        {
-                          width: `${barW}%` as any,
-                          backgroundColor: item.isLow ? lowRed : normalFill,
-                        },
-                      ]}
-                    />
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </View>
-    );
-  }
-
-  const headerMap: Record<string, string> = {
-    assignments: 'Assignments',
-    notes: 'Library resources',
-    routine: 'Schedule & routine',
-    notices: 'Official notices & announcements',
-    posts: 'Campus discussions',
-    directory: 'Academic overview',
-  };
-
-  return (
-    <View
-      key={keyPrefix}
-      style={[styles.attCard, { backgroundColor: cardBg, borderColor: colors.border }]}
-    >
-      <View style={styles.attHeaderRow}>
-        <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-          {headerMap[normKind] || 'Overview'}
-        </Text>
-        <View
-          style={[
-            styles.attStatusPill,
-            { backgroundColor: raisedBg, borderColor: colors.border },
-          ]}
-        >
-          <Text style={[styles.attStatusPillText, { color: colors.textSecondary }]}>
-            {`${parsed.items.length} ${parsed.items.length === 1 ? 'item' : 'items'}`}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.attSubjectsList}>
-        {parsed.items.map((item: any, idx: number) => {
-          const title = item.title || item.subject || 'Item';
-          const metaLabel = [
-            item.subject && item.title ? item.subject : null,
-            item.semester,
-            item.chapter,
-            item.folder ? `Folder: ${item.folder}` : null,
-            item.date,
-            item.day,
-            item.time,
-            item.deadline ? `Due ${item.deadline}` : null,
-            item.author ? `By ${item.author}` : null,
-            item.meta,
-          ]
-            .filter(Boolean)
-            .join(' · ');
-          const rightBadge =
-            item.statusLabel ||
-            item.fileType ||
-            (item.room ? `Room ${item.room}` : null) ||
-            item.badge ||
-            null;
-          const isAlert = Boolean(item.isOverdue);
-
-          return (
-            <View key={`vis-item-${idx}`} style={styles.attSubjItem}>
-              <View style={styles.attSubjTopRow}>
-                <View style={styles.attSubjInfo}>
-                  <Text style={[styles.attSubjName, { color: colors.text }]}>
-                    {title}
-                  </Text>
-                  {Boolean(metaLabel) && (
-                    <Text style={[styles.attSubjMeta, { color: colors.textSecondary }]}>
-                      {metaLabel}
-                    </Text>
-                  )}
-                </View>
-                {Boolean(rightBadge) &&
-                  (isAlert ? (
-                    <View style={styles.attLowBadge}>
-                      <Text style={styles.attLowBadgeText}>{rightBadge}</Text>
-                    </View>
-                  ) : (
-                    <View
-                      style={[
-                        styles.attNoRecordPill,
-                        { backgroundColor: raisedBg, borderColor: colors.border },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.attNoRecordPillText,
-                          { color: colors.textSecondary },
-                        ]}
-                      >
-                        {rightBadge}
-                      </Text>
-                    </View>
-                  ))}
-              </View>
-              {Boolean(item.description || item.summary || item.detail) && (
-                <Text
-                  style={[
-                    styles.attSubjMeta,
-                    { color: colors.textSecondary, marginTop: 4 },
-                  ]}
-                >
-                  {item.description || item.summary || item.detail}
-                </Text>
-              )}
-              {Boolean(item.grade) && (
-                <Text
-                  style={[
-                    styles.attSubjMeta,
-                    { color: colors.text, marginTop: 3, fontWeight: '600' },
-                  ]}
-                >
-                  {`Grade: ${item.grade}`}
-                </Text>
-              )}
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-/**
- * Stabilizes incomplete Markdown tokens during live streaming so mobile bubbles
- * never flicker or render raw unclosed fences/delimiters mid-stream.
- */
-export function stabilizeStreamingMarkdown(rawMarkdown: string): string {
-  if (!rawMarkdown) return '';
-  let text = String(rawMarkdown).replace(/\r\n/g, '\n');
-
-  // 1. Check for unclosed fenced code block (``` or ~~~), respecting fence length for nested fences
-  const lines = text.split('\n');
-  let openFence: string | null = null;
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
-    if (!openFence) {
-      const openMatch = trimmed.match(/^(`{3,}|~{3,})([\w+#.-]*)[ \t]*$/);
-      if (openMatch) {
-        openFence = openMatch[1];
-      }
-    } else {
-      const closeRe = new RegExp(`^${openFence[0]}{${openFence.length},}[ \\t]*$`);
-      if (closeRe.test(trimmed)) {
-        openFence = null;
-      }
-    }
-  }
-  if (openFence) {
-    return `${text}\n${openFence}`;
-  }
-
-  // Mask closed code blocks before checking math or inline delimiters
-  const codeHolders: string[] = [];
-  let masked = text.replace(
-    /(^|\n)(`{3,}|~{3,})([\w+#.-]*)[ \t]*\n([\s\S]*?)\n\2[ \t]*(?=\n|$)/g,
-    (match, prefix) => {
-      const idx = codeHolders.length;
-      codeHolders.push(match);
-      return `${prefix || ''}___MOBILE_CODE_MASK_${idx}___`;
-    }
-  );
-
-  // 2. Check for unclosed display math block ($$ or \[) outside code blocks
-  const doubleDollarMatches = masked.match(/\$\$/g);
-  if (doubleDollarMatches && doubleDollarMatches.length % 2 === 1) {
-    masked = `${masked}\n$$`;
-  }
-  const openBracketMath = (masked.match(/\\\[/g) || []).length;
-  const closeBracketMath = (masked.match(/\\\]/g) || []).length;
-  if (openBracketMath > closeBracketMath) {
-    masked = `${masked}\n\\]`;
-  }
-  const openParenMath = (masked.match(/\\\(/g) || []).length;
-  const closeParenMath = (masked.match(/\\\)/g) || []).length;
-  if (openParenMath > closeParenMath) {
-    masked = `${masked}\\)`;
-  }
-
-  // 3. Stabilize trailing partial table delimiter line
-  const maskedLines = masked.split('\n');
-  if (maskedLines.length >= 2) {
-    const lastLine = maskedLines[maskedLines.length - 1];
-    const prevLine = maskedLines[maskedLines.length - 2];
-    if (prevLine.includes('|') && /^\s*\|?[\s|:-]*$/.test(lastLine) && lastLine.includes('|')) {
-      const colCount = prevLine.trim().replace(/^\||\|$/g, '').split('|').length;
-      if (colCount >= 2 && !/^\s*\|?(\s*:?-{1,}:?\s*\|)+\s*:?-{1,}:?\s*\|?\s*$/.test(lastLine)) {
-        maskedLines[maskedLines.length - 1] = `| ${Array(colCount).fill('---').join(' | ')} |`;
-        masked = maskedLines.join('\n');
-      }
-    }
-  }
-
-  // 4. Close unclosed inline formatting on the final active line
-  const finalLines = masked.split('\n');
-  let lastLine = finalLines[finalLines.length - 1];
-  if (!/___MOBILE_CODE_MASK_\d+___/.test(lastLine)) {
-    const backticks = (lastLine.match(/`/g) || []).length;
-    if (backticks % 2 === 1) {
-      lastLine += '`';
-    } else {
-      const boldMarkers = (lastLine.match(/\*\*/g) || []).length;
-      if (boldMarkers % 2 === 1) {
-        lastLine += '**';
-      }
-      const strikeMarkers = (lastLine.match(/~~/g) || []).length;
-      if (strikeMarkers % 2 === 1) {
-        lastLine += '~~';
-      }
-    }
-    finalLines[finalLines.length - 1] = lastLine;
-  }
-
-  let restored = finalLines.join('\n');
-  for (let i = 0; i < codeHolders.length; i++) {
-    restored = restored.split(`___MOBILE_CODE_MASK_${i}___`).join(codeHolders[i]);
-  }
-  return restored;
-}
-
-const GREEK_AND_MATH_SYMBOLS: Record<string, string> = {
-  '\\alpha': 'α',
-  '\\beta': 'β',
-  '\\gamma': 'γ',
-  '\\delta': 'δ',
-  '\\epsilon': 'ε',
-  '\\theta': 'θ',
-  '\\lambda': 'λ',
-  '\\mu': 'μ',
-  '\\pi': 'π',
-  '\\sigma': 'σ',
-  '\\tau': 'τ',
-  '\\phi': 'φ',
-  '\\omega': 'ω',
-  '\\Delta': 'Δ',
-  '\\Sigma': 'Σ',
-  '\\Omega': 'Ω',
-  '\\Pi': 'Π',
-  '\\Theta': 'Θ',
-  '\\infty': '∞',
-  '\\sum': '∑',
-  '\\prod': '∏',
-  '\\int': '∫',
-  '\\partial': '∂',
-  '\\nabla': '∇',
-  '\\pm': '±',
-  '\\mp': '∓',
-  '\\times': '×',
-  '\\div': '÷',
-  '\\cdot': '·',
-  '\\leq': '≤',
-  '\\le': '≤',
-  '\\geq': '≥',
-  '\\ge': '≥',
-  '\\neq': '≠',
-  '\\ne': '≠',
-  '\\approx': '≈',
-  '\\equiv': '≡',
-  '\\rightarrow': '→',
-  '\\to': '→',
-  '\\leftarrow': '←',
-  '\\Rightarrow': '⇒',
-  '\\iff': '⇔',
-  '\\in': '∈',
-  '\\notin': '∉',
-  '\\subset': '⊂',
-  '\\subseteq': '⊆',
-  '\\cup': '∪',
-  '\\cap': '∩',
-  '\\forall': '∀',
-  '\\exists': '∃',
-};
-
-const SUPERSCRIPT_MAP: Record<string, string> = {
-  '0': '⁰',
-  '1': '¹',
-  '2': '²',
-  '3': '³',
-  '4': '⁴',
-  '5': '⁵',
-  '6': '⁶',
-  '7': '⁷',
-  '8': '⁸',
-  '9': '⁹',
-  '+': '⁺',
-  '-': '⁻',
-  '=': '⁼',
-  '(': '⁽',
-  ')': '⁾',
-  n: 'ⁿ',
-  i: 'ⁱ',
-};
-
-const SUBSCRIPT_MAP: Record<string, string> = {
-  '0': '₀',
-  '1': '₁',
-  '2': '₂',
-  '3': '₃',
-  '4': '₄',
-  '5': '₅',
-  '6': '₆',
-  '7': '₇',
-  '8': '₈',
-  '9': '₉',
-  '+': '₊',
-  '-': '₋',
-  '=': '₌',
-  '(': '₍',
-  ')': '₎',
-  a: 'ₐ',
-  e: 'ₑ',
-  i: 'ᵢ',
-  j: 'ⱼ',
-  k: 'ₖ',
-  n: 'ₙ',
-  o: 'ₒ',
-  r: 'ᵣ',
-  s: 'ₛ',
-  t: 'ₜ',
-  u: 'ᵤ',
-  v: 'ᵥ',
-  x: 'ₓ',
-};
-
-/**
- * Formats TeX / LaTeX math expressions into clean, readable mathematical notation
- * for native mobile rendering, evaluating inner braced commands before outer fractions.
- */
-export function formatMathExpression(tex: string): string {
-  if (!tex) return '';
-  let out = String(tex)
-    .trim()
-    .replace(/^\$\$|\$\$$/g, '')
-    .replace(/^\\\[|\\\]$/g, '')
-    .replace(/^\\\(|\\\)$/g, '')
-    .replace(/^\$|\$$/g, '')
-    .trim();
-
-  // Format matrix environments (\begin{pmatrix}, \begin{bmatrix}, \begin{matrix}) with [ row ] brackets
-  out = out.replace(
-    /\\begin\{(?:p|b|v|V)?matrix\}([\s\S]*?)\\end\{(?:p|b|v|V)?matrix\}/g,
-    (_, body) => {
-      const rows = String(body)
-        .trim()
-        .split(/\\\\/)
-        .map((r) => r.trim())
-        .filter(Boolean)
-        .map((r) => `[ ${r.split('&').map((c) => c.trim()).join('  ')} ]`);
-      return rows.join('\n');
-    }
-  );
-
-  // Remove other alignment environments
-  out = out
-    .replace(/\\begin\{[^}]+\}/g, '')
-    .replace(/\\end\{[^}]+\}/g, '')
-    .replace(/\\\\/g, '\n')
-    .replace(/&=/g, '=')
-    .replace(/&/g, ' ');
-
-  // Replace Greek & math operators first so inner braces have clean symbols
-  for (const [cmd, sym] of Object.entries(GREEK_AND_MATH_SYMBOLS)) {
-    const escaped = cmd.replace(/\\/g, '\\\\');
-    out = out.replace(new RegExp(`${escaped}(?![a-zA-Z])`, 'g'), sym);
-  }
-
-  // Inside-out resolution loop for \text{...}, ^{...}, _{...}, \sqrt{...}, and \frac{...}{...}
-  for (let pass = 0; pass < 5; pass++) {
-    out = out.replace(/\\(?:text|mathrm|mathbf|mathit)\{([^{}]*)\}/g, '$1');
-
-    out = out.replace(/\^\{([^{}]+)\}/g, (_, exp) => {
-      const chars = exp.split('');
-      if (chars.every((c: string) => SUPERSCRIPT_MAP[c])) {
-        return chars.map((c: string) => SUPERSCRIPT_MAP[c]).join('');
-      }
-      return `^(${exp})`;
-    });
-
-    out = out.replace(/_\{([^{}]+)\}/g, (_, sub) => {
-      const chars = sub.split('');
-      if (chars.every((c: string) => SUBSCRIPT_MAP[c])) {
-        return chars.map((c: string) => SUBSCRIPT_MAP[c]).join('');
-      }
-      return `_(${sub})`;
-    });
-
-    out = out.replace(/\\sqrt\{([^{}]+)\}/g, (_, inner) =>
-      inner.trim().length > 1 ? `√(${inner.trim()})` : `√${inner.trim()}`
-    );
-
-    out = out.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (_, num, den) => {
-      const cleanNum = num.trim();
-      const cleanDen = den.trim();
-      const left = cleanNum.length > 2 ? `(${cleanNum})` : cleanNum;
-      const right = cleanDen.length > 2 ? `(${cleanDen})` : cleanDen;
-      return `${left}/${right}`;
-    });
-  }
-
-  out = out.replace(/\^([0-9ni+-])/g, (_, ch) => SUPERSCRIPT_MAP[ch] || `^${ch}`);
-  out = out.replace(/_([0-9aeijknorstuvx+-])/g, (_, ch) => SUBSCRIPT_MAP[ch] || `_${ch}`);
-
-  out = out
-    .replace(/\\(?:left|right|quad|qquad|,|;|!)/g, ' ')
-    .replace(/[{}]/g, '')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
-
-  return out;
-}
-
-const CODE_KEYWORDS = new Set([
-  'abstract', 'and', 'as', 'async', 'await', 'begin', 'boolean', 'break', 'byte', 'case', 'catch',
-  'char', 'class', 'const', 'continue', 'create', 'def', 'default', 'delete', 'do', 'double',
-  'drop', 'echo', 'elif', 'else', 'elseif', 'end', 'endforeach', 'endif', 'enum', 'except',
-  'export', 'extends', 'false', 'final', 'finally', 'float', 'fn', 'for', 'foreach', 'from',
-  'fun', 'function', 'global', 'goto', 'group', 'having', 'if', 'implements', 'import', 'in',
-  'include', 'include_once', 'insert', 'instanceof', 'int', 'interface', 'into', 'is', 'join',
-  'lambda', 'let', 'limit', 'long', 'match', 'namespace', 'native', 'new', 'nil', 'nonlocal',
-  'not', 'null', 'or', 'order', 'package', 'pass', 'private', 'protected', 'public', 'raise',
-  'readonly', 'require', 'require_once', 'return', 'select', 'self', 'set', 'short', 'sizeof',
-  'static', 'struct', 'super', 'switch', 'synchronized', 'table', 'then', 'this', 'throw',
-  'throws', 'trait', 'true', 'try', 'type', 'typedef', 'typeof', 'union', 'unsigned', 'update',
-  'use', 'using', 'val', 'values', 'var', 'virtual', 'void', 'volatile', 'where', 'while',
-  'with', 'yield', 'TRUE', 'FALSE', 'NULL', 'None', 'True', 'False', 'SELECT', 'FROM', 'WHERE',
-  'INSERT', 'INTO', 'VALUES', 'UPDATE', 'SET', 'DELETE', 'CREATE', 'TABLE', 'JOIN', 'LEFT',
-  'RIGHT', 'INNER', 'ORDER', 'BY', 'GROUP', 'LIMIT', 'HAVING', 'AS', 'ON', 'AND', 'OR', 'NOT',
-]);
-
-const CONTROL_KEYWORDS = new Set([
-  'if', 'else', 'elif', 'elseif', 'endif', 'for', 'while', 'do', 'switch', 'case', 'break',
-  'continue', 'return', 'try', 'catch', 'finally', 'throw', 'throws', 'yield', 'import',
-  'from', 'as', 'with', 'pass', 'raise', 'match', 'endforeach', 'foreach'
-]);
-
-const CSS_ELEMENT_SELECTORS = new Set([
-  'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'a', 'body', 'html',
-  'ul', 'ol', 'li', 'button', 'input', 'textarea', 'form', 'table', 'tr', 'td',
-  'th', 'header', 'footer', 'section', 'article', 'nav', 'main', 'img', 'code', 'pre', '*'
-]);
-
-/**
- * High-fidelity syntax highlighter for mobile code blocks (HTML, CSS, JS/TS, Python, C/C++, Java, SQL, etc.)
- * matching authentic Antigravity macOS / VS Code Dark+ palette.
- */
-function renderHighlightedCode(code: string, isDark: boolean, lang?: string): React.ReactNode[] {
-  if (!code) return [];
-  const l = (lang || '').toLowerCase();
-
-  const palette = isDark
-    ? {
-        default: '#d4d4d4',
-        comment: '#6a9955',
-        string: '#ce9178',
-        keyword: '#569cd6',
-        control: '#c586c0',
-        variable: '#9cdcfe',
-        number: '#b5cea8',
-        func: '#dcdcaa',
-        type: '#4ec9b0',
-        selector: '#d7ba7d',
-        tag: '#569cd6',
-        attrName: '#9cdcfe',
-        attrVal: '#ce9178',
-        operator: '#d4d4d4',
-      }
-    : {
-        default: '#1f2328',
-        comment: '#57606a',
-        string: '#a31515',
-        keyword: '#0000ff',
-        control: '#af00db',
-        variable: '#001080',
-        number: '#098658',
-        func: '#795e26',
-        type: '#267f99',
-        selector: '#800000',
-        tag: '#800000',
-        attrName: '#e50000',
-        attrVal: '#0000ff',
-        operator: '#000000',
-      };
-
-  // 1. Dedicated HTML syntax highlighter
-  if (l === 'html' || l === 'xml') {
-    const htmlRegex = /(<!--[\s\S]*?-->)|(<\/?[a-zA-Z][\w:-]*)|([a-zA-Z_:][\w:.-]*)(?=\s*=)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\/?>)|([<>=])/g;
-    const nodes: React.ReactNode[] = [];
-    let last = 0;
-    let m: RegExpExecArray | null;
-    let idx = 0;
-    while ((m = htmlRegex.exec(code)) !== null) {
-      if (m.index > last) {
-        nodes.push(<Text key={`h-pl-${idx++}`} style={{ color: palette.default }}>{code.slice(last, m.index)}</Text>);
-      }
-      if (m[1]) {
-        nodes.push(<Text key={`h-cm-${idx++}`} style={{ color: palette.comment, fontStyle: 'italic' }}>{m[1]}</Text>);
-      } else if (m[2]) {
-        nodes.push(<Text key={`h-tg-${idx++}`} style={{ color: palette.tag }}>{m[2]}</Text>);
-      } else if (m[3]) {
-        nodes.push(<Text key={`h-at-${idx++}`} style={{ color: palette.attrName }}>{m[3]}</Text>);
-      } else if (m[4]) {
-        nodes.push(<Text key={`h-av-${idx++}`} style={{ color: palette.attrVal }}>{m[4]}</Text>);
-      } else if (m[5] || m[6]) {
-        nodes.push(<Text key={`h-op-${idx++}`} style={{ color: palette.operator }}>{m[5] || m[6]}</Text>);
-      }
-      last = htmlRegex.lastIndex;
-    }
-    if (last < code.length) {
-      nodes.push(<Text key={`h-tail-${idx}`} style={{ color: palette.default }}>{code.slice(last)}</Text>);
-    }
-    return nodes;
-  }
-
-  // 2. Dedicated CSS syntax highlighter
-  if (l === 'css') {
-    const cssRegex = /(\/\*[\s\S]*?\*\/)|([.#][a-zA-Z_-][\w-]*)|([a-zA-Z_-][\w-]*)(?=\s*:)|("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(\b\d+(?:\.\d+)?(?:px|em|rem|%|vh|vw|ms|s)?\b)|(\b[a-zA-Z_-][\w-]*\b)|([{}:;])/g;
-    const nodes: React.ReactNode[] = [];
-    let last = 0;
-    let m: RegExpExecArray | null;
-    let idx = 0;
-    while ((m = cssRegex.exec(code)) !== null) {
-      if (m.index > last) {
-        nodes.push(<Text key={`c-pl-${idx++}`} style={{ color: palette.default }}>{code.slice(last, m.index)}</Text>);
-      }
-      if (m[1]) {
-        nodes.push(<Text key={`c-cm-${idx++}`} style={{ color: palette.comment, fontStyle: 'italic' }}>{m[1]}</Text>);
-      } else if (m[2]) {
-        nodes.push(<Text key={`c-sl-${idx++}`} style={{ color: palette.selector }}>{m[2]}</Text>);
-      } else if (m[3]) {
-        nodes.push(<Text key={`c-pr-${idx++}`} style={{ color: palette.variable }}>{m[3]}</Text>);
-      } else if (m[4]) {
-        nodes.push(<Text key={`c-st-${idx++}`} style={{ color: palette.string }}>{m[4]}</Text>);
-      } else if (m[5]) {
-        nodes.push(<Text key={`c-nm-${idx++}`} style={{ color: palette.number }}>{m[5]}</Text>);
-      } else if (m[6]) {
-        const word = m[6].toLowerCase();
-        const color = CSS_ELEMENT_SELECTORS.has(word) ? palette.selector : palette.string;
-        nodes.push(<Text key={`c-wd-${idx++}`} style={{ color }}>{m[6]}</Text>);
-      } else if (m[7]) {
-        nodes.push(<Text key={`c-pn-${idx++}`} style={{ color: palette.operator }}>{m[7]}</Text>);
-      }
-      last = cssRegex.lastIndex;
-    }
-    if (last < code.length) {
-      nodes.push(<Text key={`c-tail-${idx}`} style={{ color: palette.default }}>{code.slice(last)}</Text>);
-    }
-    return nodes;
-  }
-
-  // 3. Multi-language lexer (JS/TS, Python, C/C++, Java, PHP, SQL)
-  const tokenRegex = new RegExp(
-    [
-      '(\\/\\*[\\s\\S]*?\\*\\/|\\/\\/[^\\n]*|#[^\\n]*|--[^\\n]*)', // 1: comment
-      '("(?:\\\\.|[^"\\\\])*"|\'(?:\\\\.|[^\'\\\\])*\'|`(?:\\\\.|[^`\\\\])*`)', // 2: string
-      '(<\\?php|<\\?=|\\?>)', // 3: php tag
-      '(\\$[a-zA-Z_][a-zA-Z0-9_]*)', // 4: php/shell variable
-      '\\b(\\d+(?:\\.\\d+)?)\\b', // 5: number
-      '\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b(?=\\s*\\()', // 6: function call
-      '\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b', // 7: identifier / keyword
-    ].join('|'),
-    'g'
-  );
-
-  const nodes: React.ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let tokenIdx = 0;
-
-  while ((match = tokenRegex.exec(code)) !== null) {
-    if (match.index > lastIndex) {
-      nodes.push(
-        <Text key={`c-plain-${tokenIdx++}`} style={{ color: palette.default }}>
-          {code.slice(lastIndex, match.index)}
-        </Text>
-      );
-    }
-
-    const full = match[0];
-    let tokenColor = palette.default;
-
-    if (match[1]) {
-      tokenColor = palette.comment;
-    } else if (match[2]) {
-      tokenColor = palette.string;
-    } else if (match[3]) {
-      tokenColor = palette.keyword;
-    } else if (match[4]) {
-      tokenColor = palette.variable;
-    } else if (match[5]) {
-      tokenColor = palette.number;
-    } else if (match[6]) {
-      tokenColor = CONTROL_KEYWORDS.has(match[6]) ? palette.control : (CODE_KEYWORDS.has(match[6]) ? palette.keyword : palette.func);
-    } else if (match[7]) {
-      if (CONTROL_KEYWORDS.has(match[7])) {
-        tokenColor = palette.control;
-      } else if (CODE_KEYWORDS.has(match[7])) {
-        tokenColor = palette.keyword;
-      } else if (/^[A-Z][a-zA-Z0-9_]*$/.test(match[7])) {
-        tokenColor = palette.type;
-      }
-    }
-
-    nodes.push(
-      <Text
-        key={`c-tok-${tokenIdx++}`}
-        style={{
-          color: tokenColor,
-          fontStyle: match[1] ? 'italic' : 'normal',
-        }}
-      >
-        {full}
-      </Text>
-    );
-
-    lastIndex = tokenRegex.lastIndex;
-  }
-
-  if (lastIndex < code.length) {
-    nodes.push(
-      <Text key={`c-tail-${tokenIdx}`} style={{ color: palette.default }}>
-        {code.slice(lastIndex)}
-      </Text>
-    );
-  }
-
-  return nodes;
-}
-
-/**
- * Renders the monochromatic Kyana Attendance Overview + Horizontal Subject Bar Chart + Other Subjects
- * component in React Native. Red (#ef4444) is strictly reserved for attendance below 50%.
- */
-function renderAttendanceCard(
-  rawBlock: string,
-  keyPrefix: string,
-  colors: any,
-  isDark: boolean
-): React.ReactNode {
-  const data = parseAttendanceBlock(rawBlock);
-  if (!data.hasOverview && data.recordedItems.length === 0 && data.unrecordedItems.length === 0) {
-    return null;
-  }
-
-  const cardBg = isDark ? '#0e0f13' : '#f8f9fa';
-  const raisedBg = isDark ? '#181920' : '#ffffff';
-  const trackBg = isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)';
-  const normalFill = isDark ? '#8e8e93' : '#3f3f46';
-  const lowRed = '#ef4444';
-  const pillText = !data.hasRecords
-    ? 'No records'
-    : data.isLow
-    ? 'Low Attendance'
-    : 'Recorded data';
-  const overallPctDisplay =
-    data.hasRecords && data.overallPct !== null ? `${data.overallPct}%` : 'No records';
-  const overallBarWidth =
-    data.hasRecords && data.overallPct !== null
-      ? Math.min(100, Math.max(data.overallPct === 0 ? 2 : 0, data.overallPct))
-      : 0;
-  const scopeHint =
-    data.totalSubjects > 1 &&
-    data.recordedSubjects > 0 &&
-    data.recordedSubjects < data.totalSubjects
-      ? ` · ${data.recordedSubjects} of ${data.totalSubjects} subjects`
-      : '';
-
-  return (
-    <View
-      key={keyPrefix}
-      style={[
-        styles.attCard,
-        {
-          backgroundColor: cardBg,
-          borderColor: colors.border,
-        },
-      ]}
-      accessibilityLabel="Attendance overview and subject-wise breakdown"
-    >
-      {/* Header Row */}
-      <View style={styles.attHeaderRow}>
-        <Text style={[styles.attSectionTitle, { color: colors.text }]}>
-          Attendance overview
-        </Text>
-        <View
-          style={[
-            styles.attStatusPill,
-            {
-              backgroundColor:
-                data.hasRecords && data.isLow
-                  ? 'rgba(239,68,68,0.12)'
-                  : raisedBg,
-              borderColor:
-                data.hasRecords && data.isLow
-                  ? 'rgba(239,68,68,0.32)'
-                  : colors.border,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.attStatusPillText,
-              {
-                color:
-                  data.hasRecords && data.isLow ? lowRed : colors.textSecondary,
-              },
-            ]}
-          >
-            {pillText}
-          </Text>
-        </View>
-      </View>
-
-      {/* Hero Stats Row */}
-      <View style={styles.attHeroRow}>
-        <View style={styles.attHeroLeft}>
-          <View style={styles.attHeroPctRow}>
-            <Text
-              style={[
-                styles.attHeroPct,
-                !data.hasRecords && styles.attHeroNoRecord,
-                {
-                  color: !data.hasRecords
-                    ? colors.textSecondary
-                    : data.isLow
-                    ? lowRed
-                    : colors.text,
-                },
-              ]}
-            >
-              {overallPctDisplay}
-            </Text>
-            {data.hasRecords && data.isLow && (
-              <View style={styles.attLowBadge}>
-                <Text style={styles.attLowBadgeText}>Low Attendance</Text>
-              </View>
-            )}
-          </View>
-          <Text style={[styles.attHeroSub, { color: colors.textSecondary }]}>
-            {`Overall attendance${scopeHint}`}
-          </Text>
-        </View>
-
-        <View style={styles.attHeroRight}>
-          <Text style={[styles.attHeroRatio, { color: colors.text }]}>
-            {data.hasRecords ? data.attendedLabel : '0 / 0'}
-          </Text>
-          <Text style={[styles.attHeroSub, { color: colors.textSecondary }]}>
-            Classes attended
-          </Text>
-        </View>
-      </View>
-
-      {/* Overall Progress Bar + Present/Absent Stat Boxes */}
-      {data.hasRecords && (
-        <>
-          <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
-            <View
-              style={[
-                styles.attBarFill,
-                {
-                  width: `${overallBarWidth}%` as any,
-                  backgroundColor: data.isLow ? lowRed : normalFill,
-                },
-              ]}
-            />
-          </View>
-
-          <View style={styles.attStatGrid}>
-            <View
-              style={[
-                styles.attStatBox,
-                { backgroundColor: raisedBg, borderColor: colors.border },
-              ]}
-            >
-              <Text style={[styles.attStatNum, { color: colors.text }]}>
-                {data.present}
-              </Text>
-              <Text style={[styles.attStatLabel, { color: colors.textSecondary }]}>
-                Present
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.attStatBox,
-                { backgroundColor: raisedBg, borderColor: colors.border },
-              ]}
-            >
-              <Text style={[styles.attStatNum, { color: colors.text }]}>
-                {data.absent}
-              </Text>
-              <Text style={[styles.attStatLabel, { color: colors.textSecondary }]}>
-                Absent
-              </Text>
-            </View>
-          </View>
-        </>
-      )}
-
-      {/* Subject-wise Horizontal Bar Chart (Recorded Subjects Only) */}
-      {data.recordedItems.length > 0 && (
-        <>
-          <View style={[styles.attDivider, { backgroundColor: colors.border }]} />
-          <Text style={[styles.attSubSectionHeading, { color: colors.text }]}>
-            Subject-wise attendance
-          </Text>
-          <View style={styles.attSubjectsList}>
-            {data.recordedItems.map((item, idx) => {
-              const barW = Math.min(
-                100,
-                Math.max(item.pct === 0 ? 2 : 0, item.pct)
-              );
-              const metaLabel = [
-                item.code,
-                `${item.classes} recorded ${item.classes === 1 ? 'class' : 'classes'}`,
-              ]
-                .filter(Boolean)
-                .join(' · ');
-
-              return (
-                <View key={`att-rec-${idx}`} style={styles.attSubjItem}>
-                  <View style={styles.attSubjTopRow}>
-                    <View style={styles.attSubjInfo}>
-                      <Text style={[styles.attSubjName, { color: colors.text }]}>
-                        {item.name}
-                      </Text>
-                      <Text
-                        style={[styles.attSubjMeta, { color: colors.textSecondary }]}
-                      >
-                        {metaLabel}
-                      </Text>
-                    </View>
-                    <View style={styles.attSubjPctCol}>
-                      <Text
-                        style={[
-                          styles.attSubjPct,
-                          { color: item.isLow ? lowRed : colors.text },
-                        ]}
-                      >
-                        {`${item.pct}%`}
-                      </Text>
-                      {item.isLow && (
-                        <View style={styles.attLowBadge}>
-                          <Text style={styles.attLowBadgeText}>Low Attendance</Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-
-                  <View style={[styles.attBarTrack, { backgroundColor: trackBg }]}>
-                    <View
-                      style={[
-                        styles.attBarFill,
-                        {
-                          width: `${barW}%` as any,
-                          backgroundColor: item.isLow ? lowRed : normalFill,
-                        },
-                      ]}
-                    />
-                  </View>
-
-                  <View style={styles.attSubjCountsRow}>
-                    <Text
-                      style={[
-                        styles.attSubjCountText,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      {`Present: ${item.present}`}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.attSubjCountText,
-                        { color: colors.textSecondary },
-                      ]}
-                    >
-                      {`Absent: ${item.absent}`}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </>
-      )}
-
-      {/* Other Subjects (Zero Recorded Classes — Never Plotted as 0% Bars) */}
-      {data.unrecordedItems.length > 0 && (
-        <>
-          <View style={[styles.attDivider, { backgroundColor: colors.border }]} />
-          <Text style={[styles.attSubSectionHeading, { color: colors.text }]}>
-            {data.recordedItems.length > 0 ? 'Other subjects' : 'Subjects'}
-          </Text>
-          <View style={styles.attOtherList}>
-            {data.unrecordedItems.map((u, idx) => (
-              <View key={`att-unrec-${idx}`} style={styles.attOtherRow}>
-                <Text style={[styles.attOtherName, { color: colors.text }]}>
-                  {u.name}
-                </Text>
-                <View
-                  style={[
-                    styles.attNoRecordPill,
-                    { backgroundColor: raisedBg, borderColor: colors.border },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.attNoRecordPillText,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    No records
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-    </View>
-  );
 }
 
 /**
@@ -2922,14 +75,13 @@ function renderInlineTokens(
   textColor: string,
   isDark: boolean,
   borderColor: string,
-  onPressText?: () => void,
-  onPressInternalLink?: (url: string) => void
+  onPressText?: () => void
 ): React.ReactNode[] {
   if (!text) return [];
 
-  // Split with capturing group to keep matched tokens in parts array (rejecting protocol-relative // links)
+  // Split with capturing group to keep matched tokens in parts array
   const parts = text.split(
-    /(`[^`]+`|\\\([\s\S]+?\\\)|\$(?!\s)[^$\n]+?(?<!\s)\$|\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|__[^_]+__|\*[^*\n]+\*|(?<![a-zA-Z0-9])_[^_\n]+_(?![a-zA-Z0-9])|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\((?:https?:\/\/|\/(?!\/)|prompt:)[^\s\)]+\)|https?:\/\/[^\s<)]+)/g
+    /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\(https?:\/\/[^\s\)]+\)|https?:\/\/[^\s<)]+)/g
   );
 
   return parts
@@ -2956,45 +108,8 @@ function renderInlineTokens(
         );
       }
 
-      // 2. Inline math: \(...\) or $...$
-      if (
-        (part.startsWith('\\(') && part.endsWith('\\)') && part.length >= 4) ||
-        (part.startsWith('$') && part.endsWith('$') && !part.startsWith('$$') && part.length >= 3)
-      ) {
-        return (
-          <Text
-            key={key}
-            style={[
-              styles.inlineMath,
-              {
-                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                color: textColor,
-              },
-            ]}
-          >
-            {formatMathExpression(part)}
-          </Text>
-        );
-      }
-
-      // 3. Bold + Italic: ***text***
-      if (part.startsWith('***') && part.endsWith('***') && part.length >= 6) {
-        return (
-          <Text
-            key={key}
-            style={{ fontWeight: '700', fontStyle: 'italic', color: textColor }}
-            onPress={onPressText}
-          >
-            {part.slice(3, -3)}
-          </Text>
-        );
-      }
-
-      // 4. Bold: **text** or __text__
-      if (
-        (part.startsWith('**') && part.endsWith('**') && part.length >= 4) ||
-        (part.startsWith('__') && part.endsWith('__') && part.length >= 4)
-      ) {
+      // 2. Bold: **text**
+      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
         return (
           <Text
             key={key}
@@ -3006,11 +121,8 @@ function renderInlineTokens(
         );
       }
 
-      // 5. Italic: *text* or _text_
-      if (
-        (part.startsWith('*') && part.endsWith('*') && part.length >= 2) ||
-        (part.startsWith('_') && part.endsWith('_') && part.length >= 2)
-      ) {
+      // 3. Italic: *text*
+      if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
         return (
           <Text
             key={key}
@@ -3022,7 +134,7 @@ function renderInlineTokens(
         );
       }
 
-      // 6. Underline: <u>text</u>
+      // 4. Underline: <u>text</u>
       if (part.startsWith('<u>') && part.endsWith('</u>') && part.length >= 7) {
         return (
           <Text
@@ -3035,7 +147,7 @@ function renderInlineTokens(
         );
       }
 
-      // 7. Strikethrough: ~~text~~
+      // 5. Strikethrough: ~~text~~
       if (part.startsWith('~~') && part.endsWith('~~') && part.length >= 4) {
         return (
           <Text
@@ -3048,44 +160,16 @@ function renderInlineTokens(
         );
       }
 
-      // 8. Link: [title](url) — external https://, internal /route (excluding //), or prompt: queries
+      // 6. Link: [title](url)
       if (part.startsWith('[') && part.includes('](')) {
-        const linkMatch = part.match(/^\[([^\]]+)\]\(((?:https?:\/\/|\/(?!\/)|prompt:)[^\s\)]+)\)$/);
+        const linkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)$/);
         if (linkMatch) {
           const [, title, url] = linkMatch;
-          if (url.startsWith('prompt:')) {
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[
-                  styles.promptPill,
-                  {
-                    backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                    borderColor: borderColor,
-                  },
-                ]}
-                onPress={() => {
-                  if (onPressInternalLink) {
-                    onPressInternalLink(url);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.promptPillText, { color: textColor }]}>
-                  {title}
-                </Text>
-              </TouchableOpacity>
-            );
-          }
           return (
             <Text
               key={key}
               style={[styles.link, { color: textColor }]}
               onPress={() => {
-                if (url.startsWith('/') && !url.startsWith('//') && onPressInternalLink) {
-                  onPressInternalLink(url);
-                  return;
-                }
                 Linking.openURL(url).catch(() => {});
               }}
             >
@@ -3095,7 +179,7 @@ function renderInlineTokens(
         }
       }
 
-      // 9. Direct URL: https://...
+      // 7. Direct URL: https://...
       if (/^https?:\/\//.test(part)) {
         return (
           <Text
@@ -3110,7 +194,7 @@ function renderInlineTokens(
         );
       }
 
-      // 10. Plain text segment
+      // 8. Plain text segment
       return (
         <Text key={key} style={{ color: textColor }} onPress={onPressText}>
           {part}
@@ -3120,28 +204,226 @@ function renderInlineTokens(
     .filter(Boolean);
 }
 
+const MOBILE_KEYWORDS = new Set([
+  'public', 'private', 'protected', 'class', 'interface', 'static', 'void', 'int',
+  'float', 'double', 'char', 'boolean', 'bool', 'long', 'short', 'String', 'new',
+  'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue',
+  'try', 'catch', 'finally', 'throw', 'import', 'package', 'def', 'elif', 'const',
+  'let', 'var', 'function', 'async', 'await', 'select', 'where', 'from', 'null',
+  'true', 'false', 'True', 'False', 'None', 'self', 'this'
+]);
+
+function generateSampleHtmlForCssMobile(cssText: string): string {
+  const classMatches = [...cssText.matchAll(/\.([a-zA-Z0-9_-]+)/g)].map((m) => m[1]);
+  const idMatches = [...cssText.matchAll(/#([a-zA-Z0-9_-]+)/g)].map((m) => m[1]);
+  const tagMatches = [...cssText.matchAll(/\b(h[1-6]|p|button|span|a|ul|li|div)\b/g)].map((m) => m[1]);
+
+  const parts: string[] = [];
+  if (classMatches.length) {
+    for (const cls of new Set(classMatches)) {
+      parts.push(`<p class="${cls}">Paragraph styled with class="<strong>.${cls}</strong>"</p>`);
+    }
+  }
+  if (idMatches.length) {
+    for (const id of new Set(idMatches)) {
+      parts.push(`<h2 id="${id}">Heading styled with id="<strong>#${id}</strong>"</h2>`);
+    }
+  }
+  if (!parts.length && tagMatches.length) {
+    for (const tag of new Set(tagMatches)) {
+      parts.push(`<${tag}>Sample &lt;${tag}&gt; element</${tag}>`);
+    }
+  }
+  if (!parts.length) {
+    parts.push('<p>CSS applied to live preview canvas</p>');
+  }
+  return parts.join('\n');
+}
+
+function renderHighlightedCodeMobile(code: string, rawLang: string, isWrapped: boolean): React.ReactNode {
+  const l = (rawLang || '').toLowerCase();
+  const isHtml = l === 'html' || l === 'xml' || l === 'markup';
+  const isCss = l === 'css';
+
+  const lines = code.split('\n');
+
+  return (
+    <Text style={[styles.codeText, isWrapped && { flexWrap: 'wrap' }]}>
+      {lines.map((lineText, lineIdx) => {
+        const lineKey = `cl-${lineIdx}`;
+        const tokens: React.ReactNode[] = [];
+
+        let rest = lineText;
+        let tokIdx = 0;
+
+        while (rest.length > 0) {
+          const curKey = `${lineKey}-t-${tokIdx++}`;
+
+          // Comment
+          if (rest.startsWith('//') || (rest.startsWith('#') && !isCss)) {
+            tokens.push(
+              <Text key={curKey} style={{ color: '#71717a', fontStyle: 'italic' }}>
+                {rest}
+              </Text>
+            );
+            break;
+          }
+
+          // String
+          const strMatch = rest.match(/^("[^"]*"|'[^']*'|`[^`]*`)/);
+          if (strMatch) {
+            tokens.push(
+              <Text key={curKey} style={{ color: '#4ade80' }}>
+                {strMatch[0]}
+              </Text>
+            );
+            rest = rest.slice(strMatch[0].length);
+            continue;
+          }
+
+          // HTML Tag
+          if (isHtml && rest.startsWith('<')) {
+            const tagMatch = rest.match(/^<\/?([a-zA-Z][\w:-]*)/);
+            if (tagMatch) {
+              const slash = tagMatch[0].startsWith('</') ? '/' : '';
+              tokens.push(
+                <Text key={curKey} style={{ color: '#94a3b8' }}>
+                  {'<' + slash}
+                </Text>
+              );
+              tokens.push(
+                <Text key={`${curKey}-name`} style={{ color: '#38bdf8', fontWeight: '600' }}>
+                  {tagMatch[1]}
+                </Text>
+              );
+              rest = rest.slice(tagMatch[0].length);
+              continue;
+            }
+          }
+
+          // HTML attribute (e.g. class=)
+          if (isHtml) {
+            const attrMatch = rest.match(/^([a-zA-Z_:][\w:.-]*)\s*=/);
+            if (attrMatch) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#facc15' }}>
+                  {attrMatch[1]}
+                </Text>
+              );
+              tokens.push(
+                <Text key={`${curKey}-eq`} style={{ color: '#94a3b8' }}>
+                  {'='}
+                </Text>
+              );
+              rest = rest.slice(attrMatch[0].length);
+              continue;
+            }
+          }
+
+          // CSS Selectors (.class, #id)
+          if (isCss && (rest.startsWith('.') || rest.startsWith('#'))) {
+            const selMatch = rest.match(/^[.#][a-zA-Z0-9_-]+/);
+            if (selMatch) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#facc15', fontWeight: '600' }}>
+                  {selMatch[0]}
+                </Text>
+              );
+              rest = rest.slice(selMatch[0].length);
+              continue;
+            }
+          }
+
+          // CSS property before :
+          if (isCss) {
+            const propMatch = rest.match(/^([a-zA-Z-][\w-]*)\s*:/);
+            if (propMatch) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#7dd3fc' }}>
+                  {propMatch[1]}
+                </Text>
+              );
+              tokens.push(
+                <Text key={`${curKey}-col`} style={{ color: '#94a3b8' }}>
+                  {':'}
+                </Text>
+              );
+              rest = rest.slice(propMatch[0].length);
+              continue;
+            }
+          }
+
+          // Numbers
+          const numMatch = rest.match(/^\b\d+(\.\d+)?(px|rem|em|%)?\b/);
+          if (numMatch) {
+            tokens.push(
+              <Text key={curKey} style={{ color: '#f87171' }}>
+                {numMatch[0]}
+              </Text>
+            );
+            rest = rest.slice(numMatch[0].length);
+            continue;
+          }
+
+          // Words / Identifiers
+          const wordMatch = rest.match(/^[a-zA-Z_]\w*/);
+          if (wordMatch) {
+            const word = wordMatch[0];
+            if (MOBILE_KEYWORDS.has(word)) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#c084fc', fontWeight: '600' }}>
+                  {word}
+                </Text>
+              );
+            } else if (isCss && /^(red|green|blue|white|black|none|block|flex|bold|center)\b/i.test(word)) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#ce9178' }}>
+                  {word}
+                </Text>
+              );
+            } else {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#e6edf3' }}>
+                  {word}
+                </Text>
+              );
+            }
+            rest = rest.slice(word.length);
+            continue;
+          }
+
+          // Punctuation & operators
+          tokens.push(
+            <Text key={curKey} style={{ color: '#94a3b8' }}>
+              {rest[0]}
+            </Text>
+          );
+          rest = rest.slice(1);
+        }
+
+        return (
+          <Text key={lineKey}>
+            {tokens}
+            {lineIdx < lines.length - 1 ? '\n' : ''}
+          </Text>
+        );
+      })}
+    </Text>
+  );
+}
+
 function PostMarkdownInternal({
   content,
-  streaming = false,
   isExpanded = true,
   onToggleExpand,
   maxPreviewLength,
   onPressText,
-  onPressInternalLink,
   style,
 }: PostMarkdownProps) {
   const { colors, isDark } = useTheme();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const [unwrappedBlocks, setUnwrappedBlocks] = useState<Record<number, boolean>>({});
+  const [wrappedBlocks, setWrappedBlocks] = useState<Record<number, boolean>>({});
   const [previewBlocks, setPreviewBlocks] = useState<Record<number, boolean>>({});
-
-  const toggleWrap = (idx: number) => {
-    setUnwrappedBlocks(prev => ({ ...prev, [idx]: !prev[idx] }));
-  };
-
-  const togglePreview = (idx: number) => {
-    setPreviewBlocks(prev => ({ ...prev, [idx]: !prev[idx] }));
-  };
 
   if (!content || typeof content !== 'string' || !content.trim()) return null;
 
@@ -3151,46 +433,26 @@ function PostMarkdownInternal({
     content.length > maxPreviewLength
   );
 
-  const rawDisplayContent = isTruncated
+  const displayContent = isTruncated
     ? content.slice(0, maxPreviewLength).trim()
     : content;
 
-  // Always stabilize incomplete code fences / math blocks during streaming or when an unclosed fence exists
-  const hasUnclosedFence = ((rawDisplayContent.match(/```/g) || []).length % 2) === 1;
-  const displayContent = (streaming || hasUnclosedFence)
-    ? stabilizeStreamingMarkdown(rawDisplayContent)
-    : rawDisplayContent;
-
-  // 1. Extract fenced code blocks (supporting nested backtick fence lengths)
+  // Extract fenced code blocks first
   const codeBlocks: CodeBlock[] = [];
   const normalized = displayContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const textWithoutCode = normalized.replace(
-    /(^|\n)(`{3,}|~{3,})([a-zA-Z0-9_+#-]*)[ \t]*\n?([\s\S]*?)\2[ \t]*(?=\n|$)/g,
-    (_, prefix, _fence, lang, code) => {
+    /```([a-zA-Z0-9_#-]*)[ \t]*\n([\s\S]*?)```/g,
+    (_, lang, code) => {
       const idx = codeBlocks.length;
       codeBlocks.push({
         lang: (lang || 'CODE').trim().toUpperCase(),
         code: (code || '').replace(/\n+$/, ''),
       });
-      return `${prefix || ''}\n\x01CODE_BLOCK_${idx}\x02\n`;
+      return `\x01CODE_BLOCK_${idx}\x02`;
     }
   );
 
-  // 2. Extract multiline / display math blocks ($$...$$ and \[...\])
-  const mathBlocks: string[] = [];
-  const textWithoutCodeAndMath = textWithoutCode
-    .replace(/\$\$([\s\S]*?)\$\$/g, (_, expr) => {
-      const idx = mathBlocks.length;
-      mathBlocks.push(expr || '');
-      return `\n\x01MATH_BLOCK_${idx}\x02\n`;
-    })
-    .replace(/\\\[([\s\S]*?)\\\]/g, (_, expr) => {
-      const idx = mathBlocks.length;
-      mathBlocks.push(expr || '');
-      return `\n\x01MATH_BLOCK_${idx}\x02\n`;
-    });
-
-  const lines = textWithoutCodeAndMath.split('\n');
+  const lines = textWithoutCode.split('\n');
   const renderedElements: React.ReactNode[] = [];
 
   function isTableDelimiter(str: string): boolean {
@@ -3200,9 +462,9 @@ function PostMarkdownInternal({
     return cells.every((c) => /^\s*:?-{1,}:?\s*$/.test(c));
   }
 
-  async function handleCopyCode(rawCode: string, index: number) {
+  async function handleCopyCode(code: string, index: number) {
     try {
-      await Clipboard.setStringAsync(rawCode);
+      await Clipboard.setStringAsync(code);
       setCopiedIndex(index);
       setTimeout(() => {
         setCopiedIndex((cur) => (cur === index ? null : cur));
@@ -3218,15 +480,7 @@ function PostMarkdownInternal({
       const fullPara = paraBuffer.join('\n');
       renderedElements.push(
         <Text key={key} style={[styles.paragraph, { color: colors.text }]} onPress={onPressText}>
-          {renderInlineTokens(
-            fullPara,
-            key,
-            colors.text,
-            isDark,
-            colors.border,
-            onPressText,
-            onPressInternalLink
-          )}
+          {renderInlineTokens(fullPara, key, colors.text, isDark, colors.border, onPressText)}
         </Text>
       );
       paraBuffer = [];
@@ -3237,31 +491,44 @@ function PostMarkdownInternal({
     const line = lines[i];
     const trimmed = line.trim();
 
-    // 1. Code Block or Attendance Visual Block placeholder
+    // 1. Code Block placeholder
     const codeMatch = trimmed.match(/^\x01CODE_BLOCK_(\d+)\x02$/);
     if (codeMatch) {
       flushParagraph(`p-before-code-${i}`);
       const blockIndex = Number(codeMatch[1]);
       const block = codeBlocks[blockIndex];
       if (block) {
-        const isAsciiFigure = /^\s*\+[+\-]{3,}\+/m.test(block.code) && /\|\s*[A-Za-z0-9_-]/m.test(block.code);
-        if (VISUAL_BLOCK_KINDS.includes(block.lang) || isAsciiFigure) {
-          const visNode = renderKyanaVisualCard(
-            VISUAL_BLOCK_KINDS.includes(block.lang) ? block.lang : 'DIAGRAM',
-            block.code,
-            `vis-card-${i}`,
-            colors,
-            isDark
-          );
-          if (visNode) {
-            renderedElements.push(visNode);
-            continue;
-          }
-        }
         const isCopied = copiedIndex === blockIndex;
-        const isUnwrapped = Boolean(unwrappedBlocks[blockIndex]);
+        const isWrapped = Boolean(wrappedBlocks[blockIndex]);
         const isPreviewOpen = Boolean(previewBlocks[blockIndex]);
-        const isPreviewable = /^(html|css|javascript|js|web)$/i.test(block.lang);
+        const langLower = block.lang.toLowerCase();
+        const isWeb = /^(html|xml|svg|css|javascript|js)$/.test(langLower);
+
+        let companionCss = '';
+        let companionHtml = '';
+        codeBlocks.forEach((otherBlock, idx) => {
+          if (idx === blockIndex) return;
+          const ol = otherBlock.lang.toLowerCase();
+          if (ol === 'css') companionCss += '\n' + otherBlock.code;
+          else if (ol === 'html' || ol === 'xml') companionHtml += '\n' + otherBlock.code;
+        });
+
+        let finalHtml = '';
+        if (langLower === 'html' || langLower === 'xml' || langLower === 'svg') {
+          finalHtml = block.code;
+        } else if (langLower === 'css') {
+          if (companionHtml.trim()) {
+            finalHtml = companionHtml;
+            companionCss = block.code + '\n' + companionCss;
+          } else {
+            finalHtml = generateSampleHtmlForCssMobile(block.code);
+            companionCss = block.code;
+          }
+        } else {
+          finalHtml = block.code;
+        }
+
+        const previewDoc = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>*{box-sizing:border-box;}body{margin:0;padding:12px;font-family:-apple-system,BlinkMacSystemFont,Roboto,sans-serif;font-size:14px;line-height:1.45;color:#111827;background-color:#ffffff;} ${companionCss}</style></head><body>${finalHtml}</body></html>`;
 
         renderedElements.push(
           <View
@@ -3269,8 +536,8 @@ function PostMarkdownInternal({
             style={[
               styles.codeBlockContainer,
               {
-                backgroundColor: isDark ? '#1e1e1e' : '#f4f4f5',
-                borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                backgroundColor: '#212124',
+                borderColor: 'rgba(255,255,255,0.08)',
               },
             ]}
           >
@@ -3278,178 +545,142 @@ function PostMarkdownInternal({
               style={[
                 styles.codeHeader,
                 {
-                  borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
-                  backgroundColor: isDark ? '#252526' : '#e4e4e7',
+                  borderBottomColor: 'rgba(255,255,255,0.07)',
+                  backgroundColor: 'rgba(255,255,255,0.035)',
                 },
               ]}
             >
-              <View style={styles.codeLangGroup}>
-                <Text style={[styles.codeIconText, { color: isDark ? '#71717a' : '#a1a1aa' }]}>&lt;/&gt;</Text>
-                <Text style={[styles.codeLang, { color: isDark ? '#a1a1aa' : '#52525b' }]}>
-                  {(block.lang || 'Code').toUpperCase()}
+              <View style={styles.codeLangWrap}>
+                <Text style={styles.codeLangIconText}>{'</>'}</Text>
+                <Text style={[styles.codeLang, { color: '#9ca3af' }]}>
+                  {block.lang}
                 </Text>
               </View>
-              <View style={styles.codeActionsRow}>
+              <View style={styles.codeActions}>
                 <TouchableOpacity
-                  onPress={() => toggleWrap(blockIndex)}
+                  onPress={() =>
+                    setWrappedBlocks((prev) => ({
+                      ...prev,
+                      [blockIndex]: !prev[blockIndex],
+                    }))
+                  }
                   style={[
                     styles.codeActionBtn,
                     {
-                      borderColor: isUnwrapped ? (isDark ? 'rgba(96,165,250,0.3)' : '#bfdbfe') : 'transparent',
-                      backgroundColor: isUnwrapped ? (isDark ? 'rgba(96,165,250,0.15)' : '#eff6ff') : 'transparent',
+                      borderColor: isWrapped ? '#38bdf8' : 'rgba(255,255,255,0.12)',
+                      backgroundColor: isWrapped ? 'rgba(56,189,248,0.12)' : 'transparent',
                     },
                   ]}
                   activeOpacity={0.7}
-                  accessibilityLabel="Toggle word wrap"
+                  accessibilityLabel="Toggle line wrap"
                 >
-                  <Text style={[styles.codeActionBtnText, { color: isUnwrapped ? '#60a5fa' : colors.textSecondary }]}>
-                    {isUnwrapped ? 'No Wrap' : 'Wrap'}
+                  <Text
+                    style={[
+                      styles.codeActionBtnText,
+                      { color: isWrapped ? '#38bdf8' : '#a1a1aa' },
+                    ]}
+                  >
+                    {isWrapped ? 'Unwrap' : 'Wrap'}
                   </Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                   onPress={() => handleCopyCode(block.code, blockIndex)}
                   style={[
                     styles.codeActionBtn,
                     {
-                      borderColor: isCopied ? (isDark ? 'rgba(74,222,128,0.3)' : '#bbf7d0') : 'transparent',
-                      backgroundColor: isCopied ? (isDark ? 'rgba(74,222,128,0.15)' : '#f0fdf4') : 'transparent',
+                      borderColor: isCopied ? '#22c55e' : 'rgba(255,255,255,0.12)',
+                      backgroundColor: isCopied ? 'rgba(34,197,94,0.12)' : 'transparent',
                     },
                   ]}
                   activeOpacity={0.7}
                   accessibilityLabel="Copy code"
                 >
-                  <Text style={[styles.codeActionBtnText, { color: isCopied ? '#22c55e' : colors.textSecondary }]}>
+                  <Text
+                    style={[
+                      styles.codeActionBtnText,
+                      { color: isCopied ? '#22c55e' : '#a1a1aa' },
+                    ]}
+                  >
                     {isCopied ? '✓ Copied' : 'Copy'}
                   </Text>
                 </TouchableOpacity>
-                {isPreviewable && (
+
+                {isWeb && (
                   <TouchableOpacity
-                    onPress={() => togglePreview(blockIndex)}
+                    onPress={() =>
+                      setPreviewBlocks((prev) => ({
+                        ...prev,
+                        [blockIndex]: !prev[blockIndex],
+                      }))
+                    }
                     style={[
                       styles.codeActionBtn,
                       {
-                        borderColor: isPreviewOpen ? (isDark ? 'rgba(34,197,94,0.3)' : '#bbf7d0') : 'transparent',
-                        backgroundColor: isPreviewOpen ? (isDark ? 'rgba(34,197,94,0.15)' : '#f0fdf4') : 'transparent',
+                        borderColor: isPreviewOpen ? '#38bdf8' : 'rgba(255,255,255,0.12)',
+                        backgroundColor: isPreviewOpen ? 'rgba(56,189,248,0.15)' : 'transparent',
                       },
                     ]}
                     activeOpacity={0.7}
-                    accessibilityLabel="Interactive live preview"
+                    accessibilityLabel="Preview output"
                   >
-                    <Text style={[styles.codeActionBtnText, { color: isPreviewOpen ? '#22c55e' : colors.textSecondary }]}>
-                      {isPreviewOpen ? 'Hide' : '▶ Preview'}
+                    <Text
+                      style={[
+                        styles.codeActionBtnText,
+                        { color: isPreviewOpen ? '#38bdf8' : '#a1a1aa' },
+                      ]}
+                    >
+                      {isPreviewOpen ? 'Hide' : '▶'}
                     </Text>
                   </TouchableOpacity>
                 )}
               </View>
             </View>
-            <View style={styles.codeContentWrapper}>
-              {isUnwrapped ? (
-                <ScrollView horizontal nestedScrollEnabled={true} showsHorizontalScrollIndicator={false}>
-                  <Text
-                    style={[
-                      styles.codeText,
-                      {
-                        color: isDark ? '#d4d4d4' : '#1f2328',
-                        flexWrap: 'nowrap',
-                      },
-                    ]}
-                  >
-                    {renderHighlightedCode(block.code, isDark, block.lang)}
-                  </Text>
-                </ScrollView>
-              ) : (
-                <Text
-                  style={[
-                    styles.codeText,
-                    {
-                      color: isDark ? '#d4d4d4' : '#1f2328',
-                    },
-                  ]}
-                >
-                  {renderHighlightedCode(block.code, isDark, block.lang)}
-                </Text>
-              )}
-            </View>
+
+            {isWrapped ? (
+              <View style={{ padding: 12 }}>
+                {renderHighlightedCodeMobile(block.code, block.lang, true)}
+              </View>
+            ) : (
+              <ScrollView
+                horizontal
+                nestedScrollEnabled={true}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ padding: 12 }}
+              >
+                {renderHighlightedCodeMobile(block.code, block.lang, false)}
+              </ScrollView>
+            )}
+
             {isPreviewOpen && (
-              <View style={[styles.mobilePreviewBox, { borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}>
-                <View style={[styles.mobilePreviewHeader, { backgroundColor: isDark ? '#202023' : '#f4f4f5' }]}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={styles.mobilePreviewDot} />
-                    <Text style={[styles.mobilePreviewTitle, { color: isDark ? '#f4f4f5' : '#18181b' }]}>Live Preview</Text>
-                    <View style={styles.mobilePreviewBadge}>
-                      <Text style={styles.mobilePreviewBadgeText}>Sandbox</Text>
-                    </View>
+              <View style={styles.codePreviewContainer}>
+                <View style={styles.codePreviewBar}>
+                  <View style={styles.codePreviewTitleRow}>
+                    <View style={styles.codePreviewDot} />
+                    <Text style={styles.codePreviewTitle}>Live Output Preview</Text>
                   </View>
-                  <TouchableOpacity onPress={() => togglePreview(blockIndex)}>
-                    <Text style={{ color: isDark ? '#a1a1aa' : '#71717a', fontSize: 13, fontWeight: '600' }}>✕</Text>
+                  <TouchableOpacity
+                    onPress={() =>
+                      setPreviewBlocks((prev) => ({
+                        ...prev,
+                        [blockIndex]: false,
+                      }))
+                    }
+                  >
+                    <Text style={styles.codePreviewCloseText}>✕ Close</Text>
                   </TouchableOpacity>
                 </View>
-                <View style={styles.mobilePreviewFrame}>
-                  {OptionalWebView ? (
-                    <OptionalWebView
-                      originWhitelist={['*']}
-                      source={{
-                        html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:12px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#18181b;background:#ffffff;line-height:1.5;} ${
-                          block.lang.toLowerCase() === 'html'
-                            ? codeBlocks.filter(b => b.lang.toLowerCase() === 'css').map(b => b.code).join('\n')
-                            : (block.lang.toLowerCase() === 'css' ? block.code : '')
-                        }</style></head><body>${
-                          block.lang.toLowerCase() === 'html'
-                            ? block.code
-                            : (block.lang.toLowerCase() === 'css'
-                                ? (codeBlocks.find(b => b.lang.toLowerCase() === 'html')?.code || '<div class="student"><h3>Class .student Example</h3><p>Styled with your CSS rules.</p></div>')
-                                : `<script>${block.code}<\/script><div>Running snippet...</div>`)
-                        }</body></html>`
-                      }}
-                      style={{ width: '100%', height: 130, backgroundColor: '#ffffff' }}
-                      scrollEnabled={true}
-                    />
-                  ) : (
-                    <View style={{ padding: 14 }}>
-                      <Text style={{ color: '#18181b', fontSize: 13 }}>
-                        [Interactive preview rendered on device]
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                <WebView
+                  originWhitelist={['*']}
+                  source={{ html: previewDoc }}
+                  style={styles.codePreviewWebView}
+                  scrollEnabled={true}
+                />
               </View>
             )}
           </View>
         );
       }
-      continue;
-    }
-
-    // 1b. Display Math Block placeholder
-    const mathMatch = trimmed.match(/^\x01MATH_BLOCK_(\d+)\x02$/);
-    if (mathMatch) {
-      flushParagraph(`p-before-math-${i}`);
-      const mathIndex = Number(mathMatch[1]);
-      const rawExpr = mathBlocks[mathIndex] || '';
-      const formattedMath = formatMathExpression(rawExpr);
-      renderedElements.push(
-        <View
-          key={`math-block-${i}`}
-          style={[
-            styles.mathBlockContainer,
-            {
-              backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <ScrollView
-            horizontal
-            nestedScrollEnabled={true}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.mathBlockScrollContent}
-          >
-            <Text style={[styles.mathBlockText, { color: colors.text }]}>
-              {formattedMath}
-            </Text>
-          </ScrollView>
-        </View>
-      );
       continue;
     }
 
@@ -3486,23 +717,6 @@ function PostMarkdownInternal({
       }
       i = j - 1;
 
-      const numCols = headerCells.length;
-      const colWidths = headerCells.map((headerText, colIdx) => {
-        let maxLen = (headerText || '').length;
-        for (const row of dataRows) {
-          if (row && row[colIdx]) {
-            maxLen = Math.max(maxLen, String(row[colIdx]).length);
-          }
-        }
-        if (numCols === 2) {
-          return Math.max(130, Math.min(220, Math.max(140, maxLen * 7 + 24)));
-        }
-        if (numCols === 3) {
-          return Math.max(115, Math.min(180, Math.max(120, maxLen * 6.5 + 20)));
-        }
-        return Math.max(95, Math.min(180, maxLen * 6.5 + 16));
-      });
-
       renderedElements.push(
         <View
           key={`table-${i}`}
@@ -3517,7 +731,7 @@ function PostMarkdownInternal({
           <ScrollView
             horizontal
             nestedScrollEnabled={true}
-            showsHorizontalScrollIndicator={true}
+            showsHorizontalScrollIndicator={false}
           >
             <View>
               {/* Header Row */}
@@ -3536,7 +750,6 @@ function PostMarkdownInternal({
                     key={`th-${colIdx}`}
                     style={[
                       styles.tableCell,
-                      { width: colWidths[colIdx] },
                       colIdx < headerCells.length - 1 && { borderRightColor: colors.border, borderRightWidth: 1 },
                     ]}
                   >
@@ -3549,15 +762,7 @@ function PostMarkdownInternal({
                         },
                       ]}
                     >
-                      {renderInlineTokens(
-                        cellText,
-                        `th-${i}-${colIdx}`,
-                        colors.text,
-                        isDark,
-                        colors.border,
-                        onPressText,
-                        onPressInternalLink
-                      )}
+                      {cellText}
                     </Text>
                   </View>
                 ))}
@@ -3577,7 +782,6 @@ function PostMarkdownInternal({
                       key={`td-${colIdx}`}
                       style={[
                         styles.tableCell,
-                        { width: colWidths[colIdx] },
                         colIdx < headerCells.length - 1 && { borderRightColor: colors.border, borderRightWidth: 1 },
                       ]}
                     >
@@ -3590,15 +794,7 @@ function PostMarkdownInternal({
                           },
                         ]}
                       >
-                        {renderInlineTokens(
-                          rowCells[colIdx] || '',
-                          `td-${i}-${rIdx}-${colIdx}`,
-                          colors.text,
-                          isDark,
-                          colors.border,
-                          onPressText,
-                          onPressInternalLink
-                        )}
+                        {rowCells[colIdx] || ''}
                       </Text>
                     </View>
                   ))}
@@ -3611,30 +807,15 @@ function PostMarkdownInternal({
       continue;
     }
 
-    // 4. Headings: #, ##, ###, ####
-    const hMatch = line.match(/^(#{1,4})\s+(.*)$/);
+    // 4. Headings: #, ##, ###
+    const hMatch = line.match(/^(#{1,3})\s+(.*)$/);
     if (hMatch) {
       flushParagraph(`p-before-h-${i}`);
       const level = hMatch[1].length;
-      const headingStyle =
-        level === 1
-          ? styles.h1
-          : level === 2
-          ? styles.h2
-          : level === 3
-          ? styles.h3
-          : styles.h4;
+      const headingStyle = level === 1 ? styles.h1 : level === 2 ? styles.h2 : styles.h3;
       renderedElements.push(
         <Text key={`h-${i}`} style={[headingStyle, { color: colors.text }]} onPress={onPressText}>
-          {renderInlineTokens(
-            hMatch[2],
-            `h-${i}`,
-            colors.text,
-            isDark,
-            colors.border,
-            onPressText,
-            onPressInternalLink
-          )}
+          {renderInlineTokens(hMatch[2], `h-${i}`, colors.text, isDark, colors.border, onPressText)}
         </Text>
       );
       continue;
@@ -3656,49 +837,23 @@ function PostMarkdownInternal({
           ]}
         >
           <Text style={[styles.blockquoteText, { color: colors.textSecondary }]} onPress={onPressText}>
-            {renderInlineTokens(
-              qMatch[1],
-              `q-${i}`,
-              colors.textSecondary,
-              isDark,
-              colors.border,
-              onPressText,
-              onPressInternalLink
-            )}
+            {renderInlineTokens(qMatch[1], `q-${i}`, colors.textSecondary, isDark, colors.border, onPressText)}
           </Text>
         </View>
       );
       continue;
     }
 
-    // 6. List items (including nested lists via leading spaces): - or * or + or 1.
-    const listMatch = line.match(/^(\s*)([\*\-\+]|(\d+\.))\s+(.*)$/);
+    // 6. List items: - or * or 1.
+    const listMatch = line.match(/^([\*\-]|(\d+\.))\s+(.*)$/);
     if (listMatch) {
       flushParagraph(`p-before-li-${i}`);
-      const indentSpaces = (listMatch[1] || '').replace(/\t/g, '  ').length;
-      const depth = Math.min(Math.floor(indentSpaces / 2), 4);
-      const isOrdered = listMatch[2].includes('.');
-      const unorderedGlyphs = ['•', '◦', '▪', '▫'];
-      const bullet = isOrdered ? listMatch[2] : unorderedGlyphs[depth % unorderedGlyphs.length];
+      const bullet = listMatch[1].includes('.') ? listMatch[1] : '•';
       renderedElements.push(
-        <View
-          key={`li-${i}`}
-          style={[
-            styles.listItemRow,
-            { paddingLeft: 4 + depth * 14 },
-          ]}
-        >
+        <View key={`li-${i}`} style={styles.listItemRow}>
           <Text style={[styles.listBullet, { color: colors.textSecondary }]}>{bullet}</Text>
           <Text style={[styles.listContent, { color: colors.text }]} onPress={onPressText}>
-            {renderInlineTokens(
-              listMatch[4],
-              `li-${i}`,
-              colors.text,
-              isDark,
-              colors.border,
-              onPressText,
-              onPressInternalLink
-            )}
+            {renderInlineTokens(listMatch[3], `li-${i}`, colors.text, isDark, colors.border, onPressText)}
           </Text>
         </View>
       );
@@ -3768,8 +923,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   paragraph: {
-    fontSize: 14.5,
-    lineHeight: 22.5,
+    fontSize: 14,
+    lineHeight: 22,
     marginBottom: 10,
   },
   h1: {
@@ -3793,13 +948,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 4,
   },
-  h4: {
-    fontSize: 14,
-    fontWeight: '600',
-    lineHeight: 19,
-    marginTop: 8,
-    marginBottom: 3,
-  },
   inlineCode: {
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     fontSize: 12.5,
@@ -3808,23 +956,15 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
   },
-  inlineMath: {
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
-    fontSize: 13,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
   link: {
     textDecorationLine: 'underline',
     fontWeight: '600',
   },
   codeBlockContainer: {
     marginVertical: 10,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     overflow: 'hidden',
-    width: '100%',
   },
   codeHeader: {
     flexDirection: 'row',
@@ -3834,43 +974,36 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderBottomWidth: 1,
   },
-  codeLangGroup: {
+  codeLangWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  codeIconText: {
+  codeLangIconText: {
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     fontSize: 11,
     fontWeight: '700',
+    color: '#71717a',
   },
   codeLang: {
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
-  codeActionsRow: {
+  codeActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
   codeActionBtn: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
     borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   codeActionBtnText: {
-    fontSize: 10.5,
-    fontWeight: '600',
-  },
-  copyBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    borderWidth: 1,
-  },
-  copyBtnText: {
     fontSize: 10.5,
     fontWeight: '600',
   },
@@ -3878,255 +1011,52 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
     fontSize: 12.5,
     lineHeight: 18.5,
-    flexWrap: 'wrap',
+    color: '#e6edf3',
   },
-  codeContentWrapper: {
-    padding: 12,
-    paddingRight: 24,
-    width: '100%',
-  },
-  mobilePreviewBox: {
+  codePreviewContainer: {
     borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.08)',
     backgroundColor: '#ffffff',
-    overflow: 'hidden',
   },
-  mobilePreviewHeader: {
+  codePreviewBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
+    backgroundColor: '#f8fafc',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
+    borderBottomColor: '#e2e8f0',
   },
-  mobilePreviewTitle: {
-    fontSize: 11.5,
-    fontWeight: '600',
+  codePreviewTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  mobilePreviewDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  codePreviewDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#22c55e',
   },
-  mobilePreviewBadge: {
-    backgroundColor: 'rgba(34, 197, 94, 0.12)',
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 3,
+  codePreviewTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
   },
-  mobilePreviewBadgeText: {
-    color: '#16a34a',
-    fontSize: 9.5,
-    fontWeight: '700',
+  codePreviewCloseText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
   },
-  mobilePreviewFrame: {
+  codePreviewWebView: {
+    width: '100%',
+    height: 130,
     backgroundColor: '#ffffff',
   },
-  mathBlockContainer: {
+  tableWrapper: {
     marginVertical: 8,
     borderRadius: 8,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  mathBlockScrollContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  mathBlockText: {
-    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
-    fontSize: 13.5,
-    lineHeight: 20,
-  },
-  attCard: {
-    marginVertical: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  attHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  attSectionTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  attStatusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  attStatusPillText: {
-    fontSize: 11.5,
-    fontWeight: '500',
-  },
-  attHeroRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  attHeroLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-  attHeroPctRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  attHeroPct: {
-    fontSize: 30,
-    fontWeight: '700',
-    lineHeight: 34,
-  },
-  attHeroNoRecord: {
-    fontSize: 20,
-    lineHeight: 26,
-  },
-  attHeroRight: {
-    alignItems: 'flex-end',
-  },
-  attHeroRatio: {
-    fontSize: 18,
-    fontWeight: '600',
-    lineHeight: 24,
-  },
-  attHeroSub: {
-    fontSize: 12.5,
-    marginTop: 2,
-  },
-  attLowBadge: {
-    backgroundColor: 'rgba(239,68,68,0.12)',
-    borderColor: 'rgba(239,68,68,0.28)',
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  attLowBadgeText: {
-    color: '#ef4444',
-    fontSize: 10.5,
-    fontWeight: '600',
-  },
-  attBarTrack: {
-    width: '100%',
-    height: 8,
-    borderRadius: 999,
-    overflow: 'hidden',
-    marginVertical: 8,
-  },
-  attBarFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  attStatGrid: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 4,
-  },
-  attStatBox: {
-    flex: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  attStatNum: {
-    fontSize: 19,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  attStatLabel: {
-    fontSize: 12.5,
-    marginTop: 2,
-  },
-  attDivider: {
-    height: 1,
-    width: '100%',
-    marginVertical: 14,
-  },
-  attSubSectionHeading: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  attSubjectsList: {
-    gap: 14,
-  },
-  attSubjItem: {
-    width: '100%',
-  },
-  attSubjTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  attSubjInfo: {
-    flex: 1,
-  },
-  attSubjName: {
-    fontSize: 14.5,
-    fontWeight: '600',
-    lineHeight: 20,
-  },
-  attSubjMeta: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  attSubjPctCol: {
-    alignItems: 'flex-end',
-    gap: 3,
-  },
-  attSubjPct: {
-    fontSize: 17,
-    fontWeight: '700',
-    lineHeight: 21,
-  },
-  attSubjCountsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 1,
-  },
-  attSubjCountText: {
-    fontSize: 12,
-  },
-  attOtherList: {
-    gap: 10,
-  },
-  attOtherRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  attOtherName: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '500',
-    lineHeight: 20,
-  },
-  attNoRecordPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  attNoRecordPillText: {
-    fontSize: 11.5,
-    fontWeight: '500',
-  },
-  tableWrapper: {
-    marginVertical: 10,
-    borderRadius: 10,
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -4135,79 +1065,53 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   tableHeaderRow: {
-    borderBottomWidth: 1.5,
+    borderBottomWidth: 1,
   },
   tableCell: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 8,
-    minWidth: 85,
-    maxWidth: 220,
-    justifyContent: 'center',
-    flexShrink: 0,
+    minWidth: 90,
   },
   tableHeaderText: {
     fontSize: 12.5,
     fontWeight: '700',
-    letterSpacing: -0.1,
-    flexWrap: 'wrap',
   },
   tableCellText: {
     fontSize: 12.5,
-    lineHeight: 18,
-    flexWrap: 'wrap',
-  },
-  diagramNodeBox: {
-    padding: 11,
-    borderRadius: 10,
-    borderWidth: 1,
-  },
-  diagramNodeTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: -0.1,
-  },
-  diagramNodeDetail: {
-    fontSize: 12,
     lineHeight: 17,
-    marginTop: 3,
-  },
-  diagramArrow: {
-    textAlign: 'center',
-    fontSize: 13,
-    marginVertical: 2,
   },
   blockquote: {
     borderLeftWidth: 3,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4,
     marginVertical: 6,
     borderRadius: 2,
   },
   blockquoteText: {
     fontSize: 13.5,
     fontStyle: 'italic',
-    lineHeight: 20,
+    lineHeight: 19,
   },
   listItemRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginVertical: 2.5,
+    marginVertical: 2,
     paddingLeft: 4,
   },
   listBullet: {
-    width: 22,
+    width: 18,
     fontSize: 14,
-    lineHeight: 21,
+    lineHeight: 20,
     fontWeight: '600',
   },
   listContent: {
     flex: 1,
-    fontSize: 14.5,
-    lineHeight: 21.5,
+    fontSize: 14,
+    lineHeight: 20,
   },
   divider: {
     height: 1,
-    marginVertical: 10,
+    marginVertical: 8,
     width: '100%',
   },
   expandBtn: {
@@ -4218,143 +1122,5 @@ const styles = StyleSheet.create({
   expandBtnText: {
     fontSize: 12.5,
     fontWeight: '700',
-  },
-  quizQuestion: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 10,
-    lineHeight: 20,
-  },
-  quizOptionsList: {
-    gap: 6,
-    marginBottom: 10,
-  },
-  quizOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  quizOptKey: {
-    fontWeight: '700',
-    color: '#67D8FF',
-    minWidth: 16,
-  },
-  quizOptText: {
-    fontSize: 13,
-    flex: 1,
-  },
-  quizRevealBtn: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    alignSelf: 'flex-start',
-  },
-  quizRevealBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  quizRevealContent: {
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  quizCorrectAnswer: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  quizExplanation: {
-    fontSize: 12.5,
-    lineHeight: 18,
-  },
-  syllabusObjBox: {
-    padding: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  syllabusLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  syllabusObjText: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  syllabusSectionBox: {
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-  },
-  syllabusFooterText: {
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  traceStepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  compRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    marginBottom: 4,
-  },
-  compCriteriaText: {
-    fontSize: 13,
-    fontWeight: '600',
-    flex: 1,
-  },
-  compValText: {
-    fontSize: 12.5,
-    flex: 1,
-  },
-  roadmapItemRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  promptPill: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginVertical: 4,
-    marginRight: 6,
-  },
-  promptPillText: {
-    fontSize: 12.5,
-    fontWeight: '500',
-  },
-  traceCtrlBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  traceCtrlBtnText: {
-    fontSize: 11.5,
-    fontWeight: '600',
   },
 });

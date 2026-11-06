@@ -34,7 +34,25 @@ export const SUBFOLDER_DEFINITIONS = {
   snapshots: { key: 'snapshotsFolderId', name: 'Immutable Snapshots', role: 'snapshots_folder' },
 } as const;
 
-export type BackupArtifactType = 'snapshot' | 'daily_workbook' | 'annual_workbook';
+export const SUBJECT_SUBFOLDER_DEFINITIONS = {
+  daily: { key: 'dailyFolderId', name: 'Daily Attendance', role: 'subject_daily_folder' },
+  monthly: { key: 'monthlyFolderId', name: 'Monthly Attendance', role: 'subject_monthly_folder' },
+} as const;
+
+export function formatSubjectRootFolderName(subjectName: string | null | undefined): string {
+  const clean = String(subjectName || 'Subject')
+    .replace(/[\u0000-\u001F/\\]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim() || 'Subject';
+  return `Attendance (${clean})`;
+}
+
+export type BackupArtifactType =
+  | 'snapshot'
+  | 'daily_workbook'
+  | 'annual_workbook'
+  | 'subject_daily_workbook'
+  | 'subject_monthly_workbook';
 
 export interface DriveOAuthConfigStatus {
   platform: 'ios' | 'android' | 'web';
@@ -741,6 +759,13 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     const statusData = await callBackendJson('/api/attendance/backup/status', { method: 'GET' });
     cachedOAuthConfig = resolveOAuthConfig(statusData?.oauth);
     cachedConnection = statusData?.connection || null;
+
+    if (cachedConnection?.connectionStatus === 'connected' && !hasValidAccessToken()) {
+      try {
+        await ensureValidAccessTokenOrRefresh();
+      } catch {}
+    }
+
     return {
       ...statusData,
       oauth: cachedOAuthConfig,
@@ -1282,20 +1307,29 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
   async function connectGoogleDrive({
     prompt = 'consent',
     googleEmail = null,
+    subjects = [],
   }: {
     prompt?: string;
     googleEmail?: string | null;
+    subjects?: any[];
   } = {}) {
     const authResult = await requestAuthorization({ prompt });
     if (authResult.notConfigured) {
       return authResult;
     }
     const provisioned = await ensureFolderHierarchy({ googleEmail });
+    let subjectProvisioning = null;
+    if (Array.isArray(subjects) && subjects.length > 0) {
+      try {
+        subjectProvisioning = await provisionAllAssignedSubjects({ subjects });
+      } catch {}
+    }
     return {
       authorized: true,
       notConfigured: false,
       status: 'connected' as const,
       ...provisioned,
+      subjectProvisioning,
     };
   }
 
@@ -1986,10 +2020,363 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     }
   }
 
+  /**
+   * Provisions or reuses the dedicated subject folder hierarchy:
+   * Attendance (<Subject Name>)/
+   *   ├── Daily Attendance/
+   *   └── Monthly Attendance/
+   */
+  async function ensureSubjectFolderHierarchy({
+    subjectId,
+    subjectCode,
+    subjectName,
+  }: {
+    subjectId: string;
+    subjectCode?: string;
+    subjectName?: string;
+  }) {
+    if (!subjectId) {
+      throw new DriveSyncError('MISSING_SUBJECT_ID', 'subjectId is required to provision subject folder hierarchy.');
+    }
+    const subjectKey = String(subjectId).trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
+    const rootFolderName = formatSubjectRootFolderName(subjectName || subjectCode || subjectId);
+
+    const rootFolder = await resolveOrCreateFolder({
+      savedFolderId: null,
+      name: rootFolderName,
+      parentId: null,
+      folderRole: `subject_root_${subjectKey}`,
+    });
+
+    const dailyFolder = await resolveOrCreateFolder({
+      savedFolderId: null,
+      name: SUBJECT_SUBFOLDER_DEFINITIONS.daily.name,
+      parentId: rootFolder.id,
+      folderRole: SUBJECT_SUBFOLDER_DEFINITIONS.daily.role,
+    });
+
+    const monthlyFolder = await resolveOrCreateFolder({
+      savedFolderId: null,
+      name: SUBJECT_SUBFOLDER_DEFINITIONS.monthly.name,
+      parentId: rootFolder.id,
+      folderRole: SUBJECT_SUBFOLDER_DEFINITIONS.monthly.role,
+    });
+
+    return {
+      subjectFolderName: rootFolderName,
+      folders: {
+        rootFolderId: rootFolder.id,
+        rootFolderName,
+        dailyFolderId: dailyFolder.id,
+        monthlyFolderId: monthlyFolder.id,
+      },
+      resolution: {
+        root: rootFolder.source,
+        daily: dailyFolder.source,
+        monthly: monthlyFolder.source,
+      },
+    };
+  }
+
+  async function uploadSubjectWorkbookToDriveFolder({
+    folderId,
+    driveFileName,
+    artifactType,
+    targetScopeKey,
+    wbBundle,
+  }: {
+    folderId: string;
+    driveFileName: string;
+    artifactType: BackupArtifactType;
+    targetScopeKey: string;
+    wbBundle: any;
+  }) {
+    const mimeType = wbBundle?.mimeType || XLSX_MIME_TYPE;
+    const contentBytes = base64ToBytes(wbBundle.base64);
+    const computedSha = await computeSha256Hex(contentBytes);
+    if (wbBundle.sha256 && computedSha !== String(wbBundle.sha256).toLowerCase()) {
+      throw new DriveSyncError(
+        'WORKBOOK_INTEGRITY_MISMATCH',
+        `Workbook SHA-256 mismatch for ${driveFileName}.`
+      );
+    }
+
+    const appProperties = {
+      slApp: 'semester_library',
+      slArtifactType: artifactType,
+      slScopeKey: targetScopeKey,
+      slArtifactSha256: computedSha,
+    };
+
+    const existingFile = await findExistingArtifactFile({
+      folderId,
+      savedDriveFileId: null,
+      artifactType,
+      targetScopeKey,
+      driveFileName,
+    });
+
+    if (existingFile && existingFile.id) {
+      const existingProps = existingFile.appProperties || {};
+      const existingSha = String(
+        existingProps.slArtifactSha256 || existingFile.sha256Checksum || ''
+      ).toLowerCase();
+      if (existingSha === computedSha) {
+        return {
+          driveFileId: existingFile.id,
+          driveFileName: existingFile.name || driveFileName,
+          artifactSha256: computedSha,
+          reusedExistingFile: true,
+        };
+      }
+
+      const patchMultipart = buildMultipartRelatedBody(
+        {
+          name: driveFileName,
+          appProperties,
+        },
+        contentBytes,
+        mimeType
+      );
+
+      const updatedFile = await driveApiRequest(
+        `${DRIVE_UPLOAD_BASE}/files/${encodeURIComponent(existingFile.id)}?uploadType=multipart&fields=id,name,sha256Checksum,appProperties`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': patchMultipart.contentType },
+          body: patchMultipart.body,
+        }
+      );
+
+      return {
+        driveFileId: updatedFile.id || existingFile.id,
+        driveFileName: updatedFile.name || driveFileName,
+        artifactSha256: computedSha,
+        reusedExistingFile: false,
+      };
+    }
+
+    const createMultipart = buildMultipartRelatedBody(
+      {
+        name: driveFileName,
+        mimeType,
+        parents: [folderId],
+        appProperties,
+      },
+      contentBytes,
+      mimeType
+    );
+
+    const createdFile = await driveApiRequest(
+      `${DRIVE_UPLOAD_BASE}/files?uploadType=multipart&fields=id,name,sha256Checksum,appProperties`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': createMultipart.contentType },
+        body: createMultipart.body,
+      }
+    );
+
+    return {
+      driveFileId: createdFile.id,
+      driveFileName: createdFile.name || driveFileName,
+      artifactSha256: computedSha,
+      reusedExistingFile: false,
+    };
+  }
+
+  async function syncSubjectAttendanceToDrive({
+    subjectId,
+    cohortId = null,
+    subjectName = '',
+    date = null,
+    month = null,
+  }: {
+    subjectId: string;
+    cohortId?: string | null;
+    subjectName?: string;
+    date?: string | null;
+    month?: string | null;
+  }) {
+    if (!subjectId) {
+      throw new DriveSyncError('MISSING_SUBJECT_ID', 'subjectId is required to sync subject attendance to Google Drive.');
+    }
+    const tokenReady = await ensureValidAccessTokenOrRefresh();
+    if (!tokenReady) {
+      return {
+        synced: false,
+        status: 'auth_needed' as const,
+        reconnectRequired: false,
+      };
+    }
+
+    const dailyQs = new URLSearchParams({ subjectId: String(subjectId), format: 'json' });
+    if (cohortId) dailyQs.set('cohortId', String(cohortId));
+    if (date) dailyQs.set('date', String(date));
+    const dailyBundle = await callBackendJson(`/api/attendance/backup/workbooks/subject-daily?${dailyQs.toString()}`, {
+      method: 'GET',
+    });
+
+    const effectiveMonth = month || (dailyBundle.date ? String(dailyBundle.date).slice(0, 7) : '');
+    const monthlyQs = new URLSearchParams({ subjectId: String(subjectId), format: 'json' });
+    if (cohortId) monthlyQs.set('cohortId', String(cohortId));
+    if (effectiveMonth) monthlyQs.set('month', String(effectiveMonth));
+    const monthlyBundle = await callBackendJson(`/api/attendance/backup/workbooks/monthly?${monthlyQs.toString()}`, {
+      method: 'GET',
+    });
+
+    const resolvedSubjName = subjectName || dailyBundle.subjectName || monthlyBundle.subjectName || subjectId;
+    const hierarchy = await ensureSubjectFolderHierarchy({
+      subjectId,
+      subjectCode: dailyBundle.subjectCode || subjectId,
+      subjectName: resolvedSubjName,
+    });
+
+    const dailyFile = await uploadSubjectWorkbookToDriveFolder({
+      folderId: hierarchy.folders.dailyFolderId,
+      driveFileName: dailyBundle.filename || `${dailyBundle.date}.xlsx`,
+      artifactType: 'subject_daily_workbook',
+      targetScopeKey: `subject_daily:${subjectId}:${dailyBundle.date}`,
+      wbBundle: dailyBundle,
+    });
+
+    const monthlyFile = await uploadSubjectWorkbookToDriveFolder({
+      folderId: hierarchy.folders.monthlyFolderId,
+      driveFileName: monthlyBundle.filename || `${monthlyBundle.monthName}.xlsx`,
+      artifactType: 'subject_monthly_workbook',
+      targetScopeKey: `subject_monthly:${subjectId}:${monthlyBundle.month}`,
+      wbBundle: monthlyBundle,
+    });
+
+    return {
+      synced: true,
+      status: 'backed_up' as const,
+      subjectId,
+      subjectName: resolvedSubjName,
+      subjectFolderName: hierarchy.subjectFolderName,
+      folders: hierarchy.folders,
+      resolution: hierarchy.resolution,
+      dailyFile,
+      monthlyFile,
+    };
+  }
+
+  async function provisionAllAssignedSubjects({ subjects = [] }: { subjects?: any[] } = {}) {
+    if (!Array.isArray(subjects) || subjects.length === 0) {
+      return { provisioned: true, total: 0, subjects: [] };
+    }
+    const results: any[] = [];
+    for (const subj of subjects) {
+      const subjectId = subj.id || subj.subjectId || subj.code;
+      const subjectName = subj.name || subj.displayName || subj.title || subjectId;
+      const subjectCode = subj.code || subjectId;
+      try {
+        const hierarchy = await ensureSubjectFolderHierarchy({
+          subjectId,
+          subjectCode,
+          subjectName,
+        });
+        results.push({ subjectId, subjectName, success: true, hierarchy });
+      } catch (err: any) {
+        results.push({
+          subjectId,
+          subjectName,
+          success: false,
+          error: sanitizeClientErrorMessage(err?.message),
+        });
+      }
+    }
+    return {
+      provisioned: results.every((r) => r.success),
+      total: subjects.length,
+      results,
+    };
+  }
+
+  async function syncAllAssignedSubjectsToDrive({
+    subjects = [],
+    date = null,
+    month = null,
+  }: {
+    subjects?: any[];
+    date?: string | null;
+    month?: string | null;
+  } = {}) {
+    if (!Array.isArray(subjects) || subjects.length === 0) {
+      return {
+        synced: true,
+        status: 'backed_up' as const,
+        total: 0,
+        completed: 0,
+        failed: 0,
+        results: [],
+      };
+    }
+
+    const tokenReady = await ensureValidAccessTokenOrRefresh();
+    if (!tokenReady) {
+      return {
+        synced: false,
+        status: 'auth_needed' as const,
+        reconnectRequired: false,
+        total: subjects.length,
+        completed: 0,
+        failed: subjects.length,
+        results: [],
+        message: 'Active Google Drive session required to sync subjects.',
+      };
+    }
+
+    const results: any[] = [];
+    let completedCount = 0;
+    let failedCount = 0;
+
+    for (const subj of subjects) {
+      const subjectId = subj.id || subj.subjectId || subj.code;
+      const subjectName = subj.name || subj.displayName || subj.title || subjectId;
+      const cohortId = subj.cohortId || (Array.isArray(subj.cohorts) && subj.cohorts[0]?.id) || null;
+
+      try {
+        const res = await syncSubjectAttendanceToDrive({
+          subjectId,
+          cohortId,
+          subjectName,
+          date,
+          month,
+        });
+        const isSuccess = Boolean(res && res.synced);
+        results.push({ subjectId, subjectName, success: isSuccess, data: res });
+        if (isSuccess) {
+          completedCount++;
+        } else {
+          failedCount++;
+        }
+      } catch (err: any) {
+        failedCount++;
+        results.push({
+          subjectId,
+          subjectName,
+          success: false,
+          error: sanitizeClientErrorMessage(err?.message),
+        });
+      }
+    }
+
+    return {
+      synced: failedCount === 0,
+      status: failedCount === 0 ? ('backed_up' as const) : completedCount > 0 ? ('partial' as const) : ('failed' as const),
+      total: subjects.length,
+      completed: completedCount,
+      failed: failedCount,
+      results,
+    };
+  }
+
   return {
     DRIVE_FILE_SCOPE,
     DEFAULT_ROOT_FOLDER_NAME,
     SUBFOLDER_DEFINITIONS,
+    SUBJECT_SUBFOLDER_DEFINITIONS,
+    formatSubjectRootFolderName,
     resolveOAuthConfig,
     getStatus,
     listPendingWork,
@@ -1998,11 +2385,15 @@ export function createMobileAttendanceDriveSyncCore(options: MobileDriveSyncClie
     clearTokens,
     requestAuthorization,
     ensureFolderHierarchy,
+    ensureSubjectFolderHierarchy,
+    provisionAllAssignedSubjects,
     connectGoogleDrive,
     disconnectGoogleDrive,
     findExistingArtifactFile,
     uploadOrReconcileArtifactToDrive,
     syncPendingWork,
+    syncSubjectAttendanceToDrive,
+    syncAllAssignedSubjectsToDrive,
   };
 }
 

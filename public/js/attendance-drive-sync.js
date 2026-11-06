@@ -312,8 +312,15 @@
       options.clientId ||
       `web_drive_sync_${Math.random().toString(36).slice(2, 10)}`;
 
-    // Strictly in-memory OAuth token state (NEVER written to localStorage or sessionStorage)
+    // Strictly in-memory OAuth token state (NEVER written to localStorage, sessionStorage, or cookies)
     let inMemoryToken = null; // { accessToken, expiresAtMs, scope, tokenType }
+    if (win && win.__SL_DRIVE_ACTIVE_TOKEN__ && win.__SL_DRIVE_ACTIVE_TOKEN__.accessToken) {
+      if (Number(win.__SL_DRIVE_ACTIVE_TOKEN__.expiresAtMs) - 30_000 > nowFn()) {
+        inMemoryToken = win.__SL_DRIVE_ACTIVE_TOKEN__;
+      } else {
+        win.__SL_DRIVE_ACTIVE_TOKEN__ = null;
+      }
+    }
     let cachedOAuthConfig = options.oauthConfig || null;
     let cachedConnection = null;
     let gisLoadPromise = null;
@@ -507,6 +514,9 @@
 
     function clearAccessToken() {
       inMemoryToken = null;
+      if (win) {
+        win.__SL_DRIVE_ACTIVE_TOKEN__ = null;
+      }
       enforceZeroBrowserTokenStorage();
     }
 
@@ -522,6 +532,9 @@
         scope: String(scope || DRIVE_FILE_SCOPE),
         tokenType: 'Bearer'
       };
+      if (win) {
+        win.__SL_DRIVE_ACTIVE_TOKEN__ = inMemoryToken;
+      }
       enforceZeroBrowserTokenStorage();
       return {
         authorized: true,
@@ -575,7 +588,7 @@
      * Requests interactive Google OAuth authorization via Google Identity Services token client.
      * Must be triggered from a user gesture when interactive prompt is required.
      */
-    async function requestAuthorization({ userGesture = false, prompt = '' } = {}) {
+    async function requestAuthorization({ userGesture = false, prompt = '', silent = false } = {}) {
       let cfg = resolveLocalOAuthConfig(cachedOAuthConfig);
       if (!cfg.webClientId) {
         try {
@@ -598,13 +611,6 @@
         };
       }
 
-      if (!userGesture && !hasValidAccessToken()) {
-        throw createClientError(
-          'USER_GESTURE_REQUIRED',
-          'Interactive Google Drive authorization must be initiated from a user gesture.'
-        );
-      }
-
       if (hasValidAccessToken() && prompt !== 'consent') {
         return {
           authorized: true,
@@ -615,12 +621,34 @@
         };
       }
 
+      if (!userGesture && !hasValidAccessToken()) {
+        if (!silent) {
+          throw createClientError(
+            'USER_GESTURE_REQUIRED',
+            'Interactive Google Drive authorization must be initiated from a user gesture.'
+          );
+        }
+      }
+
       if (activeAuthPromise) {
         return await activeAuthPromise;
       }
 
       activeAuthPromise = (async () => {
-        const oauth2 = await ensureGoogleIdentityServicesLoaded();
+        let oauth2;
+        try {
+          oauth2 = await ensureGoogleIdentityServicesLoaded();
+        } catch (loadErr) {
+          if (silent) {
+            return {
+              authorized: false,
+              notConfigured: false,
+              status: 'auth_needed',
+              code: 'GIS_SDK_UNAVAILABLE'
+            };
+          }
+          throw loadErr;
+        }
 
         return await new Promise((resolve, reject) => {
           let settled = false;
@@ -640,7 +668,16 @@
               client_id: cfg.webClientId,
               scope: DRIVE_FILE_SCOPE,
               callback: (tokenResponse) => {
-                if (!tokenResponse || tokenResponse.error) {
+                if (!tokenResponse || tokenResponse.error || !tokenResponse.access_token) {
+                  if (silent) {
+                    finishResolve({
+                      authorized: false,
+                      notConfigured: false,
+                      status: 'auth_needed',
+                      code: 'SILENT_AUTH_UNAVAILABLE'
+                    });
+                    return;
+                  }
                   const errType = String((tokenResponse && tokenResponse.error) || 'oauth_error').toLowerCase();
                   if (errType === 'access_denied' || errType === 'user_cancel' || errType.includes('cancel')) {
                     finishReject(
@@ -665,6 +702,10 @@
                   typeof oauth2.hasGrantedAllScopes === 'function' &&
                   !oauth2.hasGrantedAllScopes(tokenResponse, DRIVE_FILE_SCOPE)
                 ) {
+                  if (silent) {
+                    finishResolve({ authorized: false, notConfigured: false, status: 'auth_needed' });
+                    return;
+                  }
                   finishReject(
                     createClientError(
                       'OAUTH_SCOPE_MISSING',
@@ -673,6 +714,10 @@
                   );
                   return;
                 } else if (grantedScope && !grantedScope.includes('drive.file')) {
+                  if (silent) {
+                    finishResolve({ authorized: false, notConfigured: false, status: 'auth_needed' });
+                    return;
+                  }
                   finishReject(
                     createClientError(
                       'OAUTH_SCOPE_MISSING',
@@ -695,6 +740,15 @@
                 });
               },
               error_callback: (err) => {
+                if (silent) {
+                  finishResolve({
+                    authorized: false,
+                    notConfigured: false,
+                    status: 'auth_needed',
+                    code: 'SILENT_AUTH_UNAVAILABLE'
+                  });
+                  return;
+                }
                 const errType = String((err && err.type) || (err && err.message) || 'popup_closed').toLowerCase();
                 if (errType.includes('popup_closed') || errType.includes('cancel')) {
                   finishReject(
@@ -708,8 +762,17 @@
               }
             });
 
-            tokenClient.requestAccessToken({ prompt });
+            tokenClient.requestAccessToken({ prompt: silent ? '' : prompt });
           } catch (initErr) {
+            if (silent) {
+              finishResolve({
+                authorized: false,
+                notConfigured: false,
+                status: 'auth_needed',
+                code: 'SILENT_AUTH_UNAVAILABLE'
+              });
+              return;
+            }
             finishReject(createClientError('OAUTH_INIT_FAILED', initErr.message || 'Failed to initialize Google OAuth.'));
           }
         });
@@ -1008,17 +1071,24 @@
     /**
      * Connects Google Drive (authorizes via GIS and provisions/reuses the folder hierarchy).
      */
-    async function connectGoogleDrive({ userGesture = true, prompt = '', googleEmail = null } = {}) {
+    async function connectGoogleDrive({ userGesture = true, prompt = '', googleEmail = null, subjects = [] } = {}) {
       const authResult = await requestAuthorization({ userGesture, prompt });
       if (authResult.notConfigured) {
         return authResult;
       }
       const provisioned = await ensureFolderHierarchy({ googleEmail });
+      let subjectProvisioning = null;
+      if (Array.isArray(subjects) && subjects.length > 0) {
+        try {
+          subjectProvisioning = await provisionAllAssignedSubjects({ subjects });
+        } catch (_) {}
+      }
       return {
         authorized: true,
         notConfigured: false,
         status: 'connected',
-        ...provisioned
+        ...provisioned,
+        subjectProvisioning
       };
     }
 
@@ -1893,10 +1963,16 @@
         throw createClientError('MISSING_SUBJECT_ID', 'subjectId is required to sync subject attendance to Google Drive.');
       }
       if (!hasValidAccessToken()) {
+        try {
+          await requestAuthorization({ userGesture: false, prompt: '', silent: true });
+        } catch (_) {}
+      }
+      if (!hasValidAccessToken()) {
         return {
           synced: false,
-          status: 'reconnect_required',
-          reconnectRequired: true
+          status: 'auth_needed',
+          reconnectRequired: false,
+          message: 'Active Google Drive session required to sync subject attendance.'
         };
       }
 
@@ -1947,6 +2023,130 @@
       };
     }
 
+    /**
+     * Provisions folder hierarchies for all assigned subjects:
+     * Attendance (<Subject Name>)/Daily Attendance and Attendance (<Subject Name>)/Monthly Attendance.
+     */
+    async function provisionAllAssignedSubjects({ subjects = [] } = {}) {
+      if (!Array.isArray(subjects) || subjects.length === 0) {
+        return { provisioned: true, total: 0, subjects: [] };
+      }
+      const results = [];
+      for (const subj of subjects) {
+        const subjectId = subj.id || subj.subjectId || subj.code;
+        const subjectName = subj.name || subj.displayName || subj.title || subjectId;
+        const subjectCode = subj.code || subjectId;
+        try {
+          const hierarchy = await ensureSubjectFolderHierarchy({
+            subjectId,
+            subjectCode,
+            subjectName
+          });
+          results.push({ subjectId, subjectName, success: true, hierarchy });
+        } catch (err) {
+          results.push({
+            subjectId,
+            subjectName,
+            success: false,
+            error: sanitizeClientErrorMessage(err && err.message)
+          });
+        }
+      }
+      return {
+        provisioned: results.every((r) => r.success),
+        total: subjects.length,
+        results
+      };
+    }
+
+    /**
+     * Synchronizes all assigned subjects' daily and monthly attendance workbooks to Google Drive.
+     */
+    async function syncAllAssignedSubjectsToDrive({
+      subjects = [],
+      date = null,
+      month = null
+    } = {}) {
+      if (!Array.isArray(subjects) || subjects.length === 0) {
+        return {
+          synced: true,
+          status: 'backed_up',
+          total: 0,
+          completed: 0,
+          failed: 0,
+          results: []
+        };
+      }
+
+      if (!hasValidAccessToken()) {
+        try {
+          await requestAuthorization({ userGesture: false, prompt: '', silent: true });
+        } catch (_) {}
+      }
+
+      if (!hasValidAccessToken()) {
+        return {
+          synced: false,
+          status: 'auth_needed',
+          reconnectRequired: false,
+          total: subjects.length,
+          completed: 0,
+          failed: subjects.length,
+          results: [],
+          message: 'Active Google Drive session required to sync subjects.'
+        };
+      }
+
+      const results = [];
+      let completedCount = 0;
+      let failedCount = 0;
+
+      for (const subj of subjects) {
+        const subjectId = subj.id || subj.subjectId || subj.code;
+        const subjectName = subj.name || subj.displayName || subj.title || subjectId;
+        const cohortId = subj.cohortId || (Array.isArray(subj.cohorts) && subj.cohorts[0] && subj.cohorts[0].id) || null;
+
+        try {
+          const res = await syncSubjectAttendanceToDrive({
+            subjectId,
+            cohortId,
+            subjectName,
+            date,
+            month
+          });
+          const isSuccess = Boolean(res && res.synced);
+          results.push({
+            subjectId,
+            subjectName,
+            success: isSuccess,
+            data: res
+          });
+          if (isSuccess) {
+            completedCount++;
+          } else {
+            failedCount++;
+          }
+        } catch (err) {
+          failedCount++;
+          results.push({
+            subjectId,
+            subjectName,
+            success: false,
+            error: sanitizeClientErrorMessage(err && err.message)
+          });
+        }
+      }
+
+      return {
+        synced: failedCount === 0,
+        status: failedCount === 0 ? 'backed_up' : completedCount > 0 ? 'partial' : 'failed',
+        total: subjects.length,
+        completed: completedCount,
+        failed: failedCount,
+        results
+      };
+    }
+
     return {
       DRIVE_FILE_SCOPE,
       DEFAULT_ROOT_FOLDER_NAME,
@@ -1965,12 +2165,14 @@
       requestAuthorization,
       ensureFolderHierarchy,
       ensureSubjectFolderHierarchy,
+      provisionAllAssignedSubjects,
       connectGoogleDrive,
       disconnectGoogleDrive,
       findExistingArtifactFile,
       uploadOrReconcileArtifactToDrive,
       syncPendingWork,
-      syncSubjectAttendanceToDrive
+      syncSubjectAttendanceToDrive,
+      syncAllAssignedSubjectsToDrive
     };
   }
 
@@ -1983,6 +2185,8 @@
     SUBFOLDER_DEFINITIONS,
     SUBJECT_SUBFOLDER_DEFINITIONS,
     formatSubjectRootFolderName,
+    provisionAllAssignedSubjects: defaultInstance.provisionAllAssignedSubjects,
+    syncAllAssignedSubjectsToDrive: defaultInstance.syncAllAssignedSubjectsToDrive,
     sanitizeClientErrorMessage,
     assertNoSecretsInBackendPayload,
     serializeCanonicalJson,

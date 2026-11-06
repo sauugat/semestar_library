@@ -227,6 +227,30 @@ export function TeacherAttendanceView({
   const [selectedDate, setSelectedDate] = useState<string>(initialDate || '');
   const [customDateModalOpen, setCustomDateModalOpen] = useState(false);
   const [customDateInput, setCustomDateInput] = useState('');
+  const selectedMonth = selectedDate && /^\d{4}-\d{2}/.test(selectedDate) ? selectedDate.slice(0, 7) : null;
+
+  // 1. Fetch Teacher Attendance Context: GET /api/attendance/teacher/context
+  const {
+    data: contextData,
+    isLoading: isContextLoading,
+    error: contextError,
+    refetch: refetchContext,
+  } = useQuery<TeacherAttendanceContextResponse>({
+    queryKey: ['attendance-teacher-context', user?.studentId],
+    queryFn: async () => {
+      const res = await apiFetch('/api/attendance/teacher/context');
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.message || 'Failed to load teacher attendance context.');
+      }
+      return json;
+    },
+    enabled: Boolean(isAuthorizedStaff && user?.studentId),
+    staleTime: 30 * 1000,
+  });
+
+  const currentNepalDate = contextData?.currentNepalDate || '';
+  const subjects = useMemo(() => contextData?.subjects || [], [contextData?.subjects]);
 
   // Workflow stage & marking state
   const [stage, setStage] = useState<AttendanceStage>('marking');
@@ -347,7 +371,7 @@ export function TeacherAttendanceView({
     }
 
     try {
-      const res: any = await mobileAttendanceDriveSync.connectGoogleDrive();
+      const res: any = await mobileAttendanceDriveSync.connectGoogleDrive({ subjects });
       if (!isMountedRef.current) return;
 
       if (res?.notConfigured || res?.status === 'not_configured') {
@@ -358,8 +382,18 @@ export function TeacherAttendanceView({
 
       setIsBackupConnecting(false);
       setBackupReconnectRequired(false);
-      setBackupNoticeMessage('Google Drive connected and backup folders verified.');
+      setBackupNoticeMessage('Google Drive connected and backup folders for all assigned subjects verified.');
       await refreshDriveBackupState({ preserveMessages: true });
+
+      // Auto-sync all assigned subjects in background on connect
+      mobileAttendanceDriveSync
+        .syncAllAssignedSubjectsToDrive({
+          subjects,
+          date: selectedDate,
+          month: selectedMonth,
+        })
+        .then(() => refreshDriveBackupState({ preserveMessages: true }))
+        .catch(() => {});
     } catch (err: any) {
       if (!isMountedRef.current) return;
       setIsBackupConnecting(false);
@@ -382,6 +416,9 @@ export function TeacherAttendanceView({
     isBackupSyncing,
     isBackupDisconnecting,
     refreshDriveBackupState,
+    subjects,
+    selectedDate,
+    selectedMonth,
   ]);
 
   const handleSyncDriveBackup = useCallback(
@@ -406,6 +443,21 @@ export function TeacherAttendanceView({
         const syncResult: any = await mobileAttendanceDriveSync.syncPendingWork({
           forceRetry: Boolean(forceRetry),
         });
+
+        // Also sync current subject workbooks if selected
+        if (selectedSubjectId) {
+          const subObj = subjects.find((s) => s.id === selectedSubjectId);
+          await mobileAttendanceDriveSync
+            .syncSubjectAttendanceToDrive({
+              subjectId: selectedSubjectId,
+              cohortId: selectedCohortId,
+              subjectName: subObj?.name || selectedSubjectId,
+              date: selectedDate,
+              month: selectedMonth,
+            })
+            .catch(() => {});
+        }
+
         if (!isMountedRef.current) return;
         setIsBackupSyncing(false);
 
@@ -478,8 +530,67 @@ export function TeacherAttendanceView({
       isBackupSyncing,
       isBackupDisconnecting,
       refreshDriveBackupState,
+      selectedSubjectId,
+      selectedCohortId,
+      subjects,
+      selectedDate,
+      selectedMonth,
     ]
   );
+
+  const handleSyncAllSubjectsDriveBackup = useCallback(async () => {
+    if (
+      isBackupActionInFlightRef.current ||
+      isBackupConnecting ||
+      isBackupSyncing ||
+      isBackupDisconnecting
+    ) {
+      return;
+    }
+
+    isBackupActionInFlightRef.current = true;
+    if (isMountedRef.current) {
+      setIsBackupSyncing(true);
+      setBackupErrorMessage(null);
+      setBackupNoticeMessage(null);
+    }
+
+    try {
+      await mobileAttendanceDriveSync.syncPendingWork({ forceRetry: true });
+      const syncResult: any = await mobileAttendanceDriveSync.syncAllAssignedSubjectsToDrive({
+        subjects,
+        date: selectedDate,
+        month: selectedMonth,
+      });
+
+      if (!isMountedRef.current) return;
+      setIsBackupSyncing(false);
+
+      if (syncResult?.synced) {
+        setBackupNoticeMessage(`All ${syncResult.total} assigned subjects are synced to your Google Drive.`);
+      } else if (syncResult?.completed > 0) {
+        setBackupNoticeMessage(`Synced ${syncResult.completed} of ${syncResult.total} subjects to your Google Drive.`);
+      } else if (syncResult?.message) {
+        setBackupErrorMessage(sanitizeClientErrorMessage(syncResult.message));
+      }
+      await refreshDriveBackupState({ preserveMessages: true });
+    } catch (err: any) {
+      if (!isMountedRef.current) return;
+      setIsBackupSyncing(false);
+      setBackupErrorMessage(sanitizeClientErrorMessage(err?.message));
+      await refreshDriveBackupState({ preserveMessages: true });
+    } finally {
+      isBackupActionInFlightRef.current = false;
+    }
+  }, [
+    isBackupConnecting,
+    isBackupSyncing,
+    isBackupDisconnecting,
+    refreshDriveBackupState,
+    subjects,
+    selectedDate,
+    selectedMonth,
+  ]);
 
   const executeDisconnectDriveBackup = useCallback(async () => {
     if (
@@ -621,29 +732,6 @@ export function TeacherAttendanceView({
     });
     return () => sub.remove();
   }, [hasUnsavedChanges, confirmNavigationWithUnsavedGuard, onClose]);
-
-  // 1. Fetch Teacher Attendance Context: GET /api/attendance/teacher/context
-  const {
-    data: contextData,
-    isLoading: isContextLoading,
-    error: contextError,
-    refetch: refetchContext,
-  } = useQuery<TeacherAttendanceContextResponse>({
-    queryKey: ['attendance-teacher-context', user?.studentId],
-    queryFn: async () => {
-      const res = await apiFetch('/api/attendance/teacher/context');
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(json.message || 'Failed to load teacher attendance context.');
-      }
-      return json;
-    },
-    enabled: Boolean(isAuthorizedStaff && user?.studentId),
-    staleTime: 30 * 1000,
-  });
-
-  const currentNepalDate = contextData?.currentNepalDate || '';
-  const subjects = useMemo(() => contextData?.subjects || [], [contextData?.subjects]);
 
   // Initialize default subject & Nepal date when context arrives
   useEffect(() => {
@@ -932,6 +1020,30 @@ export function TeacherAttendanceView({
         refreshDriveBackupState({ preserveMessages: true }),
         queryClient.invalidateQueries({ queryKey: ['attendance-teacher-context'] }),
       ]);
+
+      // Automatically sync to Google Drive in the background if Google Drive is connected
+      if (backupStatusData?.connection?.connectionStatus === 'connected') {
+        (async () => {
+          try {
+            await mobileAttendanceDriveSync.syncPendingWork();
+            if (selectedSubjectId) {
+              const subObj = subjects.find((s) => s.id === selectedSubjectId);
+              await mobileAttendanceDriveSync.syncSubjectAttendanceToDrive({
+                subjectId: selectedSubjectId,
+                cohortId: selectedCohortId,
+                subjectName: subObj?.name || selectedSubjectId,
+                date: selectedDate,
+                month: selectedMonth,
+              });
+            }
+          } catch (autoErr) {
+            console.warn('[Mobile Attendance Auto-Drive] Background sync deferred:', autoErr);
+          } finally {
+            refreshDriveBackupState({ preserveMessages: true });
+          }
+        })();
+      }
+
       setStage('review');
     } catch (err: any) {
       // Preserve complete local marking state on error
@@ -1483,7 +1595,7 @@ export function TeacherAttendanceView({
                         }
                         style={[styles.backupPrimaryBtn, { backgroundColor: colors.text, borderColor: colors.text }]}
                         accessibilityRole="button"
-                        accessibilityLabel={backupUiModel.canRetry ? 'Retry Sync' : 'Sync Now'}
+                        accessibilityLabel={backupUiModel.canRetry ? 'Retry Sync' : 'Sync Current Subject'}
                         testID={backupUiModel.canRetry ? 'btn-retry-drive-backup' : 'btn-sync-drive-backup'}
                       >
                         <Ionicons
@@ -1493,9 +1605,28 @@ export function TeacherAttendanceView({
                           style={{ marginRight: 6 }}
                         />
                         <Text variant="xs" weight="800" style={{ color: colors.background }}>
-                          {backupUiModel.canRetry ? 'Retry Sync' : 'Sync Now'}
+                          {backupUiModel.canRetry ? 'Retry Sync' : 'Sync Current Subject'}
                         </Text>
                       </TouchableOpacity>
+                      {subjects.length > 1 && (
+                        <TouchableOpacity
+                          onPress={handleSyncAllSubjectsDriveBackup}
+                          style={[styles.backupPrimaryBtn, { backgroundColor: '#10b981', borderColor: '#059669', marginTop: 8 }]}
+                          accessibilityRole="button"
+                          accessibilityLabel="Sync All Subjects to Drive"
+                          testID="btn-sync-all-subjects-drive-backup"
+                        >
+                          <Ionicons
+                            name="cloud-upload-outline"
+                            size={14}
+                            color="#fff"
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text variant="xs" weight="800" style={{ color: '#fff' }}>
+                            Sync All {subjects.length} Subjects to Drive
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                       <TouchableOpacity
                         onPress={handleDisconnectDriveBackup}
                         style={[styles.backupSecondaryBtn, { backgroundColor: colors.surfaceSubtle, borderColor: colors.border }]}

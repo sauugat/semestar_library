@@ -1660,7 +1660,10 @@
     render();
 
     try {
-      const res = await client.connectGoogleDrive({ userGesture: true });
+      const res = await client.connectGoogleDrive({
+        userGesture: true,
+        subjects: state.subjects
+      });
       if (res && (res.notConfigured || res.status === 'not_configured')) {
         state.backupConnecting = false;
         await loadBackupStatus({ preserveMessages: true });
@@ -1669,8 +1672,17 @@
 
       state.backupConnecting = false;
       state.backupReconnectRequired = false;
-      state.backupNoticeMessage = 'Google Drive connected and backup folders verified.';
+      state.backupNoticeMessage = 'Google Drive connected and backup folders verified for all your assigned subjects.';
       await loadBackupStatus({ preserveMessages: true });
+
+      // Automatically sync all assigned subjects in the background so drive folders are filled immediately
+      if (typeof client.syncAllAssignedSubjectsToDrive === 'function') {
+        client.syncAllAssignedSubjectsToDrive({
+          subjects: state.subjects,
+          date: state.selectedDate,
+          month: state.selectedMonth
+        }).then(() => loadBackupStatus({ preserveMessages: true })).catch(() => {});
+      }
     } catch (err) {
       state.backupConnecting = false;
       const errCode = (err && err.code) || '';
@@ -1701,11 +1713,41 @@
     render();
 
     try {
+      if (typeof client.hasValidAccessToken === 'function' && !client.hasValidAccessToken()) {
+        try {
+          await client.requestAuthorization({ userGesture: true });
+        } catch (authErr) {
+          const authErrCode = String((authErr && authErr.code) || '');
+          if (authErrCode === 'OAUTH_CANCELLED') {
+            state.backupNoticeMessage = 'Google Drive authorization was cancelled.';
+            state.backupSyncing = false;
+            render();
+            return;
+          }
+          throw authErr;
+        }
+      }
+
       await loadBackupStatus({ preserveMessages: true });
       state.backupSyncing = true;
       render();
 
       const syncResult = await client.syncPendingWork({ forceRetry: Boolean(forceRetry) });
+
+      // Also sync current subject daily and monthly workbooks if selected
+      if (state.selectedSubjectId && typeof client.syncSubjectAttendanceToDrive === 'function') {
+        const subObj = getSelectedSubjectObj();
+        await client.syncSubjectAttendanceToDrive({
+          subjectId: state.selectedSubjectId,
+          cohortId: state.selectedCohortId,
+          subjectName: (subObj && subObj.name) || (state.rosterSubject && state.rosterSubject.name) || state.selectedSubjectId,
+          date: state.selectedDate,
+          month: state.selectedMonth
+        }).catch((subjErr) => {
+          console.warn('[Sync Current Subject] Error:', subjErr);
+        });
+      }
+
       state.backupSyncing = false;
 
       if (syncResult && (syncResult.notConfigured || syncResult.status === 'not_configured')) {
@@ -1750,6 +1792,61 @@
       if (err && err.reconnectRequired) {
         state.backupReconnectRequired = true;
       }
+      state.backupErrorMessage = sanitizeUiBackupError(err && err.message);
+      await loadBackupStatus({ preserveMessages: true });
+    }
+  }
+
+  async function syncAllSubjectsDriveBackup() {
+    if (state.backupConnecting || state.backupSyncing || state.backupDisconnecting) return;
+
+    const client = getOrInitDriveClient();
+    if (!client || typeof client.syncAllAssignedSubjectsToDrive !== 'function') {
+      state.backupErrorMessage = 'Google Drive multi-subject sync client is not available.';
+      render();
+      return;
+    }
+
+    state.backupSyncing = true;
+    state.backupErrorMessage = null;
+    state.backupNoticeMessage = null;
+    render();
+
+    try {
+      if (typeof client.hasValidAccessToken === 'function' && !client.hasValidAccessToken()) {
+        try {
+          await client.requestAuthorization({ userGesture: true });
+        } catch (authErr) {
+          const authErrCode = String((authErr && authErr.code) || '');
+          if (authErrCode === 'OAUTH_CANCELLED') {
+            state.backupNoticeMessage = 'Google Drive authorization was cancelled.';
+            state.backupSyncing = false;
+            render();
+            return;
+          }
+          throw authErr;
+        }
+      }
+
+      await client.syncPendingWork({ forceRetry: true });
+      const syncResult = await client.syncAllAssignedSubjectsToDrive({
+        subjects: state.subjects,
+        date: state.selectedDate,
+        month: state.selectedMonth
+      });
+
+      state.backupSyncing = false;
+
+      if (syncResult && syncResult.synced) {
+        state.backupNoticeMessage = `All ${syncResult.total} assigned subjects are synced to your Google Drive.`;
+      } else if (syncResult && syncResult.completed > 0) {
+        state.backupNoticeMessage = `Synced ${syncResult.completed} of ${syncResult.total} subjects to your Google Drive.`;
+      } else if (syncResult && syncResult.message) {
+        state.backupErrorMessage = sanitizeUiBackupError(syncResult.message);
+      }
+      await loadBackupStatus({ preserveMessages: true });
+    } catch (err) {
+      state.backupSyncing = false;
       state.backupErrorMessage = sanitizeUiBackupError(err && err.message);
       await loadBackupStatus({ preserveMessages: true });
     }
@@ -2007,27 +2104,56 @@
         loadBackupStatus({ preserveMessages: true })
       ]);
 
-      // Automatically sync subject folder Attendance (<Subject Name>) with Daily Attendance (<date>.xlsx)
-      // and Monthly Attendance (<Month>.xlsx) when Google Drive has an active authorization token
-      try {
-        const driveClient = getOrInitDriveClient();
-        if (
-          driveClient &&
-          typeof driveClient.hasValidAccessToken === 'function' &&
-          driveClient.hasValidAccessToken() &&
-          typeof driveClient.syncSubjectAttendanceToDrive === 'function' &&
-          state.selectedSubjectId
-        ) {
-          const subObj = getSelectedSubjectObj();
-          await driveClient.syncSubjectAttendanceToDrive({
-            subjectId: state.selectedSubjectId,
-            cohortId: state.selectedCohortId,
-            subjectName: (subObj && subObj.name) || (state.rosterSubject && state.rosterSubject.name) || state.selectedSubjectId,
-            date: state.selectedDate,
-            month: state.selectedMonth
-          });
-        }
-      } catch (_) {}
+      // Automatically sync to Google Drive in the background if Google Drive is connected
+      const conn = state.backupStatusData && state.backupStatusData.connection;
+      const isDriveConnected = conn && conn.connectionStatus === 'connected';
+
+      if (isDriveConnected) {
+        state.autoDriveSaving = true;
+        render();
+
+        (async () => {
+          try {
+            const driveClient = getOrInitDriveClient();
+            if (!driveClient) return;
+
+            // Attempt silent authorization if token is not currently in memory
+            if (typeof driveClient.hasValidAccessToken === 'function' && !driveClient.hasValidAccessToken()) {
+              try {
+                await driveClient.requestAuthorization({ userGesture: false, prompt: '', silent: true });
+              } catch (_) {}
+            }
+
+            if (typeof driveClient.hasValidAccessToken === 'function' && driveClient.hasValidAccessToken()) {
+              // 1. Sync pending work (immutable snapshots, daily workbook, annual workbook)
+              await driveClient.syncPendingWork();
+
+              // 2. Sync subject-specific daily & monthly workbooks into Attendance (<Subject Name>)
+              if (state.selectedSubjectId && typeof driveClient.syncSubjectAttendanceToDrive === 'function') {
+                const subObj = getSelectedSubjectObj();
+                await driveClient.syncSubjectAttendanceToDrive({
+                  subjectId: state.selectedSubjectId,
+                  cohortId: state.selectedCohortId,
+                  subjectName: (subObj && subObj.name) || (state.rosterSubject && state.rosterSubject.name) || state.selectedSubjectId,
+                  date: state.selectedDate,
+                  month: state.selectedMonth
+                });
+              }
+
+              state.autoDriveSavedNotice = 'Auto-saved to Google Drive';
+            }
+          } catch (autoErr) {
+            console.warn('[Attendance Drive Auto-Save] Background auto-save deferred:', autoErr);
+          } finally {
+            state.autoDriveSaving = false;
+            await loadBackupStatus({ preserveMessages: true });
+            setTimeout(() => {
+              state.autoDriveSavedNotice = null;
+              render();
+            }, 4000);
+          }
+        })();
+      }
 
       render();
     } catch (err) {
@@ -2298,6 +2424,8 @@
         </button>
       `;
     } else if (isConnected) {
+      const hasMultipleSubjects = Array.isArray(state.subjects) && state.subjects.length > 1;
+      const subjectsCount = (state.subjects || []).length;
       if (failedCount > 0) {
         badgeLabel = 'Sync Attention Needed';
         badgeClass = 'unmarked';
@@ -2311,6 +2439,9 @@
             ? 'Everything is up to date. Immutable JSON snapshots and Excel (.xlsx) workbooks are synced to your Google Drive.'
             : `${actionableCount || pendingRuns.length} attendance backup revision${(actionableCount || pendingRuns.length) === 1 ? ' is' : 's are'} ready to sync to your Google Drive.`;
       }
+      if (hasMultipleSubjects) {
+        descriptionText += ` • Connected for all ${subjectsCount} assigned subjects.`;
+      }
       actionsHtml = `
         <button
           type="button"
@@ -2318,8 +2449,24 @@
           data-att-backup-action="${failedCount > 0 ? 'retry-sync' : 'sync'}"
           ${isBusy ? 'disabled' : ''}
         >
-          ${failedCount > 0 ? 'Retry Sync' : 'Sync Now'}
+          ${failedCount > 0 ? 'Retry Sync' : 'Sync Current Subject'}
         </button>
+        ${
+          hasMultipleSubjects
+            ? `
+        <button
+          type="button"
+          class="teach-btn teach-btn-primary"
+          style="background: #10b981; border-color: #059669; color: #fff;"
+          data-att-backup-action="sync-all-subjects"
+          ${isBusy ? 'disabled' : ''}
+          title="Provision folders and sync attendance workbooks for all your assigned subjects"
+        >
+          Sync All ${subjectsCount} Subjects to Drive
+        </button>
+        `
+            : ''
+        }
         <button
           type="button"
           class="teach-btn teach-btn-secondary"
@@ -2397,6 +2544,14 @@
               Backed Up: <strong>${backedUpCount}</strong>
             </span>
             ${
+              hasMultipleSubjects
+                ? `<span class="sl-att-backup-meta-item">Coverage: <strong>All ${subjectsCount} Subjects</strong></span>`
+                : ''
+            }
+            <span class="sl-att-backup-meta-item">
+              Auto-Save: <strong>${state.autoDriveSaving ? 'Syncing to Drive…' : 'Active (Auto)'}</strong>
+            </span>
+            ${
               failedCount > 0
                 ? `<span class="sl-att-backup-meta-item">Failed: <strong>${failedCount}</strong></span>`
                 : ''
@@ -2431,6 +2586,16 @@
             ? `
           <div class="sl-att-banner success" role="status" style="margin-top: 12px; margin-bottom: 0;">
             <span>${escapeHtml(state.backupNoticeMessage)}</span>
+          </div>
+        `
+            : ''
+        }
+
+        ${
+          state.autoDriveSavedNotice
+            ? `
+          <div class="sl-att-banner success" role="status" style="margin-top: 12px; margin-bottom: 0; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); color: #10b981;">
+            <span>✓ ${escapeHtml(state.autoDriveSavedNotice)}</span>
           </div>
         `
             : ''
@@ -3552,6 +3717,8 @@
           syncDriveBackup({ forceRetry: false });
         } else if (action === 'retry-sync') {
           syncDriveBackup({ forceRetry: true });
+        } else if (action === 'sync-all-subjects') {
+          syncAllSubjectsDriveBackup();
         } else if (action === 'disconnect') {
           disconnectDriveBackup();
         }

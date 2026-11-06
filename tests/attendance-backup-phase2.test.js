@@ -1204,7 +1204,7 @@ test('Phase 2B XLSX 1 (Audit E): Independent validation of worksheet name saniti
   );
   assert.equal(emptyDailyRes.status, 200);
   assert.equal(emptyDailyRes.headers.get('content-type'), XLSX_MIME_TYPE);
-  const emptyDailyBuf = await emptyDailyRes.buffer();
+  const emptyDailyBuf = Buffer.from(await emptyDailyRes.arrayBuffer());
   const indepEmptyDaily = await validateXlsxIndependently(emptyDailyBuf);
   assert.equal(indepEmptyDaily.ok, true);
   assert.deepEqual(indepEmptyDaily.sheets.map((s) => s.name), ['Daily Summary']);
@@ -1223,7 +1223,7 @@ test('Phase 2B XLSX 1 (Audit E): Independent validation of worksheet name saniti
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(emptyAnnualRes.status, 200);
-  const indepEmptyAnnual = await validateXlsxIndependently(await emptyAnnualRes.buffer());
+  const indepEmptyAnnual = await validateXlsxIndependently(Buffer.from(await emptyAnnualRes.arrayBuffer()));
   assert.equal(indepEmptyAnnual.ok, true);
   assert.deepEqual(indepEmptyAnnual.sheets.map((s) => s.name), [
     'Session Overview',
@@ -1289,7 +1289,7 @@ test('Phase 2B XLSX 2 (Audit B & E): Independent validation of Daily workbook co
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(dailyRes.status, 200);
-  const buf = await dailyRes.buffer();
+  const buf = Buffer.from(await dailyRes.arrayBuffer());
 
   const indep = await validateXlsxIndependently(buf);
   assert.equal(indep.ok, true);
@@ -1363,7 +1363,7 @@ test('Phase 2B XLSX 3 (Audit B & E): Independent validation of Annual workbook u
     { headers: { Authorization: `Bearer ${teacherAToken}` } }
   );
   assert.equal(annualRes.status, 200);
-  const annualBuf = await annualRes.buffer();
+  const annualBuf = Buffer.from(await annualRes.arrayBuffer());
 
   const indepAnnual = await validateXlsxIndependently(annualBuf);
   assert.equal(indepAnnual.ok, true);

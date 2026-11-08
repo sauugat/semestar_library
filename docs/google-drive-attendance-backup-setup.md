@@ -90,3 +90,4 @@ Once real Google Cloud OAuth Client IDs are configured:
    - In `Daily Attendance/`, open `Attendance_Daily_<YYYY-MM-DD>.xlsx` and verify the `Daily Summary` and session detail worksheets.
    - In `Full Attendance/`, open `Attendance_Year_<YYYY>.xlsx` and verify `Session Overview`, `Subject Summaries`, `Subject-Cohort Matrix`, and `Audit & Revisions`.
 9. **Verify Idempotency on Reconnect / Retry:** Click/tap **Sync Now** again, or click **Disconnect Google Drive** followed by **Connect Google Drive** and **Sync Now**, and verify that existing folders and files are reused via `appProperties` (`slScopeKey`, `slArtifactSha256`, `slAggregateRevSum`) without creating duplicate folders, overwriting immutable snapshots, or downgrading multi-session workbooks.
+2

@@ -2339,6 +2339,8 @@
     const failedCount = Number(summary.failedRuns || 0);
     const backedUpCount = Number(summary.backedUpRuns || 0);
     const inProgressCount = Number(summary.inProgressRuns || 0);
+    const hasMultipleSubjects = Array.isArray(state.subjects) && state.subjects.length > 1;
+    const subjectsCount = (state.subjects || []).length;
 
     const isNotConfigured = !oauth.configured || connection.connectionStatus === 'not_configured';
     const isReconnectRequired =
@@ -2449,7 +2451,7 @@
           data-att-backup-action="${failedCount > 0 ? 'retry-sync' : 'sync'}"
           ${isBusy ? 'disabled' : ''}
         >
-          ${failedCount > 0 ? 'Retry Sync' : 'Sync Current Subject'}
+          ${failedCount > 0 ? 'Retry Sync' : (hasMultipleSubjects ? 'Sync Now (Current Subject)' : 'Sync Now')}
         </button>
         ${
           hasMultipleSubjects

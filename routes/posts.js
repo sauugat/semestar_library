@@ -653,6 +653,11 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
             p.user_id = ?
             OR ((p.type = 'notice' OR p.category = 'notice') AND s.role IN ('admin', 'cr'))
             OR (
+              (p.type = 'notice' OR p.category = 'notice')
+              AND s.role = 'teacher'
+              AND (p.target_all_semesters = 1 OR EXISTS (SELECT 1 FROM post_target_semesters pts_tn WHERE pts_tn.post_id = p.id AND pts_tn.semester IN (${placeholders})))
+            )
+            OR (
               p.category = 'announcement'
               AND s.role IN ('admin', 'cr')
               AND (p.target_all_semesters = 1 OR EXISTS (SELECT 1 FROM post_target_semesters pts_ta WHERE pts_ta.post_id = p.id AND pts_ta.semester IN (${placeholders})))
@@ -662,7 +667,7 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
               AND (p.target_all_semesters = 1 OR EXISTS (SELECT 1 FROM post_target_semesters pts_ts WHERE pts_ts.post_id = p.id AND pts_ts.semester IN (${placeholders})))
             )
           )`);
-          params.push(viewerStudentId, ...teacherAssignedSemesters, ...teacherAssignedSemesters);
+          params.push(viewerStudentId, ...teacherAssignedSemesters, ...teacherAssignedSemesters, ...teacherAssignedSemesters);
         } else {
           whereConditions.push(`(
             p.user_id = ?

@@ -422,6 +422,102 @@
     }
   }
 
+  // Adaptive Visual Block Renderer (Safe, Strict Monochrome, Zero Arbitrary HTML Execution)
+  function renderAdaptiveVisualBlockHtml(langKey, rawCode) {
+    const kind = String(langKey || '').trim().toLowerCase();
+    const rawStr = String(rawCode == null ? '' : rawCode);
+    if (!rawStr.trim() || rawStr.length > 32768) return null;
+    const text = rawStr.trim();
+
+    let parsedJson = null;
+    if (text.startsWith('{')) {
+      try {
+        parsedJson = JSON.parse(text);
+      } catch (_) {
+        parsedJson = null;
+      }
+    }
+
+    const safeTrunc = (val, maxLen = 240) => {
+      const s = String(val == null ? '' : val).trim();
+      return s.length > maxLen ? s.slice(0, maxLen) + '…' : s;
+    };
+
+    if (kind === 'roadmap' || kind === 'timeline') {
+      const rawSteps = Array.isArray(parsedJson?.steps)
+        ? parsedJson.steps
+        : Array.isArray(parsedJson?.items)
+          ? parsedJson.items
+          : (!text.startsWith('{')
+              ? text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+                  const m = line.match(/^[-*]\s+\[([ xX])\]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?(?:\s*[—–-]\s*(.+))?$/);
+                  if (m) return { done: m[1].toLowerCase() === 'x', title: m[2].trim(), tag: (m[3] || '').trim(), detail: (m[4] || '').trim() };
+                  return { done: false, title: line.replace(/^[-*•\d.]+\s*/, ''), tag: '', detail: '' };
+                })
+              : []);
+      const steps = rawSteps.filter(s => s && typeof s === 'object' && !Array.isArray(s));
+      if (!steps.length) return null;
+      const title = escapeHtml(safeTrunc(parsedJson?.title || (kind === 'timeline' ? 'Timeline' : 'Study Roadmap'), 140));
+      const rows = steps.slice(0, 12).map((s, idx) => {
+        const stepTitle = escapeHtml(safeTrunc(s.title || s.label || `Step ${idx + 1}`, 140));
+        const stepTag = escapeHtml(safeTrunc(s.tag || s.phase || `Step ${idx + 1}`, 60));
+        const stepDetail = escapeHtml(safeTrunc(s.detail || s.desc || s.description || '', 320));
+        const checkMark = s.done ? '✓' : String(idx + 1);
+        return `<div class="kyana-visual-step" style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(128,128,128,0.14);max-width:100%;box-sizing:border-box;">
+          <span style="min-width:22px;height:22px;border-radius:11px;border:1px solid rgba(128,128,128,0.4);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">${escapeHtml(checkMark)}</span>
+          <div style="flex:1;min-width:0;word-break:break-word;">
+            <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-weight:600;font-size:13px;">
+              <span>${stepTitle}</span>
+              ${stepTag ? `<span style="font-size:11px;opacity:0.7;">${stepTag}</span>` : ''}
+            </div>
+            ${stepDetail ? `<div style="font-size:12.5px;opacity:0.82;margin-top:2px;">${stepDetail}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      return `<div class="kyana-adaptive-visual kyana-visual-${escapeHtml(kind)}" style="margin:10px 0;padding:12px 14px;border-radius:12px;border:1px solid rgba(128,128,128,0.22);background:rgba(128,128,128,0.04);max-width:100%;box-sizing:border-box;overflow-x:auto;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.7;margin-bottom:6px;">${title}</div>
+        ${rows}
+      </div>`;
+    }
+
+    if (kind === 'diagram' || kind === 'flowchart' || kind === 'trace') {
+      const rawNodes = Array.isArray(parsedJson?.nodes)
+        ? parsedJson.nodes
+        : Array.isArray(parsedJson?.steps)
+          ? parsedJson.steps
+          : null;
+      const nodes = Array.isArray(rawNodes) ? rawNodes.filter(n => n && typeof n === 'object' && !Array.isArray(n)) : null;
+      const title = escapeHtml(safeTrunc(parsedJson?.title || (kind === 'diagram' ? 'Concept Flow Diagram' : 'Step-by-Step Trace'), 140));
+      if (nodes && nodes.length > 0) {
+        const nodeHtml = nodes.slice(0, 12).map((n, idx) => {
+          const label = escapeHtml(safeTrunc(n.label || n.title || n.id || `Stage ${idx + 1}`, 140));
+          const detail = escapeHtml(safeTrunc(n.detail || n.content || n.state || '', 320));
+          const arrow = idx < Math.min(nodes.length, 12) - 1 ? `<div style="text-align:center;opacity:0.55;font-size:12px;margin:2px 0;">↓</div>` : '';
+          return `<div style="padding:8px 10px;border-radius:8px;border:1px solid rgba(128,128,128,0.24);background:rgba(128,128,128,0.05);max-width:100%;box-sizing:border-box;word-break:break-word;">
+            <div style="font-weight:600;font-size:12.5px;">${label}</div>
+            ${detail ? `<div style="font-size:12px;opacity:0.82;margin-top:2px;">${detail}</div>` : ''}
+          </div>${arrow}`;
+        }).join('');
+        return `<div class="kyana-adaptive-visual kyana-visual-${escapeHtml(kind)}" style="margin:10px 0;padding:12px 14px;border-radius:12px;border:1px solid rgba(128,128,128,0.22);background:rgba(128,128,128,0.04);max-width:100%;box-sizing:border-box;overflow-x:auto;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.7;margin-bottom:8px;">${title}</div>
+          ${nodeHtml}
+        </div>`;
+      }
+    }
+
+    if (kind === 'comparison' || kind === 'attendance' || kind === 'results') {
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 20);
+      if (!lines.length) return null;
+      const rows = lines.map(l => `<div style="padding:6px 0;border-bottom:1px solid rgba(128,128,128,0.12);font-size:12.5px;word-break:break-word;">${escapeHtml(safeTrunc(l.replace(/\*\*/g, ''), 280))}</div>`).join('');
+      return `<div class="kyana-adaptive-visual kyana-visual-${escapeHtml(kind)}" style="margin:10px 0;padding:12px 14px;border-radius:12px;border:1px solid rgba(128,128,128,0.22);background:rgba(128,128,128,0.04);max-width:100%;box-sizing:border-box;overflow-x:auto;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.7;margin-bottom:6px;">${escapeHtml(kind.toUpperCase())}</div>
+        ${rows}
+      </div>`;
+    }
+
+    return null;
+  }
+
   // Pure helpers export for Node unit test runners
   if (typeof module !== 'undefined' && module.exports && typeof window === 'undefined') {
     module.exports = {
@@ -434,7 +530,8 @@
       fallbackMarkdown,
       normalizeLatexDelimiters,
       highlightChatCode,
-      assertAndCleanPlaceholders
+      assertAndCleanPlaceholders,
+      renderAdaptiveVisualBlockHtml
     };
     return;
   }
@@ -653,6 +750,20 @@
         const langMatch = codeBlock.className.match(/language-([a-zA-Z0-9_#+-]+)/);
         const langName = langMatch ? langMatch[1] : 'Code';
         const langKey = langName.toLowerCase();
+
+        // Render structured adaptive visual blocks (roadmap, timeline, diagram, flowchart, trace) safely
+        if (/^(roadmap|timeline|diagram|flowchart|trace)$/.test(langKey)) {
+          const visualHtml = renderAdaptiveVisualBlockHtml(langKey, rawCode);
+          if (visualHtml) {
+            const visualWrap = document.createElement('div');
+            visualWrap.innerHTML = visualHtml;
+            if (visualWrap.firstElementChild) {
+              pre.parentNode.replaceChild(visualWrap.firstElementChild, pre);
+              return;
+            }
+          }
+        }
+
         const isWebCode = /^(html|xml|svg|css|javascript|js)$/.test(langKey);
         const compilerSupported = /^(java|c|cpp|c\+\+|html|css|javascript|js|python|py|sql)$/.test(langKey);
 

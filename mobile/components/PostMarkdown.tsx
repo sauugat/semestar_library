@@ -502,6 +502,61 @@ function PostMarkdownInternal({
         const isWrapped = Boolean(wrappedBlocks[blockIndex]);
         const isPreviewOpen = Boolean(previewBlocks[blockIndex]);
         const langLower = block.lang.toLowerCase();
+
+        if (/^(roadmap|timeline|diagram|flowchart|trace)$/.test(langLower) && block.code.trim().startsWith('{') && block.code.length <= 32768) {
+          try {
+            const parsedVisual = JSON.parse(block.code.trim());
+            const rawItems = Array.isArray(parsedVisual?.steps)
+              ? parsedVisual.steps
+              : Array.isArray(parsedVisual?.nodes)
+                ? parsedVisual.nodes
+                : [];
+            const items = rawItems.filter((it: any) => it && typeof it === 'object' && !Array.isArray(it));
+            if (items.length > 0) {
+              renderedElements.push(
+                <View
+                  key={`visual-block-${i}`}
+                  style={[
+                    styles.codeBlockContainer,
+                    {
+                      backgroundColor: isDark ? '#18181b' : '#f8fafc',
+                      borderColor: colors.border,
+                      padding: 12,
+                      maxWidth: '100%',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.codeLang, { color: colors.textSecondary, marginBottom: 8 }]}>
+                    {String(parsedVisual.title || block.lang).slice(0, 140).toUpperCase()}
+                  </Text>
+                  {items.slice(0, 12).map((item: any, idx: number) => (
+                    <View
+                      key={`vb-item-${idx}`}
+                      style={{
+                        paddingVertical: 6,
+                        borderBottomWidth: idx < Math.min(items.length, 12) - 1 ? 1 : 0,
+                        borderBottomColor: colors.border,
+                      }}
+                    >
+                      <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13, flexShrink: 1 }}>
+                        {item.phase ? `${String(item.phase).slice(0, 60)}: ` : ''}{String(item.title || item.label || `Step ${idx + 1}`).slice(0, 160)}
+                      </Text>
+                      {Boolean(item.detail || item.content || item.description) && (
+                        <Text style={{ color: colors.textSecondary, fontSize: 12.5, marginTop: 2, flexShrink: 1 }}>
+                          {String(item.detail || item.content || item.description).slice(0, 320)}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              );
+              continue;
+            }
+          } catch {
+            // Fall through to standard code block rendering if JSON is malformed
+          }
+        }
+
         const isWeb = /^(html|xml|svg|css|javascript|js)$/.test(langLower);
 
         let companionCss = '';

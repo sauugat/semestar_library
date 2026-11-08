@@ -452,7 +452,10 @@ test.before(async () => {
       intakeYear: 2026
     });
   } catch (_) {
-    testCohort = await db.get("SELECT * FROM cohorts WHERE slot_code = 'mercury'");
+    testCohort = await db.get("SELECT * FROM cohorts WHERE current_semester = 3 AND status = 'active' LIMIT 1");
+    if (!testCohort) {
+      testCohort = await db.get("SELECT * FROM cohorts WHERE slot_code = 'mercury'");
+    }
   }
 
   // Setup teacher user and profile

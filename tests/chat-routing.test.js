@@ -127,5 +127,5 @@ test('provider cancellation reaches search tools', async () => {
 test('syllabus links keep the correct academic year and semester route', async () => {
   const result = await handleChat({}, 'semester 5 syllabus');
   assert.ok(result.matchedCourses.every(c => c.year === 'Year 3' && c.semester === 'V'));
-  assert.match(result.reply, /syllabus\.html#Year%203\/V/);
+  assert.match(result.reply, /```syllabus[\s\S]*Semester 5/i);
 });

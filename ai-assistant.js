@@ -29,7 +29,7 @@ function loadEnvSafely() {
 loadEnvSafely();
 
 const { resolveChatMode } = require('./lib/chat-mode');
-const { generateReply } = require('./lib/chat-provider');
+const { generateReply, hasConfiguredProvider } = require('./lib/chat-provider');
 const { PERSONALITY_PROMPT, toneInstructions, styleLookupReply, detectLanguage, classifyResponseComplexity } = require('./lib/chat-personality');
 const {
   TOOLS,
@@ -685,6 +685,47 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   }
 
   // --- STAGE 1 SCOPE GATE (No DB lookup needed: injection, smalltalk, off-topic blocklist) ---
+  const canSynthesizeWithLlm = options.synthesizeWithLlm !== false && (
+    options.synthesizeWithLlm === true ||
+    (!options.toolDependencies && (typeof options.generateReply === 'function' || hasConfiguredProvider()))
+  );
+  const llmGenerateFn = options.generateReply || (hasConfiguredProvider() ? generateReply : null);
+
+  async function synthesizeNaturalReply(contextInstruction, fallbackText, verifyEvidence = null) {
+    if (!canSynthesizeWithLlm || typeof llmGenerateFn !== 'function') return fallbackText;
+    try {
+      const userLang = detectLanguage(originalMessage);
+      const langRule = userLang === 'devanagari'
+        ? 'Reply in natural Devanagari Nepali (नेपालीमा).'
+        : (userLang === 'roman_nepali'
+            ? 'Reply in natural Romanized Nepali (Nepanglish) matching the student\'s vibe.'
+            : 'Reply in natural, conversational English.');
+      const synthPrompt = `${SYSTEM_PROMPT}\n\n${toneInstructions(originalMessage, cleanHistory, chatMode)}\n\nLANGUAGE: ${langRule}\n\n${contextInstruction}`;
+      const llmOut = await llmGenerateFn({
+        message: originalMessage,
+        history: cleanHistory,
+        systemPrompt: synthPrompt,
+        tools: [],
+        onDelta: () => {},
+        signal,
+        complex: false
+      });
+      const candidate = stripUrlsOutsideCodeBlocks(String(llmOut?.reply || '').trim());
+      if (!candidate || unsafeOutput(candidate)) return fallbackText;
+      if (verifyEvidence) {
+        const check = verifyGrounding(candidate, verifyEvidence, {
+          mode: 'record',
+          language: userLang
+        });
+        if (!check.verified || check.fallbackUsed) return fallbackText;
+        return check.reply;
+      }
+      return candidate;
+    } catch (_err) {
+      return fallbackText;
+    }
+  }
+
   const preScope = preContextScopeCheck(message, cleanHistory);
   const preScopeMs = performance.now() - scopeStartedAt;
   if (preScope.decided && preScope.outOfScope) {
@@ -704,7 +745,11 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   }
   if (preScope.decided && preScope.category === 'smalltalk') {
     logScopeDecision({ decision: 'smalltalk', scopeDecisionMs: preScopeMs, contextLoadMs: 0 });
-    const smalltalkReply = buildSmalltalkReply(message, chatMode);
+    const fallbackSmalltalk = buildSmalltalkReply(message, chatMode);
+    const smalltalkReply = await synthesizeNaturalReply(
+      'CONVERSATIONAL GREETING / SMALLTALK: The student is greeting you or chatting casually (e.g., asking how you are or what you can do). Respond warmly and naturally in 1–2 sentences like a friendly, witty BIT senior companion at Gandaki University without using a canned robotic script.',
+      fallbackSmalltalk
+    );
     onDelta(smalltalkReply);
     return { ...emptyResult(smalltalkReply), intent: 'smalltalk', chatMode };
   }
@@ -761,7 +806,11 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   if (route.kind === 'smalltalk') {
     const scopeDecisionMs = preScopeMs + (performance.now() - stage2StartedAt);
     logScopeDecision({ decision: 'smalltalk', scopeDecisionMs, contextLoadMs });
-    const smalltalkReply = buildSmalltalkReply(message, chatMode);
+    const fallbackSmalltalk = buildSmalltalkReply(message, chatMode);
+    const smalltalkReply = await synthesizeNaturalReply(
+      'CONVERSATIONAL GREETING / SMALLTALK: The student is greeting you or chatting casually. Respond warmly and naturally in 1–2 sentences like a friendly, witty BIT senior companion at Gandaki University.',
+      fallbackSmalltalk
+    );
     onDelta(smalltalkReply);
     return { ...emptyResult(smalltalkReply), intent: 'smalltalk', chatMode };
   }
@@ -770,10 +819,14 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     const { resolveAiIdentityReply } = require('./lib/ai-search-tools');
     const scopeDecisionMs = preScopeMs + (performance.now() - stage2StartedAt);
     logScopeDecision({ decision: 'in_scope', scopeDecisionMs, contextLoadMs });
-    const identityReply = resolveAiIdentityReply(message, {
+    const fallbackIdentity = resolveAiIdentityReply(message, {
       config: options.aiConfig || {},
       chatMode
     });
+    const identityReply = await synthesizeNaturalReply(
+      `AI ARCHITECTURE & IDENTITY CONTEXT: The student is asking what AI model or architecture powers Kyana. Answer naturally in your own words using these verified system facts (never expose API keys, tokens, or secrets):\n<verified_identity_facts>\n${fallbackIdentity}\n</verified_identity_facts>`,
+      fallbackIdentity
+    );
     onDelta(identityReply);
     return {
       ...emptyResult(identityReply),
@@ -801,7 +854,13 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         metadata: { messageLength: message.length }
       }).catch(() => {});
     }
-    const socialReply = buildSocialOrContactReply(message, route.socialClassification, { chatMode });
+    const fallbackSocial = buildSocialOrContactReply(message, route.socialClassification, { chatMode });
+    const socialReply = isBlockedContact
+      ? fallbackSocial
+      : await synthesizeNaturalReply(
+          `CAMPUS BANTER CONTEXT: The student is making a playful social/dating joke or casual campus remark ("${sanitizeUntrustedRecordText(message, 200)}"). Respond in 1–2 sentences with witty, light-hearted BIT senior banter (e.g., teasing them to focus on DSA/assignments or GPA first) without sharing any student's private information. Reference guidance:\n${fallbackSocial}`,
+          fallbackSocial
+        );
     onDelta(socialReply);
     return {
       ...emptyResult(socialReply),
@@ -826,12 +885,19 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       referenceDate: options.referenceDate || new Date(),
       skipCache: Boolean(options.skipCache)
     });
-    const publicReply = synthesizeUniversityPublicReply(message, research, {
+    const fallbackPublicReply = synthesizeUniversityPublicReply(message, research, {
       intentInfo: route.guIntent,
       history: cleanHistory,
       chatMode,
       internalRecords: { bitCourseCount: courses.length }
     });
+    const publicReply = (research.hasOfficialSource || research.hasSecondaryOnly)
+      ? await synthesizeNaturalReply(
+          `GANDAKI UNIVERSITY PUBLIC RESEARCH EVIDENCE: Answer the student's question about Gandaki University in your own natural words using ONLY the verified public research evidence below. Keep all dates, Acts, locations, program names, and officials 100% accurate to the evidence, and mention that the information comes from official Gandaki University public sources.\n<verified_gu_research>\n${sanitizeUntrustedRecordText(fallbackPublicReply, 3500)}\n</verified_gu_research>`,
+          fallbackPublicReply,
+          [fallbackPublicReply, research]
+        )
+      : fallbackPublicReply;
     const pubRes = emptyResult(publicReply);
     pubRes.intent = 'gu_public_research';
     pubRes.chatMode = chatMode;
@@ -912,7 +978,11 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
     if (scopeDecision.category === 'smalltalk') {
       logScopeDecision({ decision: 'smalltalk', scopeDecisionMs, contextLoadMs });
-      const smalltalkReply = buildSmalltalkReply(message, chatMode);
+      const fallbackSmalltalk = buildSmalltalkReply(message, chatMode);
+      const smalltalkReply = await synthesizeNaturalReply(
+        'CONVERSATIONAL GREETING / SMALLTALK: Respond warmly and naturally in 1–2 sentences like a friendly, witty BIT senior companion at Gandaki University.',
+        fallbackSmalltalk
+      );
       onDelta(smalltalkReply);
       return { ...emptyResult(smalltalkReply), intent: 'smalltalk', chatMode };
     }
@@ -1714,6 +1784,7 @@ ${evidenceBlocks}
           : {})
     };
     const data = await toolkit.executeTool(directTool, directArgs);
+    result.retrievalStatus = data.retrievalStatus || null;
     const isSuccessfulDirectLookup = !data.error && !data.clarification && Boolean(
       data.files?.length ||
       data.courses?.length ||
@@ -1722,7 +1793,9 @@ ${evidenceBlocks}
       data.notices?.length ||
       data.assignments?.length ||
       data.overall ||
-      data.hasPublishedResults ||
+      (directTool === 'get_my_results'
+        ? (Array.isArray(data.filteredResults) ? data.filteredResults.length > 0 : Boolean(data.hasPublishedResults))
+        : Boolean(data.hasPublishedResults)) ||
       data.subject ||
       data.subjects?.length ||
       data.teachers?.length ||
@@ -1737,18 +1810,29 @@ ${evidenceBlocks}
       successful: isSuccessfulDirectLookup
     });
 
-    const shouldSynthesizeDirectInOwnWords = isSuccessfulDirectLookup && options.synthesizeWithLlm === true;
+    const retrievalStatusType = data.retrievalStatus?.status || (isSuccessfulDirectLookup ? 'found' : 'no_matching_records');
+    const isSecurityOrClarificationGate = Boolean(
+      data.clarification ||
+      retrievalStatusType === 'requires_auth' ||
+      retrievalStatusType === 'access_denied'
+    );
+    const shouldSynthesizeDirectInOwnWords = !isSecurityOrClarificationGate && canSynthesizeWithLlm;
 
-    if (shouldSynthesizeDirectInOwnWords) {
+    if (shouldSynthesizeDirectInOwnWords && typeof llmGenerateFn === 'function') {
       try {
         const userLang = detectLanguage(originalMessage);
         const langRule = userLang === 'devanagari'
           ? 'Reply in natural Devanagari Nepali (नेपालीमा).'
-          : (userLang === 'roman_nepali'
+          : ((userLang === 'romanized_nepali' || userLang === 'roman_nepali')
               ? 'Reply in natural Romanized Nepali (Nepanglish) matching the student\'s vibe.'
               : 'Reply in natural, conversational English.');
-        const directSynthesisPrompt = `${SYSTEM_PROMPT}\n\n${toneInstructions(chatMode)}\n\nLANGUAGE: ${langRule}\n\nCRITICAL PARAPHRASING RULE: Below is the raw app data retrieved from ${directTool}. Treat this ONLY as source information — DO NOT copy-paste or dump the raw list/text verbatim. Rewrite and explain the answer in your own words with ${chatMode === 'formal' ? 'a helpful, clear academic tone' : 'your signature savage, witty BIT senior tone'}. Keep all factual numbers, dates, times, rooms, course codes, and credits 100% accurate to the evidence, without dumping raw headers or repetitive source lines.\n\n<app_data tool="${directTool}">\n${sanitizeUntrustedRecordText(formattedToolEvidence, 4000)}\n</app_data>`;
-        const llmOut = await (options.generateReply || generateReply)({
+        const fencedBlocks = [...String(formattedToolEvidence || '').matchAll(/```(?:attendance|results|routine|syllabus|assignments)\s*\n[\s\S]*?```/g)].map(m => m[0]);
+        const statusJson = JSON.stringify(data.retrievalStatus || { status: retrievalStatusType });
+        const statusGuidance = isSuccessfulDirectLookup
+          ? `CRITICAL PARAPHRASING RULE: Below is the structured app data retrieved from ${directTool}. Treat this ONLY as source information — DO NOT copy-paste or dump raw headers verbatim. Rewrite and explain the answer in your own words with ${chatMode === 'formal' ? 'a helpful, clear academic tone' : 'your signature friendly, witty BIT senior tone'}. Keep all factual numbers, percentages, marks, dates, times, rooms, course codes, and credits 100% accurate to the evidence.`
+          : `CRITICAL RETRIEVAL STATUS EXPLANATION RULE: The tool ${directTool} returned status "${retrievalStatusType}". Explain the actual situation naturally and helpfully in your own words (for example, if marks are unpublished, state clearly which exam/subject marks have not been published yet and mention any published exams that ARE available in the status metadata; if no matching records exist yet, explain that naturally without using a robotic template like "Yo kura university records ma bhetiyena"). Never invent marks, attendance numbers, or dates.`;
+        const directSynthesisPrompt = `${SYSTEM_PROMPT}\n\n${toneInstructions(originalMessage, cleanHistory, chatMode, { kind: route.kind })}\n\nLANGUAGE: ${langRule}\n\n${statusGuidance}\n\n<tool_retrieval_status tool="${directTool}">\n${statusJson}\n</tool_retrieval_status>\n<app_data tool="${directTool}">\n${sanitizeUntrustedRecordText(formattedToolEvidence, 4000)}\n</app_data>`;
+        const llmOut = await llmGenerateFn({
           message: originalMessage,
           history: cleanHistory,
           systemPrompt: directSynthesisPrompt,
@@ -1758,8 +1842,30 @@ ${evidenceBlocks}
           complex: false
         });
         const candidate = stripUrlsOutsideCodeBlocks(String(llmOut?.reply || '').trim());
-        const check = verifyGrounding(candidate, [formattedToolEvidence, data]);
-        result.reply = (candidate && check.verified && !check.fallbackUsed && !unsafeOutput(candidate)) ? check.reply : deterministicReply;
+        if (candidate && !unsafeOutput(candidate)) {
+          if (isSuccessfulDirectLookup) {
+            const check = verifyGrounding(candidate, [formattedToolEvidence, data], {
+              mode: 'record',
+              language: userLang
+            });
+            if (check.verified && !check.fallbackUsed) {
+              let finalReply = check.reply;
+              for (const block of fencedBlocks) {
+                const fenceType = (block.match(/^```([a-z]+)/i) || [])[1];
+                if (fenceType && !new RegExp(`\`\`\`${fenceType}\\b`, 'i').test(finalReply)) {
+                  finalReply += `\n\n${block}`;
+                }
+              }
+              result.reply = finalReply;
+            } else {
+              result.reply = deterministicReply;
+            }
+          } else {
+            result.reply = candidate;
+          }
+        } else {
+          result.reply = deterministicReply;
+        }
       } catch (_err) {
         result.reply = deterministicReply;
       }

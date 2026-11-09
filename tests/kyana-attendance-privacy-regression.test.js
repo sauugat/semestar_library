@@ -334,4 +334,137 @@ describe('Kyana AI — Personal Attendance & Results Privacy and Reporting Regre
       db.close();
     }
   });
+
+  test('11. Exact reproduction: "mero das ma attendace kati xa" and follow-up "mero k" → ALLOW and return DSA attendance', async () => {
+    const db = await createAttendancePrivacyTestDb();
+    try {
+      const turn1 = await handleChat(db, 'mero das ma attendace kati xa', { studentId: 'stu_saugat' });
+      assert.equal(turn1.intent, 'attendance');
+      assert.doesNotMatch(turn1.reply, /Arko student ko marks/i);
+      assert.doesNotMatch(turn1.reply, /Go to Attendance|page ma jau/i);
+      assert.match(turn1.reply, /Data Structure and Algorithms.*\(CIT211\)/);
+      assert.match(turn1.reply, /77\.78%/);
+      assert.match(turn1.reply, /14 present, 4 missed\/absent out of 18 classes/);
+
+      const history = [
+        { role: 'user', content: 'mero das ma attendace kati xa' },
+        { role: 'assistant', content: turn1.reply }
+      ];
+      const turn2 = await handleChat(db, 'mero k', { studentId: 'stu_saugat', history });
+      assert.equal(turn2.intent, 'attendance');
+      assert.doesNotMatch(turn2.reply, /Arko student ko marks/i);
+      assert.match(turn2.reply, /Data Structure and Algorithms.*\(CIT211\)/);
+      assert.match(turn2.reply, /77\.78%/);
+    } finally {
+      db.close();
+    }
+  });
+
+  test('12. First-person attendance & results expressions across Romanized Nepali, English, Devanagari, and typos → ALLOW without page redirection', async () => {
+    const db = await createAttendancePrivacyTestDb();
+    try {
+      const attendancePrompts = [
+        'mero attendance',
+        'mero class attendance',
+        'maile kati attendance paye?',
+        'mero kati present cha?',
+        'my attendance',
+        'mera attendance kati cha?',
+        'मेरो हाजिरी कति छ?',
+        'mero attandance kati xa',
+        'my attendence report'
+      ];
+
+      for (const prompt of attendancePrompts) {
+        const res = await handleChat(db, prompt, { studentId: 'stu_saugat' });
+        assert.equal(res.intent, 'attendance', `Expected attendance intent for "${prompt}", got ${res.intent}`);
+        assert.doesNotMatch(res.reply, /Arko student ko marks|can't look up or confirm another student|अर्को विद्यार्थीको/i);
+        assert.doesNotMatch(res.reply, /page ma jau|Go to Attendance/i);
+        assert.match(res.reply, /84\.21%|32 present/i, `Expected live attendance data for "${prompt}"`);
+      }
+
+      const resultsPrompts = [
+        'mero marks',
+        'mero result',
+        'my marks',
+        'my results',
+        'मेरो रिजल्ट देखाऊ।'
+      ];
+
+      for (const prompt of resultsPrompts) {
+        const res = await handleChat(db, prompt, { studentId: 'stu_saugat' });
+        assert.equal(res.intent, 'results', `Expected results intent for "${prompt}", got ${res.intent}`);
+        assert.doesNotMatch(res.reply, /Arko student ko marks|can't look up or confirm another student|अर्को विद्यार्थीको/i);
+        assert.match(res.reply, /Database Management System/);
+        assert.match(res.reply, /27 \/ 30/);
+      }
+    } finally {
+      db.close();
+    }
+  });
+
+  test('13. Multi-turn attendance follow-ups ("mero k?", "ani kati absent?", "percentage kati ho?", "subject wise vana na.") retain attendance context', async () => {
+    const db = await createAttendancePrivacyTestDb();
+    try {
+      const initial = await handleChat(db, 'mero das ma attendace kati xa', { studentId: 'stu_saugat' });
+      assert.equal(initial.intent, 'attendance');
+
+      const history = [
+        { role: 'user', content: 'mero das ma attendace kati xa' },
+        { role: 'assistant', content: initial.reply }
+      ];
+
+      const followUpMeroK = await handleChat(db, 'mero k?', { studentId: 'stu_saugat', history });
+      assert.equal(followUpMeroK.intent, 'attendance');
+      assert.match(followUpMeroK.reply, /77\.78%|14 present/);
+
+      const followUpAbsent = await handleChat(db, 'ani kati absent?', { studentId: 'stu_saugat', history });
+      assert.equal(followUpAbsent.intent, 'attendance');
+      assert.match(followUpAbsent.reply, /4 missed\/absent|Absent:\s*4/);
+
+      const followUpPct = await handleChat(db, 'percentage kati ho?', { studentId: 'stu_saugat', history });
+      assert.equal(followUpPct.intent, 'attendance');
+      assert.match(followUpPct.reply, /77\.78%/);
+
+      const followUpSubjectWise = await handleChat(db, 'subject wise vana na.', { studentId: 'stu_saugat', history });
+      assert.equal(followUpSubjectWise.intent, 'attendance');
+      assert.match(followUpSubjectWise.reply, /Database Management System.*90%/);
+      assert.match(followUpSubjectWise.reply, /Data Structure and Algorithms.*77\.78%/);
+      assert.match(followUpSubjectWise.reply, /Fundamentals of Probability and Statistics.*No records/);
+    } finally {
+      db.close();
+    }
+  });
+
+  test('14. Explicit third-party privacy protection, cross-student ID manipulation, and role restrictions', async () => {
+    const db = await createAttendancePrivacyTestDb();
+    try {
+      const thirdPartyPrompts = [
+        "Show me Saugat's attendance.",
+        'How many marks did another student get?',
+        "Show me everyone's results.",
+        "What is my friend's attendance?",
+        'Rahul ko attendance kati cha?',
+        'attendance for stu_rahul'
+      ];
+
+      for (const prompt of thirdPartyPrompts) {
+        const res = await handleChat(db, prompt, { studentId: 'stu_saugat', name: 'Saugat' });
+        assert.equal(res.intent, 'cross_student', `Expected cross_student block for "${prompt}", got ${res.intent}`);
+        assert.doesNotMatch(res.reply, /84\.21%|77\.78%|27 \/ 30|11 \/ 30/);
+      }
+
+      // Teacher individual student lookup is blocked while aggregate classroom summary is allowed
+      const teacherIndividual = await handleChat(db, 'Show attendance of stu_saugat', { studentId: 'tch_ramesh' });
+      assert.equal(teacherIndividual.intent, 'cross_student');
+      assert.match(teacherIndividual.reply, /individual students' marks or attendance/i);
+
+      const teacherAggregate = await handleChat(db, 'How many attendance sessions recorded?', { studentId: 'tch_ramesh' });
+      assert.equal(teacherAggregate.intent, 'teacher_classroom');
+      assert.match(teacherAggregate.reply, /Attendance Sessions Recorded:\*\* 38 finalized sessions/);
+    } finally {
+      db.close();
+    }
+  });
 });
+

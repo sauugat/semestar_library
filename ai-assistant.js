@@ -42,6 +42,7 @@ const {
   academicRequest,
   codeRequest,
   mapsToBitSyllabus,
+  noticeIntent,
   isExplicitOfficialUniversityNoticeQuery,
   parseSyllabusCourseDetails,
   resolveSyllabusTopic,
@@ -609,9 +610,19 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     sessionId = opts.sessionId || 'anonymous';
     options = { ...opts, academicContext: opts.academicContext || studentInfo };
   }
-  if (studentInfo && typeof studentInfo === 'object' && (studentInfo.generateReply || studentInfo.searchKnowledge || studentInfo.classifyScope)) {
-    options = { ...studentInfo, ...options };
-    studentInfo = studentInfo.academicContext || studentInfo.studentInfo || studentInfo;
+  if (studentInfo && typeof studentInfo === 'object') {
+    if (studentInfo.generateReply || studentInfo.searchKnowledge || studentInfo.classifyScope) {
+      options = { ...studentInfo, ...options };
+    }
+    if (studentInfo.academicContext) {
+      if (!options.academicContext) options.academicContext = studentInfo.academicContext;
+      studentInfo = studentInfo.academicContext;
+    } else if (studentInfo.studentInfo) {
+      studentInfo = studentInfo.studentInfo;
+    }
+  }
+  if ((!Array.isArray(history) || history.length === 0) && Array.isArray(studentInfo?.history)) {
+    history = studentInfo.history;
   }
   const requestStartedAt = Date.now();
   const scopeStartedAt = performance.now();
@@ -734,7 +745,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     return { ...emptyResult(refusal), intent: 'cross_student', chatMode };
   }
 
-  const route = routeQuery(message, cleanHistory);
+  const route = routeQuery(message, cleanHistory, { academicContext });
   if (route.kind === 'smalltalk') {
     const scopeDecisionMs = preScopeMs + (performance.now() - stage2StartedAt);
     logScopeDecision({ decision: 'smalltalk', scopeDecisionMs, contextLoadMs });
@@ -940,6 +951,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     options.useAgentEngine !== false &&
     !options.searchKnowledge &&
     !options.toolDependencies &&
+    !(v3Enabled && isKnowledgeQuery(route, message, v3Enabled)) &&
     shouldUseKyanaAgentEngine(message, cleanHistory, academicContext)
   );
   if (shouldRunAgent) {
@@ -1736,7 +1748,7 @@ ${evidenceBlocks}
     const isAcademicIntent = userIntent.category === 'CATEGORY_B' || userIntent.category === 'CATEGORY_C' || userIntent.category === 'CATEGORY_D' || academicRequest(message) || codeRequest(message);
 
     // If route.kind === 'scope_check' and not an academic question or syllabus topic, refuse with safe unverified reply
-    if (route.kind === 'scope_check' && !isSyllabusTopic && !academicRequest(message) && !codeRequest(message) && matchingNotesEvidence.length === 0) {
+    if (route.kind === 'scope_check' && !isSyllabusTopic && !academicRequest(message) && !codeRequest(message) && !noticeIntent(message) && matchingNotesEvidence.length === 0) {
       const safeReply = getSafeUnverifiedReply(detectLanguage(message));
       result.reply = safeReply;
       logScopeDecision({ decision: recordedScopeDecision, scopeDecisionMs: totalScopeDecisionMs, contextLoadMs, totalMs: Date.now() - requestStartedAt });

@@ -246,7 +246,10 @@ const NON_KNOWLEDGE_DIRECT_KINDS = [
   'attendance',
   'results',
   'academic_directory',
-  'teacher_classroom'
+  'teacher_classroom',
+  'ai_identity',
+  'social_university',
+  'gu_public_research'
 ];
 
 function isPersonalOrDetailedAssignmentQuery(route, message) {
@@ -611,7 +614,16 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     options = { ...opts, academicContext: opts.academicContext || studentInfo };
   }
   if (studentInfo && typeof studentInfo === 'object') {
-    if (studentInfo.generateReply || studentInfo.searchKnowledge || studentInfo.classifyScope) {
+    if (
+      studentInfo.generateReply ||
+      studentInfo.searchKnowledge ||
+      studentInfo.classifyScope ||
+      studentInfo.webSearchFn ||
+      studentInfo.skipCache !== undefined ||
+      studentInfo.toolDependencies ||
+      studentInfo.referenceDate ||
+      studentInfo.aiConfig
+    ) {
       options = { ...studentInfo, ...options };
     }
     if (studentInfo.academicContext) {
@@ -752,6 +764,94 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     const smalltalkReply = buildSmalltalkReply(message, chatMode);
     onDelta(smalltalkReply);
     return { ...emptyResult(smalltalkReply), intent: 'smalltalk', chatMode };
+  }
+
+  if (route.kind === 'ai_identity') {
+    const { resolveAiIdentityReply } = require('./lib/ai-search-tools');
+    const scopeDecisionMs = preScopeMs + (performance.now() - stage2StartedAt);
+    logScopeDecision({ decision: 'in_scope', scopeDecisionMs, contextLoadMs });
+    const identityReply = resolveAiIdentityReply(message, {
+      config: options.aiConfig || {},
+      chatMode
+    });
+    onDelta(identityReply);
+    return {
+      ...emptyResult(identityReply),
+      intent: 'ai_identity',
+      sourceLabel: 'Kyana System Configuration',
+      chatMode
+    };
+  }
+
+  if (route.kind === 'social_university') {
+    const { buildSocialOrContactReply } = require('./lib/ai-search-tools');
+    const isBlockedContact = Boolean(route.socialClassification?.blocked);
+    const scopeDecisionMs = preScopeMs + (performance.now() - stage2StartedAt);
+    logScopeDecision({
+      decision: isBlockedContact ? 'cross_student' : 'in_scope',
+      scopeDecisionMs,
+      contextLoadMs
+    });
+    if (isBlockedContact) {
+      recordKyanaSecurityAudit(rawDb || db, {
+        actorUserId: academicContext?.studentId || studentInfo?.studentId || null,
+        actorRole: academicContext?.role || studentInfo?.role || 'student',
+        eventType: 'kyana_security_event',
+        reason: 'private_student_contact_refusal',
+        metadata: { messageLength: message.length }
+      }).catch(() => {});
+    }
+    const socialReply = buildSocialOrContactReply(message, route.socialClassification, { chatMode });
+    onDelta(socialReply);
+    return {
+      ...emptyResult(socialReply),
+      intent: isBlockedContact ? 'cross_student' : 'social_university',
+      sourceLabel: isBlockedContact ? 'Student Privacy Guard' : 'Campus Life Guide',
+      chatMode
+    };
+  }
+
+  if (route.kind === 'gu_public_research') {
+    const {
+      searchGandakiUniversityPublic,
+      synthesizeUniversityPublicReply
+    } = require('./lib/ai-search-tools');
+    const scopeDecisionMs = preScopeMs + (performance.now() - stage2StartedAt);
+    logScopeDecision({ decision: 'in_scope', scopeDecisionMs, contextLoadMs });
+    onStatus({ state: 'searching', buffered: true });
+    const research = await searchGandakiUniversityPublic(message, {
+      intentInfo: route.guIntent,
+      db,
+      webSearchFn: options.webSearchFn || null,
+      referenceDate: options.referenceDate || new Date(),
+      skipCache: Boolean(options.skipCache)
+    });
+    const publicReply = synthesizeUniversityPublicReply(message, research, {
+      intentInfo: route.guIntent,
+      history: cleanHistory,
+      chatMode,
+      internalRecords: { bitCourseCount: courses.length }
+    });
+    const pubRes = emptyResult(publicReply);
+    pubRes.intent = 'gu_public_research';
+    pubRes.chatMode = chatMode;
+    pubRes.isWebSearch = true;
+    pubRes.webSources = research.webSources || [];
+    pubRes.sourceLabel = research.hasOfficialSource
+      ? 'Official Gandaki University Web Source'
+      : (research.hasSecondaryOnly ? 'Secondary External Web Source' : 'Unverified Public Query');
+    pubRes.publicResearchMeta = {
+      subIntent: research.subIntent,
+      hasOfficialSource: research.hasOfficialSource,
+      hasSecondaryOnly: research.hasSecondaryOnly,
+      hasOutdatedOnly: research.hasOutdatedOnly,
+      conflictDetected: research.conflictDetected,
+      rejectedUnrelatedCount: (research.rejectedUnrelated || []).length,
+      sanitizedCount: research.sanitizedCount || 0,
+      fromCache: Boolean(research.fromCache)
+    };
+    onDelta(publicReply);
+    return pubRes;
   }
 
   let recordedScopeDecision = preScope.reason === 'platform_context_override' ? 'platform_context_override' : 'in_scope';

@@ -1137,7 +1137,7 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
       assert.equal(enRes.agentTrace.verification.currentAdDate, '2026-11-08');
       assert.equal(enRes.agentTrace.verification.currentBsDate, '2083-07-23');
       assert.match(enRes.reply, /2026-11-16/, 'Must state the latest official resumption date 2026-11-16');
-      assert.match(enRes.reply, /2083-08-01/, 'Must include verified BS date 2083-08-01 BS');
+      assert.match(enRes.reply, /2083-08-01|1 Mangsir 2083/, 'Must include verified BS date');
       assert.match(enRes.reply, /Official Update: Revised Class Resumption Date/i, 'Must cite the latest official notice title');
       assert.match(enRes.reply, /supersedes|Earlier Notice on Class Resumption|2026-11-12/i, 'Must disclose that the earlier 2026-11-12 notice was superseded');
 
@@ -1161,7 +1161,7 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
         { referenceDate: REFERENCE_NOV_8_2026 }
       );
       assert.match(romRes.reply, /2026-11-16/);
-      assert.match(romRes.reply, /2083-08-01/);
+      assert.match(romRes.reply, /2083-08-01|1 Mangsir 2083/);
       assert.match(romRes.reply, /Tihar and Chhath vacation|senate scheduling/i);
 
       // 4. Devanagari Nepali follow-up: "हाम्रो कक्षा कहिलेदेखि सुरु हुन्छ? मिति परिवर्तन भएको हो?"
@@ -1174,7 +1174,7 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
         { referenceDate: REFERENCE_NOV_8_2026 }
       );
       assert.match(devRes.reply, /2026-11-16/);
-      assert.match(devRes.reply, /2083-08-01/);
+      assert.match(devRes.reply, /2083-08-01|1 Mangsir 2083/);
       assert.match(devRes.reply, /supersedes|2026-11-12/i);
 
       stagingReport.dateRegression = {
@@ -1337,7 +1337,7 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
       const noticeSse = await invokeChatSse('When does college reopen after Tihar?', 'student');
       assert.equal(noticeSse.status, 200);
       assert.match(noticeSse.finalResult.reply, /2026-11-16/);
-      assert.match(noticeSse.finalResult.reply, /2083-08-01/);
+      assert.match(noticeSse.finalResult.reply, /2083-08-01|1 Mangsir 2083/);
 
       // 7. Academic Tutoring & Visual Diagram Rendering ("Explain how cookies work")
       const tutorSse = await invokeChatSse('Explain how cookies work', 'student');

@@ -26,9 +26,9 @@ const ws = require('ws');
 
 // Load core modules (dbModule initializes pgDirectConnectionString & aiAssistant loads configuration)
 const aiAssistant = require('../ai-assistant');
+const { handleChat } = aiAssistant;
 const dbModule = require('../db');
 const {
-  handleChat,
   invalidateAgentCache,
   attachPostgresCacheListener,
   getCrossInstanceCacheEpoch
@@ -95,7 +95,7 @@ function createStagingDbAdapter(pool) {
     'dm_participants', 'dm_blocks', 'dm_message_deletions',
     'dm_rate_limits', 'attendance_settings', 'teacher_drive_connections',
     'kyana_cache_state', 'post_target_semesters', 'cohorts', 'subjects',
-    'teachers', 'teacher_subjects', 'note_search_documents'
+    'teachers', 'teacher_subjects', 'note_search_documents', 'ai_conversations'
   ];
 
   const adapter = {
@@ -225,10 +225,12 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
         return client;
       };
       p.query = async function (text, values) {
-        const client = await p.connect();
+        const client = await origConnect();
         try {
+          await client.query(`SET search_path TO ${schemaName}`);
           return await client.query(text, values);
         } finally {
+          await client.query('SET search_path TO public').catch(() => {});
           client.release();
         }
       };
@@ -486,7 +488,9 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
       CREATE TABLE ai_conversations (
         id TEXT PRIMARY KEY,
         student_id TEXT NOT NULL,
-        title TEXT,
+        title TEXT DEFAULT 'Chat with Kyana',
+        last_message TEXT,
+        last_message_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
         is_active INTEGER DEFAULT 1,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -498,7 +502,7 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
         student_id TEXT NOT NULL,
         sender TEXT NOT NULL,
         text TEXT NOT NULL,
-        metadata JSONB DEFAULT '{}'::jsonb,
+        metadata TEXT DEFAULT '{}',
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -568,7 +572,7 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
       INSERT INTO posts (id, user_id, author_role, title, content, type, category, semester, semester_no, target_all_semesters, cohort_id, audience_scope, visibility, is_official, superseded, created_at)
       VALUES
         (201, 'admin_stage_1', 'admin', 'Earlier Notice on Class Resumption', 'Regular BIT classes will resume from 2026-11-12 (2083-07-27 BS) after Tihar break.', 'notice', 'notice', 'All Semesters', NULL, 1, 'coh_stage_3', 'all_students', 'everyone', 1, TRUE, '2026-11-01T09:00:00Z'),
-        (202, 'admin_stage_1', 'admin', 'Official Update: Revised Class Resumption Date', 'Official Update: Regular BIT classes will resume from 2026-11-16 (2083-07-30 BS / Kartik 30, 2083) following the Tihar and Chhath vacation due to university senate scheduling.', 'notice', 'notice', 'All Semesters', NULL, 1, 'coh_stage_3', 'all_students', 'everyone', 1, FALSE, '2026-11-06T10:00:00Z');
+        (202, 'admin_stage_1', 'admin', 'Official Update: Revised Class Resumption Date', 'Official Update: Regular BIT classes will resume from 2026-11-16 (2083-08-01 BS / Mangsir 1, 2083) following the Tihar and Chhath vacation due to university senate scheduling.', 'notice', 'notice', 'All Semesters', NULL, 1, 'coh_stage_3', 'all_students', 'everyone', 1, FALSE, '2026-11-06T10:00:00Z');
 
       INSERT INTO post_target_semesters (post_id, semester)
       VALUES (201, 3), (202, 3);
@@ -638,6 +642,8 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
   after(async () => {
     try {
       if (adminPool) {
+        await adminPool.query('DISCARD ALL').catch(() => {});
+        await adminPool.query('SET search_path TO public').catch(() => {});
         await adminPool.query(`DROP SCHEMA IF EXISTS ${schemaName} CASCADE`);
         const [studAfter, assignAfter, postAfter] = await Promise.all([
           adminPool.query('SELECT COUNT(*)::int AS cnt FROM public.students'),
@@ -654,10 +660,15 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
       console.log('KYANA V1.2 FINAL STAGING VALIDATION TELEMETRY SUMMARY');
       console.log(JSON.stringify(stagingReport, null, 2));
       console.log('================================================================\n');
+      if (adminPool) {
+        await adminPool.query('DISCARD ALL').catch(() => {});
+        await adminPool.query('SET search_path TO public').catch(() => {});
+      }
       await Promise.all([
         poolInstanceA?.end().catch(() => {}),
         poolInstanceB?.end().catch(() => {}),
-        adminPool?.end().catch(() => {})
+        adminPool?.end().catch(() => {}),
+        dbModule.close?.().catch(() => {})
       ]);
     }
   });
@@ -1111,8 +1122,8 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
       assert.equal(clock.bsDate, '2083-07-23');
       assert.equal(adToBs('2026-11-08'), '2083-07-23');
       assert.equal(bsToAd('2083-07-23'), '2026-11-08');
-      assert.equal(adToBs('2026-11-16'), '2083-07-30');
-      assert.equal(bsToAd('2083-07-30'), '2026-11-16');
+      assert.equal(adToBs('2026-11-16'), '2083-08-01');
+      assert.equal(bsToAd('2083-08-01'), '2026-11-16');
 
       // 2. English query: "When do our classes resume? Has the date changed?"
       const enRes = await handleChat(
@@ -1126,7 +1137,7 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
       assert.equal(enRes.agentTrace.verification.currentAdDate, '2026-11-08');
       assert.equal(enRes.agentTrace.verification.currentBsDate, '2083-07-23');
       assert.match(enRes.reply, /2026-11-16/, 'Must state the latest official resumption date 2026-11-16');
-      assert.match(enRes.reply, /2083-07-30/, 'Must include verified BS date 2083-07-30 BS');
+      assert.match(enRes.reply, /2083-08-01/, 'Must include verified BS date 2083-08-01 BS');
       assert.match(enRes.reply, /Official Update: Revised Class Resumption Date/i, 'Must cite the latest official notice title');
       assert.match(enRes.reply, /supersedes|Earlier Notice on Class Resumption|2026-11-12/i, 'Must disclose that the earlier 2026-11-12 notice was superseded');
 
@@ -1150,7 +1161,7 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
         { referenceDate: REFERENCE_NOV_8_2026 }
       );
       assert.match(romRes.reply, /2026-11-16/);
-      assert.match(romRes.reply, /2083-07-30/);
+      assert.match(romRes.reply, /2083-08-01/);
       assert.match(romRes.reply, /Tihar and Chhath vacation|senate scheduling/i);
 
       // 4. Devanagari Nepali follow-up: "हाम्रो कक्षा कहिलेदेखि सुरु हुन्छ? मिति परिवर्तन भएको हो?"
@@ -1163,14 +1174,14 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
         { referenceDate: REFERENCE_NOV_8_2026 }
       );
       assert.match(devRes.reply, /2026-11-16/);
-      assert.match(devRes.reply, /2083-07-30/);
+      assert.match(devRes.reply, /2083-08-01/);
       assert.match(devRes.reply, /supersedes|2026-11-12/i);
 
       stagingReport.dateRegression = {
         referenceAdDate: clock.adDate,
         referenceBsDate: clock.bsDate,
         latestNoticeEffectiveAdDate: '2026-11-16',
-        latestNoticeEffectiveBsDate: '2083-07-30',
+        latestNoticeEffectiveBsDate: '2083-08-01',
         supersededNoticeAdDate: '2026-11-12',
         englishPassed: true,
         romanizedNepaliPassed: true,
@@ -1312,7 +1323,7 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
       const chartMatch = attJson.data.reply.match(/```(attendance(?:_chart)?)\n([\s\S]*?)\n```/);
       assert.ok(chartMatch, 'Attendance response must include ```attendance block');
       const renderedChartHtml = renderAdaptiveVisualBlockHtml(chartMatch[1], chartMatch[2]);
-      assert.match(renderedChartHtml, /kyana-visual-block/);
+      assert.match(renderedChartHtml, /kyana-adaptive-visual|kyana-visual-attendance/);
       assert.match(renderedChartHtml, /Data Structure and Algorithms/);
 
       // 5. Published Marks vs Unpublished Draft Marks
@@ -1326,7 +1337,7 @@ describe('Kyana V1.2 — Final Staging Validation Suite', () => {
       const noticeSse = await invokeChatSse('When does college reopen after Tihar?', 'student');
       assert.equal(noticeSse.status, 200);
       assert.match(noticeSse.finalResult.reply, /2026-11-16/);
-      assert.match(noticeSse.finalResult.reply, /2083-07-30/);
+      assert.match(noticeSse.finalResult.reply, /2083-08-01/);
 
       // 7. Academic Tutoring & Visual Diagram Rendering ("Explain how cookies work")
       const tutorSse = await invokeChatSse('Explain how cookies work', 'student');

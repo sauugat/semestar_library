@@ -83,6 +83,7 @@ if (isPostgres) {
         connectionTimeoutMillis: 10000
       });
       pgPool.on('connect', (client) => {
+        client.query('SET search_path TO public').catch(() => {});
         client.on('error', (err) => {
           console.warn('[DB Engine]: Neon client connection error (handled):', err?.message || err);
         });
@@ -1545,10 +1546,21 @@ async function verifyStartupReady() {
     try {
       if (isPostgres && pgPool) {
         const res = await pgPool.query(
-          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl, to_regclass('public.post_attachment_staging') AS post_staging_tbl, to_regclass('public.post_media') AS post_media_tbl, to_regclass('public.exam_configurations') AS exam_cfg_tbl, to_regclass('public.student_marks') AS student_marks_tbl, to_regclass('public.marks_audit_logs') AS marks_audit_tbl, to_regclass('public.advertisements') AS ads_tbl, to_regclass('public.post_votes') AS post_votes_tbl, to_regclass('public.file_votes') AS file_votes_tbl, to_regclass('public.assignment_votes') AS assign_votes_tbl, to_regclass('public.assignment_comments') AS assign_comments_tbl, to_regclass('public.file_comment_reactions') AS file_react_tbl, to_regclass('public.assignment_comment_reactions') AS assign_react_tbl"
+          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl, to_regclass('public.session') AS session_tbl, to_regclass('public.post_attachment_staging') AS post_staging_tbl, to_regclass('public.post_media') AS post_media_tbl, to_regclass('public.exam_configurations') AS exam_cfg_tbl, to_regclass('public.student_marks') AS student_marks_tbl, to_regclass('public.marks_audit_logs') AS marks_audit_tbl, to_regclass('public.advertisements') AS ads_tbl, to_regclass('public.post_votes') AS post_votes_tbl, to_regclass('public.file_votes') AS file_votes_tbl, to_regclass('public.assignment_votes') AS assign_votes_tbl, to_regclass('public.assignment_comments') AS assign_comments_tbl, to_regclass('public.file_comment_reactions') AS file_react_tbl, to_regclass('public.assignment_comment_reactions') AS assign_react_tbl"
         );
         const row = res.rows && res.rows[0];
         if (row && row.students_tbl && row.posts_tbl) {
+          if (!row.session_tbl) {
+            await exec(`
+              CREATE TABLE IF NOT EXISTS "session" (
+                "sid" varchar NOT NULL COLLATE "default",
+                "sess" json NOT NULL,
+                "expire" timestamp(6) NOT NULL,
+                CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+              );
+              CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+            `);
+          }
           if (!row.post_staging_tbl || !row.post_media_tbl || !row.post_votes_tbl) {
             const { ensurePostsSchema } = require('./lib/posts');
             await ensurePostsSchema({ exec, run, isPostgres });

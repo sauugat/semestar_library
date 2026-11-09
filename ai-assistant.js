@@ -51,14 +51,16 @@ const {
   planVisualExplanation,
   validateVisualBlockPayload,
   buildDeterministicVisualEnrichment,
-  buildAcademicTutorPrompt
+  buildAcademicTutorPrompt,
+  isCurrentDateQuery,
+  buildCurrentDateReply
 } = require('./lib/chat-tools');
 const { getAcademicContext } = require('./lib/academic-context');
 const { isKnowledgeV3Enabled } = require('./lib/knowledge-schema');
 const knowledgeSearch = require('./lib/knowledge-search');
 const { getTemporalContext } = require('./lib/temporal-intelligence');
 const { resolveAcademicEvents } = require('./lib/academic-event-intelligence');
-const { buildDeterministicFactSheet } = require('./lib/academic-intelligence');
+const { buildDeterministicFactSheet, verifyAndGuardReply } = require('./lib/academic-intelligence');
 const { logTiming, logScopeDecision } = require('./lib/knowledge-timing');
 const {
   REFUSAL,
@@ -803,6 +805,19 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   }
 
   const route = routeQuery(message, cleanHistory, { academicContext });
+  if (route.kind === 'current_date' || isCurrentDateQuery(message)) {
+    const scopeDecisionMs = preScopeMs + (performance.now() - stage2StartedAt);
+    logScopeDecision({ decision: 'in_scope', scopeDecisionMs, contextLoadMs });
+    const currentDateReply = buildCurrentDateReply(message, options.referenceDate || new Date());
+    onDelta(currentDateReply);
+    return {
+      ...emptyResult(currentDateReply),
+      intent: 'current_date',
+      sourceLabel: 'Nepal Standard Time (UTC+05:45)',
+      chatMode
+    };
+  }
+
   if (route.kind === 'smalltalk') {
     const scopeDecisionMs = preScopeMs + (performance.now() - stage2StartedAt);
     logScopeDecision({ decision: 'smalltalk', scopeDecisionMs, contextLoadMs });
@@ -1599,7 +1614,7 @@ ${evidenceBlocks}
       // 6. Extract Referenced IDs, Verify Grounding, and Build Cards
       onStatus({ state: 'verifying', buffered: true });
       const { cleanText, referencedIds } = extractReferencedRecords(rawReply);
-      const grounded = verifyGrounding(cleanText, retrievedRecords, {
+      const grounded = verifyGrounding(cleanText, [retrievedRecords, deterministicFactSheet], {
         mode: 'record',
         language: detectLanguage(message)
       });
@@ -1615,7 +1630,13 @@ ${evidenceBlocks}
         return result;
       }
 
-      result.reply = grounded.reply;
+      const guarded = verifyAndGuardReply({
+        reply: grounded.reply,
+        resolvedEvents,
+        temporalContext,
+        academicContext
+      });
+      result.reply = guarded.reply;
 
       if (grounded.fallbackUsed) {
         result.resourceCards = [];

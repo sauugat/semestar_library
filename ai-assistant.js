@@ -1953,8 +1953,42 @@ ${evidenceBlocks}
     const userIntent = classifyUserIntent(message, cleanHistory, academicContext);
     const isAcademicIntent = userIntent.category === 'CATEGORY_B' || userIntent.category === 'CATEGORY_C' || userIntent.category === 'CATEGORY_D' || academicRequest(message) || codeRequest(message);
 
-    // If route.kind === 'scope_check' and not an academic question or syllabus topic, refuse with safe unverified reply
-    if (route.kind === 'scope_check' && !isSyllabusTopic && !academicRequest(message) && !codeRequest(message) && !noticeIntent(message) && matchingNotesEvidence.length === 0) {
+    const mightBeCampusEventOrDate = noticeIntent(message) ||
+      /\b(?:(?:project\s+)?defen[sc]e|viva(?:\s*voce)?|proposal|presentation|seminar|orientation|workshop|webinar|program|event|schedule|routine|dates?)\b/i.test(message) ||
+      /\b(?:kaile|kahile|kile|when)\b[^?.!]{0,35}\b(?:ho|cha|xa|chha|huncha|hunxa|scheduled|starts?|held|open\w*|reopen\w*|resum\w*|bata|dekhi)\b/i.test(message) ||
+      /डिफेन्स|भाइभा|प्रस्तुतिकरण|सेमिनार|कार्यशाला/.test(message);
+
+    // If route.kind === 'scope_check' and not an academic question or syllabus topic, verify if it could be a campus event/date query before refusing
+    if (route.kind === 'scope_check' && !isSyllabusTopic && !academicRequest(message) && !codeRequest(message) && matchingNotesEvidence.length === 0) {
+      if (mightBeCampusEventOrDate) {
+        try {
+          const aiSearch = require('./lib/ai-search-tools');
+          const candidateNotices = await aiSearch.searchNotices(db, academicContext, {
+            query: route.query || message,
+            limit: 5
+          });
+          if (Array.isArray(candidateNotices) && candidateNotices.length > 0) {
+            route.kind = 'notices';
+            route.query = route.query || message;
+            const directTool = 'search_notices';
+            const formattedToolEvidence = formatToolResult(directTool, { notices: candidateNotices, query: route.query });
+            const deterministicReply = styleLookupReply(formattedToolEvidence, {
+              message: originalMessage,
+              history: cleanHistory,
+              kind: 'notices',
+              chatMode,
+              successful: true
+            });
+            result.reply = deterministicReply;
+            result.matchedNotices = candidateNotices;
+            result.resourceCards = candidateNotices.map(n => n.resourceCard).filter(Boolean);
+            logScopeDecision({ decision: 'in_scope', scopeDecisionMs: totalScopeDecisionMs, contextLoadMs, totalMs: Date.now() - requestStartedAt });
+            onDelta(result.reply);
+            return result;
+          }
+        } catch (_) {}
+      }
+
       const safeReply = getSafeUnverifiedReply(detectLanguage(message));
       result.reply = safeReply;
       logScopeDecision({ decision: recordedScopeDecision, scopeDecisionMs: totalScopeDecisionMs, contextLoadMs, totalMs: Date.now() - requestStartedAt });

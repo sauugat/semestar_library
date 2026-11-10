@@ -25,9 +25,14 @@ const {
   searchNotices,
   searchAssignments,
   searchAuthorizedNotes,
-  sanitizeSourceErrorMessage
+  sanitizeSourceErrorMessage,
+  asStructuredSearchResult
 } = require('../lib/ai-search-tools');
-const { universalSearch } = require('../lib/kyana-universal-retrieval');
+const {
+  universalSearch,
+  determineActiveSources,
+  ALL_RETRIEVAL_SOURCES
+} = require('../lib/kyana-universal-retrieval');
 const { formatToolResult } = require('../lib/chat-tools');
 
 const USER = {
@@ -240,3 +245,176 @@ test('9. A failed source can never be reported as a clean empty search', async (
   assert.match(formatted, /routine/);
   assert.match(formatted, /temporary issue|partial/i);
 });
+
+test('10. Overall retrieval deadline bounds execution and preserves collected records', async () => {
+  const deadlineDb = {
+    isPostgres: true,
+    all: async (sql) => {
+      if (typeof sql === 'string' && sql.includes('FROM posts')) {
+        // Fast source completes in 10ms
+        await new Promise(r => setTimeout(r, 10));
+        return [{
+          id: 501,
+          title: 'Urgent Examination Guidelines',
+          content: 'Exam starts next week.',
+          author_name: 'newton',
+          category: 'notice',
+          created_at: '2026-11-05T00:00:00.000Z'
+        }];
+      }
+      if (typeof sql === 'string' && (sql.includes('FROM files') || sql.includes('FROM routine') || sql.includes('FROM assignments'))) {
+        // Slow source hangs for 600ms
+        await new Promise(r => setTimeout(r, 600));
+        return [];
+      }
+      return [];
+    },
+    get: async () => null,
+    query: async () => ({ rows: [] })
+  };
+
+  const startTime = Date.now();
+  const res = await universalSearch(deadlineDb, USER, {
+    query: 'examination guidelines',
+    overallTimeoutMs: 120
+  });
+  const duration = Date.now() - startTime;
+
+  assert.ok(duration < 400, `Execution duration (${duration}ms) must be bounded near overallTimeoutMs (120ms)`);
+  assert.equal(res.metadata.isComplete, false, 'Search must be marked incomplete when overall deadline is exceeded');
+  assert.equal(res.metadata.deadlineExceeded, true, 'metadata.deadlineExceeded must be true');
+  assert.ok(res.metadata.sourcesSucceeded.includes('notices') || res.metadata.sourcesSucceeded.includes('posts'), 'Fast source must be preserved');
+  assert.ok(res.results.length > 0, 'Results from successful fast source must be present');
+  assert.equal(res.results[0].title, 'Urgent Examination Guidelines');
+});
+
+test('11. Late-settling query promises do not leak unhandled promise rejections after timeout', async () => {
+  let unhandledCaught = null;
+  const onUnhandled = (err) => {
+    unhandledCaught = err;
+  };
+  process.on('unhandledRejection', onUnhandled);
+
+  try {
+    const hangingDb = {
+      isPostgres: true,
+      all: async (sql) => {
+        if (typeof sql === 'string' && sql.includes('FROM files')) {
+          // Promise that rejects well after the source search timeout has elapsed
+          return new Promise((_, reject) => {
+            setTimeout(() => {
+              reject(new Error('Delayed late database disconnect'));
+            }, 120);
+          });
+        }
+        return [];
+      },
+      get: async () => null,
+      query: async () => ({ rows: [] })
+    };
+
+    const res = await universalSearch(hangingDb, USER, {
+      query: 'course files',
+      sourceTimeoutMs: 40,
+      overallTimeoutMs: 80
+    });
+
+    assert.equal(res.metadata.isComplete, false);
+    assert.ok(res.metadata.sourcesFailed.includes('files'));
+
+    // Wait 150ms to ensure the delayed rejection in files executes
+    await new Promise(r => setTimeout(r, 150));
+
+    assert.equal(unhandledCaught, null, 'No unhandledRejection must be emitted when query promise settles late');
+  } finally {
+    process.removeListener('unhandledRejection', onUnhandled);
+  }
+});
+
+test('12. determineActiveSources() routes specific intents cleanly and falls back broadly', async () => {
+  // Routine inquiry
+  const routineSources = determineActiveSources({
+    normalizedQuery: 'exam routine for semester 3',
+    rawQuery: 'exam routine for semester 3',
+    isRoutineInquiry: true
+  });
+  assert.deepEqual(routineSources, ['notices', 'posts', 'routine']);
+
+  // Assignment inquiry
+  const assignmentSources = determineActiveSources({
+    normalizedQuery: 'dsa assignment deadline',
+    rawQuery: 'dsa assignment deadline',
+    isSubmissionInquiry: true
+  });
+  assert.deepEqual(assignmentSources, ['notices', 'posts', 'assignments']);
+
+  // Notes & study materials inquiry
+  const notesSources = determineActiveSources({
+    normalizedQuery: 'chapter 5 php notes pdf download',
+    rawQuery: 'chapter 5 php notes pdf download'
+  });
+  assert.deepEqual(notesSources, ['notes', 'files', 'syllabus']);
+
+  // Syllabus inquiry
+  const syllabusSources = determineActiveSources({
+    normalizedQuery: 'unit 2 syllabus curriculum',
+    rawQuery: 'unit 2 syllabus curriculum'
+  });
+  assert.deepEqual(syllabusSources, ['notes', 'files', 'syllabus']);
+
+  // Broad / Ambiguous inquiry: falls back safely to all 7 sources
+  const broadSources = determineActiveSources({
+    normalizedQuery: 'web technology',
+    rawQuery: 'web technology'
+  });
+  assert.deepEqual(broadSources, ALL_RETRIEVAL_SOURCES);
+
+  // Explicit all-semesters inquiry: falls back safely to all 7 sources
+  const allSemSources = determineActiveSources({
+    normalizedQuery: 'all available notes across semesters',
+    rawQuery: 'all available notes across semesters',
+    isAllSemesters: true
+  });
+  assert.deepEqual(allSemSources, ALL_RETRIEVAL_SOURCES);
+
+  // Explicit caller override
+  const overrideSources = determineActiveSources({}, { sources: ['routine', 'syllabus'] });
+  assert.deepEqual(overrideSources, ['routine', 'syllabus']);
+});
+
+test('13. asStructuredSearchResult() converts arrays, errors, and fallbacks safely with serialization preservation', () => {
+  // Case A: Successful array
+  const rawArray = [{ id: 1, title: 'Item 1' }, { id: 2, title: 'Item 2' }];
+  const structSuccess = asStructuredSearchResult(rawArray);
+  assert.equal(structSuccess.ok, true);
+  assert.equal(structSuccess.failed, false);
+  assert.equal(structSuccess.data.length, 2);
+
+  // Case B: Legacy array with .failed = true
+  const legacyFallback = [];
+  legacyFallback.failed = true;
+  legacyFallback.error = 'Database service unreachable for posts';
+  legacyFallback.source = 'posts';
+
+  const structLegacy = asStructuredSearchResult(legacyFallback);
+  assert.equal(structLegacy.ok, false);
+  assert.equal(structLegacy.failed, true);
+  assert.equal(structLegacy.source, 'posts');
+  assert.equal(structLegacy.error, 'Database service unreachable for posts');
+
+  // Serialization test: JSON.stringify drops array custom properties, but preserves structLegacy!
+  const serialized = JSON.parse(JSON.stringify(structLegacy));
+  assert.equal(serialized.failed, true);
+  assert.equal(serialized.source, 'posts');
+  assert.equal(serialized.error, 'Database service unreachable for posts');
+
+  // Case C: Error object
+  const err = new Error('Connection timeout');
+  err.source = 'assignments';
+  const structErr = asStructuredSearchResult(err);
+  assert.equal(structErr.ok, false);
+  assert.equal(structErr.failed, true);
+  assert.equal(structErr.source, 'assignments');
+  assert.match(structErr.error, /assignments.*timed out/i);
+});
+

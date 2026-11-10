@@ -940,6 +940,12 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   // Run full scope check before any retrieval or LLM call ONLY when route is scope_check (or custom classifyScope provided).
   // Grounded routes and deterministic BIT syllabus direct routes skip redundant LLM scope classification calls.
   if (route.kind === 'scope_check' || route.kind === 'direct') {
+    const DEFAULT_SCOPE_CLASSIFIER_TIMEOUT_MS = 4000;
+    const scopeClassifierTimeoutMs = Math.max(
+      1000,
+      Math.min(10000, Number(process.env.SCOPE_CLASSIFIER_TIMEOUT_MS || options.scopeClassifierTimeoutMs) || DEFAULT_SCOPE_CLASSIFIER_TIMEOUT_MS)
+    );
+
     const defaultClassifyFn = options.classifyScope || (
       route.kind === 'scope_check' && (process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY || process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY)
         ? async ({ systemPrompt: clsPrompt, message: clsMsg, signal: clsSignal }) => {
@@ -951,7 +957,8 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
                 tools: [],
                 onDelta: () => {},
                 signal: clsSignal,
-                complex: false
+                complex: false,
+                timeoutMs: scopeClassifierTimeoutMs
               });
               return out.reply;
             } catch (_err) {

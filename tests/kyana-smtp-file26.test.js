@@ -96,7 +96,7 @@ describe('File 26 & Kyana RAG Fixes (SMTP Page 5 Extraction & Retrieval)', () =>
     const tokens = ['smtp', 'protocol'];
     const passage = extractRelevantPassage(file26Content, tokens);
 
-    assert.ok(passage.includes('[Page 5]'), 'Must explicitly indicate [Page 5]');
+    assert.ok(passage.startsWith('[Page 5]'), 'Must return Page 5 first (best first)');
     assert.ok(passage.includes('Simple Mail Transfer Protocol (SMTP)'), 'Must contain SMTP explanation from page 5');
     assert.ok(!passage.startsWith('[Page 1]'), 'Should prioritize page 5 over page 1 for SMTP query');
   });
@@ -109,7 +109,7 @@ describe('File 26 & Kyana RAG Fixes (SMTP Page 5 Extraction & Retrieval)', () =>
       const file26 = results.find(r => Number(r.id) === 26);
       assert.ok(file26, 'File 26 must be returned in results');
       assert.strictEqual(file26.title, 'Chapter1 Complete Notes GU');
-      assert.ok(file26.extractedContent.includes('[Page 5]'), 'Extracted content must cite Page 5');
+      assert.ok(file26.extractedContent.startsWith('[Page 5]'), 'Extracted content must cite Page 5 first');
       assert.ok(file26.extractedContent.includes('Simple Mail Transfer Protocol (SMTP)'), 'Must contain SMTP definition');
     } finally {
       client.close();
@@ -123,7 +123,7 @@ describe('File 26 & Kyana RAG Fixes (SMTP Page 5 Extraction & Retrieval)', () =>
       assert.ok(results.length >= 1, 'Should find matching notes');
       const file26 = results.find(r => Number(r.id) === 26);
       assert.ok(file26, 'File 26 must be returned even with Romanized Nepali particles');
-      assert.ok(file26.extractedContent.includes('[Page 5]'), 'Extracted content must cite Page 5');
+      assert.ok(file26.extractedContent.startsWith('[Page 5]'), 'Extracted content must cite Page 5 first');
       assert.ok(file26.extractedContent.includes('Simple Mail Transfer Protocol (SMTP)'), 'Must contain SMTP explanation');
     } finally {
       client.close();
@@ -474,17 +474,58 @@ describe('File 26 & Kyana RAG Fixes (SMTP Page 5 Extraction & Retrieval)', () =>
     await indexNote(db, fileRow, { buffer });
 
     const q1 = await searchNotes(db, { query: 'explain SMTP protocol' });
-    console.log('\\n--- Real File 26 Query 1: "explain SMTP protocol" ---');
+    console.log('\n--- Real File 26 Query 1: "explain SMTP protocol" ---');
     console.log(q1[0]?.extractedContent);
-    assert.ok(q1[0]?.extractedContent.includes('[Page 5]'), 'Query 1 must cite Page 5');
+    assert.ok(q1[0]?.extractedContent.startsWith('[Page 5]'), 'Query 1 Page 5 must come first (best first)');
     assert.ok(q1[0]?.extractedContent.includes('1.2.5 SMTP — Simple Mail Transfer Protocol'), 'Query 1 must contain SMTP section header');
+    assert.ok(!q1[0]?.extractedContent.includes('[Page 2]'), 'Page 2 must drop out (< 50% score)');
 
     const q2 = await searchNotes(db, { query: 'SMTP protocol ko barema notes deu' });
-    console.log('\\n--- Real File 26 Query 2: "SMTP protocol ko barema notes deu" ---');
+    console.log('\n--- Real File 26 Query 2: "SMTP protocol ko barema notes deu" ---');
     console.log(q2[0]?.extractedContent);
-    assert.ok(q2[0]?.extractedContent.includes('[Page 5]'), 'Query 2 must cite Page 5');
+    assert.ok(q2[0]?.extractedContent.startsWith('[Page 5]'), 'Query 2 Page 5 must come first (best first)');
     assert.ok(q2[0]?.extractedContent.includes('1.2.5 SMTP — Simple Mail Transfer Protocol'), 'Query 2 must contain SMTP section header');
+    assert.ok(!q2[0]?.extractedContent.includes('[Page 2]'), 'Page 2 must drop out (< 50% score)');
 
     client.close();
+  });
+
+  test('13. Coverage rule: "explain SMTP protocol" must NOT return a file that only mentions "protocol"', async () => {
+    const { db, client } = await createTestDb();
+    try {
+      await client.execute({
+        sql: `INSERT INTO files (id, title, originalName, subject, chapter, semester, semester_no, cohort_id, audience_scope, author_role)
+              VALUES (201, 'Networking Protocols Handbook', 'handbook.pdf', 'Data Communication and Computer Networks', '1', '1', 1, 'cohort_1', 'cohort', 'teacher'),
+                     (202, 'Internetworking Protocol Suite', 'suite.pdf', 'Data Communication and Computer Networks', '2', '1', 1, 'cohort_1', 'cohort', 'teacher')`,
+        args: []
+      });
+      await client.execute({
+        sql: `INSERT INTO note_search_documents (id, content, extraction_status, indexed_at)
+              VALUES (201, 'Comprehensive handbook on communication protocols, transport layer protocols, and routing protocols.', 'completed', CURRENT_TIMESTAMP),
+                     (202, 'Protocol suite analysis discussing protocol stacks, network protocols, and data link protocols.', 'completed', CURRENT_TIMESTAMP)`,
+        args: []
+      });
+
+      const results = await searchNotes(db, { query: 'explain SMTP protocol', semester: 1 });
+      const foundFile26 = results.find(r => Number(r.id) === 26);
+      const foundCommonOnly = results.filter(r => [201, 202].includes(Number(r.id)));
+
+      assert.ok(foundFile26, 'File 26 matching the rarest term "smtp" must be returned');
+      assert.strictEqual(foundCommonOnly.length, 0, 'Files that only mention "protocol" must NOT be returned');
+    } finally {
+      client.close();
+    }
+  });
+
+  test('14. Rarity ranking: a rare-term query ranks the page with the rare term first', () => {
+    const docWithRareTerm = [
+      'Database systems manage structured records. Relational database engines store tables, columns, rows, and database schemas.',
+      'Database normalization is the process of organizing attributes and tables of a relational database to minimize data redundancy.'
+    ].join('\f');
+
+    const passage = extractRelevantPassage(docWithRareTerm, ['database', 'normalization']);
+    assert.ok(passage.startsWith('[Page 2]'), 'Page 2 containing the rare term "normalization" must rank first');
+    assert.ok(passage.includes('Database normalization is the process'), 'Passage must include normalization definition');
+    assert.ok(!passage.includes('[Page 1]'), 'Page 1 lacking the rare term must be dropped or ranked below');
   });
 });

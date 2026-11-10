@@ -31,7 +31,7 @@ loadEnvSafely();
 const { resolveChatMode } = require('./lib/chat-mode');
 const { generateReply } = require('./lib/chat-provider');
 const { PERSONALITY_PROMPT, toneInstructions, styleLookupReply } = require('./lib/chat-personality');
-const { TOOLS, createTools, formatToolResult, routeQuery, semesterNumber, SUBJECT_ALIASES, courses, academicRequest, codeRequest } = require('./lib/chat-tools');
+const { TOOLS, createTools, formatToolResult, routeQuery, semesterNumber, SUBJECT_ALIASES, courses, academicRequest, codeRequest, isSmalltalk } = require('./lib/chat-tools');
 const { getAcademicContext } = require('./lib/academic-context');
 const { isKnowledgeV3Enabled } = require('./lib/knowledge-schema');
 const knowledgeSearch = require('./lib/knowledge-search');
@@ -63,7 +63,7 @@ function isKnowledgeQuery(route, message, v3Enabled = false) {
   if (knowledgePattern.test(message) && !['routine', 'syllabus', 'relative_reference'].includes(route?.kind)) {
     return true;
   }
-  if (v3Enabled && academicRequest(message) && !['routine', 'syllabus', 'relative_reference'].includes(route?.kind)) {
+  if (v3Enabled && !isSmalltalk(message) && !['routine', 'syllabus', 'relative_reference'].includes(route?.kind)) {
     return true;
   }
   return false;
@@ -429,7 +429,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
       // 3. Handle Empty or Weak Evidence
       if (!retrievedRecords || retrievedRecords.length === 0) {
-        if (academicRequest(message) || codeRequest(message)) {
+        if (!isSmalltalk(message) && route.kind !== 'routine' && route.kind !== 'syllabus') {
           const genPrompt = SYSTEM_PROMPT + '\n' + toneInstructions(originalMessage, cleanHistory, chatMode) + '\n' +
             `NOTE: No uploaded notes or study materials were found in Semester Library for "${message}". Provide a clear and helpful explanation directly from general academic knowledge, and briefly mention that no specific course note was found in the library.`;
           const replyOutput = await (options.generateReply || generateReply)({
@@ -600,7 +600,7 @@ ${evidenceBlocks}
     }
   }
 
-  if (!v3Enabled && route.kind === 'direct' && isKnowledgeQuery(route, message, v3Enabled) && !academicRequest(message)) {
+  if (!v3Enabled && route.kind === 'direct' && isKnowledgeQuery(route, message, v3Enabled) && isSmalltalk(message)) {
     result.reply = detectNepali(message) ? 'Yo barema Semester Library ma verified information vetiena yrr.' : 'I couldn’t find verified Semester Library information for that question.';
     onDelta(result.reply); return result;
   }
@@ -615,7 +615,7 @@ ${evidenceBlocks}
   // Routine and syllabus are kept direct because they are complete and deterministic.
   const directTool = v3Enabled
     ? {syllabus:'get_syllabus',routine:'get_routine',web:'web_search'}[route.kind]
-    : {notes:'search_notes',syllabus:'get_syllabus',routine:'get_routine',notices:'search_notices',posts:'search_posts',assignments:'search_assignments',web:'web_search'}[route.kind];
+    : {syllabus:'get_syllabus',routine:'get_routine',notices:'search_notices',posts:'search_posts',assignments:'search_assignments',web:'web_search'}[route.kind];
   if (directTool) {
     const data = await toolkit.executeTool(directTool, {query:(route.kind === 'web' || route.kind === 'notices' || route.kind === 'posts' || route.kind === 'assignments') ? (route.query || message) : route.query, semester:route.filters.semester, subject:route.filters.subject});
     result.reply = styleLookupReply(formatToolResult(directTool, data), {
@@ -626,7 +626,10 @@ ${evidenceBlocks}
   } else {
     let noteEvidencePrompt = '';
     const noteEvidenceCards = [];
-    if (route.kind === 'direct' && (academicRequest(message) || route.filters.subject || route.filters.semester)) {
+    const isCode = codeRequest(message) || route.kind === 'code';
+    const nonNoteRoutes = new Set(['code', 'notices', 'posts', 'assignments', 'web', 'routine', 'syllabus', 'relative_reference']);
+    const shouldSearchNotes = !isSmalltalk(message) && !isCode && !nonNoteRoutes.has(route.kind);
+    if (shouldSearchNotes) {
       try {
         const noteSearch = require('./lib/note-search');
         const matchingNotes = await noteSearch.searchNotes(db, {

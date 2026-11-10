@@ -287,13 +287,19 @@ The standard normal forms include:
         cohort: { id: 'cohort_1', currentSemester: 1 }
       };
 
+      const mockGenerateReply = async ({ systemPrompt }) => {
+        return {
+          reply: 'This is extracted from **Web Tech Selectors Masterclass** (Web Technology I, Chapter 2):\n\nA CSS selector links styling declarations to HTML DOM elements. Element, ID, and class selectors are core.'
+        };
+      };
+
       const result = await aiAssistant.handleChat(
         db,
         'what is css selector in uploaded notes',
         studentInfo,
         [],
         'session_read_test',
-        { academicContext }
+        { academicContext, generateReply: mockGenerateReply }
       );
 
       assert.ok(result.reply, 'Should have reply');

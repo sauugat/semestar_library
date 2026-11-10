@@ -278,6 +278,7 @@ describe('Kyana AI Platform Intelligence & Semester Authorization', () => {
       'session_test',
       {
         academicContext,
+        generateReply: async () => ({ reply: 'Here are the notes for Java OOP.' }),
         toolDependencies: { searchNotes: mockSearchNotes }
       }
     );

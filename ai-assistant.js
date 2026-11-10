@@ -631,24 +631,27 @@ ${evidenceBlocks}
     const shouldSearchNotes = !isSmalltalk(message) && !isCode && !nonNoteRoutes.has(route.kind);
     if (shouldSearchNotes) {
       try {
-        const noteSearch = require('./lib/note-search');
-        const matchingNotes = await noteSearch.searchNotes(db, {
+        const searchFn = options.toolDependencies?.searchNotes || require('./lib/note-search').searchNotes;
+        const matchingNotes = await searchFn(db, {
           query: message,
           academicContext,
           semester: academicContext ? undefined : route.filters.semester,
           limit: 3
         });
-        if (matchingNotes && matchingNotes.length > 0 && matchingNotes.some(n => n.extractedContent)) {
-          const topNotes = matchingNotes.filter(n => n.extractedContent).slice(0, 2);
-          noteEvidencePrompt = '\n\nAUTHORIZED CAMPUS STUDY MATERIALS / NOTES:\n' + topNotes.map(n => {
-            const citation = n.chapter
-              ? `[File: "${n.title}" | Subject: ${n.subject || 'General'} | Chapter: ${n.chapter}]`
-              : `[File: "${n.title}" | Subject: ${n.subject || 'General'}]`;
-            return `${citation}\nExtracted text from file:\n${n.extractedContent}`;
-          }).join('\n\n') + '\n\nCRITICAL INSTRUCTION FOR STUDY MATERIALS: When explaining the concept, answer accurately according to the uploaded study material file above. State explicit attribution at the beginning or in your response: "This is extracted from **[File Title]** (Subject: [Subject], Chapter: [Chapter]): [explanation from file]".';
+        if (matchingNotes && matchingNotes.length > 0) {
+          const contentNotes = matchingNotes.filter(n => n.extractedContent);
+          const topNotes = (contentNotes.length > 0 ? contentNotes : matchingNotes).slice(0, 2);
+          if (contentNotes.length > 0) {
+            noteEvidencePrompt = '\n\nAUTHORIZED CAMPUS STUDY MATERIALS / NOTES:\n' + topNotes.map(n => {
+              const citation = n.chapter
+                ? `[File: "${n.title}" | Subject: ${n.subject || 'General'} | Chapter: ${n.chapter}]`
+                : `[File: "${n.title}" | Subject: ${n.subject || 'General'}]`;
+              return `${citation}\nExtracted text from file:\n${n.extractedContent}`;
+            }).join('\n\n') + '\n\nCRITICAL INSTRUCTION FOR STUDY MATERIALS: When explaining the concept, answer accurately according to the uploaded study material file above. State explicit attribution at the beginning or in your response: "This is extracted from **[File Title]** (Subject: [Subject], Chapter: [Chapter]): [explanation from file]".';
+          }
 
           for (const n of topNotes) {
-            noteEvidenceCards.push({
+            noteEvidenceCards.push(n.resourceCard || {
               type: 'note',
               id: n.id,
               title: n.title,

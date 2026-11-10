@@ -2617,6 +2617,72 @@ function createAdminDashboardRouter(arg1, arg2) {
     }
   });
 
+  // ==========================================================
+  // PHASE 9: ADMIN DOCUMENT INDEXING VISIBILITY & RAG CONTROLS
+  // ==========================================================
+  const {
+    getRagIndexingDashboard,
+    inspectDocumentIndex,
+    triggerDocumentReindex,
+    triggerReindexAllDocuments,
+    verifyDocumentSearchability
+  } = require('../lib/rag-admin-service');
+
+  router.get('/rag/dashboard', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const summary = await getRagIndexingDashboard(db);
+      res.json({ success: true, ...summary });
+    } catch (err) {
+      console.error('[Admin RAG Dashboard Error]:', err);
+      res.status(500).json({ message: 'Failed to retrieve document indexing dashboard.' });
+    }
+  });
+
+  router.get('/rag/documents/:id', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const detail = await inspectDocumentIndex(db, req.params.id);
+      if (!detail) {
+        return res.status(404).json({ message: 'Document not found.' });
+      }
+      res.json({ success: true, ...detail });
+    } catch (err) {
+      const status = err.statusCode || 500;
+      res.status(status).json({ message: err.message || 'Failed to inspect document index.' });
+    }
+  });
+
+  router.post('/rag/documents/:id/reindex', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const result = await triggerDocumentReindex(db, req.params.id);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      const status = err.statusCode || 500;
+      res.status(status).json({ message: err.message || 'Failed to re-index document.' });
+    }
+  });
+
+  router.post('/rag/reindex-all', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const result = await triggerReindexAllDocuments(db);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      res.status(500).json({ message: err.message || 'Failed to re-index library documents.' });
+    }
+  });
+
+  router.get('/rag/documents/:id/verify-search', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const check = await verifyDocumentSearchability(db, req.params.id, req.query.q || '');
+      if (!check) {
+        return res.status(404).json({ message: 'Document not found.' });
+      }
+      res.json({ success: true, ...check });
+    } catch (err) {
+      const status = err.statusCode || 500;
+      res.status(status).json({ message: err.message || 'Failed to verify document searchability.' });
+    }
+  });
+
   return router;
 }
 

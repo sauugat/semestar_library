@@ -31,21 +31,18 @@ function requireCronSecret(req, res, next) {
  * Supports GET for Vercel Cron invocation and POST for manual / CI invocation.
  */
 const handleWorker = async (req, res) => {
-  if (!isKnowledgeIndexingEnabled()) {
-    return res.json({ status: 'skipped', message: 'KYANA_KNOWLEDGE_V3 feature flag is disabled.' });
-  }
-
-  const db = req.app.locals.db || require('../db');
-  if (!db) {
-    return res.status(500).json({ message: 'Database handle unavailable.' });
-  }
-
   try {
+    const { processDocumentIngestionJobs } = require('../lib/document-ingestion');
+    const ragJobStats = await processDocumentIngestionJobs(db, { limit: 10 }).catch(() => ({ processed: 0 }));
+    if (!isKnowledgeIndexingEnabled()) {
+      return res.json({ status: 'ok', ragJobs: ragJobStats, message: 'Processed RAG jobs; KYANA_KNOWLEDGE_V3 feature flag is disabled.' });
+    }
     const jobStats = await processPendingJobs(db, { batchSize: 25 });
     res.json({
       success: true,
       timestamp: new Date().toISOString(),
-      jobs: jobStats
+      jobs: jobStats,
+      ragJobs: ragJobStats
     });
   } catch (err) {
     console.error('[KYANA Knowledge Worker Endpoint Error]:', err);

@@ -261,7 +261,12 @@ function ChatScreenInner() {
         setStudentConfig(config);
       }
     } catch (err: any) {
-      setCohortError(err?.message || "Failed to load cohort conversations.");
+      if (!(isAdmin || isTeacher) && err?.status === 404) {
+        setStudentConfig(null);
+        setCohortError(null);
+      } else {
+        setCohortError(err?.message || "Failed to load cohort conversations.");
+      }
     } finally {
       setCohortsLoading(false);
       setCohortsRefreshing(false);
@@ -405,6 +410,7 @@ function ChatScreenInner() {
     setPinned,
     onlineIds,
     sync,
+    retry,
     refreshPinned,
     loadOlderMessages,
     markRead,
@@ -1670,7 +1676,7 @@ function ChatScreenInner() {
       {error && (
         <TouchableOpacity
           style={styles.errorBanner}
-          onPress={() => void sync()}
+          onPress={() => void retry()}
           accessibilityRole="button"
         >
           <Ionicons name="refresh-outline" size={16} color="#f5f5f5" />
@@ -1694,7 +1700,7 @@ function ChatScreenInner() {
             <Text style={styles.panelTitle}>Could not load messages</Text>
             <TouchableOpacity
               style={styles.sheetAction}
-              onPress={() => void sync()}
+              onPress={() => void retry()}
             >
               <Text style={{ color: "#f5f5f5" }}>Try again</Text>
             </TouchableOpacity>

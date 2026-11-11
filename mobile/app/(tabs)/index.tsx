@@ -649,13 +649,24 @@ function StudentHomeScreenInner() {
     queryKey: ['campus-feed', user?.studentId],
     queryFn: async () => {
       const feedQuery = isTeacherUser ? '?feed=1' : '';
-      const [postsRes, filesRes, assignmentsRes] = await Promise.all([
+      const [postsResult, filesResult, assignmentsResult] = await Promise.allSettled([
         getPosts(null, 20, undefined, undefined, { seed: feedSessionSeed }),
         getFeedFiles(feedQuery),
         apiFetch(`/api/code-lab/assignments${feedQuery}`)
           .then(async response => (response.ok ? ((await response.json()) as FeedAssignment[]) : []))
           .catch(() => [] as FeedAssignment[]),
       ]);
+      if (postsResult.status === 'rejected' && filesResult.status === 'rejected') {
+        throw postsResult.reason;
+      }
+      const postsRes = postsResult.status === 'fulfilled'
+        ? postsResult.value
+        : { posts: [], nextCursor: null, eligibleAdvertisements: [], advertisements: [] };
+      const filesRes = filesResult.status === 'fulfilled' ? filesResult.value : [];
+      const assignmentsRes = assignmentsResult.status === 'fulfilled' ? assignmentsResult.value : [];
+      const postsError = postsResult.status === 'rejected'
+        ? ((postsResult.reason as any)?.message || "Couldn't load posts.")
+        : null;
       return {
         posts: postsRes.posts,
         files: filesRes,
@@ -663,6 +674,7 @@ function StudentHomeScreenInner() {
         eligibleAdvertisements: postsRes.eligibleAdvertisements || postsRes.advertisements || [],
         nextCursor: postsRes.nextCursor,
         fetchedAt: new Date(),
+        postsError,
       };
     },
     staleTime: 45 * 1000,
@@ -682,7 +694,10 @@ function StudentHomeScreenInner() {
   }, [feedData]);
 
   const loadingInitial = isFeedLoading && !feedData;
-  const error = feedQueryError ? (feedQueryError as any).message || 'Error loading dashboard feed.' : null;
+  const postsPartialError = (feedData as any)?.postsError ? String((feedData as any).postsError) : null;
+  const error = feedQueryError
+    ? (feedQueryError as any).message || 'Error loading dashboard feed.'
+    : postsPartialError;
 
   // Horizontal feed category filter state
   const [feedCategoryFilter, setFeedCategoryFilter] = useState<string>('all');
@@ -2215,8 +2230,32 @@ function StudentHomeScreenInner() {
         )}
       </View>
 
-
-
+      {Boolean(postsPartialError && feedItems.length > 0) && (
+        <Card
+          variant="elevated"
+          padding="md"
+          style={{
+            marginTop: spacing.xs,
+            marginBottom: spacing.sm,
+            borderColor: colors.border,
+            borderWidth: 1,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: spacing.sm,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text variant="sm" weight="700" color="primary">
+              Couldn't load posts.
+            </Text>
+            <Caption color="secondary" numberOfLines={2}>
+              {postsPartialError}
+            </Caption>
+          </View>
+          <Button title="Retry" variant="secondary" size="sm" onPress={() => refetchFeed()} />
+        </Card>
+      )}
     </View>
   );
 };

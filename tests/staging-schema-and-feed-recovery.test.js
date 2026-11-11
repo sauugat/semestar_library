@@ -371,7 +371,8 @@ test('Multi-schema Postgres: staging moderation schema does not leak into public
   };
 
   // Seed a blob via staging + direct insert on post_media to exercise /uploads/posts JOIN branch
-  await db.saveFileBlob('sample.jpg', Buffer.from('fake-jpeg-bytes'), 'image/jpeg');
+  const sampleFilename = '11111111-2222-3333-4444-555555555555.jpg';
+  await db.saveFileBlob(sampleFilename, Buffer.from('fake-jpeg-bytes'), 'image/jpeg');
 
   // Create post for All semesters (201)
   const createAll = await apiReq('POST', '/api/posts', {
@@ -385,13 +386,14 @@ test('Multi-schema Postgres: staging moderation schema does not leak into public
   // Create post targeting specific semester [1] -> exercises post_target_semesters inside transaction (no RETURNING id!)
   await db.run(
     `INSERT INTO post_attachment_staging (id, filename, url, uploader_student_id, media_type, mime_type, file_name, file_size, is_committed)
-     VALUES ('stg-1', 'sample.jpg', '/uploads/posts/sample.jpg', 'stu1', 'image', 'image/jpeg', 'sample.jpg', 15, 0)`
+     VALUES ('stg-1', ?, ?, 'stu1', 'image', 'image/jpeg', ?, 15, 0)`,
+    sampleFilename, `/uploads/posts/${sampleFilename}`, sampleFilename
   );
   const createTargeted = await apiReq('POST', '/api/posts', {
     content: 'Semester 1 post with photo',
     type: 'status',
     targetSemesters: [1],
-    stagedAttachmentIds: ['stg-1'],
+    attachments: [{ stagingId: 'stg-1', url: `/uploads/posts/${sampleFilename}`, media_type: 'image' }],
   });
   assert.equal(createTargeted.status, 201, `Expected 201, got ${createTargeted.status}: ${JSON.stringify(createTargeted.body)}`);
   const targetedId = createTargeted.body.id;
@@ -418,7 +420,7 @@ test('Multi-schema Postgres: staging moderation schema does not leak into public
   const comments = await apiReq('GET', `/api/posts/${targetedId}/comments`);
   assert.equal(comments.status, 200);
 
-  const imgRes = await fetch(`${baseUrl}/uploads/posts/sample.jpg`, {
+  const imgRes = await fetch(`${baseUrl}/uploads/posts/${sampleFilename}`, {
     headers: { 'x-test-user': 'stu1' },
   });
   assert.equal(imgRes.status, 200);

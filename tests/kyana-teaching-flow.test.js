@@ -2,13 +2,64 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { createClient } = require('@libsql/client');
 const { handleChat } = require('../ai-assistant');
-const { initMemoryDb } = require('../lib/test-mem-db');
 const { ensureRagSchema } = require('../lib/rag-schema');
+const { formatRow, formatRows } = require('../db');
+
+async function createTestDb() {
+  const client = createClient({ url: ':memory:' });
+  const db = {
+    client,
+    dialect: 'sqlite',
+    isPostgres: false,
+    async run(sql, ...args) {
+      const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+      return client.execute({ sql, args: params });
+    },
+    async get(sql, ...args) {
+      const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+      const res = await client.execute({ sql, args: params });
+      return formatRow(res.rows[0] || null);
+    },
+    async all(sql, ...args) {
+      const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
+      const res = await client.execute({ sql, args: params });
+      return formatRows(res.rows || []);
+    },
+    async exec(sql) {
+      return client.executeMultiple(sql);
+    }
+  };
+
+  await db.exec(`
+    CREATE TABLE files (
+      id INTEGER PRIMARY KEY,
+      storedName TEXT,
+      originalName TEXT,
+      title TEXT,
+      subject TEXT,
+      chapter TEXT,
+      semester TEXT,
+      semester_no INTEGER,
+      cohort_id INTEGER,
+      audience_scope TEXT DEFAULT 'all_students',
+      visibility TEXT DEFAULT 'everyone',
+      previewName TEXT,
+      uploadedBy TEXT,
+      sizeBytes INTEGER DEFAULT 1024,
+      uploadedAt TEXT,
+      deleted_at TEXT,
+      hidden_at TEXT
+    );
+  `);
+
+  await ensureRagSchema(db);
+  return db;
+}
 
 test('Kyana Study Partner End-to-End Teaching Flow: "teach me css" -> "next" -> "bujhina"', async (t) => {
-  const db = await initMemoryDb();
-  await ensureRagSchema(db);
+  const db = await createTestDb();
 
   // Seed sample file for Web Technology I
   await db.run(
@@ -18,11 +69,12 @@ test('Kyana Study Partner End-to-End Teaching Flow: "teach me css" -> "next" -> 
   );
 
   await db.run(
-    `INSERT INTO document_chunks (id, file_id, chunk_index, page_start, page_end, section_heading, clean_content, topics_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    'chk_css_1', 101, 1, 1, 3, 'Introducing Cascading Style Sheet',
-    'CSS stands for Cascading Style Sheets. CSS defines the presentation and styles of web pages.',
-    JSON.stringify(['CSS', 'Cascading Style Sheets', 'Styles'])
+    `INSERT INTO document_chunks (
+      id, file_id, doc_version, chunk_index, chunk_level,
+      page_start, page_end, chapter, unit, section_heading,
+      content, clean_content, content_hash, subject, subject_code, semester_no, created_at
+    ) VALUES (?, ?, 1, 1, 'child', 1, 3, 'Unit 3', 'Unit 3', 'Introducing Cascading Style Sheet', 'CSS stands for Cascading Style Sheets.', 'CSS stands for Cascading Style Sheets.', 'hash_css', 'Web Technology I', 'CIT123', 2, ?)`,
+    'chk_css_1', 101, new Date().toISOString()
   );
 
   const studentContext = {

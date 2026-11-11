@@ -948,6 +948,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
     const studentId = academicContext?.studentId || studentInfo?.studentId || 'anonymous_student';
     const conversationId = sessionId || options.conversationId || 'default';
+    const sessionKey = sessionId || studentId || 'default';
 
     // 1. Resolve subject and chapter
     const resolved = resolveCourseAndChapter(
@@ -1092,12 +1093,12 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       } catch (_) {}
     }
 
-    result.reply = studyResultText;
-    result.intent = 'study_partner';
-    result.resourceCards = activeCourseNotes;
+    const studyRes = emptyResult(studyResultText);
+    studyRes.intent = 'study_partner';
+    studyRes.resourceCards = activeCourseNotes;
     setLastCards(sessionKey, activeCourseNotes);
-    onDelta(result.reply);
-    return result;
+    onDelta(studyRes.reply);
+    return studyRes;
   }
 
   let recordedScopeDecision = preScope.reason === 'platform_context_override' ? 'platform_context_override' : 'in_scope';

@@ -443,6 +443,68 @@
       return s.length > maxLen ? s.slice(0, maxLen) + '…' : s;
     };
 
+    if (kind === 'study_session') {
+      const data = parsedJson || {};
+      const course = escapeHtml(data.course || 'Study Partner Session');
+      const unit = escapeHtml(data.unit || 'Chapter Progress');
+      const curr = Number(data.currentStep) || 1;
+      const total = Number(data.totalSteps) || 1;
+      const pct = Math.min(100, Math.max(0, Math.round(((curr - 1) / total) * 100)));
+      const items = Array.isArray(data.checklist) ? data.checklist : [];
+      const checklistHtml = items.map(item => {
+        const idx = item.stepIndex || 1;
+        const title = escapeHtml(item.title || `Topic ${idx}`);
+        const isCurrent = item.status === 'current' || idx === curr;
+        const isMastered = item.status === 'mastered' || idx < curr;
+        const badge = item.sourceBadge ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.15);background:#1a1a1a;color:#a1a1a1;margin-left:6px;">${escapeHtml(item.sourceBadge)}</span>` : '';
+        const pyq = item.hasPyq ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.25);background:#222;color:#fff;margin-left:4px;">🔥 PYQ</span>` : '';
+        const symbol = isMastered ? '✓' : (isCurrent ? '▶' : '○');
+        const color = isCurrent ? '#ffffff' : (isMastered ? '#a1a1a1' : '#666666');
+        const bg = isCurrent ? 'rgba(255,255,255,0.06)' : 'transparent';
+        return `<div style="display:flex;align-items:center;padding:6px 8px;margin:2px 0;border-radius:6px;background:${bg};font-size:12.5px;color:${color};">
+          <span style="font-weight:700;width:20px;flex-shrink:0;">${symbol}</span>
+          <span style="flex:1;">${idx}. ${title}</span>
+          ${badge}
+          ${pyq}
+        </div>`;
+      }).join('');
+
+      return `<div class="kyana-adaptive-visual kyana-study-session-card" style="margin:12px 0;padding:14px;border-radius:12px;border:1px solid #282828;background:#141414;color:#ffffff;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#a1a1a1;">${course}</div>
+            <div style="font-size:14px;font-weight:700;color:#ffffff;margin-top:2px;">${unit}</div>
+          </div>
+          <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:12px;border:1px solid #333;background:#1c1c1c;color:#fff;">Step ${curr} of ${total} · ${pct}%</span>
+        </div>
+        <div style="width:100%;height:4px;background:#282828;border-radius:2px;overflow:hidden;margin-bottom:10px;">
+          <div style="width:${pct}%;height:100%;background:#ffffff;border-radius:2px;"></div>
+        </div>
+        <div style="border-top:1px solid #222;padding-top:8px;">
+          ${checklistHtml}
+        </div>
+      </div>`;
+    }
+
+    if (kind === 'pyq_card') {
+      const data = parsedJson || {};
+      const examTitle = escapeHtml(data.examTitle || 'GANDAKI UNIVERSITY · PAST EXAM QUESTION');
+      const qNum = escapeHtml(data.questionNumber || 'Q');
+      const marks = escapeHtml(data.marks || '5 MARKS');
+      const qText = escapeHtml(data.questionText || '');
+      const noteRef = data.teacherNoteReference ? `<div style="font-size:11.5px;color:#888;margin-top:6px;">📄 Covered in: <span style="color:#bbb;">${escapeHtml(data.teacherNoteReference)}</span></div>` : '';
+
+      return `<div class="kyana-adaptive-visual kyana-pyq-card" style="margin:12px 0;padding:14px;border-radius:12px;border:1px solid #333;background:#161616;color:#ffffff;box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:10.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#888;">🔥 PAST EXAM SPOTLIGHT</span>
+          <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #444;background:#222;color:#fff;">${marks}</span>
+        </div>
+        <div style="font-size:11px;color:#aaa;margin-bottom:6px;">${examTitle} · ${qNum}</div>
+        <div style="font-size:13.5px;line-height:1.5;color:#f0f0f0;font-weight:500;">${qText}</div>
+        ${noteRef}
+      </div>`;
+    }
+
     if (kind === 'roadmap' || kind === 'timeline') {
       const rawSteps = Array.isArray(parsedJson?.steps)
         ? parsedJson.steps

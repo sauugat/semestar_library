@@ -15,6 +15,7 @@ module.exports = function createPostImagesRouter(db) {
       await ensureAdvertisementsSchema(db).catch(() => {});
       const modAvail = await isModerationSchemaAvailable(db);
       const modCol = modAvail ? ', moderation_status' : ", 'active' AS moderation_status";
+      const pModCol = modAvail ? ', p.moderation_status' : ", 'active' AS moderation_status";
       const fullPath = `/uploads/posts/${req.params.filename}`;
       const altPath = `uploads/posts/${req.params.filename}`;
 
@@ -50,9 +51,11 @@ module.exports = function createPostImagesRouter(db) {
       if (!isAdAsset) {
         // Expose blobs referenced by posts (either primary attachment_url or any post_media entry)
         const post = await db.get(
-          `SELECT id, user_id, visibility ${modCol} FROM posts WHERE attachment_url = ? OR attachment_url = ?
-           UNION ALL
-           SELECT p.id, p.user_id, p.visibility ${modCol} FROM post_media pm JOIN posts p ON pm.post_id = p.id WHERE pm.url = ? OR pm.url = ?
+          `SELECT * FROM (
+             SELECT id, user_id, visibility ${modCol} FROM posts WHERE attachment_url = ? OR attachment_url = ?
+             UNION ALL
+             SELECT p.id, p.user_id, p.visibility ${pModCol} FROM post_media pm JOIN posts p ON pm.post_id = p.id WHERE pm.url = ? OR pm.url = ?
+           ) AS matched_post
            LIMIT 1`,
           fullPath,
           altPath,

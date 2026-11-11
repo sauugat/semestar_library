@@ -57,7 +57,7 @@ module.exports = function cohortChatRouter(service) {
     return service.adminRooms(id(req), req.student || req.user || null);
   }));
   router.get('/admin/rooms/:chatGroupId/config', route(async req => {
-    await service.requireAdmin(id(req));
+    await (service.requireRoomViewer ? service.requireRoomViewer(id(req)) : service.requireAdmin(id(req)));
     return service.adminRoomConfig(id(req), req.params.chatGroupId);
   }));
   router.post('/admin/cohorts', route(req => service.createCohort(id(req), req.body)));

@@ -5459,8 +5459,8 @@ app.get('/api/chat/health', async (req, res) => {
     let activeRoomCount = 0;
     try {
       if (db.isPostgres) {
-        const resTables = await db.all("SELECT table_name FROM information_schema.tables WHERE table_name = 'chat_send_keys'");
-        const resCols = await db.all("SELECT column_name FROM information_schema.columns WHERE table_name = 'chat_messages' AND column_name = 'chat_group_id'");
+        const resTables = await db.all("SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = 'chat_send_keys'");
+        const resCols = await db.all("SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'chat_messages' AND column_name = 'chat_group_id'");
         databaseReady = resTables.length > 0 && resCols.length > 0;
       } else {
         const resTables = await db.all("SELECT name FROM sqlite_master WHERE type='table' AND name='chat_send_keys'");

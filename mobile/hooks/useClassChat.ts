@@ -101,6 +101,7 @@ export function useClassChat(
   const paging = useRef(false);
   const hydrated = useRef(false);
   const snapshotCursor = useRef<number | null>(null);
+  const refreshFnRef = useRef<(() => Promise<void>) | null>(null);
 
   const refreshPinned = useCallback(async () => {
     const epoch = generation.current;
@@ -208,10 +209,15 @@ export function useClassChat(
       setOnlineIds([]);
       setActiveTypers(new Map());
       let lastScope = '', validating = false, lastRefresh = 0;
+      let hasContextOnce = Boolean(getChatSession().context);
       const reset = () => {
         const session = getChatSession();
         const nextScope = chatScope(session);
         setContext(session.context);
+        if (session.context) {
+          hasContextOnce = true;
+          setError(null);
+        }
         if (lastScope !== nextScope) {
           lastScope = nextScope; generation.current++; setRoomGeneration(session.generation);
           hydrated.current = false; snapshotCursor.current = null; syncing.current = false; paging.current = false;
@@ -219,7 +225,7 @@ export function useClassChat(
           setMessages([]); setPinned(null); setReadReceipts([]); setActiveTypers(new Map()); setOnlineIds([]);
           onlineExpiry.current.clear(); setHasMore(true); setLoadingMore(false);
           lastHeartbeat.current=0;
-          if (!session.context) {setError('This conversation is no longer available.');setLoadingInitial(false);}
+          if (!session.context && hasContextOnce) {setError('This conversation is no longer available.');setLoadingInitial(false);}
         }
       };
       const stopSession = subscribeChatSession(reset); reset();
@@ -229,6 +235,7 @@ export function useClassChat(
         try {
           await fetchChatConfig(optionsRef.current?.selectedChatGroupId || undefined);
           if (!active.current) return;
+          setError(null);
           const epoch = generation.current;
         const cached = await getCachedChatMessages(50);
         if (!active.current || epoch !== generation.current) return;
@@ -256,6 +263,7 @@ export function useClassChat(
           onlineExpiry.current = new Map(data.members.map(m => [m.studentId,Date.parse(m.expiresAt)])); updateOnlineIdsIfChanged(data.onlineIds);
         } } catch {}
       };
+      refreshFnRef.current = () => refresh().then(heartbeat);
       void refresh().then(heartbeat);
 
       const unsubscribe = subscribeChatRealtime({
@@ -368,7 +376,8 @@ export function useClassChat(
       const appStateSub = AppState.addEventListener("change", (state) => {
         if (state === "active") {
           readCoalescerRef.current?.start();
-          void refresh().then(heartbeat);
+          refreshFnRef.current = () => refresh().then(heartbeat);
+      void refresh().then(heartbeat);
         } else {
           readCoalescerRef.current?.stop();
           void disconnectChatRealtime();
@@ -378,6 +387,7 @@ export function useClassChat(
 
       return () => {
         active.current = false;
+        refreshFnRef.current = null;
         generation.current++;
         readCoalescerRef.current?.stop();
         stopSession();
@@ -448,6 +458,17 @@ export function useClassChat(
     readCoalescerRef.current?.request(lastReadMessageId);
   }, []);
 
+  const retry = useCallback(async () => {
+    if (!active.current) return;
+    if (!hydrated.current || !getChatSession().context) {
+      setError(null);
+      setLoadingInitial(true);
+      await refreshFnRef.current?.();
+      return;
+    }
+    await sync();
+  }, [sync]);
+
   return {
     messages,
     setMessages,
@@ -465,6 +486,7 @@ export function useClassChat(
     roomGeneration,
     loadOlderMessages,
     sync,
+    retry,
     refreshPinned,
     markRead,
   };

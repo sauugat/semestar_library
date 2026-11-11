@@ -1,4 +1,4 @@
-import { apiFetch, getBaseUrl, getAuthToken, ApiError } from './api';
+import { apiFetch, getBaseUrl, getAuthToken, clearAuthToken, ApiError } from './api';
 
 export interface KyanaResourceCard {
   type: 'note' | 'post' | 'notice' | 'post_assignment' | 'assignment' | 'routine';
@@ -264,19 +264,33 @@ export async function sendKyanaMessage(
         });
       }
 
-      if (status === 429) {
-        return reject(
-          new ApiError('Too many messages sent. Please wait a moment!', 429)
-        );
-      }
-
-      let errMessage = 'Couldn’t finish that reply. Try again in a moment.';
+      let errJson: any = {};
       try {
-        const errJson = JSON.parse(xhr.responseText || '{}');
-        if (errJson.message) errMessage = errJson.message;
+        errJson = JSON.parse(xhr.responseText || '{}');
       } catch {}
 
-      return reject(new ApiError(errMessage, status));
+      if (status === 401) {
+        const errMessage = errJson?.message || 'Your session expired. Please sign in again.';
+        Promise.resolve(getAuthToken())
+          .then(async currentToken => {
+            if (token && currentToken && token === currentToken) {
+              await clearAuthToken();
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            reject(new ApiError(errMessage, 401, errJson));
+          });
+        return;
+      }
+
+      if (status === 429) {
+        const errMessage = errJson?.message || 'Too many messages sent. Please wait a moment!';
+        return reject(new ApiError(errMessage, 429, errJson));
+      }
+
+      const errMessage = errJson?.message || 'Couldn’t finish that reply. Try again in a moment.';
+      return reject(new ApiError(errMessage, status, errJson));
     };
 
     xhr.onerror = () => {

@@ -6771,9 +6771,11 @@ app.get('/api/students/suggested', requireLogin, async (req, res) => {
 // --- AI Assistant Service ---
 const aiAssistant = require('./ai-assistant');
 const aiChatService = require('./lib/ai-chat-service');
+const { createChatRateLimiter } = require('./lib/chat-ratelimit');
+const aiChatRateLimiter = createChatRateLimiter();
 
-// Unlimited AI Chat: Users can chat with Kyana without message caps or rate limits
-app.post('/api/ai/chat', require('./lib/chat-http').createChatHandler(db, aiAssistant));
+// Authenticated + per-user hourly/daily rate-limited Kyana AI Chat
+app.post('/api/ai/chat', requireLogin, aiChatRateLimiter, require('./lib/chat-http').createChatHandler(db, aiAssistant));
 
 // Kyana AI inbox preview for mobile chat list and web widget
 app.get('/api/ai/preview', async (req, res) => {

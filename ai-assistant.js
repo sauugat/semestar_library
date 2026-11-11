@@ -31,7 +31,7 @@ loadEnvSafely();
 const { resolveChatMode } = require('./lib/chat-mode');
 const { generateReply } = require('./lib/chat-provider');
 const { PERSONALITY_PROMPT, toneInstructions, styleLookupReply } = require('./lib/chat-personality');
-const { TOOLS, createTools, formatToolResult, routeQuery, semesterNumber, SUBJECT_ALIASES, courses, academicRequest, codeRequest, isSmalltalk } = require('./lib/chat-tools');
+const { TOOLS, createTools, formatToolResult, routeQuery, semesterNumber, SUBJECT_ALIASES, courses, academicRequest, codeRequest, studyTeachIntent, subjectAliases, isSmalltalk } = require('./lib/chat-tools');
 const { getAcademicContext } = require('./lib/academic-context');
 const { isKnowledgeV3Enabled } = require('./lib/knowledge-schema');
 const knowledgeSearch = require('./lib/knowledge-search');
@@ -633,9 +633,10 @@ ${evidenceBlocks}
       try {
         const searchFn = options.toolDependencies?.searchNotes || require('./lib/note-search').searchNotes;
         const matchingNotes = await searchFn(db, {
-          query: message,
+          query: route.query || message,
           academicContext,
           semester: academicContext ? undefined : route.filters.semester,
+          subject: route.filters.subject ? subjectAliases(route.filters.subject) : undefined,
           limit: 3
         });
         if (matchingNotes && matchingNotes.length > 0) {
@@ -672,9 +673,10 @@ ${evidenceBlocks}
     }
 
     const complex = /\b(complex|advanced|architecture|optimi[sz]e|debug|prove|proof|analy[sz]e)\b/i.test(message) || message.length > 1800;
+    const enableTools = !isCode && !isSmalltalk(message) && (route.kind !== 'direct' || Boolean(route.filters.subject) || studyTeachIntent(message));
     const generated = await (options.generateReply || generateReply)({
       message, history:cleanHistory, systemPrompt:SYSTEM_PROMPT + toneInstructions(originalMessage,cleanHistory,chatMode) + noteEvidencePrompt,
-      tools:route.kind === 'direct' ? [] : TOOLS,
+      tools:enableTools ? TOOLS : [],
       executeTool:toolkit.executeTool, onDelta, signal, complex
     });
     result.reply = generated.reply;

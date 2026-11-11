@@ -39,6 +39,7 @@ import {
   type KyanaConversation,
   type KyanaResourceCard,
 } from '@/services/kyana';
+import { ApiError } from '@/services/api';
 import {
   saveCachedKyanaMessages,
   clearCachedKyanaMessages,
@@ -324,13 +325,22 @@ export default function KyanaChatScreen() {
             };
             setMessages(prev => [...prev, stoppedMsg]);
           }
+        } else if (err instanceof ApiError && err.status === 401) {
+          showToast(err.message || 'Your session expired. Please sign in again.');
+          try {
+            router.replace('/login' as any);
+          } catch {}
         } else {
           console.error('[Kyana Send Error]', err);
+          const errorText =
+            err instanceof ApiError && (err.status === 429 || err.status === 403)
+              ? err.message
+              : 'I couldn’t complete that response. Please check your network and tap retry.';
           const errorMsg: KyanaMessage = {
             id: `err_${Date.now()}`,
             conversationId: conversation?.id || 'default',
             sender: 'assistant',
-            text: 'I couldn’t complete that response. Please check your network and tap retry.',
+            text: errorText,
             createdAt: new Date().toISOString(),
             status: 'error',
           };
@@ -342,7 +352,7 @@ export default function KyanaChatScreen() {
         activeAbortController.current = null;
       }
     },
-    [inputText, isGenerating, conversation, studentId, streamingText]
+    [inputText, isGenerating, conversation, studentId, streamingText, router, showToast]
   );
 
   // 3. Stop response generation

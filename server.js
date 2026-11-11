@@ -278,7 +278,7 @@ if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
 // Expired session cleanup interval (hourly)
 const cleanupTimer = setInterval(() => {
   if (typeof db.cleanupExpiredSessions === 'function') {
-    db.cleanupExpiredSessions().catch(() => {});
+    db.cleanupExpiredSessions().catch(() => { });
   }
 }, 60 * 60 * 1000);
 if (cleanupTimer && typeof cleanupTimer.unref === 'function') {
@@ -350,7 +350,7 @@ app.use(async (req, res, next) => {
 const { createAuthMiddleware } = require('./lib/auth-middleware');
 const auth = createAuthMiddleware(db);
 app.use((req, res, next) => {
-  measureRequest('auth', () => auth.authenticate(req, res, () => {})).then(() => next(), next);
+  measureRequest('auth', () => auth.authenticate(req, res, () => { })).then(() => next(), next);
 });
 
 // CSRF / Origin Guard on state-changing requests
@@ -403,7 +403,7 @@ let requestCounter = 0;
 app.use((req, res, next) => {
   requestCounter++;
   if (requestCounter % 100 === 0 && typeof db.cleanupExpiredSessions === 'function') {
-    db.cleanupExpiredSessions().catch(() => {});
+    db.cleanupExpiredSessions().catch(() => { });
   }
   next();
 });
@@ -912,12 +912,12 @@ function requireLogin(req, res, next) {
     db.get('SELECT studentId, role, name, username, department, semester, cohort_id, email, avatarUrl, account_status, COALESCE(verification_status, \'unverified\') AS verification_status, supabase_uid FROM students WHERE studentId = ?', req.session.studentId)
       .then(student => {
         if (!student) {
-          if (typeof req.session.destroy === 'function') req.session.destroy(() => {});
+          if (typeof req.session.destroy === 'function') req.session.destroy(() => { });
           if (res.clearCookie) res.clearCookie('__gu_session');
           return res.status(401).json({ message: 'Authentication required. Account not found.' });
         }
         if (student.account_status === 'suspended' || student.accountStatus === 'suspended') {
-          if (typeof req.session.destroy === 'function') req.session.destroy(() => {});
+          if (typeof req.session.destroy === 'function') req.session.destroy(() => { });
           if (res.clearCookie) res.clearCookie('__gu_session');
           return res.status(403).json({
             error: 'ACCOUNT_SUSPENDED',
@@ -1007,7 +1007,7 @@ if (isDmEnabled() || getDmTestUserIds().length > 0) {
   // Background worker to periodically drain pending DM Realtime and Push outbox events
   if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
     const dmWorkerInterval = setInterval(() => {
-      dmService.drain().catch(() => {});
+      dmService.drain().catch(() => { });
     }, 2000);
     dmWorkerInterval.unref?.();
   }
@@ -1157,7 +1157,7 @@ app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
           }
         }
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   if (!student) {
@@ -1184,7 +1184,7 @@ app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
           });
         }
       }
-    } catch (_) {}
+    } catch (_) { }
 
     await new Promise(r => setTimeout(r, 60 + Math.floor(Math.random() * 40)));
     await recordFailedLogin(ip);
@@ -1225,7 +1225,7 @@ app.post('/api/mobile/login', loginRateLimiter, async (req, res) => {
           const sid = student.studentId;
           const suid = data.user.id;
           if (!student.supabase_uid || student.verification_status !== 'verified') {
-            db.run('UPDATE students SET supabase_uid = ?, verification_status = ? WHERE studentId = ?', suid, 'verified', sid).catch(() => {});
+            db.run('UPDATE students SET supabase_uid = ?, verification_status = ? WHERE studentId = ?', suid, 'verified', sid).catch(() => { });
             student.supabase_uid = suid;
             student.verification_status = 'verified';
           }
@@ -1740,7 +1740,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
         if (pendingByUsername && pendingByUsername.email) {
           student = { email: pendingByUsername.email };
         }
-      } catch (_) {}
+      } catch (_) { }
     }
     if (student && student.email) {
       resolvedEmail = student.email.toLowerCase();
@@ -1768,7 +1768,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
             });
           }
         }
-      } catch (_) {}
+      } catch (_) { }
 
       // Resistance against timing attacks & enumeration: execute dummy delay
       await new Promise(r => setTimeout(r, 60 + Math.floor(Math.random() * 40)));
@@ -1819,7 +1819,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
           supabaseUser: data.user
         });
       }
-    } catch (_) {}
+    } catch (_) { }
 
     // Fetch authoritative Neon student profile
     let student = await db.get(
@@ -1857,7 +1857,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
           if (cohortRes && cohortRes.cohort && cohortRes.cohort.id) {
             assignedCohortId = cohortRes.cohort.id;
           }
-        } catch {}
+        } catch { }
 
         if (db.isPostgres) {
           await db.run(
@@ -1903,7 +1903,7 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
       const suid = data.user.id;
       const sid = student.studentId;
       if (!student.supabase_uid || (student.verification_status !== 'verified' && student.verificationStatus !== 'verified')) {
-        db.run('UPDATE students SET supabase_uid = ?, verification_status = ? WHERE studentId = ?', suid, 'verified', sid).catch(() => {});
+        db.run('UPDATE students SET supabase_uid = ?, verification_status = ? WHERE studentId = ?', suid, 'verified', sid).catch(() => { });
         student.supabase_uid = suid;
         student.verification_status = 'verified';
         student.verificationStatus = 'verified';
@@ -1915,9 +1915,9 @@ app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
           if (cohortRes && cohortRes.cohort && cohortRes.cohort.id) {
             student.cohort_id = cohortRes.cohort.id;
             student.cohortId = cohortRes.cohort.id;
-            db.run('UPDATE students SET cohort_id = ? WHERE studentId = ?', cohortRes.cohort.id, sid).catch(() => {});
+            db.run('UPDATE students SET cohort_id = ? WHERE studentId = ?', cohortRes.cohort.id, sid).catch(() => { });
           }
-        } catch {}
+        } catch { }
       }
 
       if (req.session) {
@@ -2224,7 +2224,7 @@ app.post('/api/change-password', requireLogin, async (req, res) => {
   if (student.passwordHash && student.passwordHash !== 'supabase_auth') {
     try {
       passwordMatches = bcrypt.compareSync(currentPassword, student.passwordHash);
-    } catch (_) {}
+    } catch (_) { }
   }
 
   // Check 2: Verify against Supabase Auth if user has an email and Supabase credentials exist
@@ -2240,7 +2240,7 @@ app.post('/api/change-password', requireLogin, async (req, res) => {
         supabaseUser = data.user;
         supabaseSession = data.session;
       }
-    } catch (_) {}
+    } catch (_) { }
   }
 
   if (!passwordMatches) {
@@ -2292,7 +2292,7 @@ app.post('/api/change-password', requireLogin, async (req, res) => {
 
   // If student was missing supabase_uid in local DB but has one from Supabase, link it now
   if (!student.supabase_uid && targetSupabaseUid) {
-    await db.run('UPDATE students SET supabase_uid = ? WHERE studentId = ?', targetSupabaseUid, studentId).catch(() => {});
+    await db.run('UPDATE students SET supabase_uid = ? WHERE studentId = ?', targetSupabaseUid, studentId).catch(() => { });
   }
 
   // Revoke other active web sessions for this student upon password change
@@ -2382,7 +2382,7 @@ app.all(['/api/account/delete', '/api/account'], requireLogin, async (req, res) 
       for (const p of userPosts) {
         if (p.attachment_url && /^\/uploads\/posts\/[a-f0-9-]+\.[a-z]+$/.test(p.attachment_url)) {
           const filename = path.basename(p.attachment_url);
-          await db.deleteFileBlob(filename).catch(() => {});
+          await db.deleteFileBlob(filename).catch(() => { });
         }
       }
       await db.run('DELETE FROM posts WHERE user_id = ?', studentId);
@@ -2402,7 +2402,7 @@ app.all(['/api/account/delete', '/api/account'], requireLogin, async (req, res) 
 
     // 6. Terminate current session
     if (req.session && typeof req.session.destroy === 'function') {
-      req.session.destroy(() => {});
+      req.session.destroy(() => { });
     }
     if (res.clearCookie) {
       res.clearCookie('__gu_session');
@@ -2460,7 +2460,7 @@ app.post('/api/account/delete-request', async (req, res) => {
       for (const p of userPosts) {
         if (p.attachment_url && /^\/uploads\/posts\/[a-f0-9-]+\.[a-z]+$/.test(p.attachment_url)) {
           const filename = path.basename(p.attachment_url);
-          await db.deleteFileBlob(filename).catch(() => {});
+          await db.deleteFileBlob(filename).catch(() => { });
         }
       }
       await db.run('DELETE FROM posts WHERE user_id = ?', sid);
@@ -3031,7 +3031,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
   if (req.body.fileTitles) {
     try {
       fileTitlesMap = typeof req.body.fileTitles === 'string' ? JSON.parse(req.body.fileTitles) : req.body.fileTitles;
-    } catch (_) {}
+    } catch (_) { }
   }
 
   const isAdmin = await isStudentAdmin(req.session.studentId);
@@ -3044,7 +3044,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
     for (const f of uploadedFiles) {
       const tempPath = path.join(UPLOAD_DIR, f.filename);
       if (isSafeUploadPath(tempPath) && fs.existsSync(tempPath)) {
-        try { fs.unlinkSync(tempPath); } catch (_) {}
+        try { fs.unlinkSync(tempPath); } catch (_) { }
       }
     }
     return res.status(403).json({ message: 'Forbidden: Students are not authorized to upload library notes.' });
@@ -3055,7 +3055,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       for (const f of uploadedFiles) {
         const tempPath = path.join(UPLOAD_DIR, f.filename);
         if (isSafeUploadPath(tempPath) && fs.existsSync(tempPath)) {
-          try { fs.unlinkSync(tempPath); } catch (_) {}
+          try { fs.unlinkSync(tempPath); } catch (_) { }
         }
       }
       return res.status(400).json({ message: 'Subject is required for teacher uploads.' });
@@ -3077,7 +3077,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       for (const f of uploadedFiles) {
         const tempPath = path.join(UPLOAD_DIR, f.filename);
         if (isSafeUploadPath(tempPath) && fs.existsSync(tempPath)) {
-          try { fs.unlinkSync(tempPath); } catch (_) {}
+          try { fs.unlinkSync(tempPath); } catch (_) { }
         }
       }
       return res.status(authErr.status || 403).json({ message: authErr.message });
@@ -3108,7 +3108,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
     // Intentional failure trigger for testing failure semantics (Option B verification)
     if (f.originalname.includes('__FAIL__') || (req.body.simulatedFailFile === f.originalname)) {
       if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (_) {}
+        try { fs.unlinkSync(filePath); } catch (_) { }
       }
       failedFiles.push({
         name: f.originalname,
@@ -3197,9 +3197,9 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
     } catch (fileErr) {
       console.error(`[File persistence failed for ${f.originalname}]:`, fileErr.message);
       if (isSafeUploadPath(filePath) && fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (_) {}
+        try { fs.unlinkSync(filePath); } catch (_) { }
       }
-      await db.deleteFileBlob(f.filename).catch(() => {});
+      await db.deleteFileBlob(f.filename).catch(() => { });
       failedFiles.push({
         name: f.originalname,
         originalName: f.originalname,
@@ -3724,7 +3724,7 @@ app.get('/api/files', requireLogin, async (req, res) => {
       try {
         const { getTeacherSubjects } = require('./lib/teacher-service');
         teacherSubjects = await getTeacherSubjects(db, activeTeacherId);
-      } catch (_) {}
+      } catch (_) { }
     }
 
     if ((!teacherSubjects || teacherSubjects.length === 0) && (req.user?.subjects || context.subjects || context.assignedSubjects)) {
@@ -3904,7 +3904,7 @@ app.delete('/api/files/:id', requireLogin, async (req, res) => {
   await db.run('DELETE FROM file_comments WHERE fileId = ?', fileId);
   await db.run('DELETE FROM files WHERE id = ?', fileId);
   await noteSearch.removeNoteIndex(db, fileId);
-  await require('./lib/knowledge-sync').onNoteDeleted(db, fileId).catch(() => {});
+  await require('./lib/knowledge-sync').onNoteDeleted(db, fileId).catch(() => { });
   require('./ai-assistant').invalidateCache(db);
 
   res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
@@ -3961,7 +3961,7 @@ app.post('/api/files/:id/delete', requireLogin, async (req, res) => {
   await db.run('DELETE FROM file_comments WHERE fileId = ?', fileId);
   await db.run('DELETE FROM files WHERE id = ?', fileId);
   await noteSearch.removeNoteIndex(db, fileId);
-  await require('./lib/knowledge-sync').onNoteDeleted(db, fileId).catch(() => {});
+  await require('./lib/knowledge-sync').onNoteDeleted(db, fileId).catch(() => { });
   require('./ai-assistant').invalidateCache(db);
 
   res.json({ success: true, message: 'Post deleted successfully', fileId: parseInt(fileId) });
@@ -4031,7 +4031,7 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
       await db.run('DELETE FROM file_comments WHERE fileId = ?', f.id);
       await db.run('DELETE FROM files WHERE id = ?', f.id);
       await noteSearch.removeNoteIndex(db, f.id);
-      await require('./lib/knowledge-sync').onNoteDeleted(db, f.id).catch(() => {});
+      await require('./lib/knowledge-sync').onNoteDeleted(db, f.id).catch(() => { });
       require('./ai-assistant').invalidateCache(db);
       deletedCount++;
     }
@@ -4098,7 +4098,7 @@ app.patch(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, r
   const updatedFile = await db.get('SELECT * FROM files WHERE id = ?', fileId);
   noteSearch.invalidateSearchCache(db);
   if (updatedFile) {
-    await require('./lib/knowledge-sync').onNoteSaved(db, updatedFile).catch(() => {});
+    await require('./lib/knowledge-sync').onNoteSaved(db, updatedFile).catch(() => { });
   }
   require('./ai-assistant').invalidateCache(db);
   res.json({ success: true, file: updatedFile });
@@ -4154,7 +4154,7 @@ app.put(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, res
   const updatedFile = await db.get('SELECT * FROM files WHERE id = ?', fileId);
   noteSearch.invalidateSearchCache(db);
   if (updatedFile) {
-    await require('./lib/knowledge-sync').onNoteSaved(db, updatedFile).catch(() => {});
+    await require('./lib/knowledge-sync').onNoteSaved(db, updatedFile).catch(() => { });
   }
   require('./ai-assistant').invalidateCache(db);
   res.json({ success: true, file: updatedFile });
@@ -4921,10 +4921,10 @@ app.post('/api/library/subjects/rename', requireLogin, async (req, res) => {
     await db.run('UPDATE assignments SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
     try {
       await db.run('UPDATE library_custom_chapters SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
-    } catch (_) {}
+    } catch (_) { }
     try {
       await db.run('UPDATE library_chapter_overrides SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json({ success: true, oldName, newName, code, message: 'Subject name updated' });
   } catch (err) {
@@ -5070,7 +5070,7 @@ app.post('/api/library/chapters/rename', requireLogin, async (req, res) => {
         subject,
         oldChapter
       );
-    } catch (_) {}
+    } catch (_) { }
 
     try {
       const existingOverride = await db.get(
@@ -5157,9 +5157,9 @@ app.post('/api/library/chapters/delete', requireLogin, async (req, res) => {
     }
 
     for (const file of (targetFiles || [])) {
-      await db.run('DELETE FROM file_likes WHERE fileId = ?', file.id).catch(() => {});
-      await db.run('DELETE FROM file_comments WHERE fileId = ?', file.id).catch(() => {});
-      await db.run('DELETE FROM files WHERE id = ?', file.id).catch(() => {});
+      await db.run('DELETE FROM file_likes WHERE fileId = ?', file.id).catch(() => { });
+      await db.run('DELETE FROM file_comments WHERE fileId = ?', file.id).catch(() => { });
+      await db.run('DELETE FROM files WHERE id = ?', file.id).catch(() => { });
     }
 
     // 2. Remove from library_custom_chapters if present
@@ -5170,7 +5170,7 @@ app.post('/api/library/chapters/delete', requireLogin, async (req, res) => {
         chapter,
         originalUnitKey
       );
-    } catch (_) {}
+    } catch (_) { }
 
     // 3. Record deletion in library_chapter_overrides so default syllabus chapters stay deleted
     try {
@@ -5270,7 +5270,7 @@ app.get('/api/library/files', async (req, res) => {
     try {
       const { getTeacherSubjects } = require('./lib/teacher-service');
       teacherSubjects = await getTeacherSubjects(db, studentId);
-    } catch (_) {}
+    } catch (_) { }
   }
   const teacherSubjectSet = new Set(
     (teacherSubjects || []).flatMap(s => [
@@ -5471,7 +5471,7 @@ app.get('/api/chat/health', async (req, res) => {
       slotsReady = slots.length === 4;
       const countRow = await db.get("SELECT COUNT(*) AS c FROM chat_groups WHERE status = 'active' AND kind = 'cohort'");
       activeRoomCount = Number(countRow?.c || 0);
-    } catch (_) {}
+    } catch (_) { }
 
     res.json({
       enabled: isCohortChatEnabled,
@@ -5517,19 +5517,19 @@ if (isCohortChatEnabled) {
 } else {
   // Legacy global chat endpoints (Fallback ONLY when cohort chat is disabled)
 
-app.get('/api/chat/config', requireLogin, (req, res) => {
-  const { url, key } = require('./lib/supabase').getSupabaseConfig();
-  res.json({ url, key });
-});
+  app.get('/api/chat/config', requireLogin, (req, res) => {
+    const { url, key } = require('./lib/supabase').getSupabaseConfig();
+    res.json({ url, key });
+  });
 
-app.get('/api/chat/messages', requireLogin, async (req, res) => {
-  const since = parseInt(req.query.since || req.query.after) || 0;
-  const before = parseInt(req.query.before) || 0;
-  const limit = Math.max(1, Math.min(parseInt(req.query.limit) || (before ? 35 : 200), 200));
+  app.get('/api/chat/messages', requireLogin, async (req, res) => {
+    const since = parseInt(req.query.since || req.query.after) || 0;
+    const before = parseInt(req.query.before) || 0;
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit) || (before ? 35 : 200), 200));
 
-  // Parallelize reading messages and read receipts concurrently
-  const messagesPromise = (before > 0 || since === 0)
-    ? db.all(`
+    // Parallelize reading messages and read receipts concurrently
+    const messagesPromise = (before > 0 || since === 0)
+      ? db.all(`
         SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
           students.studentId, students.name, students.avatarUrl,
           COALESCE(NULLIF(reply_msg.text, ''), reply_msg.attachmentOriginalName) AS replyText, reply_student.name AS replySender
@@ -5541,7 +5541,7 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
         ORDER BY chat_messages.id DESC
         LIMIT ?
       `, ...(before > 0 ? [before, limit] : [limit]))
-    : db.all(`
+      : db.all(`
         SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
           students.studentId, students.name, students.avatarUrl,
           COALESCE(NULLIF(reply_msg.text, ''), reply_msg.attachmentOriginalName) AS replyText, reply_student.name AS replySender
@@ -5554,18 +5554,18 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
         LIMIT ?
       `, since, limit);
 
-  const readReceiptsPromise = db.all(`SELECT studentId, lastReadMessageId FROM chat_read_receipts`);
+    const readReceiptsPromise = db.all(`SELECT studentId, lastReadMessageId FROM chat_read_receipts`);
 
-  const [rawMessages, readReceipts] = await Promise.all([messagesPromise, readReceiptsPromise]);
-  let messages = rawMessages;
-  if (before > 0 || since === 0) {
-    messages.reverse(); // restore chronological order
-  }
+    const [rawMessages, readReceipts] = await Promise.all([messagesPromise, readReceiptsPromise]);
+    let messages = rawMessages;
+    if (before > 0 || since === 0) {
+      messages.reverse(); // restore chronological order
+    }
 
-  // Polling must reconcile mutations too: a delta alone never includes a
-  // reaction, deleted message or changed attachment on an existing row.
-  const recentLimit = Math.max(0, Math.min(parseInt(req.query.recent) || 0, 100));
-  const recentMessages = recentLimit ? await db.all(`
+    // Polling must reconcile mutations too: a delta alone never includes a
+    // reaction, deleted message or changed attachment on an existing row.
+    const recentLimit = Math.max(0, Math.min(parseInt(req.query.recent) || 0, 100));
+    const recentMessages = recentLimit ? await db.all(`
     SELECT m.id, m.text, m.attachmentName, m.attachmentOriginalName, m.attachmentMimeType,
       m.replyToId, m.createdAt, s.studentId, s.name, s.avatarUrl,
       COALESCE(NULLIF(reply.text, ''), reply.attachmentOriginalName) AS replyText, author.name AS replySender
@@ -5575,54 +5575,54 @@ app.get('/api/chat/messages', requireLogin, async (req, res) => {
     LEFT JOIN students author ON author.studentId = reply.studentId
     ORDER BY m.id DESC LIMIT ?
   `, recentLimit) : [];
-  recentMessages.reverse();
-  const allMessages = [...messages, ...recentMessages];
-  const messageIds = [...new Set(allMessages.map(m => m.id))];
-  if (messageIds.length) {
-    const placeholders = messageIds.map(() => '?').join(',');
-    const [reactions, mentions] = await Promise.all([
-      db.all(`SELECT messageId, studentId, emoji FROM chat_reactions WHERE messageId IN (${placeholders})`, ...messageIds),
-      db.all(`SELECT cm.message_id, cm.mentioned_student_id, cm.handle, s.username, s.name
+    recentMessages.reverse();
+    const allMessages = [...messages, ...recentMessages];
+    const messageIds = [...new Set(allMessages.map(m => m.id))];
+    if (messageIds.length) {
+      const placeholders = messageIds.map(() => '?').join(',');
+      const [reactions, mentions] = await Promise.all([
+        db.all(`SELECT messageId, studentId, emoji FROM chat_reactions WHERE messageId IN (${placeholders})`, ...messageIds),
+        db.all(`SELECT cm.message_id, cm.mentioned_student_id, cm.handle, s.username, s.name
         FROM chat_message_mentions cm
         LEFT JOIN students s ON s.studentId = cm.mentioned_student_id
         WHERE cm.message_id IN (${placeholders})`, ...messageIds)
-    ]);
-    const reactionMap = {};
-    reactions.forEach(r => {
-      (reactionMap[r.messageId] ||= []).push({ studentId: r.studentId, emoji: r.emoji });
-    });
-    const mentionMap = {};
-    const mentionDetailMap = {};
-    mentions.forEach(m => {
-      const mid = m.messageId || m.message_id;
-      const sid = m.mentionedStudentId || m.mentioned_student_id;
-      const h = m.handle || m.username || m.name || sid;
-      (mentionMap[mid] ||= []).push(sid);
-      (mentionDetailMap[mid] ||= []).push({ studentId: sid, handle: h });
-    });
-    allMessages.forEach(m => {
-      m.reactions = reactionMap[m.id] || [];
-      m.mentions = mentionMap[m.id] || [];
-      m.mentionsDetail = mentionDetailMap[m.id] || [];
-    });
-  }
-  const typing = await db.all(`SELECT t.studentId, s.name, t.lastTypedAt AS timestamp
+      ]);
+      const reactionMap = {};
+      reactions.forEach(r => {
+        (reactionMap[r.messageId] ||= []).push({ studentId: r.studentId, emoji: r.emoji });
+      });
+      const mentionMap = {};
+      const mentionDetailMap = {};
+      mentions.forEach(m => {
+        const mid = m.messageId || m.message_id;
+        const sid = m.mentionedStudentId || m.mentioned_student_id;
+        const h = m.handle || m.username || m.name || sid;
+        (mentionMap[mid] ||= []).push(sid);
+        (mentionDetailMap[mid] ||= []).push({ studentId: sid, handle: h });
+      });
+      allMessages.forEach(m => {
+        m.reactions = reactionMap[m.id] || [];
+        m.mentions = mentionMap[m.id] || [];
+        m.mentionsDetail = mentionDetailMap[m.id] || [];
+      });
+    }
+    const typing = await db.all(`SELECT t.studentId, s.name, t.lastTypedAt AS timestamp
     FROM chat_typing t JOIN students s ON s.studentId = t.studentId WHERE t.lastTypedAt > ?`,
-    new Date(Date.now() - 3500).toISOString());
-  res.setHeader('Cache-Control', 'no-store');
-  res.json({ messages, readReceipts, typing, ...(recentLimit ? { recentMessages } : {}) });
-});
+      new Date(Date.now() - 3500).toISOString());
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ messages, readReceipts, typing, ...(recentLimit ? { recentMessages } : {}) });
+  });
 
-// Single reusable eligibility predicate for BIT group chat (BIT and B.Sc. CSIT students, excluding non-IT departments like BBA)
-const CHAT_ELIGIBILITY_SQL = "(COALESCE(department, 'BIT') IN ('BIT', 'B.Sc. CSIT', 'CSIT') AND (role IS NULL OR role NOT IN ('blocked', 'banned', 'suspended')))";
-const CHAT_ELIGIBILITY_S_SQL = "(COALESCE(s.department, 'BIT') IN ('BIT', 'B.Sc. CSIT', 'CSIT') AND (s.role IS NULL OR s.role NOT IN ('blocked', 'banned', 'suspended')))";
+  // Single reusable eligibility predicate for BIT group chat (BIT and B.Sc. CSIT students, excluding non-IT departments like BBA)
+  const CHAT_ELIGIBILITY_SQL = "(COALESCE(department, 'BIT') IN ('BIT', 'B.Sc. CSIT', 'CSIT') AND (role IS NULL OR role NOT IN ('blocked', 'banned', 'suspended')))";
+  const CHAT_ELIGIBILITY_S_SQL = "(COALESCE(s.department, 'BIT') IN ('BIT', 'B.Sc. CSIT', 'CSIT') AND (s.role IS NULL OR s.role NOT IN ('blocked', 'banned', 'suspended')))";
 
-app.get('/api/chat/members', requireLogin, async (req, res) => {
-  try {
-    const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500) : 200;
-    const offset = req.query.offset ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
-    const [members, lastMessages] = await Promise.all([
-      db.all(`
+  app.get('/api/chat/members', requireLogin, async (req, res) => {
+    try {
+      const limit = req.query.limit ? Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 500) : 200;
+      const offset = req.query.offset ? Math.max(parseInt(req.query.offset, 10) || 0, 0) : 0;
+      const [members, lastMessages] = await Promise.all([
+        db.all(`
         SELECT s.studentId, s.name, s.username,
           CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) ELSE s.avatarUrl END AS avatarUrl,
           s.semester, s.department, s.role,
@@ -5633,38 +5633,38 @@ app.get('/api/chat/members', requireLogin, async (req, res) => {
         ORDER BY s.name ASC
         LIMIT ? OFFSET ?
       `, limit, offset),
-      db.all(`
+        db.all(`
         SELECT studentId, MAX(createdAt) AS lastMessageAt
         FROM chat_messages
         GROUP BY studentId
       `)
-    ]);
+      ]);
 
-    const lastMsgMap = new Map((lastMessages || []).map(m => [m.studentId, m.lastMessageAt]));
-    const combined = (members || []).map(m => ({
-      ...m,
-      lastMessageAt: lastMsgMap.get(m.studentId) || null
-    }));
+      const lastMsgMap = new Map((lastMessages || []).map(m => [m.studentId, m.lastMessageAt]));
+      const combined = (members || []).map(m => ({
+        ...m,
+        lastMessageAt: lastMsgMap.get(m.studentId) || null
+      }));
 
-    res.json({ total: combined.length, members: combined });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch members' });
-  }
-});
-
-// @mention autocomplete: search students by name or username (strictly filtered by chat eligibility)
-app.get('/api/chat/mentions/students', requireLogin, async (req, res) => {
-  try {
-    const query = (req.query.q || '').trim().toLowerCase();
-    const currentStudentId = req.session?.studentId || req.user?.studentId;
-    if (!query || query.length < 1) {
-      return res.json({ students: [] });
+      res.json({ total: combined.length, members: combined });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch members' });
     }
+  });
 
-    // Sanitize LIKE pattern (escape % and _ in user input)
-    const safeLike = `%${query.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+  // @mention autocomplete: search students by name or username (strictly filtered by chat eligibility)
+  app.get('/api/chat/mentions/students', requireLogin, async (req, res) => {
+    try {
+      const query = (req.query.q || '').trim().toLowerCase();
+      const currentStudentId = req.session?.studentId || req.user?.studentId;
+      if (!query || query.length < 1) {
+        return res.json({ students: [] });
+      }
 
-    const students = await db.all(`
+      // Sanitize LIKE pattern (escape % and _ in user input)
+      const safeLike = `%${query.replace(/%/g, '\\%').replace(/_/g, '\\_')}%`;
+
+      const students = await db.all(`
       SELECT studentId, name, username, avatarUrl
       FROM students
       WHERE studentId != ?
@@ -5674,64 +5674,64 @@ app.get('/api/chat/mentions/students', requireLogin, async (req, res) => {
       LIMIT 10
     `, currentStudentId, safeLike, safeLike);
 
-    res.json({ students: students || [] });
-  } catch (err) {
-    console.error('[Mention Autocomplete Error]:', err.message);
-    res.status(500).json({ error: 'Failed to search students' });
-  }
-});
-
-// Pinned Announcement state (persisted in database)
-app.get('/api/chat/pinned', requireLogin, async (req, res) => {
-  try {
-    const row = await db.get('SELECT * FROM chat_pinned WHERE id = 1');
-    if (!row) {
-      return res.json({ pinned: null });
+      res.json({ students: students || [] });
+    } catch (err) {
+      console.error('[Mention Autocomplete Error]:', err.message);
+      res.status(500).json({ error: 'Failed to search students' });
     }
-    const pinned = {
-      messageId: row.messageId || row.message_id,
-      text: row.text,
-      senderName: row.senderName || row.sender_name,
-      pinnedBy: row.pinnedBy || row.pinned_by,
-      pinnedAt: row.pinnedAt || row.pinned_at
-    };
-    res.json({ pinned });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch pinned message' });
-  }
-});
+  });
 
-app.post('/api/chat/pinned/:id', requireLogin, async (req, res) => {
-  try {
-    // Only authorized roles (admin, cr) can pin announcements
-    const activeStudentId = req.user?.studentId || req.student?.studentId || req.session?.studentId;
-    const role = req.user?.role || req.student?.role || req.session?.role || 'student';
-    const isAdmin = await isStudentAdmin(activeStudentId);
-    if (!isAdmin && role !== 'admin' && role !== 'cr' && role !== 'class_rep') {
-      return res.status(403).json({ error: 'Forbidden: Only admins or class representatives can pin messages.' });
+  // Pinned Announcement state (persisted in database)
+  app.get('/api/chat/pinned', requireLogin, async (req, res) => {
+    try {
+      const row = await db.get('SELECT * FROM chat_pinned WHERE id = 1');
+      if (!row) {
+        return res.json({ pinned: null });
+      }
+      const pinned = {
+        messageId: row.messageId || row.message_id,
+        text: row.text,
+        senderName: row.senderName || row.sender_name,
+        pinnedBy: row.pinnedBy || row.pinned_by,
+        pinnedAt: row.pinnedAt || row.pinned_at
+      };
+      res.json({ pinned });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to fetch pinned message' });
     }
+  });
 
-    const msgId = parseInt(req.params.id, 10);
-    if (!msgId) return res.status(400).json({ error: 'Invalid message ID' });
+  app.post('/api/chat/pinned/:id', requireLogin, async (req, res) => {
+    try {
+      // Only authorized roles (admin, cr) can pin announcements
+      const activeStudentId = req.user?.studentId || req.student?.studentId || req.session?.studentId;
+      const role = req.user?.role || req.student?.role || req.session?.role || 'student';
+      const isAdmin = await isStudentAdmin(activeStudentId);
+      if (!isAdmin && role !== 'admin' && role !== 'cr' && role !== 'class_rep') {
+        return res.status(403).json({ error: 'Forbidden: Only admins or class representatives can pin messages.' });
+      }
 
-    const msg = await db.get(`
+      const msgId = parseInt(req.params.id, 10);
+      if (!msgId) return res.status(400).json({ error: 'Invalid message ID' });
+
+      const msg = await db.get(`
       SELECT m.id, m.text, m.attachmentName, m.attachmentOriginalName, m.createdAt, s.name AS senderName
       FROM chat_messages m
       LEFT JOIN students s ON s.studentId = m.studentId
       WHERE m.id = ?
     `, msgId);
 
-    if (!msg) return res.status(404).json({ error: 'Message not found' });
-    const pinnedMessage = {
-      messageId: msg.id,
-      text: msg.text || msg.attachmentOriginalName || 'Attachment',
-      senderName: msg.senderName || 'Student',
-      pinnedBy: req.session.studentName || 'Member',
-      pinnedAt: new Date().toISOString()
-    };
+      if (!msg) return res.status(404).json({ error: 'Message not found' });
+      const pinnedMessage = {
+        messageId: msg.id,
+        text: msg.text || msg.attachmentOriginalName || 'Attachment',
+        senderName: msg.senderName || 'Student',
+        pinnedBy: req.session.studentName || 'Member',
+        pinnedAt: new Date().toISOString()
+      };
 
-    if (db.isPostgres) {
-      await db.run(`
+      if (db.isPostgres) {
+        await db.run(`
         INSERT INTO chat_pinned (id, messageId, text, senderName, pinnedBy, pinnedAt)
         VALUES (1, $1, $2, $3, $4, $5)
         ON CONFLICT (id) DO UPDATE SET
@@ -5741,230 +5741,153 @@ app.post('/api/chat/pinned/:id', requireLogin, async (req, res) => {
           pinnedBy = EXCLUDED.pinnedBy,
           pinnedAt = EXCLUDED.pinnedAt
       `, pinnedMessage.messageId, pinnedMessage.text, pinnedMessage.senderName, pinnedMessage.pinnedBy, pinnedMessage.pinnedAt);
-    } else {
-      await db.run(`
+      } else {
+        await db.run(`
         INSERT OR REPLACE INTO chat_pinned (id, messageId, text, senderName, pinnedBy, pinnedAt)
         VALUES (1, ?, ?, ?, ?, ?)
       `, pinnedMessage.messageId, pinnedMessage.text, pinnedMessage.senderName, pinnedMessage.pinnedBy, pinnedMessage.pinnedAt);
-    }
-
-    await sendBroadcast('pin_message', pinnedMessage);
-    res.json({ success: true, pinned: pinnedMessage });
-  } catch (err) {
-    console.error('[Pin Chat Error]:', err.message);
-    res.status(500).json({ error: 'Failed to pin message' });
-  }
-});
-
-app.delete('/api/chat/pinned', requireLogin, async (req, res) => {
-  try {
-    const activeStudentId = req.user?.studentId || req.student?.studentId || req.session?.studentId;
-    const role = req.user?.role || req.student?.role || req.session?.role || 'student';
-    const isAdmin = await isStudentAdmin(activeStudentId);
-    if (!isAdmin && role !== 'admin' && role !== 'cr' && role !== 'class_rep') {
-      return res.status(403).json({ error: 'Forbidden: Only admins or class representatives can unpin messages.' });
-    }
-
-    await db.run('DELETE FROM chat_pinned WHERE id = 1');
-    await sendBroadcast('pin_message', { unpinned: true });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to unpin message' });
-  }
-});
-
-app.post('/api/chat/reactions', requireLogin, async (req, res) => {
-  const { messageId, emoji } = req.body;
-  const studentId = req.session.studentId;
-  if (!Number.isSafeInteger(Number(messageId)) || Number(messageId) <= 0 || typeof emoji !== 'string' || !emoji.trim() || emoji.length > 32) return res.status(400).json({ error: 'Invalid reaction' });
-  if (!await db.get('SELECT id FROM chat_messages WHERE id = ?', messageId)) return res.status(404).json({ error: 'Message no longer exists' });
-
-  try {
-    const existing = await db.get(`SELECT * FROM chat_reactions WHERE messageId = ? AND studentId = ?`, messageId, studentId);
-    let action = 'add';
-    if (existing) {
-      if (existing.emoji === emoji) {
-        // Toggle off if same emoji clicked again
-        await db.run(`DELETE FROM chat_reactions WHERE messageId = ? AND studentId = ?`, messageId, studentId);
-        action = 'remove';
-      } else {
-        // Update reaction to the new emoji
-        await db.run(`UPDATE chat_reactions SET emoji = ? WHERE messageId = ? AND studentId = ?`, emoji, messageId, studentId);
-        action = 'update';
       }
-    } else {
-      await db.run(`INSERT INTO chat_reactions (messageId, studentId, emoji) VALUES (?, ?, ?)`, messageId, studentId, emoji);
-      action = 'add';
+
+      await sendBroadcast('pin_message', pinnedMessage);
+      res.json({ success: true, pinned: pinnedMessage });
+    } catch (err) {
+      console.error('[Pin Chat Error]:', err.message);
+      res.status(500).json({ error: 'Failed to pin message' });
     }
+  });
 
-    await sendBroadcast('reaction_update', { messageId, studentId, emoji, action });
+  app.delete('/api/chat/pinned', requireLogin, async (req, res) => {
+    try {
+      const activeStudentId = req.user?.studentId || req.student?.studentId || req.session?.studentId;
+      const role = req.user?.role || req.student?.role || req.session?.role || 'student';
+      const isAdmin = await isStudentAdmin(activeStudentId);
+      if (!isAdmin && role !== 'admin' && role !== 'cr' && role !== 'class_rep') {
+        return res.status(403).json({ error: 'Forbidden: Only admins or class representatives can unpin messages.' });
+      }
 
-    res.json({ success: true, action });
-  } catch (error) {
-    console.error('Reaction error:', error);
-    res.status(500).json({ error: 'Failed to update reaction' });
-  }
-});
-
-app.post('/api/chat/read', requireLogin, async (req, res) => {
-  const lastReadMessageId = parseInt(req.body.lastReadMessageId, 10);
-  const studentId = req.session.studentId;
-  if (!Number.isSafeInteger(lastReadMessageId) || lastReadMessageId <= 0) return res.status(400).json({ error: 'Missing or invalid lastReadMessageId' });
-
-  try {
-    const current = await db.get('SELECT lastReadMessageId FROM chat_read_receipts WHERE studentId = ?', studentId);
-    const currentRead = current ? Number(current.lastReadMessageId || current.last_read_message_id || 0) : 0;
-    // Prevent read receipts from moving backwards
-    if (currentRead >= lastReadMessageId) {
-      return res.json({ success: true, lastReadMessageId: currentRead });
+      await db.run('DELETE FROM chat_pinned WHERE id = 1');
+      await sendBroadcast('pin_message', { unpinned: true });
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ error: 'Failed to unpin message' });
     }
+  });
 
-    if (db.isPostgres) {
-      await db.run(`
+  app.post('/api/chat/reactions', requireLogin, async (req, res) => {
+    const { messageId, emoji } = req.body;
+    const studentId = req.session.studentId;
+    if (!Number.isSafeInteger(Number(messageId)) || Number(messageId) <= 0 || typeof emoji !== 'string' || !emoji.trim() || emoji.length > 32) return res.status(400).json({ error: 'Invalid reaction' });
+    if (!await db.get('SELECT id FROM chat_messages WHERE id = ?', messageId)) return res.status(404).json({ error: 'Message no longer exists' });
+
+    try {
+      const existing = await db.get(`SELECT * FROM chat_reactions WHERE messageId = ? AND studentId = ?`, messageId, studentId);
+      let action = 'add';
+      if (existing) {
+        if (existing.emoji === emoji) {
+          // Toggle off if same emoji clicked again
+          await db.run(`DELETE FROM chat_reactions WHERE messageId = ? AND studentId = ?`, messageId, studentId);
+          action = 'remove';
+        } else {
+          // Update reaction to the new emoji
+          await db.run(`UPDATE chat_reactions SET emoji = ? WHERE messageId = ? AND studentId = ?`, emoji, messageId, studentId);
+          action = 'update';
+        }
+      } else {
+        await db.run(`INSERT INTO chat_reactions (messageId, studentId, emoji) VALUES (?, ?, ?)`, messageId, studentId, emoji);
+        action = 'add';
+      }
+
+      await sendBroadcast('reaction_update', { messageId, studentId, emoji, action });
+
+      res.json({ success: true, action });
+    } catch (error) {
+      console.error('Reaction error:', error);
+      res.status(500).json({ error: 'Failed to update reaction' });
+    }
+  });
+
+  app.post('/api/chat/read', requireLogin, async (req, res) => {
+    const lastReadMessageId = parseInt(req.body.lastReadMessageId, 10);
+    const studentId = req.session.studentId;
+    if (!Number.isSafeInteger(lastReadMessageId) || lastReadMessageId <= 0) return res.status(400).json({ error: 'Missing or invalid lastReadMessageId' });
+
+    try {
+      const current = await db.get('SELECT lastReadMessageId FROM chat_read_receipts WHERE studentId = ?', studentId);
+      const currentRead = current ? Number(current.lastReadMessageId || current.last_read_message_id || 0) : 0;
+      // Prevent read receipts from moving backwards
+      if (currentRead >= lastReadMessageId) {
+        return res.json({ success: true, lastReadMessageId: currentRead });
+      }
+
+      if (db.isPostgres) {
+        await db.run(`
         INSERT INTO chat_read_receipts (studentId, lastReadMessageId) VALUES ($1, $2)
         ON CONFLICT(studentId) DO UPDATE SET lastReadMessageId = GREATEST(chat_read_receipts.lastReadMessageId, EXCLUDED.lastReadMessageId)
       `, studentId, lastReadMessageId);
-    } else {
-      await db.run(`
+      } else {
+        await db.run(`
         INSERT INTO chat_read_receipts (studentId, lastReadMessageId) VALUES (?, ?)
         ON CONFLICT(studentId) DO UPDATE SET lastReadMessageId = MAX(chat_read_receipts.lastReadMessageId, excluded.lastReadMessageId)
       `, studentId, lastReadMessageId);
+      }
+
+      sendBroadcast('read_receipt', { studentId, lastReadMessageId });
+
+      res.json({ success: true, lastReadMessageId });
+    } catch (error) {
+      console.error('Read receipt error:', error);
+      res.status(500).json({ error: 'Failed to update read receipt' });
     }
+  });
 
-    sendBroadcast('read_receipt', { studentId, lastReadMessageId });
-
-    res.json({ success: true, lastReadMessageId });
-  } catch (error) {
-    console.error('Read receipt error:', error);
-    res.status(500).json({ error: 'Failed to update read receipt' });
-  }
-});
-
-app.post('/api/chat/typing', requireLogin, async (req, res) => {
-  const studentId = req.session.studentId;
-  const name = req.session.studentName;
-  try {
-    const now = new Date().toISOString();
-    await db.run(`
+  app.post('/api/chat/typing', requireLogin, async (req, res) => {
+    const studentId = req.session.studentId;
+    const name = req.session.studentName;
+    try {
+      const now = new Date().toISOString();
+      await db.run(`
       INSERT INTO chat_typing (studentId, lastTypedAt) VALUES (?, ?)
       ON CONFLICT(studentId) DO UPDATE SET lastTypedAt = excluded.lastTypedAt
     `, studentId, now);
 
-    sendBroadcast('typing', { studentId, name, timestamp: now });
+      sendBroadcast('typing', { studentId, name, timestamp: now });
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Typing error:', error);
-    res.status(500).json({ error: 'Failed to update typing indicator' });
-  }
-});
-
-const handleChatUpload = (req, res, next) => {
-  chatUpload.fields([
-    { name: 'attachment', maxCount: 1 },
-    { name: 'file', maxCount: 1 }
-  ])(req, res, (err) => {
-    if (err) {
-      if (err instanceof multer.MulterError) {
-        return res.status(400).json({ message: `Upload error: ${err.message}` });
-      }
-      return res.status(400).json({ message: err.message || String(err) });
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Typing error:', error);
+      res.status(500).json({ error: 'Failed to update typing indicator' });
     }
-    if (req.files) {
-      req.file = (req.files['attachment'] && req.files['attachment'][0]) ||
-                 (req.files['file'] && req.files['file'][0]) ||
-                 undefined;
-    }
-    next();
   });
-};
 
-const recentClientMessages = new Map(); // clientId -> { messageId, data, timestamp }
-
-app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, async (req, res) => {
-  const text = (req.body && req.body.text ? String(req.body.text) : '').trim();
-  const file = req.file;
-  const replyToId = req.body.replyToId ? parseInt(req.body.replyToId, 10) : null;
-  const clientId = (req.body && req.body.clientId ? String(req.body.clientId) : '').trim() || null;
-
-  // Parse mentions: client sends JSON array of studentIds
-  let rawMentions = [];
-  try {
-    const mentionsInput = req.body.mentions || req.body.mentionedStudentIds;
-    if (typeof mentionsInput === 'string') {
-      rawMentions = JSON.parse(mentionsInput);
-    } else if (Array.isArray(mentionsInput)) {
-      rawMentions = mentionsInput;
-    }
-  } catch (_) { rawMentions = []; }
-
-  // Idempotency: if client retries with the same clientId within 60s, return cached response
-  if (clientId && recentClientMessages.has(clientId)) {
-    const cached = recentClientMessages.get(clientId);
-    if (Date.now() - cached.timestamp < 60000) {
-      if (file) fs.unlink(file.path, () => {});
-      return res.json({ message: 'Sent', messageId: cached.messageId, data: cached.data, clientId });
-    }
-  }
-
-  if (req.body.replyToId && (!Number.isSafeInteger(replyToId) || replyToId <= 0 || !await db.get('SELECT id FROM chat_messages WHERE id = ?', replyToId))) {
-    if (file) fs.unlink(file.path, () => {});
-    return res.status(404).json({ message: 'The message you are replying to no longer exists.' });
-  }
-
-  if (!text && !file) {
-    return res.status(400).json({ message: 'Cannot send an empty message.' });
-  }
-
-  if (text.length > 2000) {
-    if (file) fs.unlink(file.path, () => { });
-    return res.status(400).json({ message: 'Message text is too long (max 2000 chars).' });
-  }
-
-  let attachmentName = null;
-  let attachmentOriginalName = null;
-  let attachmentMimeType = null;
-
-  if (file) {
-    attachmentName = file.filename;
-    attachmentOriginalName = file.originalname;
-    attachmentMimeType = file.mimetype;
-
-    try {
-      {
-        const fileBuffer = fs.readFileSync(file.path);
-        const saved = await db.saveFileBlob(file.filename, fileBuffer, file.mimetype || 'application/octet-stream');
-        if (!saved) throw new Error('Attachment storage unavailable');
+  const handleChatUpload = (req, res, next) => {
+    chatUpload.fields([
+      { name: 'attachment', maxCount: 1 },
+      { name: 'file', maxCount: 1 }
+    ])(req, res, (err) => {
+      if (err) {
+        if (err instanceof multer.MulterError) {
+          return res.status(400).json({ message: `Upload error: ${err.message}` });
+        }
+        return res.status(400).json({ message: err.message || String(err) });
       }
-    } catch (err) {
-      fs.unlink(file.path, () => {});
-      console.error('Chat attachment storage failed:', err.message);
-      return res.status(503).json({ message: 'Could not save the attachment. Please try again.' });
-    }
-  }
+      if (req.files) {
+        req.file = (req.files['attachment'] && req.files['attachment'][0]) ||
+          (req.files['file'] && req.files['file'][0]) ||
+          undefined;
+      }
+      next();
+    });
+  };
 
-  try {
-    const currentSenderId = req.session?.studentId || req.user?.studentId;
-    console.log('[PUSH-DIAG-CHAT] 1. Sender Student ID:', currentSenderId);
+  const recentClientMessages = new Map(); // clientId -> { messageId, data, timestamp }
 
-    const senderRow = await db.get(
-      'SELECT studentId, name, username, department, role FROM students WHERE studentId = ?',
-      currentSenderId
-    );
-    if (!senderRow) {
-      if (file) fs.unlink(file.path, () => {});
-      return res.status(401).json({ error: 'Unauthorized: Sender does not exist' });
-    }
-    const isSenderEligible = (
-      (senderRow.department === null || senderRow.department === undefined || ['BIT', 'B.SC. CSIT', 'CSIT'].includes(senderRow.department.toUpperCase())) &&
-      (!senderRow.role || !['blocked', 'banned', 'suspended'].includes(senderRow.role))
-    );
-    if (!isSenderEligible) {
-      if (file) fs.unlink(file.path, () => {});
-      return res.status(403).json({ error: 'Forbidden: Sender is not eligible for this chat' });
-    }
+  app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, async (req, res) => {
+    const text = (req.body && req.body.text ? String(req.body.text) : '').trim();
+    const file = req.file;
+    const replyToId = req.body.replyToId ? parseInt(req.body.replyToId, 10) : null;
+    const clientId = (req.body && req.body.clientId ? String(req.body.clientId) : '').trim() || null;
 
-    // ── Parse and validate @mentions ──
+    // Parse mentions: client sends JSON array of studentIds
     let rawMentions = [];
     try {
       const mentionsInput = req.body.mentions || req.body.mentionedStudentIds;
@@ -5975,97 +5898,174 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
       }
     } catch (_) { rawMentions = []; }
 
-    const extractedIds = (Array.isArray(rawMentions) ? rawMentions : []).map(item => {
-      if (item && typeof item === 'object' && item.studentId) return String(item.studentId).trim();
-      return String(item || '').trim();
-    }).filter(Boolean);
-
-    // Deduplicate
-    const uniqueMentionIds = Array.from(new Set(extractedIds)).slice(0, 50);
-
-    // Sender's own ID is safely ignored for notification purposes without failing
-    const recipientCandidateIds = uniqueMentionIds.filter(id => id !== String(currentSenderId));
-
-    let validatedMentions = []; // array of { studentId, handle }
-    if (recipientCandidateIds.length > 0) {
-      const placeholders = recipientCandidateIds.map(() => '?').join(',');
-      const eligibleStudents = await db.all(
-        `SELECT studentId, username FROM students WHERE studentId IN (${placeholders}) AND ${CHAT_ELIGIBILITY_SQL}`,
-        ...recipientCandidateIds
-      );
-
-      const eligibleMap = new Map((eligibleStudents || []).map(s => [s.studentId, s.username]));
-      const invalidIds = recipientCandidateIds.filter(id => !eligibleMap.has(id));
-
-      // Strict rejection: if client submits nonexistent or ineligible mention IDs, reject with 400
-      if (invalidIds.length > 0) {
-        if (file) fs.unlink(file.path, () => {});
-        return res.status(400).json({
-          error: 'One or more mentioned students are invalid or ineligible for this chat',
-          invalidStudentIds: invalidIds
-        });
+    // Idempotency: if client retries with the same clientId within 60s, return cached response
+    if (clientId && recentClientMessages.has(clientId)) {
+      const cached = recentClientMessages.get(clientId);
+      if (Date.now() - cached.timestamp < 60000) {
+        if (file) fs.unlink(file.path, () => { });
+        return res.json({ message: 'Sent', messageId: cached.messageId, data: cached.data, clientId });
       }
-
-      validatedMentions = recipientCandidateIds.map(id => ({
-        studentId: id,
-        handle: eligibleMap.get(id) || id
-      }));
     }
 
-    // ── Atomically execute message creation, mentions, and outbox enqueue in one transaction ──
-    let messageId;
-    let enqueueResult;
+    if (req.body.replyToId && (!Number.isSafeInteger(replyToId) || replyToId <= 0 || !await db.get('SELECT id FROM chat_messages WHERE id = ?', replyToId))) {
+      if (file) fs.unlink(file.path, () => { });
+      return res.status(404).json({ message: 'The message you are replying to no longer exists.' });
+    }
 
-    await db.withTransaction(async (tx) => {
-      // 1. insert chat_messages
-      const result = await tx.run(`
+    if (!text && !file) {
+      return res.status(400).json({ message: 'Cannot send an empty message.' });
+    }
+
+    if (text.length > 2000) {
+      if (file) fs.unlink(file.path, () => { });
+      return res.status(400).json({ message: 'Message text is too long (max 2000 chars).' });
+    }
+
+    let attachmentName = null;
+    let attachmentOriginalName = null;
+    let attachmentMimeType = null;
+
+    if (file) {
+      attachmentName = file.filename;
+      attachmentOriginalName = file.originalname;
+      attachmentMimeType = file.mimetype;
+
+      try {
+        {
+          const fileBuffer = fs.readFileSync(file.path);
+          const saved = await db.saveFileBlob(file.filename, fileBuffer, file.mimetype || 'application/octet-stream');
+          if (!saved) throw new Error('Attachment storage unavailable');
+        }
+      } catch (err) {
+        fs.unlink(file.path, () => { });
+        console.error('Chat attachment storage failed:', err.message);
+        return res.status(503).json({ message: 'Could not save the attachment. Please try again.' });
+      }
+    }
+
+    try {
+      const currentSenderId = req.session?.studentId || req.user?.studentId;
+      console.log('[PUSH-DIAG-CHAT] 1. Sender Student ID:', currentSenderId);
+
+      const senderRow = await db.get(
+        'SELECT studentId, name, username, department, role FROM students WHERE studentId = ?',
+        currentSenderId
+      );
+      if (!senderRow) {
+        if (file) fs.unlink(file.path, () => { });
+        return res.status(401).json({ error: 'Unauthorized: Sender does not exist' });
+      }
+      const isSenderEligible = (
+        (senderRow.department === null || senderRow.department === undefined || ['BIT', 'B.SC. CSIT', 'CSIT'].includes(senderRow.department.toUpperCase())) &&
+        (!senderRow.role || !['blocked', 'banned', 'suspended'].includes(senderRow.role))
+      );
+      if (!isSenderEligible) {
+        if (file) fs.unlink(file.path, () => { });
+        return res.status(403).json({ error: 'Forbidden: Sender is not eligible for this chat' });
+      }
+
+      // ── Parse and validate @mentions ──
+      let rawMentions = [];
+      try {
+        const mentionsInput = req.body.mentions || req.body.mentionedStudentIds;
+        if (typeof mentionsInput === 'string') {
+          rawMentions = JSON.parse(mentionsInput);
+        } else if (Array.isArray(mentionsInput)) {
+          rawMentions = mentionsInput;
+        }
+      } catch (_) { rawMentions = []; }
+
+      const extractedIds = (Array.isArray(rawMentions) ? rawMentions : []).map(item => {
+        if (item && typeof item === 'object' && item.studentId) return String(item.studentId).trim();
+        return String(item || '').trim();
+      }).filter(Boolean);
+
+      // Deduplicate
+      const uniqueMentionIds = Array.from(new Set(extractedIds)).slice(0, 50);
+
+      // Sender's own ID is safely ignored for notification purposes without failing
+      const recipientCandidateIds = uniqueMentionIds.filter(id => id !== String(currentSenderId));
+
+      let validatedMentions = []; // array of { studentId, handle }
+      if (recipientCandidateIds.length > 0) {
+        const placeholders = recipientCandidateIds.map(() => '?').join(',');
+        const eligibleStudents = await db.all(
+          `SELECT studentId, username FROM students WHERE studentId IN (${placeholders}) AND ${CHAT_ELIGIBILITY_SQL}`,
+          ...recipientCandidateIds
+        );
+
+        const eligibleMap = new Map((eligibleStudents || []).map(s => [s.studentId, s.username]));
+        const invalidIds = recipientCandidateIds.filter(id => !eligibleMap.has(id));
+
+        // Strict rejection: if client submits nonexistent or ineligible mention IDs, reject with 400
+        if (invalidIds.length > 0) {
+          if (file) fs.unlink(file.path, () => { });
+          return res.status(400).json({
+            error: 'One or more mentioned students are invalid or ineligible for this chat',
+            invalidStudentIds: invalidIds
+          });
+        }
+
+        validatedMentions = recipientCandidateIds.map(id => ({
+          studentId: id,
+          handle: eligibleMap.get(id) || id
+        }));
+      }
+
+      // ── Atomically execute message creation, mentions, and outbox enqueue in one transaction ──
+      let messageId;
+      let enqueueResult;
+
+      await db.withTransaction(async (tx) => {
+        // 1. insert chat_messages
+        const result = await tx.run(`
         INSERT INTO chat_messages (studentId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, createdAt)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `, currentSenderId, text, attachmentName, attachmentOriginalName, attachmentMimeType, replyToId, new Date().toISOString());
 
-      messageId = result.lastInsertRowid;
+        messageId = result.lastInsertRowid;
 
-      // 2. insert chat_message_mentions
-      for (const m of validatedMentions) {
-        if (tx.isPostgres) {
-          await tx.run(
-            `INSERT INTO chat_message_mentions (message_id, mentioned_student_id, handle) VALUES (?, ?, ?)
+        // 2. insert chat_message_mentions
+        for (const m of validatedMentions) {
+          if (tx.isPostgres) {
+            await tx.run(
+              `INSERT INTO chat_message_mentions (message_id, mentioned_student_id, handle) VALUES (?, ?, ?)
              ON CONFLICT (message_id, mentioned_student_id) DO NOTHING`,
-            messageId, m.studentId, m.handle
-          );
-        } else {
-          await tx.run(
-            `INSERT OR IGNORE INTO chat_message_mentions (message_id, mentioned_student_id, handle) VALUES (?, ?, ?)`,
-            messageId, m.studentId, m.handle
-          );
+              messageId, m.studentId, m.handle
+            );
+          } else {
+            await tx.run(
+              `INSERT OR IGNORE INTO chat_message_mentions (message_id, mentioned_student_id, handle) VALUES (?, ?, ?)`,
+              messageId, m.studentId, m.handle
+            );
+          }
         }
-      }
 
-      // Injected failure regression test point 1 (before outbox insertion)
-      if (process.env.TEST_INJECT_CHAT_FAIL === 'before_outbox') {
-        throw new Error('Injected failure: before outbox enqueue');
-      }
+        // Injected failure regression test point 1 (before outbox insertion)
+        if (process.env.TEST_INJECT_CHAT_FAIL === 'before_outbox') {
+          throw new Error('Injected failure: before outbox enqueue');
+        }
 
-      // 3. enqueue logical push/outbox records
-      const { enqueueChatPushWithThrottle } = require('./lib/push-notifications');
-      enqueueResult = await enqueueChatPushWithThrottle(tx, {
-        messageId,
-        senderStudentId: currentSenderId,
-        senderName: senderRow.name || null,
-        text: text ? text.trim() : null,
-        attachmentMimeType: attachmentMimeType || (file ? file.mimetype : null),
-        attachmentOriginalName: attachmentOriginalName || (file ? file.originalname : null),
-        mentionedStudentIds: validatedMentions.map(m => m.studentId)
+        // 3. enqueue logical push/outbox records
+        const { enqueueChatPushWithThrottle } = require('./lib/push-notifications');
+        enqueueResult = await enqueueChatPushWithThrottle(tx, {
+          messageId,
+          senderStudentId: currentSenderId,
+          senderName: senderRow.name || null,
+          text: text ? text.trim() : null,
+          attachmentMimeType: attachmentMimeType || (file ? file.mimetype : null),
+          attachmentOriginalName: attachmentOriginalName || (file ? file.originalname : null),
+          mentionedStudentIds: validatedMentions.map(m => m.studentId)
+        });
+
+        // Injected failure regression test point 2 (after outbox insertion, before commit)
+        if (process.env.TEST_INJECT_CHAT_FAIL === 'after_outbox') {
+          throw new Error('Injected failure: after outbox enqueue');
+        }
       });
 
-      // Injected failure regression test point 2 (after outbox insertion, before commit)
-      if (process.env.TEST_INJECT_CHAT_FAIL === 'after_outbox') {
-        throw new Error('Injected failure: after outbox enqueue');
-      }
-    });
-
-    // ── Transaction committed: fetch message for broadcast and dispatch push ──
-    const newMsg = await db.get(`
+      // ── Transaction committed: fetch message for broadcast and dispatch push ──
+      const newMsg = await db.get(`
       SELECT chat_messages.id, chat_messages.text, chat_messages.attachmentName, chat_messages.attachmentOriginalName, chat_messages.attachmentMimeType, chat_messages.replyToId, chat_messages.createdAt,
         students.studentId, students.name, students.avatarUrl,
         COALESCE(NULLIF(reply_msg.text, ''), reply_msg.attachmentOriginalName) AS replyText, reply_student.name AS replySender
@@ -6076,123 +6076,123 @@ app.post('/api/chat/messages', requireLogin, chatRateLimiter, handleChatUpload, 
       WHERE chat_messages.id = ?
     `, messageId);
 
-    // Attach validated mentions to the message object for broadcast
-    if (newMsg) {
-      newMsg.mentions = validatedMentions.map(m => m.studentId);
-      newMsg.mentionsDetail = validatedMentions;
-    }
-
-    // Push notification immediate dispatch (bounded synchronous dispatch)
-    try {
-      if (enqueueResult && enqueueResult.enqueuedCount > 0) {
-        const { dispatchImmediateOutbox } = require('./lib/push-notifications');
-        await dispatchImmediateOutbox(db, {
-          eventType: 'chat',
-          eventId: messageId,
-          limit: 100,
-          timeoutMs: 3500
-        });
+      // Attach validated mentions to the message object for broadcast
+      if (newMsg) {
+        newMsg.mentions = validatedMentions.map(m => m.studentId);
+        newMsg.mentionsDetail = validatedMentions;
       }
-    } catch (pushErr) {
-      console.warn('[PUSH-CHAT] Push Dispatch Error:', pushErr.message);
-    }
 
-    if (newMsg) {
-      if (clientId) newMsg.clientId = clientId;
-      sendBroadcast('new_message', newMsg);
-    }
+      // Push notification immediate dispatch (bounded synchronous dispatch)
+      try {
+        if (enqueueResult && enqueueResult.enqueuedCount > 0) {
+          const { dispatchImmediateOutbox } = require('./lib/push-notifications');
+          await dispatchImmediateOutbox(db, {
+            eventType: 'chat',
+            eventId: messageId,
+            limit: 100,
+            timeoutMs: 3500
+          });
+        }
+      } catch (pushErr) {
+        console.warn('[PUSH-CHAT] Push Dispatch Error:', pushErr.message);
+      }
 
-    if (clientId && newMsg) {
-      recentClientMessages.set(clientId, { messageId, data: newMsg, timestamp: Date.now() });
-      if (recentClientMessages.size > 200) {
-        const cutoff = Date.now() - 60000;
-        for (const [key, val] of recentClientMessages.entries()) {
-          if (val.timestamp < cutoff) recentClientMessages.delete(key);
+      if (newMsg) {
+        if (clientId) newMsg.clientId = clientId;
+        sendBroadcast('new_message', newMsg);
+      }
+
+      if (clientId && newMsg) {
+        recentClientMessages.set(clientId, { messageId, data: newMsg, timestamp: Date.now() });
+        if (recentClientMessages.size > 200) {
+          const cutoff = Date.now() - 60000;
+          for (const [key, val] of recentClientMessages.entries()) {
+            if (val.timestamp < cutoff) recentClientMessages.delete(key);
+          }
         }
       }
+
+      res.json({ message: 'Sent', messageId, data: newMsg, clientId });
+    } catch (error) {
+      if (file) fs.unlink(file.path, () => { });
+      console.error('Chat message insert error:', error.message);
+      res.status(500).json({ message: 'Failed to send message.' });
     }
+  });
 
-    res.json({ message: 'Sent', messageId, data: newMsg, clientId });
-  } catch (error) {
-    if (file) fs.unlink(file.path, () => {});
-    console.error('Chat message insert error:', error.message);
-    res.status(500).json({ message: 'Failed to send message.' });
-  }
-});
+  app.delete('/api/chat/messages/:id', requireLogin, async (req, res) => {
+    const messageId = parseInt(req.params.id, 10);
+    if (!messageId) return res.status(400).json({ error: 'Invalid message ID' });
 
-app.delete('/api/chat/messages/:id', requireLogin, async (req, res) => {
-  const messageId = parseInt(req.params.id, 10);
-  if (!messageId) return res.status(400).json({ error: 'Invalid message ID' });
+    const studentId = req.session.studentId;
+    const isAdmin = await isStudentAdmin(studentId);
 
-  const studentId = req.session.studentId;
-  const isAdmin = await isStudentAdmin(studentId);
+    try {
+      const msg = await db.get('SELECT * FROM chat_messages WHERE id = ?', messageId);
+      if (!msg) return res.status(404).json({ error: 'Message not found' });
 
-  try {
-    const msg = await db.get('SELECT * FROM chat_messages WHERE id = ?', messageId);
-    if (!msg) return res.status(404).json({ error: 'Message not found' });
-
-    if (msg.studentId !== studentId && !isAdmin) {
-      return res.status(403).json({ error: 'Unauthorized to delete this message' });
-    }
-
-    // Clean up physical attachment file and persistent blob
-    if (msg.attachmentName) {
-      const attFilename = path.basename(msg.attachmentName);
-      const attPath = path.join(UPLOAD_DIR, attFilename);
-      if (isSafeUploadPath(attPath) && fs.existsSync(attPath)) {
-        try { fs.unlinkSync(attPath); } catch (_) {}
+      if (msg.studentId !== studentId && !isAdmin) {
+        return res.status(403).json({ error: 'Unauthorized to delete this message' });
       }
-      await db.deleteFileBlob(attFilename).catch(() => {});
+
+      // Clean up physical attachment file and persistent blob
+      if (msg.attachmentName) {
+        const attFilename = path.basename(msg.attachmentName);
+        const attPath = path.join(UPLOAD_DIR, attFilename);
+        if (isSafeUploadPath(attPath) && fs.existsSync(attPath)) {
+          try { fs.unlinkSync(attPath); } catch (_) { }
+        }
+        await db.deleteFileBlob(attFilename).catch(() => { });
+      }
+
+      const wasPinned = await db.get('SELECT id FROM chat_pinned WHERE messageId = ?', messageId);
+      await db.run('DELETE FROM chat_pinned WHERE messageId = ?', messageId);
+      if (wasPinned) await sendBroadcast('pin_message', { unpinned: true });
+
+      // Clean up foreign references & reactions
+      await db.run('UPDATE chat_messages SET replyToId = NULL WHERE replyToId = ?', messageId);
+      await db.run('DELETE FROM chat_reactions WHERE messageId = ?', messageId);
+      await db.run('DELETE FROM chat_messages WHERE id = ?', messageId);
+
+      // Broadcast message deletion to all clients
+      await sendBroadcast('delete_message', { messageId });
+
+      res.json({ success: true, messageId });
+    } catch (error) {
+      console.error('Delete chat message error:', error);
+      res.status(500).json({ error: 'Failed to delete message' });
+    }
+  });
+
+  app.get('/api/chat/attachment/:filename', requireLogin, async (req, res) => {
+    const filename = path.basename(req.params.filename);
+    if (!/^[a-zA-Z0-9_\-\.]+$/.test(filename)) {
+      return res.status(404).json({ message: 'File not found on server' });
     }
 
-    const wasPinned = await db.get('SELECT id FROM chat_pinned WHERE messageId = ?', messageId);
-    await db.run('DELETE FROM chat_pinned WHERE messageId = ?', messageId);
-    if (wasPinned) await sendBroadcast('pin_message', { unpinned: true });
+    // Ensure this file actually belongs to a chat message attachment
+    const msg = await db.get(
+      'SELECT id, attachmentMimeType, attachmentOriginalName FROM chat_messages WHERE attachmentName = ? LIMIT 1',
+      filename
+    );
+    if (!msg) {
+      return res.status(404).json({ message: 'File not found on server' });
+    }
 
-    // Clean up foreign references & reactions
-    await db.run('UPDATE chat_messages SET replyToId = NULL WHERE replyToId = ?', messageId);
-    await db.run('DELETE FROM chat_reactions WHERE messageId = ?', messageId);
-    await db.run('DELETE FROM chat_messages WHERE id = ?', messageId);
+    const filePath = await ensureLocalFile(filename);
 
-    // Broadcast message deletion to all clients
-    await sendBroadcast('delete_message', { messageId });
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(404).json({ message: 'File not found on server' });
+    }
 
-    res.json({ success: true, messageId });
-  } catch (error) {
-    console.error('Delete chat message error:', error);
-    res.status(500).json({ error: 'Failed to delete message' });
-  }
-});
-
-app.get('/api/chat/attachment/:filename', requireLogin, async (req, res) => {
-  const filename = path.basename(req.params.filename);
-  if (!/^[a-zA-Z0-9_\-\.]+$/.test(filename)) {
-    return res.status(404).json({ message: 'File not found on server' });
-  }
-
-  // Ensure this file actually belongs to a chat message attachment
-  const msg = await db.get(
-    'SELECT id, attachmentMimeType, attachmentOriginalName FROM chat_messages WHERE attachmentName = ? LIMIT 1',
-    filename
-  );
-  if (!msg) {
-    return res.status(404).json({ message: 'File not found on server' });
-  }
-
-  const filePath = await ensureLocalFile(filename);
-
-  if (!filePath || !fs.existsSync(filePath)) {
-    return res.status(404).json({ message: 'File not found on server' });
-  }
-
-  res.setHeader('Cache-Control', 'private, max-age=86400');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  if (msg.attachmentMimeType) {
-    res.setHeader('Content-Type', msg.attachmentMimeType);
-  }
-  res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
-  res.sendFile(filePath);
-});
+    res.setHeader('Cache-Control', 'private, max-age=86400');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (msg.attachmentMimeType) {
+      res.setHeader('Content-Type', msg.attachmentMimeType);
+    }
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline'");
+    res.sendFile(filePath);
+  });
 } // end legacy chat fallback
 
 // ============================================================
@@ -6355,11 +6355,11 @@ async function getStudentProfile(targetStudentId, viewerStudentId) {
     `, targetStudentId).catch(() => ({ c: 0 })),
     role === 'teacher'
       ? (async () => {
-          try {
-            const { getTeacherSubjects } = require('./lib/teacher-service');
-            return await getTeacherSubjects(db, actualStudentId);
-          } catch (_) { return []; }
-        })()
+        try {
+          const { getTeacherSubjects } = require('./lib/teacher-service');
+          return await getTeacherSubjects(db, actualStudentId);
+        } catch (_) { return []; }
+      })()
       : Promise.resolve([])
   ]);
 
@@ -6437,7 +6437,7 @@ async function requireTeacherOrAdmin(req, res, next) {
     if (user && (user.role === 'teacher' || user.role === 'admin')) {
       return next();
     }
-  } catch (_) {}
+  } catch (_) { }
   return res.status(403).json({ message: 'Access denied: Teacher or administrator account required.' });
 }
 
@@ -6649,7 +6649,7 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), asy
   }
 
   if (!isValidImageBuffer(fileBuf)) {
-    try { fs.unlinkSync(filePath); } catch (_) {}
+    try { fs.unlinkSync(filePath); } catch (_) { }
     return res.status(400).json({ message: 'Invalid image format. Only real JPEG, PNG, GIF, or WebP images are allowed.' });
   }
 
@@ -6660,7 +6660,7 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), asy
     await db.saveFileBlob(req.file.filename, fileBuf, req.file.mimetype || 'image/jpeg');
   } catch (err) {
     console.error('[Avatar Blob Save Error]:', err.message);
-    try { fs.unlinkSync(filePath); } catch (_) {}
+    try { fs.unlinkSync(filePath); } catch (_) { }
     return res.status(500).json({ message: 'Failed to securely store avatar. Please try again.' });
   }
 
@@ -6671,8 +6671,8 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), asy
     await db.run('UPDATE students SET avatarUrl = ? WHERE studentId = ?', avatarUrl, studentId);
   } catch (dbErr) {
     console.error('[Avatar DB Update Error]:', dbErr.message);
-    try { fs.unlinkSync(filePath); } catch (_) {}
-    await db.deleteFileBlob(req.file.filename).catch(() => {});
+    try { fs.unlinkSync(filePath); } catch (_) { }
+    await db.deleteFileBlob(req.file.filename).catch(() => { });
     return res.status(500).json({ message: 'Failed to update profile picture record.' });
   }
 
@@ -6683,9 +6683,9 @@ app.post('/api/profile/avatar', requireLogin, uploadAvatar.single('avatar'), asy
       if (oldFilename && oldFilename !== req.file.filename) {
         const oldPath = path.join(UPLOAD_DIR, oldFilename);
         if (isSafeUploadPath(oldPath) && fs.existsSync(oldPath)) {
-          try { fs.unlinkSync(oldPath); } catch (_) {}
+          try { fs.unlinkSync(oldPath); } catch (_) { }
         }
-        await db.deleteFileBlob(oldFilename).catch(() => {});
+        await db.deleteFileBlob(oldFilename).catch(() => { });
       }
     }
   } catch (cleanupErr) {
@@ -6761,9 +6761,9 @@ app.delete('/api/profile/avatar', requireLogin, async (req, res) => {
       if (oldFilename) {
         const oldPath = path.join(UPLOAD_DIR, oldFilename);
         if (isSafeUploadPath(oldPath) && fs.existsSync(oldPath)) {
-          try { fs.unlinkSync(oldPath); } catch (_) {}
+          try { fs.unlinkSync(oldPath); } catch (_) { }
         }
-        await db.deleteFileBlob(oldFilename).catch(() => {});
+        await db.deleteFileBlob(oldFilename).catch(() => { });
       }
     }
   } catch (err) {
@@ -6793,7 +6793,7 @@ app.post('/api/profile/cover', requireLogin, uploadCover.single('cover'), async 
   }
 
   if (!isValidImageBuffer(fileBuf)) {
-    try { fs.unlinkSync(filePath); } catch (_) {}
+    try { fs.unlinkSync(filePath); } catch (_) { }
     return res.status(400).json({ message: 'Invalid image format. Only real JPEG, PNG, GIF, or WebP images are allowed.' });
   }
 
@@ -6803,7 +6803,7 @@ app.post('/api/profile/cover', requireLogin, uploadCover.single('cover'), async 
     await db.saveFileBlob(req.file.filename, fileBuf, req.file.mimetype || 'image/jpeg');
   } catch (err) {
     console.error('[Cover Blob Save Error]:', err.message);
-    try { fs.unlinkSync(filePath); } catch (_) {}
+    try { fs.unlinkSync(filePath); } catch (_) { }
     return res.status(500).json({ message: 'Failed to securely store cover photo. Please try again.' });
   }
 
@@ -6815,8 +6815,8 @@ app.post('/api/profile/cover', requireLogin, uploadCover.single('cover'), async 
     await db.run('UPDATE students SET coverUrl = ?, coverPosition = ? WHERE studentId = ?', coverUrl, coverPosition, studentId);
   } catch (dbErr) {
     console.error('[Cover DB Update Error]:', dbErr.message);
-    try { fs.unlinkSync(filePath); } catch (_) {}
-    await db.deleteFileBlob(req.file.filename).catch(() => {});
+    try { fs.unlinkSync(filePath); } catch (_) { }
+    await db.deleteFileBlob(req.file.filename).catch(() => { });
     return res.status(500).json({ message: 'Failed to update cover photo record.' });
   }
 
@@ -6827,9 +6827,9 @@ app.post('/api/profile/cover', requireLogin, uploadCover.single('cover'), async 
       if (oldFilename && oldFilename !== req.file.filename) {
         const oldPath = path.join(UPLOAD_DIR, oldFilename);
         if (isSafeUploadPath(oldPath) && fs.existsSync(oldPath)) {
-          try { fs.unlinkSync(oldPath); } catch (_) {}
+          try { fs.unlinkSync(oldPath); } catch (_) { }
         }
-        await db.deleteFileBlob(oldFilename).catch(() => {});
+        await db.deleteFileBlob(oldFilename).catch(() => { });
       }
     }
   } catch (cleanupErr) {
@@ -6861,9 +6861,9 @@ app.delete('/api/profile/cover', requireLogin, async (req, res) => {
       if (oldFilename) {
         const oldPath = path.join(UPLOAD_DIR, oldFilename);
         if (isSafeUploadPath(oldPath) && fs.existsSync(oldPath)) {
-          try { fs.unlinkSync(oldPath); } catch (_) {}
+          try { fs.unlinkSync(oldPath); } catch (_) { }
         }
-        await db.deleteFileBlob(oldFilename).catch(() => {});
+        await db.deleteFileBlob(oldFilename).catch(() => { });
       }
     }
   } catch (err) {
@@ -7879,7 +7879,7 @@ if (require.main === module) {
           }
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   });
 }
 

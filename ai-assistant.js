@@ -935,6 +935,171 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     return pubRes;
   }
 
+  // Autonomous Course Study Partner Interceptor
+  if (route.kind === 'study_partner') {
+    const {
+      startOrResumeStudySession,
+      advanceStudySessionStep,
+      evaluateStudentIntent,
+      evaluateCheckpointReply,
+      renderMicroTopicTurn
+    } = require('./lib/study-partner-engine');
+    const { resolveCourseAndChapter } = require('./lib/study-partner-reconciler');
+
+    const studentId = academicContext?.studentId || studentInfo?.studentId || 'anonymous_student';
+    const conversationId = sessionId || options.conversationId || 'default';
+
+    // 1. Resolve subject and chapter
+    const resolved = resolveCourseAndChapter(
+      route.filters?.subject || message,
+      route.filters?.chapter,
+      route.filters?.semester || academicContext?.cohort?.currentSemester || academicContext?.currentSemester
+    );
+
+    // 2. Check for active session for this student
+    let activeSession = null;
+    try {
+      activeSession = await db.get(
+        `SELECT * FROM study_partner_sessions
+         WHERE student_id = ? AND status = 'ACTIVE'
+         ORDER BY updated_at DESC LIMIT 1`,
+        studentId
+      );
+    } catch (_) {}
+
+    let studyResultText = '';
+    let renderedSession = null;
+    let renderedTopics = [];
+
+    const isExplicitNewCourse = route.isNewSession || (
+      route.filters?.subject && activeSession && !activeSession.subject.toLowerCase().includes(route.filters.subject.toLowerCase())
+    );
+
+    if (activeSession && !isExplicitNewCourse && (route.isFollowUp || !route.isNewSession)) {
+      // Handle follow-up or pacing in existing session
+      const currentStepIdx = activeSession.current_step_index || 1;
+      const topics = await db.all(
+        `SELECT * FROM study_partner_topic_progress WHERE session_id = ? ORDER BY step_index ASC`,
+        activeSession.id
+      );
+      const currentTopic = topics.find(t => (t.stepIndex || t.step_index) === currentStepIdx) || topics[0];
+      const studentIntent = evaluateStudentIntent(message, currentTopic, currentTopic?.checkpoint_question);
+
+      if (studentIntent.intent === 'remediate') {
+        studyResultText = renderMicroTopicTurn({
+          session: activeSession,
+          step: currentTopic,
+          topics,
+          isRemediation: true
+        });
+        renderedSession = activeSession;
+        renderedTopics = topics;
+      } else {
+        let evalResult = { passed: true };
+        if (studentIntent.intent === 'answer_attempt') {
+          evalResult = evaluateCheckpointReply(message, currentTopic, currentTopic?.checkpoint_question);
+        }
+
+        if (!evalResult.passed) {
+          studyResultText = renderMicroTopicTurn({
+            session: activeSession,
+            step: currentTopic,
+            topics,
+            isRemediation: true,
+            studentAnswerEvaluation: evalResult
+          });
+          renderedSession = activeSession;
+          renderedTopics = topics;
+        } else {
+          const advance = await advanceStudySessionStep(db, activeSession.id, studentId, {
+            targetStepIndex: currentStepIdx + 1,
+            markCurrentStatus: 'MASTERED'
+          });
+
+          if (advance.isCompleted) {
+            studyResultText = `🎉 **Outstanding work!** You have completed all micro-topics in **${activeSession.chapter_title}** (${activeSession.subject})!\n\nYou're now fully prepared for university exam questions on this chapter. Would you like to practice PYQs or start another chapter?`;
+            renderedSession = advance.session;
+            renderedTopics = advance.topics;
+          } else {
+            const nextStep = advance.topics.find(t => (t.stepIndex || t.step_index) === advance.currentStepIndex) || advance.topics[0];
+            studyResultText = renderMicroTopicTurn({
+              session: advance.session,
+              step: nextStep,
+              topics: advance.topics,
+              studentAnswerEvaluation: evalResult.feedback ? evalResult : null
+            });
+            renderedSession = advance.session;
+            renderedTopics = advance.topics;
+          }
+        }
+      }
+    }
+
+    if (!studyResultText) {
+      // Start or resume new study session
+      const sessionResult = await startOrResumeStudySession(db, {
+        studentId,
+        conversationId,
+        subject: resolved.course.title,
+        semesterNo: resolved.course.semesterNo,
+        unitNumber: resolved.unitNumber,
+        chapterQuery: resolved.chapterTitle,
+        academicContext
+      });
+
+      renderedSession = sessionResult.session;
+      renderedTopics = sessionResult.topics;
+      const activeStep = sessionResult.topics.find(t => (t.stepIndex || t.step_index) === (renderedSession.current_step_index || 1)) || sessionResult.topics[0];
+
+      studyResultText = renderMicroTopicTurn({
+        session: renderedSession,
+        step: activeStep,
+        topics: sessionResult.topics
+      });
+    }
+
+    // Clean any unwanted "This is extracted from..." strings
+    studyResultText = studyResultText.replace(/This is extracted from\s+\*\*?[^*]+?\*\*?\s*\([^)]*?\):\s*/gi, '');
+
+    // Strictly course-isolated resource cards: only attach notes from this exact subject!
+    const activeCourseNotes = [];
+    if (renderedSession) {
+      try {
+        const matchingFiles = await db.all(
+          `SELECT id, title, originalName, subject, semester_no, chapter
+           FROM files
+           WHERE (subject LIKE ? OR subject LIKE ?)
+             AND (deleted_at IS NULL) AND (hidden_at IS NULL)
+           ORDER BY id DESC LIMIT 2`,
+          `%${renderedSession.subject}%`, `%${renderedSession.subject_code || renderedSession.subject}%`
+        );
+        for (const f of matchingFiles || []) {
+          activeCourseNotes.push({
+            type: 'note',
+            id: f.id,
+            title: f.title || f.originalName,
+            subject: f.subject,
+            semester: f.semester_no,
+            chapter: f.chapter,
+            action: 'open_note',
+            deepLink: `/material/${f.id}`,
+            viewUrl: `/api/files/${f.id}/view`,
+            downloadUrl: `/api/files/${f.id}/download`,
+            mobileRoute: `/material/${f.id}`,
+            mobileParams: { id: f.id }
+          });
+        }
+      } catch (_) {}
+    }
+
+    result.reply = studyResultText;
+    result.intent = 'study_partner';
+    result.resourceCards = activeCourseNotes;
+    setLastCards(sessionKey, activeCourseNotes);
+    onDelta(result.reply);
+    return result;
+  }
+
   let recordedScopeDecision = preScope.reason === 'platform_context_override' ? 'platform_context_override' : 'in_scope';
 
   // Run full scope check before any retrieval or LLM call ONLY when route is scope_check (or custom classifyScope provided).

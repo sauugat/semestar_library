@@ -62,6 +62,10 @@ async function createD2TestDb() {
       role TEXT
     );
 
+    INSERT INTO students (studentId, name, role)
+    VALUES ('26020266', 'Teacher', 'teacher')
+    ON CONFLICT (studentId) DO NOTHING;
+
     CREATE TABLE IF NOT EXISTS files (
       id SERIAL PRIMARY KEY,
       storedName TEXT NOT NULL,
@@ -2487,4 +2491,190 @@ test('29. D2-U Local harness --classify-only runs offline with 0 DB/Gemini calls
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
+});
+
+test('30. D2-V2 Quota resume: Day 1 daily 429 after 1st page, Day 2 resumes ONLY skipped pages, rebuilds note_search_documents & knowledge_chunks without duplicates', async () => {
+  const { processPendingJobs } = require('../lib/knowledge-worker');
+  const { db } = await createD2TestDb();
+
+  // Create a 3-page synthetic PDF with images (<50 chars) so all 3 pages route to vision
+  const pdf = buildSyntheticPdf([
+    { hasImage: true, text: 'Raw fallback for Page 1' },
+    { hasImage: true, text: 'Raw fallback for Page 2' },
+    { hasImage: true, text: 'Raw fallback for Page 3' }
+  ]);
+
+  const { fileId } = await insertTestFile(db, {
+    originalName: 'quota_resume_e2e.pdf',
+    buffer: pdf,
+    title: 'Operating Systems Notes',
+    subject: 'Operating Systems',
+    chapter: 'Virtual Memory'
+  });
+  await enqueueDocumentIngestionJob(db, { fileId, contentHash: computeContentHash(pdf) });
+
+  // Day 1: Page 1 succeeds with Gemini 200; Page 2 hits daily-quota 429
+  const dailyBody = JSON.stringify({
+    error: {
+      code: 429,
+      status: 'RESOURCE_EXHAUSTED',
+      message: 'Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20. Please retry in 20h0m0s.',
+      details: [
+        {
+          '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+          violations: [{ quotaMetric: 'generativelanguage.googleapis.com/generate_content_free_tier_requests' }]
+        },
+        { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '72000s' }
+      ]
+    }
+  });
+
+  const day1Calls = [];
+  const day1Fetch = async (url, opts) => {
+    const bodyStr = String(opts?.body || '');
+    const pageHintMatch = bodyStr.match(/originally Page (\d+)/);
+    const pNo = pageHintMatch ? Number(pageHintMatch[1]) : 1;
+    day1Calls.push(pNo);
+
+    if (pNo === 1) {
+      return new Response(JSON.stringify({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                text: 'Final Gemini OCR extracted content for Page 1.',
+                latex_present: false,
+                figure_description: null,
+                ocr_confidence: 0.95,
+                detected_type: 'scanned'
+              })
+            }]
+          }
+        }],
+        usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30 }
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // Page 2 hits daily-quota 429
+    return new Response(dailyBody, { status: 429, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const day1Outcome = await processNextIngestionJob(db, {
+    fetchImpl: day1Fetch,
+    retryBackoffMs: 0,
+    maxPageAttempts: 3,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+
+  assert.equal(day1Outcome.status, 'failed_retryable');
+  // Day 1 made exactly 2 calls: Page 1 (200) and Page 2 (429); Page 3 was skipped by circuit breaker without a call
+  assert.deepEqual(day1Calls, [1, 2]);
+
+  // Drain knowledge jobs on Day 1: note should be indexed with raw fallback for p2 and p3
+  const kDrainDay1 = await drainKnowledgeJobs(db, {
+    enabled: true,
+    batchSize: 10,
+    processPendingJobsFn: (wDb, wOpts) => processPendingJobs(wDb, { ...wOpts, keywordOnly: true })
+  });
+  assert.equal(kDrainDay1.processed, 1);
+  assert.equal(kDrainDay1.succeeded, 1);
+
+  const day1SearchDoc = (await db.query('SELECT content FROM note_search_documents WHERE id = $1', [fileId])).rows[0];
+  assert.ok(day1SearchDoc.content.includes('Final Gemini OCR extracted content for Page 1.'));
+  assert.ok(day1SearchDoc.content.includes('Raw fallback for Page 2'));
+  assert.ok(day1SearchDoc.content.includes('Raw fallback for Page 3'));
+
+  const day1Chunks = (await db.query('SELECT chunk_index, content, page_number FROM knowledge_chunks WHERE resource_id = $1 ORDER BY chunk_index ASC', [`note:${fileId}`])).rows;
+  assert.ok(day1Chunks.length >= 3);
+  assert.ok(day1Chunks.some(c => c.content.includes('Raw fallback for Page 2')));
+  assert.ok(day1Chunks.some(c => c.content.includes('Raw fallback for Page 3')));
+
+  // --- DAY 2: Simulate next day (quota available again) ---
+  await db.query(`UPDATE ingestion_jobs SET next_retry_at = CURRENT_TIMESTAMP - INTERVAL '1 minute' WHERE file_id = $1`, [fileId]);
+
+  const day2Calls = [];
+  const day2Fetch = async (url, opts) => {
+    const bodyStr = String(opts?.body || '');
+    const pageHintMatch = bodyStr.match(/originally Page (\d+)/);
+    const pNo = pageHintMatch ? Number(pageHintMatch[1]) : 2;
+    day2Calls.push(pNo);
+
+    return new Response(JSON.stringify({
+      candidates: [{
+        content: {
+          parts: [{
+            text: JSON.stringify({
+              text: `Final Gemini OCR extracted content for Page ${pNo}.`,
+              latex_present: false,
+              figure_description: null,
+              ocr_confidence: 0.96,
+              detected_type: 'scanned'
+            })
+          }]
+        }
+      }],
+      usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 30 }
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const day2Outcome = await processNextIngestionJob(db, {
+    fetchImpl: day2Fetch,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+
+  assert.equal(day2Outcome.status, 'completed');
+  // Day 2 must call Gemini ONLY for skipped pages (Page 2 and Page 3). Page 1 is NOT re-called!
+  assert.deepEqual(day2Calls, [2, 3]);
+
+  // Assert: document_pages has final vision text for ALL pages
+  const pRows = (await db.query('SELECT page_no, status, source, text FROM document_pages WHERE file_id = $1 ORDER BY page_no ASC', [fileId])).rows;
+  assert.equal(pRows.length, 3);
+  for (let i = 0; i < 3; i++) {
+    assert.equal(pRows[i].status, 'completed');
+    assert.equal(pRows[i].source, 'vision');
+    assert.equal(pRows[i].text, `Final Gemini OCR extracted content for Page ${i + 1}.`);
+  }
+
+  // Drain knowledge jobs on Day 2 to process the re-enqueued note
+  const kDrainDay2 = await drainKnowledgeJobs(db, {
+    enabled: true,
+    batchSize: 10,
+    processPendingJobsFn: (wDb, wOpts) => processPendingJobs(wDb, { ...wOpts, keywordOnly: true })
+  });
+  assert.equal(kDrainDay2.processed, 1);
+  assert.equal(kDrainDay2.succeeded, 1);
+
+  // Assert: note_search_documents content is rebuilt from the final text (not raw fallback)
+  const day2SearchDoc = (await db.query('SELECT content FROM note_search_documents WHERE id = $1', [fileId])).rows[0];
+  assert.ok(day2SearchDoc.content.includes('Final Gemini OCR extracted content for Page 1.'));
+  assert.ok(day2SearchDoc.content.includes('Final Gemini OCR extracted content for Page 2.'));
+  assert.ok(day2SearchDoc.content.includes('Final Gemini OCR extracted content for Page 3.'));
+  assert.equal(day2SearchDoc.content.includes('Raw fallback for Page 2'), false);
+  assert.equal(day2SearchDoc.content.includes('Raw fallback for Page 3'), false);
+
+  // Assert: chunks are rebuilt from final text, no raw fallback remains, and NO duplicate chunks exist
+  const day2Chunks = (await db.query('SELECT chunk_index, content, page_number FROM knowledge_chunks WHERE resource_id = $1 ORDER BY chunk_index ASC', [`note:${fileId}`])).rows;
+  assert.equal(day2Chunks.length, 3);
+  for (let i = 0; i < 3; i++) {
+    assert.equal(day2Chunks[i].chunk_index, i);
+    assert.equal(day2Chunks[i].page_number, i + 1);
+    assert.ok(day2Chunks[i].content.includes(`Final Gemini OCR extracted content for Page ${i + 1}.`));
+    assert.equal(day2Chunks[i].content.includes(`Raw fallback for Page ${i + 1}`), false);
+  }
+
+  // Check no duplicates in knowledge_chunks
+  const dupCheck = (await db.query(`
+    SELECT chunk_index, count(*) as c
+    FROM knowledge_chunks
+    WHERE resource_id = $1
+    GROUP BY chunk_index
+    HAVING count(*) > 1
+  `, [`note:${fileId}`])).rows;
+  assert.equal(dupCheck.length, 0);
+
+  // Check final ingestion_jobs row
+  const finalJob = (await db.query('SELECT status, error FROM ingestion_jobs WHERE file_id = $1', [fileId])).rows[0];
+  assert.equal(finalJob.status, 'completed');
+  assert.equal(finalJob.error, null);
 });

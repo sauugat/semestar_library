@@ -275,3 +275,95 @@ Real-file testing (`D2-T`, in-memory PGlite only) surfaced four production harde
    - Added env-configurable `resolveClassifierThresholds` (`DOC_CLASSIFIER_*`), `page.commonObjs` font enrichment, CTM image area ratio tracking (`maxImageAreaRatio`, `>= 15%` or `< 150` clean chars for image routing), raised vector thresholds (`60` sparse / `100` dense), blank-boilerplate stripping -> `skip`, clean Unicode math allowed on `text_layer` (routing only broken glyphs, math fonts with math notation, vertical shifts, or stacked fractions), line-start `U+F000..U+F0FF` bullet stripping before broken-glyph checks, and `detectDevanagariCorruption` routing broken Nepali clusters to `vision` with `page_type = 'nepali_repair'`.
 3. **Local harness improvements (`scripts/doc-ingestion-local-test.js`):**
    - Added `--classify-only` (pure classification table + per-route totals, zero PGlite / Gemini calls) and included `[Figure: ...]` (`figure_description`) in generated Markdown output.
+
+---
+
+## 10. D2-V2 Real-File Classifier Check and Quota Resume Verification
+
+### 10.1 Real-File Offline Classification (`~/doc-tests`, zero key, zero cost)
+
+Command executed:
+```bash
+unset DATABASE_URL DIRECT_URL POSTGRES_URL PGHOST SUPABASE_URL GEMINI_API_KEY
+node scripts/doc-ingestion-local-test.js ~/doc-tests --classify-only
+```
+
+#### Overall Classification Totals Across All 6 Files (877 Pages Total)
+- `text_layer`: **160** pages (18.2%)
+- `vision`: **708** pages (80.7%)
+- `skip`: **9** pages (1.0%, all intentionally blank pages)
+
+#### Per-File Route Breakdown & Vision Page Details
+
+| File | Total Pages | `text_layer` | `vision` | `skip` | Vision Pages Detail (`page:page_type(reason)`) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **05. Inheritance, Package and Interface 1.0.pdf** | 41 | 23 | 18 | 0 | `1:figure(embedded_image)`, `8:figure(embedded_image)`, `9:table(table_layout)`, `11:figure(embedded_image)`, `12:figure(vector_diagram)`, `14:figure(vector_diagram)`, `15:figure(embedded_image)`, `16:figure(embedded_image)`, `17:figure(embedded_image)`, `18:figure(embedded_image)`, `19:figure(embedded_image)`, `25:table(table_layout)`, `28:figure(embedded_image)`, `29:table(table_layout)`, `36:table(table_layout)`, `39:figure(embedded_image)`, `40:figure(embedded_image)`, `41:figure(embedded_image)` |
+| **Convergence of Infinite Series.pdf** | 10 | 2 | 8 | 0 | `2:math(math_font)`, `3:math(math_font)`, `4:math(math_font)`, `5:math(math_font)`, `6:math(math_font)`, `7:math(math_font)`, `8:math(math_font)`, `9:math(math_font)` (p1 title and p10 clean problems stay `text_layer`) |
+| **Discrete Mathematics.pdf** | 773 | 135 | 629 | 9 | `math:math_font` (283), `math:vertical_math_shifts` (176), `table:table_layout` (120), `math:stacked_fractions` (44), `figure:vector_diagram` (4), `scanned:low_clean_chars` (2). All 9 intentionally-blank pages skipped cleanly. |
+| **Electrical_circuits.pdf** | 23 | 0 | 23 | 0 | All 23 pages: `scanned(low_clean_chars)` (0 clean chars, 1 image XObject per page) |
+| **M. Induction.pdf** | 7 | 0 | 7 | 0 | All 7 pages: `scanned(low_clean_chars)` (0 clean chars, embedded handwritten scanned slices) |
+| **संविधान र शासन व्यवस्था - QUICK LOKSEWA** | 23 | 0 | 23 | 0 | All 23 pages: `nepali_repair(nepali_repair)` (pervasive broken Unicode cluster extraction detected on every page) |
+
+---
+
+### 10.2 Honest Analysis & Evaluation of Routing Decisions
+
+1. **Typed Java Slides (`05. Inheritance...pdf`):**
+   - **Result:** 23 pages `text_layer`, 18 pages `vision`.
+   - **Why:** In D2-T, all 10 tested slides routed to vision due to a small top corner logo. In D2-U, 23/41 pages (56%) stay on `text_layer` directly! The 18 vision pages break down into:
+     - 6 slides with actual large architecture/class hierarchy diagrams (image area `>= 15%`, e.g. p8, 11, 15, 16, 28, 39).
+     - 4 sparse text slides (`< 150` clean chars) with graphics (p1 title slide, p17, 18, 19, 40, 41).
+     - 4 slides classified as `table_layout` (p9, 25, 29, 36) due to vector lines / side-by-side code columns (e.g. p36 is a genuine 2-column table: "Similarities of interface with Class / Dissimilarities of Interface with Class").
+     - 2 slides classified as `vector_diagram` (p12, 14) due to vector box outlines (`vectorOps = 122 >= 100`) around Java code listings.
+2. **Discrete Mathematics (First 30 pages and sampled later pages):**
+   - **Intentionally blank pages:** All 9 blank pages (`p3, 11, 13, 21, 755, 769`, etc.) routed to `skip` (`blank_page`) with 0 chars and 0 vision calls.
+   - **Clean symbol pages on `text_layer`:** `p4, 10, 12, 14–20, 22, 37, 41, 44, 45, 650, 756` (135 pages total) stayed on `text_layer`! For example, p37 has 8 math symbols and p41 has 2,779 characters of logic exercises with clean Unicode symbols; neither was forced into vision.
+   - **Math routing:** Formula pages with vertical superscripts/subscripts, fractions, or math fonts (`p23–30`, `p740–754`) routed to `vision` (`math`), preserving LaTeX formatting.
+3. **Nepali Loksewa (`संविधान र शासन व्यवस्था`):**
+   - **Classifier decision:** All 23 pages routed to `vision` as `nepali_repair`.
+   - **Does the heuristic fire on pages with broken clusters?** Yes. Every single page in this PDF has pervasive Unicode cluster corruption (33 to 186 anomalies per page) caused by standard PDF.js text extraction splitting halants and misplacing matras.
+   - **Sample raw text-layer lines from flagged page (Page 1):**
+     ```text
+     ४ । संविधान र शासन व् यिस् था (१० अङ्क)
+     ४.१। कानूनको अर् थ ,  स्रोत र महत्त्व
+     ४.२। नेपालको िंवैधासनक सवकािक्र म
+     ```
+     *(Notice: `व् यिस् था` has halant+space splitting 'व्यवस्था', `अर् थ` has halant+space splitting 'अर्थ', `िंवैधासनक` has short-i matra placed before the anusvara)*
+   - **Sample raw text-layer lines from non-flagged healthy Nepali text (e.g. Test 5 / Test 27 / Test 28):**
+     ```text
+     नेपालको संविधान २०७२ को प्रस्तावना र नागरिकका मौलिक हकहरूको विस्तृत व्याख्या यहाँ प्रस्तुत गरिएको छ।
+     प्रत्येक नागरिकलाई समानता र स्वतन्त्रताको हक हुने व्यवस्था संविधानले सुनिश्चित गरेको छ।
+     लोकतान्त्रिक शासन प्रणाली र विधिको शासनलाई राज्यले अंगीकार गरेको छ।
+     ```
+     *(Zero anomalies detected; routed cleanly to `text_layer`)*
+4. **Scans (`Electrical_circuits.pdf`, `M. Induction.pdf`):**
+   - Both files routed 100% to `vision` as `scanned` (`low_clean_chars`), 0 clean chars on all pages, exactly as expected.
+
+#### Pages Identified as Candidates for Tuning & Suggested Thresholds
+1. **Java code listings with vector boxes (Java slides p9, 12, 14, 25, 29):**
+   - *Reason:* Slides with syntax-highlighted code inside rectangular vector frames trigger `vectorOps >= 100` (`vector_diagram`) or line-number columns trigger `table_layout`.
+   - *Suggested Threshold:* When `charCount >= 200` and `imageOps <= 1` with `maxImageAreaRatio < 0.05`, ignore rectangular border paths (`ops.constructPath` / `re S`) if code keywords (`class`, `void`, `public`, `import`, `{`, `}`) represent `> 5%` of tokens.
+2. **Book frontmatter copyright & index pages (Discrete Mathematics p5, p757–768):**
+   - *Reason:* Page 5 (copyright page, 3,223 chars) includes `CMSY9` font in publisher credits. Index pages (p757–768) are 3-column alphabetical term indexes which trigger `table_layout` or `stacked_fractions`.
+   - *Suggested Threshold:* For dense pages (`charCount > 1000`), require `symbolCount >= 3` or `verticalMathShifts >= 2` before `math_font` alone routes to `vision`. For multi-column detection, ignore text columns where each entry matches `^[A-Za-z\s]+,\s*\d+(?:,\s*\d+)*$` (index pattern).
+
+---
+
+### 10.3 Quota Resume Verification (Test 30 Added)
+
+A comprehensive multi-phase test (`Test 30`) was added to `tests/doc-intelligence-d2.test.js` validating the full end-to-end quota recovery cycle:
+1. **Day 1 (Quota exhaustion):**
+   - Page 1 succeeds with Gemini 200.
+   - Page 2 returns daily-quota 429 (`RESOURCE_EXHAUSTED` with 20h retry delay).
+   - Circuit breaker halts calls immediately: Page 3 is skipped without calling Gemini (2 total calls on Day 1).
+   - `document_pages` records Page 1 as `completed`, Pages 2 and 3 as `skipped_quota` with raw fallback text preserved.
+   - `note_search_documents` is seeded with Page 1 OCR text + Pages 2 & 3 raw fallback.
+   - `knowledge_jobs` is drained on Day 1: chunks are created reflecting the initial state.
+2. **Day 2 (Quota available again):**
+   - Next retry timestamp is reached (`next_retry_at <= CURRENT_TIMESTAMP`).
+   - Worker runs again: **ONLY skipped pages (Pages 2 and 3) call Gemini** (Page 1 is skipped with 0 calls).
+   - Job completes with `status = 'completed'`.
+   - `document_pages` has final vision text across all pages.
+   - `note_search_documents.content` is rebuilt with final vision text (raw fallback removed).
+   - In `lib/knowledge-builder.js`, `buildNoteKnowledge` includes `raw_content_hash: computeContentHash(rawContent)` in `resource.content_hash`, ensuring that any update from fallback to final text busts the resource hash.
+   - `knowledge_jobs` is drained on Day 2: `knowledge_chunks` are completely rebuilt from the final vision text with zero duplicate chunks.

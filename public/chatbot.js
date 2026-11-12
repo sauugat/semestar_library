@@ -451,7 +451,7 @@
       const total = Number(data.totalSteps) || 1;
       const pct = Math.min(100, Math.max(0, Math.round(((curr - 1) / total) * 100)));
       const items = Array.isArray(data.checklist) ? data.checklist : [];
-      const checklistHtml = items.map(item => {
+      const renderItem = (item) => {
         const idx = item.stepIndex || 1;
         const title = escapeHtml(item.title || `Topic ${idx}`);
         const isCurrent = item.status === 'current' || idx === curr;
@@ -461,13 +461,23 @@
         const symbol = isMastered ? '✓' : (isCurrent ? '▶' : '○');
         const color = isCurrent ? '#ffffff' : (isMastered ? '#a1a1a1' : '#666666');
         const bg = isCurrent ? 'rgba(255,255,255,0.06)' : 'transparent';
-        return `<div style="display:flex;align-items:center;padding:6px 8px;margin:2px 0;border-radius:6px;background:${bg};font-size:12.5px;color:${color};">
+        return `<div style="display:flex;align-items:center;padding:5px 8px;margin:2px 0;border-radius:6px;background:${bg};font-size:12.5px;color:${color};">
           <span style="font-weight:700;width:20px;flex-shrink:0;">${symbol}</span>
           <span style="flex:1;">${idx}. ${title}</span>
           ${badge}
           ${pyq}
         </div>`;
-      }).join('');
+      };
+
+      const currItem = items.find(it => (it.stepIndex || 1) === curr) || items[0];
+      const previewHtml = currItem ? renderItem(currItem) : '';
+      const allListHtml = items.map(renderItem).join('');
+      const detailsHtml = items.length > 1
+        ? `<details style="margin-top:6px;">
+            <summary style="cursor:pointer;font-size:11.5px;color:#a1a1a1;user-select:none;padding:2px 4px;">View all ${items.length} topics in this unit</summary>
+            <div style="margin-top:6px;">${allListHtml}</div>
+          </details>`
+        : '';
 
       return `<div class="kyana-adaptive-visual kyana-study-session-card" style="margin:12px 0;padding:14px;border-radius:12px;border:1px solid #282828;background:#141414;color:#ffffff;box-sizing:border-box;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -481,8 +491,41 @@
           <div style="width:${pct}%;height:100%;background:#ffffff;border-radius:2px;"></div>
         </div>
         <div style="border-top:1px solid #222;padding-top:8px;">
-          ${checklistHtml}
+          ${previewHtml}
+          ${detailsHtml}
         </div>
+      </div>`;
+    }
+
+    if (kind === 'live_demo') {
+      const data = parsedJson || {};
+      const title = escapeHtml(data.title || 'Live Concept Demonstration');
+      const subtitle = escapeHtml(data.subtitle || 'Switch styles to see how CSS transforms the exact same HTML');
+      const caption = escapeHtml(data.caption || 'The HTML content stays the same. Only CSS changes.');
+      const htmlSnippet = String(data.html || '<h1>Hello World!</h1><p>Welcome to my first webpage.</p><button>Click me</button>');
+      const variants = Array.isArray(data.variants) && data.variants.length
+        ? data.variants
+        : [{ label: 'Default', css: 'body{font-family:serif;background:#fff;color:#111;padding:16px;}' }];
+
+      const buttonsHtml = variants.map((v, idx) => {
+        const active = idx === 0;
+        const bg = active ? '#ffffff' : '#1c1c1c';
+        const fg = active ? '#080808' : '#a1a1a1';
+        return `<button type="button" class="kyana-live-demo-tab${active ? ' active' : ''}" data-variant-index="${idx}" style="cursor:pointer;font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:999px;border:1px solid #333;background:${bg};color:${fg};transition:all 0.15s ease;">${escapeHtml(v.label || `Style ${idx + 1}`)}</button>`;
+      }).join('');
+
+      const encodedPayload = escapeHtml(JSON.stringify({ html: htmlSnippet, variants }));
+
+      return `<div class="kyana-adaptive-visual kyana-live-demo-card" data-demo-payload="${encodedPayload}" style="margin:12px 0;padding:14px;border-radius:12px;border:1px solid #282828;background:#141414;color:#ffffff;box-sizing:border-box;">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">
+          <div>
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#a1a1a1;">${title}</div>
+            <div style="font-size:12px;color:#888;margin-top:2px;">${subtitle}</div>
+          </div>
+          <div class="kyana-live-demo-tabs" style="display:flex;gap:6px;flex-wrap:wrap;">${buttonsHtml}</div>
+        </div>
+        <iframe class="kyana-live-demo-frame" sandbox="" title="Interactive Live Demo" style="width:100%;height:150px;border:1px solid #282828;border-radius:8px;background:#ffffff;display:block;"></iframe>
+        <div style="font-size:11.5px;color:#888;margin-top:8px;">${caption}</div>
       </div>`;
     }
 
@@ -813,14 +856,41 @@
         const langName = langMatch ? langMatch[1] : 'Code';
         const langKey = langName.toLowerCase();
 
-        // Render structured adaptive visual blocks (study_session, pyq_card, roadmap, timeline, diagram, flowchart, trace) safely
-        if (/^(study_session|pyq_card|roadmap|timeline|diagram|flowchart|trace)$/.test(langKey)) {
+        // Render structured adaptive visual blocks (study_session, pyq_card, live_demo, roadmap, timeline, diagram, flowchart, trace) safely
+        if (/^(study_session|pyq_card|live_demo|roadmap|timeline|diagram|flowchart|trace)$/.test(langKey)) {
           const visualHtml = renderAdaptiveVisualBlockHtml(langKey, rawCode);
           if (visualHtml) {
             const visualWrap = document.createElement('div');
             visualWrap.innerHTML = visualHtml;
-            if (visualWrap.firstElementChild) {
-              pre.parentNode.replaceChild(visualWrap.firstElementChild, pre);
+            const visualEl = visualWrap.firstElementChild;
+            if (visualEl) {
+              if (langKey === 'live_demo') {
+                const payloadRaw = visualEl.getAttribute('data-demo-payload');
+                const frame = visualEl.querySelector('.kyana-live-demo-frame');
+                const tabs = visualEl.querySelectorAll('.kyana-live-demo-tab');
+                try {
+                  const demoData = JSON.parse(payloadRaw || '{}');
+                  const applyVariant = (idx) => {
+                    const variant = (demoData.variants || [])[idx] || {};
+                    if (frame) {
+                      frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box;}body{margin:0;padding:16px;}${variant.css || ''}</style></head><body>${demoData.html || ''}</body></html>`;
+                    }
+                    tabs.forEach((btn, bIdx) => {
+                      const isActive = bIdx === idx;
+                      btn.classList.toggle('active', isActive);
+                      btn.style.background = isActive ? '#ffffff' : '#1c1c1c';
+                      btn.style.color = isActive ? '#080808' : '#a1a1a1';
+                    });
+                  };
+                  applyVariant(0);
+                  tabs.forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                      applyVariant(Number(btn.getAttribute('data-variant-index')) || 0);
+                    });
+                  });
+                } catch (_) {}
+              }
+              pre.parentNode.replaceChild(visualEl, pre);
               return;
             }
           }

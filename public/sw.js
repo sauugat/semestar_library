@@ -6,7 +6,7 @@
 // - Includes versioned update flow + emergency kill-switch flag (SW_DISABLED)
 // =============================================================================
 
-const SW_VERSION = 'v26';
+const SW_VERSION = 'v27';
 const SW_DISABLED = false; // Emergency kill-switch flag: set to true to self-unregister and purge caches
 const SHELL_CACHE = `semester-library-shell-${SW_VERSION}`;
 const PAGE_CACHE = `semester-library-pages-${SW_VERSION}`;

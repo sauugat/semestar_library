@@ -147,7 +147,7 @@ test('Frontend public/chatbot.js renders study_session and pyq_card as interacti
   const chatbotSrc = fs.readFileSync(path.join(__dirname, '../public/chatbot.js'), 'utf8');
   const { renderAdaptiveVisualBlockHtml } = require('../public/chatbot.js');
 
-  assert.match(chatbotSrc, /\(study_session\|pyq_card\|roadmap/, 'KyanaCodeBlock.enhance must intercept study_session and pyq_card');
+  assert.match(chatbotSrc, /\(study_session\|pyq_card\|live_demo\|roadmap/, 'KyanaCodeBlock.enhance must intercept study_session, pyq_card, and live_demo');
 
   const sessionHtml = renderAdaptiveVisualBlockHtml('study_session', JSON.stringify({
     course: 'CIT123 · Web Technology I',
@@ -166,4 +166,27 @@ test('Frontend public/chatbot.js renders study_session and pyq_card as interacti
     questionText: 'Explain CSS Box Model.'
   }));
   assert.ok(pyqHtml && pyqHtml.includes('kyana-pyq-card'), 'Should render kyana-pyq-card');
+
+  const liveDemoHtml = renderAdaptiveVisualBlockHtml('live_demo', JSON.stringify({
+    title: 'CSS Live Concept Demonstration',
+    html: '<h1>Hello World!</h1>',
+    variants: [{ label: 'Default', css: 'h1{color:black;}' }, { label: 'Modern', css: 'h1{color:blue;}' }]
+  }));
+  assert.ok(liveDemoHtml && liveDemoHtml.includes('kyana-live-demo-card'), 'Should render kyana-live-demo-card');
+  assert.ok(liveDemoHtml.includes('Default') && liveDemoHtml.includes('Modern'), 'Should render variant buttons');
+});
+
+test('Beginner-first CSS pedagogy includes house analogy, rule anatomy, and live_demo', async () => {
+  const db = await createTestDb();
+  const res = await handleChat(db, 'teach me css', {
+    authenticated: true,
+    studentId: 'stu_beginner_css',
+    role: 'student',
+    currentSemester: 2
+  }, [], 'sess_beginner_css', { synthesizeWithLlm: false });
+
+  assert.ok(res.reply.includes('house'), 'Includes house analogy');
+  assert.ok(res.reply.includes('Selector') && res.reply.includes('Property') && res.reply.includes('Value'), 'Breaks down CSS rule anatomy');
+  assert.ok(res.reply.includes('Inline CSS') && res.reply.includes('Internal CSS') && res.reply.includes('External CSS'), 'Covers all 3 ways to write CSS');
+  assert.ok(res.reply.includes('```live_demo'), 'Includes interactive live_demo block');
 });

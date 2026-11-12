@@ -942,7 +942,8 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       advanceStudySessionStep,
       evaluateStudentIntent,
       evaluateCheckpointReply,
-      renderMicroTopicTurn
+      renderMicroTopicTurn,
+      buildStudyPartnerLlmPrompt
     } = require('./lib/study-partner-engine');
     const { resolveCourseAndChapter } = require('./lib/study-partner-reconciler');
 
@@ -971,6 +972,10 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     let studyResultText = '';
     let renderedSession = null;
     let renderedTopics = [];
+    let renderedStep = null;
+    let isRemediationTurn = false;
+    let renderedEvalResult = null;
+    let isSessionCompleted = false;
 
     const isExplicitNewCourse = route.isNewSession || (
       route.filters?.subject && activeSession && !activeSession.subject.toLowerCase().includes(route.filters.subject.toLowerCase())
@@ -987,6 +992,8 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       const studentIntent = evaluateStudentIntent(message, currentTopic, currentTopic?.checkpoint_question);
 
       if (studentIntent.intent === 'remediate') {
+        isRemediationTurn = true;
+        renderedStep = currentTopic;
         studyResultText = renderMicroTopicTurn({
           session: activeSession,
           step: currentTopic,
@@ -1002,6 +1009,9 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         }
 
         if (!evalResult.passed) {
+          isRemediationTurn = true;
+          renderedStep = currentTopic;
+          renderedEvalResult = evalResult;
           studyResultText = renderMicroTopicTurn({
             session: activeSession,
             step: currentTopic,
@@ -1018,16 +1028,19 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           });
 
           if (advance.isCompleted) {
+            isSessionCompleted = true;
             studyResultText = `🎉 **Outstanding work!** You have completed all micro-topics in **${activeSession.chapter_title}** (${activeSession.subject})!\n\nYou're now fully prepared for university exam questions on this chapter. Would you like to practice PYQs or start another chapter?`;
             renderedSession = advance.session;
             renderedTopics = advance.topics;
           } else {
             const nextStep = advance.topics.find(t => (t.stepIndex || t.step_index) === advance.currentStepIndex) || advance.topics[0];
+            renderedStep = nextStep;
+            renderedEvalResult = evalResult.feedback ? evalResult : null;
             studyResultText = renderMicroTopicTurn({
               session: advance.session,
               step: nextStep,
               topics: advance.topics,
-              studentAnswerEvaluation: evalResult.feedback ? evalResult : null
+              studentAnswerEvaluation: renderedEvalResult
             });
             renderedSession = advance.session;
             renderedTopics = advance.topics;
@@ -1051,12 +1064,71 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       renderedSession = sessionResult.session;
       renderedTopics = sessionResult.topics;
       const activeStep = sessionResult.topics.find(t => (t.stepIndex || t.step_index) === (renderedSession.current_step_index || 1)) || sessionResult.topics[0];
+      renderedStep = activeStep;
 
       studyResultText = renderMicroTopicTurn({
         session: renderedSession,
         step: activeStep,
         topics: sessionResult.topics
       });
+    }
+
+    // Upgrade teaching prose with LLM-powered adaptive 7-step pedagogy when a provider is configured
+    if (!isSessionCompleted && renderedSession && renderedStep && canSynthesizeWithLlm && typeof llmGenerateFn === 'function') {
+      try {
+        const userLang = detectLanguage(originalMessage);
+        const langRule = userLang === 'devanagari'
+          ? 'Teach in warm, simple Devanagari Nepali (नेपालीमा), keeping technical terms in English.'
+          : (userLang === 'roman_nepali'
+              ? 'Teach in warm, simple Romanized Nepali (Nepanglish), keeping technical terms in English.'
+              : 'Teach in warm, simple, beginner-friendly English — assume the student is learning this for the very first time.');
+
+        let noteChunks = [];
+        try {
+          noteChunks = await db.all(
+            `SELECT c.clean_content, c.page_start, f.title as file_title
+             FROM document_chunks c
+             JOIN files f ON f.id = CAST(c.file_id AS INTEGER)
+             WHERE (f.subject LIKE ? OR f.subject LIKE ?)
+               AND (c.clean_content LIKE ? OR c.section_heading LIKE ?)
+             LIMIT 3`,
+            `%${renderedSession.subject}%`,
+            `%${renderedSession.subject_code || renderedSession.subject}%`,
+            `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`,
+            `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`
+          );
+        } catch (_) {}
+
+        const llmStudyPrompt = buildStudyPartnerLlmPrompt({
+          session: renderedSession,
+          step: renderedStep,
+          topics: renderedTopics,
+          noteChunks,
+          isRemediation: isRemediationTurn,
+          studentAnswerEvaluation: renderedEvalResult,
+          languageInstruction: langRule
+        });
+
+        const llmOut = await llmGenerateFn({
+          message: originalMessage,
+          history: cleanHistory,
+          systemPrompt: llmStudyPrompt,
+          tools: [],
+          onDelta: () => {},
+          signal,
+          complex: false
+        });
+        const candidateProse = stripUrlsOutsideCodeBlocks(String(llmOut?.reply || '').trim());
+        if (candidateProse && !unsafeOutput(candidateProse) && candidateProse.length > 80) {
+          const sessionFenceMatch = studyResultText.match(/```study_session\n[\s\S]*?\n```/);
+          const pyqFenceMatch = studyResultText.match(/```pyq_card\n[\s\S]*?\n```/);
+          const parts = [];
+          if (sessionFenceMatch) parts.push(sessionFenceMatch[0]);
+          parts.push(candidateProse);
+          if (pyqFenceMatch) parts.push(pyqFenceMatch[0]);
+          studyResultText = parts.join('\n\n');
+        }
+      } catch (_) {}
     }
 
     // Clean any unwanted "This is extracted from..." strings

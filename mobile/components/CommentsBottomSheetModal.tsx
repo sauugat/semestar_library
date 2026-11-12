@@ -358,7 +358,8 @@ export function CommentsBottomSheetModal({
     260,
     backdropHeight - effectiveKeyboardPadding - topSafeMargin
   );
-  const defaultSheetHeight = Math.round(baseFullHeight * 0.76);
+  // Cover ~2/3 of the viewport (like Instagram's comments drawer) so the feed stays visible above
+  const defaultSheetHeight = Math.round(baseFullHeight * 0.67);
   const sheetHeight = Math.min(defaultSheetHeight, availableSheetHeight);
 
   // Scroll to bottom when a new comment is added

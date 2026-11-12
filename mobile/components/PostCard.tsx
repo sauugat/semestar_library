@@ -24,6 +24,7 @@ export interface PostCardProps {
   onDoubleTapLike?: (postId: number) => void;
   onShare?: (post: Post) => void;
   onOpenDetail?: (post: Post) => void;
+  onOpenComments?: (post: Post) => void;
   onOpenMenu?: (post: Post) => void;
   onOpenFile?: (file: any) => void;
   getFullImageUrl: (url?: any) => string | null;
@@ -153,6 +154,7 @@ export function PostCard({
   onDoubleTapLike,
   onShare,
   onOpenDetail,
+  onOpenComments,
   onOpenMenu,
   onOpenFile,
   getFullImageUrl,
@@ -177,6 +179,14 @@ export function PostCard({
       router.push(`/notice/${post.id}` as any);
     } else {
       router.push(`/post/${post.id}` as any);
+    }
+  };
+
+  const handlePressComments = () => {
+    if (onOpenComments) {
+      onOpenComments(post);
+    } else {
+      defaultOpenDetail();
     }
   };
 
@@ -299,7 +309,11 @@ export function PostCard({
         }
 
         return (
-          <View style={styles.postTagsRow}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={defaultOpenDetail}
+            style={styles.postTagsRow}
+          >
             {!isGeneral && (
               <View style={[styles.monochromeBadge, { backgroundColor: colors.surfaceRaised, borderColor: colors.border }]}>
                 <Text variant="xs" weight="700" style={{ color: colors.textSecondary, fontSize: 10, textTransform: 'uppercase' }}>
@@ -314,17 +328,21 @@ export function PostCard({
                 </Text>
               </View>
             )}
-          </View>
+          </TouchableOpacity>
         );
       })()}
 
       {/* Post Title (for Notice, Announcement, News, Complaints, Feedback, Assignment) */}
       {Boolean(post.title && post.title.trim()) && (
-        <View style={{ marginTop: spacing.xs, marginBottom: 2 }}>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={defaultOpenDetail}
+          style={{ marginTop: spacing.xs, marginBottom: 2 }}
+        >
           <Text variant="sm" weight="700" style={{ color: colors.text, fontSize: 15 }}>
             {post.title}
           </Text>
-        </View>
+        </TouchableOpacity>
       )}
 
       {/* Post Text Content */}
@@ -349,7 +367,7 @@ export function PostCard({
           onDoubleTap={() => onDoubleTapLike ? onDoubleTapLike(post.id) : (myVote !== 1 && handleVoteDirection('up'))}
           postDetails={{ name: post.name, caption: post.content, uploadedAt: new Date(post.created_at).toLocaleString(), liked: myVote === 1, likes: upCount, comments: post.comment_count || 0 }}
           onLike={() => handleVoteDirection('up')}
-          onComments={defaultOpenDetail}
+          onComments={handlePressComments}
         />
       )}
 
@@ -376,7 +394,7 @@ export function PostCard({
         {/* Comment Count Button */}
         <TouchableOpacity
           style={styles.actionButton}
-          onPress={defaultOpenDetail}
+          onPress={handlePressComments}
           accessibilityLabel="View comments on post"
           activeOpacity={0.7}
         >

@@ -3010,6 +3010,9 @@ function StudentHomeScreenInner() {
         onDoubleTapLike={handleDoubleTapLike}
         onShare={handleSharePost}
         onOpenDetail={(p) => {
+          router.push(`/post/${p.id}` as any);
+        }}
+        onOpenComments={(p) => {
           void handleOpenPostComments(p);
         }}
         onOpenMenu={(p) => setSelectedMenuPost(p)}
@@ -3899,110 +3902,55 @@ function StudentHomeScreenInner() {
               ) : (
                 <>
 
-              {/* Category, Audience, & Target Semesters Selectors */}
-              <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
-                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                  {/* Category Button */}
+              {/* Category, Target Semesters, & Audience Pill Selectors */}
+              <View style={[styles.selectorPillRow, { marginBottom: spacing.sm }]}>
+                {[
+                  {
+                    key: 'category',
+                    label: CATEGORY_DISPLAY_MAP[postCategory] || 'General',
+                    onPress: () => setCategorySheetVisible(true),
+                    accessibilityLabel: 'Category',
+                  },
+                  {
+                    key: 'semesters',
+                    label:
+                      postAllSemesters || postTargetSemesters.length === 0
+                        ? 'All Semesters'
+                        : `Sem ${postTargetSemesters.join(', ')}`,
+                    onPress: () => setSemesterSheetVisible(true),
+                    accessibilityLabel: 'Target Semesters',
+                  },
+                  ...(canSelectAudience
+                    ? [
+                        {
+                          key: 'audience',
+                          label: postAudience === 'students_only' ? 'Students Only' : 'Everyone',
+                          onPress: () => setAudienceSheetVisible(true),
+                          accessibilityLabel: 'Audience',
+                        },
+                      ]
+                    : []),
+                ].map((pill) => (
                   <TouchableOpacity
+                    key={pill.key}
                     activeOpacity={0.7}
-                    onPress={() => setCategorySheetVisible(true)}
+                    accessibilityLabel={pill.accessibilityLabel}
+                    onPress={pill.onPress}
                     style={[
-                      styles.selectorButton,
-                      {
-                        flex: 1,
-                        backgroundColor: colors.surfaceRaised,
-                        borderColor: colors.border,
-                        borderRadius: radii.md,
-                        paddingHorizontal: spacing.sm,
-                        paddingVertical: 10,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        borderWidth: 1,
-                      },
-                    ]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Caption color="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
-                        Category
-                      </Caption>
-                      <Text variant="xs" weight="700" color="primary" numberOfLines={1}>
-                        {CATEGORY_DISPLAY_MAP[postCategory] || 'General'}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
-                  </TouchableOpacity>
-
-                  {/* Target Semesters Button */}
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => setSemesterSheetVisible(true)}
-                    style={[
-                      styles.selectorButton,
-                      {
-                        flex: 1,
-                        backgroundColor: colors.surfaceRaised,
-                        borderColor: colors.border,
-                        borderRadius: radii.md,
-                        paddingHorizontal: spacing.sm,
-                        paddingVertical: 10,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        borderWidth: 1,
-                      },
-                    ]}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Caption color="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
-                        Target Semesters
-                      </Caption>
-                      <Text variant="xs" weight="700" color="primary" numberOfLines={1}>
-                        {postAllSemesters || postTargetSemesters.length === 0
-                          ? 'All Semesters'
-                          : `Sem ${postTargetSemesters.join(', ')}`}
-                      </Text>
-                    </View>
-                    <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Audience Selector (Students and CRs only) */}
-                {canSelectAudience && (
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => setAudienceSheetVisible(true)}
-                    style={[
-                      styles.selectorButton,
+                      styles.selectorPill,
                       {
                         backgroundColor: colors.surfaceRaised,
                         borderColor: colors.border,
-                        borderRadius: radii.md,
-                        paddingHorizontal: spacing.sm,
-                        paddingVertical: 10,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        borderWidth: 1,
+                        borderRadius: radii.full,
                       },
                     ]}
                   >
-                    <View style={{ flex: 1 }}>
-                      <Caption color="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
-                        Audience
-                      </Caption>
-                      <Text variant="xs" weight="700" color="primary" numberOfLines={1}>
-                        {postAudience === 'students_only' ? 'Students Only' : 'Everyone'}
-                      </Text>
-                      {postAudience === 'students_only' && (
-                        <Caption color="muted" style={{ fontSize: 11, marginTop: 2 }}>
-                          This post won't appear in teacher or university staff feeds.
-                        </Caption>
-                      )}
-                    </View>
-                    <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+                    <Text variant="xs" weight="700" color="primary" numberOfLines={1}>
+                      {pill.label}
+                    </Text>
+                    <Ionicons name="chevron-down" size={13} color={colors.textSecondary} />
                   </TouchableOpacity>
-                )}
+                ))}
               </View>
 
               {/* Title Input (Hidden for General posts) */}
@@ -4921,6 +4869,20 @@ const styles = StyleSheet.create({
   },
   selectorButton: {
     minHeight: 48,
+  },
+  selectorPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectorPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
   },
   characterCounterRow: {
     flexDirection: 'row',

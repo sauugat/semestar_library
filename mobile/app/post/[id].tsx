@@ -583,6 +583,10 @@ export default function PostDetailScreen() {
 
   const authorAvatar = getFullUrl(post.avatarUrl);
   const postImage = getFullUrl(post.attachment_url);
+  const imageMedia = Array.isArray(post.media)
+    ? post.media.filter((m) => (m.media_type || 'image') === 'image' && Boolean(m.url))
+    : [];
+  const hasPostImage = imageMedia.length > 0 || Boolean(postImage);
   const isAdmin = post.role === 'admin';
   const isCR = post.role === 'cr';
 
@@ -605,7 +609,11 @@ export default function PostDetailScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Main Post Card */}
-        <Card variant="elevated" padding="md" style={styles.postCard}>
+        <Card
+          variant="elevated"
+          padding={hasPostImage ? 'none' : 'md'}
+          style={hasPostImage ? styles.postCardBorderless : styles.postCard}
+        >
           {/* Author Header */}
           <View style={styles.authorRow}>
             <TouchableOpacity
@@ -706,9 +714,9 @@ export default function PostDetailScreen() {
           />
 
           {/* Attached Images: responsive grid with swipeable fullscreen gallery */}
-          {((Array.isArray(post.media) && post.media.some((m) => (m.media_type || 'image') === 'image')) || post.attachment_url) && (
+          {hasPostImage && (
             <PostMediaGallery
-              media={post.media ? post.media.filter((m) => (m.media_type || 'image') === 'image') : null}
+              media={imageMedia.length > 0 ? imageMedia : null}
               imageUrl={post.attachment_url}
               getFullUrl={getFullUrl}
               onDoubleTap={handleToggleLike}
@@ -840,6 +848,16 @@ const styles = StyleSheet.create({
   },
   postCard: {
     borderRadius: 16,
+  },
+  postCardBorderless: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    borderRadius: 0,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   authorRow: {
     flexDirection: 'row',

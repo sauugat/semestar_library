@@ -246,3 +246,32 @@ Run these **without** `DATABASE_URL`, `PGHOST`, or `SUPABASE_*` set in your shel
    node scripts/doc-ingestion-worker.js --reconcile --limit 50
    node scripts/doc-ingestion-worker.js --max-jobs 50
    ```
+
+---
+
+## 9. D2-T findings and D2-U fixes
+
+Real-file testing (`D2-T`, in-memory PGlite only) surfaced four production hardening gaps that are fixed in `D2-U`:
+
+### 9.1 D2-T Root Causes Observed
+1. **Free-tier 429 (`RESOURCE_EXHAUSTED`, daily quota) caused ~150+ doomed retries and `failed_terminal`:** A daily request limit (`generativelanguage.googleapis.com/generate_content_free_tier_requests`, retry delay `> 20h`) was treated identically to a short transient error, retrying 3x per page and leaving 0-usable-page jobs as `failed_terminal`.
+2. **Classifier over-routed clean typed pages to Vision:**
+   - Lecture slides with a small header/footer logo image (`imageOps >= 1`, tiny area ratio) and rich text (`>= 150` chars) routed to `vision`.
+   - Textbook TOC pages with rule lines (`vectorOps` ~21–28) and dense clean text (`507–3223` chars) routed to `vision` (`vectorOps >= 20`).
+   - Blank-boilerplate separator pages (`"This page intentionally left blank."`) with template vector rules routed to `scanned` (`vision`).
+   - Set-theory / discrete math pages with clean UTF-8 Unicode operators (`∈`, `∪`, `∩`, `⊆`, `∅`) routed to `vision` due to raw symbol count/density.
+   - `pdfjs-dist` `content.styles` only exposed CSS `fontFamily` (`sans-serif`), hiding real PDF `/BaseFont` names on `page.commonObjs`.
+3. **PUA bullets and broken UTF-8 Devanagari clusters:**
+   - Wingdings/Symbol private-use bullets (`\uF040` in `U+F000..U+F0FF`) triggered `BROKEN_GLYPH_RE` and misclassified Nepali text pages as `math`.
+   - Broken Devanagari UTF-8 extraction (split halant clusters like `व् यिस् था` / `अर् थ`, isolated matras, and misordered short-i `िंसवधान`) was not flagged for Vision repair.
+4. **Harness visibility gap:** The local test harness (`scripts/doc-ingestion-local-test.js`) did not render `figure_description` in generated Markdown tables and lacked a `--classify-only` dry-run mode.
+
+### 9.2 D2-U Fixes Implemented
+1. **Quota circuit breaker (`lib/doc-vision-ocr.js`, `lib/doc-ingestion-worker.js`):**
+   - `parseGemini429Details` + `parseDurationToMs` inspect 429 response bodies and `Retry-After` headers. Per-day `RESOURCE_EXHAUSTED` metrics or retry delays `> 60s` raise non-retryable `QUOTA_EXHAUSTED` carrying `retryAfterMs`; short per-minute 429s keep exponential backoff and honor `Retry-After`.
+   - Worker run-level & job-level `quotaState` immediately halts remaining Vision calls across remaining pages and queued jobs in the run, marks uncompleted Vision pages `status = 'skipped_quota'` (`attempts = 0`, preserving fallback `raw_text`), continues local `text_layer` extraction and search/knowledge rollup, and saves the job as `status = 'failed_retryable'` with `next_retry_at` in the future (decrementing `attempts` so quota pauses never trip `failed_terminal` and cleanly resume skipped pages later).
+   - Optional `DOC_VISION_DAILY_REQUEST_CAP` queries 24h `vision_calls` and trips the circuit breaker before exceeding the daily cap.
+2. **Classifier calibration & Devanagari repair (`lib/doc-page-classifier.js`, `migrations/20261112_doc_intelligence_d2.up.sql`):**
+   - Added env-configurable `resolveClassifierThresholds` (`DOC_CLASSIFIER_*`), `page.commonObjs` font enrichment, CTM image area ratio tracking (`maxImageAreaRatio`, `>= 15%` or `< 150` clean chars for image routing), raised vector thresholds (`60` sparse / `100` dense), blank-boilerplate stripping -> `skip`, clean Unicode math allowed on `text_layer` (routing only broken glyphs, math fonts with math notation, vertical shifts, or stacked fractions), line-start `U+F000..U+F0FF` bullet stripping before broken-glyph checks, and `detectDevanagariCorruption` routing broken Nepali clusters to `vision` with `page_type = 'nepali_repair'`.
+3. **Local harness improvements (`scripts/doc-ingestion-local-test.js`):**
+   - Added `--classify-only` (pure classification table + per-route totals, zero PGlite / Gemini calls) and included `[Figure: ...]` (`figure_description`) in generated Markdown output.

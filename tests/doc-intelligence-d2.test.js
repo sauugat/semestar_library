@@ -2070,3 +2070,421 @@ test('24. D2-S Preflight script checks all 9 required env vars without leaking s
     assert.ok(report.includes(spec.name), `Missing var in report: ${spec.name}`);
   }
 });
+
+test('25. D2-U Quota circuit breaker: daily 429 stops retries & queued jobs, marks skipped_quota, keeps failed_retryable, and resumes cleanly', async () => {
+  const { parseDurationToMs, parseGemini429Details } = require('../lib/doc-vision-ocr');
+
+  assert.equal(parseDurationToMs('45s'), 45000);
+  assert.equal(parseDurationToMs('20h27m0.5s'), ((20 * 3600 + 27 * 60) * 1000) + 500);
+
+  const dailyBody = JSON.stringify({
+    error: {
+      code: 429,
+      status: 'RESOURCE_EXHAUSTED',
+      message: 'Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20. Please retry in 1h30m0s.',
+      details: [
+        {
+          '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+          violations: [{ quotaMetric: 'generativelanguage.googleapis.com/generate_content_free_tier_requests', quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier' }]
+        },
+        { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '5400s' }
+      ]
+    }
+  });
+  const parsedDaily = parseGemini429Details(dailyBody, null);
+  assert.equal(parsedDaily.isDailyQuota, true);
+  assert.equal(parsedDaily.retryAfterMs, 5400 * 1000);
+
+  const minuteParsed = parseGemini429Details(JSON.stringify({ error: { status: 'RESOURCE_EXHAUSTED', message: 'Per minute quota limit' } }), '2');
+  assert.equal(minuteParsed.isDailyQuota, false);
+  assert.equal(minuteParsed.retryAfterMs, 2000);
+
+  const { db } = await createD2TestDb();
+
+  const pdf1 = buildSyntheticPdf([
+    { text: 'Page 1 clean typed lecture notes covering operating system process states and scheduling.' },
+    { hasImage: true, text: 'scan p2' },
+    { hasImage: true, text: 'scan p3' },
+    { text: 'Page 4 clean typed lecture notes covering virtual memory paging and segmentation tables.' }
+  ]);
+  const pdf2 = buildSyntheticPdf([
+    { hasImage: true, text: 'job2 scan p1' },
+    { text: 'Job 2 clean typed page covering distributed consensus and Raft leader election.' }
+  ]);
+
+  const { fileId: file1Id } = await insertTestFile(db, { originalName: 'quota_doc1.pdf', buffer: pdf1 });
+  const { fileId: file2Id } = await insertTestFile(db, { originalName: 'quota_doc2.pdf', buffer: pdf2 });
+  await enqueueDocumentIngestionJob(db, { fileId: file1Id, contentHash: computeContentHash(pdf1) });
+  await enqueueDocumentIngestionJob(db, { fileId: file2Id, contentHash: computeContentHash(pdf2) });
+
+  let quotaCalls = 0;
+  const quotaFetch = async () => {
+    quotaCalls++;
+    return new Response(dailyBody, { status: 429, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const loopRes = await runIngestionWorkerLoop(db, {
+    fetchImpl: quotaFetch,
+    retryBackoffMs: 0,
+    maxPageAttempts: 3,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+
+  // Circuit breaker must stop after the very first daily 429 (0 retries, 0 extra pages, 0 calls on job 2)
+  assert.equal(quotaCalls, 1);
+  assert.equal(loopRes.quotaExhausted, true);
+  assert.equal(loopRes.processedJobs, 1);
+  assert.equal(loopRes.results[0].status, 'failed_retryable');
+
+  const job1 = (await db.query('SELECT status, attempts, next_retry_at > CURRENT_TIMESTAMP AS future_retry, error FROM ingestion_jobs WHERE file_id = $1', [file1Id])).rows[0];
+  const job2 = (await db.query('SELECT status, attempts FROM ingestion_jobs WHERE file_id = $1', [file2Id])).rows[0];
+  assert.equal(job1.status, 'failed_retryable');
+  assert.equal(job1.attempts, 0);
+  assert.equal(job1.future_retry, true);
+  assert.match(job1.error, /QUOTA_EXHAUSTED/);
+  assert.equal(job2.status, 'queued');
+  assert.equal(job2.attempts, 0);
+
+  const pRows1 = (await db.query('SELECT page_no, status, source, attempts, text FROM document_pages WHERE file_id = $1 ORDER BY page_no', [file1Id])).rows;
+  assert.equal(pRows1[0].status, 'completed');
+  assert.equal(pRows1[0].source, 'text_layer');
+  assert.equal(pRows1[1].status, 'skipped_quota');
+  assert.equal(pRows1[1].source, 'skipped');
+  assert.equal(pRows1[1].attempts, 0);
+  assert.match(pRows1[1].text, /scan p2/);
+  assert.equal(pRows1[2].status, 'skipped_quota');
+  assert.equal(pRows1[2].source, 'skipped');
+  assert.equal(pRows1[2].attempts, 0);
+  assert.equal(pRows1[3].status, 'completed');
+  assert.equal(pRows1[3].source, 'text_layer');
+
+  const nsd1 = (await db.query('SELECT extraction_status, content FROM note_search_documents WHERE id = $1', [file1Id])).rows[0];
+  assert.equal(nsd1.extraction_status, 'indexed');
+  assert.ok(nsd1.content.includes('operating system process states'));
+  assert.ok(nsd1.content.includes('virtual memory paging'));
+
+  // Simulate cooldown elapsed -> resume processes ONLY skipped_quota pages of job1 + queued job2
+  await db.query(`UPDATE ingestion_jobs SET next_retry_at = CURRENT_TIMESTAMP - INTERVAL '1 minute' WHERE file_id = $1`, [file1Id]);
+  const seenResumePages = [];
+  const { fetchImpl: okFetch, calls: resumeCalls } = createMockGeminiFetch(async ({ pageNo }) => {
+    seenResumePages.push(pageNo);
+    return {
+      json: {
+        text: `Recovered vision OCR page ${pageNo} content.`,
+        latex_present: false,
+        figure_description: null,
+        ocr_confidence: 0.92,
+        detected_type: 'scanned'
+      }
+    };
+  });
+
+  const resumeRes = await runIngestionWorkerLoop(db, {
+    fetchImpl: okFetch,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+  assert.equal(resumeRes.processedJobs, 2);
+  assert.equal(resumeRes.quotaExhausted, false);
+  // 2 skipped_quota pages on file1 + 1 scanned page on file2 = 3 calls (p1/p4/job2-p2 were local text_layer)
+  assert.equal(resumeCalls.length, 3);
+  assert.deepEqual(seenResumePages, [2, 3, 1]);
+
+  const finalJob1 = (await db.query('SELECT status FROM ingestion_jobs WHERE file_id = $1', [file1Id])).rows[0];
+  const finalJob2 = (await db.query('SELECT status FROM ingestion_jobs WHERE file_id = $1', [file2Id])).rows[0];
+  assert.equal(finalJob1.status, 'completed');
+  assert.equal(finalJob2.status, 'completed');
+});
+
+test('26. D2-U Daily request cap (DOC_VISION_DAILY_REQUEST_CAP) & short per-minute 429 honors Retry-After', async () => {
+  const { db } = await createD2TestDb();
+
+  // Seed prior usage today = 4 calls
+  const seedPdf = buildSyntheticPdf([{ text: 'Earlier file already processed today.' }]);
+  const { fileId: seedId } = await insertTestFile(db, { originalName: 'prior_today.pdf', buffer: seedPdf });
+  await db.query(
+    `INSERT INTO ingestion_jobs (file_id, status, total_pages, processed_pages, vision_calls, updated_at, completed_at)
+     VALUES ($1, 'completed', 1, 1, 4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    [seedId]
+  );
+
+  // New file needs 3 vision calls; with cap=5 only 1 call is permitted before circuit breaker trips
+  const capPdf = buildSyntheticPdf([
+    { hasImage: true, text: 's1' },
+    { hasImage: true, text: 's2' },
+    { hasImage: true, text: 's3' }
+  ]);
+  const { fileId: capFileId } = await insertTestFile(db, { originalName: 'cap_test.pdf', buffer: capPdf });
+  await enqueueDocumentIngestionJob(db, { fileId: capFileId, contentHash: computeContentHash(capPdf) });
+
+  const { fetchImpl: okFetch, calls: capCalls } = createMockGeminiFetch(async ({ pageNo }) => ({
+    json: { text: `OCR ${pageNo}`, latex_present: false, figure_description: null, ocr_confidence: 0.9, detected_type: 'scanned' }
+  }));
+
+  const capOut = await processNextIngestionJob(db, {
+    fetchImpl: okFetch,
+    retryBackoffMs: 0,
+    env: {
+      DOC_VISION_MODEL: 'gemini-vision-test',
+      GEMINI_API_KEY: 'test-key',
+      DOC_VISION_DAILY_REQUEST_CAP: '5'
+    }
+  });
+  assert.equal(capCalls.length, 1);
+  assert.equal(capOut.status, 'failed_retryable');
+  assert.equal(capOut.skippedQuotaPages, 2);
+
+  // Short per-minute 429 keeps retry behavior and honors Retry-After delay
+  const retryPdf = buildSyntheticPdf([{ hasImage: true, text: 'retry scan' }]);
+  const { fileId: retryFileId } = await insertTestFile(db, { originalName: 'rpm_retry.pdf', buffer: retryPdf });
+  await enqueueDocumentIngestionJob(db, { fileId: retryFileId, contentHash: computeContentHash(retryPdf) });
+
+  let attemptCount = 0;
+  const sleeps = [];
+  const rpmFetch = async () => {
+    attemptCount++;
+    if (attemptCount === 1) {
+      return new Response(
+        JSON.stringify({ error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'Rate limit per minute exceeded.' } }),
+        { status: 429, headers: { 'Content-Type': 'application/json', 'retry-after': '2' } }
+      );
+    }
+    return new Response(JSON.stringify({
+      candidates: [{
+        content: {
+          parts: [{
+            text: JSON.stringify({
+              text: 'Recovered after short RPM backoff.',
+              latex_present: false,
+              figure_description: null,
+              ocr_confidence: 0.91,
+              detected_type: 'scanned'
+            })
+          }]
+        }
+      }],
+      usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 25 }
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const rpmOut = await processNextIngestionJob(db, {
+    fetchImpl: rpmFetch,
+    retryBackoffMs: 10,
+    sleepImpl: async (ms) => { sleeps.push(ms); },
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+  assert.equal(attemptCount, 2);
+  assert.deepEqual(sleeps, [2000]);
+  assert.equal(rpmOut.status, 'completed');
+});
+
+test('27. D2-U Classifier signals: logo vs large image, vector TOC vs diagram, blank boilerplate, clean Unicode math, PUA bullets & broken Devanagari', () => {
+  const { classifyPageSignals, detectDevanagariCorruption, resolveClassifierThresholds } = require('../lib/doc-page-classifier');
+
+  // a. Typed slide with small institution logo (area 3% < 15%) and >= 150 clean chars -> text_layer
+  const typedText220 = 'Object Oriented Programming in C++ covers encapsulation, inheritance hierarchies, virtual dispatch tables, templates, containers, and runtime polymorphism in detail across multi-module architectures.';
+  const logoSlide = classifyPageSignals({
+    rawText: typedText220,
+    imageOps: 1,
+    maxImageAreaRatio: 0.03,
+    vectorOps: 18
+  });
+  assert.equal(logoSlide.route, 'text_layer');
+
+  // b. Same text density + large diagram/image (area 25% >= 15%) -> vision (figure)
+  const diagramSlide = classifyPageSignals({
+    rawText: typedText220,
+    imageOps: 1,
+    maxImageAreaRatio: 0.25,
+    vectorOps: 18
+  });
+  assert.equal(diagramSlide.route, 'vision');
+  assert.equal(diagramSlide.pageType, 'figure');
+
+  // c. TOC page with ~25 rule lines vs sparse vector figure vs dense vector diagram
+  const tocText = Array.from({ length: 12 }, (_, i) => `Chapter ${i + 1}: Foundations of Discrete Mathematics and Graph Theory ..... ${10 + i * 12}`).join('\n');
+  const tocCls = classifyPageSignals({ rawText: tocText, imageOps: 0, vectorOps: 28, ruleLineOps: 20 });
+  assert.equal(tocCls.route, 'text_layer');
+
+  const sparseDiagram = classifyPageSignals({
+    rawText: 'Figure 3.2 showing finite state automaton transition arcs between states S0 and S1.',
+    imageOps: 0,
+    vectorOps: 70
+  });
+  assert.equal(sparseDiagram.route, 'vision');
+  assert.equal(sparseDiagram.pageType, 'figure');
+
+  const denseDiagram = classifyPageSignals({
+    rawText: `${typedText220} Additional detailed hardware bus explanation text exceeding two hundred characters cleanly.`,
+    imageOps: 0,
+    vectorOps: 110
+  });
+  assert.equal(denseDiagram.route, 'vision');
+  assert.equal(denseDiagram.pageType, 'figure');
+
+  // d. Blank boilerplate separator -> skip
+  const blankCls = classifyPageSignals({
+    rawText: '4\nThis page intentionally left blank.\nPage 4 of 120',
+    imageOps: 0,
+    vectorOps: 17
+  });
+  assert.equal(blankCls.route, 'skip');
+  assert.deepEqual(blankCls.reasons, ['blank_page']);
+
+  // e. Clean Unicode set theory operators -> text_layer (still notes latexPresent metadata)
+  const setTheory = classifyPageSignals({
+    rawText: 'Set Identities: Let A = {x ∈ U | x ∉ B}. Then A ∪ B = B ∪ A, A ∩ B = ∅, A ⊆ B, and ∀x ∃y (x ≤ y ⇒ x ≠ 0). De Morgan laws and distributive properties hold cleanly across all subsets.',
+    imageOps: 0,
+    vectorOps: 4
+  });
+  assert.equal(setTheory.route, 'text_layer');
+  assert.equal(setTheory.latexPresent, true);
+
+  // f. Wingdings PUA bullet U+F040 on healthy UTF-8 Nepali list -> text_layer (NOT math!)
+  const healthyNepaliBullet = classifyPageSignals({
+    rawText: '\uF040 नेपालको संविधान २०७२ को प्रस्तावना र नागरिकका मौलिक हकहरूको विस्तृत व्याख्या यहाँ प्रस्तुत गरिएको छ।\n\uF040 प्रत्येक नागरिकलाई समानता र स्वतन्त्रताको हक हुने व्यवस्था संविधानले सुनिश्चित गरेको छ।',
+    imageOps: 0,
+    vectorOps: 2
+  });
+  assert.equal(healthyNepaliBullet.route, 'text_layer');
+  assert.equal(healthyNepaliBullet.pageType, 'text');
+
+  // g. Broken Devanagari clusters (halant+space + misordered short-i + isolated matra) -> vision (nepali_repair)
+  const brokenNepaliSample = '\uF040 नेपाल को व् यिस् था र अर् थ प्रणाली िंसवधान को धारा १ ा बमोजिम व्यवस्थित गरिने छ।\n\uF040 शासन प्रणाली र प्रशासनिक सुधार योजना नागरिक सेवा प्रवाहमा पारदर्शिता र जबाफदेहिता सुनिश्चित गर्ने छ।';
+  const depCheck = detectDevanagariCorruption(brokenNepaliSample);
+  assert.equal(depCheck.detected, true);
+  assert.ok(depCheck.halantBreaks >= 2);
+  assert.ok(depCheck.misorderedShortI >= 1);
+
+  const brokenNepaliCls = classifyPageSignals({ rawText: brokenNepaliSample, imageOps: 0, vectorOps: 2 });
+  assert.equal(brokenNepaliCls.route, 'vision');
+  assert.equal(brokenNepaliCls.pageType, 'nepali_repair');
+  assert.deepEqual(brokenNepaliCls.reasons, ['nepali_repair']);
+
+  // h. Scanned page & env-overridable threshold check
+  const scannedCls = classifyPageSignals({ rawText: 'Scan p1', imageOps: 1 });
+  assert.equal(scannedCls.route, 'vision');
+  assert.equal(scannedCls.pageType, 'scanned');
+
+  const resolvedEnv = resolveClassifierThresholds({ DOC_CLASSIFIER_MIN_CLEAN_CHARS: '80', DOC_CLASSIFIER_VECTOR_DENSE_OPS: '150' });
+  assert.equal(resolvedEnv.minCleanChars, 80);
+  assert.equal(resolvedEnv.vectorOpsDenseThreshold, 150);
+
+  const bumpedThresholdCls = classifyPageSignals({
+    rawText: `${typedText220} Additional detailed hardware bus explanation text exceeding two hundred characters cleanly.`,
+    vectorOps: 110,
+    thresholds: { vectorOpsDenseThreshold: 150 }
+  });
+  assert.equal(bumpedThresholdCls.route, 'text_layer');
+});
+
+test('28. D2-U Worker stores nepali_repair & blank boilerplate cleanly in PGlite document_pages', async () => {
+  const { db } = await createD2TestDb();
+  const pdf = buildSyntheticPdf([
+    { text: 'This page intentionally left blank.', vectorLines: 5 },
+    {
+      unicodeText: [
+        'नेपालको संविधान २०७२ को प्रस्तावना',
+        'नागरिकका मौलिक हक तथा कर्तव्यहरु',
+        'समानता र स्वतन्त्रताको स्पष्ट ग्यारेन्टी',
+        'लोकतान्त्रिक शासन प्रणाली र न्याय व्यवस्था'
+      ]
+    },
+    {
+      unicodeText: [
+        'प्रस्तावित व् यिस् था तथा अर् थ नीतिको',
+        'िंसवधान व्याख्या अनुसार ा कार्यान्वयन',
+        'शासन प्रणाली र प्रशासनिक सुधार योजना',
+        'नागरिक सेवा प्रवाहमा पारदर्शिता र जबाफदेहिता'
+      ]
+    }
+  ]);
+
+  const { fileId } = await insertTestFile(db, { originalName: 'nepali_repair_e2e.pdf', buffer: pdf });
+  await enqueueDocumentIngestionJob(db, { fileId, contentHash: computeContentHash(pdf) });
+
+  const seenPages = [];
+  const { fetchImpl, calls } = createMockGeminiFetch(async ({ pageNo }) => {
+    seenPages.push(pageNo);
+    return {
+      json: {
+        text: 'प्रस्तावित व्यवस्था तथा अर्थ नीतिको संविधान व्याख्या अनुसार कार्यान्वयन हुने व्यवस्था मिलाइएको छ।',
+        latex_present: false,
+        figure_description: null,
+        ocr_confidence: 0.94,
+        detected_type: 'nepali_repair'
+      }
+    };
+  });
+
+  const out = await processNextIngestionJob(db, {
+    fetchImpl,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+
+  assert.equal(out.status, 'completed');
+  assert.equal(calls.length, 1);
+  assert.deepEqual(seenPages, [3]);
+
+  const rows = (await db.query('SELECT page_no, status, source, page_type, text FROM document_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
+  assert.equal(rows[0].status, 'skipped');
+  assert.equal(rows[1].source, 'text_layer');
+  assert.equal(rows[2].source, 'vision');
+  assert.equal(rows[2].page_type, 'nepali_repair');
+  assert.ok(rows[2].text.includes('संविधान'));
+});
+
+test('29. D2-U Local harness --classify-only runs offline with 0 DB/Gemini calls and Markdown renders figure_description', async () => {
+  const os = require('node:os');
+  const { parseArgs } = require('../scripts/doc-ingestion-local-test');
+  const parsed = parseArgs(['study.pdf', '--classify-only', '--pages=1-3']);
+  assert.equal(parsed.classifyOnly, true);
+  assert.deepEqual(parsed.pageRange, { start: 1, end: 3 });
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'd2u-harness-'));
+  try {
+    const pdfPath = path.join(tmpDir, 'mix.pdf');
+    const outDir = path.join(tmpDir, 'out');
+    const samplePdf = buildSyntheticPdf([
+      { text: 'Clean typed syllabus introduction page with plenty of readable academic content for students.' },
+      { hasImage: true, text: 'Figure 1' },
+      { text: 'This page intentionally left blank.' }
+    ]);
+    fs.writeFileSync(pdfPath, samplePdf);
+
+    // 1. Classify-only mode
+    const clsSummary = await runLocalPdfHarness({
+      targetPath: pdfPath,
+      classifyOnly: true,
+      env: {}
+    });
+    assert.equal(clsSummary.mode, 'classify-only');
+    assert.equal(clsSummary.totalPages, 3);
+    assert.deepEqual(clsSummary.totalsByRoute, { text_layer: 1, vision: 1, skipped: 1 });
+    assert.equal(clsSummary.pages[0].route, 'text_layer');
+    assert.equal(clsSummary.pages[1].route, 'vision');
+    assert.equal(clsSummary.pages[2].route, 'skip');
+
+    // 2. Normal mode renders [Figure: ...] when figure_description is returned
+    const { fetchImpl } = createMockGeminiFetch(async () => ({
+      json: {
+        text: 'Figure 1: Binary search tree.',
+        latex_present: false,
+        figure_description: 'Labeled binary search tree with root 50 and children 25 and 75.',
+        ocr_confidence: 0.95,
+        detected_type: 'figure'
+      }
+    }));
+    const fullSummary = await runLocalPdfHarness({
+      targetPath: pdfPath,
+      outDir,
+      env: { GEMINI_API_KEY: 'mock-key', DOC_VISION_MODEL: 'mock-model' },
+      fetchImpl
+    });
+    const md = fs.readFileSync(fullSummary.outputPath, 'utf8');
+    assert.match(md, /\[Figure: Labeled binary search tree with root 50 and children 25 and 75\.\]/);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});

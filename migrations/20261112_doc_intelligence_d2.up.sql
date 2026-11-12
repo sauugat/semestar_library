@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS document_pages (
   ocr_confidence REAL,
   char_count INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'skipped', 'skipped_quota')),
-  page_type TEXT NOT NULL DEFAULT 'text' CHECK (page_type IN ('text', 'scanned', 'math', 'figure', 'table')),
+  page_type TEXT NOT NULL DEFAULT 'text' CHECK (page_type IN ('text', 'scanned', 'math', 'figure', 'table', 'nepali_repair')),
   latex_present BOOLEAN NOT NULL DEFAULT FALSE,
   figure_description TEXT,
   page_image_path TEXT,

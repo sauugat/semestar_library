@@ -113,7 +113,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     visionBatchPages: undefined,
     maxVisionPages: undefined,
     pageRange: undefined,
-    compareTextLayer: false
+    compareTextLayer: false,
+    classifyOnly: false
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -135,6 +136,8 @@ function parseArgs(argv = process.argv.slice(2)) {
       opts.pageRange = parsePageRange(argv[++i]);
     } else if (a === '--compare-text-layer') {
       opts.compareTextLayer = true;
+    } else if (a === '--classify-only') {
+      opts.classifyOnly = true;
     } else if (!a.startsWith('-') && !opts.targetPath) {
       opts.targetPath = a;
     }
@@ -254,13 +257,22 @@ async function processSingleLocalPdf(db, filePath, {
   const totalTimeMs = Date.now() - startedAt;
 
   const pagesRes = await db.query(
-    `SELECT page_no, source, status, page_type, ocr_confidence, error, raw_text, text
+    `SELECT page_no, source, status, page_type, ocr_confidence, error, raw_text, text, figure_description
      FROM document_pages
      WHERE file_id = $1
      ORDER BY page_no ASC`,
     [fileId]
   );
   const jobRow = (await db.query(`SELECT * FROM ingestion_jobs WHERE file_id = $1 ORDER BY id DESC LIMIT 1`, [fileId])).rows[0];
+
+  const formatPageCellText = (row) => {
+    const base = String(row.text || '').trim();
+    const fig = row.figure_description ? String(row.figure_description).trim() : '';
+    if (fig && !base.includes(fig)) {
+      return base ? `${base}\n[Figure: ${fig}]` : `[Figure: ${fig}]`;
+    }
+    return base;
+  };
 
   const pagesByRoute = { text_layer: 0, vision: 0, skipped: 0, skipped_quota: 0, failed: 0 };
   let driftFlaggedPages = 0;
@@ -299,7 +311,7 @@ async function processSingleLocalPdf(db, filePath, {
       const conf = p.ocr_confidence == null ? '-' : Number(p.ocr_confidence).toFixed(2);
       const tMs = perPageTimingMs.get(Number(p.page_no)) ?? 0;
       const rawCell = p.source === 'vision' ? escapeMdCell(p.raw_text || '') : '(text_layer used directly)';
-      lines.push(`| ${p.page_no} | ${p.source} (${p.status}) | ${p.page_type} | ${conf} | ${tMs} | ${rawCell} | ${escapeMdCell(p.text)} |`);
+      lines.push(`| ${p.page_no} | ${p.source} (${p.status}) | ${p.page_type} | ${conf} | ${tMs} | ${rawCell} | ${escapeMdCell(formatPageCellText(p))} |`);
     }
   } else {
     lines.push('| page | source | page_type | confidence | time_ms | text |');
@@ -307,7 +319,7 @@ async function processSingleLocalPdf(db, filePath, {
     for (const p of pagesRes.rows) {
       const conf = p.ocr_confidence == null ? '-' : Number(p.ocr_confidence).toFixed(2);
       const tMs = perPageTimingMs.get(Number(p.page_no)) ?? 0;
-      lines.push(`| ${p.page_no} | ${p.source} (${p.status}) | ${p.page_type} | ${conf} | ${tMs} | ${escapeMdCell(p.text)} |`);
+      lines.push(`| ${p.page_no} | ${p.source} (${p.status}) | ${p.page_type} | ${conf} | ${tMs} | ${escapeMdCell(formatPageCellText(p))} |`);
     }
   }
 
@@ -350,6 +362,57 @@ async function processSingleLocalPdf(db, filePath, {
   };
 }
 
+async function classifySingleLocalPdf(filePath, { pageRange } = {}) {
+  const { extractPdfPageSignals, classifyPageSignals } = require('../lib/doc-page-classifier');
+  const { getDocument, OPS } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const fileBuffer = fs.readFileSync(filePath);
+  const loadingTask = getDocument({
+    data: new Uint8Array(fileBuffer),
+    isEvalSupported: false,
+    useSystemFonts: false,
+    verbosity: 0
+  });
+
+  const pages = [];
+  const totalsByRoute = { text_layer: 0, vision: 0, skipped: 0 };
+  let totalPages = 0;
+
+  try {
+    const pdfDoc = await loadingTask.promise;
+    totalPages = Number(pdfDoc.numPages) || 0;
+    const startPage = Math.max(1, Number(pageRange?.start) || 1);
+    const endPage = Math.min(totalPages, Number(pageRange?.end) || totalPages);
+
+    for (let pageNo = startPage; pageNo <= endPage; pageNo++) {
+      const page = await pdfDoc.getPage(pageNo);
+      const signals = await extractPdfPageSignals(page, OPS);
+      page.cleanup?.();
+      const cls = classifyPageSignals(signals);
+      const routeKey = cls.route === 'skip' ? 'skipped' : cls.route;
+      totalsByRoute[routeKey] = (totalsByRoute[routeKey] || 0) + 1;
+      pages.push({
+        page: pageNo,
+        route: cls.route,
+        page_type: cls.pageType,
+        reason: cls.reasons?.[0] || '',
+        clean_chars: cls.charCount,
+        image_ops: signals.imageOps,
+        vector_ops: signals.vectorOps
+      });
+    }
+  } finally {
+    await loadingTask.destroy().catch(() => {});
+  }
+
+  return {
+    mode: 'classify-only',
+    file: filePath,
+    totalPages,
+    pages,
+    totalsByRoute
+  };
+}
+
 async function runLocalPdfHarness({
   filePath,
   targetPath,
@@ -359,15 +422,38 @@ async function runLocalPdfHarness({
   maxVisionPages,
   pageRange,
   compareTextLayer = false,
+  classifyOnly = false,
   fetchImpl: customFetchImpl
 } = {}) {
   assertSafeLocalEnv(env);
   const inputTarget = targetPath || filePath;
   if (!inputTarget) {
-    throw new Error('Usage: node scripts/doc-ingestion-local-test.js <file.pdf|dir> [--pages 1-10] [--max-vision-pages N] [--compare-text-layer]');
+    throw new Error('Usage: node scripts/doc-ingestion-local-test.js <file.pdf|dir> [--pages 1-10] [--max-vision-pages N] [--compare-text-layer] [--classify-only]');
   }
 
   const pdfPaths = resolveInputPdfFiles(inputTarget);
+  if (classifyOnly) {
+    const classifyResults = [];
+    for (const p of pdfPaths) {
+      classifyResults.push(await classifySingleLocalPdf(p, { pageRange }));
+    }
+    if (classifyResults.length === 1 && !fs.statSync(path.resolve(inputTarget)).isDirectory()) {
+      return classifyResults[0];
+    }
+    return {
+      mode: 'classify-only',
+      target: path.resolve(inputTarget),
+      fileCount: classifyResults.length,
+      totalPages: classifyResults.reduce((s, r) => s + r.totalPages, 0),
+      totalsByRoute: {
+        text_layer: classifyResults.reduce((s, r) => s + r.totalsByRoute.text_layer, 0),
+        vision: classifyResults.reduce((s, r) => s + r.totalsByRoute.vision, 0),
+        skipped: classifyResults.reduce((s, r) => s + r.totalsByRoute.skipped, 0)
+      },
+      files: classifyResults
+    };
+  }
+
   const hasRealGemini = Boolean(String(env.GEMINI_API_KEY || '').trim() && String(env.DOC_VISION_MODEL || '').trim());
   const effectiveEnv = hasRealGemini
     ? env
@@ -432,12 +518,22 @@ if (require.main === module) {
   const cli = parseArgs();
   runLocalPdfHarness(cli)
     .then(summary => {
-      if (summary.outputPath) {
+      if (summary.mode === 'classify-only') {
+        const files = summary.files || [summary];
+        for (const f of files) {
+          console.log(`page\troute\tpage_type\treason\tclean_chars\timage_ops\tvector_ops\t# ${path.basename(f.file)}`);
+          for (const row of f.pages) {
+            console.log(`${row.page}\t${row.route}\t${row.page_type}\t${row.reason}\t${row.clean_chars}\t${row.image_ops}\t${row.vector_ops}`);
+          }
+        }
+        console.log('[LocalHarness] Classify totals:', JSON.stringify(summary.totalsByRoute));
+      } else if (summary.outputPath) {
         console.log('[LocalHarness] Output written:', summary.outputPath);
+        console.log('[LocalHarness] Summary:', JSON.stringify(summary, null, 2));
       } else {
         console.log('[LocalHarness] Processed folder files:', summary.fileCount);
+        console.log('[LocalHarness] Summary:', JSON.stringify(summary, null, 2));
       }
-      console.log('[LocalHarness] Summary:', JSON.stringify(summary, null, 2));
     })
     .catch(err => {
       console.error('[LocalHarness] Error:', err.message);

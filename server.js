@@ -32,6 +32,51 @@ const noteSearch = require('./lib/note-search');
 const pushNotifications = require('./lib/push-notifications');
 const officePreview = require('./lib/office-preview');
 const gamesTicket = require('./lib/games-ticket');
+const { ensureRagSchema } = require('./lib/rag-schema');
+const { enqueueDocumentIngestion, processDocumentIngestionJobs, cleanupDeletedDocument } = require('./lib/document-ingestion');
+
+const VALID_RESOURCE_CATEGORIES = new Set(['syllabus', 'notes', 'practical', 'model_questions', 'reference']);
+
+function normalizeResourceCategory(raw) {
+  const val = String(raw || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (VALID_RESOURCE_CATEGORIES.has(val)) return val;
+  if (val === 'note') return 'notes';
+  if (val === 'practicals' || val === 'lab' || val === 'labs') return 'practical';
+  if (val === 'pyq' || val === 'pyqs' || val === 'model_question' || val === 'past_paper' || val === 'question_paper') return 'model_questions';
+  return 'notes';
+}
+
+function parseUnitNumber(raw, chapter) {
+  const parsed = Number.parseInt(raw, 10);
+  if (Number.isInteger(parsed) && parsed > 0 && parsed <= 50) return parsed;
+  const match = String(chapter || '').match(/\b(?:unit|chapter|ch|module)\s*[-:.]?\s*(\d{1,2})\b/i);
+  if (match) {
+    const unit = Number.parseInt(match[1], 10);
+    if (Number.isInteger(unit) && unit > 0 && unit <= 50) return unit;
+  }
+  return null;
+}
+
+async function dispatchKaieIngestionAsync(fileRecord) {
+  try {
+    await ensureRagSchema(db);
+    const job = await enqueueDocumentIngestion(db, fileRecord, { triggerSource: 'upload' });
+    const runPromise = processDocumentIngestionJobs(db, { limit: 3, fileId: fileRecord.id })
+      .catch((err) => {
+        console.error('[KAIE Async Ingestion Error]:', fileRecord.id, err.message);
+      });
+    try {
+      const { waitUntil } = require('@vercel/functions');
+      if (typeof waitUntil === 'function') {
+        waitUntil(runPromise);
+      }
+    } catch (_) { }
+    return job;
+  } catch (err) {
+    console.error('[KAIE Enqueue Error]:', fileRecord?.id, err.message);
+    return null;
+  }
+}
 
 async function indexUploadedNote(file) {
   try {
@@ -3028,6 +3073,8 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
   let semester = (req.body.semester || '').trim() || null;
   let subject = (req.body.subject || '').trim() || null;
   const chapter = (req.body.chapter || '').trim() || null;
+  const resourceCategory = normalizeResourceCategory(req.body.resource_category || req.body.resourceCategory);
+  const unitNumber = parseUnitNumber(req.body.unit_number ?? req.body.unitNumber, chapter);
 
   let fileTitlesMap = null;
   if (req.body.fileTitles) {
@@ -3166,22 +3213,30 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       }
 
       // 3. Insert file record into database
+      await ensureRagSchema(db);
+      const effectiveSemester = semester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null);
       const result = await db.run(`
-        INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName, cohort_id, semester_no, audience_scope)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, f.filename, f.originalname, fileTitle, semester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null), subject, chapter, currentStudentId, f.size, new Date().toISOString(), previewFilename, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope);
+        INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName, cohort_id, semester_no, audience_scope, resource_category, unit_number)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, f.filename, f.originalname, fileTitle, effectiveSemester, subject, chapter, currentStudentId, f.size, new Date().toISOString(), previewFilename, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope, resourceCategory, unitNumber);
 
       const insertedId = result.lastInsertRowid;
-      const indexing = await indexUploadedNote({
+      const fileRecordForIndex = {
         id: insertedId,
         storedName: f.filename,
         originalName: f.originalname,
         title: fileTitle,
-        semester,
+        semester: effectiveSemester,
+        semester_no: publishScope.semesterNo,
         subject,
         chapter,
-        sizeBytes: f.size
-      }).catch(() => null);
+        uploadedBy: currentStudentId,
+        sizeBytes: f.size,
+        resource_category: resourceCategory,
+        unit_number: unitNumber
+      };
+      const indexing = await indexUploadedNote(fileRecordForIndex).catch(() => null);
+      await dispatchKaieIngestionAsync(fileRecordForIndex).catch(() => null);
 
       successfulFiles.push({
         id: insertedId,
@@ -3193,7 +3248,9 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
         previewName: previewFilename,
         cohortId: publishScope.cohortId,
         semesterNo: publishScope.semesterNo,
-        audienceScope: publishScope.audienceScope
+        audienceScope: publishScope.audienceScope,
+        resourceCategory,
+        unitNumber
       });
       // In-app & push notifications are dispatched after file persistence via enqueueMaterialPush
     } catch (fileErr) {
@@ -3426,6 +3483,8 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
   let cleanSubject = (subject || '').trim() || null;
   const cleanChapter = (chapter || '').trim() || null;
   const cleanTitle = (title || '').trim() || null;
+  const resourceCategory = normalizeResourceCategory(req.body.resource_category || req.body.resourceCategory);
+  const unitNumber = parseUnitNumber(req.body.unit_number ?? req.body.unitNumber, cleanChapter);
 
   if (academicCtx.role === 'teacher') {
     if (!cleanSubject) {
@@ -3536,13 +3595,30 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       const originalName = String(f.originalName || 'file').slice(0, 255);
       const sizeBytes = parseInt(f.size, 10) || 0;
 
+      await ensureRagSchema(db);
+      const effectiveSemester = cleanSemester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null);
       const result = await db.run(`
-        INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName, cohort_id, semester_no, audience_scope)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, storedName, originalName, fileTitle, cleanSemester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null), cleanSubject, cleanChapter, currentStudentId, sizeBytes, new Date().toISOString(), null, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope);
+        INSERT INTO files (storedName, originalName, title, semester, subject, chapter, uploadedBy, sizeBytes, uploadedAt, previewName, cohort_id, semester_no, audience_scope, resource_category, unit_number)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, storedName, originalName, fileTitle, effectiveSemester, cleanSubject, cleanChapter, currentStudentId, sizeBytes, new Date().toISOString(), null, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope, resourceCategory, unitNumber);
 
       const insertedId = result.lastInsertRowid;
-      const indexing = await indexUploadedNote({ id: insertedId, storedName, originalName, title: fileTitle, semester: cleanSemester, subject: cleanSubject, chapter: cleanChapter, sizeBytes });
+      const fileRecordForIndex = {
+        id: insertedId,
+        storedName,
+        originalName,
+        title: fileTitle,
+        semester: effectiveSemester,
+        semester_no: publishScope.semesterNo,
+        subject: cleanSubject,
+        chapter: cleanChapter,
+        uploadedBy: currentStudentId,
+        sizeBytes,
+        resource_category: resourceCategory,
+        unit_number: unitNumber
+      };
+      const indexing = await indexUploadedNote(fileRecordForIndex);
+      await dispatchKaieIngestionAsync(fileRecordForIndex).catch(() => null);
       results.push({
         id: insertedId,
         indexing,
@@ -3551,7 +3627,9 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
         title: fileTitle,
         cohortId: publishScope.cohortId,
         semesterNo: publishScope.semesterNo,
-        audienceScope: publishScope.audienceScope
+        audienceScope: publishScope.audienceScope,
+        resourceCategory,
+        unitNumber
       });
     }
   } catch (err) {
@@ -3906,6 +3984,7 @@ app.delete('/api/files/:id', requireLogin, async (req, res) => {
   await db.run('DELETE FROM file_comments WHERE fileId = ?', fileId);
   await db.run('DELETE FROM files WHERE id = ?', fileId);
   await noteSearch.removeNoteIndex(db, fileId);
+  await cleanupDeletedDocument(db, fileId).catch(() => { });
   await require('./lib/knowledge-sync').onNoteDeleted(db, fileId).catch(() => { });
   require('./ai-assistant').invalidateCache(db);
 
@@ -3963,6 +4042,7 @@ app.post('/api/files/:id/delete', requireLogin, async (req, res) => {
   await db.run('DELETE FROM file_comments WHERE fileId = ?', fileId);
   await db.run('DELETE FROM files WHERE id = ?', fileId);
   await noteSearch.removeNoteIndex(db, fileId);
+  await cleanupDeletedDocument(db, fileId).catch(() => { });
   await require('./lib/knowledge-sync').onNoteDeleted(db, fileId).catch(() => { });
   require('./ai-assistant').invalidateCache(db);
 
@@ -4033,6 +4113,7 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
       await db.run('DELETE FROM file_comments WHERE fileId = ?', f.id);
       await db.run('DELETE FROM files WHERE id = ?', f.id);
       await noteSearch.removeNoteIndex(db, f.id);
+      await cleanupDeletedDocument(db, f.id).catch(() => { });
       await require('./lib/knowledge-sync').onNoteDeleted(db, f.id).catch(() => { });
       require('./ai-assistant').invalidateCache(db);
       deletedCount++;
@@ -5162,6 +5243,7 @@ app.post('/api/library/chapters/delete', requireLogin, async (req, res) => {
       await db.run('DELETE FROM file_likes WHERE fileId = ?', file.id).catch(() => { });
       await db.run('DELETE FROM file_comments WHERE fileId = ?', file.id).catch(() => { });
       await db.run('DELETE FROM files WHERE id = ?', file.id).catch(() => { });
+      await cleanupDeletedDocument(db, file.id).catch(() => { });
     }
 
     // 2. Remove from library_custom_chapters if present
@@ -6229,6 +6311,24 @@ app.all(['/api/internal/push/process', '/api/internal/push/worker'], verifyInter
   } catch (err) {
     console.error('[Push Outbox Process Worker Error]:', err.message);
     return res.status(500).json({ message: 'Push outbox processing failed.', error: err.message });
+  }
+});
+
+app.all(['/api/internal/kaie/process-jobs', '/api/internal/kaie/worker'], verifyInternalCron, async (req, res) => {
+  try {
+    await ensureRagSchema(db);
+    const rawLimit = Number.parseInt(req.body?.limit || req.query?.limit, 10);
+    const limit = Number.isInteger(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 50) : 10;
+    const rawFileId = req.body?.fileId || req.query?.fileId || null;
+    const fileId = rawFileId ? Number.parseInt(rawFileId, 10) : null;
+    const result = await processDocumentIngestionJobs(db, {
+      limit,
+      fileId: Number.isInteger(fileId) && fileId > 0 ? fileId : null
+    });
+    return res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[KAIE Worker Error]:', err.message);
+    return res.status(500).json({ message: 'KAIE document ingestion processing failed.', error: err.message });
   }
 });
 

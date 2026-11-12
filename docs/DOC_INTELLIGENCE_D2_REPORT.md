@@ -486,3 +486,58 @@ If `file.existing_content_hash === legacyContentHash`, the legacy hash is preser
 - **Test 32 added:** Validates that 15 lines of clean modern Unicode Devanagari text stay on `text_layer` (`reasons: ['clean_text_layer']`), while Loksewa-style corruption routes to `vision` (`nepali_repair`).
 - **Full 7-suite regression:** 122 tests passing, 0 failing.
 
+---
+
+## 12. D2-W Part A: Devanagari Word-Final Halant Calibration & Offline Verification
+
+### 12.1 Halant False Positive Root Cause & Grammar Analysis
+- **The Issue:** The initial Devanagari corruption detector in D2-U / D2-V2 used the naive regex:
+  `[\u0915-\u0939\u0958-\u095F]\u094D[ \t]+[\u0905-\u0939\u0958-\u095F]`
+  This matched *any* consonant + halant followed by whitespace and another Devanagari character.
+- **Why it failed on valid prose:** In Sanskrit and modern formal Nepali prose, many common, grammatically correct words end in a halant (virama):
+  `अर्थात्`, `पश्चात्`, `विद्वान्`, `साक्षात्`, `महान्`, `तत्पश्चात्`, `जगत्`, `संसद्`, `भगवान्`, `सम्राट्`, `परिषद्`.
+  When followed by standard sentence word spacing (e.g. `अर्थात् नेपालको संविधान अनुसार...`), the regex treated the normal inter-word space between the final consonant (`त्` + `्`) and the next word's initial consonant (`न`) as a broken conjunct split!
+- **Grammatical Distinction:**
+  1. In Sanskrit/Nepali phonology, the *only* consonants that can grammatically end a standalone word with a halant are:
+     `त्` (`\u0924`), `न्` (`\u0928`), `द्` (`\u0926`), `ट्` (`\u091F`).
+  2. Standalone tokens ending in any other halanted consonant (`व् `, `स् `, `र् `, `प् `, `क् `, etc.) *never* occur as words; they are always broken cluster fragments (e.g. `व् यवस्था` -> `व् `, `अर् थ` -> `अर् `).
+  3. Valid words ending in halants are multi-syllable root words with $\ge 2$ base characters before the final halant, or belong to the closed set of standard root words (`KNOWN_VALID_HALANT_WORDS`).
+
+### 12.2 Refined Detection Logic (`lib/doc-page-classifier.js`)
+- **Backward Token Inspection:** For each candidate `(consonant + halant)[ \t]+(following char)`:
+  - Extract the full preceding token back to the nearest whitespace.
+  - If the token is in `KNOWN_VALID_HALANT_WORDS` (e.g. `अर्थात्`, `पश्चात्`, `विद्वान्`, `साक्षात्`, `महान्`, `तत्पश्चात्`, `जगत्`, `संसद्`, `भगवान्`, `सम्राट्`, `परिषद्`), ignore it unless immediately followed by a dependent vowel sign (matra).
+  - If the following character is a dependent matra (`[\u093A-\u094F]`), always flag as corrupt (matras cannot follow whitespace).
+  - If the token starts with an isolated matra (`^[\u093A-\u094F]`, e.g. `िस्`), always flag as corrupt.
+  - If the token ends in an invalid word-ending consonant (not `त्`, `न्`, `द्`, `ट्`), flag as corrupt.
+  - If the token ends in `त्`, `न्`, `द्`, or `ट्` but has $< 2$ base characters before the halant (e.g. a single-character fragment like `द् ` in `द् वारा`), flag as corrupt.
+- **Exports:** Exported `KNOWN_VALID_HALANT_WORDS` from `lib/doc-page-classifier.js` for unit and regression test inspection.
+
+### 12.3 Test Suite Addition (Test 33)
+- Added **Test 33** in `tests/doc-intelligence-d2.test.js`:
+  - Builds synthetic PDF containing 13 lines of healthy Unicode Devanagari with at least 9 word-final halants (`अर्थात्`, `पश्चात्`, `विद्वान्`, `साक्षात्`, `महान्`, `तत्पश्चात्`, `जगत्`, `भगवान्`, `संसद्`) embedded in natural prose.
+  - Verifies `detectDevanagariCorruption` returns `detected: false, halantBreaks: 0, isolatedMatras: 0, misorderedShortI: 0, totalAnomalies: 0`.
+  - Verifies `classifyPageSignals` routes the page to `text_layer` (`pageType: 'text'`, `reasons: ['clean_text_layer']`, `charCount: 308`).
+  - Verifies regression check on genuine broken Loksewa clusters continues to detect `detected: true, halantBreaks: 3, pageType: 'nepali_repair'`.
+
+### 12.4 Real-File Local Classification (`~/doc-tests --classify-only`)
+- Executed with clean environment (`DATABASE_URL`, `SUPABASE_*`, `PGHOST`, `GEMINI_API_KEY` unset):
+  - `05. Inheritance, Package and Interface 1.0.pdf` (41 pages): 23 `text_layer`, 18 `vision`
+  - `Convergence of Infinite Series.pdf` (10 pages): 2 `text_layer`, 8 `vision`
+  - `Discrete Mathematics.pdf` (773 pages): 135 `text_layer`, 629 `vision`, 9 `skipped`
+  - `Electrical_circuits.pdf` (23 pages): 23 `vision` (scanned)
+  - `M. Induction.pdf` (7 pages): 7 `vision` (scanned)
+  - `संविधान र शासन व्यवस्था - QUICK LOKSEWA_260919_060127.pdf` (23 pages): 23 `vision` (`nepali_repair`)
+- **Totals:** `{"text_layer": 160, "vision": 708, "skipped": 9}` (877 pages total across 6 files).
+- **Integrity Confirmed:** All 23 pages of the real Loksewa PDF continue to route to `vision` (`nepali_repair`) due to pervasive broken clusters (20 to 104 anomalies/page), while healthy prose with word-final halants stays 100% on `text_layer`.
+
+### 12.5 SQLite `database.db` Connection Explanation & Invocation Hardening
+- **Root Cause:** `db.js` defines `const dbPath = process.env.DB_PATH || path.join(__dirname, 'database.db');`.
+  When tests requiring `../db` (e.g. `tests/upload-material-atomic.test.js`) ran without `DB_PATH=:memory:` explicitly set in the outer command line, SQLite defaulted to creating or touching `database.db`.
+- **Git Status:** `database.db` is ignored by `.gitignore` (line 7), was untracked in commit `78e66f19`, and was not modified in any meaningful way.
+- **Hardened Invocations:** All test runs explicitly prepend:
+  `unset DATABASE_URL DIRECT_URL POSTGRES_URL PGHOST`
+  `NODE_ENV=test DB_PATH=:memory:`
+  ensuring purely in-memory SQLite (`file::memory:?cache=shared`).
+
+

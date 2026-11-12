@@ -2900,3 +2900,65 @@ test('32. D2-V3 Clean Unicode Nepali check: 15 lines of healthy Unicode Devanaga
   assert.equal(corruptClassify.pageType, 'nepali_repair');
   assert.ok(corruptClassify.reasons.includes('nepali_repair'));
 });
+
+test('33. D2-W Word-final halant check: healthy Devanagari text with >= 8 word-final halant words (अर्थात्, पश्चात्, विद्वान्, साक्षात्, महान्, तत्पश्चात्, जगत्, etc.) routes to text_layer', async () => {
+  const { extractPdfPageSignals, classifyPageSignals, detectDevanagariCorruption, KNOWN_VALID_HALANT_WORDS } = require('../lib/doc-page-classifier');
+  const { getDocument, OPS } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+
+  // Verify known valid halants set contains required words
+  assert.ok(KNOWN_VALID_HALANT_WORDS.has('अर्थात्'));
+  assert.ok(KNOWN_VALID_HALANT_WORDS.has('पश्चात्'));
+  assert.ok(KNOWN_VALID_HALANT_WORDS.has('विद्वान्'));
+  assert.ok(KNOWN_VALID_HALANT_WORDS.has('साक्षात्'));
+  assert.ok(KNOWN_VALID_HALANT_WORDS.has('महान्'));
+  assert.ok(KNOWN_VALID_HALANT_WORDS.has('तत्पश्चात्'));
+  assert.ok(KNOWN_VALID_HALANT_WORDS.has('जगत्'));
+  assert.ok(KNOWN_VALID_HALANT_WORDS.has('भगवान्'));
+  assert.ok(KNOWN_VALID_HALANT_WORDS.has('संसद्'));
+
+  // 13 lines of clean modern Unicode Nepali containing at least 9 word-final halants embedded in natural prose
+  const healthyHalantLines = [
+    'नेपालको इतिहास अर्थात् नयाँ कालखण्ड सुरु भयो।',
+    'जनआन्दोलन पश्चात् देशमा नयाँ संविधान बन्यो।',
+    'विद्वान् नागरिकहरूले समाजको उन्नयनमा योगदान दिए।',
+    'साक्षात् जनताको भावना संविधानमा समेटिएको छ।',
+    'महान् देशभक्तहरूको समर्पण सधैं स्मरणीय रहन्छ।',
+    'तत्पश्चात् गठन भएको संसद् बैठक सम्पन्न भयो।',
+    'यस निर्णयबाट सारा जगत् सामु प्रतिष्ठा बढ्यो।',
+    'संसद् बैठकले लोककल्याणकारी ऐन पारित गर्यो।',
+    'भगवान् बुद्धको शान्ति सन्देश विश्वभर फैलियो।',
+    'विधिको शासन स्थापना गर्न सबै एकजुट हुनुपर्छ।',
+    'लोकतान्त्रिक मूल्य र मान्यताको संवर्धन आवश्यक छ।',
+    'विकास र समृद्धिको मार्गमा अघि बढ्नुपर्छ।',
+    'सुशासन कायम गर्नु सबैको साझा दायित्व हो।'
+  ];
+
+  const pdfBuf = buildSyntheticPdf([{ unicodeText: healthyHalantLines }]);
+  const loadingTask = getDocument({ data: new Uint8Array(pdfBuf), disableFontFace: true });
+  const pdfDoc = await loadingTask.promise;
+  const page = await pdfDoc.getPage(1);
+  const signals = await extractPdfPageSignals(page, OPS);
+
+  // A. Unit check on corruption detector: all 9 word-final halants must be treated as valid word boundaries, not corruption
+  const halantCheck = detectDevanagariCorruption(signals.rawText);
+  assert.equal(halantCheck.detected, false, 'Healthy Devanagari text with word-final halants must not be detected as corrupt');
+  assert.equal(halantCheck.halantBreaks, 0, 'Word-final halants in valid words must produce 0 halantBreaks');
+  assert.equal(halantCheck.isolatedMatras, 0);
+  assert.equal(halantCheck.misorderedShortI, 0);
+  assert.equal(halantCheck.totalAnomalies, 0);
+  assert.equal(halantCheck.reason, null);
+
+  // B. Classifier check: page routes to text_layer directly with zero Vision cost
+  const halantClassify = classifyPageSignals(signals);
+  assert.equal(halantClassify.route, 'text_layer', 'Must route to text_layer');
+  assert.equal(halantClassify.pageType, 'text');
+  assert.ok(halantClassify.reasons.includes('clean_text_layer'));
+  assert.ok(halantClassify.charCount >= 300, `Char count ${halantClassify.charCount} must be >= 300`);
+
+  // C. Regression check on broken clusters: verify genuine broken conjuncts still trigger nepali_repair
+  const brokenLoksewaSample = 'नेपाल को व् यिस् था र अर् थ प्रणाली िंसवधान को धारा १ ा बमोजिम व्यवस्थित गरिने छ।';
+  const brokenCheck = detectDevanagariCorruption(brokenLoksewaSample);
+  assert.equal(brokenCheck.detected, true, 'Corrupted Devanagari clusters must still be detected');
+  assert.ok(brokenCheck.halantBreaks >= 2, 'Must detect at least 2 halant breaks on broken clusters');
+  assert.equal(brokenCheck.reason, 'nepali_repair');
+});

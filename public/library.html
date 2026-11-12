@@ -41,6 +41,9 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700;800&display=swap"
     rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
   <link rel="stylesheet" href="style.v4.css?v=25">
   <link rel="stylesheet" href="chatbot.css?v=25">
   <link rel="stylesheet" href="auth-modal.css?v=25">
@@ -845,8 +848,98 @@
       }
 
       .drawer-workspace.reading-file .drawer-sheet {
-        width: 40%;
+        width: var(--drawer-right-width, 40%);
+        min-width: 280px;
+        max-width: 76%;
       }
+
+      .drawer-workspace.reading-file:not(.fullscreen-preview) .drawer-split-resizer {
+        display: flex;
+      }
+    }
+
+    .drawer-split-resizer {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 12px;
+      margin-left: -6px;
+      margin-right: -6px;
+      position: relative;
+      z-index: 30;
+      cursor: col-resize;
+      flex-shrink: 0;
+      user-select: none;
+      touch-action: none;
+      outline: none;
+    }
+
+    .drawer-split-resizer::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 2px;
+      transform: translateX(-50%);
+      background: transparent;
+      transition: background 0.15s ease;
+    }
+
+    .drawer-split-resizer:hover::before,
+    .drawer-split-resizer:focus-visible::before,
+    .drawer-workspace.is-resizing .drawer-split-resizer::before {
+      background: #111827;
+    }
+
+    [data-theme="dark"] .drawer-split-resizer:hover::before,
+    body.dark-mode .drawer-split-resizer:hover::before,
+    [data-theme="dark"] .drawer-workspace.is-resizing .drawer-split-resizer::before,
+    body.dark-mode .drawer-workspace.is-resizing .drawer-split-resizer::before {
+      background: #e4e4e7;
+    }
+
+    .drawer-split-resizer-grip {
+      width: 5px;
+      height: 44px;
+      border-radius: 999px;
+      background: rgba(100, 116, 139, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+      transition: background 0.15s ease, transform 0.15s ease, height 0.15s ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    .drawer-split-resizer:hover .drawer-split-resizer-grip,
+    .drawer-workspace.is-resizing .drawer-split-resizer-grip {
+      background: #111827;
+      height: 58px;
+      transform: scaleX(1.15);
+    }
+
+    [data-theme="dark"] .drawer-split-resizer-grip,
+    body.dark-mode .drawer-split-resizer-grip {
+      background: rgba(161, 161, 170, 0.55);
+      border-color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="dark"] .drawer-split-resizer:hover .drawer-split-resizer-grip,
+    body.dark-mode .drawer-split-resizer:hover .drawer-split-resizer-grip,
+    [data-theme="dark"] .drawer-workspace.is-resizing .drawer-split-resizer-grip,
+    body.dark-mode .drawer-workspace.is-resizing .drawer-split-resizer-grip {
+      background: #f4f4f5;
+    }
+
+    .drawer-workspace.is-resizing,
+    .drawer-workspace.is-resizing .drawer-preview-pane,
+    .drawer-workspace.is-resizing .drawer-sheet {
+      transition: none !important;
+      cursor: col-resize !important;
+    }
+
+    .drawer-workspace.is-resizing iframe {
+      pointer-events: none !important;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -3342,6 +3435,11 @@
             <div class="continuous-chapter-stream" id="continuousChapterStream"></div>
           </div>
         </div>
+      </div>
+
+      <!-- Draggable Split-Pane Resizer -->
+      <div class="drawer-split-resizer" id="drawerSplitResizer" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize PDF and Kyana AI panes" title="Drag to resize panes (double-click to reset)">
+        <div class="drawer-split-resizer-grip"></div>
       </div>
 
       <!-- Right Course Units & Notes Drawer Sheet (Swaps to Kyana AI Chapter Chatbot when Ask Kyana AI is active) -->
@@ -7122,7 +7220,7 @@
           gap: 16px;
           padding: 16px 14px 20px;
           background: #f8fafc;
-          border-radius: 0 0 13px 13px;
+          border-radius: 13px;
         }
         .continuous-pdf-page-card {
           flex-shrink: 0;
@@ -7687,8 +7785,404 @@
           opacity: 0.48;
           cursor: not-allowed;
         }
+
+        /* Dark Mode Support for Continuous Chapter Stream & Chapter Kyana AI Tutor */
+        [data-theme="dark"] .ask-kyana-chapter-btn,
+        body.dark-mode .ask-kyana-chapter-btn {
+          background: #f4f4f5 !important;
+          color: #09090b !important;
+          border-color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .ask-kyana-chapter-btn:hover,
+        body.dark-mode .ask-kyana-chapter-btn:hover {
+          background: #e4e4e7 !important;
+        }
+        [data-theme="dark"] .ask-kyana-chapter-btn svg,
+        body.dark-mode .ask-kyana-chapter-btn svg {
+          stroke: #09090b !important;
+        }
+
+        [data-theme="dark"] .continuous-chapter-wrap,
+        body.dark-mode .continuous-chapter-wrap {
+          background: #0b0b0d !important;
+        }
+        [data-theme="dark"] .continuous-chapter-filebar,
+        body.dark-mode .continuous-chapter-filebar {
+          background: #141416 !important;
+          border-bottom-color: #2e2e32 !important;
+        }
+        [data-theme="dark"] .continuous-file-pill,
+        body.dark-mode .continuous-file-pill {
+          background: #202022 !important;
+          border-color: #38383c !important;
+          color: #e4e4e7 !important;
+        }
+        [data-theme="dark"] .continuous-file-pill:hover,
+        [data-theme="dark"] .continuous-file-pill.active,
+        body.dark-mode .continuous-file-pill:hover,
+        body.dark-mode .continuous-file-pill.active {
+          background: #f4f4f5 !important;
+          color: #09090b !important;
+          border-color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .continuous-doc-section,
+        body.dark-mode .continuous-doc-section {
+          background: #141416 !important;
+          border-color: #2e2e32 !important;
+        }
+        [data-theme="dark"] .continuous-doc-pages,
+        body.dark-mode .continuous-doc-pages {
+          background: #0e0e10 !important;
+        }
+        [data-theme="dark"] .continuous-pdf-page-card,
+        [data-theme="dark"] .continuous-doc-iframe-card,
+        body.dark-mode .continuous-pdf-page-card,
+        body.dark-mode .continuous-doc-iframe-card {
+          background: #18181b !important;
+          border-color: #2e2e32 !important;
+        }
+        [data-theme="dark"] .continuous-pdf-page-head,
+        body.dark-mode .continuous-pdf-page-head {
+          background: #141416 !important;
+          border-bottom-color: #2e2e32 !important;
+          color: #a1a1aa !important;
+        }
+        [data-theme="dark"] .continuous-pdf-page-placeholder,
+        body.dark-mode .continuous-pdf-page-placeholder {
+          background: linear-gradient(180deg, #18181b 0%, #141416 100%) !important;
+          color: #a1a1aa !important;
+        }
+        [data-theme="dark"] .continuous-extracted-page-text,
+        body.dark-mode .continuous-extracted-page-text {
+          background: #18181b !important;
+          color: #e4e4e7 !important;
+        }
+        [data-theme="dark"] .continuous-doc-connector,
+        body.dark-mode .continuous-doc-connector {
+          color: #a1a1aa !important;
+        }
+        [data-theme="dark"] .continuous-doc-connector::before,
+        [data-theme="dark"] .continuous-doc-connector::after,
+        body.dark-mode .continuous-doc-connector::before,
+        body.dark-mode .continuous-doc-connector::after {
+          background: #2e2e32 !important;
+        }
+
+        [data-theme="dark"] .chapter-kyana-chat-view,
+        body.dark-mode .chapter-kyana-chat-view {
+          background: #0c0c0e !important;
+          color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-top,
+        body.dark-mode .chapter-kyana-top {
+          background: #161618 !important;
+          border-bottom-color: #2e2e32 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-back-btn,
+        [data-theme="dark"] .chapter-kyana-notes-mobile-btn,
+        body.dark-mode .chapter-kyana-back-btn,
+        body.dark-mode .chapter-kyana-notes-mobile-btn {
+          background: #202022 !important;
+          border-color: #38383c !important;
+          color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-back-btn:hover,
+        [data-theme="dark"] .chapter-kyana-notes-mobile-btn:hover,
+        body.dark-mode .chapter-kyana-back-btn:hover,
+        body.dark-mode .chapter-kyana-notes-mobile-btn:hover {
+          background: #2c2c30 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-teach-btn,
+        body.dark-mode .chapter-kyana-teach-btn {
+          background: #f4f4f5 !important;
+          color: #09090b !important;
+          border-color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-teach-btn svg,
+        body.dark-mode .chapter-kyana-teach-btn svg {
+          stroke: #09090b !important;
+        }
+        [data-theme="dark"] .chapter-kyana-teach-btn:hover,
+        body.dark-mode .chapter-kyana-teach-btn:hover {
+          background: #e4e4e7 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-badge,
+        body.dark-mode .chapter-kyana-badge {
+          background: #27272a !important;
+          color: #f4f4f5 !important;
+          border: 1px solid #3f3f46 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-context-pill,
+        body.dark-mode .chapter-kyana-context-pill {
+          background: #202022 !important;
+          border-color: #38383c !important;
+          color: #a1a1aa !important;
+        }
+        [data-theme="dark"] .chapter-kyana-title,
+        body.dark-mode .chapter-kyana-title {
+          color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-sub,
+        body.dark-mode .chapter-kyana-sub {
+          color: #a1a1aa !important;
+        }
+        [data-theme="dark"] .chapter-kyana-messages,
+        body.dark-mode .chapter-kyana-messages {
+          background: #0c0c0e !important;
+        }
+        [data-theme="dark"] .chapter-kyana-msg.user,
+        body.dark-mode .chapter-kyana-msg.user {
+          background: #27272a !important;
+          color: #ffffff !important;
+          border: 1px solid #3f3f46 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-msg.assistant,
+        body.dark-mode .chapter-kyana-msg.assistant {
+          background: #161618 !important;
+          color: #e4e4e7 !important;
+          border-color: #2e2e32 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-source-tag,
+        body.dark-mode .chapter-kyana-source-tag {
+          background: #27272a !important;
+          color: #e4e4e7 !important;
+          border-color: #3f3f46 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-source-tag.fallback,
+        body.dark-mode .chapter-kyana-source-tag.fallback {
+          background: #2e2412 !important;
+          color: #fbbf24 !important;
+          border-color: #78350f !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md,
+        [data-theme="dark"] .chapter-kyana-md .md-p,
+        [data-theme="dark"] .chapter-kyana-md p,
+        [data-theme="dark"] .chapter-kyana-md .md-li,
+        [data-theme="dark"] .chapter-kyana-md li,
+        body.dark-mode .chapter-kyana-md,
+        body.dark-mode .chapter-kyana-md .md-p,
+        body.dark-mode .chapter-kyana-md p,
+        body.dark-mode .chapter-kyana-md .md-li,
+        body.dark-mode .chapter-kyana-md li {
+          color: #e4e4e7 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md .md-h1,
+        [data-theme="dark"] .chapter-kyana-md h1,
+        [data-theme="dark"] .chapter-kyana-md .md-h2,
+        [data-theme="dark"] .chapter-kyana-md h2,
+        [data-theme="dark"] .chapter-kyana-md .md-h3,
+        [data-theme="dark"] .chapter-kyana-md h3,
+        [data-theme="dark"] .chapter-kyana-md strong,
+        body.dark-mode .chapter-kyana-md .md-h1,
+        body.dark-mode .chapter-kyana-md h1,
+        body.dark-mode .chapter-kyana-md .md-h2,
+        body.dark-mode .chapter-kyana-md h2,
+        body.dark-mode .chapter-kyana-md .md-h3,
+        body.dark-mode .chapter-kyana-md h3,
+        body.dark-mode .chapter-kyana-md strong {
+          color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md .md-h2,
+        [data-theme="dark"] .chapter-kyana-md h2,
+        [data-theme="dark"] .chapter-kyana-md .md-divider,
+        [data-theme="dark"] .chapter-kyana-md hr,
+        body.dark-mode .chapter-kyana-md .md-h2,
+        body.dark-mode .chapter-kyana-md h2,
+        body.dark-mode .chapter-kyana-md .md-divider,
+        body.dark-mode .chapter-kyana-md hr {
+          border-color: #2e2e32 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md em,
+        body.dark-mode .chapter-kyana-md em {
+          color: #d4d4d8 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md .md-blockquote,
+        [data-theme="dark"] .chapter-kyana-md blockquote,
+        body.dark-mode .chapter-kyana-md .md-blockquote,
+        body.dark-mode .chapter-kyana-md blockquote {
+          background: #1c1c20 !important;
+          border-left-color: #a1a1aa !important;
+          color: #d4d4d8 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md .md-inline-code,
+        [data-theme="dark"] .chapter-kyana-md code,
+        body.dark-mode .chapter-kyana-md .md-inline-code,
+        body.dark-mode .chapter-kyana-md code {
+          background: #27272a !important;
+          color: #f4f4f5 !important;
+          border-color: #3f3f46 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md .md-table-wrapper,
+        body.dark-mode .chapter-kyana-md .md-table-wrapper {
+          background: #161618 !important;
+          border-color: #2e2e32 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md .md-table th,
+        body.dark-mode .chapter-kyana-md .md-table th {
+          background: #202024 !important;
+          color: #f4f4f5 !important;
+          border-color: #2e2e32 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md .md-table td,
+        body.dark-mode .chapter-kyana-md .md-table td {
+          color: #e4e4e7 !important;
+          border-color: #2e2e32 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md .md-table tbody tr:nth-child(even),
+        body.dark-mode .chapter-kyana-md .md-table tbody tr:nth-child(even) {
+          background: #1b1b1f !important;
+        }
+        [data-theme="dark"] .chapter-kyana-md .md-link,
+        body.dark-mode .chapter-kyana-md .md-link {
+          color: #60a5fa !important;
+        }
+        [data-theme="dark"] .chapter-kyana-typing,
+        body.dark-mode .chapter-kyana-typing {
+          color: #a1a1aa !important;
+        }
+        [data-theme="dark"] .chapter-kyana-dots span,
+        body.dark-mode .chapter-kyana-dots span {
+          background: #a1a1aa !important;
+        }
+        [data-theme="dark"] .chapter-kyana-quick-bar,
+        [data-theme="dark"] .chapter-kyana-input-bar,
+        body.dark-mode .chapter-kyana-quick-bar,
+        body.dark-mode .chapter-kyana-input-bar {
+          background: #161618 !important;
+          border-top-color: #2e2e32 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-chip,
+        body.dark-mode .chapter-kyana-chip {
+          background: #202022 !important;
+          border-color: #38383c !important;
+          color: #e4e4e7 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-chip:hover,
+        body.dark-mode .chapter-kyana-chip:hover {
+          background: #f4f4f5 !important;
+          color: #09090b !important;
+          border-color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-input,
+        body.dark-mode .chapter-kyana-input {
+          background: #111113 !important;
+          border-color: #38383c !important;
+          color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-input::placeholder,
+        body.dark-mode .chapter-kyana-input::placeholder {
+          color: #71717a !important;
+        }
+        [data-theme="dark"] .chapter-kyana-input:focus,
+        body.dark-mode .chapter-kyana-input:focus {
+          background: #18181b !important;
+          border-color: #71717a !important;
+        }
+        [data-theme="dark"] .chapter-kyana-send-btn,
+        body.dark-mode .chapter-kyana-send-btn {
+          background: #f4f4f5 !important;
+          color: #09090b !important;
+        }
+        [data-theme="dark"] .chapter-kyana-send-btn svg,
+        body.dark-mode .chapter-kyana-send-btn svg {
+          stroke: #09090b !important;
+        }
+        [data-theme="dark"] .chapter-kyana-send-btn:hover:not(:disabled),
+        body.dark-mode .chapter-kyana-send-btn:hover:not(:disabled) {
+          background: #e4e4e7 !important;
+        }
       `;
       document.head.appendChild(style);
+    })();
+
+    (function initDrawerSplitResizer() {
+      const workspace = document.getElementById('drawerWorkspace');
+      const resizer = document.getElementById('drawerSplitResizer');
+      if (!workspace || !resizer) return;
+
+      const STORAGE_KEY = 'sl_split_pane_right_pct';
+      const MIN_PCT = 24;
+      const MAX_PCT = 76;
+      const DEFAULT_PCT = 40;
+
+      const clampPct = (val) => Math.min(MAX_PCT, Math.max(MIN_PCT, Number(val) || DEFAULT_PCT));
+
+      const applyPct = (pct, persist = false) => {
+        const clamped = Math.round(clampPct(pct) * 10) / 10;
+        workspace.style.setProperty('--drawer-right-width', `${clamped}%`);
+        if (persist) {
+          try { localStorage.setItem(STORAGE_KEY, String(clamped)); } catch (_) {}
+        }
+        return clamped;
+      };
+
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) applyPct(saved, false);
+      } catch (_) {}
+
+      let dragging = false;
+
+      const onMove = (clientX) => {
+        if (!dragging) return;
+        const rect = workspace.getBoundingClientRect();
+        if (!rect.width) return;
+        const rightPct = ((rect.right - clientX) / rect.width) * 100;
+        applyPct(rightPct, false);
+      };
+
+      const stopDrag = () => {
+        if (!dragging) return;
+        dragging = false;
+        workspace.classList.remove('is-resizing');
+        const current = parseFloat(workspace.style.getPropertyValue('--drawer-right-width')) || DEFAULT_PCT;
+        applyPct(current, true);
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', stopDrag);
+        window.removeEventListener('touchmove', onTouchMove);
+        window.removeEventListener('touchend', stopDrag);
+        window.removeEventListener('touchcancel', stopDrag);
+      };
+
+      const onMouseMove = (e) => {
+        if (e.cancelable) e.preventDefault();
+        onMove(e.clientX);
+      };
+
+      const onTouchMove = (e) => {
+        if (e.cancelable) e.preventDefault();
+        if (e.touches && e.touches[0]) onMove(e.touches[0].clientX);
+      };
+
+      const startDrag = (e) => {
+        if (window.innerWidth <= 900) return;
+        if (e.type === 'mousedown' && e.button !== 0) return;
+        if (e.cancelable) e.preventDefault();
+        dragging = true;
+        workspace.classList.add('is-resizing');
+        window.addEventListener('mousemove', onMouseMove, { passive: false });
+        window.addEventListener('mouseup', stopDrag);
+        window.addEventListener('touchmove', onTouchMove, { passive: false });
+        window.addEventListener('touchend', stopDrag);
+        window.addEventListener('touchcancel', stopDrag);
+      };
+
+      resizer.addEventListener('mousedown', startDrag);
+      resizer.addEventListener('touchstart', startDrag, { passive: false });
+      resizer.addEventListener('dblclick', () => {
+        applyPct(DEFAULT_PCT, true);
+      });
+      resizer.addEventListener('keydown', (e) => {
+        if (window.innerWidth <= 900) return;
+        const current = parseFloat(workspace.style.getPropertyValue('--drawer-right-width')) || DEFAULT_PCT;
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          applyPct(current + 2, true);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          applyPct(current - 2, true);
+        }
+      });
     })();
 
     let ACTIVE_CHAPTER_KYANA_STATE = {
@@ -8006,34 +8500,8 @@
       // Build continuous vertical sections: 1st PDF -> connector -> 2nd PDF -> connector -> 3rd PDF...
       let html = '';
       files.forEach((file, idx) => {
-        const rawViewUrl = file.viewUrl || `/api/files/${file.id}/view`;
-        const viewUrl = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
-          ? window.SemesterAuth.attachAuthTokenToUrl(rawViewUrl)
-          : rawViewUrl;
-        const rawDlUrl = file.downloadUrl || `/api/files/${file.id}/download`;
-        const dlUrl = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
-          ? window.SemesterAuth.attachAuthTokenToUrl(rawDlUrl)
-          : rawDlUrl;
-
         html += `
           <section class="continuous-doc-section" id="continuousDoc_${file.id}" data-file-id="${file.id}" data-doc-index="${idx}">
-            <div class="continuous-doc-header">
-              <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
-                <span class="continuous-doc-seq">NOTE ${idx + 1} OF ${files.length}</span>
-                <div style="min-width:0; flex:1;">
-                  <h4 style="margin:0; font-size:14px; font-weight:800; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                    ${escapeHtml(file.title || file.originalName || `Chapter Note ${idx + 1}`)}
-                  </h4>
-                  <p id="continuousDocMeta_${file.id}" style="margin:0; font-size:11px; color:#64748b;">
-                    ${escapeHtml(file.chapter || ACTIVE_CHAPTER_KYANA_STATE.chapterTitle)} ${file.pageCount ? `&middot; ${file.pageCount} pages` : ''}
-                  </p>
-                </div>
-              </div>
-              <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                <a href="${viewUrl}" target="_blank" class="preview-action-btn" style="font-size:11px; padding:5px 10px;">Open Tab</a>
-                <a href="${dlUrl}" download class="preview-action-btn primary" style="font-size:11px; padding:5px 10px;">Download</a>
-              </div>
-            </div>
             <div class="continuous-doc-pages" id="continuousDocPages_${file.id}">
               <div class="loading-container" style="padding:36px 12px;">
                 <div class="loading-spinner" style="width:22px; height:22px; border-width:2px; margin-bottom:8px;"></div>
@@ -8395,18 +8863,25 @@
       const normalized = normalizeChapterKyanaMarkdownInput(text);
       if (!normalized) return '';
       if (window.KyanaAdaptiveRenderer && typeof window.KyanaAdaptiveRenderer.fallbackMarkdown === 'function') {
-        // First replace any structured visual blocks (logic_sim, live_demo, study_session, diagram, pyq_card)
-        let working = normalized.replace(
-          /```(study_session|pyq_card|live_demo|logic_sim|interactive_demo|roadmap|timeline|diagram|flowchart|trace)[ \t]*\n([\s\S]*?)```/gi,
+        const visualBlocks = [];
+        const working = normalized.replace(
+          /```(study_session|learning_session|pyq_card|live_demo|logic_sim|interactive_demo|roadmap|timeline|diagram|flowchart|trace|checkpoint_question|chapter_summary|source_reference)[ \t]*\n([\s\S]*?)```/gi,
           (_, kind, payload) => {
-            const html = window.KyanaAdaptiveRenderer.renderAdaptiveVisualBlockHtml(kind, payload);
-            return html || '';
+            const html = window.KyanaAdaptiveRenderer.renderAdaptiveVisualBlockHtml(kind === 'learning_session' ? 'study_session' : kind, payload);
+            if (!html) return '';
+            const idx = visualBlocks.length;
+            visualBlocks.push(html);
+            return `\nKYANACHAPTERVISUALTOKEN${idx}END\n`;
           }
         );
-        if (typeof window.renderPostMarkdown === 'function') {
-          return window.renderPostMarkdown(working);
-        }
-        return window.KyanaAdaptiveRenderer.fallbackMarkdown(working);
+        let rendered = window.KyanaAdaptiveRenderer.fallbackMarkdown(working);
+        visualBlocks.forEach((html, idx) => {
+          const token = `KYANACHAPTERVISUALTOKEN${idx}END`;
+          rendered = rendered
+            .replace(new RegExp(`<p>\\s*${token}\\s*</p>`, 'g'), html)
+            .split(token).join(html);
+        });
+        return rendered;
       }
       if (typeof window.renderPostMarkdown === 'function') {
         return window.renderPostMarkdown(normalized);
@@ -8499,6 +8974,35 @@
             updateSimulator();
           });
         });
+      });
+
+      container.querySelectorAll('.kyana-live-demo-card').forEach((card) => {
+        if (card.dataset.wired === '1') return;
+        card.dataset.wired = '1';
+        const payloadRaw = card.getAttribute('data-demo-payload');
+        const frame = card.querySelector('.kyana-live-demo-frame');
+        const tabs = card.querySelectorAll('.kyana-live-demo-tab');
+        try {
+          const demoData = JSON.parse(payloadRaw || '{}');
+          const applyVariant = (idx) => {
+            const variant = (demoData.variants || [])[idx] || {};
+            if (frame) {
+              frame.srcdoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>*{box-sizing:border-box;}body{margin:0;padding:16px;}${variant.css || ''}</style></head><body>${demoData.html || ''}</body></html>`;
+            }
+            tabs.forEach((btn, bIdx) => {
+              const isActive = bIdx === idx;
+              btn.classList.toggle('active', isActive);
+              btn.style.background = isActive ? '#ffffff' : '#1c1c1c';
+              btn.style.color = isActive ? '#080808' : '#a1a1aa';
+            });
+          };
+          applyVariant(0);
+          tabs.forEach((btn) => {
+            btn.addEventListener('click', () => {
+              applyVariant(Number(btn.getAttribute('data-variant-index')) || 0);
+            });
+          });
+        } catch (_) {}
       });
     }
 
@@ -8630,21 +9134,7 @@
           badgeHtml = `<div class="chapter-kyana-source-tag"><span>GROUNDED IN CHAPTER NOTES & SYLLABUS</span></div>`;
         }
 
-        thinkingBubble.innerHTML = `${badgeHtml}<div class="chapter-kyana-md">${formatChapterKyanaMarkdown(replyText)}</div>`;
-        wireInteractiveBlocksInContainer(thinkingBubble);
-        if (window.renderMathInElement) {
-          try {
-            window.renderMathInElement(thinkingBubble, {
-              delimiters: [
-                { left: '$$', right: '$$', display: true },
-                { left: '$', right: '$', display: false },
-                { left: '\\[', right: '\\]', display: true },
-                { left: '\\(', right: '\\)', display: false }
-              ],
-              throwOnError: false
-            });
-          } catch (_) {}
-        }
+        await animateChapterKyanaReply(thinkingBubble, msgBox, badgeHtml, replyText);
 
         // Save both user and assistant messages to conversation history for follow-ups ("I don't understand", "Give me an example")
         ACTIVE_CHAPTER_KYANA_STATE.history.push({ role: 'user', content: message });
@@ -8657,6 +9147,105 @@
         if (sendBtn) sendBtn.disabled = false;
         msgBox.scrollTop = msgBox.scrollHeight;
       }
+    }
+
+    function stabilizeChapterStreamingText(rawText) {
+      if (window.KyanaAdaptiveRenderer && typeof window.KyanaAdaptiveRenderer.stabilizeStreamingMarkdown === 'function') {
+        return window.KyanaAdaptiveRenderer.stabilizeStreamingMarkdown(rawText);
+      }
+      let text = String(rawText || '');
+      const fenceMatches = text.match(/```[^\n]*/g) || [];
+      if (fenceMatches.length % 2 === 1) {
+        const lastFence = text.lastIndexOf('```');
+        if (lastFence !== -1) {
+          const afterFence = text.slice(lastFence);
+          if (/^```(study_session|learning_session|pyq_card|live_demo|logic_sim|interactive_demo|roadmap|timeline|diagram|flowchart|trace|checkpoint_question|chapter_summary|source_reference)/i.test(afterFence)) {
+            text = text.slice(0, lastFence).trimEnd();
+          } else {
+            text += '\n```';
+          }
+        }
+      }
+      return text;
+    }
+
+    function renderMathInChapterBubble(el) {
+      if (!el || !window.renderMathInElement) return;
+      try {
+        window.renderMathInElement(el, {
+          delimiters: [
+            { left: '$$', right: '$$', display: true },
+            { left: '$', right: '$', display: false },
+            { left: '\\[', right: '\\]', display: true },
+            { left: '\\(', right: '\\)', display: false }
+          ],
+          throwOnError: false
+        });
+      } catch (_) {}
+    }
+
+    function animateChapterKyanaReply(bubble, msgBox, badgeHtml, fullText) {
+      const text = String(fullText || '');
+      const finalize = () => {
+        bubble.innerHTML = `${badgeHtml}<div class="chapter-kyana-md">${formatChapterKyanaMarkdown(text)}</div>`;
+        wireInteractiveBlocksInContainer(bubble);
+        renderMathInChapterBubble(bubble);
+        if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+      };
+
+      const prefersReducedMotion = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (prefersReducedMotion || text.length < 40 || typeof window.requestAnimationFrame !== 'function') {
+        finalize();
+        return Promise.resolve();
+      }
+
+      return new Promise((resolve) => {
+        bubble.innerHTML = `${badgeHtml}<div class="chapter-kyana-md"></div>`;
+        const mdContainer = bubble.querySelector('.chapter-kyana-md');
+        const totalLen = text.length;
+        const durationMs = Math.min(2400, Math.max(700, totalLen * 2.2));
+        const startTime = performance.now();
+        let lastRenderedLen = 0;
+
+        const step = (now) => {
+          if (!bubble.isConnected) {
+            resolve();
+            return;
+          }
+          const elapsed = now - startTime;
+          const progress = Math.min(1, elapsed / durationMs);
+          const eased = 1 - Math.pow(1 - progress, 1.35);
+          let targetLen = Math.floor(eased * totalLen);
+
+          if (targetLen < totalLen) {
+            const nextSpace = text.indexOf(' ', targetLen);
+            if (nextSpace !== -1 && nextSpace - targetLen <= 14) {
+              targetLen = nextSpace + 1;
+            }
+          } else {
+            targetLen = totalLen;
+          }
+
+          if (targetLen > lastRenderedLen || targetLen === totalLen) {
+            lastRenderedLen = targetLen;
+            const slice = stabilizeChapterStreamingText(text.slice(0, targetLen));
+            const nearBottom = msgBox ? (msgBox.scrollHeight - msgBox.scrollTop - msgBox.clientHeight < 90) : false;
+            mdContainer.innerHTML = formatChapterKyanaMarkdown(slice);
+            if (nearBottom && msgBox) {
+              msgBox.scrollTop = msgBox.scrollHeight;
+            }
+          }
+
+          if (progress < 1) {
+            requestAnimationFrame(step);
+          } else {
+            finalize();
+            resolve();
+          }
+        };
+
+        requestAnimationFrame(step);
+      });
     }
   </script>
 

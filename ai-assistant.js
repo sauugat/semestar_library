@@ -1653,6 +1653,20 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       result.matchedRoutine = agentResult.matchedRoutine || [];
       result.matchedCourses = agentResult.matchedCourses || [];
       result.agentTrace = agentResult.agentTrace || null;
+      {
+        const { sanitizeAdaptiveResponse, planAdaptivePresentation, buildAdaptiveEducationalFallback } = require('./lib/adaptive-presentation-engine');
+        const adaptivePlan = planAdaptivePresentation(message, { isStudySession: result.intent === 'study_partner' });
+        result.presentationProfile = adaptivePlan.profile;
+        if (
+          (!result.matchedFiles || result.matchedFiles.length === 0) &&
+          /\[Note:\s*No specific course notes were found/i.test(result.reply || '') &&
+          ['interactive_simulation', 'truth_table', 'mathematical_derivation', 'simple_definition', 'comparison_table', 'programming_code', 'visual_diagram'].includes(adaptivePlan.profile)
+        ) {
+          const enriched = buildAdaptiveEducationalFallback(message, { plan: adaptivePlan });
+          if (enriched) result.reply = enriched;
+        }
+        result.reply = sanitizeAdaptiveResponse(result.reply || '');
+      }
       if (result.resourceCards.length > 0) {
         setLastCards(sessionKey, result.resourceCards);
       }
@@ -2680,6 +2694,20 @@ ${evidenceBlocks}
         result.resourceCards = fallbackAgent.resourceCards || [];
         result.matchedFiles = fallbackAgent.matchedFiles || [];
         result.agentTrace = fallbackAgent.agentTrace || null;
+        {
+          const { sanitizeAdaptiveResponse, planAdaptivePresentation, buildAdaptiveEducationalFallback } = require('./lib/adaptive-presentation-engine');
+          const adaptivePlan = planAdaptivePresentation(message, { isStudySession: result.intent === 'study_partner' });
+          result.presentationProfile = adaptivePlan.profile;
+          if (
+            (!result.matchedFiles || result.matchedFiles.length === 0) &&
+            /\[Note:\s*No specific course notes were found/i.test(result.reply || '') &&
+            ['interactive_simulation', 'truth_table', 'mathematical_derivation', 'simple_definition', 'comparison_table', 'programming_code', 'visual_diagram'].includes(adaptivePlan.profile)
+          ) {
+            const enriched = buildAdaptiveEducationalFallback(message, { plan: adaptivePlan });
+            if (enriched) result.reply = enriched;
+          }
+          result.reply = sanitizeAdaptiveResponse(result.reply || '');
+        }
         return result;
       }
 

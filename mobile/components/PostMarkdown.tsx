@@ -719,8 +719,8 @@ function PostMarkdownInternal({
         const isPreviewOpen = Boolean(previewBlocks[blockIndex]);
         const langLower = block.lang.toLowerCase();
 
-        // Structured component handling (roadmap, timeline, diagram, flowchart, trace, study_session, pyq_card, logic_sim, interactive_demo)
-        const isStructuredKind = /^(study_session|learning_session|pyq_card|logic_sim|interactive_demo|live_demo|roadmap|timeline|diagram|flowchart|trace)$/.test(langLower);
+        // Structured component handling (roadmap, timeline, diagram, flowchart, trace, study_session, pyq_card, logic_sim, interactive_demo, checkpoint_question, chapter_summary, source_reference)
+        const isStructuredKind = /^(study_session|learning_session|pyq_card|logic_sim|interactive_demo|live_demo|roadmap|timeline|diagram|flowchart|trace|checkpoint_question|chapter_summary|source_reference)$/.test(langLower);
         if (isStructuredKind) {
           if (block.code.trim().startsWith('{') && block.code.length <= 32768) {
             try {
@@ -745,7 +745,8 @@ function PostMarkdownInternal({
                 const curSim = simState[blockIndex] || { gateIdx: 0, a: 0, b: 0 };
                 const activeGate = gates[curSim.gateIdx] || gates[0];
                 const singleInput = Array.isArray(activeGate.inputs) && activeGate.inputs.length === 1;
-                const matchedRow = (activeGate.truthTable || []).find(
+                const truthRows = Array.isArray(activeGate.truthTable) ? activeGate.truthTable : [];
+                const matchedRow = truthRows.find(
                   (r: any) => Number(r.A) === curSim.a && (singleInput || Number(r.B) === curSim.b)
                 ) || { Y: 0 };
 
@@ -761,9 +762,14 @@ function PostMarkdownInternal({
                       },
                     ]}
                   >
-                    <Text style={[styles.codeLang, { color: colors.textSecondary, marginBottom: 6 }]}>
+                    <Text style={[styles.codeLang, { color: colors.textSecondary, marginBottom: 4 }]}>
                       {String(parsedVisual.title || 'INTERACTIVE LOGIC GATE SIMULATOR').toUpperCase()}
                     </Text>
+                    {Boolean(activeGate.description) && (
+                      <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 8 }}>
+                        {String(activeGate.description)}
+                      </Text>
+                    )}
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
                       {gates.map((g: any, gIdx: number) => {
                         const isAct = gIdx === curSim.gateIdx;
@@ -792,7 +798,7 @@ function PostMarkdownInternal({
                         );
                       })}
                     </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
                       <View style={{ flexDirection: 'row', gap: 8 }}>
                         <TouchableOpacity
                           onPress={() =>
@@ -835,30 +841,137 @@ function PostMarkdownInternal({
                           </TouchableOpacity>
                         )}
                       </View>
-                      <View
-                        style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 6,
-                          borderRadius: 8,
-                          backgroundColor: Number(matchedRow.Y) === 1 ? colors.text : 'transparent',
-                          borderWidth: 1,
-                          borderColor: colors.border,
-                        }}
-                      >
-                        <Text
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ fontSize: 12, color: colors.textSecondary, fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }) }}>
+                          Y = {String(activeGate.symbol || activeGate.gate)}
+                        </Text>
+                        <View
                           style={{
-                            fontWeight: '800',
-                            fontSize: 12.5,
-                            color: Number(matchedRow.Y) === 1 ? colors.background : colors.text,
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                            backgroundColor: Number(matchedRow.Y) === 1 ? colors.text : 'transparent',
+                            borderWidth: 1,
+                            borderColor: colors.border,
                           }}
                         >
-                          Output Y = {Number(matchedRow.Y) || 0}
-                        </Text>
+                          <Text
+                            style={{
+                              fontWeight: '800',
+                              fontSize: 12.5,
+                              color: Number(matchedRow.Y) === 1 ? colors.background : colors.text,
+                            }}
+                          >
+                            Output Y = {Number(matchedRow.Y) || 0}
+                          </Text>
+                        </View>
                       </View>
                     </View>
+                    {truthRows.length > 0 && (
+                      <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 8, overflow: 'hidden' }}>
+                        <View style={{ flexDirection: 'row', backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)', borderBottomWidth: 1, borderBottomColor: colors.border }}>
+                          <Text style={{ flex: 1, textAlign: 'center', paddingVertical: 5, fontSize: 11.5, fontWeight: '700', color: colors.text }}>Input A</Text>
+                          {!singleInput && (
+                            <Text style={{ flex: 1, textAlign: 'center', paddingVertical: 5, fontSize: 11.5, fontWeight: '700', color: colors.text }}>Input B</Text>
+                          )}
+                          <Text style={{ flex: 1, textAlign: 'center', paddingVertical: 5, fontSize: 11.5, fontWeight: '700', color: colors.text }}>Output Y</Text>
+                        </View>
+                        {truthRows.map((row: any, rIdx: number) => {
+                          const isCurrentRow = Number(row.A) === curSim.a && (singleInput || Number(row.B) === curSim.b);
+                          return (
+                            <View
+                              key={`tt-row-${rIdx}`}
+                              style={{
+                                flexDirection: 'row',
+                                backgroundColor: isCurrentRow ? (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)') : 'transparent',
+                                borderBottomWidth: rIdx < truthRows.length - 1 ? 1 : 0,
+                                borderBottomColor: colors.border,
+                              }}
+                            >
+                              <Text style={{ flex: 1, textAlign: 'center', paddingVertical: 5, fontSize: 12, fontWeight: isCurrentRow ? '700' : '400', color: colors.text }}>{row.A}</Text>
+                              {!singleInput && (
+                                <Text style={{ flex: 1, textAlign: 'center', paddingVertical: 5, fontSize: 12, fontWeight: isCurrentRow ? '700' : '400', color: colors.text }}>{row.B}</Text>
+                              )}
+                              <Text style={{ flex: 1, textAlign: 'center', paddingVertical: 5, fontSize: 12, fontWeight: '700', color: colors.text }}>{row.Y}</Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
                   </View>
                 );
                 continue;
+              }
+
+              if (langLower === 'live_demo' || (parsedVisual?.demoType === 'web_live_preview' && Array.isArray(parsedVisual?.variants))) {
+                const variants = Array.isArray(parsedVisual?.variants) ? parsedVisual.variants : [];
+                if (variants.length > 0) {
+                  const curVarIdx = (simState[blockIndex]?.gateIdx || 0) < variants.length ? (simState[blockIndex]?.gateIdx || 0) : 0;
+                  const activeVariant = variants[curVarIdx] || variants[0];
+                  const demoDoc = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"><style>*{box-sizing:border-box;}body{margin:0;padding:12px;font-family:-apple-system,BlinkMacSystemFont,Roboto,sans-serif;background:#fff;color:#111827;}${String(activeVariant.css || '')}</style></head><body>${String(parsedVisual.html || '')}</body></html>`;
+                  renderedElements.push(
+                    <View
+                      key={`live-demo-${i}`}
+                      style={[
+                        styles.codeBlockContainer,
+                        {
+                          backgroundColor: isDark ? '#141416' : '#f8fafc',
+                          borderColor: colors.border,
+                          padding: 12,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.codeLang, { color: colors.textSecondary, marginBottom: 4 }]}>
+                        {String(parsedVisual.title || 'INTERACTIVE LIVE DEMO').toUpperCase()}
+                      </Text>
+                      {Boolean(parsedVisual.subtitle) && (
+                        <Text style={{ fontSize: 12, color: colors.textSecondary, marginBottom: 8 }}>
+                          {String(parsedVisual.subtitle)}
+                        </Text>
+                      )}
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                        {variants.map((v: any, vIdx: number) => {
+                          const isAct = vIdx === curVarIdx;
+                          return (
+                            <TouchableOpacity
+                              key={`demo-var-${vIdx}`}
+                              onPress={() =>
+                                setSimState((prev) => ({
+                                  ...prev,
+                                  [blockIndex]: { ...(prev[blockIndex] || { a: 0, b: 0 }), gateIdx: vIdx },
+                                }))
+                              }
+                              style={{
+                                paddingHorizontal: 10,
+                                paddingVertical: 4,
+                                borderRadius: 999,
+                                borderWidth: 1,
+                                borderColor: colors.border,
+                                backgroundColor: isAct ? colors.text : 'transparent',
+                              }}
+                            >
+                              <Text style={{ fontSize: 11.5, fontWeight: '700', color: isAct ? colors.background : colors.text }}>
+                                {String(v.label || `Style ${vIdx + 1}`)}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                      <WebView
+                        originWhitelist={['*']}
+                        source={{ html: demoDoc }}
+                        style={styles.codePreviewWebView}
+                        scrollEnabled={true}
+                      />
+                      {Boolean(parsedVisual.caption) && (
+                        <Text style={{ fontSize: 11.5, color: colors.textSecondary, marginTop: 6 }}>
+                          {String(parsedVisual.caption)}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                  continue;
+                }
               }
 
               const rawItems = Array.isArray(parsedVisual?.steps)

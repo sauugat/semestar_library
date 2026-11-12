@@ -389,3 +389,61 @@ test('Scenario 12: Malformed structured block -> stripped cleanly so raw JSON or
   assert.match(libraryHtmlSource, /wireInteractiveBlocksInContainer/);
   assert.match(postMarkdownSource, /logic_sim/);
 });
+
+test('Phase 2 Regression: sanitizeAdaptiveResponse preserves closed logic_sim at end of response while stripping unclosed trailing fences', () => {
+  const simPayload = JSON.stringify(buildLogicGateSimulatorPayload(['AND', 'OR', 'NOT']));
+  const validWithTrailingSim = [
+    '## Logic Gates: AND, OR, NOT',
+    '',
+    'Try toggling inputs $A$ and $B$ below:',
+    '',
+    '```logic_sim',
+    simPayload,
+    '```'
+  ].join('\n');
+
+  const sanitized = sanitizeAdaptiveResponse(validWithTrailingSim);
+  assert.match(sanitized, /```logic_sim\n[\s\S]*```/, 'Valid closed logic_sim at end of response must be preserved');
+
+  const withUnclosedTrailing = validWithTrailingSim + '\n\n```study_session\n{"course":"Partial';
+  const stripped = sanitizeAdaptiveResponse(withUnclosedTrailing);
+  assert.match(stripped, /```logic_sim\n[\s\S]*```/, 'Earlier valid logic_sim must remain');
+  assert.ok(!stripped.includes('study_session'), 'Unclosed trailing structured fence must be stripped');
+});
+
+test('Phase 2 Regression: Library Chapter Tutor protects visual HTML blocks from escaping and loads KaTeX', () => {
+  assert.match(libraryHtmlSource, /katex@0\.16\.11\/dist\/katex\.min\.css/);
+  assert.match(libraryHtmlSource, /KYANACHAPTERVISUALTOKEN/);
+  assert.match(postMarkdownSource, /checkpoint_question\|chapter_summary\|source_reference/);
+  assert.match(postMarkdownSource, /truthRows\.map/);
+});
+
+test('Phase 2 Regression: Logic gate queries are not hijacked into study_partner and core CS/math topics stay in scope', () => {
+  const { isStudyPartnerQuery, academicRequest } = require('../lib/chat-tools');
+  assert.equal(isStudyPartnerQuery('Teach me AND, OR and NOT gates.'), false);
+  assert.equal(isStudyPartnerQuery('Teach me Unit 1 of Web Technology I step by step'), true);
+  assert.equal(academicRequest('Explain the OSI 7-layer model architecture and how data flows through each layer'), true);
+  assert.equal(academicRequest('Derive the quadratic formula step by step'), true);
+});
+
+test('Phase 2.1: Explicit interactive CSS flexbox demo produces validated live_demo playground', () => {
+  const query = 'Show how CSS flexbox works with an interactive demo.';
+  const plan = planAdaptivePresentation(query);
+  assert.equal(plan.profile, PRESENTATION_PROFILES.PROGRAMMING_CODE);
+  assert.equal(plan.useInteractiveDemo, true);
+  assert.ok(plan.allowedComponents.includes(COMPONENT_TYPES.INTERACTIVE_DEMO));
+
+  const reply = buildAdaptiveEducationalFallback(query, { plan });
+  const cleaned = sanitizeAdaptiveResponse(reply);
+  assert.match(cleaned, /```css\n/);
+  assert.match(cleaned, /```live_demo\n/);
+
+  const match = cleaned.match(/```live_demo\n([\s\S]*?)\n```/);
+  assert.ok(match, 'Should contain valid live_demo fenced block');
+  const html = renderAdaptiveVisualBlockHtml('live_demo', match[1]);
+  assert.ok(html, 'live_demo should render HTML');
+  assert.match(html, /kyana-live-demo-card/);
+  assert.match(html, /Row · Space-Between/);
+  assert.match(libraryHtmlSource, /kyana-live-demo-card/);
+  assert.match(postMarkdownSource, /web_live_preview/);
+});

@@ -1045,6 +1045,17 @@
       </div>`;
     }
 
+    if (kind === 'checkpoint_question' || kind === 'chapter_summary' || kind === 'source_reference') {
+      if (!parsedJson || typeof parsedJson !== 'object') return null;
+      const heading = escapeHtml(safeTrunc(parsedJson.title || parsedJson.unit || kind.replace(/_/g, ' '), 120));
+      const bodyText = escapeHtml(safeTrunc(parsedJson.questionText || parsedJson.summary || parsedJson.text || parsedJson.fileTitle || '', 320));
+      if (!bodyText) return null;
+      return `<div class="kyana-adaptive-visual kyana-visual-${escapeHtml(kind)}" style="margin:10px 0;padding:12px 14px;border-radius:12px;border:1px solid rgba(128,128,128,0.22);background:rgba(128,128,128,0.04);max-width:100%;box-sizing:border-box;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;opacity:0.7;margin-bottom:6px;">${heading}</div>
+        <div style="font-size:13px;line-height:1.5;">${bodyText}</div>
+      </div>`;
+    }
+
     return null;
   }
 
@@ -1294,7 +1305,7 @@
         const langKey = langName.toLowerCase();
 
         // Render structured adaptive visual blocks safely (never expose malformed structured JSON)
-        if (/^(study_session|learning_session|pyq_card|live_demo|logic_sim|interactive_demo|roadmap|timeline|diagram|flowchart|trace)$/.test(langKey)) {
+        if (/^(study_session|learning_session|pyq_card|live_demo|logic_sim|interactive_demo|roadmap|timeline|diagram|flowchart|trace|checkpoint_question|chapter_summary|source_reference)$/.test(langKey)) {
           const normalizedLang = langKey === 'learning_session' ? 'study_session' : langKey;
           const visualHtml = renderAdaptiveVisualBlockHtml(normalizedLang, rawCode);
           if (visualHtml) {

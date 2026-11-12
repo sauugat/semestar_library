@@ -18,7 +18,15 @@ const PREFLIGHT_VARS = [
   },
   {
     name: 'DOC_VISION_MODEL',
-    disables: 'Gemini Vision OCR extraction (pages needing Vision fail non-transiently with VISION_MODEL_UNCONFIGURED)'
+    disables: 'Strict requirement for vision OCR (no fallback models). If missing, vision pages fail with VISION_MODEL_UNCONFIGURED'
+  },
+  {
+    name: 'DOC_NEPALI_REPAIR',
+    disables: 'Nepali Devanagari repair pipeline (default false = English only; set to "true" to enable Devanagari corruption & mojibake checks)'
+  },
+  {
+    name: 'DOC_VISION_ENRICH',
+    disables: 'Tier 2 image/figure vision enrichment (default false; when unset/false, good-text figure pages use text layer directly)'
   },
   {
     name: 'KYANA_KNOWLEDGE_V3',

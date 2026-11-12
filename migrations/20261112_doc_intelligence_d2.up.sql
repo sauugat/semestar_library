@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS document_pages (
   attempts INTEGER NOT NULL DEFAULT 0,
   error TEXT,
   parser_version TEXT NOT NULL DEFAULT 'd2-v1',
+  tier SMALLINT NOT NULL DEFAULT 1 CHECK (tier IN (1, 2)),
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS document_pages (
 CREATE UNIQUE INDEX IF NOT EXISTS uq_dp_file_page ON document_pages (file_id, page_no);
 CREATE INDEX IF NOT EXISTS idx_dp_file_status ON document_pages (file_id, status);
 CREATE INDEX IF NOT EXISTS idx_dp_needs_vision ON document_pages (file_id) WHERE source = 'vision' OR latex_present = TRUE;
+CREATE INDEX IF NOT EXISTS idx_dp_tier_order ON document_pages (file_id, tier, page_no);
 
 -- 2. Asynchronous document ingestion jobs (state machine, lease, checkpoint & dedup)
 CREATE TABLE IF NOT EXISTS ingestion_jobs (

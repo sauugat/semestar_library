@@ -514,7 +514,7 @@ test('3. Fixture 1 (Clean typed multi-page PDF): extracts via text_layer with 0 
   const outcome = await processNextIngestionJob(db, {
     fetchImpl,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(outcome.status, 'completed');
@@ -579,7 +579,7 @@ test('4. Fixture 2 & 3 (Scanned image-only PDF & Mixed typed + scanned + blank P
   const summary = await runIngestionWorkerLoop(db, {
     fetchImpl,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(summary.processedJobs, 2);
@@ -638,7 +638,7 @@ test('5. Fixture 4 (Nepali Devanagari UTF-8 & Preeti legacy mojibake): UTF-8 sta
   const outcome = await processNextIngestionJob(db, {
     fetchImpl,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(outcome.status, 'completed');
@@ -738,7 +738,7 @@ test('6. Fixture 5 (Large 120-page PDF + lease expiry resume + 60-vision-page qu
     fetchImpl,
     retryBackoffMs: 0,
     maxVisionPages: 60,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(capOutcome.status, 'partial_success');
@@ -758,7 +758,7 @@ test('6. Fixture 5 (Large 120-page PDF + lease expiry resume + 60-vision-page qu
     fetchImpl,
     retryBackoffMs: 0,
     maxVisionPages: 70,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(resumeQuotaOutcome.status, 'completed');
@@ -831,7 +831,7 @@ test('7. Fixture 6 (Password-protected PDF, corrupt PDF, transient 429/503 retri
     fetchImpl,
     retryBackoffMs: 0,
     maxPageAttempts: 3,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(isoOutcome.status, 'partial_success');
@@ -873,7 +873,7 @@ test('8. Fixture 7 (Duplicate upload content_hash dedup): second upload transiti
   const res1 = await processNextIngestionJob(db, {
     fetchImpl,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
   assert.equal(res1.status, 'completed');
   assert.equal(calls.length, 1);
@@ -885,7 +885,7 @@ test('8. Fixture 7 (Duplicate upload content_hash dedup): second upload transiti
   const res2 = await processNextIngestionJob(db, {
     fetchImpl,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(res2.status, 'dedup_reused');
@@ -993,7 +993,7 @@ test('9. D1 Section 11 Fixtures (Math-heavy, Diagrams/Figures, Tables, Handwritt
   const outcome = await processNextIngestionJob(db, {
     fetchImpl,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(outcome.status, 'completed');
@@ -1149,7 +1149,7 @@ test('11. Per-page Vision timeout (AbortController) & pgPool transaction claim p
     pageTimeoutMs: 40,
     maxPageAttempts: 2,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(beginCount, 1);
@@ -1400,7 +1400,7 @@ test('14. Fix D: pdf-lib sends only 1-page (or <=3 consecutive page batch) slice
   const out1 = await processNextIngestionJob(db, {
     fetchImpl: singleFetch,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
   assert.equal(out1.status, 'completed');
   assert.deepEqual(singleCallPageCounts, [1, 1, 1, 1], 'Each default vision call must carry exactly a 1-page slice');
@@ -1518,7 +1518,7 @@ test('14. Fix D: pdf-lib sends only 1-page (or <=3 consecutive page batch) slice
     fetchImpl: fallbackFetch,
     inlinePdfMaxBytes: 10,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
   assert.equal(out4.status, 'completed');
   assert.equal(fallbackCalls.some(c => c.url.includes('/upload/v1beta/files')), true);
@@ -1576,7 +1576,7 @@ test('15. Fix E: Drift check lowers confidence and flags PAGE_DRIFT_SUSPECTED wh
   const out = await processNextIngestionJob(db, {
     fetchImpl,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
   assert.equal(out.status, 'completed');
 
@@ -1685,7 +1685,7 @@ test('17. Fix G: Cost tracking columns record vision_calls, vision_input_tokens,
     fetchImpl: usageFetch,
     maxVisionPages: 1,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
   let jobRow = (await db.query('SELECT * FROM ingestion_jobs WHERE file_id = $1 ORDER BY id DESC LIMIT 1', [fileId])).rows[0];
   assert.equal(jobRow.status, 'partial_success');
@@ -1700,7 +1700,7 @@ test('17. Fix G: Cost tracking columns record vision_calls, vision_input_tokens,
     fetchImpl: usageFetch,
     maxVisionPages: 5,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
   jobRow = (await db.query('SELECT * FROM ingestion_jobs WHERE file_id = $1 ORDER BY id DESC LIMIT 1', [fileId])).rows[0];
   assert.equal(jobRow.status, 'completed');
@@ -2184,7 +2184,7 @@ test('25. D2-U Quota circuit breaker: daily 429 stops retries & queued jobs, mar
     fetchImpl: quotaFetch,
     retryBackoffMs: 0,
     maxPageAttempts: 3,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   // Circuit breaker must stop after the very first daily 429 (0 retries, 0 extra pages, 0 calls on job 2)
@@ -2239,7 +2239,7 @@ test('25. D2-U Quota circuit breaker: daily 429 stops retries & queued jobs, mar
   const resumeRes = await runIngestionWorkerLoop(db, {
     fetchImpl: okFetch,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
   assert.equal(resumeRes.processedJobs, 2);
   assert.equal(resumeRes.quotaExhausted, false);
@@ -2328,7 +2328,7 @@ test('26. D2-U Daily request cap (DOC_VISION_DAILY_REQUEST_CAP) & short per-minu
     fetchImpl: rpmFetch,
     retryBackoffMs: 10,
     sleepImpl: async (ms) => { sleeps.push(ms); },
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
   assert.equal(attemptCount, 2);
   assert.deepEqual(sleeps, [2000]);
@@ -2413,7 +2413,7 @@ test('27. D2-U Classifier signals: logo vs large image, vector TOC vs diagram, b
   assert.ok(depCheck.halantBreaks >= 2);
   assert.ok(depCheck.misorderedShortI >= 1);
 
-  const brokenNepaliCls = classifyPageSignals({ rawText: brokenNepaliSample, imageOps: 0, vectorOps: 2 });
+  const brokenNepaliCls = classifyPageSignals({ rawText: brokenNepaliSample, imageOps: 0, vectorOps: 2, thresholds: { nepaliRepair: true } });
   assert.equal(brokenNepaliCls.route, 'vision');
   assert.equal(brokenNepaliCls.pageType, 'nepali_repair');
   assert.deepEqual(brokenNepaliCls.reasons, ['nepali_repair']);
@@ -2477,7 +2477,7 @@ test('28. D2-U Worker stores nepali_repair & blank boilerplate cleanly in PGlite
   const out = await processNextIngestionJob(db, {
     fetchImpl,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(out.status, 'completed');
@@ -2616,7 +2616,7 @@ test('30. D2-V2 Quota resume: Day 1 daily 429 after 1st page, Day 2 resumes ONLY
     fetchImpl: day1Fetch,
     retryBackoffMs: 0,
     maxPageAttempts: 3,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(day1Outcome.status, 'failed_retryable');
@@ -2673,7 +2673,7 @@ test('30. D2-V2 Quota resume: Day 1 daily 429 after 1st page, Day 2 resumes ONLY
   const day2Outcome = await processNextIngestionJob(db, {
     fetchImpl: day2Fetch,
     retryBackoffMs: 0,
-    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_NEPALI_REPAIR: 'true' }
   });
 
   assert.equal(day2Outcome.status, 'completed');
@@ -2895,7 +2895,7 @@ test('32. D2-V3 Clean Unicode Nepali check: 15 lines of healthy Unicode Devanaga
   assert.ok(corruptCheck.totalAnomalies >= 3, 'Total anomalies must meet threshold');
   assert.equal(corruptCheck.reason, 'nepali_repair');
 
-  const corruptClassify = classifyPageSignals({ rawText: corruptedText });
+  const corruptClassify = classifyPageSignals({ rawText: corruptedText, thresholds: { nepaliRepair: true } });
   assert.equal(corruptClassify.route, 'vision');
   assert.equal(corruptClassify.pageType, 'nepali_repair');
   assert.ok(corruptClassify.reasons.includes('nepali_repair'));
@@ -2961,4 +2961,310 @@ test('33. D2-W Word-final halant check: healthy Devanagari text with >= 8 word-f
   assert.equal(brokenCheck.detected, true, 'Corrupted Devanagari clusters must still be detected');
   assert.ok(brokenCheck.halantBreaks >= 2, 'Must detect at least 2 halant breaks on broken clusters');
   assert.equal(brokenCheck.reason, 'nepali_repair');
+});
+
+test('34. D2-X Part 1: Nepali disabled by default; Loksewa-style corruption stays on text_layer unless DOC_NEPALI_REPAIR=true', () => {
+  const { classifyPageSignals } = require('../lib/doc-page-classifier');
+  const corruptedLoksewaSample = 'नेपाल को व् यिस् था र अर् थ प्रणाली िंसवधान को धारा १ ा बमोजिम व्यवस्थित गरिने छ। निजामती सेवामा विभिन्न श्रेणी र पदहरू रहेका छन्।';
+
+  // 1. Default (DOC_NEPALI_REPAIR is false): Loksewa-style Devanagari stays on text_layer as plain text
+  const defaultCls = classifyPageSignals({ rawText: corruptedLoksewaSample });
+  assert.equal(defaultCls.route, 'text_layer', 'Default must route to text_layer');
+  assert.equal(defaultCls.pageType, 'text');
+  assert.ok(!defaultCls.reasons.includes('nepali_repair'));
+
+  // 2. Explicitly enabled (nepaliRepair: true): routes to vision with nepali_repair
+  const enabledCls = classifyPageSignals({ rawText: corruptedLoksewaSample, thresholds: { nepaliRepair: true } });
+  assert.equal(enabledCls.route, 'vision', 'Explicit flag must route to vision');
+  assert.equal(enabledCls.pageType, 'nepali_repair');
+  assert.ok(enabledCls.reasons.includes('nepali_repair'));
+
+  // 3. Wingdings PUA bullet remains stripped even when nepali repair is false
+  const puaBulleted = '\uF040 First bullet point with standard English content.\n\uF040 Second bullet point with standard English content.';
+  const bulletCls = classifyPageSignals({ rawText: puaBulleted });
+  assert.equal(bulletCls.route, 'text_layer');
+  assert.ok(!bulletCls.reasons.includes('broken_math_glyphs'));
+});
+
+test('35. D2-X Part 2: Dynamic timeouts depend on slice size, retry once at 1.5x, and fail as failed_retryable', async () => {
+  const { calculateVisionTimeoutMs } = require('../lib/doc-vision-ocr');
+
+  // A. Timeout calculation formula
+  // Base = 25000ms, per MB = 15000ms, max = 60000ms
+  assert.equal(calculateVisionTimeoutMs(0), 25000);
+  assert.equal(calculateVisionTimeoutMs(0, process.env, true), 37500); // 1.5x retry
+
+  const oneMb = 1024 * 1024;
+  assert.equal(calculateVisionTimeoutMs(oneMb), 40000); // 25000 + 15000
+  assert.equal(calculateVisionTimeoutMs(oneMb, process.env, true), 60000); // 40000 * 1.5
+
+  const threeMb = 3 * oneMb;
+  assert.equal(calculateVisionTimeoutMs(threeMb), 60000); // capped at maxMs
+  assert.equal(calculateVisionTimeoutMs(threeMb, process.env, true), 90000); // 60000 * 1.5
+
+  // Custom env overrides
+  const customEnv = {
+    DOC_VISION_TIMEOUT_BASE_MS: '10000',
+    DOC_VISION_TIMEOUT_PER_MB_MS: '5000',
+    DOC_VISION_TIMEOUT_MAX_MS: '20000'
+  };
+  assert.equal(calculateVisionTimeoutMs(oneMb, customEnv), 15000);
+  assert.equal(calculateVisionTimeoutMs(oneMb, customEnv, true), 22500);
+
+  // B. Mock vision execution: timeout on attempt 1 retries with 1.5x timeout; second timeout stops and marks failed_retryable
+  const { db } = await createD2TestDb();
+  const pdf = buildSyntheticPdf([{ hasImage: true, text: 'large circuit diagram' }]);
+  const { fileId } = await insertTestFile(db, { originalName: 'timeout_test.pdf', buffer: pdf });
+  await enqueueDocumentIngestionJob(db, { fileId, contentHash: computeContentHash(pdf) });
+
+  let callCount = 0;
+  const timeoutFetch = async () => {
+    callCount++;
+    const err = new Error('Vision request timed out after nominal ms');
+    err.name = 'TimeoutError';
+    err.code = 'VISION_TIMEOUT';
+    err.transient = true;
+    throw err;
+  };
+
+  const outcome = await processNextIngestionJob(db, {
+    fetchImpl: timeoutFetch,
+    retryBackoffMs: 0,
+    pageTimeoutMs: 20000,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+
+  // Must have retried at most ONCE (exactly 2 attempts total, not 3)
+  assert.equal(callCount, 2, 'Must stop after exactly 1 timeout retry (2 total attempts)');
+  assert.equal(outcome.status, 'failed_retryable', 'Job where all pages timed out must end failed_retryable for next run');
+
+  const pageRow = (await db.query('SELECT attempts, status, error FROM document_pages WHERE file_id = $1', [fileId])).rows[0];
+  assert.equal(pageRow.status, 'failed');
+  assert.equal(pageRow.attempts, 2);
+  assert.ok(pageRow.error.includes('VISION_TIMEOUT') || pageRow.error.includes('timed out'));
+});
+
+test('36. D2-X Part 3: Configuration errors (401, 403, 404, 400-model, missing model) stop run immediately and refund page attempts', async () => {
+  const { resolveVisionModel } = require('../lib/doc-vision-ocr');
+
+  // A. Missing DOC_VISION_MODEL throws VISION_MODEL_UNCONFIGURED before any calls
+  assert.throws(
+    () => resolveVisionModel({}, {}),
+    err => err.code === 'VISION_MODEL_UNCONFIGURED' && err.configSetting === 'DOC_VISION_MODEL'
+  );
+
+  // Fallbacks to chat or generic models are removed
+  assert.throws(
+    () => resolveVisionModel({}, { GEMINI_MODEL: 'gemini-pro', GEMINI_VISION_MODEL: 'gemini-1.5' }),
+    err => err.code === 'VISION_MODEL_UNCONFIGURED'
+  );
+
+  // B. HTTP 401 & 403 -> GEMINI_API_KEY config error
+  for (const status of [401, 403]) {
+    const { db } = await createD2TestDb();
+    const pdf = buildSyntheticPdf([{ hasImage: true, text: 'scan' }]);
+    const { fileId } = await insertTestFile(db, { originalName: `config_${status}.pdf`, buffer: pdf });
+    await enqueueDocumentIngestionJob(db, { fileId, contentHash: computeContentHash(pdf) });
+
+    let callsMade = 0;
+    const authFailFetch = async () => {
+      callsMade++;
+      return { ok: false, status, headers: { get: () => null }, text: async () => 'API key invalid' };
+    };
+
+    const out = await processNextIngestionJob(db, {
+      fetchImpl: authFailFetch,
+      retryBackoffMs: 0,
+      env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'bad-key' }
+    });
+
+    assert.equal(out.status, 'failed_retryable');
+    assert.equal(out.configError, true);
+    assert.equal(out.setting, 'GEMINI_API_KEY');
+    assert.equal(callsMade, 1);
+
+    const pages = (await db.query('SELECT status, attempts FROM document_pages WHERE file_id = $1', [fileId])).rows;
+    for (const p of pages) {
+      assert.equal(p.status, 'pending');
+      assert.equal(p.attempts, 0);
+    }
+  }
+
+  // C. HTTP 404 & HTTP 400 (model not found) -> DOC_VISION_MODEL config error
+  for (const [status, bodyText] of [[404, 'models/gemini-2.5-flash is not found for API version v1beta'], [400, 'Invalid model resource name: models/bad-model']]) {
+    const { db } = await createD2TestDb();
+    const pdf = buildSyntheticPdf([{ hasImage: true, text: 'scan' }]);
+    const { fileId } = await insertTestFile(db, { originalName: `config_${status}.pdf`, buffer: pdf });
+    await enqueueDocumentIngestionJob(db, { fileId, contentHash: computeContentHash(pdf) });
+
+    let callsMade = 0;
+    const modelFailFetch = async () => {
+      callsMade++;
+      return { ok: false, status, headers: { get: () => null }, text: async () => bodyText };
+    };
+
+    const out = await processNextIngestionJob(db, {
+      fetchImpl: modelFailFetch,
+      retryBackoffMs: 0,
+      env: { DOC_VISION_MODEL: 'deprecated-model', GEMINI_API_KEY: 'test-key' }
+    });
+
+    assert.equal(out.status, 'failed_retryable');
+    assert.equal(out.configError, true);
+    assert.equal(out.setting, 'DOC_VISION_MODEL');
+    assert.equal(callsMade, 1);
+
+    const pages = (await db.query('SELECT status, attempts FROM document_pages WHERE file_id = $1', [fileId])).rows;
+    for (const p of pages) {
+      assert.equal(p.status, 'pending');
+      assert.equal(p.attempts, 0);
+    }
+  }
+});
+
+test('37. D2-X Part 4: Vision prompt contains required safety and accuracy instructions verbatim', () => {
+  const { buildVisionPrompt, buildSliceVisionPrompt } = require('../lib/doc-vision-ocr');
+
+  const singlePrompt = buildVisionPrompt({ pageNo: 1, totalPages: 1, pageTypeHint: 'scanned' });
+  const slicePrompt = buildSliceVisionPrompt({
+    sliceItems: [{ pageNo: 1, pageTypeHint: 'scanned' }, { pageNo: 2, pageTypeHint: 'figure' }],
+    totalSourcePages: 2
+  });
+
+  for (const prompt of [singlePrompt, slicePrompt]) {
+    assert.match(prompt, /transcribe only what is printed on page/i);
+    assert.match(prompt, /do not add translations, glosses, explanations, or missing words/i);
+    assert.match(prompt, /copy proper names exactly as printed/i);
+    assert.match(prompt, /mark unreadable parts as \[illegible\]/i);
+    assert.match(prompt, /ignore faint background watermarks and logos unless they carry content/i);
+    assert.match(prompt, /formulas as LaTeX/i);
+    assert.match(prompt, /tables as Markdown tables/i);
+  }
+});
+
+test('38. D2-X Part 5: Priority tiers: Tier 1 executes before Tier 2; Tier 2 enrichment gated by DOC_VISION_ENRICH and quota boundary', async () => {
+  const { db } = await createD2TestDb();
+
+  const pipeTableText = [
+    '| StudentID | Semester | GPA | Status |',
+    '| 1001      | Sem 1    | 3.8 | Active |',
+    '| 1002      | Sem 1    | 3.9 | Active |',
+    '| 1003      | Sem 1    | 3.7 | Active |'
+  ].join('\n');
+  const denseText200 = [
+    'Operating systems manage computer hardware resources and provide',
+    'common services for application programs. System calls provide an',
+    'essential interface between a running program and the underlying kernel layers.'
+  ].join('\n');
+
+  const threePagePdf = buildSyntheticPdf([
+    { hasImage: true, text: 'scanned p1' },
+    { hasImage: true, text: denseText200 },
+    { text: pipeTableText }
+  ]);
+
+  // Case A: DOC_VISION_ENRICH not set (false): Tier 2 enrichment deferred to text_layer with zero Vision spend
+  const { fileId: f1 } = await insertTestFile(db, { originalName: 'enrich_off.pdf', buffer: threePagePdf });
+  await enqueueDocumentIngestionJob(db, { fileId: f1, contentHash: computeContentHash(threePagePdf) });
+
+  const visionCallsA = [];
+  const { fetchImpl: fetchA } = createMockGeminiFetch(async ({ pageNo }) => {
+    visionCallsA.push(pageNo);
+    return {
+      json: {
+        text: `Vision result for page ${pageNo}`,
+        latex_present: false,
+        figure_description: null,
+        ocr_confidence: 0.9,
+        detected_type: pageNo === 1 ? 'scanned' : 'table'
+      }
+    };
+  });
+
+  const outA = await processNextIngestionJob(db, {
+    fetchImpl: fetchA,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+
+  assert.equal(outA.status, 'completed');
+  assert.deepEqual(visionCallsA, [1, 3], 'Only Tier 1 pages (1 and 3) must be sent to Vision when enrichment is disabled');
+
+  const p1Rows = (await db.query('SELECT page_no, source, tier, status, attempts FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f1])).rows;
+  assert.equal(p1Rows[0].tier, 1);
+  assert.equal(p1Rows[0].source, 'vision');
+  assert.equal(p1Rows[1].tier, 2);
+  assert.equal(p1Rows[1].source, 'text_layer');
+  assert.equal(p1Rows[1].status, 'completed');
+  assert.equal(p1Rows[1].attempts, 0);
+  assert.equal(p1Rows[2].tier, 1);
+  assert.equal(p1Rows[2].source, 'vision');
+
+  // Case B: DOC_VISION_ENRICH=true: Tier 1 runs first, then Tier 2 runs second
+  const { db: dbB } = await createD2TestDb();
+  const { fileId: f2 } = await insertTestFile(dbB, { originalName: 'enrich_on.pdf', buffer: threePagePdf });
+  await enqueueDocumentIngestionJob(dbB, { fileId: f2, contentHash: computeContentHash(threePagePdf) });
+
+  const visionCallsB = [];
+  const { fetchImpl: fetchB } = createMockGeminiFetch(async ({ pageNo }) => {
+    visionCallsB.push(pageNo);
+    return {
+      json: {
+        text: `Vision result for page ${pageNo}`,
+        latex_present: false,
+        figure_description: pageNo === 2 ? 'Architecture diagram' : null,
+        ocr_confidence: 0.95,
+        detected_type: pageNo === 1 ? 'scanned' : (pageNo === 2 ? 'figure' : 'table')
+      }
+    };
+  });
+
+  const outB = await processNextIngestionJob(dbB, {
+    fetchImpl: fetchB,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_VISION_ENRICH: 'true' }
+  });
+
+  assert.equal(outB.status, 'completed');
+  assert.deepEqual(visionCallsB, [1, 3, 2], 'All Tier 1 pages must be called before Tier 2');
+
+  const p2Rows = (await dbB.query('SELECT page_no, source, tier, figure_description FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f2])).rows;
+  assert.equal(p2Rows[1].tier, 2);
+  assert.equal(p2Rows[1].source, 'vision');
+  assert.equal(p2Rows[1].figure_description, 'Architecture diagram');
+
+  // Case C: Quota boundary on Tier 2: maxVisionPages=2 allows only Tier 1 pages, Tier 2 falls back cleanly to text_layer
+  const { db: dbC } = await createD2TestDb();
+  const { fileId: f3 } = await insertTestFile(dbC, { originalName: 'enrich_quota.pdf', buffer: threePagePdf });
+  await enqueueDocumentIngestionJob(dbC, { fileId: f3, contentHash: computeContentHash(threePagePdf) });
+
+  const visionCallsC = [];
+  const { fetchImpl: fetchC } = createMockGeminiFetch(async ({ pageNo }) => {
+    visionCallsC.push(pageNo);
+    return {
+      json: {
+        text: `Vision result for page ${pageNo}`,
+        latex_present: false,
+        figure_description: null,
+        ocr_confidence: 0.9,
+        detected_type: pageNo === 1 ? 'scanned' : 'table'
+      }
+    };
+  });
+
+  const outC = await processNextIngestionJob(dbC, {
+    fetchImpl: fetchC,
+    retryBackoffMs: 0,
+    maxVisionPages: 2,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_VISION_ENRICH: 'true' }
+  });
+
+  assert.equal(outC.status, 'completed');
+  assert.deepEqual(visionCallsC, [1, 3]);
+
+  const p3Rows = (await dbC.query('SELECT page_no, source, tier, status, attempts FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f3])).rows;
+  assert.equal(p3Rows[1].tier, 2);
+  assert.equal(p3Rows[1].source, 'text_layer');
+  assert.equal(p3Rows[1].status, 'completed');
+  assert.equal(p3Rows[1].attempts, 0);
 });

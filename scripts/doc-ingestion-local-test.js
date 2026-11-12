@@ -375,6 +375,7 @@ async function classifySingleLocalPdf(filePath, { pageRange } = {}) {
 
   const pages = [];
   const totalsByRoute = { text_layer: 0, vision: 0, skipped: 0 };
+  const totalsByTier = { tier_1: 0, tier_2: 0 };
   let totalPages = 0;
 
   try {
@@ -390,9 +391,12 @@ async function classifySingleLocalPdf(filePath, { pageRange } = {}) {
       const cls = classifyPageSignals(signals);
       const routeKey = cls.route === 'skip' ? 'skipped' : cls.route;
       totalsByRoute[routeKey] = (totalsByRoute[routeKey] || 0) + 1;
+      const tierKey = `tier_${cls.tier || 1}`;
+      totalsByTier[tierKey] = (totalsByTier[tierKey] || 0) + 1;
       pages.push({
         page: pageNo,
         route: cls.route,
+        tier: cls.tier || 1,
         page_type: cls.pageType,
         reason: cls.reasons?.[0] || '',
         clean_chars: cls.charCount,
@@ -409,7 +413,8 @@ async function classifySingleLocalPdf(filePath, { pageRange } = {}) {
     file: filePath,
     totalPages,
     pages,
-    totalsByRoute
+    totalsByRoute,
+    totalsByTier
   };
 }
 
@@ -449,6 +454,10 @@ async function runLocalPdfHarness({
         text_layer: classifyResults.reduce((s, r) => s + r.totalsByRoute.text_layer, 0),
         vision: classifyResults.reduce((s, r) => s + r.totalsByRoute.vision, 0),
         skipped: classifyResults.reduce((s, r) => s + r.totalsByRoute.skipped, 0)
+      },
+      totalsByTier: {
+        tier_1: classifyResults.reduce((s, r) => s + (r.totalsByTier?.tier_1 || 0), 0),
+        tier_2: classifyResults.reduce((s, r) => s + (r.totalsByTier?.tier_2 || 0), 0)
       },
       files: classifyResults
     };
@@ -521,12 +530,14 @@ if (require.main === module) {
       if (summary.mode === 'classify-only') {
         const files = summary.files || [summary];
         for (const f of files) {
-          console.log(`page\troute\tpage_type\treason\tclean_chars\timage_ops\tvector_ops\t# ${path.basename(f.file)}`);
+          console.log(`page\troute\ttier\tpage_type\treason\tclean_chars\timage_ops\tvector_ops\t# ${path.basename(f.file)}`);
           for (const row of f.pages) {
-            console.log(`${row.page}\t${row.route}\t${row.page_type}\t${row.reason}\t${row.clean_chars}\t${row.image_ops}\t${row.vector_ops}`);
+            console.log(`${row.page}\t${row.route}\t${row.tier || 1}\t${row.page_type}\t${row.reason}\t${row.clean_chars}\t${row.image_ops}\t${row.vector_ops}`);
           }
+          console.log(`[LocalHarness] ${path.basename(f.file)} totals:`, JSON.stringify({ routes: f.totalsByRoute, tiers: f.totalsByTier }));
         }
-        console.log('[LocalHarness] Classify totals:', JSON.stringify(summary.totalsByRoute));
+        console.log('[LocalHarness] Classify totals by route:', JSON.stringify(summary.totalsByRoute));
+        console.log('[LocalHarness] Classify totals by tier:', JSON.stringify(summary.totalsByTier));
       } else if (summary.outputPath) {
         console.log('[LocalHarness] Output written:', summary.outputPath);
         console.log('[LocalHarness] Summary:', JSON.stringify(summary, null, 2));

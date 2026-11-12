@@ -540,4 +540,112 @@ If `file.existing_content_hash === legacyContentHash`, the legacy hash is preser
   `NODE_ENV=test DB_PATH=:memory:`
   ensuring purely in-memory SQLite (`file::memory:?cache=shared`).
 
+---
+
+## 13. D2-X: Hardening After Real-Vision Testing (English-Only Scope)
+
+### 13.1 Part 0: Commit Audit & Reconcile / Hash Integrity
+- **Log Verification:**
+  - `git log --oneline -10`: Verified history leading up to `78e66f19` (Phase D2-W Part A).
+  - Dual-formula content hashing (`legacyContentHash`) in `lib/knowledge-builder.js` and `lib/knowledge-worker.js` confirmed present in `HEAD`.
+  - Reconcile hash query in `lib/knowledge-sync.js` (joining `note_search_documents` to compare real stored text hashes) confirmed present in `HEAD`.
+
+### 13.2 Part 1: Nepali Disabled by Default (`DOC_NEPALI_REPAIR`)
+- **Scope Decision:** The core product scope is English-only (text, tables, diagrams, formulas). Nepali/Devanagari support is explicitly out of scope.
+- **Implementation (`lib/doc-page-classifier.js`):**
+  - Added environment variable `DOC_NEPALI_REPAIR` (default: `false`).
+  - When `false` (default):
+    - `detectDevanagariCorruption` is completely bypassed.
+    - `detectLegacyNepaliMojibake` is completely bypassed.
+    - `pageType: 'nepali_repair'` is never produced.
+    - Devanagari characters are treated as standard Unicode characters on the text layer.
+  - **Preserved Cleanups:** Wingdings and Symbol private-use area bullet glyph stripping (`stripPuaBulletGlyphs`) remains active in all modes so bulleted text does not trip broken math glyph heuristics.
+
+### 13.3 Part 2: Dynamic Per-Page Vision Timeouts & Retry Backoff
+- **Dynamic Timeout Scaling Formula (`lib/doc-vision-ocr.js`):**
+  - Slices vary in payload size; static timeouts cause premature timeouts on dense slices.
+  - Formula:
+    $$\text{timeoutMs} = \min(\text{maxMs}, \text{baseMs} + \lceil \frac{\text{sliceBytes}}{1024 \times 1024} \rceil \times \text{perMbMs})$$
+  - Tunables:
+    - `DOC_VISION_TIMEOUT_BASE_MS` (default: 25,000 ms)
+    - `DOC_VISION_TIMEOUT_PER_MB_MS` (default: 15,000 ms/MB)
+    - `DOC_VISION_TIMEOUT_MAX_MS` (default: 60,000 ms)
+- **Retry Protocol (`lib/doc-ingestion-worker.js`):**
+  - On timeout: retry at most **once** with **1.5x** the computed timeout.
+  - If the retry also times out: fail the page as `failed_retryable` (do NOT fail terminal).
+  - Backoff: repeated timeouts in a run apply inter-page sleep backoff ($1000 \times 2^{\text{consecutiveTimeouts}-1}$ ms) to relieve network/Gemini strain.
+
+### 13.4 Part 3: Configuration Errors (`VISION_CONFIG_ERROR`)
+- **Strict Model Configuration:**
+  - Removed all silent fallbacks to chat models (`GEMINI_MODEL`, `GEMINI_VISION_MODEL`).
+  - Model must be explicitly specified via `DOC_VISION_MODEL`. Missing model throws `VISION_MODEL_UNCONFIGURED` with `configSetting: 'DOC_VISION_MODEL'` before any API calls.
+- **Fail-Fast Run Haulting:**
+  - Authentication errors (HTTP 401, HTTP 403) and Model Not Found errors (HTTP 404, HTTP 400 naming the model resource) are classified as `VISION_CONFIG_ERROR`.
+  - When detected, the worker:
+    1. Immediately halts the entire worker loop.
+    2. Leaves uncompleted pages `pending` (refunds `attempts = GREATEST(0, attempts - 1)` so doomed retries do not exhaust page budgets).
+    3. Marks the job `failed_retryable` with a clear message logging the bad setting (`GEMINI_API_KEY` vs `DOC_VISION_MODEL`).
+
+### 13.5 Part 4: Vision Prompt Safety & Accuracy Rules
+- Added required transcription directives verbatim to `buildVisionPrompt` and `buildSliceVisionPrompt` in `lib/doc-vision-ocr.js`:
+  - Transcribe only what is printed on page.
+  - Do NOT add translations, glosses, explanations, or missing words.
+  - Copy proper names exactly as printed.
+  - Mark unreadable parts as `[illegible]`.
+  - Ignore faint background watermarks and logos unless they carry content.
+  - Write formulas as LaTeX and tables as Markdown tables.
+
+### 13.6 Part 5: Priority Tiers (Tier 1 vs Tier 2) & Real-File Classification
+- **Tier Architecture:**
+  - **Tier 1 (Required Core):** Scanned pages, math-heavy formulas, tabular layouts, and low clean text pages ($< 150$ characters).
+  - **Tier 2 (Enrichment):** Good clean text ($\ge 150$ characters) that also contains embedded figures/diagrams (`DOC_VISION_ENRICH_MIN_IMAGE_RATIO` default 0.05).
+- **Database Schema Migration:**
+  - `migrations/20261112_doc_intelligence_d2.up.sql`:
+    - Added `tier SMALLINT NOT NULL DEFAULT 1 CHECK (tier IN (1, 2))` to `document_pages`.
+    - Added `CREATE INDEX IF NOT EXISTS idx_dp_tier_order ON document_pages (file_id, tier, page_no);`.
+  - Down migration drops index and rolls back cleanly.
+- **Worker Execution Order & Gating:**
+  - Tier 1 pages are always processed first.
+  - If `DOC_VISION_ENRICH !== 'true'` (default), Tier 2 pages are immediately completed from the text layer (`source: 'text_layer'`, `tier: 2`, `status: 'completed'`, `attempts: 0`, `reasons: ['enrichment_deferred']`).
+  - If `DOC_VISION_ENRICH === 'true'`, Tier 2 pages are sent to Vision only if quota remains after Tier 1 completes. If quota is exhausted, they fall back safely to `text_layer` without failing the job.
+- **Real-File Local Classification (`~/doc-tests --classify-only`):**
+  - Run completely offline without database or Gemini API keys.
+  - **English Corpus Totals (5 files, 854 pages):**
+    - `tier_1`: 838 pages
+    - `tier_2`: 16 pages
+    - Route breakdown: `text_layer`: 153 pages, `vision`: 692 pages, `skipped`: 9 pages
+  - **File-by-File Breakdown (English Corpus):**
+    - `05. Inheritance, Package and Interface 1.0.pdf` (41 pages):
+      - Routes: `text_layer`: 20, `vision`: 21, `skipped`: 0
+      - Tiers: `tier_1`: 33, `tier_2`: 8
+    - `Convergence of Infinite Series.pdf` (10 pages):
+      - Routes: `text_layer`: 2, `vision`: 8, `skipped`: 0
+      - Tiers: `tier_1`: 10, `tier_2`: 0
+    - `Discrete Mathematics.pdf` (773 pages):
+      - Routes: `text_layer`: 131, `vision`: 633, `skipped`: 9
+      - Tiers: `tier_1`: 765, `tier_2`: 8
+    - `Electrical_circuits.pdf` (23 pages):
+      - Routes: `text_layer`: 0, `vision`: 23, `skipped`: 0
+      - Tiers: `tier_1`: 23, `tier_2`: 0
+    - `M. Induction.pdf` (7 pages):
+      - Routes: `text_layer`: 0, `vision`: 7, `skipped`: 0
+      - Tiers: `tier_1`: 7, `tier_2`: 0
+  - **Non-English File (Reported Separately as Out of Scope):**
+    - `संविधान र शासन व्यवस्था - QUICK LOKSEWA_260919_060127.pdf` (23 pages):
+      - Routes: `text_layer`: 0, `vision`: 23, `skipped`: 0
+      - Tiers: `tier_1`: 7 (ruled table boxes), `tier_2`: 16 (embedded headers)
+      - With Nepali repair disabled by default, pages route purely on visual structure (tables/figures) without triggering `nepali_repair`.
+
+### 13.7 Part 6: Full Regression Verification Suite
+- **Added Tests (Tests 34–38 in `tests/doc-intelligence-d2.test.js`):**
+  - **Test 34:** Nepali disabled by default (`DOC_NEPALI_REPAIR=false`); Loksewa corruption remains on text layer unless explicitly enabled.
+  - **Test 35:** Dynamic timeouts calculate based on slice size, retry once at 1.5x on timeout, and fail as `failed_retryable`.
+  - **Test 36:** Configuration errors (401, 403, 404, 400-model, missing model) stop run immediately and refund page attempts.
+  - **Test 37:** Vision prompt contains safety and accuracy instructions verbatim.
+  - **Test 38:** Priority tiers enforce Tier 1 before Tier 2; Tier 2 enrichment is gated by `DOC_VISION_ENRICH` and quota boundaries.
+- **Full 7-Suite Regression Run:**
+  - Invocations executed with `unset DATABASE_URL DIRECT_URL POSTGRES_URL PGHOST` and `NODE_ENV=test DB_PATH=:memory:`.
+  - Results: **128 tests passing, 0 failing across all 7 test suites**.
+
+
 

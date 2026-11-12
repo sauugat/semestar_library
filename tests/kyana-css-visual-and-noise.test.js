@@ -190,3 +190,66 @@ test('Beginner-first CSS pedagogy includes house analogy, rule anatomy, and live
   assert.ok(res.reply.includes('Inline CSS') && res.reply.includes('Internal CSS') && res.reply.includes('External CSS'), 'Covers all 3 ways to write CSS');
   assert.ok(res.reply.includes('```live_demo'), 'Includes interactive live_demo block');
 });
+
+test('Study Partner follow-up memory: short answer "p" and "i said p" route to study_partner and advance step', async () => {
+  const db = await createTestDb();
+  const studentCtx = {
+    authenticated: true,
+    studentId: 'stu_memory_css',
+    role: 'student',
+    currentSemester: 2
+  };
+
+  // Turn 1: Start CSS study session
+  const turn1 = await handleChat(db, 'teach me css', studentCtx, [], 'conv_memory_1', { synthesizeWithLlm: false });
+  assert.equal(turn1.intent, 'study_partner');
+  assert.ok(turn1.reply.includes('Step 1 of'), 'Turn 1 starts at Step 1');
+
+  // Simulate an LLM-generated Turn 1 assistant message with a custom CSS rule checkpoint question
+  const llmTurn1Assistant = [
+    turn1.reply.match(/```study_session\n[\s\S]*?\n```/)[0],
+    'Here is how CSS works...',
+    '**🎯 Checkpoint Question**\nIn the CSS rule `p { color: red; }`, which part is the "Selector"?'
+  ].join('\n\n');
+
+  // Turn 2a: Student replies "i said p" with full history
+  const turn2a = await handleChat(
+    db,
+    'i said p',
+    studentCtx,
+    [
+      { role: 'user', content: 'teach me css' },
+      { role: 'assistant', content: llmTurn1Assistant }
+    ],
+    'conv_memory_1',
+    { synthesizeWithLlm: false }
+  );
+  assert.equal(turn2a.intent, 'study_partner', 'Turn 2a should route to study_partner');
+  assert.ok(!turn2a.reply.includes("couldn't find that in the university records"), 'Must not fall through to unverified refusal');
+  assert.ok(turn2a.reply.includes('Step 2 of'), 'Correct answer "i said p" should advance to Step 2');
+
+  // Turn 2b: DB-backed recovery with 1-word answer "p" and empty history
+  const turn1b = await handleChat(db, 'teach me css', studentCtx, [], 'conv_memory_2', { synthesizeWithLlm: false });
+  assert.equal(turn1b.intent, 'study_partner');
+
+  const turn2b = await handleChat(db, 'p', studentCtx, [], 'conv_memory_2', { synthesizeWithLlm: false });
+  assert.equal(turn2b.intent, 'study_partner', '1-word reply "p" must recover active study_partner session from DB');
+  assert.ok(!turn2b.reply.includes("couldn't find that in the university records"), '1-word reply "p" must not return university records refusal');
+});
+
+test('Guest/stripped history fallback: user-only history after "teach me css" routes "p" to study_partner', async () => {
+  const db = await createTestDb();
+  const guestCtx = { authenticated: false };
+
+  await handleChat(db, 'teach me css', guestCtx, [], 'conv_guest_1', { synthesizeWithLlm: false });
+  const turn2 = await handleChat(
+    db,
+    'p',
+    guestCtx,
+    [{ role: 'user', content: 'teach me css' }],
+    'conv_guest_1',
+    { synthesizeWithLlm: false }
+  );
+  assert.equal(turn2.intent, 'study_partner', 'Guest user-only history must still route follow-up "p" to study_partner');
+  assert.ok(!turn2.reply.includes("couldn't find that in the university records"), 'Guest follow-up must not return university records refusal');
+});

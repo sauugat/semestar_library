@@ -935,6 +935,37 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     return pubRes;
   }
 
+  // DB-backed Study Partner Follow-up Recovery:
+  // If routeQuery returned 'scope_check' (e.g. short 1-word answer like "p" when history lacked assistant turns),
+  // check if this conversation/student has an ACTIVE study_partner_sessions row.
+  if (route.kind === 'scope_check' && db && typeof db.get === 'function') {
+    const { NON_BIT_ACADEMIC_OR_CODE } = require('./lib/chat-tools');
+    if (!NON_BIT_ACADEMIC_OR_CODE.test(message)) {
+      const spStudentId = academicContext?.studentId || studentInfo?.studentId || 'anonymous_student';
+      const spConvId = sessionId || options.conversationId || null;
+      try {
+        let dbActiveSess = null;
+        if (spConvId && spConvId !== 'default' && spConvId !== 'anonymous') {
+          dbActiveSess = await db.get(
+            `SELECT id FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE' ORDER BY updated_at DESC LIMIT 1`,
+            spConvId
+          );
+        }
+        if (!dbActiveSess && spStudentId !== 'anonymous_student') {
+          dbActiveSess = await db.get(
+            `SELECT id FROM study_partner_sessions WHERE student_id = ? AND status = 'ACTIVE' ORDER BY updated_at DESC LIMIT 1`,
+            spStudentId
+          );
+        }
+        if (dbActiveSess) {
+          route.kind = 'study_partner';
+          route.isFollowUp = true;
+          route.isNewSession = false;
+        }
+      } catch (_) {}
+    }
+  }
+
   // Autonomous Course Study Partner Interceptor
   if (route.kind === 'study_partner') {
     const {
@@ -958,15 +989,25 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       route.filters?.semester || academicContext?.cohort?.currentSemester || academicContext?.currentSemester
     );
 
-    // 2. Check for active session for this student
+    // 2. Check for active session for this conversation or student
     let activeSession = null;
     try {
-      activeSession = await db.get(
-        `SELECT * FROM study_partner_sessions
-         WHERE student_id = ? AND status = 'ACTIVE'
-         ORDER BY updated_at DESC LIMIT 1`,
-        studentId
-      );
+      if (conversationId && conversationId !== 'default' && conversationId !== 'anonymous') {
+        activeSession = await db.get(
+          `SELECT * FROM study_partner_sessions
+           WHERE conversation_id = ? AND status = 'ACTIVE'
+           ORDER BY updated_at DESC LIMIT 1`,
+          conversationId
+        );
+      }
+      if (!activeSession) {
+        activeSession = await db.get(
+          `SELECT * FROM study_partner_sessions
+           WHERE student_id = ? AND status = 'ACTIVE'
+           ORDER BY updated_at DESC LIMIT 1`,
+          studentId
+        );
+      }
     } catch (_) {}
 
     let studyResultText = '';
@@ -981,6 +1022,8 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       route.filters?.subject && activeSession && !activeSession.subject.toLowerCase().includes(route.filters.subject.toLowerCase())
     );
 
+    const lastAssistantMsg = [...cleanHistory].reverse().find(m => m && m.role === 'assistant')?.content || '';
+
     if (activeSession && !isExplicitNewCourse && (route.isFollowUp || !route.isNewSession)) {
       // Handle follow-up or pacing in existing session
       const currentStepIdx = activeSession.current_step_index || 1;
@@ -989,7 +1032,8 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         activeSession.id
       );
       const currentTopic = topics.find(t => (t.stepIndex || t.step_index) === currentStepIdx) || topics[0];
-      const studentIntent = evaluateStudentIntent(message, currentTopic, currentTopic?.checkpoint_question);
+      const effectiveCheckpoint = lastAssistantMsg || currentTopic?.checkpoint_question;
+      const studentIntent = evaluateStudentIntent(message, currentTopic, effectiveCheckpoint);
 
       if (studentIntent.intent === 'remediate') {
         isRemediationTurn = true;
@@ -1005,7 +1049,36 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       } else {
         let evalResult = { passed: true };
         if (studentIntent.intent === 'answer_attempt') {
-          evalResult = evaluateCheckpointReply(message, currentTopic, currentTopic?.checkpoint_question);
+          evalResult = evaluateCheckpointReply(message, currentTopic, effectiveCheckpoint);
+
+          // If deterministic check couldn't confirm a short/custom answer and LLM is available,
+          // evaluate the student's reply against the exact checkpoint question asked in cleanHistory.
+          if (!evalResult.passed && canSynthesizeWithLlm && typeof llmGenerateFn === 'function' && lastAssistantMsg) {
+            try {
+              const evalOut = await llmGenerateFn({
+                message: `Previous message from Kyana:\n${lastAssistantMsg.slice(-1200)}\n\nStudent's reply:\n${message}`,
+                history: [],
+                systemPrompt: 'You are evaluating a student\'s reply to Kyana\'s Checkpoint Question. Reply ONLY with valid JSON: {"passed": boolean, "feedback": "1 warm, specific sentence"}. Mark passed=true if the student answered correctly (even in 1 word like "p") or asked a genuine clarifying question.',
+                tools: [],
+                onDelta: () => {},
+                signal,
+                complex: false
+              });
+              const rawEval = String(evalOut?.reply || '').trim();
+              const jsonMatch = rawEval.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                if (typeof parsed.passed === 'boolean') {
+                  evalResult = {
+                    passed: parsed.passed,
+                    feedback: typeof parsed.feedback === 'string' && parsed.feedback.trim()
+                      ? parsed.feedback.trim()
+                      : evalResult.feedback
+                  };
+                }
+              }
+            } catch (_) {}
+          }
         }
 
         if (!evalResult.passed) {

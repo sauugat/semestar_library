@@ -53,6 +53,23 @@ test('Atomic Material Upload & Batch Notification Semantics', { timeout: 120000 
   const studentToken = `tok_${studentS2Id}_${ts}`;
   const expiresAt = new Date(Date.now() + 86400000).toISOString();
 
+  // Assign the test teacher to Semester 2 / Database Systems so upload authorization allows publishing
+  const teacherUuid = `T_ATOMIC_${ts}`;
+  const subjectId = `sub_atomic_dbms_${ts}`;
+  const allocId = `ts_atomic_${ts}`;
+  await db.run(
+    'INSERT INTO teachers (id, user_id, designation, status) VALUES (?, ?, ?, ?)',
+    teacherUuid, teacherId, 'Lecturer', 'active'
+  );
+  await db.run(
+    'INSERT INTO subjects (id, code, name, semester, department, credit_hours) VALUES (?, ?, ?, ?, ?, ?)',
+    subjectId, `DBMS-${ts}`, 'Database Systems', 2, 'BIT', 3.0
+  );
+  await db.run(
+    'INSERT INTO teacher_subjects (id, teacher_id, subject_id) VALUES (?, ?, ?)',
+    allocId, teacherUuid, subjectId
+  );
+
   await db.run('INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)', teacherToken, teacherId, new Date().toISOString(), expiresAt);
   await db.run('INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)', studentToken, studentS2Id, new Date().toISOString(), expiresAt);
   await db.run('INSERT INTO student_device_tokens (student_id, expo_push_token, platform, device_name, updated_at) VALUES (?, ?, ?, ?, ?)', studentS2Id, `ExponentPushToken[sem2_test_${ts}]`, 'android', 'Pixel 8', new Date().toISOString());

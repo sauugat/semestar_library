@@ -11,6 +11,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { PGlite } = require('@electric-sql/pglite');
 const { vector } = require('@electric-sql/pglite-pgvector');
+const { PDFDocument } = require('pdf-lib');
 
 const {
   classifyPageSignals,
@@ -31,10 +32,13 @@ const {
   enqueueDocumentIngestionJob,
   claimNextIngestionJob,
   reconcileMissingIngestionJobs,
+  hasPendingWork,
+  drainKnowledgeJobs,
   processNextIngestionJob,
   runIngestionWorkerLoop
 } = docWorker;
-const { parseCliArgs } = require('../scripts/doc-ingestion-worker');
+const { parseCliArgs, executeWorkerRun } = require('../scripts/doc-ingestion-worker');
+const { assertSafeLocalEnv, runLocalPdfHarness } = require('../scripts/doc-ingestion-local-test');
 const noteSearch = require('../lib/note-search');
 
 /**
@@ -309,7 +313,12 @@ function buildSyntheticPdf(pagesSpec = [], { encrypted = false } = {}) {
 function createMockGeminiFetch(handler) {
   const calls = [];
   const fetchImpl = async (url, init = {}) => {
-    const body = init.body ? JSON.parse(init.body) : null;
+    let body = null;
+    if (typeof init.body === 'string') {
+      try { body = JSON.parse(init.body); } catch (_) { body = init.body; }
+    } else if (init.body) {
+      body = init.body;
+    }
     calls.push({ url, body });
 
     if (String(url).includes('/upload/v1beta/files')) {
@@ -877,7 +886,7 @@ test('9. D1 Section 11 Fixtures (Math-heavy, Diagrams/Figures, Tables, Handwritt
     if (pageNo === 1) {
       return {
         json: {
-          text: 'Theorem 1: Continuous derivative identity $$\\int_0^1 x^2\\,dx = \\frac{1}{3},\\quad \\frac{\\partial f}{\\partial x} \\approx \\sum \\alpha_i \\sqrt{\\beta_i}$$',
+          text: 'Theorem 1: Continuous differentiable integral gradient nabla Laplacian convergence Cauchy sequence limit $$\\int_0^1 x^2\\,dx = \\frac{1}{3},\\quad \\frac{\\partial f}{\\partial x} \\approx \\sum \\alpha_i \\sqrt{\\beta_i}$$',
           latex_present: true,
           figure_description: null,
           ocr_confidence: 0.96,
@@ -1266,10 +1275,496 @@ test('13. Fix B: reconcileMissingIngestionJobs backfills only missing files with
   // Verify CLI flag parsing
   assert.deepEqual(
     parseCliArgs(['--reconcile', '--limit', '25', '--dry-run']),
-    { maxJobs: undefined, maxDurationMs: undefined, reconcile: true, dryRun: true, limit: 25, includePartial: false }
+    {
+      maxJobs: undefined,
+      maxDurationMs: undefined,
+      knowledgeBudgetMs: undefined,
+      skipKnowledge: false,
+      reconcile: true,
+      dryRun: true,
+      limit: 25,
+      includePartial: false
+    }
   );
   assert.deepEqual(
     parseCliArgs(['--backfill', '--limit=100']),
-    { maxJobs: undefined, maxDurationMs: undefined, reconcile: true, dryRun: false, limit: 100, includePartial: false }
+    {
+      maxJobs: undefined,
+      maxDurationMs: undefined,
+      knowledgeBudgetMs: undefined,
+      skipKnowledge: false,
+      reconcile: true,
+      dryRun: false,
+      limit: 100,
+      includePartial: false
+    }
   );
+});
+
+test('14. Fix D: pdf-lib sends only 1-page (or <=3 consecutive page batch) slices inline and maps physical page numbers by position', async () => {
+  const { db } = await createD2TestDb();
+
+  // [1: scanned, 2: scanned, 3: clear text layer (>=50 clean chars), 4: scanned, 5: scanned]
+  const fivePagePdf = buildSyntheticPdf([
+    { hasImage: true, text: 'p1' },
+    { hasImage: true, text: 'p2' },
+    { text: 'Normal computer networks lecture slide covering congestion control and sliding window protocols.' },
+    { hasImage: true, text: 'p4' },
+    { hasImage: true, text: 'p5' }
+  ]);
+
+  // Part A: Default DOC_VISION_BATCH_PAGES=1 -> 4 separate 1-page inline slices, never whole 5-page PDF
+  const { fileId: f1 } = await insertTestFile(db, { originalName: 'slice_single.pdf', buffer: fivePagePdf });
+  await enqueueDocumentIngestionJob(db, { fileId: f1, contentHash: computeContentHash(fivePagePdf) });
+
+  const singleCallPageCounts = [];
+  const { fetchImpl: singleFetch, calls: singleCalls } = createMockGeminiFetch(async ({ pageNo, body }) => {
+    const inlineB64 = body?.contents?.[0]?.parts?.[0]?.inlineData?.data;
+    assert.ok(inlineB64, 'Expected inline base64 PDF slice');
+    const sliceDoc = await PDFDocument.load(Buffer.from(inlineB64, 'base64'));
+    singleCallPageCounts.push(sliceDoc.getPageCount());
+    return {
+      json: {
+        text: `Single-slice OCR output for physical page ${pageNo}`,
+        latex_present: false,
+        figure_description: null,
+        ocr_confidence: 0.91,
+        detected_type: 'scanned'
+      }
+    };
+  });
+
+  const out1 = await processNextIngestionJob(db, {
+    fetchImpl: singleFetch,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+  assert.equal(out1.status, 'completed');
+  assert.deepEqual(singleCallPageCounts, [1, 1, 1, 1], 'Each default vision call must carry exactly a 1-page slice');
+  assert.equal(singleCalls.some(c => c.url.includes('/upload/v1beta/files')), false, 'File API must not be called for small slices');
+
+  const p1Rows = (await db.query('SELECT page_no, source, text FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f1])).rows;
+  assert.equal(p1Rows[0].text, 'Single-slice OCR output for physical page 1');
+  assert.equal(p1Rows[1].text, 'Single-slice OCR output for physical page 2');
+  assert.equal(p1Rows[2].source, 'text_layer');
+  assert.equal(p1Rows[3].text, 'Single-slice OCR output for physical page 4');
+  assert.equal(p1Rows[4].text, 'Single-slice OCR output for physical page 5');
+
+  // Part B: DOC_VISION_BATCH_PAGES=3 -> consecutive vision runs grouped [1,2] and [4,5] (split cleanly around text_layer page 3)
+  const fivePagePdfB = buildSyntheticPdf([
+    { hasImage: true, text: 'p1b' },
+    { hasImage: true, text: 'p2b' },
+    { text: 'Normal computer networks lecture slide covering BGP routing, policy filters, and autonomous systems.' },
+    { hasImage: true, text: 'p4b' },
+    { hasImage: true, text: 'p5b' }
+  ]);
+  const { fileId: f2 } = await insertTestFile(db, { originalName: 'slice_batch_gap.pdf', buffer: fivePagePdfB });
+  await enqueueDocumentIngestionJob(db, { fileId: f2, contentHash: computeContentHash(fivePagePdfB) });
+
+  const batchSliceCounts = [];
+  const batchFetch = async (url, init = {}) => {
+    const body = JSON.parse(init.body || '{}');
+    const inlineB64 = body?.contents?.[0]?.parts?.[0]?.inlineData?.data;
+    assert.ok(inlineB64, 'Batched slice should be sent inline');
+    const sliceDoc = await PDFDocument.load(Buffer.from(inlineB64, 'base64'));
+    const count = sliceDoc.getPageCount();
+    batchSliceCounts.push(count);
+    const callIdx = batchSliceCounts.length;
+    const pagesPayload = callIdx === 1
+      ? [
+        { text: 'Batch1 SlicePos0', latex_present: false, figure_description: null, ocr_confidence: 0.9, detected_type: 'scanned' },
+        { text: 'Batch1 SlicePos1', latex_present: false, figure_description: null, ocr_confidence: 0.9, detected_type: 'scanned' }
+      ]
+      : [
+        { text: 'Batch2 SlicePos0', latex_present: false, figure_description: null, ocr_confidence: 0.9, detected_type: 'scanned' },
+        { text: 'Batch2 SlicePos1', latex_present: false, figure_description: null, ocr_confidence: 0.9, detected_type: 'scanned' }
+      ];
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        usageMetadata: { promptTokenCount: 500, candidatesTokenCount: 80 },
+        candidates: [{ content: { parts: [{ text: JSON.stringify({ pages: pagesPayload }) }] } }]
+      })
+    };
+  };
+
+  const out2 = await processNextIngestionJob(db, {
+    fetchImpl: batchFetch,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_VISION_BATCH_PAGES: '3' }
+  });
+  assert.equal(out2.status, 'completed');
+  assert.deepEqual(batchSliceCounts, [2, 2]);
+  const p2Rows = (await db.query('SELECT page_no, text FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f2])).rows;
+  assert.equal(p2Rows[0].text, 'Batch1 SlicePos0');
+  assert.equal(p2Rows[1].text, 'Batch1 SlicePos1');
+  assert.equal(p2Rows[3].text, 'Batch2 SlicePos0');
+  assert.equal(p2Rows[4].text, 'Batch2 SlicePos1');
+
+  // Part C: 4 consecutive vision pages with DOC_VISION_BATCH_PAGES=3 -> [3, 1] slices
+  const fourScannedPdf = buildSyntheticPdf([
+    { hasImage: true, text: 'a' },
+    { hasImage: true, text: 'b' },
+    { hasImage: true, text: 'c' },
+    { hasImage: true, text: 'd' }
+  ]);
+  const { fileId: f3 } = await insertTestFile(db, { originalName: 'four_consecutive.pdf', buffer: fourScannedPdf });
+  await enqueueDocumentIngestionJob(db, { fileId: f3, contentHash: 'hash_four_consecutive' });
+  const fourCounts = [];
+  const fourFetch = async (_url, init = {}) => {
+    const body = JSON.parse(init.body || '{}');
+    const sliceDoc = await PDFDocument.load(Buffer.from(body.contents[0].parts[0].inlineData.data, 'base64'));
+    const count = sliceDoc.getPageCount();
+    fourCounts.push(count);
+    const payload = count === 1
+      ? { text: 'Consecutive page 4', latex_present: false, figure_description: null, ocr_confidence: 0.9, detected_type: 'scanned' }
+      : {
+        pages: Array.from({ length: count }, (_, idx) => ({
+          text: `Consecutive page ${idx + 1}`,
+          latex_present: false,
+          figure_description: null,
+          ocr_confidence: 0.9,
+          detected_type: 'scanned'
+        }))
+      };
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        usageMetadata: { promptTokenCount: 300, candidatesTokenCount: 60 },
+        candidates: [{ content: { parts: [{ text: JSON.stringify(payload) }] } }]
+      })
+    };
+  };
+  await processNextIngestionJob(db, {
+    fetchImpl: fourFetch,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_VISION_BATCH_PAGES: '3' }
+  });
+  assert.deepEqual(fourCounts, [3, 1]);
+
+  // Part D: File API fallback triggers ONLY when single slice exceeds inlinePdfMaxBytes
+  const tinyLimitPdf = buildSyntheticPdf([{ hasImage: true, text: 'x' }]);
+  const { fileId: f4 } = await insertTestFile(db, { originalName: 'oversize_slice.pdf', buffer: tinyLimitPdf });
+  await enqueueDocumentIngestionJob(db, { fileId: f4, contentHash: 'hash_oversize_slice' });
+  const { fetchImpl: fallbackFetch, calls: fallbackCalls } = createMockGeminiFetch(async () => ({
+    json: { text: 'Uploaded oversized slice', latex_present: false, figure_description: null, ocr_confidence: 0.9, detected_type: 'scanned' }
+  }));
+  const out4 = await processNextIngestionJob(db, {
+    fetchImpl: fallbackFetch,
+    inlinePdfMaxBytes: 10,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+  assert.equal(out4.status, 'completed');
+  assert.equal(fallbackCalls.some(c => c.url.includes('/upload/v1beta/files')), true);
+});
+
+test('15. Fix E: Drift check lowers confidence and flags PAGE_DRIFT_SUSPECTED when 50+ char vision page has very low word overlap', async () => {
+  const { db } = await createD2TestDb();
+
+  const driftPdf = buildSyntheticPdf([
+    {
+      font: 'math',
+      text: [
+        'Theorem 2: Thermodynamics entropy increases in every isolated reversible thermodynamic cycle.',
+        'Maxwell relations connect pressure, volume, temperature, and internal energy differentials.'
+      ],
+      unicodeText: '∫₀¹ ∂U/∂S ≈ ∑ αᵢ√βᵢ ≤ ∞ ≠ 0'
+    },
+    {
+      font: 'math',
+      text: [
+        'Theorem 3: Eigenvalues of a real symmetric Hermitian matrix are strictly orthogonal real numbers.',
+        'Spectral decomposition diagonalizes quadratic forms in linear algebra.'
+      ],
+      unicodeText: '∫₀¹ Av ≈ λv, ∂f/∂x ≈ ∑ αᵢ√βᵢ ≤ ∞ ≠ 0'
+    }
+  ]);
+
+  const { fileId } = await insertTestFile(db, { originalName: 'drift_test.pdf', buffer: driftPdf });
+  await enqueueDocumentIngestionJob(db, { fileId, contentHash: computeContentHash(driftPdf) });
+
+  const { fetchImpl } = createMockGeminiFetch(async ({ pageNo }) => {
+    if (pageNo === 1) {
+      // Completely unrelated hallucinated / drifted output
+      return {
+        json: {
+          text: 'Chocolate banana pancake recipe with flour sugar eggs butter cooked slowly in skillet.',
+          latex_present: false,
+          figure_description: null,
+          ocr_confidence: 0.95,
+          detected_type: 'math'
+        }
+      };
+    }
+    return {
+      json: {
+        text: 'Theorem 3: Eigenvalues of a real symmetric Hermitian matrix are strictly orthogonal real numbers. Spectral decomposition diagonalizes quadratic forms.',
+        latex_present: true,
+        figure_description: null,
+        ocr_confidence: 0.94,
+        detected_type: 'math'
+      }
+    };
+  });
+
+  const out = await processNextIngestionJob(db, {
+    fetchImpl,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+  assert.equal(out.status, 'completed');
+
+  const pages = (await db.query('SELECT page_no, source, ocr_confidence, error FROM document_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
+  assert.equal(pages[0].source, 'vision');
+  assert.ok(pages[0].ocr_confidence !== null);
+  assert.ok(Number(pages[0].ocr_confidence) <= 0.35, `Expected lowered confidence <= 0.35, got ${pages[0].ocr_confidence}`);
+  assert.match(String(pages[0].error || ''), /PAGE_DRIFT_SUSPECTED/);
+
+  assert.equal(pages[1].source, 'vision');
+  assert.equal(Number(pages[1].ocr_confidence), 0.94);
+  assert.equal(pages[1].error, null);
+});
+
+test('16. Fix F: Self-contained worker drains knowledge_jobs in-process within budget and respects env gating', async () => {
+  const { db } = await createD2TestDb();
+
+  // Case 1: Disabled knowledge flags skip gracefully
+  const skipped = await drainKnowledgeJobs(db, { enabled: false });
+  assert.equal(skipped.skipped, true);
+  assert.match(skipped.reason, /KYANA_KNOWLEDGE_V3/);
+
+  // Case 2: Enabled drains batches until empty or wall-clock budget hit
+  let remaining = 3;
+  let batchCalls = 0;
+  const drained = await drainKnowledgeJobs(db, {
+    enabled: true,
+    budgetMs: 5000,
+    batchSize: 2,
+    processPendingJobsFn: async (_workerDb, { batchSize }) => {
+      batchCalls++;
+      const take = Math.min(remaining, batchSize);
+      remaining -= take;
+      return { processed: take, succeeded: take, failed: 0 };
+    }
+  });
+  assert.equal(drained.skipped, false);
+  assert.equal(drained.processed, 3);
+  assert.equal(drained.succeeded, 3);
+  assert.equal(batchCalls, 3); // 2, 1, then 0
+
+  // Case 3: Wall-clock budget exhaustion halts cleanly
+  const timedOut = await drainKnowledgeJobs(db, {
+    enabled: true,
+    budgetMs: 15,
+    batchSize: 1,
+    processPendingJobsFn: async () => {
+      await new Promise(r => setTimeout(r, 20));
+      return { processed: 1, succeeded: 1, failed: 0 };
+    }
+  });
+  assert.equal(timedOut.timedOut, true);
+  assert.equal(timedOut.processed, 1);
+});
+
+test('17. Fix G: Cost tracking columns record vision_calls, vision_input_tokens, vision_output_tokens across retries and checkpoint resume', async () => {
+  const { pg, db } = await createD2TestDb();
+
+  // Verify columns exist after UP migration
+  const colRes = await pg.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'ingestion_jobs'
+      AND column_name IN ('vision_calls', 'vision_input_tokens', 'vision_output_tokens')
+    ORDER BY column_name
+  `);
+  assert.deepEqual(colRes.rows.map(r => r.column_name), ['vision_calls', 'vision_input_tokens', 'vision_output_tokens']);
+
+  const scanned2 = buildSyntheticPdf([
+    { hasImage: true, text: 'p1' },
+    { hasImage: true, text: 'p2' }
+  ]);
+  const { fileId } = await insertTestFile(db, { originalName: 'usage_tracking.pdf', buffer: scanned2 });
+  await enqueueDocumentIngestionJob(db, { fileId, contentHash: computeContentHash(scanned2) });
+
+  let reqCount = 0;
+  const usageFetch = async () => {
+    reqCount++;
+    if (reqCount === 1) {
+      // Simulate transient 503 on first call before retry succeeds
+      return { ok: false, status: 503, headers: { get: () => null }, text: async () => 'busy' };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        usageMetadata: { promptTokenCount: 1000, candidatesTokenCount: 250 },
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                text: `Usage tracked OCR call #${reqCount}`,
+                latex_present: false,
+                figure_description: null,
+                ocr_confidence: 0.9,
+                detected_type: 'scanned'
+              })
+            }]
+          }
+        }]
+      })
+    };
+  };
+
+  // Run with quota=1 -> Page 1 retries once (2 vision calls, 1000 in, 250 out), Page 2 skipped_quota
+  await processNextIngestionJob(db, {
+    fetchImpl: usageFetch,
+    maxVisionPages: 1,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+  let jobRow = (await db.query('SELECT * FROM ingestion_jobs WHERE file_id = $1 ORDER BY id DESC LIMIT 1', [fileId])).rows[0];
+  assert.equal(jobRow.status, 'partial_success');
+  assert.equal(Number(jobRow.vision_calls), 2);
+  assert.equal(Number(jobRow.vision_input_tokens), 1000);
+  assert.equal(Number(jobRow.vision_output_tokens), 250);
+
+  // Resume with higher quota -> processes Page 2 (1 more call, +1000 in, +250 out)
+  await enqueueDocumentIngestionJob(db, { fileId, contentHash: computeContentHash(scanned2) });
+  await db.query("UPDATE ingestion_jobs SET vision_calls = $1, vision_input_tokens = $2, vision_output_tokens = $3 WHERE file_id = $4", [2, 1000, 250, fileId]);
+  await processNextIngestionJob(db, {
+    fetchImpl: usageFetch,
+    maxVisionPages: 5,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+  jobRow = (await db.query('SELECT * FROM ingestion_jobs WHERE file_id = $1 ORDER BY id DESC LIMIT 1', [fileId])).rows[0];
+  assert.equal(jobRow.status, 'completed');
+  assert.equal(Number(jobRow.vision_calls), 3);
+  assert.equal(Number(jobRow.vision_input_tokens), 2000);
+  assert.equal(Number(jobRow.vision_output_tokens), 500);
+});
+
+test('18. Fix H: Worker exits early with no queued jobs & GITHUB_DISPATCH_TOKEN missing performs 0 calls', async () => {
+  const { db } = await createD2TestDb();
+
+  // Empty DB -> early exit before invoking worker loop
+  const early = await executeWorkerRun(db, { skipKnowledge: true });
+  assert.equal(early.mode, 'early_exit');
+
+  // Direct unit check on triggerDocIngestionWorkflowDispatch
+  const app = require('../server');
+  let fetchCalls = 0;
+  const mockFetch = async () => {
+    fetchCalls++;
+    return { ok: false, status: 500 };
+  };
+
+  assert.equal(app.triggerDocIngestionWorkflowDispatch({ fetchImpl: mockFetch, env: {} }), false);
+  assert.equal(fetchCalls, 0, 'Missing GITHUB_DISPATCH_TOKEN must not call fetch');
+
+  // With token & repo configured, triggers fire-and-forget without throwing even on 500 response
+  const fired = app.triggerDocIngestionWorkflowDispatch({
+    fetchImpl: mockFetch,
+    env: { GITHUB_DISPATCH_TOKEN: 'ghp_test', GITHUB_DISPATCH_REPO: 'owner/repo' }
+  });
+  assert.equal(fired, true);
+  await new Promise(r => setTimeout(r, 20));
+  assert.equal(fetchCalls, 1);
+
+  // Full POST /api/files/upload without GITHUB_DISPATCH_TOKEN -> 0 calls to api.github.com and upload succeeds
+  const runtimeDb = require('../db');
+  await runtimeDb.initSchema();
+  const srv = http.createServer(app);
+  await new Promise(resolve => srv.listen(0, '127.0.0.1', resolve));
+  const baseUrl = `http://127.0.0.1:${srv.address().port}`;
+  const origToken = process.env.GITHUB_DISPATCH_TOKEN;
+  const origFetch = globalThis.fetch;
+  const githubCalls = [];
+  let storedName = null;
+
+  try {
+    delete process.env.GITHUB_DISPATCH_TOKEN;
+    globalThis.fetch = async (url, init) => {
+      if (String(url).includes('api.github.com')) githubCalls.push(String(url));
+      return origFetch(url, init);
+    };
+
+    const ts = Date.now();
+    const adminId = `ADMIN_D2R_${ts}`;
+    const adminToken = `tok_${adminId}`;
+    await runtimeDb.run(
+      'INSERT OR IGNORE INTO students (studentId, name, role, semester, passwordHash) VALUES (?, ?, ?, ?, ?)',
+      adminId, 'D2R Admin', 'admin', 'Semester 3', 'hash'
+    );
+    await runtimeDb.run(
+      'INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)',
+      adminToken, adminId, new Date().toISOString(), new Date(Date.now() + 86400000).toISOString()
+    );
+
+    const pdf = buildSyntheticPdf([{ text: 'Dispatch token safety check document page content.' }]);
+    const formData = new FormData();
+    formData.append('files', new Blob([pdf], { type: 'application/pdf' }), 'Dispatch_No_Token.pdf');
+    formData.append('semester', 'Semester 3');
+
+    const res = await origFetch(`${baseUrl}/api/files/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: formData
+    });
+    assert.equal(res.status, 200);
+    const json = await res.json();
+    storedName = json.files?.[0]?.storedName;
+    assert.equal(githubCalls.length, 0, 'Upload without GITHUB_DISPATCH_TOKEN must perform zero GitHub API calls');
+  } finally {
+    globalThis.fetch = origFetch;
+    if (origToken !== undefined) process.env.GITHUB_DISPATCH_TOKEN = origToken;
+    else delete process.env.GITHUB_DISPATCH_TOKEN;
+    if (storedName) {
+      try { fs.unlinkSync(path.join(__dirname, '../uploads', storedName)); } catch (_) {}
+    }
+    await new Promise(resolve => srv.close(resolve));
+  }
+});
+
+test('19. Fix I: Local harness refuses DATABASE_URL / SUPABASE_* and runs offline mock against local PDF', async () => {
+  assert.throws(
+    () => assertSafeLocalEnv({ DATABASE_URL: 'postgres://user:pass@neon.tech/db' }),
+    /REFUSED/
+  );
+  assert.throws(
+    () => assertSafeLocalEnv({ SUPABASE_SERVICE_ROLE_KEY: 'eyJ...' }),
+    /REFUSED/
+  );
+  assert.throws(
+    () => assertSafeLocalEnv({ NEXT_PUBLIC_SUPABASE_URL: 'https://abc.supabase.co' }),
+    /REFUSED/
+  );
+  assert.doesNotThrow(() => assertSafeLocalEnv({ GEMINI_API_KEY: 'k', DOC_VISION_MODEL: 'm' }));
+
+  const tmpDir = fs.mkdtempSync(path.join(__dirname, '..', 'tmp-d2r-harness-'));
+  const pdfPath = path.join(tmpDir, 'sample_note.pdf');
+  const outDir = path.join(tmpDir, 'out');
+  try {
+    const pdf = buildSyntheticPdf([
+      { text: 'Normal typed introduction paragraph with sufficient clean characters for text layer extraction.' },
+      { hasImage: true, text: 'scan' }
+    ]);
+    fs.writeFileSync(pdfPath, pdf);
+
+    const summary = await runLocalPdfHarness({ filePath: pdfPath, outDir, env: {} });
+    assert.equal(summary.mode, 'offline-mock-vision');
+    assert.equal(summary.status, 'completed');
+    assert.equal(summary.totalPages, 2);
+    assert.equal(summary.pagesByRoute.text_layer, 1);
+    assert.equal(summary.pagesByRoute.vision, 1);
+    assert.equal(summary.visionCalls, 1);
+    assert.ok(fs.existsSync(summary.outputPath));
+    const md = fs.readFileSync(summary.outputPath, 'utf8');
+    assert.match(md, /\| page \| source \| page_type \| confidence \| text \|/);
+    assert.match(md, /\[MOCK_VISION\]/);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 });

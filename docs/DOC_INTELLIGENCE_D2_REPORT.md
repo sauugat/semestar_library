@@ -94,14 +94,86 @@ Result: **`tests 97, pass 97, fail 0, cancelled 0, skipped 0`** (`13/13` passing
 
 ---
 
-## 4. Remaining Risks & Owner Manual Steps
+## 4. Phase D2-R Real-World Hardening (Fixes D–I) (`VERIFIED`)
 
-- **Batch size on `/api/internal/knowledge/worker`**: Consider lowering `batchSize` below `25` or adding a wall-clock stop budget inside `/api/internal/knowledge/worker` for D3 if Vercel Hobby times out during heavy embedding runs (`ASSUMED` on Vercel Hobby).
-- **Owner Manual Steps Before Live Use**:
-  1. Apply [`migrations/20261112_doc_intelligence_d2.up.sql`](file:///Users/sauu_gat/.gemini/antigravity/worktrees/semester-library/tihar_lighting_engine_overhaul/migrations/20261112_doc_intelligence_d2.up.sql) to Neon Postgres.
-  2. Set GitHub Actions secrets/variables (`DATABASE_URL`, `GEMINI_API_KEY`, `DOC_VISION_MODEL`, `INTERNAL_CRON_SECRET`, `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_URL`, optional `DOC_MAX_VISION_PAGES=60`) and Vercel `KYANA_KNOWLEDGE_V3=true` + `KYANA_KNOWLEDGE_V3_USERS`.
-  3. Optionally preview and run backfill against existing notes:
-     ```bash
-     node scripts/doc-ingestion-worker.js --reconcile --dry-run --limit 500
-     node scripts/doc-ingestion-worker.js --reconcile --limit 100
-     ```
+- **Fix D — `pdf-lib` Page Slicing (`lib/doc-vision-ocr.js`, `lib/doc-ingestion-worker.js`, `package.json`)**:
+  - Added `pdf-lib` to `dependencies`.
+  - Removed whole-PDF File API upload (`getFileUriIfNeeded`). Instead, `buildPdfSlice(srcPdfDoc, oneBasedPageNos)` constructs a small PDF containing **only** the target page (default `DOC_VISION_BATCH_PAGES=1`) or up to `3` consecutive vision pages (`resolveVisionBatchPages` clamps `1..3`).
+  - Each slice is sent inline base64 via `extractPageSliceWithVision`; Gemini File API upload now triggers **only** when a single slice itself exceeds `DOC_INLINE_PDF_MAX_BYTES` (`4 MiB`).
+  - Batched slice responses are mapped back to physical `page_no` by exact slice array position (`VISION_BATCH_COUNT_MISMATCH` triggers retry if lengths differ).
+  - Verified by **Test 14** (`PDFDocument.load` on decoded `inlineData.data` confirms 1-page default slices, consecutive `[2, 2]`/`[3, 1]` slices, and single-slice File API fallback).
+- **Fix E — Text-Layer vs Vision Drift Check (`lib/doc-ingestion-worker.js`)**:
+  - Added `applyDriftCheck(classification, visionResult)` for pages routed to `vision` that already had `>= 50` clean chars in their PDF text layer (excluding legacy Nepali mojibake pages).
+  - When `layerWords.size >= 5` and token overlap with the Vision output is `< 20%`, lowers `ocr_confidence` (`<= 0.35`) and records `PAGE_DRIFT_SUSPECTED: overlap ...` in `document_pages.error`.
+  - Verified by **Test 15**.
+- **Fix F — Self-Contained Worker & In-Process `knowledge_jobs` Drain (`lib/doc-ingestion-worker.js`, `scripts/doc-ingestion-worker.js`, `.github/workflows/doc-ingestion-worker.yml`, `.github/workflows/knowledge-reconciliation.yml`)**:
+  - After `runIngestionWorkerLoop`, `scripts/doc-ingestion-worker.js` calls `drainKnowledgeJobs(db, { budgetMs })` (`processPendingJobs` from `lib/knowledge-worker.js` directly against Postgres) bounded by `DOC_KNOWLEDGE_BUDGET_MS` (default `8 * 60 * 1000` = 8 minutes).
+  - Removed the Vercel HTTP `/api/internal/knowledge/worker` curl step from `.github/workflows/knowledge-reconciliation.yml` (while leaving `routes/internal-knowledge.js` gating untouched).
+  - Verified by **Test 16**.
+- **Fix G — Token & Call Cost Tracking (`migrations/20261112_doc_intelligence_d2.up.sql`, `.down.sql`, `lib/doc-vision-ocr.js`, `lib/doc-ingestion-worker.js`)**:
+  - Added `vision_calls`, `vision_input_tokens`, and `vision_output_tokens` (`INTEGER NOT NULL DEFAULT 0`) to `ingestion_jobs` (and explicit `DROP COLUMN IF EXISTS` in `.down.sql`).
+  - `extractUsageMetadata` extracts `promptTokenCount` and `candidatesTokenCount` from Gemini `usageMetadata`, persisting cumulative totals across slice calls, transient retries, and checkpoint resumes.
+  - Verified by **Test 17**.
+- **Fix H — GitHub Actions Minutes Savings & Optional Immediate Dispatch (`lib/doc-ingestion-worker.js`, `scripts/doc-ingestion-worker.js`, `.github/workflows/doc-ingestion-worker.yml`, `server.js`)**:
+  - Changed `.github/workflows/doc-ingestion-worker.yml` schedule from `*/15 * * * *` to hourly (`0 * * * *`), retaining `workflow_dispatch`.
+  - Added `hasPendingWork(db)` early exit in `scripts/doc-ingestion-worker.js` (`executeWorkerRun` exits immediately with `mode: 'early_exit'` when neither `ingestion_jobs` nor `knowledge_jobs` has runnable work).
+  - Added fire-and-forget `triggerDocIngestionWorkflowDispatch()` after persisted uploads in `server.js` (`/api/files/upload` and `/api/files/record-upload`) that sends `workflow_dispatch` **only** when `GITHUB_DISPATCH_TOKEN` and `GITHUB_DISPATCH_REPO`/`GITHUB_REPOSITORY` are set, with zero delay or failure impact when unset or failing.
+  - Verified by **Test 18** (`GITHUB_DISPATCH_TOKEN` unset performs `0` `api.github.com` requests).
+- **Fix I — Offline Local Real-File Harness (`scripts/doc-ingestion-local-test.js`, `.gitignore`)**:
+  - Added `tmp/` to `.gitignore`.
+  - Created `scripts/doc-ingestion-local-test.js`: refuses (`UNSAFE_ENV_SET`) if `DATABASE_URL`, `DIRECT_URL`, `POSTGRES_URL`, `PGHOST`, or any `SUPABASE_*` / `NEXT_PUBLIC_SUPABASE_*` env var is set; never loads `.env`; runs against in-memory PGlite; invokes real Gemini **only** when `GEMINI_API_KEY` and `DOC_VISION_MODEL` are passed in the shell (otherwise offline mock); writes `tmp/d2-local-out/<name>.md` and prints route/call/token/USD totals.
+  - Verified offline safety and mock execution in **Test 19** (not executed against real API keys).
+
+### Phase D2-R GitHub Environment Requirements & Missing-Flag Behavior (`VERIFIED`)
+
+| Env Var / Secret | Required? | Effect When Missing |
+| --- | --- | --- |
+| `DATABASE_URL` (secret) | Yes | `.github/workflows/doc-ingestion-worker.yml` and `scripts/doc-ingestion-worker.js` exit `1` immediately. |
+| `GEMINI_API_KEY` (secret) | Yes for Vision + embeddings | Vision OCR fails non-transiently with `VISION_API_KEY_MISSING` (pages route to `failed`); `embedText` throws `'Gemini embeddings are not configured'`, causing `knowledge-sync.js` to write keyword-only `embedding = NULL` chunks and re-enqueue `knowledge_jobs`. |
+| `DOC_VISION_MODEL` (var/secret) | Yes for Vision OCR | `resolveVisionModel` throws non-transient `VISION_MODEL_UNCONFIGURED`; PDFs with only `text_layer` pages still complete without Vision. |
+| `KYANA_KNOWLEDGE_V3` (var) & `KYANA_KNOWLEDGE_V3_USERS` (var) | Required for `knowledge_jobs` drain | Workflow defaults `KYANA_KNOWLEDGE_V3` to `'true'`, **but `isKnowledgeIndexingEnabled()` in `lib/knowledge-schema.js` requires BOTH `KYANA_KNOWLEDGE_V3 === 'true'` AND non-empty `KYANA_KNOWLEDGE_V3_USERS`**. If either is missing/empty, `drainKnowledgeJobs` skips draining with `{ skipped: true, reason: 'KYANA_KNOWLEDGE_V3 or KYANA_KNOWLEDGE_V3_USERS is not enabled' }` (ingestion jobs still complete cleanly). |
+| `DOC_VISION_BATCH_PAGES` (var) | Optional (default `1`) | Defaults to `1` page/slice (clamped `1..3`). |
+| `DOC_KNOWLEDGE_BUDGET_MS` (var) | Optional (default `480000`) | Defaults to 8 minutes (`480000` ms) wall-clock budget for in-process `knowledge_jobs` draining. |
+| `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_URL` | Needed only for Supabase-stored blobs | Worker still reads local/Postgres `file_blobs`, but fails to download external Supabase Storage URLs if unconfigured. |
+| `GITHUB_DISPATCH_TOKEN` + `GITHUB_DISPATCH_REPO` (Vercel app env, optional) | Optional | When unset on Vercel, uploads skip `workflow_dispatch` with 0 outbound calls and rely on the hourly cron or manual dispatch. |
+
+### Phase D2-R Full Verification Output (`VERIFIED`)
+
+```bash
+NODE_ENV=test node --test --test-concurrency=1 \
+  tests/doc-intelligence-d2.test.js \
+  tests/note-search.test.js \
+  tests/kyana-note-vector.test.js \
+  tests/library-assignments-auth.test.js \
+  tests/teacher-dashboard-materials.test.js \
+  tests/backend-security-and-reliability.test.js
+```
+Result after final edit: **`tests 103, suites 0, pass 103, fail 0, cancelled 0, skipped 0, duration_ms 64756.262791`** (`19/19` passing in `tests/doc-intelligence-d2.test.js`).
+
+---
+
+## 5. Deployment Order
+
+1. **Apply the D2 migration to Neon Postgres (manually):**
+   - Run `migrations/20261112_doc_intelligence_d2.up.sql` against target Postgres (creates `document_pages` and `ingestion_jobs` including `vision_calls`, `vision_input_tokens`, `vision_output_tokens`, plus indexes).
+2. **Configure secrets & variables in GitHub Actions and Vercel:**
+   - GitHub Secrets/Vars: `DATABASE_URL`, `DIRECT_URL`, `GEMINI_API_KEY`, `DOC_VISION_MODEL`, `KYANA_KNOWLEDGE_V3=true`, `KYANA_KNOWLEDGE_V3_USERS`, `INTERNAL_CRON_SECRET`, `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_URL`, optional `DOC_VISION_BATCH_PAGES=1` (`1..3`), `DOC_MAX_VISION_PAGES=60`, `DOC_KNOWLEDGE_BUDGET_MS=480000`.
+   - Vercel Env (optional immediate trigger): `GITHUB_DISPATCH_TOKEN` and `GITHUB_DISPATCH_REPO` (`owner/repo`).
+3. **Deploy application & merge workflow code:**
+   - Deploy app (`server.js` + `lib/*`) and merge `.github/workflows/doc-ingestion-worker.yml` + `knowledge-reconciliation.yml` to `main`.
+4. **Backfill dry-run (count only):**
+   ```bash
+   node scripts/doc-ingestion-worker.js --reconcile --dry-run --limit 500
+   ```
+5. **Backfill a small pilot batch (`--limit 3`):**
+   ```bash
+   node scripts/doc-ingestion-worker.js --reconcile --limit 3
+   node scripts/doc-ingestion-worker.js --max-jobs 3
+   ```
+6. **Review pilot rows in Postgres:**
+   - Inspect `ingestion_jobs` (`status`, `vision_calls`, `vision_input_tokens`, `vision_output_tokens`, `error`) and `document_pages` (`source`, `page_type`, `ocr_confidence`, `error` for any `PAGE_DRIFT_SUSPECTED` or `skipped_quota`).
+7. **Scale up to larger batches:**
+   ```bash
+   node scripts/doc-ingestion-worker.js --reconcile --limit 50
+   node scripts/doc-ingestion-worker.js --max-jobs 50
+   ```

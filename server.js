@@ -36,6 +36,41 @@ const gamesTicket = require('./lib/games-ticket');
 const docWorker = require('./lib/doc-ingestion-worker');
 const { computeContentHash } = docWorker;
 
+function triggerDocIngestionWorkflowDispatch({ fetchImpl = globalThis.fetch, env = process.env } = {}) {
+  const token = String(env.GITHUB_DISPATCH_TOKEN || '').trim();
+  const repo = String(env.GITHUB_DISPATCH_REPO || env.GITHUB_REPOSITORY || '').trim();
+  if (!token || !repo || typeof fetchImpl !== 'function') {
+    return false;
+  }
+
+  const workflow = String(env.GITHUB_DOC_WORKER_WORKFLOW || 'doc-ingestion-worker.yml').trim();
+  const ref = String(env.GITHUB_DISPATCH_REF || 'main').trim();
+  const url = `https://api.github.com/repos/${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`;
+
+  Promise.resolve()
+    .then(() => fetchImpl(url, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'semestar-library-doc-dispatch'
+      },
+      body: JSON.stringify({ ref }),
+      signal: AbortSignal.timeout(3000)
+    }))
+    .then(res => {
+      if (res && !res.ok) {
+        console.warn('[DocWorkerDispatch] Non-OK GitHub dispatch status:', res.status);
+      }
+    })
+    .catch(err => {
+      console.warn('[DocWorkerDispatch] Fire-and-forget dispatch skipped/failed:', err.message);
+    });
+
+  return true;
+}
+
 async function enqueueUploadedNoteIngestion(fileMeta, contentHash = '') {
   const fileId = typeof fileMeta === 'object' && fileMeta !== null ? fileMeta.id : fileMeta;
   let queued = { status: 'enqueue_failed', fileId };
@@ -3196,6 +3231,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
 
   // Material push notification enqueue strictly for successfully persisted files
   if (successfulFiles.length > 0) {
+    triggerDocIngestionWorkflowDispatch();
     try {
       const { enqueueMaterialPush, enqueueMaterialBatchPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
       const uploaderStudentId = currentStudentId;
@@ -3558,6 +3594,7 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
   // In-app & push notifications are handled below via enqueueMaterialPush / enqueueMaterialBatchPush
 
   if (successfulFiles.length > 0) {
+    triggerDocIngestionWorkflowDispatch();
     try {
       const { enqueueMaterialPush, enqueueMaterialBatchPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
       const uploaderStudentId = currentStudentId;
@@ -7571,4 +7608,5 @@ if (require.main === module) {
 }
 
 app.server = server;
+app.triggerDocIngestionWorkflowDispatch = triggerDocIngestionWorkflowDispatch;
 module.exports = app;

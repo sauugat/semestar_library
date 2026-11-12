@@ -3,6 +3,11 @@
 
 BEGIN;
 
+ALTER TABLE IF EXISTS ingestion_jobs
+  DROP COLUMN IF EXISTS vision_output_tokens,
+  DROP COLUMN IF EXISTS vision_input_tokens,
+  DROP COLUMN IF EXISTS vision_calls;
+
 DROP INDEX IF EXISTS idx_inj_file_id;
 DROP INDEX IF EXISTS idx_inj_content_hash;
 DROP INDEX IF EXISTS idx_inj_claim;

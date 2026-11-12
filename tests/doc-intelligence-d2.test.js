@@ -1,7 +1,11 @@
 'use strict';
 
+process.env.NODE_ENV = 'test';
+process.env.DB_PATH = process.env.DB_PATH || ':memory:';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -20,14 +24,17 @@ const {
   buildVisionPrompt,
   parseVisionJsonResponse
 } = require('../lib/doc-vision-ocr');
+const docWorker = require('../lib/doc-ingestion-worker');
 const {
   PARSER_VERSION,
   computeContentHash,
   enqueueDocumentIngestionJob,
   claimNextIngestionJob,
+  reconcileMissingIngestionJobs,
   processNextIngestionJob,
   runIngestionWorkerLoop
-} = require('../lib/doc-ingestion-worker');
+} = docWorker;
+const { parseCliArgs } = require('../scripts/doc-ingestion-worker');
 const noteSearch = require('../lib/note-search');
 
 /**
@@ -1086,4 +1093,183 @@ test('11. Per-page Vision timeout (AbortController) & pgPool transaction claim p
   assert.equal(pages[0].status, 'failed');
   assert.match(pages[0].error, /VISION_TIMEOUT|aborted/i);
   assert.equal(pages[1].status, 'completed');
+});
+
+test('12. Fix A & Fix C: Upload never fails when enqueue throws/errors, keeps file row, and seeds searchable metadata fallback', async () => {
+  // Part A: enqueueDocumentIngestionJob returns queued_schema_pending cleanly when ingestion_jobs is missing
+  const { db: pgDb } = await createD2TestDb();
+  await pgDb.exec('DROP TABLE ingestion_jobs;');
+  const pdf = buildSyntheticPdf([{ text: 'Quantum Cryptography: BB84 key distribution protocol and photon polarization states.' }]);
+  const { fileId: pgFileId } = await insertTestFile(pgDb, {
+    originalName: 'quantum_bb84_notes.pdf',
+    title: 'Quantum BB84 Notes',
+    subject: 'Cryptography',
+    chapter: 'Unit 4',
+    buffer: pdf
+  });
+
+  const schemaPending = await enqueueDocumentIngestionJob(pgDb, {
+    fileId: pgFileId,
+    contentHash: computeContentHash(pdf)
+  });
+  assert.equal(schemaPending.status, 'queued_schema_pending');
+
+  // Seed metadata row on Postgres PGlite before worker runs & verify seedMetadataIndex does not clobber indexed rows
+  const seedRes = await noteSearch.seedMetadataIndex(pgDb, {
+    id: pgFileId,
+    originalName: 'quantum_bb84_notes.pdf',
+    title: 'Quantum BB84 Notes',
+    subject: 'Cryptography',
+    chapter: 'Unit 4'
+  });
+  assert.equal(seedRes.status, 'pending_metadata_seeded');
+  const nsdPgRow = (await pgDb.query('SELECT extraction_status, content FROM note_search_documents WHERE id = $1', [pgFileId])).rows[0];
+  assert.equal(nsdPgRow.extraction_status, 'pending');
+  assert.ok(nsdPgRow.content.includes('Quantum BB84 Notes'));
+
+  // Subsequent conflict never overwrites an indexed row
+  await pgDb.query("UPDATE note_search_documents SET extraction_status = 'indexed', content = 'FULL_EXTRACTED_TEXT' WHERE id = $1", [pgFileId]);
+  await noteSearch.seedMetadataIndex(pgDb, { id: pgFileId, originalName: 'x.pdf', title: 'Overwritten?' });
+  const preservedRow = (await pgDb.query('SELECT extraction_status, content FROM note_search_documents WHERE id = $1', [pgFileId])).rows[0];
+  assert.equal(preservedRow.extraction_status, 'indexed');
+  assert.equal(preservedRow.content, 'FULL_EXTRACTED_TEXT');
+
+  // Part B: Full HTTP POST /api/files/upload with simulated enqueue failure -> upload still 200, keeps file row, logs error, searchable by filename/title
+  const app = require('../server');
+  const runtimeDb = require('../db');
+  await runtimeDb.initSchema();
+
+  const srv = http.createServer(app);
+  await new Promise(resolve => srv.listen(0, '127.0.0.1', resolve));
+  const baseUrl = `http://127.0.0.1:${srv.address().port}`;
+
+  const origEnqueue = docWorker.enqueueDocumentIngestionJob;
+  const origConsoleError = console.error;
+  const loggedErrors = [];
+  let createdStoredName = null;
+
+  try {
+    const ts = Date.now();
+    const adminId = `ADMIN_D2V_${ts}`;
+    const adminToken = `tok_${adminId}`;
+    await runtimeDb.run(
+      'INSERT OR IGNORE INTO students (studentId, name, role, semester, passwordHash) VALUES (?, ?, ?, ?, ?)',
+      adminId, 'D2V Admin', 'admin', 'Semester 3', 'hash'
+    );
+    await runtimeDb.run(
+      'INSERT INTO mobile_tokens (token, studentId, createdAt, expiresAt) VALUES (?, ?, ?, ?)',
+      adminToken, adminId, new Date().toISOString(), new Date(Date.now() + 86400000).toISOString()
+    );
+
+    docWorker.enqueueDocumentIngestionJob = async () => {
+      throw new Error('SIMULATED_ENQUEUE_OUTAGE');
+    };
+    console.error = (...args) => {
+      loggedErrors.push(args.map(a => String(a)).join(' '));
+    };
+
+    const formData = new FormData();
+    formData.append('files', new Blob([pdf], { type: 'application/pdf' }), 'Dijkstra_Shortest_Path_Guide.pdf');
+    formData.append('title', 'Graph Shortest Path Revision');
+    formData.append('semester', 'Semester 3');
+    formData.append('subject', 'Algorithms');
+    formData.append('chapter', 'Unit 5');
+
+    const res = await fetch(`${baseUrl}/api/files/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: formData
+    });
+
+    assert.equal(res.status, 200, 'Upload must succeed even when enqueue throws');
+    const json = await res.json();
+    assert.equal(json.count, 1);
+    const uploadedId = json.files[0].id;
+    createdStoredName = json.files[0].storedName;
+    assert.ok(uploadedId > 0);
+    assert.equal(json.files[0].indexing.status, 'enqueue_failed');
+    assert.ok(loggedErrors.some(msg => msg.includes('Note ingestion enqueue failed') && msg.includes('SIMULATED_ENQUEUE_OUTAGE')));
+
+    const savedFile = await runtimeDb.get('SELECT * FROM files WHERE id = ?', uploadedId);
+    assert.ok(savedFile, 'File row must remain persisted when enqueue fails');
+    assert.equal(savedFile.title, 'Graph Shortest Path Revision');
+
+    // Fix C: Immediately searchable by filename/title before any worker runs
+    const searchByFilename = await noteSearch.searchNotes(runtimeDb, { query: 'Dijkstra Shortest Path Guide', semester: '3' });
+    assert.ok(searchByFilename.some(r => Number(r.id) === Number(uploadedId)), 'Newly uploaded file must be searchable by filename immediately');
+
+    const searchByTitle = await noteSearch.searchNotes(runtimeDb, { query: 'Graph Shortest Path Revision', semester: '3' });
+    assert.ok(searchByTitle.some(r => Number(r.id) === Number(uploadedId)), 'Newly uploaded file must be searchable by title immediately');
+
+    const pendingDoc = await runtimeDb.get('SELECT extraction_status, content FROM note_search_documents WHERE id = ?', uploadedId);
+    assert.equal(pendingDoc.extraction_status, 'pending');
+    assert.ok(pendingDoc.content.includes('Dijkstra Shortest Path Guide'));
+  } finally {
+    docWorker.enqueueDocumentIngestionJob = origEnqueue;
+    console.error = origConsoleError;
+    if (createdStoredName) {
+      try { fs.unlinkSync(path.join(__dirname, '../uploads', createdStoredName)); } catch (_) {}
+    }
+    await new Promise(resolve => srv.close(resolve));
+  }
+});
+
+test('13. Fix B: reconcileMissingIngestionJobs backfills only missing files with limit and dry-run count-only mode + CLI flags', async () => {
+  const { db } = await createD2TestDb();
+  const samplePdf = buildSyntheticPdf([{ text: 'Sample note page content exceeding minimum character threshold cleanly.' }]);
+
+  const fCompleted = await insertTestFile(db, { originalName: 'f1_done.pdf', buffer: samplePdf });
+  await enqueueDocumentIngestionJob(db, { fileId: fCompleted.fileId, contentHash: 'h1' });
+  await db.query("UPDATE ingestion_jobs SET status = 'completed' WHERE file_id = $1", [fCompleted.fileId]);
+
+  const fDedup = await insertTestFile(db, { originalName: 'f2_dedup.pdf', buffer: samplePdf });
+  await enqueueDocumentIngestionJob(db, { fileId: fDedup.fileId, contentHash: 'h1' });
+  await db.query("UPDATE ingestion_jobs SET status = 'dedup_reused' WHERE file_id = $1", [fDedup.fileId]);
+
+  const fTerminal = await insertTestFile(db, { originalName: 'f3_terminal.pdf', buffer: samplePdf });
+  await enqueueDocumentIngestionJob(db, { fileId: fTerminal.fileId, contentHash: 'h3' });
+  await db.query("UPDATE ingestion_jobs SET status = 'failed_terminal' WHERE file_id = $1", [fTerminal.fileId]);
+
+  const fMissing1 = await insertTestFile(db, { originalName: 'f4_missing1.pdf', buffer: samplePdf });
+  const fMissing2 = await insertTestFile(db, { originalName: 'f5_missing2.pdf', buffer: samplePdf });
+  const fMissing3 = await insertTestFile(db, { originalName: 'f6_missing3.pdf', buffer: samplePdf });
+
+  // Dry run with limit=2 counts all 3 missing but inserts zero rows
+  const dry = await reconcileMissingIngestionJobs(db, { limit: 2, dryRun: true });
+  assert.equal(dry.dryRun, true);
+  assert.equal(dry.totalMissing, 3);
+  assert.equal(dry.wouldEnqueue, 2);
+  assert.equal(dry.enqueued, 0);
+  assert.deepEqual(dry.fileIds, [fMissing1.fileId, fMissing2.fileId]);
+
+  const afterDryCount = await db.query('SELECT COUNT(*)::int AS cnt FROM ingestion_jobs');
+  assert.equal(afterDryCount.rows[0].cnt, 3);
+
+  // Backfill first 2
+  const run1 = await reconcileMissingIngestionJobs(db, { limit: 2, dryRun: false });
+  assert.equal(run1.dryRun, false);
+  assert.equal(run1.totalMissing, 3);
+  assert.equal(run1.enqueued, 2);
+  assert.deepEqual(run1.fileIds, [fMissing1.fileId, fMissing2.fileId]);
+
+  // Backfill remaining 1
+  const run2 = await reconcileMissingIngestionJobs(db, { limit: 10, dryRun: false });
+  assert.equal(run2.totalMissing, 1);
+  assert.equal(run2.enqueued, 1);
+  assert.deepEqual(run2.fileIds, [fMissing3.fileId]);
+
+  // Idempotent when nothing missing
+  const run3 = await reconcileMissingIngestionJobs(db, { limit: 10, dryRun: false });
+  assert.equal(run3.totalMissing, 0);
+  assert.equal(run3.enqueued, 0);
+
+  // Verify CLI flag parsing
+  assert.deepEqual(
+    parseCliArgs(['--reconcile', '--limit', '25', '--dry-run']),
+    { maxJobs: undefined, maxDurationMs: undefined, reconcile: true, dryRun: true, limit: 25, includePartial: false }
+  );
+  assert.deepEqual(
+    parseCliArgs(['--backfill', '--limit=100']),
+    { maxJobs: undefined, maxDurationMs: undefined, reconcile: true, dryRun: false, limit: 100, includePartial: false }
+  );
 });

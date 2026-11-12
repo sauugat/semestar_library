@@ -33,20 +33,40 @@ const pushNotifications = require('./lib/push-notifications');
 const officePreview = require('./lib/office-preview');
 const gamesTicket = require('./lib/games-ticket');
 
-const { enqueueDocumentIngestionJob, computeContentHash } = require('./lib/doc-ingestion-worker');
+const docWorker = require('./lib/doc-ingestion-worker');
+const { computeContentHash } = docWorker;
 
-async function enqueueUploadedNoteIngestion(fileId, contentHash = '') {
+async function enqueueUploadedNoteIngestion(fileMeta, contentHash = '') {
+  const fileId = typeof fileMeta === 'object' && fileMeta !== null ? fileMeta.id : fileMeta;
+  let queued = { status: 'enqueue_failed', fileId };
+
+  // Fix C: Seed cheap metadata-only search row so new uploads stay searchable until the worker finishes.
+  if (typeof fileMeta === 'object' && fileMeta !== null) {
+    try {
+      await noteSearch.seedMetadataIndex(db, fileMeta);
+    } catch (seedErr) {
+      console.error('[Note metadata search seed failed]', fileId, seedErr.code || seedErr.message);
+    }
+  }
+
+  // Fix A: Never let enqueue or cache invalidation fail an already-persisted upload.
   try {
-    const queued = await enqueueDocumentIngestionJob(db, {
+    queued = await docWorker.enqueueDocumentIngestionJob(db, {
       fileId,
       contentHash: contentHash || ''
     });
-    require('./ai-assistant').invalidateCache(db);
-    return queued;
   } catch (err) {
     console.error('[Note ingestion enqueue failed]', fileId, err.code || err.message);
-    return { status: 'enqueue_failed' };
+    queued = { status: 'enqueue_failed', fileId };
   }
+
+  try {
+    require('./ai-assistant').invalidateCache(db);
+  } catch (cacheErr) {
+    console.error('[Note AI cache invalidation failed]', fileId, cacheErr.code || cacheErr.message);
+  }
+
+  return queued;
 }
 
 const { createClient } = require('@supabase/supabase-js');
@@ -3137,7 +3157,15 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       `, f.filename, f.originalname, fileTitle, semester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null), subject, chapter, currentStudentId, f.size, new Date().toISOString(), previewFilename, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope);
 
       const insertedId = result.lastInsertRowid;
-      const indexing = await enqueueUploadedNoteIngestion(insertedId, contentHash);
+      const indexing = await enqueueUploadedNoteIngestion({
+        id: insertedId,
+        storedName: f.filename,
+        originalName: f.originalname,
+        title: fileTitle,
+        semester,
+        subject,
+        chapter
+      }, contentHash);
 
       successfulFiles.push({
         id: insertedId,
@@ -3499,7 +3527,15 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       const insertedId = result.lastInsertRowid;
       const rawHash = String(f.contentHash || f.sha256 || '').trim().toLowerCase();
       const validHash = /^[a-f0-9]{64}$/.test(rawHash) ? rawHash : '';
-      const indexing = await enqueueUploadedNoteIngestion(insertedId, validHash);
+      const indexing = await enqueueUploadedNoteIngestion({
+        id: insertedId,
+        storedName,
+        originalName,
+        title: fileTitle,
+        semester: cleanSemester,
+        subject: cleanSubject,
+        chapter: cleanChapter
+      }, validHash);
       results.push({
         id: insertedId,
         indexing,

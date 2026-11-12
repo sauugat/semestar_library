@@ -7,10 +7,21 @@
  * cleanly isolated from Vercel's 10s serverless execution timeout.
  */
 
-const { processNextIngestionJob, runIngestionWorkerLoop } = require('../lib/doc-ingestion-worker');
+const {
+  reconcileMissingIngestionJobs,
+  processNextIngestionJob,
+  runIngestionWorkerLoop
+} = require('../lib/doc-ingestion-worker');
 
 function parseCliArgs(argv = process.argv.slice(2)) {
-  const args = { maxJobs: undefined, maxDurationMs: undefined };
+  const args = {
+    maxJobs: undefined,
+    maxDurationMs: undefined,
+    reconcile: false,
+    dryRun: false,
+    limit: undefined,
+    includePartial: false
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a.startsWith('--max-jobs=')) {
@@ -21,6 +32,16 @@ function parseCliArgs(argv = process.argv.slice(2)) {
       args.maxDurationMs = Number(a.split('=')[1]);
     } else if (a === '--max-ms' && argv[i + 1]) {
       args.maxDurationMs = Number(argv[++i]);
+    } else if (a === '--reconcile' || a === '--backfill') {
+      args.reconcile = true;
+    } else if (a === '--dry-run') {
+      args.dryRun = true;
+    } else if (a.startsWith('--limit=')) {
+      args.limit = Number(a.split('=')[1]);
+    } else if (a === '--limit' && argv[i + 1]) {
+      args.limit = Number(argv[++i]);
+    } else if (a === '--include-partial') {
+      args.includePartial = true;
     }
   }
   return args;
@@ -39,22 +60,36 @@ async function main() {
   }
 
   const cli = parseCliArgs();
-  const workerId = process.env.GITHUB_RUN_ID
-    ? `gha-${process.env.GITHUB_RUN_ID}-${process.pid}`
-    : `cli-${process.pid}`;
 
-  console.log(`[DocIngestionWorker] Starting worker ${workerId}...`);
-  const summary = await runIngestionWorkerLoop(db, {
-    workerId,
-    maxJobs: cli.maxJobs,
-    maxDurationMs: cli.maxDurationMs
-  });
+  try {
+    if (cli.reconcile) {
+      const reconcileSummary = await reconcileMissingIngestionJobs(db, {
+        limit: cli.limit,
+        dryRun: cli.dryRun,
+        includePartial: cli.includePartial
+      });
+      console.log('[DocIngestionWorker] Reconcile summary:', JSON.stringify(reconcileSummary));
+      return;
+    }
 
-  console.log('[DocIngestionWorker] Completed sweep:', JSON.stringify(summary));
-  if (typeof db.close === 'function') {
-    await db.close().catch(() => {});
-  } else if (db.pgPool && typeof db.pgPool.end === 'function') {
-    await db.pgPool.end().catch(() => {});
+    const workerId = process.env.GITHUB_RUN_ID
+      ? `gha-${process.env.GITHUB_RUN_ID}-${process.pid}`
+      : `cli-${process.pid}`;
+
+    console.log(`[DocIngestionWorker] Starting worker ${workerId}...`);
+    const summary = await runIngestionWorkerLoop(db, {
+      workerId,
+      maxJobs: cli.maxJobs,
+      maxDurationMs: cli.maxDurationMs
+    });
+
+    console.log('[DocIngestionWorker] Completed sweep:', JSON.stringify(summary));
+  } finally {
+    if (typeof db.close === 'function') {
+      await db.close().catch(() => {});
+    } else if (db.pgPool && typeof db.pgPool.end === 'function') {
+      await db.pgPool.end().catch(() => {});
+    }
   }
 }
 
@@ -65,4 +100,9 @@ if (require.main === module) {
   });
 }
 
-module.exports = { parseCliArgs, processNextIngestionJob, runIngestionWorkerLoop };
+module.exports = {
+  parseCliArgs,
+  reconcileMissingIngestionJobs,
+  processNextIngestionJob,
+  runIngestionWorkerLoop
+};

@@ -1,0 +1,57 @@
+name: Document Ingestion Worker (Phase D2)
+
+on:
+  schedule:
+    # Backup sweep every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      max_jobs:
+        description: 'Maximum ingestion jobs to process in this run'
+        required: false
+        default: '20'
+
+concurrency:
+  group: doc-ingestion-worker
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    name: Process Queued Document Ingestion Jobs
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Run Document Ingestion Worker
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DOC_VISION_MODEL: ${{ vars.DOC_VISION_MODEL || secrets.DOC_VISION_MODEL }}
+          DOC_MAX_VISION_PAGES: ${{ vars.DOC_MAX_VISION_PAGES || '60' }}
+          DOC_MAX_FILE_BYTES: ${{ vars.DOC_MAX_FILE_BYTES || '104857600' }}
+          DOC_PAGE_TIMEOUT_MS: ${{ vars.DOC_PAGE_TIMEOUT_MS || '25000' }}
+          DOC_WORKER_MAX_JOBS: ${{ github.event.inputs.max_jobs || '20' }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          KYANA_KNOWLEDGE_V3: ${{ vars.KYANA_KNOWLEDGE_V3 || 'true' }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is not configured."
+            exit 1
+          fi
+          node scripts/doc-ingestion-worker.js --max-jobs "${DOC_WORKER_MAX_JOBS}"
+

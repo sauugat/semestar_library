@@ -33,22 +33,19 @@ const pushNotifications = require('./lib/push-notifications');
 const officePreview = require('./lib/office-preview');
 const gamesTicket = require('./lib/games-ticket');
 
-async function indexUploadedNote(file) {
+const { enqueueDocumentIngestionJob, computeContentHash } = require('./lib/doc-ingestion-worker');
+
+async function enqueueUploadedNoteIngestion(fileId, contentHash = '') {
   try {
-    const status = await noteSearch.indexNote(db, file);
-    try {
-      const knowledgeSync = require('./lib/knowledge-sync');
-      if (typeof knowledgeSync.onNoteSaved === 'function') {
-        await knowledgeSync.onNoteSaved(db, file);
-      }
-    } catch (syncErr) {
-      console.error('[Note knowledge sync failed]', file.id, syncErr.message);
-    }
+    const queued = await enqueueDocumentIngestionJob(db, {
+      fileId,
+      contentHash: contentHash || ''
+    });
     require('./ai-assistant').invalidateCache(db);
-    return status;
+    return queued;
   } catch (err) {
-    console.error('[Note indexing failed]', file.id, err.code || err.name);
-    return { status: 'failed' };
+    console.error('[Note ingestion enqueue failed]', fileId, err.code || err.message);
+    return { status: 'enqueue_failed' };
   }
 }
 
@@ -3087,11 +3084,13 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
     }
 
     let previewFilename = null;
+    let contentHash = '';
 
     try {
-      // 1. Save main file to persistent blob storage
+      // 1. Save main file to persistent blob storage & compute SHA-256 content_hash
       if (fs.existsSync(filePath)) {
         const fileBuffer = fs.readFileSync(filePath);
+        contentHash = computeContentHash(fileBuffer);
         await db.saveFileBlob(f.filename, fileBuffer, f.mimetype || 'application/octet-stream');
       }
 
@@ -3138,16 +3137,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       `, f.filename, f.originalname, fileTitle, semester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null), subject, chapter, currentStudentId, f.size, new Date().toISOString(), previewFilename, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope);
 
       const insertedId = result.lastInsertRowid;
-      const indexing = await indexUploadedNote({
-        id: insertedId,
-        storedName: f.filename,
-        originalName: f.originalname,
-        title: fileTitle,
-        semester,
-        subject,
-        chapter,
-        sizeBytes: f.size
-      }).catch(() => null);
+      const indexing = await enqueueUploadedNoteIngestion(insertedId, contentHash);
 
       successfulFiles.push({
         id: insertedId,
@@ -3507,7 +3497,9 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       `, storedName, originalName, fileTitle, cleanSemester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null), cleanSubject, cleanChapter, currentStudentId, sizeBytes, new Date().toISOString(), null, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope);
 
       const insertedId = result.lastInsertRowid;
-      const indexing = await indexUploadedNote({ id: insertedId, storedName, originalName, title: fileTitle, semester: cleanSemester, subject: cleanSubject, chapter: cleanChapter, sizeBytes });
+      const rawHash = String(f.contentHash || f.sha256 || '').trim().toLowerCase();
+      const validHash = /^[a-f0-9]{64}$/.test(rawHash) ? rawHash : '';
+      const indexing = await enqueueUploadedNoteIngestion(insertedId, validHash);
       results.push({
         id: insertedId,
         indexing,

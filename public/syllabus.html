@@ -687,16 +687,22 @@
                 </div>
               </div>
 
+              <div id="kaieCourseMapBanner" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.03);font-size:0.85rem;"></div>
+
               <div class="syllabus-units-list">
                 ${units.map(u => `
-                  <div class="syllabus-unit-card">
+                  <div class="syllabus-unit-card" data-unit-num="${escapeHtml(u.num)}">
                     <div class="unit-card-header">
                       <div class="unit-title-row">
                         ${u.num ? `<span class="unit-number-pill">Unit ${u.num}</span>` : ''}
                         <h4 class="unit-title">${escapeHtml(u.title)}</h4>
                       </div>
-                      <div style="display: inline-flex; align-items: center; gap: 8px;">
+                      <div style="display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span class="kaie-unit-status-slot" data-unit-status="${escapeHtml(u.num)}"></span>
                         ${u.hrs ? `<span class="unit-hours-badge">${escapeHtml(u.hrs)}</span>` : ''}
+                        <a href="chatbot.html?study=${encodeURIComponent(course.title)}&unit=${encodeURIComponent(u.num || '1')}" class="syllabus-action-pill" style="padding: 4px 10px; font-size: 0.75rem; text-decoration: none;">
+                          <span>Study with Kyana &rarr;</span>
+                        </a>
                         <a href="library.html?subject=${encodeURIComponent(course.title)}&chapter=${encodeURIComponent(u.num ? `Unit ${u.num}: ${u.title}` : u.title)}" class="syllabus-action-pill secondary" style="padding: 4px 10px; font-size: 0.75rem; text-decoration: none;">
                           <span>View Notes</span>
                         </a>
@@ -765,6 +771,32 @@
       `;
 
       grid.innerHTML = html;
+
+      // Hydrate live KAIE course map coverage badges & summary when authenticated
+      try {
+        if (window.SemesterAuth && typeof SemesterAuth.authFetch === 'function') {
+          const kaieRes = await SemesterAuth.authFetch(`/api/kaie/course-map?subject=${encodeURIComponent(course.title)}`);
+          if (kaieRes && kaieRes.ok) {
+            const kaieData = await kaieRes.json();
+            const cm = kaieData && kaieData.courseMap;
+            if (cm && cm.summary) {
+              const banner = document.getElementById('kaieCourseMapBanner');
+              if (banner) {
+                const covPct = Math.round((cm.summary.coverageRatio || 0) * 100);
+                banner.style.display = 'block';
+                banner.innerHTML = `<strong>Kyana Academic Intelligence:</strong> ${cm.summary.coveredTopics || 0}/${cm.summary.totalTopics || 0} syllabus topics covered by teacher resources (${covPct}%) &middot; ${cm.summary.totalPyqs || 0} Past Exam Questions linked${cm.summary.missingTopicsCount ? ` &middot; ${cm.summary.missingTopicsCount} syllabus gap(s) supplemented by AI` : ''}.`;
+              }
+              for (const ku of (cm.units || [])) {
+                const slot = document.querySelector(`.kaie-unit-status-slot[data-unit-status="${ku.unitNumber}"]`);
+                if (slot) {
+                  const pct = Math.round((ku.coverageRatio || 0) * 100);
+                  slot.innerHTML = `<span class="unit-hours-badge" title="Compiled from teacher notes & syllabus">${ku.coveredTopics}/${ku.totalTopics} Topics (${pct}%)${ku.pyqQuestionsCount ? ` · ${ku.pyqQuestionsCount} PYQs` : ''}</span>`;
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {}
     }
 
     // Router

@@ -2548,10 +2548,16 @@
   }
   syncServerConversations();
 
-  // Auto-send or prefill from URL parameters (?q=... or ?prompt=...)
+  // Auto-send or prefill from URL parameters (?q=..., ?prompt=..., or ?study=...&unit=...)
   try {
     const urlParams = new URLSearchParams(window.location.search);
-    const initialQuery = urlParams.get('q') || urlParams.get('prompt');
+    const studySubject = urlParams.get('study');
+    const studyUnit = urlParams.get('unit');
+    const initialQuery = urlParams.get('q') || urlParams.get('prompt') || (
+      studySubject && studySubject.trim()
+        ? (studyUnit ? `Teach me Unit ${studyUnit.trim()} of ${studySubject.trim()} step by step` : `Teach me ${studySubject.trim()} step by step`)
+        : ''
+    );
     if (initialQuery && initialQuery.trim()) {
       setTimeout(() => {
         handleSend(initialQuery.trim());

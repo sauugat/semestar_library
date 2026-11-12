@@ -3235,8 +3235,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
         resource_category: resourceCategory,
         unit_number: unitNumber
       };
-      const indexing = await indexUploadedNote(fileRecordForIndex).catch(() => null);
-      await dispatchKaieIngestionAsync(fileRecordForIndex).catch(() => null);
+      const indexing = await dispatchKaieIngestionAsync(fileRecordForIndex).catch(() => null);
 
       successfulFiles.push({
         id: insertedId,
@@ -3617,8 +3616,7 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
         resource_category: resourceCategory,
         unit_number: unitNumber
       };
-      const indexing = await indexUploadedNote(fileRecordForIndex);
-      await dispatchKaieIngestionAsync(fileRecordForIndex).catch(() => null);
+      const indexing = await dispatchKaieIngestionAsync(fileRecordForIndex).catch(() => null);
       results.push({
         id: insertedId,
         indexing,
@@ -6329,6 +6327,168 @@ app.all(['/api/internal/kaie/process-jobs', '/api/internal/kaie/worker'], verify
   } catch (err) {
     console.error('[KAIE Worker Error]:', err.message);
     return res.status(500).json({ message: 'KAIE document ingestion processing failed.', error: err.message });
+  }
+});
+
+app.get('/api/kaie/student-workspace', requireLogin, async (req, res) => {
+  try {
+    const { getAcademicContext } = require('./lib/academic-context');
+    const academicContext = await getAcademicContext(db, req).catch(() => null);
+    const requestedSem = req.query.semester_no || req.query.semesterNo || req.query.semester || null;
+    const isTeacherOrAdmin = academicContext && (academicContext.role === 'teacher' || academicContext.role === 'admin');
+    const effectiveSem = (isTeacherOrAdmin && requestedSem)
+      ? requestedSem
+      : (academicContext?.cohort?.currentSemester || academicContext?.currentSemester || requestedSem || 1);
+
+    const { getStudentAcademicWorkspace } = require('./lib/kaie-course-map');
+    const workspace = await getStudentAcademicWorkspace(db, {
+      semesterNo: effectiveSem,
+      academicContext
+    });
+    return res.json({ success: true, workspace });
+  } catch (err) {
+    console.error('[KAIE Student Workspace GET Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to retrieve student academic workspace.', error: err.message });
+  }
+});
+
+app.get('/api/kaie/course-map', requireLogin, async (req, res) => {
+  try {
+    const subject = String(req.query.subject || '').trim();
+    if (!subject) {
+      return res.status(400).json({ message: 'subject query parameter is required.' });
+    }
+    const semesterNo = req.query.semester_no || req.query.semesterNo || req.query.semester || null;
+    const rawUnit = req.query.unit_number ?? req.query.unitNumber ?? req.query.unit ?? null;
+    const unitNumber = rawUnit !== null && rawUnit !== '' ? Number.parseInt(rawUnit, 10) : null;
+    const { getAcademicContext } = require('./lib/academic-context');
+    const academicContext = await getAcademicContext(db, req).catch(() => null);
+    const { getCourseMap } = require('./lib/kaie-course-map');
+    const courseMap = await getCourseMap(db, {
+      subject,
+      semesterNo,
+      unitNumber: Number.isInteger(unitNumber) && unitNumber > 0 ? unitNumber : null,
+      academicContext
+    });
+    return res.json({ success: true, courseMap });
+  } catch (err) {
+    console.error('[KAIE Course Map GET Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to retrieve KAIE course map.', error: err.message });
+  }
+});
+
+app.post('/api/kaie/course-map/rebuild', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.session?.studentId || req.user?.studentId;
+    const isAdmin = await isStudentAdmin(studentId);
+    const viewer = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
+    if (!isAdmin && (!viewer || (viewer.role !== 'teacher' && viewer.role !== 'admin'))) {
+      return res.status(403).json({ message: 'Only teachers or administrators can rebuild the course map.' });
+    }
+    const subject = String(req.body?.subject || req.query?.subject || '').trim();
+    if (!subject) {
+      return res.status(400).json({ message: 'subject is required to rebuild the course map.' });
+    }
+    const semesterNo = req.body?.semester_no || req.body?.semesterNo || req.body?.semester || null;
+    const rawUnit = req.body?.unit_number ?? req.body?.unitNumber ?? null;
+    const unitNumber = rawUnit !== null && rawUnit !== '' ? Number.parseInt(rawUnit, 10) : null;
+    const { syncCourseMap } = require('./lib/kaie-course-map');
+    const courseMap = await syncCourseMap(db, {
+      subject,
+      semesterNo,
+      unitNumber: Number.isInteger(unitNumber) && unitNumber > 0 ? unitNumber : null
+    });
+    return res.json({ success: true, courseMap });
+  } catch (err) {
+    console.error('[KAIE Course Map Rebuild Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to rebuild KAIE course map.', error: err.message });
+  }
+});
+
+app.get('/api/kaie/review-queue', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.session?.studentId || req.user?.studentId;
+    const isAdmin = await isStudentAdmin(studentId);
+    const viewer = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
+    if (!isAdmin && (!viewer || (viewer.role !== 'teacher' && viewer.role !== 'admin'))) {
+      return res.status(403).json({ message: 'Only teachers or administrators can view the KAIE review queue.' });
+    }
+    const { getTeacherReviewQueue } = require('./lib/kaie-course-map');
+    const items = await getTeacherReviewQueue(db, {
+      subject: req.query.subject || null,
+      semesterNo: req.query.semester_no || req.query.semesterNo || null,
+      unitNumber: req.query.unit_number || req.query.unitNumber || null,
+      reviewType: req.query.review_type || req.query.reviewType || null,
+      status: req.query.status || 'PENDING'
+    });
+    return res.json({ success: true, items });
+  } catch (err) {
+    console.error('[KAIE Review Queue GET Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to retrieve KAIE review queue.', error: err.message });
+  }
+});
+
+app.post('/api/kaie/review-queue/:id/resolve', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.session?.studentId || req.user?.studentId;
+    const isAdmin = await isStudentAdmin(studentId);
+    const viewer = await db.get('SELECT id, role FROM students WHERE studentId = ?', studentId);
+    if (!isAdmin && (!viewer || (viewer.role !== 'teacher' && viewer.role !== 'admin'))) {
+      return res.status(403).json({ message: 'Only teachers or administrators can resolve KAIE review items.' });
+    }
+    const { resolveTeacherReviewItem } = require('./lib/kaie-course-map');
+    const resolvedItem = await resolveTeacherReviewItem(db, req.params.id, {
+      action: req.body?.action || 'APPROVE',
+      targetTopicId: req.body?.targetTopicId || req.body?.candidateTopicId || null,
+      resolutionNote: req.body?.resolutionNote || null,
+      resolvedByUserId: viewer?.id || null
+    });
+    if (!resolvedItem) {
+      return res.status(404).json({ message: 'Review item not found.' });
+    }
+    return res.json({ success: true, item: resolvedItem });
+  } catch (err) {
+    console.error('[KAIE Review Queue Resolve Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to resolve KAIE review item.', error: err.message });
+  }
+});
+
+app.get('/api/kaie/files/:id/intelligence', requireLogin, async (req, res) => {
+  try {
+    const fileId = String(req.params.id || '').trim();
+    const fileRow = await db.get('SELECT * FROM files WHERE id = ?', fileId);
+    if (!fileRow) {
+      return res.status(404).json({ message: 'File not found.' });
+    }
+    const { getAcademicContext } = require('./lib/academic-context');
+    const { canAccessFile } = require('./lib/kyana-access');
+    const academicContext = await getAcademicContext(db, req).catch(() => null);
+    if (academicContext && !canAccessFile(academicContext, fileRow, { allowCrossSemester: true })) {
+      return res.status(403).json({ message: 'You do not have access to this resource.' });
+    }
+    const topicMetadata = await db.get('SELECT * FROM document_topic_metadata WHERE file_id = ?', fileId);
+    const extractedItems = await db.all(
+      'SELECT * FROM academic_extracted_items WHERE file_id = ? ORDER BY page_start ASC, id ASC',
+      fileId
+    );
+    const jobStatus = await db.get('SELECT * FROM document_extraction_jobs WHERE file_id = ?', fileId);
+    return res.json({
+      success: true,
+      file: {
+        id: fileRow.id,
+        title: fileRow.title || fileRow.originalName,
+        subject: fileRow.subject,
+        semesterNo: fileRow.semester_no ?? fileRow.semesterNo,
+        unitNumber: fileRow.unit_number ?? fileRow.unitNumber,
+        resourceCategory: fileRow.resource_category || fileRow.resourceCategory || 'notes'
+      },
+      jobStatus: jobStatus || null,
+      topicMetadata: topicMetadata || null,
+      extractedItems: extractedItems || []
+    });
+  } catch (err) {
+    console.error('[KAIE File Intelligence GET Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to retrieve file academic intelligence.', error: err.message });
   }
 });
 

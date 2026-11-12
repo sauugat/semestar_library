@@ -1111,6 +1111,24 @@
         <!-- Injected via JavaScript -->
       </div>
 
+      <!-- SUBSECTION B2: KAIE ACADEMIC INTELLIGENCE & REVIEW QUEUE -->
+      <div class="teach-section-header">
+        <div>
+          <h3 class="teach-section-title">Kyana Academic Intelligence (KAIE) &amp; Curriculum Compiler</h3>
+          <p class="teach-section-desc">Inspect syllabus coverage, extracted definitions/formulas/examples, and resolve uncertain topic mappings or cross-file conflicts.</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="teach-btn teach-btn-secondary" onclick="loadKaieDashboardPanel()" style="font-size: 0.8rem;">Refresh Intelligence</button>
+          <button type="button" class="teach-btn teach-btn-primary" onclick="rebuildActiveCourseMap()" style="font-size: 0.8rem;">Rebuild Course Map</button>
+        </div>
+      </div>
+      <div id="kaieIntelligencePanel" style="display: grid; gap: 16px; margin-bottom: 28px;">
+        <div class="teach-empty-state">
+          <div class="teach-empty-title">Select a subject filter above or click Refresh Intelligence</div>
+          <div class="teach-empty-text">View compiled syllabus coverage, missing-note gaps, and pending teacher review items.</div>
+        </div>
+      </div>
+
       <!-- SUBSECTION C: MY CODE LAB ASSIGNMENTS -->
       <div class="teach-section-header">
         <div>
@@ -1165,15 +1183,42 @@
             <option value="">Select an assigned subject…</option>
           </select>
         </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="teach-form-group">
+            <label class="teach-form-label" for="noteCategorySelect">Resource Type (KAIE)</label>
+            <select class="teach-form-select" id="noteCategorySelect">
+              <option value="notes">Lecture Notes</option>
+              <option value="practical">Practical / Lab Guide</option>
+              <option value="model_questions">Model / Past Questions (PYQ)</option>
+              <option value="syllabus">Official Course Syllabus</option>
+              <option value="reference">Reference Material</option>
+            </select>
+          </div>
+          <div class="teach-form-group">
+            <label class="teach-form-label" for="noteUnitNumberInput">Unit Number (Optional)</label>
+            <input type="number" min="1" max="20" class="teach-form-input" id="noteUnitNumberInput" placeholder="e.g. 3">
+          </div>
+        </div>
         <div class="teach-form-group">
-          <label class="teach-form-label" for="noteChapterInput">Chapter / Unit (Optional)</label>
-          <input type="text" class="teach-form-input" id="noteChapterInput" placeholder="e.g. Unit 3">
+          <label class="teach-form-label" for="noteChapterInput">Chapter / Unit Title (Optional)</label>
+          <input type="text" class="teach-form-input" id="noteChapterInput" placeholder="e.g. Unit 3: Introducing CSS">
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px;">
           <button type="button" class="teach-btn teach-btn-secondary" onclick="closeUploadNoteModal()">Cancel</button>
           <button type="submit" class="teach-btn teach-btn-primary" id="uploadNoteSubmitBtn">Upload Material</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- KAIE File Intelligence Inspector Modal -->
+  <div class="teach-modal-overlay" id="kaieInspectorModal">
+    <div class="teach-modal-card" style="max-width: 720px; max-height: 85vh; overflow-y: auto;">
+      <div class="teach-modal-header">
+        <h3 class="teach-modal-title" id="kaieInspectorTitle">Document Academic Intelligence</h3>
+        <button type="button" class="teach-modal-close" onclick="closeKaieInspectorModal()">&times;</button>
+      </div>
+      <div id="kaieInspectorBody" style="font-size: 0.88rem; line-height: 1.55;">Loading…</div>
     </div>
   </div>
 
@@ -1422,6 +1467,7 @@
       }
       renderNotesList();
       renderAssignmentsGrid();
+      loadKaieDashboardPanel();
     }
 
     // Load My Notes
@@ -1482,6 +1528,9 @@
             </div>
           </div>
           <div class="teach-mat-actions">
+            <button type="button" class="teach-btn teach-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" onclick="openKaieFileInspector('${n.id}')">
+              AI Intelligence
+            </button>
             <a href="/api/files/${n.id}/view" target="_blank" rel="noopener" class="teach-btn teach-btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
               Preview
             </a>
@@ -1672,6 +1721,8 @@
       const fileInput = document.getElementById('noteFileInput');
       const titleInput = document.getElementById('noteTitleInput');
       const subjectSelect = document.getElementById('noteSubjectSelect');
+      const categorySelect = document.getElementById('noteCategorySelect');
+      const unitNumberInput = document.getElementById('noteUnitNumberInput');
       const chapterInput = document.getElementById('noteChapterInput');
       const submitBtn = document.getElementById('uploadNoteSubmitBtn');
 
@@ -1683,7 +1734,7 @@
       const semester = selectedOpt ? selectedOpt.dataset.semester : '';
 
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Uploading…';
+      submitBtn.textContent = 'Uploading & Extracting…';
 
       try {
         const formData = new FormData();
@@ -1691,6 +1742,12 @@
         formData.append('title', titleInput.value.trim());
         formData.append('subject', subjectSelect.value);
         formData.append('semester', semester);
+        if (categorySelect && categorySelect.value) {
+          formData.append('resource_category', categorySelect.value);
+        }
+        if (unitNumberInput && unitNumberInput.value.trim()) {
+          formData.append('unit_number', unitNumberInput.value.trim());
+        }
         if (chapterInput.value.trim()) {
           formData.append('chapter', chapterInput.value.trim());
         }
@@ -1705,15 +1762,153 @@
           throw new Error(errData.message || 'Upload failed');
         }
 
-        showToast('Material uploaded successfully!');
+        showToast('Material uploaded and queued for KAIE extraction!');
         closeUploadNoteModal();
         await loadMyNotes();
+        await loadKaieDashboardPanel();
       } catch (err) {
         console.error('[Upload Note Error]:', err);
         showToast('Upload error: ' + err.message);
       } finally {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Upload Material';
+      }
+    }
+
+    async function loadKaieDashboardPanel() {
+      const panel = document.getElementById('kaieIntelligencePanel');
+      if (!panel) return;
+      const activeSubObj = currentSubjectFilter !== 'all'
+        ? allSubjects.find(s => s.code === currentSubjectFilter || s.name === currentSubjectFilter)
+        : allSubjects[0];
+      const subjectName = activeSubObj ? (activeSubObj.name || activeSubObj.code) : (currentSubjectFilter !== 'all' ? currentSubjectFilter : '');
+      if (!subjectName) {
+        panel.innerHTML = `<div class="teach-empty-state"><div class="teach-empty-title">No assigned subject selected</div></div>`;
+        return;
+      }
+      try {
+        const [mapRes, rqRes] = await Promise.all([
+          SemesterAuth.authFetch(`/api/kaie/course-map?subject=${encodeURIComponent(subjectName)}`),
+          SemesterAuth.authFetch(`/api/kaie/review-queue?subject=${encodeURIComponent(subjectName)}&status=PENDING`)
+        ]);
+        const mapData = mapRes.ok ? await mapRes.json() : null;
+        const rqData = rqRes.ok ? await rqRes.json() : null;
+        const cm = mapData?.courseMap;
+        const reviews = rqData?.items || [];
+        if (!cm) {
+          panel.innerHTML = `<div class="teach-empty-state"><div class="teach-empty-title">Unable to load course map for ${escapeHtml(subjectName)}</div></div>`;
+          return;
+        }
+        const covPct = Math.round((cm.summary?.coverageRatio || 0) * 100);
+        const missingList = (cm.summary?.missingTopics || []).slice(0, 6).map(m => `<span class="teach-mat-tag">U${m.unitNumber}: ${escapeHtml(m.topicTitle)}</span>`).join(' ');
+        const reviewHtml = reviews.length === 0
+          ? `<div style="font-size:0.84rem;color:var(--teach-text-secondary);">No pending uncertain mappings or cross-file conflicts for ${escapeHtml(cm.subject)}.</div>`
+          : reviews.slice(0, 6).map(r => `
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 12px;border:1px solid var(--teach-border);border-radius:8px;background:var(--teach-bg);">
+                <div>
+                  <div style="font-weight:600;font-size:0.85rem;">[${escapeHtml(r.reviewType)}] ${escapeHtml(r.topicTitle || r.extractedConcept || 'Concept')}</div>
+                  <div style="font-size:0.8rem;color:var(--teach-text-secondary);margin-top:2px;">${escapeHtml(r.evidenceSummary || '')}</div>
+                </div>
+                <div style="display:flex;gap:6px;flex-shrink:0;">
+                  <button type="button" class="teach-btn teach-btn-primary" style="padding:4px 10px;font-size:0.75rem;" onclick="resolveKaieReview('${escapeHtml(r.id)}','APPROVE')">Approve &amp; Lock</button>
+                  <button type="button" class="teach-btn teach-btn-secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="resolveKaieReview('${escapeHtml(r.id)}','DISMISS')">Dismiss</button>
+                </div>
+              </div>
+            `).join('');
+        panel.innerHTML = `
+          <div class="teach-material-card" style="flex-direction:column;align-items:stretch;gap:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+              <div>
+                <h4 class="teach-mat-title">${escapeHtml(cm.subjectCode || '')} &middot; ${escapeHtml(cm.subject)} (Semester ${cm.semesterNo})</h4>
+                <div class="teach-mat-tags" style="margin-top:4px;">
+                  <span class="teach-mat-tag">Coverage: ${covPct}% (${cm.summary?.coveredTopics || 0}/${cm.summary?.totalTopics || 0} topics)</span>
+                  <span class="teach-mat-tag">Indexed PYQs: ${cm.summary?.totalPyqs || 0}</span>
+                  <span class="teach-mat-tag">Pending Review: ${reviews.length}</span>
+                </div>
+              </div>
+            </div>
+            ${missingList ? `<div style="font-size:0.82rem;"><strong>Syllabus Topics Missing Notes:</strong> <div class="teach-mat-tags" style="margin-top:6px;">${missingList}</div></div>` : ''}
+            <div>
+              <div style="font-size:0.82rem;font-weight:600;margin-bottom:8px;">Teacher Review Queue (Uncertain Mappings &amp; Cross-File Conflicts)</div>
+              <div style="display:grid;gap:8px;">${reviewHtml}</div>
+            </div>
+          </div>
+        `;
+      } catch (err) {
+        console.error('[KAIE Panel Error]:', err);
+      }
+    }
+
+    async function rebuildActiveCourseMap() {
+      const activeSubObj = currentSubjectFilter !== 'all'
+        ? allSubjects.find(s => s.code === currentSubjectFilter || s.name === currentSubjectFilter)
+        : allSubjects[0];
+      const subjectName = activeSubObj ? (activeSubObj.name || activeSubObj.code) : '';
+      if (!subjectName) return showToast('Select an assigned subject first.');
+      try {
+        const res = await SemesterAuth.authFetch('/api/kaie/course-map/rebuild', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subject: subjectName })
+        });
+        if (!res.ok) throw new Error('Rebuild failed');
+        showToast('Course map rebuilt successfully!');
+        await loadKaieDashboardPanel();
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+
+    async function resolveKaieReview(reviewId, action) {
+      try {
+        const res = await SemesterAuth.authFetch(`/api/kaie/review-queue/${encodeURIComponent(reviewId)}/resolve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+        if (!res.ok) throw new Error('Failed to resolve review item');
+        showToast(`Review item ${action === 'DISMISS' ? 'dismissed' : 'approved & locked'}!`);
+        await loadKaieDashboardPanel();
+      } catch (err) {
+        showToast('Error: ' + err.message);
+      }
+    }
+
+    function closeKaieInspectorModal() {
+      document.getElementById('kaieInspectorModal').classList.remove('open');
+    }
+
+    async function openKaieFileInspector(fileId) {
+      const modal = document.getElementById('kaieInspectorModal');
+      const body = document.getElementById('kaieInspectorBody');
+      const titleEl = document.getElementById('kaieInspectorTitle');
+      modal.classList.add('open');
+      body.innerHTML = 'Loading extracted academic intelligence…';
+      try {
+        const res = await SemesterAuth.authFetch(`/api/kaie/files/${encodeURIComponent(fileId)}/intelligence`);
+        if (!res.ok) throw new Error('Could not load file intelligence');
+        const data = await res.json();
+        titleEl.textContent = data.file?.title || 'Document Intelligence';
+        const items = data.extractedItems || [];
+        const mainTopics = JSON.parse(data.topicMetadata?.main_topics_json || data.topicMetadata?.mainTopicsJson || '[]');
+        const itemsHtml = items.length === 0
+          ? '<div style="color:var(--teach-text-secondary);">No structured definitions, formulas, or examples extracted yet.</div>'
+          : items.slice(0, 25).map(it => `
+              <div style="padding:8px 10px;border:1px solid var(--teach-border);border-radius:8px;margin-bottom:8px;">
+                <div style="font-weight:600;font-size:0.8rem;text-transform:uppercase;color:var(--teach-text-secondary);">${escapeHtml(it.itemType || it.item_type)} &middot; Page ${it.pageStart || it.page_start || 1} &middot; ${escapeHtml(it.title || '')}</div>
+                <div style="margin-top:4px;white-space:pre-wrap;">${escapeHtml(it.contentText || it.content_text || '')}</div>
+              </div>
+            `).join('');
+        body.innerHTML = `
+          <div style="margin-bottom:12px;">
+            <strong>Status:</strong> ${escapeHtml(data.jobStatus?.status || 'INDEXED')} &middot;
+            <strong>Extracted Items:</strong> ${items.length}
+          </div>
+          ${mainTopics.length ? `<div style="margin-bottom:14px;"><strong>Extracted Topics:</strong> ${mainTopics.map(t => `<span class="teach-mat-tag">${escapeHtml(t)}</span>`).join(' ')}</div>` : ''}
+          <div>${itemsHtml}</div>
+        `;
+      } catch (err) {
+        body.innerHTML = `<div style="color:#dc2626;">${escapeHtml(err.message)}</div>`;
       }
     }
 

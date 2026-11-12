@@ -974,6 +974,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       advanceStudySessionStep,
       evaluateStudentIntent,
       evaluateCheckpointReply,
+      buildCompiledTopicLessonBundle,
       renderMicroTopicTurn,
       buildStudyPartnerLlmPrompt
     } = require('./lib/study-partner-engine');
@@ -983,11 +984,12 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     const conversationId = sessionId || options.conversationId || 'default';
     const sessionKey = sessionId || studentId || 'default';
 
-    // 1. Resolve subject and chapter
+    // 1. Resolve subject and chapter (scoped to student's current semester by default)
+    const studentSemester = academicContext?.cohort?.currentSemester || academicContext?.currentSemester || null;
     const resolved = resolveCourseAndChapter(
       route.filters?.subject || message,
       route.filters?.chapter,
-      route.filters?.semester || academicContext?.cohort?.currentSemester || academicContext?.currentSemester
+      route.filters?.semester || studentSemester
     );
 
     // 2. Check for active session for this conversation or student
@@ -1018,6 +1020,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     let isRemediationTurn = false;
     let renderedEvalResult = null;
     let isSessionCompleted = false;
+    let lessonBundle = null;
 
     const isExplicitNewCourse = route.isNewSession || (
       route.filters?.subject && activeSession && !activeSession.subject.toLowerCase().includes(route.filters.subject.toLowerCase())
@@ -1039,21 +1042,25 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       if (studentIntent.intent === 'remediate') {
         isRemediationTurn = true;
         renderedStep = currentTopic;
+        renderedSession = activeSession;
+        renderedTopics = topics;
+        lessonBundle = await buildCompiledTopicLessonBundle(db, {
+          session: renderedSession,
+          step: renderedStep,
+          academicContext
+        });
         studyResultText = renderMicroTopicTurn({
           session: activeSession,
           step: currentTopic,
           topics,
+          lessonBundle,
           isRemediation: true
         });
-        renderedSession = activeSession;
-        renderedTopics = topics;
       } else {
         let evalResult = { passed: true };
         if (studentIntent.intent === 'answer_attempt') {
           evalResult = evaluateCheckpointReply(message, currentTopic, effectiveCheckpoint);
 
-          // If deterministic check couldn't confirm a short/custom answer and LLM is available,
-          // evaluate the student's reply against the exact checkpoint question asked in cleanHistory.
           if (!evalResult.passed && canSynthesizeWithLlm && typeof llmGenerateFn === 'function' && lastAssistantMsg) {
             try {
               const evalOut = await llmGenerateFn({
@@ -1086,15 +1093,21 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           isRemediationTurn = true;
           renderedStep = currentTopic;
           renderedEvalResult = evalResult;
+          renderedSession = activeSession;
+          renderedTopics = topics;
+          lessonBundle = await buildCompiledTopicLessonBundle(db, {
+            session: renderedSession,
+            step: renderedStep,
+            academicContext
+          });
           studyResultText = renderMicroTopicTurn({
             session: activeSession,
             step: currentTopic,
             topics,
+            lessonBundle,
             isRemediation: true,
             studentAnswerEvaluation: evalResult
           });
-          renderedSession = activeSession;
-          renderedTopics = topics;
         } else {
           const advance = await advanceStudySessionStep(db, activeSession.id, studentId, {
             targetStepIndex: currentStepIdx + 1,
@@ -1110,41 +1123,72 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
             const nextStep = advance.topics.find(t => (t.stepIndex || t.step_index) === advance.currentStepIndex) || advance.topics[0];
             renderedStep = nextStep;
             renderedEvalResult = evalResult.feedback ? evalResult : null;
+            renderedSession = advance.session;
+            renderedTopics = advance.topics;
+            lessonBundle = await buildCompiledTopicLessonBundle(db, {
+              session: renderedSession,
+              step: renderedStep,
+              academicContext
+            });
             studyResultText = renderMicroTopicTurn({
               session: advance.session,
               step: nextStep,
               topics: advance.topics,
+              lessonBundle,
               studentAnswerEvaluation: renderedEvalResult
             });
-            renderedSession = advance.session;
-            renderedTopics = advance.topics;
           }
         }
       }
     }
 
     if (!studyResultText) {
-      // Start or resume new study session
-      const sessionResult = await startOrResumeStudySession(db, {
-        studentId,
-        conversationId,
-        subject: resolved.course.title,
-        semesterNo: resolved.course.semesterNo,
-        unitNumber: resolved.unitNumber,
-        chapterQuery: resolved.chapterTitle,
-        academicContext
-      });
+      if (studentSemester && resolved.scopeStatus === 'OUT_OF_SYLLABUS' && Array.isArray(resolved.enrolledSemesterCourses) && resolved.enrolledSemesterCourses.length > 0) {
+        const subjectList = resolved.enrolledSemesterCourses
+          .map((c) => `- **${c.code}** · ${c.title}`)
+          .join('\n');
+        studyResultText = [
+          `That topic isn't part of your enrolled **Semester ${studentSemester}** BIT curriculum.`,
+          ``,
+          `Your authorized **Semester ${studentSemester}** subjects are:`,
+          subjectList,
+          ``,
+          `Would you like a general explanation of **${route.filters?.subject || message}** outside your syllabus, or would you like to start a step-by-step study session in one of your Semester ${studentSemester} subjects above?`
+        ].join('\n');
+        isSessionCompleted = true;
+      } else {
+        // Start or resume new study session
+        const sessionResult = await startOrResumeStudySession(db, {
+          studentId,
+          conversationId,
+          subject: resolved.course.title,
+          semesterNo: resolved.course.semesterNo,
+          unitNumber: resolved.unitNumber,
+          chapterQuery: resolved.chapterTitle,
+          academicContext
+        });
 
-      renderedSession = sessionResult.session;
-      renderedTopics = sessionResult.topics;
-      const activeStep = sessionResult.topics.find(t => (t.stepIndex || t.step_index) === (renderedSession.current_step_index || 1)) || sessionResult.topics[0];
-      renderedStep = activeStep;
+        renderedSession = sessionResult.session;
+        renderedTopics = sessionResult.topics;
+        const activeStep = sessionResult.topics.find(t => (t.stepIndex || t.step_index) === (renderedSession.current_step_index || 1)) || sessionResult.topics[0];
+        renderedStep = activeStep;
+        lessonBundle = await buildCompiledTopicLessonBundle(db, {
+          session: renderedSession,
+          step: renderedStep,
+          academicContext
+        });
 
-      studyResultText = renderMicroTopicTurn({
-        session: renderedSession,
-        step: activeStep,
-        topics: sessionResult.topics
-      });
+        const crossSemNotice = (studentSemester && resolved.scopeStatus === 'CROSS_SEMESTER_SYLLABUS')
+          ? `> *Course Scope Note: **${resolved.course.title} (${resolved.course.code})** belongs to **Semester ${resolved.course.semesterNo}** (outside your enrolled Semester ${studentSemester} subjects).*\n\n`
+          : '';
+
+        studyResultText = crossSemNotice + renderMicroTopicTurn({
+          session: renderedSession,
+          step: activeStep,
+          topics: sessionResult.topics,
+          lessonBundle
+        });
+      }
     }
 
     let extractedActions = null;
@@ -1161,27 +1205,30 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
               ? 'Teach in warm, simple Romanized Nepali (Nepanglish), keeping technical terms in English.'
               : 'Teach in warm, simple, beginner-friendly English — assume the student is learning this for the very first time.');
 
-        let noteChunks = [];
-        try {
-          noteChunks = await db.all(
-            `SELECT c.clean_content, c.page_start, f.title as file_title
-             FROM document_chunks c
-             JOIN files f ON f.id = CAST(c.file_id AS INTEGER)
-             WHERE (f.subject LIKE ? OR f.subject LIKE ?)
-               AND (c.clean_content LIKE ? OR c.section_heading LIKE ?)
-             LIMIT 3`,
-            `%${renderedSession.subject}%`,
-            `%${renderedSession.subject_code || renderedSession.subject}%`,
-            `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`,
-            `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`
-          );
-        } catch (_) {}
+        let noteChunks = (lessonBundle && Array.isArray(lessonBundle.noteChunks)) ? lessonBundle.noteChunks : [];
+        if (noteChunks.length === 0) {
+          try {
+            noteChunks = await db.all(
+              `SELECT c.clean_content, c.page_start, f.title as file_title
+               FROM document_chunks c
+               JOIN files f ON f.id = CAST(c.file_id AS INTEGER)
+               WHERE (f.subject LIKE ? OR f.subject LIKE ?)
+                 AND (c.clean_content LIKE ? OR c.section_heading LIKE ?)
+               LIMIT 3`,
+              `%${renderedSession.subject}%`,
+              `%${renderedSession.subject_code || renderedSession.subject}%`,
+              `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`,
+              `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`
+            );
+          } catch (_) {}
+        }
 
         const llmStudyPrompt = buildStudyPartnerLlmPrompt({
           session: renderedSession,
           step: renderedStep,
           topics: renderedTopics,
           noteChunks,
+          lessonBundle,
           isRemediation: isRemediationTurn,
           studentAnswerEvaluation: renderedEvalResult,
           languageInstruction: langRule

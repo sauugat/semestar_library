@@ -23,12 +23,17 @@ const {
 const {
   resolveVisionModel,
   buildVisionPrompt,
-  parseVisionJsonResponse
+  parseVisionJsonResponse,
+  loadPdfForSlicing,
+  buildPdfSlice
 } = require('../lib/doc-vision-ocr');
 const docWorker = require('../lib/doc-ingestion-worker');
 const {
   PARSER_VERSION,
   computeContentHash,
+  resolveDriftMinOverlap,
+  extractComparisonWords,
+  applyDriftCheck,
   enqueueDocumentIngestionJob,
   claimNextIngestionJob,
   reconcileMissingIngestionJobs,
@@ -38,7 +43,8 @@ const {
   runIngestionWorkerLoop
 } = docWorker;
 const { parseCliArgs, executeWorkerRun } = require('../scripts/doc-ingestion-worker');
-const { assertSafeLocalEnv, runLocalPdfHarness } = require('../scripts/doc-ingestion-local-test');
+const { assertSafeLocalEnv, runLocalPdfHarness, parseArgs: parseLocalHarnessArgs, calculateConfiguredCostUsd } = require('../scripts/doc-ingestion-local-test');
+const { PREFLIGHT_VARS, evaluatePreflight, formatPreflightReport } = require('../scripts/doc-ingestion-preflight');
 const noteSearch = require('../lib/note-search');
 
 /**
@@ -1762,9 +1768,305 @@ test('19. Fix I: Local harness refuses DATABASE_URL / SUPABASE_* and runs offlin
     assert.equal(summary.visionCalls, 1);
     assert.ok(fs.existsSync(summary.outputPath));
     const md = fs.readFileSync(summary.outputPath, 'utf8');
-    assert.match(md, /\| page \| source \| page_type \| confidence \| text \|/);
+    assert.match(md, /\| page \| source \| page_type \| confidence \| time_ms \| text \|/);
     assert.match(md, /\[MOCK_VISION\]/);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('20. D2-S PDF slicing robustness: encrypted/corrupt classify as terminal (0 retries) and single bad page does not fail job', async () => {
+  const { db } = await createD2TestDb();
+
+  // Direct pdf-lib load robustness checks (terminal, zero retry)
+  const encBytes = buildSyntheticPdf([{ hasImage: true, text: 'Secret' }], { encrypted: true });
+  await assert.rejects(
+    () => loadPdfForSlicing(encBytes),
+    err => err.code === 'PASSWORD_PROTECTED' && err.terminal === true && err.transient === false
+  );
+
+  const corruptBytes = Buffer.from('NOT_A_PDF_CORRUPTED_DATA', 'utf8');
+  await assert.rejects(
+    () => loadPdfForSlicing(corruptBytes),
+    err => err.code === 'CORRUPT_FILE' && err.terminal === true && err.transient === false
+  );
+
+  // Worker job: 3 consecutive vision pages where page 2 fails PDF_SLICE_FAILED; pages 1 & 3 must succeed
+  const threePagePdf = buildSyntheticPdf([
+    { hasImage: true, text: 'ok1' },
+    { hasImage: true, text: 'bad2' },
+    { hasImage: true, text: 'ok3' }
+  ]);
+  const { fileId } = await insertTestFile(db, { originalName: 'bad_single_page.pdf', buffer: threePagePdf });
+  await enqueueDocumentIngestionJob(db, { fileId, contentHash: computeContentHash(threePagePdf) });
+
+  let visionCalls = 0;
+  const mockFetch = async () => {
+    visionCalls++;
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 25 },
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                text: `Recovered good page call ${visionCalls}`,
+                latex_present: false,
+                figure_description: null,
+                ocr_confidence: 0.91,
+                detected_type: 'scanned'
+              })
+            }]
+          }
+        }]
+      })
+    };
+  };
+
+  const out = await processNextIngestionJob(db, {
+    fetchImpl: mockFetch,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_VISION_BATCH_PAGES: '3' },
+    buildSliceFn: async (srcDoc, pageNos) => {
+      if (pageNos.includes(2)) {
+        const err = new Error('PDF_SLICE_FAILED: corrupted page object 2');
+        err.code = 'PDF_SLICE_FAILED';
+        err.terminal = true;
+        err.transient = false;
+        throw err;
+      }
+      return buildPdfSlice(srcDoc, pageNos);
+    }
+  });
+
+  assert.equal(out.status, 'partial_success');
+  assert.equal(out.visionPagesUsed, 2);
+  assert.equal(out.failedPages, 1);
+  assert.equal(visionCalls, 2, 'Page 2 failure must incur 0 Vision retry attempts');
+
+  const rows = (await db.query('SELECT page_no, status, attempts, error FROM document_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
+  assert.equal(rows[0].status, 'completed');
+  assert.equal(rows[1].status, 'failed');
+  assert.equal(rows[1].attempts, 0);
+  assert.match(rows[1].error, /PDF_SLICE_FAILED/);
+  assert.equal(rows[2].status, 'completed');
+});
+
+test('21. D2-S 150-page PDF slicing performance: single load, flat per-page slice time & bounded peak memory', async () => {
+  const { db } = await createD2TestDb();
+  const specs = Array.from({ length: 150 }, (_, idx) => ({
+    hasImage: true,
+    text: `S${idx + 1}`
+  }));
+  const large150Pdf = buildSyntheticPdf(specs);
+  const { fileId } = await insertTestFile(db, { originalName: 'large_150_pages.pdf', buffer: large150Pdf });
+  await enqueueDocumentIngestionJob(db, { fileId, contentHash: computeContentHash(large150Pdf) });
+
+  const sliceDurationsMs = [];
+  let peakRssMb = 0;
+  let peakHeapMb = 0;
+
+  const t0 = performance.now();
+  const out = await processNextIngestionJob(db, {
+    maxVisionPages: 150,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key', DOC_VISION_BATCH_PAGES: '1' },
+    buildSliceFn: async (srcDoc, pageNos) => {
+      const sStart = performance.now();
+      const buf = await buildPdfSlice(srcDoc, pageNos);
+      sliceDurationsMs.push(performance.now() - sStart);
+      const mem = process.memoryUsage();
+      peakRssMb = Math.max(peakRssMb, mem.rss / (1024 * 1024));
+      peakHeapMb = Math.max(peakHeapMb, mem.heapUsed / (1024 * 1024));
+      return buf;
+    },
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        usageMetadata: { promptTokenCount: 50, candidatesTokenCount: 10 },
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                text: 'Scanned content',
+                latex_present: false,
+                figure_description: null,
+                ocr_confidence: 0.9,
+                detected_type: 'scanned'
+              })
+            }]
+          }
+        }]
+      })
+    })
+  });
+  const totalElapsedMs = performance.now() - t0;
+
+  assert.equal(out.status, 'completed');
+  assert.equal(out.totalPages, 150);
+  assert.equal(out.visionPagesUsed, 150);
+  assert.equal(sliceDurationsMs.length, 150);
+
+  const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+  const totalSlicingMs = sliceDurationsMs.reduce((a, b) => a + b, 0);
+  const earlyAvgMs = avg(sliceDurationsMs.slice(0, 30));
+  const midAvgMs = avg(sliceDurationsMs.slice(60, 90));
+  const lateAvgMs = avg(sliceDurationsMs.slice(120, 150));
+
+  console.log(
+    `[D2-S 150-Page Benchmark] totalElapsedMs=${totalElapsedMs.toFixed(1)} totalSlicingMs=${totalSlicingMs.toFixed(1)} ` +
+    `earlyAvgMs=${earlyAvgMs.toFixed(3)} midAvgMs=${midAvgMs.toFixed(3)} lateAvgMs=${lateAvgMs.toFixed(3)} ` +
+    `peakRssMb=${peakRssMb.toFixed(1)} peakHeapMb=${peakHeapMb.toFixed(1)}`
+  );
+
+  // Per-page slice time must remain flat (~O(1), not quadratic growth as pages approach 150)
+  assert.ok(lateAvgMs < Math.max(5.0, earlyAvgMs * 3.0), `Per-page slice time grew unexpectedly: early=${earlyAvgMs}, late=${lateAvgMs}`);
+});
+
+test('22. D2-S Drift check calibration: env threshold, alphabetic-only tokens, >=8 words, garbled math vs unrelated text', () => {
+  assert.equal(resolveDriftMinOverlap({}, {}), 0.2);
+  assert.equal(resolveDriftMinOverlap({}, { DOC_DRIFT_MIN_OVERLAP: '0.35' }), 0.35);
+
+  // Alphabetic words only: ignore LaTeX commands, symbols, and numbers
+  const words = extractComparisonWords('Theorem 123: \\frac{x}{y} + \\int_0^9 \\sum \\alpha_i 456 calculus integral derivative');
+  assert.deepEqual([...words].sort(), ['calculus', 'derivative', 'integral', 'theorem']);
+
+  // Fewer than 8 alphabetic words -> skip check (not flagged even if vision rewrites)
+  const shortMathCls = {
+    charCount: 85,
+    pageType: 'math',
+    rawText: 'Eq 123: f(x) = a1 + b2 + c3 + 999 / 888 integral derivative series limit',
+    cleanText: 'Eq 123: f(x) = a1 + b2 + c3 + 999 / 888 integral derivative series limit',
+    reasons: ['math_notation']
+  };
+  assert.equal(extractComparisonWords(shortMathCls.cleanText).size, 4);
+  const shortDrift = applyDriftCheck(shortMathCls, { text: '$$f(x) = a_1 + b_2$$', ocrConfidence: 0.92 });
+  assert.equal(shortDrift.driftError, null);
+  assert.equal(shortDrift.ocrConfidence, 0.92);
+
+  // Normal math page with garbled text layer (broken math glyphs) + correct vision -> NOT flagged
+  const garbledMathCls = {
+    charCount: 120,
+    pageType: 'math',
+    rawText: 'Th\uFFFDeor\uFFFDm on Fourier transform integrals and complex residue contour evaluations across domains.',
+    cleanText: 'Th\uFFFDeor\uFFFDm on Fourier transform integrals and complex residue contour evaluations across domains.',
+    reasons: ['broken_math_glyphs']
+  };
+  const garbledDrift = applyDriftCheck(garbledMathCls, {
+    text: 'Theorem on Fourier transform integrals: $$F(\\omega) = \\int_{-\\infty}^{\\infty} f(t)e^{-i\\omega t}\\,dt$$',
+    ocrConfidence: 0.93
+  });
+  assert.equal(garbledDrift.driftError, null);
+  assert.equal(garbledDrift.ocrConfidence, 0.93);
+
+  // Clean >=8 alphabetic-word page with unrelated vision text -> MUST be flagged, obeying DOC_DRIFT_MIN_OVERLAP
+  const cleanCls = {
+    charCount: 140,
+    pageType: 'math',
+    rawText: 'Thermodynamics entropy increases monotonically during every irreversible adiabatic compression process across piston cylinders.',
+    cleanText: 'Thermodynamics entropy increases monotonically during every irreversible adiabatic compression process across piston cylinders.',
+    reasons: ['high_math_symbol_density']
+  };
+  assert.ok(extractComparisonWords(cleanCls.cleanText).size >= 8);
+  const badDrift = applyDriftCheck(
+    cleanCls,
+    { text: 'Ingredients: sugar, cocoa butter, vanilla extract, baking powder, and warm milk.', ocrConfidence: 0.95 },
+    { minOverlap: resolveDriftMinOverlap({}, { DOC_DRIFT_MIN_OVERLAP: '0.3' }) }
+  );
+  assert.match(String(badDrift.driftError || ''), /PAGE_DRIFT_SUSPECTED.*min 30%/);
+  assert.ok(badDrift.ocrConfidence <= 0.35);
+});
+
+test('23. D2-S Local harness upgrade: folder mode, --pages, --max-vision-pages, --compare-text-layer, timing & configured USD cost', async () => {
+  const parsed = parseLocalHarnessArgs(['./sample-dir', '--pages', '1-10', '--max-vision-pages', '4', '--compare-text-layer']);
+  assert.equal(parsed.targetPath, './sample-dir');
+  assert.deepEqual(parsed.pageRange, { start: 1, end: 10 });
+  assert.equal(parsed.maxVisionPages, 4);
+  assert.equal(parsed.compareTextLayer, true);
+
+  assert.equal(calculateConfiguredCostUsd(1_000_000, 500_000, {}), null);
+  assert.equal(calculateConfiguredCostUsd(1_000_000, 500_000, { DOC_PRICE_INPUT_PER_M: '0.1', DOC_PRICE_OUTPUT_PER_M: '0.4' }), 0.3);
+
+  const tmpDir = fs.mkdtempSync(path.join(__dirname, '..', 'tmp-d2s-folder-'));
+  const inDir = path.join(tmpDir, 'pdfs');
+  const outDir = path.join(tmpDir, 'out');
+  fs.mkdirSync(inDir, { recursive: true });
+
+  try {
+    const pdfA = buildSyntheticPdf([
+      { hasImage: true, text: 'scan A1' },
+      { text: 'Clear lecture text page A2 with enough alphanumeric content for direct extraction.' },
+      { hasImage: true, text: 'scan A3' }
+    ]);
+    const pdfB = buildSyntheticPdf([
+      { text: 'Clear lecture text page B1 with enough alphanumeric content for direct extraction.' },
+      { hasImage: true, text: 'scan B2' }
+    ]);
+    fs.writeFileSync(path.join(inDir, '01_alpha.pdf'), pdfA);
+    fs.writeFileSync(path.join(inDir, '02_beta.pdf'), pdfB);
+
+    // Without DOC_PRICE_* -> prints tokens only, honors --pages 1-2 & --compare-text-layer
+    const noPriceRes = await runLocalPdfHarness({
+      targetPath: inDir,
+      outDir,
+      env: {},
+      pageRange: { start: 1, end: 2 },
+      maxVisionPages: 2,
+      compareTextLayer: true
+    });
+    assert.equal(noPriceRes.fileCount, 2);
+    assert.equal(noPriceRes.estimatedUsd, null);
+    assert.ok(noPriceRes.totalTimeMs >= 0);
+
+    const alphaMd = fs.readFileSync(noPriceRes.files[0].outputPath, 'utf8');
+    assert.match(alphaMd, /\| page \| source \| page_type \| confidence \| time_ms \| raw_text_layer \| vision_or_final_text \|/);
+    assert.match(alphaMd, /scan A1/);
+    assert.match(alphaMd, /\| drift-flagged pages \|/);
+    assert.match(alphaMd, /\| failed pages \|/);
+    assert.match(alphaMd, /tokens only \(DOC_PRICE_INPUT_PER_M \/ DOC_PRICE_OUTPUT_PER_M unset\)/);
+
+    // With DOC_PRICE_* -> computes exact USD cost
+    const pricedRes = await runLocalPdfHarness({
+      targetPath: path.join(inDir, '01_alpha.pdf'),
+      outDir,
+      env: { DOC_PRICE_INPUT_PER_M: '0.1', DOC_PRICE_OUTPUT_PER_M: '0.4' },
+      pageRange: { start: 1, end: 2 },
+      maxVisionPages: 1
+    });
+    assert.ok(typeof pricedRes.estimatedUsd === 'number' && pricedRes.estimatedUsd > 0);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('24. D2-S Preflight script checks all 9 required env vars without leaking secret values', () => {
+  const secretSentinel = 'SECRET_VALUE_MUST_NOT_LEAK_987654';
+  const env = {
+    DATABASE_URL: `postgres://user:${secretSentinel}@host/db`,
+    GEMINI_API_KEY: secretSentinel,
+    DOC_VISION_MODEL: 'gemini-2.5-flash',
+    KYANA_KNOWLEDGE_V3: 'true',
+    KYANA_KNOWLEDGE_V3_USERS: ''
+  };
+  const results = evaluatePreflight(env);
+  assert.equal(results.length, PREFLIGHT_VARS.length);
+  const byName = new Map(results.map(r => [r.name, r]));
+  assert.equal(byName.get('DATABASE_URL').set, 'yes');
+  assert.equal(byName.get('GEMINI_API_KEY').set, 'yes');
+  assert.equal(byName.get('DOC_VISION_MODEL').set, 'yes');
+  assert.equal(byName.get('KYANA_KNOWLEDGE_V3').set, 'yes');
+  assert.equal(byName.get('KYANA_KNOWLEDGE_V3_USERS').set, 'no');
+  assert.equal(byName.get('SUPABASE_URL').set, 'no');
+  assert.equal(byName.get('INTERNAL_CRON_SECRET').set, 'no');
+  assert.equal(byName.get('GITHUB_DISPATCH_TOKEN').set, 'no');
+  assert.equal(byName.get('GITHUB_DISPATCH_REPO').set, 'no');
+
+  const report = formatPreflightReport(results);
+  assert.equal(report.includes(secretSentinel), false, 'Preflight report must NEVER print secret values');
+  for (const spec of PREFLIGHT_VARS) {
+    assert.ok(report.includes(spec.name), `Missing var in report: ${spec.name}`);
   }
 });

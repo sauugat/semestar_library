@@ -152,13 +152,82 @@ Result after final edit: **`tests 103, suites 0, pass 103, fail 0, cancelled 0, 
 
 ---
 
-## 5. Deployment Order
+## 5. Phase D2-S Hardening (`VERIFIED`)
+
+- **Workflow Schedules & Monthly Run Estimates (`VERIFIED`):**
+  - `.github/workflows/doc-ingestion-worker.yml`: `0 * * * *` (hourly at `:00` + `workflow_dispatch`) -> ~`720` scheduled runs/month (exits early when queue is empty).
+  - `.github/workflows/knowledge-reconciliation.yml`: updated from `*/15 * * * *` (~`2,880`/month) to `30 * * * *` (hourly at `:30` + `workflow_dispatch`, staggered away from `:00`) -> ~`720` scheduled runs/month.
+  - `.github/workflows/staging-cleanup-worker.yml`: `0 * * * *` (hourly at `:00` + `workflow_dispatch`) -> ~`720` scheduled runs/month.
+  - `.github/workflows/push-outbox-worker.yml`: `*/5 * * * *` (every 5 minutes + `workflow_dispatch`) -> ~`8,640` scheduled runs/month.
+- **PDF Slicing Robustness (`lib/doc-vision-ocr.js`, `lib/doc-ingestion-worker.js`) (`VERIFIED`):**
+  - Source PDF is loaded **once per job** via `getSrcPdfDoc` -> `loadPdfForSlicing` and reused across every page slice.
+  - `loadPdfForSlicing` / `buildPdfSlice` classify errors as terminal (`PASSWORD_PROTECTED`, `CORRUPT_FILE`, `PDF_SLICE_FAILED`, `transient: false`) with `0` Vision retry loops.
+  - If a multi-page slice throws `PDF_SLICE_FAILED`, `processVisionSubBatch` splits the batch to single pages so one bad page fails in isolation (`partial_success`) without failing healthy neighbor pages.
+  - **150-page benchmark (Test 21):** `totalElapsedMs=291.4 totalSlicingMs=73.5 earlyAvgMs=0.597 midAvgMs=0.485 lateAvgMs=0.424 peakRssMb=1897.8 peakHeapMb=153.3` — per-page slice time stays flat across all 150 pages.
+- **Drift Check Calibration (`lib/doc-ingestion-worker.js`) (`VERIFIED`):**
+  - Added `resolveDriftMinOverlap` reading `DOC_DRIFT_MIN_OVERLAP` (default `0.2`).
+  - `extractComparisonWords` strips LaTeX `\commands`, numbers, and symbols so only alphabetic words (`[a-z\u0900-\u097f]{3,}`) are compared; `applyDriftCheck` skips pages with `< 8` alphabetic words or `broken_math_glyphs` / legacy Nepali mojibake (`Test 22`).
+- **Local Harness Upgrades & Preflight (`scripts/doc-ingestion-local-test.js`, `scripts/doc-ingestion-preflight.js`) (`VERIFIED`):**
+  - Accepts a single PDF or directory of PDFs, `--pages N` / `--pages A-B`, `--max-vision-pages N`, `--compare-text-layer` (side-by-side `raw_text_layer` vs `vision_or_final_text`), per-page `time_ms`, summary metrics table (`drift-flagged pages`, `failed pages`, `total time (ms)`), and optional `DOC_PRICE_INPUT_PER_M` / `DOC_PRICE_OUTPUT_PER_M` (prints `tokens only` without inventing prices when unset) (`Test 23`).
+  - Added `scripts/doc-ingestion-preflight.js` inspecting `process.env` only (never loads `.env`, connects to DB, or hits network; never prints secret values) (`Test 24`).
+- **Pre-existing Test Fix (`90ae637`) (`VERIFIED`):**
+  - Fixed `tests/upload-material-atomic.test.js` in its own commit (`90ae637`) by seeding `teachers`, `subjects`, and `teacher_subjects` in test setup (`6/6` passing, zero production code changes).
+
+---
+
+## 6. Settings for GitHub and Vercel (`VERIFIED`)
+
+| Variable | Where It Must Be Set | What Happens If Missing |
+| --- | --- | --- |
+| `DATABASE_URL` | GitHub Secrets & Vercel Env | Worker CLI and app DB fail immediately (`exit 1` in workflow/worker). |
+| `DIRECT_URL` | GitHub Secrets (if migration/pooler split) | Direct Postgres connections fall back to `DATABASE_URL` if configured; otherwise fails if pooler rejects direct ops. |
+| `GEMINI_API_KEY` | GitHub Secrets & Vercel Env | Vision OCR fails non-transiently (`VISION_API_KEY_MISSING`); `embedText` throws `'Gemini embeddings are not configured'`, writing keyword-only `embedding = NULL` chunks and re-enqueueing `knowledge_jobs`. |
+| `DOC_VISION_MODEL` | GitHub Vars/Secrets | Vision pages fail non-transiently (`VISION_MODEL_UNCONFIGURED`); pure `text_layer` PDFs still complete. |
+| `KYANA_KNOWLEDGE_V3` | GitHub Vars (`'true'`) & Vercel Env | When not `'true'`, `isKnowledgeIndexingEnabled()` returns `false` and `drainKnowledgeJobs` skips `knowledge_jobs` draining (`routes/internal-knowledge.js` returns skipped/disabled). |
+| `KYANA_KNOWLEDGE_V3_USERS` | GitHub Vars (non-empty CSV/`*`) & Vercel Env | `isKnowledgeIndexingEnabled()` requires **both** `KYANA_KNOWLEDGE_V3 === 'true'` and non-empty `KYANA_KNOWLEDGE_V3_USERS`; if empty, `drainKnowledgeJobs` skips draining. |
+| `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` | GitHub Secrets & Vercel Env | Worker still reads local disk & Postgres `file_blobs`, but fails to download files stored only in Supabase Storage URLs. |
+| `INTERNAL_CRON_SECRET` | GitHub Secrets & Vercel Env | `/api/internal/knowledge/reconcile` (and other internal cron routes) reject/503 scheduled requests. |
+| `GITHUB_DISPATCH_TOKEN` | Vercel Env (optional) | App skips immediate `workflow_dispatch` with `0` GitHub API calls; uploads succeed and wait for the hourly cron or manual dispatch. |
+| `GITHUB_DISPATCH_REPO` | Vercel Env (optional if `GITHUB_REPOSITORY` set) | Immediate upload dispatch is skipped cleanly (`0` API calls) unless repo `owner/repo` is supplied. |
+| `DOC_VISION_BATCH_PAGES` | GitHub Vars (optional, default `1`) | Defaults to `1` page per Vision slice (clamped `1..3`). |
+| `DOC_DRIFT_MIN_OVERLAP` | GitHub Vars (optional, default `0.2`) | Defaults to `0.2` (`20%` minimum alphabetic word overlap for drift detection). |
+| `DOC_MAX_VISION_PAGES` | GitHub Vars (optional, default `60`) | Defaults to `60` Vision pages per file (extra pages pause as `skipped_quota`, resumable). |
+| `DOC_KNOWLEDGE_BUDGET_MS` | GitHub Vars (optional, default `480000`) | Defaults to `8` minutes wall-clock budget for in-process `knowledge_jobs` draining. |
+| `DOC_PRICE_INPUT_PER_M` / `DOC_PRICE_OUTPUT_PER_M` | Local shell only (optional, local harness) | Local test harness prints token counts only (`tokens only`) and does not invent USD pricing. |
+
+---
+
+## 7. Owner's Manual Real-File Test Steps
+
+Run these **without** `DATABASE_URL`, `PGHOST`, or `SUPABASE_*` set in your shell (and do not source `.env`):
+
+1. **Check preflight status in a clean shell:**
+   ```bash
+   node scripts/doc-ingestion-preflight.js
+   ```
+2. **Test a small page window first using a real sample PDF (or folder of PDFs) and review side-by-side output:**
+   ```bash
+   GEMINI_API_KEY="your-key" DOC_VISION_MODEL="your-gemini-model" \
+     node scripts/doc-ingestion-local-test.js /path/to/sample.pdf \
+     --pages 1-5 --max-vision-pages 3 --compare-text-layer
+   ```
+   Optional cost calculation (supply your model's current pricing in USD per 1M tokens):
+   ```bash
+   DOC_PRICE_INPUT_PER_M=0.10 DOC_PRICE_OUTPUT_PER_M=0.40 \
+   GEMINI_API_KEY="your-key" DOC_VISION_MODEL="your-gemini-model" \
+     node scripts/doc-ingestion-local-test.js /path/to/sample-folder \
+     --pages 1-10 --max-vision-pages 5 --compare-text-layer
+   ```
+3. **Inspect the generated Markdown report(s) under `tmp/d2-local-out/<name>.md`:**
+   - Verify `source` (`text_layer` vs `vision` vs `skipped`), per-page `time_ms`, side-by-side `raw_text_layer` vs `vision_or_final_text`, LaTeX/Markdown table formatting, and `drift-flagged pages` / `failed pages` totals.
+
+---
+
+## 8. Deployment Order
 
 1. **Apply the D2 migration to Neon Postgres (manually):**
    - Run `migrations/20261112_doc_intelligence_d2.up.sql` against target Postgres (creates `document_pages` and `ingestion_jobs` including `vision_calls`, `vision_input_tokens`, `vision_output_tokens`, plus indexes).
-2. **Configure secrets & variables in GitHub Actions and Vercel:**
-   - GitHub Secrets/Vars: `DATABASE_URL`, `DIRECT_URL`, `GEMINI_API_KEY`, `DOC_VISION_MODEL`, `KYANA_KNOWLEDGE_V3=true`, `KYANA_KNOWLEDGE_V3_USERS`, `INTERNAL_CRON_SECRET`, `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_URL`, optional `DOC_VISION_BATCH_PAGES=1` (`1..3`), `DOC_MAX_VISION_PAGES=60`, `DOC_KNOWLEDGE_BUDGET_MS=480000`.
-   - Vercel Env (optional immediate trigger): `GITHUB_DISPATCH_TOKEN` and `GITHUB_DISPATCH_REPO` (`owner/repo`).
+2. **Configure secrets & variables in GitHub Actions and Vercel** (per Section 6 above).
 3. **Deploy application & merge workflow code:**
    - Deploy app (`server.js` + `lib/*`) and merge `.github/workflows/doc-ingestion-worker.yml` + `knowledge-reconciliation.yml` to `main`.
 4. **Backfill dry-run (count only):**

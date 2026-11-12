@@ -93,6 +93,59 @@ async function createD2TestDb() {
       id TEXT PRIMARY KEY,
       name TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS posts (
+      id SERIAL PRIMARY KEY,
+      user_id TEXT,
+      title TEXT,
+      content TEXT,
+      cohort_id TEXT,
+      semester_no INTEGER,
+      type TEXT NOT NULL DEFAULT 'status',
+      category TEXT NOT NULL DEFAULT 'general',
+      audience_scope TEXT NOT NULL DEFAULT 'cohort',
+      visibility TEXT NOT NULL DEFAULT 'everyone',
+      target_all_semesters INTEGER NOT NULL DEFAULT 1,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      edited_at TIMESTAMPTZ,
+      deleted_at TIMESTAMPTZ
+    );
+
+    CREATE TABLE IF NOT EXISTS post_comments (
+      id SERIAL PRIMARY KEY,
+      post_id INTEGER,
+      user_id TEXT,
+      content TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMPTZ
+    );
+
+    CREATE TABLE IF NOT EXISTS assignments (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      language TEXT,
+      subject TEXT,
+      semester TEXT,
+      deadline TIMESTAMPTZ,
+      createdBy TEXT,
+      createdAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      cohort_id TEXT,
+      semester_no INTEGER,
+      audience_scope TEXT DEFAULT 'cohort'
+    );
+
+    CREATE TABLE IF NOT EXISTS routine (
+      id SERIAL PRIMARY KEY,
+      day TEXT,
+      period TEXT,
+      subject TEXT,
+      teacher TEXT,
+      room TEXT,
+      semester TEXT,
+      cohort_id TEXT,
+      section TEXT
+    );
   `);
 
   const baseKnowledgeSql = fs.readFileSync(
@@ -2677,4 +2730,173 @@ test('30. D2-V2 Quota resume: Day 1 daily 429 after 1st page, Day 2 resumes ONLY
   const finalJob = (await db.query('SELECT status, error FROM ingestion_jobs WHERE file_id = $1', [fileId])).rows[0];
   assert.equal(finalJob.status, 'completed');
   assert.equal(finalJob.error, null);
+});
+
+test('31. D2-V3 Rebuild impact check: unchanged legacy note is NOT re-enqueued by reconcile, while updated extractions bust hash and rebuild chunks', async () => {
+  const { reconcileKnowledge, processPendingJobs } = require('../lib/knowledge-worker');
+  const { buildNoteKnowledge } = require('../lib/knowledge-builder');
+  const { db } = await createD2TestDb();
+
+  // 1. Insert file and note_search_documents
+  const fRes = await db.query(`
+    INSERT INTO files (storedName, originalName, mimeType, sizeBytes, semester, subject, title, chapter, uploadedBy)
+    VALUES ('legacy_os_note.pdf', 'legacy_os_note.pdf', 'application/pdf', 2048, '3', 'OS', 'Process Scheduling', 'Unit 2', '26020266')
+    RETURNING id
+  `);
+  const fileId = fRes.rows[0].id;
+  const originalContent = 'Process scheduling deals with CPU scheduling algorithms including Round Robin and Priority scheduling.';
+  await db.query(`
+    INSERT INTO note_search_documents (id, content, extraction_status, indexed_at)
+    VALUES ($1, $2, 'completed', '2026-01-01T00:00:00.000Z')
+  `, [fileId, originalContent]);
+
+  // 2. Compute legacy 10-field content_hash (without raw_content_hash)
+  const legacyVersion = {
+    title: 'Process Scheduling',
+    storedName: 'legacy_os_note.pdf',
+    subject: 'OS',
+    chapter: 'Unit 2',
+    semester: '3',
+    semester_no: 3,
+    cohort_id: null,
+    audience_scope: 'cohort',
+    indexed_at: '2026-01-01T00:00:00.000Z',
+    file_version: 1
+  };
+  const legacyContentHash = computeContentHash(JSON.stringify(legacyVersion));
+
+  // Insert resource & chunk into knowledge_resources and knowledge_chunks
+  await db.query(`
+    INSERT INTO knowledge_resources (
+      id, resource_type, canonical_id, canonical_code, title, source_authority_tier,
+      author_id, author_role, cohort_id, semester_no, audience_scope, target_all_semesters,
+      visibility, web_url, mobile_route, mobile_params, created_at, updated_at, deleted_at,
+      hidden_at, content_hash
+    ) VALUES (
+      $1, 'note', $2, NULL, 'Process Scheduling', 4,
+      '26020266', 'student', NULL, 3, 'cohort', 0,
+      'everyone', $3, $4, '{}'::jsonb,
+      CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL, NULL, $5
+    )
+  `, [`note:${fileId}`, fileId, `/api/files/${fileId}/view`, `/material/${fileId}`, legacyContentHash]);
+
+  const chunkHash = computeContentHash('Initial chunk content for Process Scheduling');
+  const dummyVector = '[' + new Array(768).fill(0.01).join(',') + ']';
+  await db.query(`
+    INSERT INTO knowledge_chunks (
+      id, resource_id, chunk_index, content, section_heading, page_number, end_page_number,
+      content_hash, embedding, created_at
+    ) VALUES (
+      $1, $2, 0, 'Initial chunk content for Process Scheduling', 'Unit 2', 1, 1, $3, $4::vector, CURRENT_TIMESTAMP
+    )
+  `, [`note:${fileId}:0`, `note:${fileId}`, chunkHash, dummyVector]);
+
+  // Step A: Run reconcileKnowledge on unchanged legacy note
+  const recon1 = await reconcileKnowledge(db);
+  assert.equal(recon1.staleEnqueued, 0, 'Unchanged legacy note must NOT be marked stale');
+
+  const jobs1 = (await db.query('SELECT * FROM knowledge_jobs WHERE resource_id = $1', [`note:${fileId}`])).rows;
+  assert.equal(jobs1.length, 0, 'No sync job must be enqueued for unchanged legacy note');
+
+  const chunks1 = (await db.query('SELECT id, chunk_index, content_hash FROM knowledge_chunks WHERE resource_id = $1', [`note:${fileId}`])).rows;
+  assert.equal(chunks1.length, 1, 'Existing chunk must not be deleted');
+  assert.equal(chunks1[0].content_hash, chunkHash);
+
+  // Step B: Ingestion runs and updates content + indexed_at (new extraction)
+  await db.query(`
+    UPDATE note_search_documents
+    SET content = 'Updated CPU scheduling material with multi-level feedback queues.',
+        indexed_at = '2026-11-12T18:00:00.000Z'
+    WHERE id = $1
+  `, [fileId]);
+
+  const recon2 = await reconcileKnowledge(db);
+  assert.equal(recon2.staleEnqueued, 1, 'Updated note extraction must be flagged as stale');
+
+  const jobs2 = (await db.query('SELECT id, resource_id, operation, status FROM knowledge_jobs WHERE resource_id = $1', [`note:${fileId}`])).rows;
+  assert.equal(jobs2.length, 1, 'A sync job must be enqueued');
+  assert.equal(jobs2[0].operation, 'sync');
+
+  // Step C: Process the sync job
+  const workerRes = await processPendingJobs(db, 10, { keywordOnly: true });
+  assert.equal(workerRes.processed, 1);
+  assert.equal(workerRes.succeeded, 1);
+
+  // Stored hash is now upgraded to the new formula with raw_content_hash
+  const resAfter = (await db.query('SELECT content_hash FROM knowledge_resources WHERE id = $1', [`note:${fileId}`])).rows[0];
+  assert.notEqual(resAfter.content_hash, legacyContentHash, 'Content hash must be upgraded to new formula');
+
+  // Step D: Next reconciliation run is clean (not stale)
+  const recon3 = await reconcileKnowledge(db);
+  assert.equal(recon3.staleEnqueued, 0, 'Upgraded note must remain clean on next reconcile');
+
+  // Step E: Content modifies on upgraded note even if indexed_at remains identical
+  await db.query(`
+    UPDATE note_search_documents
+    SET content = 'Even newer text with real-time EDF scheduling proofs.'
+    WHERE id = $1
+  `, [fileId]);
+
+  const recon4 = await reconcileKnowledge(db);
+  assert.equal(recon4.staleEnqueued, 1, 'Content change on upgraded note must be detected via raw_content_hash');
+});
+
+test('32. D2-V3 Clean Unicode Nepali check: 15 lines of healthy Unicode Devanagari stay on text_layer, while Loksewa-style corruption routes to vision', async () => {
+  const { extractPdfPageSignals, classifyPageSignals, detectDevanagariCorruption } = require('../lib/doc-page-classifier');
+  const { getDocument, OPS } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+
+  // 15 lines of clean modern Unicode Nepali containing: व्यवस्था, संविधान, शासन, प्रधानमन्त्री, विद्यार्थी, श्रेणी
+  const cleanNepaliLines = [
+    'नेपालको संविधान २०७२ संघीय लोकतान्त्रिक',
+    'गणतन्त्रात्मक शासन व्यवस्थाको आधार हो।',
+    'यस संविधानले तीन तहको सरकारको व्यवस्था गरेको छ।',
+    'प्रधानमन्त्री मन्त्रिपरिषदको प्रमुख हुनेछन्।',
+    'संसदीय शासन प्रणालीमा विधिको शासन अनिवार्य मानिन्छ।',
+    'विश्वविद्यालयका विद्यार्थी लगनशील भएर अध्ययन गर्छन्।',
+    'विद्यार्थीको प्रतिभा अनुसार श्रेणी निर्धारण गरिन्छ।',
+    'प्रथम श्रेणी र विशिष्ट श्रेणीमा धेरै विद्यार्थी उत्तीर्ण भए।',
+    'सुशासन प्रवर्द्धन गर्न प्रशासनिक व्यवस्था चुस्त हुनुपर्छ।',
+    'नागरिकको हक अधिकार संरक्षण गर्नु राज्यको दायित्व हो।',
+    'प्रधानमन्त्रीको नेतृत्वमा मन्त्रिपरिषद गठन हुन्छ।',
+    'न्यायपालिकाले संविधानको व्याख्या गर्ने अधिकार राख्दछ।',
+    'शैक्षिक सुधारका लागि दक्ष विद्यार्थी उत्पादन आवश्यक छ।',
+    'निजामती सेवामा विभिन्न श्रेणी र पदहरू रहेका छन्।',
+    'सबै मिलेर देशमा विधिको शासन स्थापना गर्नुपर्छ।'
+  ];
+
+  const pdfBuf = buildSyntheticPdf([{ unicodeText: cleanNepaliLines }]);
+  const loadingTask = getDocument({ data: new Uint8Array(pdfBuf), disableFontFace: true });
+  const pdfDoc = await loadingTask.promise;
+  const page = await pdfDoc.getPage(1);
+  const signals = await extractPdfPageSignals(page, OPS);
+
+  // A. Unit check on corruption detector for healthy text
+  const cleanCheck = detectDevanagariCorruption(signals.rawText);
+  assert.equal(cleanCheck.detected, false);
+  assert.equal(cleanCheck.halantBreaks, 0);
+  assert.equal(cleanCheck.isolatedMatras, 0);
+  assert.equal(cleanCheck.misorderedShortI, 0);
+  assert.equal(cleanCheck.totalAnomalies, 0);
+  assert.equal(cleanCheck.reason, null);
+
+  // B. Classifier check: clean Unicode Devanagari stays on text_layer
+  const cleanClassify = classifyPageSignals(signals);
+  assert.equal(cleanClassify.route, 'text_layer');
+  assert.equal(cleanClassify.pageType, 'text');
+  assert.ok(cleanClassify.reasons.includes('clean_text_layer'));
+  assert.ok(cleanClassify.charCount >= 300);
+
+  // C. Regression check on Loksewa-style corruption (halant + space, isolated matras, misordered short-i)
+  const corruptedText = '\uF040 नेपाल को व् यिस् था र अर् थ प्रणाली िंसवधान को धारा १ ा बमोजिम व्यवस्थित गरिने छ।\n\uF040 शासन प्रणाली र प्रशासनिक सुधार योजना नागरिक सेवा प्रवाहमा पारदर्शिता र जबाफदेहिता सुनिश्चित गर्ने छ।';
+  const corruptCheck = detectDevanagariCorruption(corruptedText);
+  assert.equal(corruptCheck.detected, true);
+  assert.ok(corruptCheck.halantBreaks >= 2, 'Must detect halant breaks');
+  assert.ok(corruptCheck.misorderedShortI >= 1, 'Must detect misordered short-i');
+  assert.ok(corruptCheck.totalAnomalies >= 3, 'Total anomalies must meet threshold');
+  assert.equal(corruptCheck.reason, 'nepali_repair');
+
+  const corruptClassify = classifyPageSignals({ rawText: corruptedText });
+  assert.equal(corruptClassify.route, 'vision');
+  assert.equal(corruptClassify.pageType, 'nepali_repair');
+  assert.ok(corruptClassify.reasons.includes('nepali_repair'));
 });

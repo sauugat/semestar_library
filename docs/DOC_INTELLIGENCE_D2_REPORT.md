@@ -367,3 +367,122 @@ A comprehensive multi-phase test (`Test 30`) was added to `tests/doc-intelligenc
    - `note_search_documents.content` is rebuilt with final vision text (raw fallback removed).
    - In `lib/knowledge-builder.js`, `buildNoteKnowledge` includes `raw_content_hash: computeContentHash(rawContent)` in `resource.content_hash`, ensuring that any update from fallback to final text busts the resource hash.
    - `knowledge_jobs` is drained on Day 2: `knowledge_chunks` are completely rebuilt from the final vision text with zero duplicate chunks.
+
+---
+
+## 11. D2-V3 Rebuild Impact Check and Clean-Nepali Classifier Verification
+
+### 11.1 Rebuild Impact Analysis of `raw_content_hash` in `lib/knowledge-builder.js`
+
+#### Code Comparison (Before vs After)
+
+- **Before D2-V2 (`52ea33c`):**
+  ```javascript
+  const version = {
+    title, storedName: file.storedName || file.storedname, subject,
+    chapter, semester, semester_no: semesterNo,
+    cohort_id: cohortId, audience_scope: audienceScope,
+    indexed_at: file.extraction_indexed_at || file.indexed_at || null,
+    file_version: fileVersion
+  };
+  ```
+- **In D2-V2 (`52ea33c`):**
+  ```javascript
+  const rawContent = file.extracted_content || file.content || file.document_content || '';
+  const version = {
+    title, storedName: file.storedName || file.storedname, subject,
+    chapter, semester, semester_no: semesterNo,
+    cohort_id: cohortId, audience_scope: audienceScope,
+    indexed_at: file.extraction_indexed_at || file.indexed_at || null,
+    file_version: fileVersion,
+    raw_content_hash: computeContentHash(rawContent)
+  };
+  ```
+
+#### Empirical In-Memory PGlite Audit Findings
+1. **Does the resource look "changed"?**
+   - **Yes.** Because `JSON.stringify(version)` incorporated `"raw_content_hash"`, `computeContentHash` produced a completely different SHA-256 hash than the legacy 10-field formula (`00e9fc...` vs `41a87a...`).
+2. **Is it re-enqueued?**
+   - **Yes.** In `reconcileKnowledge`, `built.resource.content_hash !== row.content_hash` evaluated to `true` for 100% of existing legacy notes, enqueuing a `sync` job in `knowledge_jobs` (`staleEnqueued: 1`).
+   - Furthermore, `reconcileKnowledge` previously omitted `d.content` in its source query (`jsonb_build_object('extraction_indexed_at', d.indexed_at)`), causing `rawContent = ''` in reconcile while worker saw full text, which would perpetually re-enqueue notes on every hourly cron run.
+3. **Are chunks rebuilt?**
+   - **Yes.** When `processPendingJobs` executed the sync job, `persistKnowledgeResource` saw mismatched hashes and executed:
+     `DELETE FROM knowledge_chunks WHERE resource_id = $1`
+     followed by re-inserting all chunks into PostgreSQL.
+4. **Are embeddings recomputed or reused?**
+   - **Reused for identical chunk texts.** In `persistKnowledgeResource`, `existingChunkEmbeddings.has(chunkHash)` reuses the vector (`vectors[i] = existingChunkEmbeddings.get(chunkHash)`), resulting in 0 Gemini embedding calls when text is identical.
+   - **Cost impact for un-embedded or modified chunks:** If chunks were un-embedded (e.g. from prior failure or timeout) or chunk text boundaries shifted, up to $N \times K$ embedding API calls would be triggered ($N$ notes, average $K$ chunks). Regardless of embedding reuse, $N$ deletions and $N \times K$ chunk insertions would occur across the entire database every hour.
+
+#### Implementation Fix (Backward Compatibility & Change Detection)
+In `lib/knowledge-builder.js`, `buildNoteKnowledge` computes both:
+1. `legacyVersion` (10 fields) & `legacyContentHash`
+2. `newVersion` (10 fields + `raw_content_hash`) & `newContentHash`
+
+If `file.existing_content_hash === legacyContentHash`, the legacy hash is preserved:
+- Unchanged legacy notes maintain their stored hash.
+- `reconcileKnowledge` reports `staleEnqueued = 0` (0 sync jobs enqueued, 0 chunk deletions, 0 chunk insertions, 0 embedding calls).
+- When note content or `indexed_at` updates (e.g. via D2 doc ingestion), the legacy hash no longer matches, upgrading the note to `newContentHash`.
+- In `lib/knowledge-worker.js`, `reconcileKnowledge` selects `d.content AS extracted_content` and `r.content_hash AS existing_content_hash`.
+- In `lib/knowledge-sync.js`, `persistKnowledgeResource` recognizes `resource.legacy_content_hash`, upgrading the stored hash without deleting or recreating unchanged chunks.
+
+---
+
+### 11.2 Clean Unicode Nepali Verification
+
+#### Synthetic Test & Signals Analysis
+- A 15-line synthetic PDF was generated containing proper modern Unicode Devanagari text with Identity-H (`NotoSansDevanagari`) encoding, containing the required words: `व्यवस्था`, `संविधान`, `शासन`, `प्रधानमन्त्री`, `विद्यार्थी`, `श्रेणी`.
+- Extracted via `extractPdfPageSignals` (using `pdfjs-dist` `getTextContent`).
+- Signals measured:
+  - `charCount`: 402 clean characters
+  - `halantBreaks`: 0
+  - `isolatedMatras`: 0
+  - `misorderedShortI`: 0
+  - `totalAnomalies`: 0
+- Classification decision:
+  - `route: 'text_layer'`
+  - `pageType: 'text'`
+  - `reasons: ['clean_text_layer']`
+- Healthy Unicode Devanagari stays 100% on `text_layer`!
+
+#### Corrupted Loksewa-Style Devanagari Detection
+- In contrast, the Loksewa fixture containing split halants (`व् यिस् था`), misordered short-i matras (`िंसवधान`), and isolated matras (` १ ा `) produced:
+  - `halantBreaks`: 3
+  - `isolatedMatras`: 2
+  - `misorderedShortI`: 2
+  - `totalAnomalies`: 7
+- Classification decision:
+  - `route: 'vision'`
+  - `pageType: 'nepali_repair'`
+  - `reasons: ['nepali_repair']`
+
+#### Anomaly Thresholds & Trigger Rules (`lib/doc-page-classifier.js`)
+- `minDevanagariHalantBreaks = 2` (regex: `[\u0915-\u0939\u0958-\u095F]\u094D[ \t]+[\u0905-\u0939\u0958-\u095F]`)
+- `minDevanagariIsolatedMatras = 2` (regex: `(?:^|\s)[\u093A-\u094E\u0962\u0963\u0901-\u0903]+`)
+- `minDevanagariMisorderedMatras = 2` (regex: `(?:^|\s)\u093F`, `\u093F[\u0901-\u0903][\u0915-\u0939]`, or `[\u0904-\u0914\u093E-\u094C]\u093F`)
+- **Minimum trigger:** Any individual anomaly count $\ge 2$ OR `totalAnomalies >= 3` triggers `nepali_repair` -> `vision`.
+
+---
+
+### 11.3 Code Listing & Index Tuning Proposals (from D2-V2)
+*(Thresholds held constant as requested; reporting proposals and expected savings)*
+
+1. **Java Code Listings in Vector Frames (`05. Inheritance...pdf` p9, 12, 14, 25, 29):**
+   - **Why routed to vision:** Slides with syntax-highlighted code inside rectangular vector frames trigger `vectorOps >= 100` (`vector_diagram`) or line-number / side-by-side code blocks trigger `table_layout`.
+   - **Expected Pages Saved:** 5 pages in this 41-page deck (~12% reduction).
+   - **Identifying Condition:** When `charCount >= 200` and `imageOps <= 1` with `maxImageAreaRatio < 0.05`, ignore rectangular border paths (`ops.constructPath` / `re S`) or classify as code when code keywords (`class`, `void`, `public`, `import`, `{`, `}`) represent `> 5%` of tokens.
+2. **Discrete Math Frontmatter Copyright & 3-Column Index (`Discrete Mathematics.pdf` p5, p757–768):**
+   - **Why routed to vision:**
+     - Page 5 (copyright page, 3,223 chars) includes `CMSY9` font in publisher credits, triggering `math:math_font`.
+     - Index pages (p757–768, 12 pages) are 3-column alphabetical term indexes which trigger `table:table_layout` (aligned text columns) or `math:stacked_fractions` (small page numbers above/below terms).
+   - **Expected Pages Saved:** 13 pages (1 copyright page + 12 index pages).
+   - **Identifying Condition:**
+     - For dense frontmatter pages (`charCount > 1000`): require `symbolCount >= 3` or `verticalMathShifts >= 2` before `math_font` alone routes to `vision`.
+     - For index pages: in multi-column detection, ignore text columns where each entry matches index patterns: `^[A-Za-z\s\-–]+,\s*\d+(?:,\s*\d+)*$` (term followed by comma-separated page numbers).
+
+---
+
+### 11.4 Verification Suite & Regression Results
+- **Test 31 added:** Validates that unchanged legacy notes are NOT re-enqueued by `reconcileKnowledge`, chunks remain intact, and content changes (both with new `indexed_at` and same `indexed_at`) bust hash and trigger clean rebuilds.
+- **Test 32 added:** Validates that 15 lines of clean modern Unicode Devanagari text stay on `text_layer` (`reasons: ['clean_text_layer']`), while Loksewa-style corruption routes to `vision` (`nepali_repair`).
+- **Full 7-suite regression:** 122 tests passing, 0 failing.
+

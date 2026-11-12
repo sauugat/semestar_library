@@ -5396,7 +5396,9 @@ app.get('/api/search', requireLogin, async (req, res) => {
   const postFilter = buildAcademicContentFilter(context, { tableAlias: 'p' });
   const postsQuery = `
     SELECT p.id, p.user_id AS studentId, p.title, p.content, p.type, p.category, p.subject, p.semester, p.created_at,
-      s.name, s.avatarUrl, s.role,
+      s.name,
+      CASE WHEN s.avatarUrl LIKE 'data:%' THEN '/api/avatar/student/' || s.studentId || '?v=' || LENGTH(s.avatarUrl) ELSE s.avatarUrl END AS avatarUrl,
+      s.role,
       (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS like_count,
       (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comment_count
     FROM posts p
@@ -6703,18 +6705,34 @@ app.get('/api/avatar/student/:studentId', async (req, res) => {
     const sid = String(req.params.studentId || '').trim();
     if (!sid) return res.status(404).end();
     const row = await db.get('SELECT avatarUrl FROM students WHERE studentId = ?', sid);
-    const url = row && (row.avatarUrl || row.avatarurl);
-    if (!url) return res.status(404).end();
-    if (url.startsWith('data:image/')) {
-      const match = /^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/.exec(url);
+    const rawUrl = row && (row.avatarUrl || row.avatarurl);
+    const url = typeof rawUrl === 'string' ? rawUrl.trim() : '';
+    if (!url || /^(?:null|undefined)$/i.test(url)) return res.status(404).end();
+    if (/^data:image\//i.test(url)) {
+      const match = /^data:(image\/[a-zA-Z0-9+.-]+)(?:;([^,]*))?,(.*)$/is.exec(url);
       if (!match) return res.status(404).end();
-      const buf = Buffer.from(match[2], 'base64');
+      const isBase64 = !match[2] || /(?:^|;)base64(?:;|$)/i.test(match[2]);
+      const buf = isBase64
+        ? Buffer.from(match[3].replace(/\s+/g, ''), 'base64')
+        : Buffer.from(decodeURIComponent(match[3]), 'utf8');
       res.setHeader('Content-Type', match[1]);
       res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
       res.setHeader('X-Content-Type-Options', 'nosniff');
       return res.send(buf);
     }
-    return res.redirect(302, url);
+    if (/^https?:\/\//i.test(url)) {
+      return res.redirect(302, url);
+    }
+    const cleanPath = url.split('?')[0].split('#')[0];
+    const localName = path.basename(cleanPath);
+    if (!/^[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+$/.test(localName)) {
+      return res.status(404).end();
+    }
+    const filePath = await ensureLocalFile(localName);
+    if (!filePath) return res.status(404).end();
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.sendFile(filePath);
   } catch (_) {
     return res.status(404).end();
   }
@@ -6729,10 +6747,11 @@ app.get('/api/avatar/:filename', async (req, res) => {
 
   // Enforce access control: verify this file is linked to a student avatar
   const student = await db.get(
-    'SELECT studentId FROM students WHERE avatarUrl = ? OR avatarUrl = ? OR avatarUrl LIKE ? LIMIT 1',
+    'SELECT studentId FROM students WHERE avatarUrl = ? OR avatarUrl = ? OR avatarUrl LIKE ? OR avatarUrl LIKE ? LIMIT 1',
     `/api/avatar/${filename}`,
     filename,
-    `%/${filename}`
+    `%/${filename}`,
+    `%/${filename}?%`
   );
 
   if (!student) {
@@ -7113,7 +7132,9 @@ const kyanaChatRateLimiter = createHourlyRateLimiter({ db });
 const kyanaActionConfirmRateLimiter = createActionConfirmRateLimiter({ db });
 
 // Distributed DB-backed rate limiting on Kyana chat & action confirmation endpoints
-app.post('/api/ai/chat', kyanaChatRateLimiter, require('./lib/chat-http').createChatHandler(db, aiAssistant));
+const chatHttp = require('./lib/chat-http');
+app.post('/api/ai/chat', kyanaChatRateLimiter, chatHttp.createChatHandler(db, aiAssistant));
+app.post('/api/ai/actions', requireLogin, kyanaChatRateLimiter, chatHttp.createActionHandler(db, aiAssistant));
 app.post('/api/ai/actions/confirm', requireLogin, kyanaActionConfirmRateLimiter, async (req, res) => {
   return res.status(501).json({ message: 'Action confirmation engine is not enabled in this phase.' });
 });

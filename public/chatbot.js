@@ -1268,6 +1268,282 @@
     }
   };
 
+  // KyanaInteractiveActions Component (Reusable Quick Replies, Next-Step Buttons & Interactive MCQs)
+  const KyanaInteractiveActions = {
+    async execute(actionReq) {
+      const headers = { 'Content-Type': 'application/json' };
+      try {
+        const token = window.SemesterAuth?.getAccessToken?.();
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+      } catch (_) {}
+      const res = await fetch('/api/ai/actions', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(actionReq)
+      });
+      if (res.status === 401) return { unauthenticated: true };
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || 'Could not execute action.');
+      return data;
+    },
+
+    render(container, msg) {
+      if (!container || !msg) return;
+      const hasMcq = Boolean(msg.interactiveQuestion && Array.isArray(msg.interactiveQuestion.options));
+      const hasActions = Boolean(msg.messageActions && Array.isArray(msg.messageActions.actions) && msg.messageActions.actions.length > 0);
+      if (!hasMcq && !hasActions) return;
+      if (hasMcq) this.renderMcqCard(container, msg);
+      if (hasActions) this.renderActionButtons(container, msg);
+    },
+
+    renderMcqCard(container, msg) {
+      const q = msg.interactiveQuestion;
+      const existing = container.querySelector('.kyana-mcq-card');
+      if (existing) existing.remove();
+
+      const card = document.createElement('div');
+      card.className = 'kyana-mcq-card';
+
+      const header = document.createElement('div');
+      header.className = 'kyana-mcq-header';
+      header.textContent = 'CHECKPOINT QUIZ';
+      card.appendChild(header);
+
+      const qEl = document.createElement('div');
+      qEl.className = 'kyana-mcq-question';
+      qEl.textContent = q.question || '';
+      card.appendChild(qEl);
+
+      const optsWrap = document.createElement('div');
+      optsWrap.className = 'kyana-mcq-options';
+
+      (q.options || []).forEach((opt) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'kyana-mcq-option';
+        btn.disabled = Boolean(q.submitted);
+
+        const optId = String(opt.id || '').toUpperCase();
+        const isSelected = q.submitted && String(q.selectedOptionId || '').toUpperCase() === optId;
+        const isCorrectOpt = q.submitted && String(q.correctOptionId || '').toUpperCase() === optId;
+
+        if (isSelected) btn.classList.add('selected');
+        if (q.submitted && isCorrectOpt) btn.classList.add('is-correct');
+        else if (isSelected && q.isCorrect === false) btn.classList.add('is-incorrect');
+
+        let statusLabel = '';
+        if (q.submitted) {
+          if (isCorrectOpt) statusLabel = '✓ Correct';
+          else if (isSelected && q.isCorrect === false) statusLabel = '✕ Selected';
+        }
+
+        btn.innerHTML = `
+          <span class="kyana-mcq-option-badge">${escapeHtml(optId)}</span>
+          <span class="kyana-mcq-option-text">${escapeHtml(opt.text || '')}</span>
+          ${statusLabel ? `<span class="kyana-mcq-option-status">${escapeHtml(statusLabel)}</span>` : ''}
+        `;
+
+        if (!q.submitted) {
+          btn.addEventListener('click', async () => {
+            if (isSending || q.submitted) return;
+            const allBtns = optsWrap.querySelectorAll('.kyana-mcq-option');
+            allBtns.forEach((b) => { b.disabled = true; });
+            btn.classList.add('selected');
+
+            try {
+              const resData = await this.execute({
+                action: 'submit_mcq_answer',
+                actionType: 'multiple_choice',
+                conversationId: activeSession?.id || null,
+                payload: {
+                  messageId: msg.id || null,
+                  questionId: q.id,
+                  optionId: optId,
+                  ...(q.sessionId ? { sessionId: q.sessionId } : {})
+                }
+              });
+
+              if (resData.unauthenticated) {
+                handleSend(optId);
+                return;
+              }
+
+              if (resData.interactiveQuestion) {
+                msg.interactiveQuestion = resData.interactiveQuestion;
+              }
+              this.renderMcqCard(container, msg);
+
+              if (resData.reply && activeSession) {
+                const userRow = KyanaUserMessage.create(`Selected option ${optId}: ${opt.text}`);
+                messagesListEl.appendChild(userRow);
+                activeSession.messages.push({ role: 'user', content: `Selected option ${optId}: ${opt.text}`, timestamp: Date.now() });
+
+                const assistantMsg = {
+                  id: resData.id || null,
+                  role: 'assistant',
+                  content: resData.reply,
+                  messageActions: resData.messageActions || null,
+                  timestamp: Date.now()
+                };
+                activeSession.messages.push(assistantMsg);
+                SessionStore.update(activeSession);
+
+                const respRow = KyanaResponse.create();
+                const respDoc = respRow.querySelector('.kyana-response-doc');
+                renderFormattedContent(respDoc, assistantMsg.content);
+                this.render(respDoc, assistantMsg);
+                KyanaResponseActions.render(respDoc, assistantMsg.content, () => handleRegenerate(), true);
+                messagesListEl.appendChild(respRow);
+                scrollToBottom(true);
+              }
+            } catch (err) {
+              allBtns.forEach((b) => { b.disabled = false; });
+              btn.classList.remove('selected');
+              const errNote = document.createElement('div');
+              errNote.className = 'kyana-mcq-feedback';
+              errNote.textContent = err.message || 'Could not submit answer. Please try again.';
+              card.appendChild(errNote);
+            }
+          });
+        }
+
+        optsWrap.appendChild(btn);
+      });
+
+      card.appendChild(optsWrap);
+
+      if (q.submitted && q.feedback) {
+        const fbEl = document.createElement('div');
+        fbEl.className = 'kyana-mcq-feedback';
+        fbEl.textContent = q.feedback;
+        card.appendChild(fbEl);
+      }
+
+      const anchor = container.querySelector('.kyana-msg-actions-row') || container.querySelector('.kyana-response-actions');
+      if (anchor) container.insertBefore(card, anchor);
+      else container.appendChild(card);
+    },
+
+    renderActionButtons(container, msg) {
+      const existing = container.querySelector('.kyana-msg-actions-row');
+      if (existing) existing.remove();
+
+      const row = document.createElement('div');
+      row.className = 'kyana-msg-actions-row';
+
+      (msg.messageActions.actions || []).forEach((act) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'kyana-msg-action-btn' + (act.actionType === 'next_step' ? ' is-primary' : '');
+        btn.textContent = act.label || 'Continue';
+        btn.dataset.action = act.action || '';
+
+        btn.addEventListener('click', async () => {
+          if (isSending) return;
+
+          if (act.actionType === 'navigation' && act.payload && act.payload.url) {
+            const targetUrl = safeLink(act.payload.url);
+            if (targetUrl) { window.location.href = targetUrl; return; }
+          }
+
+          const allActionBtns = row.querySelectorAll('.kyana-msg-action-btn');
+          allActionBtns.forEach((b) => { b.disabled = true; });
+          btn.classList.add('is-loading');
+
+          const displayLabel = act.label || act.action;
+          const fallbackPrompt = (act.payload && act.payload.prompt) ? act.payload.prompt : displayLabel;
+
+          try {
+            if (!activeSession) {
+              activeSession = SessionStore.create(displayLabel);
+              renderHistoryList();
+            }
+
+            const userRow = KyanaUserMessage.create(displayLabel);
+            messagesListEl.appendChild(userRow);
+            activeSession.messages.push({ role: 'user', content: displayLabel, timestamp: Date.now() });
+            SessionStore.update(activeSession);
+            scrollToBottom(true);
+            setGeneratingState(true);
+            showThinkingIndicator();
+
+            const resData = await this.execute({
+              action: act.action,
+              actionType: act.actionType,
+              conversationId: activeSession?.id || null,
+              payload: act.payload || {}
+            });
+
+            removeThinkingIndicator();
+            setGeneratingState(false);
+
+            if (resData.unauthenticated) {
+              allActionBtns.forEach((b) => { b.disabled = false; });
+              btn.classList.remove('is-loading');
+              if (userRow.parentNode) userRow.remove();
+              activeSession.messages.pop();
+              handleSend(fallbackPrompt);
+              return;
+            }
+
+            if (resData.navigateTo) {
+              const targetUrl = safeLink(resData.navigateTo);
+              if (targetUrl) { window.location.href = targetUrl; return; }
+            }
+
+            if (resData.conversationId && activeSession.id !== resData.conversationId) {
+              activeSession.id = resData.conversationId;
+            }
+
+            const assistantMsg = {
+              id: resData.id || null,
+              role: 'assistant',
+              content: resData.reply || '',
+              resourceCards: resData.resourceCards,
+              matchedFiles: resData.matchedFiles,
+              matchedCourses: resData.matchedCourses,
+              matchedRoutine: resData.matchedRoutine,
+              webSources: resData.webSources,
+              messageActions: resData.messageActions || null,
+              interactiveQuestion: resData.interactiveQuestion || null,
+              timestamp: Date.now()
+            };
+
+            const respRow = KyanaResponse.create();
+            const respDoc = respRow.querySelector('.kyana-response-doc');
+            renderFormattedContent(respDoc, assistantMsg.content);
+            KyanaSourceCard.renderSources(respDoc, assistantMsg);
+            this.render(respDoc, assistantMsg);
+            KyanaResponseActions.render(respDoc, assistantMsg.content, () => handleRegenerate(), true);
+            messagesListEl.appendChild(respRow);
+
+            activeSession.messages.push(assistantMsg);
+            SessionStore.update(activeSession);
+            renderHistoryList();
+            scrollToBottom(true);
+          } catch (err) {
+            removeThinkingIndicator();
+            setGeneratingState(false);
+            const errRow = KyanaResponse.create();
+            const errDoc = errRow.querySelector('.kyana-response-doc');
+            errDoc.appendChild(KyanaErrorState.create(err.message || 'Could not complete action.', null));
+            messagesListEl.appendChild(errRow);
+            scrollToBottom(true);
+          } finally {
+            allActionBtns.forEach((b) => { b.disabled = false; });
+            btn.classList.remove('is-loading');
+          }
+        });
+
+        row.appendChild(btn);
+      });
+
+      const anchor = container.querySelector('.kyana-response-actions');
+      if (anchor) container.insertBefore(row, anchor);
+      else container.appendChild(row);
+    }
+  };
+
   // KyanaUserMessage Component (Strict Monochrome Dark Gray Bubble)
   const KyanaUserMessage = {
     create(text) {
@@ -1883,6 +2159,7 @@
         const doc = row.querySelector('.kyana-response-doc');
         renderFormattedContent(doc, msg.content || '');
         KyanaSourceCard.renderSources(doc, msg);
+        KyanaInteractiveActions.render(doc, msg);
         KyanaResponseActions.render(doc, msg.content || '', idx === session.messages.length - 1 ? () => handleRegenerate() : null, false);
         messagesListEl.appendChild(row);
       }
@@ -1902,7 +2179,7 @@
         const res = await fetch('/api/ai/conversations/' + encodeURIComponent(id) + '/messages', { headers, cache: 'no-store' });
         if (!res.ok) throw new Error('Conversation unavailable');
         const data = await res.json();
-        session.messages = (data.messages || []).map(m => ({ ...m.metadata, role: m.sender, content: m.text, timestamp: new Date(m.createdAt).getTime() }));
+        session.messages = (data.messages || []).map(m => ({ ...m.metadata, id: m.id, role: m.sender, content: m.text, timestamp: new Date(m.createdAt).getTime() }));
       } catch { session.messages = []; }
       SessionStore.update(session);
       activeSession = session;
@@ -2124,13 +2401,11 @@
         messagesListEl.appendChild(request.row);
       }
 
-      request.doc.innerHTML = '';
-      renderFormattedContent(request.doc, data.reply || '');
-      KyanaSourceCard.renderSources(request.doc, data);
-      KyanaResponseActions.render(request.doc, data.reply || '', () => handleRegenerate(), true);
-
-      // Save to session history
-      activeSession.messages.push({
+      if (data.conversationId && activeSession.id !== data.conversationId) {
+        activeSession.id = data.conversationId;
+      }
+      const assistantMsg = {
+        id: data.id || null,
         role: 'assistant',
         content: data.reply || '',
         resourceCards: data.resourceCards,
@@ -2138,8 +2413,19 @@
         matchedCourses: data.matchedCourses,
         matchedRoutine: data.matchedRoutine,
         webSources: data.webSources,
+        messageActions: data.messageActions || null,
+        interactiveQuestion: data.interactiveQuestion || null,
         timestamp: Date.now()
-      });
+      };
+
+      request.doc.innerHTML = '';
+      renderFormattedContent(request.doc, assistantMsg.content);
+      KyanaSourceCard.renderSources(request.doc, assistantMsg);
+      KyanaInteractiveActions.render(request.doc, assistantMsg);
+      KyanaResponseActions.render(request.doc, assistantMsg.content, () => handleRegenerate(), true);
+
+      // Save to session history
+      activeSession.messages.push(assistantMsg);
       SessionStore.update(activeSession);
       renderHistoryList();
       if (!userHasScrolledUp) scrollToBottom();
@@ -2247,6 +2533,7 @@
             if (current && msgs.length > 0) {
               current.messages = msgs.map(m => ({
                 ...m.metadata,
+                id: m.id,
                 role: m.sender === 'user' ? 'user' : 'assistant',
                 content: m.text,
                 timestamp: new Date(m.createdAt).getTime() || Date.now()

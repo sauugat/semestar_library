@@ -84,6 +84,7 @@ const {
 } = require('./lib/chat-grounding');
 const { revalidateCards } = require('./lib/kyana-access');
 const { getLastCardsForConversation } = require('./lib/ai-chat-service');
+const { extractKyanaActionsFromText, buildFallbackMessageActions } = require('./lib/message-actions');
 const { asKnowledgeDb } = require('./lib/knowledge-db');
 const { recordKyanaSecurityAudit } = require('./lib/audit-service');
 const {
@@ -495,7 +496,7 @@ function cacheFor(db) {
 }
 function invalidateCache(db) { caches.delete(db); invalidateAgentCache(db); }
 function emptyResult(reply = '') {
-  return { reply, actions: [], matchedFiles: [], matchedCourses: [], matchedRoutine: [], matchedPosts: [], matchedNotices: [], matchedAssignments: [], resourceCards: [], evidenceReferences: [], isWebSearch: false, webSources: [], sourceLabel: '' };
+  return { reply, actions: [], messageActions: null, interactiveQuestion: null, matchedFiles: [], matchedCourses: [], matchedRoutine: [], matchedPosts: [], matchedNotices: [], matchedAssignments: [], resourceCards: [], evidenceReferences: [], isWebSearch: false, webSources: [], sourceLabel: '' };
 }
 function addToolResults(result, calls) {
   for (const { name, result: data } of calls) {
@@ -1146,6 +1147,10 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       });
     }
 
+    let extractedActions = null;
+    let extractedInteractiveQuestion = null;
+    let extractedServerAnswerKey = null;
+
     // Upgrade teaching prose with LLM-powered adaptive 7-step pedagogy when a provider is configured
     if (!isSessionCompleted && renderedSession && renderedStep && canSynthesizeWithLlm && typeof llmGenerateFn === 'function') {
       try {
@@ -1191,7 +1196,17 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           signal,
           complex: false
         });
-        const candidateProse = stripUrlsOutsideCodeBlocks(String(llmOut?.reply || '').trim());
+        const rawProse = stripUrlsOutsideCodeBlocks(String(llmOut?.reply || '').trim());
+        const parsedTags = extractKyanaActionsFromText(rawProse, {
+          sessionId: renderedSession.id,
+          stepIndex: Number(renderedStep.stepIndex || renderedStep.step_index || 1)
+        });
+        const candidateProse = parsedTags.cleanText;
+        if (parsedTags.messageActions) extractedActions = parsedTags.messageActions;
+        if (parsedTags.interactiveQuestion) {
+          extractedInteractiveQuestion = parsedTags.interactiveQuestion;
+          extractedServerAnswerKey = parsedTags.serverAnswerKey;
+        }
         if (candidateProse && !unsafeOutput(candidateProse) && candidateProse.length > 80) {
           const sessionFenceMatch = studyResultText.match(/```study_session\n[\s\S]*?\n```/);
           const pyqFenceMatch = studyResultText.match(/```pyq_card\n[\s\S]*?\n```/);
@@ -1240,7 +1255,22 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
     const studyRes = emptyResult(studyResultText);
     studyRes.intent = 'study_partner';
+    studyRes.studySessionId = renderedSession?.id || null;
+    studyRes.currentStepIndex = renderedStep ? Number(renderedStep.stepIndex || renderedStep.step_index || 1) : null;
     studyRes.resourceCards = activeCourseNotes;
+    studyRes.messageActions = extractedActions || buildFallbackMessageActions({
+      intent: 'study_partner',
+      studySession: renderedSession,
+      step: renderedStep,
+      isRemediation: isRemediationTurn,
+      evalResult: renderedEvalResult,
+      isCompleted: isSessionCompleted,
+      resourceCards: activeCourseNotes
+    });
+    studyRes.interactiveQuestion = extractedInteractiveQuestion || null;
+    if (extractedServerAnswerKey) {
+      studyRes._serverOnly = { mcqAnswerKey: extractedServerAnswerKey };
+    }
     setLastCards(sessionKey, activeCourseNotes);
     onDelta(studyRes.reply);
     return studyRes;
@@ -2574,6 +2604,25 @@ ${evidenceBlocks}
       result.resourceCards = options.toolDependencies ? result.resourceCards : [];
       result.evidenceReferences = result.resourceCards;
     }
+  }
+  if (result.reply) {
+    const parsedFinalTags = extractKyanaActionsFromText(result.reply);
+    result.reply = parsedFinalTags.cleanText;
+    if (parsedFinalTags.messageActions && !result.messageActions) {
+      result.messageActions = parsedFinalTags.messageActions;
+    }
+    if (parsedFinalTags.interactiveQuestion && !result.interactiveQuestion) {
+      result.interactiveQuestion = parsedFinalTags.interactiveQuestion;
+      if (parsedFinalTags.serverAnswerKey) {
+        result._serverOnly = { mcqAnswerKey: parsedFinalTags.serverAnswerKey };
+      }
+    }
+  }
+  if (!result.messageActions) {
+    result.messageActions = buildFallbackMessageActions({
+      intent: result.intent || route.kind,
+      resourceCards: result.resourceCards
+    });
   }
   if (result.resourceCards && result.resourceCards.length > 0) {
     setLastCards(sessionKey, result.resourceCards);

@@ -17,7 +17,7 @@ import { SurfaceCard } from '@/components/ui/SurfaceCard';
 import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonCard } from '@/components/ui/Skeleton';
-import { apiFetch } from '@/services/api';
+import { apiFetch, resolveServerAssetUrl } from '@/services/api';
 import { votePost } from '@/services/posts';
 import { VoteButtons } from '@/components/PostCard';
 import { formatDate, formatTimeAgo } from '@/utils/date';
@@ -55,11 +55,7 @@ export default function NoticesScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const getFullUrl = (path?: string | null) => {
-    if (!path) return null;
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
-    const base = (serverUrl || '').replace(/\/+$/, '');
-    const clean = path.replace(/^\/+/, '');
-    return `${base}/${clean}`;
+    return resolveServerAssetUrl(path, serverUrl);
   };
 
   const fetchNotices = useCallback(async () => {
@@ -175,6 +171,7 @@ export default function NoticesScreen() {
                 <View style={styles.publisherInfo}>
                   <Avatar
                     url={authorAvatar}
+                    studentId={notice.studentId}
                     name={notice.name}
                     size="sm"
                   />

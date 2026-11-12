@@ -86,7 +86,14 @@ import {
   deletePostAttachment,
   UploadedAttachment,
 } from '@/services/posts';
-import { apiFetch, getBaseUrl, getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
+import {
+  apiFetch,
+  getBaseUrl,
+  getAutoDetectedServerUrl,
+  getPreferredServerUrl,
+  resolveServerAssetUrl,
+  DEFAULT_SERVER_URL,
+} from '@/services/api';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
 import { PostMediaGallery } from '@/components/PostMediaGallery';
@@ -840,7 +847,7 @@ function StudentHomeScreenInner() {
   const [nextCursor, setNextCursor] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [baseUrl, setBaseUrl] = useState<string>(getAutoDetectedServerUrl());
+  const [baseUrl, setBaseUrl] = useState<string>(getPreferredServerUrl());
   const [lastFetchedAt, setLastFetchedAt] = useState<Date | string | null>(null);
   const [nowTick, setNowTick] = useState<number>(Date.now());
 
@@ -2419,19 +2426,7 @@ function StudentHomeScreenInner() {
   };
 
   const getFullImageUrl = (attachmentUrl?: string | null): string | null => {
-    if (!attachmentUrl) return null;
-    if (
-      attachmentUrl.startsWith('http://') ||
-      attachmentUrl.startsWith('https://') ||
-      attachmentUrl.startsWith('file://') ||
-      attachmentUrl.startsWith('blob:') ||
-      attachmentUrl.startsWith('data:')
-    ) {
-      return attachmentUrl;
-    }
-    const host = (baseUrl || getAutoDetectedServerUrl() || DEFAULT_SERVER_URL).replace(/\/+$/, '');
-    const clean = attachmentUrl.replace(/^\/+/, '');
-    return `${host}/${clean}`;
+    return resolveServerAssetUrl(attachmentUrl, baseUrl);
   };
 
   // Post options menu actions
@@ -3055,7 +3050,12 @@ function StudentHomeScreenInner() {
               style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
             >
               <Avatar
-                url={getFullImageUrl(file.uploaderAvatar || null) || file.uploaderAvatar}
+                url={
+                  getFullImageUrl(
+                    file.uploaderAvatar || (file as any).avatarUrl || (file as any).avatar_url || null
+                  ) || file.uploaderAvatar
+                }
+                studentId={(file as any).uploadedBy || (file as any).studentId || (file as any).user_id}
                 name={file.uploaderName}
                 size="md"
               />
@@ -3247,7 +3247,12 @@ function StudentHomeScreenInner() {
   // Render assignment uploaded card using the exact same template as note post (renderFileItem)
   const renderAssignmentItem = (a: FeedAssignment) => {
     const badgeExt = a.pdfUrl ? 'PDF' : (a.language ? a.language.toUpperCase() : 'LAB');
-    const uploaderAvatarUrl = getFullImageUrl(a.avatarUrl || a.teacherAvatar || (a as any).avatar_url || null) || a.avatarUrl;
+    const uploaderAvatarUrl =
+      getFullImageUrl(a.avatarUrl || a.teacherAvatar || (a as any).avatar_url || null) ||
+      a.avatarUrl ||
+      a.teacherAvatar ||
+      (a as any).avatar_url ||
+      null;
     const openAssignment = () => {
       router.push(`/assignments/${a.id}` as any);
     };
@@ -3282,6 +3287,7 @@ function StudentHomeScreenInner() {
             >
               <Avatar
                 url={uploaderAvatarUrl}
+                studentId={(a as any).createdBy || (a as any).studentId || (a as any).user_id}
                 name={a.teacherName || 'Faculty Member'}
                 size="md"
               />
@@ -3608,6 +3614,7 @@ function StudentHomeScreenInner() {
         <FlatList
           ref={feedRef}
           data={feedItems}
+          extraData={`${baseUrl}:${user?.avatarUrl || ''}`}
           keyExtractor={(item) => (item.feedType === 'post' ? `post-${item.post.id}` : item.feedType === 'file' ? `file-${item.file.id}` : item.feedType === 'advertisement' ? `ad-${item.advertisement.id}` : `assignment-${item.assignment.id}`)}
           renderItem={renderFeedItem}
           ListHeaderComponent={renderFeedHeader}
@@ -3786,6 +3793,7 @@ function StudentHomeScreenInner() {
                 <Avatar
                   size="sm"
                   url={getFullImageUrl(user?.avatarUrl || null)}
+                  studentId={user?.studentId}
                   name={user?.name}
                 />
 

@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-nativ
 import { Image } from 'expo-image';
 import { useTheme } from '@/constants/useTheme';
 import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
-import { getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
+import { resolveServerAssetUrl } from '@/services/api';
+import { useOptionalAuth } from '@/context/AuthContext';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
 
 export interface AvatarProps {
   url?: string | null;
+  studentId?: string | null;
   name?: string | null;
   size?: AvatarSize;
   onPress?: () => void;
@@ -26,26 +28,9 @@ const SIZE_MAP: Record<AvatarSize, { dimension: number; fontSize: number }> = {
   xxl: { dimension: 80, fontSize: 30 },
 };
 
-function resolveAvatarUrl(rawUrl?: string | null): string | null {
-  if (!rawUrl || typeof rawUrl !== 'string') return null;
-  const trimmed = rawUrl.trim();
-  if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return null;
-  if (
-    trimmed.startsWith('http://') ||
-    trimmed.startsWith('https://') ||
-    trimmed.startsWith('data:') ||
-    trimmed.startsWith('file:') ||
-    trimmed.startsWith('blob:')
-  ) {
-    return trimmed;
-  }
-  const base = (getAutoDetectedServerUrl() || DEFAULT_SERVER_URL || '').replace(/\/+$/, '');
-  const cleanPath = trimmed.replace(/^\/+/, '');
-  return base ? `${base}/${cleanPath}` : trimmed;
-}
-
 export function Avatar({
   url,
+  studentId,
   name,
   size = 'md',
   onPress,
@@ -54,14 +39,59 @@ export function Avatar({
   style,
 }: AvatarProps) {
   const { colors } = useTheme();
-  const [loadError, setLoadError] = useState(false);
+  const auth = useOptionalAuth();
+  const serverUrl = auth?.serverUrl ?? null;
+  const [primaryFailed, setPrimaryFailed] = useState(false);
+  const [fallbackFailed, setFallbackFailed] = useState(false);
   const [viewerVisible, setViewerVisible] = useState(false);
 
-  const resolvedUrl = useMemo(() => resolveAvatarUrl(url), [url]);
+  const cleanStudentId = typeof studentId === 'string' ? studentId.trim() : '';
+  const selfAvatarUrl =
+    cleanStudentId &&
+    auth?.user?.studentId &&
+    String(auth.user.studentId).trim() === cleanStudentId &&
+    auth.user.avatarUrl
+      ? auth.user.avatarUrl
+      : null;
+  const effectiveRawUrl =
+    typeof url === 'string' && /^(?:file:|blob:|content:|ph:|assets-library:)/i.test(url.trim())
+      ? url
+      : selfAvatarUrl || url;
+  const resolvedPrimaryUrl = useMemo(
+    () => resolveServerAssetUrl(effectiveRawUrl, serverUrl),
+    [effectiveRawUrl, serverUrl]
+  );
+  const fallbackStudentUrl = useMemo(() => {
+    if (!cleanStudentId) return null;
+    return resolveServerAssetUrl(`/api/avatar/student/${encodeURIComponent(cleanStudentId)}`, serverUrl);
+  }, [cleanStudentId, serverUrl]);
 
   useEffect(() => {
-    setLoadError(false);
-  }, [resolvedUrl]);
+    setPrimaryFailed(false);
+    setFallbackFailed(false);
+  }, [resolvedPrimaryUrl, fallbackStudentUrl]);
+
+  const encodedStudentId = cleanStudentId ? encodeURIComponent(cleanStudentId) : '';
+  const isAlreadyStudentEndpoint = Boolean(
+    resolvedPrimaryUrl &&
+      encodedStudentId &&
+      resolvedPrimaryUrl.includes(`/api/avatar/student/${encodedStudentId}`)
+  );
+  const canFallbackToStudent = Boolean(
+    resolvedPrimaryUrl &&
+      primaryFailed &&
+      !fallbackFailed &&
+      fallbackStudentUrl &&
+      !isAlreadyStudentEndpoint
+  );
+  const resolvedUrl = !resolvedPrimaryUrl
+    ? null
+    : !primaryFailed
+    ? resolvedPrimaryUrl
+    : canFallbackToStudent
+    ? fallbackStudentUrl
+    : null;
+  const loadError = !resolvedUrl;
 
   const { dimension, fontSize } = SIZE_MAP[size];
 
@@ -89,11 +119,18 @@ export function Avatar({
     resolvedUrl && !loadError ? (
       <Image
         source={{ uri: resolvedUrl }}
+        recyclingKey={resolvedUrl}
         style={[styles.image, { borderRadius: dimension / 2 }]}
         contentFit="cover"
         transition={150}
         cachePolicy="memory-disk"
-        onError={() => setLoadError(true)}
+        onError={() => {
+          if (!primaryFailed) {
+            setPrimaryFailed(true);
+          } else {
+            setFallbackFailed(true);
+          }
+        }}
       />
     ) : (
       <View style={[styles.fallback, { borderRadius: dimension / 2 }]}>

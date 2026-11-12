@@ -48,6 +48,7 @@ import {
   PostComment,
 } from '@/services/posts';
 import { PostMediaGallery } from '@/components/PostMediaGallery';
+import { resolveServerAssetUrl } from '@/services/api';
 import { PostFileAttachments } from '@/components/PostFileAttachments';
 import { EditPostModal } from '@/components/EditPostModal';
 import { CommentItem } from '@/components/CommentItem';
@@ -106,11 +107,7 @@ export default function PostDetailScreen() {
 
   const getFullUrl = useCallback(
     (path?: string | null) => {
-      if (!path) return null;
-      if (path.startsWith('http://') || path.startsWith('https://')) return path;
-      const base = (serverUrl || '').replace(/\/+$/, '');
-      const clean = path.replace(/^\/+/, '');
-      return `${base}/${clean}`;
+      return resolveServerAssetUrl(path, serverUrl);
     },
     [serverUrl]
   );
@@ -623,6 +620,7 @@ export default function PostDetailScreen() {
             >
               <Avatar
                 url={authorAvatar}
+                studentId={post.studentId || post.user_id}
                 name={post.name}
                 size="md"
               />

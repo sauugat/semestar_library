@@ -477,10 +477,19 @@ module.exports = function createPostsRouter(db, requireLogin, { uploadDir = POST
     const visibilityKey = post.visibility || DEFAULT_POST_VISIBILITY;
     const isAllSemesters = post.target_all_semesters === undefined || post.target_all_semesters === null || Number(post.target_all_semesters) === 1;
     const targetSemesters = Array.isArray(post.targetSemesters) ? post.targetSemesters : (Array.isArray(post.target_semesters) ? post.target_semesters : []);
+    const authorId = post.studentId || post.user_id;
+    const rawAvatar = post.avatarUrl ?? post.avatarurl ?? post.avatar_url ?? null;
+    let normalizedAvatarUrl = typeof rawAvatar === 'string' ? rawAvatar.trim() : null;
+    if (!normalizedAvatarUrl || /^(?:null|undefined)$/i.test(normalizedAvatarUrl)) {
+      normalizedAvatarUrl = null;
+    } else if (normalizedAvatarUrl.startsWith('data:') && authorId) {
+      normalizedAvatarUrl = `/api/avatar/student/${encodeURIComponent(String(authorId).trim())}?v=${normalizedAvatarUrl.length}`;
+    }
 
     return {
       ...post,
       id: Number(post.id),
+      avatarUrl: normalizedAvatarUrl,
       title: categoryKey === 'general' ? null : (post.title || null),
       category: categoryKey,
       category_label: CATEGORY_LABELS[categoryKey] || 'General',

@@ -60,9 +60,14 @@ export default function EditProfileScreen() {
   const getFullUrl = useCallback(
     (path?: string | null) => {
       if (!path) return null;
-      if (path.startsWith('http://') || path.startsWith('https://')) return path;
-      const base = serverUrl || getBaseUrl();
-      return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+      const trimmed = String(path).trim();
+      if (!trimmed || /^(?:null|undefined)$/i.test(trimmed)) return null;
+      if (/^(?:https?:\/\/|data:|file:|blob:|content:|ph:|assets-library:)/i.test(trimmed)) {
+        return trimmed;
+      }
+      const base = (serverUrl || '').replace(/\/+$/, '');
+      const clean = trimmed.replace(/^\/+/, '');
+      return base ? `${base}/${clean}` : `/${clean}`;
     },
     [serverUrl]
   );
@@ -201,7 +206,7 @@ export default function EditProfileScreen() {
           const fresh = await refreshProfile();
           if (fresh?.avatarUrl) setAvatarUrl(fresh.avatarUrl);
           queryClient.invalidateQueries({ queryKey: ['profile'] });
-          queryClient.invalidateQueries({ queryKey: ['posts'] });
+          queryClient.invalidateQueries({ queryKey: ['posts'] }); void queryClient.invalidateQueries({ queryKey: ['campus-feed'] });
           Alert.alert('Success', 'Profile picture updated!');
         } else {
           const data = await res.json().catch(() => ({}));
@@ -228,7 +233,7 @@ export default function EditProfileScreen() {
               await refreshProfile();
               setAvatarUrl(null);
               queryClient.invalidateQueries({ queryKey: ['profile'] });
-              queryClient.invalidateQueries({ queryKey: ['posts'] });
+              queryClient.invalidateQueries({ queryKey: ['posts'] }); void queryClient.invalidateQueries({ queryKey: ['campus-feed'] });
               Alert.alert('Success', 'Profile picture removed.');
             } else {
               Alert.alert('Error', 'Could not remove profile picture.');
@@ -274,7 +279,7 @@ export default function EditProfileScreen() {
 
     if (result.success) {
       void refreshProfile();
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] }); void queryClient.invalidateQueries({ queryKey: ['campus-feed'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       if (router.canGoBack()) {
         router.back();

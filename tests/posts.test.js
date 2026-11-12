@@ -359,3 +359,35 @@ test('post comments require valid content and authentication, list newest last, 
   const remaining = await db.all('SELECT * FROM post_comments WHERE post_id = ?', postId);
   assert.equal(remaining.length, 0);
 });
+
+test('posts normalize avatarUrl values across relative paths, empty strings, and data URIs', async t => {
+  const { request, db } = await fixture(t);
+  const sampleDataUri = 'data:image/png;base64,iVBORw0KGgo=';
+  await db.run('UPDATE students SET avatarUrl = ? WHERE studentId = ?', sampleDataUri, 'owner');
+  await db.run('UPDATE students SET avatarUrl = ? WHERE studentId = ?', ' null ', 'other');
+  await db.run('UPDATE students SET avatarUrl = ? WHERE studentId = ?', ' /api/avatar/avatar_admin.jpg ', 'admin');
+
+  const pOwner = await request('POST', '', { content: 'Owner post' }, 'owner');
+  const pOther = await request('POST', '', { content: 'Other post' }, 'other');
+  const pAdmin = await request('POST', '', { content: 'Admin post' }, 'admin');
+  assert.equal(pOwner.status, 201);
+  assert.equal(pOther.status, 201);
+  assert.equal(pAdmin.status, 201);
+
+  const feed = await request('GET', '', undefined, 'owner');
+  assert.equal(feed.status, 200);
+  const byAuthor = new Map(feed.body.posts.map((p) => [p.studentId, p]));
+  assert.equal(
+    byAuthor.get('owner').avatarUrl,
+    `/api/avatar/student/owner?v=${sampleDataUri.length}`
+  );
+  assert.equal(byAuthor.get('other').avatarUrl, null);
+  assert.equal(byAuthor.get('admin').avatarUrl, '/api/avatar/avatar_admin.jpg');
+
+  const detail = await request('GET', `/${pOwner.body.id}`, undefined, 'owner');
+  assert.equal(detail.status, 200);
+  assert.equal(
+    detail.body.avatarUrl,
+    `/api/avatar/student/owner?v=${sampleDataUri.length}`
+  );
+});

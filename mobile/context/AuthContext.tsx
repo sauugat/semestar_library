@@ -558,6 +558,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function useOptionalAuth() {
+  return useContext(AuthContext) ?? null;
+}
+
+export function useOptionalServerUrl(): string | null {
+  return useContext(AuthContext)?.serverUrl ?? null;
+}
+
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {

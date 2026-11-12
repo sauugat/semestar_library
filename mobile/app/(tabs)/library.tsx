@@ -55,7 +55,7 @@ import {
   PostComment,
 } from '@/services/posts';
 import { useAcademicContext } from '@/hooks/useAcademicContext';
-import { apiFetch, getBaseUrl, getAutoDetectedServerUrl } from '@/services/api';
+import { apiFetch, getBaseUrl, getPreferredServerUrl, resolveServerAssetUrl } from '@/services/api';
 import { formatTimeAgo } from '@/utils/date';
 import { SearchOverlay } from '@/components/SearchOverlay';
 import { UploadNoteModal } from '@/components/UploadNoteModal';
@@ -301,18 +301,14 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
     refetch: refetchAcademicContext,
   } = useAcademicContext();
 
-  const [baseUrl, setBaseUrl] = useState<string>(getAutoDetectedServerUrl());
+  const [baseUrl, setBaseUrl] = useState<string>(getPreferredServerUrl());
   useEffect(() => {
     getBaseUrl().then(setBaseUrl).catch(() => {});
   }, []);
 
   const getFullImageUrl = useCallback(
     (attachmentUrl: string | null | undefined): string | null => {
-      if (!attachmentUrl) return null;
-      if (attachmentUrl.startsWith('http://') || attachmentUrl.startsWith('https://')) {
-        return attachmentUrl;
-      }
-      return `${baseUrl}${attachmentUrl.startsWith('/') ? '' : '/'}${attachmentUrl}`;
+      return resolveServerAssetUrl(attachmentUrl, baseUrl);
     },
     [baseUrl]
   );
@@ -1502,7 +1498,12 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
               style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
             >
               <Avatar
-                url={getFullImageUrl(file.uploaderAvatar || null) || file.uploaderAvatar}
+                url={
+                  getFullImageUrl(
+                    file.uploaderAvatar || (file as any).avatarUrl || (file as any).avatar_url || null
+                  ) || file.uploaderAvatar
+                }
+                studentId={file.uploadedBy || (file as any).studentId || (file as any).user_id}
                 name={file.uploaderName}
                 size="md"
               />
@@ -1698,6 +1699,7 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
             >
               <Avatar
                 url={uploaderAvatarUrl}
+                studentId={a.createdBy || (a as any).studentId || (a as any).user_id}
                 name={a.teacherName || 'Faculty Member'}
                 size="md"
               />
@@ -2114,6 +2116,7 @@ function StudentLibraryView({ isTeacherRole = false }: { isTeacherRole?: boolean
           <View style={{ width: screenWidth, flex: 1 }}>
             <FlatList
               data={combinedFeedItems}
+              extraData={`${baseUrl}:${user?.avatarUrl || ''}`}
               keyExtractor={(item) =>
                 item.feedType === 'file' ? `lib-file-${item.file.id}` : `lib-assign-${item.assignment.id}`
               }

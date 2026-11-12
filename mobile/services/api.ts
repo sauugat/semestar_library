@@ -123,6 +123,37 @@ export function getAutoDetectedServerUrl(): string {
   return DEFAULT_SERVER_URL;
 }
 
+export function getPreferredServerUrl(): string {
+  const useLan =
+    isQaMode() ||
+    (typeof __DEV__ !== 'undefined' && __DEV__ && process.env.EXPO_PUBLIC_AUTO_DETECT_LAN === 'true');
+  const raw = useLan ? getAutoDetectedServerUrl() : DEFAULT_SERVER_URL || PRODUCTION_SERVER_URL;
+  return (raw || PRODUCTION_SERVER_URL).replace(/\/+$/, '');
+}
+
+const DIRECT_ASSET_URI_RE = /^(?:https?:\/\/|data:|file:|blob:|content:|ph:|assets-library:)/i;
+
+export function resolveServerAssetUrl(rawUrl?: unknown, serverUrlOverride?: string | null): string | null {
+  if (typeof rawUrl !== 'string') return null;
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  if (lower === 'null' || lower === 'undefined') return null;
+  if (trimmed.startsWith('//')) {
+    return `https:${trimmed}`;
+  }
+  if (DIRECT_ASSET_URI_RE.test(trimmed)) {
+    return trimmed;
+  }
+  const cleanOverride =
+    typeof serverUrlOverride === 'string' && !/^(?:null|undefined)$/i.test(serverUrlOverride.trim())
+      ? serverUrlOverride.trim().replace(/\/+$/, '')
+      : '';
+  const base = (cleanOverride || getPreferredServerUrl() || DEFAULT_SERVER_URL || PRODUCTION_SERVER_URL).replace(/\/+$/, '');
+  const cleanPath = trimmed.replace(/^\/+/, '');
+  return base ? `${base}/${cleanPath}` : trimmed;
+}
+
 export async function getBaseUrl(): Promise<string> {
   // In QA mode, NEVER allow silent fallback to production
   if (isQaMode()) {

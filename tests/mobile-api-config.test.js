@@ -208,3 +208,47 @@ test('API Config: Environment switching cleanly isolates credentials and local c
   assert.equal(queryCacheCleared, true, 'Query cache must be cleared');
   assert.equal(dmCacheCleared, true, 'DM cache must be cleared');
 });
+
+test('API Config: getPreferredServerUrl and resolveServerAssetUrl resolve avatar URLs safely', async () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const apiSource = fs.readFileSync(
+    path.join(__dirname, '..', 'mobile', 'services', 'api.ts'),
+    'utf8'
+  );
+  assert.match(apiSource, /export function getPreferredServerUrl\(\): string/);
+  assert.match(apiSource, /export function resolveServerAssetUrl\(/);
+
+  const DEFAULT_SERVER_URL = 'https://semestar-library.vercel.app';
+  const resolveAsset = (rawUrl, serverUrlOverride = null) => {
+    if (typeof rawUrl !== 'string') return null;
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return null;
+    const lower = trimmed.toLowerCase();
+    if (lower === 'null' || lower === 'undefined') return null;
+    if (trimmed.startsWith('//')) return `https:${trimmed}`;
+    if (/^(?:https?:\/\/|data:|file:|blob:|content:|ph:|assets-library:)/i.test(trimmed)) {
+      return trimmed;
+    }
+    const cleanOverride =
+      typeof serverUrlOverride === 'string' && !/^(?:null|undefined)$/i.test(serverUrlOverride.trim())
+        ? serverUrlOverride.trim().replace(/\/+$/, '')
+        : '';
+    const base = (cleanOverride || DEFAULT_SERVER_URL).replace(/\/+$/, '');
+    const cleanPath = trimmed.replace(/^\/+/, '');
+    return base ? `${base}/${cleanPath}` : trimmed;
+  };
+
+  assert.equal(resolveAsset(null), null);
+  assert.equal(resolveAsset('   '), null);
+  assert.equal(resolveAsset('null'), null);
+  assert.equal(resolveAsset('undefined'), null);
+  assert.equal(resolveAsset('/api/avatar/avatar_1.jpg'), `${DEFAULT_SERVER_URL}/api/avatar/avatar_1.jpg`);
+  assert.equal(resolveAsset('api/avatar/avatar_1.jpg'), `${DEFAULT_SERVER_URL}/api/avatar/avatar_1.jpg`);
+  assert.equal(resolveAsset('/api/avatar/avatar_1.jpg', 'https://custom.example/'), 'https://custom.example/api/avatar/avatar_1.jpg');
+  assert.equal(resolveAsset('data:image/png;base64,AAAA'), 'data:image/png;base64,AAAA');
+  assert.equal(resolveAsset('file:///var/mobile/avatar.jpg'), 'file:///var/mobile/avatar.jpg');
+  assert.equal(resolveAsset('blob:https://example.com/123'), 'blob:https://example.com/123');
+  assert.equal(resolveAsset('//cdn.example.com/a.png'), 'https://cdn.example.com/a.png');
+  assert.equal(resolveAsset('https://cdn.example.com/a.png'), 'https://cdn.example.com/a.png');
+});

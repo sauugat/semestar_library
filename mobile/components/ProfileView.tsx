@@ -31,7 +31,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PostCard } from '@/components/PostCard';
 import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
 import { EditPostModal } from '@/components/EditPostModal';
-import { apiFetch, getBaseUrl } from '@/services/api';
+import { apiFetch, getBaseUrl, resolveServerAssetUrl } from '@/services/api';
 import { Post, deletePost, toggleLike } from '@/services/posts';
 import { createOrGetDmConversation } from '@/services/dm';
 
@@ -163,10 +163,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
 
   const getFullUrl = useCallback(
     (path?: string | null) => {
-      if (!path) return null;
-      if (path.startsWith('http://') || path.startsWith('https://')) return path;
-      const base = serverUrl || getBaseUrl();
-      return `${base}${path.startsWith('/') ? '' : '/'}${path}`;
+      return resolveServerAssetUrl(path, serverUrl);
     },
     [serverUrl]
   );
@@ -394,7 +391,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
         if (res.ok) {
           const fresh = await refreshProfile();
           if (fresh) setProfile(fresh);
-          queryClient.invalidateQueries({ queryKey: ['posts'] });
+          queryClient.invalidateQueries({ queryKey: ['posts'] }); void queryClient.invalidateQueries({ queryKey: ['campus-feed'] });
           queryClient.invalidateQueries({ queryKey: ['profile'] });
           Alert.alert('Success', 'Profile photo updated successfully!');
         } else {
@@ -422,7 +419,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
             if (res.ok) {
               const fresh = await refreshProfile();
               if (fresh) setProfile(fresh);
-              queryClient.invalidateQueries({ queryKey: ['posts'] });
+              queryClient.invalidateQueries({ queryKey: ['posts'] }); void queryClient.invalidateQueries({ queryKey: ['campus-feed'] });
               queryClient.invalidateQueries({ queryKey: ['profile'] });
               Alert.alert('Success', 'Profile picture removed.');
             } else {
@@ -591,7 +588,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
                   try {
                     await deletePost(post.id);
                     setPosts((prev) => prev.filter((p) => p.id !== post.id));
-                    queryClient.invalidateQueries({ queryKey: ['posts'] });
+                    queryClient.invalidateQueries({ queryKey: ['posts'] }); void queryClient.invalidateQueries({ queryKey: ['campus-feed'] });
                   } catch (err: any) {
                     Alert.alert('Error', err.message || 'Failed to delete post');
                   }
@@ -804,6 +801,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
               >
                 <Avatar
                   url={avatarFullUrl}
+                  studentId={profile?.studentId}
                   name={profile?.name}
                   size="xxl"
                   style={{ width: 92, height: 92, borderRadius: 46 }}
@@ -1811,7 +1809,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
           onPostUpdated={() => {
             setEditingPost(null);
             fetchPosts();
-            queryClient.invalidateQueries({ queryKey: ['posts'] });
+            queryClient.invalidateQueries({ queryKey: ['posts'] }); void queryClient.invalidateQueries({ queryKey: ['campus-feed'] });
           }}
           getFullUrl={getFullUrl}
         />

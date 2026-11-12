@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
-import { getAutoDetectedServerUrl, DEFAULT_SERVER_URL } from '@/services/api';
+import { resolveServerAssetUrl } from '@/services/api';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
 import { Avatar } from '@/components/ui/Avatar';
 import { formatTimeAgo, safeParseDate } from '@/utils/date';
@@ -61,18 +61,7 @@ export default function NotificationsScreen() {
 
   const getFullImageUrl = useCallback(
     (rawUrl?: string | null): string | null => {
-      if (!rawUrl) return null;
-      if (
-        rawUrl.startsWith('http://') ||
-        rawUrl.startsWith('https://') ||
-        rawUrl.startsWith('file://') ||
-        rawUrl.startsWith('data:')
-      ) {
-        return rawUrl;
-      }
-      const host = (serverUrl || getAutoDetectedServerUrl() || DEFAULT_SERVER_URL).replace(/\/+$/, '');
-      const clean = rawUrl.replace(/^\/+/, '');
-      return `${host}/${clean}`;
+      return resolveServerAssetUrl(rawUrl, serverUrl);
     },
     [serverUrl]
   );
@@ -271,7 +260,7 @@ export default function NotificationsScreen() {
           }}
           style={{ position: 'relative' }}
         >
-          <Avatar url={resolvedAvatarUrl} name={actorName} size="md" />
+          <Avatar url={resolvedAvatarUrl} studentId={actorStudentId} name={actorName} size="md" />
           <View
             style={[
               styles.avatarCornerBadge,

@@ -563,3 +563,45 @@ test('Image Replacement DB Failure: Preserves old image and unlinks failed new b
     db.run = origRun;
   }
 });
+
+
+test('GET /api/avatar/student/:studentId serves local/blob avatars directly and handles data URIs and null values', async () => {
+  const form = new FormData();
+  form.append('avatar', new Blob([validPngBuffer], { type: 'image/png' }), 'avatar.png');
+
+  const uploadRes = await fetch(`${baseUrl}/api/profile/avatar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenA}` },
+    body: form
+  });
+  assert.equal(uploadRes.status, 200);
+  const uploadJson = await uploadRes.json();
+  assert.match(uploadJson.avatarUrl, /^\/api\/avatar\//);
+
+  const directRes = await fetch(`${baseUrl}/api/avatar/student/${studentA.studentId}`, {
+    redirect: 'manual'
+  });
+  assert.equal(directRes.status, 200);
+  assert.equal(directRes.headers.get('x-content-type-options'), 'nosniff');
+  assert.deepEqual(Buffer.from(await directRes.arrayBuffer()), validPngBuffer);
+
+  // Verify base64 data URI with whitespace or extra params decodes cleanly
+  const dataUri = `data:image/png;charset=utf-8;base64,${validPngBuffer.toString('base64').slice(0, 10)}\n${validPngBuffer.toString('base64').slice(10)}`;
+  await db.run('UPDATE students SET avatarUrl = ? WHERE studentId = ?', dataUri, studentB.studentId);
+  const dataUriRes = await fetch(`${baseUrl}/api/avatar/student/${studentB.studentId}`);
+  assert.equal(dataUriRes.status, 200);
+  assert.equal(dataUriRes.headers.get('content-type'), 'image/png');
+  assert.deepEqual(Buffer.from(await dataUriRes.arrayBuffer()), validPngBuffer);
+
+  // Verify literal 'null' string returns 404
+  await db.run('UPDATE students SET avatarUrl = ? WHERE studentId = ?', 'null', studentB.studentId);
+  const nullRes = await fetch(`${baseUrl}/api/avatar/student/${studentB.studentId}`);
+  assert.equal(nullRes.status, 404);
+
+  // Clean up test avatars
+  await fetch(`${baseUrl}/api/profile/avatar`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${tokenA}` }
+  });
+  await db.run('UPDATE students SET avatarUrl = NULL WHERE studentId = ?', studentB.studentId);
+});

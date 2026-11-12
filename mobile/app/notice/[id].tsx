@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
+import { resolveServerAssetUrl } from '@/services/api';
 import { Text, Heading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -76,11 +77,7 @@ export default function NoticeDetailScreen() {
 
   const getFullUrl = useCallback(
     (path?: string | null) => {
-      if (!path) return null;
-      if (path.startsWith('http://') || path.startsWith('https://')) return path;
-      const base = (serverUrl || '').replace(/\/+$/, '');
-      const clean = path.replace(/^\/+/, '');
-      return `${base}/${clean}`;
+      return resolveServerAssetUrl(path, serverUrl);
     },
     [serverUrl]
   );
@@ -443,7 +440,12 @@ export default function NoticeDetailScreen() {
               style={styles.headerRow}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                <Avatar url={authorAvatar} name={notice.name} size="md" />
+                <Avatar
+                  url={authorAvatar}
+                  studentId={notice.studentId || notice.user_id}
+                  name={notice.name}
+                  size="md"
+                />
                 <View style={{ marginLeft: spacing.compact, flex: 1 }}>
                   <Text variant="md" weight="700" numberOfLines={1}>
                     {notice.name}

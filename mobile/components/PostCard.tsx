@@ -166,7 +166,14 @@ export function PostCard({
 
   const badge = getTypeBadgeProps(post.type, post.is_official, colors);
   const authorStudentId = post.studentId || post.user_id;
-  const avatarUrl = getFullImageUrl(post.avatarUrl) || post.avatarUrl;
+  const rawAvatar =
+    post.avatarUrl ||
+    (post as any).avatarurl ||
+    (post as any).avatar_url ||
+    (post as any).authorAvatar ||
+    (post as any).uploaderAvatar ||
+    null;
+  const avatarUrl = getFullImageUrl(rawAvatar) || rawAvatar;
 
   const upCount = Number(post.up_count ?? post.upCount ?? post.like_count ?? 0);
   const downCount = Number(post.down_count ?? post.downCount ?? 0);
@@ -223,6 +230,7 @@ export function PostCard({
           <TouchableOpacity activeOpacity={0.8} onPress={handleAuthorPress}>
             <Avatar
               url={avatarUrl}
+              studentId={authorStudentId}
               name={post.name}
               size="md"
             />

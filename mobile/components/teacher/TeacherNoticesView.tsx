@@ -222,7 +222,13 @@ export function TeacherNoticesView() {
               <View style={styles.noticeHeader}>
                 <Avatar
                   name={post.name || 'University'}
-                  url={post.avatarUrl}
+                  url={
+                    post.avatarUrl ||
+                    (post as any).avatarurl ||
+                    (post as any).avatar_url ||
+                    null
+                  }
+                  studentId={post.studentId || post.user_id}
                   size="sm"
                 />
                 <View style={{ flex: 1, marginLeft: 10 }}>

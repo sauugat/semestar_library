@@ -138,6 +138,7 @@ export function CommentItem({
       >
         <Avatar
           url={comment.isDeleted ? null : avatarUrl}
+          studentId={comment.isDeleted ? null : (comment.studentId || comment.userId)}
           name={comment.isDeleted ? '?' : comment.name}
           size="sm"
           onPress={!comment.isDeleted ? () => navigateToProfile(comment.studentId) : undefined}
@@ -300,6 +301,7 @@ export function CommentItem({
               >
                 <Avatar
                   url={reply.isDeleted ? null : replyAvatar}
+                  studentId={reply.isDeleted ? null : (reply.studentId || reply.userId)}
                   name={reply.isDeleted ? '?' : reply.name}
                   size="xs"
                   onPress={!reply.isDeleted ? () => navigateToProfile(reply.studentId) : undefined}

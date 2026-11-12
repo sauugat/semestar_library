@@ -426,7 +426,7 @@
   function renderAdaptiveVisualBlockHtml(langKey, rawCode) {
     const kind = String(langKey || '').trim().toLowerCase();
     const rawStr = String(rawCode == null ? '' : rawCode);
-    if (!rawStr.trim() || rawStr.length > 32768) return null;
+    if (!rawStr.trim() || rawStr.length > 65536) return null;
     const text = rawStr.trim();
 
     let parsedJson = null;
@@ -813,8 +813,8 @@
         const langName = langMatch ? langMatch[1] : 'Code';
         const langKey = langName.toLowerCase();
 
-        // Render structured adaptive visual blocks (roadmap, timeline, diagram, flowchart, trace) safely
-        if (/^(roadmap|timeline|diagram|flowchart|trace)$/.test(langKey)) {
+        // Render structured adaptive visual blocks (study_session, pyq_card, roadmap, timeline, diagram, flowchart, trace) safely
+        if (/^(study_session|pyq_card|roadmap|timeline|diagram|flowchart|trace)$/.test(langKey)) {
           const visualHtml = renderAdaptiveVisualBlockHtml(langKey, rawCode);
           if (visualHtml) {
             const visualWrap = document.createElement('div');

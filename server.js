@@ -872,6 +872,8 @@ app.use(express.static(path.join(__dirname, 'public'), {
         base === 'auth.js' ||
         base === 'auth-modal.js' ||
         base === 'academic-context.js' ||
+        base === 'chatbot.js' ||
+        base === 'chatbot.css' ||
         base === 'teacher-attendance.js' ||
         base === 'student-attendance.js' ||
         base === 'attendance-drive-sync.js' ||

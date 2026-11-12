@@ -8394,10 +8394,112 @@
     function formatChapterKyanaMarkdown(text) {
       const normalized = normalizeChapterKyanaMarkdownInput(text);
       if (!normalized) return '';
+      if (window.KyanaAdaptiveRenderer && typeof window.KyanaAdaptiveRenderer.fallbackMarkdown === 'function') {
+        // First replace any structured visual blocks (logic_sim, live_demo, study_session, diagram, pyq_card)
+        let working = normalized.replace(
+          /```(study_session|pyq_card|live_demo|logic_sim|interactive_demo|roadmap|timeline|diagram|flowchart|trace)[ \t]*\n([\s\S]*?)```/gi,
+          (_, kind, payload) => {
+            const html = window.KyanaAdaptiveRenderer.renderAdaptiveVisualBlockHtml(kind, payload);
+            return html || '';
+          }
+        );
+        if (typeof window.renderPostMarkdown === 'function') {
+          return window.renderPostMarkdown(working);
+        }
+        return window.KyanaAdaptiveRenderer.fallbackMarkdown(working);
+      }
       if (typeof window.renderPostMarkdown === 'function') {
         return window.renderPostMarkdown(normalized);
       }
       return fallbackRenderChapterMarkdown(normalized);
+    }
+
+    function wireInteractiveBlocksInContainer(container) {
+      if (!container) return;
+      container.querySelectorAll('.kyana-logic-sim-card').forEach((card) => {
+        if (card.dataset.wired === '1') return;
+        card.dataset.wired = '1';
+        let payload = {};
+        try {
+          payload = JSON.parse(card.getAttribute('data-logic-payload') || '{}');
+        } catch (_) {}
+        const gates = Array.isArray(payload.gates) ? payload.gates : [];
+        if (!gates.length) return;
+
+        const updateSimulator = () => {
+          const gIdx = Number(card.getAttribute('data-active-gate')) || 0;
+          const gate = gates[gIdx] || gates[0];
+          const aVal = Number(card.getAttribute('data-input-a')) || 0;
+          const bVal = Number(card.getAttribute('data-input-b')) || 0;
+          const isSingle = Array.isArray(gate.inputs) && gate.inputs.length === 1;
+
+          const descEl = card.querySelector('.kyana-logic-desc');
+          if (descEl && gate.description) descEl.textContent = gate.description;
+
+          const exprEl = card.querySelector('.kyana-logic-expr');
+          if (exprEl) exprEl.textContent = `Y = ${gate.symbol || gate.gate}`;
+
+          const btnB = card.querySelector('.kyana-logic-input-btn[data-input-key="B"]');
+          const thB = card.querySelector('.kyana-logic-th-b');
+          if (btnB) btnB.style.display = isSingle ? 'none' : '';
+          if (thB) thB.style.display = isSingle ? 'none' : '';
+
+          const matchedRow = (gate.truthTable || []).find((r) =>
+            isSingle ? Number(r.A) === aVal : (Number(r.A) === aVal && Number(r.B) === bVal)
+          ) || (gate.truthTable || [])[0] || { Y: 0 };
+          const yVal = Number(matchedRow.Y) || 0;
+
+          const outPill = card.querySelector('.kyana-logic-output-pill');
+          const outValEl = card.querySelector('.kyana-logic-output-pill .out-val');
+          if (outValEl) outValEl.textContent = String(yVal);
+          if (outPill) {
+            outPill.style.background = yVal === 1 ? '#ffffff' : '#111111';
+            outPill.style.color = yVal === 1 ? '#09090b' : '#a1a1aa';
+            outPill.style.borderColor = yVal === 1 ? '#ffffff' : '#3f3f46';
+          }
+
+          const tbody = card.querySelector('.kyana-logic-tbody');
+          if (tbody) {
+            tbody.innerHTML = (gate.truthTable || []).map((r) => {
+              const activeRow = isSingle ? Number(r.A) === aVal : (Number(r.A) === aVal && Number(r.B) === bVal);
+              const bCell = isSingle ? '' : `<td style="padding:5px 10px;text-align:center;border-bottom:1px solid #27272a;">${r.B}</td>`;
+              return `<tr class="kyana-logic-tr" style="background:${activeRow ? 'rgba(255,255,255,0.12)' : 'transparent'};font-weight:${activeRow ? '700' : '400'};">
+                <td style="padding:5px 10px;text-align:center;border-bottom:1px solid #27272a;">${r.A}</td>
+                ${bCell}
+                <td style="padding:5px 10px;text-align:center;border-bottom:1px solid #27272a;font-weight:700;color:${r.Y === 1 ? '#ffffff' : '#a1a1aa'};">${r.Y}</td>
+              </tr>`;
+            }).join('');
+          }
+        };
+
+        card.querySelectorAll('.kyana-logic-gate-tab').forEach((tab) => {
+          tab.addEventListener('click', () => {
+            const idx = Number(tab.getAttribute('data-gate-index')) || 0;
+            card.setAttribute('data-active-gate', String(idx));
+            card.querySelectorAll('.kyana-logic-gate-tab').forEach((t, tIdx) => {
+              const isAct = tIdx === idx;
+              t.classList.toggle('active', isAct);
+              t.style.background = isAct ? '#ffffff' : '#1c1c1c';
+              t.style.color = isAct ? '#09090b' : '#a1a1aa';
+            });
+            updateSimulator();
+          });
+        });
+
+        card.querySelectorAll('.kyana-logic-input-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const key = btn.getAttribute('data-input-key');
+            const attr = key === 'B' ? 'data-input-b' : 'data-input-a';
+            const nextVal = Number(card.getAttribute(attr)) === 1 ? 0 : 1;
+            card.setAttribute(attr, String(nextVal));
+            const valSpan = btn.querySelector('.val');
+            if (valSpan) valSpan.textContent = String(nextVal);
+            btn.style.background = nextVal === 1 ? '#ffffff' : '#111111';
+            btn.style.color = nextVal === 1 ? '#09090b' : '#ffffff';
+            updateSimulator();
+          });
+        });
+      });
     }
 
     function renderChapterKyanaWelcome(bundle) {
@@ -8529,6 +8631,20 @@
         }
 
         thinkingBubble.innerHTML = `${badgeHtml}<div class="chapter-kyana-md">${formatChapterKyanaMarkdown(replyText)}</div>`;
+        wireInteractiveBlocksInContainer(thinkingBubble);
+        if (window.renderMathInElement) {
+          try {
+            window.renderMathInElement(thinkingBubble, {
+              delimiters: [
+                { left: '$$', right: '$$', display: true },
+                { left: '$', right: '$', display: false },
+                { left: '\\[', right: '\\]', display: true },
+                { left: '\\(', right: '\\)', display: false }
+              ],
+              throwOnError: false
+            });
+          } catch (_) {}
+        }
 
         // Save both user and assistant messages to conversation history for follow-ups ("I don't understand", "Give me an example")
         ACTIVE_CHAPTER_KYANA_STATE.history.push({ role: 'user', content: message });

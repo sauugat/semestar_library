@@ -65,33 +65,6 @@
     return restored;
   }
 
-  function fallbackMarkdown(text) {
-    const output = [];
-    let fence = null;
-    let code = [];
-    const finishCode = () => {
-      output.push(`<pre><code${fence.language ? ` class="language-${escapeHtml(fence.language)}"` : ''}>${escapeHtml(code.join('\n'))}</code></pre>`);
-      code = [];
-      fence = null;
-    };
-    for (const line of String(text).split('\n')) {
-      if (fence) {
-        if (new RegExp(`^\\s*${fence.character}{${fence.length},}\\s*$`).test(line)) finishCode();
-        else code.push(line);
-        continue;
-      }
-      const match = line.match(/^\s*(`{3,}|~{3,})([\w+-]*)[^\n]*$/);
-      if (match) fence = { character: match[1][0], length: match[1].length, language: match[2] };
-      else {
-        let escapedLine = escapeHtml(line);
-        escapedLine = escapedLine.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-        output.push(escapedLine + '<br>');
-      }
-    }
-    if (fence) finishCode();
-    return output.join('');
-  }
-
   function normalizeLatexDelimiters(text) {
     if (!text) return '';
     const { text: protectedText, tokenMap } = protectCodeBlocks(text);
@@ -99,6 +72,337 @@
       .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
       .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
     return restoreCodeBlocks(transformed, tokenMap);
+  }
+
+  function stabilizeStreamingMarkdown(rawText) {
+    if (!rawText || typeof rawText !== 'string') return '';
+    let text = String(rawText).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+    // 1. Hide incomplete trailing action/reference XML blocks during streaming
+    text = text
+      .replace(/<kyana_actions>[\s\S]*$/i, '')
+      .replace(/<referenced_records>[\s\S]*$/i, '');
+
+    // 2. Check for unclosed fenced block at the end of the stream
+    const fenceMatches = [...text.matchAll(/(^|\n)(`{3,}|~{3,})([\w+-]*)[ \t]*(?:\n|$)/g)];
+    if (fenceMatches.length % 2 === 1) {
+      const lastFence = fenceMatches[fenceMatches.length - 1];
+      const fenceLang = (lastFence[3] || '').trim().toLowerCase();
+      const structuredKinds = new Set([
+        'study_session', 'learning_session', 'interactive_demo', 'logic_sim',
+        'live_demo', 'diagram', 'flowchart', 'trace', 'roadmap', 'timeline',
+        'pyq_card', 'checkpoint_question', 'chapter_summary', 'source_reference'
+      ]);
+      if (structuredKinds.has(fenceLang)) {
+        // Hide partially streamed structured JSON fence until it closes completely
+        text = text.slice(0, lastFence.index).trimEnd();
+      } else {
+        const fenceChars = lastFence[2] || '```';
+        text = `${text}\n${fenceChars}`;
+      }
+    }
+
+    // 3. Protect closed code blocks before checking unclosed math/tables/inline tokens
+    const { text: withoutCode, tokenMap } = protectCodeBlocks(text);
+    let working = withoutCode;
+
+    // 4. Close unclosed display math block ($$ ... )
+    const displayMathParts = working.split('$$');
+    if (displayMathParts.length % 2 === 0) {
+      working = `${working}\n$$`;
+    }
+
+    // 5. Stabilize trailing partial Markdown table delimiter row (e.g. "| Subject | Marks |\n| :-")
+    const lines = working.split('\n');
+    if (lines.length >= 2) {
+      const lastLine = lines[lines.length - 1].trim();
+      const prevLine = lines[lines.length - 2].trim();
+      if (
+        prevLine.includes('|') &&
+        /^\|?[\s:-]+(?:\|[\s:-]*)*$/.test(lastLine) &&
+        lastLine.includes('-')
+      ) {
+        const headerCols = prevLine.replace(/^\||\|$/g, '').split('|').length;
+        if (headerCols >= 1) {
+          lines[lines.length - 1] = '| ' + Array(headerCols).fill('---').join(' | ') + ' |';
+          working = lines.join('\n');
+        }
+      }
+    }
+
+    // 6. Close unclosed inline code or bold markers on the final active line
+    const updatedLines = working.split('\n');
+    if (updatedLines.length > 0) {
+      let tail = updatedLines[updatedLines.length - 1];
+      const backticks = (tail.match(/`/g) || []).length;
+      if (backticks % 2 === 1) {
+        tail += '`';
+      }
+      const boldMarkers = (tail.match(/\*\*/g) || []).length;
+      if (boldMarkers % 2 === 1) {
+        tail += '**';
+      }
+      updatedLines[updatedLines.length - 1] = tail;
+      working = updatedLines.join('\n');
+    }
+
+    return restoreCodeBlocks(working, tokenMap);
+  }
+
+  function fallbackMarkdown(rawText) {
+    if (!rawText || typeof rawText !== 'string') return '';
+    const normalized = normalizeLatexDelimiters(String(rawText).replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
+
+    // 1. Extract fenced code blocks
+    const codeBlocks = [];
+    let working = normalized.replace(/(^|\n)(`{3,}|~{3,})([\w+-]*)[ \t]*\n([\s\S]*?)(?:\n\2[ \t]*(?=\n|$)|$)/g, (_, prefix, _fence, lang, code) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push({
+        lang: (lang || '').trim(),
+        code: String(code || '').replace(/\n$/, '')
+      });
+      return `${prefix}\x01FB_CODE_${idx}\x02`;
+    });
+
+    // 2. Extract display math blocks ($$...$$) so underscores/asterisks inside LaTeX are never corrupted
+    const mathBlocks = [];
+    working = working.replace(/\$\$([\s\S]*?)\$\$/g, (_, expr) => {
+      const idx = mathBlocks.length;
+      mathBlocks.push( `<div class="kyana-math-block">$$${escapeHtml(String(expr).trim())}$$</div>` );
+      return `\n\x01FB_MATH_BLOCK_${idx}\x02\n`;
+    });
+
+    // 3. Inline parser with inline code & inline math protection
+    function parseInline(str) {
+      if (!str) return '';
+      const inlineTokens = [];
+      let s = String(str);
+
+      // Protect inline code `...`
+      s = s.replace(/`([^`\n]+)`/g, (_, code) => {
+        const id = inlineTokens.length;
+        inlineTokens.push(`<code>${escapeHtml(code)}</code>`);
+        return `\x01FB_INL_${id}\x02`;
+      });
+
+      // Protect inline math $...$
+      s = s.replace(/\$([^\$\n]+?)\$/g, (_, math) => {
+        const id = inlineTokens.length;
+        inlineTokens.push(`<span class="kyana-math-inline">$${escapeHtml(math)}$</span>`);
+        return `\x01FB_INL_${id}\x02`;
+      });
+
+      s = escapeHtml(s);
+
+      // Links: [title](url) - supports https://, http://, and internal /... or *.html routes
+      s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, rawUrl) => {
+        const decodedUrl = rawUrl.replace(/&amp;/g, '&');
+        if (/^(?:https?:\/\/|\/|[a-zA-Z0-9_-]+\.html)/i.test(decodedUrl)) {
+          return `<a href="${escapeHtml(decodedUrl)}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+        }
+        return label;
+      });
+
+      // Bold + Italic, Bold, Italic, Strikethrough
+      s = s.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      s = s.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+      s = s.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+
+      // Restore protected inline tokens
+      s = s.replace(/\x01FB_INL_(\d+)\x02/g, (_, idx) => inlineTokens[Number(idx)] || '');
+      return s;
+    }
+
+    function isTableDelimiter(lineStr) {
+      if (!lineStr || !lineStr.includes('|')) return false;
+      const cells = lineStr.trim().replace(/^\||\|$/g, '').split('|');
+      return cells.length > 0 && cells.every(c => /^\s*:?-{1,}:?\s*$/.test(c));
+    }
+
+    function splitTableRow(rowStr) {
+      return rowStr.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+    }
+
+    const lines = working.split('\n');
+    const output = [];
+    let paraLines = [];
+    let quoteLines = [];
+    const listStack = []; // [{ tag: 'ul'|'ol', indent: number }]
+
+    function flushPara() {
+      if (paraLines.length > 0) {
+        output.push(`<p>${paraLines.map(parseInline).join('<br>')}</p>`);
+        paraLines = [];
+      }
+    }
+
+    function flushQuote() {
+      if (quoteLines.length > 0) {
+        output.push(`<blockquote>${quoteLines.map(parseInline).join('<br>')}</blockquote>`);
+        quoteLines = [];
+      }
+    }
+
+    function closeListsToIndent(targetIndent) {
+      while (listStack.length > 0 && listStack[listStack.length - 1].indent > targetIndent) {
+        const popped = listStack.pop();
+        output.push(`</${popped.tag}>`);
+      }
+    }
+
+    function flushAllLists() {
+      while (listStack.length > 0) {
+        const popped = listStack.pop();
+        output.push(`</${popped.tag}>`);
+      }
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+
+      // Code block token
+      const codeMatch = trimmed.match(/^\x01FB_CODE_(\d+)\x02$/);
+      if (codeMatch) {
+        flushPara();
+        flushQuote();
+        flushAllLists();
+        const block = codeBlocks[Number(codeMatch[1])];
+        if (block) {
+          output.push(`<pre><code${block.lang ? ` class="language-${escapeHtml(block.lang)}"` : ''}>${escapeHtml(block.code)}</code></pre>`);
+        }
+        continue;
+      }
+
+      // Math block token
+      const mathMatch = trimmed.match(/^\x01FB_MATH_BLOCK_(\d+)\x02$/);
+      if (mathMatch) {
+        flushPara();
+        flushQuote();
+        flushAllLists();
+        output.push(mathBlocks[Number(mathMatch[1])] || '');
+        continue;
+      }
+
+      // Horizontal rule
+      if (/^(?:-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+        flushPara();
+        flushQuote();
+        flushAllLists();
+        output.push('<hr>');
+        continue;
+      }
+
+      // Markdown Table
+      if (line.includes('|') && i + 1 < lines.length && isTableDelimiter(lines[i + 1])) {
+        flushPara();
+        flushQuote();
+        flushAllLists();
+        const headers = splitTableRow(line);
+        const aligns = splitTableRow(lines[i + 1]).map(c => {
+          const t = c.trim();
+          if (t.startsWith(':') && t.endsWith(':')) return 'center';
+          if (t.endsWith(':')) return 'right';
+          return 'left';
+        });
+        let j = i + 2;
+        const rows = [];
+        while (j < lines.length) {
+          const rLine = lines[j].trim();
+          if (!rLine || !rLine.includes('|') || isTableDelimiter(rLine)) break;
+          rows.push(splitTableRow(rLine));
+          j++;
+        }
+        i = j - 1;
+        let tbl = '<div class="kyana-table-wrapper"><table class="kyana-table"><thead><tr>';
+        headers.forEach((h, cIdx) => {
+          tbl += `<th style="text-align: ${aligns[cIdx] || 'left'};">${parseInline(h)}</th>`;
+        });
+        tbl += '</tr></thead><tbody>';
+        rows.forEach(r => {
+          tbl += '<tr>';
+          headers.forEach((_, cIdx) => {
+            tbl += `<td style="text-align: ${aligns[cIdx] || 'left'};">${parseInline(r[cIdx] || '')}</td>`;
+          });
+          tbl += '</tr>';
+        });
+        tbl += '</tbody></table></div>';
+        output.push(tbl);
+        continue;
+      }
+
+      // Headings
+      const hMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+      if (hMatch) {
+        flushPara();
+        flushQuote();
+        flushAllLists();
+        const lvl = hMatch[1].length;
+        output.push(`<h${lvl}>${parseInline(hMatch[2])}</h${lvl}>`);
+        continue;
+      }
+
+      // Blockquote
+      const qMatch = trimmed.match(/^>\s?(.*)$/);
+      if (qMatch) {
+        flushPara();
+        flushAllLists();
+        quoteLines.push(qMatch[1]);
+        continue;
+      } else if (quoteLines.length > 0) {
+        flushQuote();
+      }
+
+      // Nested / Standard Lists
+      const listMatch = line.match(/^(\s*)(?:([*\-•])|(\d+)\.)\s+(.+)$/);
+      if (listMatch) {
+        flushPara();
+        flushQuote();
+        const indent = (listMatch[1] || '').replace(/\t/g, '  ').length;
+        const tag = listMatch[3] ? 'ol' : 'ul';
+        const content = listMatch[4];
+
+        if (listStack.length === 0) {
+          listStack.push({ tag, indent });
+          output.push(`<${tag}>`);
+        } else {
+          const top = listStack[listStack.length - 1];
+          if (indent > top.indent) {
+            listStack.push({ tag, indent });
+            output.push(`<${tag}>`);
+          } else {
+            closeListsToIndent(indent);
+            const currentTop = listStack[listStack.length - 1];
+            if (!currentTop || currentTop.tag !== tag) {
+              if (currentTop && currentTop.indent === indent) {
+                output.push(`</${listStack.pop().tag}>`);
+              }
+              listStack.push({ tag, indent });
+              output.push(`<${tag}>`);
+            }
+          }
+        }
+        output.push(`<li>${parseInline(content)}</li>`);
+        continue;
+      }
+
+      if (!trimmed) {
+        flushPara();
+        flushQuote();
+        flushAllLists();
+        continue;
+      }
+
+      flushAllLists();
+      paraLines.push(trimmed);
+    }
+
+    flushPara();
+    flushQuote();
+    flushAllLists();
+
+    return output.join('\n');
   }
 
   // Safety Assertion Guardian: Ensures placeholder tokens NEVER reach user-visible UI
@@ -203,6 +507,24 @@
         continue;
       }
 
+      // PHP Open/Close Tags (<?php, ?>, <?=)
+      if (rawCode.startsWith('<?php', i) || rawCode.startsWith('<?=', i) || rawCode.startsWith('?>', i)) {
+        const tag = rawCode.startsWith('<?php', i) ? '<?php' : (rawCode.startsWith('<?=', i) ? '<?=' : '?>');
+        html += `<span class="token keyword directive">${escapeHtml(tag)}</span>`;
+        i += tag.length;
+        continue;
+      }
+
+      // PHP / Shell Variables ($varName)
+      if (rawCode[i] === '$' && /^[a-zA-Z_]\w*/.test(rawCode.slice(i + 1))) {
+        const varMatch = rawCode.slice(i).match(/^\$[a-zA-Z_]\w*/);
+        if (varMatch) {
+          html += `<span class="token variable">${escapeHtml(varMatch[0])}</span>`;
+          i += varMatch[0].length;
+          continue;
+        }
+      }
+
       // C/C++ Preprocessor Directives (#include <stdio.h>, #define, etc.)
       if (rawCode[i] === '#' && (isC || !l)) {
         const rest = rawCode.slice(i);
@@ -301,7 +623,7 @@
         const afterPos = i + word.length;
         const isCall = /^\s*\(/.test(rawCode.slice(afterPos));
 
-        if (keywords.has(word)) {
+        if (keywords.has(word) || (l === 'php' && /^(?:echo|foreach|endforeach|endif|isset|empty|array|require|include|require_once|include_once)$/.test(word))) {
           html += `<span class="token keyword">${escapeHtml(word)}</span>`;
         } else if (builtins.has(word)) {
           html += `<span class="token class-name">${escapeHtml(word)}</span>`;
@@ -610,6 +932,109 @@
       }
     }
 
+    if (kind === 'logic_sim' || (kind === 'interactive_demo' && parsedJson && (parsedJson.demoType === 'logic_gate_simulator' || Array.isArray(parsedJson.gates)))) {
+      if (!parsedJson || typeof parsedJson !== 'object') return null;
+      const defaultGates = [
+        {
+          gate: 'AND',
+          symbol: 'A · B',
+          inputs: ['A', 'B'],
+          description: 'Outputs 1 (HIGH) only when all inputs are 1.',
+          truthTable: [
+            { A: 0, B: 0, Y: 0 },
+            { A: 0, B: 1, Y: 0 },
+            { A: 1, B: 0, Y: 0 },
+            { A: 1, B: 1, Y: 1 }
+          ]
+        },
+        {
+          gate: 'OR',
+          symbol: 'A + B',
+          inputs: ['A', 'B'],
+          description: 'Outputs 1 (HIGH) when at least one input is 1.',
+          truthTable: [
+            { A: 0, B: 0, Y: 0 },
+            { A: 0, B: 1, Y: 1 },
+            { A: 1, B: 0, Y: 1 },
+            { A: 1, B: 1, Y: 1 }
+          ]
+        },
+        {
+          gate: 'NOT',
+          symbol: "A'",
+          inputs: ['A'],
+          description: 'Inverts input A (0 becomes 1, 1 becomes 0).',
+          truthTable: [
+            { A: 0, Y: 1 },
+            { A: 1, Y: 0 }
+          ]
+        }
+      ];
+      const rawGates = Array.isArray(parsedJson.gates) && parsedJson.gates.length > 0 ? parsedJson.gates : defaultGates;
+      const gates = rawGates.map((g) => {
+        if (typeof g === 'string') {
+          const found = defaultGates.find(d => d.gate === g.toUpperCase());
+          return found || defaultGates[0];
+        }
+        return g && g.gate ? g : defaultGates[0];
+      });
+      const title = escapeHtml(safeTrunc(parsedJson.title || 'Interactive Logic Gate Simulator', 120));
+      const subtitle = escapeHtml(safeTrunc(parsedJson.subtitle || 'Toggle inputs A and B between 0 and 1 to test the gate output and highlight the active truth-table row.', 200));
+      const firstGate = gates[0];
+      const isSingleInput = Array.isArray(firstGate.inputs) && firstGate.inputs.length === 1;
+      const initY = (firstGate.truthTable || [])[0]?.Y ?? 0;
+
+      const gateTabsHtml = gates.map((g, idx) => {
+        const active = idx === 0;
+        return `<button type="button" class="kyana-logic-gate-tab${active ? ' active' : ''}" data-gate-index="${idx}" style="cursor:pointer;font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:999px;border:1px solid #333;background:${active ? '#ffffff' : '#1c1c1c'};color:${active ? '#09090b' : '#a1a1aa'};transition:all 0.14s ease;">${escapeHtml(g.gate)}</button>`;
+      }).join('');
+
+      const rowsHtml = (firstGate.truthTable || []).map((r, rIdx) => {
+        const isCurrentRow = rIdx === 0;
+        const rowBg = isCurrentRow ? 'rgba(255,255,255,0.12)' : 'transparent';
+        const bCell = isSingleInput ? '' : `<td style="padding:5px 10px;text-align:center;border-bottom:1px solid #27272a;">${r.B}</td>`;
+        return `<tr class="kyana-logic-tr" data-a="${r.A}" data-b="${r.B ?? 0}" style="background:${rowBg};font-weight:${isCurrentRow ? '700' : '400'};">
+          <td style="padding:5px 10px;text-align:center;border-bottom:1px solid #27272a;">${r.A}</td>
+          ${bCell}
+          <td style="padding:5px 10px;text-align:center;border-bottom:1px solid #27272a;font-weight:700;color:${r.Y === 1 ? '#ffffff' : '#a1a1aa'};">${r.Y}</td>
+        </tr>`;
+      }).join('');
+
+      const encodedSim = escapeHtml(JSON.stringify({ gates }));
+
+      return `<div class="kyana-adaptive-visual kyana-logic-sim-card" data-logic-payload="${encodedSim}" data-active-gate="0" data-input-a="0" data-input-b="0" style="margin:12px 0;padding:14px;border-radius:12px;border:1px solid #282828;background:#141414;color:#ffffff;box-sizing:border-box;">
+        <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;">
+          <div>
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#a1a1aa;">${title}</div>
+            <div class="kyana-logic-desc" style="font-size:12px;color:#888;margin-top:2px;">${escapeHtml(firstGate.description || subtitle)}</div>
+          </div>
+          <div class="kyana-logic-gate-tabs" style="display:flex;gap:6px;flex-wrap:wrap;">${gateTabsHtml}</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-radius:10px;border:1px solid #262626;background:#1a1a1a;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <button type="button" class="kyana-logic-input-btn" data-input-key="A" style="cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid #3f3f46;background:#111111;color:#ffffff;font-size:12.5px;font-weight:700;">Input A: <span class="val">0</span></button>
+            <button type="button" class="kyana-logic-input-btn" data-input-key="B" style="cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid #3f3f46;background:#111111;color:#ffffff;font-size:12.5px;font-weight:700;${isSingleInput ? 'display:none;' : ''}">Input B: <span class="val">0</span></button>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="kyana-logic-expr" style="font-family:var(--ky-font-mono,monospace);font-size:12.5px;color:#a1a1aa;">Y = ${escapeHtml(firstGate.symbol || firstGate.gate)}</span>
+            <div class="kyana-logic-output-pill" style="padding:6px 14px;border-radius:8px;border:1px solid ${initY === 1 ? '#ffffff' : '#3f3f46'};background:${initY === 1 ? '#ffffff' : '#111111'};color:${initY === 1 ? '#09090b' : '#a1a1aa'};font-size:13px;font-weight:800;">Output Y = <span class="out-val">${initY}</span></div>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="kyana-logic-table" style="width:100%;border-collapse:collapse;font-size:12px;color:#e4e4e7;">
+            <thead>
+              <tr style="background:#1c1c1c;">
+                <th style="padding:6px 10px;text-align:center;border-bottom:1px solid #333;">Input A</th>
+                <th class="kyana-logic-th-b" style="padding:6px 10px;text-align:center;border-bottom:1px solid #333;${isSingleInput ? 'display:none;' : ''}">Input B</th>
+                <th style="padding:6px 10px;text-align:center;border-bottom:1px solid #333;">Output Y</th>
+              </tr>
+            </thead>
+            <tbody class="kyana-logic-tbody">${rowsHtml}</tbody>
+          </table>
+        </div>
+      </div>`;
+    }
+
     if (kind === 'comparison' || kind === 'attendance' || kind === 'results') {
       const lines = text.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 20);
       if (!lines.length) return null;
@@ -632,6 +1057,7 @@
       safeLink,
       protectCodeBlocks,
       restoreCodeBlocks,
+      stabilizeStreamingMarkdown,
       fallbackMarkdown,
       normalizeLatexDelimiters,
       highlightChatCode,
@@ -639,6 +1065,17 @@
       renderAdaptiveVisualBlockHtml
     };
     return;
+  }
+
+  // Expose shared Adaptive Presentation Renderer on window for Library Split-Screen & other pages
+  if (typeof window !== 'undefined') {
+    window.KyanaAdaptiveRenderer = {
+      stabilizeStreamingMarkdown,
+      fallbackMarkdown,
+      normalizeLatexDelimiters,
+      highlightChatCode,
+      renderAdaptiveVisualBlockHtml
+    };
   }
 
   // Prevent multiple initializations in browser
@@ -856,15 +1293,16 @@
         const langName = langMatch ? langMatch[1] : 'Code';
         const langKey = langName.toLowerCase();
 
-        // Render structured adaptive visual blocks (study_session, pyq_card, live_demo, roadmap, timeline, diagram, flowchart, trace) safely
-        if (/^(study_session|pyq_card|live_demo|roadmap|timeline|diagram|flowchart|trace)$/.test(langKey)) {
-          const visualHtml = renderAdaptiveVisualBlockHtml(langKey, rawCode);
+        // Render structured adaptive visual blocks safely (never expose malformed structured JSON)
+        if (/^(study_session|learning_session|pyq_card|live_demo|logic_sim|interactive_demo|roadmap|timeline|diagram|flowchart|trace)$/.test(langKey)) {
+          const normalizedLang = langKey === 'learning_session' ? 'study_session' : langKey;
+          const visualHtml = renderAdaptiveVisualBlockHtml(normalizedLang, rawCode);
           if (visualHtml) {
             const visualWrap = document.createElement('div');
             visualWrap.innerHTML = visualHtml;
             const visualEl = visualWrap.firstElementChild;
             if (visualEl) {
-              if (langKey === 'live_demo') {
+              if (normalizedLang === 'live_demo') {
                 const payloadRaw = visualEl.getAttribute('data-demo-payload');
                 const frame = visualEl.querySelector('.kyana-live-demo-frame');
                 const tabs = visualEl.querySelectorAll('.kyana-live-demo-tab');
@@ -889,11 +1327,96 @@
                     });
                   });
                 } catch (_) {}
+              } else if (normalizedLang === 'logic_sim' || normalizedLang === 'interactive_demo') {
+                const payloadRaw = visualEl.getAttribute('data-logic-payload');
+                try {
+                  const simData = JSON.parse(payloadRaw || '{}');
+                  const gates = Array.isArray(simData.gates) ? simData.gates : [];
+                  const gateTabs = visualEl.querySelectorAll('.kyana-logic-gate-tab');
+                  const inputBtns = visualEl.querySelectorAll('.kyana-logic-input-btn');
+                  const descEl = visualEl.querySelector('.kyana-logic-desc');
+                  const exprEl = visualEl.querySelector('.kyana-logic-expr');
+                  const outPill = visualEl.querySelector('.kyana-logic-output-pill');
+                  const outVal = visualEl.querySelector('.kyana-logic-output-pill .out-val');
+                  const thB = visualEl.querySelector('.kyana-logic-th-b');
+                  const tbody = visualEl.querySelector('.kyana-logic-tbody');
+
+                  const syncLogicSimulator = () => {
+                    const gIdx = Number(visualEl.getAttribute('data-active-gate')) || 0;
+                    const aVal = Number(visualEl.getAttribute('data-input-a')) || 0;
+                    const bVal = Number(visualEl.getAttribute('data-input-b')) || 0;
+                    const gateObj = gates[gIdx] || gates[0];
+                    if (!gateObj) return;
+                    const single = Array.isArray(gateObj.inputs) && gateObj.inputs.length === 1;
+                    if (descEl) descEl.textContent = gateObj.description || '';
+                    if (exprEl) exprEl.textContent = `Y = ${gateObj.symbol || gateObj.gate}`;
+                    if (thB) thB.style.display = single ? 'none' : '';
+                    inputBtns.forEach((btn) => {
+                      const key = btn.getAttribute('data-input-key');
+                      const vSpan = btn.querySelector('.val');
+                      if (key === 'A' && vSpan) vSpan.textContent = String(aVal);
+                      if (key === 'B') {
+                        btn.style.display = single ? 'none' : '';
+                        if (vSpan) vSpan.textContent = String(bVal);
+                      }
+                    });
+                    const tableRows = Array.isArray(gateObj.truthTable) ? gateObj.truthTable : [];
+                    const matched = tableRows.find(r => Number(r.A) === aVal && (single || Number(r.B) === bVal)) || tableRows[0] || { Y: 0 };
+                    const yVal = Number(matched.Y) || 0;
+                    if (outVal) outVal.textContent = String(yVal);
+                    if (outPill) {
+                      outPill.style.background = yVal === 1 ? '#ffffff' : '#111111';
+                      outPill.style.color = yVal === 1 ? '#09090b' : '#a1a1aa';
+                      outPill.style.borderColor = yVal === 1 ? '#ffffff' : '#3f3f46';
+                    }
+                    if (tbody) {
+                      tbody.innerHTML = tableRows.map((r) => {
+                        const isMatch = Number(r.A) === aVal && (single || Number(r.B) === bVal);
+                        const rowBg = isMatch ? 'rgba(255,255,255,0.12)' : 'transparent';
+                        const bTd = single ? '' : `<td style="padding:5px 10px;text-align:center;border-bottom:1px solid #27272a;">${r.B}</td>`;
+                        return `<tr class="kyana-logic-tr" style="background:${rowBg};font-weight:${isMatch ? '700' : '400'};">
+                          <td style="padding:5px 10px;text-align:center;border-bottom:1px solid #27272a;">${r.A}</td>
+                          ${bTd}
+                          <td style="padding:5px 10px;text-align:center;border-bottom:1px solid #27272a;font-weight:700;color:${Number(r.Y) === 1 ? '#ffffff' : '#a1a1aa'};">${r.Y}</td>
+                        </tr>`;
+                      }).join('');
+                    }
+                  };
+
+                  gateTabs.forEach((tab) => {
+                    tab.addEventListener('click', () => {
+                      const nextIdx = Number(tab.getAttribute('data-gate-index')) || 0;
+                      visualEl.setAttribute('data-active-gate', String(nextIdx));
+                      gateTabs.forEach((t, idx) => {
+                        const isAct = idx === nextIdx;
+                        t.classList.toggle('active', isAct);
+                        t.style.background = isAct ? '#ffffff' : '#1c1c1c';
+                        t.style.color = isAct ? '#09090b' : '#a1a1aa';
+                      });
+                      syncLogicSimulator();
+                    });
+                  });
+
+                  inputBtns.forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                      const key = btn.getAttribute('data-input-key');
+                      const attr = key === 'B' ? 'data-input-b' : 'data-input-a';
+                      const curr = Number(visualEl.getAttribute(attr)) || 0;
+                      visualEl.setAttribute(attr, curr === 1 ? '0' : '1');
+                      syncLogicSimulator();
+                    });
+                  });
+                } catch (_) {}
               }
               pre.parentNode.replaceChild(visualEl, pre);
               return;
             }
           }
+          // Malformed structured block: remove silently so internal JSON schemas never leak to students
+          if (pre && pre.parentNode) {
+            pre.parentNode.removeChild(pre);
+          }
+          return;
         }
 
         const isWebCode = /^(html|xml|svg|css|javascript|js)$/.test(langKey);
@@ -1005,10 +1528,11 @@
     }
   };
 
-  // Markdown Formatter with KaTeX
+  // Markdown Formatter with KaTeX & Streaming Stabilization
   function renderFormattedContent(element, rawMarkdown, streaming = false) {
     if (!element) return;
-    const normalized = normalizeLatexDelimiters(rawMarkdown);
+    const prepared = streaming ? stabilizeStreamingMarkdown(rawMarkdown) : rawMarkdown;
+    const normalized = normalizeLatexDelimiters(prepared);
     if (window.marked && typeof window.marked.parse === 'function' &&
         window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
       element.innerHTML = window.DOMPurify.sanitize(window.marked.parse(normalized), {

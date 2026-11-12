@@ -2741,8 +2741,13 @@ ${evidenceBlocks}
     }
   }
   if (result.reply) {
+    const { sanitizeAdaptiveResponse, planAdaptivePresentation } = require('./lib/adaptive-presentation-engine');
     const parsedFinalTags = extractKyanaActionsFromText(result.reply);
-    result.reply = parsedFinalTags.cleanText;
+    result.reply = sanitizeAdaptiveResponse(parsedFinalTags.cleanText);
+    const adaptivePlan = planAdaptivePresentation(message, {
+      isStudySession: result.intent === 'study_partner'
+    });
+    result.presentationProfile = adaptivePlan.profile;
     if (parsedFinalTags.messageActions && !result.messageActions) {
       result.messageActions = parsedFinalTags.messageActions;
     }

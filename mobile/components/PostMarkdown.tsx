@@ -30,6 +30,112 @@ interface CodeBlock {
   code: string;
 }
 
+export function stabilizeStreamingMarkdown(rawText: string): string {
+  if (!rawText || typeof rawText !== 'string') return '';
+  let text = String(rawText).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  text = text
+    .replace(/<kyana_actions>[\s\S]*$/i, '')
+    .replace(/<referenced_records>[\s\S]*$/i, '');
+
+  const fenceMatches = [...text.matchAll(/(^|\n)(`{3,}|~{3,})([\w+-]*)[ \t]*(?:\n|$)/g)];
+  if (fenceMatches.length % 2 === 1) {
+    const lastFence = fenceMatches[fenceMatches.length - 1];
+    const fenceLang = (lastFence[3] || '').trim().toLowerCase();
+    const structuredKinds = new Set([
+      'study_session', 'learning_session', 'interactive_demo', 'logic_sim',
+      'live_demo', 'diagram', 'flowchart', 'trace', 'roadmap', 'timeline',
+      'pyq_card', 'checkpoint_question', 'chapter_summary', 'source_reference'
+    ]);
+    if (structuredKinds.has(fenceLang)) {
+      text = text.slice(0, lastFence.index).trimEnd();
+    } else {
+      const fenceChars = lastFence[2] || '```';
+      text = `${text}\n${fenceChars}`;
+    }
+  }
+
+  const displayMathParts = text.split('$$');
+  if (displayMathParts.length % 2 === 0) {
+    text = `${text}\n$$`;
+  }
+
+  const lines = text.split('\n');
+  if (lines.length >= 2) {
+    const lastLine = lines[lines.length - 1].trim();
+    const prevLine = lines[lines.length - 2].trim();
+    if (
+      prevLine.includes('|') &&
+      /^\|?[\s:-]+(?:\|[\s:-]*)*$/.test(lastLine) &&
+      lastLine.includes('-')
+    ) {
+      const headerCols = prevLine.replace(/^\||\|$/g, '').split('|').length;
+      if (headerCols >= 1) {
+        lines[lines.length - 1] = '| ' + Array(headerCols).fill('---').join(' | ') + ' |';
+        text = lines.join('\n');
+      }
+    }
+  }
+
+  const updatedLines = text.split('\n');
+  if (updatedLines.length > 0) {
+    let tail = updatedLines[updatedLines.length - 1];
+    const backticks = (tail.match(/`/g) || []).length;
+    if (backticks % 2 === 1) {
+      tail += '`';
+    }
+    const boldMarkers = (tail.match(/\*\*/g) || []).length;
+    if (boldMarkers % 2 === 1) {
+      tail += '**';
+    }
+    updatedLines[updatedLines.length - 1] = tail;
+    text = updatedLines.join('\n');
+  }
+
+  return text;
+}
+
+export function formatMathExpression(expr: string): string {
+  if (!expr) return '';
+  return String(expr)
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1) / ($2)')
+    .replace(/\\sqrt\{([^}]+)\}/g, '√($1)')
+    .replace(/\\sum_\{([^}]+)\}\^\{([^}]+)\}/g, '∑[$1→$2]')
+    .replace(/\\int_\{([^}]+)\}\^\{([^}]+)\}/g, '∫[$1→$2]')
+    .replace(/\\pm/g, '±')
+    .replace(/\\times/g, '×')
+    .replace(/\\cdot/g, '·')
+    .replace(/\\leq/g, '≤')
+    .replace(/\\geq/g, '≥')
+    .replace(/\\neq/g, '≠')
+    .replace(/\\approx/g, '≈')
+    .replace(/\\rightarrow|\\to/g, '→')
+    .replace(/\\leftrightarrow/g, '↔')
+    .replace(/\\Rightarrow/g, '⇒')
+    .replace(/\\Leftarrow/g, '⇐')
+    .replace(/\\iff/g, '⇔')
+    .replace(/\\land/g, '∧')
+    .replace(/\\lor/g, '∨')
+    .replace(/\\lnot|\\neg/g, '¬')
+    .replace(/\\oplus/g, '⊕')
+    .replace(/\\overline\{([^}]+)\}/g, '$1̅')
+    .replace(/\\alpha/g, 'α')
+    .replace(/\\beta/g, 'β')
+    .replace(/\\gamma/g, 'γ')
+    .replace(/\\delta/g, 'δ')
+    .replace(/\\theta/g, 'θ')
+    .replace(/\\lambda/g, 'λ')
+    .replace(/\\mu/g, 'μ')
+    .replace(/\\sigma/g, 'σ')
+    .replace(/\\pi/g, 'π')
+    .replace(/\\infty/g, '∞')
+    .replace(/\\begin\{aligned\}|\\end\{aligned\}/g, '')
+    .replace(/&=/g, '=')
+    .replace(/\\\\/g, '\n')
+    .replace(/\\left|\\right/g, '')
+    .trim();
+}
+
 /**
  * Robust Error Boundary to guarantee that malformed markdown or edge cases
  * NEVER crash the application. Falls back safely to plain text.
@@ -75,13 +181,18 @@ function renderInlineTokens(
   textColor: string,
   isDark: boolean,
   borderColor: string,
-  onPressText?: () => void
+  onPressText?: () => void,
+  onPressInternalLink?: (url: string) => void
 ): React.ReactNode[] {
   if (!text) return [];
 
+  const normalized = text
+    .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$')
+    .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$');
+
   // Split with capturing group to keep matched tokens in parts array
-  const parts = text.split(
-    /(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\(https?:\/\/[^\s\)]+\)|https?:\/\/[^\s<)]+)/g
+  const parts = normalized.split(
+    /(`[^`]+`|\$\$[\s\S]+?\$\$|\$[^$\n]+\$|\*\*[^*]+\*\*|\*[^*]+\*|<u>.*?<\/u>|~~[^~]+~~|\[[^\]]+\]\([^)\s]+\)|https?:\/\/[^\s<)]+)/g
   );
 
   return parts
@@ -104,6 +215,26 @@ function renderInlineTokens(
             ]}
           >
             {part.slice(1, -1)}
+          </Text>
+        );
+      }
+
+      // 1b. Inline or block math: $...$ or $$...$$
+      if (part.startsWith('$') && part.endsWith('$') && part.length >= 3) {
+        const rawExpr = part.startsWith('$$') ? part.slice(2, -2) : part.slice(1, -1);
+        return (
+          <Text
+            key={key}
+            style={[
+              styles.inlineCode,
+              {
+                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                borderColor: borderColor,
+                color: textColor,
+              },
+            ]}
+          >
+            {formatMathExpression(rawExpr)}
           </Text>
         );
       }
@@ -162,7 +293,7 @@ function renderInlineTokens(
 
       // 6. Link: [title](url)
       if (part.startsWith('[') && part.includes('](')) {
-        const linkMatch = part.match(/^\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)$/);
+        const linkMatch = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
         if (linkMatch) {
           const [, title, url] = linkMatch;
           return (
@@ -170,7 +301,11 @@ function renderInlineTokens(
               key={key}
               style={[styles.link, { color: textColor }]}
               onPress={() => {
-                Linking.openURL(url).catch(() => {});
+                if (/^https?:\/\//i.test(url)) {
+                  Linking.openURL(url).catch(() => {});
+                } else if (onPressInternalLink) {
+                  onPressInternalLink(url);
+                }
               }}
             >
               {title}
@@ -210,7 +345,7 @@ const MOBILE_KEYWORDS = new Set([
   'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue',
   'try', 'catch', 'finally', 'throw', 'import', 'package', 'def', 'elif', 'const',
   'let', 'var', 'function', 'async', 'await', 'select', 'where', 'from', 'null',
-  'true', 'false', 'True', 'False', 'None', 'self', 'this'
+  'true', 'false', 'True', 'False', 'None', 'self', 'this', 'echo', 'foreach'
 ]);
 
 function generateSampleHtmlForCssMobile(cssText: string): string {
@@ -240,7 +375,7 @@ function generateSampleHtmlForCssMobile(cssText: string): string {
   return parts.join('\n');
 }
 
-function renderHighlightedCodeMobile(code: string, rawLang: string, isWrapped: boolean): React.ReactNode {
+function renderHighlightedCode(code: string, rawLang: string, isWrapped: boolean): React.ReactNode {
   const l = (rawLang || '').toLowerCase();
   const isHtml = l === 'html' || l === 'xml' || l === 'markup';
   const isCss = l === 'css';
@@ -267,6 +402,32 @@ function renderHighlightedCodeMobile(code: string, rawLang: string, isWrapped: b
               </Text>
             );
             break;
+          }
+
+          // PHP Directive
+          if (rest.startsWith('<?php') || rest.startsWith('?>')) {
+            const tag = rest.startsWith('<?php') ? '<?php' : '?>';
+            tokens.push(
+              <Text key={curKey} style={{ color: '#c084fc', fontWeight: '700' }}>
+                {tag}
+              </Text>
+            );
+            rest = rest.slice(tag.length);
+            continue;
+          }
+
+          // PHP / Shell Variables ($var)
+          if (rest.startsWith('$') && /^[a-zA-Z_]\w*/.test(rest.slice(1))) {
+            const varMatch = rest.match(/^\$[a-zA-Z_]\w*/);
+            if (varMatch) {
+              tokens.push(
+                <Text key={curKey} style={{ color: '#93c5fd' }}>
+                  {varMatch[0]}
+                </Text>
+              );
+              rest = rest.slice(varMatch[0].length);
+              continue;
+            }
           }
 
           // String
@@ -412,6 +573,8 @@ function renderHighlightedCodeMobile(code: string, rawLang: string, isWrapped: b
   );
 }
 
+const renderHighlightedCodeMobile = renderHighlightedCode;
+
 function PostMarkdownInternal({
   content,
   isExpanded = true,
@@ -419,11 +582,14 @@ function PostMarkdownInternal({
   maxPreviewLength,
   onPressText,
   style,
+  streaming = false,
+  onPressInternalLink,
 }: PostMarkdownProps) {
   const { colors, isDark } = useTheme();
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [wrappedBlocks, setWrappedBlocks] = useState<Record<number, boolean>>({});
   const [previewBlocks, setPreviewBlocks] = useState<Record<number, boolean>>({});
+  const [simState, setSimState] = useState<Record<number, { gateIdx: number; a: number; b: number }>>({});
 
   if (!content || typeof content !== 'string' || !content.trim()) return null;
 
@@ -433,15 +599,19 @@ function PostMarkdownInternal({
     content.length > maxPreviewLength
   );
 
-  const displayContent = isTruncated
+  const rawDisplayContent = isTruncated
     ? content.slice(0, maxPreviewLength).trim()
     : content;
+
+  const displayContent = streaming
+    ? stabilizeStreamingMarkdown(rawDisplayContent)
+    : rawDisplayContent;
 
   // Extract fenced code blocks first
   const codeBlocks: CodeBlock[] = [];
   const normalized = displayContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const textWithoutCode = normalized.replace(
-    /```([a-zA-Z0-9_#-]*)[ \t]*\n([\s\S]*?)```/g,
+    /```([a-zA-Z0-9_#+-]*)[ \t]*\n([\s\S]*?)```/g,
     (_, lang, code) => {
       const idx = codeBlocks.length;
       codeBlocks.push({
@@ -452,7 +622,18 @@ function PostMarkdownInternal({
     }
   );
 
-  const lines = textWithoutCode.split('\n');
+  // Extract display math blocks ($$...$$)
+  const mathBlocks: string[] = [];
+  const textWithoutCodeAndMath = textWithoutCode.replace(
+    /\$\$([\s\S]*?)\$\$/g,
+    (_, expr) => {
+      const idx = mathBlocks.length;
+      mathBlocks.push(String(expr || '').trim());
+      return `\n\x01MATH_BLOCK_${idx}\x02\n`;
+    }
+  );
+
+  const lines = textWithoutCodeAndMath.split('\n');
   const renderedElements: React.ReactNode[] = [];
 
   function isTableDelimiter(str: string): boolean {
@@ -480,7 +661,7 @@ function PostMarkdownInternal({
       const fullPara = paraBuffer.join('\n');
       renderedElements.push(
         <Text key={key} style={[styles.paragraph, { color: colors.text }]} onPress={onPressText}>
-          {renderInlineTokens(fullPara, key, colors.text, isDark, colors.border, onPressText)}
+          {renderInlineTokens(fullPara, key, colors.text, isDark, colors.border, onPressText, onPressInternalLink)}
         </Text>
       );
       paraBuffer = [];
@@ -490,6 +671,41 @@ function PostMarkdownInternal({
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();
+
+    // 0. Display Math Block placeholder
+    const mathMatch = trimmed.match(/^\x01MATH_BLOCK_(\d+)\x02$/);
+    if (mathMatch) {
+      flushParagraph(`p-before-math-${i}`);
+      const mIdx = Number(mathMatch[1]);
+      const expr = mathBlocks[mIdx] || '';
+      renderedElements.push(
+        <View
+          key={`math-block-${i}`}
+          style={{
+            marginVertical: 8,
+            paddingVertical: 10,
+            paddingHorizontal: 14,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)',
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
+              fontSize: 13.5,
+              lineHeight: 20,
+              color: colors.text,
+              textAlign: 'center',
+            }}
+          >
+            {formatMathExpression(expr)}
+          </Text>
+        </View>
+      );
+      continue;
+    }
 
     // 1. Code Block placeholder
     const codeMatch = trimmed.match(/^\x01CODE_BLOCK_(\d+)\x02$/);
@@ -503,58 +719,203 @@ function PostMarkdownInternal({
         const isPreviewOpen = Boolean(previewBlocks[blockIndex]);
         const langLower = block.lang.toLowerCase();
 
-        if (/^(roadmap|timeline|diagram|flowchart|trace)$/.test(langLower) && block.code.trim().startsWith('{') && block.code.length <= 32768) {
-          try {
-            const parsedVisual = JSON.parse(block.code.trim());
-            const rawItems = Array.isArray(parsedVisual?.steps)
-              ? parsedVisual.steps
-              : Array.isArray(parsedVisual?.nodes)
-                ? parsedVisual.nodes
-                : [];
-            const items = rawItems.filter((it: any) => it && typeof it === 'object' && !Array.isArray(it));
-            if (items.length > 0) {
-              renderedElements.push(
-                <View
-                  key={`visual-block-${i}`}
-                  style={[
-                    styles.codeBlockContainer,
-                    {
-                      backgroundColor: isDark ? '#18181b' : '#f8fafc',
-                      borderColor: colors.border,
-                      padding: 12,
-                      maxWidth: '100%',
-                    },
-                  ]}
-                >
-                  <Text style={[styles.codeLang, { color: colors.textSecondary, marginBottom: 8 }]}>
-                    {String(parsedVisual.title || block.lang).slice(0, 140).toUpperCase()}
-                  </Text>
-                  {items.slice(0, 12).map((item: any, idx: number) => (
-                    <View
-                      key={`vb-item-${idx}`}
-                      style={{
-                        paddingVertical: 6,
-                        borderBottomWidth: idx < Math.min(items.length, 12) - 1 ? 1 : 0,
-                        borderBottomColor: colors.border,
-                      }}
-                    >
-                      <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13, flexShrink: 1 }}>
-                        {item.phase ? `${String(item.phase).slice(0, 60)}: ` : ''}{String(item.title || item.label || `Step ${idx + 1}`).slice(0, 160)}
-                      </Text>
-                      {Boolean(item.detail || item.content || item.description) && (
-                        <Text style={{ color: colors.textSecondary, fontSize: 12.5, marginTop: 2, flexShrink: 1 }}>
-                          {String(item.detail || item.content || item.description).slice(0, 320)}
-                        </Text>
-                      )}
+        // Structured component handling (roadmap, timeline, diagram, flowchart, trace, study_session, pyq_card, logic_sim, interactive_demo)
+        const isStructuredKind = /^(study_session|learning_session|pyq_card|logic_sim|interactive_demo|live_demo|roadmap|timeline|diagram|flowchart|trace)$/.test(langLower);
+        if (isStructuredKind) {
+          if (block.code.trim().startsWith('{') && block.code.length <= 32768) {
+            try {
+              const parsedVisual = JSON.parse(block.code.trim());
+              if (langLower === 'logic_sim' || langLower === 'interactive_demo') {
+                const gates = Array.isArray(parsedVisual?.gates) && parsedVisual.gates.length > 0
+                  ? parsedVisual.gates
+                  : [
+                      {
+                        gate: 'AND',
+                        symbol: 'A · B',
+                        inputs: ['A', 'B'],
+                        description: 'Outputs 1 only when all inputs are 1.',
+                        truthTable: [
+                          { A: 0, B: 0, Y: 0 },
+                          { A: 0, B: 1, Y: 0 },
+                          { A: 1, B: 0, Y: 0 },
+                          { A: 1, B: 1, Y: 1 },
+                        ],
+                      },
+                    ];
+                const curSim = simState[blockIndex] || { gateIdx: 0, a: 0, b: 0 };
+                const activeGate = gates[curSim.gateIdx] || gates[0];
+                const singleInput = Array.isArray(activeGate.inputs) && activeGate.inputs.length === 1;
+                const matchedRow = (activeGate.truthTable || []).find(
+                  (r: any) => Number(r.A) === curSim.a && (singleInput || Number(r.B) === curSim.b)
+                ) || { Y: 0 };
+
+                renderedElements.push(
+                  <View
+                    key={`logic-sim-${i}`}
+                    style={[
+                      styles.codeBlockContainer,
+                      {
+                        backgroundColor: isDark ? '#141416' : '#f8fafc',
+                        borderColor: colors.border,
+                        padding: 12,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.codeLang, { color: colors.textSecondary, marginBottom: 6 }]}>
+                      {String(parsedVisual.title || 'INTERACTIVE LOGIC GATE SIMULATOR').toUpperCase()}
+                    </Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                      {gates.map((g: any, gIdx: number) => {
+                        const isAct = gIdx === curSim.gateIdx;
+                        return (
+                          <TouchableOpacity
+                            key={`gate-tab-${gIdx}`}
+                            onPress={() =>
+                              setSimState((prev) => ({
+                                ...prev,
+                                [blockIndex]: { ...curSim, gateIdx: gIdx },
+                              }))
+                            }
+                            style={{
+                              paddingHorizontal: 10,
+                              paddingVertical: 4,
+                              borderRadius: 999,
+                              borderWidth: 1,
+                              borderColor: colors.border,
+                              backgroundColor: isAct ? colors.text : 'transparent',
+                            }}
+                          >
+                            <Text style={{ fontSize: 11.5, fontWeight: '700', color: isAct ? colors.background : colors.text }}>
+                              {String(g.gate || 'GATE')}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
-                  ))}
-                </View>
-              );
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <View style={{ flexDirection: 'row', gap: 8 }}>
+                        <TouchableOpacity
+                          onPress={() =>
+                            setSimState((prev) => ({
+                              ...prev,
+                              [blockIndex]: { ...curSim, a: curSim.a === 1 ? 0 : 1 },
+                            }))
+                          }
+                          style={{
+                            paddingHorizontal: 10,
+                            paddingVertical: 6,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                          }}
+                        >
+                          <Text style={{ color: colors.text, fontWeight: '700', fontSize: 12 }}>
+                            Input A: {curSim.a}
+                          </Text>
+                        </TouchableOpacity>
+                        {!singleInput && (
+                          <TouchableOpacity
+                            onPress={() =>
+                              setSimState((prev) => ({
+                                ...prev,
+                                [blockIndex]: { ...curSim, b: curSim.b === 1 ? 0 : 1 },
+                              }))
+                            }
+                            style={{
+                              paddingHorizontal: 10,
+                              paddingVertical: 6,
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              borderColor: colors.border,
+                            }}
+                          >
+                            <Text style={{ color: colors.text, fontWeight: '700', fontSize: 12 }}>
+                              Input B: {curSim.b}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <View
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 8,
+                          backgroundColor: Number(matchedRow.Y) === 1 ? colors.text : 'transparent',
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontWeight: '800',
+                            fontSize: 12.5,
+                            color: Number(matchedRow.Y) === 1 ? colors.background : colors.text,
+                          }}
+                        >
+                          Output Y = {Number(matchedRow.Y) || 0}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+                continue;
+              }
+
+              const rawItems = Array.isArray(parsedVisual?.steps)
+                ? parsedVisual.steps
+                : Array.isArray(parsedVisual?.nodes)
+                  ? parsedVisual.nodes
+                  : Array.isArray(parsedVisual?.checklist)
+                    ? parsedVisual.checklist
+                    : [];
+              const items = rawItems.filter((it: any) => it && typeof it === 'object' && !Array.isArray(it));
+              if (items.length > 0) {
+                renderedElements.push(
+                  <View
+                    key={`visual-block-${i}`}
+                    style={[
+                      styles.codeBlockContainer,
+                      {
+                        backgroundColor: isDark ? '#18181b' : '#f8fafc',
+                        borderColor: colors.border,
+                        padding: 12,
+                        maxWidth: '100%',
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.codeLang, { color: colors.textSecondary, marginBottom: 8 }]}>
+                      {String(parsedVisual.title || parsedVisual.unit || block.lang).slice(0, 140).toUpperCase()}
+                    </Text>
+                    {items.slice(0, 12).map((item: any, idx: number) => (
+                      <View
+                        key={`vb-item-${idx}`}
+                        style={{
+                          paddingVertical: 6,
+                          borderBottomWidth: idx < Math.min(items.length, 12) - 1 ? 1 : 0,
+                          borderBottomColor: colors.border,
+                        }}
+                      >
+                        <Text style={{ color: colors.text, fontWeight: '700', fontSize: 13, flexShrink: 1 }}>
+                          {item.phase ? `${String(item.phase).slice(0, 60)}: ` : ''}{String(item.title || item.label || `Step ${idx + 1}`).slice(0, 160)}
+                        </Text>
+                        {Boolean(item.detail || item.content || item.description) && (
+                          <Text style={{ color: colors.textSecondary, fontSize: 12.5, marginTop: 2, flexShrink: 1 }}>
+                            {String(item.detail || item.content || item.description).slice(0, 320)}
+                          </Text>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                );
+                continue;
+              }
+            } catch {
+              // Suppress malformed structured blocks so broken JSON never leaks to students
               continue;
             }
-          } catch {
-            // Fall through to standard code block rendering if JSON is malformed
           }
+          // Suppress invalid structured block
+          continue;
         }
 
         const isWeb = /^(html|xml|svg|css|javascript|js)$/.test(langLower);
@@ -817,7 +1178,7 @@ function PostMarkdownInternal({
                         },
                       ]}
                     >
-                      {cellText}
+                      {renderInlineTokens(cellText, `th-in-${colIdx}`, colors.text, isDark, colors.border, onPressText, onPressInternalLink)}
                     </Text>
                   </View>
                 ))}
@@ -849,7 +1210,7 @@ function PostMarkdownInternal({
                           },
                         ]}
                       >
-                        {rowCells[colIdx] || ''}
+                        {renderInlineTokens(rowCells[colIdx] || '', `td-in-${rIdx}-${colIdx}`, colors.text, isDark, colors.border, onPressText, onPressInternalLink)}
                       </Text>
                     </View>
                   ))}
@@ -863,14 +1224,14 @@ function PostMarkdownInternal({
     }
 
     // 4. Headings: #, ##, ###
-    const hMatch = line.match(/^(#{1,3})\s+(.*)$/);
+    const hMatch = line.match(/^(#{1,4})\s+(.*)$/);
     if (hMatch) {
       flushParagraph(`p-before-h-${i}`);
       const level = hMatch[1].length;
       const headingStyle = level === 1 ? styles.h1 : level === 2 ? styles.h2 : styles.h3;
       renderedElements.push(
         <Text key={`h-${i}`} style={[headingStyle, { color: colors.text }]} onPress={onPressText}>
-          {renderInlineTokens(hMatch[2], `h-${i}`, colors.text, isDark, colors.border, onPressText)}
+          {renderInlineTokens(hMatch[2], `h-${i}`, colors.text, isDark, colors.border, onPressText, onPressInternalLink)}
         </Text>
       );
       continue;
@@ -892,23 +1253,26 @@ function PostMarkdownInternal({
           ]}
         >
           <Text style={[styles.blockquoteText, { color: colors.textSecondary }]} onPress={onPressText}>
-            {renderInlineTokens(qMatch[1], `q-${i}`, colors.textSecondary, isDark, colors.border, onPressText)}
+            {renderInlineTokens(qMatch[1], `q-${i}`, colors.textSecondary, isDark, colors.border, onPressText, onPressInternalLink)}
           </Text>
         </View>
       );
       continue;
     }
 
-    // 6. List items: - or * or 1.
-    const listMatch = line.match(/^([\*\-]|(\d+\.))\s+(.*)$/);
+    // 6. Nested / Standard List items: - or * or 1.
+    const listMatch = line.match(/^(\s*)([\*\-•]|(\d+\.))\s+(.*)$/);
     if (listMatch) {
       flushParagraph(`p-before-li-${i}`);
-      const bullet = listMatch[1].includes('.') ? listMatch[1] : '•';
+      const indentSpaces = (listMatch[1] || '').replace(/\t/g, '  ').length;
+      const depth = Math.min(3, Math.floor(indentSpaces / 2));
+      const unorderedGlyphs = ['•', '◦', '▪', '▫'];
+      const bullet = listMatch[2].includes('.') ? listMatch[2] : unorderedGlyphs[depth] || '•';
       renderedElements.push(
-        <View key={`li-${i}`} style={styles.listItemRow}>
+        <View key={`li-${i}`} style={[styles.listItemRow, { paddingLeft: 4 + depth * 14 }]}>
           <Text style={[styles.listBullet, { color: colors.textSecondary }]}>{bullet}</Text>
           <Text style={[styles.listContent, { color: colors.text }]} onPress={onPressText}>
-            {renderInlineTokens(listMatch[3], `li-${i}`, colors.text, isDark, colors.border, onPressText)}
+            {renderInlineTokens(listMatch[4], `li-${i}`, colors.text, isDark, colors.border, onPressText, onPressInternalLink)}
           </Text>
         </View>
       );

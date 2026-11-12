@@ -4128,8 +4128,8 @@ app.post(['/api/library/chapters/delete-files', '/api/library/chapters/files/del
   });
 });
 
-// Edit note details (Title, Subject, Chapter) — Restricted to Admins and authorized Teachers only
-app.patch(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, res) => {
+// Edit note details (Title, Subject, Chapter, Unit, Category, Semester, Cohort) — Restricted to Admins and authorized Teachers only
+async function handleEditLibraryFile(req, res) {
   const fileId = req.params.id;
   const studentId = req.session.studentId;
   const viewer = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
@@ -4156,6 +4156,7 @@ app.patch(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, r
     }
   }
 
+  const { parseSemesterNumber } = require('./lib/academic-context');
   const updates = [];
   const params = [];
   if (req.body.title !== undefined) {
@@ -4170,63 +4171,52 @@ app.patch(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, r
     updates.push('chapter = ?');
     params.push(String(req.body.chapter).trim());
   }
-
-  if (updates.length > 0) {
-    params.push(fileId);
-    await db.run(`UPDATE files SET ${updates.join(', ')} WHERE id = ?`, ...params);
+  if (req.body.unit_number !== undefined || req.body.unitNumber !== undefined) {
+    const rawUnit = req.body.unit_number !== undefined ? req.body.unit_number : req.body.unitNumber;
+    const parsedUnit = rawUnit === null || rawUnit === '' ? null : Number(rawUnit);
+    updates.push('unit_number = ?');
+    params.push(Number.isFinite(parsedUnit) ? parsedUnit : null);
   }
-
-  const updatedFile = await db.get('SELECT * FROM files WHERE id = ?', fileId);
-  noteSearch.invalidateSearchCache(db);
-  if (updatedFile) {
-    await require('./lib/knowledge-sync').onNoteSaved(db, updatedFile).catch(() => { });
+  if (req.body.resource_category !== undefined || req.body.resourceCategory !== undefined) {
+    const rawCat = String(req.body.resource_category ?? req.body.resourceCategory ?? 'notes').trim().toLowerCase();
+    updates.push('resource_category = ?');
+    params.push(rawCat || 'notes');
   }
-  require('./ai-assistant').invalidateCache(db);
-  res.json({ success: true, file: updatedFile });
-});
-
-app.put(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, res) => {
-  const fileId = req.params.id;
-  const studentId = req.session.studentId;
-  const viewer = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
-  if (!viewer) return res.status(401).json({ message: 'Authentication required' });
-  const isAdmin = viewer.role === 'admin';
-  const isTeacher = viewer.role === 'teacher';
-
-  if (!isAdmin && !isTeacher) {
-    return res.status(403).json({ message: 'Forbidden: Students are not authorized to edit library notes.' });
+  if (req.body.semester !== undefined || req.body.semester_no !== undefined || req.body.semesterNo !== undefined) {
+    const rawSem = req.body.semester_no ?? req.body.semesterNo ?? req.body.semester;
+    const parsedSem = parseSemesterNumber(rawSem);
+    if (req.body.semester !== undefined) {
+      updates.push('semester = ?');
+      params.push(String(req.body.semester).trim());
+    } else if (parsedSem) {
+      updates.push('semester = ?');
+      params.push(`Semester ${parsedSem}`);
+    }
+    if (parsedSem !== null) {
+      updates.push('semester_no = ?');
+      params.push(parsedSem);
+    }
   }
-
-  const file = await db.get('SELECT * FROM files WHERE id = ?', fileId);
-  if (!file) return res.status(404).json({ message: 'File/post not found' });
-
-  if (isTeacher) {
-    const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
-    try {
-      await validateTeacherSubjectAuthorization(db, studentId, file.subject);
-      if (req.body.subject && String(req.body.subject).trim() !== file.subject) {
-        await validateTeacherSubjectAuthorization(db, studentId, String(req.body.subject).trim());
-      }
-    } catch (authErr) {
-      return res.status(authErr.status || 403).json({ message: authErr.message });
+  if (req.body.cohort_id !== undefined || req.body.cohortId !== undefined) {
+    const rawCohort = req.body.cohort_id !== undefined ? req.body.cohort_id : req.body.cohortId;
+    updates.push('cohort_id = ?');
+    params.push(rawCohort === null || rawCohort === '' ? null : String(rawCohort).trim());
+  }
+  if (req.body.audience_scope !== undefined || req.body.audienceScope !== undefined) {
+    const rawScope = String(req.body.audience_scope ?? req.body.audienceScope ?? '').trim();
+    if (rawScope) {
+      updates.push('audience_scope = ?');
+      params.push(rawScope);
+    }
+  }
+  if (req.body.visibility !== undefined) {
+    const rawVis = String(req.body.visibility || '').trim();
+    if (rawVis) {
+      updates.push('visibility = ?');
+      params.push(rawVis);
     }
   }
 
-  const updates = [];
-  const params = [];
-  if (req.body.title !== undefined) {
-    updates.push('title = ?');
-    params.push(String(req.body.title).trim());
-  }
-  if (req.body.subject !== undefined) {
-    updates.push('subject = ?');
-    params.push(String(req.body.subject).trim());
-  }
-  if (req.body.chapter !== undefined) {
-    updates.push('chapter = ?');
-    params.push(String(req.body.chapter).trim());
-  }
-
   if (updates.length > 0) {
     params.push(fileId);
     await db.run(`UPDATE files SET ${updates.join(', ')} WHERE id = ?`, ...params);
@@ -4235,11 +4225,20 @@ app.put(['/api/files/:id', '/api/files/:id/edit'], requireLogin, async (req, res
   const updatedFile = await db.get('SELECT * FROM files WHERE id = ?', fileId);
   noteSearch.invalidateSearchCache(db);
   if (updatedFile) {
+    const { synchronizeDocumentMetadata } = require('./lib/document-ingestion');
+    await synchronizeDocumentMetadata(db, updatedFile, {
+      previousFile: file,
+      contentChanged: Boolean(req.body.contentChanged),
+      rawContent: typeof req.body.rawContent === 'string' ? req.body.rawContent : undefined
+    }).catch(() => {});
     await require('./lib/knowledge-sync').onNoteSaved(db, updatedFile).catch(() => { });
   }
   require('./ai-assistant').invalidateCache(db);
   res.json({ success: true, file: updatedFile });
-});
+}
+
+app.patch(['/api/files/:id', '/api/files/:id/edit'], requireLogin, handleEditLibraryFile);
+app.put(['/api/files/:id', '/api/files/:id/edit'], requireLogin, handleEditLibraryFile);
 
 app.get(['/api/files/:id/download', '/api/files/download/:id'], requireLogin, async (req, res) => {
   const fileId = req.params.id;
@@ -4994,6 +4993,7 @@ app.post('/api/library/subjects/rename', requireLogin, async (req, res) => {
       await validateTeacherSubjectAuthorization(db, callerId, code || oldName);
     }
 
+    const affectedSubjectFiles = await db.all('SELECT * FROM files WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', oldName).catch(() => []);
     if (code) {
       await db.run('UPDATE subjects SET name = ? WHERE UPPER(TRIM(code)) = UPPER(TRIM(?)) OR UPPER(TRIM(id)) = UPPER(TRIM(?))', newName, code, code);
     }
@@ -5006,6 +5006,15 @@ app.post('/api/library/subjects/rename', requireLogin, async (req, res) => {
     try {
       await db.run('UPDATE library_chapter_overrides SET subject = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?))', newName, oldName);
     } catch (_) { }
+
+    const { synchronizeDocumentMetadata } = require('./lib/document-ingestion');
+    for (const oldF of (affectedSubjectFiles || [])) {
+      const newF = { ...oldF, subject: newName };
+      await synchronizeDocumentMetadata(db, newF, { previousFile: oldF, skipContentCheck: true }).catch(() => {});
+      await require('./lib/knowledge-sync').onNoteSaved(db, newF).catch(() => {});
+    }
+    noteSearch.invalidateSearchCache(db);
+    require('./ai-assistant').invalidateCache(db);
 
     res.json({ success: true, oldName, newName, code, message: 'Subject name updated' });
   } catch (err) {
@@ -5137,6 +5146,12 @@ app.post('/api/library/chapters/rename', requireLogin, async (req, res) => {
       await validateTeacherSubjectAuthorization(db, callerId, subjectCode || subject);
     }
 
+    const affectedChapterFiles = await db.all(
+      'SELECT * FROM files WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND (LOWER(TRIM(chapter)) = LOWER(TRIM(?)) OR LOWER(TRIM(chapter)) = LOWER(TRIM(?)))',
+      subject,
+      oldChapter,
+      originalUnitKey
+    ).catch(() => []);
     const result = await db.run(
       'UPDATE files SET chapter = ? WHERE LOWER(TRIM(subject)) = LOWER(TRIM(?)) AND (LOWER(TRIM(chapter)) = LOWER(TRIM(?)) OR LOWER(TRIM(chapter)) = LOWER(TRIM(?)))',
       newChapter,
@@ -5181,6 +5196,15 @@ app.post('/api/library/chapters/rename', requireLogin, async (req, res) => {
     } catch (ovErr) {
       console.warn('Chapter override save warning:', ovErr.message);
     }
+
+    const { synchronizeDocumentMetadata } = require('./lib/document-ingestion');
+    for (const oldF of (affectedChapterFiles || [])) {
+      const newF = { ...oldF, chapter: newChapter };
+      await synchronizeDocumentMetadata(db, newF, { previousFile: oldF, skipContentCheck: true }).catch(() => {});
+      await require('./lib/knowledge-sync').onNoteSaved(db, newF).catch(() => {});
+    }
+    noteSearch.invalidateSearchCache(db);
+    require('./ai-assistant').invalidateCache(db);
 
     res.json({
       success: true,
@@ -5241,8 +5265,11 @@ app.post('/api/library/chapters/delete', requireLogin, async (req, res) => {
       await db.run('DELETE FROM file_likes WHERE fileId = ?', file.id).catch(() => { });
       await db.run('DELETE FROM file_comments WHERE fileId = ?', file.id).catch(() => { });
       await db.run('DELETE FROM files WHERE id = ?', file.id).catch(() => { });
+      await noteSearch.removeNoteIndex(db, file.id).catch(() => { });
       await cleanupDeletedDocument(db, file.id).catch(() => { });
+      await require('./lib/knowledge-sync').onNoteDeleted(db, file.id).catch(() => { });
     }
+    require('./ai-assistant').invalidateCache(db);
 
     // 2. Remove from library_custom_chapters if present
     try {
@@ -6479,13 +6506,24 @@ app.get('/api/kaie/files/:id/intelligence', requireLogin, async (req, res) => {
   try {
     const fileId = String(req.params.id || '').trim();
     const fileRow = await db.get('SELECT * FROM files WHERE id = ?', fileId);
-    if (!fileRow) {
+    if (!fileRow || fileRow.deleted_at || fileRow.hidden_at) {
       return res.status(404).json({ message: 'File not found.' });
     }
     const { getAcademicContext } = require('./lib/academic-context');
-    const { canAccessFile } = require('./lib/kyana-access');
-    const academicContext = await getAcademicContext(db, req).catch(() => null);
-    if (academicContext && !canAccessFile(academicContext, fileRow, { allowCrossSemester: true })) {
+    const { canReadResource } = require('./lib/kyana-access');
+    let academicContext = null;
+    try {
+      academicContext = await getAcademicContext(db, req);
+    } catch (_) {
+      return res.status(503).json({ message: 'Academic authorization context unavailable. Please try again.' });
+    }
+    if (!academicContext || academicContext.dbError) {
+      return res.status(503).json({ message: 'Academic authorization context unavailable. Please try again.' });
+    }
+    if (!academicContext.authenticated) {
+      return res.status(401).json({ message: 'Authentication required.' });
+    }
+    if (!canReadResource(academicContext, fileRow, 'note', { allowCrossSemester: false })) {
       return res.status(403).json({ message: 'You do not have access to this resource.' });
     }
     const topicMetadata = await db.get('SELECT * FROM document_topic_metadata WHERE file_id = ?', fileId);
@@ -6510,11 +6548,11 @@ app.get('/api/kaie/files/:id/intelligence', requireLogin, async (req, res) => {
     });
   } catch (err) {
     console.error('[KAIE File Intelligence GET Error]:', err.message);
-    return res.status(500).json({ message: 'Failed to retrieve file academic intelligence.', error: err.message });
+    return res.status(err.status || 500).json({ message: 'Failed to retrieve file academic intelligence.', error: err.message });
   }
 });
 
-app.get('/api/kaie/chapter-reader-bundle', requireLogin, async (req, res) => {
+app.get(['/api/kaie/chapter-reader-bundle', '/api/kaie/chapter-bundle'], requireLogin, async (req, res) => {
   try {
     const subject = String(req.query.subject || '').trim();
     const subjectCode = String(req.query.subjectCode || req.query.code || '').trim();
@@ -6527,9 +6565,20 @@ app.get('/api/kaie/chapter-reader-bundle', requireLogin, async (req, res) => {
       : [];
 
     const { getAcademicContext } = require('./lib/academic-context');
-    const academicContext = await getAcademicContext(db, req).catch(() => null);
-    const { getChapterReaderBundle } = require('./lib/chapter-tutor-engine');
+    let academicContext = null;
+    try {
+      academicContext = await getAcademicContext(db, req);
+    } catch (_) {
+      return res.status(503).json({ message: 'Academic authorization context unavailable. Please try again.' });
+    }
+    if (!academicContext || academicContext.dbError) {
+      return res.status(503).json({ message: 'Academic authorization context unavailable. Please try again.' });
+    }
+    if (!academicContext.authenticated) {
+      return res.status(401).json({ message: 'Authentication required.' });
+    }
 
+    const { getChapterReaderBundle } = require('./lib/chapter-tutor-engine');
     const bundle = await getChapterReaderBundle(db, {
       subject,
       subjectCode,
@@ -6546,7 +6595,7 @@ app.get('/api/kaie/chapter-reader-bundle', requireLogin, async (req, res) => {
     });
   } catch (err) {
     console.error('[KAIE Chapter Reader Bundle GET Error]:', err.message);
-    return res.status(500).json({ message: 'Failed to load chapter reader bundle.', error: err.message });
+    return res.status(err.status || 500).json({ message: err.message || 'Failed to load chapter reader bundle.', error: err.message });
   }
 });
 

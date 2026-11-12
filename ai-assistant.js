@@ -1289,25 +1289,33 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         let noteChunks = (lessonBundle && Array.isArray(lessonBundle.noteChunks)) ? lessonBundle.noteChunks : [];
         if (noteChunks.length === 0) {
           try {
-            const isStudentCaller = String(academicContext?.role || '').toLowerCase() === 'student';
-            const callerCohortId = academicContext?.cohortId ?? null;
-            const cohortClause = isStudentCaller
-              ? (callerCohortId !== null && callerCohortId !== undefined ? ` AND (f.cohort_id IS NULL OR f.cohort_id = ?)` : ` AND f.cohort_id IS NULL`)
-              : '';
-            const cohortParams = (isStudentCaller && callerCohortId !== null && callerCohortId !== undefined) ? [callerCohortId] : [];
-            noteChunks = await db.all(
-              `SELECT c.clean_content, c.page_start, f.title as file_title
+            const { resourceFilter, canReadResource } = require('./lib/kyana-access');
+            const authCtx = academicContext
+              ? (academicContext.authenticated !== undefined ? academicContext : { ...academicContext, authenticated: true })
+              : null;
+            const access = authCtx
+              ? resourceFilter(authCtx, 'note', 'f', {
+                  requestedSemester: renderedSession.semester_no ?? renderedSession.semesterNo,
+                  allowCrossSemester: true
+                })
+              : { sql: '1=1', params: [] };
+            const rawCandidates = await db.all(
+              `SELECT c.clean_content, c.page_start, f.*, f.title as file_title
                FROM document_chunks c
                JOIN files f ON ${db.isPostgres ? 'CAST(f.id AS TEXT) = CAST(c.file_id AS TEXT)' : '(CAST(f.id AS TEXT) = CAST(c.file_id AS TEXT) OR f.id = CAST(c.file_id AS INTEGER))'}
                WHERE (f.subject LIKE ? OR f.subject LIKE ?)
-                 AND (c.clean_content LIKE ? OR c.section_heading LIKE ?)${cohortClause}
-               LIMIT 3`,
+                 AND (c.clean_content LIKE ? OR c.section_heading LIKE ?)
+                 AND (${access.sql})
+               LIMIT 10`,
               `%${renderedSession.subject}%`,
               `%${renderedSession.subject_code || renderedSession.subject}%`,
               `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`,
               `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`,
-              ...cohortParams
+              ...access.params
             );
+            noteChunks = (rawCandidates || [])
+              .filter((r) => !r.deleted_at && !r.hidden_at && (!authCtx || canReadResource(authCtx, r, 'note', { allowCrossSemester: true })))
+              .slice(0, 3);
           } catch (_) {}
         }
 
@@ -1357,19 +1365,35 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     // Clean any unwanted "This is extracted from..." strings
     studyResultText = studyResultText.replace(/This is extracted from\s+\*\*?[^*]+?\*\*?\s*\([^)]*?\):\s*/gi, '');
 
-    // Strictly course-isolated resource cards: only attach notes from this exact subject!
+    // Strictly course-isolated and authorization-hardened resource cards: only attach authorized notes from this subject
     const activeCourseNotes = [];
     if (renderedSession) {
       try {
-        const matchingFiles = await db.all(
-          `SELECT id, title, originalName, subject, semester_no, chapter
-           FROM files
-           WHERE (subject LIKE ? OR subject LIKE ?)
-             AND (deleted_at IS NULL) AND (hidden_at IS NULL)
-           ORDER BY id DESC LIMIT 2`,
-          `%${renderedSession.subject}%`, `%${renderedSession.subject_code || renderedSession.subject}%`
-        );
-        for (const f of matchingFiles || []) {
+        const { resourceFilter, canReadResource } = require('./lib/kyana-access');
+        const authCtx = academicContext
+          ? (academicContext.authenticated !== undefined ? academicContext : { ...academicContext, authenticated: true })
+          : null;
+        const access = authCtx
+          ? resourceFilter(authCtx, 'note', 'f', {
+              requestedSemester: renderedSession.semester_no ?? renderedSession.semesterNo,
+              allowCrossSemester: true
+            })
+          : { sql: '1=1', params: [] };
+        let matchingFiles = await db.all(
+          `SELECT f.*
+           FROM files f
+           WHERE (f.subject LIKE ? OR f.subject LIKE ?)
+             AND (${access.sql})
+           ORDER BY f.id DESC LIMIT 10`,
+          `%${renderedSession.subject}%`,
+          `%${renderedSession.subject_code || renderedSession.subject}%`,
+          ...access.params
+        ).catch(() => []);
+        const authorizedFiles = (matchingFiles || [])
+          .filter((f) => !f.deleted_at && !f.hidden_at && !['removed', 'hidden'].includes(f.moderation_status))
+          .filter((f) => !authCtx || canReadResource(authCtx, f, 'note', { allowCrossSemester: true }))
+          .slice(0, 2);
+        for (const f of authorizedFiles) {
           activeCourseNotes.push({
             type: 'note',
             id: f.id,

@@ -6370,6 +6370,9 @@ app.get('/api/kaie/course-map', requireLogin, async (req, res) => {
       unitNumber: Number.isInteger(unitNumber) && unitNumber > 0 ? unitNumber : null,
       academicContext
     });
+    if (!courseMap) {
+      return res.status(404).json({ message: 'Course map not found for the specified subject.' });
+    }
     return res.json({ success: true, courseMap });
   } catch (err) {
     console.error('[KAIE Course Map GET Error]:', err.message);
@@ -6390,6 +6393,14 @@ app.post('/api/kaie/course-map/rebuild', requireLogin, async (req, res) => {
       return res.status(400).json({ message: 'subject is required to rebuild the course map.' });
     }
     const semesterNo = req.body?.semester_no || req.body?.semesterNo || req.body?.semester || null;
+    if (!isAdmin && viewer?.role === 'teacher') {
+      const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+      try {
+        await validateTeacherSubjectAuthorization(db, studentId, subject, semesterNo);
+      } catch (authErr) {
+        return res.status(authErr.status || 403).json({ message: authErr.message });
+      }
+    }
     const rawUnit = req.body?.unit_number ?? req.body?.unitNumber ?? null;
     const unitNumber = rawUnit !== null && rawUnit !== '' ? Number.parseInt(rawUnit, 10) : null;
     const { syncCourseMap } = require('./lib/kaie-course-map');
@@ -6435,6 +6446,17 @@ app.post('/api/kaie/review-queue/:id/resolve', requireLogin, async (req, res) =>
     const viewer = await db.get('SELECT id, role FROM students WHERE studentId = ?', studentId);
     if (!isAdmin && (!viewer || (viewer.role !== 'teacher' && viewer.role !== 'admin'))) {
       return res.status(403).json({ message: 'Only teachers or administrators can resolve KAIE review items.' });
+    }
+    if (!isAdmin && viewer?.role === 'teacher') {
+      const existingReview = await db.get('SELECT subject, semester_no FROM kaie_teacher_review_queue WHERE id = ?', String(req.params.id));
+      if (existingReview && existingReview.subject) {
+        const { validateTeacherSubjectAuthorization } = require('./lib/teacher-service');
+        try {
+          await validateTeacherSubjectAuthorization(db, studentId, existingReview.subject, existingReview.semester_no ?? existingReview.semesterNo);
+        } catch (authErr) {
+          return res.status(authErr.status || 403).json({ message: authErr.message });
+        }
+      }
     }
     const { resolveTeacherReviewItem } = require('./lib/kaie-course-map');
     const resolvedItem = await resolveTeacherReviewItem(db, req.params.id, {
@@ -6489,6 +6511,42 @@ app.get('/api/kaie/files/:id/intelligence', requireLogin, async (req, res) => {
   } catch (err) {
     console.error('[KAIE File Intelligence GET Error]:', err.message);
     return res.status(500).json({ message: 'Failed to retrieve file academic intelligence.', error: err.message });
+  }
+});
+
+app.get('/api/kaie/chapter-reader-bundle', requireLogin, async (req, res) => {
+  try {
+    const subject = String(req.query.subject || '').trim();
+    const subjectCode = String(req.query.subjectCode || req.query.code || '').trim();
+    const semesterNo = req.query.semesterNo || req.query.semester_no || req.query.semester || null;
+    const unitNumber = req.query.unitNumber || req.query.unit_number || req.query.unit || null;
+    const chapterTitle = String(req.query.chapterTitle || req.query.chapter || '').trim();
+    const rawFileIds = String(req.query.fileIds || '').trim();
+    const fileIds = rawFileIds
+      ? rawFileIds.split(',').map((id) => Number.parseInt(id.trim(), 10)).filter((id) => Number.isInteger(id) && id > 0)
+      : [];
+
+    const { getAcademicContext } = require('./lib/academic-context');
+    const academicContext = await getAcademicContext(db, req).catch(() => null);
+    const { getChapterReaderBundle } = require('./lib/chapter-tutor-engine');
+
+    const bundle = await getChapterReaderBundle(db, {
+      subject,
+      subjectCode,
+      semesterNo,
+      unitNumber,
+      chapterTitle,
+      fileIds,
+      academicContext
+    });
+
+    return res.json({
+      success: true,
+      bundle
+    });
+  } catch (err) {
+    console.error('[KAIE Chapter Reader Bundle GET Error]:', err.message);
+    return res.status(500).json({ message: 'Failed to load chapter reader bundle.', error: err.message });
   }
 });
 

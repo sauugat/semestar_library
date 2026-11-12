@@ -3334,12 +3334,18 @@
               <img id="previewImage" src="" alt="Study Material">
             </div>
           </div>
+
+          <!-- Continuous Multi-File Chapter Reader Wrap (Left Pane) -->
+          <div class="continuous-chapter-wrap" id="continuousChapterWrap" style="display:none;">
+            <div class="continuous-chapter-filebar" id="continuousChapterFileBar"></div>
+            <div class="continuous-chapter-stream" id="continuousChapterStream"></div>
+          </div>
         </div>
       </div>
 
-      <!-- Right Course Units & Notes Drawer Sheet -->
+      <!-- Right Course Units & Notes Drawer Sheet (Swaps to Kyana AI Chapter Chatbot when Ask Kyana AI is active) -->
       <div class="drawer-sheet" id="drawerSheet">
-        <div class="drawer-header">
+        <div class="drawer-header" id="drawerDefaultHeader">
           <button class="drawer-close" id="drawerClose" title="Close Drawer">&times;</button>
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
             <span class="course-code-badge" id="dCourseCode">BIT101</span>
@@ -3367,6 +3373,49 @@
           <button type="button" id="dAddChapterBtn" class="btn-file-action btn-file-view" style="display:none; padding:8px 16px; font-size:12.5px; font-weight:700; border-radius:8px; cursor:pointer;" title="Add a new chapter/unit to this subject">
             <span>+ Add Chapter</span>
           </button>
+        </div>
+
+        <!-- Right Pane: Chapter-Scoped Kyana AI Tutor -->
+        <div class="chapter-kyana-chat-view" id="chapterKyanaChatView" style="display:none;">
+          <div class="chapter-kyana-top">
+            <div class="chapter-kyana-top-row">
+              <button type="button" class="chapter-kyana-back-btn" onclick="closeChapterKyanaWorkspace(false)" title="Back to Chapters">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                <span>All Chapters</span>
+              </button>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" class="chapter-kyana-teach-btn" id="chapterKyanaTeachBtn" onclick="triggerTeachMeChapter()" title="Teach me this entire chapter step-by-step">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                  <span>Teach Me This Chapter</span>
+                </button>
+                <button type="button" class="drawer-close" style="position:static; width:28px; height:28px; font-size:18px;" onclick="document.getElementById('drawerClose').click()" title="Close Workspace">&times;</button>
+              </div>
+            </div>
+            <div class="chapter-kyana-meta">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span class="chapter-kyana-badge">KYANA AI TUTOR</span>
+                <span class="chapter-kyana-context-pill" id="chapterKyanaContextPill">0 PDFs &middot; Syllabus Grounded</span>
+              </div>
+              <h3 class="chapter-kyana-title" id="chapterKyanaTitle">Chapter Study Tutor</h3>
+              <p class="chapter-kyana-sub" id="chapterKyanaSub">Ask any question from the notes on the left or click "Teach Me This Chapter"</p>
+            </div>
+          </div>
+
+          <div class="chapter-kyana-messages" id="chapterKyanaMessages"></div>
+
+          <div class="chapter-kyana-quick-bar" id="chapterKyanaQuickBar">
+            <button type="button" class="chapter-kyana-chip" onclick="sendChapterKyanaQuickPrompt('Teach me this chapter step by step')">Teach me this chapter</button>
+            <button type="button" class="chapter-kyana-chip" onclick="sendChapterKyanaQuickPrompt('Summarize all the key points in these chapter notes')">Summarize notes</button>
+            <button type="button" class="chapter-kyana-chip" onclick="sendChapterKyanaQuickPrompt('I do not understand the last concept, give me a simple example')">Give me an example</button>
+            <button type="button" class="chapter-kyana-chip" onclick="sendChapterKyanaQuickPrompt('What exam questions can come from this chapter?')">Exam questions</button>
+          </div>
+
+          <form class="chapter-kyana-input-bar" id="chapterKyanaForm" onsubmit="return handleChapterKyanaSubmit(event)">
+            <textarea id="chapterKyanaInput" class="chapter-kyana-input" rows="1" placeholder="Ask anything from this chapter's PDFs or say 'Teach me this chapter'..." onkeydown="handleChapterKyanaKeydown(event)"></textarea>
+            <button type="submit" id="chapterKyanaSendBtn" class="chapter-kyana-send-btn" title="Send to Kyana AI">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </form>
         </div>
       </div>
     </div>
@@ -4186,6 +4235,7 @@
       // Body Viewers (Iframe for PDF/PPTX/DOC, Img for pictures)
       const emptyState = document.getElementById('previewEmptyState');
       const frameWrap = document.getElementById('previewFrameWrap');
+      const continuousWrap = document.getElementById('continuousChapterWrap');
       const loadingOverlay = document.getElementById('previewLoadingOverlay');
       const iframe = document.getElementById('previewIframe');
       const imgWrap = document.getElementById('previewImageWrap');
@@ -4193,6 +4243,7 @@
       const previewPane = document.getElementById('drawerPreviewPane');
 
       if (emptyState) emptyState.style.display = 'none';
+      if (continuousWrap) continuousWrap.style.display = 'none';
       if (frameWrap) frameWrap.style.display = 'flex';
       if (loadingOverlay) loadingOverlay.classList.remove('hidden');
 
@@ -4297,6 +4348,7 @@
 
       const emptyState = document.getElementById('previewEmptyState');
       const frameWrap = document.getElementById('previewFrameWrap');
+      const continuousWrap = document.getElementById('continuousChapterWrap');
       const iframe = document.getElementById('previewIframe');
       const img = document.getElementById('previewImage');
       const titleEl = document.getElementById('previewFileTitle');
@@ -4306,7 +4358,11 @@
       if (iframe) iframe.src = 'about:blank';
       if (img) img.src = '';
       if (frameWrap) frameWrap.style.display = 'none';
+      if (continuousWrap) continuousWrap.style.display = 'none';
       if (emptyState) emptyState.style.display = 'flex';
+      if (typeof window.closeChapterKyanaWorkspace === 'function') {
+        window.closeChapterKyanaWorkspace(true);
+      }
 
       if (badgeEl) {
         badgeEl.textContent = 'READER';
@@ -4812,7 +4868,13 @@
                       ${ch.unitNum ? `Unit ${ch.unitNum}: ` : ''}${escapeHtml(ch.unitTitle)} ${ch.hrs ? `<span style="font-size:12px; font-weight:500; color:var(--text-muted);">(${escapeHtml(ch.hrs)})</span>` : ''}
                     </p>
                   </div>
-                  <span class="open-label" style="font-size:12.5px; font-weight:700; color:var(--accent); white-space:nowrap;">Open Unit &rarr;</span>
+                  <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                    <button type="button" class="ask-kyana-chapter-btn" onclick="openDrawerAndAskKyana('${escapeJs(ch.courseTitle)}', '${escapeJs(ch.courseCode || '')}', '${escapeJs(ch.rawSemester || '')}', '${escapeJs(String(ch.unitNum || ''))}', '${escapeJs(ch.unitNum ? `Unit ${ch.unitNum}: ${ch.unitTitle}` : ch.unitTitle)}', event)" title="Open all notes of this chapter on the left and ask Kyana AI on the right">
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg>
+                      <span>Ask Kyana AI</span>
+                    </button>
+                    <span class="open-label" style="font-size:12.5px; font-weight:700; color:var(--accent); white-space:nowrap;">Open Unit &rarr;</span>
+                  </div>
                 </div>
               `).join('')}
             </div>
@@ -5392,6 +5454,7 @@
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>${escapeHtml(displayUnitLabel)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
+                ${renderAskKyanaChapterBtnHtml(course.title, course.code, course.rawSemester, u.num, displayUnitLabel, uFiles.map(f => f.id))}
                 ${canManageThisCourse ? renderChapterThreeDotMenuHtml(course.title, course.code, displayUnitLabel, originalUnitLabel, uFiles.map(f => f.id)) : ''}
               </div>
             </div>
@@ -5465,6 +5528,7 @@
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>${escapeHtml(chapName)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
+                ${renderAskKyanaChapterBtnHtml(course.title, course.code, course.rawSemester, '', chapName, cFiles.map(f => f.id))}
                 ${canManageThisCourse ? renderChapterThreeDotMenuHtml(course.title, course.code, chapName, chapName, cFiles.map(f => f.id)) : ''}
               </div>
             </div>
@@ -5500,6 +5564,7 @@
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>${escapeHtml(labDisplayLabel)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
+                ${renderAskKyanaChapterBtnHtml(course.title, course.code, course.rawSemester, '', labDisplayLabel, labFiles.map(f => f.id))}
                 ${canManageThisCourse ? renderChapterThreeDotMenuHtml(course.title, course.code, labDisplayLabel, labOrigKey, labFiles.map(f => f.id)) : ''}
               </div>
             </div>
@@ -5528,6 +5593,7 @@
             <div class="clean-unit-head" onclick="this.parentElement.classList.toggle('open')">
               <span>${escapeHtml(genDisplayLabel)}</span>
               <div style="display:flex; align-items:center; gap:8px;">
+                ${renderAskKyanaChapterBtnHtml(course.title, course.code, course.rawSemester, '', genDisplayLabel, general.map(f => f.id))}
                 ${canManageThisCourse ? renderChapterThreeDotMenuHtml(course.title, course.code, genDisplayLabel, genOrigKey, general.map(f => f.id)) : ''}
               </div>
             </div>
@@ -6904,6 +6970,960 @@
         }
       }
     });
+
+    // =========================================================================
+    // CONTINUOUS CHAPTER NOTES STREAM (LEFT PANE) + KYANA AI CHAPTER TUTOR (RIGHT PANE)
+    // =========================================================================
+    (function injectChapterKyanaStyles() {
+      const style = document.createElement('style');
+      style.textContent = `
+        .ask-kyana-chapter-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 4px 10px;
+          border-radius: 999px;
+          border: 1px solid rgba(17, 17, 17, 0.16);
+          background: #111111;
+          color: #ffffff;
+          font-size: 11.5px;
+          font-weight: 700;
+          letter-spacing: 0.01em;
+          cursor: pointer;
+          transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+          white-space: nowrap;
+        }
+        .ask-kyana-chapter-btn:hover {
+          background: #27272a;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+        .continuous-chapter-wrap {
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          background: #f4f4f5;
+        }
+        .continuous-chapter-filebar {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 14px;
+          background: #ffffff;
+          border-bottom: 1px solid var(--border, #e4e4e7);
+          overflow-x: auto;
+          flex-shrink: 0;
+        }
+        .continuous-file-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 5px 11px;
+          border-radius: 999px;
+          border: 1px solid #e4e4e7;
+          background: #fafafa;
+          color: #18181b;
+          font-size: 11.5px;
+          font-weight: 600;
+          cursor: pointer;
+          white-space: nowrap;
+          transition: all 0.15s ease;
+        }
+        .continuous-file-pill:hover, .continuous-file-pill.active {
+          background: #111111;
+          color: #ffffff;
+          border-color: #111111;
+        }
+        .continuous-chapter-stream {
+          flex: 1;
+          overflow-y: auto;
+          padding: 18px 20px 48px;
+          display: flex;
+          flex-direction: column;
+          gap: 28px;
+          scroll-behavior: smooth;
+        }
+        .continuous-doc-section {
+          background: #ffffff;
+          border: 1px solid #e4e4e7;
+          border-radius: 14px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+          overflow: hidden;
+        }
+        .continuous-doc-header {
+          position: sticky;
+          top: 0;
+          z-index: 5;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 16px;
+          background: rgba(255, 255, 255, 0.96);
+          backdrop-filter: blur(8px);
+          border-bottom: 1px solid #e4e4e7;
+        }
+        .continuous-doc-seq {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 3px 8px;
+          border-radius: 6px;
+          background: #111111;
+          color: #ffffff;
+          font-size: 10.5px;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .continuous-doc-pages {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 16px;
+          padding: 18px 14px;
+          background: #f8fafc;
+        }
+        .continuous-pdf-page-card {
+          width: 100%;
+          max-width: 860px;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .continuous-pdf-page-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 6px 12px;
+          background: #f8fafc;
+          border-bottom: 1px solid #f1f5f9;
+          font-size: 11px;
+          font-weight: 600;
+          color: #64748b;
+        }
+        .continuous-pdf-canvas-wrap {
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          background: #ffffff;
+          padding: 8px;
+        }
+        .continuous-pdf-canvas-wrap canvas {
+          max-width: 100%;
+          height: auto !important;
+          display: block;
+        }
+        .continuous-extracted-page-text {
+          padding: 14px 18px;
+          font-size: 13.5px;
+          line-height: 1.65;
+          color: #1e293b;
+          white-space: pre-wrap;
+          border-top: 1px dashed #e2e8f0;
+          background: #fcfcfd;
+        }
+        .continuous-doc-connector {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          color: #71717a;
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          padding: 4px 0;
+        }
+        .continuous-doc-connector::before,
+        .continuous-doc-connector::after {
+          content: '';
+          height: 1px;
+          flex: 1;
+          background: #d4d4d8;
+        }
+        /* Right Pane: Chapter Kyana AI Tutor */
+        .drawer-sheet.kyana-chat-mode #drawerDefaultHeader,
+        .drawer-sheet.kyana-chat-mode #drawerBody,
+        .drawer-sheet.kyana-chat-mode #dAddChapterFooter {
+          display: none !important;
+        }
+        .drawer-sheet.kyana-chat-mode #chapterKyanaChatView {
+          display: flex !important;
+        }
+        .chapter-kyana-chat-view {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          width: 100%;
+          background: #ffffff;
+          overflow: hidden;
+        }
+        .chapter-kyana-top {
+          padding: 14px 16px 12px;
+          border-bottom: 1px solid #e4e4e7;
+          background: #fafafa;
+          flex-shrink: 0;
+        }
+        .chapter-kyana-top-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 10px;
+        }
+        .chapter-kyana-back-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 5px 10px;
+          border-radius: 8px;
+          border: 1px solid #e4e4e7;
+          background: #ffffff;
+          color: #18181b;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .chapter-kyana-back-btn:hover {
+          background: #f4f4f5;
+        }
+        .chapter-kyana-teach-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 6px 11px;
+          border-radius: 8px;
+          border: 1px solid #111111;
+          background: #111111;
+          color: #ffffff;
+          font-size: 11.5px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.15s ease;
+        }
+        .chapter-kyana-teach-btn:hover {
+          background: #27272a;
+        }
+        .chapter-kyana-badge {
+          display: inline-block;
+          padding: 2px 7px;
+          border-radius: 5px;
+          background: #111111;
+          color: #ffffff;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.05em;
+        }
+        .chapter-kyana-context-pill {
+          font-size: 11px;
+          font-weight: 600;
+          color: #52525b;
+          background: #f4f4f5;
+          border: 1px solid #e4e4e7;
+          padding: 2px 8px;
+          border-radius: 999px;
+        }
+        .chapter-kyana-title {
+          font-size: 15px;
+          font-weight: 800;
+          color: #111111;
+          margin: 6px 0 2px;
+          line-height: 1.3;
+        }
+        .chapter-kyana-sub {
+          font-size: 11.5px;
+          color: #71717a;
+          margin: 0;
+        }
+        .chapter-kyana-messages {
+          flex: 1;
+          overflow-y: auto;
+          padding: 14px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          background: #ffffff;
+        }
+        .chapter-kyana-msg {
+          max-width: 92%;
+          padding: 11px 14px;
+          border-radius: 13px;
+          font-size: 13.5px;
+          line-height: 1.6;
+          word-break: break-word;
+        }
+        .chapter-kyana-msg.user {
+          align-self: flex-end;
+          background: #111111;
+          color: #ffffff;
+          border-bottom-right-radius: 4px;
+        }
+        .chapter-kyana-msg.assistant {
+          align-self: flex-start;
+          background: #f8fafc;
+          color: #0f172a;
+          border: 1px solid #e2e8f0;
+          border-bottom-left-radius: 4px;
+        }
+        .chapter-kyana-msg.assistant p {
+          margin: 0 0 8px;
+        }
+        .chapter-kyana-msg.assistant p:last-child {
+          margin-bottom: 0;
+        }
+        .chapter-kyana-msg.assistant pre {
+          background: #0f172a;
+          color: #f8fafc;
+          padding: 10px 12px;
+          border-radius: 8px;
+          overflow-x: auto;
+          font-size: 12px;
+          margin: 8px 0;
+        }
+        .chapter-kyana-source-tag {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          margin-bottom: 6px;
+          padding: 2px 8px;
+          border-radius: 6px;
+          font-size: 10.5px;
+          font-weight: 700;
+          background: #eef2ff;
+          color: #3730a3;
+        }
+        .chapter-kyana-source-tag.fallback {
+          background: #fef3c7;
+          color: #92400e;
+        }
+        .chapter-kyana-quick-bar {
+          display: flex;
+          gap: 6px;
+          padding: 8px 14px;
+          overflow-x: auto;
+          border-top: 1px solid #f4f4f5;
+          background: #fafafa;
+          flex-shrink: 0;
+        }
+        .chapter-kyana-chip {
+          padding: 5px 10px;
+          border-radius: 999px;
+          border: 1px solid #e4e4e7;
+          background: #ffffff;
+          color: #27272a;
+          font-size: 11.5px;
+          font-weight: 600;
+          white-space: nowrap;
+          cursor: pointer;
+          transition: all 0.12s ease;
+        }
+        .chapter-kyana-chip:hover {
+          background: #111111;
+          color: #ffffff;
+          border-color: #111111;
+        }
+        .chapter-kyana-input-bar {
+          display: flex;
+          align-items: flex-end;
+          gap: 8px;
+          padding: 10px 14px 12px;
+          border-top: 1px solid #e4e4e7;
+          background: #ffffff;
+          flex-shrink: 0;
+        }
+        .chapter-kyana-input {
+          flex: 1;
+          resize: none;
+          border: 1px solid #d4d4d8;
+          border-radius: 10px;
+          padding: 9px 12px;
+          font-size: 13px;
+          font-family: inherit;
+          line-height: 1.4;
+          max-height: 110px;
+          outline: none;
+        }
+        .chapter-kyana-input:focus {
+          border-color: #111111;
+        }
+        .chapter-kyana-send-btn {
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
+          border: none;
+          background: #111111;
+          color: #ffffff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          flex-shrink: 0;
+        }
+        .chapter-kyana-send-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      `;
+      document.head.appendChild(style);
+    })();
+
+    let ACTIVE_CHAPTER_KYANA_STATE = {
+      subject: '',
+      subjectCode: '',
+      semesterNo: null,
+      unitNumber: null,
+      chapterTitle: '',
+      fileIds: [],
+      bundle: null,
+      conversationId: null,
+      history: [],
+      sending: false
+    };
+
+    let PDFJS_LOADING_PROMISE = null;
+    function ensurePdfJsLoaded() {
+      if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+      if (PDFJS_LOADING_PROMISE) return PDFJS_LOADING_PROMISE;
+      PDFJS_LOADING_PROMISE = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.onload = () => {
+          if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            resolve(window.pdfjsLib);
+          } else {
+            reject(new Error('PDF.js failed to initialize'));
+          }
+        };
+        s.onerror = () => reject(new Error('Could not load PDF.js from CDN'));
+        document.head.appendChild(s);
+      });
+      return PDFJS_LOADING_PROMISE;
+    }
+
+    window.renderAskKyanaChapterBtnHtml = function (courseTitle, courseCode, rawSemester, unitNum, chapterLabel, fileIds) {
+      const idsStr = Array.isArray(fileIds) ? fileIds.join(',') : '';
+      return `
+        <button type="button" class="ask-kyana-chapter-btn" onclick="openChapterKyanaWorkspace('${escapeJs(courseTitle || '')}', '${escapeJs(courseCode || '')}', '${escapeJs(String(rawSemester || ''))}', '${escapeJs(String(unitNum || ''))}', '${escapeJs(chapterLabel || '')}', [${idsStr}], event)" title="Open all chapter notes continuously on the left and ask Kyana AI on the right">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z"/></svg>
+          <span>Ask Kyana AI</span>
+        </button>
+      `;
+    };
+
+    window.openDrawerAndAskKyana = async function (courseTitle, courseCode, rawSemester, unitNum, chapterLabel, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      await openDrawer(courseTitle, unitNum || null, null, chapterLabel || null);
+      const matchingFiles = (CURRENT_DRAWER_FILES || []).filter(f => {
+        if (!f.chapter) return false;
+        const ch = f.chapter.toLowerCase().trim();
+        const target = (chapterLabel || '').toLowerCase().trim();
+        return ch === target || (unitNum && ch.includes(`unit ${unitNum}`));
+      });
+      await window.openChapterKyanaWorkspace(
+        courseTitle,
+        courseCode,
+        rawSemester,
+        unitNum,
+        chapterLabel,
+        matchingFiles.map(f => f.id),
+        null
+      );
+    };
+
+    window.openChapterKyanaWorkspace = async function (courseTitle, courseCode, rawSemester, unitNum, chapterLabel, fileIds, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+
+      if (!window.IS_AUTHENTICATED) {
+        const toast = document.getElementById('minimalAuthToast');
+        if (toast) {
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+        if (typeof showAuthModal === 'function') showAuthModal(true);
+        return;
+      }
+
+      const semMatch = String(rawSemester || '').match(/\d+/);
+      const semesterNo = semMatch ? parseInt(semMatch[0], 10) : null;
+      const parsedUnit = unitNum && !isNaN(parseInt(unitNum, 10)) ? parseInt(unitNum, 10) : null;
+      const cleanFileIds = Array.isArray(fileIds) ? fileIds.map(id => parseInt(id, 10)).filter(Boolean) : [];
+
+      ACTIVE_CHAPTER_KYANA_STATE = {
+        subject: courseTitle || (CURRENT_DRAWER_COURSE && CURRENT_DRAWER_COURSE.title) || '',
+        subjectCode: courseCode || (CURRENT_DRAWER_COURSE && CURRENT_DRAWER_COURSE.code) || '',
+        semesterNo,
+        unitNumber: parsedUnit,
+        chapterTitle: chapterLabel || (parsedUnit ? `Unit ${parsedUnit}` : 'Chapter Notes'),
+        fileIds: cleanFileIds,
+        bundle: null,
+        conversationId: `chap_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        history: [],
+        sending: false
+      };
+
+      // Activate split-screen workspace (Left: Continuous Notes Stream, Right: Kyana AI Tutor)
+      const workspace = document.getElementById('drawerWorkspace');
+      const drawerSheet = document.getElementById('drawerSheet');
+      const emptyState = document.getElementById('previewEmptyState');
+      const frameWrap = document.getElementById('previewFrameWrap');
+      const continuousWrap = document.getElementById('continuousChapterWrap');
+      const fileBar = document.getElementById('continuousChapterFileBar');
+      const streamEl = document.getElementById('continuousChapterStream');
+
+      if (workspace) workspace.classList.add('reading-file');
+      if (drawerSheet) drawerSheet.classList.add('kyana-chat-mode');
+      if (emptyState) emptyState.style.display = 'none';
+      if (frameWrap) frameWrap.style.display = 'none';
+      if (continuousWrap) continuousWrap.style.display = 'flex';
+
+      // Update Left Preview Header
+      const badgeEl = document.getElementById('previewFileBadge');
+      const titleEl = document.getElementById('previewFileTitle');
+      const subEl = document.getElementById('previewFileSub');
+      if (badgeEl) {
+        badgeEl.textContent = 'CHAPTER STREAM';
+        badgeEl.className = 'preview-badge pdf';
+      }
+      if (titleEl) {
+        titleEl.textContent = `${ACTIVE_CHAPTER_KYANA_STATE.chapterTitle} — Continuous Notes`;
+      }
+      if (subEl) {
+        subEl.textContent = `${ACTIVE_CHAPTER_KYANA_STATE.subjectCode || ''} · ${ACTIVE_CHAPTER_KYANA_STATE.subject} (Scroll continuously through all chapter PDFs & notes)`;
+      }
+
+      // Update Right Kyana AI Header
+      const kyanaTitle = document.getElementById('chapterKyanaTitle');
+      const kyanaSub = document.getElementById('chapterKyanaSub');
+      const kyanaPill = document.getElementById('chapterKyanaContextPill');
+      if (kyanaTitle) kyanaTitle.textContent = ACTIVE_CHAPTER_KYANA_STATE.chapterTitle;
+      if (kyanaSub) kyanaSub.textContent = `${ACTIVE_CHAPTER_KYANA_STATE.subjectCode || ''} ${ACTIVE_CHAPTER_KYANA_STATE.subject} · Grounded in chapter PDFs & syllabus`;
+      if (kyanaPill) kyanaPill.textContent = `Loading chapter PDFs & syllabus…`;
+
+      if (fileBar) fileBar.innerHTML = `<span style="font-size:12px; color:#71717a;">Loading chapter files in continuous scroll…</span>`;
+      if (streamEl) {
+        streamEl.innerHTML = `
+          <div class="loading-container" style="padding:48px 16px;">
+            <div class="loading-spinner" style="width:28px; height:28px; border-width:2.5px; margin-bottom:10px;"></div>
+            <p>Preparing continuous chapter reader (stacking all PDFs & notes in sequence)…</p>
+          </div>
+        `;
+      }
+
+      // Fetch the chapter reader bundle from backend
+      try {
+        const params = new URLSearchParams({
+          subject: ACTIVE_CHAPTER_KYANA_STATE.subject,
+          subjectCode: ACTIVE_CHAPTER_KYANA_STATE.subjectCode,
+          semesterNo: ACTIVE_CHAPTER_KYANA_STATE.semesterNo || '',
+          unitNumber: ACTIVE_CHAPTER_KYANA_STATE.unitNumber || '',
+          chapterTitle: ACTIVE_CHAPTER_KYANA_STATE.chapterTitle,
+          fileIds: ACTIVE_CHAPTER_KYANA_STATE.fileIds.join(',')
+        });
+        const headers = { 'Accept': 'application/json' };
+        if (window.SemesterAuth && typeof window.SemesterAuth.getAuthHeaders === 'function') {
+          Object.assign(headers, window.SemesterAuth.getAuthHeaders());
+        }
+        const resp = await fetch(`/api/kaie/chapter-reader-bundle?${params.toString()}`, {
+          headers,
+          credentials: 'include'
+        });
+        const data = await resp.json();
+        const bundle = (data && data.bundle) ? data.bundle : {
+          files: [],
+          syllabusTopics: [],
+          unitTitle: ACTIVE_CHAPTER_KYANA_STATE.chapterTitle
+        };
+        ACTIVE_CHAPTER_KYANA_STATE.bundle = bundle;
+        if (Array.isArray(bundle.files) && bundle.files.length > 0 && ACTIVE_CHAPTER_KYANA_STATE.fileIds.length === 0) {
+          ACTIVE_CHAPTER_KYANA_STATE.fileIds = bundle.files.map(f => f.id);
+        }
+
+        const fileCount = (bundle.files || []).length;
+        const topicCount = (bundle.syllabusTopics || []).length;
+        if (kyanaPill) {
+          kyanaPill.textContent = `${fileCount} Note${fileCount === 1 ? '' : 's'} · ${topicCount || 'Official'} Syllabus Topics`;
+        }
+
+        renderChapterKyanaWelcome(bundle);
+        await renderContinuousChapterStream(bundle);
+      } catch (err) {
+        console.warn('[Chapter Kyana Bundle Error]:', err);
+        if (kyanaPill) kyanaPill.textContent = `Syllabus + AI Knowledge Active`;
+        renderChapterKyanaWelcome({ files: [], syllabusTopics: [] });
+        if (streamEl) {
+          streamEl.innerHTML = `
+            <div class="continuous-doc-section" style="padding:24px; text-align:center;">
+              <h4 style="margin:0 0 6px; font-size:15px;">Could not load chapter stream</h4>
+              <p style="margin:0; font-size:13px; color:#71717a;">You can still ask Kyana AI any question on the right using the official syllabus and academic knowledge.</p>
+            </div>
+          `;
+        }
+      }
+    };
+
+    window.closeChapterKyanaWorkspace = function (keepReader = false) {
+      const drawerSheet = document.getElementById('drawerSheet');
+      if (drawerSheet) drawerSheet.classList.remove('kyana-chat-mode');
+      if (!keepReader) {
+        const continuousWrap = document.getElementById('continuousChapterWrap');
+        const emptyState = document.getElementById('previewEmptyState');
+        const workspace = document.getElementById('drawerWorkspace');
+        if (continuousWrap) continuousWrap.style.display = 'none';
+        if (emptyState) emptyState.style.display = 'flex';
+        if (workspace) workspace.classList.remove('reading-file');
+      }
+    };
+
+    async function renderContinuousChapterStream(bundle) {
+      const fileBar = document.getElementById('continuousChapterFileBar');
+      const streamEl = document.getElementById('continuousChapterStream');
+      if (!streamEl || !fileBar) return;
+
+      const files = Array.isArray(bundle && bundle.files) ? bundle.files : [];
+      const syllabusTopics = Array.isArray(bundle && bundle.syllabusTopics) ? bundle.syllabusTopics : [];
+
+      if (files.length === 0) {
+        fileBar.innerHTML = `<span class="continuous-file-pill active">Official Syllabus Overview</span>`;
+        streamEl.innerHTML = `
+          <div class="continuous-doc-section" style="padding:24px;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+              <span class="continuous-doc-seq">SYLLABUS</span>
+              <h4 style="margin:0; font-size:15px; font-weight:800;">${escapeHtml(ACTIVE_CHAPTER_KYANA_STATE.chapterTitle)}</h4>
+            </div>
+            <p style="font-size:13px; color:#52525b; margin:0 0 14px;">
+              No teacher PDFs have been uploaded to this chapter yet. Below are the official syllabus subtopics for this chapter — Kyana AI on the right is ready to teach or answer questions on any of them:
+            </p>
+            ${syllabusTopics.length ? `
+              <ol style="margin:0; padding-left:20px; font-size:13.5px; line-height:1.7; color:#18181b;">
+                ${syllabusTopics.map(t => `<li><strong>${escapeHtml(t.subtopicTitle || t.unitTitle || '')}</strong></li>`).join('')}
+              </ol>
+            ` : `<p style="font-size:13px; color:#71717a;">Ask Kyana AI on the right to start learning this chapter.</p>`}
+          </div>
+        `;
+        return;
+      }
+
+      // Render top jump-bar for all files in the chapter
+      fileBar.innerHTML = files.map((file, idx) => `
+        <button type="button" class="continuous-file-pill ${idx === 0 ? 'active' : ''}" data-jump-file="${file.id}" onclick="scrollToContinuousDoc(${file.id}, this)">
+          <span>#${idx + 1}</span>
+          <span>${escapeHtml(file.title || file.originalName || `Note ${idx + 1}`)}</span>
+        </button>
+      `).join('');
+
+      // Build continuous vertical sections: 1st PDF -> connector -> 2nd PDF -> connector -> 3rd PDF...
+      let html = '';
+      files.forEach((file, idx) => {
+        const rawViewUrl = file.viewUrl || `/api/files/${file.id}/view`;
+        const viewUrl = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
+          ? window.SemesterAuth.attachAuthTokenToUrl(rawViewUrl)
+          : rawViewUrl;
+        const rawDlUrl = file.downloadUrl || `/api/files/${file.id}/download`;
+        const dlUrl = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
+          ? window.SemesterAuth.attachAuthTokenToUrl(rawDlUrl)
+          : rawDlUrl;
+
+        html += `
+          <section class="continuous-doc-section" id="continuousDoc_${file.id}" data-doc-index="${idx}">
+            <div class="continuous-doc-header">
+              <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                <span class="continuous-doc-seq">NOTE ${idx + 1} OF ${files.length}</span>
+                <div style="min-width:0;">
+                  <h4 style="margin:0; font-size:14px; font-weight:800; color:#111111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    ${escapeHtml(file.title || file.originalName || `Chapter Note ${idx + 1}`)}
+                  </h4>
+                  <p style="margin:0; font-size:11px; color:#71717a;">
+                    ${escapeHtml(file.chapter || ACTIVE_CHAPTER_KYANA_STATE.chapterTitle)} ${file.pageCount ? `&middot; ${file.pageCount} pages` : ''}
+                  </p>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                <a href="${viewUrl}" target="_blank" class="preview-action-btn" style="font-size:11px; padding:4px 9px;">Open Tab</a>
+                <a href="${dlUrl}" download class="preview-action-btn primary" style="font-size:11px; padding:4px 9px;">Download</a>
+              </div>
+            </div>
+            <div class="continuous-doc-pages" id="continuousDocPages_${file.id}">
+              <div class="loading-container" style="padding:24px 12px;">
+                <div class="loading-spinner" style="width:22px; height:22px; border-width:2px; margin-bottom:8px;"></div>
+                <p style="font-size:12px;">Rendering ${escapeHtml(file.title || file.originalName)} pages continuously…</p>
+              </div>
+            </div>
+          </section>
+        `;
+        if (idx < files.length - 1) {
+          const nextTitle = files[idx + 1].title || files[idx + 1].originalName || `Note ${idx + 2}`;
+          html += `
+            <div class="continuous-doc-connector">
+              <span>End of Note ${idx + 1} &bull; Continuing to Note ${idx + 2}: ${escapeHtml(nextTitle)}</span>
+            </div>
+          `;
+        }
+      });
+
+      streamEl.innerHTML = html;
+
+      // Sequentially render each document's pages so all PDFs flow in one single vertical scroll
+      for (let i = 0; i < files.length; i++) {
+        await renderSingleDocIntoContinuousContainer(files[i], i, files.length);
+      }
+    }
+
+    window.scrollToContinuousDoc = function (fileId, btnEl) {
+      document.querySelectorAll('.continuous-file-pill').forEach(p => p.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+      const sec = document.getElementById(`continuousDoc_${fileId}`);
+      if (sec) {
+        sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
+    async function renderSingleDocIntoContinuousContainer(file, idx, totalFiles) {
+      const container = document.getElementById(`continuousDocPages_${file.id}`);
+      if (!container) return;
+
+      const rawViewUrl = file.viewUrl || `/api/files/${file.id}/view`;
+      const viewUrl = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
+        ? window.SemesterAuth.attachAuthTokenToUrl(rawViewUrl)
+        : rawViewUrl;
+
+      const isPdf = file.readerType === 'pdf' || /\.pdf$/i.test(file.originalName || file.title || '');
+      const isImage = file.readerType === 'image' || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.originalName || file.title || '');
+      const extractedPages = Array.isArray(file.pages) ? file.pages : [];
+
+      if (isImage) {
+        container.innerHTML = `
+          <div class="continuous-pdf-page-card">
+            <div class="continuous-pdf-page-head">
+              <span>${escapeHtml(file.title || file.originalName)}</span>
+              <span>Image Resource</span>
+            </div>
+            <div class="continuous-pdf-canvas-wrap">
+              <img src="${viewUrl}" alt="${escapeHtml(file.title || 'Note Image')}" style="max-width:100%; height:auto; border-radius:6px;" />
+            </div>
+          </div>
+        `;
+        return;
+      }
+
+      if (isPdf) {
+        try {
+          const pdfjsLib = await ensurePdfJsLoaded();
+          const loadingTask = pdfjsLib.getDocument({ url: viewUrl, withCredentials: true });
+          const pdfDoc = await loadingTask.promise;
+          const numPages = pdfDoc.numPages || 1;
+          container.innerHTML = '';
+
+          for (let pageNo = 1; pageNo <= numPages; pageNo++) {
+            const pageCard = document.createElement('div');
+            pageCard.className = 'continuous-pdf-page-card';
+            pageCard.innerHTML = `
+              <div class="continuous-pdf-page-head">
+                <span>${escapeHtml(file.title || file.originalName)}</span>
+                <span>Page ${pageNo} of ${numPages}</span>
+              </div>
+              <div class="continuous-pdf-canvas-wrap">
+                <canvas id="pdfCanvas_${file.id}_${pageNo}"></canvas>
+              </div>
+            `;
+            container.appendChild(pageCard);
+
+            const page = await pdfDoc.getPage(pageNo);
+            const viewport = page.getViewport({ scale: 1.35 });
+            const canvas = pageCard.querySelector('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            await page.render({ canvasContext: ctx, viewport }).promise;
+          }
+          return;
+        } catch (pdfErr) {
+          console.warn(`[Continuous PDF.js fallback for file ${file.id}]:`, pdfErr);
+        }
+      }
+
+      // Fallback: Render extracted pages from KAIE database + embedded viewer
+      if (extractedPages.length > 0) {
+        container.innerHTML = extractedPages.map(p => `
+          <div class="continuous-pdf-page-card">
+            <div class="continuous-pdf-page-head">
+              <span>${escapeHtml(file.title || file.originalName)}</span>
+              <span>Page ${p.pageNumber} of ${extractedPages.length}</span>
+            </div>
+            <div class="continuous-extracted-page-text">${escapeHtml(p.text || '')}</div>
+          </div>
+        `).join('');
+      } else {
+        container.innerHTML = `
+          <div class="continuous-pdf-page-card" style="height:680px;">
+            <div class="continuous-pdf-page-head">
+              <span>${escapeHtml(file.title || file.originalName)}</span>
+              <span>Document View</span>
+            </div>
+            <iframe src="${viewUrl}#toolbar=0&navpanes=0" style="width:100%; height:100%; border:none;"></iframe>
+          </div>
+        `;
+      }
+    }
+
+    function formatChapterKyanaMarkdown(text) {
+      if (window.MarkdownRenderer && typeof window.MarkdownRenderer.render === 'function') {
+        return window.MarkdownRenderer.render(text || '');
+      }
+      const safe = escapeHtml(String(text || ''));
+      return safe
+        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n\n+/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+    }
+
+    function renderChapterKyanaWelcome(bundle) {
+      const msgBox = document.getElementById('chapterKyanaMessages');
+      if (!msgBox) return;
+      const files = Array.isArray(bundle && bundle.files) ? bundle.files : [];
+      const topics = Array.isArray(bundle && bundle.syllabusTopics) ? bundle.syllabusTopics : [];
+      const fileNames = files.map((f, i) => `<strong>#${i + 1} ${escapeHtml(f.title || f.originalName)}</strong>`).join(', ');
+
+      msgBox.innerHTML = `
+        <div class="chapter-kyana-msg assistant">
+          <div class="chapter-kyana-source-tag">
+            <span>CHAPTER CONTEXT READY</span>
+          </div>
+          <p><strong>${escapeHtml(ACTIVE_CHAPTER_KYANA_STATE.chapterTitle)}</strong> (${escapeHtml(ACTIVE_CHAPTER_KYANA_STATE.subjectCode || ACTIVE_CHAPTER_KYANA_STATE.subject)}) is loaded.</p>
+          <p>${files.length > 0
+            ? `I have indexed all <strong>${files.length} chapter note${files.length === 1 ? '' : 's'}</strong> (${fileNames}) shown on the left plus the official chapter syllabus${topics.length ? ` (${topics.length} subtopics)` : ''}.`
+            : `No teacher PDFs are uploaded for this chapter yet, so I have loaded the official chapter syllabus${topics.length ? ` (${topics.length} subtopics)` : ''} and academic knowledge base.`
+          }</p>
+          <p style="margin-bottom:0; color:#475569; font-size:12.5px;">
+            &bull; Ask me any specific question, definition, formula, or follow-up (like <em>"I don't understand, give me an example"</em>).<br>
+            &bull; Or click <strong>"Teach Me This Chapter"</strong> above whenever you want me to teach the entire chapter step-by-step.
+          </p>
+        </div>
+      `;
+    }
+
+    window.triggerTeachMeChapter = function () {
+      window.sendChapterKyanaQuickPrompt('Teach me this chapter step by step');
+    };
+
+    window.sendChapterKyanaQuickPrompt = function (promptText) {
+      const input = document.getElementById('chapterKyanaInput');
+      if (input) input.value = promptText;
+      submitChapterKyanaMessage(promptText);
+    };
+
+    window.handleChapterKyanaKeydown = function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const input = document.getElementById('chapterKyanaInput');
+        if (input && input.value.trim()) {
+          submitChapterKyanaMessage(input.value.trim());
+        }
+      }
+    };
+
+    window.handleChapterKyanaSubmit = function (e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('chapterKyanaInput');
+      if (input && input.value.trim()) {
+        submitChapterKyanaMessage(input.value.trim());
+      }
+      return false;
+    };
+
+    async function submitChapterKyanaMessage(rawMessage) {
+      const message = String(rawMessage || '').trim();
+      if (!message || ACTIVE_CHAPTER_KYANA_STATE.sending) return;
+
+      const input = document.getElementById('chapterKyanaInput');
+      const sendBtn = document.getElementById('chapterKyanaSendBtn');
+      const msgBox = document.getElementById('chapterKyanaMessages');
+      if (input) input.value = '';
+      ACTIVE_CHAPTER_KYANA_STATE.sending = true;
+      if (sendBtn) sendBtn.disabled = true;
+
+      // Append user bubble
+      const userBubble = document.createElement('div');
+      userBubble.className = 'chapter-kyana-msg user';
+      userBubble.textContent = message;
+      msgBox.appendChild(userBubble);
+
+      // Append thinking bubble
+      const thinkingBubble = document.createElement('div');
+      thinkingBubble.className = 'chapter-kyana-msg assistant';
+      thinkingBubble.innerHTML = `<span style="color:#64748b; font-size:12.5px;">Thinking & checking chapter PDFs + syllabus…</span>`;
+      msgBox.appendChild(thinkingBubble);
+      msgBox.scrollTop = msgBox.scrollHeight;
+
+      const priorHistory = ACTIVE_CHAPTER_KYANA_STATE.history.slice(-12);
+
+      try {
+        const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+        if (window.SemesterAuth && typeof window.SemesterAuth.getAuthHeaders === 'function') {
+          Object.assign(headers, window.SemesterAuth.getAuthHeaders());
+        }
+        const response = await fetch('/api/ai/chat', {
+          method: 'POST',
+          headers,
+          credentials: 'include',
+          body: JSON.stringify({
+            message,
+            conversationId: ACTIVE_CHAPTER_KYANA_STATE.conversationId,
+            history: priorHistory,
+            chapterContext: {
+              subject: ACTIVE_CHAPTER_KYANA_STATE.subject,
+              subjectCode: ACTIVE_CHAPTER_KYANA_STATE.subjectCode,
+              semesterNo: ACTIVE_CHAPTER_KYANA_STATE.semesterNo,
+              unitNumber: ACTIVE_CHAPTER_KYANA_STATE.unitNumber,
+              chapterTitle: ACTIVE_CHAPTER_KYANA_STATE.chapterTitle,
+              fileIds: ACTIVE_CHAPTER_KYANA_STATE.fileIds
+            }
+          })
+        });
+
+        const data = await response.json();
+        const replyText = (data && (data.reply || data.response || data.message)) || 'Sorry, I could not generate a response right now.';
+        const chapterMeta = data && data.chapterTutor ? data.chapterTutor : null;
+        const isStudyPartner = data && data.intent === 'study_partner';
+
+        let badgeHtml = '';
+        if (isStudyPartner) {
+          badgeHtml = `<div class="chapter-kyana-source-tag"><span>STEP-BY-STEP CHAPTER TEACHING</span></div>`;
+        } else if (chapterMeta && chapterMeta.usedFallbackKnowledge) {
+          badgeHtml = `<div class="chapter-kyana-source-tag fallback"><span>SYLLABUS + ACADEMIC KNOWLEDGE (NOT IN UPLOADED PDF)</span></div>`;
+        } else if (chapterMeta && chapterMeta.foundInNotes) {
+          badgeHtml = `<div class="chapter-kyana-source-tag"><span>GROUNDED IN CHAPTER PDF NOTES & SYLLABUS</span></div>`;
+        }
+
+        thinkingBubble.innerHTML = `${badgeHtml}<p>${formatChapterKyanaMarkdown(replyText)}</p>`;
+
+        // Save both user and assistant messages to conversation history for follow-ups ("I don't understand", "Give me an example")
+        ACTIVE_CHAPTER_KYANA_STATE.history.push({ role: 'user', content: message });
+        ACTIVE_CHAPTER_KYANA_STATE.history.push({ role: 'assistant', content: replyText });
+      } catch (err) {
+        console.error('[Chapter Kyana Chat Error]:', err);
+        thinkingBubble.innerHTML = `<p style="color:#dc2626;">Could not reach Kyana AI. Please try again.</p>`;
+      } finally {
+        ACTIVE_CHAPTER_KYANA_STATE.sending = false;
+        if (sendBtn) sendBtn.disabled = false;
+        msgBox.scrollTop = msgBox.scrollHeight;
+      }
+    }
   </script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

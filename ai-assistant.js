@@ -936,6 +936,87 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     return pubRes;
   }
 
+  // --- CHAPTER WORKSPACE TUTOR INTERCEPTOR (Library Split-Screen "Ask Kyana AI") ---
+  // When `options.chapterContext` is provided from the Library split-screen workspace:
+  // 1. Only enter step-by-step Study Partner teaching if the student explicitly asks to be taught the chapter
+  //    (e.g., "teach me this chapter", "start teaching", "teach step by step") OR is already in an active study session
+  //    for this conversation and replying to a checkpoint ("next", "continue", etc.).
+  // 2. For any other question or conversational follow-up ("I don't understand", "give me an example", "what is X?"),
+  //    run the 4-stage Think -> Lookup Chapter PDFs & Syllabus -> Teach/Answer -> LLM Knowledge Fallback pipeline!
+  const chapterContext = options.chapterContext && typeof options.chapterContext === 'object'
+    ? options.chapterContext
+    : null;
+
+  if (chapterContext && (chapterContext.subject || chapterContext.chapterTitle || (Array.isArray(chapterContext.fileIds) && chapterContext.fileIds.length > 0))) {
+    const {
+      answerWithChapterContext,
+      analyzeChapterStudentQuestion,
+      extractUnitNumberFromChapter
+    } = require('./lib/chapter-tutor-engine');
+
+    const chapReasoning = analyzeChapterStudentQuestion(message, cleanHistory, []);
+    const isSteppingActiveLesson = /^(?:next(?:\s+topic|\s+step)?|continue|proceed|go\s+ahead|move\s+on|ready|yes\s+next|skip(?:\s+topic)?)[.!]*$/i.test(message.trim());
+
+    let hasActiveConvStudySession = false;
+    if (isSteppingActiveLesson && db && typeof db.get === 'function' && sessionId && sessionId !== 'default' && sessionId !== 'anonymous') {
+      try {
+        const activeRow = await db.get(
+          `SELECT id FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE' LIMIT 1`,
+          sessionId
+        );
+        hasActiveConvStudySession = Boolean(activeRow);
+      } catch (_) {}
+    }
+
+    if (chapReasoning.isExplicitChapterTeachRequest || hasActiveConvStudySession) {
+      route.kind = 'study_partner';
+      route.isNewSession = Boolean(chapReasoning.isExplicitChapterTeachRequest);
+      route.isFollowUp = Boolean(!chapReasoning.isExplicitChapterTeachRequest && hasActiveConvStudySession);
+      route.filters = {
+        ...(route.filters || {}),
+        subject: chapterContext.subject || route.filters?.subject,
+        chapter: chapterContext.chapterTitle || route.filters?.chapter,
+        unitNumber: extractUnitNumberFromChapter(chapterContext.chapterTitle, chapterContext.unitNumber) || route.filters?.unitNumber,
+        semester: chapterContext.semesterNo || route.filters?.semester
+      };
+    } else {
+      const tutorOut = await answerWithChapterContext(db, {
+        message,
+        history: cleanHistory,
+        chapterContext,
+        academicContext,
+        generateReplyFn: canSynthesizeWithLlm ? llmGenerateFn : null,
+        signal
+      });
+
+      if (!tutorOut.delegateToStudyPartner) {
+        const chapRes = emptyResult(tutorOut.reply);
+        chapRes.intent = 'chapter_tutor';
+        chapRes.chatMode = chatMode;
+        chapRes.resourceCards = tutorOut.resourceCards || [];
+        chapRes.citations = tutorOut.citations || [];
+        chapRes.chapterTutor = tutorOut.chapterTutor || {
+          foundInNotes: Boolean(tutorOut.foundInChapterFiles),
+          usedFallbackKnowledge: !tutorOut.foundInChapterFiles,
+          resolvedTopic: tutorOut.reasoning?.resolvedTopicQuery || message,
+          isFollowUp: Boolean(tutorOut.reasoning?.isFollowUp),
+          isConfusionFollowUp: Boolean(tutorOut.reasoning?.isConfusionFollowUp),
+          wantsExample: Boolean(tutorOut.reasoning?.isExampleFollowUp)
+        };
+        chapRes.chapterReasoning = {
+          resolvedTopic: tutorOut.reasoning?.resolvedTopicQuery || message,
+          isFollowUp: Boolean(tutorOut.reasoning?.isFollowUp),
+          foundInChapterFiles: Boolean(tutorOut.foundInChapterFiles)
+        };
+        chapRes.sourceLabel = tutorOut.foundInChapterFiles
+          ? `${tutorOut.bundle?.chapterTitle || 'Chapter'} Notes & Syllabus`
+          : `${tutorOut.bundle?.subject || 'Course'} Syllabus & AI Academic Knowledge`;
+        onDelta(chapRes.reply);
+        return chapRes;
+      }
+    }
+  }
+
   // DB-backed Study Partner Follow-up Recovery:
   // If routeQuery returned 'scope_check' (e.g. short 1-word answer like "p" when history lacked assistant turns),
   // check if this conversation/student has an ACTIVE study_partner_sessions row.
@@ -1208,17 +1289,24 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         let noteChunks = (lessonBundle && Array.isArray(lessonBundle.noteChunks)) ? lessonBundle.noteChunks : [];
         if (noteChunks.length === 0) {
           try {
+            const isStudentCaller = String(academicContext?.role || '').toLowerCase() === 'student';
+            const callerCohortId = academicContext?.cohortId ?? null;
+            const cohortClause = isStudentCaller
+              ? (callerCohortId !== null && callerCohortId !== undefined ? ` AND (f.cohort_id IS NULL OR f.cohort_id = ?)` : ` AND f.cohort_id IS NULL`)
+              : '';
+            const cohortParams = (isStudentCaller && callerCohortId !== null && callerCohortId !== undefined) ? [callerCohortId] : [];
             noteChunks = await db.all(
               `SELECT c.clean_content, c.page_start, f.title as file_title
                FROM document_chunks c
-               JOIN files f ON f.id = CAST(c.file_id AS INTEGER)
+               JOIN files f ON ${db.isPostgres ? 'CAST(f.id AS TEXT) = CAST(c.file_id AS TEXT)' : '(CAST(f.id AS TEXT) = CAST(c.file_id AS TEXT) OR f.id = CAST(c.file_id AS INTEGER))'}
                WHERE (f.subject LIKE ? OR f.subject LIKE ?)
-                 AND (c.clean_content LIKE ? OR c.section_heading LIKE ?)
+                 AND (c.clean_content LIKE ? OR c.section_heading LIKE ?)${cohortClause}
                LIMIT 3`,
               `%${renderedSession.subject}%`,
               `%${renderedSession.subject_code || renderedSession.subject}%`,
               `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`,
-              `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`
+              `%${renderedStep.topicTitle || renderedStep.topic_title || ''}%`,
+              ...cohortParams
             );
           } catch (_) {}
         }

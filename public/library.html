@@ -690,6 +690,7 @@
     .drawer-preview-body {
       flex: 1;
       height: 100%;
+      min-height: 0;
       position: relative;
       overflow: hidden;
       background: #0f172a;
@@ -3384,6 +3385,10 @@
                 <span>All Chapters</span>
               </button>
               <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" class="chapter-kyana-notes-mobile-btn" onclick="openMobileContinuousNotesPane()" title="View chapter PDFs & notes">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  <span>Notes</span>
+                </button>
                 <button type="button" class="chapter-kyana-teach-btn" id="chapterKyanaTeachBtn" onclick="triggerTeachMeChapter()" title="Teach me this entire chapter step-by-step">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                   <span>Teach Me This Chapter</span>
@@ -3411,7 +3416,7 @@
           </div>
 
           <form class="chapter-kyana-input-bar" id="chapterKyanaForm" onsubmit="return handleChapterKyanaSubmit(event)">
-            <textarea id="chapterKyanaInput" class="chapter-kyana-input" rows="1" placeholder="Ask anything from this chapter's PDFs or say 'Teach me this chapter'..." onkeydown="handleChapterKyanaKeydown(event)"></textarea>
+            <textarea id="chapterKyanaInput" class="chapter-kyana-input" rows="1" placeholder="Ask anything from this chapter's PDFs or say 'Teach me this chapter'..." oninput="autoResizeChapterKyanaInput(this)" onkeydown="handleChapterKyanaKeydown(event)"></textarea>
             <button type="submit" id="chapterKyanaSendBtn" class="chapter-kyana-send-btn" title="Send to Kyana AI">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
@@ -7001,18 +7006,20 @@
         .continuous-chapter-wrap {
           display: flex;
           flex-direction: column;
+          flex: 1 1 0%;
+          min-height: 0;
           width: 100%;
           height: 100%;
           overflow: hidden;
-          background: #f4f4f5;
+          background: #f1f5f9;
         }
         .continuous-chapter-filebar {
           display: flex;
           align-items: center;
           gap: 8px;
-          padding: 8px 14px;
+          padding: 9px 14px;
           background: #ffffff;
-          border-bottom: 1px solid var(--border, #e4e4e7);
+          border-bottom: 1px solid #e2e8f0;
           overflow-x: auto;
           flex-shrink: 0;
         }
@@ -7020,50 +7027,79 @@
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          padding: 5px 11px;
+          padding: 5px 12px;
           border-radius: 999px;
-          border: 1px solid #e4e4e7;
-          background: #fafafa;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
           color: #18181b;
           font-size: 11.5px;
           font-weight: 600;
           cursor: pointer;
           white-space: nowrap;
           transition: all 0.15s ease;
+          flex-shrink: 0;
         }
         .continuous-file-pill:hover, .continuous-file-pill.active {
-          background: #111111;
+          background: #111827;
           color: #ffffff;
-          border-color: #111111;
+          border-color: #111827;
         }
         .continuous-chapter-stream {
-          flex: 1;
+          display: block;
+          flex: 1 1 0%;
+          min-height: 0;
+          width: 100%;
           overflow-y: auto;
-          padding: 18px 20px 48px;
-          display: flex;
-          flex-direction: column;
-          gap: 28px;
+          overflow-x: hidden;
+          padding: 18px 20px 64px;
           scroll-behavior: smooth;
+          overscroll-behavior: contain;
+          -webkit-overflow-scrolling: touch;
+          box-sizing: border-box;
         }
         .continuous-doc-section {
+          display: block;
+          width: 100%;
+          max-width: 880px;
+          margin: 0 auto;
           background: #ffffff;
-          border: 1px solid #e4e4e7;
+          border: 1px solid #e2e8f0;
           border-radius: 14px;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-          overflow: hidden;
+          box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
+          overflow: visible;
         }
         .continuous-doc-header {
           position: sticky;
-          top: 0;
-          z-index: 5;
+          top: -1px;
+          z-index: 6;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
           padding: 12px 16px;
           background: rgba(255, 255, 255, 0.96);
-          backdrop-filter: blur(8px);
-          border-bottom: 1px solid #e4e4e7;
+          backdrop-filter: blur(10px);
+          border-bottom: 1px solid #e2e8f0;
+          border-radius: 13px 13px 0 0;
+        }
+        .continuous-doc-header .preview-action-btn {
+          color: #18181b;
+          background: #f4f4f5;
+          border: 1px solid #d4d4d8;
+        }
+        .continuous-doc-header .preview-action-btn:hover {
+          background: #e4e4e7;
+          color: #09090b;
+          border-color: #a1a1aa;
+        }
+        .continuous-doc-header .preview-action-btn.primary {
+          background: #111827;
+          color: #ffffff;
+          border-color: #111827;
+        }
+        .continuous-doc-header .preview-action-btn.primary:hover {
+          background: #27272a;
+          color: #ffffff;
         }
         .continuous-doc-seq {
           display: inline-flex;
@@ -7071,28 +7107,31 @@
           justify-content: center;
           padding: 3px 8px;
           border-radius: 6px;
-          background: #111111;
+          background: #111827;
           color: #ffffff;
           font-size: 10.5px;
           font-weight: 800;
           letter-spacing: 0.04em;
           text-transform: uppercase;
+          flex-shrink: 0;
         }
         .continuous-doc-pages {
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 16px;
-          padding: 18px 14px;
+          padding: 16px 14px 20px;
           background: #f8fafc;
+          border-radius: 0 0 13px 13px;
         }
         .continuous-pdf-page-card {
+          flex-shrink: 0;
           width: 100%;
-          max-width: 860px;
+          max-width: 840px;
           background: #ffffff;
           border: 1px solid #e2e8f0;
           border-radius: 10px;
-          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+          box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
           overflow: hidden;
           display: flex;
           flex-direction: column;
@@ -7101,41 +7140,89 @@
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 6px 12px;
+          gap: 10px;
+          padding: 7px 14px;
           background: #f8fafc;
-          border-bottom: 1px solid #f1f5f9;
+          border-bottom: 1px solid #eef2f7;
           font-size: 11px;
           font-weight: 600;
           color: #64748b;
+          flex-shrink: 0;
         }
         .continuous-pdf-canvas-wrap {
           width: 100%;
+          min-height: 220px;
+          position: relative;
           display: flex;
+          align-items: center;
           justify-content: center;
           background: #ffffff;
-          padding: 8px;
+          overflow: hidden;
         }
         .continuous-pdf-canvas-wrap canvas {
-          max-width: 100%;
+          width: 100%;
           height: auto !important;
+          display: block;
+          opacity: 0;
+          transition: opacity 0.18s ease;
+        }
+        .continuous-pdf-canvas-wrap.rendered canvas {
+          opacity: 1;
+        }
+        .continuous-pdf-page-placeholder {
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          color: #94a3b8;
+          font-size: 12px;
+          font-weight: 600;
+          background: linear-gradient(180deg, #fafafa 0%, #f8fafc 100%);
+          pointer-events: none;
+        }
+        .continuous-pdf-canvas-wrap.rendered .continuous-pdf-page-placeholder {
+          display: none;
+        }
+        .continuous-doc-iframe-card {
+          flex-shrink: 0;
+          width: 100%;
+          max-width: 840px;
+          height: 76vh;
+          min-height: 580px;
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .continuous-doc-iframe-card iframe {
+          flex: 1;
+          width: 100%;
+          min-height: 520px;
+          border: none;
           display: block;
         }
         .continuous-extracted-page-text {
-          padding: 14px 18px;
+          padding: 16px 20px;
           font-size: 13.5px;
-          line-height: 1.65;
+          line-height: 1.7;
           color: #1e293b;
           white-space: pre-wrap;
-          border-top: 1px dashed #e2e8f0;
-          background: #fcfcfd;
+          background: #ffffff;
         }
         .continuous-doc-connector {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 10px;
-          color: #71717a;
-          font-size: 12px;
+          gap: 12px;
+          max-width: 880px;
+          margin: 22px auto;
+          color: #475569;
+          font-size: 11.5px;
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.05em;
@@ -7146,7 +7233,7 @@
           content: '';
           height: 1px;
           flex: 1;
-          background: #d4d4d8;
+          background: #cbd5e1;
         }
         /* Right Pane: Chapter Kyana AI Tutor */
         .drawer-sheet.kyana-chat-mode #drawerDefaultHeader,
@@ -7162,13 +7249,13 @@
           flex-direction: column;
           height: 100%;
           width: 100%;
-          background: #ffffff;
+          background: #f8fafc;
           overflow: hidden;
         }
         .chapter-kyana-top {
           padding: 14px 16px 12px;
-          border-bottom: 1px solid #e4e4e7;
-          background: #fafafa;
+          border-bottom: 1px solid #e2e8f0;
+          background: #ffffff;
           flex-shrink: 0;
         }
         .chapter-kyana-top-row {
@@ -7184,15 +7271,34 @@
           gap: 5px;
           padding: 5px 10px;
           border-radius: 8px;
-          border: 1px solid #e4e4e7;
+          border: 1px solid #e2e8f0;
           background: #ffffff;
           color: #18181b;
           font-size: 12px;
           font-weight: 600;
           cursor: pointer;
+          transition: background 0.15s ease;
         }
         .chapter-kyana-back-btn:hover {
           background: #f4f4f5;
+        }
+        .chapter-kyana-notes-mobile-btn {
+          display: none;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 10px;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          color: #111827;
+          font-size: 11.5px;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        @media (max-width: 900px) {
+          .chapter-kyana-notes-mobile-btn {
+            display: inline-flex;
+          }
         }
         .chapter-kyana-teach-btn {
           display: inline-flex;
@@ -7200,8 +7306,8 @@
           gap: 5px;
           padding: 6px 11px;
           border-radius: 8px;
-          border: 1px solid #111111;
-          background: #111111;
+          border: 1px solid #111827;
+          background: #111827;
           color: #ffffff;
           font-size: 11.5px;
           font-weight: 700;
@@ -7213,9 +7319,9 @@
         }
         .chapter-kyana-badge {
           display: inline-block;
-          padding: 2px 7px;
-          border-radius: 5px;
-          background: #111111;
+          padding: 2px 8px;
+          border-radius: 6px;
+          background: #111827;
           color: #ffffff;
           font-size: 10px;
           font-weight: 800;
@@ -7224,150 +7330,361 @@
         .chapter-kyana-context-pill {
           font-size: 11px;
           font-weight: 600;
-          color: #52525b;
-          background: #f4f4f5;
-          border: 1px solid #e4e4e7;
-          padding: 2px 8px;
+          color: #475569;
+          background: #f1f5f9;
+          border: 1px solid #e2e8f0;
+          padding: 2px 9px;
           border-radius: 999px;
         }
         .chapter-kyana-title {
-          font-size: 15px;
+          font-size: 15.5px;
           font-weight: 800;
-          color: #111111;
-          margin: 6px 0 2px;
+          color: #0f172a;
+          margin: 7px 0 2px;
           line-height: 1.3;
         }
         .chapter-kyana-sub {
           font-size: 11.5px;
-          color: #71717a;
+          color: #64748b;
           margin: 0;
         }
         .chapter-kyana-messages {
           flex: 1;
+          min-height: 0;
           overflow-y: auto;
-          padding: 14px 16px;
+          padding: 16px;
           display: flex;
           flex-direction: column;
-          gap: 12px;
-          background: #ffffff;
+          gap: 14px;
+          background: #f8fafc;
+          scroll-behavior: smooth;
         }
         .chapter-kyana-msg {
-          max-width: 92%;
-          padding: 11px 14px;
-          border-radius: 13px;
           font-size: 13.5px;
-          line-height: 1.6;
+          line-height: 1.62;
           word-break: break-word;
+          flex-shrink: 0;
         }
         .chapter-kyana-msg.user {
           align-self: flex-end;
-          background: #111111;
+          max-width: 86%;
+          padding: 10px 14px;
+          border-radius: 16px 16px 4px 16px;
+          background: #111827;
           color: #ffffff;
-          border-bottom-right-radius: 4px;
+          font-weight: 500;
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+          white-space: pre-wrap;
         }
         .chapter-kyana-msg.assistant {
-          align-self: flex-start;
-          background: #f8fafc;
-          color: #0f172a;
+          align-self: stretch;
+          width: 100%;
+          max-width: 100%;
+          padding: 14px 16px;
+          border-radius: 14px;
+          background: #ffffff;
+          color: #1e293b;
           border: 1px solid #e2e8f0;
-          border-bottom-left-radius: 4px;
-        }
-        .chapter-kyana-msg.assistant p {
-          margin: 0 0 8px;
-        }
-        .chapter-kyana-msg.assistant p:last-child {
-          margin-bottom: 0;
-        }
-        .chapter-kyana-msg.assistant pre {
-          background: #0f172a;
-          color: #f8fafc;
-          padding: 10px 12px;
-          border-radius: 8px;
-          overflow-x: auto;
-          font-size: 12px;
-          margin: 8px 0;
+          box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+          box-sizing: border-box;
         }
         .chapter-kyana-source-tag {
           display: inline-flex;
           align-items: center;
           gap: 5px;
-          margin-bottom: 6px;
-          padding: 2px 8px;
+          margin-bottom: 10px;
+          padding: 3px 9px;
           border-radius: 6px;
-          font-size: 10.5px;
-          font-weight: 700;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.04em;
           background: #eef2ff;
           color: #3730a3;
+          border: 1px solid #e0e7ff;
         }
         .chapter-kyana-source-tag.fallback {
           background: #fef3c7;
           color: #92400e;
+          border-color: #fde68a;
+        }
+        /* Clean Markdown Typography inside Kyana Assistant Cards */
+        .chapter-kyana-md {
+          font-size: 13.5px;
+          line-height: 1.65;
+          color: #1e293b;
+        }
+        .chapter-kyana-md > *:first-child {
+          margin-top: 0 !important;
+        }
+        .chapter-kyana-md > *:last-child {
+          margin-bottom: 0 !important;
+        }
+        .chapter-kyana-md .md-p,
+        .chapter-kyana-md p {
+          margin: 0 0 10px;
+          line-height: 1.65;
+        }
+        .chapter-kyana-md .md-h1,
+        .chapter-kyana-md h1 {
+          font-size: 16px;
+          font-weight: 800;
+          color: #0f172a;
+          margin: 16px 0 8px;
+          line-height: 1.35;
+        }
+        .chapter-kyana-md .md-h2,
+        .chapter-kyana-md h2 {
+          font-size: 15px;
+          font-weight: 800;
+          color: #0f172a;
+          margin: 15px 0 7px;
+          padding-bottom: 4px;
+          border-bottom: 1px solid #f1f5f9;
+          line-height: 1.35;
+        }
+        .chapter-kyana-md .md-h3,
+        .chapter-kyana-md h3 {
+          font-size: 14px;
+          font-weight: 700;
+          color: #0f172a;
+          margin: 13px 0 6px;
+          line-height: 1.4;
+        }
+        .chapter-kyana-md .md-ul,
+        .chapter-kyana-md .md-ol,
+        .chapter-kyana-md ul,
+        .chapter-kyana-md ol {
+          margin: 6px 0 12px;
+          padding-left: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+        }
+        .chapter-kyana-md .md-li,
+        .chapter-kyana-md li {
+          line-height: 1.6;
+          color: #1e293b;
+        }
+        .chapter-kyana-md strong {
+          font-weight: 700;
+          color: #0f172a;
+        }
+        .chapter-kyana-md em {
+          font-style: italic;
+          color: #334155;
+        }
+        .chapter-kyana-md .md-blockquote,
+        .chapter-kyana-md blockquote {
+          margin: 10px 0 12px;
+          padding: 10px 13px;
+          border-left: 3px solid #111827;
+          background: #f8fafc;
+          border-radius: 0 8px 8px 0;
+          color: #334155;
+          font-size: 13px;
+          line-height: 1.6;
+        }
+        .chapter-kyana-md .md-divider,
+        .chapter-kyana-md hr {
+          border: none;
+          border-top: 1px solid #e2e8f0;
+          margin: 14px 0;
+        }
+        .chapter-kyana-md .md-inline-code,
+        .chapter-kyana-md code {
+          background: #f1f5f9;
+          color: #0f172a;
+          padding: 1.5px 5px;
+          border-radius: 5px;
+          font-size: 12px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          border: 1px solid #e2e8f0;
+        }
+        .chapter-kyana-md .md-code-block-wrapper {
+          margin: 10px 0 12px;
+          border-radius: 10px;
+          overflow: hidden;
+          border: 1px solid #1e293b;
+          background: #0f172a;
+        }
+        .chapter-kyana-md .md-code-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 6px 12px;
+          background: #1e293b;
+          color: #cbd5e1;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+        .chapter-kyana-md .md-code-copy-btn {
+          background: rgba(255, 255, 255, 0.1);
+          color: #f8fafc;
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          border-radius: 5px;
+          padding: 2px 8px;
+          font-size: 10.5px;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .chapter-kyana-md .md-code-copy-btn:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+        .chapter-kyana-md .md-code-block,
+        .chapter-kyana-md pre {
+          background: #0f172a;
+          color: #f8fafc;
+          padding: 12px 14px;
+          margin: 0;
+          overflow-x: auto;
+          font-size: 12px;
+          line-height: 1.55;
+        }
+        .chapter-kyana-md pre code {
+          background: transparent;
+          border: none;
+          padding: 0;
+          color: inherit;
+        }
+        .chapter-kyana-md .md-table-wrapper {
+          margin: 10px 0 12px;
+          overflow-x: auto;
+          border: 1px solid #e2e8f0;
+          border-radius: 9px;
+          background: #ffffff;
+        }
+        .chapter-kyana-md .md-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 12.5px;
+        }
+        .chapter-kyana-md .md-table th,
+        .chapter-kyana-md .md-table td {
+          padding: 7px 10px;
+          border-bottom: 1px solid #e2e8f0;
+          border-right: 1px solid #f1f5f9;
+        }
+        .chapter-kyana-md .md-table th:last-child,
+        .chapter-kyana-md .md-table td:last-child {
+          border-right: none;
+        }
+        .chapter-kyana-md .md-table th {
+          background: #f8fafc;
+          font-weight: 700;
+          color: #0f172a;
+        }
+        .chapter-kyana-md .md-table tbody tr:last-child td {
+          border-bottom: none;
+        }
+        .chapter-kyana-md .md-table tbody tr:nth-child(even) {
+          background: #fafafa;
+        }
+        .chapter-kyana-md .md-link {
+          color: #2563eb;
+          text-decoration: underline;
+          text-underline-offset: 2px;
+        }
+        .chapter-kyana-typing {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: #64748b;
+          font-size: 12.5px;
+          font-weight: 600;
+        }
+        .chapter-kyana-dots {
+          display: inline-flex;
+          gap: 4px;
+        }
+        .chapter-kyana-dots span {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #64748b;
+          animation: kyanaTypingBounce 1.2s infinite ease-in-out;
+        }
+        .chapter-kyana-dots span:nth-child(2) { animation-delay: 0.18s; }
+        .chapter-kyana-dots span:nth-child(3) { animation-delay: 0.36s; }
+        @keyframes kyanaTypingBounce {
+          0%, 80%, 100% { transform: scale(0.7); opacity: 0.45; }
+          40% { transform: scale(1); opacity: 1; }
         }
         .chapter-kyana-quick-bar {
           display: flex;
           gap: 6px;
-          padding: 8px 14px;
+          padding: 9px 14px;
           overflow-x: auto;
-          border-top: 1px solid #f4f4f5;
-          background: #fafafa;
+          border-top: 1px solid #e2e8f0;
+          background: #ffffff;
           flex-shrink: 0;
         }
         .chapter-kyana-chip {
-          padding: 5px 10px;
+          padding: 5px 11px;
           border-radius: 999px;
-          border: 1px solid #e4e4e7;
-          background: #ffffff;
-          color: #27272a;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          color: #1e293b;
           font-size: 11.5px;
           font-weight: 600;
           white-space: nowrap;
           cursor: pointer;
-          transition: all 0.12s ease;
+          transition: all 0.14s ease;
+          flex-shrink: 0;
         }
         .chapter-kyana-chip:hover {
-          background: #111111;
+          background: #111827;
           color: #ffffff;
-          border-color: #111111;
+          border-color: #111827;
         }
         .chapter-kyana-input-bar {
           display: flex;
           align-items: flex-end;
           gap: 8px;
           padding: 10px 14px 12px;
-          border-top: 1px solid #e4e4e7;
+          border-top: 1px solid #e2e8f0;
           background: #ffffff;
           flex-shrink: 0;
         }
         .chapter-kyana-input {
           flex: 1;
           resize: none;
-          border: 1px solid #d4d4d8;
-          border-radius: 10px;
+          border: 1px solid #cbd5e1;
+          border-radius: 12px;
           padding: 9px 12px;
           font-size: 13px;
           font-family: inherit;
-          line-height: 1.4;
+          line-height: 1.45;
+          min-height: 38px;
           max-height: 110px;
+          background: #f8fafc;
+          color: #0f172a;
           outline: none;
+          transition: border-color 0.15s ease, background 0.15s ease;
         }
         .chapter-kyana-input:focus {
-          border-color: #111111;
+          border-color: #111827;
+          background: #ffffff;
         }
         .chapter-kyana-send-btn {
           width: 38px;
           height: 38px;
-          border-radius: 10px;
+          border-radius: 11px;
           border: none;
-          background: #111111;
+          background: #111827;
           color: #ffffff;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
           flex-shrink: 0;
+          transition: background 0.15s ease;
+        }
+        .chapter-kyana-send-btn:hover:not(:disabled) {
+          background: #27272a;
         }
         .chapter-kyana-send-btn:disabled {
-          opacity: 0.5;
+          opacity: 0.48;
           cursor: not-allowed;
         }
       `;
@@ -7575,10 +7892,57 @@
       }
     };
 
+    let ACTIVE_CHAPTER_STREAM_RUN_ID = 0;
+    let ACTIVE_CHAPTER_PAGE_OBSERVER = null;
+    let ACTIVE_CHAPTER_SCROLL_HANDLER = null;
+
+    function cleanupContinuousChapterObservers() {
+      ACTIVE_CHAPTER_STREAM_RUN_ID += 1;
+      if (ACTIVE_CHAPTER_PAGE_OBSERVER) {
+        try { ACTIVE_CHAPTER_PAGE_OBSERVER.disconnect(); } catch {}
+        ACTIVE_CHAPTER_PAGE_OBSERVER = null;
+      }
+      const streamEl = document.getElementById('continuousChapterStream');
+      if (streamEl && ACTIVE_CHAPTER_SCROLL_HANDLER) {
+        streamEl.removeEventListener('scroll', ACTIVE_CHAPTER_SCROLL_HANDLER);
+      }
+      ACTIVE_CHAPTER_SCROLL_HANDLER = null;
+    }
+
+    function updateContinuousHeaderActionsForFile(file) {
+      if (!file) return;
+      try { CURRENT_PREVIEW_FILE = file; } catch {}
+      const rawViewUrl = file.viewUrl || `/api/files/${file.id}/view`;
+      const viewUrl = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
+        ? window.SemesterAuth.attachAuthTokenToUrl(rawViewUrl)
+        : rawViewUrl;
+      const rawDlUrl = file.downloadUrl || `/api/files/${file.id}/download`;
+      const dlUrl = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
+        ? window.SemesterAuth.attachAuthTokenToUrl(rawDlUrl)
+        : rawDlUrl;
+
+      const extLink = document.getElementById('previewExternalLink');
+      const dlLink = document.getElementById('previewDownloadLink');
+      if (extLink) extLink.href = viewUrl;
+      if (dlLink) dlLink.href = dlUrl;
+    }
+
+    window.openMobileContinuousNotesPane = function () {
+      const previewPane = document.getElementById('drawerPreviewPane');
+      if (previewPane) previewPane.classList.add('mobile-open');
+    };
+
+    window.autoResizeChapterKyanaInput = function (el) {
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 110)}px`;
+    };
+
     window.closeChapterKyanaWorkspace = function (keepReader = false) {
       const drawerSheet = document.getElementById('drawerSheet');
       if (drawerSheet) drawerSheet.classList.remove('kyana-chat-mode');
       if (!keepReader) {
+        cleanupContinuousChapterObservers();
         const continuousWrap = document.getElementById('continuousChapterWrap');
         const emptyState = document.getElementById('previewEmptyState');
         const workspace = document.getElementById('drawerWorkspace');
@@ -7589,11 +7953,23 @@
     };
 
     async function renderContinuousChapterStream(bundle) {
+      cleanupContinuousChapterObservers();
+      const runId = ACTIVE_CHAPTER_STREAM_RUN_ID;
       const fileBar = document.getElementById('continuousChapterFileBar');
       const streamEl = document.getElementById('continuousChapterStream');
       if (!streamEl || !fileBar) return;
 
-      const files = Array.isArray(bundle && bundle.files) ? bundle.files : [];
+      const rawFiles = Array.isArray(bundle && bundle.files) ? bundle.files : [];
+      const files = [...rawFiles].sort((a, b) => {
+        const aOrder = Number(a.sort_order ?? a.sortOrder ?? 0) || 0;
+        const bOrder = Number(b.sort_order ?? b.sortOrder ?? 0) || 0;
+        if (aOrder > 0 && bOrder > 0 && aOrder !== bOrder) return aOrder - bOrder;
+        if (aOrder > 0 && bOrder <= 0) return -1;
+        if (bOrder > 0 && aOrder <= 0) return 1;
+        const aLabel = String(a.title || a.originalName || '').trim();
+        const bLabel = String(b.title || b.originalName || '').trim();
+        return aLabel.localeCompare(bLabel, undefined, { numeric: true, sensitivity: 'base' });
+      });
       const syllabusTopics = Array.isArray(bundle && bundle.syllabusTopics) ? bundle.syllabusTopics : [];
 
       if (files.length === 0) {
@@ -7617,6 +7993,8 @@
         return;
       }
 
+      updateContinuousHeaderActionsForFile(files[0]);
+
       // Render top jump-bar for all files in the chapter
       fileBar.innerHTML = files.map((file, idx) => `
         <button type="button" class="continuous-file-pill ${idx === 0 ? 'active' : ''}" data-jump-file="${file.id}" onclick="scrollToContinuousDoc(${file.id}, this)">
@@ -7638,28 +8016,28 @@
           : rawDlUrl;
 
         html += `
-          <section class="continuous-doc-section" id="continuousDoc_${file.id}" data-doc-index="${idx}">
+          <section class="continuous-doc-section" id="continuousDoc_${file.id}" data-file-id="${file.id}" data-doc-index="${idx}">
             <div class="continuous-doc-header">
-              <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+              <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
                 <span class="continuous-doc-seq">NOTE ${idx + 1} OF ${files.length}</span>
-                <div style="min-width:0;">
-                  <h4 style="margin:0; font-size:14px; font-weight:800; color:#111111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                <div style="min-width:0; flex:1;">
+                  <h4 style="margin:0; font-size:14px; font-weight:800; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                     ${escapeHtml(file.title || file.originalName || `Chapter Note ${idx + 1}`)}
                   </h4>
-                  <p style="margin:0; font-size:11px; color:#71717a;">
+                  <p id="continuousDocMeta_${file.id}" style="margin:0; font-size:11px; color:#64748b;">
                     ${escapeHtml(file.chapter || ACTIVE_CHAPTER_KYANA_STATE.chapterTitle)} ${file.pageCount ? `&middot; ${file.pageCount} pages` : ''}
                   </p>
                 </div>
               </div>
               <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                <a href="${viewUrl}" target="_blank" class="preview-action-btn" style="font-size:11px; padding:4px 9px;">Open Tab</a>
-                <a href="${dlUrl}" download class="preview-action-btn primary" style="font-size:11px; padding:4px 9px;">Download</a>
+                <a href="${viewUrl}" target="_blank" class="preview-action-btn" style="font-size:11px; padding:5px 10px;">Open Tab</a>
+                <a href="${dlUrl}" download class="preview-action-btn primary" style="font-size:11px; padding:5px 10px;">Download</a>
               </div>
             </div>
             <div class="continuous-doc-pages" id="continuousDocPages_${file.id}">
-              <div class="loading-container" style="padding:24px 12px;">
+              <div class="loading-container" style="padding:36px 12px;">
                 <div class="loading-spinner" style="width:22px; height:22px; border-width:2px; margin-bottom:8px;"></div>
-                <p style="font-size:12px;">Rendering ${escapeHtml(file.title || file.originalName)} pages continuously…</p>
+                <p style="font-size:12px;">Loading ${escapeHtml(file.title || file.originalName)}…</p>
               </div>
             </div>
           </section>
@@ -7668,32 +8046,141 @@
           const nextTitle = files[idx + 1].title || files[idx + 1].originalName || `Note ${idx + 2}`;
           html += `
             <div class="continuous-doc-connector">
-              <span>End of Note ${idx + 1} &bull; Continuing to Note ${idx + 2}: ${escapeHtml(nextTitle)}</span>
+              <span>End of Note ${idx + 1} &bull; Starting Note ${idx + 2}: ${escapeHtml(nextTitle)}</span>
             </div>
           `;
         }
       });
 
       streamEl.innerHTML = html;
+      streamEl.scrollTop = 0;
 
-      // Sequentially render each document's pages so all PDFs flow in one single vertical scroll
-      for (let i = 0; i < files.length; i++) {
-        await renderSingleDocIntoContinuousContainer(files[i], i, files.length);
+      // Sync active jump pill + top bar actions smoothly as user scrolls through PDFs
+      let lastActiveId = files[0].id;
+      const syncActiveSectionOnScroll = () => {
+        if (runId !== ACTIVE_CHAPTER_STREAM_RUN_ID) return;
+        const sections = streamEl.querySelectorAll('.continuous-doc-section');
+        if (!sections.length) return;
+        const streamTop = streamEl.getBoundingClientRect().top;
+        let currentSection = sections[0];
+        for (const sec of sections) {
+          const rect = sec.getBoundingClientRect();
+          if (rect.top - streamTop <= 140) {
+            currentSection = sec;
+          } else {
+            break;
+          }
+        }
+        const activeId = Number(currentSection.getAttribute('data-file-id'));
+        if (activeId && activeId !== lastActiveId) {
+          lastActiveId = activeId;
+          const activeFile = files.find((f) => Number(f.id) === activeId);
+          if (activeFile) updateContinuousHeaderActionsForFile(activeFile);
+          document.querySelectorAll('.continuous-file-pill').forEach((p) => {
+            const isMatch = Number(p.getAttribute('data-jump-file')) === activeId;
+            p.classList.toggle('active', isMatch);
+            if (isMatch && typeof p.scrollIntoView === 'function') {
+              p.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            }
+          });
+        }
+      };
+
+      let scrollTicking = false;
+      ACTIVE_CHAPTER_SCROLL_HANDLER = () => {
+        if (scrollTicking) return;
+        scrollTicking = true;
+        window.requestAnimationFrame(() => {
+          scrollTicking = false;
+          syncActiveSectionOnScroll();
+        });
+      };
+      streamEl.addEventListener('scroll', ACTIVE_CHAPTER_SCROLL_HANDLER, { passive: true });
+
+      // Controlled concurrent queue for crisp on-demand PDF page canvas rendering
+      const pendingTasks = [];
+      let activeRenders = 0;
+      const MAX_CONCURRENT_RENDERS = 2;
+
+      function pumpRenderQueue() {
+        if (runId !== ACTIVE_CHAPTER_STREAM_RUN_ID) return;
+        while (activeRenders < MAX_CONCURRENT_RENDERS && pendingTasks.length > 0) {
+          const task = pendingTasks.shift();
+          if (!task || task.started) continue;
+          task.started = true;
+          activeRenders += 1;
+          task.run().finally(() => {
+            activeRenders -= 1;
+            pumpRenderQueue();
+          });
+        }
       }
+
+      const taskMap = new WeakMap();
+      if (typeof IntersectionObserver !== 'undefined') {
+        ACTIVE_CHAPTER_PAGE_OBSERVER = new IntersectionObserver(
+          (entries) => {
+            if (runId !== ACTIVE_CHAPTER_STREAM_RUN_ID) return;
+            for (const entry of entries) {
+              if (!entry.isIntersecting) continue;
+              const task = taskMap.get(entry.target);
+              if (task && !task.queued) {
+                task.queued = true;
+                pendingTasks.push(task);
+                ACTIVE_CHAPTER_PAGE_OBSERVER.unobserve(entry.target);
+              }
+            }
+            pumpRenderQueue();
+          },
+          { root: streamEl, rootMargin: '1100px 0px 1400px 0px', threshold: 0.01 }
+        );
+      }
+
+      const enqueuePageRender = (wrap, task, priority = false) => {
+        if (task.queued || task.rendered) return;
+        task.queued = true;
+        if (priority) {
+          pendingTasks.unshift(task);
+        } else {
+          pendingTasks.push(task);
+        }
+        if (ACTIVE_CHAPTER_PAGE_OBSERVER && wrap) {
+          try { ACTIVE_CHAPTER_PAGE_OBSERVER.unobserve(wrap); } catch {}
+        }
+        pumpRenderQueue();
+      };
+
+      await Promise.allSettled(
+        files.map((file, i) =>
+          renderSingleDocIntoContinuousContainer(file, i, files.length, {
+            runId,
+            streamEl,
+            taskMap,
+            enqueuePageRender,
+          })
+        )
+      );
     }
 
     window.scrollToContinuousDoc = function (fileId, btnEl) {
       document.querySelectorAll('.continuous-file-pill').forEach(p => p.classList.remove('active'));
       if (btnEl) btnEl.classList.add('active');
+      const streamEl = document.getElementById('continuousChapterStream');
       const sec = document.getElementById(`continuousDoc_${fileId}`);
-      if (sec) {
+      if (sec && streamEl) {
+        const offsetTop = Math.max(0, sec.offsetTop - streamEl.offsetTop - 12);
+        streamEl.scrollTo({ top: offsetTop, behavior: 'smooth' });
+      } else if (sec) {
         sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     };
 
-    async function renderSingleDocIntoContinuousContainer(file, idx, totalFiles) {
+    async function renderSingleDocIntoContinuousContainer(file, idx, totalFiles, ctx = {}) {
       const container = document.getElementById(`continuousDocPages_${file.id}`);
+      const metaEl = document.getElementById(`continuousDocMeta_${file.id}`);
       if (!container) return;
+      const runId = ctx.runId;
+      if (runId && runId !== ACTIVE_CHAPTER_STREAM_RUN_ID) return;
 
       const rawViewUrl = file.viewUrl || `/api/files/${file.id}/view`;
       const viewUrl = window.SemesterAuth && typeof window.SemesterAuth.attachAuthTokenToUrl === 'function'
@@ -7711,8 +8198,8 @@
               <span>${escapeHtml(file.title || file.originalName)}</span>
               <span>Image Resource</span>
             </div>
-            <div class="continuous-pdf-canvas-wrap">
-              <img src="${viewUrl}" alt="${escapeHtml(file.title || 'Note Image')}" style="max-width:100%; height:auto; border-radius:6px;" />
+            <div class="continuous-pdf-canvas-wrap rendered">
+              <img src="${viewUrl}" alt="${escapeHtml(file.title || 'Note Image')}" style="width:100%; height:auto; display:block;" />
             </div>
           </div>
         `;
@@ -7724,30 +8211,90 @@
           const pdfjsLib = await ensurePdfJsLoaded();
           const loadingTask = pdfjsLib.getDocument({ url: viewUrl, withCredentials: true });
           const pdfDoc = await loadingTask.promise;
+          if (runId && runId !== ACTIVE_CHAPTER_STREAM_RUN_ID) return;
+
           const numPages = pdfDoc.numPages || 1;
+          if (metaEl) {
+            metaEl.innerHTML = `${escapeHtml(file.chapter || ACTIVE_CHAPTER_KYANA_STATE.chapterTitle)} &middot; ${numPages} page${numPages === 1 ? '' : 's'}`;
+          }
+
+          const firstPage = await pdfDoc.getPage(1);
+          if (runId && runId !== ACTIVE_CHAPTER_STREAM_RUN_ID) return;
+          const baseViewport = firstPage.getViewport({ scale: 1 });
+          const defaultAspect = `${baseViewport.width} / ${baseViewport.height}`;
+
           container.innerHTML = '';
+          const fragment = document.createDocumentFragment();
+          const eagerWraps = [];
 
           for (let pageNo = 1; pageNo <= numPages; pageNo++) {
             const pageCard = document.createElement('div');
             pageCard.className = 'continuous-pdf-page-card';
             pageCard.innerHTML = `
               <div class="continuous-pdf-page-head">
-                <span>${escapeHtml(file.title || file.originalName)}</span>
-                <span>Page ${pageNo} of ${numPages}</span>
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(file.title || file.originalName)}</span>
+                <span style="flex-shrink:0;">Page ${pageNo} of ${numPages}</span>
               </div>
-              <div class="continuous-pdf-canvas-wrap">
+              <div class="continuous-pdf-canvas-wrap" style="aspect-ratio: ${defaultAspect};">
+                <div class="continuous-pdf-page-placeholder">
+                  <span>Loading Page ${pageNo} of ${numPages}…</span>
+                </div>
                 <canvas id="pdfCanvas_${file.id}_${pageNo}"></canvas>
               </div>
             `;
-            container.appendChild(pageCard);
+            fragment.appendChild(pageCard);
 
-            const page = await pdfDoc.getPage(pageNo);
-            const viewport = page.getViewport({ scale: 1.35 });
+            const wrap = pageCard.querySelector('.continuous-pdf-canvas-wrap');
             const canvas = pageCard.querySelector('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            await page.render({ canvasContext: ctx, viewport }).promise;
+            const task = {
+              queued: false,
+              started: false,
+              rendered: false,
+              run: async () => {
+                if (task.rendered || (runId && runId !== ACTIVE_CHAPTER_STREAM_RUN_ID)) return;
+                try {
+                  const page = pageNo === 1 ? firstPage : await pdfDoc.getPage(pageNo);
+                  if (runId && runId !== ACTIVE_CHAPTER_STREAM_RUN_ID) return;
+                  const unitVp = page.getViewport({ scale: 1 });
+                  const pageAspect = `${unitVp.width} / ${unitVp.height}`;
+                  if (wrap && pageAspect !== defaultAspect) {
+                    wrap.style.aspectRatio = pageAspect;
+                  }
+                  const targetCssWidth = Math.max((wrap && wrap.clientWidth) || container.clientWidth || 720, 480);
+                  const dpr = Math.min(Math.max(window.devicePixelRatio || 1, 1.25), 2);
+                  const renderScale = Math.min(Math.max((targetCssWidth * dpr) / unitVp.width, 1.25), 2.5);
+                  const viewport = page.getViewport({ scale: renderScale });
+                  const canvasCtx = canvas.getContext('2d', { alpha: false });
+                  canvas.width = Math.floor(viewport.width);
+                  canvas.height = Math.floor(viewport.height);
+                  await page.render({ canvasContext: canvasCtx, viewport }).promise;
+                  if (runId && runId !== ACTIVE_CHAPTER_STREAM_RUN_ID) return;
+                  task.rendered = true;
+                  if (wrap) wrap.classList.add('rendered');
+                } catch (pageErr) {
+                  console.warn(`[PDF page ${pageNo} render error]:`, pageErr);
+                }
+              }
+            };
+
+            if (ctx.taskMap && wrap) {
+              ctx.taskMap.set(wrap, task);
+            }
+            if ((idx === 0 && pageNo <= 2) || pageNo === 1) {
+              eagerWraps.push({ wrap, task, priority: idx === 0 });
+            } else if (ACTIVE_CHAPTER_PAGE_OBSERVER && wrap) {
+              ACTIVE_CHAPTER_PAGE_OBSERVER.observe(wrap);
+            } else if (ctx.enqueuePageRender) {
+              ctx.enqueuePageRender(wrap, task, false);
+            }
+          }
+
+          container.appendChild(fragment);
+
+          if (ctx.enqueuePageRender) {
+            for (const item of eagerWraps) {
+              ctx.enqueuePageRender(item.wrap, item.task, item.priority);
+            }
           }
           return;
         } catch (pdfErr) {
@@ -7768,28 +8315,89 @@
         `).join('');
       } else {
         container.innerHTML = `
-          <div class="continuous-pdf-page-card" style="height:680px;">
+          <div class="continuous-doc-iframe-card">
             <div class="continuous-pdf-page-head">
               <span>${escapeHtml(file.title || file.originalName)}</span>
               <span>Document View</span>
             </div>
-            <iframe src="${viewUrl}#toolbar=0&navpanes=0" style="width:100%; height:100%; border:none;"></iframe>
+            <iframe src="${viewUrl}#toolbar=0&navpanes=0" title="${escapeHtml(file.title || 'Document')}"></iframe>
           </div>
         `;
       }
     }
 
-    function formatChapterKyanaMarkdown(text) {
-      if (window.MarkdownRenderer && typeof window.MarkdownRenderer.render === 'function') {
-        return window.MarkdownRenderer.render(text || '');
-      }
-      const safe = escapeHtml(String(text || ''));
-      return safe
-        .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+    function normalizeChapterKyanaMarkdownInput(rawText) {
+      let txt = String(rawText || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+      if (!txt) return '';
+      // Convert ####+ headings into ### so markdown.js renders all heading levels cleanly
+      txt = txt.replace(/^#{4,6}\s+(.*)$/gm, '### $1');
+      // Normalize indented list markers (e.g., "  * item" or "  1. item") so markdown.js recognizes all lists
+      txt = txt.replace(/^[ \t]{1,3}([\*\-]|\d+\.)\s+/gm, '$1 ');
+      return txt;
+    }
+
+    function fallbackRenderChapterMarkdown(text) {
+      const lines = text.split('\n');
+      const out = [];
+      let inList = null;
+      let para = [];
+      const inline = (s) => escapeHtml(s)
+        .replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>')
+        .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>')
-        .replace(/\n\n+/g, '</p><p>')
-        .replace(/\n/g, '<br>');
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      const flushPara = () => {
+        if (para.length) {
+          out.push(`<p class="md-p">${para.map(inline).join('<br/>')}</p>`);
+          para = [];
+        }
+      };
+      const flushList = () => {
+        if (inList) {
+          out.push(`</${inList}>`);
+          inList = null;
+        }
+      };
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+          flushList(); flushPara(); out.push('<hr class="md-divider" />'); continue;
+        }
+        const h = trimmed.match(/^(#{1,3})\s+(.*)$/);
+        if (h) {
+          flushList(); flushPara(); out.push(`<h${h[1].length} class="md-h${h[1].length}">${inline(h[2])}</h${h[1].length}>`); continue;
+        }
+        const q = trimmed.match(/^>\s?(.*)$/);
+        if (q) {
+          flushList(); flushPara(); out.push(`<blockquote class="md-blockquote">${inline(q[1])}</blockquote>`); continue;
+        }
+        const ul = trimmed.match(/^[\*\-]\s+(.*)$/);
+        if (ul) {
+          flushPara();
+          if (inList !== 'ul') { flushList(); out.push('<ul class="md-ul">'); inList = 'ul'; }
+          out.push(`<li class="md-li">${inline(ul[1])}</li>`); continue;
+        }
+        const ol = trimmed.match(/^\d+\.\s+(.*)$/);
+        if (ol) {
+          flushPara();
+          if (inList !== 'ol') { flushList(); out.push('<ol class="md-ol">'); inList = 'ol'; }
+          out.push(`<li class="md-li">${inline(ol[1])}</li>`); continue;
+        }
+        flushList();
+        if (!trimmed) { flushPara(); continue; }
+        para.push(line);
+      }
+      flushList(); flushPara();
+      return out.join('');
+    }
+
+    function formatChapterKyanaMarkdown(text) {
+      const normalized = normalizeChapterKyanaMarkdownInput(text);
+      if (!normalized) return '';
+      if (typeof window.renderPostMarkdown === 'function') {
+        return window.renderPostMarkdown(normalized);
+      }
+      return fallbackRenderChapterMarkdown(normalized);
     }
 
     function renderChapterKyanaWelcome(bundle) {
@@ -7804,15 +8412,17 @@
           <div class="chapter-kyana-source-tag">
             <span>CHAPTER CONTEXT READY</span>
           </div>
-          <p><strong>${escapeHtml(ACTIVE_CHAPTER_KYANA_STATE.chapterTitle)}</strong> (${escapeHtml(ACTIVE_CHAPTER_KYANA_STATE.subjectCode || ACTIVE_CHAPTER_KYANA_STATE.subject)}) is loaded.</p>
-          <p>${files.length > 0
-            ? `I have indexed all <strong>${files.length} chapter note${files.length === 1 ? '' : 's'}</strong> (${fileNames}) shown on the left plus the official chapter syllabus${topics.length ? ` (${topics.length} subtopics)` : ''}.`
-            : `No teacher PDFs are uploaded for this chapter yet, so I have loaded the official chapter syllabus${topics.length ? ` (${topics.length} subtopics)` : ''} and academic knowledge base.`
-          }</p>
-          <p style="margin-bottom:0; color:#475569; font-size:12.5px;">
-            &bull; Ask me any specific question, definition, formula, or follow-up (like <em>"I don't understand, give me an example"</em>).<br>
-            &bull; Or click <strong>"Teach Me This Chapter"</strong> above whenever you want me to teach the entire chapter step-by-step.
-          </p>
+          <div class="chapter-kyana-md">
+            <p class="md-p"><strong>${escapeHtml(ACTIVE_CHAPTER_KYANA_STATE.chapterTitle)}</strong> (${escapeHtml(ACTIVE_CHAPTER_KYANA_STATE.subjectCode || ACTIVE_CHAPTER_KYANA_STATE.subject)}) is loaded.</p>
+            <p class="md-p">${files.length > 0
+              ? `I have indexed all <strong>${files.length} chapter note${files.length === 1 ? '' : 's'}</strong> (${fileNames}) shown on the left plus the official chapter syllabus${topics.length ? ` (${topics.length} subtopics)` : ''}.`
+              : `No teacher PDFs are uploaded for this chapter yet, so I have loaded the official chapter syllabus${topics.length ? ` (${topics.length} subtopics)` : ''} and academic knowledge base.`
+            }</p>
+            <ul class="md-ul">
+              <li class="md-li">Ask me any specific question, definition, formula, or follow-up (like <em>"Give me a simple example"</em>).</li>
+              <li class="md-li">Click <strong>"Teach Me This Chapter"</strong> above whenever you want me to teach the entire chapter step-by-step.</li>
+            </ul>
+          </div>
         </div>
       `;
     }
@@ -7853,7 +8463,10 @@
       const input = document.getElementById('chapterKyanaInput');
       const sendBtn = document.getElementById('chapterKyanaSendBtn');
       const msgBox = document.getElementById('chapterKyanaMessages');
-      if (input) input.value = '';
+      if (input) {
+        input.value = '';
+        input.style.height = 'auto';
+      }
       ACTIVE_CHAPTER_KYANA_STATE.sending = true;
       if (sendBtn) sendBtn.disabled = true;
 
@@ -7866,7 +8479,12 @@
       // Append thinking bubble
       const thinkingBubble = document.createElement('div');
       thinkingBubble.className = 'chapter-kyana-msg assistant';
-      thinkingBubble.innerHTML = `<span style="color:#64748b; font-size:12.5px;">Thinking & checking chapter PDFs + syllabus…</span>`;
+      thinkingBubble.innerHTML = `
+        <div class="chapter-kyana-typing">
+          <div class="chapter-kyana-dots"><span></span><span></span><span></span></div>
+          <span>Reading chapter PDFs & preparing your explanation…</span>
+        </div>
+      `;
       msgBox.appendChild(thinkingBubble);
       msgBox.scrollTop = msgBox.scrollHeight;
 
@@ -7905,19 +8523,19 @@
         if (isStudyPartner) {
           badgeHtml = `<div class="chapter-kyana-source-tag"><span>STEP-BY-STEP CHAPTER TEACHING</span></div>`;
         } else if (chapterMeta && chapterMeta.usedFallbackKnowledge) {
-          badgeHtml = `<div class="chapter-kyana-source-tag fallback"><span>SYLLABUS + ACADEMIC KNOWLEDGE (NOT IN UPLOADED PDF)</span></div>`;
+          badgeHtml = `<div class="chapter-kyana-source-tag fallback"><span>SYLLABUS + ACADEMIC KNOWLEDGE</span></div>`;
         } else if (chapterMeta && chapterMeta.foundInNotes) {
-          badgeHtml = `<div class="chapter-kyana-source-tag"><span>GROUNDED IN CHAPTER PDF NOTES & SYLLABUS</span></div>`;
+          badgeHtml = `<div class="chapter-kyana-source-tag"><span>GROUNDED IN CHAPTER NOTES & SYLLABUS</span></div>`;
         }
 
-        thinkingBubble.innerHTML = `${badgeHtml}<p>${formatChapterKyanaMarkdown(replyText)}</p>`;
+        thinkingBubble.innerHTML = `${badgeHtml}<div class="chapter-kyana-md">${formatChapterKyanaMarkdown(replyText)}</div>`;
 
         // Save both user and assistant messages to conversation history for follow-ups ("I don't understand", "Give me an example")
         ACTIVE_CHAPTER_KYANA_STATE.history.push({ role: 'user', content: message });
         ACTIVE_CHAPTER_KYANA_STATE.history.push({ role: 'assistant', content: replyText });
       } catch (err) {
         console.error('[Chapter Kyana Chat Error]:', err);
-        thinkingBubble.innerHTML = `<p style="color:#dc2626;">Could not reach Kyana AI. Please try again.</p>`;
+        thinkingBubble.innerHTML = `<div class="chapter-kyana-md"><p class="md-p" style="color:#dc2626;">Could not reach Kyana AI. Please try again.</p></div>`;
       } finally {
         ACTIVE_CHAPTER_KYANA_STATE.sending = false;
         if (sendBtn) sendBtn.disabled = false;

@@ -261,4 +261,47 @@ test('Chapter Tutor Workspace — Continuous Multi-PDF Bundle + Grounded Q&A + F
     });
     assert.equal(delegated.delegateToStudyPartner, true);
   });
+
+  await t.test('6. Unordered chapter lecture files are sorted in natural numerical order', async () => {
+    const unorderedDb = createMockChapterDb();
+    const customFiles = [
+      { id: 401, title: 'Lecture 2 Introduction', originalName: 'L2.pdf', subject: 'Discrete Mathematics', unit_number: 1, chapter: 'Unit 1', sort_order: 0 },
+      { id: 402, title: 'Lecture 5 Nested Quantifiers', originalName: 'L5.pdf', subject: 'Discrete Mathematics', unit_number: 1, chapter: 'Unit 1', sort_order: 0 },
+      { id: 403, title: 'Lecture 4 Predicate', originalName: 'L4.pdf', subject: 'Discrete Mathematics', unit_number: 1, chapter: 'Unit 1', sort_order: 0 },
+      { id: 404, title: 'Lecture 3 Tautology', originalName: 'L3.pdf', subject: 'Discrete Mathematics', unit_number: 1, chapter: 'Unit 1', sort_order: 0 }
+    ];
+    const origAll = unorderedDb.all.bind(unorderedDb);
+    unorderedDb.all = async (sql, ...params) => {
+      const q = String(sql || '').toLowerCase();
+      if (q.includes('from files') && !q.includes('join files')) return customFiles;
+      return origAll(sql, ...params);
+    };
+
+    const bundle = await getChapterReaderBundle(unorderedDb, {
+      academicContext,
+      subject: 'Discrete Mathematics',
+      chapterTitle: 'Unit 1: Logic and Induction',
+      fileIds: [401, 402, 403, 404]
+    });
+
+    assert.deepEqual(
+      bundle.files.map((f) => f.title),
+      [
+        'Lecture 2 Introduction',
+        'Lecture 3 Tautology',
+        'Lecture 4 Predicate',
+        'Lecture 5 Nested Quantifiers'
+      ]
+    );
+  });
+
+  await t.test('7. library.html continuous stream prevents flex collapsing and uses renderPostMarkdown for Kyana AI chat', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'library.html'), 'utf8');
+    assert.match(html, /\.continuous-chapter-stream\s*\{[^}]*display:\s*block;/);
+    assert.match(html, /\.continuous-pdf-page-card\s*\{[^}]*flex-shrink:\s*0;/);
+    assert.match(html, /window\.renderPostMarkdown\(normalized\)/);
+    assert.doesNotMatch(html, /window\.MarkdownRenderer/);
+  });
 });

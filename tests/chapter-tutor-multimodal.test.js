@@ -1056,3 +1056,259 @@ test('Test 17: Romanized Nepali visual query with bujhauna retrieves relevant im
   assert.equal(res.chapterTutor.visualEvidenceUsed, true);
 });
 
+test('Test 18: PDF note page visual retrieval with circuit diagram attaches page image and provenance', async () => {
+  const files = [
+    {
+      id: 1801,
+      title: 'Microprocessors Architecture Notes',
+      storedName: 'microprocessors_unit3.pdf',
+      originalName: 'microprocessors_unit3.pdf',
+      subject: 'Microprocessors',
+      chapter: 'Unit 3: 8085 Architecture',
+      semester: '2',
+      unit_number: 3,
+      readerType: 'pdf'
+    }
+  ];
+
+  const pages = [
+    {
+      file_id: '1801',
+      page_number: 1,
+      cleaned_text: 'Introduction to 8085 microprocessor pins and internal buses.',
+      page_type: 'text'
+    },
+    {
+      file_id: '1801',
+      page_number: 14,
+      cleaned_text: '8085 ALU architecture with accumulator, temporary register, and flag flip-flops.',
+      page_type: 'diagram',
+      figure_description: '8085 ALU architecture circuit diagram and bus layout',
+      figure_title: '8085 ALU Circuit Diagram'
+    }
+  ];
+
+  const db = createMockDb({ files, pages });
+  let receivedPayload = null;
+
+  const res = await answerWithChapterContext(db, {
+    message: 'Explain the 8085 ALU circuit diagram on page 14',
+    chapterContext: {
+      subject: 'Microprocessors',
+      chapterTitle: 'Unit 3: 8085 Architecture',
+      unitNumber: 3,
+      semesterNo: 2,
+      fileIds: [1801]
+    },
+    academicContext: {
+      authenticated: true,
+      role: 'student',
+      cohort: { id: 2, currentSemester: 2 }
+    },
+    resolvePageBufferFn: async (file, pageNo) => (pageNo === 14 ? VALID_PNG_BUFFER : null),
+    generateReplyFn: async ({ message }) => {
+      receivedPayload = message;
+      return { reply: 'The 8085 ALU performs arithmetic and logical operations controlled by the timing and control unit.' };
+    }
+  });
+
+  assert.ok(receivedPayload && typeof receivedPayload === 'object', 'Should receive multimodal object message');
+  assert.equal(receivedPayload.images.length, 1, 'Should attach exactly 1 page image');
+  assert.equal(receivedPayload.images[0].metadata.fileId, 1801);
+  assert.equal(receivedPayload.images[0].metadata.pageNumber, 14);
+  assert.equal(res.chapterTutor.visualEvidenceUsed, true);
+  assert.equal(res.chapterTutor.visualAssets[0].pageNumber, 14);
+  assert.equal(res.chapterTutor.visualAssets[0].kind, 'pdf_page');
+
+  // Verify citation provenance
+  const visualCitation = res.citations.find((c) => c.evidenceOrigin === 'visual_evidence');
+  assert.ok(visualCitation, 'Should include visual_evidence citation');
+  assert.equal(visualCitation.fileId, 1801);
+  assert.equal(visualCitation.pageStart, 14);
+});
+
+test('Test 19: PDF note page visual retrieval for mathematical equations and derivations', async () => {
+  const files = [
+    {
+      id: 1901,
+      title: 'Linear Algebra Lecture Notes',
+      storedName: 'linear_algebra.pdf',
+      originalName: 'linear_algebra.pdf',
+      subject: 'Linear Algebra',
+      chapter: 'Unit 4: Eigenvalues and Eigenvectors',
+      semester: '1',
+      unit_number: 4,
+      readerType: 'pdf'
+    }
+  ];
+
+  const pages = [
+    {
+      file_id: '1901',
+      page_number: 3,
+      cleaned_text: 'Review of matrix determinants and invertibility properties.',
+      page_type: 'text'
+    },
+    {
+      file_id: '1901',
+      page_number: 8,
+      cleaned_text: 'Characteristic equation derivation: det(A - lambda I) = 0. Solving for eigenvalues lambda.',
+      page_type: 'math',
+      latex_present: 1,
+      figure_description: 'Step-by-step derivation of the characteristic polynomial and roots',
+      figure_title: 'Characteristic Equation Derivation'
+    }
+  ];
+
+  const db = createMockDb({ files, pages });
+  let receivedPayload = null;
+
+  const res = await answerWithChapterContext(db, {
+    message: 'Show me the eigenvalue characteristic equation derivation from page 8',
+    chapterContext: {
+      subject: 'Linear Algebra',
+      chapterTitle: 'Unit 4: Eigenvalues and Eigenvectors',
+      unitNumber: 4,
+      semesterNo: 1,
+      fileIds: [1901]
+    },
+    academicContext: {
+      authenticated: true,
+      role: 'student',
+      cohort: { id: 1, currentSemester: 1 }
+    },
+    resolvePageBufferFn: async (file, pageNo) => (pageNo === 8 ? VALID_PNG_BUFFER : null),
+    generateReplyFn: async ({ message }) => {
+      receivedPayload = message;
+      return { reply: 'To find the eigenvalues, solve det(A - lambda*I) = 0 for the scalar values lambda.' };
+    }
+  });
+
+  assert.ok(receivedPayload && typeof receivedPayload === 'object');
+  assert.equal(receivedPayload.images.length, 1);
+  assert.equal(receivedPayload.images[0].metadata.fileId, 1901);
+  assert.equal(receivedPayload.images[0].metadata.pageNumber, 8);
+  assert.equal(res.chapterTutor.visualEvidenceUsed, true);
+  assert.equal(res.chapterTutor.visualAssets[0].pageNumber, 8);
+});
+
+test('Test 20: Explicit page query targeting a PDF note selects requested page and rejects other pages', async () => {
+  const files = [
+    {
+      id: 2001,
+      title: 'Software Engineering Processes',
+      storedName: 'software_engineering.pdf',
+      originalName: 'software_engineering.pdf',
+      subject: 'Software Engineering',
+      chapter: 'Unit 2: Agile Methodology',
+      semester: '3',
+      unit_number: 2,
+      readerType: 'pdf'
+    }
+  ];
+
+  const pages = [
+    {
+      file_id: '2001',
+      page_number: 2,
+      cleaned_text: 'Waterfall development lifecycle phases and gate checks flowchart.',
+      page_type: 'diagram',
+      figure_description: 'Waterfall sequential model flowchart with requirement, design, coding, testing'
+    },
+    {
+      file_id: '2001',
+      page_number: 7,
+      cleaned_text: 'Agile scrum sprint cycle diagram with daily standups, sprint review, and retrospective.',
+      page_type: 'diagram',
+      figure_description: 'Agile scrum sprint cycle diagram with product backlog, sprint backlog, and burndown'
+    }
+  ];
+
+  const db = createMockDb({ files, pages });
+  let receivedPayload = null;
+
+  const res = await answerWithChapterContext(db, {
+    message: 'Explain the sprint cycle flowchart on page 7',
+    chapterContext: {
+      subject: 'Software Engineering',
+      chapterTitle: 'Unit 2: Agile Methodology',
+      unitNumber: 2,
+      semesterNo: 3,
+      fileIds: [2001]
+    },
+    academicContext: {
+      authenticated: true,
+      role: 'student',
+      cohort: { id: 3, currentSemester: 3 }
+    },
+    resolvePageBufferFn: async (file, pageNo) => (pageNo === 7 ? VALID_PNG_BUFFER : VALID_JPEG_BUFFER),
+    generateReplyFn: async ({ message }) => {
+      receivedPayload = message;
+      return { reply: 'The sprint cycle on page 7 illustrates iterative increments over a 2-4 week window.' };
+    }
+  });
+
+  assert.ok(receivedPayload && typeof receivedPayload === 'object');
+  assert.equal(receivedPayload.images.length, 1);
+  assert.equal(receivedPayload.images[0].metadata.pageNumber, 7, 'Must select page 7 and reject page 2');
+  assert.equal(res.chapterTutor.visualEvidenceUsed, true);
+  assert.equal(res.chapterTutor.visualAssets[0].pageNumber, 7);
+});
+
+test('Test 21: Graceful degradation when PDF page buffer resolution fails', async () => {
+  const files = [
+    {
+      id: 2101,
+      title: 'Digital Electronics Lab',
+      storedName: 'digital_electronics.pdf',
+      originalName: 'digital_electronics.pdf',
+      subject: 'Digital Electronics',
+      chapter: 'Unit 2: Combinational Logic',
+      semester: '2',
+      unit_number: 2,
+      readerType: 'pdf'
+    }
+  ];
+
+  const pages = [
+    {
+      file_id: '2101',
+      page_number: 5,
+      cleaned_text: 'Full adder circuit diagram using XOR, AND, and OR gates.',
+      page_type: 'diagram',
+      figure_description: 'Full adder circuit schematic diagram with Sum and Carry outputs',
+      figure_title: 'Full Adder Schematic'
+    }
+  ];
+
+  const db = createMockDb({ files, pages });
+  let receivedPayload = null;
+
+  const res = await answerWithChapterContext(db, {
+    message: 'Explain the full adder circuit diagram on page 5',
+    chapterContext: {
+      subject: 'Digital Electronics',
+      chapterTitle: 'Unit 2: Combinational Logic',
+      unitNumber: 2,
+      semesterNo: 2,
+      fileIds: [2101]
+    },
+    academicContext: {
+      authenticated: true,
+      role: 'student',
+      cohort: { id: 2, currentSemester: 2 }
+    },
+    resolvePageBufferFn: async () => null, // Buffer resolution fails or returns null
+    generateReplyFn: async ({ message }) => {
+      receivedPayload = message;
+      return { reply: 'A full adder sums three one-bit binary numbers: A, B, and Carry-in.' };
+    }
+  });
+
+  // Because image buffer resolution failed, system gracefully degrades to text-only prompt
+  assert.equal(typeof receivedPayload, 'string', 'Message must degrade to a plain string');
+  assert.equal(res.chapterTutor.visualEvidenceUsed, false);
+  assert.equal(res.chapterTutor.diagramDescriptionsUsed, true);
+  assert.ok(res.reply.includes('full adder'));
+});
+

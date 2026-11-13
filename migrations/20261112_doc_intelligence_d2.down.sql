@@ -18,7 +18,7 @@ DROP INDEX IF EXISTS idx_dp_tier_order;
 DROP INDEX IF EXISTS idx_dp_needs_vision;
 DROP INDEX IF EXISTS idx_dp_file_status;
 DROP INDEX IF EXISTS uq_dp_file_page;
-DROP TABLE IF EXISTS document_pages;
+DROP TABLE IF EXISTS doc_pages;
 
 COMMIT;
 

@@ -10,7 +10,7 @@
 const PREFLIGHT_VARS = [
   {
     name: 'DATABASE_URL',
-    disables: 'Postgres connection — worker CLI and reconciliation cannot read or write ingestion_jobs / document_pages'
+    disables: 'Postgres connection — worker CLI and reconciliation cannot read or write ingestion_jobs / doc_pages'
   },
   {
     name: 'GEMINI_API_KEY',

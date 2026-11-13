@@ -258,7 +258,7 @@ async function processSingleLocalPdf(db, filePath, {
 
   const pagesRes = await db.query(
     `SELECT page_no, source, status, page_type, ocr_confidence, error, raw_text, text, figure_description
-     FROM document_pages
+     FROM doc_pages
      WHERE file_id = $1
      ORDER BY page_no ASC`,
     [fileId]

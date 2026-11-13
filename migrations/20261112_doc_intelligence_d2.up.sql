@@ -1,14 +1,14 @@
 -- Migration: Phase D2 Document Page-Reading Pipeline (UP)
 -- File: migrations/20261112_doc_intelligence_d2.up.sql
 -- Target DB: PostgreSQL 16 (Neon)
--- Creates: document_pages, ingestion_jobs
+-- Creates: doc_pages, ingestion_jobs
 
 BEGIN;
 
 -- 1. Per-page extracted content, classification & OCR tracking
-CREATE TABLE IF NOT EXISTS document_pages (
+CREATE TABLE IF NOT EXISTS doc_pages (
   id BIGSERIAL PRIMARY KEY,
-  file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+  file_id INTEGER NOT NULL,
   page_no INTEGER NOT NULL CHECK (page_no >= 1),
   text TEXT NOT NULL DEFAULT '',
   raw_text TEXT NOT NULL DEFAULT '',
@@ -28,15 +28,15 @@ CREATE TABLE IF NOT EXISTS document_pages (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_dp_file_page ON document_pages (file_id, page_no);
-CREATE INDEX IF NOT EXISTS idx_dp_file_status ON document_pages (file_id, status);
-CREATE INDEX IF NOT EXISTS idx_dp_needs_vision ON document_pages (file_id) WHERE source = 'vision' OR latex_present = TRUE;
-CREATE INDEX IF NOT EXISTS idx_dp_tier_order ON document_pages (file_id, tier, page_no);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_dp_file_page ON doc_pages (file_id, page_no);
+CREATE INDEX IF NOT EXISTS idx_dp_file_status ON doc_pages (file_id, status);
+CREATE INDEX IF NOT EXISTS idx_dp_needs_vision ON doc_pages (file_id) WHERE source = 'vision' OR latex_present = TRUE;
+CREATE INDEX IF NOT EXISTS idx_dp_tier_order ON doc_pages (file_id, tier, page_no);
 
 -- 2. Asynchronous document ingestion jobs (state machine, lease, checkpoint & dedup)
 CREATE TABLE IF NOT EXISTS ingestion_jobs (
   id BIGSERIAL PRIMARY KEY,
-  file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+  file_id INTEGER NOT NULL,
   content_hash TEXT NOT NULL DEFAULT '',
   file_version INTEGER NOT NULL DEFAULT 1,
   status TEXT NOT NULL DEFAULT 'queued' CHECK (

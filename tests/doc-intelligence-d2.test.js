@@ -171,6 +171,18 @@ async function createD2TestDb() {
     pool: null, // tests exercise both runner path and transaction path explicitly
     query: (sql, params = []) => pg.query(sql, params),
     exec: (sql) => pg.exec(sql),
+    all: async (sql, ...params) => {
+      let idx = 1;
+      const pgSql = sql.replace(/\?/g, () => `$${idx++}`);
+      const res = await pg.query(pgSql, params);
+      return res.rows;
+    },
+    run: async (sql, ...params) => {
+      let idx = 1;
+      const pgSql = sql.replace(/\?/g, () => `$${idx++}`);
+      const res = await pg.query(pgSql, params);
+      return { changes: res.rowCount || 0 };
+    },
     getFileBlob: async (filename) => {
       const r = await pg.query('SELECT mimeType, fileData FROM file_blobs WHERE filename = $1 LIMIT 1', [filename]);
       const row = r.rows[0];
@@ -431,19 +443,19 @@ function createMockGeminiFetch(handler) {
   return { fetchImpl, calls };
 }
 
-test('1. Migration UP and DOWN idempotently manage document_pages and ingestion_jobs + indexes on PGlite', async () => {
+test('1. Migration UP and DOWN idempotently manage doc_pages and ingestion_jobs + indexes on PGlite', async () => {
   const { pg } = await createD2TestDb();
 
   const tablesRes = await pg.query(`
     SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name IN ('document_pages', 'ingestion_jobs')
+    WHERE table_schema = 'public' AND table_name IN ('doc_pages', 'ingestion_jobs')
     ORDER BY table_name
   `);
-  assert.deepEqual(tablesRes.rows.map(r => r.table_name), ['document_pages', 'ingestion_jobs']);
+  assert.deepEqual(tablesRes.rows.map(r => r.table_name), ['doc_pages', 'ingestion_jobs']);
 
   const idxRes = await pg.query(`
     SELECT indexname FROM pg_indexes
-    WHERE tablename IN ('document_pages', 'ingestion_jobs')
+    WHERE tablename IN ('doc_pages', 'ingestion_jobs')
     ORDER BY indexname
   `);
   const indexNames = idxRes.rows.map(r => r.indexname);
@@ -469,7 +481,7 @@ test('1. Migration UP and DOWN idempotently manage document_pages and ingestion_
 
   const afterDown = await pg.query(`
     SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name IN ('document_pages', 'ingestion_jobs')
+    WHERE table_schema = 'public' AND table_name IN ('doc_pages', 'ingestion_jobs')
   `);
   assert.equal(afterDown.rows.length, 0);
 
@@ -477,7 +489,7 @@ test('1. Migration UP and DOWN idempotently manage document_pages and ingestion_
   await pg.exec(upSql);
   const afterReUp = await pg.query(`
     SELECT table_name FROM information_schema.tables
-    WHERE table_schema = 'public' AND table_name IN ('document_pages', 'ingestion_jobs')
+    WHERE table_schema = 'public' AND table_name IN ('doc_pages', 'ingestion_jobs')
   `);
   assert.equal(afterReUp.rows.length, 2);
 });
@@ -522,7 +534,7 @@ test('3. Fixture 1 (Clean typed multi-page PDF): extracts via text_layer with 0 
   assert.equal(outcome.visionPagesUsed, 0);
   assert.equal(calls.length, 0);
 
-  const pagesRes = await db.query('SELECT * FROM document_pages WHERE file_id = $1 ORDER BY page_no ASC', [fileId]);
+  const pagesRes = await db.query('SELECT * FROM doc_pages WHERE file_id = $1 ORDER BY page_no ASC', [fileId]);
   assert.equal(pagesRes.rows.length, 2);
   assert.equal(pagesRes.rows[0].source, 'text_layer');
   assert.equal(pagesRes.rows[0].page_type, 'text');
@@ -589,7 +601,7 @@ test('4. Fixture 2 & 3 (Scanned image-only PDF & Mixed typed + scanned + blank P
   assert.equal(calls.length, 2);
   assert.ok(seenVisionUrls.every(u => u.includes('gemini-vision-test')));
 
-  const mixedPages = (await db.query('SELECT * FROM document_pages WHERE file_id = $1 ORDER BY page_no ASC', [mixedFile.fileId])).rows;
+  const mixedPages = (await db.query('SELECT * FROM doc_pages WHERE file_id = $1 ORDER BY page_no ASC', [mixedFile.fileId])).rows;
   assert.equal(mixedPages.length, 4);
   assert.equal(mixedPages[0].source, 'text_layer');
   assert.equal(mixedPages[1].source, 'vision');
@@ -645,7 +657,7 @@ test('5. Fixture 4 (Nepali Devanagari UTF-8 & Preeti legacy mojibake): UTF-8 sta
   assert.equal(outcome.visionPagesUsed, 1);
   assert.equal(calls.length, 1);
 
-  const pages = (await db.query('SELECT * FROM document_pages WHERE file_id = $1 ORDER BY page_no ASC', [fileId])).rows;
+  const pages = (await db.query('SELECT * FROM doc_pages WHERE file_id = $1 ORDER BY page_no ASC', [fileId])).rows;
   assert.equal(pages[0].source, 'text_layer');
   assert.ok(pages[0].text.includes('नेपालको संविधान'));
   assert.equal(pages[1].source, 'vision');
@@ -683,7 +695,7 @@ test('6. Fixture 5 (Large 120-page PDF + lease expiry resume + 60-vision-page qu
   assert.match(crashOutcome.error, /SIMULATED_SIGKILL/);
 
   // Confirm 60 checkpointed pages exist before recovery; simulate stale extracting_text lease
-  const beforeRecover = await db.query('SELECT COUNT(*)::int AS cnt FROM document_pages WHERE file_id = $1', [largeFile.fileId]);
+  const beforeRecover = await db.query('SELECT COUNT(*)::int AS cnt FROM doc_pages WHERE file_id = $1', [largeFile.fileId]);
   assert.equal(beforeRecover.rows[0].cnt, 60);
 
   await db.query(`
@@ -747,7 +759,7 @@ test('6. Fixture 5 (Large 120-page PDF + lease expiry resume + 60-vision-page qu
   assert.equal(visionCalledPages.length, 60);
 
   const skippedRows = await db.query(
-    "SELECT page_no, status FROM document_pages WHERE file_id = $1 AND status = 'skipped_quota' ORDER BY page_no",
+    "SELECT page_no, status FROM doc_pages WHERE file_id = $1 AND status = 'skipped_quota' ORDER BY page_no",
     [quotaFile.fileId]
   );
   assert.deepEqual(skippedRows.rows.map(r => Number(r.page_no)), [61, 62, 63, 64, 65]);
@@ -840,7 +852,7 @@ test('7. Fixture 6 (Password-protected PDF, corrupt PDF, transient 429/503 retri
   assert.equal(pageAttempts[2], 3);
   assert.equal(pageAttempts[3], 3);
 
-  const isoPages = (await db.query('SELECT * FROM document_pages WHERE file_id = $1 ORDER BY page_no', [isoFile.fileId])).rows;
+  const isoPages = (await db.query('SELECT * FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [isoFile.fileId])).rows;
   assert.equal(isoPages[0].status, 'completed');
   assert.equal(isoPages[1].status, 'failed');
   assert.equal(Number(isoPages[1].attempts), 3);
@@ -892,7 +904,7 @@ test('8. Fixture 7 (Duplicate upload content_hash dedup): second upload transiti
   assert.equal(res2.reusedFromFileId, f1.fileId);
   assert.equal(calls.length, 1, 'Expected zero additional Vision calls for duplicate content_hash');
 
-  const f2Pages = (await db.query('SELECT * FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f2.fileId])).rows;
+  const f2Pages = (await db.query('SELECT * FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [f2.fileId])).rows;
   assert.equal(f2Pages.length, 2);
   assert.equal(f2Pages[0].latex_present, true);
   assert.equal(f2Pages[0].page_image_path, null);
@@ -1000,7 +1012,7 @@ test('9. D1 Section 11 Fixtures (Math-heavy, Diagrams/Figures, Tables, Handwritt
   assert.equal(outcome.visionPagesUsed, 4);
   assert.equal(calls.length, 4);
 
-  const pages = (await db.query('SELECT * FROM document_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
+  const pages = (await db.query('SELECT * FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
   assert.equal(pages[0].page_type, 'math');
   assert.equal(pages[0].latex_present, true);
   assert.ok(pages[0].text.includes('\\int_0^1'));
@@ -1064,8 +1076,8 @@ test('10. Concurrent worker safety: claimNextIngestionJob enforces lease & non-b
   assert.equal(enqueued.status, 'queued');
   assert.ok(enqueued.jobId > 0);
 
-  // Immediately after upload/enqueue, neither document_pages nor note_search_documents are populated yet
-  const pagesBeforeWorker = await db.query('SELECT COUNT(*)::int AS cnt FROM document_pages WHERE file_id = $1', [fileId]);
+  // Immediately after upload/enqueue, neither doc_pages nor note_search_documents are populated yet
+  const pagesBeforeWorker = await db.query('SELECT COUNT(*)::int AS cnt FROM doc_pages WHERE file_id = $1', [fileId]);
   const nsdBeforeWorker = await db.query('SELECT COUNT(*)::int AS cnt FROM note_search_documents WHERE id = $1', [fileId]);
   assert.equal(pagesBeforeWorker.rows[0].cnt, 0);
   assert.equal(nsdBeforeWorker.rows[0].cnt, 0);
@@ -1161,7 +1173,7 @@ test('11. Per-page Vision timeout (AbortController) & pgPool transaction claim p
   assert.equal(attemptsPerPage[1], 2);
   assert.equal(attemptsPerPage[2], 1);
 
-  const pages = (await db.query('SELECT page_no, status, error FROM document_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
+  const pages = (await db.query('SELECT page_no, status, error FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
   assert.equal(pages[0].status, 'failed');
   assert.match(pages[0].error, /VISION_TIMEOUT|aborted/i);
   assert.equal(pages[1].status, 'completed');
@@ -1406,7 +1418,7 @@ test('14. Fix D: pdf-lib sends only 1-page (or <=3 consecutive page batch) slice
   assert.deepEqual(singleCallPageCounts, [1, 1, 1, 1], 'Each default vision call must carry exactly a 1-page slice');
   assert.equal(singleCalls.some(c => c.url.includes('/upload/v1beta/files')), false, 'File API must not be called for small slices');
 
-  const p1Rows = (await db.query('SELECT page_no, source, text FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f1])).rows;
+  const p1Rows = (await db.query('SELECT page_no, source, text FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [f1])).rows;
   assert.equal(p1Rows[0].text, 'Single-slice OCR output for physical page 1');
   assert.equal(p1Rows[1].text, 'Single-slice OCR output for physical page 2');
   assert.equal(p1Rows[2].source, 'text_layer');
@@ -1459,7 +1471,7 @@ test('14. Fix D: pdf-lib sends only 1-page (or <=3 consecutive page batch) slice
   });
   assert.equal(out2.status, 'completed');
   assert.deepEqual(batchSliceCounts, [2, 2]);
-  const p2Rows = (await db.query('SELECT page_no, text FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f2])).rows;
+  const p2Rows = (await db.query('SELECT page_no, text FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [f2])).rows;
   assert.equal(p2Rows[0].text, 'Batch1 SlicePos0');
   assert.equal(p2Rows[1].text, 'Batch1 SlicePos1');
   assert.equal(p2Rows[3].text, 'Batch2 SlicePos0');
@@ -1580,7 +1592,7 @@ test('15. Fix E: Drift check lowers confidence and flags PAGE_DRIFT_SUSPECTED wh
   });
   assert.equal(out.status, 'completed');
 
-  const pages = (await db.query('SELECT page_no, source, ocr_confidence, error FROM document_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
+  const pages = (await db.query('SELECT page_no, source, ocr_confidence, error FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
   assert.equal(pages[0].source, 'vision');
   assert.ok(pages[0].ocr_confidence !== null);
   assert.ok(Number(pages[0].ocr_confidence) <= 0.35, `Expected lowered confidence <= 0.35, got ${pages[0].ocr_confidence}`);
@@ -1903,7 +1915,7 @@ test('20. D2-S PDF slicing robustness: encrypted/corrupt classify as terminal (0
   assert.equal(out.failedPages, 1);
   assert.equal(visionCalls, 2, 'Page 2 failure must incur 0 Vision retry attempts');
 
-  const rows = (await db.query('SELECT page_no, status, attempts, error FROM document_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
+  const rows = (await db.query('SELECT page_no, status, attempts, error FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
   assert.equal(rows[0].status, 'completed');
   assert.equal(rows[1].status, 'failed');
   assert.equal(rows[1].attempts, 0);
@@ -2202,7 +2214,7 @@ test('25. D2-U Quota circuit breaker: daily 429 stops retries & queued jobs, mar
   assert.equal(job2.status, 'queued');
   assert.equal(job2.attempts, 0);
 
-  const pRows1 = (await db.query('SELECT page_no, status, source, attempts, text FROM document_pages WHERE file_id = $1 ORDER BY page_no', [file1Id])).rows;
+  const pRows1 = (await db.query('SELECT page_no, status, source, attempts, text FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [file1Id])).rows;
   assert.equal(pRows1[0].status, 'completed');
   assert.equal(pRows1[0].source, 'text_layer');
   assert.equal(pRows1[1].status, 'skipped_quota');
@@ -2435,7 +2447,7 @@ test('27. D2-U Classifier signals: logo vs large image, vector TOC vs diagram, b
   assert.equal(bumpedThresholdCls.route, 'text_layer');
 });
 
-test('28. D2-U Worker stores nepali_repair & blank boilerplate cleanly in PGlite document_pages', async () => {
+test('28. D2-U Worker stores nepali_repair & blank boilerplate cleanly in PGlite doc_pages', async () => {
   const { db } = await createD2TestDb();
   const pdf = buildSyntheticPdf([
     { text: 'This page intentionally left blank.', vectorLines: 5 },
@@ -2484,7 +2496,7 @@ test('28. D2-U Worker stores nepali_repair & blank boilerplate cleanly in PGlite
   assert.equal(calls.length, 1);
   assert.deepEqual(seenPages, [3]);
 
-  const rows = (await db.query('SELECT page_no, status, source, page_type, text FROM document_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
+  const rows = (await db.query('SELECT page_no, status, source, page_type, text FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [fileId])).rows;
   assert.equal(rows[0].status, 'skipped');
   assert.equal(rows[1].source, 'text_layer');
   assert.equal(rows[2].source, 'vision');
@@ -2680,8 +2692,8 @@ test('30. D2-V2 Quota resume: Day 1 daily 429 after 1st page, Day 2 resumes ONLY
   // Day 2 must call Gemini ONLY for skipped pages (Page 2 and Page 3). Page 1 is NOT re-called!
   assert.deepEqual(day2Calls, [2, 3]);
 
-  // Assert: document_pages has final vision text for ALL pages
-  const pRows = (await db.query('SELECT page_no, status, source, text FROM document_pages WHERE file_id = $1 ORDER BY page_no ASC', [fileId])).rows;
+  // Assert: doc_pages has final vision text for ALL pages
+  const pRows = (await db.query('SELECT page_no, status, source, text FROM doc_pages WHERE file_id = $1 ORDER BY page_no ASC', [fileId])).rows;
   assert.equal(pRows.length, 3);
   for (let i = 0; i < 3; i++) {
     assert.equal(pRows[i].status, 'completed');
@@ -3038,7 +3050,7 @@ test('35. D2-X Part 2: Dynamic timeouts depend on slice size, retry once at 1.5x
   assert.equal(callCount, 2, 'Must stop after exactly 1 timeout retry (2 total attempts)');
   assert.equal(outcome.status, 'failed_retryable', 'Job where all pages timed out must end failed_retryable for next run');
 
-  const pageRow = (await db.query('SELECT attempts, status, error FROM document_pages WHERE file_id = $1', [fileId])).rows[0];
+  const pageRow = (await db.query('SELECT attempts, status, error FROM doc_pages WHERE file_id = $1', [fileId])).rows[0];
   assert.equal(pageRow.status, 'failed');
   assert.equal(pageRow.attempts, 2);
   assert.ok(pageRow.error.includes('VISION_TIMEOUT') || pageRow.error.includes('timed out'));
@@ -3083,7 +3095,7 @@ test('36. D2-X Part 3: Configuration errors (401, 403, 404, 400-model, missing m
     assert.equal(out.setting, 'GEMINI_API_KEY');
     assert.equal(callsMade, 1);
 
-    const pages = (await db.query('SELECT status, attempts FROM document_pages WHERE file_id = $1', [fileId])).rows;
+    const pages = (await db.query('SELECT status, attempts FROM doc_pages WHERE file_id = $1', [fileId])).rows;
     for (const p of pages) {
       assert.equal(p.status, 'pending');
       assert.equal(p.attempts, 0);
@@ -3114,7 +3126,7 @@ test('36. D2-X Part 3: Configuration errors (401, 403, 404, 400-model, missing m
     assert.equal(out.setting, 'DOC_VISION_MODEL');
     assert.equal(callsMade, 1);
 
-    const pages = (await db.query('SELECT status, attempts FROM document_pages WHERE file_id = $1', [fileId])).rows;
+    const pages = (await db.query('SELECT status, attempts FROM doc_pages WHERE file_id = $1', [fileId])).rows;
     for (const p of pages) {
       assert.equal(p.status, 'pending');
       assert.equal(p.attempts, 0);
@@ -3190,7 +3202,7 @@ test('38. D2-X Part 5: Priority tiers: Tier 1 executes before Tier 2; Tier 2 enr
   assert.equal(outA.status, 'completed');
   assert.deepEqual(visionCallsA, [1, 3], 'Only Tier 1 pages (1 and 3) must be sent to Vision when enrichment is disabled');
 
-  const p1Rows = (await db.query('SELECT page_no, source, tier, status, attempts FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f1])).rows;
+  const p1Rows = (await db.query('SELECT page_no, source, tier, status, attempts FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [f1])).rows;
   assert.equal(p1Rows[0].tier, 1);
   assert.equal(p1Rows[0].source, 'vision');
   assert.equal(p1Rows[1].tier, 2);
@@ -3228,7 +3240,7 @@ test('38. D2-X Part 5: Priority tiers: Tier 1 executes before Tier 2; Tier 2 enr
   assert.equal(outB.status, 'completed');
   assert.deepEqual(visionCallsB, [1, 3, 2], 'All Tier 1 pages must be called before Tier 2');
 
-  const p2Rows = (await dbB.query('SELECT page_no, source, tier, figure_description FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f2])).rows;
+  const p2Rows = (await dbB.query('SELECT page_no, source, tier, figure_description FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [f2])).rows;
   assert.equal(p2Rows[1].tier, 2);
   assert.equal(p2Rows[1].source, 'vision');
   assert.equal(p2Rows[1].figure_description, 'Architecture diagram');
@@ -3262,9 +3274,228 @@ test('38. D2-X Part 5: Priority tiers: Tier 1 executes before Tier 2; Tier 2 enr
   assert.equal(outC.status, 'completed');
   assert.deepEqual(visionCallsC, [1, 3]);
 
-  const p3Rows = (await dbC.query('SELECT page_no, source, tier, status, attempts FROM document_pages WHERE file_id = $1 ORDER BY page_no', [f3])).rows;
+  const p3Rows = (await dbC.query('SELECT page_no, source, tier, status, attempts FROM doc_pages WHERE file_id = $1 ORDER BY page_no', [f3])).rows;
   assert.equal(p3Rows[1].tier, 2);
   assert.equal(p3Rows[1].source, 'text_layer');
   assert.equal(p3Rows[1].status, 'completed');
   assert.equal(p3Rows[1].attempts, 0);
+});
+
+test('39. D5-A2: Migration idempotently creates doc_pages alongside existing Line A document_pages without error', async () => {
+  const { PGlite } = require('@electric-sql/pglite');
+  const pg = new PGlite();
+
+  // Create Line A's document_pages table first, populated with dummy rows
+  await pg.exec(`
+    CREATE TABLE document_pages (
+      id TEXT PRIMARY KEY,
+      file_id TEXT NOT NULL,
+      doc_version INTEGER NOT NULL DEFAULT 1,
+      page_number INTEGER NOT NULL,
+      raw_text TEXT NOT NULL DEFAULT '',
+      cleaned_text TEXT NOT NULL DEFAULT '',
+      char_count INTEGER NOT NULL DEFAULT 0,
+      is_empty INTEGER NOT NULL DEFAULT 0,
+      is_scanned INTEGER NOT NULL DEFAULT 0,
+      ocr_applied INTEGER NOT NULL DEFAULT 0,
+      extraction_confidence REAL NOT NULL DEFAULT 1.0,
+      headings_json TEXT DEFAULT '[]',
+      tables_json TEXT DEFAULT '[]',
+      sections_json TEXT DEFAULT '[]',
+      diagrams_json TEXT DEFAULT '[]',
+      equations_json TEXT DEFAULT '[]',
+      metadata_json TEXT DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      UNIQUE(file_id, doc_version, page_number)
+    );
+    INSERT INTO document_pages (id, file_id, page_number, cleaned_text, created_at)
+    VALUES ('line_a_p1', 'file_999', 1, 'Line A Original Text', '2026-11-13T00:00:00Z');
+  `);
+
+  const upSql = fs.readFileSync(path.join(__dirname, '../migrations/20261112_doc_intelligence_d2.up.sql'), 'utf8');
+
+  // Run migration twice to verify idempotence
+  await pg.exec(upSql);
+  await pg.exec(upSql);
+
+  // Assert Line A's table and rows are untouched
+  const lineARes = await pg.query('SELECT * FROM document_pages WHERE id = $1', ['line_a_p1']);
+  assert.equal(lineARes.rows.length, 1);
+  assert.equal(lineARes.rows[0].cleaned_text, 'Line A Original Text');
+
+  // Assert doc_pages exists and is empty
+  const docPagesRes = await pg.query('SELECT COUNT(*)::int AS cnt FROM doc_pages');
+  assert.equal(docPagesRes.rows[0].cnt, 0);
+
+  // Assert ingestion_jobs exists and is empty
+  const jobsRes = await pg.query('SELECT COUNT(*)::int AS cnt FROM ingestion_jobs');
+  assert.equal(jobsRes.rows[0].cnt, 0);
+
+  // Assert knowledge_* tables do not exist
+  const kTables = await pg.query(`
+    SELECT table_name FROM information_schema.tables
+    WHERE table_name IN ('knowledge_resources', 'knowledge_chunks', 'knowledge_jobs')
+  `);
+  assert.equal(kTables.rows.length, 0);
+});
+
+test('40. D5-A3: Flow works with minimal schema (no knowledge_* tables, KYANA_KNOWLEDGE_V3 unset)', async () => {
+  const { PGlite } = require('@electric-sql/pglite');
+  const pg = new PGlite();
+
+  // Create only the 5 essential tables: files, file_blobs, note_search_documents, doc_pages, ingestion_jobs
+  await pg.exec(`
+    CREATE TABLE files (
+      id SERIAL PRIMARY KEY,
+      storedName TEXT NOT NULL,
+      originalName TEXT NOT NULL,
+      mimeType TEXT,
+      sizeBytes BIGINT,
+      semester TEXT,
+      subject TEXT,
+      title TEXT,
+      chapter TEXT
+    );
+    CREATE TABLE file_blobs (
+      filename TEXT PRIMARY KEY,
+      mimeType TEXT,
+      fileData BYTEA
+    );
+    CREATE TABLE note_search_documents (
+      id INTEGER PRIMARY KEY,
+      content TEXT,
+      extraction_status TEXT,
+      extraction_error TEXT,
+      indexed_at TEXT,
+      content_truncated INTEGER DEFAULT 0
+    );
+  `);
+
+  const upSql = fs.readFileSync(path.join(__dirname, '../migrations/20261112_doc_intelligence_d2.up.sql'), 'utf8');
+  await pg.exec(upSql);
+
+  const db = {
+    isPostgres: true,
+    query: (sql, params = []) => pg.query(sql, params),
+    exec: (sql) => pg.exec(sql),
+    getFileBlob: async (filename) => {
+      const r = await pg.query('SELECT mimeType, fileData FROM file_blobs WHERE filename = $1 LIMIT 1', [filename]);
+      const row = r.rows[0];
+      if (!row) return null;
+      const data = row.filedata || row.fileData;
+      return data ? { mimeType: row.mimetype || row.mimeType, fileData: Buffer.from(data) } : null;
+    }
+  };
+
+  const pdfBuffer = buildSyntheticPdf([
+    { text: 'Operating Systems Unit 1: Process scheduling, PCB structures, context switching, and CPU burst distributions in modern kernels.' },
+    { text: 'Memory Management Unit 2: Paging hardware, TLB hit ratios, page fault handling, and working set replacement algorithms.' }
+  ]);
+
+  const file = await insertTestFile(db, {
+    originalName: 'minimal-test.pdf',
+    title: 'Minimal Schema Note',
+    subject: 'IT',
+    semester: '1',
+    chapter: 'Unit 1',
+    buffer: pdfBuffer
+  });
+
+  await enqueueDocumentIngestionJob(db, { fileId: file.fileId });
+
+  // Explicitly ensure KYANA_KNOWLEDGE_V3 is unset
+  const env = { ...process.env };
+  delete env.KYANA_KNOWLEDGE_V3;
+  delete env.KYANA_KNOWLEDGE_V3_USERS;
+
+  const result = await processNextIngestionJob(db, {
+    workerId: 'test-minimal',
+    env
+  });
+
+  assert.equal(result.status, 'completed');
+  assert.equal(result.processedPages, 2);
+
+  // Assert doc_pages populated
+  const pages = (await db.query('SELECT page_no, text, status FROM doc_pages WHERE file_id = $1 ORDER BY page_no ASC', [file.fileId])).rows;
+  assert.equal(pages.length, 2);
+  assert.equal(pages[0].status, 'completed');
+
+  // Assert note_search_documents populated
+  const docRes = (await db.query('SELECT content, extraction_status FROM note_search_documents WHERE id = $1', [file.fileId])).rows[0];
+  assert.equal(docRes.extraction_status, 'indexed');
+  assert.ok(docRes.content.includes('Process scheduling'));
+  assert.ok(docRes.content.includes('Paging hardware'));
+});
+
+test('41. D5-A4: Rollup stores final vision page text (LaTeX, tables, figure) and searchNotes finds vision-only phrase', async () => {
+  const { pg, db } = await createD2TestDb();
+  await noteSearch.ensureIndex(db);
+
+  // 1-page synthetic PDF with an image requiring vision OCR
+  const pdfBuffer = buildSyntheticPdf([
+    { hasImage: true }
+  ]);
+
+  const file = await insertTestFile(db, {
+    originalName: 'vision-math-exam.pdf',
+    title: 'Advanced Mathematics Lecture',
+    subject: 'Mathematics',
+    semester: '2',
+    chapter: 'Eigenvalues',
+    buffer: pdfBuffer
+  });
+
+  await enqueueDocumentIngestionJob(db, { fileId: file.fileId });
+
+  const uniqueVisionPhrase = 'Eigenvector Orthogonality Theorem 2026';
+  const latexFormula = '$$\\det(A - \\lambda I) = 0$$';
+  const tableContent = '| Matrix | Dimension | Rank |\n| A | 3x3 | 3 |';
+  const figureDesc = '3D geometric eigenspace representation along z-axis';
+
+  const mockVisionFetch = createMockGeminiFetch(async () => {
+    return {
+      status: 200,
+      json: {
+        text: `${uniqueVisionPhrase}\n${latexFormula}\n${tableContent}`,
+        latex_present: true,
+        figure_description: figureDesc,
+        ocr_confidence: 0.95,
+        detected_type: 'math'
+      }
+    };
+  });
+
+  const env = {
+    ...process.env,
+    GEMINI_API_KEY: 'test-key-mock',
+    DOC_VISION_MODEL: 'gemini-2.5-flash'
+  };
+
+  const result = await processNextIngestionJob(db, {
+    workerId: 'test-vision-rollup',
+    fetchImpl: mockVisionFetch.fetchImpl,
+    env
+  });
+
+  assert.equal(result.status, 'completed');
+
+  // Verify doc_pages
+  const pageRow = (await db.query('SELECT * FROM doc_pages WHERE file_id = $1 AND page_no = 1', [file.fileId])).rows[0];
+  assert.equal(pageRow.source, 'vision');
+  assert.equal(pageRow.latex_present, true);
+  assert.equal(pageRow.figure_description, figureDesc);
+
+  // Verify note_search_documents
+  const docRow = (await db.query('SELECT * FROM note_search_documents WHERE id = $1', [file.fileId])).rows[0];
+  assert.equal(docRow.extraction_status, 'indexed');
+  assert.ok(docRow.content.includes(uniqueVisionPhrase), 'Expected unique vision phrase in search document');
+  assert.ok(docRow.content.includes(latexFormula), 'Expected LaTeX formula in search document');
+  assert.ok(docRow.content.includes(tableContent), 'Expected Markdown table in search document');
+  assert.ok(docRow.content.includes(`[Figure: ${figureDesc}]`), 'Expected figure description in search document');
+
+  // Now call searchNotes with { query, semester } object!
+  const searchResults = await noteSearch.searchNotes(db, { query: 'Orthogonality Theorem', semester: '2' });
+  assert.ok(searchResults.length > 0, 'Expected searchNotes to return note containing vision-only phrase');
+  assert.equal(Number(searchResults[0].id), file.fileId);
 });

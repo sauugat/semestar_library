@@ -352,15 +352,15 @@ test('Test 10: ensureRagSchema fast-path avoids sequential DDL roundtrips on ini
     isPostgres: false,
     async get(sql) {
       queryCount++;
-      if (sql.includes('pragma_table_info') && sql.includes('subparts_json')) {
-        return { ready: 1 };
+      if (sql.includes('sqlite_master') && sql.includes('table_count')) {
+        return { table_count: 18, col_count: 7 };
       }
       return null;
     },
     async all(sql) {
       queryCount++;
-      if (sql.includes('pragma_table_info') && sql.includes('subparts_json')) {
-        return [{ ready: 1 }];
+      if (sql.includes('sqlite_master') && sql.includes('table_count')) {
+        return [{ table_count: 18, col_count: 7 }];
       }
       return [];
     },
@@ -373,6 +373,65 @@ test('Test 10: ensureRagSchema fast-path avoids sequential DDL roundtrips on ini
   resetRagSchemaCache(mockInitializedDb);
   const result = await ensureRagSchema(mockInitializedDb);
   assert.equal(result.ok, true);
-  // Fast path should execute exactly 1 probe query, NOT 80 DDL statements!
-  assert.equal(queryCount, 1, 'Should execute only 1 probe query instead of 80 DDL statements');
+  // Fast path should execute exactly 1 probe query, NOT 80+ DDL statements!
+  assert.equal(queryCount, 1, 'Should execute only 1 probe query instead of 80+ DDL statements');
+});
+
+test('Test 11: Partially initialized database rejects fast-path and safely runs full DDL migration', async () => {
+  let probeExecuted = false;
+  let ddlStatementsRun = 0;
+
+  const mockPartialDb = {
+    isPostgres: false,
+    async get(sql) {
+      if (sql.includes('sqlite_master') && sql.includes('table_count')) {
+        probeExecuted = true;
+        // Simulates partial schema: only 12 of 18 tables exist, missing critical columns
+        return { table_count: 12, col_count: 3 };
+      }
+      return null;
+    },
+    async all(sql) {
+      return [];
+    },
+    async run(sql) {
+      ddlStatementsRun++;
+      return { changes: 0 };
+    }
+  };
+
+  resetRagSchemaCache(mockPartialDb);
+  const result = await ensureRagSchema(mockPartialDb);
+  assert.equal(result.ok, true);
+  assert.equal(probeExecuted, true, 'Fast-path probe should have run');
+  assert.ok(ddlStatementsRun > 50, 'Partially initialized database must fall back to running creation statements');
+});
+
+test('Test 12: Fresh database with zero tables initializes cleanly via full DDL', async () => {
+  let probeExecuted = false;
+  let ddlStatementsRun = 0;
+
+  const mockFreshDb = {
+    isPostgres: false,
+    async get(sql) {
+      if (sql.includes('sqlite_master') && sql.includes('table_count')) {
+        probeExecuted = true;
+        return { table_count: 0, col_count: 0 };
+      }
+      return null;
+    },
+    async all(sql) {
+      return [];
+    },
+    async run(sql) {
+      ddlStatementsRun++;
+      return { changes: 0 };
+    }
+  };
+
+  resetRagSchemaCache(mockFreshDb);
+  const result = await ensureRagSchema(mockFreshDb);
+  assert.equal(result.ok, true);
+  assert.equal(probeExecuted, true, 'Probe must execute');
+  assert.ok(ddlStatementsRun > 50, 'Fresh database must run all schema creation statements');
 });

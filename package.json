@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",
+    "@napi-rs/canvas": "^1.0.9",
     "@neondatabase/serverless": "^0.10.4",
     "@supabase/supabase-js": "^2.117.2",
     "@vercel/functions": "^3.9.11",

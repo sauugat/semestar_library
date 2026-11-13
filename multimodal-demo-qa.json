@@ -1,0 +1,259 @@
+[
+  {
+    "id": 1,
+    "topic": "Digital Logic & Sequential Circuits",
+    "question": "Explain the sequential circuit diagram on page 6 of Lecture 9. Include its Boolean feedback equation, and summarize how input and present state determine the next state in a truth table.",
+    "subject": "Discrete Mathematics",
+    "chapterTitle": "Unit 3: Finite state Automata, Grammars and Languages",
+    "attachedImages": [
+      {
+        "mimeType": "image/png",
+        "sizeBytes": 238201,
+        "pageNumber": 6
+      }
+    ],
+    "citations": [
+      {
+        "fileId": 90,
+        "fileTitle": "Lecture 9 Sequential Circuits and FSM",
+        "chapter": "Unit 3: Finite state Automata, Grammars and Languages",
+        "pageStart": 7,
+        "pageEnd": 7,
+        "pageLabel": "Page 7",
+        "sectionHeading": "Lecture 9 Sequential Circuits and FSM",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 90,
+        "fileTitle": "Lecture 9 Sequential Circuits and FSM",
+        "chapter": "Unit 3: Finite state Automata, Grammars and Languages",
+        "pageStart": 3,
+        "pageEnd": 3,
+        "pageLabel": "Page 3",
+        "sectionHeading": "Lecture 9 Sequential Circuits and FSM",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 90,
+        "fileTitle": "Lecture 9 Sequential Circuits and FSM",
+        "chapter": "Unit 3: Finite state Automata, Grammars and Languages",
+        "pageStart": 5,
+        "pageEnd": 5,
+        "pageLabel": "Page 5",
+        "sectionHeading": "Lecture 9 Sequential Circuits and FSM",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 90,
+        "fileTitle": "Lecture 9 Sequential Circuits and FSM",
+        "chapter": "Unit 3: Finite state Automata, Grammars and Languages",
+        "pageStart": 17,
+        "pageEnd": 17,
+        "pageLabel": "Page 17",
+        "sectionHeading": "Lecture 9 Sequential Circuits and FSM",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 90,
+        "fileTitle": "Lecture 9 Sequential Circuits and FSM",
+        "chapter": "Unit 3: Finite state Automata, Grammars and Languages",
+        "pageStart": 20,
+        "pageEnd": 20,
+        "pageLabel": "Page 20",
+        "sectionHeading": "Lecture 9 Sequential Circuits and FSM",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 90,
+        "fileTitle": "Lecture 9 Sequential Circuits and FSM",
+        "chapter": "Unit 3: Finite state Automata, Grammars and Languages",
+        "pageStart": 6,
+        "pageEnd": 6,
+        "pageLabel": "Page 6",
+        "sectionHeading": "Page 6 Visual (Lecture 9 Sequential Circuits and FSM)",
+        "evidenceOrigin": "visual_evidence"
+      }
+    ],
+    "visualEvidenceUsed": true,
+    "elapsedMs": 22406,
+    "fullReply": "Hello! I am Kyana AI, your study partner for Discrete Mathematics. Let’s break down the sequential circuit diagram from page 6 of your lecture notes.\n\n### Understanding the Sequential Circuit\nThe diagram on page 6 illustrates the fundamental architecture of a **Sequential Circuit**. Unlike a combinational circuit (which only looks at current inputs), a sequential circuit has **memory**. \n\nAs shown in the diagram:\n1.  **Combinational Circuit:** Processes the current inputs and the feedback from the memory.\n2.  **Memory:** Stores the \"present state\" of the system.\n3.  **Feedback Loop:** The output of the combinational circuit is fed back into the memory, which then provides the \"next state\" back to the combinational circuit in the next clock cycle.\n\n### Boolean Feedback Equation\nIn a general sequential circuit, the **Next State ($S_{next}$)** is a function of the **Current Input ($I$)** and the **Present State ($S_{present}$)**. We can represent this logic as:\n\n$$S_{next} = f(I, S_{present})$$\n\nIf we consider a simple binary system where the combinational logic is an XOR gate (a common building block for state transitions), the feedback equation might look like:\n$$S_{next} = I \\oplus S_{present}$$\n\n### Truth Table: Input and Present State\nTo summarize how the system behaves, we look at how the combination of the current input and the stored state determines the next state. Using the logic $S_{next} = I \\oplus S_{present}$ as an example:\n\n| Current Input ($I$) | Present State ($S_{present}$) | Next State ($S_{next}$) |\n| :---: | :---: | :---: |\n| 0 | 0 | 0 |\n| 0 | 1 | 1 |\n| 1 | 0 | 1 |\n| 1 | 1 | 0 |\n\n**How to read this table:**\n*   **Rows:** Each row represents a specific scenario. For example, if the current input is $1$ and the system is currently in state $0$, the next state will be $1$.\n*   **Memory Role:** The \"Present State\" column represents the data retrieved from the memory block in your diagram.\n*   **Clock Cycle:** This transition happens at the next clock pulse, moving the system from its current state to the next state based on the input provided.\n\nDoes this help clarify how the feedback loop functions in your lecture notes? Let me know if you'd like to dive deeper into how this relates to Finite State Machines!"
+  },
+  {
+    "id": 2,
+    "topic": "Engineering Mathematics & Differential Equations",
+    "question": "Explain the 2nd order differential equation on page 11 of U4 L7. Derive its characteristic equation, show the roots calculation, and provide a summary table showing how root types determine the general solution form.",
+    "subject": "Mathematics II",
+    "chapterTitle": "Unit 4: Differential Equations",
+    "attachedImages": [
+      {
+        "mimeType": "image/png",
+        "sizeBytes": 56058,
+        "pageNumber": 11
+      }
+    ],
+    "citations": [
+      {
+        "fileId": 47,
+        "fileTitle": "U4 L7 2nd Order DE",
+        "chapter": "Unit 4: Differential Equations",
+        "pageStart": 1,
+        "pageEnd": 1,
+        "pageLabel": "Page 1",
+        "sectionHeading": "Page 1",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 47,
+        "fileTitle": "U4 L7 2nd Order DE",
+        "chapter": "Unit 4: Differential Equations",
+        "pageStart": 1,
+        "pageEnd": 1,
+        "pageLabel": "Page 1",
+        "sectionHeading": "Page 1",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 47,
+        "fileTitle": "U4 L7 2nd Order DE",
+        "chapter": "Unit 4: Differential Equations",
+        "pageStart": 1,
+        "pageEnd": 1,
+        "pageLabel": "Page 1",
+        "sectionHeading": "Page 1",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 47,
+        "fileTitle": "U4 L7 2nd Order DE",
+        "chapter": "Unit 4: Differential Equations",
+        "pageStart": 1,
+        "pageEnd": 1,
+        "pageLabel": "Page 1",
+        "sectionHeading": "Page 1",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 47,
+        "fileTitle": "U4 L7 2nd Order DE",
+        "chapter": "Unit 4: Differential Equations",
+        "pageStart": 1,
+        "pageEnd": 1,
+        "pageLabel": "Page 1",
+        "sectionHeading": "Page 1",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 47,
+        "fileTitle": "U4 L7 2nd Order DE",
+        "chapter": "Unit 4: Differential Equations",
+        "pageStart": 1,
+        "pageEnd": 1,
+        "pageLabel": "Page 1",
+        "sectionHeading": "Page 1",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 47,
+        "fileTitle": "U4 L7 2nd Order DE",
+        "chapter": "Unit 4: Differential Equations",
+        "pageStart": 11,
+        "pageEnd": 11,
+        "pageLabel": "Page 11",
+        "sectionHeading": "Page 11 Visual (U4 L7 2nd Order DE)",
+        "evidenceOrigin": "visual_evidence"
+      }
+    ],
+    "visualEvidenceUsed": true,
+    "elapsedMs": 13955,
+    "fullReply": "Hello! I am Kyana AI, your study partner for Mathematics II. Let’s break down the second-order differential equation example from page 11 of your \"U4 L7\" notes.\n\n### Analysis of Example 1\nThe problem asks us to solve the second-order linear homogeneous differential equation:\n$$y'' + y' - 2y = 0$$\nsubject to the initial conditions $y(0) = 4$ and $y'(0) = -5$.\n\n#### 1. Deriving the Characteristic Equation\nFor a second-order linear differential equation with constant coefficients of the form $y'' + ay' + by = 0$, we assume a solution of the form $y = e^{\\lambda x}$. Substituting this into the differential equation yields:\n$$\\lambda^2 e^{\\lambda x} + a\\lambda e^{\\lambda x} + b e^{\\lambda x} = 0$$\nSince $e^{\\lambda x} \\neq 0$, we divide by it to obtain the **characteristic equation**:\n$$\\lambda^2 + a\\lambda + b = 0$$\nFor your specific equation ($a=1, b=-2$), the characteristic equation is:\n$$\\lambda^2 + \\lambda - 2 = 0$$\n\n#### 2. Roots Calculation\nWe solve the quadratic equation $\\lambda^2 + \\lambda - 2 = 0$ using the quadratic formula $\\lambda = \\frac{-a \\pm \\sqrt{a^2 - 4b}}{2}$:\n$$\\lambda = \\frac{-1 \\pm \\sqrt{1^2 - 4(1)(-2)}}{2} = \\frac{-1 \\pm \\sqrt{1 + 8}}{2} = \\frac{-1 \\pm 3}{2}$$\nThis gives us two distinct real roots:\n$$\\lambda_1 = \\frac{-1 + 3}{2} = 1, \\quad \\lambda_2 = \\frac{-1 - 3}{2} = -2$$\n\n#### 3. General and Particular Solution\nBecause the roots are real and distinct, the general solution is $y = C_1 e^{\\lambda_1 x} + C_2 e^{\\lambda_2 x}$, which leads to $y = C_1 e^x + C_2 e^{-2x}$. By applying the initial conditions $y(0)=4$ and $y'(0)=-5$, we solve the system of equations to find $C_1 = 1$ and $C_2 = 3$, resulting in the particular solution:\n$$y = e^x + 3e^{-2x}$$\n\n---\n\n### Summary Table: Root Types and General Solutions\nThe form of the general solution depends on the discriminant $D = a^2 - 4b$ of the characteristic equation.\n\n| Discriminant ($D$) | Root Type | General Solution Form |\n| :--- | :--- | :--- |\n| $D > 0$ | Two distinct real roots ($\\lambda_1, \\lambda_2$) | $y = C_1 e^{\\lambda_1 x} + C_2 e^{\\lambda_2 x}$ |\n| $D = 0$ | One repeated real root ($\\lambda$) | $y = (C_1 + C_2 x) e^{\\lambda x}$ |\n| $D < 0$ | Complex conjugate roots ($\\alpha \\pm i\\beta$) | $y = e^{\\alpha x}(C_1 \\cos \\beta x + C_2 \\sin \\beta x)$ |\n\nThis framework allows you to solve any second-order linear homogeneous differential equation with constant coefficients by simply identifying the roots of the characteristic equation. Let me know if you would like to walk through another example!"
+  },
+  {
+    "id": 3,
+    "topic": "Discrete Mathematics & Graph Theory",
+    "question": "Explain the undirected graph diagram on page 7 of Lecture 13. State the Handshaking Theorem formula, list the vertices and their degrees from the diagram, and format the vertex degrees in a table.",
+    "subject": "Discrete Mathematics",
+    "chapterTitle": "Unit 5: Graph Theory",
+    "attachedImages": [
+      {
+        "mimeType": "image/png",
+        "sizeBytes": 301250,
+        "pageNumber": 7
+      }
+    ],
+    "citations": [
+      {
+        "fileId": 98,
+        "fileTitle": "Lecture 13 Graph Theory Introduction and Types",
+        "chapter": "Unit 5: Graph Theory",
+        "pageStart": 20,
+        "pageEnd": 20,
+        "pageLabel": "Page 20",
+        "sectionHeading": "Lecture 13 Graph Theory Introduction and Types",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 98,
+        "fileTitle": "Lecture 13 Graph Theory Introduction and Types",
+        "chapter": "Unit 5: Graph Theory",
+        "pageStart": 15,
+        "pageEnd": 15,
+        "pageLabel": "Page 15",
+        "sectionHeading": "Lecture 13 Graph Theory Introduction and Types",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 98,
+        "fileTitle": "Lecture 13 Graph Theory Introduction and Types",
+        "chapter": "Unit 5: Graph Theory",
+        "pageStart": 18,
+        "pageEnd": 18,
+        "pageLabel": "Page 18",
+        "sectionHeading": "Lecture 13 Graph Theory Introduction and Types",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 98,
+        "fileTitle": "Lecture 13 Graph Theory Introduction and Types",
+        "chapter": "Unit 5: Graph Theory",
+        "pageStart": 19,
+        "pageEnd": 19,
+        "pageLabel": "Page 19",
+        "sectionHeading": "Lecture 13 Graph Theory Introduction and Types",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 98,
+        "fileTitle": "Lecture 13 Graph Theory Introduction and Types",
+        "chapter": "Unit 5: Graph Theory",
+        "pageStart": 21,
+        "pageEnd": 21,
+        "pageLabel": "Page 21",
+        "sectionHeading": "Lecture 13 Graph Theory Introduction and Types",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 98,
+        "fileTitle": "Lecture 13 Graph Theory Introduction and Types",
+        "chapter": "Unit 5: Graph Theory",
+        "pageStart": 22,
+        "pageEnd": 22,
+        "pageLabel": "Page 22",
+        "sectionHeading": "Lecture 13 Graph Theory Introduction and Types",
+        "evidenceOrigin": "active_chapter"
+      },
+      {
+        "fileId": 98,
+        "fileTitle": "Lecture 13 Graph Theory Introduction and Types",
+        "chapter": "Unit 5: Graph Theory",
+        "pageStart": 7,
+        "pageEnd": 7,
+        "pageLabel": "Page 7",
+        "sectionHeading": "Page 7 Visual (Lecture 13 Graph Theory Introduction and Types)",
+        "evidenceOrigin": "visual_evidence"
+      }
+    ],
+    "visualEvidenceUsed": true,
+    "elapsedMs": 11933,
+    "fullReply": "Hello! I am Kyana AI, your study partner for Discrete Mathematics. Let's break down the undirected graph from page 7 of your Lecture 13 notes.\n\n### Understanding the Undirected Graph\nThe diagram on page 7 represents a simple undirected graph with 4 vertices ($V = \\{1, 2, 3, 4\\}$) and 4 edges ($E = \\{(1, 2), (1, 4), (3, 4), (2, 3)\\}$). In an undirected graph, the edges have no direction; they simply represent a connection between two vertices. Here, the vertices are arranged in a cycle, where each vertex is connected to two others.\n\n### The Handshaking Theorem\nAs defined in your lecture notes (Page 18), the **Handshaking Theorem** states that for an undirected graph $G = (V, E)$ with $e$ edges, the sum of the degrees of all vertices is equal to twice the number of edges:\n\n$$\\sum_{v \\in V} \\text{deg}(v) = 2e$$\n\nThis theorem implies that the sum of the degrees in any undirected graph must always be an even number.\n\n### Vertex Degrees\nBy observing the diagram, we can count the number of edges incident to each vertex:\n*   **Vertex 1:** Connected to 2 and 4 (Degree = 2)\n*   **Vertex 2:** Connected to 1 and 3 (Degree = 2)\n*   **Vertex 3:** Connected to 2 and 4 (Degree = 2)\n*   **Vertex 4:** Connected to 1 and 3 (Degree = 2)\n\n**Verification:** Sum of degrees = $2+2+2+2 = 8$. Since $2e = 2 \\times 4 = 8$, the theorem holds true.\n\n#### Vertex Degree Table\n| Vertex | Degree |\n| :--- | :--- |\n| 1 | 2 |\n| 2 | 2 |\n| 3 | 2 |\n| 4 | 2 |\n\n***\n\n### Structural Flow of Graph Analysis\nThe following diagram illustrates the logical process of analyzing a graph's properties using the Handshaking Theorem:\n\n```json\n{\n  \"title\": \"Graph Analysis Workflow\",\n  \"nodes\": [\n    {\"label\": \"Step 1: Identify Components\", \"detail\": \"List all vertices (V) and edges (E) from the diagram.\"},\n    {\"label\": \"Step 2: Calculate Degrees\", \"detail\": \"Count incident edges for each vertex to determine deg(v).\"},\n    {\"label\": \"Step 3: Apply Theorem\", \"detail\": \"Verify that the sum of degrees equals 2 times the number of edges (2e).\"}\n  ]\n}\n```\n\nLet me know if you would like to practice another example from the lecture slides!"
+  }
+]

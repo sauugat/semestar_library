@@ -400,7 +400,15 @@ async function run(sql, ...params) {
     const hasReturning = /RETURNING/i.test(sql);
 
     if (isInsert && !hasReturning) {
-      const noIdTables = ['chat_read_receipts', 'chat_typing', 'file_likes', 'file_votes', 'assignment_votes', 'follows', 'chat_reactions', 'students', 'submissions', 'submission_events', 'post_likes', 'post_votes', 'post_submissions', 'mobile_tokens', 'login_attempts', 'student_device_tokens', 'student_notification_preferences', 'push_receipt_tickets', 'cohort_audit_logs', 'admin_audit_logs', 'dm_participants', 'dm_blocks', 'dm_message_deletions', 'dm_rate_limits', 'attendance_settings', 'teacher_drive_connections'];
+      const noIdTables = [
+        'chat_read_receipts', 'chat_typing', 'file_likes', 'file_votes', 'assignment_votes',
+        'follows', 'chat_reactions', 'students', 'submissions', 'submission_events',
+        'post_likes', 'post_votes', 'post_submissions', 'mobile_tokens', 'login_attempts',
+        'student_device_tokens', 'student_notification_preferences', 'push_receipt_tickets',
+        'cohort_audit_logs', 'admin_audit_logs', 'dm_participants', 'dm_blocks',
+        'dm_message_deletions', 'dm_rate_limits', 'attendance_settings', 'teacher_drive_connections',
+        'document_embeddings', 'syllabus_topic_embeddings', 'document_topic_metadata'
+      ];
       const isNoIdTable = noIdTables.some(tbl => new RegExp(`INSERT\\s+INTO\\s+${tbl}\\b`, 'i').test(sql));
       if (!isNoIdTable) {
         pgSql += ' RETURNING id';

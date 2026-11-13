@@ -1228,13 +1228,18 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         const subjectList = resolved.enrolledSemesterCourses
           .map((c) => `- **${c.code}** · ${c.title}`)
           .join('\n');
+        const rawTopic = route.filters?.subject || message || '';
+        const cleanTopic = String(rawTopic)
+          .replace(/^(?:can\s+you\s+)?(?:please\s+)?(?:teach\s+me|learn|study|explain|start|what\s+is|tell\s+me\s+about|sikhaideu|padhaideu)\s+(?:about\s+)?/i, '')
+          .replace(/[?!.]+$/, '')
+          .trim() || rawTopic;
         studyResultText = [
           `That topic isn't part of your enrolled **Semester ${studentSemester}** BIT curriculum.`,
           ``,
           `Your authorized **Semester ${studentSemester}** subjects are:`,
           subjectList,
           ``,
-          `Would you like a general explanation of **${route.filters?.subject || message}** outside your syllabus, or would you like to start a step-by-step study session in one of your Semester ${studentSemester} subjects above?`
+          `Would you like a general explanation of **${cleanTopic}** outside your syllabus, or would you like to start a step-by-step study session in one of your Semester ${studentSemester} subjects above?`
         ].join('\n');
         isSessionCompleted = true;
       } else {

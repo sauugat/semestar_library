@@ -25,3 +25,5 @@ backups/
 .wrangler/
 games-backend/.wrangler/
 schema.sql
+bin/render_pdf_page
+!bin/render_pdf_page.swift

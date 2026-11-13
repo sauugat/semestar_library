@@ -1,0 +1,156 @@
+[
+  {
+    "scenarioId": 1,
+    "scenarioName": "Digital Logic / Sequential Circuit Diagram",
+    "question": "Explain the sequential circuit diagram on page 6. What are the components and feedback connections?",
+    "retrievedDocumentId": 90,
+    "retrievedPage": 6,
+    "expectedPage": 6,
+    "imageBufferReachedProvider": true,
+    "bufferBytes": 238201,
+    "providerUsed": "gemini",
+    "visualEvidenceUsed": true,
+    "citationAccurate": true,
+    "visualCitation": {
+      "fileId": 90,
+      "fileTitle": "Lecture 9 Sequential Circuits and FSM",
+      "chapter": "Unit 3: Finite state Automata, Grammars and Languages",
+      "pageStart": 6,
+      "pageEnd": 6,
+      "pageLabel": "Page 6",
+      "sectionHeading": "Page 6 Visual (Lecture 9 Sequential Circuits and FSM)",
+      "evidenceOrigin": "visual_evidence"
+    },
+    "answerCorrect": true,
+    "matchedKeywords": [
+      "combinational",
+      "memory",
+      "feedback",
+      "input",
+      "output"
+    ],
+    "latencyMs": 154439,
+    "error": null,
+    "replySnippet": "Based on the diagram on page 6 of your **Lecture 9 Sequential Circuits and FSM** notes, a sequential circuit is essentially a combinational circuit that has been given \"memory.\" Here is the breakdown ..."
+  },
+  {
+    "scenarioId": 2,
+    "scenarioName": "Mathematics / 2nd Order Differential Equation Derivation",
+    "question": "Explain the differential equation solution and characteristic equation derivation for Example 1 on page 11.",
+    "retrievedDocumentId": 47,
+    "retrievedPage": 11,
+    "expectedPage": 11,
+    "imageBufferReachedProvider": true,
+    "bufferBytes": 56058,
+    "providerUsed": "gemini",
+    "visualEvidenceUsed": true,
+    "citationAccurate": true,
+    "visualCitation": {
+      "fileId": 47,
+      "fileTitle": "U4 L7 2nd Order DE",
+      "chapter": "Unit 4: Differential Equations",
+      "pageStart": 11,
+      "pageEnd": 11,
+      "pageLabel": "Page 11",
+      "sectionHeading": "Page 11 Visual (U4 L7 2nd Order DE)",
+      "evidenceOrigin": "visual_evidence"
+    },
+    "answerCorrect": true,
+    "matchedKeywords": [
+      "characteristic",
+      "equation",
+      "solution",
+      "roots",
+      "y"
+    ],
+    "latencyMs": 12639,
+    "error": null,
+    "replySnippet": "Based on the uploaded slide from **Unit 4: Differential Equations**, here is the step-by-step derivation and solution for **Example 1**. ### 1. The Problem Statement We are asked to solve a second-ord..."
+  },
+  {
+    "scenarioId": 3,
+    "scenarioName": "Graph / Undirected Graph Vertices and Edges",
+    "question": "Explain the undirected graph diagram and vertices on page 7.",
+    "retrievedDocumentId": 98,
+    "retrievedPage": 7,
+    "expectedPage": 7,
+    "imageBufferReachedProvider": true,
+    "bufferBytes": 301250,
+    "providerUsed": "gemini",
+    "visualEvidenceUsed": true,
+    "citationAccurate": true,
+    "visualCitation": {
+      "fileId": 98,
+      "fileTitle": "Lecture 13 Graph Theory Introduction and Types",
+      "chapter": "Unit 5: Graph Theory",
+      "pageStart": 7,
+      "pageEnd": 7,
+      "pageLabel": "Page 7",
+      "sectionHeading": "Page 7 Visual (Lecture 13 Graph Theory Introduction and Types)",
+      "evidenceOrigin": "visual_evidence"
+    },
+    "answerCorrect": true,
+    "matchedKeywords": [
+      "undirected",
+      "graph",
+      "vert"
+    ],
+    "latencyMs": 14968,
+    "error": null,
+    "replySnippet": "Based on **Page 7** of your \"Lecture 13 Graph Theory\" notes, here is the breakdown of the undirected graph example. ### 1. Understanding the Components In this example, the graph is defined by two set..."
+  },
+  {
+    "scenarioId": 4,
+    "scenarioName": "Specific Page Retrieval / Pseudograph on Page 10",
+    "question": "What is on page 10 of this graph theory lecture? Explain the pseudograph diagram.",
+    "retrievedDocumentId": 98,
+    "retrievedPage": 10,
+    "expectedPage": 10,
+    "imageBufferReachedProvider": true,
+    "bufferBytes": 322237,
+    "providerUsed": "gemini",
+    "visualEvidenceUsed": true,
+    "citationAccurate": true,
+    "visualCitation": {
+      "fileId": 98,
+      "fileTitle": "Lecture 13 Graph Theory Introduction and Types",
+      "chapter": "Unit 5: Graph Theory",
+      "pageStart": 10,
+      "pageEnd": 10,
+      "pageLabel": "Page 10",
+      "sectionHeading": "Page 10 Visual (Lecture 13 Graph Theory Introduction and Types)",
+      "evidenceOrigin": "visual_evidence"
+    },
+    "answerCorrect": true,
+    "matchedKeywords": [
+      "pseudograph",
+      "loop",
+      "edge"
+    ],
+    "latencyMs": 11436,
+    "error": null,
+    "replySnippet": "Based on page 10 of your **Lecture 13: Graph Theory Introduction and Types** notes, the focus is on defining and visualizing a **Pseudograph**. ### Content Overview Page 10 defines a pseudograph as a ..."
+  },
+  {
+    "scenarioId": 5,
+    "scenarioName": "Text-Only Question / Conceptual Comparison (Zero Image Attachment)",
+    "question": "What is the primary difference between combinational circuits and sequential circuits conceptually?",
+    "retrievedDocumentId": null,
+    "retrievedPage": null,
+    "expectedPage": null,
+    "imageBufferReachedProvider": false,
+    "bufferBytes": 0,
+    "providerUsed": "gemini",
+    "visualEvidenceUsed": false,
+    "citationAccurate": true,
+    "answerCorrect": true,
+    "matchedKeywords": [
+      "combinational",
+      "sequential",
+      "memory"
+    ],
+    "latencyMs": 10130,
+    "error": null,
+    "replySnippet": "In digital logic, the primary conceptual difference lies in whether the circuit has a \"memory\" of past events. While combinational circuits react only to what is happening right now, sequential circui..."
+  }
+]

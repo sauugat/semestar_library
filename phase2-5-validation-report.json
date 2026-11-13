@@ -1,0 +1,61 @@
+{
+  "timestamp": "2026-11-13T12:26:32.764Z",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "nodeVersion": "v24.18.0",
+    "databaseDialect": "PostgreSQL (Neon)"
+  },
+  "performanceBreakdown": {
+    "dbInitMs": 2625,
+    "schemaProbeMs": 298
+  },
+  "scenarios": [
+    {
+      "id": 1,
+      "name": "Circuit Diagram Explanation (Digital Logic)",
+      "attachedImages": 1,
+      "isolatedRenderMs": 3,
+      "visionProviderMs": 18720,
+      "totalMs": 27908,
+      "passed": true
+    },
+    {
+      "id": 2,
+      "name": "Equation & Derivation (Mathematics)",
+      "attachedImages": 1,
+      "isolatedRenderMs": 3,
+      "visionProviderMs": 10579,
+      "totalMs": 19099,
+      "passed": true
+    },
+    {
+      "id": 3,
+      "name": "Graph / Vertices & Edges by Page Number",
+      "attachedImages": 1,
+      "isolatedRenderMs": 2,
+      "visionProviderMs": 14225,
+      "totalMs": 23308,
+      "passed": true
+    },
+    {
+      "id": 4,
+      "name": "Conceptual Question (Zero Image Attachment)",
+      "attachedImages": 0,
+      "isolatedRenderMs": 0,
+      "visionProviderMs": 3400,
+      "totalMs": 10765,
+      "passed": true
+    },
+    {
+      "id": 5,
+      "name": "Access Control & Semester Isolation",
+      "passed": true
+    },
+    {
+      "id": 6,
+      "name": "Graceful Degradation on Renderer Failure",
+      "passed": true
+    }
+  ]
+}

@@ -943,11 +943,36 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   //    for this conversation and replying to a checkpoint ("next", "continue", etc.).
   // 2. For any other question or conversational follow-up ("I don't understand", "give me an example", "what is X?"),
   //    run the 4-stage Think -> Lookup Chapter PDFs & Syllabus -> Teach/Answer -> LLM Knowledge Fallback pipeline!
+  // 3. CRITICAL: Never intercept unrelated institutional, notice, routine, marks, attendance, or assignment queries!
   const chapterContext = options.chapterContext && typeof options.chapterContext === 'object'
     ? options.chapterContext
     : null;
 
-  if (chapterContext && (chapterContext.subject || chapterContext.chapterTitle || (Array.isArray(chapterContext.fileIds) && chapterContext.fileIds.length > 0))) {
+  const {
+    noticeIntent: ctNoticeIntent,
+    postIntent: ctPostIntent,
+    attendanceIntent: ctAttendanceIntent,
+    resultsIntent: ctResultsIntent,
+    routineIntent: ctRoutineIntent,
+    assignmentSearchIntent: ctAssignmentSearchIntent,
+    teacherClassroomIntent: ctTeacherClassroomIntent,
+    academicDirectoryIntent: ctAcademicDirectoryIntent,
+    isPersonalRecordFollowUpMessage: ctIsPersonalRecordFollowUp
+  } = require('./lib/chat-tools');
+
+  const isInstitutionalOrAdminQuery = Boolean(
+    ctNoticeIntent(message) ||
+    ctPostIntent(message) ||
+    ctAttendanceIntent(message) ||
+    ctResultsIntent(message) ||
+    ctRoutineIntent(message) ||
+    ctAssignmentSearchIntent(message) ||
+    ctTeacherClassroomIntent(message) ||
+    ctAcademicDirectoryIntent(message) ||
+    ctIsPersonalRecordFollowUp(message)
+  );
+
+  if (!isInstitutionalOrAdminQuery && chapterContext && (chapterContext.subject || chapterContext.chapterTitle || (Array.isArray(chapterContext.fileIds) && chapterContext.fileIds.length > 0))) {
     const {
       answerWithChapterContext,
       analyzeChapterStudentQuestion,
@@ -1022,7 +1047,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   // check if this conversation/student has an ACTIVE study_partner_sessions row.
   if (route.kind === 'scope_check' && db && typeof db.get === 'function') {
     const { NON_BIT_ACADEMIC_OR_CODE } = require('./lib/chat-tools');
-    if (!NON_BIT_ACADEMIC_OR_CODE.test(message)) {
+    if (!NON_BIT_ACADEMIC_OR_CODE.test(message) && !isInstitutionalOrAdminQuery) {
       const spStudentId = academicContext?.studentId || studentInfo?.studentId || 'anonymous_student';
       const spConvId = sessionId || options.conversationId || null;
       try {
@@ -1119,6 +1144,23 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       const currentTopic = topics.find(t => (t.stepIndex || t.step_index) === currentStepIdx) || topics[0];
       const effectiveCheckpoint = lastAssistantMsg || currentTopic?.checkpoint_question;
       const studentIntent = evaluateStudentIntent(message, currentTopic, effectiveCheckpoint);
+
+      if (studentIntent.intent === 'switch_topic') {
+        // The student asked an administrative / institutional / out-of-domain question during an active study session.
+        // DO NOT grade this as an answer to the checkpoint and DO NOT advance the lesson!
+        const agentOut = await runKyanaAgentLoop({
+          db,
+          message,
+          history: cleanHistory,
+          academicContext,
+          chatMode,
+          generateReply: options.generateReply || null,
+          onDelta,
+          signal,
+          options
+        });
+        return agentOut;
+      }
 
       if (studentIntent.intent === 'remediate') {
         isRemediationTurn = true;
@@ -1644,11 +1686,16 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   }
 
   // --- STEP 4.5: KYANA AGENT ENGINE V1 (Controlled Multi-Step Planning & Execution Loop) ---
+  const isMultiSourceOrContextSwitchAgentQuery = shouldUseKyanaAgentEngine(message, cleanHistory, academicContext) && (
+    route.kind === 'tools' ||
+    /\b(which\s+subject\s+needs|most\s+attention|falling\s+behind|compare\s+(?:my\s+)?(?:mid-?term|pre-?board|final|marks?|results?|performance)|assignments?\s+due\s+before|what\s+should\s+i\s+(?:prepare|study)|what\s+(?:important\s+things?\s+)?happened\s+in\s+(?:college|campus)|study\s+plan)\b/i.test(message) ||
+    (cleanHistory.some(m => m && (m.role === 'assistant' || m.role === 'user') && /study_sess_|Checkpoint Question|🎯 Checkpoint|Discrete Mathematics|Propositional Logic|teach\s+me/i.test(m.content || '')) && isInstitutionalOrAdminQuery)
+  );
   const shouldRunAgent = options.useAgentEngine === true || (
     options.useAgentEngine !== false &&
     !options.searchKnowledge &&
     !options.toolDependencies &&
-    !(v3Enabled && isKnowledgeQuery(route, message, v3Enabled)) &&
+    (!(v3Enabled && isKnowledgeQuery(route, message, v3Enabled)) || isMultiSourceOrContextSwitchAgentQuery) &&
     shouldUseKyanaAgentEngine(message, cleanHistory, academicContext)
   );
   if (shouldRunAgent) {
@@ -1689,6 +1736,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         if (
           (!result.matchedFiles || result.matchedFiles.length === 0) &&
           /\[Note:\s*No specific course notes were found/i.test(result.reply || '') &&
+          !/```(?:c|cpp|java|python|js|javascript|php|sql|html|css|roadmap|diagram|flowchart|trace|comparison|complexity)\b/i.test(result.reply || '') &&
           ['interactive_simulation', 'truth_table', 'mathematical_derivation', 'simple_definition', 'comparison_table', 'programming_code', 'visual_diagram'].includes(adaptivePlan.profile)
         ) {
           const enriched = buildAdaptiveEducationalFallback(message, { plan: adaptivePlan });

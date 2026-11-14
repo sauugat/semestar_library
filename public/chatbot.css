@@ -25,16 +25,39 @@
     background: var(--ky-bg) !important;
     background-color: var(--ky-bg) !important;
     border-bottom: 1px solid var(--ky-border) !important;
+    border-radius: 0 !important;
     position: relative !important;
     z-index: 120 !important;
   }
 
-  body.kyana-workspace-body[data-theme="light"] .dash-header,
+  /* Light mode header strictly on explicit light theme */
   html[data-theme="light"] body.kyana-workspace-body .dash-header,
-  body.kyana-workspace-body:not(.dark-mode) .dash-header {
+  html[data-theme="light"] body.kyana-workspace-body.dash .dash-header,
+  body.kyana-workspace-body[data-theme="light"] .dash-header {
     background: #ffffff !important;
     background-color: #ffffff !important;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  }
+  html[data-theme="light"] body.kyana-workspace-body .lib-wordmark {
+    color: #121316 !important;
+  }
+  html[data-theme="light"] body.kyana-workspace-body .dash-header-nav a,
+  html[data-theme="light"] body.kyana-workspace-body .header-nav-item {
+    color: #52525b !important;
+  }
+  html[data-theme="light"] body.kyana-workspace-body .dash-header-nav a:hover,
+  html[data-theme="light"] body.kyana-workspace-body .header-nav-item:hover,
+  html[data-theme="light"] body.kyana-workspace-body .header-nav-item.active {
+    color: #121316 !important;
+  }
+  html[data-theme="light"] body.kyana-workspace-body .dash-profile-chip {
+    background: #f4f5f7 !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    color: #121316 !important;
+  }
+  html[data-theme="light"] body.kyana-workspace-body .dash-profile-avatar {
+    background: #000000 !important;
+    color: #ffffff !important;
   }
 
   body.kyana-workspace-body .dash-header-left {
@@ -376,4 +399,233 @@ body.kyana-workspace-body [id*="mascot"] {
   visibility: hidden !important;
   pointer-events: none !important;
   opacity: 0 !important;
+}
+
+/* ==========================================================================
+   Kyana AI Workspace Foundation & Viewport Normalization (Unified Monochrome)
+   ========================================================================== */
+
+/* Universal Layout Container */
+.kyana-app {
+  display: flex !important;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  position: relative !important;
+  background-color: var(--ky-bg, #09090b) !important;
+}
+
+/* 1. EMPTY STATE (Welcome Hero + Composer Unified as a Centered Card) */
+.kyana-app.is-empty .kyana-main {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  position: relative !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 32px 20px 48px !important;
+  box-sizing: border-box !important;
+}
+
+.kyana-app.is-empty .kyana-viewport {
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  max-width: var(--ky-reading-width, 820px) !important;
+  overflow: visible !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
+}
+
+.kyana-app.is-empty .kyana-reading-column {
+  width: 100% !important;
+  max-width: var(--ky-reading-width, 820px) !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+}
+
+.kyana-app.is-empty .kyana-welcome {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  margin: 0 !important;
+  padding: 0 0 28px !important;
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  transition: opacity 0.22s ease-out, transform 0.22s ease-out !important;
+}
+
+.kyana-app.is-empty .kyana-composer-container {
+  position: relative !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  width: 100% !important;
+  max-width: var(--ky-reading-width, 820px) !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  background: transparent !important;
+  pointer-events: auto !important;
+  display: flex !important;
+  justify-content: center !important;
+  z-index: 30 !important;
+  box-sizing: border-box !important;
+}
+
+.kyana-app.is-empty .kyana-composer-inner {
+  width: 100% !important;
+  max-width: var(--ky-reading-width, 820px) !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.kyana-app.is-empty .kyana-scroll-bottom-btn {
+  display: none !important;
+}
+
+/* 2. ACTIVE CONVERSATION STATE (Messages Stream + Docked Bottom Composer) */
+.kyana-app.has-messages .kyana-main {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  position: relative !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.kyana-app.has-messages .kyana-viewport {
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  scroll-behavior: smooth !important;
+}
+
+.kyana-app.has-messages .kyana-welcome {
+  display: none !important;
+}
+
+.kyana-app.has-messages .kyana-reading-column {
+  width: 100% !important;
+  max-width: var(--ky-reading-width, 820px) !important;
+  margin: 0 auto !important;
+  padding: 24px 20px calc(150px + env(safe-area-inset-bottom, 18px)) !important;
+  box-sizing: border-box !important;
+}
+
+.kyana-app.has-messages .kyana-composer-container {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 20px max(18px, env(safe-area-inset-bottom, 18px)) !important;
+  background: linear-gradient(to top, var(--ky-bg, #09090b) 75%, transparent 100%) !important;
+  pointer-events: none !important;
+  display: flex !important;
+  justify-content: center !important;
+  z-index: 30 !important;
+  box-sizing: border-box !important;
+}
+
+.kyana-app.has-messages .kyana-composer-inner {
+  width: 100% !important;
+  max-width: var(--ky-reading-width, 820px) !important;
+  margin: 0 auto !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* 3. COMPOSER SUBTEXT / DISCLAIMER (Zero Bottom Clipping) */
+.kyana-composer-subtext {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 12px 0 !important;
+  font-size: 11.5px !important;
+  color: var(--ky-text-muted, #71717a) !important;
+  user-select: none !important;
+}
+
+/* 4. MOBILE VIEWPORT NORMALIZATION */
+@media (max-width: 768px) {
+  body.kyana-workspace-body.dash .dash-header,
+  body.kyana-workspace-body .dash-header,
+  html body.kyana-workspace-body.dash .dash-header,
+  html body.kyana-workspace-body .dash-header {
+    border-radius: 0 !important;
+    background: var(--ky-bg, #09090b) !important;
+    background-color: var(--ky-bg, #09090b) !important;
+    border-bottom: 1px solid var(--ky-border) !important;
+    padding-top: max(8px, env(safe-area-inset-top, 8px)) !important;
+    padding-bottom: 8px !important;
+    padding-left: max(14px, env(safe-area-inset-left, 14px)) !important;
+    padding-right: max(14px, env(safe-area-inset-right, 14px)) !important;
+    min-height: 52px !important;
+    max-height: none !important;
+    flex-wrap: wrap !important;
+  }
+
+  .kyana-app.is-empty .kyana-main {
+    padding: 24px 16px max(32px, env(safe-area-inset-bottom, 24px)) !important;
+  }
+
+  .kyana-app.is-empty .kyana-composer-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .kyana-app.has-messages .kyana-reading-column {
+    padding: 16px 14px calc(140px + env(safe-area-inset-bottom, 16px)) !important;
+  }
+
+  .kyana-app.has-messages .kyana-composer-container {
+    padding: 0 12px max(14px, env(safe-area-inset-bottom, 14px)) !important;
+  }
+
+  .kyana-welcome-heading,
+  .kyana-app.is-empty .kyana-welcome-heading {
+    font-size: 26px !important;
+  }
+
+  .kyana-welcome-sub,
+  .kyana-app.is-empty .kyana-welcome-sub {
+    font-size: 13.5px !important;
+    padding: 0 8px !important;
+  }
+
+  .kyana-kbd-guide {
+    display: none !important;
+  }
 }

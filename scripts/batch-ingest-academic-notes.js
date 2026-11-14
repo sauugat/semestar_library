@@ -68,20 +68,10 @@ function saveCheckpoint(data) {
 }
 
 async function verifyBinaryAvailability(file) {
-  const storedName = file.storedName || file.storedname;
-  const uploadDir = path.join(__dirname, '..', 'uploads');
-  if (storedName) {
-    const localPath = path.join(uploadDir, path.basename(storedName));
-    if (fs.existsSync(localPath) && fs.statSync(localPath).size > 0) {
-      return { available: true, source: 'disk', size: fs.statSync(localPath).size };
-    }
-    const blob = await db.get(
-      `SELECT LENGTH(filedata) AS len FROM file_blobs WHERE filename = ? LIMIT 1`,
-      [path.basename(storedName)]
-    ).catch(() => null);
-    if (blob && Number(blob.len) > 0) {
-      return { available: true, source: 'file_blobs', size: Number(blob.len) };
-    }
+  const { resolveDocumentBuffer } = require('../lib/document-ingestion');
+  const buffer = await resolveDocumentBuffer(db, file).catch(() => null);
+  if (buffer && buffer.length > 0) {
+    return { available: true, source: 'binary', size: buffer.length };
   }
 
   const legacyDoc = await db.get(
@@ -139,6 +129,16 @@ async function main() {
   const completedSet = new Set(options.resume ? checkpoint.completedFileIds : []);
 
   if (options.resume) {
+    // Also consult DB document_extraction_jobs to ensure any previously INDEXED file is never reprocessed
+    try {
+      const indexedJobs = await db.all(`SELECT file_id FROM document_extraction_jobs WHERE status = 'INDEXED'`);
+      for (const j of indexedJobs || []) {
+        completedSet.add(Number(j.file_id));
+        if (!checkpoint.completedFileIds.includes(Number(j.file_id))) {
+          checkpoint.completedFileIds.push(Number(j.file_id));
+        }
+      }
+    } catch (_) {}
     targetFiles = targetFiles.filter((f) => !completedSet.has(Number(f.id)));
   }
 

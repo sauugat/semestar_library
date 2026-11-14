@@ -41,6 +41,9 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
+      - name: Install poppler-utils
+        run: sudo apt-get update && sudo apt-get install -y poppler-utils
+
       - name: Install dependencies
         run: npm ci --omit=dev
 
@@ -51,6 +54,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DOC_VISION_MODEL: ${{ vars.DOC_VISION_MODEL || secrets.DOC_VISION_MODEL }}
           DOC_VISION_DAILY_REQUEST_CAP: ${{ vars.DOC_VISION_DAILY_REQUEST_CAP || '100' }}
+          DOC_READ_IMAGES: ${{ vars.DOC_READ_IMAGES || 'false' }}
           DOC_VISION_BATCH_PAGES: ${{ vars.DOC_VISION_BATCH_PAGES || '1' }}
           DOC_MAX_VISION_PAGES: ${{ vars.DOC_MAX_VISION_PAGES || '60' }}
           DOC_MAX_FILE_BYTES: ${{ vars.DOC_MAX_FILE_BYTES || '104857600' }}

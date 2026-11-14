@@ -48,7 +48,8 @@ CREATE TABLE IF NOT EXISTS ingestion_jobs (
       'partial_success',
       'failed_retryable',
       'failed_terminal',
-      'dedup_reused'
+      'dedup_reused',
+      'skipped'
     )
   ),
   total_pages INTEGER NOT NULL DEFAULT 0,

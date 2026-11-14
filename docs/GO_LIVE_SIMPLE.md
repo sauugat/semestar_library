@@ -75,7 +75,8 @@ CREATE TABLE IF NOT EXISTS ingestion_jobs (
       'partial_success',
       'failed_retryable',
       'failed_terminal',
-      'dedup_reused'
+      'dedup_reused',
+      'skipped'
     )
   ),
   total_pages INTEGER NOT NULL DEFAULT 0,
@@ -135,6 +136,7 @@ Go to: **GitHub Repo → Settings → Secrets and variables → Actions**
 |---|---|---|
 | `DOC_VISION_MODEL` | `gemini-2.5-flash` | Multimodal vision model (fast, accurate for formulas & diagrams) |
 | `DOC_VISION_DAILY_REQUEST_CAP` | `100` | Safety limit to prevent quota overuse (worker halts cleanly when reached) |
+| `DOC_READ_IMAGES` | `false` | Image OCR opt-in (disabled by default; when true, only processes images with a subject) |
 | `DOC_MAX_VISION_PAGES` | `60` | Maximum vision pages processed per file before saving partial checkpoint |
 | `DOC_PAGE_TIMEOUT_MS` | `25000` | Per-page timeout in milliseconds (25 seconds) |
 
@@ -258,3 +260,4 @@ If you ever need to roll back the tables:
    COMMIT;
    ```
 3. This cleanly drops `doc_pages` and `ingestion_jobs`. It leaves all other tables, users, uploads, and sessions 100% intact.
+

@@ -59,6 +59,8 @@ function parseCliArgs(argv = process.argv.slice(2)) {
 
 async function executeWorkerRun(db, cli = {}, options = {}) {
   const logger = options.logger || console;
+  const modelName = (options.env || process.env).DOC_VISION_MODEL || null;
+
   if (cli.reconcile) {
     const reconcileSummary = await reconcileMissingIngestionJobs(db, {
       limit: cli.limit,
@@ -66,20 +68,20 @@ async function executeWorkerRun(db, cli = {}, options = {}) {
       includePartial: cli.includePartial
     });
     logger.log('[DocIngestionWorker] Reconcile summary:', JSON.stringify(reconcileSummary));
-    return { mode: 'reconcile', reconcileSummary, ingestion: null, knowledge: null };
+    return { mode: 'reconcile', model: modelName, reconcileSummary, ingestion: null, knowledge: null };
   }
 
   const pending = await hasPendingWork(db, { includeKnowledge: !cli.skipKnowledge });
   if (!pending.hasWork) {
-    logger.log('[DocIngestionWorker] No queued ingestion or knowledge jobs; exiting early.');
-    return { mode: 'early_exit', pending, ingestion: null, knowledge: null };
+    logger.log(`[DocIngestionWorker] No queued ingestion or knowledge jobs; exiting early (model: ${modelName || 'none'}).`);
+    return { mode: 'early_exit', model: modelName, pending, ingestion: null, knowledge: null };
   }
 
   const workerId = options.workerId || (process.env.GITHUB_RUN_ID
     ? `gha-${process.env.GITHUB_RUN_ID}-${process.pid}`
     : `cli-${process.pid}`);
 
-  logger.log(`[DocIngestionWorker] Starting worker ${workerId}...`);
+  logger.log(`[DocIngestionWorker] Starting worker ${workerId} (model: ${modelName || 'none'})...`);
   const ingestion = pending.ingestionPending
     ? await runIngestionWorkerLoop(db, {
       ...options,
@@ -87,9 +89,12 @@ async function executeWorkerRun(db, cli = {}, options = {}) {
       maxJobs: cli.maxJobs,
       maxDurationMs: cli.maxDurationMs
     })
-    : { processedJobs: 0, results: [] };
+    : { processedJobs: 0, model: modelName, results: [] };
 
-  logger.log('[DocIngestionWorker] Completed ingestion sweep:', JSON.stringify(ingestion));
+  logger.log(`[DocIngestionWorker] Completed ingestion sweep (model: ${modelName || 'none'}):`, JSON.stringify({
+    ...ingestion,
+    model: modelName
+  }));
 
   let knowledge = { skipped: Boolean(cli.skipKnowledge), processed: 0, succeeded: 0, failed: 0, batches: 0 };
   if (!cli.skipKnowledge) {
@@ -102,7 +107,15 @@ async function executeWorkerRun(db, cli = {}, options = {}) {
     logger.log('[DocIngestionWorker] Knowledge drain summary:', JSON.stringify(knowledge));
   }
 
-  return { mode: 'worked', pending, ingestion, knowledge };
+  logger.log(`[DocIngestionWorker] Final run summary (model: ${modelName || 'none'}):`, JSON.stringify({
+    mode: 'worked',
+    model: modelName,
+    pending,
+    ingestion,
+    knowledge
+  }));
+
+  return { mode: 'worked', model: modelName, pending, ingestion, knowledge };
 }
 
 async function main() {

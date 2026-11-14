@@ -25,7 +25,11 @@ const {
   buildVisionPrompt,
   parseVisionJsonResponse,
   loadPdfForSlicing,
-  buildPdfSlice
+  buildPdfSlice,
+  extractPageSliceWithVision,
+  extractImageWithVision,
+  renderPdfSliceToJpeg,
+  SLICE_IMAGE_RENDER_THRESHOLD_BYTES
 } = require('../lib/doc-vision-ocr');
 const docWorker = require('../lib/doc-ingestion-worker');
 const {
@@ -3498,4 +3502,334 @@ test('41. D5-A4: Rollup stores final vision page text (LaTeX, tables, figure) an
   const searchResults = await noteSearch.searchNotes(db, { query: 'Orthogonality Theorem', semester: '2' });
   assert.ok(searchResults.length > 0, 'Expected searchNotes to return note containing vision-only phrase');
   assert.equal(Number(searchResults[0].id), file.fileId);
+});
+
+test('42. D5-R9 Part 1: Slice > 1.5 MB renders to JPEG via pdftoppm mock and sends image/jpeg to Gemini Vision', async () => {
+  const largeBuffer = Buffer.alloc(1.6 * 1024 * 1024, '%PDF-dummy-large-slice%');
+  let capturedBody = null;
+
+  const mockFetch = async (_url, init) => {
+    capturedBody = JSON.parse(init.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                text: 'Extracted figure description from rendered JPEG',
+                latex_present: false,
+                figure_description: 'Complex architecture diagram rendered as JPEG',
+                ocr_confidence: 0.95,
+                detected_type: 'figure'
+              })
+            }]
+          }
+        }]
+      })
+    };
+  };
+
+  const fakeJpegBuffer = Buffer.from('FAKE-JPEG-BYTES-130DPI');
+  let ppmCalled = false;
+  const mockRenderToJpeg = async (buf, opts) => {
+    ppmCalled = true;
+    assert.equal(opts.dpi, 130);
+    return [fakeJpegBuffer];
+  };
+
+  const result = await extractPageSliceWithVision({
+    slicePdfBuffer: largeBuffer,
+    sliceItems: [{ pageNo: 1, pageTypeHint: 'figure', rawTextHint: '' }],
+    totalSourcePages: 1,
+    fetchImpl: mockFetch,
+    env: { GEMINI_API_KEY: 'mock-key', DOC_VISION_MODEL: 'gemini-2.5-flash' },
+    renderSliceToJpegFn: mockRenderToJpeg
+  });
+
+  assert.equal(ppmCalled, true, 'Expected renderSliceToJpegFn to be called for slice > 1.5 MB');
+  assert.equal(result.renderedAsImage, true);
+  assert.ok(capturedBody, 'Expected request body to be sent to Gemini');
+
+  const userParts = capturedBody.contents[0].parts;
+  const mediaPart = userParts[0];
+  assert.ok(mediaPart.inlineData, 'Expected inlineData part for rendered JPEG');
+  assert.equal(mediaPart.inlineData.mimeType, 'image/jpeg');
+  assert.equal(mediaPart.inlineData.data, fakeJpegBuffer.toString('base64'));
+  assert.equal(result.pages[0].figureDescription, 'Complex architecture diagram rendered as JPEG');
+});
+
+test('43. D5-R9 Part 2: Slice > 1.5 MB falls back to PDF slice if pdftoppm fails or is missing', async () => {
+  const largeBuffer = Buffer.alloc(1.6 * 1024 * 1024, '%PDF-dummy-large-slice%');
+  let capturedBody = null;
+
+  const mockFetch = async (_url, init) => {
+    capturedBody = JSON.parse(init.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                text: 'Fallback PDF slice extraction',
+                latex_present: false,
+                figure_description: null,
+                ocr_confidence: 0.90,
+                detected_type: 'scanned'
+              })
+            }]
+          }
+        }]
+      })
+    };
+  };
+
+  // Mock render function failing (e.g. pdftoppm not found or exit code 1)
+  const failingRenderToJpeg = async () => {
+    throw new Error('pdftoppm: command not found');
+  };
+
+  const result = await extractPageSliceWithVision({
+    slicePdfBuffer: largeBuffer,
+    sliceItems: [{ pageNo: 1, pageTypeHint: 'figure', rawTextHint: '' }],
+    totalSourcePages: 1,
+    fetchImpl: mockFetch,
+    env: { GEMINI_API_KEY: 'mock-key', DOC_VISION_MODEL: 'gemini-2.5-flash' },
+    renderSliceToJpegFn: failingRenderToJpeg
+  });
+
+  assert.equal(result.renderedAsImage, false, 'Expected renderedAsImage to be false on fallback');
+  assert.ok(capturedBody, 'Expected request body to be sent');
+
+  const mediaPart = capturedBody.contents[0].parts[0];
+  assert.equal(mediaPart.inlineData.mimeType, 'application/pdf', 'Expected fallback to application/pdf slice');
+  assert.equal(result.pages[0].text, 'Fallback PDF slice extraction');
+});
+
+test('44. D5-R9 Part 3: Slice <= 1.5 MB sends PDF slice directly without invoking pdftoppm', async () => {
+  const smallBuffer = Buffer.from('%PDF-1.4 small buffer under 1.5MB%');
+  let capturedBody = null;
+
+  const mockFetch = async (_url, init) => {
+    capturedBody = JSON.parse(init.body);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                text: 'Standard small slice text',
+                latex_present: false,
+                figure_description: null,
+                ocr_confidence: 0.95,
+                detected_type: 'text'
+              })
+            }]
+          }
+        }]
+      })
+    };
+  };
+
+  let ppmCalled = false;
+  const spyRenderToJpeg = async () => {
+    ppmCalled = true;
+    return [Buffer.from('unexpected')];
+  };
+
+  const result = await extractPageSliceWithVision({
+    slicePdfBuffer: smallBuffer,
+    sliceItems: [{ pageNo: 1, pageTypeHint: 'text', rawTextHint: '' }],
+    totalSourcePages: 1,
+    fetchImpl: mockFetch,
+    env: { GEMINI_API_KEY: 'mock-key', DOC_VISION_MODEL: 'gemini-2.5-flash' },
+    renderSliceToJpegFn: spyRenderToJpeg
+  });
+
+  assert.equal(ppmCalled, false, 'Expected pdftoppm NOT to be called for slice <= 1.5 MB');
+  assert.equal(result.renderedAsImage, false);
+  const mediaPart = capturedBody.contents[0].parts[0];
+  assert.equal(mediaPart.inlineData.mimeType, 'application/pdf');
+});
+
+test('45. D5-R10 Part 1: Images are opt-in (DOC_READ_IMAGES=false by default), skipped with clear reason, metadata stays searchable, status is skipped', async () => {
+  const { db } = await createD2TestDb();
+  await noteSearch.ensureIndex(db);
+
+  const imageBuffer = Buffer.from('RIFF....WEBPVP8 ... fake wallpaper image');
+  const file = await insertTestFile(db, {
+    originalName: 'desktop-wallpaper.webp',
+    title: 'PC Wallpaper 4K Ultra',
+    subject: '', // No subject
+    chapter: '',
+    mimeType: 'image/webp',
+    buffer: imageBuffer
+  });
+
+  await enqueueDocumentIngestionJob(db, { fileId: file.fileId });
+
+  // DOC_READ_IMAGES is unset / false by default
+  const env = { ...process.env };
+  delete env.DOC_READ_IMAGES;
+
+  const result = await processNextIngestionJob(db, {
+    workerId: 'test-image-optin',
+    env
+  });
+
+  assert.equal(result.status, 'skipped');
+  assert.ok(result.reason.includes('disabled by default') || result.reason.includes('DOC_READ_IMAGES=false'));
+
+  // Assert doc_pages has page 1 with status = 'skipped' and error = null
+  const page = (await db.query('SELECT * FROM doc_pages WHERE file_id = $1', [file.fileId])).rows[0];
+  assert.equal(page.status, 'skipped');
+  assert.equal(page.source, 'skipped');
+  assert.equal(page.error, null);
+  assert.ok(page.figure_description.includes('DOC_READ_IMAGES=false'));
+
+  // Assert ingestion_jobs has status = 'skipped' and error = null
+  const job = (await db.query('SELECT * FROM ingestion_jobs WHERE file_id = $1', [file.fileId])).rows[0];
+  assert.equal(job.status, 'skipped');
+  assert.equal(job.error, null);
+
+  // Assert note_search_documents has extraction_status = 'skipped' and error = null
+  const searchDoc = (await db.query('SELECT * FROM note_search_documents WHERE id = $1', [file.fileId])).rows[0];
+  assert.equal(searchDoc.extraction_status, 'skipped');
+  assert.equal(searchDoc.extraction_error, null);
+  assert.ok(searchDoc.content.includes('PC Wallpaper 4K Ultra'));
+
+  // Assert metadata row stays searchable
+  const searchResults = await noteSearch.searchNotes(db, { query: 'Wallpaper' });
+  assert.ok(searchResults.length > 0, 'Expected skipped image to remain searchable via metadata');
+  assert.equal(Number(searchResults[0].id), file.fileId);
+});
+
+test('46. D5-R10 Part 2: Images with DOC_READ_IMAGES=true but no subject set are skipped with clear reason', async () => {
+  const { db } = await createD2TestDb();
+  await noteSearch.ensureIndex(db);
+
+  const imageBuffer = Buffer.from('\x89PNG\r\n\x1a\n fake png image bytes');
+  const file = await insertTestFile(db, {
+    originalName: 'random-diagram.png',
+    title: 'Unassigned Circuit Diagram',
+    subject: '', // Empty subject
+    chapter: '',
+    mimeType: 'image/png',
+    buffer: imageBuffer
+  });
+
+  await enqueueDocumentIngestionJob(db, { fileId: file.fileId });
+
+  const env = { ...process.env, DOC_READ_IMAGES: 'true' };
+  const result = await processNextIngestionJob(db, {
+    workerId: 'test-image-nosubject',
+    env
+  });
+
+  assert.equal(result.status, 'skipped');
+  assert.ok(result.reason.includes('no academic subject') || result.reason.includes('subject'));
+
+  const job = (await db.query('SELECT * FROM ingestion_jobs WHERE file_id = $1', [file.fileId])).rows[0];
+  assert.equal(job.status, 'skipped');
+  assert.equal(job.error, null);
+
+  const searchResults = await noteSearch.searchNotes(db, { query: 'Circuit Diagram' });
+  assert.ok(searchResults.length > 0);
+  assert.equal(Number(searchResults[0].id), file.fileId);
+});
+
+test('47. D5-R10 Part 3: Images with DOC_READ_IMAGES=true and subject set are read with Gemini Vision', async () => {
+  const { db } = await createD2TestDb();
+  await noteSearch.ensureIndex(db);
+
+  const imageBuffer = Buffer.from('\x89PNG\r\n\x1a\n valid png diagram');
+  const file = await insertTestFile(db, {
+    originalName: 'amplifier-circuit.png',
+    title: 'BJT Amplifier Characteristics',
+    subject: 'Electronics',
+    chapter: 'Unit 3: Transistors',
+    semester: '2',
+    mimeType: 'image/png',
+    buffer: imageBuffer
+  });
+
+  await enqueueDocumentIngestionJob(db, { fileId: file.fileId });
+
+  const mockVisionFetch = createMockGeminiFetch(async () => {
+    return {
+      status: 200,
+      json: {
+        text: 'Common Emitter BJT Voltage Gain $A_v = -g_m R_C$',
+        latex_present: true,
+        figure_description: 'Schematic of an NPN Bipolar Junction Transistor in common emitter configuration',
+        ocr_confidence: 0.98,
+        detected_type: 'figure'
+      }
+    };
+  });
+
+  const env = {
+    ...process.env,
+    DOC_READ_IMAGES: 'true',
+    GEMINI_API_KEY: 'test-key-mock',
+    DOC_VISION_MODEL: 'gemini-2.5-flash'
+  };
+
+  const result = await processNextIngestionJob(db, {
+    workerId: 'test-image-read',
+    fetchImpl: mockVisionFetch.fetchImpl,
+    env
+  });
+
+  assert.equal(result.status, 'completed');
+  assert.equal(result.visionPagesUsed, 1);
+
+  // Assert doc_pages populated with vision
+  const page = (await db.query('SELECT * FROM doc_pages WHERE file_id = $1', [file.fileId])).rows[0];
+  assert.equal(page.status, 'completed');
+  assert.equal(page.source, 'vision');
+  assert.equal(page.latex_present, true);
+  assert.ok(page.text.includes('Common Emitter BJT Voltage Gain'));
+  assert.ok(page.figure_description.includes('Schematic of an NPN'));
+
+  // Assert ingestion_jobs completed
+  const job = (await db.query('SELECT * FROM ingestion_jobs WHERE file_id = $1', [file.fileId])).rows[0];
+  assert.equal(job.status, 'completed');
+  assert.equal(job.vision_calls, 1);
+
+  // Assert searchable
+  const searchResults = await noteSearch.searchNotes(db, { query: 'BJT Voltage Gain', semester: '2' });
+  assert.ok(searchResults.length > 0);
+  assert.equal(Number(searchResults[0].id), file.fileId);
+});
+
+test('48. D5-R11: Log summary prints DOC_VISION_MODEL without extra model fallbacks', async () => {
+  const { db } = await createD2TestDb();
+
+  const logs = [];
+  const customLogger = {
+    log: (...args) => logs.push(args.join(' ')),
+    error: (...args) => logs.push(args.join(' ')),
+    warn: (...args) => logs.push(args.join(' '))
+  };
+
+  const env = {
+    ...process.env,
+    DOC_VISION_MODEL: 'gemini-2.5-flash'
+  };
+
+  // Run with no queued jobs to test early exit
+  const res = await executeWorkerRun(db, { skipKnowledge: true }, {
+    logger: customLogger,
+    env
+  });
+
+  assert.equal(res.model, 'gemini-2.5-flash');
+  const allLogs = logs.join('\n');
+  assert.ok(allLogs.includes('gemini-2.5-flash'), 'Expected DOC_VISION_MODEL to appear in worker logs');
 });

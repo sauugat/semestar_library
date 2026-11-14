@@ -297,6 +297,7 @@ async function processSingleLocalPdf(db, filePath, {
     `# Local Ingestion Output: ${fileName}`,
     '',
     `- mode: ${hasRealGemini ? `real-gemini (${effectiveEnv.DOC_VISION_MODEL})` : 'offline-mock-vision'}`,
+    `- model: ${effectiveEnv.DOC_VISION_MODEL || 'none'}`,
     `- status: ${jobOutcome?.status || jobRow.status}`,
     `- total_pages: ${jobRow.total_pages}`,
     `- page_range: ${pageRange ? `${pageRange.start}-${pageRange.end}` : 'all'}`,
@@ -349,6 +350,7 @@ async function processSingleLocalPdf(db, filePath, {
     file: filePath,
     outputPath,
     mode: hasRealGemini ? 'real-gemini' : 'offline-mock-vision',
+    model: hasRealGemini ? effectiveEnv.DOC_VISION_MODEL : null,
     status: jobOutcome?.status || jobRow.status,
     totalPages: Number(jobRow.total_pages),
     pagesByRoute,
@@ -499,6 +501,7 @@ async function runLocalPdfHarness({
     target: path.resolve(inputTarget),
     fileCount: fileResults.length,
     mode: hasRealGemini ? 'real-gemini' : 'offline-mock-vision',
+    model: hasRealGemini ? effectiveEnv.DOC_VISION_MODEL : null,
     totalPages: fileResults.reduce((s, r) => s + r.totalPages, 0),
     pagesByRoute: {
       text_layer: fileResults.reduce((s, r) => s + r.pagesByRoute.text_layer, 0),

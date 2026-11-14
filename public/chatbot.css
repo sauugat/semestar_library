@@ -18,12 +18,37 @@ body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn {
   width: 32px !important;
   height: 32px !important;
   border-radius: 7px !important;
-  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
   flex-shrink: 0 !important;
   transition: color .15s ease, background-color .15s ease, border-color .15s ease !important;
+}
+
+/* On desktop, hide header sidebar toggle when sidebar is open; show when collapsed */
+@media (min-width: 769px) {
+  body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn {
+    display: none !important;
+  }
+  body.kyana-workspace-body.sidebar-collapsed .dash-header-left .kyana-sidebar-open-btn,
+  body.kyana-workspace-body:has(.sidebar-collapsed) .dash-header-left .kyana-sidebar-open-btn {
+    display: inline-flex !important;
+  }
+}
+
+/* On mobile, drawer toggle is always available in header */
+@media (max-width: 768px) {
+  body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn {
+    display: inline-flex !important;
+  }
+}
+
+/* Enforce role navigation visibility */
+body.kyana-workspace-body .dash-header-nav .header-nav-item[style*="display: none"],
+body.kyana-workspace-body .dash-header-nav .header-nav-item[style*="display:none"],
+body.kyana-workspace-body .dash-header-nav [data-role-nav][style*="display: none"],
+body.kyana-workspace-body .dash-header-nav [data-role-nav][style*="display:none"] {
+  display: none !important;
 }
 
 body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn:hover {
@@ -656,3 +681,277 @@ body.kyana-workspace-body [id*="mascot"] {
     display: none !important;
   }
 }
+
+/* ==========================================================================
+   Phase 2: Premium Monochrome Welcome Experience & Academic Suggestion Cards
+   ========================================================================== */
+
+/* 1. Animated Living Kyana Identity & Ambient Glow */
+.kyana-aura-container {
+  position: relative !important;
+  width: 120px !important;
+  height: 120px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 auto 16px !important;
+  pointer-events: none !important;
+}
+
+.kyana-hero-logo-wrap {
+  position: relative !important;
+  z-index: 2 !important;
+  width: 72px !important;
+  height: 72px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  animation: kyanaHeroFloat 5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate !important;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.6)) !important;
+  transition: transform 0.3s ease, filter 0.3s ease !important;
+}
+
+.kyana-welcome-logo {
+  width: 72px !important;
+  height: 72px !important;
+  object-fit: contain !important;
+}
+
+@keyframes kyanaHeroFloat {
+  0% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-5px) scale(1.015);
+  }
+  100% {
+    transform: translateY(-8px) scale(1.02);
+  }
+}
+
+.kyana-aura-layer-white {
+  position: absolute !important;
+  width: 90px !important;
+  height: 90px !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%, transparent 70%) !important;
+  filter: blur(14px) !important;
+  animation: kyanaAuraBreathe 6s ease-in-out infinite alternate !important;
+  transition: opacity 0.3s ease, transform 0.3s ease, background 0.3s ease !important;
+}
+
+@keyframes kyanaAuraBreathe {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.1);
+    opacity: 0.95;
+  }
+}
+
+/* Interactive Aura Feedback when user focuses composer */
+.kyana-app.composer-focused .kyana-aura-layer-white {
+  opacity: 1 !important;
+  transform: scale(1.2) !important;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 45%, transparent 70%) !important;
+}
+
+.kyana-app.composer-focused .kyana-hero-logo-wrap {
+  transform: translateY(-4px) scale(1.03) !important;
+  filter: drop-shadow(0 14px 30px rgba(255, 255, 255, 0.12)) !important;
+}
+
+/* 2. Personalized Welcome Typography */
+.kyana-welcome-heading,
+.kyana-app.is-empty .kyana-welcome-heading {
+  font-family: var(--ky-font-brand) !important;
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em !important;
+  color: var(--ky-text-primary) !important;
+  margin: 0 0 6px !important;
+  line-height: 1.25 !important;
+  text-align: center !important;
+}
+
+.kyana-welcome-sub,
+.kyana-app.is-empty .kyana-welcome-sub {
+  font-family: var(--ky-font-sans) !important;
+  font-size: 14.5px !important;
+  font-weight: 400 !important;
+  color: var(--ky-text-secondary) !important;
+  max-width: 540px !important;
+  margin: 0 auto 24px !important;
+  line-height: 1.5 !important;
+  letter-spacing: -0.01em !important;
+  text-align: center !important;
+}
+
+/* 3. Academic Suggestion Cards (2x2 Grid) */
+.kyana-suggestion-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: 720px !important;
+  margin: 0 auto 24px !important;
+  box-sizing: border-box !important;
+}
+
+.kyana-suggestion-card {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  text-align: left !important;
+  background-color: var(--ky-surface, #141416) !important;
+  border: 1px solid var(--ky-border, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: 12px !important;
+  padding: 14px 16px !important;
+  cursor: pointer !important;
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+  color: var(--ky-text-primary, #f4f4f5) !important;
+  font-family: var(--ky-font-sans) !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  outline: none !important;
+}
+
+.kyana-suggestion-card:hover {
+  background-color: var(--ky-surface-raised, #19191d) !important;
+  border-color: var(--ky-border-strong, rgba(255, 255, 255, 0.18)) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
+}
+
+.kyana-suggestion-card:focus-visible {
+  border-color: var(--ky-border-strong, rgba(255, 255, 255, 0.3)) !important;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15) !important;
+}
+
+.kyana-suggestion-card:active {
+  transform: translateY(0) !important;
+  filter: brightness(0.96) !important;
+}
+
+.kyana-card-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  margin-bottom: 8px !important;
+}
+
+.kyana-card-badge {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: var(--ky-text-muted, #71717a) !important;
+  transition: color 0.18s ease !important;
+}
+
+.kyana-suggestion-card:hover .kyana-card-badge {
+  color: var(--ky-text-secondary, #a1a1aa) !important;
+}
+
+.kyana-card-icon {
+  color: var(--ky-text-muted, #71717a) !important;
+  flex-shrink: 0 !important;
+  transition: color 0.18s ease, transform 0.18s ease !important;
+}
+
+.kyana-suggestion-card:hover .kyana-card-icon {
+  color: var(--ky-text-primary, #f4f4f5) !important;
+  transform: scale(1.08) !important;
+}
+
+.kyana-card-title {
+  font-family: var(--ky-font-brand) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: var(--ky-text-primary, #f4f4f5) !important;
+  margin-bottom: 4px !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.kyana-card-desc {
+  font-size: 12px !important;
+  color: var(--ky-text-secondary, #a1a1aa) !important;
+  line-height: 1.45 !important;
+}
+
+/* Light Mode Overrides for Suggestion Cards */
+html[data-theme="light"] .kyana-suggestion-card,
+body[data-theme="light"] .kyana-suggestion-card {
+  background-color: #f7f8fa !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #121316 !important;
+}
+
+html[data-theme="light"] .kyana-suggestion-card:hover,
+body[data-theme="light"] .kyana-suggestion-card:hover {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.16) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+}
+
+html[data-theme="light"] .kyana-card-title {
+  color: #121316 !important;
+}
+
+html[data-theme="light"] .kyana-card-desc {
+  color: #52525b !important;
+}
+
+html[data-theme="light"] .kyana-aura-layer-white {
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.04) 0%, transparent 70%) !important;
+}
+
+/* 4. Responsive Viewport Adaptations */
+@media (max-width: 640px) {
+  .kyana-suggestion-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    max-width: 100% !important;
+    margin-bottom: 18px !important;
+  }
+  .kyana-suggestion-card {
+    padding: 12px 14px !important;
+  }
+  .kyana-welcome-heading,
+  .kyana-app.is-empty .kyana-welcome-heading {
+    font-size: 25px !important;
+  }
+  .kyana-welcome-sub,
+  .kyana-app.is-empty .kyana-welcome-sub {
+    font-size: 13.5px !important;
+    margin-bottom: 18px !important;
+  }
+  .kyana-hero-logo-wrap {
+    width: 60px !important;
+    height: 60px !important;
+  }
+  .kyana-welcome-logo {
+    width: 60px !important;
+    height: 60px !important;
+  }
+}
+
+/* 5. Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .kyana-hero-logo-wrap,
+  .kyana-aura-layer-white {
+    animation: none !important;
+    transform: none !important;
+  }
+  .kyana-suggestion-card:hover {
+    transform: none !important;
+  }
+}
+

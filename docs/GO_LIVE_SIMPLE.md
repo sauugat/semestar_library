@@ -88,8 +88,12 @@ Go to: **GitHub Repo → Settings → Secrets and variables → Actions**
 | Name | Default Value | Purpose |
 |---|---|---|
 | `DOC_VISION_MODEL` | `gemini-2.5-flash` | Multimodal vision model (fast, accurate for formulas & diagrams) |
+| `DOC_RUN_BUDGET_MS` | `2700000` | Worker execution time budget in milliseconds (45 minutes) |
 | `DOC_VISION_DAILY_REQUEST_CAP` | `100` | Safety limit to prevent quota overuse (worker halts cleanly when reached) |
+| `DOC_VISION_ENRICH` | `false` | Tier 2 enrichment gating (run Tier 2 vision only when explicitly enabled) |
 | `DOC_READ_IMAGES` | `false` | Image OCR opt-in (disabled by default; when true, only processes images with a subject) |
+| `DOC_CLASSIFIER_CLEAN_TABLE_TIER2` | `false` | When false, typed tables keep row/column layout via Vision OCR; when true, clean tables route to Tier 2 |
+| `DOC_CLASSIFIER_LOGO_SLIDE_TIER2` | `true` | Title/divider slides (30–150 chars with small logo <15%) stay on text layer as Tier 2 |
 | `DOC_MAX_VISION_PAGES` | `60` | Maximum vision pages processed per file before saving partial checkpoint |
 | `DOC_PAGE_TIMEOUT_MS` | `25000` | Per-page timeout in milliseconds (25 seconds) |
 

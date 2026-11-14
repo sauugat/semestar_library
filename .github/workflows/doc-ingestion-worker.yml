@@ -64,7 +64,10 @@ jobs:
           DOC_VISION_MODEL: ${{ vars.DOC_VISION_MODEL || secrets.DOC_VISION_MODEL }}
           DOC_RUN_BUDGET_MS: ${{ vars.DOC_RUN_BUDGET_MS || '2700000' }}
           DOC_VISION_DAILY_REQUEST_CAP: ${{ vars.DOC_VISION_DAILY_REQUEST_CAP || '100' }}
+          DOC_VISION_ENRICH: ${{ vars.DOC_VISION_ENRICH || 'false' }}
           DOC_READ_IMAGES: ${{ vars.DOC_READ_IMAGES || 'false' }}
+          DOC_CLASSIFIER_CLEAN_TABLE_TIER2: ${{ vars.DOC_CLASSIFIER_CLEAN_TABLE_TIER2 || 'false' }}
+          DOC_CLASSIFIER_LOGO_SLIDE_TIER2: ${{ vars.DOC_CLASSIFIER_LOGO_SLIDE_TIER2 || 'true' }}
           DOC_VISION_BATCH_PAGES: ${{ vars.DOC_VISION_BATCH_PAGES || '1' }}
           DOC_MAX_VISION_PAGES: ${{ github.event.inputs.max_vision_pages || vars.DOC_MAX_VISION_PAGES || '60' }}
           DOC_MAX_FILE_BYTES: ${{ vars.DOC_MAX_FILE_BYTES || '104857600' }}

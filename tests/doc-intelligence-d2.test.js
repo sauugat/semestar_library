@@ -4091,17 +4091,22 @@ test('52. Phase D6 Task 5: Classifier cost cuts for clean tables and logo slides
     charBoxes: []
   };
 
-  const tableClsTier2 = classifyPageSignals({ ...tableSignals });
+  // Default behaviour: cleanTableTier2Enabled is false -> tables route to Tier 1
+  const tableDefaultCls = classifyPageSignals({ ...tableSignals });
+  assert.equal(tableDefaultCls.pageType, 'table');
+  assert.equal(tableDefaultCls.route, 'vision');
+  assert.equal(tableDefaultCls.tier, 1);
+  assert.ok(!tableDefaultCls.reasons.includes('clean_table_tier2'));
+
+  // Explicit true override: routes to Tier 2
+  const tableClsTier2 = classifyPageSignals({
+    ...tableSignals,
+    thresholds: { cleanTableTier2Enabled: true }
+  });
   assert.equal(tableClsTier2.pageType, 'table');
   assert.equal(tableClsTier2.route, 'vision');
   assert.equal(tableClsTier2.tier, 2);
   assert.ok(tableClsTier2.reasons.includes('clean_table_tier2'));
-
-  const tableClsTier1 = classifyPageSignals({
-    ...tableSignals,
-    thresholds: { cleanTableTier2Enabled: false }
-  });
-  assert.equal(tableClsTier1.tier, 1);
 
   const logoSlideText = 'Gandaki University\nDepartment of Information Technology\nUnit 3: Operating Systems';
   assert.ok(logoSlideText.length >= 30 && logoSlideText.length <= 150);
@@ -4116,12 +4121,14 @@ test('52. Phase D6 Task 5: Classifier cost cuts for clean tables and logo slides
     charBoxes: []
   };
 
-  const slideClsTier2 = classifyPageSignals({ ...slideSignals });
-  assert.equal(slideClsTier2.pageType, 'figure');
-  assert.equal(slideClsTier2.route, 'vision');
-  assert.equal(slideClsTier2.tier, 2);
-  assert.ok(slideClsTier2.reasons.includes('logo_slide_small_image'));
+  // Default behaviour: logoSlideTier2Enabled is true -> routes to Tier 2
+  const slideDefaultCls = classifyPageSignals({ ...slideSignals });
+  assert.equal(slideDefaultCls.pageType, 'figure');
+  assert.equal(slideDefaultCls.route, 'vision');
+  assert.equal(slideDefaultCls.tier, 2);
+  assert.ok(slideDefaultCls.reasons.includes('logo_slide_small_image'));
 
+  // Explicit false override: routes to Tier 1
   const slideClsTier1 = classifyPageSignals({
     ...slideSignals,
     thresholds: { logoSlideTier2Enabled: false }

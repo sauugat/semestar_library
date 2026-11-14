@@ -959,8 +959,17 @@
           }
         }
 
-        marksItem.style.display = isTeacherRole ? '' : 'none';
-        resultsItem.style.display = isStudentRole ? '' : 'none';
+        if (isTeacherRole) {
+          marksItem.style.removeProperty('display');
+        } else {
+          marksItem.style.setProperty('display', 'none', 'important');
+        }
+
+        if (isStudentRole) {
+          resultsItem.style.removeProperty('display');
+        } else {
+          resultsItem.style.setProperty('display', 'none', 'important');
+        }
 
         if (currentPath.includes('marks-entry')) {
           marksItem.classList.add('active');

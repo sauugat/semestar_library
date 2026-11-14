@@ -47,6 +47,8 @@
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-json.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-sql.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-markup-templating.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-php.min.js"></script>
 
   <!-- KaTeX for Scientific & Math Expressions -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
@@ -57,7 +59,7 @@
   <link rel="stylesheet" href="style.v4.css">
   <link rel="stylesheet" href="auth-modal.css">
   <link rel="stylesheet" href="/theme-overrides.css">
-  <link rel="stylesheet" href="chatbot.css?v=30">
+  <link rel="stylesheet" href="chatbot.css?v=33">
 </head>
 
 <body class="kyana-workspace-body sla-fullpage-mode dash">
@@ -197,24 +199,79 @@
       <div class="kyana-viewport" id="kyanaViewport">
         <div class="kyana-reading-column">
 
-          <!-- Welcome / Empty Chat Hero (1 Large Monochrome Logo with Subtle Luminous Aura) -->
+          <!-- Welcome / Empty Chat Hero (Premium Monochrome AI Learning Workspace) -->
           <div class="kyana-welcome" id="kyanaWelcomeHero">
-            <!-- MONOCHROME KYANA AURA: Smoky silver radial light layers -->
-            <div class="kyana-aura-container">
+            <!-- MONOCHROME KYANA AURA: Smoky silver radial light layers with living floating motion -->
+            <div class="kyana-aura-container" id="kyanaAuraContainer">
               <div class="kyana-aura-layer kyana-aura-layer-white" aria-hidden="true"></div>
               <div class="kyana-aura-layer kyana-aura-layer-smoke" aria-hidden="true"></div>
               <div class="kyana-aura-layer kyana-aura-layer-silver" aria-hidden="true"></div>
-              <div class="kyana-aura-layer kyana-aura-layer-glow" aria-hidden="true"></div>
-              <div class="kyana-hero-logo-wrap">
+              <div class="kyana-hero-logo-wrap" id="kyanaHeroLogoWrap">
                 <img src="/images/kyana-mono-hero.png" alt="Kyana AI" class="kyana-welcome-logo" width="80" height="80">
                 <div class="kyana-logo-glass-sweep" aria-hidden="true"></div>
               </div>
             </div>
 
-            <h1 class="kyana-welcome-heading">How can I help?</h1>
-            <p class="kyana-welcome-sub">
-              Ask about your classes, notes, routines, notices, PYQs, or anything else.
+            <h1 class="kyana-welcome-heading" id="kyanaWelcomeGreeting">Good evening.</h1>
+            <p class="kyana-welcome-sub" id="kyanaWelcomeSub">
+              Your academic companion at Gandaki University.
             </p>
+
+            <!-- 4 Academic Suggestion Cards (Monochrome Minimalist 2x2 Grid) -->
+            <div class="kyana-suggestion-grid" id="kyanaSuggestionGrid" role="region" aria-label="Suggested prompts">
+              <button type="button" class="kyana-suggestion-card" data-prompt="Teach me the next chapter in my syllabus step by step with clear explanations and examples.">
+                <div class="kyana-card-header">
+                  <span class="kyana-card-badge">LEARN</span>
+                  <svg class="kyana-card-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                  </svg>
+                </div>
+                <div class="kyana-card-title">Teach me a chapter</div>
+                <div class="kyana-card-desc">Understand topics step by step using your academic materials.</div>
+              </button>
+
+              <button type="button" class="kyana-suggestion-card" data-prompt="Can you explain a difficult concept from my courses simply with intuitive real-world analogies?">
+                <div class="kyana-card-header">
+                  <span class="kyana-card-badge">UNDERSTAND</span>
+                  <svg class="kyana-card-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9 18h6"></path>
+                    <path d="M10 22h4"></path>
+                    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path>
+                  </svg>
+                </div>
+                <div class="kyana-card-title">Explain a difficult concept</div>
+                <div class="kyana-card-desc">Break down complicated concepts with clear examples.</div>
+              </button>
+
+              <button type="button" class="kyana-suggestion-card" data-prompt="Find and summarize the most important lecture notes available in my semester library.">
+                <div class="kyana-card-header">
+                  <span class="kyana-card-badge">EXPLORE NOTES</span>
+                  <svg class="kyana-card-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                  </svg>
+                </div>
+                <div class="kyana-card-title">Find my lecture notes</div>
+                <div class="kyana-card-desc">Discover relevant notes from your semester library.</div>
+              </button>
+
+              <button type="button" class="kyana-suggestion-card" data-prompt="Help me prepare for my upcoming exams by testing me with key questions and high-yield topics.">
+                <div class="kyana-card-header">
+                  <span class="kyana-card-badge">PREPARE</span>
+                  <svg class="kyana-card-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="6"></circle>
+                    <circle cx="12" cy="12" r="2"></circle>
+                  </svg>
+                </div>
+                <div class="kyana-card-title">Prepare me for exams</div>
+                <div class="kyana-card-desc">Revise important topics and practice exam questions.</div>
+              </button>
+            </div>
           </div>
 
           <!-- Messages Stream Container (Zero Logo Repetition) -->
@@ -364,7 +421,7 @@
 
   <!-- Load Markdown Parser, Chat Engine & Auth Modal -->
   <script src="/markdown.js"></script>
-  <script src="chatbot.js?v=28"></script>
+  <script src="chatbot.js?v=33"></script>
   <script src="auth-modal.js"></script>
 
   <!-- PWA Service Worker Registration -->

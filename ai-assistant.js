@@ -613,7 +613,14 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     userMessage = opts.message || opts.userMessage;
     studentInfo = opts.studentInfo || opts.academicContext || {};
     history = opts.history || [];
-    sessionId = opts.sessionId || 'anonymous';
+    sessionId = opts.sessionId || opts.conversationId || 'anonymous';
+    options = { ...opts, academicContext: opts.academicContext || studentInfo };
+  } else if (userMessage && typeof userMessage === 'object' && (userMessage.message !== undefined || userMessage.userMessage !== undefined)) {
+    const opts = userMessage;
+    userMessage = opts.message || opts.userMessage;
+    studentInfo = opts.studentInfo || opts.academicContext || studentInfo || {};
+    history = opts.history || history || [];
+    sessionId = opts.sessionId || opts.conversationId || sessionId || 'anonymous';
     options = { ...opts, academicContext: opts.academicContext || studentInfo };
   }
   if (studentInfo && typeof studentInfo === 'object') {
@@ -1484,9 +1491,12 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
   let recordedScopeDecision = preScope.reason === 'platform_context_override' ? 'platform_context_override' : 'in_scope';
 
-  // Run full scope check before any retrieval or LLM call ONLY when route is scope_check (or custom classifyScope provided).
-  // Grounded routes and deterministic BIT syllabus direct routes skip redundant LLM scope classification calls.
-  if (route.kind === 'scope_check' || route.kind === 'direct') {
+  const isAgentEligible = options.useAgentEngine !== false && shouldUseKyanaAgentEngine(message, cleanHistory, academicContext);
+
+  // Run full scope check before any retrieval or LLM call ONLY when route is scope_check (or custom classifyScope provided)
+  // and query is NOT an eligible multi-source / academic agent query.
+  // Grounded routes, agent queries, and deterministic BIT syllabus direct routes skip redundant LLM scope classification calls.
+  if (!isAgentEligible && (route.kind === 'scope_check' || route.kind === 'direct')) {
     const DEFAULT_SCOPE_CLASSIFIER_TIMEOUT_MS = 4000;
     const scopeClassifierTimeoutMs = Math.max(
       1000,
@@ -1688,13 +1698,14 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
   // --- STEP 4.5: KYANA AGENT ENGINE V1 (Controlled Multi-Step Planning & Execution Loop) ---
   const isMultiSourceOrContextSwitchAgentQuery = shouldUseKyanaAgentEngine(message, cleanHistory, academicContext) && (
     route.kind === 'tools' ||
-    /\b(which\s+subject\s+needs|most\s+attention|falling\s+behind|compare\s+(?:my\s+)?(?:mid-?term|pre-?board|final|marks?|results?|performance)|assignments?\s+due\s+before|what\s+should\s+i\s+(?:prepare|study)|what\s+(?:important\s+things?\s+)?happened\s+in\s+(?:college|campus)|study\s+plan)\b/i.test(message) ||
+    /\b(which\s+subject\s+needs|where\s+should\s+i\s+focus|focus\s+(?:my\s+)?study|most\s+attention|falling\s+behind|on\s+track|compare\s+(?:my\s+)?(?:mid-?term|pre-?board|final|marks?|results?|performance)|(?:pre-?board|mid-?term)\s+compared|assignments?\s+due\s+before|what\s+should\s+i\s+(?:prepare|study)|what\s+(?:important\s+things?\s+)?happened\s+in\s+(?:college|campus)|study\s+plan)\b/i.test(message) ||
     (cleanHistory.some(m => m && (m.role === 'assistant' || m.role === 'user') && /study_sess_|Checkpoint Question|🎯 Checkpoint|Discrete Mathematics|Propositional Logic|teach\s+me/i.test(m.content || '')) && isInstitutionalOrAdminQuery)
   );
   const shouldRunAgent = options.useAgentEngine === true || (
     options.useAgentEngine !== false &&
     !options.searchKnowledge &&
     !options.toolDependencies &&
+    (route.kind !== 'direct' || isMultiSourceOrContextSwitchAgentQuery) &&
     (!(v3Enabled && isKnowledgeQuery(route, message, v3Enabled)) || isMultiSourceOrContextSwitchAgentQuery) &&
     shouldUseKyanaAgentEngine(message, cleanHistory, academicContext)
   );
@@ -2424,7 +2435,7 @@ ${evidenceBlocks}
         const fencedBlocks = [...String(formattedToolEvidence || '').matchAll(/```(?:attendance|results|routine|syllabus|assignments)\s*\n[\s\S]*?```/g)].map(m => m[0]);
         const statusJson = JSON.stringify(data.retrievalStatus || { status: retrievalStatusType });
         const statusGuidance = isSuccessfulDirectLookup
-          ? `CRITICAL PARAPHRASING RULE: Below is the structured app data retrieved from ${directTool}. Treat this ONLY as source information — DO NOT copy-paste or dump raw headers verbatim. Rewrite and explain the answer in your own words with ${chatMode === 'formal' ? 'a helpful, clear academic tone' : 'your signature friendly, witty BIT senior tone'}. Keep all factual numbers, percentages, marks, dates, times, rooms, course codes, and credits 100% accurate to the evidence.`
+          ? `CRITICAL PARAPHRASING RULE: Below is the structured app data retrieved from ${directTool}. Treat this ONLY as source information — DO NOT copy-paste or dump raw headers verbatim. When citing official notices or announcements, always state the official notice title (e.g. "**[Title]**") so students clearly see which notice is being referenced. Rewrite and explain the answer in your own words with ${chatMode === 'formal' ? 'a helpful, clear academic tone' : 'your signature friendly, witty BIT senior tone'}. Keep all factual numbers, percentages, marks, dates, times, rooms, course codes, and credits 100% accurate to the evidence.`
           : `CRITICAL RETRIEVAL STATUS EXPLANATION RULE: The tool ${directTool} returned status "${retrievalStatusType}". Explain the actual situation naturally and helpfully in your own words (for example, if marks are unpublished, state clearly which exam/subject marks have not been published yet and mention any published exams that ARE available in the status metadata; if no matching records exist yet, explain that naturally without using a robotic template like "Yo kura university records ma bhetiyena"). Never invent marks, attendance numbers, or dates.`;
         const directSynthesisPrompt = `${SYSTEM_PROMPT}\n\n${toneInstructions(originalMessage, cleanHistory, chatMode, { kind: route.kind })}\n\nLANGUAGE: ${langRule}\n\n${statusGuidance}\n\n<tool_retrieval_status tool="${directTool}">\n${statusJson}\n</tool_retrieval_status>\n<app_data tool="${directTool}">\n${sanitizeUntrustedRecordText(formattedToolEvidence, 4000)}\n</app_data>`;
         const llmOut = await llmGenerateFn({

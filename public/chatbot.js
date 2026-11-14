@@ -435,6 +435,7 @@
       'c': 'c', 'cpp': 'cpp', 'c++': 'cpp',
       'java': 'java', 'python': 'python', 'py': 'python',
       'javascript': 'javascript', 'js': 'javascript',
+      'php': 'php',
       'html': 'markup', 'markup': 'markup', 'xml': 'markup',
       'css': 'css', 'json': 'json', 'sql': 'sql', 'bash': 'bash', 'sh': 'bash'
     };
@@ -464,7 +465,8 @@
       'virtual', 'override', 'namespace', 'using', 'auto', 'sizeof', 'final', 'abstract',
       'let', 'var', 'function', 'async', 'await', 'select', 'where', 'insert',
       'delete', 'update', 'into', 'values', 'set', 'null', 'undefined', 'true', 'false',
-      'True', 'False', 'None', 'self', 'this', 'super', 'template', 'typename', 'pass', 'raise'
+      'True', 'False', 'None', 'self', 'this', 'super', 'template', 'typename', 'pass', 'raise',
+      'echo', 'foreach', 'array', 'isset', 'empty', 'die', 'exit', 'include', 'require'
     ]);
 
     const builtins = new Set([
@@ -1559,6 +1561,16 @@
 
     element.querySelectorAll('a[target="_blank"]').forEach(link => { link.rel = 'noopener noreferrer'; });
 
+    // Auto-wrap tables in responsive scroll containers
+    element.querySelectorAll('table').forEach(table => {
+      if (table.parentElement && !table.parentElement.classList.contains('kyana-table-wrapper')) {
+        const wrap = document.createElement('div');
+        wrap.className = 'kyana-table-wrapper';
+        table.parentNode.insertBefore(wrap, table);
+        wrap.appendChild(table);
+      }
+    });
+
     if (streaming) return;
 
     KyanaCodeBlock.enhance(element);
@@ -2285,6 +2297,53 @@
   const deleteModal = document.getElementById('kyanaDeleteModal');
   const themeToggleBtn = document.getElementById('kyanaThemeToggleBtn');
 
+  // --- 5b. Phase 2: Dynamic Personalized Greeting & Focus Feedback ---
+  function updateWelcomeGreeting(user) {
+    const greetingEl = document.getElementById('kyanaWelcomeGreeting');
+    if (!greetingEl) return;
+
+    const hour = new Date().getHours();
+    let timeOfDay = 'evening';
+    if (hour >= 5 && hour < 12) timeOfDay = 'morning';
+    else if (hour >= 12 && hour < 17) timeOfDay = 'afternoon';
+
+    if (user && user.name && typeof user.name === 'string') {
+      const firstName = user.name.trim().split(/\s+/)[0];
+      const cleanName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+      greetingEl.textContent = `Good ${timeOfDay}, ${cleanName}.`;
+    } else {
+      greetingEl.textContent = `Good ${timeOfDay}.`;
+    }
+  }
+
+  // Hydrate personalized welcome greeting
+  if (window.SemesterAuth) {
+    const cached = window.SemesterAuth.getUserSync ? window.SemesterAuth.getUserSync() : null;
+    if (cached) updateWelcomeGreeting(cached);
+    if (window.SemesterAuth.getUser) {
+      window.SemesterAuth.getUser().then(u => {
+        if (u) updateWelcomeGreeting(u);
+      }).catch(() => {});
+    }
+  } else {
+    try {
+      const raw = sessionStorage.getItem('sl_user_cache');
+      if (raw) updateWelcomeGreeting(JSON.parse(raw));
+      else updateWelcomeGreeting(null);
+    } catch (_) {
+      updateWelcomeGreeting(null);
+    }
+  }
+
+  if (chatInput && appEl) {
+    chatInput.addEventListener('focus', () => {
+      appEl.classList.add('composer-focused');
+    });
+    chatInput.addEventListener('blur', () => {
+      appEl.classList.remove('composer-focused');
+    });
+  }
+
   // --- 6. Scroll Management & User Scroll Detection ---
 
   function isAtBottom(tolerance = 80) {
@@ -2331,8 +2390,10 @@
     const isMobile = window.innerWidth <= 768;
     if (isMobile) {
       appEl.classList.toggle('sidebar-open', open);
+      document.body.classList.toggle('sidebar-open', open);
     } else {
       appEl.classList.toggle('sidebar-collapsed', !open);
+      document.body.classList.toggle('sidebar-collapsed', !open);
     }
   }
 
@@ -2732,6 +2793,9 @@
     renderHistoryList();
     if (messagesListEl) messagesListEl.innerHTML = '';
     setConversationState(false, false);
+    if (window.SemesterAuth && window.SemesterAuth.getUserSync) {
+      updateWelcomeGreeting(window.SemesterAuth.getUserSync());
+    }
     if (chatInput) {
       chatInput.value = '';
       adjustTextareaHeight();

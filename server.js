@@ -8270,6 +8270,19 @@ if (require.main === module) {
         }
       }
     } catch (e) { }
+
+    try {
+      const { resumeInterruptedIngestionJobs } = require('./lib/document-ingestion');
+      resumeInterruptedIngestionJobs(db, { autoProcess: true, limit: 5 })
+        .then((res) => {
+          if (res && (res.recovered > 0 || res.processed > 0)) {
+            console.log(`[KAIE Ingestion Recovery]: Recovered ${res.recovered} interrupted jobs, processed ${res.processed} pending jobs on startup.`);
+          }
+        })
+        .catch((err) => {
+          console.error('[KAIE Ingestion Recovery Error]:', err.message);
+        });
+    } catch (_) { }
   });
 }
 

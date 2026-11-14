@@ -39,8 +39,9 @@ function parseArgs() {
       options.resume = true;
     } else if (a === '--limit' && args[i + 1]) {
       options.limit = Number.parseInt(args[++i], 10) || Infinity;
-    } else if (a === '--file' && args[i + 1]) {
-      options.fileIds.push(Number.parseInt(args[++i], 10));
+    } else if ((a === '--file' || a === '--files') && args[i + 1]) {
+      const parts = args[++i].split(',').map((p) => Number.parseInt(p.trim(), 10)).filter(Boolean);
+      options.fileIds.push(...parts);
     }
   }
 
@@ -134,12 +135,16 @@ async function main() {
     targetFiles = fileRows.filter((f) => PILOT_FILE_IDS.includes(Number(f.id)));
   }
 
+  const checkpoint = options.resume ? loadCheckpoint() : { completedFileIds: [], results: {}, lastRun: null };
+  const completedSet = new Set(options.resume ? checkpoint.completedFileIds : []);
+
+  if (options.resume) {
+    targetFiles = targetFiles.filter((f) => !completedSet.has(Number(f.id)));
+  }
+
   if (Number.isFinite(options.limit) && options.limit > 0) {
     targetFiles = targetFiles.slice(0, options.limit);
   }
-
-  const checkpoint = options.resume ? loadCheckpoint() : { completedFileIds: [], results: {}, lastRun: null };
-  const completedSet = new Set(options.resume ? checkpoint.completedFileIds : []);
 
   console.log(`Processing queue size: ${targetFiles.length} file(s)`);
 

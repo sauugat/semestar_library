@@ -256,13 +256,15 @@ describe('Kyana AI Intelligence Engine Upgrade — Full Architecture & Multi-Sou
       `INSERT INTO subjects (id, code, name, semester, department, credit_hours, nature, active)
        VALUES ('CIT214', 'CIT214', 'Data Structure and Algorithms', 3, 'BIT', 3.0, 'Theory + Lab', 1),
               ('CIT213', 'CIT213', 'Database Management System', 3, 'BIT', 3.0, 'Theory + Lab', 1),
-              ('CIT212', 'CIT212', 'Operating Systems', 3, 'BIT', 3.0, 'Theory + Lab', 1)`
+              ('CIT212', 'CIT212', 'Operating Systems', 3, 'BIT', 3.0, 'Theory + Lab', 1),
+              ('CIT123', 'CIT123', 'Web Technology I', 3, 'BIT', 3.0, 'Theory + Lab', 1)`
     );
     await db.run(`INSERT INTO teachers (id, user_id, designation, status) VALUES ('tea_ramesh', 'tea_ramesh', 'Associate Professor', 'active')`);
     await db.run(
       `INSERT INTO teacher_subjects (id, teacher_id, subject_id)
        VALUES ('ts_dsa', 'tea_ramesh', 'CIT214'),
-              ('ts_dbms', 'tea_ramesh', 'CIT213')`
+              ('ts_dbms', 'tea_ramesh', 'CIT213'),
+              ('ts_os', 'tea_ramesh', 'CIT212')`
     );
 
     // 2. Seed Assignments:
@@ -570,7 +572,7 @@ describe('Kyana AI Intelligence Engine Upgrade — Full Architecture & Multi-Sou
     const registry = createAgentToolRegistry(db, teacherRameshCtx, { referenceDate: REFERENCE_DATE });
     const unassignedNoteSearch = await registry.executeTool('search_notes', {
       query: 'process scheduling',
-      subject: 'Operating Systems'
+      subject: 'Web Technology I'
     });
     assert.match(unassignedNoteSearch.clarification || '', /not in your assigned teaching subjects/i);
 

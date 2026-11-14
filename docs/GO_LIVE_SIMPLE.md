@@ -17,95 +17,48 @@ When a student or teacher uploads a PDF notes file:
 
 ---
 
-## 2. Step 1: Run the Database Migration in Neon
+## 2. Step 1: Run the Database Migrations in Neon
 
-Before running any background worker or deploying code, create the two required tables in Neon PostgreSQL.
+Before running any background worker or deploying code, ensure the required tables and constraints exist in Neon PostgreSQL.
 
 ### Where to go:
 1. Log in to your [Neon Console](https://console.neon.tech).
 2. Select the `semester-library` project.
 3. Open the **SQL Editor** tab from the left sidebar.
 
-### What to paste:
-Open `migrations/20261112_doc_intelligence_d2.up.sql` (or copy the SQL below) and paste it into the editor:
+### Part A: Initial Schema (Already run in production)
+If your Neon database has not yet run `migrations/20261112_doc_intelligence_d2.up.sql`, apply it first. (Production Neon already has this applied in its original `a856ae6` format).
+
+### Part B: Phase D6 Updates Migration (`20261114_doc_intelligence_d6.up.sql`)
+Copy and run the following idempotent migration statements in Neon SQL Editor:
 
 ```sql
 BEGIN;
 
--- 1. Per-page extracted content, classification & OCR tracking
-CREATE TABLE IF NOT EXISTS doc_pages (
-  id BIGSERIAL PRIMARY KEY,
-  file_id INTEGER NOT NULL,
-  page_no INTEGER NOT NULL CHECK (page_no >= 1),
-  text TEXT NOT NULL DEFAULT '',
-  raw_text TEXT NOT NULL DEFAULT '',
-  source TEXT NOT NULL DEFAULT 'text_layer' CHECK (source IN ('text_layer', 'vision', 'skipped')),
-  ocr_confidence REAL,
-  char_count INTEGER NOT NULL DEFAULT 0,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'skipped', 'skipped_quota')),
-  page_type TEXT NOT NULL DEFAULT 'text' CHECK (page_type IN ('text', 'scanned', 'math', 'figure', 'table', 'nepali_repair')),
-  latex_present BOOLEAN NOT NULL DEFAULT FALSE,
-  figure_description TEXT,
-  page_image_path TEXT,
-  attempts INTEGER NOT NULL DEFAULT 0,
-  error TEXT,
-  parser_version TEXT NOT NULL DEFAULT 'd2-v1',
-  tier SMALLINT NOT NULL DEFAULT 1 CHECK (tier IN (1, 2)),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+-- 1. Ensure doc_pages tier column exists (idempotent)
+ALTER TABLE doc_pages ADD COLUMN IF NOT EXISTS tier SMALLINT NOT NULL DEFAULT 1;
+
+-- 2. Ensure ingestion_jobs cost tracking columns exist (idempotent)
+ALTER TABLE ingestion_jobs ADD COLUMN IF NOT EXISTS vision_calls INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE ingestion_jobs ADD COLUMN IF NOT EXISTS vision_input_tokens INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE ingestion_jobs ADD COLUMN IF NOT EXISTS vision_output_tokens INTEGER NOT NULL DEFAULT 0;
+
+-- 3. Update ingestion_jobs status check constraint to include 'skipped'
+ALTER TABLE ingestion_jobs DROP CONSTRAINT IF EXISTS ingestion_jobs_status_check;
+
+ALTER TABLE ingestion_jobs ADD CONSTRAINT ingestion_jobs_status_check CHECK (
+  status IN (
+    'queued',
+    'extracting_text',
+    'ocr_running',
+    'completed',
+    'partial_success',
+    'failed_retryable',
+    'failed_terminal',
+    'dedup_reused',
+    'skipped'
+  )
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS uq_dp_file_page ON doc_pages (file_id, page_no);
-CREATE INDEX IF NOT EXISTS idx_dp_file_status ON doc_pages (file_id, status);
-CREATE INDEX IF NOT EXISTS idx_dp_needs_vision ON doc_pages (file_id) WHERE source = 'vision' OR latex_present = TRUE;
-CREATE INDEX IF NOT EXISTS idx_dp_tier_order ON doc_pages (file_id, tier, page_no);
-
--- 2. Asynchronous document ingestion jobs
-CREATE TABLE IF NOT EXISTS ingestion_jobs (
-  id BIGSERIAL PRIMARY KEY,
-  file_id INTEGER NOT NULL,
-  content_hash TEXT NOT NULL DEFAULT '',
-  file_version INTEGER NOT NULL DEFAULT 1,
-  status TEXT NOT NULL DEFAULT 'queued' CHECK (
-    status IN (
-      'queued',
-      'extracting_text',
-      'ocr_running',
-      'completed',
-      'partial_success',
-      'failed_retryable',
-      'failed_terminal',
-      'dedup_reused',
-      'skipped'
-    )
-  ),
-  total_pages INTEGER NOT NULL DEFAULT 0,
-  processed_pages INTEGER NOT NULL DEFAULT 0,
-  ocr_pages_count INTEGER NOT NULL DEFAULT 0,
-  last_completed_page INTEGER NOT NULL DEFAULT 0,
-  vision_calls INTEGER NOT NULL DEFAULT 0,
-  vision_input_tokens INTEGER NOT NULL DEFAULT 0,
-  vision_output_tokens INTEGER NOT NULL DEFAULT 0,
-  attempts INTEGER NOT NULL DEFAULT 0,
-  max_attempts INTEGER NOT NULL DEFAULT 5,
-  error TEXT,
-  worker_id TEXT,
-  locked_at TIMESTAMPTZ,
-  heartbeat_at TIMESTAMPTZ,
-  next_retry_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  started_at TIMESTAMPTZ,
-  completed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS uq_inj_active_file
-  ON ingestion_jobs (file_id)
-  WHERE status IN ('queued', 'extracting_text', 'ocr_running', 'failed_retryable');
-
-CREATE INDEX IF NOT EXISTS idx_inj_claim ON ingestion_jobs (status, next_retry_at ASC);
-CREATE INDEX IF NOT EXISTS idx_inj_content_hash ON ingestion_jobs (content_hash, status);
-CREATE INDEX IF NOT EXISTS idx_inj_file_id ON ingestion_jobs (file_id);
 
 COMMIT;
 ```
@@ -113,8 +66,8 @@ COMMIT;
 ### What success looks like:
 In the Neon SQL query results panel, you will see:
 - `Query returned successfully in XX ms`
-- Tables `doc_pages` and `ingestion_jobs` are listed under Tables.
-- Note: It will **NOT** conflict with any existing tables (like `document_pages` or `files`) because it is completely self-contained.
+- The `ingestion_jobs_status_check` constraint now allows `'skipped'`.
+- Columns `tier`, `vision_calls`, `vision_input_tokens`, and `vision_output_tokens` exist.
 
 ---
 
@@ -164,11 +117,22 @@ Go to: **GitHub Repo → Settings → Secrets and variables → Actions**
 
 Once the PR is merged, test the background ingestion pipeline on production files using the manual workflow dispatch.
 
+### Workflow Inputs Available:
+| Input | Type | Default | Purpose |
+|---|---|---|---|
+| `max_jobs` | string | `20` | Maximum ingestion jobs to process in this run |
+| `max_vision_pages` | string | `60` | Maximum vision pages to OCR across all jobs in this run |
+| `retry_failed` | boolean | `false` | When true, resets failed/partial jobs and pages to queued/pending for retry |
+| `backfill_dry_run` | boolean | `false` | Dry-run backfill (count and print missing unindexed files without enqueuing) |
+| `backfill_limit` | string | `0` | Number of unindexed files to backfill/enqueue (0 = do not backfill) |
+
 ### Step 4A: Dry-Run Reconcile (Check what files are unindexed)
 1. Go to **Actions** tab on GitHub.
 2. Select **Document Ingestion Worker (Phase D2)** from the left workflow list.
 3. Click **Run workflow** dropdown on the right:
    - `max_jobs`: `20`
+   - `max_vision_pages`: `60`
+   - `retry_failed`: `false`
    - `backfill_dry_run`: check the checkbox (set to `true`)
    - `backfill_limit`: `0`
 4. Click **Run workflow**.
@@ -177,14 +141,19 @@ Once the PR is merged, test the background ingestion pipeline on production file
 ### Step 4B: Small Pilot Run (5 files)
 1. In the **Run workflow** dropdown:
    - `max_jobs`: `5`
+   - `max_vision_pages`: `60`
+   - `retry_failed`: `false`
    - `backfill_dry_run`: uncheck (set to `false`)
    - `backfill_limit`: `5`
 2. Click **Run workflow**.
-3. It will enqueue the first 5 missing files and process their pages.
+3. It will enqueue the first 5 missing files and process their pages in two passes:
+   - **Pass 1**: Rapid text-layer extraction for all 5 files + immediate `note_search_documents` rollup (all 5 files become searchable immediately).
+   - **Pass 2**: Vision OCR for any scanned, math, or table pages in priority order.
 4. Check the workflow logs: see pages extracted via `text_layer` (zero tokens) or `vision` (for math/scanned), and verify completion.
 
-### Step 4C: Full Hourly Operation
+### Step 4C: Full Hourly Operation & Long Runs
 - The hourly cron (`0 * * * *`) automatically picks up any newly uploaded files.
+- The default worker budget is **45 minutes** (`DOC_RUN_BUDGET_MS=2700000`) with a **50-minute** workflow timeout. The worker keeps processing until the queue is completely drained or time expires.
 - If you have more historical files to process, run the workflow with `backfill_limit: 20` or `50` as needed until all files are ingested.
 
 ---
@@ -237,7 +206,40 @@ LIMIT 5;
 
 ---
 
-## 8. Rollback Plan (If anything goes wrong)
+## 8. What to Do When the Gemini Quota Runs Out
+
+Free-tier Google AI Studio API keys have daily quota limits (typically 20-50 requests per day for vision models). When high-volume batch backfills hit this ceiling, **the system is designed to handle it gracefully and safely without losing any work**.
+
+### 1. How the Pipeline Protects Searchability
+- **Two-Pass Decoupling**: In every run, the worker runs **Pass 1 (Text Layer)** across all queued files first. This extracts and indexes all typed text into `note_search_documents` at **$0 cost** with **zero Gemini calls**.
+- As a result, students can search notes and ask Kyana about their curriculum immediately, even if Vision OCR is paused.
+- In **Pass 2 (Vision Pass)**, pages are processed in strict priority order:
+  `scanned` → `math` → `nepali_repair` → `table` → `figure`.
+
+### 2. Automatic Quota Circuit Breaker & Next Retry
+- When Gemini returns HTTP 429 (`RESOURCE_EXHAUSTED` / `Quota exceeded`), the worker captures the exact `retryDelay` or reset timestamp reported by Google (e.g. `Please retry in 1h30m0s`).
+- The job is set to `status = 'failed_retryable'` and `next_retry_at = CURRENT_TIMESTAMP + <retryDelay>`.
+- Any remaining vision pages for the job are marked `status = 'skipped_quota'`.
+- All other queued jobs with pending vision pages also have their vision pages marked `skipped_quota` and their `next_retry_at` set to the reset timestamp, with **zero wasted HTTP calls**.
+- **Runs before `next_retry_at` make 0 vision calls**, preventing quota spam, while newly uploaded notes can still have their text layer extracted.
+
+### 3. Automatic Recovery
+- Once the reset time passes, the next scheduled or manual run automatically detects that `next_retry_at <= CURRENT_TIMESTAMP`.
+- It claims only those jobs and **resumes only the `skipped_quota` pages**.
+- Text-layer pages (which have `status = 'completed'`) are skipped instantly without re-reading.
+
+### 4. How to Manually Force Retry After Adding a New Key or Quota Reset
+If you updated `GEMINI_API_KEY` or want to re-run all failed/partial jobs immediately:
+1. Open the GitHub Actions tab.
+2. Select **Document Ingestion Worker (Phase D2)**.
+3. Click **Run workflow**:
+   - Check `retry_failed: true`
+4. Click **Run workflow**.
+   The worker will automatically reset all `failed` pages back to `pending` and all `failed_retryable`, `failed_terminal`, or `partial_success` jobs back to `queued`, then re-process them.
+
+---
+
+## 9. Rollback Plan (If anything goes wrong)
 
 If you ever need to roll back the tables:
 1. Open Neon SQL Editor.

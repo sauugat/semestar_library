@@ -170,6 +170,12 @@ async function createD2TestDb() {
   );
   await pg.exec(d2UpSql);
 
+  const d6UpSql = fs.readFileSync(
+    path.join(__dirname, '../migrations/20261114_doc_intelligence_d6.up.sql'),
+    'utf8'
+  );
+  await pg.exec(d6UpSql);
+
   const db = {
     isPostgres: true,
     pool: null, // tests exercise both runner path and transaction path explicitly
@@ -496,6 +502,23 @@ test('1. Migration UP and DOWN idempotently manage doc_pages and ingestion_jobs 
     WHERE table_schema = 'public' AND table_name IN ('doc_pages', 'ingestion_jobs')
   `);
   assert.equal(afterReUp.rows.length, 2);
+
+  // Verify Phase D6 migration UP and DOWN idempotency
+  const d6UpSql = fs.readFileSync(path.join(__dirname, '../migrations/20261114_doc_intelligence_d6.up.sql'), 'utf8');
+  await pg.exec(d6UpSql);
+  // 'skipped' status allowed
+  await pg.query(`INSERT INTO ingestion_jobs (file_id, status) VALUES (99999, 'skipped')`);
+  await pg.query(`DELETE FROM ingestion_jobs WHERE file_id = 99999`);
+
+  const d6DownSql = fs.readFileSync(path.join(__dirname, '../migrations/20261114_doc_intelligence_d6.down.sql'), 'utf8');
+  await pg.exec(d6DownSql);
+  // 'skipped' status rejected under down constraint
+  await assert.rejects(async () => {
+    await pg.query(`INSERT INTO ingestion_jobs (file_id, status) VALUES (99999, 'skipped')`);
+  });
+
+  // Re-apply D6 UP
+  await pg.exec(d6UpSql);
 });
 
 test('2. Vision OCR model must come strictly from env var and never be hardcoded', () => {
@@ -3832,4 +3855,309 @@ test('48. D5-R11: Log summary prints DOC_VISION_MODEL without extra model fallba
   assert.equal(res.model, 'gemini-2.5-flash');
   const allLogs = logs.join('\n');
   assert.ok(allLogs.includes('gemini-2.5-flash'), 'Expected DOC_VISION_MODEL to appear in worker logs');
+});
+
+test('49. Phase D6 Task 2: Two-pass processing (3 queued jobs; quota error on first vision call -> all 3 text completed & rolled up, vision pages skipped_quota, next run resumes)', async () => {
+  const { db } = await createD2TestDb();
+
+  const pdf1 = buildSyntheticPdf([
+    { text: 'Distributed systems lecture note on consensus protocols and Paxos algorithm details.' },
+    { hasImage: true, text: 'scanned p2' }
+  ]);
+  const pdf2 = buildSyntheticPdf([
+    { text: 'Compiler design lecture note on lexers, parsers, and abstract syntax tree generation.' },
+    { hasMath: true, text: 'math p2' }
+  ]);
+  const pdf3 = buildSyntheticPdf([
+    { text: 'Database management lecture note on relational calculus and normal forms.' },
+    { isTable: true, text: 'table p2 short' }
+  ]);
+
+  const file1 = await insertTestFile(db, { originalName: 'distributed.pdf', title: 'Distributed Systems', buffer: pdf1 });
+  const file2 = await insertTestFile(db, { originalName: 'compiler.pdf', title: 'Compiler Design', buffer: pdf2 });
+  const file3 = await insertTestFile(db, { originalName: 'database.pdf', title: 'Database Systems', buffer: pdf3 });
+
+  await enqueueDocumentIngestionJob(db, { fileId: file1.fileId });
+  await enqueueDocumentIngestionJob(db, { fileId: file2.fileId });
+  await enqueueDocumentIngestionJob(db, { fileId: file3.fileId });
+
+  let visionCallsMade = 0;
+  const dailyBody = JSON.stringify({
+    error: {
+      code: 429,
+      status: 'RESOURCE_EXHAUSTED',
+      message: 'Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20. Please retry in 1h30m0s.',
+      details: [
+        {
+          '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+          violations: [{ quotaMetric: 'generativelanguage.googleapis.com/generate_content_free_tier_requests', quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier' }]
+        },
+        { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '5400s' }
+      ]
+    }
+  });
+
+  const quotaFetch = async () => {
+    visionCallsMade++;
+    return new Response(dailyBody, { status: 429, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const res = await docWorker.runTwoPassIngestionLoop(db, {
+    fetchImpl: quotaFetch,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+
+  assert.equal(visionCallsMade, 1);
+  assert.equal(res.quotaExhausted, true);
+
+  for (const fId of [file1.fileId, file2.fileId, file3.fileId]) {
+    const textPage = (await db.query('SELECT * FROM doc_pages WHERE file_id = $1 AND page_no = 1', [fId])).rows[0];
+    assert.equal(textPage.status, 'completed');
+    assert.equal(textPage.source, 'text_layer');
+
+    const visionPage = (await db.query('SELECT * FROM doc_pages WHERE file_id = $1 AND page_no = 2', [fId])).rows[0];
+    assert.equal(visionPage.status, 'skipped_quota');
+
+    const job = (await db.query('SELECT * FROM ingestion_jobs WHERE file_id = $1', [fId])).rows[0];
+    assert.equal(job.status, 'failed_retryable');
+    assert.ok(job.next_retry_at > new Date());
+
+    const nsd = (await db.query('SELECT extraction_status, content FROM note_search_documents WHERE id = $1', [fId])).rows[0];
+    assert.equal(nsd.extraction_status, 'indexed');
+    assert.ok(nsd.content.length > 20);
+  }
+
+  const s1 = await noteSearch.searchNotes(db, { query: 'consensus protocols Paxos', semester: '3' });
+  assert.ok(s1.length > 0 && Number(s1[0].id) === file1.fileId);
+
+  const s2 = await noteSearch.searchNotes(db, { query: 'abstract syntax tree generation', semester: '3' });
+  assert.ok(s2.length > 0 && Number(s2[0].id) === file2.fileId);
+
+  const s3 = await noteSearch.searchNotes(db, { query: 'relational calculus normal forms', semester: '3' });
+  assert.ok(s3.length > 0 && Number(s3[0].id) === file3.fileId);
+
+  let prematureCalls = 0;
+  const prematureFetch = async () => { prematureCalls++; return new Response('{}'); };
+  await docWorker.runTwoPassIngestionLoop(db, {
+    fetchImpl: prematureFetch,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+  assert.equal(prematureCalls, 0);
+
+  await db.query(`UPDATE ingestion_jobs SET next_retry_at = CURRENT_TIMESTAMP - INTERVAL '1 minute'`);
+  let resumeVisionCalls = 0;
+  const resumeFetch = async () => {
+    resumeVisionCalls++;
+    const payload = JSON.stringify({
+      text: 'Recovered vision page text.',
+      latex_present: false,
+      figure_description: null,
+      ocr_confidence: 0.95,
+      detected_type: 'scanned'
+    });
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ candidates: [{ content: { parts: [{ text: payload }] } }] }),
+      text: async () => payload
+    };
+  };
+
+  const resumeRes = await docWorker.runTwoPassIngestionLoop(db, {
+    fetchImpl: resumeFetch,
+    retryBackoffMs: 0,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+
+  assert.equal(resumeRes.quotaExhausted, false);
+  assert.equal(resumeVisionCalls, 3);
+
+  for (const fId of [file1.fileId, file2.fileId, file3.fileId]) {
+    const job = (await db.query('SELECT status FROM ingestion_jobs WHERE file_id = $1', [fId])).rows[0];
+    assert.equal(job.status, 'completed');
+
+    const vPage = (await db.query('SELECT status, source FROM doc_pages WHERE file_id = $1 AND page_no = 2', [fId])).rows[0];
+    assert.equal(vPage.status, 'completed');
+    assert.equal(vPage.source, 'vision');
+  }
+});
+
+test('50. Phase D6 Task 3: Quota-aware retries (paused job makes 0 vision calls while new queued job extracts text)', async () => {
+  const { db } = await createD2TestDb();
+
+  const pdf1 = buildSyntheticPdf([
+    { text: 'File 1 text content.' },
+    { hasImage: true, text: 'File 1 vision required' }
+  ]);
+  const file1 = await insertTestFile(db, { originalName: 'f1.pdf', title: 'F1', buffer: pdf1 });
+  await db.query(`
+    INSERT INTO ingestion_jobs (file_id, status, next_retry_at)
+    VALUES ($1, 'failed_retryable', CURRENT_TIMESTAMP + INTERVAL '1 hour')
+  `, [file1.fileId]);
+  await db.query(`
+    INSERT INTO doc_pages (file_id, page_no, text, raw_text, source, status, page_type)
+    VALUES ($1, 1, 'File 1 text content.', 'File 1 text content.', 'text_layer', 'completed', 'text'),
+           ($1, 2, '', '', 'skipped', 'skipped_quota', 'scanned')
+  `, [file1.fileId]);
+
+  const pdf2 = buildSyntheticPdf([
+    { text: 'File 2 newly uploaded clean text content for semester exam prep.' }
+  ]);
+  const file2 = await insertTestFile(db, { originalName: 'f2.pdf', title: 'F2', buffer: pdf2 });
+  await enqueueDocumentIngestionJob(db, { fileId: file2.fileId });
+
+  let visionCalls = 0;
+  const fetchMock = async () => { visionCalls++; return new Response('{}'); };
+
+  await docWorker.runTwoPassIngestionLoop(db, {
+    fetchImpl: fetchMock,
+    env: { DOC_VISION_MODEL: 'gemini-vision-test', GEMINI_API_KEY: 'test-key' }
+  });
+
+  assert.equal(visionCalls, 0);
+
+  const job2 = (await db.query('SELECT status FROM ingestion_jobs WHERE file_id = $1', [file2.fileId])).rows[0];
+  assert.equal(job2.status, 'completed');
+
+  const s2 = await noteSearch.searchNotes(db, { query: 'semester exam prep', semester: '3' });
+  assert.ok(s2.length > 0 && Number(s2[0].id) === file2.fileId);
+
+  const job1 = (await db.query('SELECT status, next_retry_at > CURRENT_TIMESTAMP AS in_future FROM ingestion_jobs WHERE file_id = $1', [file1.fileId])).rows[0];
+  assert.equal(job1.status, 'failed_retryable');
+  assert.equal(job1.in_future, true);
+});
+
+test('51. Phase D6 Task 4: Failed page diagnostics & resetFailedJobsAndPages', async () => {
+  const { formatFailedPageDiagnostic, resetFailedJobsAndPages } = docWorker;
+
+  assert.match(
+    formatFailedPageDiagnostic({ code: 'VISION_TIMEOUT', message: 'timeout' }, { timeoutMs: 25000 }),
+    /^VISION_TIMEOUT: Page vision call exceeded 25000ms timeout/
+  );
+  assert.match(
+    formatFailedPageDiagnostic({ code: 'PDF_SLICE_FAILED', message: 'slice damaged' }),
+    /^PDF_SLICE_FAILED: slice damaged/
+  );
+  assert.match(
+    formatFailedPageDiagnostic({ code: 'JSON_PARSE_ERROR', message: 'Unexpected token' }),
+    /^JSON_PARSE_ERROR: Failed to parse vision OCR JSON response/
+  );
+  assert.match(
+    formatFailedPageDiagnostic({ code: 'VISION_SAFETY_BLOCKED', message: 'Safety filter violation' }),
+    /^SAFETY_BLOCK: Content blocked by safety filters/
+  );
+
+  const { db } = await createD2TestDb();
+
+  await db.query(`
+    INSERT INTO ingestion_jobs (id, file_id, status, attempts, error, next_retry_at)
+    VALUES (888, 888, 'failed_retryable', 3, 'VISION_TIMEOUT: timeout', CURRENT_TIMESTAMP + INTERVAL '1 hour')
+  `);
+  await db.query(`
+    INSERT INTO doc_pages (file_id, page_no, status, attempts, error)
+    VALUES (888, 1, 'failed', 3, 'VISION_TIMEOUT: timeout')
+  `);
+
+  const resetResult = await resetFailedJobsAndPages(db);
+  assert.equal(resetResult.resetPages, 1);
+  assert.equal(resetResult.resetJobs, 1);
+
+  const job = (await db.query('SELECT status, attempts, error FROM ingestion_jobs WHERE id = 888')).rows[0];
+  assert.equal(job.status, 'queued');
+  assert.equal(job.attempts, 0);
+  assert.equal(job.error, null);
+
+  const page = (await db.query('SELECT status, attempts, error FROM doc_pages WHERE file_id = 888')).rows[0];
+  assert.equal(page.status, 'pending');
+  assert.equal(page.attempts, 0);
+  assert.equal(page.error, null);
+});
+
+test('52. Phase D6 Task 5: Classifier cost cuts for clean tables and logo slides', () => {
+  const { classifyPageSignals } = require('../lib/doc-page-classifier');
+
+  const longCleanTableText = 'Course ID | Subject Name | Credits | Grade\n' +
+    'CS-101    | Intro to CS  | 3       | A\n'.repeat(25);
+  assert.ok(longCleanTableText.length >= 400);
+
+  const tableSignals = {
+    rawText: longCleanTableText,
+    fontNames: ['Helvetica'],
+    imageOps: 0,
+    vectorOps: 10,
+    lines: longCleanTableText.split('\n'),
+    charBoxes: []
+  };
+
+  const tableClsTier2 = classifyPageSignals({ ...tableSignals });
+  assert.equal(tableClsTier2.pageType, 'table');
+  assert.equal(tableClsTier2.route, 'vision');
+  assert.equal(tableClsTier2.tier, 2);
+  assert.ok(tableClsTier2.reasons.includes('clean_table_tier2'));
+
+  const tableClsTier1 = classifyPageSignals({
+    ...tableSignals,
+    thresholds: { cleanTableTier2Enabled: false }
+  });
+  assert.equal(tableClsTier1.tier, 1);
+
+  const logoSlideText = 'Gandaki University\nDepartment of Information Technology\nUnit 3: Operating Systems';
+  assert.ok(logoSlideText.length >= 30 && logoSlideText.length <= 150);
+
+  const slideSignals = {
+    rawText: logoSlideText,
+    fontNames: ['Helvetica-Bold'],
+    imageOps: 1,
+    maxImageAreaRatio: 0.08,
+    vectorOps: 0,
+    lines: logoSlideText.split('\n'),
+    charBoxes: []
+  };
+
+  const slideClsTier2 = classifyPageSignals({ ...slideSignals });
+  assert.equal(slideClsTier2.pageType, 'figure');
+  assert.equal(slideClsTier2.route, 'vision');
+  assert.equal(slideClsTier2.tier, 2);
+  assert.ok(slideClsTier2.reasons.includes('logo_slide_small_image'));
+
+  const slideClsTier1 = classifyPageSignals({
+    ...slideSignals,
+    thresholds: { logoSlideTier2Enabled: false }
+  });
+  assert.equal(slideClsTier1.tier, 1);
+});
+
+test('53. Phase D6 Task 6: Final log summary returns jobs by status, pages by route, vision calls, tokens, model, quota state, jobs remaining', async () => {
+  const { getFinalRunSummary } = docWorker;
+  const { db } = await createD2TestDb();
+
+  await db.query(`
+    INSERT INTO ingestion_jobs (file_id, status, vision_calls, vision_input_tokens, vision_output_tokens)
+    VALUES (101, 'completed', 2, 500, 150),
+           (102, 'queued', 0, 0, 0)
+  `);
+  await db.query(`
+    INSERT INTO doc_pages (file_id, page_no, source, status, page_type)
+    VALUES (101, 1, 'text_layer', 'completed', 'text'),
+           (101, 2, 'vision', 'completed', 'math')
+  `);
+
+  const summary = await getFinalRunSummary(db, {
+    model: 'gemini-2.5-flash',
+    quotaState: { quotaExhausted: false, retryAfterMs: null }
+  });
+
+  assert.equal(summary.model, 'gemini-2.5-flash');
+  assert.equal(summary.jobsRemaining, 1);
+  assert.equal(summary.jobsByStatus.completed, 1);
+  assert.equal(summary.jobsByStatus.queued, 1);
+  assert.equal(summary.pagesByRoute.text_layer, 1);
+  assert.equal(summary.pagesByRoute.vision, 1);
+  assert.equal(summary.visionCalls, 2);
+  assert.equal(summary.tokens.input, 500);
+  assert.equal(summary.tokens.output, 150);
+  assert.equal(summary.tokens.total, 650);
+  assert.equal(summary.quotaState.quotaExhausted, false);
 });

@@ -12,7 +12,9 @@ const {
   hasPendingWork,
   drainKnowledgeJobs,
   processNextIngestionJob,
-  runIngestionWorkerLoop
+  runIngestionWorkerLoop,
+  runTwoPassIngestionLoop,
+  getFinalRunSummary
 } = require('../lib/doc-ingestion-worker');
 
 function parseCliArgs(argv = process.argv.slice(2)) {
@@ -36,6 +38,20 @@ function parseCliArgs(argv = process.argv.slice(2)) {
       args.maxDurationMs = Number(a.split('=')[1]);
     } else if (a === '--max-ms' && argv[i + 1]) {
       args.maxDurationMs = Number(argv[++i]);
+    } else if (a.startsWith('--run-budget-ms=')) {
+      args.runBudgetMs = Number(a.split('=')[1]);
+    } else if (a === '--run-budget-ms' && argv[i + 1]) {
+      args.runBudgetMs = Number(argv[++i]);
+    } else if (a.startsWith('--max-vision-pages=')) {
+      args.maxVisionPages = Number(a.split('=')[1]);
+    } else if (a === '--max-vision-pages' && argv[i + 1]) {
+      args.maxVisionPages = Number(argv[++i]);
+    } else if (a === '--retry-failed') {
+      args.retryFailed = true;
+    } else if (a === '--no-two-pass') {
+      args.twoPass = false;
+    } else if (a === '--two-pass') {
+      args.twoPass = true;
     } else if (a.startsWith('--knowledge-budget-ms=')) {
       args.knowledgeBudgetMs = Number(a.split('=')[1]);
     } else if (a === '--knowledge-budget-ms' && argv[i + 1]) {
@@ -82,12 +98,16 @@ async function executeWorkerRun(db, cli = {}, options = {}) {
     : `cli-${process.pid}`);
 
   logger.log(`[DocIngestionWorker] Starting worker ${workerId} (model: ${modelName || 'none'})...`);
+  const runBudgetMs = cli.maxDurationMs || cli.runBudgetMs || (Number(process.env.DOC_RUN_BUDGET_MS || process.env.DOC_WORKER_BUDGET_MS) || 45 * 60 * 1000);
   const ingestion = pending.ingestionPending
     ? await runIngestionWorkerLoop(db, {
       ...options,
       workerId,
       maxJobs: cli.maxJobs,
-      maxDurationMs: cli.maxDurationMs
+      maxDurationMs: runBudgetMs,
+      maxVisionPages: cli.maxVisionPages,
+      retryFailed: cli.retryFailed,
+      twoPass: cli.twoPass !== false
     })
     : { processedJobs: 0, model: modelName, results: [] };
 
@@ -107,15 +127,23 @@ async function executeWorkerRun(db, cli = {}, options = {}) {
     logger.log('[DocIngestionWorker] Knowledge drain summary:', JSON.stringify(knowledge));
   }
 
+  const finalSummary = await getFinalRunSummary(db, {
+    model: modelName,
+    quotaState: { quotaExhausted: Boolean(ingestion?.quotaExhausted) }
+  });
+
+  logger.log('[DocIngestionWorker] Final Status Summary:\n' + JSON.stringify(finalSummary, null, 2));
+
   logger.log(`[DocIngestionWorker] Final run summary (model: ${modelName || 'none'}):`, JSON.stringify({
     mode: 'worked',
     model: modelName,
     pending,
     ingestion,
-    knowledge
+    knowledge,
+    finalSummary
   }));
 
-  return { mode: 'worked', model: modelName, pending, ingestion, knowledge };
+  return { mode: 'worked', model: modelName, pending, ingestion, knowledge, finalSummary };
 }
 
 async function main() {

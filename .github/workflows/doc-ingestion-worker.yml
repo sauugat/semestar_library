@@ -10,6 +10,15 @@ on:
         description: 'Maximum ingestion jobs to process in this run'
         required: false
         default: '20'
+      max_vision_pages:
+        description: 'Maximum vision pages to OCR across all jobs in this run'
+        required: false
+        default: '60'
+      retry_failed:
+        type: boolean
+        description: 'Reset failed pages and jobs so they can be retried'
+        required: false
+        default: false
       backfill_dry_run:
         type: boolean
         description: 'Dry run backfill (count and print missing unindexed files without enqueuing)'
@@ -29,7 +38,7 @@ jobs:
     name: Process Queued Document Ingestion Jobs
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 50
 
     steps:
       - name: Check out repository
@@ -53,10 +62,11 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DOC_VISION_MODEL: ${{ vars.DOC_VISION_MODEL || secrets.DOC_VISION_MODEL }}
+          DOC_RUN_BUDGET_MS: ${{ vars.DOC_RUN_BUDGET_MS || '2700000' }}
           DOC_VISION_DAILY_REQUEST_CAP: ${{ vars.DOC_VISION_DAILY_REQUEST_CAP || '100' }}
           DOC_READ_IMAGES: ${{ vars.DOC_READ_IMAGES || 'false' }}
           DOC_VISION_BATCH_PAGES: ${{ vars.DOC_VISION_BATCH_PAGES || '1' }}
-          DOC_MAX_VISION_PAGES: ${{ vars.DOC_MAX_VISION_PAGES || '60' }}
+          DOC_MAX_VISION_PAGES: ${{ github.event.inputs.max_vision_pages || vars.DOC_MAX_VISION_PAGES || '60' }}
           DOC_MAX_FILE_BYTES: ${{ vars.DOC_MAX_FILE_BYTES || '104857600' }}
           DOC_PAGE_TIMEOUT_MS: ${{ vars.DOC_PAGE_TIMEOUT_MS || '25000' }}
           DOC_KNOWLEDGE_BUDGET_MS: ${{ vars.DOC_KNOWLEDGE_BUDGET_MS || '480000' }}
@@ -86,6 +96,15 @@ jobs:
             node scripts/doc-ingestion-worker.js --reconcile $LIMIT_ARG
           fi
 
+          RETRY_ARG=""
+          if [ "${{ github.event.inputs.retry_failed }}" = "true" ]; then
+            RETRY_ARG="--retry-failed"
+          fi
+
           echo "[Workflow] Running document ingestion worker..."
-          node scripts/doc-ingestion-worker.js --max-jobs "${DOC_WORKER_MAX_JOBS}"
+          node scripts/doc-ingestion-worker.js \
+            --max-jobs "${DOC_WORKER_MAX_JOBS}" \
+            --run-budget-ms "${DOC_RUN_BUDGET_MS}" \
+            --max-vision-pages "${DOC_MAX_VISION_PAGES}" \
+            $RETRY_ARG
 

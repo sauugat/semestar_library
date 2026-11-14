@@ -33,23 +33,75 @@ const pushNotifications = require('./lib/push-notifications');
 const officePreview = require('./lib/office-preview');
 const gamesTicket = require('./lib/games-ticket');
 
-async function indexUploadedNote(file) {
-  try {
-    const status = await noteSearch.indexNote(db, file);
-    try {
-      const knowledgeSync = require('./lib/knowledge-sync');
-      if (typeof knowledgeSync.onNoteSaved === 'function') {
-        await knowledgeSync.onNoteSaved(db, file);
-      }
-    } catch (syncErr) {
-      console.error('[Note knowledge sync failed]', file.id, syncErr.message);
-    }
-    require('./ai-assistant').invalidateCache(db);
-    return status;
-  } catch (err) {
-    console.error('[Note indexing failed]', file.id, err.code || err.name);
-    return { status: 'failed' };
+const docWorker = require('./lib/doc-ingestion-worker');
+const { computeContentHash } = docWorker;
+
+function triggerDocIngestionWorkflowDispatch({ fetchImpl = globalThis.fetch, env = process.env } = {}) {
+  const token = String(env.GITHUB_DISPATCH_TOKEN || '').trim();
+  const repo = String(env.GITHUB_DISPATCH_REPO || env.GITHUB_REPOSITORY || '').trim();
+  if (!token || !repo || typeof fetchImpl !== 'function') {
+    return false;
   }
+
+  const workflow = String(env.GITHUB_DOC_WORKER_WORKFLOW || 'doc-ingestion-worker.yml').trim();
+  const ref = String(env.GITHUB_DISPATCH_REF || 'main').trim();
+  const url = `https://api.github.com/repos/${repo}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`;
+
+  Promise.resolve()
+    .then(() => fetchImpl(url, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'semestar-library-doc-dispatch'
+      },
+      body: JSON.stringify({ ref }),
+      signal: AbortSignal.timeout(3000)
+    }))
+    .then(res => {
+      if (res && !res.ok) {
+        console.warn('[DocWorkerDispatch] Non-OK GitHub dispatch status:', res.status);
+      }
+    })
+    .catch(err => {
+      console.warn('[DocWorkerDispatch] Fire-and-forget dispatch skipped/failed:', err.message);
+    });
+
+  return true;
+}
+
+async function enqueueUploadedNoteIngestion(fileMeta, contentHash = '') {
+  const fileId = typeof fileMeta === 'object' && fileMeta !== null ? fileMeta.id : fileMeta;
+  let queued = { status: 'enqueue_failed', fileId };
+
+  // Fix C: Seed cheap metadata-only search row so new uploads stay searchable until the worker finishes.
+  if (typeof fileMeta === 'object' && fileMeta !== null) {
+    try {
+      await noteSearch.seedMetadataIndex(db, fileMeta);
+    } catch (seedErr) {
+      console.error('[Note metadata search seed failed]', fileId, seedErr.code || seedErr.message);
+    }
+  }
+
+  // Fix A: Never let enqueue or cache invalidation fail an already-persisted upload.
+  try {
+    queued = await docWorker.enqueueDocumentIngestionJob(db, {
+      fileId,
+      contentHash: contentHash || ''
+    });
+  } catch (err) {
+    console.error('[Note ingestion enqueue failed]', fileId, err.code || err.message);
+    queued = { status: 'enqueue_failed', fileId };
+  }
+
+  try {
+    require('./ai-assistant').invalidateCache(db);
+  } catch (cacheErr) {
+    console.error('[Note AI cache invalidation failed]', fileId, cacheErr.code || cacheErr.message);
+  }
+
+  return queued;
 }
 
 const { createClient } = require('@supabase/supabase-js');
@@ -3087,11 +3139,13 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
     }
 
     let previewFilename = null;
+    let contentHash = '';
 
     try {
-      // 1. Save main file to persistent blob storage
+      // 1. Save main file to persistent blob storage & compute SHA-256 content_hash
       if (fs.existsSync(filePath)) {
         const fileBuffer = fs.readFileSync(filePath);
+        contentHash = computeContentHash(fileBuffer);
         await db.saveFileBlob(f.filename, fileBuffer, f.mimetype || 'application/octet-stream');
       }
 
@@ -3138,16 +3192,15 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
       `, f.filename, f.originalname, fileTitle, semester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null), subject, chapter, currentStudentId, f.size, new Date().toISOString(), previewFilename, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope);
 
       const insertedId = result.lastInsertRowid;
-      const indexing = await indexUploadedNote({
+      const indexing = await enqueueUploadedNoteIngestion({
         id: insertedId,
         storedName: f.filename,
         originalName: f.originalname,
         title: fileTitle,
         semester,
         subject,
-        chapter,
-        sizeBytes: f.size
-      }).catch(() => null);
+        chapter
+      }, contentHash);
 
       successfulFiles.push({
         id: insertedId,
@@ -3178,6 +3231,7 @@ app.post('/api/files/upload', requireLogin, handleFileUpload, async (req, res) =
 
   // Material push notification enqueue strictly for successfully persisted files
   if (successfulFiles.length > 0) {
+    triggerDocIngestionWorkflowDispatch();
     try {
       const { enqueueMaterialPush, enqueueMaterialBatchPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
       const uploaderStudentId = currentStudentId;
@@ -3507,7 +3561,17 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
       `, storedName, originalName, fileTitle, cleanSemester || (publishScope.semesterNo ? String(publishScope.semesterNo) : null), cleanSubject, cleanChapter, currentStudentId, sizeBytes, new Date().toISOString(), null, publishScope.cohortId, publishScope.semesterNo, publishScope.audienceScope);
 
       const insertedId = result.lastInsertRowid;
-      const indexing = await indexUploadedNote({ id: insertedId, storedName, originalName, title: fileTitle, semester: cleanSemester, subject: cleanSubject, chapter: cleanChapter, sizeBytes });
+      const rawHash = String(f.contentHash || f.sha256 || '').trim().toLowerCase();
+      const validHash = /^[a-f0-9]{64}$/.test(rawHash) ? rawHash : '';
+      const indexing = await enqueueUploadedNoteIngestion({
+        id: insertedId,
+        storedName,
+        originalName,
+        title: fileTitle,
+        semester: cleanSemester,
+        subject: cleanSubject,
+        chapter: cleanChapter
+      }, validHash);
       results.push({
         id: insertedId,
         indexing,
@@ -3530,6 +3594,7 @@ app.post('/api/files/record-upload', requireLogin, async (req, res) => {
   // In-app & push notifications are handled below via enqueueMaterialPush / enqueueMaterialBatchPush
 
   if (successfulFiles.length > 0) {
+    triggerDocIngestionWorkflowDispatch();
     try {
       const { enqueueMaterialPush, enqueueMaterialBatchPush, dispatchImmediateOutbox } = require('./lib/push-notifications');
       const uploaderStudentId = currentStudentId;
@@ -7543,4 +7608,5 @@ if (require.main === module) {
 }
 
 app.server = server;
+app.triggerDocIngestionWorkflowDispatch = triggerDocIngestionWorkflowDispatch;
 module.exports = app;

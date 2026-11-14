@@ -128,7 +128,7 @@ test('service worker prefers current chatbot and routine pages/scripts over stal
     fetch: async () => new Response('current'),
     caches: { match: async () => new Response('stale') }
   });
-  for (const path of ['/chatbot.html', '/chatbot.js', '/routine.html', '/routine.js', '/routine.js?v=routine-db-1']) {
+  for (const path of ['/chatbot.html', '/chatbot.js', '/chatbot.css', '/routine.html', '/routine.js', '/routine.js?v=routine-db-1']) {
     let response;
     handlers.fetch({ request: { method: 'GET', url: 'https://library.test' + path }, respondWith(value) { response = value; } });
     assert.equal(await (await response).text(), 'current');

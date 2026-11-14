@@ -6,7 +6,7 @@
 // - Includes versioned update flow + emergency kill-switch flag (SW_DISABLED)
 // =============================================================================
 
-const SW_VERSION = 'v28';
+const SW_VERSION = 'v30';
 const SW_DISABLED = false; // Emergency kill-switch flag: set to true to self-unregister and purge caches
 const SHELL_CACHE = `semester-library-shell-${SW_VERSION}`;
 const PAGE_CACHE = `semester-library-pages-${SW_VERSION}`;
@@ -64,7 +64,7 @@ function isPublicDataEndpoint(url) {
 
 function isNetworkFirstScript(url) {
   const p = url.pathname;
-  return p === '/chatbot.js' || p === '/routine.js';
+  return p === '/chatbot.js' || p === '/routine.js' || p === '/chatbot.css';
 }
 
 self.addEventListener('install', (event) => {

@@ -1,4 +1,55 @@
 :root{--ky-font-brand:"Plus Jakarta Sans","Outfit",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--ky-font-sans:"Inter","Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--ky-font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;--ky-bg:#09090b;--ky-sidebar-bg:#0d0d0f;--ky-sidebar-hover:#151518;--ky-sidebar-active:#1c1c20;--ky-surface:#141416;--ky-surface-raised:#19191d;--ky-surface-card:#141416;--ky-surface-hover:#1c1c20;--ky-user-bubble:#19191d;--ky-code-bg:#0d0d0f;--ky-code-inline-bg:rgba(255,255,255,0.08);--ky-border:rgba(255,255,255,0.08);--ky-border-subtle:rgba(255,255,255,0.05);--ky-border-strong:rgba(255,255,255,0.16);--ky-text-primary:#f4f4f5;--ky-text-secondary:#a1a1aa;--ky-text-muted:#71717a;--ky-text-subtle:#52525b;--ky-aura-deep-blue:#165DFF;--ky-aura-royal-blue:#2E54D4;--ky-aura-cyan:#67D8FF;--ky-aura-white:#E7F4FF;--ky-aura-lavender:#B99CFF;--ky-aura-violet:#6552E8;--ky-sidebar-width:250px;--ky-header-height:52px;--ky-reading-width:820px;--ky-composer-empty-width:680px}:root[data-theme="light"],html[data-theme="light"],body[data-theme="light"]{--ky-bg:#ffffff;--ky-sidebar-bg:#f8f9fa;--ky-sidebar-hover:#edf0f3;--ky-sidebar-active:#e2e6eb;--ky-surface:#f4f5f7;--ky-surface-raised:#ffffff;--ky-surface-card:#f8f9fa;--ky-surface-hover:#eceef1;--ky-user-bubble:#e8eaee;--ky-code-bg:#181920;--ky-code-inline-bg:rgba(0,0,0,0.06);--ky-border:rgba(0,0,0,0.08);--ky-border-subtle:rgba(0,0,0,0.05);--ky-border-strong:rgba(0,0,0,0.15);--ky-text-primary:#121316;--ky-text-secondary:#52525b;--ky-text-muted:#71717a;--ky-text-subtle:#a1a1aa}html.kyana-workspace-html,html:has(body.kyana-workspace-body){margin:0;padding:0;width:100%;height:100%;height:100dvh;overflow:hidden}body.kyana-workspace-body{margin:0;padding:0;width:100%;height:100%;height:100dvh;max-height:100dvh;overflow:hidden;display:flex;flex-direction:column;background-color:var(--ky-bg);color:var(--ky-text-primary);font-family:var(--ky-font-sans);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+/* Universal Top-Level Header Branding & Sidebar Button Alignment */
+body.kyana-workspace-body .dash-header-left {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 12px !important;
+  order: 1 !important;
+  flex-shrink: 0 !important;
+  height: 100% !important;
+}
+
+body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn {
+  background: transparent !important;
+  border: 1px solid var(--ky-border) !important;
+  color: var(--ky-text-muted) !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 7px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease !important;
+}
+
+body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn:hover {
+  color: var(--ky-text-primary) !important;
+  background-color: var(--ky-surface-raised) !important;
+  border-color: var(--ky-border-strong) !important;
+}
+
+body.kyana-workspace-body .dash-header-left .lib-wordmark,
+body.kyana-workspace-body .dash-header:has(.dash-header-nav) .lib-wordmark,
+body.kyana-workspace-body .lib-wordmark {
+  display: inline-flex !important;
+  align-items: center !important;
+  font-family: var(--ky-font-brand) !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--ky-text-primary) !important;
+  text-decoration: none !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+  order: initial !important;
+  flex-shrink: 0 !important;
+}
+
 /* ==========================================================================
    Global Header Normalization for Kyana Workspace (Single-Row Desktop)
    ========================================================================== */
@@ -58,52 +109,6 @@
   html[data-theme="light"] body.kyana-workspace-body .dash-profile-avatar {
     background: #000000 !important;
     color: #ffffff !important;
-  }
-
-  body.kyana-workspace-body .dash-header-left {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 12px !important;
-    order: 1 !important;
-    flex-shrink: 0 !important;
-    height: 100% !important;
-  }
-
-  body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn {
-    background: transparent !important;
-    border: 1px solid var(--ky-border) !important;
-    color: var(--ky-text-muted) !important;
-    width: 32px !important;
-    height: 32px !important;
-    border-radius: 7px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    cursor: pointer !important;
-    transition: color .15s ease, background-color .15s ease, border-color .15s ease !important;
-  }
-
-  body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn:hover {
-    color: var(--ky-text-primary) !important;
-    background-color: var(--ky-surface-raised) !important;
-    border-color: var(--ky-border-strong) !important;
-  }
-
-  body.kyana-workspace-body .dash-header-left .lib-wordmark,
-  body.kyana-workspace-body .dash-header:has(.dash-header-nav) .lib-wordmark,
-  body.kyana-workspace-body .lib-wordmark {
-    display: inline-flex !important;
-    align-items: center !important;
-    font-family: var(--ky-font-brand) !important;
-    font-size: 15px !important;
-    font-weight: 700 !important;
-    letter-spacing: -0.02em !important;
-    color: var(--ky-text-primary) !important;
-    text-decoration: none !important;
-    white-space: nowrap !important;
-    line-height: 1 !important;
-    margin: 0 !important;
-    order: initial !important;
   }
 
   body.kyana-workspace-body .dash-header-nav,
@@ -536,7 +541,7 @@ body.kyana-workspace-body [id*="mascot"] {
   width: 100% !important;
   max-width: var(--ky-reading-width, 820px) !important;
   margin: 0 auto !important;
-  padding: 24px 20px calc(150px + env(safe-area-inset-bottom, 18px)) !important;
+  padding: 24px 20px calc(200px + env(safe-area-inset-bottom, 24px)) !important;
   box-sizing: border-box !important;
 }
 
@@ -548,8 +553,8 @@ body.kyana-workspace-body [id*="mascot"] {
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
-  padding: 0 20px max(18px, env(safe-area-inset-bottom, 18px)) !important;
-  background: linear-gradient(to top, var(--ky-bg, #09090b) 75%, transparent 100%) !important;
+  padding: 0 20px max(24px, env(safe-area-inset-bottom, 24px)) !important;
+  background: linear-gradient(to top, var(--ky-bg, #09090b) 80%, rgba(9, 9, 11, 0.85) 60%, transparent 100%) !important;
   pointer-events: none !important;
   display: flex !important;
   justify-content: center !important;
@@ -576,6 +581,7 @@ body.kyana-workspace-body [id*="mascot"] {
   font-size: 11.5px !important;
   color: var(--ky-text-muted, #71717a) !important;
   user-select: none !important;
+  line-height: 1.4 !important;
 }
 
 /* 4. MOBILE VIEWPORT NORMALIZATION */
@@ -584,17 +590,38 @@ body.kyana-workspace-body [id*="mascot"] {
   body.kyana-workspace-body .dash-header,
   html body.kyana-workspace-body.dash .dash-header,
   html body.kyana-workspace-body .dash-header {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    max-height: 52px !important;
     border-radius: 0 !important;
     background: var(--ky-bg, #09090b) !important;
     background-color: var(--ky-bg, #09090b) !important;
     border-bottom: 1px solid var(--ky-border) !important;
-    padding-top: max(8px, env(safe-area-inset-top, 8px)) !important;
-    padding-bottom: 8px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
     padding-left: max(14px, env(safe-area-inset-left, 14px)) !important;
     padding-right: max(14px, env(safe-area-inset-right, 14px)) !important;
-    min-height: 52px !important;
-    max-height: none !important;
-    flex-wrap: wrap !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    z-index: 120 !important;
+  }
+
+  body.kyana-workspace-body .dash-header-nav {
+    display: none !important;
+  }
+
+  body.kyana-workspace-body .dash-header-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    order: 2 !important;
+    flex-shrink: 0 !important;
   }
 
   .kyana-app.is-empty .kyana-main {
@@ -607,11 +634,11 @@ body.kyana-workspace-body [id*="mascot"] {
   }
 
   .kyana-app.has-messages .kyana-reading-column {
-    padding: 16px 14px calc(140px + env(safe-area-inset-bottom, 16px)) !important;
+    padding: 16px 14px calc(180px + env(safe-area-inset-bottom, 20px)) !important;
   }
 
   .kyana-app.has-messages .kyana-composer-container {
-    padding: 0 12px max(14px, env(safe-area-inset-bottom, 14px)) !important;
+    padding: 0 12px max(18px, env(safe-area-inset-bottom, 18px)) !important;
   }
 
   .kyana-welcome-heading,

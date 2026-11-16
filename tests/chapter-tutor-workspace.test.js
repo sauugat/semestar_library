@@ -304,4 +304,20 @@ test('Chapter Tutor Workspace — Continuous Multi-PDF Bundle + Grounded Q&A + F
     assert.match(html, /window\.renderPostMarkdown\(normalized\)/);
     assert.doesNotMatch(html, /window\.MarkdownRenderer/);
   });
+
+  await t.test('8. library.html chapter chat integrates per-chapter conversations, New Chat button, Previous Chats menu, and Review Mode for completed chapters', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'library.html'), 'utf8');
+    assert.match(html, /id="chapterKyanaNewChatBtn"/);
+    assert.match(html, /id="chapterKyanaChatsMenuBtn"/);
+    assert.match(html, /id="chapterChatsMenu"/);
+    assert.match(html, /loadOrInitChapterConversation/);
+    assert.match(html, /renderLoadedChapterMessages/);
+    assert.match(html, /startNewChapterChat/);
+    assert.match(html, /switchChapterChat/);
+    assert.match(html, /renderChapterChatsMenu/);
+    assert.match(html, /Chapter Completed — Review Mode/);
+    assert.match(html, /\/api\/ai\/chapter-chats/);
+  });
 });

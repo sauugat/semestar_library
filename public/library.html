@@ -3483,6 +3483,24 @@
                 <span>All Chapters</span>
               </button>
               <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" class="chapter-kyana-aux-btn" id="chapterKyanaNewChatBtn" onclick="startNewChapterChat()" title="Start a fresh chat for this chapter">
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span>New Chat</span>
+                </button>
+                <div class="chapter-chats-dropdown-wrap" style="position:relative; display:inline-block;">
+                  <button type="button" class="chapter-kyana-aux-btn" id="chapterKyanaChatsMenuBtn" onclick="toggleChapterChatsMenu()" title="View previous chats for this chapter">
+                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <span>Chats</span>
+                    <span class="chapter-chats-badge" id="chapterChatsCountBadge" style="display:none; font-size:10px; background:#27272a; color:#f4f4f5; padding:1px 5px; border-radius:10px; margin-left:2px;"></span>
+                  </button>
+                  <div class="chapter-chats-menu" id="chapterChatsMenu" style="display:none; position:absolute; right:0; top:calc(100% + 4px); background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; width:260px; max-height:280px; overflow-y:auto; z-index:120; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:6px;">
+                    <div style="font-size:11px; font-weight:600; color:#64748b; padding:6px 8px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                      <span>Previous Chats</span>
+                      <button type="button" onclick="startNewChapterChat()" style="background:none; border:none; color:#2563eb; font-size:11px; cursor:pointer; padding:0; font-weight:600;">+ New</button>
+                    </div>
+                    <div id="chapterChatsListItems" style="padding:4px 0;"></div>
+                  </div>
+                </div>
                 <button type="button" class="chapter-kyana-notes-mobile-btn" onclick="openMobileContinuousNotesPane()" title="View chapter PDFs & notes">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   <span>Notes</span>
@@ -7398,6 +7416,103 @@
             display: inline-flex;
           }
         }
+        .chapter-kyana-aux-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 6px 10px;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          color: #111827;
+          font-size: 11.5px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .chapter-kyana-aux-btn:hover {
+          background: #f1f5f9;
+        }
+        .chapter-chats-dropdown-wrap {
+          position: relative;
+          display: inline-block;
+        }
+        .chapter-chats-menu {
+          display: none;
+          position: absolute;
+          right: 0;
+          top: calc(100% + 4px);
+          background: #ffffff;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          width: 260px;
+          max-height: 280px;
+          overflow-y: auto;
+          z-index: 120;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+          padding: 6px;
+        }
+        .chapter-chat-item {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          padding: 7px 8px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.12s ease;
+          text-align: left;
+          background: transparent;
+          border: none;
+          width: 100%;
+        }
+        .chapter-chat-item:hover, .chapter-chat-item.active {
+          background: #f1f5f9;
+        }
+        .chapter-chat-item-title {
+          font-size: 12px;
+          font-weight: 600;
+          color: #0f172a;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .chapter-chat-item-meta {
+          font-size: 10.5px;
+          color: #64748b;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        [data-theme="dark"] .chapter-kyana-aux-btn,
+        body.dark-mode .chapter-kyana-aux-btn {
+          background: #202022 !important;
+          border-color: #38383c !important;
+          color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-aux-btn:hover,
+        body.dark-mode .chapter-kyana-aux-btn:hover {
+          background: #2c2c30 !important;
+        }
+        [data-theme="dark"] .chapter-chats-menu,
+        body.dark-mode .chapter-chats-menu {
+          background: #18181b !important;
+          border-color: #27272a !important;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+        }
+        [data-theme="dark"] .chapter-chat-item:hover,
+        [data-theme="dark"] .chapter-chat-item.active,
+        body.dark-mode .chapter-chat-item:hover,
+        body.dark-mode .chapter-chat-item.active {
+          background: #27272a !important;
+        }
+        [data-theme="dark"] .chapter-chat-item-title,
+        body.dark-mode .chapter-chat-item-title {
+          color: #f4f4f5 !important;
+        }
+        [data-theme="dark"] .chapter-chat-item-meta,
+        body.dark-mode .chapter-chat-item-meta {
+          color: #a1a1aa !important;
+        }
         .chapter-kyana-teach-btn {
           display: inline-flex;
           align-items: center;
@@ -8369,12 +8484,12 @@
           kyanaPill.textContent = `${fileCount} Note${fileCount === 1 ? '' : 's'} · ${topicCount || 'Official'} Syllabus Topics`;
         }
 
-        renderChapterKyanaWelcome(bundle);
+        await loadOrInitChapterConversation(bundle);
         await renderContinuousChapterStream(bundle);
       } catch (err) {
         console.warn('[Chapter Kyana Bundle Error]:', err);
         if (kyanaPill) kyanaPill.textContent = `Syllabus + AI Knowledge Active`;
-        renderChapterKyanaWelcome({ files: [], syllabusTopics: [] });
+        await loadOrInitChapterConversation({ files: [], syllabusTopics: [] });
         if (streamEl) {
           streamEl.innerHTML = `
             <div class="continuous-doc-section" style="padding:24px; text-align:center;">
@@ -9005,6 +9120,266 @@
         } catch (_) {}
       });
     }
+
+    async function loadOrInitChapterConversation(bundle) {
+      let loadedExisting = false;
+      const authHeaders = (window.SemesterAuth && typeof window.SemesterAuth.getAuthHeaders === 'function')
+        ? window.SemesterAuth.getAuthHeaders()
+        : {};
+      try {
+        const chatParams = new URLSearchParams({
+          subjectCode: ACTIVE_CHAPTER_KYANA_STATE.subjectCode || '',
+          semesterNo: ACTIVE_CHAPTER_KYANA_STATE.semesterNo || '',
+          unit: ACTIVE_CHAPTER_KYANA_STATE.unitNumber || ''
+        });
+        const resp = await fetch(`/api/ai/chapter-chats?${chatParams.toString()}`, {
+          headers: { 'Accept': 'application/json', ...authHeaders },
+          credentials: 'include'
+        });
+        if (resp.ok) {
+          const chats = await resp.json();
+          renderChapterChatsMenu(chats);
+          if (Array.isArray(chats) && chats.length > 0) {
+            const activeChat = chats[0];
+            ACTIVE_CHAPTER_KYANA_STATE.conversationId = activeChat.id;
+            const msgsResp = await fetch(`/api/ai/conversations/${activeChat.id}/messages`, {
+              headers: { 'Accept': 'application/json', ...authHeaders },
+              credentials: 'include'
+            });
+            if (msgsResp.ok) {
+              const msgsData = await msgsResp.json();
+              const messages = msgsData.messages || [];
+              if (messages.length > 0) {
+                renderLoadedChapterMessages(messages, activeChat);
+                ACTIVE_CHAPTER_KYANA_STATE.history = messages.map(m => ({
+                  role: m.sender === 'user' ? 'user' : 'assistant',
+                  content: m.text
+                }));
+                loadedExisting = true;
+              }
+            }
+          }
+        }
+      } catch (chatErr) {
+        console.warn('[Chapter Kyana Chat Load Warning]:', chatErr);
+      }
+
+      if (!loadedExisting) {
+        renderChapterKyanaWelcome(bundle);
+      }
+    }
+
+    function renderLoadedChapterMessages(messages, chatInfo) {
+      const msgBox = document.getElementById('chapterKyanaMessages');
+      if (!msgBox) return;
+      msgBox.innerHTML = '';
+
+      for (const m of messages) {
+        if (m.sender === 'user') {
+          const userBubble = document.createElement('div');
+          userBubble.className = 'chapter-kyana-msg user';
+          userBubble.textContent = m.text;
+          msgBox.appendChild(userBubble);
+        } else {
+          const bubble = document.createElement('div');
+          bubble.className = 'chapter-kyana-msg assistant';
+          let badgeHtml = '';
+          if (typeof m.text === 'string' && m.text.includes('study_session')) {
+            badgeHtml = `<div class="chapter-kyana-source-tag"><span>STEP-BY-STEP CHAPTER TEACHING</span></div>`;
+          } else {
+            badgeHtml = `<div class="chapter-kyana-source-tag"><span>GROUNDED IN CHAPTER NOTES & SYLLABUS</span></div>`;
+          }
+          bubble.innerHTML = `${badgeHtml}<div class="chapter-kyana-md">${formatChapterKyanaMarkdown(m.text)}</div>`;
+          wireInteractiveBlocksInContainer(bubble);
+          renderMathInChapterBubble(bubble);
+          msgBox.appendChild(bubble);
+        }
+      }
+
+      const isCompleted = chatInfo?.status === 'COMPLETED' || chatInfo?.session?.status === 'COMPLETED';
+      if (isCompleted) {
+        const banner = document.createElement('div');
+        banner.className = 'chapter-completed-review-banner';
+        banner.style.cssText = 'background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.3); border-radius:8px; padding:12px 14px; margin:14px 0 6px; text-align:center;';
+        banner.innerHTML = `
+          <div style="font-size:13.5px; font-weight:700; color:#22c55e; margin-bottom:4px;">🎉 Chapter Completed — Review Mode</div>
+          <div style="font-size:12px; color:#a1a1aa; margin-bottom:10px;">You have mastered all topics in this chapter! You can review past lessons or start fresh from Step 1.</div>
+          <button type="button" class="chapter-kyana-chip" onclick="startNewChapterChat()" style="background:rgba(34,197,94,0.14); border-color:#22c55e; color:#22c55e; font-weight:700; cursor:pointer;">Restart Chapter from Step 1</button>
+        `;
+        msgBox.appendChild(banner);
+      }
+
+      msgBox.scrollTop = msgBox.scrollHeight;
+    }
+
+    window.startNewChapterChat = async function () {
+      if (!ACTIVE_CHAPTER_KYANA_STATE) return;
+      window.closeChapterChatsMenu();
+      const msgBox = document.getElementById('chapterKyanaMessages');
+      if (msgBox) {
+        msgBox.innerHTML = `
+          <div class="loading-container" style="padding:48px 16px; text-align:center;">
+            <div class="loading-spinner" style="width:24px; height:24px; border-width:2.5px; margin-bottom:10px;"></div>
+            <p style="font-size:13px; color:#71717a;">Starting a new chat for this chapter…</p>
+          </div>
+        `;
+      }
+      const authHeaders = (window.SemesterAuth && typeof window.SemesterAuth.getAuthHeaders === 'function')
+        ? window.SemesterAuth.getAuthHeaders()
+        : {};
+      let newId = `chap_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      try {
+        const resp = await fetch('/api/ai/chapter-chats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', ...authHeaders },
+          credentials: 'include',
+          body: JSON.stringify({
+            subjectCode: ACTIVE_CHAPTER_KYANA_STATE.subjectCode,
+            semesterNo: ACTIVE_CHAPTER_KYANA_STATE.semesterNo,
+            unit: ACTIVE_CHAPTER_KYANA_STATE.unitNumber,
+            title: `${ACTIVE_CHAPTER_KYANA_STATE.chapterTitle} Chat`
+          })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && (data.id || data.conversationId)) {
+            newId = data.id || data.conversationId;
+          }
+        }
+      } catch (err) {
+        console.warn('[Start New Chapter Chat Warning]:', err);
+      }
+
+      ACTIVE_CHAPTER_KYANA_STATE.conversationId = newId;
+      ACTIVE_CHAPTER_KYANA_STATE.history = [];
+      renderChapterKyanaWelcome(ACTIVE_CHAPTER_KYANA_STATE.bundle || { files: [], syllabusTopics: [] });
+      await refreshChapterChatsList();
+    };
+
+    window.switchChapterChat = async function (convId) {
+      if (!convId || !ACTIVE_CHAPTER_KYANA_STATE) return;
+      window.closeChapterChatsMenu();
+      if (convId === ACTIVE_CHAPTER_KYANA_STATE.conversationId) return;
+
+      ACTIVE_CHAPTER_KYANA_STATE.conversationId = convId;
+      ACTIVE_CHAPTER_KYANA_STATE.history = [];
+      const msgBox = document.getElementById('chapterKyanaMessages');
+      if (msgBox) {
+        msgBox.innerHTML = `
+          <div class="loading-container" style="padding:48px 16px; text-align:center;">
+            <div class="loading-spinner" style="width:24px; height:24px; border-width:2.5px; margin-bottom:10px;"></div>
+            <p style="font-size:13px; color:#71717a;">Loading messages…</p>
+          </div>
+        `;
+      }
+      const authHeaders = (window.SemesterAuth && typeof window.SemesterAuth.getAuthHeaders === 'function')
+        ? window.SemesterAuth.getAuthHeaders()
+        : {};
+      try {
+        const resp = await fetch(`/api/ai/conversations/${convId}/messages`, {
+          headers: { 'Accept': 'application/json', ...authHeaders },
+          credentials: 'include'
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          const messages = data.messages || [];
+          if (messages.length > 0) {
+            renderLoadedChapterMessages(messages, data.conversation || {});
+            ACTIVE_CHAPTER_KYANA_STATE.history = messages.map(m => ({
+              role: m.sender === 'user' ? 'user' : 'assistant',
+              content: m.text
+            }));
+            await refreshChapterChatsList();
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[Switch Chapter Chat Error]:', e);
+      }
+      renderChapterKyanaWelcome(ACTIVE_CHAPTER_KYANA_STATE.bundle || { files: [], syllabusTopics: [] });
+      await refreshChapterChatsList();
+    };
+
+    async function refreshChapterChatsList() {
+      if (!ACTIVE_CHAPTER_KYANA_STATE) return;
+      const authHeaders = (window.SemesterAuth && typeof window.SemesterAuth.getAuthHeaders === 'function')
+        ? window.SemesterAuth.getAuthHeaders()
+        : {};
+      const chatParams = new URLSearchParams({
+        subjectCode: ACTIVE_CHAPTER_KYANA_STATE.subjectCode || '',
+        semesterNo: ACTIVE_CHAPTER_KYANA_STATE.semesterNo || '',
+        unit: ACTIVE_CHAPTER_KYANA_STATE.unitNumber || ''
+      });
+      try {
+        const resp = await fetch(`/api/ai/chapter-chats?${chatParams.toString()}`, {
+          headers: { 'Accept': 'application/json', ...authHeaders },
+          credentials: 'include'
+        });
+        if (resp.ok) {
+          const list = await resp.json();
+          renderChapterChatsMenu(list);
+        }
+      } catch (_) {}
+    }
+
+    function renderChapterChatsMenu(chats) {
+      const container = document.getElementById('chapterChatsListItems');
+      const countBadge = document.getElementById('chapterChatsCountBadge');
+      if (!container) return;
+      const items = Array.isArray(chats) ? chats : [];
+      if (countBadge) {
+        if (items.length > 0) {
+          countBadge.textContent = items.length;
+          countBadge.style.display = 'inline-block';
+        } else {
+          countBadge.style.display = 'none';
+        }
+      }
+      if (items.length === 0) {
+        container.innerHTML = `<div style="font-size:11.5px; color:#71717a; padding:10px 8px; text-align:center;">No previous chats</div>`;
+        return;
+      }
+      container.innerHTML = items.map((c, i) => {
+        const isActive = c.id === ACTIVE_CHAPTER_KYANA_STATE?.conversationId;
+        const title = c.title || `Chat ${i + 1}`;
+        const dateStr = c.last_message_at ? new Date(c.last_message_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+        let statusPill = '';
+        if (c.status === 'COMPLETED' || c.session?.status === 'COMPLETED') {
+          statusPill = '<span style="color:#4ade80; font-size:10px; font-weight:700;">Completed</span>';
+        } else if (c.step || c.session?.current_step_index) {
+          statusPill = `<span style="color:#60a5fa; font-size:10px; font-weight:600;">Step ${c.step || c.session?.current_step_index}</span>`;
+        }
+        return `
+          <button type="button" class="chapter-chat-item ${isActive ? 'active' : ''}" onclick="switchChapterChat('${escapeJs(c.id)}')">
+            <div class="chapter-chat-item-title">${escapeHtml(title)}</div>
+            <div class="chapter-chat-item-meta">
+              <span>${escapeHtml(dateStr)}</span>
+              ${statusPill ? `<span>&middot;</span> ${statusPill}` : ''}
+              ${isActive ? '<span style="margin-left:auto; color:#a1a1aa; font-size:10px; font-weight:600;">(Current)</span>' : ''}
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    window.toggleChapterChatsMenu = function () {
+      const menu = document.getElementById('chapterChatsMenu');
+      if (!menu) return;
+      const isHidden = menu.style.display === 'none' || !menu.style.display;
+      menu.style.display = isHidden ? 'block' : 'none';
+    };
+
+    window.closeChapterChatsMenu = function () {
+      const menu = document.getElementById('chapterChatsMenu');
+      if (menu) menu.style.display = 'none';
+    };
+
+    document.addEventListener('click', (e) => {
+      const dropdown = document.querySelector('.chapter-chats-dropdown-wrap');
+      if (dropdown && !dropdown.contains(e.target)) {
+        window.closeChapterChatsMenu();
+      }
+    });
 
     function renderChapterKyanaWelcome(bundle) {
       const msgBox = document.getElementById('chapterKyanaMessages');

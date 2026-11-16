@@ -122,7 +122,7 @@ test('Kyana Study Partner End-to-End Teaching Flow: "teach me css" -> "next" -> 
   assert.ok(turn3.reply.includes('simpler') || turn3.reply.includes('analogy') || turn3.reply.includes('house') || turn3.reply.includes('break this down'), 'Triggers pedagogical remediation');
 });
 
-test('Stepping Detection: 4 words or fewer non-questions ("yes", "oki nexr", "ok", "haan", "next", "nexr") advance active study session', async () => {
+test('Stepping Detection: 4 words or fewer non-questions ("yes", "oki nexr", "ok", "haan", "next", "nexr") advance active study session, increment step_index by 1, and use neutral feedback for ok/next', async () => {
   const db = await createTestDb();
 
   await db.run(
@@ -158,8 +158,10 @@ test('Stepping Detection: 4 words or fewer non-questions ("yes", "oki nexr", "ok
     const t1 = await handleChat(db, 'teach me this chapter', wordStudentContext, [], testConvId, { chapterContext });
     assert.equal(t1.intent, 'study_partner', 'Must initiate study partner');
 
-    const activeRow = await db.get(`SELECT * FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE'`, testConvId);
-    assert.ok(activeRow, 'Active study session must be stored in DB');
+    const activeRowBefore = await db.get(`SELECT * FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE'`, testConvId);
+    assert.ok(activeRowBefore, 'Active study session must be stored in DB');
+    const stepBefore = Number(activeRowBefore.current_step_index || 1);
+    assert.equal(stepBefore, 1, 'Initial step index must be 1');
 
     const res = await handleChat(
       db,
@@ -174,7 +176,151 @@ test('Stepping Detection: 4 words or fewer non-questions ("yes", "oki nexr", "ok
     );
     assert.equal(res.intent, 'study_partner', `Word "${word}" must route to study_partner when session is active`);
     assert.ok(res.reply.includes('```study_session'), `Word "${word}" must return study session progress`);
+
+    // Requirement 5: Assert current_step_index increased by 1 per advance
+    const activeRowAfter = await db.get(`SELECT * FROM study_partner_sessions WHERE conversation_id = ?`, testConvId);
+    const stepAfter = Number(activeRowAfter.current_step_index);
+    assert.equal(stepAfter, stepBefore + 1, `current_step_index must increase by 1 from ${stepBefore} to ${stepBefore + 1} after "${word}"`);
+
+    // Requirement 6: Neutral feedback for "yes", "ha", "haan", "ok", "okay", "oki", "next", "nexr", NOT "nailed this concept"
+    assert.ok(!res.reply.includes('nailed this concept'), `Neutral advance "${word}" must NOT claim student nailed this concept`);
+    assert.ok(res.reply.includes('Got it, let’s keep going') || res.reply.includes('keep going'), `Neutral advance "${word}" must use neutral transition`);
   }
+});
+
+test('Fresh conversation with old ACTIVE session: "show my routine", "thanks" and "latest notices" must NOT route to study_partner or change session', async () => {
+  const db = await createTestDb();
+
+  await db.run(
+    `INSERT INTO files (id, title, originalName, subject, semester_no, chapter)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    350, 'Java Unit 2 Notes', 'unit2_java.pdf', 'Computer Programming II (Java)', 2, 'Unit 2: Introduction to Java'
+  );
+
+  const studentContext = {
+    authenticated: true,
+    studentId: 'student_isolated_conv',
+    role: 'student',
+    currentSemester: 2
+  };
+
+  const oldConvId = 'conv_old_active_session';
+  const freshConvId = 'conv_fresh_new_chat';
+
+  const nowIso = new Date().toISOString();
+  await db.run(
+    `INSERT INTO study_partner_sessions (
+      id, student_id, conversation_id, subject, subject_code, semester_no, unit_number,
+      chapter_title, status, pedagogical_stage, current_step_index, total_steps, mastered_steps,
+      last_interaction_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'TEACHING', 2, 5, 1, ?, ?, ?)`,
+    'old_sess_row_1', studentContext.studentId, oldConvId, 'Computer Programming II (Java)', 'CIT122', 2, 2,
+    'Unit 2: Introduction to Java', nowIso, nowIso, nowIso
+  );
+
+  const testQueries = ['show my routine', 'thanks', 'latest notices'];
+  for (const q of testQueries) {
+    const res = await handleChat(db, q, studentContext, [], freshConvId, {
+      conversationId: freshConvId
+    });
+
+    assert.notEqual(res.intent, 'study_partner', `Query "${q}" in fresh conversation must NOT route to study_partner`);
+
+    // Verify old session was untouched
+    const oldRow = await db.get(`SELECT * FROM study_partner_sessions WHERE id = ?`, 'old_sess_row_1');
+    assert.equal(oldRow.status, 'ACTIVE', 'Old session status must remain ACTIVE');
+    assert.equal(Number(oldRow.current_step_index), 2, 'Old session step_index must remain 2');
+
+    // Verify no new session created for freshConvId
+    const freshRow = await db.get(`SELECT * FROM study_partner_sessions WHERE conversation_id = ?`, freshConvId);
+    assert.equal(freshRow, null, `No study partner session should be created in freshConvId for query "${q}"`);
+  }
+});
+
+test('Study loop LLM call preserves student raw reply and remediation/example instruction when student asks "explain with an example"', async () => {
+  const db = await createTestDb();
+
+  await db.run(
+    `INSERT INTO files (id, title, originalName, subject, semester_no, chapter)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    360, 'Java Unit 2 Notes', 'unit2_java.pdf', 'Computer Programming II (Java)', 2, 'Unit 2: Introduction to Java'
+  );
+
+  const studentContext = {
+    authenticated: true,
+    studentId: 'student_example_req',
+    role: 'student',
+    currentSemester: 2
+  };
+
+  const chapterContext = {
+    subject: 'Computer Programming II (Java)',
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unitNumber: 2,
+    chapterTitle: 'Unit 2: Introduction to Java',
+    fileIds: [360]
+  };
+
+  const convId = 'sess_explain_example_test';
+  let capturedLlmCall = null;
+
+  const mockGenerateReply = async (payload) => {
+    capturedLlmCall = payload;
+    return {
+      reply: [
+        `💡 **Intuitive Real-World Analogy:** Think of Java Bytecode like an international blueprint.`,
+        ``,
+        `⚙️ **Detailed Technical Architecture & Mechanics:** Java source code is compiled into .class bytecode files.`,
+        ``,
+        `💻 **Concrete Worked Example (Code or Structural Breakdown):**`,
+        '```java',
+        'public class Example {',
+        '    public static void main(String[] args) {',
+        '        System.out.println("Worked Example Demo");',
+        '    }',
+        '}',
+        '```',
+        `Line 1 starts class, line 2 is main, line 3 prints to console.`,
+        ``,
+        `⚖️ **Tradeoffs, Edge Cases & Common Pitfalls:** JVM incurs small overhead compared to compiled C.`,
+        ``,
+        `🎯 **Checkpoint Question:** What tool compiles .java files into .class files?`
+      ].join('\n\n')
+    };
+  };
+
+  // Turn 1: Start lesson
+  const turn1 = await handleChat(db, 'teach me java unit 2', studentContext, [], convId, {
+    chapterContext,
+    generateReply: mockGenerateReply
+  });
+  assert.equal(turn1.intent, 'study_partner');
+
+  // Turn 2: Student replies "explain with an example"
+  const history = [
+    { role: 'user', content: 'teach me java unit 2' },
+    { role: 'assistant', content: turn1.reply }
+  ];
+
+  capturedLlmCall = null;
+  const turn2 = await handleChat(db, 'explain with an example', studentContext, history, convId, {
+    chapterContext,
+    generateReply: mockGenerateReply
+  });
+
+  assert.equal(turn2.intent, 'study_partner');
+  assert.ok(capturedLlmCall, 'Mock LLM must be called');
+
+  // Requirement 3: Mock LLM receives "explain with an example" as raw reply / instruction
+  const receivedMessage = String(capturedLlmCall.message || '');
+  const receivedPrompt = String(capturedLlmCall.systemPrompt || '');
+  assert.ok(
+    receivedMessage.includes('explain with an example') || receivedPrompt.includes('explain with an example'),
+    'Mock LLM must receive student\'s raw text "explain with an example"'
+  );
+  assert.match(receivedMessage, /Student's raw input: "explain with an example"/);
+  assert.match(receivedMessage, /Student requested remediation\/example: "explain with an example"/);
 });
 
 test('5-step Java Unit 2 session with short-text mock confirms retry path fires on all steps, sends synthetic instruction & limits history', async () => {
@@ -302,4 +448,81 @@ test('5-step Java Unit 2 session with short-text mock confirms retry path fires 
   // Confirm retry path fired on all 5 steps (5 initial calls + 5 retry calls = 10 total calls)
   assert.equal(retryCount, 5, 'Retry path must fire exactly once on each of the 5 steps');
   assert.equal(llmCalls.length, 10, 'Expected exactly 10 LLM calls (5 initial short + 5 expanded retries)');
+});
+
+test('Prompt attribution & praise rules: syllabus fallback when no notes vs note citation + beyond your notes, and neutral praise rule', () => {
+  const { buildStudyPartnerLlmPrompt } = require('../lib/study-partner-engine');
+
+  const session = {
+    subject_code: 'CIT122',
+    subject: 'Computer Programming II (Java)',
+    semester_no: 2,
+    unit_number: 2,
+    chapter_title: 'Introduction to Java'
+  };
+
+  const step = {
+    stepIndex: 1,
+    topicTitle: 'Java Overview and Environment'
+  };
+
+  const studentEval = {
+    studentReply: 'haan',
+    feedback: 'Got it, let’s keep going to the next concept.'
+  };
+
+  // Case A: No note chunks
+  const promptNoNotes = buildStudyPartnerLlmPrompt({
+    session,
+    step,
+    topics: [step],
+    noteChunks: [],
+    studentAnswerEvaluation: studentEval
+  });
+
+  assert.ok(
+    promptNoNotes.includes('No teacher notes were found for this topic, so this is from the standard syllabus.'),
+    'Prompt without notes must require starting with standard syllabus line'
+  );
+  assert.ok(
+    !promptNoNotes.includes('Beyond your notes:*'),
+    'Prompt without notes must NOT instruct or use "Beyond your notes"'
+  );
+  assert.ok(
+    promptNoNotes.includes('Only praise the student if they actually answered the checkpoint question with explanation or substance'),
+    'Prompt must include rule to only praise substantive answers and suppress praise for yes/ok/next/haan'
+  );
+
+  // Case B: With note chunks
+  const noteChunks = [
+    {
+      id: 'chunk_java_1',
+      file_title: 'Java Fundamentals Lecture 02',
+      page_start: 3,
+      page_end: 4,
+      clean_content: 'Java source code is compiled into bytecode (.class files) by the javac compiler.'
+    }
+  ];
+
+  const promptWithNotes = buildStudyPartnerLlmPrompt({
+    session,
+    step,
+    topics: [step],
+    noteChunks,
+    studentAnswerEvaluation: studentEval
+  });
+
+  assert.ok(
+    promptWithNotes.includes('Java Fundamentals Lecture 02') && promptWithNotes.includes('Page 3'),
+    'Prompt with notes must include file title and page in excerpts'
+  );
+  assert.ok(
+    promptWithNotes.includes('Beyond your notes:*'),
+    'Prompt with notes must specify "Beyond your notes" attribution rule for extra material'
+  );
+  assert.ok(
+    promptWithNotes.includes('Ground your explanation directly in the teacher note excerpts') ||
+    promptWithNotes.includes('Ground your explanation in the note excerpts'),
+    'Prompt with notes must instruct grounding and citing notes'
+  );
 });

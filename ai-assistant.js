@@ -988,25 +988,24 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
     const chapReasoning = analyzeChapterStudentQuestion(message, cleanHistory, []);
 
+    const lastAssistantMsg = [...cleanHistory].reverse().find((h) => h.role === 'assistant' || h.role === 'model');
+    const lastWasLesson = Boolean(
+      lastAssistantMsg &&
+      typeof lastAssistantMsg.content === 'string' &&
+      lastAssistantMsg.content.includes('study_session')
+    );
+
     let hasActiveConvStudySession = false;
     if (db && typeof db.get === 'function') {
       try {
         const convId = sessionId || options?.conversationId || null;
-        const spStudentId = academicContext?.studentId || studentInfo?.studentId || null;
-        let activeRow = null;
         if (convId && convId !== 'default' && convId !== 'anonymous') {
-          activeRow = await db.get(
+          const activeRow = await db.get(
             `SELECT id FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE' LIMIT 1`,
             convId
           );
+          hasActiveConvStudySession = Boolean(activeRow);
         }
-        if (!activeRow && spStudentId && spStudentId !== 'anonymous_student') {
-          activeRow = await db.get(
-            `SELECT id FROM study_partner_sessions WHERE student_id = ? AND status = 'ACTIVE' LIMIT 1`,
-            spStudentId
-          );
-        }
-        hasActiveConvStudySession = Boolean(activeRow);
       } catch (_) {}
     }
 
@@ -1017,9 +1016,9 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       /^(?:what|why|how|when|where|who|which|is|are|can|could|kasto|kina|kahile|kasari|ke)\b/i.test(trimmedMsg);
     const isShortNonQuestion = wordCount > 0 && wordCount <= 4 && !isQuestion;
 
-    const shouldStepOrAdvanceSession = isSteppingRegex || (hasActiveConvStudySession && isShortNonQuestion);
+    const shouldStepOrAdvanceSession = hasActiveConvStudySession && (isSteppingRegex || (isShortNonQuestion && lastWasLesson));
 
-    if (route.kind === 'study_partner' || chapReasoning.isExplicitChapterTeachRequest || (hasActiveConvStudySession && shouldStepOrAdvanceSession)) {
+    if (route.kind === 'study_partner' || chapReasoning.isExplicitChapterTeachRequest || shouldStepOrAdvanceSession) {
       route.kind = 'study_partner';
       route.isNewSession = Boolean(chapReasoning.isExplicitChapterTeachRequest);
       route.isFollowUp = Boolean(!chapReasoning.isExplicitChapterTeachRequest && hasActiveConvStudySession);
@@ -1070,7 +1069,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
   // DB-backed Study Partner Follow-up Recovery:
   // If routeQuery returned 'scope_check' (e.g. short 1-word answer like "p" when history lacked assistant turns),
-  // check if this conversation/student has an ACTIVE study_partner_sessions row.
+  // check if this conversation/student has an ACTIVE study_partner_sessions row and the previous turn was a lesson.
   if (route.kind === 'scope_check' && db && typeof db.get === 'function') {
     const { NON_BIT_ACADEMIC_OR_CODE } = require('./lib/chat-tools');
     if (!NON_BIT_ACADEMIC_OR_CODE.test(message) && !isInstitutionalOrAdminQuery) {
@@ -1084,13 +1083,13 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
             spConvId
           );
         }
-        if (!dbActiveSess && spStudentId !== 'anonymous_student') {
+        if (!dbActiveSess && spStudentId && spStudentId !== 'anonymous_student') {
           dbActiveSess = await db.get(
             `SELECT id FROM study_partner_sessions WHERE student_id = ? AND status = 'ACTIVE' ORDER BY updated_at DESC LIMIT 1`,
             spStudentId
           );
         }
-        if (dbActiveSess) {
+        if (dbActiveSess && lastWasLesson) {
           route.kind = 'study_partner';
           route.isFollowUp = true;
           route.isNewSession = false;
@@ -1135,7 +1134,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           conversationId
         );
       }
-      if (!activeSession) {
+      if (!activeSession && studentId && studentId !== 'anonymous_student') {
         activeSession = await db.get(
           `SELECT * FROM study_partner_sessions
            WHERE student_id = ? AND status = 'ACTIVE'
@@ -1207,7 +1206,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         });
       } else {
         let evalResult = { passed: true };
-        if (studentIntent.intent === 'answer_attempt') {
+        if (studentIntent.intent === 'answer_attempt' || studentIntent.intent === 'advance_directly') {
           evalResult = evaluateCheckpointReply(message, currentTopic, effectiveCheckpoint);
 
           if (!evalResult.passed && canSynthesizeWithLlm && typeof llmGenerateFn === 'function' && lastAssistantMsg) {
@@ -1398,11 +1397,25 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           : Number(renderedSession.total_steps || renderedSession.totalSteps || 1);
         const currentTopicTitle = renderedStep.topicTitle || renderedStep.topic_title || 'Topic';
 
-        // Requirement 2: Send synthetic instruction message instead of raw student text, and limit history to last 2 turns
-        const syntheticInstruction = `Teach Step ${currentStepNum} of ${totalStepsCount}: "${currentTopicTitle}" in depth according to the active study session and curriculum.`;
+        const trimmedOriginal = String(originalMessage || '').trim();
+        const isExampleOrRemediationRequest = isRemediationTurn ||
+          /\b(?:example|worked\s+example|code\s+example|demo|sample|instance|bujhina|confused|explain\s+(?:more|again|further))\b/i.test(trimmedOriginal);
+
+        const instructionLines = [
+          `Teach Step ${currentStepNum} of ${totalStepsCount}: "${currentTopicTitle}" in depth according to the active study session and curriculum.`
+        ];
+
+        if (trimmedOriginal) {
+          instructionLines.push(`Student's raw input: "${trimmedOriginal}"`);
+        }
+
+        if (isExampleOrRemediationRequest && trimmedOriginal) {
+          instructionLines.push(`Student requested remediation/example: "${trimmedOriginal}". Address this request directly with clear explanations and concrete examples.`);
+        }
+
+        const syntheticInstruction = instructionLines.join('\n');
         const studyHistory = Array.isArray(cleanHistory) ? cleanHistory.slice(-2) : [];
 
-        // Requirement 2: Student's reply goes only into feedbackNote
         const evalForPrompt = {
           ...(renderedEvalResult || {}),
           studentReply: originalMessage,
@@ -1443,7 +1456,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         const initialWordCount = countWords(candidateProse);
         if (candidateProse && initialWordCount < 180) {
           try {
-            const retryInstruction = `${syntheticInstruction}\n\n[CRITICAL REMINDER: Your previous response was too brief (${initialWordCount} words). A full study partner lesson requires at least 300+ words following the DEPTH RULES: 1. Analogy, 2. Technical Mechanics, 3. Code Example, 4. Tradeoffs/Pitfalls, 5. Checkpoint Question. Please expand your explanation into a complete, in-depth lesson now.]`;
+            const retryInstruction = `${syntheticInstruction}\n\n[CRITICAL REMINDER: Your previous response was too brief (${initialWordCount} words). A full study partner lesson requires at least 300+ words following the DEPTH RULES: 1. Analogy, 2. Technical Mechanics, 3. Code/Worked Example, 4. Tradeoffs/Pitfalls, 5. Checkpoint Question. Please expand your explanation into a complete, in-depth lesson now.]`;
             const retryOut = await llmGenerateFn({
               message: retryInstruction,
               history: studyHistory,

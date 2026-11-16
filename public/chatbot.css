@@ -111,7 +111,13 @@ body.kyana-workspace-body .dash-header-nav [data-role-nav][style*="display:none"
     transition: opacity 0.2s ease !important;
   }
 
-  html[data-theme="light"] body.kyana-workspace-body .lib-wordmark {
+  html[data-theme="light"] body.kyana-workspace-body .dash-header-left .lib-wordmark,
+  html[data-theme="light"] body.kyana-workspace-body .dash-header:has(.dash-header-nav) .lib-wordmark,
+  html[data-theme="light"] body.kyana-workspace-body .dash-header .lib-wordmark,
+  html[data-theme="light"] body.kyana-workspace-body .lib-wordmark,
+  body.kyana-workspace-body[data-theme="light"] .dash-header-left .lib-wordmark,
+  body.kyana-workspace-body[data-theme="light"] .dash-header:has(.dash-header-nav) .lib-wordmark,
+  body.kyana-workspace-body[data-theme="light"] .lib-wordmark {
     color: #1d1d1f !important;
   }
 
@@ -263,26 +269,27 @@ html[data-theme="light"] .kyana-ambient-page-aura {
 .kyana-sidebar-brand-mark {
   width: 26px;
   height: 26px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--ky-border);
+  border-radius: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 html[data-theme="light"] .kyana-sidebar-brand-mark {
-  background: #ffffff;
-  border-color: rgba(15, 23, 42, 0.1);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .kyana-sidebar-brand-mark img {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(66, 133, 244, 0.35));
 }
 
 .kyana-brand-name {
@@ -876,12 +883,12 @@ html[data-theme="light"] .kyana-app.has-messages .kyana-composer-container {
 
 .kyana-aura-container {
   position: relative !important;
-  width: 112px !important;
-  height: 112px !important;
+  width: 104px !important;
+  height: 104px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  margin: 0 auto 14px !important;
+  margin: 0 auto 12px !important;
   pointer-events: none !important;
 }
 
@@ -897,226 +904,147 @@ html[data-theme="light"] .kyana-app.has-messages .kyana-composer-container {
   width: 96px !important;
   height: 96px !important;
   border-radius: 50% !important;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.14) 0%, rgba(165, 180, 252, 0.05) 45%, transparent 72%) !important;
-  filter: blur(14px) !important;
-  animation: kyanaAuraBreathe 5.5s ease-in-out infinite alternate !important;
-  transition: opacity 0.35s ease, transform 0.35s ease, background 0.35s ease !important;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(66, 133, 244, 0.34) 0%,
+    rgba(155, 114, 203, 0.26) 38%,
+    rgba(217, 101, 112, 0.16) 64%,
+    transparent 80%
+  ) !important;
+  filter: blur(18px) !important;
+  animation: kyanaGeminiAuraBreathe 5s ease-in-out infinite alternate !important;
+  transition: opacity 0.35s ease, transform 0.35s ease, filter 0.35s ease !important;
 }
 
 .kyana-aura-layer-smoke,
 .kyana-aura-layer-silver {
-  width: 120px;
-  height: 120px;
-  background: radial-gradient(circle at center, rgba(148, 163, 184, 0.06) 0%, transparent 68%);
-  filter: blur(18px);
-  animation: kyanaHazeDrift 7s ease-in-out infinite alternate;
-}
-
-/* Precision Orbital Rings around New Chat Hero Logo */
-.kyana-orbital-ring {
-  position: absolute;
-  width: 94px;
-  height: 94px;
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    rgba(255, 255, 255, 0.28) 70deg,
-    rgba(165, 243, 252, 0.22) 130deg,
-    transparent 200deg,
-    rgba(196, 181, 253, 0.2) 280deg,
-    transparent 360deg
+  width: 124px;
+  height: 124px;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(56, 189, 248, 0.16) 0%,
+    rgba(168, 85, 247, 0.12) 48%,
+    transparent 74%
   );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1px));
-  animation: kyanaOrbitSpin 9s linear infinite;
-  opacity: 0.75;
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  filter: blur(22px);
+  animation: kyanaHazeDrift 6.5s ease-in-out infinite alternate;
 }
 
-.kyana-orbital-ring-inner {
-  position: absolute;
-  width: 82px;
-  height: 82px;
-  border-radius: 50%;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  animation: kyanaOrbitSpinReverse 14s linear infinite;
-  opacity: 0.55;
+.kyana-orbital-ring,
+.kyana-orbital-ring-inner,
+.kyana-logo-glass-sweep,
+.kyana-hero-pill,
+.kyana-composer-mode-badge,
+#kyanaSuggestionGrid,
+.kyana-suggestion-grid {
+  display: none !important;
 }
 
-html[data-theme="light"] .kyana-orbital-ring {
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    rgba(15, 23, 42, 0.22) 70deg,
-    rgba(59, 130, 246, 0.25) 130deg,
-    transparent 200deg,
-    rgba(99, 102, 241, 0.22) 280deg,
-    transparent 360deg
-  );
-  opacity: 0.65;
-}
-
-html[data-theme="light"] .kyana-orbital-ring-inner {
-  border-color: rgba(15, 23, 42, 0.1);
-}
-
-@keyframes kyanaOrbitSpin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@keyframes kyanaOrbitSpinReverse {
-  0% { transform: rotate(360deg); }
-  100% { transform: rotate(0deg); }
-}
-
-.kyana-hero-logo-wrap {
+.kyana-hero-logo-wrap,
+html[data-theme="light"] .kyana-hero-logo-wrap,
+body[data-theme="light"] .kyana-hero-logo-wrap {
   position: relative !important;
   z-index: 2 !important;
-  width: 68px !important;
-  height: 68px !important;
-  border-radius: 22px !important;
-  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02) 70%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
+  width: 76px !important;
+  height: 76px !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  overflow: hidden !important;
-  animation: kyanaHeroFloat 5.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate !important;
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease, border-color 0.35s ease !important;
-}
-
-/* Clean, crisp pedestal in Light Mode (Zero muddy dark drop-shadow!) */
-html[data-theme="light"] .kyana-hero-logo-wrap {
-  background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%) !important;
-  border: 1px solid rgba(15, 23, 42, 0.1) !important;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04), inset 0 1px 0 #ffffff !important;
-  filter: none !important;
+  overflow: visible !important;
+  animation: kyanaHeroFloat 4.8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), filter 0.35s ease !important;
 }
 
 .kyana-welcome-logo {
-  width: 52px !important;
-  height: 52px !important;
+  width: 72px !important;
+  height: 72px !important;
   object-fit: contain !important;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
-  animation: kyanaHeroIdleBreathe 5.5s ease-in-out infinite;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  filter: drop-shadow(0 8px 22px rgba(66, 133, 244, 0.38)) drop-shadow(0 2px 10px rgba(155, 114, 203, 0.28));
+  animation: kyanaGeminiHeroMotion 7s ease-in-out infinite;
 }
 
 html[data-theme="light"] .kyana-welcome-logo {
-  filter: drop-shadow(0 2px 6px rgba(15, 23, 42, 0.14));
+  filter: drop-shadow(0 8px 20px rgba(66, 133, 244, 0.28)) drop-shadow(0 2px 8px rgba(155, 114, 203, 0.22));
 }
 
-.kyana-logo-glass-sweep {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: linear-gradient(115deg, transparent 28%, rgba(255, 255, 255, 0.22) 50%, transparent 72%);
-  background-size: 250% 250%;
-  animation: kyanaGlassSweep 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  opacity: 0.65;
-}
-
-@keyframes kyanaGlassSweep {
-  0% { background-position: -130% -130%; }
-  38%, 100% { background-position: 230% 230%; }
-}
-
-@keyframes kyanaHeroIdleBreathe {
-  0%, 100% { transform: scale(0.98) rotate(0deg); }
-  50% { transform: scale(1.03) rotate(2deg); }
+@keyframes kyanaGeminiHeroMotion {
+  0%, 100% {
+    transform: scale(0.98) rotate(0deg);
+    filter: drop-shadow(0 8px 22px rgba(66, 133, 244, 0.38)) drop-shadow(0 2px 10px rgba(155, 114, 203, 0.28)) hue-rotate(0deg);
+  }
+  50% {
+    transform: scale(1.05) rotate(4deg);
+    filter: drop-shadow(0 10px 26px rgba(155, 114, 203, 0.44)) drop-shadow(0 4px 12px rgba(56, 189, 248, 0.34)) hue-rotate(18deg);
+  }
 }
 
 @keyframes kyanaHeroFloat {
-  0% { transform: translateY(0px) scale(1); }
-  50% { transform: translateY(-4px) scale(1.015); }
-  100% { transform: translateY(-7px) scale(1.025); }
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-5px); }
+  100% { transform: translateY(-8px); }
 }
 
-@keyframes kyanaAuraBreathe {
-  0% { transform: scale(0.94); opacity: 0.65; }
-  100% { transform: scale(1.12); opacity: 1; }
+@keyframes kyanaGeminiAuraBreathe {
+  0% { transform: scale(0.92) rotate(0deg); opacity: 0.72; }
+  100% { transform: scale(1.18) rotate(25deg); opacity: 1; }
 }
 
 @keyframes kyanaHazeDrift {
-  0% { transform: translate(-2px, -2px) scale(0.98); }
-  100% { transform: translate(2px, 2px) scale(1.03); }
+  0% { transform: translate(-3px, -2px) scale(0.96); }
+  100% { transform: translate(3px, 2px) scale(1.06); }
 }
 
-/* Interactive Aura Elevation when user focuses composer */
+/* Interactive Gemini Aura Elevation when user focuses composer */
 .kyana-app.composer-focused .kyana-aura-layer-white {
   opacity: 1 !important;
-  transform: scale(1.25) !important;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.2) 0%, rgba(103, 216, 255, 0.08) 45%, transparent 72%) !important;
+  transform: scale(1.32) !important;
+  filter: blur(20px) !important;
 }
 
-.kyana-app.composer-focused .kyana-orbital-ring {
-  opacity: 1 !important;
-  animation-duration: 4.5s !important;
-  transform: scale(1.06);
-}
-
-.kyana-app.composer-focused .kyana-hero-logo-wrap {
-  transform: translateY(-5px) scale(1.04) !important;
-  border-color: rgba(255, 255, 255, 0.26) !important;
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 0 24px rgba(255, 255, 255, 0.1) !important;
-}
-
+.kyana-app.composer-focused .kyana-hero-logo-wrap,
 html[data-theme="light"] .kyana-app.composer-focused .kyana-hero-logo-wrap {
-  border-color: rgba(15, 23, 42, 0.18) !important;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12), 0 0 0 4px rgba(15, 23, 42, 0.03) !important;
+  transform: translateY(-6px) scale(1.06) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
-/* Hero Badge Pill */
-.kyana-hero-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--ky-border);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--ky-text-secondary);
-  margin-bottom: 12px;
+/* Google Gemini-Inspired Flowing Gradient Greeting */
+@keyframes kyanaGeminiGradientFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-html[data-theme="light"] .kyana-hero-pill {
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.08);
-  color: #475569;
-}
-
-.kyana-hero-pill-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
-  animation: kyanaPulse 2.4s ease-in-out infinite;
-}
-
-/* Personalized Welcome Typography */
 .kyana-welcome-heading,
 .kyana-app.is-empty .kyana-welcome-heading {
   font-family: var(--ky-font-brand) !important;
-  font-size: 32px !important;
+  font-size: 34px !important;
   font-weight: 700 !important;
   letter-spacing: -0.03em !important;
-  color: var(--ky-text-primary) !important;
-  margin: 0 0 6px !important;
-  line-height: 1.2 !important;
+  margin: 0 0 8px !important;
+  line-height: 1.22 !important;
   text-align: center !important;
+  background: linear-gradient(90deg, #4285f4 0%, #9b72cb 35%, #d96570 68%, #38bdf8 100%) !important;
+  background-size: 200% auto !important;
+  color: transparent !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  animation: kyanaGeminiGradientFlow 6s ease infinite !important;
 }
 
 .kyana-welcome-sub,
 .kyana-app.is-empty .kyana-welcome-sub {
   font-family: var(--ky-font-sans) !important;
-  font-size: 14.5px !important;
+  font-size: 15px !important;
   font-weight: 400 !important;
   color: var(--ky-text-secondary) !important;
   max-width: 540px !important;
@@ -1519,11 +1447,17 @@ html[data-theme="light"] .kyana-card-desc {
 }
 
 html[data-theme="light"] .kyana-aura-layer-white {
-  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.06) 0%, transparent 70%) !important;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(66, 133, 244, 0.24) 0%,
+    rgba(155, 114, 203, 0.2) 40%,
+    rgba(217, 101, 112, 0.12) 68%,
+    transparent 82%
+  ) !important;
 }
 
 /* ==========================================================================
-   Living Kyana Logo Component & Answering/Streaming Motion System (Gemini-Style)
+   Borderless Gradient Kyana Logo & Gemini-Style Answering Motion System
    ========================================================================== */
 .kyana-logo-comp {
   position: relative;
@@ -1533,6 +1467,9 @@ html[data-theme="light"] .kyana-aura-layer-white {
   vertical-align: middle;
   flex-shrink: 0;
   user-select: none;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .kyana-logo-glass-frame {
@@ -1542,8 +1479,11 @@ html[data-theme="light"] .kyana-aura-layer-white {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  border-radius: 30%;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   z-index: 2;
 }
 
@@ -1553,128 +1493,86 @@ html[data-theme="light"] .kyana-aura-layer-white {
   object-fit: contain;
   display: block;
   pointer-events: none;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  filter: drop-shadow(0 2px 8px rgba(66, 133, 244, 0.32));
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), filter 0.35s ease;
 }
 
 .kyana-logo-aura {
   position: absolute;
-  inset: -28%;
+  inset: -38%;
   border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.14) 0%, rgba(147, 197, 253, 0.08) 45%, transparent 80%);
-  filter: blur(6px);
-  opacity: 0.45;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(66, 133, 244, 0.45) 0%,
+    rgba(155, 114, 203, 0.35) 45%,
+    rgba(217, 101, 112, 0.2) 70%,
+    transparent 85%
+  );
+  filter: blur(7px);
+  opacity: 0.4;
   z-index: 0;
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
 
-/* Gemini-Style Orbital Ring around Thinking & Streaming Kyana Logo */
-.kyana-logo-orbit-ring {
-  position: absolute;
-  inset: -18%;
-  border-radius: 50%;
-  pointer-events: none;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    rgba(255, 255, 255, 0.75) 80deg,
-    rgba(103, 216, 255, 0.65) 150deg,
-    rgba(185, 156, 255, 0.55) 220deg,
-    transparent 310deg,
-    transparent 360deg
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.8px), #000 calc(100% - 1.2px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 1.8px), #000 calc(100% - 1.2px));
-  opacity: 0;
-  transform: scale(0.88);
-  z-index: 1;
-  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-html[data-theme="light"] .kyana-logo-orbit-ring {
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    rgba(15, 23, 42, 0.75) 80deg,
-    rgba(37, 99, 235, 0.65) 150deg,
-    rgba(124, 58, 237, 0.55) 220deg,
-    transparent 310deg,
-    transparent 360deg
-  );
-}
-
+.kyana-logo-orbit-ring,
 .kyana-logo-highlight-sweep {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.3) 50%, transparent 80%);
-  transform: translateX(-150%) rotate(25deg);
-  opacity: 0;
+  display: none !important;
 }
 
-/* Active Thinking & Streaming Logo Animation (Gemini-Caliber Living Emblem) */
-.kyana-logo-thinking .kyana-logo-orbit-ring,
-.kyana-response-row.is-streaming .kyana-logo-orbit-ring {
-  opacity: 1;
-  transform: scale(1);
-  animation: kyanaOrbitSpin 1.8s linear infinite;
-}
-
+/* Active Thinking & Answering Logo Motion (Google Gemini Spectrum Pulse & Spin) */
 .kyana-logo-thinking .kyana-logo-aura,
 .kyana-response-row.is-streaming .kyana-logo-aura {
-  inset: -45%;
-  filter: blur(8px);
-  opacity: 0.95;
-  animation: kyanaMonoAuraPulse 2.2s ease-in-out infinite;
+  inset: -55%;
+  filter: blur(9px);
+  opacity: 1;
+  animation: kyanaGeminiAuraPulse 1.8s ease-in-out infinite;
 }
 
 .kyana-logo-thinking .kyana-logo-img,
 .kyana-response-row.is-streaming .kyana-logo-img {
-  animation: kyanaAnsweringMotion 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: kyanaGeminiAnsweringMotion 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   will-change: transform, filter;
 }
 
-.kyana-logo-thinking .kyana-logo-highlight-sweep,
-.kyana-response-row.is-streaming .kyana-logo-highlight-sweep {
-  animation: kyanaHighlightSweep 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  will-change: transform, opacity;
+@keyframes kyanaGeminiAnsweringMotion {
+  0% {
+    transform: scale(0.88) rotate(0deg);
+    filter: drop-shadow(0 0 10px rgba(66, 133, 244, 0.65)) hue-rotate(0deg);
+  }
+  35% {
+    transform: scale(1.12) rotate(14deg);
+    filter: drop-shadow(0 0 14px rgba(155, 114, 203, 0.75)) hue-rotate(24deg);
+  }
+  70% {
+    transform: scale(1.04) rotate(-8deg);
+    filter: drop-shadow(0 0 12px rgba(217, 101, 112, 0.65)) hue-rotate(-16deg);
+  }
+  100% {
+    transform: scale(0.88) rotate(0deg);
+    filter: drop-shadow(0 0 10px rgba(66, 133, 244, 0.65)) hue-rotate(0deg);
+  }
 }
 
-@keyframes kyanaAnsweringMotion {
-  0% { transform: scale(0.92) rotate(0deg); filter: brightness(0.96); }
-  35% { transform: scale(1.06) rotate(8deg); filter: brightness(1.12); }
-  65% { transform: scale(1.02) rotate(-5deg); filter: brightness(1.06); }
-  100% { transform: scale(0.92) rotate(0deg); filter: brightness(0.96); }
-}
-
-@keyframes kyanaHighlightSweep {
-  0% { transform: translateX(-140%) rotate(25deg); opacity: 0; }
-  25% { opacity: 0.32; }
-  60% { transform: translateX(140%) rotate(25deg); opacity: 0.32; }
-  100% { transform: translateX(140%) rotate(25deg); opacity: 0; }
-}
-
-@keyframes kyanaMonoAuraPulse {
-  0%, 100% { transform: scale(0.92); opacity: 0.5; }
-  50% { transform: scale(1.18); opacity: 0.95; }
+@keyframes kyanaGeminiAuraPulse {
+  0%, 100% {
+    transform: scale(0.88) rotate(0deg);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.28) rotate(180deg);
+    opacity: 1;
+  }
 }
 
 .kyana-logo-animated .kyana-logo-img {
-  animation: kyanaHeroIdleBreathe 6.5s ease-in-out infinite;
+  animation: kyanaGeminiHeroMotion 6.5s ease-in-out infinite;
 }
 
-.kyana-logo-animated .kyana-logo-highlight-sweep {
-  animation: kyanaHeroHighlightSlow 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-}
-
-@keyframes kyanaHeroHighlightSlow {
-  0% { transform: translateX(-150%) rotate(25deg); opacity: 0; }
-  35% { opacity: 0.14; }
-  65% { transform: translateX(150%) rotate(25deg); opacity: 0.14; }
-  100% { transform: translateX(150%) rotate(25deg); opacity: 0; }
-}
-
-/* Thinking Indicator Row (Pre-Token Gemini Shimmer + Animated Dots) */
+/* Thinking Indicator Row (Gemini Flowing Gradient Text + Wave Dots) */
 .kyana-thinking-wrap {
   display: flex;
   align-items: center;
@@ -1702,16 +1600,16 @@ html[data-theme="light"] .kyana-logo-orbit-ring {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13.5px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   letter-spacing: -0.01em;
   user-select: none;
-  background: linear-gradient(90deg, var(--ky-text-secondary) 0%, var(--ky-text-primary) 50%, var(--ky-text-secondary) 100%);
+  background: linear-gradient(90deg, #4285f4 0%, #9b72cb 38%, #d96570 72%, #4285f4 100%);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: kyanaTextShimmer 2.4s linear infinite;
+  animation: kyanaTextShimmer 2.2s linear infinite;
 }
 
 @keyframes kyanaTextShimmer {
@@ -1729,12 +1627,18 @@ html[data-theme="light"] .kyana-logo-orbit-ring {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background-color: var(--ky-text-secondary);
+  background-color: #9b72cb;
   animation: kyanaWaveDot 1.3s ease-in-out infinite;
 }
 
-.kyana-thinking-dots span:nth-child(2) { animation-delay: 0.18s; }
-.kyana-thinking-dots span:nth-child(3) { animation-delay: 0.36s; }
+.kyana-thinking-dots span:nth-child(2) {
+  background-color: #4285f4;
+  animation-delay: 0.18s;
+}
+.kyana-thinking-dots span:nth-child(3) {
+  background-color: #d96570;
+  animation-delay: 0.36s;
+}
 
 @keyframes kyanaWaveDot {
   0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
@@ -1794,35 +1698,33 @@ html[data-theme="light"] .kyana-logo-orbit-ring {
   animation: kyanaMessageSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Assistant Response Header with Animated Kyana Emblem */
+/* Assistant Response Header with Borderless Animated Gradient Kyana Emblem */
 .kyana-response-header {
   display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 9px !important;
   margin-bottom: 10px !important;
   user-select: none !important;
 }
 
-.kyana-response-avatar {
+.kyana-response-avatar,
+html[data-theme="light"] .kyana-response-avatar,
+body[data-theme="light"] .kyana-response-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 26px;
   height: 26px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--ky-border);
+  border-radius: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   flex-shrink: 0;
-}
-
-html[data-theme="light"] .kyana-response-avatar {
-  background: #f8fafc;
-  border-color: rgba(15, 23, 42, 0.09);
 }
 
 .kyana-response-author {
   font-family: var(--ky-font-brand);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--ky-text-primary);
@@ -1834,11 +1736,15 @@ html[data-theme="light"] .kyana-response-avatar {
   gap: 5px;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--ky-text-secondary);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--ky-border);
+  background: linear-gradient(90deg, #4285f4 0%, #9b72cb 45%, #d96570 90%, #4285f4 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  border: none;
+  animation: kyanaTextShimmer 2s linear infinite;
 }
 
 .kyana-response-live-badge::before {
@@ -1846,9 +1752,9 @@ html[data-theme="light"] .kyana-response-avatar {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: 0 0 6px #38bdf8;
-  animation: kyanaPulse 1.2s ease-in-out infinite;
+  background: #4285f4;
+  box-shadow: 0 0 8px #9b72cb;
+  animation: kyanaPulse 1.1s ease-in-out infinite;
 }
 
 .kyana-response-row.is-streaming .kyana-response-live-badge {

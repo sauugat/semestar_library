@@ -2276,15 +2276,10 @@
     }
   };
 
-  // KyanaLogo Component (Official Monochrome Glass-Ribbon Identity with Gemini-Style Orbital Motion)
+  // KyanaLogo Component (Borderless Gradient 3D Ribbon Identity with Gemini-Style Spectrum Motion)
   const KyanaLogo = {
     render({ size = 28, animated = false, thinking = false, className = '', alt = 'Kyana AI' } = {}) {
-      let src = '/images/kyana-mono-header.png';
-      if (size >= 64) {
-        src = '/images/kyana-mono-hero.png';
-      } else if (thinking || size <= 28) {
-        src = '/images/kyana-mono-thinking.png';
-      }
+      const src = '/images/kyana-logo-hero.png';
 
       const classes = [
         'kyana-logo-comp',
@@ -2296,10 +2291,8 @@
       return `
         <span class="${classes}" style="width: ${size}px; height: ${size}px;" role="img" aria-label="${escapeHtml(alt)}">
           <span class="kyana-logo-aura" aria-hidden="true"></span>
-          <span class="kyana-logo-orbit-ring" aria-hidden="true"></span>
           <span class="kyana-logo-glass-frame">
             <img class="kyana-logo-img" src="${src}" alt="${escapeHtml(alt)}" width="${size}" height="${size}" />
-            <span class="kyana-logo-highlight-sweep" aria-hidden="true"></span>
           </span>
         </span>
       `.trim();
@@ -3289,7 +3282,7 @@
     }
   };
 
-  // Sync conversations from server for authenticated students
+  // Sync conversations from server for authenticated students (always start in a fresh New Chat)
   async function syncServerConversations() {
     try {
       const headers = {};
@@ -3311,32 +3304,12 @@
               messages: []
             };
             const all = SessionStore.getAll();
-            all.unshift(local);
+            all.push(local);
             SessionStore.saveAll(all);
             changed = true;
           }
         }
         if (changed) renderHistoryList();
-        const activeId = SessionStore.getActiveId() || serverConvs[0].id;
-        if (activeId) {
-          const msgRes = await fetch('/api/ai/conversations/' + encodeURIComponent(activeId) + '/messages', { headers });
-          if (msgRes.ok) {
-            const data = await msgRes.json();
-            const msgs = data.messages || [];
-            const current = SessionStore.get(activeId);
-            if (current && msgs.length > 0) {
-              current.messages = msgs.map(m => ({
-                ...m.metadata,
-                id: m.id,
-                role: m.sender === 'user' ? 'user' : 'assistant',
-                content: m.text,
-                timestamp: new Date(m.createdAt).getTime() || Date.now()
-              }));
-              SessionStore.update(current);
-              loadSession(activeId);
-            }
-          }
-        }
       }
     } catch (_) {}
   }

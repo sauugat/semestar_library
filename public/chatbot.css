@@ -1,14 +1,16 @@
-:root{--ky-font-brand:"Plus Jakarta Sans","Outfit",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--ky-font-sans:"Inter","Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--ky-font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;--ky-bg:#09090b;--ky-sidebar-bg:#0d0d0f;--ky-sidebar-hover:#151518;--ky-sidebar-active:#1c1c20;--ky-surface:#141416;--ky-surface-raised:#19191d;--ky-surface-card:#141416;--ky-surface-hover:#1c1c20;--ky-user-bubble:#19191d;--ky-code-bg:#0d0d0f;--ky-code-inline-bg:rgba(255,255,255,0.08);--ky-border:rgba(255,255,255,0.08);--ky-border-subtle:rgba(255,255,255,0.05);--ky-border-strong:rgba(255,255,255,0.16);--ky-text-primary:#f4f4f5;--ky-text-secondary:#a1a1aa;--ky-text-muted:#71717a;--ky-text-subtle:#52525b;--ky-aura-deep-blue:#165DFF;--ky-aura-royal-blue:#2E54D4;--ky-aura-cyan:#67D8FF;--ky-aura-white:#E7F4FF;--ky-aura-lavender:#B99CFF;--ky-aura-violet:#6552E8;--ky-sidebar-width:250px;--ky-header-height:52px;--ky-reading-width:820px;--ky-composer-empty-width:680px}:root[data-theme="light"],html[data-theme="light"],body[data-theme="light"]{--ky-bg:#ffffff;--ky-sidebar-bg:#f8f9fa;--ky-sidebar-hover:#edf0f3;--ky-sidebar-active:#e2e6eb;--ky-surface:#f4f5f7;--ky-surface-raised:#ffffff;--ky-surface-card:#f8f9fa;--ky-surface-hover:#eceef1;--ky-user-bubble:#e8eaee;--ky-code-bg:#181920;--ky-code-inline-bg:rgba(0,0,0,0.06);--ky-border:rgba(0,0,0,0.08);--ky-border-subtle:rgba(0,0,0,0.05);--ky-border-strong:rgba(0,0,0,0.15);--ky-text-primary:#121316;--ky-text-secondary:#52525b;--ky-text-muted:#71717a;--ky-text-subtle:#a1a1aa}html.kyana-workspace-html,html:has(body.kyana-workspace-body){margin:0;padding:0;width:100%;height:100%;height:100dvh;overflow:hidden}body.kyana-workspace-body{margin:0;padding:0;width:100%;height:100%;height:100dvh;max-height:100dvh;overflow:hidden;display:flex;flex-direction:column;background-color:var(--ky-bg);color:var(--ky-text-primary);font-family:var(--ky-font-sans);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
-/* Universal Top-Level Header Branding & Sidebar Button Alignment */
+:root{--ky-font-brand:"Plus Jakarta Sans","Outfit",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--ky-font-sans:"Inter","Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;--ky-font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;--ky-bg:#09090b;--ky-sidebar-bg:#0c0c0f;--ky-sidebar-hover:#15161b;--ky-sidebar-active:#1c1d24;--ky-surface:#131418;--ky-surface-raised:#191a20;--ky-surface-card:#141519;--ky-surface-hover:#1e1f26;--ky-user-bubble:#191a20;--ky-code-bg:#0d0d0f;--ky-code-inline-bg:rgba(255,255,255,0.08);--ky-border:rgba(255,255,255,0.08);--ky-border-subtle:rgba(255,255,255,0.05);--ky-border-strong:rgba(255,255,255,0.16);--ky-text-primary:#f4f4f5;--ky-text-secondary:#a1a1aa;--ky-text-muted:#71717a;--ky-text-subtle:#52525b;--ky-aura-deep-blue:#165DFF;--ky-aura-royal-blue:#2E54D4;--ky-aura-cyan:#67D8FF;--ky-aura-white:#E7F4FF;--ky-aura-lavender:#B99CFF;--ky-aura-violet:#6552E8;--ky-sidebar-width:260px;--ky-header-height:60px;--ky-reading-width:820px;--ky-composer-empty-width:740px}:root[data-theme="light"],html[data-theme="light"],body[data-theme="light"]{--ky-bg:#ffffff;--ky-sidebar-bg:#f8f9fb;--ky-sidebar-hover:#eef0f4;--ky-sidebar-active:#e4e7ed;--ky-surface:#f4f6f9;--ky-surface-raised:#ffffff;--ky-surface-card:#f8f9fb;--ky-surface-hover:#edf0f5;--ky-user-bubble:#eef0f5;--ky-code-bg:#181920;--ky-code-inline-bg:rgba(0,0,0,0.06);--ky-border:rgba(15,23,42,0.08);--ky-border-subtle:rgba(15,23,42,0.05);--ky-border-strong:rgba(15,23,42,0.15);--ky-text-primary:#0f172a;--ky-text-secondary:#475569;--ky-text-muted:#64748b;--ky-text-subtle:#94a3b8}html.kyana-workspace-html,html:has(body.kyana-workspace-body){margin:0;padding:0;width:100%;height:100%;height:100dvh;overflow:hidden}body.kyana-workspace-body{margin:0;padding:0;width:100%;height:100%;height:100dvh;max-height:100dvh;overflow:hidden;display:flex;flex-direction:column;background-color:var(--ky-bg);color:var(--ky-text-primary);font-family:var(--ky-font-sans);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+
+/* ==========================================================================
+   Canonical Semester Library Header Alignment (Matches dashboard/library/routine)
+   ========================================================================== */
 body.kyana-workspace-body .dash-header-left {
   display: inline-flex !important;
   flex-direction: row !important;
   flex-wrap: nowrap !important;
   align-items: center !important;
-  gap: 12px !important;
+  gap: 10px !important;
   order: 1 !important;
   flex-shrink: 0 !important;
-  height: 100% !important;
 }
 
 body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn {
@@ -17,12 +19,18 @@ body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn {
   color: var(--ky-text-muted) !important;
   width: 32px !important;
   height: 32px !important;
-  border-radius: 7px !important;
+  border-radius: 8px !important;
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
   flex-shrink: 0 !important;
-  transition: color .15s ease, background-color .15s ease, border-color .15s ease !important;
+  transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, transform 0.15s ease !important;
+}
+
+body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn:hover {
+  color: var(--ky-text-primary) !important;
+  background-color: var(--ky-surface-raised) !important;
+  border-color: var(--ky-border-strong) !important;
 }
 
 /* On desktop, hide header sidebar toggle when sidebar is open; show when collapsed */
@@ -51,33 +59,7 @@ body.kyana-workspace-body .dash-header-nav [data-role-nav][style*="display:none"
   display: none !important;
 }
 
-body.kyana-workspace-body .dash-header-left .kyana-sidebar-open-btn:hover {
-  color: var(--ky-text-primary) !important;
-  background-color: var(--ky-surface-raised) !important;
-  border-color: var(--ky-border-strong) !important;
-}
-
-body.kyana-workspace-body .dash-header-left .lib-wordmark,
-body.kyana-workspace-body .dash-header:has(.dash-header-nav) .lib-wordmark,
-body.kyana-workspace-body .lib-wordmark {
-  display: inline-flex !important;
-  align-items: center !important;
-  font-family: var(--ky-font-brand) !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
-  letter-spacing: -0.02em !important;
-  color: var(--ky-text-primary) !important;
-  text-decoration: none !important;
-  white-space: nowrap !important;
-  line-height: 1 !important;
-  margin: 0 !important;
-  order: initial !important;
-  flex-shrink: 0 !important;
-}
-
-/* ==========================================================================
-   Global Header Normalization for Kyana Workspace (Single-Row Desktop)
-   ========================================================================== */
+/* Match canonical .dash-header from theme-overrides.css on Desktop */
 @media (min-width: 769px) {
   body.kyana-workspace-body.dash .dash-header,
   body.kyana-workspace-body .dash-header,
@@ -87,53 +69,50 @@ body.kyana-workspace-body .lib-wordmark {
     flex-wrap: nowrap !important;
     align-items: center !important;
     justify-content: space-between !important;
-    height: 52px !important;
-    min-height: 52px !important;
-    max-height: 52px !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    padding-left: max(18px, env(safe-area-inset-left, 18px)) !important;
-    padding-right: max(18px, env(safe-area-inset-right, 18px)) !important;
-    row-gap: 0 !important;
-    column-gap: 16px !important;
+    min-height: 60px !important;
+    padding: 12px 6vw !important;
     box-sizing: border-box !important;
-    overflow: hidden !important;
-    background: var(--ky-bg) !important;
-    background-color: var(--ky-bg) !important;
-    border-bottom: 1px solid var(--ky-border) !important;
-    border-radius: 0 !important;
-    position: relative !important;
+    background: rgba(23, 23, 23, 0.92) !important;
+    backdrop-filter: blur(28px) saturate(190%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09) !important;
+    border-radius: 0 0 20px 20px !important;
+    position: sticky !important;
+    top: 0 !important;
     z-index: 120 !important;
+    flex-shrink: 0 !important;
+    overflow: visible !important;
+    transition: background-color 0.25s ease, border-color 0.25s ease !important;
   }
 
-  /* Light mode header strictly on explicit light theme */
   html[data-theme="light"] body.kyana-workspace-body .dash-header,
   html[data-theme="light"] body.kyana-workspace-body.dash .dash-header,
   body.kyana-workspace-body[data-theme="light"] .dash-header {
-    background: #ffffff !important;
-    background-color: #ffffff !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    background: rgba(255, 255, 255, 0.88) !important;
+    border-bottom: 1px solid var(--outline-soft, rgba(20, 25, 35, 0.09)) !important;
   }
+
+  body.kyana-workspace-body .dash-header-left .lib-wordmark,
+  body.kyana-workspace-body .dash-header:has(.dash-header-nav) .lib-wordmark,
+  body.kyana-workspace-body .lib-wordmark {
+    font-family: "Plus Jakarta Sans", "Outfit", -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif !important;
+    font-size: 16.5px !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.03em !important;
+    line-height: 1 !important;
+    color: #f5f5f5 !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+    order: initial !important;
+    transition: opacity 0.2s ease !important;
+  }
+
   html[data-theme="light"] body.kyana-workspace-body .lib-wordmark {
-    color: #121316 !important;
-  }
-  html[data-theme="light"] body.kyana-workspace-body .dash-header-nav a,
-  html[data-theme="light"] body.kyana-workspace-body .header-nav-item {
-    color: #52525b !important;
-  }
-  html[data-theme="light"] body.kyana-workspace-body .dash-header-nav a:hover,
-  html[data-theme="light"] body.kyana-workspace-body .header-nav-item:hover,
-  html[data-theme="light"] body.kyana-workspace-body .header-nav-item.active {
-    color: #121316 !important;
-  }
-  html[data-theme="light"] body.kyana-workspace-body .dash-profile-chip {
-    background: #f4f5f7 !important;
-    border: 1px solid rgba(0, 0, 0, 0.08) !important;
-    color: #121316 !important;
-  }
-  html[data-theme="light"] body.kyana-workspace-body .dash-profile-avatar {
-    background: #000000 !important;
-    color: #ffffff !important;
+    color: #1d1d1f !important;
   }
 
   body.kyana-workspace-body .dash-header-nav,
@@ -145,18 +124,56 @@ body.kyana-workspace-body .lib-wordmark {
     justify-content: center !important;
     order: 2 !important;
     width: auto !important;
-    flex: 1 1 auto !important;
-    margin: 0 auto !important;
-    padding: 0 8px !important;
-    gap: 2px !important;
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-    scrollbar-width: none !important;
-    -webkit-overflow-scrolling: touch !important;
+    flex: 0 1 auto !important;
+    gap: 26px !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    position: relative !important;
+    overflow: visible !important;
   }
 
-  body.kyana-workspace-body .dash-header-nav::-webkit-scrollbar {
-    display: none !important;
+  body.kyana-workspace-body .dash-header-nav .header-nav-item {
+    display: inline-flex !important;
+    align-items: center !important;
+    color: rgba(245, 245, 245, 0.65) !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.01em !important;
+    text-decoration: none !important;
+    padding: 6px 2px !important;
+    position: relative !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    box-shadow: none !important;
+    transition: color 0.22s cubic-bezier(0.22, 1, 0.36, 1), transform 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+
+  body.kyana-workspace-body .dash-header-nav .header-nav-item:hover {
+    color: #ffffff !important;
+    background: transparent !important;
+  }
+
+  body.kyana-workspace-body .dash-header-nav .header-nav-item.active {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    background: transparent !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+  }
+
+  html[data-theme="light"] body.kyana-workspace-body .dash-header-nav .header-nav-item {
+    color: rgba(0, 0, 0, 0.62) !important;
+  }
+
+  html[data-theme="light"] body.kyana-workspace-body .dash-header-nav .header-nav-item:hover,
+  html[data-theme="light"] body.kyana-workspace-body .dash-header-nav .header-nav-item.active {
+    color: #000000 !important;
   }
 
   body.kyana-workspace-body .dash-header-actions,
@@ -168,274 +185,16 @@ body.kyana-workspace-body .lib-wordmark {
     order: 3 !important;
     margin-left: 0 !important;
     flex-shrink: 0 !important;
-    height: 100% !important;
   }
 }
 
 .kyana-header {
   display: none !important;
 }
-.kyana-app{display:flex;flex:1 1 0%;min-height:0;width:100%;height:auto;max-height:100%;overflow:hidden;position:relative;background-color:var(--ky-bg)}.kyana-ambient-page-aura{position:absolute;top:0;left:50%;transform:translateX(-50%);width:820px;height:480px;pointer-events:none;background:radial-gradient(ellipse at 50% 35%,rgba(255,255,255,0.025) 0%,transparent 55%);z-index:0}.kyana-sidebar{width:var(--ky-sidebar-width);height:100%;background-color:var(--ky-sidebar-bg);border-right:1px solid var(--ky-border);display:flex;flex-direction:column;flex-shrink:0;box-sizing:border-box;transition:transform 0.25s cubic-bezier(0.16,1,0.3,1),margin-left 0.25s cubic-bezier(0.16,1,0.3,1);z-index:100;position:relative}.kyana-app.sidebar-collapsed .kyana-sidebar{margin-left:calc(-1 * var(--ky-sidebar-width))}.kyana-sidebar-header{height:var(--ky-header-height);padding:0 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--ky-border-subtle);flex-shrink:0}.kyana-sidebar-brand{display:flex;align-items:center;text-decoration:none;color:inherit;min-width:0}.kyana-brand-name{font-family:var(--ky-font-brand);font-size:15px;font-weight:700;letter-spacing:-0.015em;color:var(--ky-text-primary);white-space:nowrap}.kyana-sidebar-toggle-btn{background:transparent;border:none;color:var(--ky-text-muted);width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:color 0.15s ease,background-color 0.15s ease}.kyana-sidebar-toggle-btn:hover{color:var(--ky-text-primary);background-color:var(--ky-sidebar-hover)}.kyana-sidebar-action-wrap{padding:12px 14px 6px;flex-shrink:0}.kyana-new-chat-btn{width:100%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:8px;background-color:var(--ky-surface-raised);color:var(--ky-text-primary);border:1px solid var(--ky-border);border-radius:8px;padding:9px 12px;font-family:var(--ky-font-brand);font-size:13.5px;font-weight:600;cursor:pointer;transition:background-color 0.15s ease,border-color 0.15s ease,transform 0.15s ease}.kyana-new-chat-btn:hover{background-color:var(--ky-sidebar-hover);border-color:var(--ky-border-strong)}.kyana-new-chat-btn:active{transform:scale(0.99)}.kyana-sidebar-search-wrap{padding:6px 14px 10px;flex-shrink:0}.kyana-search-box{position:relative;display:flex;align-items:center;background-color:var(--ky-surface);border:1px solid var(--ky-border);border-radius:6px;padding:0 8px}.kyana-search-icon{color:var(--ky-text-muted);flex-shrink:0}.kyana-search-input{width:100%;background:transparent;border:none;padding:7px 6px;font-size:12.5px;color:var(--ky-text-primary);font-family:var(--ky-font-sans);outline:none}.kyana-search-input::placeholder{color:var(--ky-text-muted)}.kyana-search-clear{background:transparent;border:none;color:var(--ky-text-muted);cursor:pointer;padding:2px;display:flex;align-items:center;justify-content:center}.kyana-search-clear:hover{color:var(--ky-text-primary)}.kyana-sidebar-history{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 8px 12px;box-sizing:border-box}.kyana-sidebar-history::-webkit-scrollbar{width:4px}.kyana-sidebar-history::-webkit-scrollbar-thumb{background:var(--ky-border);border-radius:4px}.kyana-history-group{margin-top:14px}.kyana-history-group:first-child{margin-top:6px}.kyana-group-label{padding:4px 8px 6px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--ky-text-muted)}.kyana-history-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:6px;margin-bottom:2px;cursor:pointer;color:var(--ky-text-secondary);font-size:14px;transition:background-color 0.15s ease,color 0.15s ease;position:relative;user-select:none}.kyana-history-item:hover{background-color:var(--ky-sidebar-hover);color:var(--ky-text-primary)}.kyana-history-item.active{background-color:var(--ky-sidebar-active);color:var(--ky-text-primary);font-weight:500}.kyana-history-title{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:6px}.kyana-item-menu-btn{opacity:0;pointer-events:none;background:transparent;border:none;color:var(--ky-text-muted);cursor:pointer;border-radius:4px;padding:3px;display:flex;align-items:center;justify-content:center;transition:opacity 0.15s ease,color 0.15s ease,background-color 0.15s ease}.kyana-history-item:hover .kyana-item-menu-btn,.kyana-history-item:focus-within .kyana-item-menu-btn{opacity:1;pointer-events:auto}.kyana-item-menu-btn:hover{color:var(--ky-text-primary);background-color:var(--ky-surface-raised)}.kyana-history-empty{padding:24px 10px;text-align:center;font-size:12px;color:var(--ky-text-muted)}.kyana-skeleton-item{height:28px;margin:6px 4px;background:var(--ky-surface);border-radius:4px;animation:kyanaPulse 1.5s ease-in-out infinite}@keyframes kyanaPulse{0%,100%{opacity:0.35}50%{opacity:0.7}}.kyana-sidebar-footer{padding:10px 14px 14px;border-top:1px solid var(--ky-border-subtle);display:flex;flex-direction:column;gap:8px;flex-shrink:0}.kyana-footer-portal-link{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;text-decoration:none;color:var(--ky-text-muted);font-size:12.5px;transition:background-color 0.15s ease,color 0.15s ease}.kyana-footer-portal-link:hover{background-color:var(--ky-sidebar-hover);color:var(--ky-text-primary)}.kyana-user-profile-chip{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:6px;text-decoration:none;color:inherit;transition:background-color 0.15s ease}.kyana-user-profile-chip:hover{background-color:var(--ky-sidebar-hover)}.kyana-user-avatar{width:28px;height:28px;border-radius:50%;background-color:var(--ky-surface-raised);border:1px solid var(--ky-border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--ky-text-primary);flex-shrink:0;overflow:hidden}.kyana-user-details{display:flex;flex-direction:column;min-width:0}.kyana-user-name{font-size:13px;font-weight:600;color:var(--ky-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kyana-user-meta{font-size:11px;color:var(--ky-text-muted)}.kyana-main{flex:1 1 0%;min-width:0;min-height:0;height:100%;display:flex;flex-direction:column;position:relative;background-color:var(--ky-bg);overflow:hidden}.kyana-header{width:100%;box-sizing:border-box;height:var(--ky-header-height);padding:0 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--ky-border);background-color:var(--ky-bg);flex-shrink:0;z-index:10}.kyana-header-left{display:flex;align-items:center;gap:12px;min-width:0}.kyana-sidebar-open-btn{background:transparent;border:none;color:var(--ky-text-muted);width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:color 0.15s ease,background-color 0.15s ease}.kyana-sidebar-open-btn:hover{color:var(--ky-text-primary);background-color:var(--ky-surface)}.kyana-header-brand{display:flex;align-items:center;gap:9px;min-width:0}.kyana-header-avatar{width:22px;height:22px;object-fit:contain;border-radius:4px}.kyana-header-meta{display:flex;align-items:baseline;gap:8px;white-space:nowrap}.kyana-header-title{font-family:var(--ky-font-brand);font-size:14.5px;font-weight:700;letter-spacing:-0.01em;color:var(--ky-text-primary)}.kyana-header-subtitle{font-size:11px;color:var(--ky-text-muted)}.kyana-header-right{display:flex;align-items:center;gap:8px}.kyana-theme-btn{background:transparent;border:1px solid var(--ky-border);border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ky-text-muted);transition:color 0.15s ease,border-color 0.15s ease}.kyana-theme-btn:hover{color:var(--ky-text-primary);border-color:var(--ky-border-strong)}.kyana-viewport{flex:1 1 0%;min-height:0;width:100%;overflow-y:auto;overflow-x:hidden;position:relative;display:flex;flex-direction:column}.kyana-viewport::-webkit-scrollbar{width:6px}.kyana-viewport::-webkit-scrollbar-track{background:transparent}.kyana-viewport::-webkit-scrollbar-thumb{background:var(--ky-border);border-radius:4px}.kyana-reading-column{width:100%;max-width:var(--ky-reading-width);margin:0 auto;box-sizing:border-box;display:flex;flex-direction:column;position:relative;z-index:1}.kyana-app.is-empty .kyana-main{display:flex;flex-direction:column;padding-top:0}.kyana-app.is-empty .kyana-viewport{flex:1 1 0%;min-height:0;width:100%;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;box-sizing:border-box}.kyana-app.is-empty .kyana-reading-column{width:100%;max-width:var(--ky-reading-width);padding:0 16px;margin:0 auto;display:flex;flex-direction:column;align-items:center}.kyana-app.is-empty .kyana-welcome{display:flex;flex-direction:column;align-items:center;text-align:center;margin:0;padding:0;opacity:1;transform:translateY(0);transition:opacity 0.22s ease-out,transform 0.22s ease-out}.kyana-app.is-empty .kyana-welcome.fade-out{opacity:0;transform:translateY(-8px);pointer-events:none}.kyana-app.is-empty .kyana-composer-container{position:relative;bottom:auto;left:auto;right:auto;width:100%;max-width:var(--ky-composer-empty-width,680px);margin:28px auto 0;padding:0;background:transparent;pointer-events:auto;z-index:30}.kyana-app.is-empty .kyana-composer-inner{max-width:100%;width:100%}.kyana-app.is-empty .kyana-scroll-bottom-btn{display:none !important}.kyana-app.has-messages .kyana-main{display:flex;flex-direction:column;padding-top:0}.kyana-app.has-messages .kyana-viewport{flex:1 1 0%;min-height:0;overflow-y:auto;overflow-x:hidden;display:block}.kyana-app.has-messages .kyana-welcome{display:none}.kyana-app.has-messages .kyana-reading-column{width:100%;max-width:var(--ky-reading-width);margin:0 auto;padding:24px 20px calc(150px + env(safe-area-inset-bottom, 16px))}.kyana-app.has-messages .kyana-composer-container{position:absolute;bottom:0;left:0;right:0;width:100%;max-width:none;margin:0;padding:0 20px max(14px,env(safe-area-inset-bottom,14px));background:linear-gradient(to top,var(--ky-bg) 75%,transparent 100%);pointer-events:none;z-index:30}.kyana-app.has-messages .kyana-composer-inner{max-width:var(--ky-reading-width);margin:0 auto;pointer-events:auto}.kyana-welcome{display:flex;flex-direction:column;align-items:center;text-align:center;margin:0;padding:0}.kyana-aura-container{position:relative;width:140px;height:140px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;pointer-events:none}.kyana-aura-layer{position:absolute;border-radius:50%;pointer-events:none;will-change:transform,opacity}.kyana-aura-layer-white{width:90px;height:90px;background:radial-gradient(circle at center,rgba(255,255,255,0.08) 0%,rgba(255,255,255,0.02) 45%,transparent 70%);filter:blur(14px);animation:kyanaBloomPulse 6s ease-in-out infinite alternate}.kyana-aura-layer-smoke,.kyana-aura-layer-silver{width:120px;height:120px;background:radial-gradient(circle at center,rgba(180,185,200,0.035) 0%,transparent 65%);filter:blur(20px);animation:kyanaHazeDrift 8s ease-in-out infinite alternate}.kyana-aura-layer-glow{display:none}@keyframes kyanaBloomPulse{0%{transform:scale(0.96);opacity:0.6}100%{transform:scale(1.04);opacity:0.9}}@keyframes kyanaHazeDrift{0%{transform:translate(-2px,-2px) scale(0.98)}100%{transform:translate(2px,2px) scale(1.02)}}.kyana-hero-logo-wrap{position:relative;z-index:2;width:80px;height:80px;display:flex;align-items:center;justify-content:center}.kyana-welcome-logo{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 4px 16px rgba(0,0,0,0.6));animation:kyanaHeroIdleBreathe 6s ease-in-out infinite;will-change:transform,filter}.kyana-logo-glass-sweep{position:absolute;inset:0;border-radius:28%;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,0.10) 50%,transparent 70%);background-size:250% 250%;animation:kyanaGlassSweep 6.5s cubic-bezier(0.4,0,0.2,1) infinite;opacity:0.45}@keyframes kyanaGlassSweep{0%{background-position:-120% -120%}35%,100%{background-position:220% 220%}}@keyframes kyanaHeroIdleBreathe{0%,100%{transform:scale(0.99);filter:brightness(0.98)}50%{transform:scale(1.01);filter:brightness(1.03)}}.kyana-welcome-heading{font-family:var(--ky-font-brand);font-size:34px;font-weight:700;letter-spacing:-0.025em;color:var(--ky-text-primary);margin:0 0 8px;line-height:1.25}.kyana-welcome-sub{font-size:15px;color:var(--ky-text-secondary);max-width:520px;margin:0;line-height:1.5}.kyana-messages-list{display:flex;flex-direction:column;width:100%}.kyana-user-row{display:flex;justify-content:flex-end;margin-bottom:24px;width:100%}.kyana-user-bubble{max-width:70%;background-color:var(--ky-user-bubble);border:1px solid var(--ky-border);border-radius:18px 18px 4px 18px;padding:12px 18px;color:var(--ky-text-primary);font-size:15px;line-height:1.55;word-break:break-word;white-space:pre-wrap;box-shadow:0 2px 8px rgba(0,0,0,0.18)}.kyana-response-row{display:flex;flex-direction:column;margin-bottom:32px;width:100%}.kyana-response-header{display:none !important}.kyana-response-doc{font-size:16px;line-height:26px;color:var(--ky-text-primary);word-break:break-word}.kyana-response-doc p{margin:0 0 16px}.kyana-response-doc p:last-child{margin-bottom:0}.kyana-response-doc h1,.kyana-response-doc h2,.kyana-response-doc h3,.kyana-response-doc h4{font-family:var(--ky-font-brand);color:var(--ky-text-primary);margin:24px 0 10px;line-height:1.35;font-weight:700}.kyana-response-doc h1{font-size:22px}.kyana-response-doc h2{font-size:18px}.kyana-response-doc h3{font-size:16px}.kyana-response-doc ul,.kyana-response-doc ol{margin:0 0 14px;padding-left:20px}.kyana-response-doc li{margin-bottom:5px}.kyana-response-doc blockquote{margin:12px 0;padding:8px 14px;border-left:3px solid var(--ky-border-strong);background-color:var(--ky-surface);border-radius:0 6px 6px 0;color:var(--ky-text-secondary);font-style:italic}.kyana-response-doc a{color:var(--ky-aura-cyan);text-decoration:underline;text-underline-offset:3px}.kyana-response-doc strong{font-weight:650;color:var(--ky-text-primary)}.kyana-response-doc:not(pre)>code{font-family:var(--ky-font-mono);font-size:13px;background-color:var(--ky-code-inline-bg);border:1px solid var(--ky-border);padding:2px 6px;border-radius:4px;color:var(--ky-text-primary)}.kyana-response-doc table,.kyana-table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;overflow-x:auto;display:block}.kyana-table-wrapper{width:100%;overflow-x:auto;margin:14px 0;border-radius:10px;border:1px solid var(--ky-border)}.kyana-table-wrapper .kyana-table{margin:0;display:table;width:100%}.kyana-response-doc th,.kyana-response-doc td,.kyana-table th,.kyana-table td{padding:9px 13px;border:1px solid var(--ky-border);text-align:left}.kyana-response-doc th,.kyana-table th{background-color:var(--ky-surface-raised);font-weight:600;color:var(--ky-text-primary)}.kyana-response-doc tr:nth-child(even),.kyana-table tr:nth-child(even){background-color:var(--ky-surface)}.kyana-math-block{margin:14px 0;padding:10px 14px;overflow-x:auto;text-align:center}.token.variable{color:#38bdf8}.kyana-code-block{margin:16px 0;background-color:#212124;border:1px solid rgba(255,255,255,0.08);border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.22);transition:border-color .15s ease,box-shadow .15s ease}[data-theme="light"] .kyana-code-block,html[data-theme="light"] .kyana-code-block,body[data-theme="light"] .kyana-code-block{background-color:#1e1e22;border-color:rgba(0,0,0,0.12);box-shadow:0 4px 18px rgba(0,0,0,0.08)}.kyana-code-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background-color:rgba(255,255,255,0.035);border-bottom:1px solid rgba(255,255,255,0.07);font-family:var(--ky-font-sans);font-size:12px;color:#a1a1aa;user-select:none}.kyana-code-lang-tag{display:flex;align-items:center;gap:7px;font-weight:600;letter-spacing:0.04em;color:#9ca3af;font-size:11.5px}.kyana-code-lang-tag .kyana-code-icon{color:#71717a;flex-shrink:0}.kyana-code-actions{display:flex;align-items:center;gap:4px}.kyana-code-btn{display:flex;align-items:center;justify-content:center;width:28px;height:28px;background:transparent;border:1px solid transparent;color:#9ca3af;border-radius:6px;cursor:pointer;padding:0;transition:all .15s ease}.kyana-code-btn:hover{color:#ffffff;background-color:rgba(255,255,255,0.08)}.kyana-code-btn.active{color:#38bdf8;background-color:rgba(56,189,248,0.12)}.kyana-code-btn.copied{color:#22c55e}.kyana-code-pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:13px;line-height:1.6;color:#e6edf3;background:transparent;white-space:pre;tab-size:2;-webkit-font-smoothing:antialiased}.kyana-code-pre.is-wrapped{white-space:pre-wrap !important;word-break:break-word !important}.kyana-code-pre code{font-family:inherit;font-size:inherit;background:none;padding:0;border:none;color:inherit;white-space:inherit;word-break:inherit}.token.keyword,.token.keyword.control{color:#c084fc;font-weight:600}.token.string{color:#4ade80}.token.attr-value{color:#4ade80}.token.comment{color:#71717a;font-style:italic}.token.number{color:#f87171}.token.class-name{color:#fde047}.token.function{color:#67e8f9}.token.operator{color:#e2e8f0}.token.punctuation{color:#94a3b8}.token.tag{color:#38bdf8;font-weight:600}.token.attr-name{color:#facc15}.token.selector{color:#facc15;font-weight:600}.token.property{color:#7dd3fc}.token.unit{color:#f87171}.token.boolean{color:#f87171}.token.directive{color:#c084fc;font-weight:600}.kyana-code-preview-pane{border-top:1px solid rgba(255,255,255,0.08);background-color:#ffffff;color:#111827;display:flex;flex-direction:column;animation:kyanaPreviewSlideDown .2s cubic-bezier(0.16,1,0.3,1)}@keyframes kyanaPreviewSlideDown{from{opacity:0;max-height:0}to{opacity:1;max-height:500px}}.kyana-code-preview-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background-color:#f8fafc;border-bottom:1px solid #e2e8f0;font-family:var(--ky-font-sans);font-size:11px;font-weight:600;color:#475569}.kyana-code-preview-title{display:flex;align-items:center;gap:7px}.kyana-preview-pulse{width:7px;height:7px;border-radius:50%;background-color:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.6);animation:kyanaPulse 2s infinite ease-in-out}@keyframes kyanaPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.2);opacity:.7}}.kyana-code-preview-actions{display:flex;align-items:center;gap:4px}.kyana-preview-bar-btn{display:flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:4px;background:transparent;border:none;color:#64748b;cursor:pointer;transition:background-color .15s ease,color .15s ease}.kyana-preview-bar-btn:hover{background-color:#e2e8f0;color:#0f172a}.kyana-code-preview-canvas{width:100%;padding:0;background:#ffffff}.kyana-code-preview-iframe{width:100%;min-height:80px;max-height:340px;border:none;display:block;background:#ffffff}.kyana-sources-wrap{margin-top:16px;padding-top:12px;border-top:1px solid var(--ky-border-subtle)}.kyana-sources-heading{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--ky-text-muted);margin-bottom:8px}.kyana-sources-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}.kyana-source-card{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background-color:var(--ky-surface-card);border:1px solid var(--ky-border);border-radius:7px;text-decoration:none;color:inherit;transition:background-color 0.15s ease,border-color 0.15s ease}.kyana-source-card:hover{background-color:var(--ky-surface-hover);border-color:var(--ky-border-strong)}.kyana-source-left{display:flex;align-items:center;gap:9px;min-width:0}.kyana-source-icon{width:26px;height:26px;border-radius:5px;background-color:var(--ky-surface-raised);display:flex;align-items:center;justify-content:center;color:var(--ky-text-secondary);font-size:10px;font-weight:700;flex-shrink:0}.kyana-source-info{display:flex;flex-direction:column;min-width:0}.kyana-source-title{font-size:12.5px;font-weight:600;color:var(--ky-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kyana-source-meta{font-size:11px;color:var(--ky-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.kyana-source-arrow{color:var(--ky-text-muted);font-size:13px;margin-left:6px;flex-shrink:0}.kyana-response-actions{display:flex;align-items:center;gap:6px;margin-top:14px;position:relative;overflow:hidden;opacity:0.6;transition:opacity 0.15s ease}.kyana-response-row:hover .kyana-response-actions,.kyana-response-actions:focus-within{opacity:1}.kyana-action-btn{display:flex;align-items:center;gap:5px;background:transparent;border:1px solid transparent;color:var(--ky-text-muted);font-size:12px;padding:4px 8px;border-radius:6px;cursor:pointer;transition:color 0.15s ease,background-color 0.15s ease,border-color 0.15s ease}.kyana-action-btn:hover{color:var(--ky-text-primary);background-color:var(--ky-surface);border-color:var(--ky-border)}.kyana-action-btn.active{color:var(--ky-aura-cyan)}.kyana-response-actions.kyana-completion-pulse::after{content:"";position:absolute;top:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,rgba(103,216,255,0.7),rgba(185,156,255,0.7),transparent);animation:kyanaCompletionPass 0.65s cubic-bezier(0.16,1,0.3,1) forwards;pointer-events:none}@keyframes kyanaCompletionPass{0%{transform:translateX(-100%);opacity:0}40%{opacity:0.8}100%{transform:translateX(100%);opacity:0}}.kyana-logo-comp{position:relative;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;flex-shrink:0;user-select:none}.kyana-logo-glass-frame{position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:28%}.kyana-logo-img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}.kyana-logo-aura{position:absolute;inset:-25%;border-radius:50%;pointer-events:none;background:radial-gradient(circle at center,rgba(255,255,255,0.10) 0%,rgba(180,180,190,0.06) 45%,rgba(110,110,120,0.05) 70%,transparent 85%);filter:blur(6px);opacity:0.6;z-index:0;transition:opacity 0.3s ease}.kyana-logo-highlight-sweep{position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,0.22) 50%,transparent 80%);transform:translateX(-150%) rotate(25deg);opacity:0}.kyana-logo-thinking .kyana-logo-aura{inset:-45%;filter:blur(8px);animation:kyanaMonoAuraPulse 3s ease-in-out infinite}.kyana-logo-thinking .kyana-logo-img{animation:kyanaGlassLiving 2.6s ease-in-out infinite;will-change:transform,filter}.kyana-logo-thinking .kyana-logo-highlight-sweep{animation:kyanaHighlightSweep 3.8s cubic-bezier(0.4,0,0.2,1) infinite;will-change:transform,opacity}@keyframes kyanaGlassLiving{0%{transform:translateY(0px) scale(0.98);filter:brightness(0.95)}30%{transform:translateY(-1.5px) scale(1.01)}50%{transform:translateY(-0.8px) scale(1.02);filter:brightness(1.08)}75%{transform:translateY(-1.5px) scale(1.005)}100%{transform:translateY(0px) scale(0.98);filter:brightness(0.95)}}@keyframes kyanaHighlightSweep{0%{transform:translateX(-140%) rotate(25deg);opacity:0}20%{opacity:0.22}55%{transform:translateX(140%) rotate(25deg);opacity:0.22}100%{transform:translateX(140%) rotate(25deg);opacity:0}}@keyframes kyanaMonoAuraPulse{0%,100%{transform:scale(0.95);opacity:0.55}50%{transform:scale(1.12);opacity:0.95}}.kyana-logo-animated .kyana-logo-img{animation:kyanaHeroIdleBreathe 6.5s ease-in-out infinite}.kyana-logo-animated .kyana-logo-highlight-sweep{animation:kyanaHeroHighlightSlow 7s cubic-bezier(0.4,0,0.2,1) infinite}@keyframes kyanaHeroHighlightSlow{0%{transform:translateX(-150%) rotate(25deg);opacity:0}35%{opacity:0.12}65%{transform:translateX(150%) rotate(25deg);opacity:0.12}100%{transform:translateX(150%) rotate(25deg);opacity:0}}.kyana-thinking-wrap{display:flex;align-items:center;gap:10px;margin-bottom:24px;opacity:1;transition:opacity 0.2s ease,transform 0.2s ease}.kyana-thinking-wrap.fading{opacity:0;transform:translateY(-2px)}.kyana-thinking-mark-slot{display:flex;align-items:center;justify-content:center;flex-shrink:0}.kyana-thinking-status{font-size:13.5px;font-weight:500;color:var(--ky-text-muted);letter-spacing:-0.01em;user-select:none}.kyana-error-card{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;background-color:var(--ky-surface);border:1px solid var(--ky-border-strong);border-radius:8px;margin-bottom:18px;font-size:13px;color:var(--ky-text-secondary)}.kyana-retry-btn{background:var(--ky-surface-raised);border:1px solid var(--ky-border);color:var(--ky-text-primary);border-radius:6px;padding:5px 12px;font-size:11.5px;font-weight:600;cursor:pointer;transition:background-color 0.15s ease}.kyana-retry-btn:hover{background-color:var(--ky-sidebar-hover)}.kyana-scroll-bottom-btn{position:absolute;bottom:115px;right:24px;width:34px;height:34px;border-radius:50%;background-color:var(--ky-surface-raised);border:1px solid var(--ky-border-strong);color:var(--ky-text-primary);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.3);opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity 0.2s ease,transform 0.2s ease,visibility 0.2s ease;z-index:20}.kyana-scroll-bottom-btn.visible{opacity:1;visibility:visible;transform:translateY(0)}.kyana-scroll-bottom-btn:hover{background-color:var(--ky-surface-hover);border-color:rgba(103,216,255,0.3)}.kyana-composer-container{position:absolute;bottom:0;left:0;right:0;pointer-events:none;padding:0 20px 14px;background:linear-gradient(to top,var(--ky-bg) 75%,transparent 100%);z-index:30}.kyana-composer-inner{max-width:var(--ky-reading-width);margin:0 auto;pointer-events:auto;position:relative;display:flex;flex-direction:column}.kyana-attach-popover{position:absolute;bottom:calc(100% + 8px);left:0;background-color:var(--ky-surface-raised);border:1px solid var(--ky-border-strong);border-radius:9px;padding:6px;min-width:220px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:40}.kyana-popover-header{padding:6px 10px 4px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--ky-text-muted)}.kyana-popover-item{width:100%;display:flex;align-items:center;gap:8px;padding:7px 10px;background:transparent;border:none;color:var(--ky-text-primary);font-size:12.5px;border-radius:6px;cursor:pointer;text-align:left;transition:background-color 0.15s ease}.kyana-popover-item:hover{background-color:var(--ky-sidebar-hover)}.kyana-composer-capsule{position:relative;display:flex;align-items:flex-end;gap:8px;background-color:var(--ky-surface,#141416);border:1px solid var(--ky-border);border-radius:20px;padding:9px 12px;min-height:54px;box-sizing:border-box;box-shadow:0 4px 20px rgba(0,0,0,0.35);transition:border-color 0.2s ease,box-shadow 0.2s ease}.kyana-composer-capsule:focus-within{border-color:rgba(255,255,255,0.18);box-shadow:0 0 0 1px rgba(255,255,255,0.12),0 0 16px rgba(255,255,255,0.04),0 6px 24px rgba(0,0,0,0.45)}.kyana-attach-btn{background:transparent;border:none;color:var(--ky-text-muted);width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-bottom:2px;transition:color 0.15s ease,background-color 0.15s ease}.kyana-attach-btn:hover{color:var(--ky-text-primary);background-color:var(--ky-surface)}.kyana-composer-textarea,textarea.kyana-composer-textarea,textarea#kyanaInput,[data-theme="dark"] textarea.kyana-composer-textarea,body.dark-mode textarea.kyana-composer-textarea,[data-theme="dark"] textarea#kyanaInput,body.dark-mode textarea#kyanaInput{flex:1;background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;border-radius:0 !important;-webkit-appearance:none;padding:7px 6px;font-family:var(--ky-font-sans);font-size:15px;line-height:1.5;color:var(--ky-text-primary) !important;resize:none;max-height:135px;overflow-y:auto;box-sizing:border-box}.kyana-composer-textarea:focus,.kyana-composer-textarea:focus-visible,textarea.kyana-composer-textarea:focus,textarea#kyanaInput:focus,[data-theme="dark"] textarea.kyana-composer-textarea:focus,body.dark-mode textarea.kyana-composer-textarea:focus,[data-theme="dark"] textarea#kyanaInput:focus,body.dark-mode textarea#kyanaInput:focus{background:transparent !important;background-color:transparent !important;border:none !important;outline:none !important;box-shadow:none !important;border-radius:0 !important}.kyana-composer-textarea::placeholder{color:var(--ky-text-muted)}.kyana-submit-btn{width:32px;height:32px;border-radius:50%;border:1px solid transparent;background-color:rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;margin-bottom:2px;transition:background 0.18s ease,color 0.18s ease,transform 0.12s ease,box-shadow 0.18s ease}.kyana-submit-btn:disabled{opacity:0.35;cursor:not-allowed}.kyana-submit-btn.active{background:#ffffff;color:#090a0d;box-shadow:0 2px 10px rgba(255,255,255,0.22)}.kyana-submit-btn.active:hover{filter:brightness(1.08);box-shadow:0 2px 14px rgba(255,255,255,0.35)}.kyana-submit-btn:active{transform:scale(0.96)}.kyana-submit-btn.generating{background-color:var(--ky-surface-raised);border:1px solid var(--ky-border-strong);color:var(--ky-text-primary);box-shadow:none}.kyana-submit-btn.generating:hover{background-color:var(--ky-surface-hover);border-color:var(--ky-text-muted)}.kyana-composer-subtext{display:flex;align-items:center;justify-content:space-between;padding:5px 12px 0;font-size:11px;color:var(--ky-text-subtle)}.kyana-kbd-guide{display:inline-block;opacity:0.75}.kyana-modal-backdrop{position:fixed;inset:0;background-color:rgba(0,0,0,0.65);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}.kyana-modal-box{background-color:var(--ky-surface-raised);border:1px solid var(--ky-border-strong);border-radius:12px;padding:20px;width:100%;max-width:400px;box-shadow:0 12px 36px rgba(0,0,0,0.5)}.kyana-modal-title{margin:0 0 10px;font-family:var(--ky-font-brand);font-size:15.5px;font-weight:700;color:var(--ky-text-primary)}.kyana-modal-desc{margin:0 0 16px;font-size:13px;color:var(--ky-text-secondary);line-height:1.5}.kyana-modal-input{width:100%;box-sizing:border-box;background-color:var(--ky-surface);border:1px solid var(--ky-border-strong);border-radius:6px;padding:9px 12px;color:var(--ky-text-primary);font-size:13.5px;font-family:var(--ky-font-sans);outline:none;margin-bottom:16px}.kyana-modal-input:focus{border-color:var(--ky-aura-deep-blue)}.kyana-modal-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px}.kyana-btn{padding:7px 14px;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:background-color 0.15s ease}.kyana-btn-secondary{background-color:transparent;color:var(--ky-text-secondary)}.kyana-btn-secondary:hover{background-color:var(--ky-surface);color:var(--ky-text-primary)}.kyana-btn-primary{background-color:var(--ky-text-primary);color:var(--ky-bg)}.kyana-btn-primary:hover{opacity:0.9}.kyana-btn-danger{background-color:#ef4444;color:#ffffff}.kyana-btn-danger:hover{background-color:#dc2626}@media (prefers-reduced-motion:reduce){.kyana-aura-layer,.kyana-logo-comp,.kyana-logo-img,.kyana-logo-highlight-sweep,.kyana-logo-aura,.kyana-welcome-logo,.kyana-logo-glass-sweep{animation:none !important;transform:none !important;transition:none !important}.kyana-aura-layer{opacity:0.28 !important}.kyana-logo-thinking .kyana-logo-aura{opacity:0.35 !important}.kyana-logo-glass-sweep,.kyana-logo-highlight-sweep{display:none !important}.kyana-composer-capsule::before{animation:none !important}.kyana-response-actions.kyana-completion-pulse::after{animation:none !important;display:none !important}}@media (max-width:768px){body.kyana-workspace-body.dash .dash-header,body.kyana-workspace-body .dash-header{height:auto !important;min-height:52px !important;max-height:none !important;flex-wrap:wrap !important;padding-top:max(10px,env(safe-area-inset-top,10px)) !important;padding-bottom:8px !important}.kyana-sidebar{position:fixed;top:0;left:0;bottom:0;height:100%;height:100dvh;z-index:1000;transform:translateX(-100%);margin-left:0 !important;box-shadow:0 0 32px rgba(0,0,0,0.6)}.kyana-app.sidebar-open .kyana-sidebar{transform:translateX(0)}.kyana-drawer-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);backdrop-filter:blur(2px);z-index:999}.kyana-app.sidebar-open .kyana-drawer-backdrop{display:block}.kyana-app.is-empty .kyana-viewport{padding-top:clamp(20px,8vh,60px);padding-bottom:max(20px,env(safe-area-inset-bottom,20px))}.kyana-app.is-empty .kyana-composer-container{max-width:calc(100% - 24px);margin-top:20px;padding:0}.kyana-app.has-messages .kyana-composer-container{padding:0 12px max(10px,env(safe-area-inset-bottom,10px))}.kyana-reading-column{padding:16px 14px calc(140px + env(safe-area-inset-bottom,14px))}.kyana-aura-container{width:110px;height:110px;margin:0 auto 10px}.kyana-hero-logo-wrap{width:60px;height:60px}.kyana-welcome-logo{width:60px;height:60px}.kyana-welcome-heading,.kyana-app.is-empty .kyana-welcome-heading{font-size:28px}.kyana-welcome-sub,.kyana-app.is-empty .kyana-welcome-sub{font-size:14px;padding:0 12px}.kyana-kbd-guide{display:none}.kyana-scroll-bottom-btn{bottom:calc(90px + env(safe-area-inset-bottom,10px));right:16px}}.header-nav-item[href="chatbot.html"],a.header-nav-item[href="chatbot.html"]{font-weight:600;letter-spacing:-0.01em}
-/* ==========================================================================
-   Kyana AI Study Partner & PYQ Cards (Monochrome Charcoal / Obsidian Design)
-   ========================================================================== */
-.kyana-study-session-card {
-  margin: 14px 0;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid var(--ky-border-strong, #282828);
-  background-color: var(--ky-surface, #141414);
-  color: var(--ky-text-primary, #ffffff);
-  box-sizing: border-box;
-  font-family: var(--ky-font-sans, inherit);
-}
-.kyana-study-session-card .kyana-session-progress-bar {
-  width: 100%;
-  height: 4px;
-  background-color: var(--ky-border, #282828);
-  border-radius: 2px;
-  overflow: hidden;
-  margin: 10px 0;
-}
-.kyana-study-session-card .kyana-session-progress-fill {
-  height: 100%;
-  background-color: #ffffff;
-  border-radius: 2px;
-  transition: width 0.3s ease;
-}
-.kyana-pyq-card {
-  margin: 14px 0;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background-color: #161616;
-  color: #ffffff;
-  box-sizing: border-box;
-  font-family: var(--ky-font-sans, inherit);
-}
-.kyana-study-chips-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-.kyana-study-chip-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 8px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--ky-border, #282828);
-  background-color: var(--ky-surface-raised, #1c1c1c);
-  color: var(--ky-text-primary, #ffffff);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
-  user-select: none;
-}
-.kyana-study-chip-btn:hover {
-  background-color: var(--ky-surface-hover, #242424);
-  border-color: var(--ky-border-strong, #3f3f46);
-}
-.kyana-study-chip-btn:active {
-  transform: scale(0.98);
-}
-
-/* Interactive Message Actions & Multiple-Choice Cards (Strict Monochrome) */
-.kyana-msg-actions-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-  margin-bottom: 4px;
-}
-
-.kyana-msg-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 7px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--ky-border, #2e2e2e);
-  background-color: var(--ky-surface-raised, #181818);
-  color: var(--ky-text-primary, #f5f5f5);
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
-  user-select: none;
-}
-
-.kyana-msg-action-btn:hover:not(:disabled) {
-  background-color: var(--ky-surface-hover, #252525);
-  border-color: var(--ky-border-strong, #4a4a4a);
-}
-
-.kyana-msg-action-btn:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.kyana-msg-action-btn.is-primary {
-  background-color: #ffffff;
-  color: #0b0b0b;
-  border-color: #ffffff;
-  font-weight: 600;
-}
-
-.kyana-msg-action-btn.is-primary:hover:not(:disabled) {
-  background-color: #e6e6e6;
-  border-color: #e6e6e6;
-}
-
-.kyana-msg-action-btn:disabled,
-.kyana-msg-action-btn.is-loading {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.kyana-mcq-card {
-  margin-top: 14px;
-  padding: 14px;
-  border-radius: 12px;
-  border: 1px solid var(--ky-border, #2b2b2b);
-  background-color: var(--ky-surface-card, #141414);
-}
-
-.kyana-mcq-header {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ky-text-muted, #9a9a9a);
-  margin-bottom: 6px;
-}
-
-.kyana-mcq-question {
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.45;
-  color: var(--ky-text-primary, #ffffff);
-  margin-bottom: 10px;
-}
-
-.kyana-mcq-options {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.kyana-mcq-option {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--ky-border, #2b2b2b);
-  background-color: var(--ky-surface-raised, #1a1a1a);
-  color: var(--ky-text-primary, #f0f0f0);
-  font-size: 13.5px;
-  line-height: 1.35;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
-}
-
-.kyana-mcq-option:hover:not(:disabled) {
-  background-color: var(--ky-surface-hover, #242424);
-  border-color: var(--ky-border-strong, #4a4a4a);
-}
-
-.kyana-mcq-option:disabled {
-  cursor: default;
-}
-
-.kyana-mcq-option-badge {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  border: 1px solid var(--ky-border-strong, #3f3f46);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
-  background-color: #111111;
-  color: #ffffff;
-}
-
-.kyana-mcq-option-text {
-  flex: 1;
-}
-
-.kyana-mcq-option-status {
-  font-size: 12px;
-  font-weight: 600;
-  color: #a3a3a3;
-}
-
-.kyana-mcq-option.selected {
-  border-color: #d4d4d8;
-  background-color: #202020;
-}
-
-.kyana-mcq-option.is-correct {
-  border-color: #ffffff;
-  background-color: #242424;
-}
-
-.kyana-mcq-option.is-correct .kyana-mcq-option-badge {
-  background-color: #ffffff;
-  color: #09090b;
-  border-color: #ffffff;
-}
-
-.kyana-mcq-option.is-incorrect {
-  border-color: #52525b;
-  opacity: 0.72;
-}
-
-.kyana-mcq-feedback {
-  margin-top: 10px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border-left: 3px solid #ffffff;
-  background-color: rgba(255, 255, 255, 0.05);
-  font-size: 13px;
-  line-height: 1.45;
-  color: #e4e4e7;
-}
-
 
 /* ==========================================================================
-   Global Mascot & Floating Assistant Suppression (Strict Dedicated Workspace)
+   Workspace Shell & Refined Sidebar (Inspired by Reference UI & Claude/ChatGPT)
    ========================================================================== */
-body.kyana-workspace-body .sla-chat-fab,
-body.kyana-workspace-body .sla-chat-panel,
-body.kyana-workspace-body #rickContainer,
-body.kyana-workspace-body .brian-wrapper,
-body.kyana-workspace-body [class*="chat-fab"],
-body.kyana-workspace-body [class*="floating-assistant"],
-body.kyana-workspace-body [id*="floatingAssistant"],
-body.kyana-workspace-body [id*="chatWidget"],
-body.kyana-workspace-body [class*="mascot"],
-body.kyana-workspace-body [id*="mascot"] {
-  display: none !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
-  opacity: 0 !important;
-}
-
-/* ==========================================================================
-   Kyana AI Workspace Foundation & Viewport Normalization (Unified Monochrome)
-   ========================================================================== */
-
-/* Universal Layout Container */
 .kyana-app {
   display: flex !important;
   flex: 1 1 0% !important;
@@ -448,7 +207,498 @@ body.kyana-workspace-body [id*="mascot"] {
   background-color: var(--ky-bg, #09090b) !important;
 }
 
-/* 1. EMPTY STATE (Welcome Hero + Composer Unified as a Centered Card) */
+.kyana-ambient-page-aura {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 920px;
+  height: 540px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 32%, rgba(255, 255, 255, 0.04) 0%, rgba(148, 163, 184, 0.015) 42%, transparent 70%);
+  z-index: 0;
+}
+
+html[data-theme="light"] .kyana-ambient-page-aura {
+  background: radial-gradient(ellipse at 50% 30%, rgba(99, 102, 241, 0.045) 0%, rgba(14, 165, 233, 0.025) 40%, transparent 70%);
+}
+
+.kyana-sidebar {
+  width: var(--ky-sidebar-width);
+  height: 100%;
+  background-color: var(--ky-sidebar-bg);
+  border-right: 1px solid var(--ky-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 100;
+  position: relative;
+}
+
+.kyana-app.sidebar-collapsed .kyana-sidebar {
+  margin-left: calc(-1 * var(--ky-sidebar-width));
+}
+
+.kyana-sidebar-header {
+  height: 54px;
+  padding: 0 14px 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--ky-border-subtle);
+  flex-shrink: 0;
+}
+
+.kyana-sidebar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+.kyana-sidebar-brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--ky-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+html[data-theme="light"] .kyana-sidebar-brand-mark {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.1);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.kyana-sidebar-brand-mark img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.kyana-brand-name {
+  font-family: var(--ky-font-brand);
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--ky-text-primary);
+  white-space: nowrap;
+}
+
+.kyana-sidebar-toggle-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ky-text-muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.kyana-sidebar-toggle-btn:hover {
+  color: var(--ky-text-primary);
+  background-color: var(--ky-sidebar-hover);
+  border-color: var(--ky-border);
+}
+
+.kyana-sidebar-action-wrap {
+  padding: 12px 14px 6px;
+  flex-shrink: 0;
+}
+
+.kyana-new-chat-btn {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 100%);
+  color: var(--ky-text-primary);
+  border: 1px solid var(--ky-border-strong);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-family: var(--ky-font-brand);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+}
+
+.kyana-new-chat-btn:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.05) 100%);
+  border-color: rgba(255, 255, 255, 0.24);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.kyana-new-chat-btn:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.kyana-new-chat-icon-wrap {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+html[data-theme="light"] .kyana-new-chat-btn {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+html[data-theme="light"] .kyana-new-chat-btn:hover {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.2);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+html[data-theme="light"] .kyana-new-chat-icon-wrap {
+  background: rgba(15, 23, 42, 0.06);
+}
+
+.kyana-sidebar-search-wrap {
+  padding: 6px 14px 10px;
+  flex-shrink: 0;
+}
+
+.kyana-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: var(--ky-surface);
+  border: 1px solid var(--ky-border);
+  border-radius: 9px;
+  padding: 0 10px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.kyana-search-box:focus-within {
+  border-color: var(--ky-border-strong);
+  background-color: var(--ky-surface-raised);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.04);
+}
+
+html[data-theme="light"] .kyana-search-box {
+  background-color: #ffffff;
+  border-color: rgba(15, 23, 42, 0.09);
+}
+
+html[data-theme="light"] .kyana-search-box:focus-within {
+  border-color: rgba(15, 23, 42, 0.22);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.04);
+}
+
+.kyana-search-icon {
+  color: var(--ky-text-muted);
+  flex-shrink: 0;
+}
+
+.kyana-search-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 7.5px 7px;
+  font-size: 12.5px;
+  color: var(--ky-text-primary);
+  font-family: var(--ky-font-sans);
+  outline: none;
+}
+
+.kyana-search-input::placeholder {
+  color: var(--ky-text-muted);
+}
+
+.kyana-search-clear {
+  background: transparent;
+  border: none;
+  color: var(--ky-text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kyana-search-clear:hover {
+  color: var(--ky-text-primary);
+}
+
+.kyana-sidebar-history {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 10px 12px;
+  box-sizing: border-box;
+}
+
+.kyana-sidebar-history::-webkit-scrollbar {
+  width: 4px;
+}
+
+.kyana-sidebar-history::-webkit-scrollbar-thumb {
+  background: var(--ky-border);
+  border-radius: 4px;
+}
+
+.kyana-history-group {
+  margin-top: 14px;
+}
+
+.kyana-history-group:first-child {
+  margin-top: 6px;
+}
+
+.kyana-group-label {
+  padding: 4px 10px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ky-text-muted);
+}
+
+.kyana-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin-bottom: 2px;
+  cursor: pointer;
+  color: var(--ky-text-secondary);
+  font-size: 13.5px;
+  transition: background-color 0.16s ease, color 0.16s ease, transform 0.15s ease;
+  position: relative;
+  user-select: none;
+}
+
+.kyana-history-item:hover {
+  background-color: var(--ky-sidebar-hover);
+  color: var(--ky-text-primary);
+}
+
+.kyana-history-item.active {
+  background-color: var(--ky-sidebar-active);
+  color: var(--ky-text-primary);
+  font-weight: 600;
+}
+
+.kyana-history-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--ky-text-primary);
+}
+
+.kyana-history-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 6px;
+}
+
+.kyana-item-menu-btn {
+  opacity: 0;
+  pointer-events: none;
+  background: transparent;
+  border: none;
+  color: var(--ky-text-muted);
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.kyana-history-item:hover .kyana-item-menu-btn,
+.kyana-history-item:focus-within .kyana-item-menu-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.kyana-item-menu-btn:hover {
+  color: var(--ky-text-primary);
+  background-color: var(--ky-surface-raised);
+}
+
+.kyana-history-empty {
+  padding: 28px 12px;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--ky-text-muted);
+}
+
+.kyana-skeleton-item {
+  height: 28px;
+  margin: 6px 4px;
+  background: var(--ky-surface);
+  border-radius: 6px;
+  animation: kyanaPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes kyanaPulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.7; }
+}
+
+.kyana-sidebar-footer {
+  padding: 10px 12px 14px;
+  border-top: 1px solid var(--ky-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.kyana-footer-portal-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--ky-text-muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.kyana-footer-portal-link:hover {
+  background-color: var(--ky-sidebar-hover);
+  color: var(--ky-text-primary);
+}
+
+.kyana-user-profile-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s ease;
+}
+
+.kyana-user-profile-chip:hover {
+  background-color: var(--ky-sidebar-hover);
+}
+
+.kyana-user-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ky-text-primary);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.kyana-user-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kyana-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ky-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kyana-user-meta {
+  font-size: 11px;
+  color: var(--ky-text-muted);
+}
+
+/* ==========================================================================
+   Main Conversation Canvas & Empty State Center Stage
+   ========================================================================== */
+.kyana-main {
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: var(--ky-bg);
+  overflow: hidden;
+}
+
+.kyana-viewport {
+  flex: 1 1 0%;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.kyana-viewport::-webkit-scrollbar {
+  width: 6px;
+}
+
+.kyana-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.kyana-viewport::-webkit-scrollbar-thumb {
+  background: var(--ky-border);
+  border-radius: 4px;
+}
+
+.kyana-reading-column {
+  width: 100%;
+  max-width: var(--ky-reading-width);
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+/* 1. EMPTY STATE (New Chat Center Stage: Hero Emblem -> Greeting -> Centered Composer -> Suggestion Cards) */
 .kyana-app.is-empty .kyana-main {
   display: flex !important;
   flex-direction: column !important;
@@ -460,14 +710,14 @@ body.kyana-workspace-body [id*="mascot"] {
   position: relative !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
-  padding: 32px 20px 48px !important;
+  padding: 24px 20px 36px !important;
   box-sizing: border-box !important;
 }
 
 .kyana-app.is-empty .kyana-viewport {
   flex: 0 0 auto !important;
   width: 100% !important;
-  max-width: var(--ky-reading-width, 820px) !important;
+  max-width: var(--ky-composer-empty-width, 740px) !important;
   overflow: visible !important;
   display: flex !important;
   flex-direction: column !important;
@@ -479,7 +729,7 @@ body.kyana-workspace-body [id*="mascot"] {
 
 .kyana-app.is-empty .kyana-reading-column {
   width: 100% !important;
-  max-width: var(--ky-reading-width, 820px) !important;
+  max-width: var(--ky-composer-empty-width, 740px) !important;
   margin: 0 auto !important;
   padding: 0 !important;
   display: flex !important;
@@ -494,10 +744,17 @@ body.kyana-workspace-body [id*="mascot"] {
   align-items: center !important;
   text-align: center !important;
   margin: 0 !important;
-  padding: 0 0 28px !important;
+  padding: 0 0 22px !important;
   opacity: 1 !important;
   transform: translateY(0) !important;
-  transition: opacity 0.22s ease-out, transform 0.22s ease-out !important;
+  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  animation: kyanaStageFadeUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.kyana-app.is-empty .kyana-welcome.fade-out {
+  opacity: 0 !important;
+  transform: translateY(-10px) scale(0.98) !important;
+  pointer-events: none !important;
 }
 
 .kyana-app.is-empty .kyana-composer-container {
@@ -506,7 +763,7 @@ body.kyana-workspace-body [id*="mascot"] {
   left: auto !important;
   right: auto !important;
   width: 100% !important;
-  max-width: var(--ky-reading-width, 820px) !important;
+  max-width: var(--ky-composer-empty-width, 740px) !important;
   padding: 0 !important;
   margin: 0 auto !important;
   background: transparent !important;
@@ -515,11 +772,12 @@ body.kyana-workspace-body [id*="mascot"] {
   justify-content: center !important;
   z-index: 30 !important;
   box-sizing: border-box !important;
+  animation: kyanaStageFadeUp 0.52s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both;
 }
 
 .kyana-app.is-empty .kyana-composer-inner {
   width: 100% !important;
-  max-width: var(--ky-reading-width, 820px) !important;
+  max-width: var(--ky-composer-empty-width, 740px) !important;
   pointer-events: auto !important;
   position: relative !important;
   display: flex !important;
@@ -558,7 +816,8 @@ body.kyana-workspace-body [id*="mascot"] {
   scroll-behavior: smooth !important;
 }
 
-.kyana-app.has-messages .kyana-welcome {
+.kyana-app.has-messages .kyana-welcome,
+.kyana-app.has-messages #kyanaSuggestionGrid {
   display: none !important;
 }
 
@@ -566,7 +825,7 @@ body.kyana-workspace-body [id*="mascot"] {
   width: 100% !important;
   max-width: var(--ky-reading-width, 820px) !important;
   margin: 0 auto !important;
-  padding: 24px 20px calc(200px + env(safe-area-inset-bottom, 24px)) !important;
+  padding: 28px 24px calc(185px + env(safe-area-inset-bottom, 24px)) !important;
   box-sizing: border-box !important;
 }
 
@@ -578,13 +837,17 @@ body.kyana-workspace-body [id*="mascot"] {
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
-  padding: 0 20px max(24px, env(safe-area-inset-bottom, 24px)) !important;
-  background: linear-gradient(to top, var(--ky-bg, #09090b) 80%, rgba(9, 9, 11, 0.85) 60%, transparent 100%) !important;
+  padding: 16px 20px max(20px, env(safe-area-inset-bottom, 20px)) !important;
+  background: linear-gradient(to top, var(--ky-bg, #09090b) 78%, rgba(9, 9, 11, 0.82) 55%, transparent 100%) !important;
   pointer-events: none !important;
   display: flex !important;
   justify-content: center !important;
   z-index: 30 !important;
   box-sizing: border-box !important;
+}
+
+html[data-theme="light"] .kyana-app.has-messages .kyana-composer-container {
+  background: linear-gradient(to top, #ffffff 78%, rgba(255, 255, 255, 0.85) 55%, transparent 100%) !important;
 }
 
 .kyana-app.has-messages .kyana-composer-inner {
@@ -597,182 +860,256 @@ body.kyana-workspace-body [id*="mascot"] {
   flex-direction: column !important;
 }
 
-/* 3. COMPOSER SUBTEXT / DISCLAIMER (Zero Bottom Clipping) */
-.kyana-composer-subtext {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
-  padding: 8px 12px 0 !important;
-  font-size: 11.5px !important;
-  color: var(--ky-text-muted, #71717a) !important;
-  user-select: none !important;
-  line-height: 1.4 !important;
-}
-
-/* 4. MOBILE VIEWPORT NORMALIZATION */
-@media (max-width: 768px) {
-  body.kyana-workspace-body.dash .dash-header,
-  body.kyana-workspace-body .dash-header,
-  html body.kyana-workspace-body.dash .dash-header,
-  html body.kyana-workspace-body .dash-header {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    height: 52px !important;
-    min-height: 52px !important;
-    max-height: 52px !important;
-    border-radius: 0 !important;
-    background: var(--ky-bg, #09090b) !important;
-    background-color: var(--ky-bg, #09090b) !important;
-    border-bottom: 1px solid var(--ky-border) !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    padding-left: max(14px, env(safe-area-inset-left, 14px)) !important;
-    padding-right: max(14px, env(safe-area-inset-right, 14px)) !important;
-    overflow: hidden !important;
-    box-sizing: border-box !important;
-    z-index: 120 !important;
-  }
-
-  body.kyana-workspace-body .dash-header-nav {
-    display: none !important;
-  }
-
-  body.kyana-workspace-body .dash-header-actions {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    gap: 8px !important;
-    order: 2 !important;
-    flex-shrink: 0 !important;
-  }
-
-  .kyana-app.is-empty .kyana-main {
-    padding: 24px 16px max(32px, env(safe-area-inset-bottom, 24px)) !important;
-  }
-
-  .kyana-app.is-empty .kyana-composer-container {
-    max-width: 100% !important;
-    padding: 0 !important;
-  }
-
-  .kyana-app.has-messages .kyana-reading-column {
-    padding: 16px 14px calc(180px + env(safe-area-inset-bottom, 20px)) !important;
-  }
-
-  .kyana-app.has-messages .kyana-composer-container {
-    padding: 0 12px max(18px, env(safe-area-inset-bottom, 18px)) !important;
-  }
-
-  .kyana-welcome-heading,
-  .kyana-app.is-empty .kyana-welcome-heading {
-    font-size: 26px !important;
-  }
-
-  .kyana-welcome-sub,
-  .kyana-app.is-empty .kyana-welcome-sub {
-    font-size: 13.5px !important;
-    padding: 0 8px !important;
-  }
-
-  .kyana-kbd-guide {
-    display: none !important;
-  }
-}
-
 /* ==========================================================================
-   Phase 2: Premium Monochrome Welcome Experience & Academic Suggestion Cards
+   Classy Gemini-Caliber Hero Logo, Orbital Rings & Personalized Greeting
    ========================================================================== */
+@keyframes kyanaStageFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 
-/* 1. Animated Living Kyana Identity & Ambient Glow */
 .kyana-aura-container {
   position: relative !important;
-  width: 120px !important;
-  height: 120px !important;
+  width: 112px !important;
+  height: 112px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  margin: 0 auto 16px !important;
+  margin: 0 auto 14px !important;
   pointer-events: none !important;
+}
+
+.kyana-aura-layer {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.kyana-aura-layer-white {
+  position: absolute !important;
+  width: 96px !important;
+  height: 96px !important;
+  border-radius: 50% !important;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.14) 0%, rgba(165, 180, 252, 0.05) 45%, transparent 72%) !important;
+  filter: blur(14px) !important;
+  animation: kyanaAuraBreathe 5.5s ease-in-out infinite alternate !important;
+  transition: opacity 0.35s ease, transform 0.35s ease, background 0.35s ease !important;
+}
+
+.kyana-aura-layer-smoke,
+.kyana-aura-layer-silver {
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle at center, rgba(148, 163, 184, 0.06) 0%, transparent 68%);
+  filter: blur(18px);
+  animation: kyanaHazeDrift 7s ease-in-out infinite alternate;
+}
+
+/* Precision Orbital Rings around New Chat Hero Logo */
+.kyana-orbital-ring {
+  position: absolute;
+  width: 94px;
+  height: 94px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.28) 70deg,
+    rgba(165, 243, 252, 0.22) 130deg,
+    transparent 200deg,
+    rgba(196, 181, 253, 0.2) 280deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1.5px), #000 calc(100% - 1px));
+  animation: kyanaOrbitSpin 9s linear infinite;
+  opacity: 0.75;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.kyana-orbital-ring-inner {
+  position: absolute;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  animation: kyanaOrbitSpinReverse 14s linear infinite;
+  opacity: 0.55;
+}
+
+html[data-theme="light"] .kyana-orbital-ring {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(15, 23, 42, 0.22) 70deg,
+    rgba(59, 130, 246, 0.25) 130deg,
+    transparent 200deg,
+    rgba(99, 102, 241, 0.22) 280deg,
+    transparent 360deg
+  );
+  opacity: 0.65;
+}
+
+html[data-theme="light"] .kyana-orbital-ring-inner {
+  border-color: rgba(15, 23, 42, 0.1);
+}
+
+@keyframes kyanaOrbitSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes kyanaOrbitSpinReverse {
+  0% { transform: rotate(360deg); }
+  100% { transform: rotate(0deg); }
 }
 
 .kyana-hero-logo-wrap {
   position: relative !important;
   z-index: 2 !important;
-  width: 72px !important;
-  height: 72px !important;
+  width: 68px !important;
+  height: 68px !important;
+  border-radius: 22px !important;
+  background: radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02) 70%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.16) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  animation: kyanaHeroFloat 5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate !important;
-  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.6)) !important;
-  transition: transform 0.3s ease, filter 0.3s ease !important;
+  overflow: hidden !important;
+  animation: kyanaHeroFloat 5.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate !important;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s ease, border-color 0.35s ease !important;
+}
+
+/* Clean, crisp pedestal in Light Mode (Zero muddy dark drop-shadow!) */
+html[data-theme="light"] .kyana-hero-logo-wrap {
+  background: linear-gradient(145deg, #ffffff 0%, #f1f5f9 100%) !important;
+  border: 1px solid rgba(15, 23, 42, 0.1) !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(15, 23, 42, 0.04), inset 0 1px 0 #ffffff !important;
+  filter: none !important;
 }
 
 .kyana-welcome-logo {
-  width: 72px !important;
-  height: 72px !important;
+  width: 52px !important;
+  height: 52px !important;
   object-fit: contain !important;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+  animation: kyanaHeroIdleBreathe 5.5s ease-in-out infinite;
+}
+
+html[data-theme="light"] .kyana-welcome-logo {
+  filter: drop-shadow(0 2px 6px rgba(15, 23, 42, 0.14));
+}
+
+.kyana-logo-glass-sweep {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 28%, rgba(255, 255, 255, 0.22) 50%, transparent 72%);
+  background-size: 250% 250%;
+  animation: kyanaGlassSweep 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  opacity: 0.65;
+}
+
+@keyframes kyanaGlassSweep {
+  0% { background-position: -130% -130%; }
+  38%, 100% { background-position: 230% 230%; }
+}
+
+@keyframes kyanaHeroIdleBreathe {
+  0%, 100% { transform: scale(0.98) rotate(0deg); }
+  50% { transform: scale(1.03) rotate(2deg); }
 }
 
 @keyframes kyanaHeroFloat {
-  0% {
-    transform: translateY(0px) scale(1);
-  }
-  50% {
-    transform: translateY(-5px) scale(1.015);
-  }
-  100% {
-    transform: translateY(-8px) scale(1.02);
-  }
-}
-
-.kyana-aura-layer-white {
-  position: absolute !important;
-  width: 90px !important;
-  height: 90px !important;
-  border-radius: 50% !important;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%, transparent 70%) !important;
-  filter: blur(14px) !important;
-  animation: kyanaAuraBreathe 6s ease-in-out infinite alternate !important;
-  transition: opacity 0.3s ease, transform 0.3s ease, background 0.3s ease !important;
+  0% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-4px) scale(1.015); }
+  100% { transform: translateY(-7px) scale(1.025); }
 }
 
 @keyframes kyanaAuraBreathe {
-  0% {
-    transform: scale(0.95);
-    opacity: 0.6;
-  }
-  100% {
-    transform: scale(1.1);
-    opacity: 0.95;
-  }
+  0% { transform: scale(0.94); opacity: 0.65; }
+  100% { transform: scale(1.12); opacity: 1; }
 }
 
-/* Interactive Aura Feedback when user focuses composer */
+@keyframes kyanaHazeDrift {
+  0% { transform: translate(-2px, -2px) scale(0.98); }
+  100% { transform: translate(2px, 2px) scale(1.03); }
+}
+
+/* Interactive Aura Elevation when user focuses composer */
 .kyana-app.composer-focused .kyana-aura-layer-white {
   opacity: 1 !important;
-  transform: scale(1.2) !important;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 45%, transparent 70%) !important;
+  transform: scale(1.25) !important;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.2) 0%, rgba(103, 216, 255, 0.08) 45%, transparent 72%) !important;
+}
+
+.kyana-app.composer-focused .kyana-orbital-ring {
+  opacity: 1 !important;
+  animation-duration: 4.5s !important;
+  transform: scale(1.06);
 }
 
 .kyana-app.composer-focused .kyana-hero-logo-wrap {
-  transform: translateY(-4px) scale(1.03) !important;
-  filter: drop-shadow(0 14px 30px rgba(255, 255, 255, 0.12)) !important;
+  transform: translateY(-5px) scale(1.04) !important;
+  border-color: rgba(255, 255, 255, 0.26) !important;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 0 24px rgba(255, 255, 255, 0.1) !important;
 }
 
-/* 2. Personalized Welcome Typography */
+html[data-theme="light"] .kyana-app.composer-focused .kyana-hero-logo-wrap {
+  border-color: rgba(15, 23, 42, 0.18) !important;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12), 0 0 0 4px rgba(15, 23, 42, 0.03) !important;
+}
+
+/* Hero Badge Pill */
+.kyana-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--ky-border);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--ky-text-secondary);
+  margin-bottom: 12px;
+}
+
+html[data-theme="light"] .kyana-hero-pill {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.08);
+  color: #475569;
+}
+
+.kyana-hero-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.7);
+  animation: kyanaPulse 2.4s ease-in-out infinite;
+}
+
+/* Personalized Welcome Typography */
 .kyana-welcome-heading,
 .kyana-app.is-empty .kyana-welcome-heading {
   font-family: var(--ky-font-brand) !important;
-  font-size: 30px !important;
+  font-size: 32px !important;
   font-weight: 700 !important;
-  letter-spacing: -0.025em !important;
+  letter-spacing: -0.03em !important;
   color: var(--ky-text-primary) !important;
   margin: 0 0 6px !important;
-  line-height: 1.25 !important;
+  line-height: 1.2 !important;
   text-align: center !important;
 }
 
@@ -783,20 +1120,280 @@ body.kyana-workspace-body [id*="mascot"] {
   font-weight: 400 !important;
   color: var(--ky-text-secondary) !important;
   max-width: 540px !important;
-  margin: 0 auto 24px !important;
+  margin: 0 auto !important;
   line-height: 1.5 !important;
   letter-spacing: -0.01em !important;
   text-align: center !important;
 }
 
-/* 3. Academic Suggestion Cards (2x2 Grid) */
+/* ==========================================================================
+   Floating Composer Capsule & Quick-Action Suggestion Cards
+   ========================================================================== */
+.kyana-attach-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  background-color: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-strong);
+  border-radius: 12px;
+  padding: 6px;
+  min-width: 230px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  z-index: 40;
+  animation: kyanaStageFadeUp 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html[data-theme="light"] .kyana-attach-popover {
+  background-color: #ffffff;
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+.kyana-popover-header {
+  padding: 6px 10px 4px;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ky-text-muted);
+}
+
+.kyana-popover-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  color: var(--ky-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.kyana-popover-item:hover {
+  background-color: var(--ky-sidebar-hover);
+}
+
+.kyana-composer-capsule {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background-color: var(--ky-surface, #131418);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 22px;
+  padding: 10px 12px 10px 14px;
+  min-height: 58px;
+  box-sizing: border-box;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kyana-composer-capsule:focus-within {
+  background-color: var(--ky-surface-raised, #191a20);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12), 0 12px 34px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Crisp, elevated Light Mode composer (eliminates heavy black shadow!) */
+html[data-theme="light"] .kyana-composer-capsule,
+body[data-theme="light"] .kyana-composer-capsule {
+  background-color: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06), 0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+html[data-theme="light"] .kyana-composer-capsule:focus-within,
+body[data-theme="light"] .kyana-composer-capsule:focus-within {
+  background-color: #ffffff;
+  border-color: rgba(15, 23, 42, 0.24);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.04), 0 12px 32px rgba(15, 23, 42, 0.09);
+}
+
+.kyana-attach-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--ky-border);
+  color: var(--ky-text-secondary);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-bottom: 1px;
+  transition: color 0.16s ease, background-color 0.16s ease, border-color 0.16s ease, transform 0.15s ease;
+}
+
+.kyana-attach-btn:hover {
+  color: var(--ky-text-primary);
+  background-color: var(--ky-surface-hover);
+  border-color: var(--ky-border-strong);
+  transform: scale(1.04);
+}
+
+html[data-theme="light"] .kyana-attach-btn {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.1);
+  color: #475569;
+}
+
+html[data-theme="light"] .kyana-attach-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.kyana-composer-textarea,
+textarea.kyana-composer-textarea,
+textarea#kyanaInput,
+[data-theme="dark"] textarea.kyana-composer-textarea,
+body.dark-mode textarea.kyana-composer-textarea,
+[data-theme="dark"] textarea#kyanaInput,
+body.dark-mode textarea#kyanaInput {
+  flex: 1;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  -webkit-appearance: none;
+  padding: 7px 6px;
+  font-family: var(--ky-font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ky-text-primary) !important;
+  resize: none;
+  max-height: 140px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.kyana-composer-textarea:focus,
+.kyana-composer-textarea:focus-visible,
+textarea.kyana-composer-textarea:focus,
+textarea#kyanaInput:focus {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.kyana-composer-textarea::placeholder {
+  color: var(--ky-text-muted);
+}
+
+.kyana-composer-right-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-bottom: 1px;
+}
+
+.kyana-composer-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ky-text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--ky-border);
+  user-select: none;
+  white-space: nowrap;
+}
+
+html[data-theme="light"] .kyana-composer-mode-badge {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.08);
+  color: #64748b;
+}
+
+.kyana-submit-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.14s ease, box-shadow 0.18s ease;
+}
+
+html[data-theme="light"] .kyana-submit-btn {
+  background-color: rgba(15, 23, 42, 0.07);
+  color: rgba(15, 23, 42, 0.35);
+}
+
+.kyana-submit-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.kyana-submit-btn.active {
+  background: #ffffff;
+  color: #090a0d;
+  box-shadow: 0 2px 12px rgba(255, 255, 255, 0.25);
+}
+
+html[data-theme="light"] .kyana-submit-btn.active {
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.2);
+}
+
+.kyana-submit-btn.active:hover {
+  transform: translateY(-1px) scale(1.03);
+}
+
+.kyana-submit-btn:active {
+  transform: scale(0.95);
+}
+
+.kyana-submit-btn.generating {
+  background-color: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-strong);
+  color: var(--ky-text-primary);
+  box-shadow: none;
+}
+
+.kyana-composer-subtext {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 7px 14px 0 !important;
+  font-size: 11px !important;
+  color: var(--ky-text-muted, #71717a) !important;
+  user-select: none !important;
+  line-height: 1.4 !important;
+}
+
+.kyana-kbd-guide {
+  display: inline-block;
+  opacity: 0.75;
+}
+
+/* Academic Suggestion Cards (Positioned Below Centered Composer in New Chat) */
 .kyana-suggestion-grid {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  gap: 12px !important;
+  gap: 10px !important;
   width: 100% !important;
-  max-width: 720px !important;
-  margin: 0 auto 24px !important;
+  max-width: var(--ky-composer-empty-width, 740px) !important;
+  margin: 18px auto 0 !important;
   box-sizing: border-box !important;
 }
 
@@ -805,12 +1402,14 @@ body.kyana-workspace-body [id*="mascot"] {
   flex-direction: column !important;
   align-items: flex-start !important;
   text-align: left !important;
-  background-color: var(--ky-surface, #141416) !important;
+  background-color: rgba(20, 21, 25, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
   border: 1px solid var(--ky-border, rgba(255, 255, 255, 0.08)) !important;
-  border-radius: 12px !important;
-  padding: 14px 16px !important;
+  border-radius: 14px !important;
+  padding: 13px 15px !important;
   cursor: pointer !important;
-  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease !important;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease !important;
   position: relative !important;
   overflow: hidden !important;
   color: var(--ky-text-primary, #f4f4f5) !important;
@@ -822,10 +1421,10 @@ body.kyana-workspace-body [id*="mascot"] {
 }
 
 .kyana-suggestion-card:hover {
-  background-color: var(--ky-surface-raised, #19191d) !important;
+  background-color: var(--ky-surface-raised, #191a20) !important;
   border-color: var(--ky-border-strong, rgba(255, 255, 255, 0.18)) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
 }
 
 .kyana-suggestion-card:focus-visible {
@@ -835,7 +1434,6 @@ body.kyana-workspace-body [id*="mascot"] {
 
 .kyana-suggestion-card:active {
   transform: translateY(0) !important;
-  filter: brightness(0.96) !important;
 }
 
 .kyana-card-header {
@@ -843,20 +1441,25 @@ body.kyana-workspace-body [id*="mascot"] {
   align-items: center !important;
   justify-content: space-between !important;
   width: 100% !important;
-  margin-bottom: 8px !important;
+  margin-bottom: 6px !important;
 }
 
 .kyana-card-badge {
-  font-size: 10px !important;
+  font-size: 9.5px !important;
   font-weight: 700 !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
   color: var(--ky-text-muted, #71717a) !important;
-  transition: color 0.18s ease !important;
+  padding: 2px 7px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--ky-border-subtle) !important;
+  transition: color 0.18s ease, border-color 0.18s ease !important;
 }
 
 .kyana-suggestion-card:hover .kyana-card-badge {
-  color: var(--ky-text-secondary, #a1a1aa) !important;
+  color: var(--ky-text-primary) !important;
+  border-color: var(--ky-border-strong) !important;
 }
 
 .kyana-card-icon {
@@ -867,15 +1470,15 @@ body.kyana-workspace-body [id*="mascot"] {
 
 .kyana-suggestion-card:hover .kyana-card-icon {
   color: var(--ky-text-primary, #f4f4f5) !important;
-  transform: scale(1.08) !important;
+  transform: translateX(1px) scale(1.08) !important;
 }
 
 .kyana-card-title {
   font-family: var(--ky-font-brand) !important;
-  font-size: 14px !important;
+  font-size: 13.5px !important;
   font-weight: 600 !important;
   color: var(--ky-text-primary, #f4f4f5) !important;
-  margin-bottom: 4px !important;
+  margin-bottom: 3px !important;
   line-height: 1.3 !important;
   letter-spacing: -0.01em !important;
 }
@@ -883,84 +1486,275 @@ body.kyana-workspace-body [id*="mascot"] {
 .kyana-card-desc {
   font-size: 12px !important;
   color: var(--ky-text-secondary, #a1a1aa) !important;
-  line-height: 1.45 !important;
+  line-height: 1.4 !important;
 }
 
 /* Light Mode Overrides for Suggestion Cards */
 html[data-theme="light"] .kyana-suggestion-card,
 body[data-theme="light"] .kyana-suggestion-card {
-  background-color: #f7f8fa !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
-  color: #121316 !important;
+  background-color: #f8fafc !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
 }
 
 html[data-theme="light"] .kyana-suggestion-card:hover,
 body[data-theme="light"] .kyana-suggestion-card:hover {
   background-color: #ffffff !important;
-  border-color: rgba(0, 0, 0, 0.16) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08) !important;
+  border-color: rgba(15, 23, 42, 0.16) !important;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.07) !important;
+}
+
+html[data-theme="light"] .kyana-card-badge {
+  background: rgba(15, 23, 42, 0.04) !important;
+  border-color: rgba(15, 23, 42, 0.06) !important;
+  color: #64748b !important;
 }
 
 html[data-theme="light"] .kyana-card-title {
-  color: #121316 !important;
+  color: #0f172a !important;
 }
 
 html[data-theme="light"] .kyana-card-desc {
-  color: #52525b !important;
+  color: #475569 !important;
 }
 
 html[data-theme="light"] .kyana-aura-layer-white {
-  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.04) 0%, transparent 70%) !important;
-}
-
-/* 4. Responsive Viewport Adaptations */
-@media (max-width: 640px) {
-  .kyana-suggestion-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-    max-width: 100% !important;
-    margin-bottom: 18px !important;
-  }
-  .kyana-suggestion-card {
-    padding: 12px 14px !important;
-  }
-  .kyana-welcome-heading,
-  .kyana-app.is-empty .kyana-welcome-heading {
-    font-size: 25px !important;
-  }
-  .kyana-welcome-sub,
-  .kyana-app.is-empty .kyana-welcome-sub {
-    font-size: 13.5px !important;
-    margin-bottom: 18px !important;
-  }
-  .kyana-hero-logo-wrap {
-    width: 60px !important;
-    height: 60px !important;
-  }
-  .kyana-welcome-logo {
-    width: 60px !important;
-    height: 60px !important;
-  }
-}
-
-/* 5. Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-  .kyana-hero-logo-wrap,
-  .kyana-aura-layer-white {
-    animation: none !important;
-    transform: none !important;
-  }
-  .kyana-suggestion-card:hover {
-    transform: none !important;
-  }
+  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.06) 0%, transparent 70%) !important;
 }
 
 /* ==========================================================================
-   Phase 3: Premium Conversation & Response Rendering
-   High-Craft Monochrome Educational Workspace (ChatGPT/Gemini Caliber)
+   Living Kyana Logo Component & Answering/Streaming Motion System (Gemini-Style)
    ========================================================================== */
+.kyana-logo-comp {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  flex-shrink: 0;
+  user-select: none;
+}
 
-/* 1. Conversation Canvas & Message Rows */
+.kyana-logo-glass-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 30%;
+  z-index: 2;
+}
+
+.kyana-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), filter 0.35s ease;
+}
+
+.kyana-logo-aura {
+  position: absolute;
+  inset: -28%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.14) 0%, rgba(147, 197, 253, 0.08) 45%, transparent 80%);
+  filter: blur(6px);
+  opacity: 0.45;
+  z-index: 0;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+/* Gemini-Style Orbital Ring around Thinking & Streaming Kyana Logo */
+.kyana-logo-orbit-ring {
+  position: absolute;
+  inset: -18%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.75) 80deg,
+    rgba(103, 216, 255, 0.65) 150deg,
+    rgba(185, 156, 255, 0.55) 220deg,
+    transparent 310deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.8px), #000 calc(100% - 1.2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1.8px), #000 calc(100% - 1.2px));
+  opacity: 0;
+  transform: scale(0.88);
+  z-index: 1;
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html[data-theme="light"] .kyana-logo-orbit-ring {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(15, 23, 42, 0.75) 80deg,
+    rgba(37, 99, 235, 0.65) 150deg,
+    rgba(124, 58, 237, 0.55) 220deg,
+    transparent 310deg,
+    transparent 360deg
+  );
+}
+
+.kyana-logo-highlight-sweep {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.3) 50%, transparent 80%);
+  transform: translateX(-150%) rotate(25deg);
+  opacity: 0;
+}
+
+/* Active Thinking & Streaming Logo Animation (Gemini-Caliber Living Emblem) */
+.kyana-logo-thinking .kyana-logo-orbit-ring,
+.kyana-response-row.is-streaming .kyana-logo-orbit-ring {
+  opacity: 1;
+  transform: scale(1);
+  animation: kyanaOrbitSpin 1.8s linear infinite;
+}
+
+.kyana-logo-thinking .kyana-logo-aura,
+.kyana-response-row.is-streaming .kyana-logo-aura {
+  inset: -45%;
+  filter: blur(8px);
+  opacity: 0.95;
+  animation: kyanaMonoAuraPulse 2.2s ease-in-out infinite;
+}
+
+.kyana-logo-thinking .kyana-logo-img,
+.kyana-response-row.is-streaming .kyana-logo-img {
+  animation: kyanaAnsweringMotion 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform, filter;
+}
+
+.kyana-logo-thinking .kyana-logo-highlight-sweep,
+.kyana-response-row.is-streaming .kyana-logo-highlight-sweep {
+  animation: kyanaHighlightSweep 2.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes kyanaAnsweringMotion {
+  0% { transform: scale(0.92) rotate(0deg); filter: brightness(0.96); }
+  35% { transform: scale(1.06) rotate(8deg); filter: brightness(1.12); }
+  65% { transform: scale(1.02) rotate(-5deg); filter: brightness(1.06); }
+  100% { transform: scale(0.92) rotate(0deg); filter: brightness(0.96); }
+}
+
+@keyframes kyanaHighlightSweep {
+  0% { transform: translateX(-140%) rotate(25deg); opacity: 0; }
+  25% { opacity: 0.32; }
+  60% { transform: translateX(140%) rotate(25deg); opacity: 0.32; }
+  100% { transform: translateX(140%) rotate(25deg); opacity: 0; }
+}
+
+@keyframes kyanaMonoAuraPulse {
+  0%, 100% { transform: scale(0.92); opacity: 0.5; }
+  50% { transform: scale(1.18); opacity: 0.95; }
+}
+
+.kyana-logo-animated .kyana-logo-img {
+  animation: kyanaHeroIdleBreathe 6.5s ease-in-out infinite;
+}
+
+.kyana-logo-animated .kyana-logo-highlight-sweep {
+  animation: kyanaHeroHighlightSlow 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes kyanaHeroHighlightSlow {
+  0% { transform: translateX(-150%) rotate(25deg); opacity: 0; }
+  35% { opacity: 0.14; }
+  65% { transform: translateX(150%) rotate(25deg); opacity: 0.14; }
+  100% { transform: translateX(150%) rotate(25deg); opacity: 0; }
+}
+
+/* Thinking Indicator Row (Pre-Token Gemini Shimmer + Animated Dots) */
+.kyana-thinking-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 26px;
+  padding: 6px 2px;
+  opacity: 1;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  animation: kyanaMessageSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.kyana-thinking-wrap.fading {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.kyana-thinking-mark-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.kyana-thinking-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  user-select: none;
+  background: linear-gradient(90deg, var(--ky-text-secondary) 0%, var(--ky-text-primary) 50%, var(--ky-text-secondary) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: kyanaTextShimmer 2.4s linear infinite;
+}
+
+@keyframes kyanaTextShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.kyana-thinking-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.kyana-thinking-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: var(--ky-text-secondary);
+  animation: kyanaWaveDot 1.3s ease-in-out infinite;
+}
+
+.kyana-thinking-dots span:nth-child(2) { animation-delay: 0.18s; }
+.kyana-thinking-dots span:nth-child(3) { animation-delay: 0.36s; }
+
+@keyframes kyanaWaveDot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-3px); opacity: 1; }
+}
+
+/* ==========================================================================
+   Conversation Stream, Response Header Avatar & Educational Lesson Typography
+   ========================================================================== */
+@keyframes kyanaMessageSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .kyana-messages-list {
   display: flex !important;
   flex-direction: column !important;
@@ -973,20 +1767,22 @@ html[data-theme="light"] .kyana-aura-layer-white {
   justify-content: flex-end !important;
   margin-bottom: 28px !important;
   width: 100% !important;
+  animation: kyanaMessageSlideIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .kyana-user-bubble {
-  max-width: 80% !important;
-  background-color: var(--ky-surface-raised, #19191d) !important;
+  max-width: 78% !important;
+  background-color: var(--ky-surface-raised, #191a20) !important;
   border: 1px solid var(--ky-border, rgba(255, 255, 255, 0.08)) !important;
-  border-radius: 18px 18px 4px 18px !important;
+  border-radius: 20px 20px 4px 20px !important;
   padding: 12px 18px !important;
   color: var(--ky-text-primary, #f4f4f5) !important;
   font-family: var(--ky-font-sans) !important;
   font-size: 15px !important;
   line-height: 1.55 !important;
   word-break: break-word !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28) !important;
+  white-space: pre-wrap !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22) !important;
 }
 
 .kyana-response-row {
@@ -995,9 +1791,71 @@ html[data-theme="light"] .kyana-aura-layer-white {
   width: 100% !important;
   margin-bottom: 36px !important;
   position: relative !important;
+  animation: kyanaMessageSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* 2. Educational Lesson Typography */
+/* Assistant Response Header with Animated Kyana Emblem */
+.kyana-response-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin-bottom: 10px !important;
+  user-select: none !important;
+}
+
+.kyana-response-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--ky-border);
+  flex-shrink: 0;
+}
+
+html[data-theme="light"] .kyana-response-avatar {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.09);
+}
+
+.kyana-response-author {
+  font-family: var(--ky-font-brand);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ky-text-primary);
+}
+
+.kyana-response-live-badge {
+  display: none;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ky-text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--ky-border);
+}
+
+.kyana-response-live-badge::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+  animation: kyanaPulse 1.2s ease-in-out infinite;
+}
+
+.kyana-response-row.is-streaming .kyana-response-live-badge {
+  display: inline-flex;
+}
+
+/* Educational Lesson Typography */
 .kyana-response-doc {
   font-family: var(--ky-font-sans) !important;
   font-size: 15.5px !important;
@@ -1057,10 +1915,11 @@ html[data-theme="light"] .kyana-aura-layer-white {
 }
 
 .kyana-response-doc h3 {
-  font-size: 16px !important;
+  font-size: 17px !important;
+  font-weight: 650 !important;
   letter-spacing: -0.015em !important;
-  margin: 20px 0 8px !important;
-  color: #f4f4f5 !important;
+  margin: 22px 0 10px !important;
+  color: #ffffff !important;
 }
 
 .kyana-response-doc h4 {
@@ -1134,19 +1993,37 @@ html[data-theme="light"] .kyana-aura-layer-white {
   white-space: pre-wrap !important;
 }
 
-/* Links */
-.kyana-response-doc a {
+/* Links in Markdown text */
+.kyana-response-doc a:not(.kyana-source-card):not(.ky-res-card) {
   color: #93c5fd !important;
   text-decoration: underline !important;
   text-underline-offset: 3px !important;
   transition: color 0.15s ease !important;
 }
 
-.kyana-response-doc a:hover {
+.kyana-response-doc a:not(.kyana-source-card):not(.ky-res-card):hover {
   color: #bfdbfe !important;
 }
 
-/* 3. High-Craft Code Block Container */
+/* Explicit reset for all resource cards inside response docs */
+.kyana-response-doc a.kyana-source-card,
+.kyana-response-doc a.ky-res-card,
+a.kyana-source-card,
+a.ky-res-card {
+  text-decoration: none !important;
+  color: inherit !important;
+}
+
+.kyana-response-doc a.kyana-source-card *,
+.kyana-response-doc a.ky-res-card *,
+a.kyana-source-card *,
+a.ky-res-card * {
+  text-decoration: none !important;
+}
+
+/* ==========================================================================
+   High-Craft Code Blocks & Live Preview Pane
+   ========================================================================== */
 .kyana-code-block {
   margin: 18px 0 !important;
   background-color: #0e0f12 !important;
@@ -1155,6 +2032,14 @@ html[data-theme="light"] .kyana-aura-layer-white {
   overflow: hidden !important;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4) !important;
   transition: border-color 0.18s ease, box-shadow 0.18s ease !important;
+}
+
+[data-theme="light"] .kyana-code-block,
+html[data-theme="light"] .kyana-code-block,
+body[data-theme="light"] .kyana-code-block {
+  background-color: #16181d !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08) !important;
 }
 
 .kyana-code-block:hover {
@@ -1251,7 +2136,7 @@ html[data-theme="light"] .kyana-aura-layer-white {
   color: inherit !important;
 }
 
-/* Syntax Highlighting Color Palette (Clean Obsidian Contrast) */
+/* Syntax Highlighting Color Palette */
 .token.comment,
 .token.prolog,
 .token.doctype,
@@ -1265,8 +2150,10 @@ html[data-theme="light"] .kyana-aura-layer-white {
 }
 
 .token.keyword,
+.token.keyword.control,
 .token.tag,
-.token.selector {
+.token.selector,
+.token.directive {
   color: #93c5fd !important;
   font-weight: 600 !important;
 }
@@ -1278,7 +2165,9 @@ html[data-theme="light"] .kyana-aura-layer-white {
 }
 
 .token.number,
-.token.boolean {
+.token.boolean,
+.token.unit,
+.token.attr-name {
   color: #fde047 !important;
 }
 
@@ -1299,7 +2188,98 @@ html[data-theme="light"] .kyana-aura-layer-white {
   color: #f4f4f5 !important;
 }
 
-/* 4. KaTeX Equations & Mathematical Notation */
+.kyana-code-preview-pane {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: #ffffff;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+  animation: kyanaPreviewSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes kyanaPreviewSlideDown {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 500px; }
+}
+
+.kyana-code-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 14px;
+  background-color: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-family: var(--ky-font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.kyana-code-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.kyana-preview-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+  animation: kyanaPulse 2s infinite ease-in-out;
+}
+
+.kyana-code-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kyana-preview-bar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.kyana-preview-bar-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.kyana-code-preview-canvas {
+  width: 100%;
+  padding: 0;
+  background: #ffffff;
+}
+
+.kyana-code-preview-iframe {
+  width: 100%;
+  min-height: 80px;
+  max-height: 340px;
+  border: none;
+  display: block;
+  background: #ffffff;
+}
+
+/* ==========================================================================
+   KaTeX Math & Responsive Comparison Tables
+   ========================================================================== */
+.kyana-math-block {
+  margin: 14px 0;
+  padding: 10px 14px;
+  overflow-x: auto;
+  text-align: center;
+}
+
 .katex {
   font-size: 1.05em !important;
 }
@@ -1317,16 +2297,6 @@ html[data-theme="light"] .kyana-aura-layer-white {
   text-align: center !important;
 }
 
-.katex-display::-webkit-scrollbar {
-  height: 4px !important;
-}
-
-.katex-display::-webkit-scrollbar-thumb {
-  background: var(--ky-border) !important;
-  border-radius: 4px !important;
-}
-
-/* 5. Responsive Comparison Tables */
 .kyana-table-wrapper {
   width: 100% !important;
   overflow-x: auto !important;
@@ -1338,7 +2308,8 @@ html[data-theme="light"] .kyana-aura-layer-white {
 }
 
 .kyana-table-wrapper table,
-.kyana-response-doc table {
+.kyana-response-doc table,
+.kyana-table {
   width: 100% !important;
   border-collapse: collapse !important;
   font-size: 13.5px !important;
@@ -1347,7 +2318,8 @@ html[data-theme="light"] .kyana-aura-layer-white {
 }
 
 .kyana-table-wrapper th,
-.kyana-response-doc th {
+.kyana-response-doc th,
+.kyana-table th {
   background-color: var(--ky-surface-raised, #19191d) !important;
   color: var(--ky-text-primary, #f4f4f5) !important;
   font-weight: 600 !important;
@@ -1361,7 +2333,8 @@ html[data-theme="light"] .kyana-aura-layer-white {
 }
 
 .kyana-table-wrapper td,
-.kyana-response-doc td {
+.kyana-response-doc td,
+.kyana-table td {
   padding: 10px 16px !important;
   border-bottom: 1px solid var(--ky-border, rgba(255, 255, 255, 0.08)) !important;
   color: #d4d4d8 !important;
@@ -1383,7 +2356,9 @@ html[data-theme="light"] .kyana-aura-layer-white {
   color: #ffffff !important;
 }
 
-/* 6. Academic Resource Cards */
+/* ==========================================================================
+   Academic Resource Cards (Strict Monochrome, Clean Grid)
+   ========================================================================== */
 .kyana-sources-wrap {
   margin-top: 20px !important;
   padding-top: 16px !important;
@@ -1404,21 +2379,26 @@ html[data-theme="light"] .kyana-aura-layer-white {
 
 .kyana-sources-list {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 380px)) !important;
   gap: 10px !important;
+  justify-content: start !important;
 }
 
 .kyana-source-card {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 11px 14px !important;
+  padding: 12px 14px !important;
   background-color: var(--ky-surface, #141416) !important;
   border: 1px solid var(--ky-border, rgba(255, 255, 255, 0.08)) !important;
-  border-radius: 10px !important;
+  border-radius: 12px !important;
   text-decoration: none !important;
   color: inherit !important;
-  transition: all 0.18s ease !important;
+  box-sizing: border-box !important;
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease !important;
+  gap: 12px !important;
+  min-height: 72px !important;
+  cursor: pointer !important;
 }
 
 .kyana-source-card:hover {
@@ -1428,43 +2408,105 @@ html[data-theme="light"] .kyana-aura-layer-white {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
 }
 
+.kyana-source-card:focus-visible {
+  outline: 2px solid #a1a1aa !important;
+  outline-offset: 2px !important;
+}
+
 .kyana-source-left {
   display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 12px !important;
   min-width: 0 !important;
+  flex: 1 1 0% !important;
 }
 
 .kyana-source-icon {
-  width: 28px !important;
-  height: 28px !important;
-  border-radius: 6px !important;
-  background-color: rgba(255, 255, 255, 0.06) !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+  border-radius: 8px !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  font-size: 10px !important;
-  font-weight: 700 !important;
-  color: #f4f4f5 !important;
+  color: #d4d4d8 !important;
   flex-shrink: 0 !important;
-  letter-spacing: 0.02em !important;
+  transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease !important;
+}
+
+.kyana-source-icon svg {
+  width: 16px !important;
+  height: 16px !important;
+  flex-shrink: 0 !important;
+  color: inherit !important;
+}
+
+.kyana-source-card:hover .kyana-source-icon {
+  color: #ffffff !important;
+  background-color: rgba(255, 255, 255, 0.09) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
 }
 
 .kyana-source-info {
   display: flex !important;
   flex-direction: column !important;
   min-width: 0 !important;
+  flex: 1 1 0% !important;
+  gap: 3px !important;
 }
 
-.kyana-source-title {
-  font-family: var(--ky-font-brand) !important;
-  font-size: 13px !important;
-  font-weight: 600 !important;
-  color: var(--ky-text-primary, #f4f4f5) !important;
+.kyana-source-header-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  min-width: 0 !important;
+  line-height: 1 !important;
+  margin-bottom: 2px !important;
+}
+
+.kyana-source-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+  font-size: 9.5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase !important;
+  color: #d4d4d8 !important;
+  background-color: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  line-height: 1.1 !important;
+}
+
+.kyana-source-subject {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  color: var(--ky-text-muted, #71717a) !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  margin-bottom: 2px !important;
+  min-width: 0 !important;
+}
+
+.kyana-source-title {
+  font-family: var(--ky-font-brand, outfit, sans-serif) !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  color: var(--ky-text-primary, #f4f4f5) !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  word-break: break-word !important;
+  margin: 0 !important;
 }
 
 .kyana-source-meta {
@@ -1473,6 +2515,39 @@ html[data-theme="light"] .kyana-aura-layer-white {
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
+  line-height: 1.3 !important;
+  margin-top: 1px !important;
+}
+
+.kyana-source-action {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 5px 9px !important;
+  border-radius: 6px !important;
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: var(--ky-text-secondary, #a1a1aa) !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  transition: all 0.18s ease !important;
+}
+
+.kyana-source-card:hover .kyana-source-action {
+  background-color: rgba(255, 255, 255, 0.09) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+}
+
+.kyana-source-action-icon {
+  flex-shrink: 0 !important;
+  transition: transform 0.18s ease !important;
+}
+
+.kyana-source-card:hover .kyana-source-action-icon {
+  transform: translateX(2px) !important;
 }
 
 .kyana-source-arrow {
@@ -1488,13 +2563,17 @@ html[data-theme="light"] .kyana-aura-layer-white {
   transform: translateX(3px) !important;
 }
 
-/* 7. Response Actions */
+/* ==========================================================================
+   Response Actions, Interactive Study Cards, & Modals
+   ========================================================================== */
 .kyana-response-actions {
   display: flex !important;
   align-items: center !important;
   gap: 6px !important;
   margin-top: 14px !important;
-  opacity: 0.7 !important;
+  position: relative;
+  overflow: hidden;
+  opacity: 0.72 !important;
   transition: opacity 0.18s ease !important;
 }
 
@@ -1530,13 +2609,396 @@ html[data-theme="light"] .kyana-aura-layer-white {
   color: #ffffff !important;
 }
 
-/* 8. Light Mode Overrides for Conversation */
+.kyana-response-actions.kyana-completion-pulse::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(103, 216, 255, 0.7), rgba(185, 156, 255, 0.7), transparent);
+  animation: kyanaCompletionPass 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes kyanaCompletionPass {
+  0% { transform: translateX(-100%); opacity: 0; }
+  40% { opacity: 0.8; }
+  100% { transform: translateX(100%); opacity: 0; }
+}
+
+.kyana-error-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 15px;
+  background-color: var(--ky-surface);
+  border: 1px solid var(--ky-border-strong);
+  border-radius: 10px;
+  margin-bottom: 18px;
+  font-size: 13px;
+  color: var(--ky-text-secondary);
+}
+
+.kyana-retry-btn {
+  background: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border);
+  color: var(--ky-text-primary);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.kyana-retry-btn:hover {
+  background-color: var(--ky-sidebar-hover);
+}
+
+.kyana-scroll-bottom-btn {
+  position: absolute;
+  bottom: 118px;
+  right: 24px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-strong);
+  color: var(--ky-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+  z-index: 20;
+}
+
+.kyana-scroll-bottom-btn.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.kyana-scroll-bottom-btn:hover {
+  background-color: var(--ky-surface-hover);
+}
+
+/* Study Partner, PYQ & MCQ Cards */
+.kyana-study-session-card {
+  margin: 14px 0;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--ky-border-strong, #282828);
+  background-color: var(--ky-surface, #141414);
+  color: var(--ky-text-primary, #ffffff);
+  box-sizing: border-box;
+  font-family: var(--ky-font-sans, inherit);
+}
+
+.kyana-study-session-card .kyana-session-progress-bar {
+  width: 100%;
+  height: 4px;
+  background-color: var(--ky-border, #282828);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.kyana-study-session-card .kyana-session-progress-fill {
+  height: 100%;
+  background-color: #ffffff;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.kyana-pyq-card {
+  margin: 14px 0;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-color: #161616;
+  color: #ffffff;
+  box-sizing: border-box;
+  font-family: var(--ky-font-sans, inherit);
+}
+
+.kyana-study-chips-bar,
+.kyana-msg-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
+.kyana-study-chip-btn,
+.kyana-msg-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--ky-border, #2e2e2e);
+  background-color: var(--ky-surface-raised, #181818);
+  color: var(--ky-text-primary, #f5f5f5);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+  user-select: none;
+}
+
+.kyana-study-chip-btn:hover:not(:disabled),
+.kyana-msg-action-btn:hover:not(:disabled) {
+  background-color: var(--ky-surface-hover, #252525);
+  border-color: var(--ky-border-strong, #4a4a4a);
+}
+
+.kyana-msg-action-btn.is-primary {
+  background-color: #ffffff;
+  color: #0b0b0b;
+  border-color: #ffffff;
+  font-weight: 600;
+}
+
+.kyana-msg-action-btn:disabled,
+.kyana-msg-action-btn.is-loading {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.kyana-mcq-card {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--ky-border, #2b2b2b);
+  background-color: var(--ky-surface-card, #141414);
+}
+
+.kyana-mcq-header {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ky-text-muted, #9a9a9a);
+  margin-bottom: 6px;
+}
+
+.kyana-mcq-question {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--ky-text-primary, #ffffff);
+  margin-bottom: 10px;
+}
+
+.kyana-mcq-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kyana-mcq-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--ky-border, #2b2b2b);
+  background-color: var(--ky-surface-raised, #1a1a1a);
+  color: var(--ky-text-primary, #f0f0f0);
+  font-size: 13.5px;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.kyana-mcq-option:hover:not(:disabled) {
+  background-color: var(--ky-surface-hover, #242424);
+  border-color: var(--ky-border-strong, #4a4a4a);
+}
+
+.kyana-mcq-option-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--ky-border-strong, #3f3f46);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+  background-color: #111111;
+  color: #ffffff;
+}
+
+.kyana-mcq-option-text {
+  flex: 1;
+}
+
+.kyana-mcq-option-status {
+  font-size: 12px;
+  font-weight: 600;
+  color: #a3a3a3;
+}
+
+.kyana-mcq-option.selected {
+  border-color: #d4d4d8;
+  background-color: #202020;
+}
+
+.kyana-mcq-option.is-correct {
+  border-color: #ffffff;
+  background-color: #242424;
+}
+
+.kyana-mcq-option.is-correct .kyana-mcq-option-badge {
+  background-color: #ffffff;
+  color: #09090b;
+  border-color: #ffffff;
+}
+
+.kyana-mcq-option.is-incorrect {
+  border-color: #52525b;
+  opacity: 0.72;
+}
+
+.kyana-mcq-feedback {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border-left: 3px solid #ffffff;
+  background-color: rgba(255, 255, 255, 0.05);
+  font-size: 13px;
+  line-height: 1.45;
+  color: #e4e4e7;
+}
+
+/* Modals */
+.kyana-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.kyana-modal-box {
+  background-color: var(--ky-surface-raised);
+  border: 1px solid var(--ky-border-strong);
+  border-radius: 14px;
+  padding: 20px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+
+.kyana-modal-title {
+  margin: 0 0 10px;
+  font-family: var(--ky-font-brand);
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--ky-text-primary);
+}
+
+.kyana-modal-desc {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--ky-text-secondary);
+  line-height: 1.5;
+}
+
+.kyana-modal-input {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: var(--ky-surface);
+  border: 1px solid var(--ky-border-strong);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--ky-text-primary);
+  font-size: 13.5px;
+  font-family: var(--ky-font-sans);
+  outline: none;
+  margin-bottom: 16px;
+}
+
+.kyana-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.kyana-btn {
+  padding: 7px 14px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color 0.15s ease;
+}
+
+.kyana-btn-secondary {
+  background-color: transparent;
+  color: var(--ky-text-secondary);
+}
+
+.kyana-btn-secondary:hover {
+  background-color: var(--ky-surface);
+  color: var(--ky-text-primary);
+}
+
+.kyana-btn-primary {
+  background-color: var(--ky-text-primary);
+  color: var(--ky-bg);
+}
+
+.kyana-btn-danger {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+/* Global Mascot & Floating Assistant Suppression */
+body.kyana-workspace-body .sla-chat-fab,
+body.kyana-workspace-body .sla-chat-panel,
+body.kyana-workspace-body #rickContainer,
+body.kyana-workspace-body .brian-wrapper,
+body.kyana-workspace-body [class*="chat-fab"],
+body.kyana-workspace-body [class*="floating-assistant"],
+body.kyana-workspace-body [id*="floatingAssistant"],
+body.kyana-workspace-body [id*="chatWidget"],
+body.kyana-workspace-body [class*="mascot"],
+body.kyana-workspace-body [id*="mascot"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
+
+/* ==========================================================================
+   Light Theme Overrides for Conversation & Resource Cards
+   ========================================================================== */
 html[data-theme="light"] .kyana-user-bubble,
 body[data-theme="light"] .kyana-user-bubble {
-  background-color: #e8eaee !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
-  color: #121316 !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  background-color: #eef1f6 !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
 }
 
 html[data-theme="light"] .kyana-response-doc,
@@ -1547,6 +3009,11 @@ body[data-theme="light"] .kyana-response-doc {
 html[data-theme="light"] .kyana-response-doc strong,
 body[data-theme="light"] .kyana-response-doc strong {
   color: #000000 !important;
+}
+
+html[data-theme="light"] .kyana-response-doc em,
+body[data-theme="light"] .kyana-response-doc em {
+  color: #334155 !important;
 }
 
 html[data-theme="light"] .kyana-response-doc h1,
@@ -1566,6 +3033,10 @@ html[data-theme="light"] .kyana-response-doc :not(pre) > code {
   background-color: rgba(0, 0, 0, 0.06) !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
   color: #121316 !important;
+}
+
+html[data-theme="light"] .kyana-response-doc a:not(.kyana-source-card):not(.ky-res-card) {
+  color: #2563eb !important;
 }
 
 html[data-theme="light"] .kyana-table-wrapper {
@@ -1591,29 +3062,69 @@ html[data-theme="light"] .kyana-response-doc tr:nth-child(even) {
   background-color: rgba(0, 0, 0, 0.02) !important;
 }
 
-html[data-theme="light"] .kyana-source-card {
-  background-color: #f8f9fa !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
+html[data-theme="light"] .kyana-source-card,
+body[data-theme="light"] .kyana-source-card {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.09) !important;
   color: #121316 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
-html[data-theme="light"] .kyana-source-card:hover {
-  background-color: #ffffff !important;
-  border-color: rgba(0, 0, 0, 0.16) !important;
+html[data-theme="light"] .kyana-source-card:hover,
+body[data-theme="light"] .kyana-source-card:hover {
+  background-color: #fafbfc !important;
+  border-color: rgba(0, 0, 0, 0.18) !important;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
 }
 
-html[data-theme="light"] .kyana-source-icon {
-  background-color: rgba(0, 0, 0, 0.06) !important;
-  color: #121316 !important;
+html[data-theme="light"] .kyana-source-icon,
+body[data-theme="light"] .kyana-source-icon {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #27272a !important;
 }
 
-html[data-theme="light"] .kyana-source-title {
-  color: #121316 !important;
+html[data-theme="light"] .kyana-source-card:hover .kyana-source-icon,
+body[data-theme="light"] .kyana-source-card:hover .kyana-source-icon {
+  background-color: rgba(0, 0, 0, 0.07) !important;
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  color: #09090b !important;
 }
 
-html[data-theme="light"] .kyana-source-meta {
+html[data-theme="light"] .kyana-source-badge,
+body[data-theme="light"] .kyana-source-badge {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #3f3f46 !important;
+}
+
+html[data-theme="light"] .kyana-source-subject,
+body[data-theme="light"] .kyana-source-subject {
   color: #71717a !important;
+}
+
+html[data-theme="light"] .kyana-source-title,
+body[data-theme="light"] .kyana-source-title {
+  color: #09090b !important;
+}
+
+html[data-theme="light"] .kyana-source-meta,
+body[data-theme="light"] .kyana-source-meta {
+  color: #71717a !important;
+}
+
+html[data-theme="light"] .kyana-source-action,
+body[data-theme="light"] .kyana-source-action {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: #52525b !important;
+}
+
+html[data-theme="light"] .kyana-source-card:hover .kyana-source-action,
+body[data-theme="light"] .kyana-source-card:hover .kyana-source-action {
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  color: #09090b !important;
 }
 
 html[data-theme="light"] .kyana-action-btn:hover {
@@ -1622,8 +3133,122 @@ html[data-theme="light"] .kyana-action-btn:hover {
   color: #121316 !important;
 }
 
-/* 9. Mobile Responsive Adaptations */
+/* ==========================================================================
+   Responsive & Reduced-Motion Rules
+   ========================================================================== */
+@media (max-width: 768px) {
+  body.kyana-workspace-body.dash .dash-header,
+  body.kyana-workspace-body .dash-header,
+  html body.kyana-workspace-body.dash .dash-header,
+  html body.kyana-workspace-body .dash-header {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    height: 54px !important;
+    min-height: 54px !important;
+    max-height: 54px !important;
+    border-radius: 0 !important;
+    background: var(--ky-bg, #09090b) !important;
+    background-color: var(--ky-bg, #09090b) !important;
+    border-bottom: 1px solid var(--ky-border) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    padding-left: max(14px, env(safe-area-inset-left, 14px)) !important;
+    padding-right: max(14px, env(safe-area-inset-right, 14px)) !important;
+    overflow: hidden !important;
+    box-sizing: border-box !important;
+    z-index: 120 !important;
+  }
+
+  body.kyana-workspace-body .dash-header-nav {
+    display: none !important;
+  }
+
+  body.kyana-workspace-body .dash-header-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 8px !important;
+    order: 2 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .kyana-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100%;
+    height: 100dvh;
+    z-index: 1000;
+    transform: translateX(-100%);
+    margin-left: 0 !important;
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.6);
+  }
+
+  .kyana-app.sidebar-open .kyana-sidebar {
+    transform: translateX(0);
+  }
+
+  .kyana-drawer-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 999;
+  }
+
+  .kyana-app.sidebar-open .kyana-drawer-backdrop {
+    display: block;
+  }
+
+  .kyana-app.is-empty .kyana-main {
+    padding: 20px 14px max(28px, env(safe-area-inset-bottom, 20px)) !important;
+  }
+
+  .kyana-app.is-empty .kyana-composer-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .kyana-app.has-messages .kyana-reading-column {
+    padding: 16px 14px calc(180px + env(safe-area-inset-bottom, 20px)) !important;
+  }
+
+  .kyana-app.has-messages .kyana-composer-container {
+    padding: 0 12px max(18px, env(safe-area-inset-bottom, 18px)) !important;
+  }
+
+  .kyana-welcome-heading,
+  .kyana-app.is-empty .kyana-welcome-heading {
+    font-size: 26px !important;
+  }
+
+  .kyana-welcome-sub,
+  .kyana-app.is-empty .kyana-welcome-sub {
+    font-size: 13.5px !important;
+    padding: 0 8px !important;
+  }
+
+  .kyana-composer-mode-badge,
+  .kyana-kbd-guide {
+    display: none !important;
+  }
+}
+
 @media (max-width: 640px) {
+  .kyana-suggestion-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    max-width: 100% !important;
+    margin-bottom: 18px !important;
+  }
+  .kyana-suggestion-card {
+    padding: 12px 14px !important;
+  }
   .kyana-user-bubble {
     max-width: 90% !important;
     font-size: 14px !important;
@@ -1642,11 +3267,21 @@ html[data-theme="light"] .kyana-action-btn:hover {
     margin: 20px 0 8px !important;
   }
   .kyana-response-doc h3 {
-    font-size: 15px !important;
+    font-size: 15.5px !important;
     margin: 16px 0 6px !important;
   }
   .kyana-sources-list {
     grid-template-columns: 1fr !important;
+  }
+  .kyana-source-card {
+    padding: 10px 12px !important;
+    gap: 10px !important;
+  }
+  .kyana-source-action-text {
+    display: none !important;
+  }
+  .kyana-source-action {
+    padding: 6px !important;
   }
   .kyana-code-pre {
     font-size: 12px !important;
@@ -1654,4 +3289,23 @@ html[data-theme="light"] .kyana-action-btn:hover {
   }
 }
 
-
+@media (prefers-reduced-motion: reduce) {
+  .kyana-aura-layer,
+  .kyana-orbital-ring,
+  .kyana-orbital-ring-inner,
+  .kyana-logo-comp,
+  .kyana-logo-img,
+  .kyana-logo-highlight-sweep,
+  .kyana-logo-orbit-ring,
+  .kyana-logo-aura,
+  .kyana-welcome-logo,
+  .kyana-logo-glass-sweep,
+  .kyana-hero-logo-wrap {
+    animation: none !important;
+    transform: none !important;
+    transition: none !important;
+  }
+  .kyana-suggestion-card:hover {
+    transform: none !important;
+  }
+}

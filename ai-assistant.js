@@ -987,20 +987,39 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     } = require('./lib/chapter-tutor-engine');
 
     const chapReasoning = analyzeChapterStudentQuestion(message, cleanHistory, []);
-    const isSteppingActiveLesson = /^(?:next(?:\s+topic|\s+step)?|continue|proceed|go\s+ahead|move\s+on|ready|yes\s+next|skip(?:\s+topic)?)[.!]*$/i.test(message.trim());
 
     let hasActiveConvStudySession = false;
-    if (isSteppingActiveLesson && db && typeof db.get === 'function' && sessionId && sessionId !== 'default' && sessionId !== 'anonymous') {
+    if (db && typeof db.get === 'function') {
       try {
-        const activeRow = await db.get(
-          `SELECT id FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE' LIMIT 1`,
-          sessionId
-        );
+        const convId = sessionId || options?.conversationId || null;
+        const spStudentId = academicContext?.studentId || studentInfo?.studentId || null;
+        let activeRow = null;
+        if (convId && convId !== 'default' && convId !== 'anonymous') {
+          activeRow = await db.get(
+            `SELECT id FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE' LIMIT 1`,
+            convId
+          );
+        }
+        if (!activeRow && spStudentId && spStudentId !== 'anonymous_student') {
+          activeRow = await db.get(
+            `SELECT id FROM study_partner_sessions WHERE student_id = ? AND status = 'ACTIVE' LIMIT 1`,
+            spStudentId
+          );
+        }
         hasActiveConvStudySession = Boolean(activeRow);
       } catch (_) {}
     }
 
-    if (chapReasoning.isExplicitChapterTeachRequest || hasActiveConvStudySession) {
+    const trimmedMsg = String(message || '').trim();
+    const isSteppingRegex = /^(?:next(?:\s+topic|\s+step)?|continue|proceed|go\s+ahead|move\s+on|ready|yes\s+next|skip(?:\s+topic)?|nexr|oki\s+nexr)[.!]*$/i.test(trimmedMsg);
+    const wordCount = trimmedMsg ? trimmedMsg.split(/\s+/).filter(Boolean).length : 0;
+    const isQuestion = trimmedMsg.includes('?') ||
+      /^(?:what|why|how|when|where|who|which|is|are|can|could|kasto|kina|kahile|kasari|ke)\b/i.test(trimmedMsg);
+    const isShortNonQuestion = wordCount > 0 && wordCount <= 4 && !isQuestion;
+
+    const shouldStepOrAdvanceSession = isSteppingRegex || (hasActiveConvStudySession && isShortNonQuestion);
+
+    if (route.kind === 'study_partner' || chapReasoning.isExplicitChapterTeachRequest || (hasActiveConvStudySession && shouldStepOrAdvanceSession)) {
       route.kind = 'study_partner';
       route.isNewSession = Boolean(chapReasoning.isExplicitChapterTeachRequest);
       route.isFollowUp = Boolean(!chapReasoning.isExplicitChapterTeachRequest && hasActiveConvStudySession);
@@ -1369,9 +1388,26 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
             );
             noteChunks = (rawCandidates || [])
               .filter((r) => !r.deleted_at && !r.hidden_at && (!authCtx || canReadResource(authCtx, r, 'note', { allowCrossSemester: true })))
-              .slice(0, 3);
+              .slice(0, 6);
           } catch (_) {}
         }
+
+        const currentStepNum = Number(renderedStep.stepIndex || renderedStep.step_index || 1);
+        const totalStepsCount = Array.isArray(renderedTopics) && renderedTopics.length > 0
+          ? renderedTopics.length
+          : Number(renderedSession.total_steps || renderedSession.totalSteps || 1);
+        const currentTopicTitle = renderedStep.topicTitle || renderedStep.topic_title || 'Topic';
+
+        // Requirement 2: Send synthetic instruction message instead of raw student text, and limit history to last 2 turns
+        const syntheticInstruction = `Teach Step ${currentStepNum} of ${totalStepsCount}: "${currentTopicTitle}" in depth according to the active study session and curriculum.`;
+        const studyHistory = Array.isArray(cleanHistory) ? cleanHistory.slice(-2) : [];
+
+        // Requirement 2: Student's reply goes only into feedbackNote
+        const evalForPrompt = {
+          ...(renderedEvalResult || {}),
+          studentReply: originalMessage,
+          feedback: renderedEvalResult?.feedback || (originalMessage ? `Student reply on previous checkpoint: "${originalMessage.trim()}"` : '')
+        };
 
         const llmStudyPrompt = buildStudyPartnerLlmPrompt({
           session: renderedSession,
@@ -1380,25 +1416,55 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           noteChunks,
           lessonBundle,
           isRemediation: isRemediationTurn,
-          studentAnswerEvaluation: renderedEvalResult,
+          studentAnswerEvaluation: evalForPrompt,
           languageInstruction: langRule
         });
 
-        const llmOut = await llmGenerateFn({
-          message: originalMessage,
-          history: cleanHistory,
+        const countWords = (text) => String(text || '').trim().split(/\s+/).filter(Boolean).length;
+
+        let llmOut = await llmGenerateFn({
+          message: syntheticInstruction,
+          history: studyHistory,
           systemPrompt: llmStudyPrompt,
           tools: [],
           onDelta: () => {},
           signal,
           complex: false
         });
-        const rawProse = stripUrlsOutsideCodeBlocks(String(llmOut?.reply || '').trim());
-        const parsedTags = extractKyanaActionsFromText(rawProse, {
+
+        let rawProse = stripUrlsOutsideCodeBlocks(String(llmOut?.reply || '').trim());
+        let parsedTags = extractKyanaActionsFromText(rawProse, {
           sessionId: renderedSession.id,
           stepIndex: Number(renderedStep.stepIndex || renderedStep.step_index || 1)
         });
-        const candidateProse = parsedTags.cleanText;
+        let candidateProse = parsedTags.cleanText;
+
+        // Requirement 4: If reply is under 180 words, retry once with a "too short" reminder
+        const initialWordCount = countWords(candidateProse);
+        if (candidateProse && initialWordCount < 180) {
+          try {
+            const retryInstruction = `${syntheticInstruction}\n\n[CRITICAL REMINDER: Your previous response was too brief (${initialWordCount} words). A full study partner lesson requires at least 300+ words following the DEPTH RULES: 1. Analogy, 2. Technical Mechanics, 3. Code Example, 4. Tradeoffs/Pitfalls, 5. Checkpoint Question. Please expand your explanation into a complete, in-depth lesson now.]`;
+            const retryOut = await llmGenerateFn({
+              message: retryInstruction,
+              history: studyHistory,
+              systemPrompt: llmStudyPrompt,
+              tools: [],
+              onDelta: () => {},
+              signal,
+              complex: false
+            });
+            const retryRaw = stripUrlsOutsideCodeBlocks(String(retryOut?.reply || '').trim());
+            const retryParsed = extractKyanaActionsFromText(retryRaw, {
+              sessionId: renderedSession.id,
+              stepIndex: Number(renderedStep.stepIndex || renderedStep.step_index || 1)
+            });
+            if (retryParsed.cleanText && !unsafeOutput(retryParsed.cleanText)) {
+              rawProse = retryRaw;
+              parsedTags = retryParsed;
+              candidateProse = retryParsed.cleanText;
+            }
+          } catch (_) {}
+        }
         if (parsedTags.messageActions) extractedActions = parsedTags.messageActions;
         if (parsedTags.interactiveQuestion) {
           extractedInteractiveQuestion = parsedTags.interactiveQuestion;

@@ -1593,8 +1593,74 @@
     assertAndCleanPlaceholders(element);
   }
 
-  // KyanaSourceCard Component (Strict Monochrome, No Gradients)
+  // KyanaSourceCard Component (Strict Monochrome, Clean Grid)
   const KyanaSourceCard = {
+    getIconSvg(type) {
+      const t = String(type || '').toLowerCase();
+      switch (t) {
+        case 'note':
+          return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
+        case 'notice':
+          return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`;
+        case 'post':
+          return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
+        case 'assignment':
+        case 'post_assignment':
+          return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="m9 14 2 2 4-4"/></svg>`;
+        case 'routine':
+          return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+        case 'pyq':
+          return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`;
+        case 'syllabus':
+        case 'course':
+          return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`;
+        case 'web':
+          return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`;
+        default:
+          return `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>`;
+      }
+    },
+
+    getBadgeLabel(type, fallback) {
+      const t = String(type || '').toLowerCase();
+      switch (t) {
+        case 'note': return 'NOTE';
+        case 'notice': return 'NOTICE';
+        case 'post': return 'POST';
+        case 'assignment':
+        case 'post_assignment': return 'ASSIGNMENT';
+        case 'routine': return 'ROUTINE';
+        case 'pyq': return 'PYQ';
+        case 'syllabus':
+        case 'course': return 'SYLLABUS';
+        case 'web': return 'WEB';
+        default: return fallback || 'FILE';
+      }
+    },
+
+    getActionLabel(action, type) {
+      if (action) {
+        const actionLabels = {
+          open_note: 'Open Note',
+          view_routine: 'View Routine',
+          view_notice: 'View Notice',
+          view_post: 'Open Post',
+          view_assignment: 'Open Assignment',
+          view_syllabus: 'View Syllabus'
+        };
+        if (actionLabels[action]) return actionLabels[action];
+      }
+      const t = String(type || '').toLowerCase();
+      if (t === 'note') return 'Open Note';
+      if (t === 'assignment' || t === 'post_assignment') return 'Open Assignment';
+      if (t === 'post') return 'Open Post';
+      if (t === 'notice') return 'View Notice';
+      if (t === 'routine') return 'View Routine';
+      if (t === 'syllabus' || t === 'course') return 'View Syllabus';
+      if (t === 'web') return 'Visit';
+      return 'Open';
+    },
+
     renderSources(container, data) {
       const resourceCards = Array.isArray(data.resourceCards) ? data.resourceCards : [];
       const files = Array.isArray(data.matchedFiles) ? data.matchedFiles : [];
@@ -1623,35 +1689,64 @@
         resourceCards.forEach(card => {
           const el = document.createElement('a');
           el.className = 'kyana-source-card';
-          el.href = ['note','post','notice','assignment','post_assignment','routine'].includes(card.type) && /^\d+$/.test(String(card.id)) ? `/api/ai/resources/${card.type}/${card.id}/open` : '#';
-          if (card.action === 'open_note' || card.type === 'note') {
+          el.href = ['note','post','notice','assignment','post_assignment','routine'].includes(card.type) && /^\d+$/.test(String(card.id))
+            ? `/api/ai/resources/${card.type}/${card.id}/open`
+            : (card.deepLink || '#');
+
+          if (card.action === 'open_note' || card.type === 'note' || (card.deepLink && /^https?:\/\//.test(card.deepLink))) {
             el.target = '_blank';
             el.rel = 'noopener noreferrer';
           }
-          const iconType = {
-            note: 'NOTE',
-            routine: 'EXAM',
-            notice: 'NOTIF',
-            post: 'FEED',
-            assignment: 'TASK'
-          }[card.type] || 'DOC';
-          const actionText = {
-            open_note: 'Open Notes',
-            view_routine: 'View Routine',
-            view_notice: 'View Notice',
-            view_post: 'Open Post',
-            view_assignment: 'Open Assignment'
-          }[card.action] || 'Open';
-          const meta = [card.subject, card.semester ? `Sem ${card.semester}` : '', actionText].filter(Boolean).join(' · ');
+
+          const iconSvg = KyanaSourceCard.getIconSvg(card.type);
+          const badgeText = KyanaSourceCard.getBadgeLabel(card.type);
+          const actionText = KyanaSourceCard.getActionLabel(card.action, card.type);
+
+          const subjectParts = [];
+          if (card.subject) subjectParts.push(card.subject);
+          if (card.semester) subjectParts.push(`Sem ${card.semester}`);
+          const subjectContext = subjectParts.join(' · ');
+
+          const metaParts = [];
+          if (card.page) {
+            metaParts.push(`Page ${card.page}`);
+          } else if (card.relevantPages && card.relevantPages.length) {
+            metaParts.push(`Pages ${card.relevantPages.join(', ')}`);
+          } else if (card.chapter) {
+            metaParts.push(`Ch. ${card.chapter}`);
+          }
+          if (card.deadline) {
+            metaParts.push(`Due: ${card.deadline}`);
+          } else if (card.publishedDate) {
+            metaParts.push(card.publishedDate);
+          } else if (card.date) {
+            metaParts.push(card.date + (card.time ? ` · ${card.time}` : ''));
+          } else if (card.authority) {
+            metaParts.push(card.authority);
+          }
+          const secondaryMeta = metaParts.join(' · ');
+          const displayTitle = card.title || 'Resource';
+
           el.innerHTML = `
             <div class="kyana-source-left">
-              <div class="kyana-source-icon">${escapeHtml(iconType)}</div>
+              <div class="kyana-source-icon" aria-hidden="true">${iconSvg}</div>
               <div class="kyana-source-info">
-                <span class="kyana-source-title">${escapeHtml(card.title || 'Resource')}</span>
-                <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+                <div class="kyana-source-header-row">
+                  <span class="kyana-source-badge">${escapeHtml(badgeText)}</span>
+                  ${subjectContext ? `<span class="kyana-source-subject" title="${escapeHtml(subjectContext)}">${escapeHtml(subjectContext)}</span>` : ''}
+                </div>
+                <div class="kyana-source-title" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</div>
+                ${secondaryMeta ? `<div class="kyana-source-meta">${escapeHtml(secondaryMeta)}</div>` : ''}
               </div>
             </div>
-            <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+            <div class="kyana-source-action">
+              <span class="kyana-source-action-text">${escapeHtml(actionText)}</span>
+              <svg class="kyana-source-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </div>
+            <span class="kyana-source-arrow" aria-hidden="true" style="display:none">&rarr;</span>
           `;
           list.appendChild(el);
         });
@@ -1666,17 +1761,42 @@
             : rawCardUrl;
           card.target = '_blank';
           card.rel = 'noopener noreferrer';
+
           const ext = ((f.originalName || f.title || '').split('.').pop() || 'doc').toUpperCase().slice(0, 4);
-          const meta = [f.subject || 'Study Notes', f.chapter ? `Ch. ${f.chapter}` : '', f.semester ? `Sem ${f.semester}` : ''].filter(Boolean).join(' · ');
+          const iconSvg = KyanaSourceCard.getIconSvg('file');
+          const badgeText = KyanaSourceCard.getBadgeLabel('file', ext);
+
+          const subjectParts = [];
+          if (f.subject) subjectParts.push(f.subject);
+          if (f.semester) subjectParts.push(`Sem ${f.semester}`);
+          const subjectContext = subjectParts.join(' · ') || 'Study Notes';
+
+          const metaParts = [];
+          if (f.chapter) metaParts.push(`Ch. ${f.chapter}`);
+          if (f.fileSize) metaParts.push(`${Math.round(f.fileSize / 1024)} KB`);
+          const secondaryMeta = metaParts.join(' · ');
+          const displayTitle = f.title || f.originalName || 'Study Material';
+
           card.innerHTML = `
             <div class="kyana-source-left">
-              <div class="kyana-source-icon">${escapeHtml(ext)}</div>
+              <div class="kyana-source-icon" aria-hidden="true">${iconSvg}</div>
               <div class="kyana-source-info">
-                <span class="kyana-source-title">${escapeHtml(f.title || f.originalName || 'Study Material')}</span>
-                <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+                <div class="kyana-source-header-row">
+                  <span class="kyana-source-badge">${escapeHtml(badgeText)}</span>
+                  <span class="kyana-source-subject" title="${escapeHtml(subjectContext)}">${escapeHtml(subjectContext)}</span>
+                </div>
+                <div class="kyana-source-title" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</div>
+                ${secondaryMeta ? `<div class="kyana-source-meta">${escapeHtml(secondaryMeta)}</div>` : ''}
               </div>
             </div>
-            <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+            <div class="kyana-source-action">
+              <span class="kyana-source-action-text">View Note</span>
+              <svg class="kyana-source-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </div>
+            <span class="kyana-source-arrow" aria-hidden="true" style="display:none">&rarr;</span>
           `;
           list.appendChild(card);
         });
@@ -1687,16 +1807,33 @@
           card.className = 'kyana-source-card';
           const courseKey = c.code ? `${c.code}-${c.title}` : c.title;
           card.href = `syllabus.html#${encodeURIComponent(c.year || 'Year 1')}/${encodeURIComponent(c.semester)}/${encodeURIComponent(courseKey)}`;
-          const meta = [`Semester ${c.semester}`, `${c.credit} Credits`, c.nature || 'Curriculum'].filter(Boolean).join(' · ');
+
+          const iconSvg = KyanaSourceCard.getIconSvg('syllabus');
+          const badgeText = KyanaSourceCard.getBadgeLabel('syllabus');
+          const subjectContext = `Semester ${c.semester}${c.credit ? ` · ${c.credit} Credits` : ''}`;
+          const secondaryMeta = c.nature || 'Curriculum Specification';
+          const displayTitle = c.title;
+
           card.innerHTML = `
             <div class="kyana-source-left">
-              <div class="kyana-source-icon">SYL</div>
+              <div class="kyana-source-icon" aria-hidden="true">${iconSvg}</div>
               <div class="kyana-source-info">
-                <span class="kyana-source-title">${escapeHtml(c.title)}</span>
-                <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+                <div class="kyana-source-header-row">
+                  <span class="kyana-source-badge">${escapeHtml(badgeText)}</span>
+                  <span class="kyana-source-subject" title="${escapeHtml(subjectContext)}">${escapeHtml(subjectContext)}</span>
+                </div>
+                <div class="kyana-source-title" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</div>
+                ${secondaryMeta ? `<div class="kyana-source-meta">${escapeHtml(secondaryMeta)}</div>` : ''}
               </div>
             </div>
-            <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+            <div class="kyana-source-action">
+              <span class="kyana-source-action-text">View Syllabus</span>
+              <svg class="kyana-source-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </div>
+            <span class="kyana-source-arrow" aria-hidden="true" style="display:none">&rarr;</span>
           `;
           list.appendChild(card);
         });
@@ -1706,16 +1843,33 @@
           const card = document.createElement('a');
           card.className = 'kyana-source-card';
           card.href = `routine.html?semester=${encodeURIComponent(r.semester)}`;
-          const meta = [`Semester ${r.semester}`, r.date, r.time, r.room ? `Room ${r.room}` : ''].filter(Boolean).join(' · ');
+
+          const iconSvg = KyanaSourceCard.getIconSvg('routine');
+          const badgeText = KyanaSourceCard.getBadgeLabel('routine');
+          const subjectContext = `Semester ${r.semester}${r.room ? ` · Room ${r.room}` : ''}`;
+          const secondaryMeta = [r.date, r.time].filter(Boolean).join(' · ');
+          const displayTitle = r.subject || 'Examination Schedule';
+
           card.innerHTML = `
             <div class="kyana-source-left">
-              <div class="kyana-source-icon">EXAM</div>
+              <div class="kyana-source-icon" aria-hidden="true">${iconSvg}</div>
               <div class="kyana-source-info">
-                <span class="kyana-source-title">${escapeHtml(r.subject)}</span>
-                <span class="kyana-source-meta">${escapeHtml(meta)}</span>
+                <div class="kyana-source-header-row">
+                  <span class="kyana-source-badge">${escapeHtml(badgeText)}</span>
+                  <span class="kyana-source-subject" title="${escapeHtml(subjectContext)}">${escapeHtml(subjectContext)}</span>
+                </div>
+                <div class="kyana-source-title" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</div>
+                ${secondaryMeta ? `<div class="kyana-source-meta">${escapeHtml(secondaryMeta)}</div>` : ''}
               </div>
             </div>
-            <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+            <div class="kyana-source-action">
+              <span class="kyana-source-action-text">View Routine</span>
+              <svg class="kyana-source-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </div>
+            <span class="kyana-source-arrow" aria-hidden="true" style="display:none">&rarr;</span>
           `;
           list.appendChild(card);
         });
@@ -1728,15 +1882,33 @@
         card.href = s.url;
         card.target = '_blank';
         card.rel = 'noopener noreferrer';
+
+        const iconSvg = KyanaSourceCard.getIconSvg('web');
+        const badgeText = KyanaSourceCard.getBadgeLabel('web');
+        const subjectContext = s.domain || 'External Citation';
+        const displayTitle = s.title || s.domain || 'Web Source';
+        const secondaryMeta = s.author || s.date || 'External Web Resource';
+
         card.innerHTML = `
           <div class="kyana-source-left">
-            <div class="kyana-source-icon">WEB</div>
+            <div class="kyana-source-icon" aria-hidden="true">${iconSvg}</div>
             <div class="kyana-source-info">
-              <span class="kyana-source-title">${escapeHtml(s.title || s.domain || 'Web Source')}</span>
-              <span class="kyana-source-meta">${escapeHtml(s.domain || 'External citation')}</span>
+              <div class="kyana-source-header-row">
+                <span class="kyana-source-badge">${escapeHtml(badgeText)}</span>
+                <span class="kyana-source-subject" title="${escapeHtml(subjectContext)}">${escapeHtml(subjectContext)}</span>
+              </div>
+              <div class="kyana-source-title" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</div>
+              <div class="kyana-source-meta">${escapeHtml(secondaryMeta)}</div>
             </div>
           </div>
-          <span class="kyana-source-arrow" aria-hidden="true">&rarr;</span>
+          <div class="kyana-source-action">
+            <span class="kyana-source-action-text">Visit</span>
+            <svg class="kyana-source-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          </div>
+          <span class="kyana-source-arrow" aria-hidden="true" style="display:none">&rarr;</span>
         `;
         list.appendChild(card);
       });
@@ -2104,17 +2276,7 @@
     }
   };
 
-  // KyanaResponse Component (Clean Typography — No Redundant Header)
-  const KyanaResponse = {
-    create() {
-      const row = document.createElement('div');
-      row.className = 'kyana-response-row';
-      row.innerHTML = `<div class="kyana-response-doc"></div>`;
-      return row;
-    }
-  };
-
-  // KyanaLogo Component (Official Monochrome Glass-Ribbon Identity)
+  // KyanaLogo Component (Official Monochrome Glass-Ribbon Identity with Gemini-Style Orbital Motion)
   const KyanaLogo = {
     render({ size = 28, animated = false, thinking = false, className = '', alt = 'Kyana AI' } = {}) {
       let src = '/images/kyana-mono-header.png';
@@ -2134,6 +2296,7 @@
       return `
         <span class="${classes}" style="width: ${size}px; height: ${size}px;" role="img" aria-label="${escapeHtml(alt)}">
           <span class="kyana-logo-aura" aria-hidden="true"></span>
+          <span class="kyana-logo-orbit-ring" aria-hidden="true"></span>
           <span class="kyana-logo-glass-frame">
             <img class="kyana-logo-img" src="${src}" alt="${escapeHtml(alt)}" width="${size}" height="${size}" />
             <span class="kyana-logo-highlight-sweep" aria-hidden="true"></span>
@@ -2149,7 +2312,36 @@
     }
   };
 
-  // KyanaThinking Component (Monochrome Living Glass Logo + Minimal Status Text)
+  // KyanaResponse Component (Assistant Header with Animated Answering Logo + Response Canvas)
+  const KyanaResponse = {
+    create({ streaming = false } = {}) {
+      const row = document.createElement('div');
+      row.className = 'kyana-response-row' + (streaming ? ' is-streaming' : ' is-complete');
+      row.innerHTML = `
+        <div class="kyana-response-header">
+          <div class="kyana-response-avatar">
+            ${KyanaLogo.render({ size: 22, animated: true, thinking: streaming, className: 'kyana-response-logo', alt: 'Kyana AI' })}
+          </div>
+          <span class="kyana-response-author">Kyana AI</span>
+          <span class="kyana-response-live-badge">Answering</span>
+        </div>
+        <div class="kyana-response-doc"></div>
+      `;
+      return row;
+    },
+
+    setStreaming(row, streaming) {
+      if (!row) return;
+      row.classList.toggle('is-streaming', Boolean(streaming));
+      row.classList.toggle('is-complete', !streaming);
+      const logoEl = row.querySelector('.kyana-response-logo');
+      if (logoEl) {
+        logoEl.classList.toggle('kyana-logo-thinking', Boolean(streaming));
+      }
+    }
+  };
+
+  // KyanaThinking Component (Monochrome Living Glass Logo + Shimmer Status & Wave Dots)
   const KyanaThinking = {
     create() {
       const wrap = document.createElement('div');
@@ -2157,10 +2349,11 @@
       wrap.id = 'kyanaThinkingIndicator';
       wrap.innerHTML = `
         <div class="kyana-thinking-mark-slot">
-          ${KyanaLogo.render({ size: 24, thinking: true, alt: 'Kyana thinking' })}
+          ${KyanaLogo.render({ size: 26, thinking: true, alt: 'Kyana thinking' })}
         </div>
         <div class="kyana-thinking-status">
           <span>Kyana is thinking</span>
+          <span class="kyana-thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span>
         </div>
       `;
       return wrap;
@@ -2974,7 +3167,7 @@
 
         if (!request.row) {
           removeThinkingIndicator();
-          request.row = KyanaResponse.create();
+          request.row = KyanaResponse.create({ streaming: true });
           request.doc = request.row.querySelector('.kyana-response-doc');
           messagesListEl.appendChild(request.row);
         }
@@ -2995,9 +3188,11 @@
 
       // Final complete render with syntax highlighting, sources, and response action tools
       if (!request.row) {
-        request.row = KyanaResponse.create();
+        request.row = KyanaResponse.create({ streaming: false });
         request.doc = request.row.querySelector('.kyana-response-doc');
         messagesListEl.appendChild(request.row);
+      } else {
+        KyanaResponse.setStreaming(request.row, false);
       }
 
       if (data.conversationId && activeSession.id !== data.conversationId) {

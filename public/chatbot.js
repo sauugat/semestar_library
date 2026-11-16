@@ -2276,10 +2276,15 @@
     }
   };
 
-  // KyanaLogo Component (Borderless Gradient 3D Ribbon Identity with Gemini-Style Spectrum Motion)
+  // KyanaLogo Component (Official Monochrome Glass-Ribbon Identity — Borderless with Living Motion)
   const KyanaLogo = {
     render({ size = 28, animated = false, thinking = false, className = '', alt = 'Kyana AI' } = {}) {
-      const src = '/images/kyana-logo-hero.png';
+      let src = '/images/kyana-mono-header.png';
+      if (size >= 64) {
+        src = '/images/kyana-mono-hero.png';
+      } else if (thinking || size <= 28) {
+        src = '/images/kyana-mono-thinking.png';
+      }
 
       const classes = [
         'kyana-logo-comp',

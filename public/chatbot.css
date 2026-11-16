@@ -213,20 +213,59 @@ body.kyana-workspace-body .dash-header-nav [data-role-nav][style*="display:none"
   background-color: var(--ky-bg, #09090b) !important;
 }
 
+/* Centered Atmospheric Halo Ring Gradient (Inspired by Gemini & Reference Canvas) */
 .kyana-ambient-page-aura {
   position: absolute;
-  top: -60px;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
-  width: 920px;
-  height: 540px;
+  transform: translate(-50%, -50%);
+  width: min(860px, 92vw);
+  height: min(860px, 92vh);
+  border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(ellipse at 50% 32%, rgba(255, 255, 255, 0.04) 0%, rgba(148, 163, 184, 0.015) 42%, transparent 70%);
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(9, 9, 11, 0) 0%,
+    rgba(9, 9, 11, 0) 24%,
+    rgba(56, 189, 248, 0.11) 43%,
+    rgba(45, 212, 191, 0.085) 54%,
+    rgba(148, 163, 184, 0.06) 65%,
+    transparent 77%
+  );
+  filter: blur(26px);
   z-index: 0;
+  animation: kyanaAmbientHaloBreathe 8s ease-in-out infinite alternate;
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.6s ease;
 }
 
-html[data-theme="light"] .kyana-ambient-page-aura {
-  background: radial-gradient(ellipse at 50% 30%, rgba(99, 102, 241, 0.045) 0%, rgba(14, 165, 233, 0.025) 40%, transparent 70%);
+html[data-theme="light"] .kyana-ambient-page-aura,
+body[data-theme="light"] .kyana-ambient-page-aura {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0) 22%,
+    rgba(56, 189, 248, 0.16) 42%,
+    rgba(45, 212, 191, 0.13) 54%,
+    rgba(148, 163, 184, 0.09) 65%,
+    transparent 77%
+  );
+  filter: blur(28px);
+}
+
+.kyana-app.composer-focused .kyana-ambient-page-aura,
+.kyana-app.is-generating .kyana-ambient-page-aura {
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+@keyframes kyanaAmbientHaloBreathe {
+  0% {
+    transform: translate(-50%, -50%) scale(0.96);
+    opacity: 0.82;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.04);
+    opacity: 1;
+  }
 }
 
 .kyana-sidebar {
@@ -289,7 +328,7 @@ html[data-theme="light"] .kyana-sidebar-brand-mark {
   width: 22px;
   height: 22px;
   object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(66, 133, 244, 0.35));
+  filter: none;
 }
 
 .kyana-brand-name {
@@ -883,8 +922,8 @@ html[data-theme="light"] .kyana-app.has-messages .kyana-composer-container {
 
 .kyana-aura-container {
   position: relative !important;
-  width: 104px !important;
-  height: 104px !important;
+  width: 96px !important;
+  height: 96px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -901,32 +940,31 @@ html[data-theme="light"] .kyana-app.has-messages .kyana-composer-container {
 
 .kyana-aura-layer-white {
   position: absolute !important;
-  width: 96px !important;
-  height: 96px !important;
+  width: 88px !important;
+  height: 88px !important;
   border-radius: 50% !important;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(66, 133, 244, 0.34) 0%,
-    rgba(155, 114, 203, 0.26) 38%,
-    rgba(217, 101, 112, 0.16) 64%,
-    transparent 80%
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(56, 189, 248, 0.1) 45%,
+    transparent 76%
   ) !important;
-  filter: blur(18px) !important;
+  filter: blur(16px) !important;
   animation: kyanaGeminiAuraBreathe 5s ease-in-out infinite alternate !important;
   transition: opacity 0.35s ease, transform 0.35s ease, filter 0.35s ease !important;
 }
 
 .kyana-aura-layer-smoke,
 .kyana-aura-layer-silver {
-  width: 124px;
-  height: 124px;
+  width: 112px;
+  height: 112px;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(56, 189, 248, 0.16) 0%,
-    rgba(168, 85, 247, 0.12) 48%,
+    rgba(45, 212, 191, 0.08) 0%,
+    rgba(148, 163, 184, 0.06) 50%,
     transparent 74%
   );
-  filter: blur(22px);
+  filter: blur(20px);
   animation: kyanaHazeDrift 6.5s ease-in-out infinite alternate;
 }
 
@@ -945,8 +983,8 @@ html[data-theme="light"] .kyana-hero-logo-wrap,
 body[data-theme="light"] .kyana-hero-logo-wrap {
   position: relative !important;
   z-index: 2 !important;
-  width: 76px !important;
-  height: 76px !important;
+  width: 72px !important;
+  height: 72px !important;
   border-radius: 0 !important;
   background: transparent !important;
   border: none !important;
@@ -960,28 +998,26 @@ body[data-theme="light"] .kyana-hero-logo-wrap {
 }
 
 .kyana-welcome-logo {
-  width: 72px !important;
-  height: 72px !important;
+  width: 68px !important;
+  height: 68px !important;
   object-fit: contain !important;
   border: none !important;
   box-shadow: none !important;
   background: transparent !important;
-  filter: drop-shadow(0 8px 22px rgba(66, 133, 244, 0.38)) drop-shadow(0 2px 10px rgba(155, 114, 203, 0.28));
-  animation: kyanaGeminiHeroMotion 7s ease-in-out infinite;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.35));
+  animation: kyanaMonoHeroMotion 6.5s ease-in-out infinite;
 }
 
 html[data-theme="light"] .kyana-welcome-logo {
-  filter: drop-shadow(0 8px 20px rgba(66, 133, 244, 0.28)) drop-shadow(0 2px 8px rgba(155, 114, 203, 0.22));
+  filter: drop-shadow(0 6px 16px rgba(15, 23, 42, 0.14));
 }
 
-@keyframes kyanaGeminiHeroMotion {
+@keyframes kyanaMonoHeroMotion {
   0%, 100% {
     transform: scale(0.98) rotate(0deg);
-    filter: drop-shadow(0 8px 22px rgba(66, 133, 244, 0.38)) drop-shadow(0 2px 10px rgba(155, 114, 203, 0.28)) hue-rotate(0deg);
   }
   50% {
-    transform: scale(1.05) rotate(4deg);
-    filter: drop-shadow(0 10px 26px rgba(155, 114, 203, 0.44)) drop-shadow(0 4px 12px rgba(56, 189, 248, 0.34)) hue-rotate(18deg);
+    transform: scale(1.04) rotate(3deg);
   }
 }
 
@@ -992,8 +1028,8 @@ html[data-theme="light"] .kyana-welcome-logo {
 }
 
 @keyframes kyanaGeminiAuraBreathe {
-  0% { transform: scale(0.92) rotate(0deg); opacity: 0.72; }
-  100% { transform: scale(1.18) rotate(25deg); opacity: 1; }
+  0% { transform: scale(0.92); opacity: 0.65; }
+  100% { transform: scale(1.16); opacity: 1; }
 }
 
 @keyframes kyanaHazeDrift {
@@ -1001,50 +1037,42 @@ html[data-theme="light"] .kyana-welcome-logo {
   100% { transform: translate(3px, 2px) scale(1.06); }
 }
 
-/* Interactive Gemini Aura Elevation when user focuses composer */
+/* Interactive Aura Elevation when user focuses composer */
 .kyana-app.composer-focused .kyana-aura-layer-white {
   opacity: 1 !important;
-  transform: scale(1.32) !important;
-  filter: blur(20px) !important;
+  transform: scale(1.28) !important;
 }
 
 .kyana-app.composer-focused .kyana-hero-logo-wrap,
 html[data-theme="light"] .kyana-app.composer-focused .kyana-hero-logo-wrap {
-  transform: translateY(-6px) scale(1.06) !important;
+  transform: translateY(-6px) scale(1.05) !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
 }
 
-/* Google Gemini-Inspired Flowing Gradient Greeting */
-@keyframes kyanaGeminiGradientFlow {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
+/* Clean Normal Personalized Greeting Text (Zero Text Gradient) */
 .kyana-welcome-heading,
 .kyana-app.is-empty .kyana-welcome-heading {
   font-family: var(--ky-font-brand) !important;
-  font-size: 34px !important;
-  font-weight: 700 !important;
-  letter-spacing: -0.03em !important;
+  font-size: 32px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.025em !important;
   margin: 0 0 8px !important;
   line-height: 1.22 !important;
   text-align: center !important;
-  background: linear-gradient(90deg, #4285f4 0%, #9b72cb 35%, #d96570 68%, #38bdf8 100%) !important;
-  background-size: 200% auto !important;
-  color: transparent !important;
-  -webkit-background-clip: text !important;
-  background-clip: text !important;
-  -webkit-text-fill-color: transparent !important;
-  animation: kyanaGeminiGradientFlow 6s ease infinite !important;
+  color: var(--ky-text-primary) !important;
+  background: none !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  -webkit-text-fill-color: currentColor !important;
+  animation: none !important;
 }
 
 .kyana-welcome-sub,
 .kyana-app.is-empty .kyana-welcome-sub {
   font-family: var(--ky-font-sans) !important;
-  font-size: 15px !important;
+  font-size: 14.5px !important;
   font-weight: 400 !important;
   color: var(--ky-text-secondary) !important;
   max-width: 540px !important;
@@ -1449,15 +1477,14 @@ html[data-theme="light"] .kyana-card-desc {
 html[data-theme="light"] .kyana-aura-layer-white {
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(66, 133, 244, 0.24) 0%,
-    rgba(155, 114, 203, 0.2) 40%,
-    rgba(217, 101, 112, 0.12) 68%,
-    transparent 82%
+    rgba(14, 165, 233, 0.14) 0%,
+    rgba(45, 212, 191, 0.1) 45%,
+    transparent 78%
   ) !important;
 }
 
 /* ==========================================================================
-   Borderless Gradient Kyana Logo & Gemini-Style Answering Motion System
+   Borderless Monochrome Kyana Logo & Living Answering Motion System
    ========================================================================== */
 .kyana-logo-comp {
   position: relative;
@@ -1496,7 +1523,6 @@ html[data-theme="light"] .kyana-aura-layer-white {
   border: none !important;
   box-shadow: none !important;
   background: transparent !important;
-  filter: drop-shadow(0 2px 8px rgba(66, 133, 244, 0.32));
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), filter 0.35s ease;
 }
 
@@ -1507,13 +1533,12 @@ html[data-theme="light"] .kyana-aura-layer-white {
   pointer-events: none;
   background: radial-gradient(
     circle at 50% 50%,
-    rgba(66, 133, 244, 0.45) 0%,
-    rgba(155, 114, 203, 0.35) 45%,
-    rgba(217, 101, 112, 0.2) 70%,
-    transparent 85%
+    rgba(56, 189, 248, 0.28) 0%,
+    rgba(45, 212, 191, 0.2) 48%,
+    transparent 82%
   );
   filter: blur(7px);
-  opacity: 0.4;
+  opacity: 0.35;
   z-index: 0;
   transition: opacity 0.35s ease, transform 0.35s ease;
 }
@@ -1523,12 +1548,12 @@ html[data-theme="light"] .kyana-aura-layer-white {
   display: none !important;
 }
 
-/* Active Thinking & Answering Logo Motion (Google Gemini Spectrum Pulse & Spin) */
+/* Active Thinking & Answering Logo Motion */
 .kyana-logo-thinking .kyana-logo-aura,
 .kyana-response-row.is-streaming .kyana-logo-aura {
-  inset: -55%;
-  filter: blur(9px);
-  opacity: 1;
+  inset: -52%;
+  filter: blur(8px);
+  opacity: 0.95;
   animation: kyanaGeminiAuraPulse 1.8s ease-in-out infinite;
 }
 
@@ -1540,36 +1565,36 @@ html[data-theme="light"] .kyana-aura-layer-white {
 
 @keyframes kyanaGeminiAnsweringMotion {
   0% {
-    transform: scale(0.88) rotate(0deg);
-    filter: drop-shadow(0 0 10px rgba(66, 133, 244, 0.65)) hue-rotate(0deg);
+    transform: scale(0.9) rotate(0deg);
+    filter: brightness(0.96);
   }
   35% {
-    transform: scale(1.12) rotate(14deg);
-    filter: drop-shadow(0 0 14px rgba(155, 114, 203, 0.75)) hue-rotate(24deg);
+    transform: scale(1.1) rotate(12deg);
+    filter: brightness(1.15);
   }
   70% {
-    transform: scale(1.04) rotate(-8deg);
-    filter: drop-shadow(0 0 12px rgba(217, 101, 112, 0.65)) hue-rotate(-16deg);
+    transform: scale(1.03) rotate(-7deg);
+    filter: brightness(1.06);
   }
   100% {
-    transform: scale(0.88) rotate(0deg);
-    filter: drop-shadow(0 0 10px rgba(66, 133, 244, 0.65)) hue-rotate(0deg);
+    transform: scale(0.9) rotate(0deg);
+    filter: brightness(0.96);
   }
 }
 
 @keyframes kyanaGeminiAuraPulse {
   0%, 100% {
-    transform: scale(0.88) rotate(0deg);
-    opacity: 0.55;
+    transform: scale(0.88);
+    opacity: 0.5;
   }
   50% {
-    transform: scale(1.28) rotate(180deg);
-    opacity: 1;
+    transform: scale(1.24);
+    opacity: 0.95;
   }
 }
 
 .kyana-logo-animated .kyana-logo-img {
-  animation: kyanaGeminiHeroMotion 6.5s ease-in-out infinite;
+  animation: kyanaMonoHeroMotion 6.5s ease-in-out infinite;
 }
 
 /* Thinking Indicator Row (Gemini Flowing Gradient Text + Wave Dots) */

@@ -147,7 +147,11 @@ test('Stepping Detection: 4 words or fewer non-questions ("yes", "oki nexr", "ok
     fileIds: [301]
   };
 
-  const testAdvancingWords = ['yes', 'oki nexr', 'ok', 'haan', 'next', 'nexr'];
+  const testAdvancingWords = [
+    'yes', 'oki nexr', 'ok', 'haan', 'next', 'nexr',
+    'continue', 'proceed', 'move on', 'skip', "let's go",
+    'understood', 'next topic', 'aagi badham', 'go ahead', 'ready'
+  ];
   for (const word of testAdvancingWords) {
     const slug = word.replace(/\s+/g, '_');
     const testConvId = `sess_step_${slug}`;

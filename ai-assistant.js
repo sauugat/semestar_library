@@ -1010,7 +1010,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     }
 
     const trimmedMsg = String(message || '').trim();
-    const isSteppingRegex = /^(?:next(?:\s+topic|\s+step)?|continue|proceed|go\s+ahead|move\s+on|ready|yes\s+next|skip(?:\s+topic)?|nexr|oki\s+nexr)[.!]*$/i.test(trimmedMsg);
+    const isSteppingRegex = /^(?:next(?:\s+topic|\s+step)?|continue|proceed|go\s+ahead|move\s+on|ready|yes\s+next|skip(?:\s+topic)?|nexr|oki\s+nexr|let's\s+go|understood|aagi\s+badham|agadi\s+badham)[.!]*$/i.test(trimmedMsg);
     const wordCount = trimmedMsg ? trimmedMsg.split(/\s+/).filter(Boolean).length : 0;
     const isQuestion = trimmedMsg.includes('?') ||
       /^(?:what|why|how|when|where|who|which|is|are|can|could|kasto|kina|kahile|kasari|ke)\b/i.test(trimmedMsg);

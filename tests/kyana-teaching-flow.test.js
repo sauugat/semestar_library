@@ -529,4 +529,292 @@ test('Prompt attribution & praise rules: syllabus fallback when no notes vs note
     promptWithNotes.includes('Ground your explanation in the note excerpts'),
     'Prompt with notes must instruct grounding and citing notes'
   );
+  assert.ok(
+    promptWithNotes.includes('Cite only page numbers that appear in the excerpts above'),
+    'Prompt must include rule: "Cite only page numbers that appear in the excerpts above"'
+  );
+  assert.ok(
+    promptWithNotes.includes('An analogy must map to the real concept; do not invent unrelated metaphors'),
+    'Prompt must include rule: "An analogy must map to the real concept; do not invent unrelated metaphors"'
+  );
+});
+
+test('Phase 1: "skip" marks the current step SKIPPED, not MASTERED', async (t) => {
+  const db = await createTestDb();
+  const { startOrResumeStudySession, advanceStudySessionStep } = require('../lib/study-partner-engine');
+
+  const sessRes = await startOrResumeStudySession(db, {
+    studentId: 'student_skip_test',
+    conversationId: 'conv_skip_test',
+    subject: 'Computer Programming II (Java)',
+    semesterNo: 2,
+    unitNumber: 2,
+    chapterQuery: 'Introduction to Java'
+  });
+
+  const sessionId = sessRes.session.id;
+  const currentStep = sessRes.session.current_step_index; // 1
+
+  // Advance step with "SKIPPED"
+  const advance = await advanceStudySessionStep(db, sessionId, 'student_skip_test', {
+    targetStepIndex: currentStep + 1,
+    markCurrentStatus: 'SKIPPED'
+  });
+
+  assert.equal(advance.currentStepIndex, 2, 'Session should advance to step 2');
+
+  const skippedTopic = await db.get(
+    `SELECT * FROM study_partner_topic_progress WHERE session_id = ? AND step_index = ?`,
+    sessionId, currentStep
+  );
+  assert.equal(skippedTopic.status, 'SKIPPED', 'Topic status must be SKIPPED, not MASTERED');
+  assert.equal(skippedTopic.mastered_at, null, 'Skipped topic should not have mastered_at timestamp');
+});
+
+test('Phase 1 Security: /api/ai/chat rejects conversationId owned by another student before writing messages', async (t) => {
+  const db = await createTestDb();
+  const aiChatService = require('../lib/ai-chat-service');
+  const { createChatHandler } = require('../lib/chat-http');
+
+  await aiChatService.ensureSchema(db);
+
+  // Student A creates a conversation
+  const convA = await aiChatService.createConversation(db, 'student_A', 'Private Chat Student A');
+  await aiChatService.saveUserMessage(db, 'student_A', convA.id, 'Secret message from A');
+
+  // Helper to mock express req/res
+  function mockReqRes({ studentId, conversationId, message, chapterContext }) {
+    const req = {
+      student: studentId ? { studentId } : null,
+      user: studentId ? { studentId } : null,
+      session: studentId ? { studentId } : {},
+      body: {
+        message: message || 'Hello',
+        conversationId,
+        chapterContext
+      }
+    };
+    let statusCode = 200;
+    let responseBody = null;
+    const res = {
+      status(code) {
+        statusCode = code;
+        return this;
+      },
+      json(data) {
+        responseBody = data;
+        return this;
+      }
+    };
+    return { req, res, getStatus: () => statusCode, getBody: () => responseBody };
+  }
+
+  // Case 1: Student B attempts to access Student A's conversationId
+  const reqResB = mockReqRes({
+    studentId: 'student_B',
+    conversationId: convA.id,
+    message: 'I am attacking student A conversation'
+  });
+
+  const handler = createChatHandler(db);
+  await handler(reqResB.req, reqResB.res);
+
+  assert.equal(reqResB.getStatus(), 404, 'Must return 404 when student B accesses student A conversation');
+  assert.equal(reqResB.getBody()?.message, 'Conversation not found.');
+
+  // Verify Student B's message was NOT saved into Student A's conversation
+  const msgsA = await aiChatService.getMessages(db, 'student_A', convA.id);
+  assert.equal(msgsA.length, 1, 'Student A conversation must remain untouched');
+  assert.equal(msgsA[0].text, 'Secret message from A');
+
+  // Case 2: Unauthenticated user attempts to access Student A's conversationId
+  const reqResAnon = mockReqRes({
+    studentId: null,
+    conversationId: convA.id,
+    message: 'Anon sniffing'
+  });
+  await handler(reqResAnon.req, reqResAnon.res);
+  assert.equal(reqResAnon.getStatus(), 404, 'Must return 404 when unauthenticated request supplies existing conversation');
+});
+
+test('Phase 1: Chapter Chat Isolation, Reopening, New Chat, and Multi-Session Coexistence', async (t) => {
+  const db = await createTestDb();
+  const aiChatService = require('../lib/ai-chat-service');
+  const { startOrResumeStudySession, advanceStudySessionStep } = require('../lib/study-partner-engine');
+
+  await aiChatService.ensureSchema(db);
+  const studentId = 'test_student_scope_key';
+
+  // 1. Create a chapter chat for CIT122 Unit 2
+  const convUnit2 = await aiChatService.createChapterConversation(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 2,
+    title: 'Unit 2 Java Intro'
+  });
+  assert.equal(convUnit2.scope_key, 'CIT122|s2|u2', 'Scope key must be CIT122|s2|u2');
+
+  // Start study session in Unit 2
+  const sessUnit2 = await startOrResumeStudySession(db, {
+    studentId,
+    conversationId: convUnit2.id,
+    subject: 'Computer Programming II (Java)',
+    semesterNo: 2,
+    unitNumber: 2,
+    chapterQuery: 'Introduction to Java'
+  });
+  assert.equal(sessUnit2.session.current_step_index, 1);
+
+  // Advance Unit 2 to step 2
+  await advanceStudySessionStep(db, sessUnit2.session.id, studentId, {
+    targetStepIndex: 2,
+    markCurrentStatus: 'MASTERED'
+  });
+
+  // Save messages in convUnit2
+  await aiChatService.saveUserMessage(db, studentId, convUnit2.id, 'teach me java');
+  await aiChatService.saveAssistantMessage(db, studentId, convUnit2.id, 'Here is step 1 ```study_session ...```');
+
+  // Test: Reopen chapter CIT122 Unit 2 -> returns same conversation and messages
+  const chatsUnit2 = await aiChatService.getChapterConversations(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 2
+  });
+  assert.equal(chatsUnit2.length, 1, 'Should find 1 conversation for Unit 2');
+  assert.equal(chatsUnit2[0].id, convUnit2.id, 'Reopening chapter returns same conversation');
+  assert.equal(chatsUnit2[0].step, 2, 'Session step is preserved at step 2');
+  assert.equal(chatsUnit2[0].status, 'ACTIVE');
+
+  const msgs = await aiChatService.getMessages(db, studentId, convUnit2.id);
+  assert.equal(msgs.length, 2, 'Loaded messages preserve conversation history');
+
+  // Test: Other chapter (Unit 3) -> different conversation and scope_key
+  const chatsUnit3 = await aiChatService.getChapterConversations(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 3
+  });
+  assert.equal(chatsUnit3.length, 0, 'Unit 3 has no conversations yet');
+
+  const convUnit3 = await aiChatService.createChapterConversation(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 3,
+    title: 'Unit 3 Java Classes'
+  });
+  assert.equal(convUnit3.scope_key, 'CIT122|s2|u3');
+  assert.notEqual(convUnit3.id, convUnit2.id, 'Other chapter gets a distinct conversation ID');
+
+  // Start study session in Unit 3
+  const sessUnit3 = await startOrResumeStudySession(db, {
+    studentId,
+    conversationId: convUnit3.id,
+    subject: 'Computer Programming II (Java)',
+    semesterNo: 2,
+    unitNumber: 3,
+    chapterQuery: 'Java Classes and Objects'
+  });
+  assert.equal(sessUnit3.session.current_step_index, 1);
+
+  // Test: Switching chapter does not archive other session
+  const checkUnit2Sess = await db.get(`SELECT * FROM study_partner_sessions WHERE id = ?`, sessUnit2.session.id);
+  assert.equal(checkUnit2Sess.status, 'ACTIVE', 'Unit 2 session must remain ACTIVE when Unit 3 is started');
+  assert.equal(checkUnit2Sess.current_step_index, 2, 'Unit 2 session must remain at step 2');
+
+  const checkUnit3Sess = await db.get(`SELECT * FROM study_partner_sessions WHERE id = ?`, sessUnit3.session.id);
+  assert.equal(checkUnit3Sess.status, 'ACTIVE', 'Unit 3 session is also ACTIVE');
+
+  // Test: New chat in Unit 2 -> new ID, step 1, old chat/session intact
+  const convUnit2New = await aiChatService.createChapterConversation(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 2,
+    title: 'Unit 2 Fresh Chat'
+  });
+  assert.notEqual(convUnit2New.id, convUnit2.id, 'New chat gets a new conversation ID');
+
+  const sessUnit2New = await startOrResumeStudySession(db, {
+    studentId,
+    conversationId: convUnit2New.id,
+    subject: 'Computer Programming II (Java)',
+    semesterNo: 2,
+    unitNumber: 2,
+    chapterQuery: 'Introduction to Java'
+  });
+  assert.equal(sessUnit2New.session.current_step_index, 1, 'New chat session starts at step 1');
+
+  // Old chat session still intact at step 2!
+  const checkUnit2Old = await db.get(`SELECT * FROM study_partner_sessions WHERE id = ?`, sessUnit2.session.id);
+  assert.equal(checkUnit2Old.current_step_index, 2, 'Old chat session remains intact at step 2');
+  assert.equal(checkUnit2Old.status, 'ACTIVE');
+
+  // Querying getChapterConversations for Unit 2 now returns 2 chats, newest first
+  const allUnit2Chats = await aiChatService.getChapterConversations(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 2
+  });
+  assert.equal(allUnit2Chats.length, 2, 'Returns both conversations for Unit 2');
+  assert.equal(allUnit2Chats[0].id, convUnit2New.id, 'Newest chat is first');
+});
+
+test('Phase 1: "yes" with empty client history advances by 1 using DB ai_messages (lastWasLesson from DB)', async (t) => {
+  const db = await createTestDb();
+  const aiChatService = require('../lib/ai-chat-service');
+  const { startOrResumeStudySession } = require('../lib/study-partner-engine');
+
+  await aiChatService.ensureSchema(db);
+  const studentId = 'test_student_db_stepping';
+  // Create conversation and active study session
+  const conv = await aiChatService.createConversation(db, studentId, 'Java Lesson', 'CIT122|s2|u2');
+  const convId = conv.id;
+  const sess = await startOrResumeStudySession(db, {
+    studentId,
+    conversationId: convId,
+    subject: 'Computer Programming II (Java)',
+    semesterNo: 2,
+    unitNumber: 2,
+    chapterQuery: 'Introduction to Java'
+  });
+
+  assert.equal(sess.session.current_step_index, 1, 'Initial session step is 1');
+
+  // Persist assistant lesson in ai_messages containing study_session card
+  const lessonText = `Here is your lesson on Java Introduction.\n\`\`\`study_session\n{"title":"Java Intro","step":1,"total":5}\n\`\`\`\n🎯 Checkpoint: Do you understand JVM bytecode?`;
+  await aiChatService.saveAssistantMessage(db, studentId, convId, lessonText);
+
+  // Student opens chat afresh: sends "yes" with empty client history ([])
+  const studentContext = {
+    authenticated: true,
+    studentId,
+    role: 'student',
+    currentSemester: 2
+  };
+
+  const reply = await handleChat(
+    db,
+    'yes',
+    studentContext,
+    [], // EMPTY client history!
+    convId,
+    () => {},
+    null,
+    {
+      conversationId: convId,
+      chapterContext: {
+        subject: 'Computer Programming II (Java)',
+        subjectCode: 'CIT122',
+        semesterNo: 2,
+        unitNumber: 2,
+        chapterTitle: 'Introduction to Java'
+      }
+    }
+  );
+
+  assert.equal(reply.intent, 'study_partner', 'Must route to study_partner even with empty client history');
+
+  // Verify DB session was advanced to step 2
+  const updatedSess = await db.get(`SELECT * FROM study_partner_sessions WHERE id = ?`, sess.session.id);
+  assert.equal(updatedSess.current_step_index, 2, 'Session must advance to step 2 via DB lastWasLesson');
 });

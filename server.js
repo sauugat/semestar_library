@@ -7527,6 +7527,39 @@ app.get('/api/ai/preview', async (req, res) => {
 app.get('/api/ai/resources/:type/:id/open', requireLogin, require('./lib/kyana-resource-http').createResourceHandler(db));
 
 // Authenticated AI Conversation Endpoints
+app.get('/api/ai/chapter-chats', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.student.studentId;
+    const { subjectCode, semesterNo, unit } = req.query;
+    const chats = await aiChatService.getChapterConversations(db, studentId, {
+      subjectCode,
+      semesterNo,
+      unit
+    });
+    res.json(chats);
+  } catch (err) {
+    console.error('[AI Chapter Chats API Error]:', err);
+    res.status(500).json({ message: 'Failed to retrieve chapter chats.' });
+  }
+});
+
+app.post('/api/ai/chapter-chats', requireLogin, async (req, res) => {
+  try {
+    const studentId = req.student.studentId;
+    const { subjectCode, semesterNo, unit, title } = req.body || {};
+    const conv = await aiChatService.createChapterConversation(db, studentId, {
+      subjectCode,
+      semesterNo,
+      unit,
+      title
+    });
+    res.status(201).json(conv);
+  } catch (err) {
+    console.error('[Create AI Chapter Chat API Error]:', err);
+    res.status(500).json({ message: 'Failed to create chapter chat.' });
+  }
+});
+
 app.get('/api/ai/conversations', requireLogin, async (req, res) => {
   try {
     const studentId = req.student.studentId;

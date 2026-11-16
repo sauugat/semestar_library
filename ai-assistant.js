@@ -979,6 +979,26 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     ctIsPersonalRecordFollowUp(message)
   );
 
+  const convId = sessionId || options?.conversationId || null;
+  let lastAssistantContent = null;
+  if (db && convId && convId !== 'default' && convId !== 'anonymous' && typeof db.get === 'function') {
+    try {
+      const lastRow = await db.get(
+        `SELECT text FROM ai_messages WHERE conversation_id = ? AND sender = 'assistant' ORDER BY id DESC LIMIT 1`,
+        convId
+      );
+      if (lastRow?.text) lastAssistantContent = lastRow.text;
+    } catch (_) {}
+  }
+  if (!lastAssistantContent) {
+    const lastAssistantMsg = [...cleanHistory].reverse().find((h) => h.role === 'assistant' || h.role === 'model');
+    lastAssistantContent = lastAssistantMsg?.content || '';
+  }
+  const lastWasLesson = Boolean(
+    typeof lastAssistantContent === 'string' &&
+    lastAssistantContent.includes('study_session')
+  );
+
   if (!isInstitutionalOrAdminQuery && chapterContext && (chapterContext.subject || chapterContext.chapterTitle || (Array.isArray(chapterContext.fileIds) && chapterContext.fileIds.length > 0))) {
     const {
       answerWithChapterContext,
@@ -988,17 +1008,9 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
     const chapReasoning = analyzeChapterStudentQuestion(message, cleanHistory, []);
 
-    const lastAssistantMsg = [...cleanHistory].reverse().find((h) => h.role === 'assistant' || h.role === 'model');
-    const lastWasLesson = Boolean(
-      lastAssistantMsg &&
-      typeof lastAssistantMsg.content === 'string' &&
-      lastAssistantMsg.content.includes('study_session')
-    );
-
     let hasActiveConvStudySession = false;
     if (db && typeof db.get === 'function') {
       try {
-        const convId = sessionId || options?.conversationId || null;
         if (convId && convId !== 'default' && convId !== 'anonymous') {
           const activeRow = await db.get(
             `SELECT id FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE' LIMIT 1`,
@@ -1069,11 +1081,10 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
   // DB-backed Study Partner Follow-up Recovery:
   // If routeQuery returned 'scope_check' (e.g. short 1-word answer like "p" when history lacked assistant turns),
-  // check if this conversation/student has an ACTIVE study_partner_sessions row and the previous turn was a lesson.
+  // check if this conversation has an ACTIVE study_partner_sessions row and the previous turn was a lesson.
   if (route.kind === 'scope_check' && db && typeof db.get === 'function') {
     const { NON_BIT_ACADEMIC_OR_CODE } = require('./lib/chat-tools');
     if (!NON_BIT_ACADEMIC_OR_CODE.test(message) && !isInstitutionalOrAdminQuery) {
-      const spStudentId = academicContext?.studentId || studentInfo?.studentId || 'anonymous_student';
       const spConvId = sessionId || options.conversationId || null;
       try {
         let dbActiveSess = null;
@@ -1081,12 +1092,6 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           dbActiveSess = await db.get(
             `SELECT id FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE' ORDER BY updated_at DESC LIMIT 1`,
             spConvId
-          );
-        }
-        if (!dbActiveSess && spStudentId && spStudentId !== 'anonymous_student') {
-          dbActiveSess = await db.get(
-            `SELECT id FROM study_partner_sessions WHERE student_id = ? AND status = 'ACTIVE' ORDER BY updated_at DESC LIMIT 1`,
-            spStudentId
           );
         }
         if (dbActiveSess && lastWasLesson) {
@@ -1123,7 +1128,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       route.filters?.semester || studentSemester
     );
 
-    // 2. Check for active session for this conversation or student
+    // 2. Check for active session strictly for this conversation
     let activeSession = null;
     try {
       if (conversationId && conversationId !== 'default' && conversationId !== 'anonymous') {
@@ -1132,14 +1137,6 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
            WHERE conversation_id = ? AND status = 'ACTIVE'
            ORDER BY updated_at DESC LIMIT 1`,
           conversationId
-        );
-      }
-      if (!activeSession && studentId && studentId !== 'anonymous_student') {
-        activeSession = await db.get(
-          `SELECT * FROM study_partner_sessions
-           WHERE student_id = ? AND status = 'ACTIVE'
-           ORDER BY updated_at DESC LIMIT 1`,
-          studentId
         );
       }
     } catch (_) {}
@@ -1157,7 +1154,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       route.filters?.subject && activeSession && !activeSession.subject.toLowerCase().includes(route.filters.subject.toLowerCase())
     );
 
-    const lastAssistantMsg = [...cleanHistory].reverse().find(m => m && m.role === 'assistant')?.content || '';
+    const lastAssistantMsg = lastAssistantContent || [...cleanHistory].reverse().find(m => m && m.role === 'assistant')?.content || '';
 
     if (activeSession && !isExplicitNewCourse && (route.isFollowUp || !route.isNewSession)) {
       // Handle follow-up or pacing in existing session
@@ -1257,9 +1254,11 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
             studentAnswerEvaluation: evalResult
           });
         } else {
+          const isSkip = /^\s*skip(?:\s+topic)?\s*[.!]*$/i.test(message);
+          const markCurrentStatus = isSkip ? 'SKIPPED' : 'MASTERED';
           const advance = await advanceStudySessionStep(db, activeSession.id, studentId, {
             targetStepIndex: currentStepIdx + 1,
-            markCurrentStatus: 'MASTERED'
+            markCurrentStatus
           });
 
           if (advance.isCompleted) {

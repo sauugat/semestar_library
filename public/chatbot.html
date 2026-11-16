@@ -60,6 +60,7 @@
   <link rel="stylesheet" href="auth-modal.css">
   <link rel="stylesheet" href="/theme-overrides.css">
   <link rel="stylesheet" href="chatbot.css?v=36">
+  <link rel="stylesheet" href="/css/kyana-visualizers.css">
 </head>
 
 <body class="kyana-workspace-body sla-fullpage-mode dash">
@@ -368,9 +369,13 @@
     }
   </script>
 
-  <!-- Load Markdown Parser, Chat Engine & Auth Modal -->
+  <!-- Load Markdown Parser, Visualizers, Chat Engine & Auth Modal -->
   <script src="/markdown.js"></script>
-  <script src="chatbot.js?v=36"></script>
+  <script src="/js/visualizers/kyana-visual-contract-validator.js"></script>
+  <script src="/js/visualizers/kyana-simulation-engine.js"></script>
+  <script src="/js/visualizers/kyana-playback-controller.js"></script>
+  <script src="/js/visualizers/kyana-visual-renderer.js"></script>
+  <script src="chatbot.js?v=37"></script>
   <script src="auth-modal.js"></script>
 
   <!-- PWA Service Worker Registration -->

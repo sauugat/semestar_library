@@ -2259,10 +2259,14 @@ ${evidenceBlocks}
         }
       });
 
+      const { planAdaptivePresentation, buildAdaptivePresentationPrompt } = require('./lib/adaptive-presentation-engine');
+      const adaptivePlan = planAdaptivePresentation(originalMessage, { isStudySession: false });
+      const adaptivePresentationPrompt = '\n\n' + buildAdaptivePresentationPrompt(adaptivePlan);
+
       const replyOutput = await (options.generateReply || generateReply)({
         message: originalMessage,
         history: cleanHistory,
-        systemPrompt: SYSTEM_PROMPT + '\n' + toneInstructions(originalMessage, cleanHistory, chatMode, { kind: route.kind }) + '\n' + knowledgePrompt,
+        systemPrompt: SYSTEM_PROMPT + '\n' + toneInstructions(originalMessage, cleanHistory, chatMode, { kind: route.kind }) + '\n' + knowledgePrompt + adaptivePresentationPrompt,
         tools: [],
         onDelta: (deltaChunk) => trailerFilter.push(deltaChunk),
         signal,
@@ -2681,8 +2685,11 @@ ${evidenceBlocks}
     }
 
     const academicClassification = classifyAcademicQuestion(message, route, cleanHistory);
-      const visualPlan = planVisualExplanation(message, route, cleanHistory);
+    const visualPlan = planVisualExplanation(message, route, cleanHistory);
     const academicTutorPrompt = buildAcademicTutorPrompt(message, academicClassification);
+    const { planAdaptivePresentation, buildAdaptivePresentationPrompt } = require('./lib/adaptive-presentation-engine');
+    const adaptivePlan = planAdaptivePresentation(message, { isStudySession: false });
+    const adaptivePresentationPrompt = '\n\n' + buildAdaptivePresentationPrompt(adaptivePlan);
 
     // Dynamic syllabus topic resolution (e.g. "session and cookies management" -> CIT123 Unit 5)
     const resolvedTopic = resolveSyllabusTopic(message);
@@ -2734,7 +2741,7 @@ ${evidenceBlocks}
         generated = await (options.generateReply || generateReply)({
           message,
           history: cleanHistory,
-          systemPrompt: SYSTEM_PROMPT + toneInstructions(originalMessage, cleanHistory, chatMode, { kind: route.kind }) + academicTutorPrompt + courseSyllabusContextPrompt + noteEvidencePrompt,
+          systemPrompt: SYSTEM_PROMPT + toneInstructions(originalMessage, cleanHistory, chatMode, { kind: route.kind }) + academicTutorPrompt + courseSyllabusContextPrompt + noteEvidencePrompt + adaptivePresentationPrompt,
           tools: (route.kind === 'direct' || hasPreInjectedNotes) ? [] : TOOLS,
           executeTool: toolkit.executeTool,
           hasUntrustedEvidence: hasPreInjectedNotes,
@@ -2833,7 +2840,7 @@ ${evidenceBlocks}
         generated = await (options.generateReply || generateReply)({
           message,
           history: cleanHistory,
-          systemPrompt: SYSTEM_PROMPT + toneInstructions(originalMessage, cleanHistory, chatMode, { kind: route.kind }) + academicTutorPrompt + courseSyllabusContextPrompt,
+          systemPrompt: SYSTEM_PROMPT + toneInstructions(originalMessage, cleanHistory, chatMode, { kind: route.kind }) + academicTutorPrompt + courseSyllabusContextPrompt + adaptivePresentationPrompt,
           tools: [],
           executeTool: toolkit.executeTool,
           onDelta: streamGeneralDelta,

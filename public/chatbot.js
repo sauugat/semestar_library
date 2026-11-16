@@ -90,7 +90,8 @@
       const fenceLang = (lastFence[3] || '').trim().toLowerCase();
       const structuredKinds = new Set([
         'study_session', 'learning_session', 'interactive_demo', 'logic_sim',
-        'live_demo', 'diagram', 'flowchart', 'trace', 'roadmap', 'timeline',
+        'live_demo', 'kyana_visual', 'algo_anim', 'dsa_linear', 'truth_table',
+        'diagram', 'flowchart', 'trace', 'roadmap', 'timeline',
         'pyq_card', 'checkpoint_question', 'chapter_summary', 'source_reference'
       ]);
       if (structuredKinds.has(fenceLang)) {
@@ -1087,7 +1088,9 @@
       fallbackMarkdown,
       normalizeLatexDelimiters,
       highlightChatCode,
-      renderAdaptiveVisualBlockHtml
+      renderAdaptiveVisualBlockHtml,
+      renderFormattedContent: (elem, md, streaming) => renderFormattedContent(elem, md, streaming),
+      get KyanaCodeBlock() { return KyanaCodeBlock; }
     };
   }
 
@@ -1305,6 +1308,84 @@
         const langMatch = codeBlock.className.match(/language-([a-zA-Z0-9_#+-]+)/);
         const langName = langMatch ? langMatch[1] : 'Code';
         const langKey = langName.toLowerCase();
+
+        // 1. Kyana Academic Visualization Engine (Phase 2.4 — Live Chat Integration)
+        const isKyanaVisualLang = /^(kyana_visual|algo_anim|dsa_linear|truth_table)$/.test(langKey);
+        const isKyanaVisualContent = (langKey === 'logic_sim' || langKey === 'json' || langKey === 'javascript' || langKey === 'js') &&
+          /["']version["']\s*:\s*["']kyana\.visual\./.test(rawCode);
+
+        if (isKyanaVisualLang || isKyanaVisualContent) {
+          if (pre.getAttribute('data-kyana-visual-mounted') === 'true') return;
+
+          let payload = null;
+          try {
+            payload = JSON.parse(rawCode.trim());
+          } catch (_) {
+            payload = null;
+          }
+
+          if (payload && typeof payload === 'object') {
+            if (!payload.engine && !payload.engineId && isKyanaVisualLang && langKey !== 'kyana_visual') {
+              payload.engine = langKey;
+            }
+            if (!payload.version) {
+              payload.version = 'kyana.visual.v1';
+            }
+          }
+
+          // Strict validation via KyanaVisualValidator
+          let isValid = false;
+          let fallbackMarkdownText = 'Academic visualization unavailable.';
+          if (payload && typeof payload === 'object') {
+            if (window.KyanaVisualValidator && typeof window.KyanaVisualValidator.validateVisualContract === 'function') {
+              const validation = window.KyanaVisualValidator.validateVisualContract(payload);
+              isValid = validation.valid;
+              fallbackMarkdownText = validation.fallbackText || 'Visualization contract validation failed.';
+              if (validation.sanitized) {
+                payload = validation.sanitized;
+              }
+            } else {
+              const allowedEngines = ['algo_anim', 'dsa_linear', 'logic_sim', 'truth_table'];
+              const eng = String(payload.engine || payload.engineId || '').toLowerCase();
+              isValid = allowedEngines.includes(eng) && Boolean(payload.data || payload.payload);
+              fallbackMarkdownText = (typeof payload.fallback === 'string' ? payload.fallback : payload.fallback?.content) || fallbackMarkdownText;
+            }
+          }
+
+          const visualWrap = document.createElement('div');
+          visualWrap.className = 'kyana-visual-integration-container';
+          visualWrap.setAttribute('data-kyana-visual-mounted', 'true');
+
+          if (isValid && window.KyanaVisualRenderer && typeof window.KyanaVisualRenderer.mount === 'function') {
+            try {
+              const instance = window.KyanaVisualRenderer.mount(visualWrap, payload);
+              visualWrap._kyanaVisualInstance = instance;
+              pre.parentNode.replaceChild(visualWrap, pre);
+              return;
+            } catch (mountErr) {
+              console.error('[KyanaVisualIntegration] Mount error:', mountErr);
+            }
+          }
+
+          // Graceful fallback rendering
+          const rawFb = payload && payload.fallback;
+          const fallbackContent = (typeof rawFb === 'object' && rawFb !== null)
+            ? (rawFb.content || rawFb.markdown || fallbackMarkdownText)
+            : (rawFb || fallbackMarkdownText);
+          const fallbackTitle = (payload && payload.title) || 'Academic Visualizer';
+
+          if (window.KyanaVisualRenderer && typeof window.KyanaVisualRenderer.renderFallback === 'function') {
+            window.KyanaVisualRenderer.renderFallback(visualWrap, payload || { title: fallbackTitle, fallback: fallbackContent }, 'Interactive simulation fallback view');
+          } else {
+            visualWrap.className = 'kyana-visual-fallback';
+            visualWrap.innerHTML = `
+              <div style="font-weight:700;margin-bottom:6px;color:var(--ky-vis-text-primary, #f4f4f5);">📊 ${escapeHtml(fallbackTitle)}</div>
+              <div style="color:var(--ky-vis-text-secondary, #a1a1aa);">${escapeHtml(fallbackContent)}</div>
+            `;
+          }
+          pre.parentNode.replaceChild(visualWrap, pre);
+          return;
+        }
 
         // Render structured adaptive visual blocks safely (never expose malformed structured JSON)
         if (/^(study_session|learning_session|pyq_card|live_demo|logic_sim|interactive_demo|roadmap|timeline|diagram|flowchart|trace|checkpoint_question|chapter_summary|source_reference)$/.test(langKey)) {
@@ -2928,6 +3009,9 @@
 
   function renderSessionMessages(session) {
     if (!messagesListEl) return;
+    if (window.KyanaVisualRenderer && typeof window.KyanaVisualRenderer.destroyAll === 'function') {
+      window.KyanaVisualRenderer.destroyAll();
+    }
     messagesListEl.innerHTML = '';
 
     if (!session || !session.messages || !session.messages.length) {
@@ -2979,6 +3063,9 @@
 
   function startNewChat() {
     cancelActiveRequest();
+    if (window.KyanaVisualRenderer && typeof window.KyanaVisualRenderer.destroyAll === 'function') {
+      window.KyanaVisualRenderer.destroyAll();
+    }
     activeSession = null;
     SessionStore.setActiveId(null);
     renderHistoryList();
@@ -3336,5 +3423,12 @@
       }, 300);
     }
   } catch (_) {}
+
+  // Lifecycle hygiene: Clean up animation frames, timers, and controllers on pagehide/unload
+  window.addEventListener('pagehide', () => {
+    if (window.KyanaVisualRenderer && typeof window.KyanaVisualRenderer.destroyAll === 'function') {
+      window.KyanaVisualRenderer.destroyAll();
+    }
+  });
 
 })();

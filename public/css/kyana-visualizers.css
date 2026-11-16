@@ -1,0 +1,812 @@
+/**
+ * Kyana Academic Visualizers (kyana-visualizers.css)
+ * 
+ * Strict Obsidian Monochrome Design System for Interactive Academic Visualizers.
+ * Supports Binary Search, Sorting Algorithms, Stack (LIFO), Queue (FIFO),
+ * Logic Gates Circuit Simulation, and Dynamic Truth Tables.
+ * 
+ * Design Standards:
+ * - Palette: Charcoal (#09090b, #141416, #27272a), Silver/White (#f4f4f5, #a1a1aa)
+ * - Semantic accents: Green (#22c55e, match/found), Red (#ef4444, overflow/underflow), White/Silver (active)
+ * - Touch targets >= 44px
+ * - Zero window overflow (max-width: 100%, overflow-x: auto)
+ * - Accessibility & prefers-reduced-motion support
+ */
+
+:root {
+  --ky-vis-bg: #09090b;
+  --ky-vis-card: #141416;
+  --ky-vis-surface: #18191d;
+  --ky-vis-surface-elevated: #212228;
+  --ky-vis-border: rgba(255, 255, 255, 0.08);
+  --ky-vis-border-strong: rgba(255, 255, 255, 0.16);
+  --ky-vis-text-primary: #f4f4f5;
+  --ky-vis-text-secondary: #a1a1aa;
+  --ky-vis-text-muted: #71717a;
+  --ky-vis-accent: #ffffff;
+  --ky-vis-success: #22c55e;
+  --ky-vis-danger: #ef4444;
+  --ky-vis-warning: #f59e0b;
+  --ky-vis-info: #38bdf8;
+  --ky-vis-radius: 12px;
+  --ky-vis-radius-sm: 8px;
+}
+
+[data-theme="light"],
+html[data-theme="light"] {
+  --ky-vis-bg: #f8f9fb;
+  --ky-vis-card: #ffffff;
+  --ky-vis-surface: #f1f3f6;
+  --ky-vis-surface-elevated: #e6e9ef;
+  --ky-vis-border: rgba(0, 0, 0, 0.08);
+  --ky-vis-border-strong: rgba(0, 0, 0, 0.16);
+  --ky-vis-text-primary: #09090b;
+  --ky-vis-text-secondary: #52525b;
+  --ky-vis-text-muted: #71717a;
+  --ky-vis-accent: #09090b;
+  --ky-vis-success: #16a34a;
+  --ky-vis-danger: #dc2626;
+  --ky-vis-warning: #d97706;
+  --ky-vis-info: #0284c7;
+}
+
+/* ==========================================================================
+   Root Visualizer Shell
+   ========================================================================== */
+.kyana-visual-root {
+  display: flex;
+  flex-direction: column;
+  background: var(--ky-vis-card);
+  border: 1px solid var(--ky-vis-border);
+  border-radius: var(--ky-vis-radius);
+  margin: 16px 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  font-family: inherit;
+  color: var(--ky-vis-text-primary);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  transition: border-color 0.2s ease;
+}
+
+.kyana-visual-root:hover {
+  border-color: var(--ky-vis-border-strong);
+}
+
+/* Header Area */
+.ky-vis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--ky-vis-border);
+  background: var(--ky-vis-surface);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ky-vis-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ky-vis-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ky-vis-border);
+  color: var(--ky-vis-text-secondary);
+}
+
+.ky-vis-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ky-vis-text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.ky-vis-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ky-vis-text-secondary);
+}
+
+.ky-vis-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ky-vis-meta-value {
+  font-weight: 600;
+  color: var(--ky-vis-text-primary);
+}
+
+/* Canvas / Display Stage */
+.ky-vis-stage {
+  padding: 24px 18px;
+  background: var(--ky-vis-bg);
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+}
+
+/* Step Explanation Card */
+.ky-vis-step-card {
+  padding: 12px 18px;
+  background: var(--ky-vis-surface);
+  border-top: 1px solid var(--ky-vis-border);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ky-vis-text-secondary);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ky-vis-step-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ky-vis-text-primary);
+  text-transform: uppercase;
+}
+
+.ky-vis-step-desc {
+  flex: 1;
+  color: var(--ky-vis-text-primary);
+  word-break: break-word;
+}
+
+/* ==========================================================================
+   Playback Controller Bar
+   ========================================================================== */
+.ky-playback-bar {
+  padding: 10px 16px;
+  background: var(--ky-vis-surface-elevated);
+  border-top: 1px solid var(--ky-vis-border);
+  outline: none;
+}
+
+.ky-playback-bar:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ky-vis-accent);
+}
+
+.ky-playback-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ky-playback-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ky-playback-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  border-radius: var(--ky-vis-radius-sm);
+  background: transparent;
+  border: 1px solid var(--ky-vis-border);
+  color: var(--ky-vis-text-primary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.ky-playback-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--ky-vis-border-strong);
+}
+
+.ky-playback-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ky-playback-btn:disabled,
+.ky-playback-btn.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.ky-playback-btn.ky-btn-play {
+  background: var(--ky-vis-text-primary);
+  color: var(--ky-vis-bg);
+  border-color: var(--ky-vis-text-primary);
+}
+
+.ky-playback-btn.ky-btn-play:hover:not(:disabled) {
+  opacity: 0.9;
+  background: var(--ky-vis-text-primary);
+}
+
+/* Progress Slider & Counter */
+.ky-playback-progress-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 180px;
+}
+
+.ky-playback-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+  background-image: linear-gradient(var(--ky-vis-text-primary), var(--ky-vis-text-primary));
+  background-size: var(--ky-progress-pct, 0%) 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.1s linear;
+}
+
+.ky-playback-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--ky-vis-bg);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  transition: transform 0.12s ease;
+}
+
+.ky-playback-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.ky-playback-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid var(--ky-vis-bg);
+  cursor: pointer;
+}
+
+.ky-playback-counter {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ky-vis-text-secondary);
+  white-space: nowrap;
+}
+
+.ky-playback-btn.ky-btn-speed {
+  font-size: 12px;
+  font-weight: 700;
+  min-width: 48px;
+  letter-spacing: -0.01em;
+}
+
+/* ==========================================================================
+   Component A: Binary Search & Linear Array Visualizer
+   ========================================================================== */
+.ky-array-container {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px 10px;
+  max-width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.ky-array-cell-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 44px;
+}
+
+.ky-array-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: var(--ky-vis-surface);
+  border: 1.5px solid var(--ky-vis-border);
+  color: var(--ky-vis-text-primary);
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--ky-font-mono, monospace);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.ky-array-cell.in-range {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: var(--ky-vis-surface-elevated);
+}
+
+.ky-array-cell.eliminated {
+  opacity: 0.25;
+  filter: grayscale(1);
+  border-style: dashed;
+}
+
+.ky-array-cell.mid {
+  background: #ffffff;
+  color: #09090b;
+  border-color: #ffffff;
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+}
+
+.ky-array-cell.found {
+  background: var(--ky-vis-success);
+  color: #000000;
+  border-color: var(--ky-vis-success);
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
+}
+
+.ky-array-index {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ky-vis-text-muted);
+  font-family: var(--ky-font-mono, monospace);
+}
+
+.ky-array-pointer-bar {
+  margin-top: 4px;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ky-array-pointer-tag {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--ky-vis-text-primary);
+}
+
+.ky-array-pointer-tag.ptr-mid {
+  background: #ffffff;
+  color: #000000;
+}
+
+.ky-array-pointer-tag.ptr-low {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.ky-array-pointer-tag.ptr-high {
+  background: #a855f7;
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   Component B: Sorting Algorithm Visualizer
+   ========================================================================== */
+.ky-sort-stage {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 10px;
+  height: 180px;
+  padding: 20px 10px 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ky-sort-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  flex: 1;
+  max-width: 48px;
+  min-width: 32px;
+}
+
+.ky-sort-bar {
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+  background: var(--ky-vis-surface-elevated);
+  border: 1px solid var(--ky-vis-border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--ky-font-mono, monospace);
+  color: var(--ky-vis-text-secondary);
+  transition: height 0.25s ease, background 0.2s ease, transform 0.15s ease;
+  min-height: 24px;
+}
+
+.ky-sort-bar.active {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  transform: scaleY(1.02);
+}
+
+.ky-sort-bar.swapping {
+  background: var(--ky-vis-warning);
+  color: #000000;
+  border-color: var(--ky-vis-warning);
+}
+
+.ky-sort-bar.sorted {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: var(--ky-vis-success);
+  color: var(--ky-vis-success);
+}
+
+.ky-sort-bar-label {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ky-vis-text-muted);
+}
+
+/* ==========================================================================
+   Component C: Stack Visualizer (LIFO)
+   ========================================================================== */
+.ky-stack-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 24px;
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+}
+
+.ky-stack-beaker {
+  width: 160px;
+  min-height: 220px;
+  border: 2px solid var(--ky-vis-border-strong);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column-reverse;
+  padding: 8px;
+  gap: 6px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.ky-stack-item {
+  height: 38px;
+  background: var(--ky-vis-surface-elevated);
+  border: 1.5px solid var(--ky-vis-border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-family: var(--ky-font-mono, monospace);
+  font-size: 14px;
+  color: var(--ky-vis-text-primary);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: kyItemSlideDown 0.25s ease-out;
+}
+
+.ky-stack-item.top {
+  border-color: #ffffff;
+  background: #ffffff;
+  color: #09090b;
+}
+
+.ky-stack-indicators {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.ky-status-alert {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ky-status-alert.overflow,
+.ky-status-alert.underflow {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--ky-vis-danger);
+  color: var(--ky-vis-danger);
+}
+
+/* ==========================================================================
+   Component D: Queue Visualizer (FIFO)
+   ========================================================================== */
+.ky-queue-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ky-queue-track {
+  display: flex;
+  align-items: center;
+  border: 2px dashed var(--ky-vis-border-strong);
+  border-left: none;
+  border-right: none;
+  padding: 12px 24px;
+  gap: 8px;
+  min-height: 60px;
+  background: rgba(255, 255, 255, 0.02);
+  max-width: 100%;
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.ky-queue-item {
+  min-width: 44px;
+  height: 44px;
+  padding: 0 12px;
+  background: var(--ky-vis-surface-elevated);
+  border: 1.5px solid var(--ky-vis-border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-family: var(--ky-font-mono, monospace);
+  font-size: 14px;
+  color: var(--ky-vis-text-primary);
+  transition: all 0.2s ease;
+  animation: kyItemSlideRight 0.25s ease-out;
+}
+
+.ky-queue-item.front {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  color: #ffffff;
+}
+
+.ky-queue-item.rear {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.15);
+  color: #ffffff;
+}
+
+.ky-queue-item.front.rear {
+  border-color: #ffffff;
+  background: #ffffff;
+  color: #09090b;
+}
+
+/* ==========================================================================
+   Component E: Logic Gate Simulation & Dynamic Truth Table
+   ========================================================================== */
+.ky-logic-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ky-logic-circuit-svg {
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.ky-logic-wire {
+  stroke: rgba(255, 255, 255, 0.25);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  transition: stroke 0.18s ease;
+}
+
+.ky-logic-wire.active {
+  stroke: var(--ky-vis-success);
+}
+
+.ky-logic-gate-body {
+  fill: var(--ky-vis-surface);
+  stroke: var(--ky-vis-border-strong);
+  stroke-width: 2;
+  transition: stroke 0.18s ease, fill 0.18s ease;
+}
+
+.ky-logic-gate-body.active {
+  stroke: #ffffff;
+  fill: var(--ky-vis-surface-elevated);
+}
+
+.ky-logic-toggle-btn {
+  cursor: pointer;
+  user-select: none;
+}
+
+.ky-logic-toggle-pill {
+  fill: var(--ky-vis-surface-elevated);
+  stroke: var(--ky-vis-border-strong);
+  stroke-width: 1.5;
+  rx: 6;
+  transition: all 0.18s ease;
+}
+
+.ky-logic-toggle-pill.active {
+  fill: var(--ky-vis-success);
+  stroke: var(--ky-vis-success);
+}
+
+.ky-logic-toggle-text {
+  fill: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: var(--ky-font-mono, monospace);
+}
+
+.ky-logic-toggle-pill.active + .ky-logic-toggle-text {
+  fill: #000000;
+}
+
+/* Dynamic Truth Table */
+.ky-truth-table-wrap {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  overflow-x: auto;
+}
+
+.ky-truth-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--ky-font-mono, monospace);
+  font-size: 13px;
+  text-align: center;
+}
+
+.ky-truth-table th {
+  padding: 8px 12px;
+  background: var(--ky-vis-surface);
+  color: var(--ky-vis-text-secondary);
+  border-bottom: 1.5px solid var(--ky-vis-border-strong);
+  font-weight: 700;
+}
+
+.ky-truth-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ky-vis-border);
+  color: var(--ky-vis-text-primary);
+  transition: background-color 0.15s ease;
+}
+
+.ky-truth-table tr.active-row td {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.ky-truth-table tr.active-row td:last-child {
+  color: var(--ky-vis-success);
+}
+
+/* Fallback Container */
+.kyana-visual-fallback {
+  padding: 16px;
+  background: var(--ky-vis-surface);
+  border: 1px solid var(--ky-vis-border);
+  border-radius: var(--ky-vis-radius-sm);
+  color: var(--ky-vis-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ==========================================================================
+   Animations & Motion Sensitivity
+   ========================================================================== */
+@keyframes kyItemSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kyItemSlideRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ky-playback-btn,
+  .ky-array-cell,
+  .ky-sort-bar,
+  .ky-stack-item,
+  .ky-queue-item,
+  .ky-logic-wire,
+  .ky-logic-gate-body,
+  .ky-logic-toggle-pill {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 600px) {
+  .ky-vis-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ky-playback-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .ky-playback-btn-group {
+    justify-content: center;
+  }
+  .ky-playback-progress-group {
+    width: 100%;
+  }
+}

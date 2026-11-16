@@ -818,3 +818,133 @@ test('Phase 1: "yes" with empty client history advances by 1 using DB ai_message
   const updatedSess = await db.get(`SELECT * FROM study_partner_sessions WHERE id = ?`, sess.session.id);
   assert.equal(updatedSess.current_step_index, 2, 'Session must advance to step 2 via DB lastWasLesson');
 });
+
+test('Item 3: after "New Chat" in the same unit, "teach me java unit 2" starts at step 1 and does not resume the old session', async (t) => {
+  const db = await createTestDb();
+  const aiChatService = require('../lib/ai-chat-service');
+  const { startOrResumeStudySession } = require('../lib/study-partner-engine');
+
+  await aiChatService.ensureSchema(db);
+  const studentId = 'student_new_chat_test';
+  const studentContext = {
+    authenticated: true,
+    studentId,
+    role: 'student',
+    currentSemester: 2
+  };
+
+  // 1. First chat (conv1): student learns Java Unit 2 and reaches step 2
+  const conv1 = await aiChatService.createChapterConversation(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 2,
+    title: 'Chat 1'
+  });
+
+  const sess1 = await startOrResumeStudySession(db, {
+    studentId,
+    conversationId: conv1.id,
+    subject: 'Computer Programming II (Java)',
+    semesterNo: 2,
+    unitNumber: 2,
+    chapterQuery: 'Introduction to Java'
+  });
+  assert.equal(sess1.session.current_step_index, 1);
+
+  // Advance conv1 to step 2
+  await db.run(`UPDATE study_partner_sessions SET current_step_index = 2 WHERE id = ?`, sess1.session.id);
+  const checkSess1 = await db.get(`SELECT * FROM study_partner_sessions WHERE id = ?`, sess1.session.id);
+  assert.equal(checkSess1.current_step_index, 2, 'Conv 1 session is at step 2');
+
+  // 2. Student clicks "New Chat" in the same chapter -> creates conv2
+  const conv2 = await aiChatService.createChapterConversation(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 2,
+    title: 'Chat 2'
+  });
+
+  // 3. Student asks "teach me java unit 2" in the new conversation (conv2)
+  const reply = await handleChat(
+    db,
+    'teach me java unit 2',
+    studentContext,
+    [],
+    conv2.id,
+    () => {},
+    null,
+    {
+      conversationId: conv2.id,
+      chapterContext: {
+        subject: 'Computer Programming II (Java)',
+        subjectCode: 'CIT122',
+        semesterNo: 2,
+        unitNumber: 2,
+        chapterTitle: 'Introduction to Java'
+      }
+    }
+  );
+
+  assert.equal(reply.intent, 'study_partner');
+
+  // 4. Verify that conv2 created a brand-new session starting at step 1
+  const sess2 = await db.get(
+    `SELECT * FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE'`,
+    conv2.id
+  );
+  assert.ok(sess2, 'Conv 2 must have an active study session');
+  assert.notEqual(sess2.id, sess1.session.id, 'Conv 2 must NOT reuse Conv 1 session ID');
+  assert.equal(sess2.current_step_index, 1, 'Conv 2 must start fresh at step 1');
+
+  // Conv 1 session must still be intact at step 2
+  const sess1After = await db.get(`SELECT * FROM study_partner_sessions WHERE id = ?`, sess1.session.id);
+  assert.equal(sess1After.current_step_index, 2, 'Conv 1 session remains at step 2');
+});
+
+test('Item 4: GET /api/ai/conversations must not return rows with scope_key set (mobile general chat isolation)', async (t) => {
+  const db = await createTestDb();
+  const aiChatService = require('../lib/ai-chat-service');
+
+  await aiChatService.ensureSchema(db);
+  const studentId = 'student_general_vs_scoped';
+
+  // 1. Create a general conversation (scope_key = NULL)
+  const generalConv = await aiChatService.createConversation(db, studentId, 'General Chat');
+  assert.equal(generalConv.scopeKey, null);
+
+  // 2. Create two chapter-scoped conversations (scope_key != NULL)
+  const chapterConv1 = await aiChatService.createChapterConversation(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 2,
+    title: 'Java Unit 2 Chat'
+  });
+  const chapterConv2 = await aiChatService.createChapterConversation(db, studentId, {
+    subjectCode: 'CIT121',
+    semesterNo: 2,
+    unit: 1,
+    title: 'Discrete Math Chat'
+  });
+
+  // 3. Call getConversations (the backend handler for GET /api/ai/conversations)
+  const generalList = await aiChatService.getConversations(db, studentId);
+
+  // 4. Verify only the general conversation is returned; scoped ones are excluded
+  assert.equal(generalList.length, 1, 'Must return exactly 1 general conversation');
+  assert.equal(generalList[0].id, generalConv.id, 'Returned conversation must be the general one');
+  assert.equal(generalList[0].scopeKey, null, 'scopeKey must be null');
+
+  // Verify chapter-scoped conversations are returned by getChapterConversations
+  const javaChats = await aiChatService.getChapterConversations(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 2
+  });
+  assert.equal(javaChats.length, 1, 'Chapter query returns the chapter chat');
+  assert.equal(javaChats[0].id, chapterConv1.id);
+
+  // Verify getOrCreateActiveConversation returns general chat, not chapter chat
+  const activeConv = await aiChatService.getOrCreateActiveConversation(db, studentId);
+  assert.equal(activeConv.id, generalConv.id, 'getOrCreateActiveConversation must return general conversation');
+});
+

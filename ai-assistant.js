@@ -981,22 +981,31 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
   const convId = sessionId || options?.conversationId || null;
   let lastAssistantContent = null;
+  let lastAssistantMeta = null;
   if (db && convId && convId !== 'default' && convId !== 'anonymous' && typeof db.get === 'function') {
     try {
       const lastRow = await db.get(
-        `SELECT text FROM ai_messages WHERE conversation_id = ? AND sender = 'assistant' ORDER BY id DESC LIMIT 1`,
+        `SELECT text, metadata FROM ai_messages WHERE conversation_id = ? AND sender = 'assistant' ORDER BY id DESC LIMIT 1`,
         convId
       );
       if (lastRow?.text) lastAssistantContent = lastRow.text;
+      if (lastRow?.metadata) lastAssistantMeta = lastRow.metadata;
     } catch (_) {}
   }
   if (!lastAssistantContent) {
     const lastAssistantMsg = [...cleanHistory].reverse().find((h) => h.role === 'assistant' || h.role === 'model');
     lastAssistantContent = lastAssistantMsg?.content || '';
+    if (lastAssistantMsg?.metadata) lastAssistantMeta = lastAssistantMsg.metadata;
   }
+  const metaHasLesson = Boolean(
+    lastAssistantMeta &&
+    (typeof lastAssistantMeta === 'string'
+      ? (lastAssistantMeta.includes('study_session') || lastAssistantMeta.includes('study_partner') || lastAssistantMeta.includes('studySession'))
+      : (lastAssistantMeta.studySession || lastAssistantMeta.intent === 'study_partner' || lastAssistantMeta.studySessionId))
+  );
   const lastWasLesson = Boolean(
-    typeof lastAssistantContent === 'string' &&
-    lastAssistantContent.includes('study_session')
+    (typeof lastAssistantContent === 'string' && lastAssistantContent.includes('study_session')) ||
+    metaHasLesson
   );
 
   if (!isInstitutionalOrAdminQuery && chapterContext && (chapterContext.subject || chapterContext.chapterTitle || (Array.isArray(chapterContext.fileIds) && chapterContext.fileIds.length > 0))) {

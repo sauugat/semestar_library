@@ -7530,12 +7530,11 @@ app.get('/api/ai/resources/:type/:id/open', requireLogin, require('./lib/kyana-r
 app.get('/api/ai/chapter-chats', requireLogin, async (req, res) => {
   try {
     const studentId = req.student.studentId;
-    const { subjectCode, semesterNo, unit } = req.query;
-    const chats = await aiChatService.getChapterConversations(db, studentId, {
-      subjectCode,
-      semesterNo,
-      unit
-    });
+    const validated = aiChatService.normalizeChapterParams(req.query);
+    if (!validated.valid) {
+      return res.status(400).json({ message: validated.error });
+    }
+    const chats = await aiChatService.getChapterConversations(db, studentId, validated.params);
     res.json(chats);
   } catch (err) {
     console.error('[AI Chapter Chats API Error]:', err);
@@ -7546,15 +7545,16 @@ app.get('/api/ai/chapter-chats', requireLogin, async (req, res) => {
 app.post('/api/ai/chapter-chats', requireLogin, async (req, res) => {
   try {
     const studentId = req.student.studentId;
-    const { subjectCode, semesterNo, unit, title } = req.body || {};
-    const conv = await aiChatService.createChapterConversation(db, studentId, {
-      subjectCode,
-      semesterNo,
-      unit,
-      title
-    });
+    const validated = aiChatService.normalizeChapterParams(req.body || {});
+    if (!validated.valid) {
+      return res.status(400).json({ message: validated.error });
+    }
+    const conv = await aiChatService.createChapterConversation(db, studentId, validated.params);
     res.status(201).json(conv);
   } catch (err) {
+    if (err.status === 400 || err.code === 'CHAT_LIMIT_REACHED') {
+      return res.status(400).json({ message: err.message });
+    }
     console.error('[Create AI Chapter Chat API Error]:', err);
     res.status(500).json({ message: 'Failed to create chapter chat.' });
   }

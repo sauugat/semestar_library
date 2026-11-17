@@ -530,13 +530,51 @@ test('Prompt attribution & praise rules: syllabus fallback when no notes vs note
     'Prompt with notes must instruct grounding and citing notes'
   );
   assert.ok(
-    promptWithNotes.includes('Cite only page numbers that appear in the excerpts above'),
-    'Prompt must include rule: "Cite only page numbers that appear in the excerpts above"'
+    promptWithNotes.includes('Cite only page numbers that appear in the excerpts below'),
+    'Prompt must include rule: "Cite only page numbers that appear in the excerpts below"'
   );
   assert.ok(
     promptWithNotes.includes('An analogy must map to the real concept; do not invent unrelated metaphors'),
     'Prompt must include rule: "An analogy must map to the real concept; do not invent unrelated metaphors"'
   );
+
+  // Case C: Skipping title-slide and short chunks
+  const titleSlideAndShortChunks = [
+    {
+      id: 'chunk_title',
+      file_title: 'Java Lecture 02',
+      page_start: 1,
+      page_end: 1,
+      clean_content: 'Introduction to Java Er. Shiva Ram Dam Assistant Professor Gandaki University'
+    },
+    {
+      id: 'chunk_stub',
+      file_title: 'Java Lecture 02',
+      page_start: 2,
+      page_end: 2,
+      clean_content: '2.5 Bytecode'
+    },
+    {
+      id: 'chunk_real',
+      file_title: 'Java Lecture 02',
+      page_start: 3,
+      page_end: 3,
+      clean_content: 'Java source code is compiled into platform-independent bytecode (.class files) by the javac compiler, which is executed by the JVM.'
+    }
+  ];
+
+  const promptFiltered = buildStudyPartnerLlmPrompt({
+    session,
+    step,
+    topics: [step],
+    noteChunks: titleSlideAndShortChunks,
+    studentAnswerEvaluation: studentEval
+  });
+
+  assert.ok(!promptFiltered.includes('Assistant Professor Gandaki University'), 'Must skip title slide chunk');
+  assert.ok(!promptFiltered.includes('[Note Excerpt 1 — Java Lecture 02, Page 2]'), 'Must skip very short stub chunk');
+  assert.ok(promptFiltered.includes('Page 3'), 'Must retain substantive chunk from Page 3');
+  assert.ok(promptFiltered.includes('6. If teaching web/CSS/HTML concepts'), 'Rules must be numbered sequentially without duplicate 5');
 });
 
 test('Phase 1: "skip" marks the current step SKIPPED, not MASTERED', async (t) => {
@@ -577,6 +615,7 @@ test('Phase 1 Security: /api/ai/chat rejects conversationId owned by another stu
   const { createChatHandler } = require('../lib/chat-http');
 
   await aiChatService.ensureSchema(db);
+  await ensureRagSchema(db);
 
   // Student A creates a conversation
   const convA = await aiChatService.createConversation(db, 'student_A', 'Private Chat Student A');
@@ -643,6 +682,7 @@ test('Phase 1: Chapter Chat Isolation, Reopening, New Chat, and Multi-Session Co
   const { startOrResumeStudySession, advanceStudySessionStep } = require('../lib/study-partner-engine');
 
   await aiChatService.ensureSchema(db);
+  await ensureRagSchema(db);
   const studentId = 'test_student_scope_key';
 
   // 1. Create a chapter chat for CIT122 Unit 2
@@ -765,6 +805,7 @@ test('Phase 1: "yes" with empty client history advances by 1 using DB ai_message
   const { startOrResumeStudySession } = require('../lib/study-partner-engine');
 
   await aiChatService.ensureSchema(db);
+  await ensureRagSchema(db);
   const studentId = 'test_student_db_stepping';
   // Create conversation and active study session
   const conv = await aiChatService.createConversation(db, studentId, 'Java Lesson', 'CIT122|s2|u2');
@@ -825,6 +866,7 @@ test('Item 3: after "New Chat" in the same unit, "teach me java unit 2" starts a
   const { startOrResumeStudySession } = require('../lib/study-partner-engine');
 
   await aiChatService.ensureSchema(db);
+  await ensureRagSchema(db);
   const studentId = 'student_new_chat_test';
   const studentContext = {
     authenticated: true,
@@ -906,6 +948,7 @@ test('Item 4: GET /api/ai/conversations must not return rows with scope_key set 
   const aiChatService = require('../lib/ai-chat-service');
 
   await aiChatService.ensureSchema(db);
+  await ensureRagSchema(db);
   const studentId = 'student_general_vs_scoped';
 
   // 1. Create a general conversation (scope_key = NULL)
@@ -947,4 +990,261 @@ test('Item 4: GET /api/ai/conversations must not return rows with scope_key set 
   const activeConv = await aiChatService.getOrCreateActiveConversation(db, studentId);
   assert.equal(activeConv.id, generalConv.id, 'getOrCreateActiveConversation must return general conversation');
 });
+
+test('Item 2: End-to-end test through createChatHandler (real save path, fake assistant/LLM)', async (t) => {
+  const db = await createTestDb();
+  const aiChatService = require('../lib/ai-chat-service');
+  const { createChatHandler } = require('../lib/chat-http');
+  const realAiAssistant = require('../ai-assistant');
+
+  await aiChatService.ensureSchema(db);
+  await ensureRagSchema(db);
+  const studentId = 'e2e_student_real_save';
+  const convId = 'conv_e2e_lesson_flow';
+
+  // Seed conversation
+  await aiChatService.createConversation(db, studentId, 'Java Chapter Chat', 'CIT122|s2|u2');
+  // Update its id to convId
+  await db.run(`UPDATE ai_conversations SET id = ? WHERE student_id = ?`, convId, studentId);
+
+  // Fake LLM provider that returns a valid 300+ word lesson when requested
+  const fakeGenerateReply = async ({ message, systemPrompt }) => {
+    return {
+      reply: [
+        '### 1. 💡 Intuitive Real-World Analogy',
+        'Think of the Java Virtual Machine like a universal power adapter when traveling worldwide.',
+        '### 2. ⚙️ Detailed Technical Architecture & Mechanics',
+        'Java source code (.java) is compiled by javac into platform-independent bytecode stored in .class files. The Java Virtual Machine loads bytecode, verifies bytecode integrity with the Bytecode Verifier, and executes it via the Execution Engine using a combination of the Interpreter and Just-In-Time (JIT) compiler.',
+        '### 3. 💻 Concrete Worked Example (Code or Structural Breakdown)',
+        '```java\npublic class HelloWorld {\n  public static void main(String[] args) {\n    System.out.println("Hello, Gandaki University!");\n  }\n}\n```',
+        '### 4. ⚖️ Tradeoffs, Edge Cases & Common Pitfalls',
+        'Common misconception: Thinking Java bytecode can run on hardware without a JVM. The JVM must be installed specifically for the host operating system.',
+        '### 5. 🎯 Checkpoint Question',
+        'What file extension is generated after running the javac compiler on a .java source file?'
+      ].join('\n\n')
+    };
+  };
+
+  const assistantWrapper = {
+    handleChat(database, userMessage, studentInfo, history, conversationId, options) {
+      return realAiAssistant.handleChat(database, userMessage, studentInfo, history, conversationId, {
+        ...options,
+        generateReply: fakeGenerateReply
+      });
+    }
+  };
+
+  const handler = createChatHandler(db, assistantWrapper);
+
+  function createMockHttp({ message, history, conversationId, chapterContext }) {
+    const req = {
+      student: { studentId, role: 'student', currentSemester: 2 },
+      user: { studentId, role: 'student', currentSemester: 2 },
+      session: {
+        studentId,
+        role: 'student',
+        currentSemester: 2,
+        save: (cb) => { if (typeof cb === 'function') cb(null); }
+      },
+      body: {
+        message,
+        history,
+        conversationId,
+        chapterContext
+      }
+    };
+    let statusCode = 200;
+    let jsonResult = null;
+    let responseEnded = false;
+    const res = {
+      status(code) {
+        statusCode = code;
+        return this;
+      },
+      json(data) {
+        jsonResult = data;
+        responseEnded = true;
+        return this;
+      },
+      end() {
+        responseEnded = true;
+        return this;
+      }
+    };
+    return { req, res, getResult: () => jsonResult, getStatus: () => statusCode };
+  }
+
+  const chapterContext = {
+    subject: 'Computer Programming II (Java)',
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unitNumber: 2,
+    chapterTitle: 'Introduction to Java'
+  };
+
+  // Turn 1: Authenticated student sends "teach me java unit 2" with chapterContext
+  const turn1 = createMockHttp({
+    message: 'teach me java unit 2',
+    history: [],
+    conversationId: convId,
+    chapterContext
+  });
+  await handler(turn1.req, turn1.res);
+
+  assert.equal(turn1.getStatus(), 200, 'Turn 1 must succeed with 200');
+  const turn1Result = turn1.getResult();
+  assert.equal(turn1Result.intent, 'study_partner');
+
+  // Verify DB messages via aiChatService.getMessages (endpoint GET /api/ai/conversations/:id/messages)
+  const storedMessages = await aiChatService.getMessages(db, studentId, convId, 10);
+  assert.ok(storedMessages.length >= 2, 'Stored messages must include user and assistant turns');
+  const assistantMsg = storedMessages.find(m => m.sender === 'assistant');
+  assert.ok(assistantMsg, 'Assistant message must be stored in DB');
+
+  // Assert: stored assistant text or metadata still lets the client render the study_session card
+  const hasStudySessionCard = assistantMsg.text.includes('study_session') ||
+    (assistantMsg.metadata && (assistantMsg.metadata.studySession || assistantMsg.metadata.intent === 'study_partner'));
+  assert.ok(hasStudySessionCard, 'Stored assistant text or metadata must contain the study_session card');
+
+  // Verify session step is initially 1
+  const sessionAfterTurn1 = await db.get(
+    `SELECT * FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE'`,
+    convId
+  );
+  assert.equal(sessionAfterTurn1.current_step_index, 1, 'Initial session step must be 1');
+
+  // Turn 2: Student sends "yes" with history: [] (clean client history)
+  const turn2 = createMockHttp({
+    message: 'yes',
+    history: [],
+    conversationId: convId,
+    chapterContext
+  });
+  await handler(turn2.req, turn2.res);
+
+  assert.equal(turn2.getStatus(), 200, 'Turn 2 must succeed with 200');
+
+  // Assert: lastWasLesson was true from DB, session stepped from 1 -> 2
+  const sessionAfterTurn2 = await db.get(
+    `SELECT * FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE'`,
+    convId
+  );
+  assert.equal(sessionAfterTurn2.current_step_index, 2, 'Session step index must advance from 1 to 2');
+});
+
+test('Item 3: lib/chat-http.js ownership check fails closed (500) if DB lookup throws', async (t) => {
+  const db = await createTestDb();
+  const aiChatService = require('../lib/ai-chat-service');
+  const { createChatHandler } = require('../lib/chat-http');
+
+  await aiChatService.ensureSchema(db);
+  await ensureRagSchema(db);
+
+  // Wrap db with a get method that throws on ownership check
+  const failingDb = {
+    ...db,
+    async get(sql, ...args) {
+      if (typeof sql === 'string' && sql.includes('SELECT student_id FROM ai_conversations')) {
+        throw new Error('Database connection failed or query error');
+      }
+      return db.get(sql, ...args);
+    }
+  };
+
+  let assistantCalled = false;
+  const dummyAssistant = {
+    async handleChat() {
+      assistantCalled = true;
+      return { reply: 'Should never reach here' };
+    }
+  };
+
+  const handler = createChatHandler(failingDb, dummyAssistant);
+
+  let statusCode = 200;
+  let jsonResult = null;
+  const req = {
+    student: { studentId: 'student_fail_closed' },
+    body: {
+      message: 'Hello',
+      conversationId: 'conv_any_id'
+    }
+  };
+  const res = {
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(data) {
+      jsonResult = data;
+      return this;
+    }
+  };
+
+  await handler(req, res);
+
+  assert.equal(statusCode, 500, 'Must return 500 when conversation ownership check throws');
+  assert.equal(assistantCalled, false, 'Assistant must NOT be invoked when ownership check throws');
+  assert.ok(jsonResult?.message?.includes('ownership'), 'Error message must reflect ownership verification failure');
+});
+
+test('Item 5: Server chapter-chats validation, normalization, and 30-chat cap', async (t) => {
+  const db = await createTestDb();
+  const aiChatService = require('../lib/ai-chat-service');
+
+  await aiChatService.ensureSchema(db);
+  await ensureRagSchema(db);
+  const studentId = 'student_cap_validation';
+
+  // 1. Validation checks
+  const badSubject = aiChatService.normalizeChapterParams({ subjectCode: '' });
+  assert.equal(badSubject.valid, false, 'Empty subjectCode must be rejected');
+
+  const longSubject = aiChatService.normalizeChapterParams({ subjectCode: 'A'.repeat(45) });
+  assert.equal(longSubject.valid, false, 'subjectCode > 40 chars must be rejected');
+
+  const badSem = aiChatService.normalizeChapterParams({ subjectCode: 'CIT122', semesterNo: 'not_a_number' });
+  assert.equal(badSem.valid, false, 'Non-integer semesterNo must be rejected');
+
+  const badUnit = aiChatService.normalizeChapterParams({ subjectCode: 'CIT122', unit: 99 });
+  assert.equal(badUnit.valid, false, 'unit > 50 must be rejected');
+
+  const validParams = aiChatService.normalizeChapterParams({ subjectCode: 'cit122', semesterNo: '2', unit: '2' });
+  assert.equal(validParams.valid, true);
+  assert.equal(validParams.params.subjectCode, 'CIT122');
+  assert.equal(validParams.params.semesterNo, 2);
+  assert.equal(validParams.params.unit, 2);
+
+  // 2. Cap check: create 30 chapter conversations, then verify 31st is rejected
+  for (let i = 1; i <= 30; i++) {
+    await aiChatService.createChapterConversation(db, studentId, {
+      subjectCode: 'CIT122',
+      semesterNo: 2,
+      unit: 2,
+      title: `Chat ${i}`
+    });
+  }
+
+  const existingChats = await aiChatService.getChapterConversations(db, studentId, {
+    subjectCode: 'CIT122',
+    semesterNo: 2,
+    unit: 2
+  });
+  assert.equal(existingChats.length, 30, 'Should have exactly 30 conversations');
+
+  // 31st creation should throw CHAT_LIMIT_REACHED
+  await assert.rejects(
+    async () => {
+      await aiChatService.createChapterConversation(db, studentId, {
+        subjectCode: 'CIT122',
+        semesterNo: 2,
+        unit: 2,
+        title: 'Chat 31'
+      });
+    },
+    (err) => err.code === 'CHAT_LIMIT_REACHED' && err.message.includes('Maximum limit of 30 conversations reached'),
+    'Should reject 31st conversation with limit message'
+  );
+});
+
 

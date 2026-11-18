@@ -96,6 +96,33 @@ describe('KYANA Phase 2: Unified Resource Resolver', () => {
     cohortId: 'BIT_2024'
   };
 
+  const teacherJavaContext = {
+    authenticated: true,
+    studentId: 'TEA_JAVA',
+    name: 'Prof. Ramesh Sharma',
+    role: 'teacher',
+    assignedSemesters: [2],
+    assignedSubjects: ['Computer Programming II (Java)'],
+    teacherSemesters: [2],
+    teacherSubjectAliases: ['computer programming ii (java)', 'java']
+  };
+
+  const teacherOtherContext = {
+    authenticated: true,
+    studentId: 'TEA_OTHER',
+    name: 'Prof. Gita Verma',
+    role: 'teacher',
+    assignedSemesters: [4],
+    assignedSubjects: ['Operating Systems'],
+    teacherSemesters: [4],
+    teacherSubjectAliases: ['operating systems', 'os']
+  };
+
+  const anonymousContext = {
+    authenticated: false,
+    role: 'anonymous'
+  };
+
   before(async () => {
     db = createTestDb();
 
@@ -183,15 +210,22 @@ describe('KYANA Phase 2: Unified Resource Resolver', () => {
 
       CREATE TABLE pyq_questions (
         id INTEGER PRIMARY KEY,
-        exam_year TEXT,
-        exam_type TEXT,
-        question_number TEXT,
+        paper_id TEXT,
+        file_id INTEGER,
+        subject TEXT NOT NULL,
+        subject_code TEXT,
+        semester_no INTEGER NOT NULL,
+        exam_year TEXT NOT NULL,
+        exam_type TEXT NOT NULL DEFAULT 'Final Exam',
+        section_label TEXT,
+        question_number TEXT NOT NULL,
+        question_text TEXT NOT NULL,
+        clean_question_text TEXT NOT NULL,
         marks REAL DEFAULT 5,
-        question_text TEXT,
-        clean_text TEXT,
-        subject TEXT,
-        semester_no INTEGER,
-        unit_number INTEGER
+        unit_number INTEGER,
+        chapter_title TEXT,
+        primary_topic TEXT,
+        normalized_topic TEXT
       );
 
       CREATE TABLE pyq_topic_links (
@@ -256,6 +290,10 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
       INSERT INTO document_chunks (id, file_id, chunk_index, section_heading, heading_path, content, clean_content, page_start, page_end)
       VALUES (1012, 101, 2, 'Write Once, Run Anywhere', 'Unit 2 > WORA', 'Because the JVM translates bytecode to native code, Java achieves Write Once Run Anywhere.', 'Because the JVM translates bytecode to native code, Java achieves Write Once Run Anywhere.', 13, 13)
     `);
+    await db.run(`
+      INSERT INTO document_chunks (id, file_id, chunk_index, section_heading, heading_path, content, clean_content, page_start, page_end)
+      VALUES (1013, 101, 3, 'JVM Execution Model', 'Unit 2 > JVM Model', 'The JVM bytecode verifier and execution engine guarantee platform independence across operating systems.', 'The JVM bytecode verifier and execution engine guarantee platform independence across operating systems.', 12, 13)
+    `);
 
     // File 102: Private Teacher-Only File
     await db.run(`
@@ -297,10 +335,50 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
       fileSize: 5000
     }, { buffer: Buffer.from('Standard coding style guide and naming conventions for Java.') });
 
+    // File 105: 01. Object-Oriented Programming (Unrelated Java note in same subject)
+    await db.run(`
+      INSERT INTO files (id, title, originalName, storedName, subject, chapter, semester, semester_no, fileSize, uploadedBy, visibility, audience_scope)
+      VALUES (105, '01. Object-Oriented Programming', '01_OOP.pdf', 'stored_105.pdf', 'Computer Programming II (Java)', '1', 'Semester II', 2, 180000, 'ADMIN_01', 'everyone', 'all_students')
+    `);
+    await indexNote(db, {
+      id: 105,
+      title: '01. Object-Oriented Programming',
+      originalName: '01_OOP.pdf',
+      storedName: 'stored_105.pdf',
+      subject: 'Computer Programming II (Java)',
+      chapter: '1',
+      semester: 'Semester II',
+      uploadedAt: '2026-03-01',
+      fileSize: 180000
+    }, { buffer: Buffer.from('[Page 1] Object Oriented Programming paradigms, classes, objects, and encapsulation in Java.') });
+
+    // File 106: 03. Java Environment (Unrelated Java note in same subject)
+    await db.run(`
+      INSERT INTO files (id, title, originalName, storedName, subject, chapter, semester, semester_no, fileSize, uploadedBy, visibility, audience_scope)
+      VALUES (106, '03. Java Environment', '03_Env.pdf', 'stored_106.pdf', 'Computer Programming II (Java)', '3', 'Semester II', 2, 190000, 'ADMIN_01', 'everyone', 'all_students')
+    `);
+    await indexNote(db, {
+      id: 106,
+      title: '03. Java Environment',
+      originalName: '03_Env.pdf',
+      storedName: 'stored_106.pdf',
+      subject: 'Computer Programming II (Java)',
+      chapter: '3',
+      semester: 'Semester II',
+      uploadedAt: '2026-03-02',
+      fileSize: 190000
+    }, { buffer: Buffer.from('[Page 1] Setting up JDK, JRE, PATH and CLASSPATH environment variables.') });
+
     // Notice Post 201: Official Exam Notice
     await db.run(`
       INSERT INTO posts (id, user_id, title, content, type, category, visibility, target_all_semesters, audience_scope, created_at)
       VALUES (201, 'ADMIN_01', 'Final Examination Notice 2081', 'The final board examination starts from 2081-08-15. Check routine.', 'notice', 'NOTICE', 'everyone', 1, 'all_students', '2026-11-01T10:00:00Z')
+    `);
+
+    // Notice Post 202: Project Defense Notice
+    await db.run(`
+      INSERT INTO posts (id, user_id, title, content, type, category, visibility, target_all_semesters, audience_scope, created_at)
+      VALUES (202, 'ADMIN_01', 'Project Defense Schedule Notice', 'Final year and 2nd semester project defense will be held next week. Prepare slide decks.', 'notice', 'NOTICE', 'everyone', 1, 'all_students', '2026-11-02T10:00:00Z')
     `);
 
     // Assignment 301
@@ -309,19 +387,37 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
       VALUES (301, 'Java Lab 2 - Inheritance and Interfaces', 'Implement vehicle hierarchy with polymorphism.', 'Computer Programming II (Java)', 'Semester II', 2, '2026-11-25', 'ADMIN_01')
     `);
 
+    // Assignment 302: Networking Assignment
+    await db.run(`
+      INSERT INTO assignments (id, title, description, subject, semester, semester_no, deadline, createdBy)
+      VALUES (302, 'Networking Lab 1 - Packet Analysis', 'Analyze TCP handshakes in Wireshark and measure round trip latency.', 'Computer Networks', 'Semester II', 2, '2026-11-28', 'ADMIN_01')
+    `);
+
     // PYQ Question 401
     await db.run(`
-      INSERT INTO pyq_questions (id, exam_year, exam_type, question_number, marks, question_text, clean_text, subject, semester_no, unit_number)
+      INSERT INTO pyq_questions (id, exam_year, exam_type, question_number, marks, question_text, clean_question_text, subject, semester_no, unit_number)
       VALUES (401, '2080 BS', 'Final Exam', '2.a', 5, 'Explain why Java is platform independent. How does JVM facilitate Write Once Run Anywhere?', 'Explain why Java is platform independent. How does JVM facilitate Write Once Run Anywhere?', 'Computer Programming II (Java)', 2, 2)
     `);
 
-    // 3. Setup Express Server for HTTP Open Redirect Navigation Testing
+    // PYQ Question 402: Database PYQ
+    await db.run(`
+      INSERT INTO pyq_questions (id, exam_year, exam_type, question_number, marks, question_text, clean_question_text, subject, semester_no, unit_number)
+      VALUES (402, '2080 BS', 'Final Exam', '4.b', 7, 'Explain 3NF and BCNF normalization in relational databases with dependency preservation.', 'Explain 3NF and BCNF normalization in relational databases with dependency preservation.', 'Database Management System', 2, 3)
+    `);
+
+    // 3. Setup Express Server for HTTP Open Redirect and Direct File View Testing
     const app = express();
     app.use((req, _res, next) => {
       // Mock auth middleware providing academic context
       const authHeader = req.headers.authorization || '';
       if (authHeader.includes('STU_SEM4')) {
         req.user = sem4StudentContext;
+      } else if (authHeader.includes('TEA_JAVA')) {
+        req.user = teacherJavaContext;
+      } else if (authHeader.includes('TEA_OTHER')) {
+        req.user = teacherOtherContext;
+      } else if (authHeader.includes('ANON')) {
+        req.user = null;
       } else {
         req.user = sem2StudentContext;
       }
@@ -329,6 +425,18 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
     });
 
     app.get('/api/ai/resources/:type/:id/open', createResourceHandler(db));
+
+    // Direct file view endpoint mirroring server.js logic with assertContentAccess
+    app.get('/api/files/:id/view', async (req, res) => {
+      const file = await db.get('SELECT * FROM files WHERE id = ?', req.params.id);
+      const { assertContentAccess } = require('../lib/academic-context');
+      if (!file || !assertContentAccess(req.user, file)) {
+        return res.status(404).json({ message: 'File not found' });
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${file.originalName}"`);
+      return res.status(200).send(`%PDF-1.4 file content of ${file.title}`);
+    });
 
     await new Promise((resolve) => {
       server = http.createServer(app);
@@ -345,7 +453,7 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
     }
   });
 
-  // ── TEST 1: Exact Query Identification & Response Behaviour ──
+  // ── TEST 1: Exact Query Identification & Response Behaviour (Scenario A) ──
   test('1. "find me note with java as platform independent topic" resolves parent document without raw text dump', async () => {
     const q = 'find me note with java as platform independent topic';
     const u = understandRequest(q, [], null, {});
@@ -371,6 +479,10 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
     assert.equal(noteFile.subject, 'Computer Programming II (Java)');
     assert.equal(noteFile.semester, 'Semester II');
 
+    // Verify zero unrelated notes (no 01. Object-Oriented Programming, no 03. Java Environment)
+    assert.ok(!res.matchedFiles.some(f => Number(f.id) === 105), 'Must NOT include unrelated note 105 (OOP)');
+    assert.ok(!res.matchedFiles.some(f => Number(f.id) === 106), 'Must NOT include unrelated note 106 (Env)');
+
     // Verify relevant pages 12-13
     const pages = Array.isArray(noteFile.pageNumbers) ? noteFile.pageNumbers : [];
     assert.ok(pages.includes(12) || pages.includes(13), 'Must surface pages 12 and/or 13');
@@ -380,8 +492,8 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
     assert.ok(!res.reply.includes('Introduction to Java. Course syllabus overview'), 'Reply must not dump full PDF content');
     assert.ok(res.reply.length < 500, `Finding reply must be concise (< 500 chars), got ${res.reply.length}`);
 
-    // Verify resource card attached
-    assert.ok(res.resourceCards.length >= 1, 'Must include resource card');
+    // Verify exactly 1 authoritative resource card attached
+    assert.equal(res.resourceCards.length, 1, `Must include exactly 1 resource card, got: ${res.resourceCards.length}`);
     const card = res.resourceCards[0];
     assert.equal(card.type, 'note');
     assert.equal(Number(card.id), 101);
@@ -437,7 +549,7 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
     assert.equal(jsonBody.type, 'note');
   });
 
-  // ── TEST 4: Explicit Resource-Type Filtering ──
+  // ── TEST 4: Explicit Resource-Type Filtering & Intent Separation (Scenario B) ──
   test('4. Explicit resource-type filtering strictly isolates resource types', async () => {
     // A. Explicit request for notes returns ONLY notes
     const noteRes = await runKyanaAgentLoop({
@@ -451,7 +563,7 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
 
     // B. Explicit request for notice returns ONLY notices
     const noticeRes = await runKyanaAgentLoop({
-      message: 'find me a notice about exams',
+      message: 'find notices about project defense',
       academicContext: sem2StudentContext,
       db,
       chatMode: 'academic'
@@ -461,24 +573,35 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
 
     // C. Explicit request for assignments returns ONLY assignments
     const asgRes = await runKyanaAgentLoop({
-      message: 'find my assignments',
+      message: 'find assignments about networking',
       academicContext: sem2StudentContext,
       db,
       chatMode: 'academic'
     });
     assert.ok(asgRes.resourceCards.length > 0, 'Must return assignment cards');
     assert.ok(asgRes.resourceCards.every(c => c.type === 'assignment'), 'All cards must be assignments only');
+
+    // D. Explicit request for past questions returns ONLY PYQs
+    const pyqRes = await runKyanaAgentLoop({
+      message: 'find PYQs about database',
+      academicContext: sem2StudentContext,
+      db,
+      chatMode: 'academic'
+    });
+    assert.ok(pyqRes.resourceCards.length > 0, 'Must return PYQ cards');
+    assert.ok(pyqRes.resourceCards.every(c => c.type === 'pyq'), 'All cards must be PYQs only');
   });
 
-  // ── TEST 5: Duplicate Chunk Elimination ──
+  // ── TEST 5: Duplicate Chunk Elimination & Parent Document Aggregation (Scenario C) ──
   test('5. Duplicate chunk elimination collapses multiple matching chunks to 1 parent resource card', async () => {
-    const rawCardsWithDups = [
-      { type: 'note', id: 101, title: '02. Introduction to Java', page: 12 },
-      { type: 'note', id: 101, title: '02. Introduction to Java', page: 13 },
-      { type: 'note', id: 101, title: '02. Introduction to Java', page: 12 }
+    // 3 chunks from file 101 matching query (chunks 1011, 1012, 1013)
+    const rawCardsWith3Chunks = [
+      { type: 'note', id: 101, chunkId: 1011, title: '02. Introduction to Java', page: 12 },
+      { type: 'note', id: 101, chunkId: 1012, title: '02. Introduction to Java', page: 13 },
+      { type: 'note', id: 101, chunkId: 1013, title: '02. Introduction to Java', page: 12 }
     ];
 
-    const revalidated = await revalidateCards(db, sem2StudentContext, rawCardsWithDups);
+    const revalidated = await revalidateCards(db, sem2StudentContext, rawCardsWith3Chunks);
     // Deduplicate cards by (type + id) as enforced in kyana-agent-engine
     const seen = new Set();
     const deduped = [];
@@ -490,8 +613,9 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
       }
     }
 
-    assert.equal(deduped.length, 1, 'Multiple chunks from the same file must collapse to exactly 1 card');
-    assert.equal(Number(deduped[0].id), 101);
+    assert.equal(deduped.length, 1, '3 chunks from the same file must collapse to exactly 1 parent card');
+    assert.equal(Number(deduped[0].id), 101, 'Card ID must strictly match parent file ID 101');
+    assert.ok(![1011, 1012, 1013].includes(Number(deduped[0].id)), 'Chunk IDs must NEVER leak into the card ID field');
   });
 
   // ── TEST 6: Exclusion of Wrong-Semester Resources ──
@@ -515,26 +639,104 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
     assert.ok(crossRes.some(f => Number(f.id) === 101), 'Explicit cross-semester search permits access to public note');
   });
 
-  // ── TEST 7: Exclusion of Unauthorized Resources ──
-  test('7. Exclusion of unauthorized resources (teachers_only / private visibility)', async () => {
-    // Student attempting to access File 102 (teachers_only) via search
-    const results = await searchNotes(db, {
-      query: 'Teacher Solution Key',
-      semester: 2,
-      academicContext: sem2StudentContext
+  // ── TEST 7: Authorization Hardening Across Direct & Redirect Endpoints (Scenario D) ──
+  test('7. Authorization hardening enforces student/teacher bounds and NEVER leaks file content', async () => {
+    // 1. Student authorized for Semester 2 requests Semester 2 note (File 101) -> 200 / 302 access granted
+    const sem2View = await fetch(`${baseUrl}/api/files/101/view`, {
+      headers: { Authorization: 'Bearer STU_SEM2' }
     });
-    assert.ok(!results.some(f => Number(f.id) === 102), 'Student search must not return teachers_only file');
+    assert.equal(sem2View.status, 200, 'Authorized student must receive 200 on /api/files/:id/view');
+    const sem2ViewBody = await sem2View.text();
+    assert.ok(sem2ViewBody.includes('%PDF-1.4'), 'Authorized student receives file stream');
 
-    // Student attempting to access File 102 via direct readResource
-    const directRead = await readResource(db, sem2StudentContext, { type: 'note', id: 102 });
-    assert.equal(directRead, null, 'Direct read of teachers_only file must return null for student');
+    const sem2Open = await fetch(`${baseUrl}/api/ai/resources/note/101/open`, {
+      headers: { Authorization: 'Bearer STU_SEM2' },
+      redirect: 'manual'
+    });
+    assert.equal(sem2Open.status, 302, 'Authorized student receives 302 open redirect');
+    assert.equal(sem2Open.headers.get('location'), '/api/files/101/view');
 
-    // Direct HTTP open redirect returns 404
-    const httpRes = await fetch(`${baseUrl}/api/ai/resources/note/102/open`, { redirect: 'manual' });
-    assert.equal(httpRes.status, 404, 'Unauthorized resource access must return HTTP 404');
+    // 2. Student authorized for Semester 2 requests Semester 4 note (File 103) -> 404 access denied
+    const sem2WrongSemView = await fetch(`${baseUrl}/api/files/103/view`, {
+      headers: { Authorization: 'Bearer STU_SEM2' }
+    });
+    assert.equal(sem2WrongSemView.status, 404, 'Wrong-semester file view must return HTTP 404');
+    const sem2WrongSemBody = await sem2WrongSemView.text();
+    assert.ok(!sem2WrongSemBody.includes('%PDF-1.4'), 'File content must NEVER leak on 404');
+
+    const sem2WrongSemOpen = await fetch(`${baseUrl}/api/ai/resources/note/103/open`, {
+      headers: { Authorization: 'Bearer STU_SEM2' },
+      redirect: 'manual'
+    });
+    assert.equal(sem2WrongSemOpen.status, 404, 'Wrong-semester open redirect must return HTTP 404');
+
+    // 3. Student requests teachers_only note (File 102) -> 404 access denied
+    const studentTeachersOnlyView = await fetch(`${baseUrl}/api/files/102/view`, {
+      headers: { Authorization: 'Bearer STU_SEM2' }
+    });
+    assert.equal(studentTeachersOnlyView.status, 404, 'Student requesting teachers_only file must receive HTTP 404');
+    const studentTeachersOnlyBody = await studentTeachersOnlyView.text();
+    assert.ok(!studentTeachersOnlyBody.includes('%PDF-1.4'), 'Teachers-only content must NEVER leak to students');
+
+    const studentTeachersOnlyOpen = await fetch(`${baseUrl}/api/ai/resources/note/102/open`, {
+      headers: { Authorization: 'Bearer STU_SEM2' },
+      redirect: 'manual'
+    });
+    assert.equal(studentTeachersOnlyOpen.status, 404, 'Teachers-only open redirect must return HTTP 404 to students');
+
+    // 4. Teacher assigned to Java Semester 2 requests Java note (File 101) -> 200 / 302 access granted
+    const teacherJavaView = await fetch(`${baseUrl}/api/files/101/view`, {
+      headers: { Authorization: 'Bearer TEA_JAVA' }
+    });
+    assert.equal(teacherJavaView.status, 200, 'Assigned teacher must receive 200 on /api/files/:id/view');
+
+    const teacherJavaOpen = await fetch(`${baseUrl}/api/ai/resources/note/101/open`, {
+      headers: { Authorization: 'Bearer TEA_JAVA' },
+      redirect: 'manual'
+    });
+    assert.equal(teacherJavaOpen.status, 302, 'Assigned teacher must receive 302 on /api/ai/resources/note/:id/open');
+
+    // 5. Teacher NOT assigned to Java (TEA_OTHER) requests Java note (File 101) -> 404 access denied
+    const teacherOtherView = await fetch(`${baseUrl}/api/files/101/view`, {
+      headers: { Authorization: 'Bearer TEA_OTHER' }
+    });
+    assert.equal(teacherOtherView.status, 404, 'Unassigned teacher must receive 404 on /api/files/:id/view');
+    const teacherOtherBody = await teacherOtherView.text();
+    assert.ok(!teacherOtherBody.includes('%PDF-1.4'), 'Unassigned teacher must not receive file bytes');
+
+    const teacherOtherOpen = await fetch(`${baseUrl}/api/ai/resources/note/101/open`, {
+      headers: { Authorization: 'Bearer TEA_OTHER' },
+      redirect: 'manual'
+    });
+    assert.equal(teacherOtherOpen.status, 404, 'Unassigned teacher must receive 404 on open redirect');
+
+    // 6. Unauthenticated user requests private/protected material -> 404 access denied
+    const anonView = await fetch(`${baseUrl}/api/files/101/view`, {
+      headers: { Authorization: 'Bearer ANON' }
+    });
+    assert.equal(anonView.status, 404, 'Anonymous request must return HTTP 404');
+    const anonBody = await anonView.text();
+    assert.ok(!anonBody.includes('%PDF-1.4'), 'Anonymous request must never receive file bytes');
+
+    const anonOpen = await fetch(`${baseUrl}/api/ai/resources/note/101/open`, {
+      headers: { Authorization: 'Bearer ANON' },
+      redirect: 'manual'
+    });
+    assert.equal(anonOpen.status, 404, 'Anonymous open redirect must return HTTP 404');
+
+    // 7. Non-existent resource ID (99999) -> 404 clean error
+    const notFoundView = await fetch(`${baseUrl}/api/files/99999/view`, {
+      headers: { Authorization: 'Bearer STU_SEM2' }
+    });
+    assert.equal(notFoundView.status, 404, 'Non-existent ID must return clean HTTP 404');
+    const notFoundOpen = await fetch(`${baseUrl}/api/ai/resources/note/99999/open`, {
+      headers: { Authorization: 'Bearer STU_SEM2' },
+      redirect: 'manual'
+    });
+    assert.equal(notFoundOpen.status, 404, 'Non-existent ID open redirect must return clean HTTP 404');
   });
 
-  // ── TEST 8: Fallback When Page Metadata Is Missing ──
+  // ── TEST 8: Fallback When Page Metadata Is Missing (Scenario E) ──
   test('8. Fallback when page metadata is missing resolves cleanly to parent document', async () => {
     const hits = await searchNotes(db, {
       query: 'General Programming Guidelines',
@@ -574,7 +776,7 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
     assert.equal(httpInvalid.status, 404);
   });
 
-  // ── TEST 10: Notice and Assignment Card Navigation ──
+  // ── TEST 10: Notice and Assignment Card Navigation (Scenario E) ──
   test('10. Notice and assignment card navigation resolves direct deep links and redirects', async () => {
     // Notice Card
     const noticeCard = resourceCard('notice', {
@@ -607,25 +809,64 @@ Because the JVM translates bytecode to local machine code at runtime, a compiled
     assert.equal(asgRedirect.headers.get('location'), '/code-lab/assignment.html?id=301');
   });
 
-  // ── TEST 11: Academic Explanation Query Behaviour ──
-  test('11. "explain how java is platform independent" returns a thorough conceptual explanation', async () => {
-    const q = 'explain how java is platform independent';
-    const u = understandRequest(q, [], null, {});
+  // ── TEST 11: Academic Explanation vs Find-and-Explain (Scenario B) ──
+  test('11. "explain how java is platform independent" returns conceptual explanation with 0 cards; find-and-explain returns 1 card', async () => {
+    // 1. Pure conceptual explanation query: 0 resource cards!
+    const explainQuery = 'explain how java is platform independent';
+    const uExplain = understandRequest(explainQuery, [], null, {});
 
-    assert.equal(u.resourceResponseMode, 'explain');
-    assert.ok(u.intents.includes('academic_tutoring'));
-    assert.equal(u.hasExplainKeyword, true);
+    assert.equal(uExplain.resourceResponseMode, 'explain');
+    assert.ok(uExplain.intents.includes('academic_tutoring'));
+    assert.equal(uExplain.hasExplainKeyword, true);
+    assert.equal(uExplain.isExplicitResourceSearch, false);
 
-    const res = await runKyanaAgentLoop({
-      message: q,
+    const explainRes = await runKyanaAgentLoop({
+      message: explainQuery,
       academicContext: sem2StudentContext,
       db,
       chatMode: 'academic'
     });
 
-    // Must return an extensive academic explanation of the concepts
-    assert.ok(res.reply.length > 200, `Explanation must be thorough, got length: ${res.reply.length}`);
-    assert.ok(/\b(?:bytecode|jvm|javac|write\s+once\s+run\s+anywhere|wora)\b/i.test(res.reply), 'Reply must explain bytecode and JVM');
+    assert.ok(explainRes.reply.length > 200, `Explanation must be thorough, got length: ${explainRes.reply.length}`);
+    assert.ok(/\b(?:bytecode|jvm|javac|write\s+once\s+run\s+anywhere|wora)\b/i.test(explainRes.reply), 'Reply must explain bytecode and JVM');
+    assert.equal(explainRes.resourceCards.length, 0, 'Pure explanation query must return 0 resource cards');
+
+    // 2. Find and explain query: thorough explanation + exactly 1 note card!
+    const findExplainQuery = 'find the note and explain java platform independence';
+    const uFindExplain = understandRequest(findExplainQuery, [], null, {});
+
+    assert.equal(uFindExplain.resourceResponseMode, 'find_and_explain');
+    assert.equal(uFindExplain.explicitResourceType, 'note');
+    assert.equal(uFindExplain.isExplicitResourceSearch, true);
+
+    const findExplainRes = await runKyanaAgentLoop({
+      message: findExplainQuery,
+      academicContext: sem2StudentContext,
+      db,
+      chatMode: 'academic'
+    });
+
+    assert.ok(findExplainRes.reply.length > 200, 'Find and explain must provide conceptual explanation');
+    assert.equal(findExplainRes.resourceCards.length, 1, 'Find and explain must attach exactly 1 note card');
+    assert.equal(findExplainRes.resourceCards[0].type, 'note');
+    assert.equal(Number(findExplainRes.resourceCards[0].id), 101);
+  });
+
+  // ── TEST 12: Verified Resource ID in Card ──
+  test('12. Verified resource ID in cards strictly matches DB record and eliminates hallucinations', async () => {
+    const res = await runKyanaAgentLoop({
+      message: 'find me note with java as platform independent topic',
+      academicContext: sem2StudentContext,
+      db,
+      chatMode: 'academic'
+    });
+
+    for (const card of res.resourceCards) {
+      assert.ok(Number.isInteger(card.id), `Card ID must be an integer, got: ${card.id}`);
+      const row = await db.get(`SELECT id FROM files WHERE id = ?`, card.id);
+      assert.ok(row, `Card ID ${card.id} must exist in the database files table`);
+      assert.equal(card.id, 101, 'Card ID must strictly match parent file 101');
+    }
   });
 
   // ── TEST 12: Verified Resource ID in Card ──

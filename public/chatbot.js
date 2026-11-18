@@ -1770,7 +1770,7 @@
         resourceCards.forEach(card => {
           const el = document.createElement('a');
           el.className = 'kyana-source-card';
-          el.href = ['note','post','notice','assignment','post_assignment','routine'].includes(card.type) && /^\d+$/.test(String(card.id))
+          el.href = ['note','post','notice','assignment','post_assignment','routine','pyq'].includes(card.type) && /^\d+$/.test(String(card.id))
             ? `/api/ai/resources/${card.type}/${card.id}/open`
             : (card.deepLink || '#');
 

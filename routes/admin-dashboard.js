@@ -2683,6 +2683,21 @@ function createAdminDashboardRouter(arg1, arg2) {
     }
   });
 
+  /**
+   * Kyana Academic Visualization Pilot Telemetry Report
+   * GET /api/admin/kyana/pilot-report
+   */
+  router.get('/kyana/pilot-report', requireLogin, requireAdminRole, async (req, res) => {
+    try {
+      const { getPilotReport } = require('../lib/kyana-pilot-telemetry');
+      const report = await getPilotReport(db);
+      res.json(report);
+    } catch (err) {
+      console.error('[Admin Kyana Pilot Report Error]:', err);
+      res.status(500).json({ message: 'Failed to generate pilot telemetry report.' });
+    }
+  });
+
   return router;
 }
 

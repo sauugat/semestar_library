@@ -1101,6 +1101,7 @@ CREATE INDEX IF NOT EXISTS idx_submission_events_lookup ON submission_events (as
       await require('./lib/posts').ensurePostsSchema({ exec, isPostgres });
       await require('./lib/advertisements').ensureAdvertisementsSchema({ exec, isPostgres });
       await require('./lib/ai-chat-service').ensureSchema({ exec, isPostgres });
+      await require('./lib/kyana-pilot-telemetry').ensureTelemetrySchema({ exec, isPostgres });
 
       // One-time migration for tables that existed before subject/stdout/stderr columns were added
       try {
@@ -1623,7 +1624,7 @@ async function verifyStartupReady() {
     try {
       if (isPostgres && pgPool) {
         const res = await pgPool.query(
-          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl, to_regclass('public.session') AS session_tbl, to_regclass('public.post_attachment_staging') AS post_staging_tbl, to_regclass('public.post_media') AS post_media_tbl, to_regclass('public.exam_configurations') AS exam_cfg_tbl, to_regclass('public.student_marks') AS student_marks_tbl, to_regclass('public.marks_audit_logs') AS marks_audit_tbl, to_regclass('public.advertisements') AS ads_tbl, to_regclass('public.post_votes') AS post_votes_tbl, to_regclass('public.file_votes') AS file_votes_tbl, to_regclass('public.assignment_votes') AS assign_votes_tbl, to_regclass('public.assignment_comments') AS assign_comments_tbl, to_regclass('public.file_comment_reactions') AS file_react_tbl, to_regclass('public.assignment_comment_reactions') AS assign_react_tbl"
+          "SELECT to_regclass('public.students') AS students_tbl, to_regclass('public.posts') AS posts_tbl, to_regclass('public.session') AS session_tbl, to_regclass('public.post_attachment_staging') AS post_staging_tbl, to_regclass('public.post_media') AS post_media_tbl, to_regclass('public.exam_configurations') AS exam_cfg_tbl, to_regclass('public.student_marks') AS student_marks_tbl, to_regclass('public.marks_audit_logs') AS marks_audit_tbl, to_regclass('public.advertisements') AS ads_tbl, to_regclass('public.post_votes') AS post_votes_tbl, to_regclass('public.file_votes') AS file_votes_tbl, to_regclass('public.assignment_votes') AS assign_votes_tbl, to_regclass('public.assignment_comments') AS assign_comments_tbl, to_regclass('public.file_comment_reactions') AS file_react_tbl, to_regclass('public.assignment_comment_reactions') AS assign_react_tbl, to_regclass('public.class_routines') AS class_routines_tbl, to_regclass('public.class_routine_slots') AS class_routine_slots_tbl, to_regclass('public.class_routine_entries') AS class_routine_entries_tbl"
         );
         const row = res.rows && res.rows[0];
         if (row && row.students_tbl && row.posts_tbl) {
@@ -1652,6 +1653,37 @@ async function verifyStartupReady() {
           if (!row.ads_tbl) {
             const { ensureAdvertisementsSchema } = require('./lib/advertisements');
             await ensureAdvertisementsSchema({ exec, isPostgres });
+          }
+          if (!row.class_routines_tbl || !row.class_routine_slots_tbl || !row.class_routine_entries_tbl) {
+            const { ensureRoutineSchema } = require('./lib/routine');
+            await ensureRoutineSchema({ exec, isPostgres });
+            const verifyRes = await pgPool.query(
+              "SELECT to_regclass('public.class_routines') AS class_routines_tbl, to_regclass('public.class_routine_slots') AS class_routine_slots_tbl, to_regclass('public.class_routine_entries') AS class_routine_entries_tbl"
+            );
+            const vRow = verifyRes.rows && verifyRes.rows[0];
+            if (!vRow || !vRow.class_routines_tbl || !vRow.class_routine_slots_tbl || !vRow.class_routine_entries_tbl) {
+              throw new Error('Required class routine tables (class_routines, class_routine_slots, class_routine_entries) are missing.');
+            }
+          }
+          return { ready: true, mode: "fast-check" };
+        }
+      }
+      if (!isPostgres && libsqlClient) {
+        const requiredRows = await all(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('students', 'posts', 'class_routines', 'class_routine_slots', 'class_routine_entries')"
+        );
+        const existingNames = new Set((requiredRows || []).map(r => r.name));
+        if (existingNames.has('students') && existingNames.has('posts')) {
+          if (!existingNames.has('class_routines') || !existingNames.has('class_routine_slots') || !existingNames.has('class_routine_entries')) {
+            const { ensureRoutineSchema } = require('./lib/routine');
+            await ensureRoutineSchema({ exec, isPostgres });
+            const verifyRows = await all(
+              "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('class_routines', 'class_routine_slots', 'class_routine_entries')"
+            );
+            const verifiedNames = new Set((verifyRows || []).map(r => r.name));
+            if (!verifiedNames.has('class_routines') || !verifiedNames.has('class_routine_slots') || !verifiedNames.has('class_routine_entries')) {
+              throw new Error('Required class routine tables (class_routines, class_routine_slots, class_routine_entries) are missing.');
+            }
           }
           return { ready: true, mode: "fast-check" };
         }

@@ -1247,4 +1247,113 @@ test('Item 5: Server chapter-chats validation, normalization, and 30-chat cap', 
   );
 });
 
+test('Task 2: chapterContext with lowercase "cit122" and missing semesterNo produces matching scope_key for chat reopening', async (t) => {
+  const db = await createTestDb();
+  const aiChatService = require('../lib/ai-chat-service');
+  const { createChatHandler } = require('../lib/chat-http');
+
+  await aiChatService.ensureSchema(db);
+  await ensureRagSchema(db);
+  const studentId = 'student_scope_key_match';
+  const convId = 'conv_scope_key_reopen_test';
+
+  const handler = createChatHandler(db, {
+    async handleChat() {
+      return { reply: 'Welcome to Java Unit 2' };
+    }
+  });
+
+  const req = {
+    student: { studentId },
+    body: {
+      message: 'Hello Java',
+      conversationId: convId,
+      chapterContext: {
+        subjectCode: 'cit122', // Lowercase and missing semesterNo!
+        unitNumber: 2
+      }
+    }
+  };
+  let statusCode = 200;
+  const res = {
+    status(c) { statusCode = c; return this; },
+    json() { return this; }
+  };
+
+  await handler(req, res);
+  assert.equal(statusCode, 200);
+
+  // Check the stored conversation in DB
+  const storedConv = await db.get(`SELECT scope_key FROM ai_conversations WHERE id = ?`, convId);
+  assert.ok(storedConv, 'Conversation must be stored');
+  assert.equal(storedConv.scope_key, 'CIT122|s0|u2', 'Scope key must be normalized to uppercase with s0');
+
+  // Verify that GET /api/ai/chapter-chats query retrieves this conversation on reopen
+  const matchingChats = await aiChatService.getChapterConversations(db, studentId, {
+    subjectCode: 'cit122',
+    unit: 2
+  });
+  assert.equal(matchingChats.length, 1, 'Chat must be found on reopen via getChapterConversations');
+  assert.equal(matchingChats[0].id, convId, 'Retrieved chat ID must match');
+});
+
+test('Task 3: "course not found" study_partner reply does NOT trigger lastWasLesson; "yes" after it does not advance anything', async (t) => {
+  const db = await createTestDb();
+  const aiChatService = require('../lib/ai-chat-service');
+  const realAiAssistant = require('../ai-assistant');
+  const { startOrResumeStudySession } = require('../lib/study-partner-engine');
+
+  await aiChatService.ensureSchema(db);
+  await ensureRagSchema(db);
+  const studentId = 'student_course_not_found_test';
+  const convId = 'conv_course_not_found_test';
+
+  // Seed an active session for an existing course so we can verify it doesn't erroneously advance
+  const seedSess = await startOrResumeStudySession(db, {
+    studentId,
+    conversationId: convId,
+    subject: 'Computer Programming II (Java)',
+    semesterNo: 2,
+    unitNumber: 2,
+    chapterQuery: 'Introduction to Java'
+  });
+  assert.equal(seedSess.session.current_step_index, 1);
+
+  // Assistant produces a "course not found" reply with intent 'study_partner', but NO lesson card and NO step
+  const notFoundReplyText = "That topic isn't part of your enrolled Semester 2 BIT curriculum.";
+  const notFoundMetadata = {
+    intent: 'study_partner',
+    studySessionId: null,
+    currentStepIndex: null,
+    resourceCards: []
+  };
+  await aiChatService.createConversation(db, studentId, 'Chat', 'CIT122|s2|u2');
+  await db.run(`UPDATE ai_conversations SET id = ? WHERE student_id = ?`, convId, studentId);
+  await aiChatService.saveAssistantMessage(db, studentId, convId, notFoundReplyText, notFoundMetadata);
+
+  // Student says "yes" with empty history
+  await realAiAssistant.handleChat(
+    db,
+    'yes',
+    { studentId, authenticated: true, currentSemester: 2 },
+    [],
+    convId,
+    {
+      conversationId: convId,
+      chapterContext: {
+        subject: 'Computer Programming II (Java)',
+        subjectCode: 'CIT122',
+        semesterNo: 2,
+        unitNumber: 2
+      },
+      generateReply: async () => ({ reply: 'Okay, what topic would you like to explore?' })
+    }
+  );
+
+  // Verify session did NOT advance
+  const sessionAfterYes = await db.get(`SELECT * FROM study_partner_sessions WHERE id = ?`, seedSess.session.id);
+  assert.equal(sessionAfterYes.current_step_index, 1, 'Session step index must remain at 1 after course not found reply');
+});
+
+
 

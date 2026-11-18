@@ -100,6 +100,16 @@ const {
 
 // --- KYANA AI 3.0 Knowledge Retrieval & Pagination Helpers ---
 const lastCardsPerSession = new Map();
+function safeJsonParse(raw, fallback) {
+  if (!raw) return fallback;
+  if (typeof raw === 'object') return raw;
+  try {
+    return JSON.parse(raw);
+  } catch (_) {
+    return fallback;
+  }
+}
+
 const paginationStatePerSession = new Map();
 
 function isIsolatedSessionKey(key) {
@@ -252,7 +262,8 @@ const NON_KNOWLEDGE_DIRECT_KINDS = [
   'teacher_classroom',
   'ai_identity',
   'social_university',
-  'gu_public_research'
+  'gu_public_research',
+  'product_help'
 ];
 
 function isPersonalOrDetailedAssignmentQuery(route, message) {
@@ -859,6 +870,31 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     };
   }
 
+  if (route.kind === 'product_help') {
+    const { resolveProductKnowledge } = require('./lib/kyana-product-knowledge');
+    const scopeDecisionMs = preScopeMs + (performance.now() - stage2StartedAt);
+    logScopeDecision({ decision: 'in_scope', scopeDecisionMs, contextLoadMs });
+    const productResult = resolveProductKnowledge(message, {
+      history: cleanHistory,
+      academicContext,
+      chatMode
+    });
+    const fallbackReply = productResult.answer;
+    const productReply = await synthesizeNaturalReply(
+      `SEMESTER LIBRARY & KYANA AI OFFICIAL PRODUCT KNOWLEDGE CONTEXT: The user is asking about Semester Library or Kyana AI identity, features, permissions, notifications, privacy, or troubleshooting. Answer naturally, accurately, and concisely using ONLY these verified implementation facts (never invent features or policies):\n<verified_product_knowledge>\n${fallbackReply}\n</verified_product_knowledge>`,
+      fallbackReply
+    );
+    onDelta(productReply);
+    return {
+      ...emptyResult(productReply),
+      intent: 'product_help',
+      productTopic: productResult.primaryTopic,
+      productTopics: productResult.topics,
+      sourceLabel: productResult.sourceLabel || 'Semester Library Product Guide',
+      chatMode
+    };
+  }
+
   if (route.kind === 'social_university') {
     const { buildSocialOrContactReply } = require('./lib/ai-search-tools');
     const isBlockedContact = Boolean(route.socialClassification?.blocked);
@@ -997,11 +1033,17 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     lastAssistantContent = lastAssistantMsg?.content || '';
     if (lastAssistantMsg?.metadata) lastAssistantMeta = lastAssistantMsg.metadata;
   }
+  const metaObj = typeof lastAssistantMeta === 'string'
+    ? (() => { try { return JSON.parse(lastAssistantMeta); } catch (_) { return null; } })()
+    : lastAssistantMeta;
   const metaHasLesson = Boolean(
-    lastAssistantMeta &&
-    (typeof lastAssistantMeta === 'string'
-      ? (lastAssistantMeta.includes('study_session') || lastAssistantMeta.includes('study_partner') || lastAssistantMeta.includes('studySession'))
-      : (lastAssistantMeta.studySession || lastAssistantMeta.intent === 'study_partner' || lastAssistantMeta.studySessionId))
+    metaObj && (
+      (metaObj.studySession && typeof metaObj.studySession === 'object') ||
+      (metaObj.interactiveSession && typeof metaObj.interactiveSession === 'object') ||
+      (metaObj.studySessionId && (metaObj.currentStepIndex || metaObj.stepIndex)) ||
+      (metaObj.inStudySession && metaObj.wasClarifyingInterruption) ||
+      (typeof lastAssistantMeta === 'string' && (lastAssistantMeta.includes('```study_session') || lastAssistantMeta.includes('"study_session"')))
+    )
   );
   const lastWasLesson = Boolean(
     (typeof lastAssistantContent === 'string' && lastAssistantContent.includes('study_session')) ||
@@ -1018,14 +1060,15 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     const chapReasoning = analyzeChapterStudentQuestion(message, cleanHistory, []);
 
     let hasActiveConvStudySession = false;
+    let activeStudySessRow = null;
     if (db && typeof db.get === 'function') {
       try {
         if (convId && convId !== 'default' && convId !== 'anonymous') {
-          const activeRow = await db.get(
+          activeStudySessRow = await db.get(
             `SELECT id FROM study_partner_sessions WHERE conversation_id = ? AND status = 'ACTIVE' LIMIT 1`,
             convId
           );
-          hasActiveConvStudySession = Boolean(activeRow);
+          hasActiveConvStudySession = Boolean(activeStudySessRow);
         }
       } catch (_) {}
     }
@@ -1037,9 +1080,11 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       /^(?:what|why|how|when|where|who|which|is|are|can|could|kasto|kina|kahile|kasari|ke)\b/i.test(trimmedMsg);
     const isShortNonQuestion = wordCount > 0 && wordCount <= 4 && !isQuestion;
 
+    const isTeachMode = chapterContext.learningMode === 'teach';
     const shouldStepOrAdvanceSession = hasActiveConvStudySession && (isSteppingRegex || (isShortNonQuestion && lastWasLesson));
+    const isClarifyingInterruption = hasActiveConvStudySession && isQuestion && !chapReasoning.isExplicitChapterTeachRequest && !isTeachMode && !isSteppingRegex;
 
-    if (route.kind === 'study_partner' || chapReasoning.isExplicitChapterTeachRequest || shouldStepOrAdvanceSession) {
+    if (!isClarifyingInterruption && (isTeachMode || route.kind === 'study_partner' || chapReasoning.isExplicitChapterTeachRequest || shouldStepOrAdvanceSession)) {
       route.kind = 'study_partner';
       route.isNewSession = Boolean(chapReasoning.isExplicitChapterTeachRequest);
       route.isFollowUp = Boolean(!chapReasoning.isExplicitChapterTeachRequest && hasActiveConvStudySession);
@@ -1082,6 +1127,14 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         chapRes.sourceLabel = tutorOut.foundInChapterFiles
           ? `${tutorOut.bundle?.chapterTitle || 'Chapter'} Notes & Syllabus`
           : `${tutorOut.bundle?.subject || 'Course'} Syllabus & AI Academic Knowledge`;
+        if (hasActiveConvStudySession) {
+          chapRes.metadata = {
+            ...(chapRes.metadata || {}),
+            inStudySession: true,
+            wasClarifyingInterruption: true,
+            activeStudySessionId: activeStudySessRow?.id
+          };
+        }
         onDelta(chapRes.reply);
         return chapRes;
       }
@@ -1215,7 +1268,14 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         if (studentIntent.intent === 'answer_attempt' || studentIntent.intent === 'advance_directly') {
           evalResult = evaluateCheckpointReply(message, currentTopic, effectiveCheckpoint);
 
-          if (!evalResult.passed && canSynthesizeWithLlm && typeof llmGenerateFn === 'function' && lastAssistantMsg) {
+          const isDefinitiveFailure = Boolean(
+            evalResult.isSurrender ||
+            evalResult.misconception === 'Off-topic or irrelevant response' ||
+            evalResult.format === 'mcq' ||
+            evalResult.format === 'sql'
+          );
+
+          if (!evalResult.passed && !isDefinitiveFailure && canSynthesizeWithLlm && typeof llmGenerateFn === 'function' && lastAssistantMsg) {
             try {
               const evalOut = await llmGenerateFn({
                 message: `Previous message from Kyana:\n${lastAssistantMsg.slice(-1200)}\n\nStudent's reply:\n${message}`,
@@ -1249,6 +1309,54 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           renderedEvalResult = evalResult;
           renderedSession = activeSession;
           renderedTopics = topics;
+
+          // Record remediation attempt & misconception diagnosis in DB topic progress & teaching state
+          try {
+            const rawMisconceptions = safeJsonParse(currentTopic.misconception_log, []);
+            const misconceptionList = Array.isArray(rawMisconceptions) ? rawMisconceptions : [];
+            if (evalResult.misconception) {
+              misconceptionList.push({
+                text: evalResult.misconception,
+                studentAnswer: message,
+                timestamp: new Date().toISOString()
+              });
+            }
+            await db.run(
+              `UPDATE study_partner_topic_progress
+               SET attempts_count = COALESCE(attempts_count, 0) + 1,
+                   student_last_answer = ?,
+                   misconception_log = ?,
+                   exercise_score = ?,
+                   coverage_state = 'REVISION_NEEDED',
+                   updated_at = ?
+               WHERE session_id = ? AND step_index = ?`,
+              message,
+              JSON.stringify(misconceptionList),
+              evalResult.score || 0.0,
+              new Date().toISOString(),
+              activeSession.id,
+              currentStepIdx
+            );
+
+            let teachingState = safeJsonParse(activeSession.teaching_state_json, null);
+            if (!teachingState) {
+              const { createTeachingState } = require('./lib/academic-teaching-engine');
+              teachingState = createTeachingState(activeSession, topics);
+            }
+            const { updateTeachingStateOnTurn } = require('./lib/academic-teaching-engine');
+            teachingState = updateTeachingStateOnTurn(teachingState, {
+              studentAnswer: { text: message, passed: false },
+              misconception: evalResult.misconception
+            });
+            await db.run(
+              `UPDATE study_partner_sessions SET teaching_state_json = ?, updated_at = ? WHERE id = ?`,
+              JSON.stringify(teachingState),
+              new Date().toISOString(),
+              activeSession.id
+            );
+            activeSession.teaching_state_json = JSON.stringify(teachingState);
+          } catch (_) {}
+
           lessonBundle = await buildCompiledTopicLessonBundle(db, {
             session: renderedSession,
             step: renderedStep,
@@ -1264,10 +1372,16 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           });
         } else {
           const isSkip = /^\s*skip(?:\s+topic)?\s*[.!]*$/i.test(message);
-          const markCurrentStatus = isSkip ? 'SKIPPED' : 'MASTERED';
+          const isNeutralAdv = evalResult.isNeutralAdvance || studentIntent.intent === 'advance_directly';
+          const markCurrentStatus = isSkip
+            ? 'SKIPPED'
+            : (isNeutralAdv ? 'INTRODUCED' : 'MASTERED');
           const advance = await advanceStudySessionStep(db, activeSession.id, studentId, {
             targetStepIndex: currentStepIdx + 1,
-            markCurrentStatus
+            markCurrentStatus,
+            conceptExplained: currentTopic?.topicTitle || currentTopic?.topic_title,
+            studentAnswer: { text: message, passed: markCurrentStatus === 'MASTERED' },
+            exerciseScore: evalResult.score !== undefined ? evalResult.score : (markCurrentStatus === 'MASTERED' ? 1.0 : 0.0)
           });
 
           if (advance.isCompleted) {
@@ -1792,7 +1906,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     options.useAgentEngine !== false &&
     !options.searchKnowledge &&
     !options.toolDependencies &&
-    (route.kind !== 'direct' || isMultiSourceOrContextSwitchAgentQuery) &&
+    (!['direct', 'scope_check'].includes(route.kind) || isMultiSourceOrContextSwitchAgentQuery) &&
     (!(v3Enabled && isKnowledgeQuery(route, message, v3Enabled)) || isMultiSourceOrContextSwitchAgentQuery) &&
     shouldUseKyanaAgentEngine(message, cleanHistory, academicContext)
   );
@@ -1803,7 +1917,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       history: cleanHistory,
       academicContext,
       chatMode,
-      generateReply: options.generateReply || null,
+      generateReply: options.generateReply || (hasConfiguredProvider() ? generateReply : null),
       onDelta,
       signal,
       referenceDate: options.referenceDate || new Date(),
@@ -2655,8 +2769,8 @@ ${evidenceBlocks}
       /\b(?:kaile|kahile|kile|when)\b[^?.!]{0,35}\b(?:ho|cha|xa|chha|huncha|hunxa|scheduled|starts?|held|open\w*|reopen\w*|resum\w*|bata|dekhi)\b/i.test(message) ||
       /डिफेन्स|भाइभा|प्रस्तुतिकरण|सेमिनार|कार्यशाला/.test(message);
 
-    // If route.kind === 'scope_check' and not an academic question or syllabus topic, verify if it could be a campus event/date query before refusing
-    if (route.kind === 'scope_check' && !isSyllabusTopic && !academicRequest(message) && !codeRequest(message) && matchingNotesEvidence.length === 0) {
+    // If route.kind === 'scope_check' and not an academic question, academic intent or syllabus topic, verify if it could be a campus event/date query before refusing
+    if (route.kind === 'scope_check' && !isAcademicIntent && !isSyllabusTopic && !academicRequest(message) && !codeRequest(message) && matchingNotesEvidence.length === 0) {
       if (mightBeCampusEventOrDate) {
         try {
           const aiSearch = require('./lib/ai-search-tools');

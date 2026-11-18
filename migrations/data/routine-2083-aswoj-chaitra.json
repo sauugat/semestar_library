@@ -1,0 +1,210 @@
+{
+  "university": "Gandaki University",
+  "program": "Bachelor of Information Technology",
+  "academic_session": "Aswoj–Chaitra 2083",
+  "effective_date": "2083-06-01",
+  "status": "published",
+  "working_days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+  "time_slots": [
+    { "slot_order": 1, "start_time": "11:00", "end_time": "11:50", "duration_minutes": 50, "label": "11:00–11:50", "is_break": false },
+    { "slot_order": 2, "start_time": "11:50", "end_time": "12:40", "duration_minutes": 50, "label": "11:50–12:40", "is_break": false },
+    { "slot_order": 3, "start_time": "12:40", "end_time": "13:30", "duration_minutes": 50, "label": "12:40–1:30", "is_break": false },
+    { "slot_order": 4, "start_time": "13:30", "end_time": "14:00", "duration_minutes": 30, "label": "1:30–2:00", "is_break": true },
+    { "slot_order": 5, "start_time": "14:00", "end_time": "14:50", "duration_minutes": 50, "label": "2:00–2:50", "is_break": false },
+    { "slot_order": 6, "start_time": "14:50", "end_time": "16:00", "duration_minutes": 70, "label": "2:50–4:00", "is_break": false }
+  ],
+  "semesters": [
+    {
+      "year": 1,
+      "semester": 1,
+      "subjects": {
+        "Mathematics I": { "faculty_name": "Manju Subedi", "faculty_type": "CC" },
+        "Computer Programming in C": { "faculty_name": "Er. Shiva Ram Dam", "faculty_type": "FT" },
+        "Basic Electronics": { "faculty_name": "Er. Saroj Giri", "faculty_type": "FT" },
+        "Fundamental of Information Technology": { "faculty_name": "Er. Rajesh Kamar", "faculty_type": "FT" },
+        "Communication Techniques": { "faculty_name": "Suresh Raj Dhakal", "faculty_type": "FT" },
+        "Computer Workshop": { "faculty_name": "Er. Prabin Dhakal", "faculty_type": "FT" }
+      },
+      "entries": [
+        { "day": "Monday", "slot_order": 1, "subject": "Mathematics I", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 2, "subject": "Computer Programming in C", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 3, "subject": "Basic Electronics", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Monday", "slot_order": 5, "subject": "Communication Techniques", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 6, "subject": "Computer Workshop", "class_type": "Lab" },
+
+        { "day": "Tuesday", "slot_order": 1, "subject": "Mathematics I", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 2, "subject": "Basic Electronics", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 3, "subject": "Fundamental of Information Technology", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Tuesday", "slot_order": 5, "subject": "Computer Programming in C", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 6, "subject": "Communication Techniques", "class_type": "Lab" },
+
+        { "day": "Wednesday", "slot_order": 1, "subject": "Mathematics I", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 2, "subject": "Fundamental of Information Technology", "class_type": "Lab" },
+        { "day": "Wednesday", "slot_order": 3, "subject": "Fundamental of Information Technology", "class_type": "Lab" },
+        { "day": "Wednesday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Wednesday", "slot_order": 5, "subject": "Communication Techniques", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 6, "subject": "Computer Workshop", "class_type": "Lab" },
+
+        { "day": "Thursday", "slot_order": 1, "subject": "Mathematics I", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 2, "subject": "Fundamental of Information Technology", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 3, "subject": "Computer Programming in C", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Thursday", "slot_order": 5, "subject": "Basic Electronics", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 6, "subject": "Basic Electronics", "class_type": "Lab" },
+
+        { "day": "Friday", "slot_order": 1, "subject": "Basic Electronics", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 2, "subject": "Computer Programming in C", "class_type": "Practical" },
+        { "day": "Friday", "slot_order": 3, "subject": "Computer Programming in C", "class_type": "Practical" },
+        { "day": "Friday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Friday", "slot_order": 5, "subject": "Fundamental of Information Technology", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 6, "subject": "Communication Techniques", "class_type": "Lab" }
+      ]
+    },
+    {
+      "year": 2,
+      "semester": 3,
+      "subjects": {
+        "Microprocessor and Computer Architecture": { "faculty_name": "Er. Prabin Dhakal", "faculty_type": "FT" },
+        "Data Structure and Algorithm": { "faculty_name": "Er. Rajesh Kamar", "faculty_type": "FT" },
+        "Database Management System": { "faculty_name": "Er. Saroj Giri", "faculty_type": "FT" },
+        "Software Engineering": { "faculty_name": "Er. Shiva Ram Dam", "faculty_type": "FT" },
+        "Web Technology II": { "faculty_name": "Er. Amrit Poudel", "faculty_type": "FT" },
+        "Principles of Organisation and Management": { "faculty_name": "Mr. Shree Ram Kandel", "faculty_type": "CC" }
+      },
+      "entries": [
+        { "day": "Monday", "slot_order": 1, "subject": "Data Structure and Algorithm", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 2, "subject": "Microprocessor and Computer Architecture", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 3, "subject": "Software Engineering", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Monday", "slot_order": 5, "subject": "Database Management System", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 6, "subject": "Database Management System", "class_type": "Lab" },
+
+        { "day": "Tuesday", "slot_order": 1, "subject": "Software Engineering", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 2, "subject": "Principles of Organisation and Management", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 3, "subject": "Web Technology II", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Tuesday", "slot_order": 5, "subject": "Microprocessor and Computer Architecture", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 6, "subject": "Microprocessor and Computer Architecture", "class_type": "Lab" },
+
+        { "day": "Wednesday", "slot_order": 1, "subject": "Microprocessor and Computer Architecture", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 2, "subject": "Web Technology II", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 3, "subject": "Principles of Organisation and Management", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Wednesday", "slot_order": 5, "subject": "Data Structure and Algorithm", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 6, "subject": "Data Structure and Algorithm", "class_type": "Lab" },
+
+        { "day": "Thursday", "slot_order": 1, "subject": "Data Structure and Algorithm", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 2, "subject": "Database Management System", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 3, "subject": "Principles of Organisation and Management", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Thursday", "slot_order": 5, "subject": "Software Engineering", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 6, "subject": "Software Engineering", "class_type": "Lab" },
+
+        { "day": "Friday", "slot_order": 1, "subject": "Microprocessor and Computer Architecture", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 2, "subject": "Database Management System", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 3, "subject": "Principles of Organisation and Management", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Friday", "slot_order": 5, "subject": "Web Technology II", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 6, "subject": "Web Technology II", "class_type": "Lab" }
+      ]
+    },
+    {
+      "year": 3,
+      "semester": 5,
+      "subjects": {
+        "Mobile Application Development": { "faculty_name": "Er. Anil Timilsina", "faculty_type": "CC" },
+        "Economics": { "faculty_name": "Mr. Bharat Raj Adhikari", "faculty_type": "CC" },
+        "OOAD with UML": { "faculty_name": "Er. Amrit Poudel", "faculty_type": "FT" },
+        "Numerical Method": { "faculty_name": "Mrs. Manju Subedi", "faculty_type": "CC" },
+        "Research Methodology": { "faculty_name": "Mr. Ashish Bhujel", "faculty_type": "CC" },
+        "Technical Proposal Writing": { "faculty_name": "Mr. Suresh Raj Dhakal", "faculty_type": "FT" }
+      },
+      "entries": [
+        { "day": "Monday", "slot_order": 1, "subject": "Economics", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 2, "subject": null, "class_type": "Empty", "is_empty": true },
+        { "day": "Monday", "slot_order": 3, "subject": "Research Methodology", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Monday", "slot_order": 5, "subject": "Mobile Application Development", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 6, "subject": "OOAD with UML", "class_type": "Lab" },
+
+        { "day": "Tuesday", "slot_order": 1, "subject": "Economics", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 2, "subject": "OOAD with UML", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 3, "subject": "Research Methodology", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Tuesday", "slot_order": 5, "subject": "Numerical Method", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 6, "subject": "Numerical Method", "class_type": "Lab" },
+
+        { "day": "Wednesday", "slot_order": 1, "subject": "Economics", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 2, "subject": "Numerical Method", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 3, "subject": "Research Methodology", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Wednesday", "slot_order": 5, "subject": "Mobile Application Development", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 6, "subject": "OOAD with UML", "class_type": "Theory" },
+
+        { "day": "Thursday", "slot_order": 1, "subject": "Mobile Application Development", "class_type": "Lab" },
+        { "day": "Thursday", "slot_order": 2, "subject": "Mobile Application Development", "class_type": "Lab" },
+        { "day": "Thursday", "slot_order": 3, "subject": "Numerical Method", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Thursday", "slot_order": 5, "subject": "OOAD with UML", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 6, "subject": "Technical Proposal Writing", "class_type": "Theory" },
+
+        { "day": "Friday", "slot_order": 1, "subject": "Numerical Method", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 2, "subject": "OOAD with UML", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 3, "subject": "Research Methodology", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Friday", "slot_order": 5, "subject": "Mobile Application Development", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 6, "subject": "Mobile Application Development", "class_type": "Theory" }
+      ]
+    },
+    {
+      "year": 4,
+      "semester": 7,
+      "subjects": {
+        "Elective I": { "faculty_name": "Er. Amrit Poudel/Er. Saroj Giri", "faculty_type": "FT" },
+        "Cloud Computing": { "faculty_name": "Er. Rajesh Kamar", "faculty_type": "FT" },
+        "Data Mining and Warehousing": { "faculty_name": "Er. Shiva Ram Dam", "faculty_type": "FT" },
+        "Software Development and Operations (DevOps)": { "faculty_name": "Er. Shiva Kunwar", "faculty_type": "CC" },
+        "Wireless Communication Systems": { "faculty_name": "Er. Anil Timilsina", "faculty_type": "CC" },
+        "Technology Entrepreneurship": { "faculty_name": "Mr. Shree Ram Kandel", "faculty_type": "FT" }
+      },
+      "entries": [
+        { "day": "Monday", "slot_order": 1, "subject": "Elective I", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 2, "subject": "Elective I", "class_type": "Lab" },
+        { "day": "Monday", "slot_order": 3, "subject": "Software Development and Operations (DevOps)", "class_type": "Lab" },
+        { "day": "Monday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Monday", "slot_order": 5, "subject": "Software Development and Operations (DevOps)", "class_type": "Theory" },
+        { "day": "Monday", "slot_order": 6, "subject": "Data Mining and Warehousing", "class_type": "Theory" },
+
+        { "day": "Tuesday", "slot_order": 1, "subject": "Cloud Computing", "class_type": "Lab" },
+        { "day": "Tuesday", "slot_order": 2, "subject": "Cloud Computing", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 3, "subject": "Data Mining and Warehousing", "class_type": "Lab" },
+        { "day": "Tuesday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Tuesday", "slot_order": 5, "subject": "Elective I", "class_type": "Theory" },
+        { "day": "Tuesday", "slot_order": 6, "subject": "Wireless Communication Systems", "class_type": "Lab" },
+
+        { "day": "Wednesday", "slot_order": 1, "subject": "Cloud Computing", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 2, "subject": "Technology Entrepreneurship", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 3, "subject": "Wireless Communication Systems", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Wednesday", "slot_order": 5, "subject": "Data Mining and Warehousing", "class_type": "Theory" },
+        { "day": "Wednesday", "slot_order": 6, "subject": "Wireless Communication Systems", "class_type": "Lab" },
+
+        { "day": "Thursday", "slot_order": 1, "subject": "Data Mining and Warehousing", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 2, "subject": "Technology Entrepreneurship", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 3, "subject": "Software Development and Operations (DevOps)", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Thursday", "slot_order": 5, "subject": "Software Development and Operations (DevOps)", "class_type": "Theory" },
+        { "day": "Thursday", "slot_order": 6, "subject": "Wireless Communication Systems", "class_type": "Theory" },
+
+        { "day": "Friday", "slot_order": 1, "subject": "Cloud Computing", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 2, "subject": "Technology Entrepreneurship", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 3, "subject": "Elective I", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 4, "subject": "Break", "class_type": "Break" },
+        { "day": "Friday", "slot_order": 5, "subject": "Data Mining and Warehousing", "class_type": "Theory" },
+        { "day": "Friday", "slot_order": 6, "subject": "Software Development and Operations (DevOps)", "class_type": "Theory" }
+      ]
+    }
+  ]
+}

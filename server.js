@@ -7526,6 +7526,10 @@ app.get('/api/ai/preview', async (req, res) => {
 
 app.get('/api/ai/resources/:type/:id/open', requireLogin, require('./lib/kyana-resource-http').createResourceHandler(db));
 
+// Kyana Academic Visualization Pilot Telemetry Endpoints
+const { createKyanaPilotTelemetryRouter } = require('./routes/kyana-pilot-telemetry');
+app.use('/api/kyana/telemetry', createKyanaPilotTelemetryRouter(db));
+
 // Authenticated AI Conversation Endpoints
 app.get('/api/ai/chapter-chats', requireLogin, async (req, res) => {
   try {

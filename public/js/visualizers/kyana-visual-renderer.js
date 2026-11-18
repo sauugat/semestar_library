@@ -927,6 +927,121 @@
   }
 
   // ==========================================================================
+  // Pilot Telemetry & Student Feedback Helper
+  // ==========================================================================
+  function sendPilotBeacon(endpoint, data) {
+    try {
+      if (typeof fetch === 'function') {
+        fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+          keepalive: true
+        }).catch(function () {});
+      }
+    } catch (_) {}
+  }
+
+  function attachFeedbackBar(rootEl, instanceId, engine) {
+    if (!rootEl || !instanceId || rootEl.querySelector('.ky-vis-feedback-bar')) return;
+
+    const bar = document.createElement('div');
+    bar.className = 'ky-vis-feedback-bar';
+    bar.setAttribute('data-instance-id', instanceId);
+    bar.innerHTML = `
+      <div class="ky-vis-feedback-main">
+        <span class="ky-vis-feedback-prompt">Was this simulation helpful?</span>
+        <div class="ky-vis-feedback-btns">
+          <button type="button" class="ky-vis-feedback-btn ky-fb-helpful" data-rating="helpful" aria-label="Mark simulation as helpful" title="Helpful">
+            <span class="ky-fb-icon">👍</span> <span>Helpful</span>
+          </button>
+          <button type="button" class="ky-vis-feedback-btn ky-fb-unhelpful" data-rating="unhelpful" aria-label="Mark simulation as not helpful" title="Not helpful">
+            <span class="ky-fb-icon">👎</span> <span>Not helpful</span>
+          </button>
+        </div>
+      </div>
+      <div class="ky-vis-feedback-reasons" style="display:none;" aria-label="Optional feedback reason"></div>
+      <div class="ky-vis-feedback-ack" style="display:none;">
+        <span class="ky-vis-feedback-ack-text">✓ Thanks for your feedback!</span>
+      </div>
+    `;
+
+    const helpfulBtn = bar.querySelector('.ky-fb-helpful');
+    const unhelpfulBtn = bar.querySelector('.ky-fb-unhelpful');
+    const reasonsWrap = bar.querySelector('.ky-vis-feedback-reasons');
+    const ackWrap = bar.querySelector('.ky-vis-feedback-ack');
+
+    let currentRating = null;
+
+    function handleVote(rating) {
+      if (currentRating === rating) return;
+      currentRating = rating;
+
+      if (rating === 'helpful') {
+        helpfulBtn.classList.add('active');
+        unhelpfulBtn.classList.remove('active');
+      } else {
+        unhelpfulBtn.classList.add('active');
+        helpfulBtn.classList.remove('active');
+      }
+
+      sendPilotBeacon('/api/kyana/telemetry/feedback', {
+        instanceId: instanceId,
+        rating: rating
+      });
+
+      const tags = rating === 'helpful'
+        ? [
+            { label: 'Clear explanation', val: 'clear_explanation' },
+            { label: 'Easy to follow', val: 'easy_to_follow' },
+            { label: 'Interactive helpful', val: 'interactive_helpful' }
+          ]
+        : [
+            { label: 'Confusing', val: 'confusing' },
+            { label: 'Broken animation', val: 'broken_animation' },
+            { label: 'Incorrect step', val: 'incorrect_step' },
+            { label: 'Too fast / slow', val: 'too_fast' }
+          ];
+
+      reasonsWrap.innerHTML = '';
+      tags.forEach(function (t) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ky-vis-reason-pill';
+        btn.textContent = t.label;
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          reasonsWrap.querySelectorAll('.ky-vis-reason-pill').forEach(function (p) {
+            p.classList.remove('active');
+          });
+          btn.classList.add('active');
+          sendPilotBeacon('/api/kyana/telemetry/feedback', {
+            instanceId: instanceId,
+            rating: currentRating,
+            reason: t.val
+          });
+          ackWrap.style.display = 'block';
+        });
+        reasonsWrap.appendChild(btn);
+      });
+      reasonsWrap.style.display = 'flex';
+      ackWrap.style.display = 'block';
+    }
+
+    helpfulBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      handleVote('helpful');
+    });
+
+    unhelpfulBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      handleVote('unhelpful');
+    });
+
+    rootEl.appendChild(bar);
+  }
+
+  // ==========================================================================
   // Primary Visualizer Mount System
   // ==========================================================================
   const KyanaVisualRenderer = {
@@ -981,6 +1096,48 @@
         mountedHandle = this.renderFallback(container, env, err.message || 'Visualizer rendering error');
       }
 
+      // Attach feedback bar
+      if (mountedHandle && mountedHandle.rootEl) {
+        attachFeedbackBar(mountedHandle.rootEl, instanceId, engine);
+      }
+
+      // Record interaction beacon on controls usage (once per instance)
+      let interactionLogged = false;
+      function recordUserInteraction() {
+        if (interactionLogged) return;
+        interactionLogged = true;
+        sendPilotBeacon('/api/kyana/telemetry/interaction', { instanceId: instanceId });
+      }
+
+      if (mountedHandle && mountedHandle.controller) {
+        const ctrlEl = mountedHandle.controller._domElement;
+        if (ctrlEl) {
+          ctrlEl.addEventListener('click', recordUserInteraction, { passive: true });
+        }
+      }
+
+      if (mountedHandle && mountedHandle.rootEl && (engine === 'logic_sim' || engine === 'truth_table')) {
+        mountedHandle.rootEl.addEventListener('click', function (e) {
+          if (e.target && (e.target.closest('.ky-logic-input-btn') || e.target.closest('.ky-tt-row'))) {
+            recordUserInteraction();
+          }
+        }, { passive: true });
+      }
+
+      // Send initial lifecycle telemetry event
+      const isFallback = mountedHandle && mountedHandle.rootEl && mountedHandle.rootEl.classList.contains('kyana-visual-fallback');
+      sendPilotBeacon('/api/kyana/telemetry/event', {
+        instanceId: instanceId,
+        engineId: engine,
+        subjectCode: env.subjectCode || env.subject || null,
+        semesterNo: env.semesterNo || env.semester || null,
+        selected: true,
+        validationPassed: !isFallback,
+        renderPassed: !isFallback,
+        controlsUsed: false,
+        latencyMs: Number(env.latencyMs || 0)
+      });
+
       // Instance handle wrapper
       const instance = {
         id: instanceId,
@@ -1026,6 +1183,20 @@
         <div style="font-size:11px;color:var(--ky-vis-text-muted);margin-top:8px;">${escapeHtml(reason || '')}</div>
       `;
       container.appendChild(fallbackDiv);
+
+      const engine = String(envelope && (envelope.engine || envelope.engineId) || 'unknown').toLowerCase();
+      const fbInstanceId = generateInstanceId(engine || 'vis_fb');
+      sendPilotBeacon('/api/kyana/telemetry/event', {
+        instanceId: fbInstanceId,
+        engineId: engine,
+        subjectCode: envelope && (envelope.subjectCode || envelope.subject) || null,
+        semesterNo: envelope && (envelope.semesterNo || envelope.semester) || null,
+        selected: true,
+        validationPassed: false,
+        renderPassed: false,
+        failureReason: reason || 'FALLBACK_RENDERED'
+      });
+
       return { rootEl: fallbackDiv, controller: null };
     },
 

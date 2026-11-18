@@ -810,3 +810,135 @@ html[data-theme="light"] {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   Controlled Student Pilot Feedback UI (Phase 2.6)
+   ========================================================================== */
+.ky-vis-feedback-bar {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid var(--ky-vis-border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 0 0 var(--ky-vis-radius-md, 8px) var(--ky-vis-radius-md, 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ky-vis-feedback-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ky-vis-feedback-prompt {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ky-vis-text-secondary, #a1a1aa);
+}
+
+.ky-vis-feedback-btns {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ky-vis-feedback-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 6px 14px;
+  border-radius: var(--ky-vis-radius-sm, 6px);
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--ky-vis-border-subtle, rgba(255, 255, 255, 0.12));
+  color: var(--ky-vis-text-primary, #f4f4f5);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.ky-vis-feedback-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.ky-vis-feedback-btn:focus-visible {
+  outline: 2px solid var(--ky-vis-accent-primary, #6366f1);
+  outline-offset: 2px;
+}
+
+.ky-vis-feedback-btn.ky-fb-helpful.active {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.6);
+  color: #34d399;
+}
+
+.ky-vis-feedback-btn.ky-fb-unhelpful.active {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.6);
+  color: #f87171;
+}
+
+.ky-fb-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.ky-vis-feedback-reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.ky-vis-reason-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--ky-vis-text-secondary, #a1a1aa);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ky-vis-reason-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ky-vis-text-primary, #f4f4f5);
+}
+
+.ky-vis-reason-pill.active {
+  background: var(--ky-vis-accent-primary, #6366f1);
+  border-color: var(--ky-vis-accent-primary, #6366f1);
+  color: #ffffff;
+}
+
+.ky-vis-feedback-ack {
+  font-size: 11.5px;
+  color: #34d399;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+@media (max-width: 480px) {
+  .ky-vis-feedback-main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .ky-vis-feedback-btns {
+    width: 100%;
+  }
+  .ky-vis-feedback-btn {
+    flex: 1;
+  }
+}

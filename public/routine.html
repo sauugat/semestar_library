@@ -241,19 +241,19 @@
   <!-- APPLE OBSIDIAN HERO BOX -->
   <section class="dash-hero cl-animated-hero" id="routineHeroBanner">
     <div class="dash-hero-content">
-      <p class="routine-eyebrow cl-hero-kicker">
-        BIT · EXAMINATION ROUTINE
+      <p class="routine-eyebrow cl-hero-kicker" id="routineHeroKicker">
+        GANDAKI UNIVERSITY · BIT ACADEMIC ROUTINE
       </p>
-      <h1 class="cl-hero-title">Examination Schedule</h1>
+      <h1 class="cl-hero-title" id="routineHeroTitle">Class Schedule</h1>
       <p class="routine-description">
-        Examination schedule for BIT students. Select your semester to view examination dates and subjects.
+        Semester-wise class schedule and examination timetable for Gandaki University BIT students.
       </p>
     </div>
 
     <div class="dash-hero-actions">
       <div class="exam-info">
         <div class="exam-info-item">
-          <span class="info-label">Routine</span>
+          <span class="info-label" id="routineInfoLabel1">Session</span>
           <strong id="routineYears">—</strong>
         </div>
         <div class="exam-info-item">
@@ -261,27 +261,64 @@
           <strong>BIT</strong>
         </div>
         <div class="exam-info-item">
-          <span class="info-label">Semesters</span>
+          <span class="info-label" id="routineInfoLabel3">Year / Semester</span>
           <strong id="routineSemesters">—</strong>
         </div>
       </div>
-      <a href="#adminRoutinePanel" class="routine-btn" id="routineAdminLink" hidden>Manage routine</a>
+      <a href="/admin-dashboard.html?tab=routine" class="routine-btn" id="routineAdminLink" hidden>Manage routine</a>
     </div>
   </section>
 
   <main class="routine-container">
 
+    <div class="routine-mode-bar">
+      <div class="routine-mode-tabs" role="tablist" aria-label="Routine view mode">
+        <button type="button" class="routine-mode-btn active" id="modeClassBtn" role="tab" aria-selected="true">Class Routine</button>
+        <button type="button" class="routine-mode-btn" id="modeExamBtn" role="tab" aria-selected="false">Exam Schedule</button>
+      </div>
+    </div>
 
-    <!-- Filters include all semesters, even when no exam has been published. -->
+    <!-- Filters (visible for staff/teachers/admins or Exam Schedule) -->
     <section class="semester-filter" id="routineFilters" aria-label="Filter by semester"></section>
 
-    <!-- SCHEDULE -->
-    <section class="schedule" id="scheduleContainer">
+    <!-- CLASS ROUTINE VIEW -->
+    <section id="classRoutineSection">
+      <div id="classLiveBanner" class="routine-live-banner" hidden></div>
+      <div id="classRoutineContainer">
+        <div class="app-loading-state">
+          <span class="app-spinner spinner-lg"></span>
+          <span>Loading class routine…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- EXAM SCHEDULE VIEW -->
+    <section class="schedule" id="scheduleContainer" hidden>
       <div class="app-loading-state">
         <span class="app-spinner spinner-lg"></span>
         <span>Loading examination routine…</span>
       </div>
     </section>
+
+    <!-- Subject Detail Modal -->
+    <div id="subjectDetailModal" class="routine-modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="modalSubjectTitle">
+      <div class="routine-modal-dialog">
+        <div class="routine-modal-header">
+          <div>
+            <p class="routine-eyebrow" id="modalSubjectType">THEORY</p>
+            <h3 id="modalSubjectTitle">Subject Name</h3>
+          </div>
+          <button type="button" class="routine-modal-close" id="modalSubjectClose" aria-label="Close subject details">&times;</button>
+        </div>
+        <div class="routine-modal-rows">
+          <div class="routine-modal-row"><span>Faculty</span><strong id="modalFacultyName">—</strong></div>
+          <div class="routine-modal-row"><span>Faculty Type</span><strong id="modalFacultyType">—</strong></div>
+          <div class="routine-modal-row"><span>Day</span><strong id="modalDay">—</strong></div>
+          <div class="routine-modal-row"><span>Time</span><strong id="modalTime">—</strong></div>
+          <div class="routine-modal-row"><span>Classification</span><strong id="modalClassification">—</strong></div>
+        </div>
+      </div>
+    </div>
 
     <!-- Server-side admin permissions protect every management request. -->
     <section class="routine-admin" id="adminRoutinePanel" hidden aria-labelledby="routineAdminHeading">

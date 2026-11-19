@@ -1077,7 +1077,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     const isSteppingRegex = /^(?:next(?:\s+topic|\s+step)?|continue|proceed|go\s+ahead|move\s+on|ready|yes\s+next|skip(?:\s+topic)?|nexr|oki\s+nexr|let's\s+go|understood|aagi\s+badham|agadi\s+badham)[.!]*$/i.test(trimmedMsg);
     const wordCount = trimmedMsg ? trimmedMsg.split(/\s+/).filter(Boolean).length : 0;
     const isQuestion = trimmedMsg.includes('?') ||
-      /^(?:what|why|how|when|where|who|which|is|are|can|could|kasto|kina|kahile|kasari|ke)\b/i.test(trimmedMsg);
+      /^(?:what|why|how|when\s+(?:is|are|does|do|can|will|should)|where|who|which|is\s+(?:there|it|that|this)|are\s+(?:there|they|these)|can\s+(?:you|we|i)|could\s+(?:you|we|i)|kasto|kina|kahile|kasari|ke)\b/i.test(trimmedMsg);
     const isShortNonQuestion = wordCount > 0 && wordCount <= 4 && !isQuestion;
 
     const isTeachMode = chapterContext.learningMode === 'teach';
@@ -1296,9 +1296,12 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
 
           const isDefinitiveFailure = Boolean(
             evalResult.isSurrender ||
-            evalResult.misconception === 'Off-topic or irrelevant response' ||
+            evalResult.misconception ||
             evalResult.format === 'mcq' ||
-            evalResult.format === 'sql'
+            evalResult.format === 'sql' ||
+            evalResult.format === 'math' ||
+            evalResult.format === 'calculation' ||
+            evalResult.format === 'physics'
           );
 
           if (!evalResult.passed && !isDefinitiveFailure && canSynthesizeWithLlm && typeof llmGenerateFn === 'function' && lastAssistantMsg) {
@@ -1316,20 +1319,23 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
               const jsonMatch = rawEval.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
                 const parsed = JSON.parse(jsonMatch[0]);
-                const isMsgQuestion = message.includes('?') || /^(?:what|why|how|when|where|who|which|is|are|can|could|kasto|kina|kahile|kasari|ke|bujhina)\b/i.test(message.trim());
+                const isMsgQuestion = message.includes('?') || /^(?:what|why|how|when\s+(?:is|are|does|do|can|will|should)|where|who|which|is\s+(?:there|it|that|this)|are\s+(?:there|they|these)|can\s+(?:you|we|i)|could\s+(?:you|we|i)|kasto|kina|kahile|kasari|ke|bujhina)\b/i.test(message.trim());
                 if (parsed.isClarification || isMsgQuestion) {
                   evalResult = {
                     passed: false,
                     isClarification: true,
                     score: 0.0,
+                    misconception: evalResult.misconception || null,
                     feedback: typeof parsed.feedback === 'string' && parsed.feedback.trim()
                       ? parsed.feedback.trim()
                       : 'That’s a thoughtful question! Let’s clarify this concept before answering the checkpoint.'
                   };
                 } else if (typeof parsed.passed === 'boolean') {
                   evalResult = {
+                    ...evalResult,
                     passed: parsed.passed,
                     score: parsed.passed ? 1.0 : 0.0,
+                    misconception: parsed.passed ? null : (parsed.misconception || evalResult.misconception || null),
                     feedback: typeof parsed.feedback === 'string' && parsed.feedback.trim()
                       ? parsed.feedback.trim()
                       : evalResult.feedback
@@ -1341,7 +1347,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         }
 
         const isMsgClarification = message.includes('?') ||
-          /^(?:what|why|how|when|where|who|which|is|are|can|could|kasto|kina|kahile|kasari|ke|bujhina)\b/i.test(message.trim());
+          /^(?:what|why|how|when\s+(?:is|are|does|do|can|will|should)|where|who|which|is\s+(?:there|it|that|this)|are\s+(?:there|they|these)|can\s+(?:you|we|i)|could\s+(?:you|we|i)|kasto|kina|kahile|kasari|ke|bujhina)\b/i.test(message.trim());
         if (isMsgClarification || evalResult.isClarification) {
           evalResult.passed = false;
           evalResult.isClarification = true;
@@ -1654,6 +1660,9 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           const pyqFenceMatch = studyResultText.match(/```pyq_card\n[\s\S]*?\n```/);
           const parts = [];
           if (sessionFenceMatch) parts.push(sessionFenceMatch[0]);
+          if (isRemediationTurn && renderedEvalResult && renderedEvalResult.misconception) {
+            parts.push(`> ⚠️ **Identified Misconception:** ${renderedEvalResult.misconception}\n> ${renderedEvalResult.feedback}\n`);
+          }
           parts.push(candidateProse);
           if (pyqFenceMatch) parts.push(pyqFenceMatch[0]);
           studyResultText = parts.join('\n\n');

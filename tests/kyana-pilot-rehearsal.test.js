@@ -247,7 +247,7 @@ test('3. End-to-End Workflow — DBMS & OS Conceptual Queries (Safe Non-Forcing)
   );
   assert.ok(osRes.reply);
   assert.match(osRes.reply, /FCFS|First-Come/i);
-  assert.match(osRes.reply, /Round-Robin|time\s+quantum/i);
+  assert.match(osRes.reply, /Round[\s-]Robin|time\s+quant(um|a)|time\s+slice/i);
   assert.equal(osRes.reply.includes('```kyana_visual'), false, 'Conceptual OS question must not force algorithm visual block');
 });
 

@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   TextInput,
+  Linking,
   type TextInputInstance,
   type ScrollViewInstance,
 } from 'react-native';
@@ -39,6 +40,8 @@ import {
 import { CommentItem } from '@/components/CommentItem';
 import { CommentComposerBar } from '@/components/CommentComposerBar';
 import { VoteButtons } from '@/components/PostCard';
+import { PostFileAttachments } from '@/components/PostFileAttachments';
+import { isImageAttachment, isDocumentAttachment } from '@/utils/file-upload';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatDate } from '@/utils/date';
 
@@ -393,7 +396,11 @@ export default function NoticeDetailScreen() {
   }
 
   const authorAvatar = getFullUrl(notice.avatarUrl);
-  const noticeImage = getFullUrl(notice.attachment_url);
+  const noticeImage = isImageAttachment(notice.attachment_url) ? getFullUrl(notice.attachment_url) : null;
+  const noticeDocUrl = isDocumentAttachment(notice.attachment_url) ? getFullUrl(notice.attachment_url) : null;
+  const cleanDocName = notice.attachment_url
+    ? notice.attachment_url.split('?')[0].split('#')[0].split('/').pop() || 'Attached Document'
+    : 'Attached Document';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -490,6 +497,24 @@ export default function NoticeDetailScreen() {
                     <Text style={{ color: '#ffffff', fontSize: 11, fontWeight: '600' }}>Tap for full view</Text>
                   </View>
                 </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {noticeDocUrl ? (
+              <View style={{ marginBottom: spacing.lg }}>
+                <Text variant="xs" weight="700" color="secondary" style={{ marginBottom: 8 }}>
+                  ATTACHED DOCUMENT / PDF
+                </Text>
+                <PostFileAttachments
+                  files={[{ url: noticeDocUrl, file_name: cleanDocName, media_type: 'file' }]}
+                  onOpenFile={async () => {
+                    try {
+                      await Linking.openURL(noticeDocUrl);
+                    } catch {
+                      Alert.alert('Error', 'Could not open attached file.');
+                    }
+                  }}
+                />
               </View>
             ) : null}
 

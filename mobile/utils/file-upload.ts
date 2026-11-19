@@ -75,6 +75,39 @@ const EXT_TO_MIME: Record<string, string> = {
   '.zip': 'application/zip',
 };
 
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif', 'avif']);
+const DOCUMENT_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'zip', 'rar', '7z', 'csv']);
+
+/**
+ * Checks whether a URL or attachment represents an image.
+ * Explicitly rejects PDFs and document files from being categorized as images.
+ */
+export function isImageAttachment(url?: string | null, mediaType?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const cleanUrl = url.split('?')[0].split('#')[0].trim();
+  const ext = cleanUrl.split('.').pop()?.toLowerCase();
+  if (ext && DOCUMENT_EXTENSIONS.has(ext)) {
+    return false;
+  }
+  if (mediaType === 'file') return false;
+  if (mediaType === 'image') {
+    return Boolean(!ext || !DOCUMENT_EXTENSIONS.has(ext));
+  }
+  return Boolean(ext && IMAGE_EXTENSIONS.has(ext));
+}
+
+/**
+ * Checks whether a URL or attachment represents a document or non-image file.
+ */
+export function isDocumentAttachment(url?: string | null, mediaType?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  if (mediaType === 'file') return true;
+  const cleanUrl = url.split('?')[0].split('#')[0].trim();
+  const ext = cleanUrl.split('.').pop()?.toLowerCase();
+  if (ext && DOCUMENT_EXTENSIONS.has(ext)) return true;
+  return false;
+}
+
 /**
  * Normalizes an asset picked from expo-image-picker or expo-document-picker
  * into a safe, valid multipart file payload for the backend.

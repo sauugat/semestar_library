@@ -20,6 +20,7 @@ import { Text } from '@/components/ui/Typography';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
 import { SelectionSheet, SelectionOption, SemesterMultiSelectSheet } from '@/components/ui';
+import { isImageAttachment, isDocumentAttachment } from '@/utils/file-upload';
 import {
   Post,
   PostMediaItem,
@@ -205,14 +206,29 @@ export function EditPostModal({
 
       if (Array.isArray(post.media) && post.media.length > 0) {
         const imgs = post.media
-          .filter((m) => (m.media_type || 'image') === 'image')
+          .filter((m) => isImageAttachment(m.url, m.media_type))
           .map((m) => m.url);
-        const docs = post.media.filter((m) => m.media_type === 'file');
+        const docs = post.media.filter((m) => m.media_type === 'file' || isDocumentAttachment(m.url, m.media_type));
         setExistingImages(imgs);
         setExistingFiles(docs);
       } else if (post.attachment_url) {
-        setExistingImages([post.attachment_url]);
-        setExistingFiles([]);
+        if (isImageAttachment(post.attachment_url)) {
+          setExistingImages([post.attachment_url]);
+          setExistingFiles([]);
+        } else {
+          setExistingImages([]);
+          const cleanUrl = post.attachment_url.split('?')[0].split('#')[0];
+          setExistingFiles([{
+            id: 0,
+            post_id: post.id,
+            url: post.attachment_url,
+            media_type: 'file',
+            file_name: cleanUrl.split('/').pop() || 'Attachment',
+            file_size: null,
+            sort_order: 0,
+            created_at: post.created_at,
+          }]);
+        }
       } else {
         setExistingImages([]);
         setExistingFiles([]);
@@ -236,16 +252,16 @@ export function EditPostModal({
   const initialImages = useMemo(() => {
     if (Array.isArray(post?.media) && post.media.length > 0) {
       return post.media
-        .filter((m) => (m.media_type || 'image') === 'image')
+        .filter((m) => isImageAttachment(m.url, m.media_type))
         .map((m) => m.url);
     }
-    return post?.attachment_url ? [post.attachment_url] : [];
+    return post?.attachment_url && isImageAttachment(post.attachment_url) ? [post.attachment_url] : [];
   }, [post]);
   const initialFiles = useMemo(() => {
     if (Array.isArray(post?.media) && post.media.length > 0) {
-      return post.media.filter((m) => m.media_type === 'file').map((m) => m.url);
+      return post.media.filter((m) => m.media_type === 'file' || isDocumentAttachment(m.url, m.media_type)).map((m) => m.url);
     }
-    return [];
+    return post?.attachment_url && isDocumentAttachment(post.attachment_url) ? [post.attachment_url] : [];
   }, [post]);
 
   const isDirty = useMemo(() => {

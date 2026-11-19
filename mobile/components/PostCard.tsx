@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -15,6 +15,7 @@ import { PostFileAttachments } from '@/components/PostFileAttachments';
 import { Post } from '@/services/posts';
 import { formatTimeAgo } from '@/utils/date';
 import { PostMarkdown } from '@/components/PostMarkdown';
+import { isImageAttachment, isDocumentAttachment } from '@/utils/file-upload';
 
 export interface PostCardProps {
   post: Post;
@@ -178,6 +179,42 @@ export function PostCard({
   const upCount = Number(post.up_count ?? post.upCount ?? post.like_count ?? 0);
   const downCount = Number(post.down_count ?? post.downCount ?? 0);
   const myVote = Number(post.my_vote ?? post.myVote ?? (post.liked_by_me ? 1 : 0));
+
+  // Segregate attachments into images and documents/files (PDFs must never appear in image gallery)
+  const imageAttachments = useMemo(() => {
+    if (Array.isArray(post.media) && post.media.length > 0) {
+      return post.media.filter((m) => isImageAttachment(m.url, m.media_type));
+    }
+    return [];
+  }, [post.media]);
+
+  const fallbackImageUrl = useMemo(() => {
+    if (imageAttachments.length > 0) return null;
+    if (post.attachment_url && isImageAttachment(post.attachment_url)) {
+      return post.attachment_url;
+    }
+    return null;
+  }, [imageAttachments.length, post.attachment_url]);
+
+  const fileAttachments = useMemo(() => {
+    if (Array.isArray(post.media) && post.media.length > 0) {
+      return post.media.filter((m) => m.media_type === 'file' || isDocumentAttachment(m.url, m.media_type));
+    }
+    if (post.attachment_url && isDocumentAttachment(post.attachment_url)) {
+      const cleanUrl = post.attachment_url.split('?')[0].split('#')[0];
+      return [{
+        id: 0,
+        post_id: post.id,
+        url: post.attachment_url,
+        media_type: 'file' as const,
+        file_name: cleanUrl.split('/').pop() || 'Attachment',
+        file_size: null,
+      }];
+    }
+    return [];
+  }, [post.media, post.attachment_url, post.id]);
+
+  const hasImages = imageAttachments.length > 0 || Boolean(fallbackImageUrl);
 
   const defaultOpenDetail = () => {
     if (onOpenDetail) {
@@ -366,11 +403,11 @@ export function PostCard({
         </View>
       )}
 
-      {/* Attached Images: Multi-photo gallery */}
-      {((Array.isArray(post.media) && post.media.some((m) => (m.media_type || 'image') === 'image')) || post.attachment_url) && (
+      {/* Attached Images: Multi-photo gallery (strictly images only, never PDFs) */}
+      {hasImages && (
         <PostMediaGallery
-          media={post.media ? post.media.filter((m) => (m.media_type || 'image') === 'image') : null}
-          imageUrl={post.attachment_url}
+          media={imageAttachments.length > 0 ? imageAttachments : null}
+          imageUrl={fallbackImageUrl}
           getFullUrl={getFullImageUrl}
           onDoubleTap={() => onDoubleTapLike ? onDoubleTapLike(post.id) : (myVote !== 1 && handleVoteDirection('up'))}
           postDetails={{ name: post.name, caption: post.content, uploadedAt: new Date(post.created_at).toLocaleString(), liked: myVote === 1, likes: upCount, comments: post.comment_count || 0 }}
@@ -379,10 +416,10 @@ export function PostCard({
         />
       )}
 
-      {/* Attached Documents & Files */}
-      {Array.isArray(post.media) && post.media.some((m) => m.media_type === 'file') && (
+      {/* Attached Documents & Files (PDFs, DOCX, etc.) */}
+      {fileAttachments.length > 0 && (
         <PostFileAttachments
-          files={post.media.filter((m) => m.media_type === 'file')}
+          files={fileAttachments}
           onOpenFile={(file) => onOpenFile && onOpenFile(file)}
         />
       )}

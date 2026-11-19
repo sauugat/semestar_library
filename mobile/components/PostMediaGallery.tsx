@@ -21,6 +21,7 @@ import { Text } from '@/components/ui/Typography';
 import { useTheme } from '@/constants/useTheme';
 import { ZoomablePostImage } from '@/components/ZoomablePostImage';
 import { PostMediaItem } from '@/services/posts';
+import { isImageAttachment } from '@/utils/file-upload';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -72,12 +73,13 @@ export function PostMediaGallery({
   const urls = useMemo<string[]>(() => {
     if (Array.isArray(media) && media.length > 0) {
       return media
+        .filter((m) => isImageAttachment(m.url, (m as any).media_type))
         .map((m) => resolveUrl(m.url))
-        .filter((u): u is string => typeof u === 'string' && u.length > 0);
+        .filter((u): u is string => typeof u === 'string' && u.length > 0 && isImageAttachment(u));
     }
-    if (imageUrl) {
+    if (imageUrl && isImageAttachment(imageUrl)) {
       const u = resolveUrl(imageUrl);
-      return u ? [u] : [];
+      return u && isImageAttachment(u) ? [u] : [];
     }
     return [];
   }, [media, imageUrl, resolveUrl]);

@@ -110,7 +110,7 @@ import {
   createAdvertisement,
   getFeedSessionKey,
 } from '@/services/advertisements';
-import { RawFileAsset } from '@/utils/file-upload';
+import { RawFileAsset, isImageAttachment } from '@/utils/file-upload';
 import * as DocumentPicker from 'expo-document-picker';
 
 function FeedSkeletonCard({ colors, radii }: { colors: any; radii: any }) {
@@ -2445,13 +2445,14 @@ function StudentHomeScreenInner() {
   const handleCopyImageLink = async () => {
     if (!selectedMenuPost || !selectedMenuPost.attachment_url) return;
     const imageUrl = getFullImageUrl(selectedMenuPost.attachment_url);
+    const isImg = isImageAttachment(selectedMenuPost.attachment_url);
     setSelectedMenuPost(null);
     if (!imageUrl) return;
     try {
       await Clipboard.setStringAsync(imageUrl);
-      showToast('Image link copied');
+      showToast(isImg ? 'Image link copied' : 'Attachment link copied');
     } catch {
-      Alert.alert('Copy Failed', 'Unable to copy image link.');
+      Alert.alert('Copy Failed', 'Unable to copy link.');
     }
   };
 
@@ -4452,7 +4453,7 @@ function StudentHomeScreenInner() {
                 >
                   <Ionicons name="link-outline" size={19} color={colors.text} style={styles.menuItemIcon} />
                   <Text variant="sm" weight="600" color="primary">
-                    Copy image link
+                    {isImageAttachment(selectedMenuPost?.attachment_url) ? 'Copy image link' : 'Copy file link'}
                   </Text>
                 </TouchableOpacity>
               )}

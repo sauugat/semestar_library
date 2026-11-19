@@ -54,6 +54,7 @@ import { EditPostModal } from '@/components/EditPostModal';
 import { CommentItem } from '@/components/CommentItem';
 import { CommentComposerBar } from '@/components/CommentComposerBar';
 import { VoteButtons } from '@/components/PostCard';
+import { isImageAttachment, isDocumentAttachment } from '@/utils/file-upload';
 
 export default function PostDetailScreen() {
   const { id, commentId, replyId } = useLocalSearchParams<{ id: string; commentId?: string; replyId?: string }>();
@@ -579,11 +580,26 @@ export default function PostDetailScreen() {
   }
 
   const authorAvatar = getFullUrl(post.avatarUrl);
-  const postImage = getFullUrl(post.attachment_url);
   const imageMedia = Array.isArray(post.media)
-    ? post.media.filter((m) => (m.media_type || 'image') === 'image' && Boolean(m.url))
+    ? post.media.filter((m) => isImageAttachment(m.url, m.media_type) && Boolean(m.url))
     : [];
+  const postImage = imageMedia.length === 0 && isImageAttachment(post.attachment_url)
+    ? getFullUrl(post.attachment_url)
+    : null;
   const hasPostImage = imageMedia.length > 0 || Boolean(postImage);
+
+  const fileMedia = Array.isArray(post.media) && post.media.length > 0
+    ? post.media.filter((m) => m.media_type === 'file' || isDocumentAttachment(m.url, m.media_type))
+    : (isDocumentAttachment(post.attachment_url) && post.attachment_url
+        ? [{
+            id: 0,
+            post_id: post.id,
+            url: post.attachment_url,
+            media_type: 'file' as const,
+            file_name: post.attachment_url.split('?')[0].split('#')[0].split('/').pop() || 'Attachment',
+            file_size: null,
+          }]
+        : []);
   const isAdmin = post.role === 'admin';
   const isCR = post.role === 'cr';
 
@@ -711,20 +727,20 @@ export default function PostDetailScreen() {
             style={{ marginTop: spacing.md, marginBottom: spacing.md }}
           />
 
-          {/* Attached Images: responsive grid with swipeable fullscreen gallery */}
+          {/* Attached Images: responsive grid with swipeable fullscreen gallery (images only, never PDFs) */}
           {hasPostImage && (
             <PostMediaGallery
               media={imageMedia.length > 0 ? imageMedia : null}
-              imageUrl={post.attachment_url}
+              imageUrl={postImage}
               getFullUrl={getFullUrl}
               onDoubleTap={handleToggleLike}
             />
           )}
 
-          {/* Attached Documents & Files */}
-          {Array.isArray(post.media) && post.media.some((m) => m.media_type === 'file') && (
+          {/* Attached Documents & Files (PDFs, DOCX, etc.) */}
+          {fileMedia.length > 0 && (
             <PostFileAttachments
-              files={post.media.filter((m) => m.media_type === 'file')}
+              files={fileMedia}
               onOpenFile={async (file) => {
                 try {
                   const resolved = getFullUrl(file.url);

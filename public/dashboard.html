@@ -4565,9 +4565,23 @@
         });
       }
 
-      // Backward compatibility fallback for single attachment_url
-      if (postImages.length === 0 && attachmentUrl) {
-        postImages.push({ url: attachmentUrl, name: '', size: null });
+      // Backward compatibility fallback for single attachment_url (PDFs/docs go to postFiles, images to postImages)
+      if (attachmentUrl) {
+        const cleanAtt = attachmentUrl.split('?')[0].split('#')[0].toLowerCase();
+        const isDoc = /\.(pdf|docx?|pptx?|xlsx?|txt|zip|rar|7z|csv)$/i.test(cleanAtt);
+        if (postImages.length === 0 && !isDoc) {
+          postImages.push({ url: attachmentUrl, name: '', size: null });
+        } else if (postFiles.length === 0 && isDoc) {
+          const rawName = attachmentUrl.split('/').pop() || 'Attachment';
+          let cleanName = rawName;
+          try { cleanName = decodeURIComponent(rawName); } catch (_) {}
+          postFiles.push({
+            url: attachmentUrl,
+            name: cleanName,
+            size: null,
+            mime: cleanAtt.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream'
+          });
+        }
       }
 
       let imageHtml = '';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -153,10 +153,54 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
   const [repositionVisible, setRepositionVisible] = useState(false);
   const [repositionY, setRepositionY] = useState(0.5);
 
-  // Full Screen Image Viewer state
+  // Full Screen Image Viewer state (with safe transition guard to prevent iOS dual-Modal loops)
   const [viewerVisible, setViewerVisible] = useState(false);
   const [viewerUri, setViewerUri] = useState<string | null>(null);
   const [viewerTitle, setViewerTitle] = useState<string>('Image');
+  const viewerTransitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const viewerClosingLockRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (viewerTransitionTimerRef.current) {
+        clearTimeout(viewerTransitionTimerRef.current);
+      }
+    };
+  }, []);
+
+  const openImageViewer = useCallback((uri: string | null, title: string, deferAfterSheet = false) => {
+    if (!uri || viewerClosingLockRef.current) return;
+    if (viewerTransitionTimerRef.current) {
+      clearTimeout(viewerTransitionTimerRef.current);
+      viewerTransitionTimerRef.current = null;
+    }
+    const present = () => {
+      setViewerUri(uri);
+      setViewerTitle(title);
+      setViewerVisible(true);
+    };
+    if (deferAfterSheet) {
+      viewerTransitionTimerRef.current = setTimeout(() => {
+        viewerTransitionTimerRef.current = null;
+        present();
+      }, Platform.OS === 'ios' ? 280 : 60);
+    } else {
+      present();
+    }
+  }, []);
+
+  const handleCloseViewer = useCallback(() => {
+    viewerClosingLockRef.current = true;
+    setViewerVisible(false);
+    if (viewerTransitionTimerRef.current) {
+      clearTimeout(viewerTransitionTimerRef.current);
+    }
+    viewerTransitionTimerRef.current = setTimeout(() => {
+      setViewerUri(null);
+      viewerClosingLockRef.current = false;
+      viewerTransitionTimerRef.current = null;
+    }, 240);
+  }, []);
 
   // Edit Post modal
   const [editingPost, setEditingPost] = useState<Post | null>(null);
@@ -725,9 +769,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
               <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={() => {
-                  setViewerUri(coverFullUrl);
-                  setViewerTitle(`${profile?.name || 'Student'}'s Cover Photo`);
-                  setViewerVisible(true);
+                  openImageViewer(coverFullUrl, `${profile?.name || 'Student'}'s Cover Photo`);
                 }}
                 style={styles.coverTouchArea}
               >
@@ -791,9 +833,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
                 activeOpacity={avatarFullUrl ? 0.8 : 1}
                 onPress={() => {
                   if (avatarFullUrl) {
-                    setViewerUri(avatarFullUrl);
-                    setViewerTitle(`${profile?.name || 'Student'}'s Profile Picture`);
-                    setViewerVisible(true);
+                    openImageViewer(avatarFullUrl, `${profile?.name || 'Student'}'s Profile Picture`);
                   } else if (isSelf) {
                     setAvatarActionVisible(true);
                   }
@@ -1416,9 +1456,10 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
                       activeOpacity={0.8}
                       onPress={() => {
                         if (fullPhotoUrl) {
-                          setViewerUri(fullPhotoUrl);
-                          setViewerTitle(item.postContent ? `${item.postContent.slice(0, 30)}...` : 'Photo');
-                          setViewerVisible(true);
+                          openImageViewer(
+                            fullPhotoUrl,
+                            item.postContent ? `${item.postContent.slice(0, 30)}...` : 'Photo'
+                          );
                         }
                       }}
                     >
@@ -1606,9 +1647,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
                 style={styles.actionSheetOption}
                 onPress={() => {
                   setAvatarActionVisible(false);
-                  setViewerUri(avatarFullUrl);
-                  setViewerTitle(`${profile?.name || 'Student'}'s Profile Photo`);
-                  setViewerVisible(true);
+                  openImageViewer(avatarFullUrl, `${profile?.name || 'Student'}'s Profile Photo`, true);
                 }}
               >
                 <Ionicons name="eye-outline" size={20} color={colors.text} />
@@ -1677,9 +1716,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
                 style={styles.actionSheetOption}
                 onPress={() => {
                   setCoverActionVisible(false);
-                  setViewerUri(coverFullUrl);
-                  setViewerTitle(`${profile?.name || 'Student'}'s Cover Photo`);
-                  setViewerVisible(true);
+                  openImageViewer(coverFullUrl, `${profile?.name || 'Student'}'s Cover Photo`, true);
                 }}
               >
                 <Ionicons name="eye-outline" size={20} color={colors.text} />
@@ -1820,10 +1857,7 @@ export function ProfileView({ targetStudentId, isTab = false }: ProfileViewProps
         visible={viewerVisible}
         imageUri={viewerUri}
         imageTitle={viewerTitle}
-        onClose={() => {
-          setViewerVisible(false);
-          setViewerUri(null);
-        }}
+        onClose={handleCloseViewer}
       />
     </View>
   );

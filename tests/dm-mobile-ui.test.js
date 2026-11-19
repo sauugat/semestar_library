@@ -132,7 +132,7 @@ describe('Step 4B: React Native Private Messaging Mobile UI & Services', () => {
 
     assert.ok(content.includes('markDmConversationRead'), 'Must call markDmConversationRead');
     assert.ok(content.includes('peerLastReadId'), 'Must compare peerLastReadId');
-    assert.ok(content.includes('checkmark-done'), 'Must render Seen receipt');
+    assert.ok(content.includes('latestSeenSelfMessageId') && content.includes('>Seen<'), 'Must render Seen receipt below latest seen message');
   });
 
   // 13. Typing indicators

@@ -29,7 +29,8 @@ export interface ChatComposerProps {
   } | null;
   onClearAttachment: () => void;
   onOpenAttachModal: () => void;
-  onPickCamera: () => void;
+  onPickImage?: () => void;
+  onPickCamera?: () => void;
   onSendMessage: (payload: {
     text: string;
     file: { uri: string; name: string; mimeType: string; isImage?: boolean; size?: number } | null;
@@ -51,7 +52,7 @@ export const ChatComposer = React.memo(function ChatComposer({
   selectedAttachment,
   onClearAttachment,
   onOpenAttachModal,
-  onPickCamera,
+  onPickImage,
   onSendMessage,
   inputRef,
   paddingBottom = 0,
@@ -290,15 +291,15 @@ export const ChatComposer = React.memo(function ChatComposer({
             inputFocused && styles.modernCapsuleBarFocused,
           ]}
         >
-          {/* Left Circular Camera Button inside capsule */}
+          {/* Image Picker Button */}
           <TouchableOpacity
-            style={styles.cameraCircleBtn}
-            onPress={onPickCamera}
+            style={styles.imageCircleBtn}
+            onPress={onPickImage || onOpenAttachModal}
             disabled={!userAvailable}
             activeOpacity={0.75}
-            accessibilityLabel="Share photo"
+            accessibilityLabel="Attach image"
           >
-            <Ionicons name="camera" size={19} color="#FFFFFF" />
+            <Ionicons name="image-outline" size={20} color="#F4F4F5" />
           </TouchableOpacity>
 
           {/* Pill-shaped text input */}
@@ -324,57 +325,11 @@ export const ChatComposer = React.memo(function ChatComposer({
             editable={userAvailable}
           />
 
-          {/* Send button when content exists, otherwise modern quick icons */}
-          {hasContent ? (
-            <ChatSendButton
-              disabled={!hasContent || !userAvailable}
-              onPress={handleSend}
-            />
-          ) : (
-            <View style={styles.rightIconsRow}>
-              <TouchableOpacity
-                style={styles.inlineIconTouch}
-                onPress={() => inputRef.current?.focus()}
-                disabled={!userAvailable}
-                activeOpacity={0.7}
-                accessibilityLabel="Voice input"
-              >
-                <Ionicons name="mic-outline" size={21} color="#F4F4F5" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.inlineIconTouch}
-                onPress={onOpenAttachModal}
-                disabled={!userAvailable}
-                activeOpacity={0.7}
-                accessibilityLabel="Attach image"
-              >
-                <Ionicons name="image-outline" size={21} color="#F4F4F5" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.inlineIconTouch}
-                onPress={() => inputRef.current?.focus()}
-                disabled={!userAvailable}
-                activeOpacity={0.7}
-                accessibilityLabel="Quick message"
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#F4F4F5" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.actionTouchArea}
-                onPress={onOpenAttachModal}
-                disabled={!userAvailable}
-                activeOpacity={0.7}
-                accessibilityLabel="Add attachment"
-              >
-                <View style={styles.actionIconCircle}>
-                  <Ionicons name="add-circle-outline" size={22} color="#F4F4F5" />
-                </View>
-              </TouchableOpacity>
-            </View>
-          )}
+          {/* Send Button */}
+          <ChatSendButton
+            disabled={!hasContent || !userAvailable}
+            onPress={handleSend}
+          />
         </View>
       </View>
     </View>
@@ -414,11 +369,11 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.26)",
     backgroundColor: "rgba(26, 26, 31, 0.94)",
   },
-  cameraCircleBtn: {
+  imageCircleBtn: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "rgba(115, 118, 128, 0.42)",
+    backgroundColor: "rgba(115, 118, 128, 0.28)",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 6,

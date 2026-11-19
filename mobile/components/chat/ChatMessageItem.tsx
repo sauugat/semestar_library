@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   Pressable,
   Animated,
-  PanResponder,
   useWindowDimensions,
   ActivityIndicator,
   Image as RNImage,
@@ -25,7 +24,7 @@ import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/Typography';
 import { Monochrome } from '@/constants/theme';
-import { markBubbleTouchStart, markBubbleTouchEnd } from './FluidChatBackground';
+import { HeartBurstOverlay, SwipeableMessageWrapper } from './ChatGesturePrimitives';
 import { ChatMessage, ChatReadReceipt } from '@/services/chat';
 import { parseChatDate, formatFileSubtitle, formatFileExtension } from '@/services/chat-state';
 import { formatMessageTime as safeFormatTime, formatChatDateSeparator as safeFormatSeparator } from '@/utils/date';
@@ -71,6 +70,7 @@ interface ChatMessageItemProps {
   nextMsg: ChatMessage | null; // chronologically next (visually below in inverted list: messages[index - 1])
   currentUserId?: string;
   readReceipts: ChatReadReceipt[];
+  seenBySummary?: string | null;
   serverUrl: string;
   authToken?: string | null;
   downloadingFileId: string | null;
@@ -286,6 +286,10 @@ function MessageStatusMeta({
     );
   }
 
+  // Ticks removed from inside bubbles; seen status is rendered as "Seen by ..." below the bubble.
+  const hasVisibleMeta = Boolean(isStarred || isEdited || (isMe && isPending));
+  if (!hasVisibleMeta) return null;
+
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       {Boolean(isStarred) && (
@@ -298,47 +302,16 @@ function MessageStatusMeta({
       )}
       {Boolean(isEdited) && (
         <Text style={editedStyle}>
-          Edited{' '}
+          Edited
         </Text>
       )}
-      <Text style={timeStyle}>
-        {timeString}
-      </Text>
-      {isMe && (
-        isPending ? (
-          <Ionicons
-            name="time-outline"
-            size={11}
-            color={iconColor}
-            style={{ marginLeft: 3 }}
-          />
-        ) : isRead ? (
-          <TouchableOpacity
-            disabled={!onPressReadBy || readByCount <= 0}
-            onPress={onPressReadBy}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            style={{ flexDirection: 'row', alignItems: 'center' }}
-          >
-            <Ionicons
-              name="checkmark-done"
-              size={13}
-              color={iconColor}
-              style={{ marginLeft: 3 }}
-            />
-            {readByCount > 1 && (
-              <Text style={[editedStyle, { marginLeft: 2, fontSize: 9.5 }]}>
-                {readByCount}
-              </Text>
-            )}
-          </TouchableOpacity>
-        ) : (
-          <Ionicons
-            name="checkmark"
-            size={13}
-            color={iconColor}
-            style={{ marginLeft: 3 }}
-          />
-        )
+      {isMe && isPending && (
+        <Ionicons
+          name="time-outline"
+          size={11}
+          color={iconColor}
+          style={{ marginLeft: 3 }}
+        />
       )}
     </View>
   );
@@ -360,6 +333,7 @@ function areMessagePropsEqual(
   if (prev.downloadingFileId !== next.downloadingFileId) return false;
   if (prev.isDelivered !== next.isDelivered) return false;
   if (prev.isStarred !== next.isStarred) return false;
+  if (prev.seenBySummary !== next.seenBySummary) return false;
   if (prev.index !== next.index) return false;
 
   // Compare reactions
@@ -409,6 +383,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   nextMsg,
   currentUserId,
   readReceipts,
+  seenBySummary,
   serverUrl,
   authToken,
   downloadingFileId,
@@ -569,99 +544,10 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
     return Array.from(map.entries()).map(([emoji, data]) => ({ emoji, ...data }));
   }, [item.reactions, currentUserId]);
 
-  // Entrance motion: subtle & fast (< 180ms) for new messages, none for initial history
-  const entryAnim = useRef(new Animated.Value(isInitialLoadItem ? 1 : 0)).current;
-  useEffect(() => {
-    if (!isInitialLoadItem) {
-      Animated.timing(entryAnim, {
-        toValue: 1,
-        duration: 160,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [isInitialLoadItem, entryAnim]);
-
-  // Highlight flash animation when jumped to
-  const highlightAnim = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (isHighlighted) {
-      Animated.sequence([
-        Animated.timing(highlightAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.delay(900),
-        Animated.timing(highlightAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [isHighlighted, highlightAnim]);
-
-  // Swipe-to-reply PanResponder (strictly on the message bubble itself)
-  const translateX = useRef(new Animated.Value(0)).current;
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-          const claim =
-            gestureState.dx > 10 &&
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
-            Math.abs(gestureState.dy) < 28;
-          if (claim) markBubbleTouchStart();
-          return claim;
-        },
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          const claim =
-            gestureState.dx > 10 &&
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
-            Math.abs(gestureState.dy) < 28;
-          if (claim) markBubbleTouchStart();
-          return claim;
-        },
-        onPanResponderGrant: () => {
-          markBubbleTouchStart();
-        },
-        onPanResponderTerminationRequest: () => false,
-        onShouldBlockNativeResponder: () => true,
-        onPanResponderMove: (_, gestureState) => {
-          markBubbleTouchStart();
-          if (gestureState.dx > 0) {
-            translateX.setValue(Math.min(gestureState.dx * 0.65, 55));
-          }
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          markBubbleTouchEnd();
-          if (gestureState.dx > 42) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            if (item.id > 0) onSwipeReply(item);
-          }
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 6,
-            tension: 100,
-            useNativeDriver: true,
-          }).start();
-        },
-        onPanResponderTerminate: () => {
-          markBubbleTouchEnd();
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 6,
-            tension: 100,
-            useNativeDriver: true,
-          }).start();
-        },
-      }),
-    [item, onSwipeReply, translateX]
-  );
-
-  // Reduced motion preference
-  const [reduceMotion, setReduceMotion] = useState(false);
-  useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
-    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
-    return () => sub?.remove?.();
-  }, []);
-
-  // Gesture refs for single tap vs double tap coordination
+  // Gesture refs for single tap vs double tap coordination (zero idle SharedValues or native bridge calls)
   const lastTapRef = useRef<number>(0);
   const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [heartBurstKey, setHeartBurstKey] = useState(0);
   useEffect(() => {
     return () => {
       if (singleTapTimerRef.current) {
@@ -670,51 +556,10 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
     };
   }, []);
 
-  // Heart pop animation shared values
-  const heartScale = useSharedValue(0);
-  const heartOpacity = useSharedValue(0);
-  const heartTranslateY = useSharedValue(0);
-
-  const heartAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: heartScale.value },
-      { translateY: heartTranslateY.value },
-    ],
-    opacity: heartOpacity.value,
-  }));
-
   const triggerHeartReaction = () => {
     if (item.id <= 0) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-
-    if (reduceMotion) {
-      heartScale.value = 1.0;
-      heartTranslateY.value = 0;
-      heartOpacity.value = withSequence(
-        withTiming(1, { duration: 80 }),
-        withTiming(1, { duration: 400 }),
-        withTiming(0, { duration: 200 })
-      );
-    } else {
-      heartScale.value = 0.6;
-      heartTranslateY.value = 0;
-      heartOpacity.value = 1;
-
-      heartScale.value = withSequence(
-        withSpring(1.15, { damping: 10, stiffness: 220 }),
-        withSpring(1.0, { damping: 12, stiffness: 180 }),
-        withTiming(1.05, { duration: 220 })
-      );
-      heartTranslateY.value = withSequence(
-        withTiming(0, { duration: 180 }),
-        withTiming(-16, { duration: 450 })
-      );
-      heartOpacity.value = withSequence(
-        withTiming(1, { duration: 350 }),
-        withTiming(0, { duration: 250 })
-      );
-    }
-
+    setHeartBurstKey((k) => k + 1);
     onToggleReaction(item, '❤️');
   };
 
@@ -804,22 +649,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   const isImageOnly = isImg && !hasCaption;
 
   return (
-    <Animated.View
-      style={[
-        styles.rowWrapper,
-        {
-          opacity: entryAnim,
-          transform: [
-            {
-              translateY: entryAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [10, 0],
-              }),
-            },
-          ],
-        },
-      ]}
-    >
+    <View style={styles.rowWrapper}>
       {/* Date Separator Pill */}
       {showDate && (
         <View style={styles.dateSeparatorRow}>
@@ -833,33 +663,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
       {/* Message Row Container (only the bubble itself is swipeable for reply) */}
       <View style={styles.swipeRowWrapper}>
-        {/* Reply Icon Indicator revealed on bubble swipe right */}
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            styles.swipeReplyIconBox,
-            {
-              opacity: translateX.interpolate({
-                inputRange: [0, 25, 45],
-                outputRange: [0, 0.7, 1],
-              }),
-              transform: [
-                {
-                  scale: translateX.interpolate({
-                    inputRange: [0, 30, 48],
-                    outputRange: [0.5, 0.9, 1.1],
-                    extrapolate: 'clamp',
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <Ionicons name="arrow-undo" size={15} color="#e4e4e7" />
-        </Animated.View>
-
-        {/* Animated Message Row */}
-        <Animated.View
+        <View
           style={[
             styles.bubbleRowAnimated,
             isMe ? styles.bubbleRowRight : styles.bubbleRowLeft,
@@ -902,61 +706,95 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
             </View>
           )}
 
-          {/* Bubble Container & Reactions (PanResponder attached strictly to bubble) */}
-          <Animated.View
-            style={{ maxWidth: maxBubbleWidth, transform: [{ translateX }] }}
-            onTouchStart={markBubbleTouchStart}
-            onTouchEnd={markBubbleTouchEnd}
-            onTouchCancel={markBubbleTouchEnd}
-            {...panResponder.panHandlers}
+          {/* Bubble Container with Reanimated v4 Rubber-Band Swipe-to-Reply + Detached Reply */}
+          <SwipeableMessageWrapper
+            isSelf={isMe}
+            swipeDisabled={item.id <= 0}
+            onSwipeReply={() => {
+              if (item.id > 0) onSwipeReply(item);
+            }}
+            style={[
+              { maxWidth: maxBubbleWidth },
+              isMe ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' },
+            ]}
           >
+            {/* Detached Reply Preview ABOVE the bubble (Instagram-style) */}
+            {Boolean(item.replyToId) && (
+              <View
+                style={[
+                  styles.detachedReplyWrap,
+                  isMe ? styles.detachedReplyWrapMe : styles.detachedReplyWrapOther,
+                ]}
+              >
+                <Text style={styles.detachedReplyLabel} numberOfLines={1}>
+                  {isMe
+                    ? item.replySender
+                      ? `You replied to ${item.replySender.split(/\s+/)[0]}`
+                      : 'You replied'
+                    : item.replySender
+                      ? `Replied to ${item.replySender.split(/\s+/)[0]}`
+                      : 'Replied to you'}
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => onJumpToReply(item.replyToId!)}
+                  style={[
+                    styles.detachedReplyRow,
+                    isMe ? styles.detachedReplyRowMe : styles.detachedReplyRowOther,
+                  ]}
+                >
+                  {!isMe && <View style={styles.detachedReplyBar} />}
+                  <View style={styles.detachedReplyPill}>
+                    <Text style={styles.detachedReplyText} numberOfLines={2}>
+                      {item.replyText || 'Attachment'}
+                    </Text>
+                  </View>
+                  {isMe && <View style={styles.detachedReplyBar} />}
+                </TouchableOpacity>
+              </View>
+            )}
+
             <Pressable
               onPress={handleBubblePress}
               onLongPress={handleLongPress}
               delayLongPress={280}
               accessibilityLabel={`Message from ${item.name || 'someone'}. Double tap to react with heart. Long press for actions.`}
-              style={[
+              style={({ pressed }) => [
                 styles.messageBubble,
                 isMe ? styles.bubbleMe : styles.bubbleOther,
                 isMe
                   ? {
-                      borderTopRightRadius: isFirstInGroup ? 18 : 4,
-                      borderBottomRightRadius: isLastInGroup ? (isFirstInGroup ? 18 : 4) : 4,
-                      borderTopLeftRadius: 18,
-                      borderBottomLeftRadius: 18,
+                      borderTopRightRadius: isFirstInGroup || Boolean(item.replyToId) ? 22 : 6,
+                      borderBottomRightRadius: isLastInGroup ? 22 : 6,
+                      borderTopLeftRadius: 22,
+                      borderBottomLeftRadius: 22,
                     }
                   : {
-                      borderTopLeftRadius: isFirstInGroup ? 18 : 4,
-                      borderBottomLeftRadius: isLastInGroup ? (isFirstInGroup ? 18 : 4) : 4,
-                      borderTopRightRadius: 18,
-                      borderBottomRightRadius: 18,
+                      borderTopLeftRadius: isFirstInGroup || Boolean(item.replyToId) ? 22 : 6,
+                      borderBottomLeftRadius: isLastInGroup ? 22 : 6,
+                      borderTopRightRadius: 22,
+                      borderBottomRightRadius: 22,
                     },
                 isImageOnly && styles.imageBubbleTightPadding,
                 isImg && { width: renderedImageDims.width + 6 },
+                pressed ? { opacity: 0.9 } : undefined,
               ]}
             >
-              {/* Highlight Flash Overlay */}
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  StyleSheet.absoluteFill,
-                  styles.highlightOverlay,
-                  { opacity: highlightAnim },
-                ]}
-              />
+              {/* Highlight Overlay */}
+              {isHighlighted && (
+                <View
+                  pointerEvents="none"
+                  style={[StyleSheet.absoluteFill, styles.highlightOverlay]}
+                />
+              )}
 
-              {/* Temporary Heart Pop Animation */}
-              <Reanimated.View
-                pointerEvents="none"
-                style={[
-                  styles.heartPopContainer,
-                  heartAnimatedStyle,
-                ]}
-              >
-                <RNText style={styles.heartPopEmoji} allowFontScaling={false}>
-                  ❤️
-                </RNText>
-              </Reanimated.View>
+              {/* Lazy Heart Pop Animation (mounted only on double-tap) */}
+              {heartBurstKey > 0 && (
+                <HeartBurstOverlay
+                  burstKey={heartBurstKey}
+                  onDone={() => setHeartBurstKey(0)}
+                />
+              )}
 
               {/* Sender Name for Others (first message in group only) */}
               {!isMe && isFirstInGroup && (
@@ -969,37 +807,6 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                 >
                   <Text style={styles.senderNameText} numberOfLines={1}>
                     {item.name || 'Classmate'}
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {/* Quoted Reply Block */}
-              {Boolean(item.replyToId) && (
-                <TouchableOpacity
-                  activeOpacity={0.75}
-                  onPress={() => onJumpToReply(item.replyToId!)}
-                  style={[
-                    styles.replyQuoteBlock,
-                    isMe ? styles.replyQuoteMe : styles.replyQuoteOther,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.replySenderText,
-                      { color: '#F5F5F5' },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.replySender || 'Someone'}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.replyPreviewText,
-                      { color: isMe ? '#E4E4E7' : '#A1A1A1' },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {item.replyText || 'Attachment'}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -1098,8 +905,8 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                     </View>
                   )}
 
-                  {/* If image only: overlay timestamp pill on bottom-right of image */}
-                  {isImageOnly && imageState !== 'error' && (
+                  {/* If image only: show overlay pill only for self status/failed or starred/edited */}
+                  {isImageOnly && imageState !== 'error' && (isMe || isStarred || Boolean((item as any).isEdited) || item.status === 'failed') && (
                     <View style={styles.imageOverlayMetaPill}>
                       <MessageStatusMeta
                         status={item.status}
@@ -1180,12 +987,15 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                       item
                     )}
 
-                    {/* Invisible spacer to reserve width for inline timestamp */}
-                    <Text style={styles.invisibleMetaSpacer} pointerEvents="none">
-                      {'   '}{timeString}{isMe ? '  ✓✓' : ''}
-                      {Boolean((item as any).isEdited) ? '  Edited' : ''}
-                      {Boolean(isStarred) ? ' ★' : ''}
-                    </Text>
+                    {/* Invisible spacer only when failed/pending/edited/star meta is shown */}
+                    {((isMe && item.status === 'pending') || Boolean((item as any).isEdited) || Boolean(isStarred) || item.status === 'failed') && (
+                      <Text style={styles.invisibleMetaSpacer} pointerEvents="none">
+                        {item.status === 'failed' ? '   Tap to retry' : ''}
+                        {isMe && item.status === 'pending' ? '  ⏱' : ''}
+                        {Boolean((item as any).isEdited) ? '  Edited' : ''}
+                        {Boolean(isStarred) ? ' ★' : ''}
+                      </Text>
+                    )}
                   </View>
 
                   {/* Link Preview Card (Item 15) */}
@@ -1250,7 +1060,6 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
               )}
             </Pressable>
 
-
             {/* Reactions (rendered as small pills just below the bubble's bottom edge) */}
             {reactionMap.length > 0 && (
               <View
@@ -1277,10 +1086,24 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                 ))}
               </View>
             )}
-          </Animated.View>
-        </Animated.View>
+          </SwipeableMessageWrapper>
+        </View>
+
+        {/* Instagram-style "Seen by Sandesh, Saugat" underneath the latest seen outgoing message */}
+        {isMe && Boolean(seenBySummary) && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            disabled={!onPressReadBy}
+            onPress={() => onPressReadBy?.(item)}
+            style={styles.seenByRow}
+          >
+            <Text style={styles.seenByText} numberOfLines={1}>
+              {seenBySummary}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
-    </Animated.View>
+    </View>
   );
 }, areMessagePropsEqual);
 
@@ -1368,27 +1191,81 @@ const styles = StyleSheet.create({
     width: 28,
     height: 1,
   },
+  detachedReplyWrap: {
+    marginBottom: 5,
+    maxWidth: '100%',
+  },
+  detachedReplyWrapMe: {
+    alignItems: 'flex-end',
+  },
+  detachedReplyWrapOther: {
+    alignItems: 'flex-start',
+  },
+  detachedReplyLabel: {
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.65)',
+    marginBottom: 4,
+    paddingHorizontal: 2,
+    fontWeight: '500',
+  },
+  detachedReplyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    maxWidth: '100%',
+  },
+  detachedReplyRowMe: {
+    justifyContent: 'flex-end',
+  },
+  detachedReplyRowOther: {
+    justifyContent: 'flex-start',
+  },
+  detachedReplyBar: {
+    width: 3,
+    alignSelf: 'stretch',
+    minHeight: 28,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.32)',
+  },
+  detachedReplyPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.13)',
+    borderRadius: 18,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    maxWidth: '92%',
+  },
+  detachedReplyText: {
+    fontSize: 13.5,
+    color: 'rgba(255, 255, 255, 0.72)',
+    lineHeight: 18,
+  },
+  seenByRow: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    marginRight: 4,
+    marginBottom: 2,
+  },
+  seenByText: {
+    fontSize: 11.5,
+    color: '#A1A1AA',
+    fontWeight: '500',
+  },
   messageBubble: {
     paddingHorizontal: 15,
     paddingTop: 10,
-    paddingBottom: 8,
-    borderRadius: 20,
+    paddingBottom: 10,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
     overflow: 'hidden',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.32,
-    shadowRadius: 5,
-    elevation: 2,
   },
   bubbleMe: {
-    backgroundColor: '#626262',
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    backgroundColor: '#606064',
+    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
   bubbleOther: {
-    backgroundColor: '#171717',
+    backgroundColor: 'rgba(12, 12, 14, 0.94)',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.09)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   imageBubbleTightPadding: {
     paddingHorizontal: 0,

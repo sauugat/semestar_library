@@ -31,16 +31,37 @@ export async function getKyanaDatabase(): Promise<SQLiteDatabase> {
   return kyanaDbPromise;
 }
 
+export async function getLastKyanaThread(
+  accountId: string
+): Promise<{ conversationId: string; messages: KyanaMessage[] } | null> {
+  if (!accountId) return null;
+  try {
+    const db = await getKyanaDatabase();
+    const latest = await db.getFirstAsync<{ conversation_id: string }>(
+      'SELECT conversation_id FROM kyana_messages_cache_v1 WHERE account_id = ? ORDER BY created_at DESC LIMIT 1',
+      [accountId]
+    );
+    if (!latest?.conversation_id) return null;
+    const messages = await getCachedKyanaMessages(accountId, latest.conversation_id);
+    if (messages.length === 0) return null;
+    return { conversationId: latest.conversation_id, messages };
+  } catch (err) {
+    console.warn('[Kyana Cache] Read last thread error:', err);
+    return null;
+  }
+}
+
 export async function getCachedKyanaMessages(
   accountId: string,
   conversationId: string
 ): Promise<KyanaMessage[]> {
   if (!accountId || !conversationId) return [];
-  await writeQueue;
 
   const memKey = `${accountId}:${conversationId}`;
   const inMem = memoryMessages.get(memKey);
-  if (inMem) return inMem;
+  if (inMem && inMem.length > 0) return inMem;
+
+  await writeQueue;
 
   try {
     const db = await getKyanaDatabase();

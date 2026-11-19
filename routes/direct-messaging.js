@@ -1,8 +1,49 @@
 'use strict';
 
+const crypto = require('node:crypto');
+const path = require('node:path');
 const express = require('express');
+const multer = require('multer');
 const { DmError } = require('../lib/dm-service');
 const { isDmAllowedForUser } = require('../lib/dm-config');
+
+const dmImageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const m = String(file.mimetype || '').toLowerCase();
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (m.startsWith('image/') || ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic'].includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new DmError(400, 'Only image files are supported in direct messages.'));
+    }
+  },
+});
+
+function optionalDmImageUpload(req, res, next) {
+  const ct = String(req.headers['content-type'] || '').toLowerCase();
+  if (!ct.includes('multipart/form-data')) return next();
+  dmImageUpload.fields([
+    { name: 'image', maxCount: 1 },
+    { name: 'attachment', maxCount: 1 },
+    { name: 'file', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        return next(new DmError(400, err.code === 'LIMIT_FILE_SIZE' ? 'Image must be under 15MB.' : err.message));
+      }
+      return next(err);
+    }
+    if (req.files) {
+      req.file = (req.files.image && req.files.image[0])
+        || (req.files.attachment && req.files.attachment[0])
+        || (req.files.file && req.files.file[0])
+        || undefined;
+    }
+    next();
+  });
+}
 
 /**
  * Express Router for Universal One-to-One Private Messaging.
@@ -95,13 +136,42 @@ module.exports = function directMessagingRouter(service) {
     });
   }));
 
-  // 5. Send Message
-  router.post('/conversations/:id/messages', asyncRoute(async (req, res) => {
+  // 5. Send Message (supports JSON text or multipart/form-data with image attachment)
+  router.post('/conversations/:id/messages', optionalDmImageUpload, asyncRoute(async (req, res) => {
     const { clientId, text, replyToId } = req.body || {};
+    let attachmentName = null;
+    let attachmentOriginalName = null;
+    let attachmentMimeType = null;
+
+    if (req.file && req.file.buffer) {
+      const rawExt = path.extname(req.file.originalname || '').toLowerCase();
+      const mime = String(req.file.mimetype || 'image/jpeg').toLowerCase();
+      const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(rawExt)
+        ? rawExt
+        : (mime.includes('png') ? '.png' : mime.includes('webp') ? '.webp' : mime.includes('gif') ? '.gif' : '.jpg');
+      attachmentName = `dm_${crypto.randomBytes(16).toString('hex')}${ext}`;
+      attachmentOriginalName = String(req.file.originalname || `photo${ext}`).slice(0, 200);
+      attachmentMimeType = mime.startsWith('image/') ? mime : 'image/jpeg';
+
+      if (service.db && typeof service.db.saveFileBlob === 'function') {
+        const saved = await service.db.saveFileBlob(attachmentName, req.file.buffer, attachmentMimeType);
+        if (!saved) {
+          throw new DmError(503, 'Could not store image attachment. Please try again.');
+        }
+      }
+    }
+
+    const parsedReplyToId = replyToId !== undefined && replyToId !== null && String(replyToId).trim() !== ''
+      ? Number(replyToId)
+      : undefined;
+
     const result = await service.sendMessage(getCallerId(req), req.params.id, {
       clientId,
       text,
-      replyToId,
+      replyToId: Number.isFinite(parsedReplyToId) ? parsedReplyToId : undefined,
+      attachmentName,
+      attachmentOriginalName,
+      attachmentMimeType,
       callerUser: getCallerUser(req),
     });
     if (!result.duplicate) {
@@ -109,6 +179,27 @@ module.exports = function directMessagingRouter(service) {
     }
     return result;
   }));
+
+  // 5b. Serve authorized DM image attachment
+  router.get('/attachments/:filename', async (req, res, next) => {
+    try {
+      const info = await service.getAttachmentForCaller(getCallerId(req), req.params.filename, {
+        callerUser: getCallerUser(req),
+      });
+      const blob = service.db && typeof service.db.getFileBlob === 'function'
+        ? await service.db.getFileBlob(info.attachmentName)
+        : null;
+      if (!blob || !blob.fileData) {
+        return res.status(404).json({ message: 'Attachment file not found.' });
+      }
+      res.setHeader('Content-Type', blob.mimeType || info.attachmentMimeType || 'image/jpeg');
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, max-age=86400');
+      return res.send(blob.fileData);
+    } catch (err) {
+      next(err);
+    }
+  });
 
   // 6. Edit Message
   router.patch('/conversations/:id/messages/:messageId', asyncRoute(async req => {

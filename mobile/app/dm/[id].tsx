@@ -14,10 +14,12 @@ import {
   AppState,
   BackHandler,
   ScrollView,
-  Animated,
-  PanResponder,
+  Platform,
   Text as RNText,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
+import Reanimated from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -25,18 +27,31 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '@/constants/useTheme';
 import { Monochrome } from '@/constants/theme';
 import { Text } from '@/components/ui/Typography';
 import { useAuth } from '@/context/AuthContext';
 import { DEFAULT_SERVER_URL } from '@/services/api';
 import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyComposer';
+import { ChatConversationSkeleton } from '@/components/chat/ChatSkeletons';
+import { TypingIndicatorBubble } from '@/components/chat/TypingIndicatorBubble';
+import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
+import {
+  getDmThreadMemoryCache,
+  getInboxMemoryCache,
+  setDmThreadMemoryCache,
+} from '@/services/chat-memory-cache';
+import { isDmThreadCacheFresh } from '@/services/chat-query-cache';
 import {
   FluidChatBackground,
-  markBubbleTouchStart,
-  markBubbleTouchEnd,
   useChatBackSwipeResponder,
 } from '@/components/chat/FluidChatBackground';
+import {
+  HeartBurstOverlay,
+  SwipeableMessageWrapper,
+  useDoubleTapHeart,
+} from '@/components/chat/ChatGesturePrimitives';
 import {
   fetchDmMessages,
   sendDmMessage,
@@ -55,6 +70,7 @@ import {
 } from '@/services/dm';
 import {
   getCachedDmMessages,
+  getCachedDmMessagesSync,
   saveCachedDmMessages,
   updateCachedDmMessage,
   deleteCachedDmMessage,
@@ -202,118 +218,81 @@ function isSameDay(iso1?: string | null, iso2?: string | null): boolean {
   );
 }
 
-function DmSwipeableBubbleRow({
+const dmHeartStyles = StyleSheet.create({
+  overlayRoot: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 40,
+  },
+  ring: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: '#FF2D55',
+  },
+  emoji: {
+    fontSize: 42,
+    lineHeight: 50,
+    textAlign: 'center',
+    textShadowColor: 'rgba(255, 45, 85, 0.5)',
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 10,
+  },
+});
+
+const DmInteractiveBubble = React.memo(function DmInteractiveBubble({
+  isSelf,
   disabled,
   onSwipeReply,
+  onDoubleTapReact,
+  onLongPress,
+  bubbleStyle,
+  headerContent,
   children,
 }: {
+  isSelf: boolean;
   disabled?: boolean;
   onSwipeReply: () => void;
+  onDoubleTapReact: () => void;
+  onLongPress: () => void;
+  bubbleStyle: StyleProp<ViewStyle>;
+  headerContent?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const onSwipeReplyRef = useRef(onSwipeReply);
-  useEffect(() => {
-    onSwipeReplyRef.current = onSwipeReply;
-  }, [onSwipeReply]);
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-          if (disabled) return false;
-          const claim =
-            gestureState.dx > 10 &&
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
-            Math.abs(gestureState.dy) < 28;
-          if (claim) markBubbleTouchStart();
-          return claim;
-        },
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          if (disabled) return false;
-          const claim =
-            gestureState.dx > 10 &&
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
-            Math.abs(gestureState.dy) < 28;
-          if (claim) markBubbleTouchStart();
-          return claim;
-        },
-        onPanResponderGrant: () => {
-          markBubbleTouchStart();
-        },
-        onPanResponderTerminationRequest: () => false,
-        onShouldBlockNativeResponder: () => true,
-        onPanResponderMove: (_, gestureState) => {
-          markBubbleTouchStart();
-          if (gestureState.dx > 0) {
-            translateX.setValue(Math.min(gestureState.dx * 0.65, 56));
-          }
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          markBubbleTouchEnd();
-          if (gestureState.dx > 42 && !disabled) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            onSwipeReplyRef.current();
-          }
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 6,
-            tension: 100,
-            useNativeDriver: true,
-          }).start();
-        },
-        onPanResponderTerminate: () => {
-          markBubbleTouchEnd();
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 6,
-            tension: 100,
-            useNativeDriver: true,
-          }).start();
-        },
-      }),
-    [disabled, translateX]
-  );
+  const { handlePress, burstKey, clearBurst } = useDoubleTapHeart(onDoubleTapReact);
 
   return (
-    <View
-      style={{ maxWidth: '76%', position: 'relative' }}
-      onTouchStart={markBubbleTouchStart}
-      onTouchEnd={markBubbleTouchEnd}
-      onTouchCancel={markBubbleTouchEnd}
-      {...panResponder.panHandlers}
+    <SwipeableMessageWrapper
+      isSelf={isSelf}
+      swipeDisabled={disabled}
+      onSwipeReply={onSwipeReply}
+      style={{ maxWidth: '76%' }}
     >
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.dmSwipeReplyIconBox,
-          {
-            opacity: translateX.interpolate({
-              inputRange: [0, 22, 42],
-              outputRange: [0, 0.7, 1],
-              extrapolate: 'clamp',
-            }),
-            transform: [
-              {
-                scale: translateX.interpolate({
-                  inputRange: [0, 28, 46],
-                  outputRange: [0.5, 0.9, 1.08],
-                  extrapolate: 'clamp',
-                }),
-              },
-            ],
-          },
-        ]}
-      >
-        <Ionicons name="arrow-undo" size={15} color="#E4E4E7" />
-      </Animated.View>
-      <Animated.View style={{ transform: [{ translateX }] }}>
-        {children}
-      </Animated.View>
-    </View>
+      <View style={isSelf ? { alignItems: 'flex-end' } : { alignItems: 'flex-start' }}>
+        {headerContent}
+        <View style={{ maxWidth: '100%' }}>
+          <Pressable
+            onPress={() => {
+              if (!disabled) handlePress();
+            }}
+            onLongPress={onLongPress}
+            delayLongPress={250}
+            style={({ pressed }) => [
+              bubbleStyle,
+              pressed && !disabled ? { opacity: 0.9 } : undefined,
+            ]}
+          >
+            {children}
+            {burstKey > 0 && <HeartBurstOverlay burstKey={burstKey} onDone={clearBurst} />}
+          </Pressable>
+        </View>
+      </View>
+    </SwipeableMessageWrapper>
   );
-}
+});
 
 export default function DmConversationScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -358,6 +337,12 @@ function DmConversation() {
     }
   }, [currentUserId]);
 
+  // Synchronous in-memory hydration from inbox + thread caches (zero-latency frame-0 render)
+  const initialInboxConv = useMemo(
+    () => getInboxMemoryCache(currentUserId)?.dmConversations.find((c) => c.id === conversationId) || null,
+    [currentUserId, conversationId]
+  );
+
   // Participant info state
   const [peerInfo, setPeerInfo] = useState<{
     id: string;
@@ -365,13 +350,13 @@ function DmConversation() {
     role: string;
     username?: string | null;
     avatarUrl?: string | null;
-  }>({
-    id: params.peerId || '',
-    name: params.peerName || 'Conversation',
-    role: params.peerRole || 'Student',
-    username: null,
-    avatarUrl: params.peerAvatar || params.peerAvatarUrl || null,
-  });
+  }>(() => ({
+    id: params.peerId || initialInboxConv?.participant?.studentId || '',
+    name: params.peerName || initialInboxConv?.participant?.name || 'Conversation',
+    role: params.peerRole || initialInboxConv?.participant?.role || 'Student',
+    username: initialInboxConv?.participant?.username || null,
+    avatarUrl: params.peerAvatar || params.peerAvatarUrl || initialInboxConv?.participant?.avatarUrl || null,
+  }));
 
   const [headerAvatarFailed, setHeaderAvatarFailed] = useState(false);
   const [bubbleAvatarFailed, setBubbleAvatarFailed] = useState(false);
@@ -384,10 +369,26 @@ function DmConversation() {
     setBubbleAvatarFailed(false);
   }, [resolvedPeerAvatarUri]);
 
-  const [conversation, setConversation] = useState<DmConversationItem | null>(null);
-  const [messages, setMessages] = useState<DmMessage[]>([]);
-  useEffect(() => { messagesRef.current = messages; }, [messages]);
-  const [loading, setLoading] = useState(true);
+  // Synchronous in-memory hydration from thread cache OR dm-db memory map
+  const initialThreadMem = useMemo(
+    () => getDmThreadMemoryCache(currentUserId, conversationId),
+    [currentUserId, conversationId]
+  );
+  const initialMessages = useMemo(() => {
+    if (initialThreadMem && initialThreadMem.messages.length > 0) {
+      return initialThreadMem.messages;
+    }
+    return getCachedDmMessagesSync(currentUserId, conversationId, 50);
+  }, [initialThreadMem, currentUserId, conversationId]);
+  const [conversation, setConversation] = useState<DmConversationItem | null>(() => initialInboxConv);
+  const [messages, setMessages] = useState<DmMessage[]>(() => initialMessages);
+  useEffect(() => {
+    messagesRef.current = messages;
+    if (currentUserId && conversationId && messages.length > 0) {
+      setDmThreadMemoryCache(currentUserId, conversationId, { messages });
+    }
+  }, [messages, currentUserId, conversationId]);
+  const [loading, setLoading] = useState(() => initialMessages.length === 0);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -397,13 +398,21 @@ function DmConversation() {
   const [peerIsTyping, setPeerIsTyping] = useState(false);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const outgoingTypingThrottlerRef = useRef<number>(0);
-  const [peerLastReadId, setPeerLastReadId] = useState<number>(0);
+  const [peerLastReadId, setPeerLastReadId] = useState<number>(() => initialThreadMem?.peerLastReadMessageId || 0);
+  const [peerInfoModalVisible, setPeerInfoModalVisible] = useState(false);
+  useEffect(() => {
+    if (currentUserId && conversationId && peerLastReadId > 0) {
+      setDmThreadMemoryCache(currentUserId, conversationId, { peerLastReadMessageId: peerLastReadId });
+    }
+  }, [peerLastReadId, currentUserId, conversationId]);
 
   // Composer states with per-conversation draft persistence (Item 50)
   const draftKey = `${currentUserId}:${conversationId}`;
   const [inputText, setInputText] = useState(() => dmDraftCache.get(draftKey) || '');
   const [replyingTo, setReplyingTo] = useState<DmMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<DmMessage | null>(null);
+  const [selectedImage, setSelectedImage] = useState<{ uri: string; name: string; mimeType: string } | null>(null);
+  const [viewerImage, setViewerImage] = useState<{ uri: string; name: string } | null>(null);
   const [sending, setSending] = useState(false);
 
   // In-chat Search, Starred Messages, Reactions, and Shared Links (Items 12, 14, 30, 86, 100)
@@ -451,6 +460,8 @@ function DmConversation() {
     }
   }, [router]);
 
+  // Bubble-safe background swipe-to-exit: swiping on empty chat space triggers native Stack back
+  // (shows real Inbox underneath with zero black); touching a bubble strictly triggers Reply.
   const backSwipeHandlers = useChatBackSwipeResponder(handleBack, true);
 
   // Android hardware back press handler
@@ -486,9 +497,17 @@ function DmConversation() {
     }, [reportModalVisible, settingsModalVisible, selectedActionMessage, handleBack])
   );
 
-  // 1. Identify peer information from cached conversation or load
+  // 1. Identify peer information from in-memory inbox cache first; skip redundant 50-conv network call when warm
   useEffect(() => {
     let isMounted = true;
+    const memMatch = getInboxMemoryCache(currentUserId)?.dmConversations.find((c) => c.id === conversationId);
+    if (memMatch) {
+      if (typeof memMatch.lastReadMessageId === 'number' && memMatch.lastReadMessageId > 0) {
+        readQueueRef.current?.setAcknowledged(memMatch.lastReadMessageId);
+      }
+      return;
+    }
+
     void (async () => {
       try {
         const cachedConvs = await getCachedDmConversations(currentUserId);
@@ -507,8 +526,9 @@ function DmConversation() {
               avatarUrl: match.participant.avatarUrl || prev.avatarUrl || null,
             }));
           }
+          return;
         }
-        // Always fetch fresh conversations to ensure latest avatarUrl and metadata
+        // Only hit network if conversation metadata wasn't in memory or local SQLite
         const fresh = await fetchDmConversations(50);
         const found = fresh.find((c) => c.id === conversationId);
         if (found && isMounted) {
@@ -534,12 +554,14 @@ function DmConversation() {
     };
   }, [conversationId, currentUserId]);
 
-  // Load once on focus, and refresh after reconnect/resume. Never depend on list length.
+  // Load once on focus, and refresh after reconnect/resume. Runs SQLite + outbox + network in parallel.
   const loadMessages = useCallback(async () => {
     if (!conversationId || !currentUserId || loadInFlight.current) return;
     loadInFlight.current = true;
     setError(null);
     try {
+      // Kick off network fetch immediately in parallel with local SQLite & outbox reads
+      const netPromise = fetchDmMessages(conversationId, { limit: 50 });
       const [cached, outbox] = await Promise.all([
         getCachedDmMessages(currentUserId, conversationId, 50),
         readDmOutbox(currentUserId, conversationId).catch(() => {
@@ -549,9 +571,11 @@ function DmConversation() {
       ]);
       if (!activeRef.current) return;
       const restored = outbox.map(m => ({ ...m, status: sendsInFlight.current.has(m.clientId || '') ? 'pending' as const : 'failed' as const }));
-      setMessages(prev => mergeDmMessages(mergeDmMessages(cached, restored), prev));
-      if (cached.length || restored.length) setLoading(false);
-      const res = await fetchDmMessages(conversationId, { limit: 50 });
+      if (cached.length || restored.length) {
+        setMessages(prev => mergeDmMessages(mergeDmMessages(cached, restored), prev));
+        setLoading(false);
+      }
+      const res = await netPromise;
       if (!activeRef.current) return;
       if (typeof res.lastReadMessageId === 'number' && res.lastReadMessageId > 0) {
         readQueueRef.current?.setAcknowledged(res.lastReadMessageId);
@@ -591,7 +615,15 @@ function DmConversation() {
     setActiveDmConversation(conversationId || null);
     void clearAppBadge();
     readQueueRef.current?.start();
-    void loadMessages();
+    // Skip redundant network fetch when React Query's persisted cache is fresh (< 60s);
+    // otherwise defer sync until after the native push transition settles when warm.
+    const isCacheFresh = isDmThreadCacheFresh(currentUserId, conversationId);
+    const hasWarmMessages = messagesRef.current.length > 0;
+    const syncTimer = isCacheFresh
+      ? null
+      : setTimeout(() => {
+          if (activeRef.current) void loadMessages();
+        }, hasWarmMessages ? 300 : 0);
     const sub = AppState.addEventListener('change', state => {
       if (state === 'active') {
         setActiveDmConversation(conversationId || null);
@@ -603,6 +635,7 @@ function DmConversation() {
       }
     });
     return () => {
+      if (syncTimer) clearTimeout(syncTimer);
       activeRef.current = false;
       setActiveDmConversation(null);
       readQueueRef.current?.stop();
@@ -642,81 +675,93 @@ function DmConversation() {
   }, [conversationId, currentUserId, hasMore, loadingOlder, messages]);
 
   // Realtime is active only while this conversation is focused.
+  // Deferred 300ms so Supabase client initialization never hangs the native push animation.
   useFocusEffect(useCallback(() => {
     if (!conversationId || !currentUserId) return;
     let connectedNow = false;
+    let cancelled = false;
+    let unsubscribe: (() => void) | null = null;
     const poll = setInterval(() => {
       if (!connectedNow && AppState.currentState === 'active') void loadMessages();
     }, 15000);
-    const unsubscribe = subscribeDmConversationRealtime(conversationId, {
-      onConnectionChange: connected => {
-        connectedNow = connected;
-        setRealtimeConnected(connected);
-        if (connected) void loadMessages();
-      },
-      onNewMessage: (newMsg) => {
-        if (newMsg.senderId === currentUserId && newMsg.clientId) acknowledgedSends.current.add(newMsg.clientId);
-        setMessages(prev => mergeDmMessages(prev, [newMsg]));
-        void saveCachedDmMessages(currentUserId, conversationId, [newMsg]);
-        if (newMsg.senderId === currentUserId && newMsg.clientId) {
-          void updateDmOutbox(currentUserId, conversationId, newMsg, dmOutboxGeneration()).catch(() => {});
-        }
-        markIncomingRead([newMsg]);
-      },
-
-      onEditedMessage: ({ messageId, text, editedAt }) => {
-        setMessages((prev) => {
-          const updated = prev.map((m) =>
-            m.id === messageId
-              ? { ...m, text, isEdited: true, editedAt }
-              : m
-          );
-          void saveCachedDmMessages(currentUserId, conversationId, updated);
-          return updated;
-        });
-      },
-
-      onDeletedMessage: ({ messageId }) => {
-        setMessages((prev) => {
-          const updated = prev.map((m) =>
-            m.id === messageId
-              ? { ...m, text: null, deletedForAll: true }
-              : m
-          );
-          void saveCachedDmMessages(currentUserId, conversationId, updated);
-          return updated;
-        });
-      },
-
-      onReadReceipt: ({ readerId, lastReadMessageId }) => {
-        if (readerId !== currentUserId) {
-          setPeerLastReadId((prev) => Math.max(prev, lastReadMessageId));
-        } else if (typeof lastReadMessageId === 'number' && lastReadMessageId > 0) {
-          readQueueRef.current?.setAcknowledged(lastReadMessageId);
-        }
-      },
-
-      onTyping: ({ studentId, isTyping }) => {
-        if (studentId !== currentUserId) {
-          if (isTyping) {
-            setPeerIsTyping(true);
-            if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-            typingTimeoutRef.current = setTimeout(() => {
-              setPeerIsTyping(false);
-            }, 4000);
-          } else {
-            setPeerIsTyping(false);
+    const connectTimer = setTimeout(() => {
+      if (cancelled) return;
+      unsubscribe = subscribeDmConversationRealtime(conversationId, {
+        onConnectionChange: connected => {
+          connectedNow = connected;
+          setRealtimeConnected(connected);
+          if (connected) void loadMessages();
+        },
+        onNewMessage: (newMsg) => {
+          if (newMsg.senderId === currentUserId && newMsg.clientId) acknowledgedSends.current.add(newMsg.clientId);
+          setMessages(prev => mergeDmMessages(prev, [newMsg]));
+          void saveCachedDmMessages(currentUserId, conversationId, [newMsg]);
+          if (newMsg.senderId === currentUserId && newMsg.clientId) {
+            void updateDmOutbox(currentUserId, conversationId, newMsg, dmOutboxGeneration()).catch(() => {});
           }
-        }
-      },
-    });
+          markIncomingRead([newMsg]);
+        },
+
+        onEditedMessage: ({ messageId, text, editedAt }) => {
+          setMessages((prev) => {
+            const updated = prev.map((m) =>
+              m.id === messageId
+                ? { ...m, text, isEdited: true, editedAt }
+                : m
+            );
+            void saveCachedDmMessages(currentUserId, conversationId, updated);
+            return updated;
+          });
+        },
+
+        onDeletedMessage: ({ messageId }) => {
+          setMessages((prev) => {
+            const updated = prev.map((m) =>
+              m.id === messageId
+                ? { ...m, text: null, deletedForAll: true }
+                : m
+            );
+            void saveCachedDmMessages(currentUserId, conversationId, updated);
+            return updated;
+          });
+        },
+
+        onReadReceipt: ({ readerId, lastReadMessageId }) => {
+          if (readerId !== currentUserId) {
+            setPeerLastReadId((prev) => Math.max(prev, lastReadMessageId));
+          } else if (typeof lastReadMessageId === 'number' && lastReadMessageId > 0) {
+            readQueueRef.current?.setAcknowledged(lastReadMessageId);
+          }
+        },
+
+        onTyping: ({ studentId, isTyping }) => {
+          if (studentId !== currentUserId) {
+            if (isTyping) {
+              setPeerIsTyping(true);
+              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+              typingTimeoutRef.current = setTimeout(() => {
+                setPeerIsTyping(false);
+              }, 4000);
+            } else {
+              setPeerIsTyping(false);
+            }
+          }
+        },
+      });
+    }, 300);
 
     return () => {
+      cancelled = true;
+      clearTimeout(connectTimer);
       clearInterval(poll);
-      unsubscribe();
+      const unsub = unsubscribe;
+      unsubscribe = null;
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      // Clean up typing indicator on exit
-      void sendDmTyping(conversationId, false);
+      // Defer socket & typing cleanup by one tick so interactive pop stays locked at 120fps
+      setTimeout(() => {
+        unsub?.();
+        void sendDmTyping(conversationId, false);
+      }, 0);
     };
   }, [conversationId, currentUserId, loadMessages, markIncomingRead]));
 
@@ -734,13 +779,35 @@ function DmConversation() {
     }
   };
 
-  // 6. Sending a message (optimistic reconciliation)
+  // 5b. Pick an image from device photo library
+  const handlePickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.85,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const uri = asset.uri;
+        const name = asset.fileName || uri.split('/').pop() || `photo_${Date.now()}.jpg`;
+        const mimeType = asset.mimeType || 'image/jpeg';
+        setSelectedImage({ uri, name, mimeType });
+      }
+    } catch (err: any) {
+      Alert.alert('Image Error', err?.message || 'Unable to open photo library.');
+    }
+  };
+
+  // 6. Sending a message (optimistic reconciliation, supports text & image attachments)
   const handleSend = async () => {
     const text = inputText.trim();
-    if (!text || text.length > 2000 || sending) return;
+    const imageToSend = selectedImage;
+    if ((!text && !imageToSend) || text.length > 2000 || sending) return;
 
     // Check if in edit mode
     if (editingMessage) {
+      if (!text) return;
       const msgId = typeof editingMessage.id === 'number' ? editingMessage.id : parseInt(String(editingMessage.id), 10);
       if (isNaN(msgId)) return;
       setSending(true);
@@ -775,13 +842,17 @@ function DmConversation() {
       conversationId,
       senderId: currentUserId,
       clientId,
-      text,
+      text: text || null,
+      attachmentName: imageToSend ? 'pending_image.jpg' : null,
+      attachmentOriginalName: imageToSend ? imageToSend.name : null,
+      attachmentMimeType: imageToSend ? imageToSend.mimeType : null,
+      localUri: imageToSend ? imageToSend.uri : null,
       createdAt: new Date().toISOString(),
       status: 'pending',
       replyTo: replyingTo
         ? {
             id: typeof replyingTo.id === 'number' ? replyingTo.id : 0,
-            text: replyingTo.text,
+            text: replyingTo.text || (replyingTo.attachmentName ? '📷 Photo' : null),
             senderId: replyingTo.senderId,
             senderName: replyingTo.senderId === currentUserId ? 'You' : peerInfo.name,
           }
@@ -791,17 +862,28 @@ function DmConversation() {
     // Optimistically insert to list
     setMessages((prev) => [tempMessage, ...prev]);
     setInputText('');
+    setSelectedImage(null);
     dmDraftCache.delete(draftKey);
     setReplyingTo(null);
     requestAnimationFrame(() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true }));
 
-    void transmitMessage(tempMessage);
+    void transmitMessage(tempMessage, imageToSend);
   };
 
   // Persist before dispatch. Retries reuse the exact client ID and original content.
-  const transmitMessage = async (message: DmMessage) => {
+  const transmitMessage = async (
+    message: DmMessage,
+    fileOverride?: { uri: string; name: string; mimeType: string } | null
+  ) => {
     const clientId = message.clientId;
-    if (!clientId || !message.text || sendsInFlight.current.has(clientId)) return;
+    const fileToSend = fileOverride || (message.localUri
+      ? {
+          uri: message.localUri,
+          name: message.attachmentOriginalName || 'photo.jpg',
+          mimeType: message.attachmentMimeType || 'image/jpeg',
+        }
+      : null);
+    if (!clientId || (!message.text && !fileToSend) || sendsInFlight.current.has(clientId)) return;
     sendsInFlight.current.add(clientId);
     const generation = dmOutboxGeneration();
     const pending = { ...message, status: 'pending' as const };
@@ -810,7 +892,10 @@ function DmConversation() {
       await updateDmOutbox(currentUserId, conversationId, pending, generation);
       if (generation !== dmOutboxGeneration()) return;
       const confirmed = await sendDmMessage(conversationId, {
-        clientId, text: message.text, replyToId: message.replyTo?.id || null,
+        clientId,
+        text: message.text,
+        replyToId: message.replyTo?.id || null,
+        file: fileToSend,
       });
       if (generation !== dmOutboxGeneration()) return;
       acknowledgedSends.current.add(clientId);
@@ -1107,8 +1192,24 @@ function DmConversation() {
   const isBlockedByPeer = Boolean(conversation?.blockedByPeer);
   const isBlocked = isBlockedByMe || isBlockedByPeer;
 
-  // Render individual message bubble
-  const renderMessageItem = ({ item, index }: { item: DmMessage; index: number }) => {
+  // Newest confirmed outgoing message seen by peer (Instagram-style "Seen" footer)
+  const latestSeenSelfMessageId = useMemo(() => {
+    if (!peerLastReadId) return null;
+    for (const m of displayedMessages) {
+      if (m.senderId === currentUserId && typeof m.id === 'number' && m.id > 0 && peerLastReadId >= m.id) {
+        return m.id;
+      }
+    }
+    return null;
+  }, [displayedMessages, currentUserId, peerLastReadId]);
+
+  const dmKeyExtractor = useCallback(
+    (item: DmMessage) => (item.clientId ? `${item.senderId}:${item.clientId}` : String(item.id)),
+    []
+  );
+
+  // Memoized message row renderer so composer keystrokes never re-render chat bubbles
+  const renderMessageItem = useCallback(({ item, index }: { item: DmMessage; index: number }) => {
     const isSelf = item.senderId === currentUserId;
     const isDeleted = Boolean(item.deletedForAll);
 
@@ -1191,7 +1292,8 @@ function DmConversation() {
             </View>
           )}
 
-          <DmSwipeableBubbleRow
+          <DmInteractiveBubble
+            isSelf={isSelf}
             disabled={isDeleted || typeof item.id !== 'number'}
             onSwipeReply={() => {
               if (!isDeleted && typeof item.id === 'number') {
@@ -1199,35 +1301,71 @@ function DmConversation() {
                 setEditingMessage(null);
               }
             }}
-          >
-          <Pressable
+            onDoubleTapReact={() => {
+              if (!isDeleted && typeof item.id === 'number') {
+                handleToggleDmReaction(item, '❤️');
+              }
+            }}
             onLongPress={() => handleOpenActionSheet(item)}
-            delayLongPress={250}
-            style={[
+            headerContent={
+              item.replyTo ? (
+                <View
+                  style={[
+                    styles.dmDetachedReplyWrap,
+                    isSelf ? styles.dmDetachedReplyWrapSelf : styles.dmDetachedReplyWrapPeer,
+                  ]}
+                >
+                  <Text style={styles.dmDetachedReplyLabel} numberOfLines={1}>
+                    {isSelf
+                      ? 'You replied'
+                      : item.replyTo.senderId === currentUserId
+                        ? 'Replied to you'
+                        : `Replied to ${item.replyTo.senderName || peerInfo.name}`}
+                  </Text>
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => item.replyTo && handleJumpToReply(item.replyTo.id)}
+                    style={[
+                      styles.dmDetachedReplyRow,
+                      isSelf ? styles.dmDetachedReplyRowSelf : styles.dmDetachedReplyRowPeer,
+                    ]}
+                  >
+                    {!isSelf && <View style={styles.dmDetachedReplyBar} />}
+                    <View style={styles.dmDetachedReplyPill}>
+                      <Text style={styles.dmDetachedReplyText} numberOfLines={2}>
+                        {item.replyTo.deletedForAll ? 'Original message deleted' : item.replyTo.text || 'Message'}
+                      </Text>
+                    </View>
+                    {isSelf && <View style={styles.dmDetachedReplyBar} />}
+                  </TouchableOpacity>
+                </View>
+              ) : undefined
+            }
+            bubbleStyle={[
               styles.bubbleContainer,
               { maxWidth: '100%' },
               isSelf
                 ? [
                     styles.bubbleSelf,
                     {
-                      backgroundColor: Monochrome.outgoingBubble,
-                      borderColor: 'rgba(255, 255, 255, 0.16)',
+                      backgroundColor: '#606064',
+                      borderColor: 'rgba(255, 255, 255, 0.10)',
                       borderWidth: StyleSheet.hairlineWidth,
-                      borderTopRightRadius: isFirstInGroup ? 18 : 4,
-                      borderBottomRightRadius: isLastInGroup ? (isFirstInGroup ? 18 : 4) : 4,
-                      borderTopLeftRadius: 20,
-                      borderBottomLeftRadius: 20,
+                      borderTopRightRadius: isFirstInGroup || Boolean(item.replyTo) ? 22 : 6,
+                      borderBottomRightRadius: isLastInGroup ? 22 : 6,
+                      borderTopLeftRadius: 22,
+                      borderBottomLeftRadius: 22,
                     },
                   ]
                 : [
                     styles.bubblePeer,
                     {
-                      backgroundColor: 'rgba(14, 14, 18, 0.92)',
-                      borderColor: 'rgba(255, 255, 255, 0.09)',
-                      borderTopLeftRadius: isFirstInGroup ? 18 : 4,
-                      borderBottomLeftRadius: isLastInGroup ? (isFirstInGroup ? 18 : 4) : 4,
-                      borderTopRightRadius: 20,
-                      borderBottomRightRadius: 20,
+                      backgroundColor: 'rgba(12, 12, 14, 0.94)',
+                      borderColor: 'rgba(255, 255, 255, 0.08)',
+                      borderTopLeftRadius: isFirstInGroup || Boolean(item.replyTo) ? 22 : 6,
+                      borderBottomLeftRadius: isLastInGroup ? 22 : 6,
+                      borderTopRightRadius: 22,
+                      borderBottomRightRadius: 22,
                     },
                   ],
             ]}
@@ -1238,39 +1376,9 @@ function DmConversation() {
                 pointerEvents="none"
                 style={[
                   StyleSheet.absoluteFill,
-                  { backgroundColor: 'rgba(255, 255, 255, 0.18)', borderRadius: 18, zIndex: 5 },
+                  { backgroundColor: 'rgba(255, 255, 255, 0.18)', borderRadius: 22, zIndex: 5 },
                 ]}
               />
-            )}
-
-            {/* Reply Quote Banner */}
-            {item.replyTo && (
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={() => item.replyTo && handleJumpToReply(item.replyTo.id)}
-                style={[
-                  styles.replyQuote,
-                  {
-                    backgroundColor: isSelf ? 'rgba(0,0,0,0.06)' : Monochrome.surface,
-                    borderLeftColor: isSelf ? Monochrome.outgoingText : Monochrome.textTertiary,
-                  },
-                ]}
-              >
-                <Text
-                  variant="xs"
-                  weight="600"
-                  style={{ color: isSelf ? Monochrome.outgoingText : Monochrome.text, marginBottom: 2 }}
-                >
-                  {item.replyTo.senderName || 'Replying'}
-                </Text>
-                <Text
-                  variant="xs"
-                  numberOfLines={1}
-                  style={{ color: isSelf ? Monochrome.outgoingMeta : Monochrome.textTertiary }}
-                >
-                  {item.replyTo.deletedForAll ? 'Original message deleted' : item.replyTo.text || 'Message'}
-                </Text>
-              </TouchableOpacity>
             )}
 
             {/* Message Body */}
@@ -1294,7 +1402,36 @@ function DmConversation() {
               </View>
             ) : (
               <>
-                {renderDmTextWithLinks(
+                {(() => {
+                  const dmImgUri = item.status === 'pending' && item.localUri
+                    ? item.localUri
+                    : item.attachmentName
+                      ? `${(serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, '')}/api/dm/attachments/${encodeURIComponent(item.attachmentName)}`
+                      : null;
+                  if (!dmImgUri) return null;
+                  return (
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={() => setViewerImage({ uri: dmImgUri, name: item.attachmentOriginalName || 'Photo' })}
+                      onLongPress={() => handleOpenActionSheet(item)}
+                      delayLongPress={250}
+                      style={styles.dmImageWrap}
+                    >
+                      <Image
+                        source={{ uri: dmImgUri, headers: item.localUri ? undefined : imageHeaders }}
+                        style={styles.dmBubbleImage}
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
+                      />
+                      {item.status === 'pending' && (
+                        <View style={styles.dmImageUploadingOverlay}>
+                          <ActivityIndicator size="small" color="#FFFFFF" />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })()}
+                {Boolean(item.text && item.text.trim()) && renderDmTextWithLinks(
                   item.text || '',
                   isSelf,
                   [
@@ -1352,57 +1489,52 @@ function DmConversation() {
               </>
             )}
 
-            {/* Footer: Starred, Timestamp, Edited tag, Read receipt */}
-            <View style={styles.bubbleFooter}>
-              {starredIds.has(item.id) && !isDeleted && (
-                <Ionicons
-                  name="star"
-                  size={10}
-                  color={isSelf ? Monochrome.outgoingMeta : '#A1A1AA'}
-                  style={{ marginRight: 4 }}
-                />
-              )}
-              {item.isEdited && !isDeleted && (
-                <Text
-                  variant="xs"
-                  style={[
-                    styles.editedTag,
-                    { color: isSelf ? Monochrome.outgoingMeta : Monochrome.textTertiary },
-                  ]}
-                >
-                  edited ·{' '}
-                </Text>
-              )}
-              <Text
-                variant="xs"
-                style={[
-                  styles.timestampText,
-                  { color: isSelf ? Monochrome.outgoingMeta : Monochrome.incomingMeta },
-                ]}
-              >
-                {formatBubbleTime(item.createdAt)}
-              </Text>
+            {/* Minimal Footer: Starred / Edited / Pending / Failed Retry only (no ticks inside bubble) */}
+            {((isSelf && (item.status === 'pending' || item.status === 'failed')) || (starredIds.has(item.id) && !isDeleted) || (item.isEdited && !isDeleted)) && (
+              <View style={styles.bubbleFooter}>
+                {starredIds.has(item.id) && !isDeleted && (
+                  <Ionicons
+                    name="star"
+                    size={10}
+                    color={isSelf ? Monochrome.outgoingMeta : '#A1A1AA'}
+                    style={{ marginRight: 4 }}
+                  />
+                )}
+                {item.isEdited && !isDeleted && (
+                  <Text
+                    variant="xs"
+                    style={[
+                      styles.editedTag,
+                      { color: isSelf ? Monochrome.outgoingMeta : Monochrome.textTertiary },
+                    ]}
+                  >
+                    edited
+                  </Text>
+                )}
 
-              {/* Status indicators for self messages */}
-              {isSelf && (
-                <View style={styles.receiptContainer}>
-                  {item.status === 'pending' ? (
+                {isSelf && item.status === 'pending' && (
+                  <View style={styles.receiptContainer}>
                     <Ionicons name="time-outline" size={12} color={Monochrome.outgoingMeta} />
-                  ) : item.status === 'failed' ? (
+                  </View>
+                )}
+                {isSelf && item.status === 'failed' && (
+                  <View style={styles.receiptContainer}>
                     <TouchableOpacity accessibilityLabel="Retry failed message" onPress={() => void handleRetry(item)} hitSlop={6}>
-                      <Text variant="xs" style={{ color: Monochrome.outgoingText }}>Retry</Text>
+                      <Text variant="xs" style={{ color: '#FCA5A5' }}>Retry</Text>
                     </TouchableOpacity>
-                  ) : isSeen ? (
-                    <Ionicons name="checkmark-done" size={14} color={Monochrome.outgoingText} />
-                  ) : (
-                    <Ionicons name="checkmark" size={13} color={Monochrome.outgoingMeta} />
-                  )}
-                </View>
-              )}
-            </View>
-          </Pressable>
-          </DmSwipeableBubbleRow>
+                  </View>
+                )}
+              </View>
+            )}
+          </DmInteractiveBubble>
         </View>
+
+        {/* Instagram-style "Seen" underneath the newest seen outgoing message */}
+        {isSelf && isSeen && numericId === latestSeenSelfMessageId && (
+          <View style={styles.dmSeenRow}>
+            <Text style={styles.dmSeenText}>Seen</Text>
+          </View>
+        )}
 
         {/* Quick Reaction Pills on DM Bubble (Item 12) */}
         {(localReactions[String(item.id)] || []).length > 0 && (
@@ -1428,7 +1560,23 @@ function DmConversation() {
         )}
       </View>
     );
-  };
+  }, [
+    currentUserId,
+    messages,
+    peerLastReadId,
+    highlightedMessageId,
+    peerInfo.avatarUrl,
+    peerInfo.id,
+    peerInfo.name,
+    serverUrl,
+    bubbleAvatarFailed,
+    imageHeaders,
+    router,
+    handleJumpToReply,
+    starredIds,
+    latestSeenSelfMessageId,
+    localReactions,
+  ]);
 
   if (!conversationId) {
     return (
@@ -1454,7 +1602,7 @@ function DmConversation() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: Monochrome.background }]}>
+    <View style={[styles.container, { backgroundColor: Monochrome.background }]} {...backSwipeHandlers}>
       <StatusBar barStyle="light-content" />
       <FluidChatBackground />
 
@@ -1478,15 +1626,14 @@ function DmConversation() {
           <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
 
-        {/* Peer Avatar & Profile Link */}
+        {/* Peer Avatar & Name — opens User Info & Quick Actions Modal Bottom Sheet */}
         <TouchableOpacity
           activeOpacity={0.75}
-          disabled={!peerInfo.id}
           onPress={() => {
-            if (peerInfo.id) {
-              router.push({ pathname: '/user/[id]', params: { id: peerInfo.id } } as any);
-            }
+            Keyboard.dismiss();
+            setPeerInfoModalVisible(true);
           }}
+          accessibilityLabel="Open chat details and quick actions"
           style={styles.headerProfileTouch}
         >
           <View style={styles.headerAvatarContainer}>
@@ -1579,13 +1726,11 @@ function DmConversation() {
         </View>
       )}
 
-      {/* Main Timeline wrapped in KeyboardContentBoundary (swipe right outside bubble goes back to inbox) */}
-      <View style={{ flex: 1 }} {...backSwipeHandlers}>
+      {/* Main Timeline wrapped in KeyboardContentBoundary */}
+      <View style={{ flex: 1 }}>
       <KeyboardContentBoundary style={styles.timelineBoundary}>
         {loading && messages.length === 0 ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={Monochrome.textSecondary} />
-          </View>
+          <ChatConversationSkeleton />
         ) : error && messages.length === 0 ? (
           <View style={styles.centerContainer}>
             <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
@@ -1633,8 +1778,13 @@ function DmConversation() {
               ref={flatListRef}
               data={displayedMessages}
               renderItem={renderMessageItem}
-              keyExtractor={(item) => item.clientId ? `${item.senderId}:${item.clientId}` : String(item.id)}
+              keyExtractor={dmKeyExtractor}
               inverted
+              initialNumToRender={8}
+              maxToRenderPerBatch={5}
+              windowSize={5}
+              updateCellsBatchingPeriod={40}
+              removeClippedSubviews={Platform.OS === 'android'}
               scrollEventThrottle={64}
               onScroll={event => {
                 const offsetY = event.nativeEvent.contentOffset.y;
@@ -1650,13 +1800,11 @@ function DmConversation() {
               onEndReachedThreshold={0.3}
               ListHeaderComponent={
                 peerIsTyping ? (
-                  <View style={{ paddingHorizontal: 14, paddingTop: 4, paddingBottom: 8 }}>
-                    <View style={{ alignSelf: 'flex-start', backgroundColor: Monochrome.incomingBubble, borderColor: Monochrome.border, borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 }}>
-                      <Text variant="xs" weight="500" style={{ color: '#10b981' }}>
-                        {peerInfo.name} is typing…
-                      </Text>
-                    </View>
-                  </View>
+                  <TypingIndicatorBubble
+                    avatarUri={resolvedPeerAvatarUri}
+                    initials={getInitials(peerInfo.name)}
+                    headers={imageHeaders}
+                  />
                 ) : undefined
               }
               ListFooterComponent={
@@ -1771,11 +1919,36 @@ function DmConversation() {
             </View>
           )}
 
-          {/* Input Row — Modern Floating Pill Capsule matching screenshot */}
-          <View style={styles.composerRow}>
-            <View style={styles.composerCameraCircle}>
-              <Ionicons name="camera" size={18} color="#FFFFFF" />
+          {/* Selected Image Preview Banner */}
+          {selectedImage && (
+            <View style={[styles.contextBanner, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}>
+              <Image source={{ uri: selectedImage.uri }} style={styles.dmPreviewThumb} contentFit="cover" />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text variant="xs" weight="600" numberOfLines={1} style={{ color: Monochrome.text }}>
+                  {selectedImage.name}
+                </Text>
+                <Text variant="xs" style={{ color: Monochrome.textSecondary }}>
+                  Ready to send
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setSelectedImage(null)} hitSlop={8} accessibilityLabel="Remove selected image">
+                <Ionicons name="close-circle" size={19} color={Monochrome.textTertiary} />
+              </TouchableOpacity>
             </View>
+          )}
+
+          {/* Input Row — Clean Pill Capsule (Image + Send only) */}
+          <View style={styles.composerRow}>
+            {!editingMessage && (
+              <TouchableOpacity
+                onPress={() => void handlePickImage()}
+                style={styles.composerImageCircle}
+                activeOpacity={0.75}
+                accessibilityLabel="Attach image"
+              >
+                <Ionicons name="image-outline" size={20} color="#F4F4F5" />
+              </TouchableOpacity>
+            )}
 
             <TextInput
               style={styles.composerInput}
@@ -1801,45 +1974,33 @@ function DmConversation() {
               </Text>
             )}
 
-            {!inputText.trim() && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Ionicons name="mic-outline" size={20} color="#F4F4F5" />
-                <Ionicons name="image-outline" size={20} color="#F4F4F5" />
-                <Ionicons name="chatbubble-ellipses-outline" size={19} color="#F4F4F5" />
-              </View>
-            )}
-
             <TouchableOpacity
-              onPress={inputText.trim() ? handleSend : () => setSettingsModalVisible(true)}
-              disabled={sending}
+              onPress={handleSend}
+              disabled={sending || (!inputText.trim() && !selectedImage)}
               style={[
                 styles.sendButton,
-                {
-                  backgroundColor: inputText.trim() ? Monochrome.outgoingBubble : Monochrome.surfaceRaised,
-                },
-                inputText.trim() ? styles.sendButtonActive : styles.sendButtonInactive,
+                (inputText.trim() || selectedImage) ? styles.sendButtonActive : styles.sendButtonInactive,
               ]}
               accessibilityLabel={editingMessage ? 'Save edited message' : 'Send message'}
             >
               {sending ? (
                 <ActivityIndicator size="small" color="#09090B" />
-              ) : inputText.trim() ? (
+              ) : (
                 <Ionicons
                   name={editingMessage ? 'checkmark' : 'arrow-up'}
                   size={19}
-                  color="#09090B"
+                  color={(inputText.trim() || selectedImage) ? '#09090B' : '#71717A'}
                 />
-              ) : (
-                <Ionicons name="add-circle-outline" size={22} color="#F4F4F5" />
               )}
             </TouchableOpacity>
           </View>
         </StickyComposer>
       )}
 
-      {/* Message Action Sheet / Context Modal */}
+      {/* Message Action Sheet / Context Modal (mounted lazily only when open) */}
+      {Boolean(selectedActionMessage) && (
       <Modal
-        visible={Boolean(selectedActionMessage)}
+        visible
         transparent
         animationType="fade"
         onRequestClose={() => setSelectedActionMessage(null)}
@@ -1854,6 +2015,17 @@ function DmConversation() {
               { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
             ]}
           >
+            {/* Message Timestamp Header (shown on long-press alongside reactions & actions) */}
+            {Boolean(selectedActionMessage?.createdAt) && (
+              <View style={styles.dmActionTimestampRow}>
+                <Ionicons name="time-outline" size={13} color="#A1A1AA" />
+                <Text variant="xs" weight="500" style={styles.dmActionTimestampText}>
+                  {`${formatDateSeparator(selectedActionMessage?.createdAt)} · ${formatBubbleTime(selectedActionMessage?.createdAt)}`}
+                  {selectedActionMessage?.isEdited ? ' · Edited' : ''}
+                </Text>
+              </View>
+            )}
+
             {/* Quick Emoji Reaction Bar (Items 12, 94, 98) */}
             {!selectedActionMessage?.deletedForAll && (
               <View style={styles.dmQuickReactionBar}>
@@ -1963,10 +2135,12 @@ function DmConversation() {
           </View>
         </Pressable>
       </Modal>
+      )}
 
-      {/* Conversation Settings Modal (Items 14, 30, 55, 86, 100) */}
+      {/* Conversation Settings Modal (mounted lazily only when open) */}
+      {settingsModalVisible && (
       <Modal
-        visible={settingsModalVisible}
+        visible
         transparent
         animationType="fade"
         onRequestClose={() => setSettingsModalVisible(false)}
@@ -2069,10 +2243,12 @@ function DmConversation() {
           </View>
         </Pressable>
       </Modal>
+      )}
 
-      {/* Shared Links & Starred Messages Modal (Items 30 & 86) */}
+      {/* Shared Links & Starred Messages Modal (mounted lazily only when open) */}
+      {subPanel !== null && (
       <Modal
-        visible={subPanel !== null}
+        visible
         transparent
         animationType="fade"
         onRequestClose={() => setSubPanel(null)}
@@ -2151,10 +2327,12 @@ function DmConversation() {
           </View>
         </Pressable>
       </Modal>
+      )}
 
-      {/* Report Modal */}
+      {/* Report Modal (mounted lazily only when open) */}
+      {reportModalVisible && (
       <Modal
-        visible={reportModalVisible}
+        visible
         transparent
         animationType="slide"
         onRequestClose={() => setReportModalVisible(false)}
@@ -2261,6 +2439,224 @@ function DmConversation() {
           </View>
         </View>
       </Modal>
+      )}
+
+      {/* User Info & Quick Actions Modal Bottom Sheet (mounted lazily only when open) */}
+      {peerInfoModalVisible && (
+      <Modal
+        visible
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPeerInfoModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setPeerInfoModalVisible(false)}
+        >
+          <Pressable
+            onPress={() => {}}
+            style={[
+              styles.peerSheetContainer,
+              { paddingBottom: Math.max(insets.bottom, 22) },
+            ]}
+          >
+            <View style={styles.peerSheetHandle} />
+
+            {/* Recipient Metadata Header */}
+            <View style={styles.peerSheetProfileHeader}>
+              <View style={styles.peerSheetAvatarWrap}>
+                {resolvedPeerAvatarUri && !headerAvatarFailed ? (
+                  <Image
+                    source={{ uri: resolvedPeerAvatarUri, headers: imageHeaders, cacheKey: resolvedPeerAvatarUri }}
+                    cachePolicy="memory-disk"
+                    style={styles.peerSheetAvatar}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <View style={[styles.peerSheetAvatar, styles.avatarFallback]}>
+                    <Text variant="lg" weight="700" style={{ color: '#F4F4F5' }}>
+                      {getInitials(peerInfo.name)}
+                    </Text>
+                  </View>
+                )}
+                {realtimeConnected && !isBlocked && <View style={styles.peerSheetOnlineDot} />}
+              </View>
+
+              <Text variant="lg" weight="700" style={{ color: '#FFFFFF', marginTop: 10 }} numberOfLines={1}>
+                {peerInfo.name}
+              </Text>
+              <View style={styles.peerSheetMetaRow}>
+                {Boolean(peerInfo.username) && (
+                  <Text variant="xs" style={{ color: '#A1A1AA' }}>@{peerInfo.username}</Text>
+                )}
+                {Boolean(peerInfo.role) && (
+                  <View style={styles.peerSheetRolePill}>
+                    <Text variant="xs" weight="600" style={{ color: '#E4E4E7', fontSize: 11 }}>
+                      {peerInfo.role.toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.peerSheetStatusPill}>
+                  <View
+                    style={[
+                      styles.peerSheetStatusDot,
+                      { backgroundColor: isBlocked ? '#EF4444' : realtimeConnected ? '#22C55E' : '#71717A' },
+                    ]}
+                  />
+                  <Text variant="xs" style={{ color: '#A1A1AA', fontSize: 11 }}>
+                    {isBlocked ? 'Blocked' : realtimeConnected ? 'Active' : 'Offline'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Quick Action Toggle Grid */}
+            <View style={styles.peerQuickGrid}>
+              <TouchableOpacity
+                style={[styles.peerQuickTile, isMuted && styles.peerQuickTileActive]}
+                onPress={() => {
+                  setPeerInfoModalVisible(false);
+                  void handleToggleMute();
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name={isMuted ? 'notifications-off' : 'notifications-outline'}
+                  size={20}
+                  color="#FFFFFF"
+                />
+                <Text variant="xs" weight="600" style={styles.peerQuickTileLabel}>
+                  {isMuted ? 'Muted' : 'Mute'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.peerQuickTile}
+                onPress={() => {
+                  setPeerInfoModalVisible(false);
+                  setSearchMode(true);
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="search-outline" size={20} color="#FFFFFF" />
+                <Text variant="xs" weight="600" style={styles.peerQuickTileLabel}>
+                  Search
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.peerQuickTile}
+                onPress={() => {
+                  setPeerInfoModalVisible(false);
+                  setSubPanel('links');
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="link-outline" size={20} color="#FFFFFF" />
+                <Text variant="xs" weight="600" style={styles.peerQuickTileLabel}>
+                  Links ({sharedLinks.length})
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.peerQuickTile}
+                onPress={() => {
+                  setPeerInfoModalVisible(false);
+                  setSubPanel('starred');
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="star-outline" size={20} color="#FFFFFF" />
+                <Text variant="xs" weight="600" style={styles.peerQuickTileLabel}>
+                  Starred ({starredMessages.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Secondary List Actions */}
+            <View style={styles.peerSheetListGroup}>
+              {Boolean(peerInfo.id) && (
+                <TouchableOpacity
+                  style={styles.peerSheetListRow}
+                  onPress={() => {
+                    setPeerInfoModalVisible(false);
+                    router.push({ pathname: '/user/[id]', params: { id: peerInfo.id } } as any);
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="person-circle-outline" size={20} color="#E4E4E7" />
+                  <Text variant="sm" weight="600" style={styles.peerSheetListLabel}>
+                    View Full Profile
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color="#71717A" />
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.peerSheetListRow}
+                onPress={() => {
+                  setPeerInfoModalVisible(false);
+                  handleClearConversation();
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="trash-bin-outline" size={19} color="#E4E4E7" />
+                <Text variant="sm" weight="600" style={styles.peerSheetListLabel}>
+                  Clear Chat
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.peerSheetListRow}
+                onPress={() => {
+                  setPeerInfoModalVisible(false);
+                  handleToggleBlock();
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name={isBlockedByMe ? 'shield-checkmark-outline' : 'ban-outline'}
+                  size={19}
+                  color={isBlockedByMe ? '#22C55E' : '#EF4444'}
+                />
+                <Text
+                  variant="sm"
+                  weight="600"
+                  style={[styles.peerSheetListLabel, { color: isBlockedByMe ? '#22C55E' : '#EF4444' }]}
+                >
+                  {isBlockedByMe ? 'Unblock User' : 'Block User'}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.peerSheetListRow, { borderBottomWidth: 0 }]}
+                onPress={() => {
+                  setPeerInfoModalVisible(false);
+                  handleOpenReportModal();
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="flag-outline" size={19} color="#A1A1AA" />
+                <Text variant="sm" weight="600" style={[styles.peerSheetListLabel, { color: '#A1A1AA' }]}>
+                  Report User
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      )}
+
+      {/* Full-Screen Image Viewer for DM photos (mounted lazily only when open) */}
+      {viewerImage !== null && (
+        <FullScreenImageViewer
+          visible
+          imageUri={viewerImage.uri}
+          imageTitle={viewerImage.name}
+          headers={imageHeaders}
+          onClose={() => setViewerImage(null)}
+        />
+      )}
     </View>
   );
 }
@@ -2445,18 +2841,196 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
   },
+  dmDetachedReplyWrap: {
+    marginBottom: 5,
+    maxWidth: '100%',
+  },
+  dmDetachedReplyWrapSelf: {
+    alignItems: 'flex-end',
+  },
+  dmDetachedReplyWrapPeer: {
+    alignItems: 'flex-start',
+  },
+  dmDetachedReplyLabel: {
+    fontSize: 11.5,
+    color: 'rgba(255, 255, 255, 0.65)',
+    marginBottom: 4,
+    paddingHorizontal: 2,
+    fontWeight: '500',
+  },
+  dmDetachedReplyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    maxWidth: '100%',
+  },
+  dmDetachedReplyRowSelf: {
+    justifyContent: 'flex-end',
+  },
+  dmDetachedReplyRowPeer: {
+    justifyContent: 'flex-start',
+  },
+  dmDetachedReplyBar: {
+    width: 3,
+    alignSelf: 'stretch',
+    minHeight: 28,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.32)',
+  },
+  dmDetachedReplyPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.13)',
+    borderRadius: 18,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    maxWidth: '92%',
+  },
+  dmDetachedReplyText: {
+    fontSize: 13.5,
+    color: 'rgba(255, 255, 255, 0.72)',
+    lineHeight: 18,
+  },
+  dmSeenRow: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    marginRight: 6,
+    marginBottom: 2,
+  },
+  dmSeenText: {
+    fontSize: 11.5,
+    color: '#A1A1AA',
+    fontWeight: '500',
+  },
+  peerSheetContainer: {
+    backgroundColor: '#121215',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingHorizontal: 18,
+    paddingTop: 10,
+  },
+  peerSheetHandle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#3F3F46',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  peerSheetProfileHeader: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  peerSheetAvatarWrap: {
+    position: 'relative',
+  },
+  peerSheetAvatar: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#1C1C1E',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  peerSheetOnlineDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: '#22C55E',
+    borderWidth: 2.5,
+    borderColor: '#121215',
+  },
+  peerSheetMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  peerSheetRolePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  peerSheetStatusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  peerSheetStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  peerQuickGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  peerQuickTile: {
+    flex: 1,
+    backgroundColor: '#1C1C20',
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.09)',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  peerQuickTileActive: {
+    backgroundColor: '#27272C',
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  peerQuickTileLabel: {
+    color: '#E4E4E7',
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  peerSheetListGroup: {
+    backgroundColor: '#1A1A1E',
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+  },
+  peerSheetListRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255,255,255,0.07)',
+  },
+  peerSheetListLabel: {
+    flex: 1,
+    marginLeft: 12,
+    color: '#F4F4F5',
+  },
   bubbleContainer: {
     maxWidth: '76%',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingTop: 9,
-    paddingBottom: 7,
+    borderRadius: 22,
+    paddingHorizontal: 15,
+    paddingTop: 10,
+    paddingBottom: 10,
   },
   bubbleSelf: {
-    borderBottomRightRadius: 5,
+    borderBottomRightRadius: 6,
   },
   bubblePeer: {
-    borderBottomLeftRadius: 5,
+    borderBottomLeftRadius: 6,
     borderWidth: StyleSheet.hairlineWidth,
   },
   bubbleText: {
@@ -2520,13 +3094,48 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  composerCameraCircle: {
+  composerImageCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(115, 118, 128, 0.42)',
+    backgroundColor: 'rgba(115, 118, 128, 0.28)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dmPreviewThumb: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#27272A',
+  },
+  dmImageWrap: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 4,
+    position: 'relative',
+    backgroundColor: '#18181B',
+  },
+  dmBubbleImage: {
+    width: 220,
+    height: 220,
+    borderRadius: 14,
+  },
+  dmImageUploadingOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.42)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dmActionTimestampRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  dmActionTimestampText: {
+    color: '#A1A1AA',
+    fontSize: 12,
   },
   composerInput: {
     flex: 1,

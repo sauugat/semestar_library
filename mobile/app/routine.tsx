@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -7,6 +7,11 @@ import {
   ActivityIndicator,
   Modal,
   RefreshControl,
+  Animated,
+  useWindowDimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+  LayoutChangeEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -97,15 +102,24 @@ function parseMinutes(hhmm: string): number | null {
 export default function RoutineScreen() {
   const { colors, spacing, radii } = useTheme();
   const { user } = useAuth();
+  const { width: windowWidth } = useWindowDimensions();
   const isStaff = user?.role === 'admin' || user?.role === 'teacher';
 
   const today = getTodayWeekday();
   const defaultDay = (WORKING_DAYS as readonly string[]).includes(today) ? today : 'Monday';
+  const defaultDayIndex = Math.max(0, (WORKING_DAYS as readonly string[]).indexOf(defaultDay));
+  const initialContentWidth = Math.max(1, windowWidth - spacing.md * 2);
 
   const [mode, setMode] = useState<'class' | 'exam'>('class');
-  const [selectedDay, setSelectedDay] = useState<string>(defaultDay);
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(defaultDayIndex);
+  const [pagerWidth, setPagerWidth] = useState<number>(initialContentWidth);
+  const [pillsWidth, setPillsWidth] = useState<number>(initialContentWidth);
   const [staffSemester, setStaffSemester] = useState<number>(1);
   const [selectedDetail, setSelectedDetail] = useState<{ entry: RoutineEntry; slot: RoutineSlot } | null>(null);
+
+  const pagerRef = useRef<ScrollView | null>(null);
+  const scrollX = useRef(new Animated.Value(defaultDayIndex * initialContentWidth)).current;
+  const lastSyncedIndexRef = useRef<number>(defaultDayIndex);
 
   const classQuery = useQuery({
     queryKey: ['class-routine', isStaff ? staffSemester : 'self'],
@@ -158,17 +172,99 @@ export default function RoutineScreen() {
     return null;
   }, [routine, today]);
 
-  const dayEntries = useMemo(() => {
-    if (!routine) return [];
-    const map = new Map<number, RoutineEntry>();
-    routine.entries
-      .filter((e) => e.day_of_week === selectedDay)
-      .forEach((e) => map.set(Number(e.slot_id), e));
-    return routine.slots.map((slot) => ({
-      slot,
-      entry: map.get(Number(slot.id)) || null,
-    }));
-  }, [routine, selectedDay]);
+  const entriesByDay = useMemo(() => {
+    const result: Record<string, Array<{ slot: RoutineSlot; entry: RoutineEntry | null }>> = {};
+    if (!routine) return result;
+    for (const day of WORKING_DAYS) {
+      const map = new Map<number, RoutineEntry>();
+      routine.entries
+        .filter((e) => e.day_of_week === day)
+        .forEach((e) => map.set(Number(e.slot_id), e));
+      result[day] = routine.slots.map((slot) => ({
+        slot,
+        entry: map.get(Number(slot.id)) || null,
+      }));
+    }
+    return result;
+  }, [routine]);
+
+  const syncPagerPosition = useCallback(
+    (index: number, width: number, animated: boolean) => {
+      const offset = index * width;
+      pagerRef.current?.scrollTo({ x: offset, y: 0, animated });
+      if (!animated) {
+        scrollX.setValue(offset);
+      }
+    },
+    [scrollX]
+  );
+
+  useEffect(() => {
+    if (mode !== 'class' || !routine || pagerWidth <= 1) return;
+    const id = requestAnimationFrame(() => {
+      syncPagerPosition(lastSyncedIndexRef.current, pagerWidth, false);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [mode, routine, pagerWidth, syncPagerPosition]);
+
+  const handleSelectDay = useCallback(
+    (index: number) => {
+      lastSyncedIndexRef.current = index;
+      setSelectedDayIndex(index);
+      syncPagerPosition(index, pagerWidth, true);
+    },
+    [pagerWidth, syncPagerPosition]
+  );
+
+  const handlePagerScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (pagerWidth <= 1) return;
+      const offsetX = event.nativeEvent.contentOffset.x;
+      const nextIndex = Math.max(
+        0,
+        Math.min(WORKING_DAYS.length - 1, Math.round(offsetX / pagerWidth))
+      );
+      if (nextIndex !== lastSyncedIndexRef.current) {
+        lastSyncedIndexRef.current = nextIndex;
+        setSelectedDayIndex(nextIndex);
+      }
+    },
+    [pagerWidth]
+  );
+
+  const onPagerScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+        useNativeDriver: true,
+        listener: handlePagerScroll,
+      }),
+    [scrollX, handlePagerScroll]
+  );
+
+  const handlePagerLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextWidth = Math.round(event.nativeEvent.layout.width);
+    if (nextWidth > 1 && nextWidth !== pagerWidth) {
+      setPagerWidth(nextWidth);
+    }
+  }, [pagerWidth]);
+
+  const handlePillsLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextWidth = Math.round(event.nativeEvent.layout.width);
+    if (nextWidth > 1 && nextWidth !== pillsWidth) {
+      setPillsWidth(nextWidth);
+    }
+  }, [pillsWidth]);
+
+  const pillTabWidth = Math.max(0, (pillsWidth - 8) / WORKING_DAYS.length);
+  const pillTranslateX = useMemo(
+    () =>
+      scrollX.interpolate({
+        inputRange: [0, Math.max(1, pagerWidth * (WORKING_DAYS.length - 1))],
+        outputRange: [0, pillTabWidth * (WORKING_DAYS.length - 1)],
+        extrapolate: 'clamp',
+      }),
+    [scrollX, pagerWidth, pillTabWidth]
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -183,16 +279,6 @@ export default function RoutineScreen() {
           />
         }
       >
-        {/* Header */}
-        <View style={{ marginBottom: spacing.md }}>
-          <Caption color="muted" style={{ letterSpacing: 0.8, textTransform: 'uppercase' }}>
-            Gandaki University · BIT
-          </Caption>
-          <Heading style={{ fontSize: 24, marginTop: 2 }}>
-            {mode === 'class' ? 'Class Routine' : 'Exam Schedule'}
-          </Heading>
-        </View>
-
         {/* Mode Toggle */}
         <View style={[styles.modeBar, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: radii.md }]}>
           {(['class', 'exam'] as const).map((m) => {
@@ -285,28 +371,6 @@ export default function RoutineScreen() {
             </Card>
           ) : (
             <>
-              {/* Session & Semester Info Card */}
-              <Card
-                variant="outlined"
-                padding="md"
-                style={{ borderColor: colors.border, marginBottom: spacing.md, borderRadius: radii.md }}
-              >
-                <View style={styles.metaRow}>
-                  <View style={{ flex: 1 }}>
-                    <Caption color="muted">Academic Session</Caption>
-                    <Text variant="sm" weight="700" style={{ marginTop: 2 }}>
-                      {routine.academic_session}
-                    </Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Caption color="muted">Year / Semester</Caption>
-                    <Text variant="sm" weight="700" style={{ marginTop: 2 }}>
-                      Year {ROMANS[routine.year - 1]} · Sem {ROMANS[routine.semester - 1]}
-                    </Text>
-                  </View>
-                </View>
-              </Card>
-
               {/* Current / Upcoming Class Highlight */}
               {liveClass && (
                 <TouchableOpacity
@@ -341,29 +405,45 @@ export default function RoutineScreen() {
                   {liveClass.entry.faculty_name ? (
                     <Caption color="muted" style={{ marginTop: 2 }}>
                       {liveClass.entry.faculty_name}
-                      {liveClass.entry.faculty_type ? ` · ${liveClass.entry.faculty_type}` : ''}
                     </Caption>
                   ) : null}
                 </TouchableOpacity>
               )}
 
-              {/* Weekday Selector Pills */}
-              <View style={styles.dayPillsRow}>
-                {WORKING_DAYS.map((day) => {
-                  const active = selectedDay === day;
-                  const isToday = day === today;
+              {/* Weekday Selector Bar with Synchronized Sliding Indicator */}
+              <View
+                onLayout={handlePillsLayout}
+                style={[
+                  styles.dayPillsBar,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    borderRadius: radii.md,
+                  },
+                ]}
+              >
+                {pillTabWidth > 0 && (
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.dayPillIndicator,
+                      {
+                        width: pillTabWidth,
+                        backgroundColor: colors.text,
+                        borderRadius: radii.sm,
+                        transform: [{ translateX: pillTranslateX }],
+                      },
+                    ]}
+                  />
+                )}
+                {WORKING_DAYS.map((day, index) => {
+                  const active = selectedDayIndex === index;
                   return (
                     <TouchableOpacity
                       key={day}
-                      onPress={() => setSelectedDay(day)}
-                      style={[
-                        styles.dayPill,
-                        {
-                          backgroundColor: active ? colors.text : colors.surface,
-                          borderColor: isToday && !active ? colors.text : colors.border,
-                          borderRadius: radii.sm,
-                        },
-                      ]}
+                      activeOpacity={0.75}
+                      onPress={() => handleSelectDay(index)}
+                      style={styles.dayPill}
                     >
                       <Text
                         variant="xs"
@@ -372,99 +452,138 @@ export default function RoutineScreen() {
                       >
                         {day.slice(0, 3)}
                       </Text>
-                      {isToday && (
-                        <View
-                          style={[
-                            styles.todayDot,
-                            { backgroundColor: active ? colors.background : colors.text },
-                          ]}
-                        />
-                      )}
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              {/* Day-wise Schedule Cards */}
-              <View style={{ gap: 10 }}>
-                {dayEntries.map(({ slot, entry }) => {
-                  const isBreak = slot.is_break || entry?.class_type === 'Break';
-                  const isEmpty = !isBreak && (!entry || entry.is_empty || entry.class_type === 'Empty');
-                  const cType = entry?.class_type || 'Theory';
-                  const isPracticalOrLab = cType === 'Lab' || cType === 'Practical';
+              {/* Horizontal Swipeable Day-wise Schedule Pager */}
+              <View onLayout={handlePagerLayout} style={styles.pagerWrap}>
+                <Animated.ScrollView
+                  ref={pagerRef as any}
+                  horizontal
+                  pagingEnabled
+                  directionalLockEnabled
+                  nestedScrollEnabled
+                  bounces={false}
+                  decelerationRate="fast"
+                  showsHorizontalScrollIndicator={false}
+                  scrollEventThrottle={16}
+                  onScroll={onPagerScroll}
+                  onMomentumScrollEnd={handlePagerScroll}
+                  contentOffset={{ x: defaultDayIndex * pagerWidth, y: 0 }}
+                >
+                  {WORKING_DAYS.map((day, dayIdx) => {
+                    const slotsForDay = entriesByDay[day] || [];
+                    const inputRange = [
+                      (dayIdx - 1) * pagerWidth,
+                      dayIdx * pagerWidth,
+                      (dayIdx + 1) * pagerWidth,
+                    ];
+                    const pageOpacity = scrollX.interpolate({
+                      inputRange,
+                      outputRange: [0.55, 1, 0.55],
+                      extrapolate: 'clamp',
+                    });
+                    const pageScale = scrollX.interpolate({
+                      inputRange,
+                      outputRange: [0.985, 1, 0.985],
+                      extrapolate: 'clamp',
+                    });
 
-                  return (
-                    <TouchableOpacity
-                      key={slot.id}
-                      activeOpacity={isBreak || isEmpty ? 1 : 0.75}
-                      disabled={isBreak || isEmpty}
-                      onPress={() => entry && setSelectedDetail({ entry, slot })}
-                      style={[
-                        styles.periodCard,
-                        {
-                          backgroundColor: isBreak || isEmpty ? colors.surfaceRaised : colors.surface,
-                          borderColor: colors.border,
-                          borderRadius: radii.md,
-                        },
-                      ]}
-                    >
-                      <View style={styles.timeCol}>
-                        <Text variant="xs" weight="700">
-                          {slot.label}
-                        </Text>
-                        <Caption color="muted" style={{ marginTop: 2 }}>
-                          {isBreak ? 'Break' : `${slot.duration_minutes} min`}
-                        </Caption>
-                      </View>
+                    return (
+                      <Animated.View
+                        key={day}
+                        style={[
+                          styles.dayPage,
+                          {
+                            width: pagerWidth,
+                            opacity: pageOpacity,
+                            transform: [{ scale: pageScale }],
+                          },
+                        ]}
+                      >
+                        {slotsForDay.map(({ slot, entry }) => {
+                          const isBreak = slot.is_break || entry?.class_type === 'Break';
+                          const isEmpty = !isBreak && (!entry || entry.is_empty || entry.class_type === 'Empty');
+                          const cType = entry?.class_type || 'Theory';
+                          const isPracticalOrLab = cType === 'Lab' || cType === 'Practical';
 
-                      <View style={{ flex: 1, paddingHorizontal: 10 }}>
-                        {isBreak ? (
-                          <>
-                            <Text variant="sm" weight="700">Break Period</Text>
-                            <Caption color="muted">Scheduled break</Caption>
-                          </>
-                        ) : isEmpty ? (
-                          <>
-                            <Text variant="sm" weight="600" color="secondary">Free Period</Text>
-                            <Caption color="muted">No class scheduled</Caption>
-                          </>
-                        ) : (
-                          <>
-                            <Text variant="sm" weight="700">
-                              {entry?.subject_name}
-                            </Text>
-                            {entry?.faculty_name ? (
-                              <Caption color="muted" style={{ marginTop: 2 }}>
-                                {entry.faculty_name}
-                                {entry.faculty_type ? ` · ${entry.faculty_type}` : ''}
-                              </Caption>
-                            ) : null}
-                          </>
-                        )}
-                      </View>
+                          return (
+                            <TouchableOpacity
+                              key={slot.id}
+                              activeOpacity={isBreak || isEmpty ? 1 : 0.75}
+                              disabled={isBreak || isEmpty}
+                              onPress={() => entry && setSelectedDetail({ entry, slot })}
+                              style={[
+                                styles.periodCard,
+                                {
+                                  backgroundColor: isBreak || isEmpty ? colors.surfaceRaised : colors.surface,
+                                  borderColor: colors.border,
+                                  borderRadius: radii.md,
+                                },
+                              ]}
+                            >
+                              <View style={styles.timeCol}>
+                                <Text variant="xs" weight="700">
+                                  {slot.label}
+                                </Text>
+                                <Caption color="muted" style={{ marginTop: 2 }}>
+                                  {isBreak ? 'Break' : `${slot.duration_minutes} min`}
+                                </Caption>
+                              </View>
 
-                      {!isBreak && !isEmpty && (
-                        <View
-                          style={[
-                            styles.typeBadge,
-                            {
-                              backgroundColor: isPracticalOrLab ? colors.text : colors.surfaceRaised,
-                              borderColor: isPracticalOrLab ? colors.text : colors.border,
-                            },
-                          ]}
-                        >
-                          <Text
-                            variant="xs"
-                            weight="700"
-                            style={{ color: isPracticalOrLab ? colors.background : colors.textSecondary }}
-                          >
-                            {cType}
-                          </Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
+                              <View style={{ flex: 1, paddingHorizontal: 10 }}>
+                                {isBreak ? (
+                                  <>
+                                    <Text variant="sm" weight="700">Break Period</Text>
+                                    <Caption color="muted">Scheduled break</Caption>
+                                  </>
+                                ) : isEmpty ? (
+                                  <>
+                                    <Text variant="sm" weight="600" color="secondary">Free Period</Text>
+                                    <Caption color="muted">No class scheduled</Caption>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Text variant="sm" weight="700">
+                                      {entry?.subject_name}
+                                    </Text>
+                                    {entry?.faculty_name ? (
+                                      <Caption color="muted" style={{ marginTop: 2 }}>
+                                        {entry.faculty_name}
+                                      </Caption>
+                                    ) : null}
+                                  </>
+                                )}
+                              </View>
+
+                              {!isBreak && !isEmpty && isPracticalOrLab && (
+                                <View
+                                  style={[
+                                    styles.typeBadge,
+                                    {
+                                      backgroundColor: colors.text,
+                                      borderColor: colors.text,
+                                    },
+                                  ]}
+                                >
+                                  <Text
+                                    variant="xs"
+                                    weight="700"
+                                    style={{ color: colors.background }}
+                                  >
+                                    {cType}
+                                  </Text>
+                                </View>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </Animated.View>
+                    );
+                  })}
+                </Animated.ScrollView>
               </View>
             </>
           )
@@ -608,33 +727,36 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
     alignItems: 'center',
   },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   liveCard: {
     padding: 14,
     borderWidth: 1,
     marginBottom: 14,
   },
-  dayPillsRow: {
+  dayPillsBar: {
+    position: 'relative',
     flexDirection: 'row',
-    gap: 6,
+    padding: 4,
+    borderWidth: 1,
     marginBottom: 14,
+  },
+  dayPillIndicator: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    left: 4,
   },
   dayPill: {
     flex: 1,
-    paddingVertical: 9,
-    borderWidth: 1,
+    paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
-  todayDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 3,
+  pagerWrap: {
+    width: '100%',
+  },
+  dayPage: {
+    gap: 10,
   },
   periodCard: {
     flexDirection: 'row',

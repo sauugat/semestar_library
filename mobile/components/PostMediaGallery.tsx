@@ -11,6 +11,7 @@ import {
   StatusBar,
   Share,
   Animated,
+  PanResponder,
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
@@ -87,6 +88,10 @@ export function PostMediaGallery({
   const [modalVisible, setModalVisible] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList<string>>(null);
+  const dismissY = useRef(new Animated.Value(0)).current;
+  const zoomedRef = useRef(false);
+  zoomedRef.current = zoomed;
+  const isClosingModalRef = useRef(false);
 
   // Android Back Handler for Fullscreen Modal
   useEffect(() => {
@@ -100,14 +105,64 @@ export function PostMediaGallery({
   }, [modalVisible]);
 
   const openFullscreen = (index: number) => {
+    isClosingModalRef.current = false;
+    dismissY.setValue(0);
     setZoomed(false);
     setActiveIndex(index);
     setModalVisible(true);
   };
 
-  const closeFullscreen = () => {
+  const closeFullscreen = useCallback(() => {
+    if (isClosingModalRef.current) return;
+    isClosingModalRef.current = true;
     setModalVisible(false);
-  };
+  }, []);
+
+  const dismissPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gs) => {
+          if (zoomedRef.current || isClosingModalRef.current) return false;
+          return Math.abs(gs.dy) > 10 && Math.abs(gs.dy) > Math.abs(gs.dx) * 1.4;
+        },
+        onPanResponderMove: (_, gs) => {
+          if (zoomedRef.current || isClosingModalRef.current) return;
+          dismissY.setValue(gs.dy);
+        },
+        onPanResponderRelease: (_, gs) => {
+          if (isClosingModalRef.current) return;
+          if (Math.abs(gs.dy) > 105 || Math.abs(gs.vy) > 0.75) {
+            isClosingModalRef.current = true;
+            const targetY = gs.dy < 0 ? -SCREEN_HEIGHT : SCREEN_HEIGHT;
+            Animated.timing(dismissY, {
+              toValue: targetY,
+              duration: 185,
+              useNativeDriver: true,
+            }).start(() => {
+              setModalVisible(false);
+            });
+          } else {
+            Animated.spring(dismissY, {
+              toValue: 0,
+              friction: 8,
+              tension: 100,
+              useNativeDriver: true,
+            }).start();
+          }
+        },
+        onPanResponderTerminate: () => {
+          if (!isClosingModalRef.current) {
+            Animated.spring(dismissY, {
+              toValue: 0,
+              friction: 8,
+              tension: 100,
+              useNativeDriver: true,
+            }).start();
+          }
+        },
+      }),
+    [dismissY]
+  );
 
   const handleShareImage = async () => {
     const currentUrl = urls[activeIndex];
@@ -527,85 +582,109 @@ export function PostMediaGallery({
   );
 
   function renderFullscreenModal() {
+    const backdropOpacity = dismissY.interpolate({
+      inputRange: [-SCREEN_HEIGHT * 0.45, 0, SCREEN_HEIGHT * 0.45],
+      outputRange: [0.15, 1, 0.15],
+      extrapolate: 'clamp',
+    });
+    const dragScale = dismissY.interpolate({
+      inputRange: [-SCREEN_HEIGHT * 0.45, 0, SCREEN_HEIGHT * 0.45],
+      outputRange: [0.88, 1, 0.88],
+      extrapolate: 'clamp',
+    });
+
     return (
       <Modal
         visible={modalVisible}
-        transparent={false}
+        transparent
         animationType="fade"
+        statusBarTranslucent
         onRequestClose={closeFullscreen}
       >
         <StatusBar barStyle="light-content" />
-        <View style={[styles.modalRoot, { backgroundColor: '#000000' }]}>
-          {/* Top Bar with Close, Counter, and Share */}
-          <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 16) }]}>
-            <TouchableOpacity
-              onPress={closeFullscreen}
-              style={styles.headerBtn}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityLabel="Close gallery"
-            >
-              <Ionicons name="close" size={26} color="#ffffff" />
-            </TouchableOpacity>
-
-            <View style={styles.counterBox}>
-              <Text style={styles.counterText}>
-                {activeIndex + 1} / {urls.length}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={handleShareImage}
-              style={styles.headerBtn}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityLabel="Share image"
-            >
-              <Ionicons name="share-outline" size={22} color="#ffffff" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Swipeable Horizontal Image Viewer */}
-          <FlatList
-            ref={flatListRef}
-            data={urls}
-            keyExtractor={(_, idx) => `gallery-item-${idx}`}
-            horizontal
-            scrollEnabled={!zoomed}
-            extraData={activeIndex}
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            initialScrollIndex={activeIndex}
-            getItemLayout={(_, index) => ({
-              length: viewerWidth,
-              offset: viewerWidth * index,
-              index,
-            })}
-            onMomentumScrollEnd={(e) => {
-              const newIdx = Math.round(e.nativeEvent.contentOffset.x / viewerWidth);
-              if (newIdx >= 0 && newIdx < urls.length) {
-                setActiveIndex(newIdx);
-              }
-            }}
-            renderItem={({ item, index }) => (
-              <ZoomablePostImage key={`${item}-${index === activeIndex}`} uri={item} width={viewerWidth} onZoomChange={setZoomed} />
-            )}
-            style={{ flex: 1 }}
+        <View style={styles.modalRoot}>
+          <Animated.View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backgroundColor: '#000000', opacity: backdropOpacity }]}
           />
-          {postDetails && <View style={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16), maxHeight: '32%', backgroundColor: '#111' }}>
-            <ScrollView>
-              <Text style={{ color: '#fff', fontWeight: '700' }}>{postDetails.name}</Text>
-              <Text style={{ color: '#bbb', fontSize: 12, marginVertical: 4 }}>{postDetails.uploadedAt}</Text>
-              <Text style={{ color: '#fff', lineHeight: 21 }}>{postDetails.caption}</Text>
-            </ScrollView>
-            <View style={{ flexDirection: 'row', gap: 24, paddingTop: 12 }}>
-              <TouchableOpacity onPress={onLike} accessibilityLabel={postDetails.liked ? 'Unlike post' : 'Like post'} style={{ flexDirection: 'row', gap: 8 }}>
-                <Ionicons name={postDetails.liked ? 'heart' : 'heart-outline'} size={22} color={postDetails.liked ? '#ef4444' : '#fff'} />
-                <Text style={{ color: '#fff' }}>{postDetails.likes}</Text>
+          <Animated.View
+            style={[
+              styles.modalRoot,
+              { transform: [{ translateY: dismissY }, { scale: dragScale }] },
+            ]}
+            {...dismissPanResponder.panHandlers}
+          >
+            {/* Top Bar with Close, Counter, and Share */}
+            <View style={[styles.modalHeader, { paddingTop: Math.max(insets.top, 16) }]}>
+              <TouchableOpacity
+                onPress={closeFullscreen}
+                style={styles.headerBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Close gallery"
+              >
+                <Ionicons name="close" size={26} color="#ffffff" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => { closeFullscreen(); onComments?.(); }} accessibilityLabel="Open comments">
-                <Text style={{ color: '#fff' }}>{postDetails.comments} comments</Text>
+
+              <View style={styles.counterBox}>
+                <Text style={styles.counterText}>
+                  {activeIndex + 1} / {urls.length}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                onPress={handleShareImage}
+                style={styles.headerBtn}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Share image"
+              >
+                <Ionicons name="share-outline" size={22} color="#ffffff" />
               </TouchableOpacity>
             </View>
-          </View>}
+
+            {/* Swipeable Horizontal Image Viewer */}
+            <FlatList
+              ref={flatListRef}
+              data={urls}
+              keyExtractor={(_, idx) => `gallery-item-${idx}`}
+              horizontal
+              scrollEnabled={!zoomed}
+              extraData={activeIndex}
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              initialScrollIndex={activeIndex}
+              getItemLayout={(_, index) => ({
+                length: viewerWidth,
+                offset: viewerWidth * index,
+                index,
+              })}
+              onMomentumScrollEnd={(e) => {
+                const newIdx = Math.round(e.nativeEvent.contentOffset.x / viewerWidth);
+                if (newIdx >= 0 && newIdx < urls.length) {
+                  setActiveIndex(newIdx);
+                }
+              }}
+              renderItem={({ item, index }) => (
+                <ZoomablePostImage key={`${item}-${index === activeIndex}`} uri={item} width={viewerWidth} onZoomChange={setZoomed} />
+              )}
+              style={{ flex: 1 }}
+            />
+            {postDetails && <View style={{ padding: 16, paddingBottom: Math.max(insets.bottom, 16), maxHeight: '32%', backgroundColor: '#111' }}>
+              <ScrollView>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>{postDetails.name}</Text>
+                <Text style={{ color: '#bbb', fontSize: 12, marginVertical: 4 }}>{postDetails.uploadedAt}</Text>
+                <Text style={{ color: '#fff', lineHeight: 21 }}>{postDetails.caption}</Text>
+              </ScrollView>
+              <View style={{ flexDirection: 'row', gap: 24, paddingTop: 12 }}>
+                <TouchableOpacity onPress={onLike} accessibilityLabel={postDetails.liked ? 'Unlike post' : 'Like post'} style={{ flexDirection: 'row', gap: 8 }}>
+                  <Ionicons name={postDetails.liked ? 'heart' : 'heart-outline'} size={22} color={postDetails.liked ? '#ef4444' : '#fff'} />
+                  <Text style={{ color: '#fff' }}>{postDetails.likes}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { closeFullscreen(); onComments?.(); }} accessibilityLabel="Open comments">
+                  <Text style={{ color: '#fff' }}>{postDetails.comments} comments</Text>
+                </TouchableOpacity>
+              </View>
+            </View>}
+          </Animated.View>
         </View>
       </Modal>
     );

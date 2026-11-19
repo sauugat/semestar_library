@@ -2,6 +2,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo';
 import 'react-native-reanimated';
 import {
@@ -190,12 +191,17 @@ function RootLayoutNav() {
         contentStyle: {
           backgroundColor: colors.background,
         },
+        animation: Platform.OS === 'ios' ? 'default' : 'slide_from_right',
+        ...(Platform.OS === 'android' ? { animationDuration: 240 } : {}),
+        gestureEnabled: true,
+        fullScreenGestureEnabled: true,
+        freezeOnBlur: false,
       }}
     >
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack.Screen name="index" options={{ headerShown: false, animation: 'fade' }} />
+      <Stack.Screen name="login" options={{ headerShown: false, animation: 'fade' }} />
       <Stack.Screen name="teacher-onboarding" options={{ headerShown: false, gestureEnabled: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false, animation: 'fade' }} />
       <Stack.Screen name="games" options={{ headerShown: false }} />
       <Stack.Screen name="notices" options={{ title: 'Notices', headerBackTitle: 'Back' }} />
       <Stack.Screen name="notice/[id]" options={{ headerShown: false }} />
@@ -210,14 +216,21 @@ function RootLayoutNav() {
       <Stack.Screen name="syllabus" options={{ title: 'BIT Syllabus', headerBackTitle: 'Back' }} />
       <Stack.Screen name="material/[id]" options={{ title: 'Material Details', headerBackTitle: 'Back' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications', headerBackTitle: 'Back' }} />
-      <Stack.Screen name="dm/[id]" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="dm/[id]"
+        options={{ headerShown: false, gestureEnabled: true, fullScreenGestureEnabled: false }}
+      />
       <Stack.Screen name="dm/new" options={{ headerShown: false }} />
-      <Stack.Screen name="kyana" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="kyana"
+        options={{ headerShown: false, gestureEnabled: true, fullScreenGestureEnabled: false }}
+      />
       <Stack.Screen name="notification-settings" options={{ title: 'Notification Settings', headerBackTitle: 'Notifications' }} />
       <Stack.Screen
         name="edit-profile"
         options={{
           presentation: 'modal',
+          animation: 'slide_from_bottom',
           headerShown: false,
         }}
       />
@@ -225,6 +238,7 @@ function RootLayoutNav() {
         name="modal"
         options={{
           presentation: 'modal',
+          animation: 'slide_from_bottom',
           title: 'About Semester Library',
           headerBackTitle: 'Close',
         }}

@@ -96,6 +96,18 @@ export async function saveCachedDmConversations(
 }
 
 // --- Messages Caching ---
+export function getCachedDmMessagesSync(
+  accountId: string,
+  conversationId: string,
+  limit = 50
+): DmMessage[] {
+  if (!accountId || !conversationId) return [];
+  const key = `${accountId}:${conversationId}`;
+  const messages = memoryMessages.get(key);
+  if (!messages || messages.length === 0) return [];
+  return messages.slice(-limit);
+}
+
 export async function getCachedDmMessages(
   accountId: string,
   conversationId: string,
@@ -103,9 +115,15 @@ export async function getCachedDmMessages(
   beforeId?: number
 ): Promise<DmMessage[]> {
   if (!accountId || !conversationId) return [];
-  await writeQueue;
 
   const key = `${accountId}:${conversationId}`;
+  const immediate = memoryMessages.get(key);
+  if (immediate && immediate.length > 0 && !beforeId) {
+    return immediate.slice(-limit);
+  }
+
+  await writeQueue;
+
   let messages = memoryMessages.get(key);
 
   if (!messages) {

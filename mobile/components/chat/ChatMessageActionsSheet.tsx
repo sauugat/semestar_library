@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Typography';
 import { ChatMessage } from '@/services/chat';
+import { formatMessageTime, formatChatDateSeparator } from '@/utils/date';
 import * as Haptics from 'expo-haptics';
 
 interface ChatMessageActionsSheetProps {
@@ -90,7 +91,17 @@ export function ChatMessageActionsSheet({
           {/* Subtle handle bar */}
           <View style={styles.handle} />
 
-  {/* Quick Reaction Row */}
+          {/* Message Timestamp Header */}
+          {Boolean(message.createdAt) && (
+            <View style={styles.timestampRow}>
+              <Ionicons name="time-outline" size={13} color="#A1A1AA" />
+              <Text variant="xs" weight="500" style={styles.timestampLabel}>
+                {`${formatChatDateSeparator(message.createdAt)} · ${formatMessageTime(message.createdAt)}`}
+              </Text>
+            </View>
+          )}
+
+          {/* Quick Reaction Row */}
           {confirmed && <View style={styles.reactionsBar}>
             {REACTION_EMOJIS.map((emoji) => {
               const isSelected = Boolean(
@@ -271,7 +282,18 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: '#48484a',
     alignSelf: 'center',
-    marginBottom: 14,
+    marginBottom: 10,
+  },
+  timestampRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  timestampLabel: {
+    color: '#a1a1aa',
+    fontSize: 12,
   },
   reactionsBar: {
     flexDirection: 'row',

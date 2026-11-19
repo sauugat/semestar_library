@@ -17,6 +17,10 @@ export interface DmMessage {
   senderAvatarUrl?: string | null;
   clientId?: string | null;
   text: string | null;
+  attachmentName?: string | null;
+  attachmentOriginalName?: string | null;
+  attachmentMimeType?: string | null;
+  localUri?: string | null;
   replyTo?: {
     id: number;
     text: string | null;
@@ -175,17 +179,48 @@ export async function fetchDmMessages(
 
 export async function sendDmMessage(
   conversationId: string,
-  payload: { clientId: string; text: string; replyToId?: number | null }
+  payload: {
+    clientId: string;
+    text?: string | null;
+    replyToId?: number | null;
+    file?: { uri: string; name: string; mimeType: string } | null;
+  }
 ): Promise<DmMessage> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), payload.file ? 45000 : 15000);
   let res: Response;
   try {
-    res = await apiFetch(`/api/dm/conversations/${encodeURIComponent(conversationId)}/messages`, {
-    signal: controller.signal,
-    method: 'POST',
-    body: JSON.stringify(payload),
-    });
+    const url = `/api/dm/conversations/${encodeURIComponent(conversationId)}/messages`;
+    if (payload.file) {
+      const formData = new FormData();
+      formData.append('clientId', payload.clientId);
+      if (payload.text && payload.text.trim()) {
+        formData.append('text', payload.text.trim());
+      }
+      if (payload.replyToId) {
+        formData.append('replyToId', String(payload.replyToId));
+      }
+      formData.append('image', {
+        uri: payload.file.uri,
+        name: payload.file.name || 'photo.jpg',
+        type: payload.file.mimeType || 'image/jpeg',
+      } as any);
+      res = await apiFetch(url, {
+        signal: controller.signal,
+        method: 'POST',
+        body: formData,
+      });
+    } else {
+      res = await apiFetch(url, {
+        signal: controller.signal,
+        method: 'POST',
+        body: JSON.stringify({
+          clientId: payload.clientId,
+          text: payload.text || '',
+          replyToId: payload.replyToId ?? null,
+        }),
+      });
+    }
   } finally { clearTimeout(timeout); }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

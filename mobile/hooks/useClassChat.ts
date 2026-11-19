@@ -30,6 +30,7 @@ import {
 } from "@/services/chat-realtime";
 import { beginChatSession, getChatSession, subscribeChatSession, chatScope, type ChatContext } from '@/services/chat-session';
 import { createReadCoalescer, type ReadReceiptCoalescer } from "@/services/dm-state";
+import { getCohortThreadMemoryCache, setCohortThreadMemoryCache } from "@/services/chat-memory-cache";
 
 type Typer = { studentId: string; name: string; expiresAt: number };
 
@@ -44,15 +45,18 @@ export function useClassChat(
   serverUrl: string,
   options?: UseClassChatOptions
 ) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [loadingInitial, setLoadingInitial] = useState(true);
+  const initialCohortMem =
+    getCohortThreadMemoryCache(studentId, options?.selectedChatGroupId) ||
+    getCohortThreadMemoryCache(studentId, '__default__');
+  const [messages, setMessages] = useState<ChatMessage[]>(() => initialCohortMem?.messages || []);
+  const [loadingInitial, setLoadingInitial] = useState(() => !(initialCohortMem && initialCohortMem.messages.length > 0));
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [activeTypers, setActiveTypers] = useState(new Map<string, Typer>());
-  const [readReceipts, setReadReceipts] = useState<ChatReadReceipt[]>([]);
-  const [pinned, setPinned] = useState<ChatPinned | null>(null);
+  const [readReceipts, setReadReceipts] = useState<ChatReadReceipt[]>(() => initialCohortMem?.readReceipts || []);
+  const [pinned, setPinned] = useState<ChatPinned | null>(() => initialCohortMem?.pinned || null);
   const [onlineIds, setOnlineIds] = useState<string[]>([]);
   const [context, setContext] = useState<ChatContext | null>(null);
   const [roomGeneration, setRoomGeneration] = useState(0);
@@ -93,7 +97,23 @@ export function useClassChat(
   const messagesRef = useRef(messages);
   useEffect(() => {
     messagesRef.current = messages;
-  }, [messages]);
+    if (studentId && messages.length > 0) {
+      const groupId = optionsRef.current?.selectedChatGroupId || getChatSession().context?.chatGroupId || messages[0]?.chatGroupId;
+      setCohortThreadMemoryCache(studentId, groupId, { messages });
+    }
+  }, [messages, studentId]);
+  useEffect(() => {
+    if (studentId && readReceipts.length > 0) {
+      const groupId = optionsRef.current?.selectedChatGroupId || getChatSession().context?.chatGroupId;
+      setCohortThreadMemoryCache(studentId, groupId, { readReceipts });
+    }
+  }, [readReceipts, studentId]);
+  useEffect(() => {
+    if (studentId && pinned) {
+      const groupId = optionsRef.current?.selectedChatGroupId || getChatSession().context?.chatGroupId;
+      setCohortThreadMemoryCache(studentId, groupId, { pinned });
+    }
+  }, [pinned, studentId]);
 
   const generation = useRef(0);
   const active = useRef(false);
@@ -200,15 +220,20 @@ export function useClassChat(
       hydrated.current = false;
       snapshotCursor.current = null;
       beginChatSession(serverUrl, studentId, options?.authToken);
-      setMessages([]);
-      setLoadingInitial(true);
+      const warmMem = getCohortThreadMemoryCache(studentId, options?.selectedChatGroupId || getChatSession().context?.chatGroupId);
+      if (warmMem && warmMem.messages.length > 0) {
+        setMessages(prev => (prev.length > 0 ? prev : warmMem.messages));
+        if (warmMem.readReceipts.length > 0) setReadReceipts(prev => (prev.length > 0 ? prev : warmMem.readReceipts));
+        if (warmMem.pinned) setPinned(prev => prev || warmMem.pinned);
+        setLoadingInitial(false);
+      } else if (messagesRef.current.length === 0) {
+        setLoadingInitial(true);
+      }
       setHasMore(true);
       setError(null);
-      setReadReceipts([]);
-      setPinned(null);
       setOnlineIds([]);
       setActiveTypers(new Map());
-      let lastScope = '', validating = false, lastRefresh = 0;
+      let lastScope = chatScope(getChatSession()), validating = false, lastRefresh = 0;
       let hasContextOnce = Boolean(getChatSession().context);
       const reset = () => {
         const session = getChatSession();
@@ -222,7 +247,16 @@ export function useClassChat(
           lastScope = nextScope; generation.current++; setRoomGeneration(session.generation);
           hydrated.current = false; snapshotCursor.current = null; syncing.current = false; paging.current = false;
           readCoalescerRef.current?.reset();
-          setMessages([]); setPinned(null); setReadReceipts([]); setActiveTypers(new Map()); setOnlineIds([]);
+          const scopedMem = getCohortThreadMemoryCache(studentId, session.context?.chatGroupId);
+          if (scopedMem && scopedMem.messages.length > 0) {
+            setMessages(scopedMem.messages);
+            setPinned(scopedMem.pinned);
+            setReadReceipts(scopedMem.readReceipts);
+            setLoadingInitial(false);
+          } else {
+            setMessages([]); setPinned(null); setReadReceipts([]);
+          }
+          setActiveTypers(new Map()); setOnlineIds([]);
           onlineExpiry.current.clear(); setHasMore(true); setLoadingMore(false);
           lastHeartbeat.current=0;
           if (!session.context && hasContextOnce) {setError('This conversation is no longer available.');setLoadingInitial(false);}
@@ -233,16 +267,30 @@ export function useClassChat(
         if (!active.current || validating || AppState.currentState === 'background') return;
         validating = true; lastRefresh = Date.now();
         try {
+          // Start local SQLite hydration in parallel with config validation so messages appear immediately
+          const earlyEpoch = generation.current;
+          const earlyCachedPromise = getChatSession().context
+            ? getCachedChatMessages(50).then((earlyCached) => {
+                if (active.current && earlyEpoch === generation.current && earlyCached.length > 0) {
+                  setMessages(previous => mergeChatMessages(earlyCached, previous));
+                  setLoadingInitial(false);
+                }
+                return earlyCached;
+              }).catch(() => [] as ChatMessage[])
+            : Promise.resolve([] as ChatMessage[]);
+
           await fetchChatConfig(optionsRef.current?.selectedChatGroupId || undefined);
           if (!active.current) return;
           setError(null);
           const epoch = generation.current;
-        const cached = await getCachedChatMessages(50);
-        if (!active.current || epoch !== generation.current) return;
-        setMessages(previous => mergeChatMessages(cached, previous));
-        hydrated.current = true;
-        if (cached.length) setLoadingInitial(false);
-        void sync();
+          const cached = epoch === earlyEpoch ? await earlyCachedPromise : await getCachedChatMessages(50);
+          if (!active.current || epoch !== generation.current) return;
+          if (cached.length > 0) {
+            setMessages(previous => mergeChatMessages(cached, previous));
+            setLoadingInitial(false);
+          }
+          hydrated.current = true;
+          void sync();
           void refreshPinned();
           await initChatRealtime();
         } catch (err: any) {
@@ -264,7 +312,12 @@ export function useClassChat(
         } } catch {}
       };
       refreshFnRef.current = () => refresh().then(heartbeat);
-      void refresh().then(heartbeat);
+      const hasWarmCohort = Boolean(warmMem && warmMem.messages.length > 0);
+      const focusRefreshTimer = setTimeout(() => {
+        if (active.current) {
+          void refresh().then(heartbeat);
+        }
+      }, hasWarmCohort ? 300 : 0);
 
       const unsubscribe = subscribeChatRealtime({
         onNewMessage: (newMsg) => {
@@ -343,9 +396,13 @@ export function useClassChat(
         },
       });
 
-      // 3. Kick off background delta sync & pinned announcements
-      void sync();
-      void refreshPinned();
+      // 3. Kick off background delta sync & pinned announcements (deferred when warm to keep pop transitions smooth)
+      const initialSyncTimer = setTimeout(() => {
+        if (active.current) {
+          void sync();
+          void refreshPinned();
+        }
+      }, hasWarmCohort ? 320 : 0);
 
       // Prune expired typers without creating new onlineIds array references when unchanged
       const pruneInterval = setInterval(() => {
@@ -389,13 +446,18 @@ export function useClassChat(
         active.current = false;
         refreshFnRef.current = null;
         generation.current++;
+        clearTimeout(focusRefreshTimer);
+        clearTimeout(initialSyncTimer);
         readCoalescerRef.current?.stop();
         stopSession();
         unsubscribe();
         clearInterval(pruneInterval);
         clearInterval(pollInterval);
         appStateSub.remove();
-        void disconnectChatRealtime();
+        // Defer socket teardown by one tick so pushing a DM never stalls frame 0
+        setTimeout(() => {
+          if (!active.current) void disconnectChatRealtime();
+        }, 0);
       };
     }, [studentId, serverUrl, options?.authToken, options?.selectedChatGroupId, sync, refreshPinned]),
   );

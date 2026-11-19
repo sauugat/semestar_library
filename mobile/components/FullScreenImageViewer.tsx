@@ -44,7 +44,7 @@ export function FullScreenImageViewer({
   const controlsOpacity = useRef(new Animated.Value(1)).current;
   const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Animated values for zoom, pan, and swipe-down dismissal
+  // Animated values for zoom, pan, and swipe-to-dismiss
   const scale = useRef(new Animated.Value(1)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
@@ -65,6 +65,21 @@ export function FullScreenImageViewer({
   const isSwipingDismiss = useRef(false);
   const lastTapRef = useRef(0);
 
+  // Stable refs prevent PanResponder recreation and erratic open/close loops
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const isClosingRef = useRef(false);
+  const lastImageUriRef = useRef<string | null>(imageUri);
+  if (imageUri) {
+    lastImageUriRef.current = imageUri;
+  }
+
+  const triggerClose = () => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    onCloseRef.current();
+  };
+
   // Listen to animated scale to update synchronous refs
   useEffect(() => {
     const scaleSub = scale.addListener(({ value }) => {
@@ -84,9 +99,10 @@ export function FullScreenImageViewer({
     };
   }, [scale, translateX, translateY]);
 
-  // Reset transforms whenever modal opens with a new image
+  // Reset transforms and closing guard whenever modal opens with a new image
   useEffect(() => {
     if (visible) {
+      isClosingRef.current = false;
       scale.setValue(1);
       translateX.setValue(0);
       translateY.setValue(0);
@@ -97,7 +113,7 @@ export function FullScreenImageViewer({
       setIsZoomed(false);
       lastTapRef.current = 0;
     }
-  }, [visible, imageUri]);
+  }, [visible, imageUri, scale, translateX, translateY, dismissY]);
 
   const [showHint, setShowHint] = useState(true);
 
@@ -124,7 +140,7 @@ export function FullScreenImageViewer({
       }, 2500);
       return () => clearTimeout(timer);
     }
-  }, [visible]);
+  }, [visible, controlsOpacity]);
 
   // Clean up single tap timer on unmount
   useEffect(() => {
@@ -162,15 +178,17 @@ export function FullScreenImageViewer({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponder: () => !isClosingRef.current,
         onMoveShouldSetPanResponder: (_, gestureState) => {
+          if (isClosingRef.current) return false;
           return (
             gestureState.numberActiveTouches >= 2 ||
             currentScale.current > 1.05 ||
-            (gestureState.dy > 8 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.2)
+            (Math.abs(gestureState.dy) > 8 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx) * 1.2)
           );
         },
         onPanResponderGrant: (evt) => {
+          if (isClosingRef.current) return;
           const touches = evt.nativeEvent.touches;
           if (touches.length >= 2) {
             isPinching.current = true;
@@ -194,6 +212,7 @@ export function FullScreenImageViewer({
           }
         },
         onPanResponderMove: (evt, gestureState) => {
+          if (isClosingRef.current) return;
           const touches = evt.nativeEvent.touches;
           if (touches.length >= 2 && initialPinchDistance.current > 0) {
             const dx = touches[0].pageX - touches[1].pageX;
@@ -212,12 +231,12 @@ export function FullScreenImageViewer({
             translateX.setValue(nextX);
             translateY.setValue(nextY);
           } else if (isSwipingDismiss.current && currentScale.current <= 1.05) {
-            if (gestureState.dy > 0) {
-              dismissY.setValue(gestureState.dy);
-            }
+            dismissY.setValue(gestureState.dy);
           }
         },
         onPanResponderRelease: (_, gestureState) => {
+          if (isClosingRef.current) return;
+
           if (isPinching.current) {
             isPinching.current = false;
             initialPinchDistance.current = 0;
@@ -254,20 +273,24 @@ export function FullScreenImageViewer({
 
           if (isSwipingDismiss.current) {
             isSwipingDismiss.current = false;
-            if (gestureState.dy > 80 || gestureState.vy > 0.8) {
+            const shouldDismiss =
+              Math.abs(gestureState.dy) > 95 || Math.abs(gestureState.vy) > 0.75;
+            if (shouldDismiss) {
+              isClosingRef.current = true;
+              const targetY = gestureState.dy < 0 ? -SCREEN_HEIGHT : SCREEN_HEIGHT;
               Animated.timing(dismissY, {
-                toValue: SCREEN_HEIGHT,
-                duration: 180,
+                toValue: targetY,
+                duration: 190,
                 useNativeDriver: true,
               }).start(() => {
-                dismissY.setValue(0);
-                onClose();
+                onCloseRef.current();
               });
+              return;
             } else {
               Animated.spring(dismissY, {
                 toValue: 0,
-                friction: 7,
-                tension: 90,
+                friction: 8,
+                tension: 100,
                 useNativeDriver: true,
               }).start();
             }
@@ -299,13 +322,15 @@ export function FullScreenImageViewer({
           isPinching.current = false;
           isPanning.current = false;
           isSwipingDismiss.current = false;
-          Animated.spring(dismissY, { toValue: 0, friction: 7, tension: 90, useNativeDriver: true }).start();
-          if (currentScale.current < 1.05) {
-            resetZoom();
+          if (!isClosingRef.current) {
+            Animated.spring(dismissY, { toValue: 0, friction: 8, tension: 100, useNativeDriver: true }).start();
+            if (currentScale.current < 1.05) {
+              resetZoom();
+            }
           }
         },
       }),
-    [onClose]
+    []
   );
 
   const getLocalImageUri = async (): Promise<string> => {
@@ -371,11 +396,18 @@ export function FullScreenImageViewer({
     }
   };
 
-  if (!visible || !imageUri) return null;
+  const activeUri = imageUri || lastImageUriRef.current;
+  if (!visible || !activeUri) return null;
 
   const backdropOpacity = dismissY.interpolate({
-    inputRange: [0, SCREEN_HEIGHT / 2],
-    outputRange: [1, 0.4],
+    inputRange: [-SCREEN_HEIGHT * 0.5, 0, SCREEN_HEIGHT * 0.5],
+    outputRange: [0.15, 1, 0.15],
+    extrapolate: 'clamp',
+  });
+
+  const dragScale = dismissY.interpolate({
+    inputRange: [-SCREEN_HEIGHT * 0.45, 0, SCREEN_HEIGHT * 0.45],
+    outputRange: [0.88, 1, 0.88],
     extrapolate: 'clamp',
   });
 
@@ -384,138 +416,145 @@ export function FullScreenImageViewer({
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={onClose}
+      onRequestClose={triggerClose}
       statusBarTranslucent
     >
       <StatusBar barStyle="light-content" />
-      <Animated.View
-        style={[
-          styles.backdrop,
-          {
-            opacity: backdropOpacity,
-            transform: [{ translateY: dismissY }],
-          },
-        ]}
-      >
-        <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-          {/* Header Action Bar respecting safe-area top inset */}
-          <Animated.View
-            style={[
-              styles.header,
-              {
-                paddingTop: insets.top + 12,
-                opacity: controlsOpacity,
-              },
-            ]}
-            pointerEvents={controlsVisible ? 'auto' : 'none'}
-          >
-            <View style={styles.actionGroup}>
-              {/* Share */}
-              <TouchableOpacity
-                onPress={handleShare}
-                disabled={sharingImage}
-                style={styles.actionBtn}
-                accessibilityLabel="Share image"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                {sharingImage ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="share-outline" size={18} color="#FFFFFF" />
-                    <Text variant="xs" weight="600" style={styles.btnLabel}>
-                      Share
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {/* Save */}
-              <TouchableOpacity
-                onPress={handleSave}
-                disabled={savingImage}
-                style={styles.actionBtn}
-                accessibilityLabel="Save image to photos"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                {savingImage ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Ionicons name="download-outline" size={18} color="#FFFFFF" />
-                    <Text variant="xs" weight="600" style={styles.btnLabel}>
-                      Save
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Close */}
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.closeBtn}
-              accessibilityLabel="Close image viewer"
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            >
-              <Ionicons name="close" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Interactive Zoom & Pan Area with PanResponder */}
-          <View style={styles.zoomContainer} {...panResponder.panHandlers}>
+      <View style={styles.modalShell}>
+        <Animated.View style={[styles.backdropBg, { opacity: backdropOpacity }]} />
+        <Animated.View
+          style={[
+            styles.backdrop,
+            {
+              transform: [{ translateY: dismissY }, { scale: dragScale }],
+            },
+          ]}
+        >
+          <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+            {/* Header Action Bar respecting safe-area top inset */}
             <Animated.View
               style={[
-                styles.imageWrapper,
+                styles.header,
                 {
-                  transform: [
-                    { translateX },
-                    { translateY },
-                    { scale },
-                  ],
+                  paddingTop: insets.top + 12,
+                  opacity: controlsOpacity,
                 },
               ]}
+              pointerEvents={controlsVisible ? 'auto' : 'none'}
             >
-              <Image
-                source={{
-                  uri: imageUri,
-                  headers: headers || undefined,
-                }}
-                style={styles.fullImage}
-                contentFit="contain"
-                cachePolicy="memory-disk"
-                transition={120}
-              />
-            </Animated.View>
-          </View>
+              <View style={styles.actionGroup}>
+                {/* Share */}
+                <TouchableOpacity
+                  onPress={handleShare}
+                  disabled={sharingImage}
+                  style={styles.actionBtn}
+                  accessibilityLabel="Share image"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  {sharingImage ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="share-outline" size={18} color="#FFFFFF" />
+                      <Text variant="xs" weight="600" style={styles.btnLabel}>
+                        Share
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
 
-          {/* Auto-dismissing Footer Hint */}
-          {showHint && (
-            <Animated.View
-              style={[styles.footer, { opacity: controlsOpacity }]}
-              pointerEvents="none"
-            >
-              <Text variant="xs" style={styles.footerText}>
-                {isZoomed
-                  ? 'Double-tap to reset • Pan with 1 finger • Pinch to adjust'
-                  : 'Double-tap or pinch to zoom • Swipe down or tap ✕ to close'}
-              </Text>
+                {/* Save */}
+                <TouchableOpacity
+                  onPress={handleSave}
+                  disabled={savingImage}
+                  style={styles.actionBtn}
+                  accessibilityLabel="Save image to photos"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  {savingImage ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+                      <Text variant="xs" weight="600" style={styles.btnLabel}>
+                        Save
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Close */}
+              <TouchableOpacity
+                onPress={triggerClose}
+                style={styles.closeBtn}
+                accessibilityLabel="Close image viewer"
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
             </Animated.View>
-          )}
-        </SafeAreaView>
-      </Animated.View>
+
+            {/* Interactive Zoom & Pan Area with PanResponder */}
+            <View style={styles.zoomContainer} {...panResponder.panHandlers}>
+              <Animated.View
+                style={[
+                  styles.imageWrapper,
+                  {
+                    transform: [
+                      { translateX },
+                      { translateY },
+                      { scale },
+                    ],
+                  },
+                ]}
+              >
+                <Image
+                  source={{
+                    uri: activeUri,
+                    headers: headers || undefined,
+                  }}
+                  style={styles.fullImage}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                  transition={120}
+                />
+              </Animated.View>
+            </View>
+
+            {/* Auto-dismissing Footer Hint */}
+            {showHint && (
+              <Animated.View
+                style={[styles.footer, { opacity: controlsOpacity }]}
+                pointerEvents="none"
+              >
+                <Text variant="xs" style={styles.footerText}>
+                  {isZoomed
+                    ? 'Double-tap to reset • Pan with 1 finger • Pinch to adjust'
+                    : 'Double-tap or pinch to zoom • Swipe up or down to close'}
+                </Text>
+              </Animated.View>
+            )}
+          </SafeAreaView>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  modalShell: {
+    flex: 1,
+  },
+  backdropBg: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: '#000000',
+  },
   backdrop: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#000000',
   },
   header: {
     flexDirection: 'row',

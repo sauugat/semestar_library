@@ -30,12 +30,13 @@ import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
 import { PostMarkdown } from '@/components/PostMarkdown';
 import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyComposer';
+import { ChatConversationSkeleton } from '@/components/chat/ChatSkeletons';
+import { TypingIndicatorBubble } from '@/components/chat/TypingIndicatorBubble';
 import {
   FluidChatBackground,
-  markBubbleTouchStart,
-  markBubbleTouchEnd,
   useChatBackSwipeResponder,
 } from '@/components/chat/FluidChatBackground';
+import { SwipeableMessageWrapper } from '@/components/chat/ChatGesturePrimitives';
 import {
   fetchKyanaConversations,
   resolveKyanaResource,
@@ -48,9 +49,14 @@ import {
   type KyanaResourceCard,
 } from '@/services/kyana';
 import {
+  getLastKyanaThread,
   saveCachedKyanaMessages,
   clearCachedKyanaMessages,
 } from '@/services/kyana-db';
+import {
+  getKyanaMemoryCache,
+  setKyanaMemoryCache,
+} from '@/services/chat-memory-cache';
 
 const QUICK_SUGGESTIONS = [
   { label: '📚 Find Math notes', prompt: 'Give me notes on Engineering Mathematics' },
@@ -149,87 +155,24 @@ function TypingDots() {
 }
 
 function KyanaSwipeableBubble({
+  isSelf = false,
   onSwipeReply,
   style,
   children,
 }: {
+  isSelf?: boolean;
   onSwipeReply: () => void;
   style?: any;
   children: React.ReactNode;
 }) {
-  const translateX = useRef(new Animated.Value(0)).current;
-  const onSwipeReplyRef = useRef(onSwipeReply);
-  useEffect(() => {
-    onSwipeReplyRef.current = onSwipeReply;
-  }, [onSwipeReply]);
-
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-          const claim =
-            gestureState.dx > 10 &&
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
-            Math.abs(gestureState.dy) < 28;
-          if (claim) markBubbleTouchStart();
-          return claim;
-        },
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          const claim =
-            gestureState.dx > 10 &&
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.4 &&
-            Math.abs(gestureState.dy) < 28;
-          if (claim) markBubbleTouchStart();
-          return claim;
-        },
-        onPanResponderGrant: () => {
-          markBubbleTouchStart();
-        },
-        onPanResponderTerminationRequest: () => false,
-        onShouldBlockNativeResponder: () => true,
-        onPanResponderMove: (_, gestureState) => {
-          markBubbleTouchStart();
-          if (gestureState.dx > 0) {
-            translateX.setValue(Math.min(gestureState.dx * 0.65, 55));
-          }
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          markBubbleTouchEnd();
-          if (gestureState.dx > 42) {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => { });
-            onSwipeReplyRef.current();
-          }
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 6,
-            tension: 100,
-            useNativeDriver: true,
-          }).start();
-        },
-        onPanResponderTerminate: () => {
-          markBubbleTouchEnd();
-          Animated.spring(translateX, {
-            toValue: 0,
-            friction: 6,
-            tension: 100,
-            useNativeDriver: true,
-          }).start();
-        },
-      }),
-    [translateX]
-  );
-
   return (
-    <Animated.View
-      style={[style, { transform: [{ translateX }] }]}
-      onTouchStart={markBubbleTouchStart}
-      onTouchEnd={markBubbleTouchEnd}
-      onTouchCancel={markBubbleTouchEnd}
-      {...panResponder.panHandlers}
+    <SwipeableMessageWrapper
+      isSelf={isSelf}
+      onSwipeReply={onSwipeReply}
+      style={style}
     >
       {children}
-    </Animated.View>
+    </SwipeableMessageWrapper>
   );
 }
 
@@ -241,14 +184,15 @@ export default function KyanaChatScreen() {
   const studentId = user?.studentId || 'guest';
   const backSwipeHandlers = useChatBackSwipeResponder(() => router.back(), true);
 
-  // State
-  const [conversation, setConversation] = useState<KyanaConversation | null>(null);
-  const [messages, setMessages] = useState<KyanaMessage[]>([]);
+  // State (synchronously hydrated from memory cache for zero-latency re-entry)
+  const initialKyanaMem = useMemo(() => getKyanaMemoryCache(studentId), [studentId]);
+  const [conversation, setConversation] = useState<KyanaConversation | null>(() => initialKyanaMem?.conversation || null);
+  const [messages, setMessages] = useState<KyanaMessage[]>(() => initialKyanaMem?.messages || []);
   const [inputText, setInputText] = useState('');
   const [replyingTo, setReplyingTo] = useState<KyanaMessage | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
-  const [isLoadingInitial, setIsLoadingInitial] = useState(true);
+  const [isLoadingInitial, setIsLoadingInitial] = useState(() => !(initialKyanaMem && initialKyanaMem.messages.length > 0));
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -278,15 +222,31 @@ export default function KyanaChatScreen() {
     }, 1800);
   }, []);
 
-  // 1. Load active conversation and cached/server messages
+  // Keep memory cache in sync for instant zero-skeleton re-entry
+  useEffect(() => {
+    if (studentId && (conversation || messages.length > 0)) {
+      setKyanaMemoryCache(studentId, { conversation, messages });
+    }
+  }, [studentId, conversation, messages]);
+
+  // 1. Load active conversation from local SQLite first, then revalidate with server after push settles
   useEffect(() => {
     let isMounted = true;
+    const hasWarm = Boolean(getKyanaMemoryCache(studentId)?.messages.length);
+    if (!hasWarm) setIsLoadingInitial(true);
+
+    // Hydrate from local SQLite immediately on cold start (usually < 5ms)
+    if (!hasWarm) {
+      void getLastKyanaThread(studentId).then((cached) => {
+        if (isMounted && cached && cached.messages.length > 0) {
+          setMessages((prev) => (prev.length > 0 ? prev : cached.messages));
+          setIsLoadingInitial(false);
+        }
+      });
+    }
 
     async function initConversation() {
       try {
-        setIsLoadingInitial(true);
-
-        // Fetch conversations from server
         const convList = await fetchKyanaConversations();
         let activeConv = convList.length > 0 ? convList[0] : null;
 
@@ -298,12 +258,11 @@ export default function KyanaChatScreen() {
         setConversation(activeConv);
 
         if (activeConv) {
-          // Protected assistant history is shown only after server revalidation.
-          // Refresh with authoritative server messages
           try {
             const data = await fetchKyanaConversationMessages(activeConv.id);
             if (isMounted && data?.messages) {
               setMessages(data.messages);
+              setKyanaMemoryCache(studentId, { conversation: activeConv, messages: data.messages });
               await saveCachedKyanaMessages(studentId, activeConv.id, data.messages);
             }
           } catch (_) { }
@@ -315,10 +274,14 @@ export default function KyanaChatScreen() {
       }
     }
 
-    void initConversation();
+    // Defer network sync slightly when warm so the push transition stays locked at 120fps
+    const netTimer = setTimeout(() => {
+      if (isMounted) void initConversation();
+    }, hasWarm ? 280 : 0);
 
     return () => {
       isMounted = false;
+      clearTimeout(netTimer);
       if (activeAbortController.current) {
         activeAbortController.current.abort();
       }
@@ -646,6 +609,7 @@ export default function KyanaChatScreen() {
 
             {/* Bubble (swipe right on bubble to reply) */}
             <KyanaSwipeableBubble
+              isSelf={isUser}
               style={{ maxWidth: isUser ? '82%' : '94%' }}
               onSwipeReply={() => {
                 setReplyingTo(item);
@@ -763,19 +727,15 @@ export default function KyanaChatScreen() {
                   </View>
                 )}
 
-                {/* Bottom Meta Bar */}
-                <View
-                  style={[
-                    styles.metaRow,
-                    isUser ? styles.userMetaRow : styles.assistantMetaRow,
-                  ]}
-                >
-                  <Text style={styles.timestampText}>
-                    {formatBubbleTime(item.createdAt)}
-                  </Text>
-
-                  {/* Subtle Action Buttons on Assistant Message */}
-                  {!isUser && (
+                {/* Bottom Meta Bar (only for assistant quick actions; timestamp removed from bubble) */}
+                {!isUser && (
+                  <View
+                    style={[
+                      styles.metaRow,
+                      styles.assistantMetaRow,
+                      { justifyContent: 'flex-end' },
+                    ]}
+                  >
                     <View style={styles.quickActions}>
                       <TouchableOpacity
                         onPress={() => {
@@ -809,8 +769,8 @@ export default function KyanaChatScreen() {
                         </TouchableOpacity>
                       )}
                     </View>
-                  )}
-                </View>
+                  </View>
+                )}
               </TouchableOpacity>
             </KyanaSwipeableBubble>
           </View>
@@ -821,7 +781,7 @@ export default function KyanaChatScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: Monochrome.background }]}>
+    <View style={[styles.container, { backgroundColor: Monochrome.background }]} {...backSwipeHandlers}>
       <StatusBar barStyle="light-content" />
       <FluidChatBackground />
 
@@ -881,14 +841,11 @@ export default function KyanaChatScreen() {
         </View>
       )}
 
-      {/* MAIN VIEWPORT WRAPPED IN KEYBOARD CONTENT BOUNDARY (swipe right outside bubble goes back) */}
-      <View style={{ flex: 1, width: '100%' }} {...backSwipeHandlers}>
+      {/* MAIN VIEWPORT WRAPPED IN KEYBOARD CONTENT BOUNDARY */}
+      <View style={{ flex: 1, width: '100%' }}>
         <KeyboardContentBoundary style={styles.timelineBoundary}>
           {isLoadingInitial && messages.length === 0 ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#A1A1AA" />
-              <Text style={styles.loadingText}>Opening Kyana AI…</Text>
-            </View>
+            <ChatConversationSkeleton />
           ) : (
             <FlatList
               ref={flatListRef}
@@ -914,16 +871,16 @@ export default function KyanaChatScreen() {
               // In inverted list, ListHeaderComponent sits at index 0 (the bottom)
               ListHeaderComponent={
                 isGenerating ? (
-                  <View style={styles.liveGenerationRow}>
-                    <View style={styles.assistantAvatarSmall}>
-                      <Image
-                        source={require('../assets/images/kyana-logo.png')}
-                        style={styles.assistantAvatarImage}
-                        contentFit="contain"
-                      />
-                    </View>
-                    <View style={[styles.bubble, styles.assistantBubble, styles.streamingBubble]}>
-                      {streamingText ? (
+                  streamingText ? (
+                    <View style={styles.liveGenerationRow}>
+                      <View style={styles.assistantAvatarSmall}>
+                        <Image
+                          source={require('../assets/images/kyana-logo.png')}
+                          style={styles.assistantAvatarImage}
+                          contentFit="contain"
+                        />
+                      </View>
+                      <View style={[styles.bubble, styles.assistantBubble, styles.streamingBubble]}>
                         <View style={styles.markdownWrapper}>
                           <PostMarkdown
                             content={streamingText}
@@ -937,11 +894,13 @@ export default function KyanaChatScreen() {
                             }}
                           />
                         </View>
-                      ) : (
-                        <TypingDots />
-                      )}
+                      </View>
                     </View>
-                  </View>
+                  ) : (
+                    <TypingIndicatorBubble
+                      avatarSource={require('../assets/images/kyana-logo.png')}
+                    />
+                  )
                 ) : undefined
               }
               // In inverted list, ListFooterComponent sits at the very top of history
@@ -1031,12 +990,9 @@ export default function KyanaChatScreen() {
           </View>
         )}
         <View style={styles.composerRow}>
-          <View style={styles.composerCameraCircle}>
-            <Ionicons name="camera" size={18} color="#FFFFFF" />
-          </View>
           <TextInput
             ref={inputRef}
-            style={styles.composerInput}
+            style={[styles.composerInput, { paddingLeft: 12 }]}
             value={inputText}
             onChangeText={setInputText}
             placeholder="Message..."
@@ -1061,30 +1017,23 @@ export default function KyanaChatScreen() {
             >
               <View style={styles.stopIconSquare} />
             </TouchableOpacity>
-          ) : inputText.trim() ? (
+          ) : (
             <TouchableOpacity
               onPress={() => void handleSend()}
-              style={[styles.composerActionBtn, styles.sendBtn]}
+              disabled={!inputText.trim()}
+              style={[
+                styles.composerActionBtn,
+                inputText.trim() ? styles.sendBtn : styles.sendBtnDisabled,
+              ]}
               accessibilityLabel="Send message"
               hitSlop={8}
             >
-              <Ionicons name="arrow-up" size={18} color="#000000" />
+              <Ionicons
+                name="arrow-up"
+                size={18}
+                color={inputText.trim() ? '#000000' : '#71717A'}
+              />
             </TouchableOpacity>
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 4 }}>
-              <TouchableOpacity onPress={() => inputRef.current?.focus()} hitSlop={6}>
-                <Ionicons name="mic-outline" size={21} color="#F4F4F5" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => inputRef.current?.focus()} hitSlop={6}>
-                <Ionicons name="image-outline" size={21} color="#F4F4F5" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => inputRef.current?.focus()} hitSlop={6}>
-                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#F4F4F5" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setShowOptionsMenu(true)} hitSlop={6}>
-                <Ionicons name="add-circle-outline" size={22} color="#F4F4F5" />
-              </TouchableOpacity>
-            </View>
           )}
         </View>
       </StickyComposer>

@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { runOnJS } from "react-native-reanimated";
+import Reanimated, { runOnJS } from "react-native-reanimated";
 import {
   View,
   StyleSheet,
@@ -43,9 +43,12 @@ import * as Sharing from "expo-sharing";
 import * as MediaLibrary from "expo-media-library/legacy";
 import * as Clipboard from "expo-clipboard";
 import { ChatComposer } from "@/components/chat/ChatComposer";
+import { ChatConversationSkeleton } from "@/components/chat/ChatSkeletons";
+import { TypingIndicatorBubble } from "@/components/chat/TypingIndicatorBubble";
 import { StickyComposer, KeyboardContentBoundary } from "@/components/ui/StickyComposer";
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
-import { FluidChatBackground, useChatBackSwipeResponder } from "@/components/chat/FluidChatBackground";
+import { FluidChatBackground } from "@/components/chat/FluidChatBackground";
+import { useInteractiveChatBackSwipe } from "@/components/chat/ChatGesturePrimitives";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
 import { UnifiedChatInbox, type ActiveNowPerson } from "@/components/chat/UnifiedChatInbox";
@@ -106,6 +109,13 @@ import {
 import { formatMessageTime, formatDate, safeParseDate } from "@/utils/date";
 import { setChatScreenActive, clearAppBadge } from "@/services/notifications";
 import { captureChatSession, getChatSession, isCurrentChatSession, subscribeChatSession, beginChatSession, invalidateChatSession } from '@/services/chat-session';
+import {
+  ensureChatCacheAccount,
+  getInboxMemoryCache,
+  hydrateInboxCacheFromStorage,
+  patchInboxMemoryCache,
+  prefetchDmThread,
+} from '@/services/chat-memory-cache';
 
 function formatRoomTime(isoString?: string | null): string {
   if (!isoString) return "";
@@ -219,59 +229,66 @@ function ChatScreenInner() {
   const [selectedCohortRoom, setSelectedCohortRoom] = useState<CohortConversationItem | null>(null);
   const navigation = useNavigation();
 
-  // Dynamically hide bottom navigation bar when inside a cohort conversation
-  useEffect(() => {
-    navigation.setOptions({
-      tabBarStyle: selectedCohortRoom ? { display: "none" } : undefined,
-    });
-  }, [navigation, selectedCohortRoom]);
+  // Tab bar visibility is synced below once `isExitingGroupChat` is initialized
+
+  // Synchronous in-memory hydration to prevent reload jank when returning to inbox/dashboard
+  const initialInboxSnapshot = useMemo(() => getInboxMemoryCache(user?.studentId), [user?.studentId]);
 
   // Cohort state
-  const [adminRooms, setAdminRooms] = useState<AdminChatRoom[]>([]);
-  const [studentConfig, setStudentConfig] = useState<ChatConfig | null>(null);
-  const [studentPreview, setStudentPreview] = useState<{ latestMessage?: string | null; latestMessageAt?: string | null } | undefined>(undefined);
+  const [adminRooms, setAdminRooms] = useState<AdminChatRoom[]>(() => initialInboxSnapshot?.adminRooms || []);
+  const [studentConfig, setStudentConfig] = useState<ChatConfig | null>(() => initialInboxSnapshot?.studentConfig || null);
+  const [studentPreview, setStudentPreview] = useState<{ latestMessage?: string | null; latestMessageAt?: string | null } | undefined>(() => initialInboxSnapshot?.studentPreview);
   const [cohortsLoading, setCohortsLoading] = useState(false);
   const [cohortsRefreshing, setCohortsRefreshing] = useState(false);
   const [cohortError, setCohortError] = useState<string | null>(null);
 
   // DM state
-  const [dmConversations, setDmConversations] = useState<RawDmItem[]>([]);
+  const [dmConversations, setDmConversations] = useState<RawDmItem[]>(() => initialInboxSnapshot?.dmConversations || []);
   const [dmsLoading, setDmsLoading] = useState(false);
   const [dmsRefreshing, setDmsRefreshing] = useState(false);
   const [dmError, setDmError] = useState<string | null>(null);
-  const [dmEnabled, setDmEnabled] = useState(false);
+  const [dmEnabled, setDmEnabled] = useState(() => Boolean(initialInboxSnapshot?.dmEnabled));
 
-  // 1. Independent cohort loader
+  // 1. Independent cohort loader (background SWR when memory cache exists)
   const loadCohorts = useCallback(async (isRefresh = false) => {
     if (!user?.studentId || !serverUrl) return;
     beginChatSession(serverUrl, user.studentId, token);
+    const hasCached = Boolean(getInboxMemoryCache(user.studentId)?.studentConfig || (getInboxMemoryCache(user.studentId)?.adminRooms?.length || 0) > 0);
 
     if (isRefresh) setCohortsRefreshing(true);
-    else setCohortsLoading(true);
+    else if (!hasCached) setCohortsLoading(true);
     setCohortError(null);
 
     try {
       if (isAdmin) {
         const rooms = await fetchAdminChatRooms();
         setAdminRooms(rooms);
+        patchInboxMemoryCache(user.studentId, { adminRooms: rooms });
       } else if (isTeacher) {
         // Teacher accounts are not assigned to student class cohorts
         setStudentConfig(null);
         const rooms = await fetchAdminChatRooms();
         setAdminRooms(rooms);
+        patchInboxMemoryCache(user.studentId, { studentConfig: null, adminRooms: rooms });
       } else {
         const config = await fetchChatConfig();
         setStudentConfig(config);
+        let nextPreview = getInboxMemoryCache(user.studentId)?.studentPreview;
         try {
           const preview = await getCachedCohortPreview();
-          if (preview) setStudentPreview(preview);
+          if (preview) {
+            setStudentPreview(preview);
+            nextPreview = preview;
+          }
         } catch {}
+        patchInboxMemoryCache(user.studentId, { studentConfig: config, studentPreview: nextPreview });
       }
     } catch (err: any) {
       if (!(isAdmin || isTeacher) && err?.status === 404) {
         setStudentConfig(null);
         setStudentPreview(undefined);
         setCohortError(null);
+        patchInboxMemoryCache(user.studentId, { studentConfig: null, studentPreview: undefined });
       } else {
         setCohortError(err?.message || "Failed to load cohort conversations.");
       }
@@ -281,21 +298,25 @@ function ChatScreenInner() {
     }
   }, [isAdmin, isTeacher, user?.studentId, serverUrl, token]);
 
-  // 2. Independent DM loader
+  // 2. Independent DM loader (background SWR when memory cache exists)
   const loadDms = useCallback(async (isRefresh = false) => {
     if (!user?.studentId) return;
+    const memSnapshot = getInboxMemoryCache(user.studentId);
+    const hasCachedDms = Boolean(memSnapshot && (memSnapshot.dmConversations.length > 0 || memSnapshot.dmEnabled));
 
     if (isRefresh) setDmsRefreshing(true);
-    else setDmsLoading(true);
+    else if (!hasCachedDms) setDmsLoading(true);
     setDmError(null);
 
     try {
       const status = await fetchDmStatus();
       const enabled = Boolean(status?.enabled);
       setDmEnabled(enabled);
+      patchInboxMemoryCache(user.studentId, { dmEnabled: enabled });
 
       if (!enabled) {
         setDmConversations([]);
+        patchInboxMemoryCache(user.studentId, { dmConversations: [] });
         return;
       }
 
@@ -304,6 +325,7 @@ function ChatScreenInner() {
           const cached = await getCachedDmConversations(user.studentId);
           if (cached && cached.length > 0) {
             setDmConversations(cached);
+            patchInboxMemoryCache(user.studentId, { dmConversations: cached });
           }
         } catch {
           // Cache read is non-fatal
@@ -312,6 +334,14 @@ function ChatScreenInner() {
 
       const conversations = await fetchDmConversations(40, 0);
       setDmConversations(conversations);
+      patchInboxMemoryCache(user.studentId, { dmConversations: conversations });
+
+      // Silently pre-warm top 3 recent DM threads from local SQLite into memory for 0ms open
+      conversations.slice(0, 3).forEach((conv) => {
+        if (conv?.id) {
+          void prefetchDmThread(user.studentId, conv.id, { network: false });
+        }
+      });
 
       try {
         await saveCachedDmConversations(user.studentId, conversations);
@@ -331,14 +361,17 @@ function ChatScreenInner() {
     }
   }, [user?.studentId, dmConversations.length]);
 
-  const [kyanaPreview, setKyanaPreview] = useState<KyanaInboxPreview | null>(null);
+  const [kyanaPreview, setKyanaPreview] = useState<KyanaInboxPreview | null>(() => initialInboxSnapshot?.kyanaPreview || null);
 
   const loadKyana = useCallback(async () => {
     try {
       const preview = await fetchKyanaPreview();
-      if (preview) setKyanaPreview(preview);
+      if (preview) {
+        setKyanaPreview(preview);
+        patchInboxMemoryCache(user?.studentId, { kyanaPreview: preview });
+      }
     } catch {}
-  }, []);
+  }, [user?.studentId]);
 
   // 3. Combined loader (concurrent, independent)
   const loadAll = useCallback(async (isRefresh = false) => {
@@ -349,27 +382,68 @@ function ChatScreenInner() {
     ]);
   }, [loadCohorts, loadDms, loadKyana]);
 
-  // Reset state on account switch or logout
+  // Hydrate persisted inbox snapshot on cold launch or reset strictly on account switch/logout
+  const prevAccountRef = useRef<string | null>(user?.studentId || null);
   useEffect(() => {
-    setSelectedCohortRoom(null);
-    setAdminRooms([]);
-    setStudentConfig(null);
-    setStudentPreview(undefined);
-    setDmConversations([]);
-    setCohortError(null);
-    setDmError(null);
+    let cancelled = false;
+    const nextAccount = user?.studentId || null;
+    ensureChatCacheAccount(nextAccount);
+    if (prevAccountRef.current !== nextAccount) {
+      prevAccountRef.current = nextAccount;
+      const snap = getInboxMemoryCache(nextAccount);
+      setSelectedCohortRoom(null);
+      setAdminRooms(snap?.adminRooms || []);
+      setStudentConfig(snap?.studentConfig || null);
+      setStudentPreview(snap?.studentPreview);
+      setDmConversations(snap?.dmConversations || []);
+      setDmEnabled(Boolean(snap?.dmEnabled));
+      setKyanaPreview(snap?.kyanaPreview || null);
+      setCohortError(null);
+      setDmError(null);
+    }
+    if (nextAccount && !getInboxMemoryCache(nextAccount)) {
+      void hydrateInboxCacheFromStorage(nextAccount).then((persisted) => {
+        if (cancelled || !persisted) return;
+        if (persisted.adminRooms.length > 0) setAdminRooms((prev) => (prev.length > 0 ? prev : persisted.adminRooms));
+        if (persisted.studentConfig) setStudentConfig((prev) => prev || persisted.studentConfig);
+        if (persisted.studentPreview) setStudentPreview((prev) => prev || persisted.studentPreview);
+        if (persisted.dmEnabled) setDmEnabled(true);
+        if (persisted.dmConversations.length > 0) {
+          setDmConversations((prev) => (prev.length > 0 ? prev : persisted.dmConversations));
+          persisted.dmConversations.slice(0, 3).forEach((conv) => {
+            if (conv?.id) void prefetchDmThread(nextAccount, conv.id, { network: false });
+          });
+        }
+        if (persisted.kyanaPreview) setKyanaPreview((prev) => prev || persisted.kyanaPreview);
+        if (persisted.cohortMembers.length > 0) setMembers((prev) => (prev.length > 0 ? prev : persisted.cohortMembers));
+      });
+    }
     if (user?.studentId && serverUrl) {
       beginChatSession(serverUrl, user.studentId, token);
     } else {
       invalidateChatSession();
     }
+    return () => {
+      cancelled = true;
+    };
   }, [user?.studentId, serverUrl, token]);
 
-  // Load inbox data on screen focus when at inbox level
+  // Load inbox data on screen focus — deferred after transition & throttled (12s SWR)
+  // so returning from a chat never lags or re-renders rows mid-tap.
+  const lastInboxSyncRef = useRef<number>(0);
   useFocusEffect(
     useCallback(() => {
       if (!selectedCohortRoom && user?.studentId) {
-        void loadAll();
+        const hasMem = Boolean(getInboxMemoryCache(user.studentId));
+        const now = Date.now();
+        if (hasMem && now - lastInboxSyncRef.current < 12000) {
+          return;
+        }
+        const timer = setTimeout(() => {
+          lastInboxSyncRef.current = Date.now();
+          void loadAll();
+        }, hasMem ? 260 : 0);
+        return () => clearTimeout(timer);
       }
     }, [selectedCohortRoom, user?.studentId, loadAll])
   );
@@ -542,7 +616,9 @@ function ChatScreenInner() {
     }
   }, [targetChatGroupId, isAdmin, isTeacher, selectedCohortRoom, adminRooms, studentConfig]);
 
+  const cancelGroupChatExitRef = useRef<() => void>(() => {});
   const handleSelectCohort = useCallback((item: CohortConversationItem) => {
+    cancelGroupChatExitRef.current();
     setSelectedCohortRoom(item);
   }, []);
 
@@ -620,10 +696,37 @@ function ChatScreenInner() {
     }
   }, [dmEnabled, router]);
 
+  const handlePrefetchDm = useCallback((conversationId: string) => {
+    if (user?.studentId && conversationId) {
+      void prefetchDmThread(user.studentId, conversationId, { network: true });
+    }
+  }, [user?.studentId]);
+
   const handleBackToInbox = useCallback(() => {
     setSelectedCohortRoom(null);
   }, []);
-  const backSwipeHandlers = useChatBackSwipeResponder(handleBackToInbox, Boolean(selectedCohortRoom));
+  const {
+    panHandlers: backSwipeHandlers,
+    animatedScreenStyle: backSwipeAnimatedStyle,
+    scrimStyle: backSwipeScrimStyle,
+    underlayStyle: backSwipeUnderlayStyle,
+    isExiting: isExitingGroupChat,
+    triggerAnimatedBack: triggerGroupChatBack,
+    cancelExit: cancelGroupChatExit,
+  } = useInteractiveChatBackSwipe(handleBackToInbox, Boolean(selectedCohortRoom));
+  cancelGroupChatExitRef.current = cancelGroupChatExit;
+
+  // Defer hiding bottom tab bar until slide-in finishes so Frame-0 doesn't trigger a full Tabs relayout;
+  // restore it immediately when exit begins.
+  useEffect(() => {
+    if (selectedCohortRoom && !isExitingGroupChat) {
+      const timer = setTimeout(() => {
+        navigation.setOptions({ tabBarStyle: { display: "none" } });
+      }, 240);
+      return () => clearTimeout(timer);
+    }
+    navigation.setOptions({ tabBarStyle: undefined });
+  }, [navigation, selectedCohortRoom, isExitingGroupChat]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -632,7 +735,7 @@ function ChatScreenInner() {
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [panel, setPanel] = useState<"search" | "members" | null>(null);
   const [query, setQuery] = useState("");
-  const [members, setMembers] = useState<ChatMember[]>([]);
+  const [members, setMembers] = useState<ChatMember[]>(() => initialInboxSnapshot?.cohortMembers || []);
   const [membersLoading, setMembersLoading] = useState(false);
   const [membersError, setMembersError] = useState(false);
   const inputRef = useRef<TextInputInstance>(null);
@@ -651,13 +754,14 @@ function ChatScreenInner() {
         const data = await fetchChatMembers();
         if (mounted && data.members) {
           setMembers(data.members);
+          patchInboxMemoryCache(user?.studentId, { cohortMembers: data.members });
         }
       } catch {}
     })();
     return () => {
       mounted = false;
     };
-  }, [roomGeneration, context?.chatGroupId]);
+  }, [roomGeneration, context?.chatGroupId, user?.studentId]);
 
   // Track initially loaded message IDs to disable slide animation on initial load and initialize seen set
   const initialLoadedIds = useRef(new Set<number>());
@@ -1605,6 +1709,31 @@ function ChatScreenInner() {
     }
   }, []);
 
+  // Compute Instagram-style "Seen by Sandesh, Saugat..." summary for the newest seen outgoing message
+  const latestSeenOutgoing = useMemo(() => {
+    if (!user?.studentId) return null;
+    for (const m of messages) {
+      if (String(m.studentId) !== String(user.studentId) || m.id <= 0) continue;
+      const readers = readReceipts.filter(
+        (r) => String(r.studentId) !== String(user.studentId) && r.lastReadMessageId >= m.id
+      );
+      if (readers.length > 0) {
+        const names = readers.map((r) => {
+          const matched = members.find((mem) => String(mem.studentId) === String(r.studentId));
+          const raw = matched?.name || (r as any).name || 'Classmate';
+          return raw.trim().split(/\s+/)[0];
+        });
+        const uniqueNames = Array.from(new Set(names));
+        const summary =
+          uniqueNames.length <= 2
+            ? `Seen by ${uniqueNames.join(', ')}`
+            : `Seen by ${uniqueNames.slice(0, 2).join(', ')} +${uniqueNames.length - 2}`;
+        return { messageId: m.id, summary };
+      }
+    }
+    return null;
+  }, [messages, readReceipts, members, user?.studentId]);
+
   // Render message using the memoized ChatMessageItem component with stable references
   const renderMessageItem = useCallback(
     ({ item, index }: { item: ChatMessage; index: number }) => {
@@ -1612,6 +1741,10 @@ function ChatScreenInner() {
       const nextMsg = messages[index - 1] || null;
       const isInitial = initialLoadedIds.current.has(item.id);
       const isHighlighted = highlightedMessageId === item.id;
+      const seenBySummary =
+        latestSeenOutgoing && latestSeenOutgoing.messageId === item.id
+          ? latestSeenOutgoing.summary
+          : null;
 
       return (
         <ChatMessageItem
@@ -1621,6 +1754,7 @@ function ChatScreenInner() {
           nextMsg={nextMsg}
           currentUserId={user?.studentId}
           readReceipts={readReceipts}
+          seenBySummary={seenBySummary}
           serverUrl={serverUrl}
           authToken={token}
           downloadingFileId={downloadingFileId}
@@ -1646,6 +1780,7 @@ function ChatScreenInner() {
       starredMessageIds,
       user?.studentId,
       readReceipts,
+      latestSeenOutgoing,
       serverUrl,
       token,
       downloadingFileId,
@@ -1673,10 +1808,14 @@ function ChatScreenInner() {
     void loadDms(false);
   }, [loadDms]);
 
-  if (!selectedCohortRoom) {
-    return (
-      <TabSwipeContainer tabIndex={2} disabled={false}>
-        <View style={styles.screenContainer}>
+  return (
+    <TabSwipeContainer tabIndex={2} disabled={Boolean(selectedCohortRoom)}>
+      <View style={{ flex: 1, backgroundColor: "#080808" }}>
+        {/* Base Layer: Unified Inbox stays mounted underneath and becomes touchable immediately upon exit commit */}
+        <Reanimated.View
+          pointerEvents={selectedCohortRoom && !isExitingGroupChat ? "none" : "auto"}
+          style={[styles.screenContainer, selectedCohortRoom ? backSwipeUnderlayStyle : undefined]}
+        >
           <StatusBar barStyle="light-content" />
           <UnifiedChatInbox
             items={unifiedItems}
@@ -1697,18 +1836,37 @@ function ChatScreenInner() {
             onRetryDm={handleRetryDmInbox}
             onSelectCohort={handleSelectCohort}
             onSelectDm={handleSelectDm}
+            onPrefetchDm={handlePrefetchDm}
             onSelectKyana={handleSelectKyana}
             onSelectOnlineUser={handleSelectOnlineUser}
             onNewMessage={handleNewMessage}
           />
-        </View>
-      </TabSwipeContainer>
-    );
-  }
+        </Reanimated.View>
 
-  return (
-    <TabSwipeContainer tabIndex={2} disabled={true}>
-      <View style={styles.screenContainer}>
+        {/* Overlay Layer: Cohort Group Chat slides 1:1 over the real Inbox with native edge shadow */}
+        {selectedCohortRoom && (
+          <>
+            <Reanimated.View
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, { backgroundColor: "#000000", zIndex: 15 }, backSwipeScrimStyle]}
+            />
+            <Reanimated.View
+              pointerEvents={isExitingGroupChat ? "none" : "auto"}
+              style={[
+                StyleSheet.absoluteFill,
+                styles.screenContainer,
+                {
+                  zIndex: 20,
+                  shadowColor: "#000000",
+                  shadowOffset: { width: -6, height: 0 },
+                  shadowOpacity: 0.45,
+                  shadowRadius: 14,
+                  elevation: 16,
+                },
+                backSwipeAnimatedStyle,
+              ]}
+              {...backSwipeHandlers}
+            >
       <StatusBar barStyle="light-content" />
       <FluidChatBackground />
 
@@ -1722,7 +1880,7 @@ function ChatScreenInner() {
         ]}
       >
         <TouchableOpacity
-          onPress={handleBackToInbox}
+          onPress={triggerGroupChatBack}
           style={styles.headerBackBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Back to inbox"
@@ -1790,8 +1948,8 @@ function ChatScreenInner() {
         </TouchableOpacity>
       </View>
 
-      {/* Class Chat Container (swipe right outside bubble goes back to inbox) */}
-      <View style={{ flex: 1 }} {...backSwipeHandlers}>
+      {/* Class Chat Container (interactive Reanimated swipe-back attached to root screen) */}
+      <View style={{ flex: 1 }}>
 
       {/* Archived Banner */}
       {isArchived && (
@@ -1858,13 +2016,7 @@ function ChatScreenInner() {
       {/* Main Message List & Viewport Boundary */}
       <KeyboardContentBoundary style={styles.messagesBoundary}>
         {loadingInitial ? (
-          <View style={styles.skeletonContainer}>
-            <View style={[styles.skeletonBubble, styles.skeletonBubbleLeft, { width: 170 }]} />
-            <View style={[styles.skeletonBubble, styles.skeletonBubbleRight, { width: 220 }]} />
-            <View style={[styles.skeletonBubble, styles.skeletonBubbleRight, { width: 130 }]} />
-            <View style={[styles.skeletonBubble, styles.skeletonBubbleLeft, { width: 240 }]} />
-            <View style={[styles.skeletonBubble, styles.skeletonBubbleRight, { width: 180 }]} />
-          </View>
+          <ChatConversationSkeleton />
         ) : error && messages.length === 0 ? (
           <View style={styles.centerContainer}>
             <Ionicons name="cloud-offline-outline" size={36} color="#71717a" />
@@ -1902,10 +2054,31 @@ function ChatScreenInner() {
             onEndReached={loadOlderMessages}
             onEndReachedThreshold={0.3}
             inverted
-            initialNumToRender={15}
-            maxToRenderPerBatch={15}
-            windowSize={9}
+            initialNumToRender={9}
+            maxToRenderPerBatch={5}
+            windowSize={5}
+            updateCellsBatchingPeriod={40}
             removeClippedSubviews={Platform.OS === "android"}
+            ListHeaderComponent={
+              otherTypers.length > 0 ? (
+                <TypingIndicatorBubble
+                  initials={(otherTypers[0]?.name || '?').trim().charAt(0).toUpperCase()}
+                  avatarUri={
+                    otherTypers[0]?.studentId && serverUrl
+                      ? `${serverUrl.replace(/\/+$/, '')}/api/avatar/student/${encodeURIComponent(String(otherTypers[0].studentId))}`
+                      : null
+                  }
+                  headers={imageAuthHeaders}
+                  label={
+                    typingNames.length === 1
+                      ? `${typingNames[0]} is typing`
+                      : typingNames.length === 2
+                        ? `${typingNames[0]} and ${typingNames[1]} are typing`
+                        : `${typingNames[0]} and ${typingNames.length - 1} others are typing`
+                  }
+                />
+              ) : undefined
+            }
             ListFooterComponent={
               loadingMore ? (
                 <View style={styles.loadingMoreContainer}>
@@ -1990,6 +2163,7 @@ function ChatScreenInner() {
               Keyboard.dismiss();
               setShowAttachModal(true);
             }}
+            onPickImage={() => void handlePickImage()}
             onPickCamera={handleTakePhoto}
             onSendMessage={handleSendMessage}
             inputRef={inputRef}
@@ -2002,9 +2176,10 @@ function ChatScreenInner() {
         )}
       </StickyComposer>
 
-      {/* Class Members & Search Modal Panel */}
+      {/* Class Members & Search Modal Panel (mounted lazily only when open) */}
+      {panel !== null && (
       <Modal
-        visible={panel !== null}
+        visible
         animationType="slide"
         transparent
         onRequestClose={() => setPanel(null)}
@@ -2168,8 +2343,10 @@ function ChatScreenInner() {
           </View>
         </KeyboardStickyView>
       </Modal>
+      )}
 
-      {/* Overhauled Message Actions Sheet (Requirement 1 & 7: Instant Sheet & Haptics) */}
+      {/* Overhauled Message Actions Sheet (mounted lazily only when open) */}
+      {Boolean(actionMessage) && (
       <ChatMessageActionsSheet
         visible={Boolean(actionMessage)}
         message={actionMessage}
@@ -2224,10 +2401,12 @@ function ChatScreenInner() {
         onPin={(msg) => void handleTogglePin(msg)}
         onDelete={(msg) => handleDeleteMessage(msg)}
       />
+      )}
 
-      {/* Seen By / Who-Read Modal for Group Messages (Item 17) */}
+      {/* Seen By / Who-Read Modal for Group Messages (mounted lazily only when open) */}
+      {Boolean(readByInspectMessage) && (
       <Modal
-        visible={Boolean(readByInspectMessage)}
+        visible
         transparent
         animationType="fade"
         onRequestClose={() => setReadByInspectMessage(null)}
@@ -2280,6 +2459,7 @@ function ChatScreenInner() {
           </View>
         </Pressable>
       </Modal>
+      )}
 
       {/* Attachment Action Sheet (Rendered in-tree to prevent Android native Dialog window conflicts) */}
       {showAttachModal && (
@@ -2375,14 +2555,19 @@ function ChatScreenInner() {
       </View>
 
 
-      {/* Shared Full-Screen Image Viewer (Requirement 4: Same viewer as feed, zoom, swipe-down, tap to close) */}
-      <FullScreenImageViewer
-        visible={viewerImage !== null}
-        imageUri={viewerImage?.uri || null}
-        imageTitle={viewerImage?.name}
-        headers={imageAuthHeaders}
-        onClose={() => setViewerImage(null)}
-      />
+      {/* Shared Full-Screen Image Viewer (mounted lazily only when open) */}
+      {viewerImage !== null && (
+        <FullScreenImageViewer
+          visible
+          imageUri={viewerImage.uri}
+          imageTitle={viewerImage.name}
+          headers={imageAuthHeaders}
+          onClose={() => setViewerImage(null)}
+        />
+      )}
+            </Reanimated.View>
+          </>
+        )}
       </View>
     </TabSwipeContainer>
   );

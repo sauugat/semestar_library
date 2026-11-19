@@ -3,18 +3,24 @@ import {
   View,
   StyleSheet,
   FlatList,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
   Pressable,
 } from 'react-native';
+
+const ACTIVE_NOW_ITEM_WIDTH = 62;
+const ACTIVE_NOW_ITEM_GAP = 16;
+const ACTIVE_NOW_ITEM_STRIDE = ACTIVE_NOW_ITEM_WIDTH + ACTIVE_NOW_ITEM_GAP;
+const INBOX_SECTION_HEADER_HEIGHT = 34;
+const INBOX_ITEM_ROW_HEIGHT = 76;
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/Typography';
 import { Monochrome } from '@/constants/theme';
+import { ChatInboxSkeleton } from './ChatSkeletons';
 import { DEFAULT_SERVER_URL } from '@/services/api';
 import type { ChatMember } from '@/services/chat';
 import {
@@ -105,7 +111,47 @@ type InboxListEntry =
   | { entryKey: 'header:messages'; entryType: 'section_header'; title: 'MESSAGES' }
   | { entryKey: string; entryType: 'item'; item: UnifiedConversationItem };
 
-function AvatarWithFallback({
+const ActiveNowAvatarRow = React.memo(function ActiveNowAvatarRow({
+  person,
+  serverUrl,
+  imageHeaders,
+  onSelect,
+}: {
+  person: ActiveNowPerson;
+  serverUrl?: string;
+  imageHeaders?: Record<string, string>;
+  onSelect?: (person: ActiveNowPerson) => void;
+}) {
+  const uri = resolveAvatarUri(person.avatarUrl, serverUrl, person.studentId);
+  return (
+    <TouchableOpacity
+      style={styles.activeNowItem}
+      activeOpacity={0.85}
+      onPress={() => onSelect?.(person)}
+      accessibilityRole="button"
+      accessibilityLabel={
+        person.isOnline
+          ? `Message ${person.name}, online now`
+          : `Message ${person.name}`
+      }
+    >
+      <View style={styles.activeNowAvatarWrap}>
+        <AvatarWithFallback
+          uri={uri}
+          name={person.name}
+          size={58}
+          headers={imageHeaders}
+        />
+        {person.isOnline && <View style={styles.activeNowOnlineDot} />}
+      </View>
+      <Text style={styles.activeNowName} numberOfLines={1}>
+        {getFirstName(person.name)}
+      </Text>
+    </TouchableOpacity>
+  );
+});
+
+const AvatarWithFallback = React.memo(function AvatarWithFallback({
   uri,
   name,
   size = 54,
@@ -170,7 +216,7 @@ function AvatarWithFallback({
       </Text>
     </View>
   );
-}
+});
 
 function SemesterGroupAvatar({
   cohortItem,
@@ -233,12 +279,13 @@ export interface UnifiedChatInboxProps {
   onRetryDm?: () => void;
   onSelectCohort: (item: CohortConversationItem) => void;
   onSelectDm: (item: DmConversationItem) => void;
+  onPrefetchDm?: (conversationId: string) => void;
   onSelectKyana?: () => void;
   onSelectOnlineUser?: (person: ActiveNowPerson) => void;
   onNewMessage: () => void;
 }
 
-export function UnifiedChatInbox({
+export const UnifiedChatInbox = React.memo(function UnifiedChatInbox({
   items,
   loading,
   refreshing,
@@ -257,6 +304,7 @@ export function UnifiedChatInbox({
   onRetryDm,
   onSelectCohort,
   onSelectDm,
+  onPrefetchDm,
   onSelectKyana,
   onSelectOnlineUser,
   onNewMessage,
@@ -631,6 +679,7 @@ export function UnifiedChatInbox({
             styles.itemRow,
             pressed && styles.itemRowPressed,
           ]}
+          onPressIn={() => onPrefetchDm?.(dmItem.conversationId)}
           onPress={() => onSelectDm(dmItem)}
           accessibilityRole="button"
           accessibilityLabel={`Conversation with ${dmItem.title}`}
@@ -696,6 +745,7 @@ export function UnifiedChatInbox({
       onSelectKyana,
       onSelectCohort,
       onSelectDm,
+      onPrefetchDm,
       isTeacher,
       totalCohortCount,
       collageUris,
@@ -740,45 +790,33 @@ export function UnifiedChatInbox({
           </TouchableOpacity>
         </View>
 
-        <ScrollView
+        <FlatList
           horizontal
+          data={carouselClassmates}
+          keyExtractor={(person) => person.studentId}
+          renderItem={({ item: person }) => (
+            <ActiveNowAvatarRow
+              person={person}
+              serverUrl={serverUrl}
+              imageHeaders={imageHeaders}
+              onSelect={onSelectOnlineUser}
+            />
+          )}
+          getItemLayout={(_, index) => ({
+            length: ACTIVE_NOW_ITEM_STRIDE,
+            offset: 16 + ACTIVE_NOW_ITEM_STRIDE * index,
+            index,
+          })}
+          ItemSeparatorComponent={() => <View style={{ width: ACTIVE_NOW_ITEM_GAP }} />}
           nestedScrollEnabled
           directionalLockEnabled
-          scrollEventThrottle={16}
+          keyboardShouldPersistTaps="always"
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.activeNowScrollContent}
-        >
-          {carouselClassmates.map((person) => {
-            const uri = resolveAvatarUri(person.avatarUrl, serverUrl, person.studentId);
-            return (
-              <TouchableOpacity
-                key={person.studentId}
-                style={styles.activeNowItem}
-                activeOpacity={0.85}
-                onPress={() => onSelectOnlineUser?.(person)}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  person.isOnline
-                    ? `Message ${person.name}, online now`
-                    : `Message ${person.name}`
-                }
-              >
-                <View style={styles.activeNowAvatarWrap}>
-                  <AvatarWithFallback
-                    uri={uri}
-                    name={person.name}
-                    size={58}
-                    headers={imageHeaders}
-                  />
-                  {person.isOnline && <View style={styles.activeNowOnlineDot} />}
-                </View>
-                <Text style={styles.activeNowName} numberOfLines={1}>
-                  {getFirstName(person.name)}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+        />
       </View>
     );
   }, [carouselClassmates, onlineCount, searchQuery, onNewMessage, serverUrl, imageHeaders, onSelectOnlineUser]);
@@ -915,9 +953,7 @@ export function UnifiedChatInbox({
 
       {/* Sectioned Conversation List (Active Now + PINNED + MESSAGES) */}
       {loading && items.length === 0 ? (
-        <View style={styles.centerLoadingContainer}>
-          <ActivityIndicator size="large" color={Monochrome.textPrimary} />
-        </View>
+        <ChatInboxSkeleton />
       ) : !hasAnyVisibleRows ? (
         <View style={{ flex: 1 }}>
           {listHeaderElement}
@@ -964,7 +1000,21 @@ export function UnifiedChatInbox({
           data={listEntries}
           keyExtractor={(entry) => entry.entryKey}
           renderItem={renderEntry}
+          getItemLayout={(data, index) => {
+            if (!data || index < 0 || index >= data.length) {
+              return { length: INBOX_ITEM_ROW_HEIGHT, offset: INBOX_ITEM_ROW_HEIGHT * Math.max(0, index), index };
+            }
+            let offset = 0;
+            for (let i = 0; i < index; i++) {
+              offset += data[i].entryType === 'section_header' ? INBOX_SECTION_HEADER_HEIGHT : INBOX_ITEM_ROW_HEIGHT;
+            }
+            const length = data[index].entryType === 'section_header' ? INBOX_SECTION_HEADER_HEIGHT : INBOX_ITEM_ROW_HEIGHT;
+            return { length, offset, index };
+          }}
           ListHeaderComponent={listHeaderElement}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={7}
           removeClippedSubviews={false}
           refreshControl={
             <RefreshControl
@@ -975,13 +1025,13 @@ export function UnifiedChatInbox({
           }
           contentContainerStyle={styles.listContent}
           keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           showsVerticalScrollIndicator={false}
         />
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -1098,7 +1148,6 @@ const styles = StyleSheet.create({
   },
   activeNowScrollContent: {
     paddingHorizontal: 16,
-    gap: 16,
   },
   activeNowItem: {
     alignItems: 'center',

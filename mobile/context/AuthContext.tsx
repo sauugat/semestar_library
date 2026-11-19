@@ -6,6 +6,7 @@ import { disconnectChatRealtime } from '@/services/chat-realtime';
 import { clearAllDmCache } from '@/services/dm-db';
 import { disconnectAllDmRealtime } from '@/services/dm-realtime';
 import { invalidateChatSession, beginChatSession } from '@/services/chat-session';
+import { clearAllChatMemoryCache } from '@/services/chat-memory-cache';
 import { clearAppQueryCache } from '@/services/query-client';
 import { getAutoDetectedServerUrl, getBaseUrl, isTrustedServerUrl, DEFAULT_SERVER_URL, addSuspensionListener } from '@/services/api';
 import {
@@ -95,6 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await SecureStore.deleteItemAsync(TOKEN_KEY);
       await SecureStore.deleteItemAsync(USER_KEY);
       invalidateChatSession();
+      clearAllChatMemoryCache();
       void disconnectChatRealtime();
       disconnectAllDmRealtime();
       await clearChatDb({ preservePending: true });
@@ -177,6 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 await SecureStore.deleteItemAsync(TOKEN_KEY);
                 await SecureStore.deleteItemAsync(USER_KEY);
                 invalidateChatSession();
+                clearAllChatMemoryCache();
                 void disconnectChatRealtime();
                 disconnectAllDmRealtime();
                 await clearChatDb({ preservePending: true });
@@ -240,6 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (res.status === 200 && data.token) {
         invalidateChatSession();
+        clearAllChatMemoryCache();
         disconnectChatRealtime();
         disconnectAllDmRealtime();
         await clearChatDb();
@@ -452,6 +456,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     invalidateChatSession();
+    clearAllChatMemoryCache();
     resetNotificationNavigationState();
     void disconnectChatRealtime();
     disconnectAllDmRealtime();
@@ -505,6 +510,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     disconnectChatRealtime();
     disconnectAllDmRealtime();
     invalidateChatSession();
+    clearAllChatMemoryCache();
     clearAppQueryCache();
     await Promise.allSettled([
       SecureStore.deleteItemAsync(TOKEN_KEY),
@@ -521,6 +527,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setSession = async (newToken: string, newUser: StudentUser) => {
     invalidateChatSession();
+    clearAllChatMemoryCache();
     disconnectChatRealtime();
     disconnectAllDmRealtime();
     await clearChatDb();

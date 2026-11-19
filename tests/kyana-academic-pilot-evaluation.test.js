@@ -70,11 +70,12 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
   describe('2. Evaluation of 13 Gandaki University BIT Academic Questions', () => {
 
     const ACADEMIC_TEST_CASES = [
-      // --- DATA STRUCTURES & ALGORITHMS (BIT 2nd Sem) ---
+      // --- DATA STRUCTURES & ALGORITHMS (BIT 3rd Sem, CIT214) ---
       {
         id: 'DSA-1',
         subject: 'Data Structures and Algorithms',
-        semester: '2nd Semester',
+        courseCode: 'CIT214',
+        semester: '3rd Semester',
         prompt: 'Show binary search on [10, 20, 30, 40, 50], searching for 40.',
         expectedProfile: 'algorithm_walkthrough',
         expectedInteractive: true,
@@ -84,7 +85,8 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
       {
         id: 'DSA-2',
         subject: 'Data Structures and Algorithms',
-        semester: '2nd Semester',
+        courseCode: 'CIT214',
+        semester: '3rd Semester',
         prompt: 'Compare Bubble sort and Selection sort in detail with time complexity and when to use each.',
         expectedProfile: 'comparison_table',
         expectedInteractive: false,
@@ -94,7 +96,8 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
       {
         id: 'DSA-3',
         subject: 'Data Structures and Algorithms',
-        semester: '2nd Semester',
+        courseCode: 'CIT214',
+        semester: '3rd Semester',
         prompt: 'Explain stack operations with an interactive example showing push and pop.',
         expectedProfile: 'algorithm_walkthrough',
         expectedInteractive: true,
@@ -104,7 +107,8 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
       {
         id: 'DSA-4',
         subject: 'Data Structures and Algorithms',
-        semester: '2nd Semester',
+        courseCode: 'CIT214',
+        semester: '3rd Semester',
         prompt: 'Explain Queue FIFO behavior with an interactive example.',
         expectedProfile: 'algorithm_walkthrough',
         expectedInteractive: true,
@@ -112,10 +116,11 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
         mustNotForceVisual: false
       },
 
-      // --- DATABASE MANAGEMENT SYSTEMS (BIT 3rd Sem) ---
+      // --- DATABASE MANAGEMENT SYSTEMS (BIT 3rd Sem, CIT213) ---
       {
         id: 'DBMS-1',
         subject: 'Database Management Systems',
+        courseCode: 'CIT213',
         semester: '3rd Semester',
         prompt: 'What is the difference between Primary Key and Foreign Key in relational databases?',
         expectedProfile: 'comparison_table',
@@ -126,6 +131,7 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
       {
         id: 'DBMS-2',
         subject: 'Database Management Systems',
+        courseCode: 'CIT213',
         semester: '3rd Semester',
         prompt: 'Explain relational table relationships with an example of Student and Department.',
         expectedProfile: 'conceptual_explanation',
@@ -136,6 +142,7 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
       {
         id: 'DBMS-3',
         subject: 'Database Management Systems',
+        courseCode: 'CIT213',
         semester: '3rd Semester',
         prompt: 'Explain database normalization from 1NF to 3NF with a small concrete example.',
         expectedProfile: 'conceptual_explanation',
@@ -144,10 +151,11 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
         mustNotForceVisual: true
       },
 
-      // --- OPERATING SYSTEMS (BIT 4th Sem) ---
+      // --- OPERATING SYSTEMS (BIT 4th Sem, CIT221) ---
       {
         id: 'OS-1',
         subject: 'Operating Systems',
+        courseCode: 'CIT221',
         semester: '4th Semester',
         prompt: 'Explain FCFS CPU scheduling with 3 processes P1, P2, P3 with burst times 4, 3, 1.',
         expectedProfile: 'conceptual_explanation',
@@ -158,6 +166,7 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
       {
         id: 'OS-2',
         subject: 'Operating Systems',
+        courseCode: 'CIT221',
         semester: '4th Semester',
         prompt: 'How does Round-Robin CPU scheduling work with a time quantum?',
         expectedProfile: 'conceptual_explanation',
@@ -168,6 +177,7 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
       {
         id: 'OS-3',
         subject: 'Operating Systems',
+        courseCode: 'CIT221',
         semester: '4th Semester',
         prompt: 'What is the role of Stack vs Queue in operating system memory and process management?',
         expectedProfile: 'comparison_table',
@@ -176,11 +186,12 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
         mustNotForceVisual: true
       },
 
-      // --- DIGITAL LOGIC (BIT 1st Sem) ---
+      // --- DIGITAL LOGIC (BIT 2nd Sem, ELX121) ---
       {
         id: 'DL-1',
         subject: 'Digital Logic',
-        semester: '1st Semester',
+        courseCode: 'ELX121',
+        semester: '2nd Semester',
         prompt: 'Show me XOR and XNOR truth tables with their Boolean expressions.',
         expectedProfile: 'truth_table',
         expectedInteractive: false,
@@ -190,7 +201,8 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
       {
         id: 'DL-2',
         subject: 'Digital Logic',
-        semester: '1st Semester',
+        courseCode: 'ELX121',
+        semester: '2nd Semester',
         prompt: 'How does an AND gate work? Show an interactive logic simulation.',
         expectedProfile: 'interactive_simulation',
         expectedInteractive: true,
@@ -200,7 +212,8 @@ describe('Phase 2.5: Academic Visualization Pilot & Student Readiness', () => {
       {
         id: 'DL-3',
         subject: 'Digital Logic',
-        semester: '1st Semester',
+        courseCode: 'ELX121',
+        semester: '2nd Semester',
         prompt: 'Derive the truth table for compound Boolean expression Y = (A AND B) OR (NOT C).',
         expectedProfile: 'truth_table',
         expectedInteractive: false,

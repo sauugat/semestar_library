@@ -930,6 +930,10 @@ html[data-theme="light"] {
   margin-top: 2px;
 }
 
+.ky-vis-feedback-ack.ky-vis-feedback-error {
+  color: #f87171;
+}
+
 @media (max-width: 480px) {
   .ky-vis-feedback-main {
     flex-direction: column;

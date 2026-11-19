@@ -3526,10 +3526,13 @@
           <div class="chapter-kyana-messages" id="chapterKyanaMessages"></div>
 
           <div class="chapter-kyana-quick-bar" id="chapterKyanaQuickBar">
-            <button type="button" class="chapter-kyana-chip" onclick="sendChapterKyanaQuickPrompt('Teach me this chapter step by step')">Teach me this chapter</button>
-            <button type="button" class="chapter-kyana-chip" onclick="sendChapterKyanaQuickPrompt('Summarize all the key points in these chapter notes')">Summarize notes</button>
-            <button type="button" class="chapter-kyana-chip" onclick="sendChapterKyanaQuickPrompt('I do not understand the last concept, give me a simple example')">Give me an example</button>
-            <button type="button" class="chapter-kyana-chip" onclick="sendChapterKyanaQuickPrompt('What exam questions can come from this chapter?')">Exam questions</button>
+            <button type="button" class="chapter-kyana-chip active" id="chipModeAsk" onclick="setChapterKyanaMode('ask', this)">❓ Ask Anything</button>
+            <button type="button" class="chapter-kyana-chip" id="chipModeTeach" onclick="setChapterKyanaMode('teach', this)">📖 Teach Me</button>
+            <button type="button" class="chapter-kyana-chip" id="chipModeExplain" onclick="setChapterKyanaMode('explain', this)">💡 Explain This</button>
+            <button type="button" class="chapter-kyana-chip" id="chipModeSolve" onclick="setChapterKyanaMode('solve', this)">🧩 Solve With Me</button>
+            <button type="button" class="chapter-kyana-chip" id="chipModePractice" onclick="setChapterKyanaMode('practice', this)">✏️ Practice Me</button>
+            <button type="button" class="chapter-kyana-chip" id="chipModeRevise" onclick="setChapterKyanaMode('revise', this)">⚡ Revise</button>
+            <button type="button" class="chapter-kyana-chip" id="chipModeTest" onclick="setChapterKyanaMode('test', this)">🎯 Test My Understanding</button>
           </div>
 
           <form class="chapter-kyana-input-bar" id="chapterKyanaForm" onsubmit="return handleChapterKyanaSubmit(event)">
@@ -7851,6 +7854,46 @@
           color: #ffffff;
           border-color: #111827;
         }
+        .chapter-kyana-chip.active {
+          background: #080808 !important;
+          color: #ffffff !important;
+          border-color: #080808 !important;
+        }
+        [data-theme="dark"] .chapter-kyana-chip.active,
+        body.dark-mode .chapter-kyana-chip.active {
+          background: #ffffff !important;
+          color: #080808 !important;
+          border-color: #ffffff !important;
+        }
+        .katex-mathml {
+          display: none !important;
+        }
+        .md-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 12px 0;
+          font-size: 12px;
+          display: block;
+          overflow-x: auto;
+        }
+        .md-table th, .md-table td {
+          padding: 6px 10px;
+          border: 1px solid #e2e8f0;
+          text-align: left;
+        }
+        .md-table th {
+          background: #f8fafc;
+          font-weight: 700;
+        }
+        [data-theme="dark"] .md-table th,
+        body.dark-mode .md-table th {
+          background: #18181b !important;
+          border-color: #27272a !important;
+        }
+        [data-theme="dark"] .md-table td,
+        body.dark-mode .md-table td {
+          border-color: #27272a !important;
+        }
         .chapter-kyana-input-bar {
           display: flex;
           align-items: flex-end;
@@ -8311,7 +8354,8 @@
       bundle: null,
       conversationId: null,
       history: [],
-      sending: false
+      sending: false,
+      learningMode: 'ask'
     };
 
     let PDFJS_LOADING_PROMISE = null;
@@ -8399,8 +8443,16 @@
         bundle: null,
         conversationId: `chap_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         history: [],
-        sending: false
+        sending: false,
+        learningMode: 'ask'
       };
+
+      const quickBar = document.getElementById('chapterKyanaQuickBar');
+      if (quickBar) {
+        quickBar.querySelectorAll('.chapter-kyana-chip').forEach(c => c.classList.remove('active'));
+        const askChip = document.getElementById('chipModeAsk');
+        if (askChip) askChip.classList.add('active');
+      }
 
       // Activate split-screen workspace (Left: Continuous Notes Stream, Right: Kyana AI Tutor)
       const workspace = document.getElementById('drawerWorkspace');
@@ -8921,15 +8973,36 @@
     }
 
     function fallbackRenderChapterMarkdown(text) {
-      const lines = text.split('\n');
+      // Protect math blocks from HTML escaping (< and >)
+      const mathPlaceholders = [];
+      let protectedText = String(text || '').replace(/(\$\$[\s\S]*?\$\$|\$[^\n$]+?\$|\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\))/g, (m) => {
+        const id = `___KATEX_SHIELD_${mathPlaceholders.length}___`;
+        mathPlaceholders.push(m);
+        return id;
+      });
+
+      // Protect fenced code blocks
+      const codePlaceholders = [];
+      protectedText = protectedText.replace(/(^|\n)(`{3,}|~{3,})([\w+-]*)[ \t]*\n([\s\S]*?)(?:\n\2[ \t]*(?=\n|$)|$)/g, (_, prefix, _fence, lang, code) => {
+        const id = `___CODE_BLOCK_${codePlaceholders.length}___`;
+        const codeHtml = `<pre class="md-code-block"><code class="language-${escapeHtml(lang || 'text')}">${escapeHtml(code)}</code></pre>`;
+        codePlaceholders.push(codeHtml);
+        return `${prefix}\n${id}\n`;
+      });
+
+      const lines = protectedText.split('\n');
       const out = [];
       let inList = null;
       let para = [];
+      let inTable = false;
+      let tableRows = [];
+
       const inline = (s) => escapeHtml(s)
         .replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>')
         .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
         .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
       const flushPara = () => {
         if (para.length) {
           out.push(`<p class="md-p">${para.map(inline).join('<br/>')}</p>`);
@@ -8942,8 +9015,56 @@
           inList = null;
         }
       };
+      const flushTable = () => {
+        if (inTable && tableRows.length) {
+          let html = '<table class="md-table"><thead><tr>';
+          const headerCells = tableRows[0];
+          headerCells.forEach(cell => {
+            html += `<th>${inline(cell)}</th>`;
+          });
+          html += '</tr></thead><tbody>';
+          for (let r = 1; r < tableRows.length; r++) {
+            html += '<tr>';
+            tableRows[r].forEach(cell => {
+              html += `<td>${inline(cell)}</td>`;
+            });
+            html += '</tr>';
+          }
+          html += '</tbody></table>';
+          out.push(html);
+          tableRows = [];
+          inTable = false;
+        }
+      };
+
       for (const line of lines) {
         const trimmed = line.trim();
+
+        // Code block insertion
+        if (/^___CODE_BLOCK_(\d+)___$/.test(trimmed)) {
+          flushTable();
+          flushList();
+          flushPara();
+          out.push(codePlaceholders[Number(RegExp.$1)]);
+          continue;
+        }
+
+        // Table detection
+        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+          flushList(); flushPara();
+          if (/^\|[\s\-:|]+\|$/.test(trimmed)) {
+            // separator row
+            inTable = true;
+            continue;
+          }
+          const cells = trimmed.slice(1, -1).split('|').map(c => c.trim());
+          tableRows.push(cells);
+          inTable = true;
+          continue;
+        } else {
+          flushTable();
+        }
+
         if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
           flushList(); flushPara(); out.push('<hr class="md-divider" />'); continue;
         }
@@ -8971,8 +9092,15 @@
         if (!trimmed) { flushPara(); continue; }
         para.push(line);
       }
-      flushList(); flushPara();
-      return out.join('');
+      flushTable();
+      flushList();
+      flushPara();
+
+      let finalHtml = out.join('');
+      mathPlaceholders.forEach((math, idx) => {
+        finalHtml = finalHtml.split(`___KATEX_SHIELD_${idx}___`).join(math);
+      });
+      return finalHtml;
     }
 
     function formatChapterKyanaMarkdown(text) {
@@ -9143,6 +9271,16 @@
           if (Array.isArray(chats) && chats.length > 0) {
             const activeChat = chats[0];
             ACTIVE_CHAPTER_KYANA_STATE.conversationId = activeChat.id;
+            if (activeChat && activeChat.session && (activeChat.session.total_steps || activeChat.session.totalSteps)) {
+              const kyanaPill = document.getElementById('chapterKyanaContextPill');
+              if (kyanaPill) {
+                const s = activeChat.session;
+                const total = s.total_steps || s.totalSteps || 0;
+                const current = s.current_step_index || s.currentStepIndex || 1;
+                const mastered = s.mastered_steps || s.masteredSteps || 0;
+                kyanaPill.textContent = `Step ${current} of ${total} · ${mastered} Mastered`;
+              }
+            }
             const msgsResp = await fetch(`/api/ai/conversations/${activeChat.id}/messages`, {
               headers: { 'Accept': 'application/json', ...authHeaders },
               credentials: 'include'
@@ -9409,8 +9547,66 @@
       `;
     }
 
+    window.setChapterKyanaMode = function (mode, btnEl) {
+      const validMode = ['ask', 'teach', 'explain', 'solve', 'practice', 'revise', 'test'].includes(mode) ? mode : 'ask';
+      ACTIVE_CHAPTER_KYANA_STATE.learningMode = validMode;
+
+      // Update chip classes
+      const container = document.getElementById('chapterKyanaQuickBar');
+      if (container) {
+        const chips = container.querySelectorAll('.chapter-kyana-chip');
+        chips.forEach(c => c.classList.remove('active'));
+      }
+      if (btnEl) {
+        btnEl.classList.add('active');
+      } else {
+        const targetId = 'chipMode' + validMode.charAt(0).toUpperCase() + validMode.slice(1);
+        const targetBtn = document.getElementById(targetId);
+        if (targetBtn) targetBtn.classList.add('active');
+      }
+
+      const input = document.getElementById('chapterKyanaInput');
+      if (validMode === 'teach') {
+        if (input) input.placeholder = 'Teaching active. Type your answer or "next" to continue…';
+        const hasActiveSession = Boolean(
+          (ACTIVE_CHAPTER_KYANA_STATE.sessionProgress && ACTIVE_CHAPTER_KYANA_STATE.sessionProgress.status === 'ACTIVE') ||
+          (ACTIVE_CHAPTER_KYANA_STATE.history && ACTIVE_CHAPTER_KYANA_STATE.history.length > 0)
+        );
+        if (hasActiveSession) {
+          submitChapterKyanaMessage('Continue teaching this chapter');
+        } else {
+          submitChapterKyanaMessage('Teach me this chapter step by step');
+        }
+      } else if (validMode === 'practice') {
+        if (input) input.placeholder = 'Type your answer or working steps here…';
+        submitChapterKyanaMessage('Give me a practice problem or question for this chapter');
+      } else if (validMode === 'revise') {
+        if (input) input.placeholder = 'Ask a follow-up about any revision point…';
+        submitChapterKyanaMessage('Give me a quick revision sheet of this chapter with key takeaways');
+      } else if (validMode === 'test') {
+        if (input) input.placeholder = 'Type your diagnostic answers here…';
+        submitChapterKyanaMessage('Test my understanding of this chapter with a short diagnostic quiz');
+      } else if (validMode === 'solve') {
+        if (input) {
+          input.placeholder = 'Paste or type a problem from this chapter to solve together step-by-step…';
+          input.focus();
+        }
+      } else if (validMode === 'explain') {
+        if (input) {
+          input.placeholder = 'What concept, theorem, or term would you like explained deeply?';
+          input.focus();
+        }
+      } else {
+        if (input) {
+          input.placeholder = 'Ask anything about this chapter…';
+          input.focus();
+        }
+      }
+    };
+
     window.triggerTeachMeChapter = function () {
-      window.sendChapterKyanaQuickPrompt('Teach me this chapter step by step');
+      const teachChip = document.getElementById('chipModeTeach');
+      window.setChapterKyanaMode('teach', teachChip);
     };
 
     window.sendChapterKyanaQuickPrompt = function (promptText) {
@@ -9491,7 +9687,8 @@
               semesterNo: ACTIVE_CHAPTER_KYANA_STATE.semesterNo,
               unitNumber: ACTIVE_CHAPTER_KYANA_STATE.unitNumber,
               chapterTitle: ACTIVE_CHAPTER_KYANA_STATE.chapterTitle,
-              fileIds: ACTIVE_CHAPTER_KYANA_STATE.fileIds
+              fileIds: ACTIVE_CHAPTER_KYANA_STATE.fileIds,
+              learningMode: ACTIVE_CHAPTER_KYANA_STATE.learningMode || 'ask'
             }
           })
         });
@@ -9500,6 +9697,20 @@
         const replyText = (data && (data.reply || data.response || data.message)) || 'Sorry, I could not generate a response right now.';
         const chapterMeta = data && data.chapterTutor ? data.chapterTutor : null;
         const isStudyPartner = data && data.intent === 'study_partner';
+
+        if (data && data.sessionProgress) {
+          ACTIVE_CHAPTER_KYANA_STATE.sessionProgress = data.sessionProgress;
+          const kyanaPill = document.getElementById('chapterKyanaContextPill');
+          if (kyanaPill) {
+            const sp = data.sessionProgress;
+            const total = sp.totalSteps || 0;
+            const current = sp.currentStepIndex || 1;
+            const mastered = sp.masteredSteps || 0;
+            if (total > 0) {
+              kyanaPill.textContent = `Step ${current} of ${total} · ${mastered} Mastered`;
+            }
+          }
+        }
 
         let badgeHtml = '';
         if (isStudyPartner) {
@@ -9547,16 +9758,20 @@
 
     function renderMathInChapterBubble(el) {
       if (!el || !window.renderMathInElement) return;
+      const target = el.classList && el.classList.contains('chapter-kyana-md') ? el : (el.querySelector('.chapter-kyana-md') || el);
+      if (target.dataset && target.dataset.mathRendered === '1') return;
       try {
-        window.renderMathInElement(el, {
+        window.renderMathInElement(target, {
           delimiters: [
             { left: '$$', right: '$$', display: true },
             { left: '$', right: '$', display: false },
             { left: '\\[', right: '\\]', display: true },
             { left: '\\(', right: '\\)', display: false }
           ],
+          ignoredClasses: ['katex', 'katex-html', 'katex-mathml', 'md-code-block'],
           throwOnError: false
         });
+        if (target.dataset) target.dataset.mathRendered = '1';
       } catch (_) {}
     }
 

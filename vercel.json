@@ -60,6 +60,10 @@
     {
       "path": "/api/internal/posts/cleanup-staging",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/internal/kyana/telemetry/prune",
+      "schedule": "0 3 * * *"
     }
   ]
 }

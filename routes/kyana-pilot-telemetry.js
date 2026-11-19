@@ -13,8 +13,28 @@ const {
   recordTelemetryEvent,
   recordControlsInteraction,
   recordFeedback,
-  getPilotReport
+  getPilotReport,
+  pruneTelemetryRecords
 } = require('../lib/kyana-pilot-telemetry');
+
+/**
+ * Middleware to authenticate scheduled cron requests securely.
+ * Authenticates via Authorization: Bearer <CRON_SECRET> or x-cron-secret: <CRON_SECRET>.
+ * Fail-closed: Rejects requests if CRON_SECRET is unconfigured or mismatch occurs.
+ * Never exposes the secret to clients or log files.
+ */
+function verifyCronAuth(req, res, next) {
+  const secret = process.env.CRON_SECRET || process.env.INTERNAL_CRON_SECRET;
+  if (!secret) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized: CRON_SECRET is not configured on server.' });
+  }
+  const authHeader = req.headers['authorization'];
+  const cronHeader = req.headers['x-cron-secret'];
+  if ((authHeader && authHeader === `Bearer ${secret}`) || (cronHeader && cronHeader === secret)) {
+    return next();
+  }
+  return res.status(401).json({ ok: false, error: 'Unauthorized: Invalid or missing cron secret.' });
+}
 
 function createKyanaPilotTelemetryRouter(db) {
   const router = express.Router();
@@ -111,9 +131,38 @@ function createKyanaPilotTelemetryRouter(db) {
     }
   });
 
+  /**
+   * ALL /api/kyana/telemetry/internal/prune
+   * Automated 90-day retention pruning endpoint.
+   * Authenticated strictly via Bearer CRON_SECRET or x-cron-secret.
+   * Safe, idempotent, zero PII returned.
+   */
+  router.all('/internal/prune', verifyCronAuth, async (req, res) => {
+    try {
+      const retentionDays = Math.max(1, Number(req.body?.retentionDays || req.query?.retentionDays || 90));
+      const result = await pruneTelemetryRecords(db, { retentionDays });
+      if (!result.ok) {
+        return res.status(500).json({ ok: false, error: result.error || 'Pruning operation failed' });
+      }
+      console.log(`[KyanaPilotTelemetry] Automated ${retentionDays}-day retention pruning completed. Deleted telemetry: ${result.deletedTelemetry}, Deleted feedback: ${result.deletedFeedback}`);
+      return res.status(200).json({
+        ok: true,
+        status: 'pruned',
+        retentionDays,
+        deletedTelemetry: result.deletedTelemetry,
+        deletedFeedback: result.deletedFeedback,
+        executedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('[KyanaPilotTelemetry] Internal prune error:', err);
+      return res.status(500).json({ ok: false, error: 'Internal pruning failure' });
+    }
+  });
+
   return router;
 }
 
 module.exports = {
-  createKyanaPilotTelemetryRouter
+  createKyanaPilotTelemetryRouter,
+  verifyCronAuth
 };

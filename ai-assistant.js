@@ -1081,13 +1081,15 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     const isShortNonQuestion = wordCount > 0 && wordCount <= 4 && !isQuestion;
 
     const isTeachMode = chapterContext.learningMode === 'teach';
+    const isExplicitRestart = /\b(?:restart|start\s+over|from\s+(?:the\s+)?(?:beginning|scratch)|reset\s+(?:chapter|lesson)|suru\s+bata)\b/i.test(trimmedMsg);
+    const isExplicitChapterTeach = Boolean(chapReasoning.isExplicitChapterTeachRequest);
     const shouldStepOrAdvanceSession = hasActiveConvStudySession && (isSteppingRegex || (isShortNonQuestion && lastWasLesson));
-    const isClarifyingInterruption = hasActiveConvStudySession && isQuestion && !chapReasoning.isExplicitChapterTeachRequest && !isTeachMode && !isSteppingRegex;
+    const isClarifyingInterruption = hasActiveConvStudySession && isQuestion && !isExplicitRestart && !isSteppingRegex;
 
-    if (!isClarifyingInterruption && (isTeachMode || route.kind === 'study_partner' || chapReasoning.isExplicitChapterTeachRequest || shouldStepOrAdvanceSession)) {
+    if (!isClarifyingInterruption && (isTeachMode || route.kind === 'study_partner' || isExplicitChapterTeach || shouldStepOrAdvanceSession)) {
       route.kind = 'study_partner';
-      route.isNewSession = Boolean(chapReasoning.isExplicitChapterTeachRequest);
-      route.isFollowUp = Boolean(!chapReasoning.isExplicitChapterTeachRequest && hasActiveConvStudySession);
+      route.isNewSession = Boolean(isExplicitRestart || (isExplicitChapterTeach && !hasActiveConvStudySession));
+      route.isFollowUp = Boolean(!route.isNewSession && hasActiveConvStudySession);
       route.filters = {
         ...(route.filters || {}),
         subject: chapterContext.subject || route.filters?.subject,
@@ -1102,7 +1104,8 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         chapterContext,
         academicContext,
         generateReplyFn: canSynthesizeWithLlm ? llmGenerateFn : null,
-        signal
+        signal,
+        isClarifyingInterruption: Boolean(isClarifyingInterruption)
       });
 
       if (!tutorOut.delegateToStudyPartner) {
@@ -1226,10 +1229,33 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         activeSession.id
       );
       const currentTopic = topics.find(t => (t.stepIndex || t.step_index) === currentStepIdx) || topics[0];
-      const effectiveCheckpoint = lastAssistantMsg || currentTopic?.checkpoint_question;
-      const studentIntent = evaluateStudentIntent(message, currentTopic, effectiveCheckpoint);
+      const isResumeOrTeachPrompt = /^(?:continue\s+(?:teaching|this\s+chapter|lesson)|resume\s+(?:teaching|this\s+chapter|lesson)|teach\s+me\s+this\s+chapter(?:\s+step\s+by\s+step)?|let's\s+continue\s+this\s+chapter\s+lesson)$/i.test(message.trim());
+      const lastLessonMsgInHistory = [...cleanHistory].reverse().find(m =>
+        m && m.role === 'assistant' && /checkpoint|quick\s+check|exam\s+checkpoint|study_session/i.test(m.content || '')
+      )?.content || '';
+      const effectiveCheckpoint = (lastAssistantMsg && /checkpoint(?:\s*question)?|quick\s+check|exam\s+checkpoint/i.test(lastAssistantMsg))
+        ? lastAssistantMsg
+        : (lastLessonMsgInHistory || currentTopic?.checkpoint_question || lastAssistantMsg);
+      const studentIntent = isResumeOrTeachPrompt
+        ? { intent: 'resume_session', confidence: 1.0 }
+        : evaluateStudentIntent(message, currentTopic, effectiveCheckpoint);
 
-      if (studentIntent.intent === 'switch_topic') {
+      if (studentIntent.intent === 'resume_session') {
+        renderedStep = currentTopic;
+        renderedSession = activeSession;
+        renderedTopics = topics;
+        lessonBundle = await buildCompiledTopicLessonBundle(db, {
+          session: renderedSession,
+          step: renderedStep,
+          academicContext
+        });
+        studyResultText = renderMicroTopicTurn({
+          session: activeSession,
+          step: currentTopic,
+          topics,
+          lessonBundle
+        });
+      } else if (studentIntent.intent === 'switch_topic') {
         // The student asked an administrative / institutional / out-of-domain question during an active study session.
         // DO NOT grade this as an answer to the checkpoint and DO NOT advance the lesson!
         const agentOut = await runKyanaAgentLoop({
@@ -1280,7 +1306,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
               const evalOut = await llmGenerateFn({
                 message: `Previous message from Kyana:\n${lastAssistantMsg.slice(-1200)}\n\nStudent's reply:\n${message}`,
                 history: [],
-                systemPrompt: 'You are evaluating a student\'s reply to Kyana\'s Checkpoint Question. Reply ONLY with valid JSON: {"passed": boolean, "feedback": "1 warm, specific sentence"}. Mark passed=true if the student answered correctly (even in 1 word like "p") or asked a genuine clarifying question.',
+                systemPrompt: 'You are evaluating a student\'s reply to Kyana\'s Checkpoint Question. Reply ONLY with valid JSON: {"passed": boolean, "isClarification": boolean, "feedback": "1 warm, specific sentence"}. Mark passed=true ONLY if the student provided a correct answer to the checkpoint question (even if concise). If the student asked a clarifying question, expressed confusion ("bujhina", "don\'t understand"), or asked for help/examples, you MUST set passed=false and isClarification=true. Never mark passed=true for questions or confusion.',
                 tools: [],
                 onDelta: () => {},
                 signal,
@@ -1290,9 +1316,20 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
               const jsonMatch = rawEval.match(/\{[\s\S]*\}/);
               if (jsonMatch) {
                 const parsed = JSON.parse(jsonMatch[0]);
-                if (typeof parsed.passed === 'boolean') {
+                const isMsgQuestion = message.includes('?') || /^(?:what|why|how|when|where|who|which|is|are|can|could|kasto|kina|kahile|kasari|ke|bujhina)\b/i.test(message.trim());
+                if (parsed.isClarification || isMsgQuestion) {
+                  evalResult = {
+                    passed: false,
+                    isClarification: true,
+                    score: 0.0,
+                    feedback: typeof parsed.feedback === 'string' && parsed.feedback.trim()
+                      ? parsed.feedback.trim()
+                      : 'That’s a thoughtful question! Let’s clarify this concept before answering the checkpoint.'
+                  };
+                } else if (typeof parsed.passed === 'boolean') {
                   evalResult = {
                     passed: parsed.passed,
+                    score: parsed.passed ? 1.0 : 0.0,
                     feedback: typeof parsed.feedback === 'string' && parsed.feedback.trim()
                       ? parsed.feedback.trim()
                       : evalResult.feedback
@@ -1301,6 +1338,13 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
               }
             } catch (_) {}
           }
+        }
+
+        const isMsgClarification = message.includes('?') ||
+          /^(?:what|why|how|when|where|who|which|is|are|can|could|kasto|kina|kahile|kasari|ke|bujhina)\b/i.test(message.trim());
+        if (isMsgClarification || evalResult.isClarification) {
+          evalResult.passed = false;
+          evalResult.isClarification = true;
         }
 
         if (!evalResult.passed) {
@@ -1671,6 +1715,13 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     studyRes.intent = 'study_partner';
     studyRes.studySessionId = renderedSession?.id || null;
     studyRes.currentStepIndex = renderedStep ? Number(renderedStep.stepIndex || renderedStep.step_index || 1) : null;
+    studyRes.sessionProgress = renderedSession ? {
+      sessionId: renderedSession.id,
+      currentStepIndex: renderedStep ? Number(renderedStep.stepIndex || renderedStep.step_index || 1) : 1,
+      totalSteps: renderedSession.total_steps ?? renderedSession.totalSteps ?? 0,
+      masteredSteps: renderedSession.mastered_steps ?? renderedSession.masteredSteps ?? 0,
+      status: renderedSession.status
+    } : null;
     studyRes.resourceCards = activeCourseNotes;
     studyRes.messageActions = extractedActions || buildFallbackMessageActions({
       intent: 'study_partner',

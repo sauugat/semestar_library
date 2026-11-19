@@ -942,6 +942,39 @@
     } catch (_) {}
   }
 
+  function sendPilotFeedback(data, onSuccess, onError) {
+    try {
+      if (typeof fetch !== 'function') {
+        if (typeof onError === 'function') onError(new Error('Fetch unavailable'));
+        return;
+      }
+      fetch('/api/kyana/telemetry/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+        keepalive: true
+      })
+      .then(function (res) {
+        if (!res.ok) {
+          throw new Error('HTTP ' + res.status);
+        }
+        return res.json();
+      })
+      .then(function (json) {
+        if (json && json.ok !== false) {
+          if (typeof onSuccess === 'function') onSuccess(json);
+        } else {
+          throw new Error(json && json.message ? json.message : 'Feedback recording failed');
+        }
+      })
+      .catch(function (err) {
+        if (typeof onError === 'function') onError(err);
+      });
+    } catch (e) {
+      if (typeof onError === 'function') onError(e);
+    }
+  }
+
   function attachFeedbackBar(rootEl, instanceId, engine) {
     if (!rootEl || !instanceId || rootEl.querySelector('.ky-vis-feedback-bar')) return;
 
@@ -970,11 +1003,13 @@
     const unhelpfulBtn = bar.querySelector('.ky-fb-unhelpful');
     const reasonsWrap = bar.querySelector('.ky-vis-feedback-reasons');
     const ackWrap = bar.querySelector('.ky-vis-feedback-ack');
+    const ackText = bar.querySelector('.ky-vis-feedback-ack-text');
 
     let currentRating = null;
 
     function handleVote(rating) {
       if (currentRating === rating) return;
+      const prevRating = currentRating;
       currentRating = rating;
 
       if (rating === 'helpful') {
@@ -985,47 +1020,70 @@
         helpfulBtn.classList.remove('active');
       }
 
-      sendPilotBeacon('/api/kyana/telemetry/feedback', {
-        instanceId: instanceId,
-        rating: rating
-      });
-
-      const tags = rating === 'helpful'
-        ? [
-            { label: 'Clear explanation', val: 'clear_explanation' },
-            { label: 'Easy to follow', val: 'easy_to_follow' },
-            { label: 'Interactive helpful', val: 'interactive_helpful' }
-          ]
-        : [
-            { label: 'Confusing', val: 'confusing' },
-            { label: 'Broken animation', val: 'broken_animation' },
-            { label: 'Incorrect step', val: 'incorrect_step' },
-            { label: 'Too fast / slow', val: 'too_fast' }
-          ];
-
-      reasonsWrap.innerHTML = '';
-      tags.forEach(function (t) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'ky-vis-reason-pill';
-        btn.textContent = t.label;
-        btn.addEventListener('click', function (e) {
-          e.preventDefault();
-          reasonsWrap.querySelectorAll('.ky-vis-reason-pill').forEach(function (p) {
-            p.classList.remove('active');
-          });
-          btn.classList.add('active');
-          sendPilotBeacon('/api/kyana/telemetry/feedback', {
-            instanceId: instanceId,
-            rating: currentRating,
-            reason: t.val
-          });
+      sendPilotFeedback(
+        { instanceId: instanceId, rating: rating },
+        function onSuccess() {
           ackWrap.style.display = 'block';
-        });
-        reasonsWrap.appendChild(btn);
-      });
-      reasonsWrap.style.display = 'flex';
-      ackWrap.style.display = 'block';
+          ackWrap.classList.remove('ky-vis-feedback-error');
+          if (ackText) ackText.textContent = '✓ Thanks for your feedback!';
+
+          const tags = rating === 'helpful'
+            ? [
+                { label: 'Clear explanation', val: 'clear_explanation' },
+                { label: 'Easy to follow', val: 'easy_to_follow' },
+                { label: 'Interactive helpful', val: 'interactive_helpful' }
+              ]
+            : [
+                { label: 'Confusing', val: 'confusing' },
+                { label: 'Broken animation', val: 'broken_animation' },
+                { label: 'Incorrect step', val: 'incorrect_step' },
+                { label: 'Too fast / slow', val: 'too_fast' }
+              ];
+
+          reasonsWrap.innerHTML = '';
+          tags.forEach(function (t) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'ky-vis-reason-pill';
+            btn.textContent = t.label;
+            btn.addEventListener('click', function (e) {
+              e.preventDefault();
+              reasonsWrap.querySelectorAll('.ky-vis-reason-pill').forEach(function (p) {
+                p.classList.remove('active');
+              });
+              btn.classList.add('active');
+
+              sendPilotFeedback(
+                { instanceId: instanceId, rating: currentRating, reason: t.val },
+                function onReasonSuccess() {
+                  ackWrap.style.display = 'block';
+                  ackWrap.classList.remove('ky-vis-feedback-error');
+                  if (ackText) ackText.textContent = '✓ Thanks for your feedback!';
+                },
+                function onReasonError() {
+                  btn.classList.remove('active');
+                  ackWrap.style.display = 'block';
+                  ackWrap.classList.add('ky-vis-feedback-error');
+                  if (ackText) ackText.textContent = 'Could not save tag. Please retry.';
+                }
+              );
+            });
+            reasonsWrap.appendChild(btn);
+          });
+          reasonsWrap.style.display = 'flex';
+        },
+        function onError() {
+          currentRating = prevRating;
+          helpfulBtn.classList.remove('active');
+          unhelpfulBtn.classList.remove('active');
+          if (prevRating === 'helpful') helpfulBtn.classList.add('active');
+          else if (prevRating === 'unhelpful') unhelpfulBtn.classList.add('active');
+
+          ackWrap.style.display = 'block';
+          ackWrap.classList.add('ky-vis-feedback-error');
+          if (ackText) ackText.textContent = 'Feedback could not be recorded. Please retry.';
+        }
+      );
     }
 
     helpfulBtn.addEventListener('click', function (e) {

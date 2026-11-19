@@ -7527,8 +7527,30 @@ app.get('/api/ai/preview', async (req, res) => {
 app.get('/api/ai/resources/:type/:id/open', requireLogin, require('./lib/kyana-resource-http').createResourceHandler(db));
 
 // Kyana Academic Visualization Pilot Telemetry Endpoints
-const { createKyanaPilotTelemetryRouter } = require('./routes/kyana-pilot-telemetry');
+const { createKyanaPilotTelemetryRouter, verifyCronAuth } = require('./routes/kyana-pilot-telemetry');
 app.use('/api/kyana/telemetry', createKyanaPilotTelemetryRouter(db));
+app.all('/api/internal/kyana/telemetry/prune', verifyCronAuth, async (req, res) => {
+  try {
+    const { pruneTelemetryRecords } = require('./lib/kyana-pilot-telemetry');
+    const retentionDays = Math.max(1, Number(req.body?.retentionDays || req.query?.retentionDays || 90));
+    const result = await pruneTelemetryRecords(db, { retentionDays });
+    if (!result.ok) {
+      return res.status(500).json({ ok: false, error: result.error || 'Pruning operation failed' });
+    }
+    console.log(`[KyanaPilotTelemetry] Automated ${retentionDays}-day retention pruning completed. Deleted telemetry: ${result.deletedTelemetry}, Deleted feedback: ${result.deletedFeedback}`);
+    return res.status(200).json({
+      ok: true,
+      status: 'pruned',
+      retentionDays,
+      deletedTelemetry: result.deletedTelemetry,
+      deletedFeedback: result.deletedFeedback,
+      executedAt: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('[KyanaPilotTelemetry] Internal cron prune error:', err.message);
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
 
 // Authenticated AI Conversation Endpoints
 app.get('/api/ai/chapter-chats', requireLogin, async (req, res) => {

@@ -82,8 +82,8 @@ test('2. Telemetry Lifecycle Event Recording & Storage', async () => {
     instanceId,
     sessionHash,
     engineId: 'algo_anim',
-    subjectCode: 'CIT122',
-    semesterNo: 2,
+    subjectCode: 'CIT214',
+    semesterNo: 3,
     selected: true,
     validationPassed: true,
     renderPassed: true,
@@ -104,7 +104,7 @@ test('2. Telemetry Lifecycle Event Recording & Storage', async () => {
   assert.equal(row.instance_id ?? row.instanceId, instanceId);
   assert.equal(row.session_hash ?? row.sessionHash, sessionHash);
   assert.equal(row.engine_id ?? row.engineId, 'algo_anim');
-  assert.equal(row.subject_code ?? row.subjectCode, 'CIT122');
+  assert.equal(row.subject_code ?? row.subjectCode, 'CIT214');
   assert.equal(Number(row.latency_ms ?? row.latencyMs), 1420);
   assert.equal(Number(row.controls_used ?? row.controlsUsed), 0);
 
@@ -123,8 +123,8 @@ test('3. Playback / Simulator Interaction Tracking', async () => {
     instanceId,
     sessionHash,
     engineId: 'dsa_linear',
-    subjectCode: 'CIT122',
-    semesterNo: 2,
+    subjectCode: 'CIT214',
+    semesterNo: 3,
     selected: true,
     validationPassed: true,
     renderPassed: true,
@@ -208,7 +208,7 @@ test('5. Admin Pilot Report Aggregation Metrics', async () => {
     instanceId: `${batchId}_1`,
     sessionHash: 'hash_a',
     engineId: 'algo_anim',
-    subjectCode: 'CIT122',
+    subjectCode: 'CIT214',
     validationPassed: true,
     renderPassed: true,
     controlsUsed: true,
@@ -219,7 +219,7 @@ test('5. Admin Pilot Report Aggregation Metrics', async () => {
     instanceId: `${batchId}_2`,
     sessionHash: 'hash_b',
     engineId: 'logic_sim',
-    subjectCode: 'CIT221',
+    subjectCode: 'ELX121',
     validationPassed: true,
     renderPassed: true,
     controlsUsed: false,
@@ -230,7 +230,7 @@ test('5. Admin Pilot Report Aggregation Metrics', async () => {
     instanceId: `${batchId}_3`,
     sessionHash: 'hash_c',
     engineId: 'dsa_linear',
-    subjectCode: 'CIT122',
+    subjectCode: 'CIT214',
     validationPassed: false,
     renderPassed: false,
     failureReason: 'UNSORTED_ARRAY',
@@ -311,8 +311,8 @@ test('6. HTTP Telemetry Endpoints & Authorization Security', async () => {
       body: JSON.stringify({
         instanceId: `test_http_vis_${Date.now()}`,
         engineId: 'algo_anim',
-        subjectCode: 'CIT122',
-        semesterNo: 2,
+        subjectCode: 'CIT214',
+        semesterNo: 3,
         latencyMs: 1100
       })
     });

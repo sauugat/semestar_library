@@ -1871,15 +1871,15 @@
         const totalEl = document.getElementById('kpi-pilot-total');
         if (totalEl) totalEl.textContent = Number(sum.totalAttempts || 0).toLocaleString();
         const renderEl = document.getElementById('kpi-pilot-render');
-        if (renderEl) renderEl.textContent = (sum.renderSuccessRate ?? 100) + '%';
+        if (renderEl) renderEl.textContent = (sum.renderSuccessRate !== null && sum.renderSuccessRate !== undefined) ? sum.renderSuccessRate + '%' : '—';
         const valEl = document.getElementById('kpi-pilot-validation');
-        if (valEl) valEl.textContent = (sum.validationFailureRate ?? 0) + '%';
+        if (valEl) valEl.textContent = (sum.validationFailureRate !== null && sum.validationFailureRate !== undefined) ? sum.validationFailureRate + '%' : '—';
         const engEl = document.getElementById('kpi-pilot-engagement');
-        if (engEl) engEl.textContent = (sum.controlsUsageRate ?? 0) + '%';
+        if (engEl) engEl.textContent = (sum.controlsUsageRate !== null && sum.controlsUsageRate !== undefined) ? sum.controlsUsageRate + '%' : '—';
         const sentEl = document.getElementById('kpi-pilot-sentiment');
-        if (sentEl) sentEl.textContent = (fb.helpfulRatio ?? 100) + '%';
+        if (sentEl) sentEl.textContent = (fb.helpfulRatio !== null && fb.helpfulRatio !== undefined) ? fb.helpfulRatio + '%' : '—';
         const latEl = document.getElementById('kpi-pilot-latency');
-        if (latEl) latEl.textContent = (sum.medianLatencyMs ? sum.medianLatencyMs + ' ms' : '—');
+        if (latEl) latEl.textContent = (sum.medianLatencyMs !== null && sum.medianLatencyMs !== undefined) ? sum.medianLatencyMs + ' ms' : '—';
 
         const engTbody = document.getElementById('pilotEnginesTableBody');
         if (engTbody) {

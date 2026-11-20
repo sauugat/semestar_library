@@ -1994,31 +1994,44 @@
     }
   }
 
-  async function downloadMonthlySvg() {
-    const selectedMonth =
+  function getEffectiveExportMonth() {
+    if (state.monthlyIsBsMode) {
+      const bsYm =
+        (isBsMonthKey(state.selectedBsMonth) ? state.selectedBsMonth : '') ||
+        getBsMonthKey(state.selectedDate || state.currentNepalDate);
+      if (isBsMonthKey(bsYm)) return bsYm;
+    }
+    return (
       state.selectedMonth ||
       (state.selectedDate ? state.selectedDate.slice(0, 7) : '') ||
-      (state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '');
-    if (!state.selectedSubjectId || !state.selectedCohortId || !selectedMonth) return null;
+      (state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '')
+    );
+  }
+
+  async function downloadMonthlyExport(format) {
+    const fmt = format === 'csv' ? 'csv' : 'svg';
+    const effectiveMonth = getEffectiveExportMonth();
+    if (!state.selectedSubjectId || !state.selectedCohortId || !effectiveMonth) return null;
     const qs = new URLSearchParams({
       subjectId: state.selectedSubjectId,
       cohortId: state.selectedCohortId,
-      month: selectedMonth,
-      format: 'svg'
+      month: effectiveMonth,
+      format: fmt
     });
     const url = `/api/attendance/monthly?${qs.toString()}`;
     try {
       const res = await authFetch(url);
       if (!res || !res.ok) return null;
-      const svgText = await res.text();
+      const text = await res.text();
       if (typeof window.Blob === 'function' && window.URL && typeof window.URL.createObjectURL === 'function') {
-        const blob = new window.Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+        const mime = fmt === 'csv' ? 'text/csv;charset=utf-8' : 'image/svg+xml;charset=utf-8';
+        const blob = new window.Blob([text], { type: mime });
         const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = blobUrl;
         link.setAttribute(
           'download',
-          `gandaki_monthly_attendance_${state.selectedSubjectId}_${selectedMonth}.svg`
+          `gandaki_monthly_attendance_${state.selectedSubjectId}_${effectiveMonth}.${fmt}`
         );
         if (document.body && typeof document.body.appendChild === 'function') {
           document.body.appendChild(link);
@@ -2031,10 +2044,18 @@
           window.URL.revokeObjectURL(blobUrl);
         }
       }
-      return svgText;
+      return text;
     } catch (_) {
       return null;
     }
+  }
+
+  async function downloadMonthlySvg() {
+    return downloadMonthlyExport('svg');
+  }
+
+  async function downloadMonthlyCsv() {
+    return downloadMonthlyExport('csv');
   }
 
   /**
@@ -3546,14 +3567,17 @@
             formattedPercentage: '0.0%'
           }));
 
+    const effectiveExportMonth =
+      state.monthlyIsBsMode && isBsMonthKey(selectedBsMonth) ? selectedBsMonth : selectedMonth;
+
     const exportSvgUrl =
-      state.selectedSubjectId && state.selectedCohortId && selectedMonth
-        ? `/api/attendance/monthly?subjectId=${encodeURIComponent(state.selectedSubjectId)}&cohortId=${encodeURIComponent(state.selectedCohortId)}&month=${encodeURIComponent(selectedMonth)}&format=svg`
+      state.selectedSubjectId && state.selectedCohortId && effectiveExportMonth
+        ? `/api/attendance/monthly?subjectId=${encodeURIComponent(state.selectedSubjectId)}&cohortId=${encodeURIComponent(state.selectedCohortId)}&month=${encodeURIComponent(effectiveExportMonth)}&format=svg`
         : null;
 
     const exportCsvUrl =
-      state.selectedSubjectId && state.selectedCohortId && selectedMonth
-        ? `/api/attendance/monthly?subjectId=${encodeURIComponent(state.selectedSubjectId)}&cohortId=${encodeURIComponent(state.selectedCohortId)}&month=${encodeURIComponent(selectedMonth)}&format=csv`
+      state.selectedSubjectId && state.selectedCohortId && effectiveExportMonth
+        ? `/api/attendance/monthly?subjectId=${encodeURIComponent(state.selectedSubjectId)}&cohortId=${encodeURIComponent(state.selectedCohortId)}&month=${encodeURIComponent(effectiveExportMonth)}&format=csv`
         : null;
 
     const bsMonthHeading = state.monthlyIsBsMode && isBsMonthKey(selectedBsMonth)
@@ -3630,7 +3654,7 @@
                 data-att-action="download-svg"
                 class="teach-btn teach-btn-primary"
                 style="padding:6px 12px; font-size:0.78rem; text-decoration:none;"
-                download="gandaki_monthly_attendance_${escapeHtml(state.selectedSubjectId)}_${escapeHtml(selectedBsMonth || selectedMonth)}.svg"
+                download="gandaki_monthly_attendance_${escapeHtml(state.selectedSubjectId)}_${escapeHtml(effectiveExportMonth)}.svg"
               >
                 Download SVG
               </a>
@@ -3642,9 +3666,11 @@
                 ? `
               <a
                 href="${escapeHtml(exportCsvUrl)}"
+                id="slAttExportCsvBtn"
+                data-att-action="export-csv"
                 class="teach-btn teach-btn-secondary"
                 style="padding:6px 12px; font-size:0.78rem; text-decoration:none;"
-                download
+                download="gandaki_monthly_attendance_${escapeHtml(state.selectedSubjectId)}_${escapeHtml(effectiveExportMonth)}.csv"
               >
                 Export CSV
               </a>
@@ -3695,6 +3721,7 @@
                     `;
                   })
                   .join('')}
+                <th scope="col">Total</th>
                 <th scope="col">Attendance %</th>
               </tr>
             </thead>
@@ -3703,7 +3730,7 @@
                 rows.length === 0
                   ? `
                 <tr>
-                  <td class="sl-att-col-student" colspan="${calendarDates.length + 2}">No students enrolled in this cohort.</td>
+                  <td class="sl-att-col-student" colspan="${calendarDates.length + 3}">No students enrolled in this cohort.</td>
                 </tr>
               `
                   : rows
@@ -3713,6 +3740,7 @@
                           : Array.isArray(row.cells)
                             ? row.cells
                             : [];
+                        const totalPresent = Number(row.presentCount || 0);
                         const pctText =
                           row.formattedPercentage ||
                           (row.totalSessions > 0
@@ -3757,6 +3785,7 @@
                                 `;
                               })
                               .join('')}
+                            <td class="sl-att-cell-num" data-att-student-total="${escapeHtml(row.studentId)}">${totalPresent}</td>
                             <td class="sl-att-cell-pct" data-att-student-pct="${escapeHtml(row.studentId)}">${escapeHtml(pctText)}</td>
                           </tr>
                         `;
@@ -4258,6 +4287,22 @@
       });
     }
 
+    const downloadSvgBtn = container.querySelector('[data-att-action="download-svg"]');
+    if (downloadSvgBtn) {
+      downloadSvgBtn.addEventListener('click', (e) => {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+        downloadMonthlySvg();
+      });
+    }
+
+    const exportCsvBtn = container.querySelector('[data-att-action="export-csv"]');
+    if (exportCsvBtn) {
+      exportCsvBtn.addEventListener('click', (e) => {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
+        downloadMonthlyCsv();
+      });
+    }
+
     container.querySelectorAll('[data-att-month-step]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const step = Number(btn.getAttribute('data-att-month-step') || 0);
@@ -4478,6 +4523,7 @@
     loadRoster,
     loadMonthlyMatrix,
     downloadMonthlySvg,
+    downloadMonthlyCsv,
     loadHistory,
     loadBackupStatus,
     connectDriveBackup,

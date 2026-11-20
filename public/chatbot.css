@@ -3240,3 +3240,192 @@ html[data-theme="light"] .kyana-action-btn:hover {
     transform: none !important;
   }
 }
+
+/* Kyana Attendance Visual Redesign */
+.kyana-attendance-card {
+  margin: 12px 0;
+  padding: 16px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border-color, #e4e4e7);
+  border-radius: 12px;
+  font-family: inherit;
+  color: var(--text-main, #18181b);
+}
+
+.kyana-att-header {
+  margin-bottom: 12px;
+}
+
+.kyana-att-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted, #71717a);
+}
+
+.kyana-att-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 16px;
+}
+
+.kyana-att-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kyana-att-hero-pct {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-main, #18181b);
+}
+
+.kyana-att-hero-pct.is-low {
+  color: #ef4444;
+}
+
+.kyana-att-hero-pct.is-norecord {
+  color: var(--text-muted, #71717a);
+  font-size: 24px;
+}
+
+.kyana-att-low-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+}
+
+.kyana-att-hero-meta {
+  font-size: 13px;
+  color: var(--text-muted, #71717a);
+}
+
+.kyana-att-meta-val {
+  font-weight: 600;
+  color: var(--text-main, #18181b);
+}
+
+.kyana-att-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 14px 0 10px;
+  color: var(--text-main, #18181b);
+  border-top: 1px solid var(--border-color, #e4e4e7);
+  padding-top: 12px;
+}
+
+.kyana-att-subjects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kyana-att-subj-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kyana-att-subj-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.kyana-att-subj-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main, #18181b);
+}
+
+.kyana-att-subj-sub {
+  font-size: 12px;
+  color: var(--text-muted, #71717a);
+}
+
+.kyana-att-subj-pct-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kyana-att-subj-pct {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main, #18181b);
+}
+
+.kyana-att-subj-pct.is-low {
+  color: #ef4444;
+}
+
+.kyana-att-bar-wrap {
+  width: 100%;
+  height: 6px;
+  margin-top: 2px;
+}
+
+.kyana-att-svg-bar {
+  width: 100%;
+  height: 6px;
+  display: block;
+}
+
+.kyana-att-svg-bg {
+  fill: var(--border-color, #e4e4e7);
+}
+
+.kyana-att-svg-fill {
+  fill: var(--text-main, #18181b);
+}
+
+.kyana-att-svg-fill.is-low {
+  fill: #ef4444;
+}
+
+.kyana-att-other-section {
+  margin-top: 14px;
+  border-top: 1px solid var(--border-color, #e4e4e7);
+  padding-top: 12px;
+}
+
+.kyana-att-other-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted, #71717a);
+  margin-bottom: 8px;
+}
+
+.kyana-att-other-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kyana-att-other-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.kyana-att-other-name {
+  color: var(--text-muted, #71717a);
+}
+
+.kyana-att-norecord-pill {
+  font-size: 11px;
+  padding: 1px 6px;
+  background: var(--bg-muted, #f4f4f5);
+  color: var(--text-muted, #71717a);
+  border-radius: 4px;
+}
+

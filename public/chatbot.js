@@ -150,6 +150,183 @@
     return restoreCodeBlocks(working, tokenMap);
   }
 
+  function parseAttendanceBlock(rawBlock) {
+    const lines = String(rawBlock || '').replace(/\r\n/g, '\n').split('\n');
+    const data = {
+      hasOverview: false,
+      hasRecords: false,
+      semester: null,
+      overallPct: null,
+      isLow: false,
+      attendedLabel: '0 / 0',
+      present: 0,
+      absent: 0,
+      totalClasses: 0,
+      recordedSubjects: 0,
+      totalSubjects: 0,
+      recordedItems: [],
+      unrecordedItems: []
+    };
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      if (/^Overview:/i.test(line)) {
+        data.hasOverview = true;
+        const parts = line.replace(/^Overview:\s*/i, '').split('|').map(p => p.trim());
+        const first = parts[0] || '';
+        if (/No records/i.test(first)) {
+          data.hasRecords = false;
+          data.overallPct = null;
+          data.isLow = false;
+        } else {
+          const pctMatch = first.match(/(\d+(?:\.\d+)?)%/);
+          if (pctMatch) {
+            data.hasRecords = true;
+            data.overallPct = Number(pctMatch[1]);
+            data.isLow = data.overallPct < 50 || /Low Attendance/i.test(first);
+          }
+        }
+        for (const part of parts.slice(1)) {
+          const attMatch = part.match(/^(\d+)\s*\/\s*(\d+)\s+classes/i);
+          if (attMatch) {
+            data.present = Number(attMatch[1]);
+            data.totalClasses = Number(attMatch[2]);
+            data.attendedLabel = `${attMatch[1]} / ${attMatch[2]}`;
+            continue;
+          }
+          const presMatch = part.match(/^Present:\s*(\d+)/i);
+          if (presMatch) {
+            data.present = Number(presMatch[1]);
+            continue;
+          }
+          const absMatch = part.match(/^Absent:\s*(\d+)/i);
+          if (absMatch) {
+            data.absent = Number(absMatch[1]);
+            continue;
+          }
+          const subjMatch = part.match(/^(\d+)\s+of\s+(\d+)\s+subjects/i);
+          if (subjMatch) {
+            data.recordedSubjects = Number(subjMatch[1]);
+            data.totalSubjects = Number(subjMatch[2]);
+            continue;
+          }
+          const semMatch = part.match(/^Semester\s+(\d+)/i);
+          if (semMatch) {
+            data.semester = Number(semMatch[1]);
+          }
+        }
+        continue;
+      }
+
+      const itemMatch = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?:\s*(.+)$/);
+      if (itemMatch) {
+        const name = itemMatch[1].trim();
+        const code = (itemMatch[2] || '').trim();
+        const rest = itemMatch[3].trim();
+        if (/\*\*No records\*\*|^No records$/i.test(rest)) {
+          data.unrecordedItems.push({ name, code });
+        } else {
+          const pctMatch = rest.match(/\*\*(\d+(?:\.\d+)?)%\*\*|(\d+(?:\.\d+)?)%/);
+          if (pctMatch) {
+            const pct = Number(pctMatch[1] ?? pctMatch[2]);
+            const isLow = pct < 50 || /Low Attendance/i.test(rest);
+            const classesMatch = rest.match(/(\d+)\s+recorded\s+class/i) || rest.match(/out\s+of\s+(\d+)\s+class/i);
+            const classes = classesMatch ? Number(classesMatch[1]) : 0;
+            const presMatch = rest.match(/Present:\s*(\d+)/i);
+            const absMatch = rest.match(/Absent:\s*(\d+)/i);
+            const pres = presMatch ? Number(presMatch[1]) : 0;
+            const abs = absMatch ? Number(absMatch[1]) : 0;
+            data.recordedItems.push({ name, code, pct, isLow, classes, present: pres, absent: abs });
+          }
+        }
+      }
+    }
+
+    return data;
+  }
+
+  function renderAttendanceChartHtml(parsed) {
+    if (!parsed) return '';
+    const isNoRecords = !parsed.hasRecords || parsed.overallPct === null;
+    const isLow = Boolean(parsed.isLow);
+    const heroPctClass = isNoRecords
+      ? 'kyana-att-hero-pct is-norecord'
+      : (isLow ? 'kyana-att-hero-pct is-low' : 'kyana-att-hero-pct');
+    const heroPctText = isNoRecords ? 'No records' : `${parsed.overallPct}%`;
+    const lowBadge = isLow ? '<span class="kyana-att-low-badge">Low Attendance</span>' : '';
+
+    let html = '<div class="kyana-attendance-card">';
+    html += '<div class="kyana-att-header">';
+    html += `<div class="kyana-att-title">Attendance overview${parsed.semester ? ` · Semester ${parsed.semester}` : ''}</div>`;
+    html += '</div>';
+
+    html += '<div class="kyana-att-hero">';
+    html += '<div class="kyana-att-hero-left">';
+    html += `<span class="${heroPctClass}">${heroPctText}</span>`;
+    if (lowBadge) html += ` ${lowBadge}`;
+    html += '</div>';
+    if (parsed.hasRecords && parsed.totalClasses > 0) {
+      html += '<div class="kyana-att-hero-meta">';
+      html += '<span class="kyana-att-meta-label">Recorded data:</span> ';
+      html += `<span class="kyana-att-meta-val">${parsed.attendedLabel || `${parsed.present} / ${parsed.totalClasses}`}</span>`;
+      html += '</div>';
+    }
+    html += '</div>';
+
+    if (Array.isArray(parsed.recordedItems) && parsed.recordedItems.length > 0) {
+      html += '<div class="kyana-att-section-title">Subject-wise attendance</div>';
+      html += '<div class="kyana-att-subjects-list">';
+      for (const item of parsed.recordedItems) {
+        const itemIsLow = Boolean(item.isLow);
+        const subjPctClass = itemIsLow ? 'kyana-att-subj-pct is-low' : 'kyana-att-subj-pct';
+        const fillClass = itemIsLow ? 'kyana-att-svg-fill is-low' : 'kyana-att-svg-fill';
+        const widthVal = Math.max(0, Math.min(100, Math.round(item.pct)));
+        const codeLabel = item.code ? `${item.code} · ` : '';
+        const classesLabel = `${item.classes} recorded ${item.classes === 1 ? 'class' : 'classes'}`;
+
+        html += '<div class="kyana-att-subj-item">';
+        html += '<div class="kyana-att-subj-header">';
+        html += '<div class="kyana-att-subj-info">';
+        html += `<div class="kyana-att-subj-name">${escapeHtml(item.name)}</div>`;
+        html += `<div class="kyana-att-subj-sub">${escapeHtml(codeLabel + classesLabel)}</div>`;
+        html += '</div>';
+        html += '<div class="kyana-att-subj-pct-wrap">';
+        html += `<span class="${subjPctClass}">${item.pct}%</span>`;
+        if (itemIsLow) html += ' <span class="kyana-att-low-badge">Low Attendance</span>';
+        html += '</div>';
+        html += '</div>';
+
+        html += '<div class="kyana-att-bar-wrap">';
+        html += '<svg class="kyana-att-svg-bar" viewBox="0 0 100 6" preserveAspectRatio="none">';
+        html += '<rect class="kyana-att-svg-bg" x="0" y="0" width="100" height="6" rx="3" />';
+        html += `<rect class="${fillClass}" x="0" y="0" width="${widthVal}" height="6" rx="3" />`;
+        html += '</svg>';
+        html += '</div>';
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+
+    if (Array.isArray(parsed.unrecordedItems) && parsed.unrecordedItems.length > 0) {
+      html += '<div class="kyana-att-other-section">';
+      html += '<div class="kyana-att-other-title">Other subjects</div>';
+      html += '<div class="kyana-att-other-list">';
+      for (const item of parsed.unrecordedItems) {
+        html += '<div class="kyana-att-other-row">';
+        html += `<span class="kyana-att-other-name">${escapeHtml(item.name)}${item.code ? ` (${escapeHtml(item.code)})` : ''}</span>`;
+        html += '<span class="kyana-att-norecord-pill">No records</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+      html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
   function fallbackMarkdown(rawText) {
     if (!rawText || typeof rawText !== 'string') return '';
     const normalized = normalizeLatexDelimiters(String(rawText).replace(/\r\n/g, '\n').replace(/\r/g, '\n'));
@@ -271,7 +448,11 @@
         flushAllLists();
         const block = codeBlocks[Number(codeMatch[1])];
         if (block) {
-          output.push(`<pre><code${block.lang ? ` class="language-${escapeHtml(block.lang)}"` : ''}>${escapeHtml(block.code)}</code></pre>`);
+          if (block.lang && block.lang.toLowerCase() === 'attendance') {
+            output.push(renderAttendanceChartHtml(parseAttendanceBlock(block.code)));
+          } else {
+            output.push(`<pre><code${block.lang ? ` class="language-${escapeHtml(block.lang)}"` : ''}>${escapeHtml(block.code)}</code></pre>`);
+          }
         }
         continue;
       }
@@ -1076,7 +1257,9 @@
       normalizeLatexDelimiters,
       highlightChatCode,
       assertAndCleanPlaceholders,
-      renderAdaptiveVisualBlockHtml
+      renderAdaptiveVisualBlockHtml,
+      parseAttendanceBlock,
+      renderAttendanceChartHtml
     };
     return;
   }

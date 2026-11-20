@@ -251,7 +251,13 @@ function createAttendanceRouter(arg1, arg2) {
       const callerId = resolveCallerId(req);
       const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject || null;
       const cohortId = req.query.cohortId || req.query.cohort_id || req.query.cohort || null;
-      const month = req.query.month || req.query.yearMonth || req.query.year_month || null;
+      const month =
+        req.query.bsMonth ||
+        req.query.bs_month ||
+        req.query.month ||
+        req.query.yearMonth ||
+        req.query.year_month ||
+        null;
       const format = String(req.query.format || '').trim().toLowerCase();
 
       const result = await getMonthlyAttendanceRegister(db, {

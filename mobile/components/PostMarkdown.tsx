@@ -136,6 +136,245 @@ export function formatMathExpression(expr: string): string {
     .trim();
 }
 
+export function parseAttendanceBlock(rawBlock: string) {
+  const lines = String(rawBlock || '').replace(/\r\n/g, '\n').split('\n');
+  const data: {
+    hasOverview: boolean;
+    hasRecords: boolean;
+    semester: number | null;
+    overallPct: number | null;
+    isLow: boolean;
+    attendedLabel: string;
+    present: number;
+    absent: number;
+    totalClasses: number;
+    recordedSubjects: number;
+    totalSubjects: number;
+    recordedItems: Array<{ name: string; code: string; pct: number; isLow: boolean; classes: number; present: number; absent: number }>;
+    unrecordedItems: Array<{ name: string; code: string }>;
+  } = {
+    hasOverview: false,
+    hasRecords: false,
+    semester: null,
+    overallPct: null,
+    isLow: false,
+    attendedLabel: '0 / 0',
+    present: 0,
+    absent: 0,
+    totalClasses: 0,
+    recordedSubjects: 0,
+    totalSubjects: 0,
+    recordedItems: [],
+    unrecordedItems: []
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (/^Overview:/i.test(line)) {
+      data.hasOverview = true;
+      const parts = line.replace(/^Overview:\s*/i, '').split('|').map(p => p.trim());
+      const first = parts[0] || '';
+      if (/No records/i.test(first)) {
+        data.hasRecords = false;
+        data.overallPct = null;
+        data.isLow = false;
+      } else {
+        const pctMatch = first.match(/(\d+(?:\.\d+)?)%/);
+        if (pctMatch) {
+          data.hasRecords = true;
+          data.overallPct = Number(pctMatch[1]);
+          data.isLow = data.overallPct < 50 || /Low Attendance/i.test(first);
+        }
+      }
+      for (const part of parts.slice(1)) {
+        const attMatch = part.match(/^(\d+)\s*\/\s*(\d+)\s+classes/i);
+        if (attMatch) {
+          data.present = Number(attMatch[1]);
+          data.totalClasses = Number(attMatch[2]);
+          data.attendedLabel = `${attMatch[1]} / ${attMatch[2]}`;
+          continue;
+        }
+        const presMatch = part.match(/^Present:\s*(\d+)/i);
+        if (presMatch) {
+          data.present = Number(presMatch[1]);
+          continue;
+        }
+        const absMatch = part.match(/^Absent:\s*(\d+)/i);
+        if (absMatch) {
+          data.absent = Number(absMatch[1]);
+          continue;
+        }
+        const subjMatch = part.match(/^(\d+)\s+of\s+(\d+)\s+subjects/i);
+        if (subjMatch) {
+          data.recordedSubjects = Number(subjMatch[1]);
+          data.totalSubjects = Number(subjMatch[2]);
+          continue;
+        }
+        const semMatch = part.match(/^Semester\s+(\d+)/i);
+        if (semMatch) {
+          data.semester = Number(semMatch[1]);
+        }
+      }
+      continue;
+    }
+
+    const itemMatch = line.match(/^[-•*]\s+\*\*([^*]+)\*\*(?:\s*\(([^)]+)\))?:\s*(.+)$/);
+    if (itemMatch) {
+      const name = itemMatch[1].trim();
+      const code = (itemMatch[2] || '').trim();
+      const rest = itemMatch[3].trim();
+      if (/\*\*No records\*\*|^No records$/i.test(rest)) {
+        data.unrecordedItems.push({ name, code });
+      } else {
+        const pctMatch = rest.match(/\*\*(\d+(?:\.\d+)?)%\*\*|(\d+(?:\.\d+)?)%/);
+        if (pctMatch) {
+          const pct = Number(pctMatch[1] ?? pctMatch[2]);
+          const isLow = pct < 50 || /Low Attendance/i.test(rest);
+          const classesMatch = rest.match(/(\d+)\s+recorded\s+class/i) || rest.match(/out\s+of\s+(\d+)\s+class/i);
+          const classes = classesMatch ? Number(classesMatch[1]) : 0;
+          const presMatch = rest.match(/Present:\s*(\d+)/i);
+          const absMatch = rest.match(/Absent:\s*(\d+)/i);
+          const pres = presMatch ? Number(presMatch[1]) : 0;
+          const abs = absMatch ? Number(absMatch[1]) : 0;
+          data.recordedItems.push({ name, code, pct, isLow, classes, present: pres, absent: abs });
+        }
+      }
+    }
+  }
+
+  return data;
+}
+
+const VISUAL_BLOCK_KINDS = [
+  'attendance', 'ATTENDANCE',
+  'routine', 'ROUTINE',
+  'study_session', 'STUDY_SESSION',
+  'learning_session', 'LEARNING_SESSION',
+  'pyq_card', 'PYQ_CARD',
+  'logic_sim', 'LOGIC_SIM',
+  'interactive_demo', 'INTERACTIVE_DEMO',
+  'live_demo', 'LIVE_DEMO',
+  'roadmap', 'ROADMAP',
+  'timeline', 'TIMELINE',
+  'diagram', 'DIAGRAM',
+  'flowchart', 'FLOWCHART',
+  'trace', 'TRACE',
+  'checkpoint_question', 'CHECKPOINT_QUESTION',
+  'chapter_summary', 'CHAPTER_SUMMARY',
+  'source_reference', 'SOURCE_REFERENCE'
+];
+
+function renderAttendanceCard(
+  parsed: ReturnType<typeof parseAttendanceBlock>,
+  blockIndex: number,
+  colors: any,
+  isDark: boolean
+): React.ReactNode {
+  if (!parsed) return null;
+  const isNoRecords = !parsed.hasRecords || parsed.overallPct === null;
+  const isOverallLow = Boolean(parsed.isLow);
+  const heroColor = isNoRecords ? (isDark ? '#a1a1aa' : '#71717a') : (isOverallLow ? '#ef4444' : colors.text);
+  const heroText = isNoRecords ? 'No records' : `${parsed.overallPct}%`;
+
+  return (
+    <View
+      key={`att-card-${blockIndex}`}
+      style={{
+        marginVertical: 10,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+        padding: 16,
+      }}
+    >
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? '#a1a1aa' : '#71717a', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Your Attendance{parsed.semester ? ` · Semester ${parsed.semester}` : ''}
+        </Text>
+      </View>
+
+      <View style={{ marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+          <Text style={{ fontSize: 32, fontWeight: '700', color: heroColor, letterSpacing: -0.5 }}>
+            {heroText}
+          </Text>
+          {!isNoRecords && (
+            <Text style={{ fontSize: 14, fontWeight: '500', color: isDark ? '#a1a1aa' : '#71717a', marginLeft: 8 }}>
+              — Overall attendance
+            </Text>
+          )}
+          {isOverallLow && (
+            <View style={{ marginLeft: 8, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: 'rgba(239, 68, 68, 0.12)' }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#ef4444' }}>Low Attendance</Text>
+            </View>
+          )}
+        </View>
+        {parsed.hasRecords && (
+          <Text style={{ fontSize: 13, color: isDark ? '#d4d4d8' : '#52525b', marginTop: 4 }}>
+            {parsed.present} Present | {parsed.absent} Absent
+          </Text>
+        )}
+      </View>
+
+      {parsed.recordedItems.length > 0 && (
+        <View style={{ marginTop: 4, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14 }}>
+          {parsed.recordedItems.map((item, idx) => {
+            const itemLow = Boolean(item.isLow);
+            const itemColor = itemLow ? '#ef4444' : colors.text;
+            const barFill = itemLow ? '#ef4444' : (isDark ? '#e4e4e7' : '#18181b');
+            return (
+              <View key={`rec-${idx}`} style={{ marginBottom: 14 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text, flex: 1 }} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: itemColor }}>
+                      {item.pct}%
+                    </Text>
+                    {itemLow && (
+                      <View style={{ marginLeft: 6, paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, backgroundColor: 'rgba(239, 68, 68, 0.12)' }}>
+                        <Text style={{ fontSize: 10, fontWeight: '700', color: '#ef4444' }}>Low Attendance</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <View style={{ height: 6, borderRadius: 3, backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', overflow: 'hidden', marginVertical: 4 }}>
+                  <View style={{ height: '100%', width: `${Math.max(0, Math.min(100, item.pct))}%`, backgroundColor: barFill, borderRadius: 3 }} />
+                </View>
+                <Text style={{ fontSize: 12, color: isDark ? '#a1a1aa' : '#71717a' }}>
+                  {item.present} Present · {item.absent} Absent{item.code ? ` (${item.code})` : ''}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {parsed.unrecordedItems.length > 0 && (
+        <View style={{ marginTop: 6, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12 }}>
+          <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? '#a1a1aa' : '#71717a', marginBottom: 8 }}>
+            Other subjects
+          </Text>
+          {parsed.unrecordedItems.map((item, idx) => (
+            <View key={`unrec-${idx}`} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 }}>
+              <Text style={{ fontSize: 13, color: isDark ? '#a1a1aa' : '#71717a', flex: 1 }} numberOfLines={1}>
+                {item.name}{item.code ? ` (${item.code})` : ''}
+              </Text>
+              <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)' }}>
+                <Text style={{ fontSize: 11, color: isDark ? '#a1a1aa' : '#71717a' }}>No records</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 /**
  * Robust Error Boundary to guarantee that malformed markdown or edge cases
  * NEVER crash the application. Falls back safely to plain text.
@@ -622,9 +861,13 @@ function PostMarkdownInternal({
     }
   );
 
+  const textUnescaped = textWithoutCode
+    .replace(/\\([#*_`~[\]()!+-])/g, '$1')
+    .replace(/\\n/g, '\n');
+
   // Extract display math blocks ($$...$$)
   const mathBlocks: string[] = [];
-  const textWithoutCodeAndMath = textWithoutCode.replace(
+  const textWithoutCodeAndMath = textUnescaped.replace(
     /\$\$([\s\S]*?)\$\$/g,
     (_, expr) => {
       const idx = mathBlocks.length;
@@ -718,6 +961,14 @@ function PostMarkdownInternal({
         const isWrapped = Boolean(wrappedBlocks[blockIndex]);
         const isPreviewOpen = Boolean(previewBlocks[blockIndex]);
         const langLower = block.lang.toLowerCase();
+
+        if (VISUAL_BLOCK_KINDS.includes(block.lang) || VISUAL_BLOCK_KINDS.includes(langLower)) {
+          if (langLower === 'attendance') {
+            const parsed = parseAttendanceBlock(block.code);
+            renderedElements.push(renderAttendanceCard(parsed, blockIndex, colors, isDark));
+            continue;
+          }
+        }
 
         // Structured component handling (roadmap, timeline, diagram, flowchart, trace, study_session, pyq_card, logic_sim, interactive_demo, checkpoint_question, chapter_summary, source_reference)
         const isStructuredKind = /^(study_session|learning_session|pyq_card|logic_sim|interactive_demo|live_demo|roadmap|timeline|diagram|flowchart|trace|checkpoint_question|chapter_summary|source_reference)$/.test(langLower);

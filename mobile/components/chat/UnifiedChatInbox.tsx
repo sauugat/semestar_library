@@ -176,6 +176,7 @@ const AvatarWithFallback = React.memo(function AvatarWithFallback({
       <Image
         source={{ uri, headers, cacheKey: uri }}
         cachePolicy="memory-disk"
+        recyclingKey={uri}
         transition={0}
         style={{
           width: size,
@@ -218,7 +219,7 @@ const AvatarWithFallback = React.memo(function AvatarWithFallback({
   );
 });
 
-function SemesterGroupAvatar({
+const SemesterGroupAvatar = React.memo(function SemesterGroupAvatar({
   cohortItem,
   collageUris,
   headers,
@@ -241,6 +242,7 @@ function SemesterGroupAvatar({
                 <Image
                   source={{ uri, headers, cacheKey: uri }}
                   cachePolicy="memory-disk"
+                  recyclingKey={uri}
                   style={styles.collageImage}
                   contentFit="cover"
                 />
@@ -258,7 +260,7 @@ function SemesterGroupAvatar({
       </View>
     </View>
   );
-}
+});
 
 export interface UnifiedChatInboxProps {
   items: UnifiedConversationItem[];
@@ -317,6 +319,15 @@ export const UnifiedChatInbox = React.memo(function UnifiedChatInbox({
     () => (authToken ? { Authorization: `Bearer ${authToken}` } : undefined),
     [authToken]
   );
+
+  // O(1) member lookup map so DM row rendering avoids O(N*M) linear scans
+  const memberByIdMap = useMemo(() => {
+    const map = new Map<string, ChatMember>();
+    for (const member of cohortMembers) {
+      if (member?.studentId) map.set(String(member.studentId), member);
+    }
+    return map;
+  }, [cohortMembers]);
 
   // Stable online IDs signature so Active Now never remounts or blinks when array reference changes
   const onlineIdsSignature = useMemo(
@@ -655,7 +666,7 @@ export const UnifiedChatInbox = React.memo(function UnifiedChatInbox({
       const time = formatRelativeTime(dmItem.timestamp);
       const isOnline = onlineSet.has(String(dmItem.peerId));
       const hasUnread = dmItem.unreadCount > 0;
-      const matchedMember = cohortMembers.find((m) => String(m.studentId) === String(dmItem.peerId));
+      const matchedMember = memberByIdMap.get(String(dmItem.peerId));
       const avatarUri = resolveAvatarUri(
         dmItem.peerAvatarUrl || matchedMember?.avatarUrl,
         serverUrl,
@@ -751,7 +762,7 @@ export const UnifiedChatInbox = React.memo(function UnifiedChatInbox({
       collageUris,
       imageHeaders,
       onlineSet,
-      cohortMembers,
+      memberByIdMap,
       serverUrl,
       currentUserId,
     ]

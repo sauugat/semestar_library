@@ -508,49 +508,53 @@ function DmConversation() {
       return;
     }
 
-    void (async () => {
-      try {
-        const cachedConvs = await getCachedDmConversations(currentUserId);
-        const match = cachedConvs.find((c) => c.id === conversationId);
-        if (match && isMounted) {
-          setConversation(match);
-          if (typeof match.lastReadMessageId === 'number' && match.lastReadMessageId > 0) {
-            readQueueRef.current?.setAcknowledged(match.lastReadMessageId);
+    const deferTimer = setTimeout(() => {
+      if (!isMounted) return;
+      void (async () => {
+        try {
+          const cachedConvs = await getCachedDmConversations(currentUserId);
+          const match = cachedConvs.find((c) => c.id === conversationId);
+          if (match && isMounted) {
+            setConversation(match);
+            if (typeof match.lastReadMessageId === 'number' && match.lastReadMessageId > 0) {
+              readQueueRef.current?.setAcknowledged(match.lastReadMessageId);
+            }
+            if (match.participant) {
+              setPeerInfo((prev) => ({
+                id: match.participant.studentId || prev.id,
+                name: match.participant.name || prev.name,
+                role: match.participant.role || prev.role || 'Student',
+                username: match.participant.username || prev.username || null,
+                avatarUrl: match.participant.avatarUrl || prev.avatarUrl || null,
+              }));
+            }
+            return;
           }
-          if (match.participant) {
-            setPeerInfo((prev) => ({
-              id: match.participant.studentId || prev.id,
-              name: match.participant.name || prev.name,
-              role: match.participant.role || prev.role || 'Student',
-              username: match.participant.username || prev.username || null,
-              avatarUrl: match.participant.avatarUrl || prev.avatarUrl || null,
-            }));
+          // Only hit network if conversation metadata wasn't in memory or local SQLite
+          const fresh = await fetchDmConversations(50);
+          const found = fresh.find((c) => c.id === conversationId);
+          if (found && isMounted) {
+            setConversation(found);
+            if (typeof found.lastReadMessageId === 'number' && found.lastReadMessageId > 0) {
+              readQueueRef.current?.setAcknowledged(found.lastReadMessageId);
+            }
+            if (found.participant) {
+              setPeerInfo((prev) => ({
+                id: found.participant.studentId || prev.id,
+                name: found.participant.name || prev.name,
+                role: found.participant.role || prev.role || 'Student',
+                username: found.participant.username || prev.username || null,
+                avatarUrl: found.participant.avatarUrl || prev.avatarUrl || null,
+              }));
+            }
           }
-          return;
-        }
-        // Only hit network if conversation metadata wasn't in memory or local SQLite
-        const fresh = await fetchDmConversations(50);
-        const found = fresh.find((c) => c.id === conversationId);
-        if (found && isMounted) {
-          setConversation(found);
-          if (typeof found.lastReadMessageId === 'number' && found.lastReadMessageId > 0) {
-            readQueueRef.current?.setAcknowledged(found.lastReadMessageId);
-          }
-          if (found.participant) {
-            setPeerInfo((prev) => ({
-              id: found.participant.studentId || prev.id,
-              name: found.participant.name || prev.name,
-              role: found.participant.role || prev.role || 'Student',
-              username: found.participant.username || prev.username || null,
-              avatarUrl: found.participant.avatarUrl || prev.avatarUrl || null,
-            }));
-          }
-        }
-      } catch {}
-    })();
+        } catch {}
+      })();
+    }, 300);
 
     return () => {
       isMounted = false;
+      clearTimeout(deferTimer);
     };
   }, [conversationId, currentUserId]);
 
@@ -1061,7 +1065,9 @@ function DmConversation() {
     return messages.filter((m) => !m.deletedForAll && (m.text || '').toLowerCase().includes(q));
   }, [messages, searchMode, searchQuery]);
 
+  const needsMessageCollections = subPanel !== null || peerInfoModalVisible || settingsModalVisible;
   const sharedLinks = useMemo(() => {
+    if (!needsMessageCollections) return [];
     const list: { messageId: number | string; url: string; domain: string; createdAt: string }[] = [];
     for (const m of messages) {
       if (m.deletedForAll || !m.text) continue;
@@ -1071,11 +1077,11 @@ function DmConversation() {
       }
     }
     return list;
-  }, [messages]);
+  }, [messages, needsMessageCollections]);
 
   const starredMessages = useMemo(
-    () => messages.filter((m) => starredIds.has(m.id) && !m.deletedForAll),
-    [messages, starredIds]
+    () => (needsMessageCollections ? messages.filter((m) => starredIds.has(m.id) && !m.deletedForAll) : []),
+    [messages, starredIds, needsMessageCollections]
   );
 
   const handleClearConversation = () => {
@@ -1276,6 +1282,7 @@ function DmConversation() {
                     <Image
                       source={{ uri: msgAvatarUri, headers: imageHeaders, cacheKey: msgAvatarUri }}
                       cachePolicy="memory-disk"
+                      recyclingKey={msgAvatarUri}
                       style={styles.peerBubbleAvatar}
                       contentFit="cover"
                       onError={() => setBubbleAvatarFailed(true)}
@@ -1422,6 +1429,7 @@ function DmConversation() {
                         style={styles.dmBubbleImage}
                         contentFit="cover"
                         cachePolicy="memory-disk"
+                        recyclingKey={dmImgUri}
                       />
                       {item.status === 'pending' && (
                         <View style={styles.dmImageUploadingOverlay}>

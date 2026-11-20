@@ -227,6 +227,18 @@ function ChatScreenInner() {
   const isAdmin = Boolean(user?.isAdmin || user?.role === "admin");
   const isTeacher = Boolean(user?.role === "teacher" || user?.role === "faculty");
   const [selectedCohortRoom, setSelectedCohortRoom] = useState<CohortConversationItem | null>(null);
+  // Defer mounting the heavy group FlatList by 1 frame so Frame-0 starts sliding in at 120fps immediately
+  const [isGroupListReady, setIsGroupListReady] = useState(false);
+  useEffect(() => {
+    if (!selectedCohortRoom) {
+      setIsGroupListReady(false);
+      return;
+    }
+    const frameId = requestAnimationFrame(() => {
+      setIsGroupListReady(true);
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [selectedCohortRoom]);
   const navigation = useNavigation();
 
   // Tab bar visibility is synced below once `isExitingGroupChat` is initialized
@@ -528,8 +540,10 @@ function ChatScreenInner() {
     });
   }, [isAdmin, isTeacher, messages]);
 
-  // Compute per-member talk frequency and latest message timestamp from group chat history
+  // Compute per-member talk frequency only while inbox is visible; preserve snapshot while inside Group Chat
+  const memberTalkStatsRef = useRef<Record<string, { count: number; lastAt: number }>>({});
   const memberTalkStats = useMemo(() => {
+    if (selectedCohortRoom) return memberTalkStatsRef.current;
     const stats: Record<string, { count: number; lastAt: number }> = {};
     for (const msg of messages) {
       const sid = String(msg.studentId || '');
@@ -544,8 +558,9 @@ function ChatScreenInner() {
         stats[sid] = { count: 1, lastAt: validEpoch };
       }
     }
+    memberTalkStatsRef.current = stats;
     return stats;
-  }, [messages, user?.studentId]);
+  }, [messages, user?.studentId, selectedCohortRoom]);
 
   const { targetMessageId, targetChatGroupId, dmConversationId, directStudentId } = useLocalSearchParams<{
     targetMessageId?: string;
@@ -1709,6 +1724,15 @@ function ChatScreenInner() {
     }
   }, []);
 
+  // O(1) member lookup map for seen-by summaries & modals
+  const memberByIdMap = useMemo(() => {
+    const map = new Map<string, ChatMember>();
+    for (const mem of members) {
+      if (mem?.studentId) map.set(String(mem.studentId), mem);
+    }
+    return map;
+  }, [members]);
+
   // Compute Instagram-style "Seen by Sandesh, Saugat..." summary for the newest seen outgoing message
   const latestSeenOutgoing = useMemo(() => {
     if (!user?.studentId) return null;
@@ -1719,7 +1743,7 @@ function ChatScreenInner() {
       );
       if (readers.length > 0) {
         const names = readers.map((r) => {
-          const matched = members.find((mem) => String(mem.studentId) === String(r.studentId));
+          const matched = memberByIdMap.get(String(r.studentId));
           const raw = matched?.name || (r as any).name || 'Classmate';
           return raw.trim().split(/\s+/)[0];
         });
@@ -1732,7 +1756,7 @@ function ChatScreenInner() {
       }
     }
     return null;
-  }, [messages, readReceipts, members, user?.studentId]);
+  }, [messages, readReceipts, memberByIdMap, user?.studentId]);
 
   // Render message using the memoized ChatMessageItem component with stable references
   const renderMessageItem = useCallback(
@@ -2015,7 +2039,9 @@ function ChatScreenInner() {
 
       {/* Main Message List & Viewport Boundary */}
       <KeyboardContentBoundary style={styles.messagesBoundary}>
-        {loadingInitial ? (
+        {!isGroupListReady ? (
+          <View style={styles.messagesList} />
+        ) : loadingInitial ? (
           <ChatConversationSkeleton />
         ) : error && messages.length === 0 ? (
           <View style={styles.centerContainer}>

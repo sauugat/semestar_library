@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   Pressable,
   Animated,
-  useWindowDimensions,
+  Dimensions,
   ActivityIndicator,
   Image as RNImage,
   Text as RNText,
@@ -31,6 +31,7 @@ import { formatMessageTime as safeFormatTime, formatChatDateSeparator as safeFor
 
 // Monochrome dark surface tokens aligned with colors.surfaceRaised (#2c2c2e) and colors.surfaceSubtle (#1c1c1e)
 const imageDimensionsCache = new Map<string, { width: number; height: number }>();
+const INITIAL_SCREEN_WIDTH = Dimensions.get('window').width;
 
 function getFileIcon(
   filename?: string | null,
@@ -334,7 +335,6 @@ function areMessagePropsEqual(
   if (prev.isDelivered !== next.isDelivered) return false;
   if (prev.isStarred !== next.isStarred) return false;
   if (prev.seenBySummary !== next.seenBySummary) return false;
-  if (prev.index !== next.index) return false;
 
   // Compare reactions
   const prevReactions = prev.item.reactions || [];
@@ -403,7 +403,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   onPressMention,
   onPressReadBy,
 }: ChatMessageItemProps) {
-  const { width: screenWidth } = useWindowDimensions();
+  const screenWidth = INITIAL_SCREEN_WIDTH;
   const maxBubbleWidth = Math.round(screenWidth * 0.8);
   const maxImageWidth = Math.round(screenWidth * 0.74);
   const maxImageHeight = Math.round(maxImageWidth * 1.25); // 4:5 max ratio
@@ -691,6 +691,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                       }}
                       style={styles.avatarImage}
                       cachePolicy="memory-disk"
+                      recyclingKey={avatarFullUrl}
                       contentFit="cover"
                       onError={() => setAvatarLoadError(true)}
                     />

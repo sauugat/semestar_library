@@ -151,3 +151,34 @@ html[data-theme] .routine-page .exam-row:is(p,.semester-tag,.date-month,.date-we
 }
 .routine-page #adminRoutinePanel{scroll-margin-top:100px}
 .routine-page .routine-field input{scroll-margin-top:100px}
+
+/* Picker-first Admin Controls (BS Date, Nepali Time, Subject & Class Period Modals) */
+.routine-admin-quick-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.routine-picker-grid-3{display:grid;grid-template-columns:1fr 1.35fr 0.85fr;gap:8px}
+.routine-picker-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.routine-preset-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.routine-chip-btn{border:1px solid var(--routine-line);background:var(--routine-fill);color:var(--routine-muted);font:inherit;font-size:12px;font-weight:600;padding:6px 11px;border-radius:999px;cursor:pointer;transition:background .15s,color .15s,border-color .15s}
+.routine-chip-btn:hover{border-color:var(--routine-muted);color:var(--routine-text)}
+.routine-chip-btn.active{background:var(--routine-action);color:var(--routine-action-text);border-color:var(--routine-action)}
+.routine-custom-input{margin-top:6px}
+.routine-modal-dialog-lg{max-width:520px;max-height:90vh;overflow-y:auto}
+.routine-modal-form{display:flex;flex-direction:column;gap:14px;border-top:1px solid var(--routine-line);padding-top:14px}
+.routine-modal-footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px;padding-top:12px;border-top:1px solid var(--routine-line)}
+.routine-checkbox-row{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--routine-text);cursor:pointer}
+.routine-checkbox-row input{width:16px;height:16px;accent-color:var(--routine-action)}
+.class-cell-empty.is-admin-editable{cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.class-cell-empty.is-admin-editable:hover{background:var(--routine-fill);border-color:var(--routine-text);color:var(--routine-text)}
+.class-mobile-card.is-empty.is-admin-editable{cursor:pointer;border-style:dashed}
+.routine-admin-edit-pill{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:10.5px;font-weight:700;background:var(--routine-fill);border:1px solid var(--routine-line);color:var(--routine-text);margin-left:auto}
+/* Clean Semester Exam Table Controls */
+.exam-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
+.exam-toolbar select{min-height:38px;padding:6px 12px;border-radius:10px;border:1px solid var(--routine-line);background:var(--routine-fill);color:var(--routine-text);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.exam-cell-select{width:100%;min-width:96px;min-height:36px;padding:6px 8px;border-radius:8px;border:1px solid var(--routine-line);background:var(--routine-fill);color:var(--routine-text);font:inherit;font-size:12.5px;cursor:pointer}
+.exam-cell-select-day{min-width:66px}
+.exam-weekday-pill{display:inline-flex;align-items:center;justify-content:center;min-width:74px;padding:5px 10px;border-radius:8px;background:var(--routine-fill);border:1px solid var(--routine-line);font-size:12px;font-weight:600;color:var(--routine-text);white-space:nowrap}
+.exam-weekday-pill.is-empty{color:var(--routine-muted);font-weight:400}
+.exam-table-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}
+@media (max-width:768px){
+  .routine-picker-grid-3{grid-template-columns:1fr 1fr}
+  .routine-picker-grid-3 select:nth-child(2){grid-column:1 / -1;order:-1}
+}

@@ -276,6 +276,11 @@
         <button type="button" class="routine-mode-btn active" id="modeClassBtn" role="tab" aria-selected="true">Class Routine</button>
         <button type="button" class="routine-mode-btn" id="modeExamBtn" role="tab" aria-selected="false">Exam Schedule</button>
       </div>
+      <div class="routine-admin-quick-actions" id="routineAdminQuickActions" hidden>
+        <button type="button" class="routine-btn routine-btn-primary" id="quickEditClassPeriodBtn">+ Add / Edit Class</button>
+        <button type="button" class="routine-btn" id="quickNewClassRoutineBtn">+ New Class Routine</button>
+        <button type="button" class="routine-btn routine-btn-primary" id="quickAddExamBtn" hidden>+ Add Exam</button>
+      </div>
     </div>
 
     <!-- Filters (visible for staff/teachers/admins or Exam Schedule) -->
@@ -317,6 +322,112 @@
           <div class="routine-modal-row"><span>Time</span><strong id="modalTime">—</strong></div>
           <div class="routine-modal-row"><span>Classification</span><strong id="modalClassification">—</strong></div>
         </div>
+        <div class="routine-modal-footer" id="modalAdminFooter" hidden>
+          <button type="button" class="routine-btn routine-btn-primary" id="modalEditClassBtn">Edit This Period</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Class Period Picker Modal (Choose, not write) -->
+    <div id="classPeriodEditorModal" class="routine-modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="classEditorTitle">
+      <div class="routine-modal-dialog routine-modal-dialog-lg">
+        <div class="routine-modal-header">
+          <div>
+            <p class="routine-eyebrow" id="classEditorKicker">ADMIN · CLASS ROUTINE</p>
+            <h3 id="classEditorTitle">Edit Class Period</h3>
+          </div>
+          <button type="button" class="routine-modal-close" id="classEditorClose" aria-label="Close period editor">&times;</button>
+        </div>
+        <form id="classPeriodForm" class="routine-modal-form">
+          <div class="routine-picker-grid-2">
+            <label class="routine-field">Day
+              <select id="classEditDay" required>
+                <option value="Monday">Monday</option>
+                <option value="Tuesday">Tuesday</option>
+                <option value="Wednesday">Wednesday</option>
+                <option value="Thursday">Thursday</option>
+                <option value="Friday">Friday</option>
+              </select>
+            </label>
+            <label class="routine-field">Time Slot (NPT)
+              <select id="classEditSlot" required></select>
+            </label>
+          </div>
+          <div class="routine-field">
+            Class Type
+            <div class="routine-preset-chips" id="classTypeChips"></div>
+          </div>
+          <label class="routine-field" id="classEditSubjectWrap">Subject
+            <select id="classEditSubjectSelect"></select>
+            <input id="classEditSubjectCustom" class="routine-custom-input" maxlength="200" placeholder="Enter custom subject name" hidden>
+          </label>
+          <label class="routine-field" id="classEditFacultyWrap">Teacher / Faculty
+            <select id="classEditFacultySelect"></select>
+            <input id="classEditFacultyCustom" class="routine-custom-input" maxlength="150" placeholder="Enter teacher name" hidden>
+          </label>
+          <div class="routine-field" id="classEditFacultyTypeWrap">
+            Faculty Type
+            <div class="routine-preset-chips" id="classFacultyTypeChips"></div>
+          </div>
+          <p class="routine-status" id="classEditorStatus" role="status" aria-live="polite"></p>
+          <div class="routine-modal-footer">
+            <button type="button" class="routine-btn routine-btn-delete" id="classEditorClearBtn" hidden>Clear Period</button>
+            <div class="routine-row-actions" style="margin-left:auto">
+              <button type="button" class="routine-btn" id="classEditorCancelBtn">Cancel</button>
+              <button type="submit" class="routine-btn routine-btn-primary" id="classEditorSaveBtn">Save Period</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Admin Create New Class Routine Modal (BS Session & BS Effective Date) -->
+    <div id="newClassRoutineModal" class="routine-modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="newClassRoutineTitle">
+      <div class="routine-modal-dialog routine-modal-dialog-lg">
+        <div class="routine-modal-header">
+          <div>
+            <p class="routine-eyebrow">ADMIN · NEW TIMETABLE</p>
+            <h3 id="newClassRoutineTitle">Create Class Routine</h3>
+          </div>
+          <button type="button" class="routine-modal-close" id="newClassRoutineClose" aria-label="Close new routine modal">&times;</button>
+        </div>
+        <form id="newClassRoutineForm" class="routine-modal-form">
+          <label class="routine-field">Semester
+            <select id="newRoutineSemester" required>
+              <option value="1">Semester I (Year 1)</option>
+              <option value="2">Semester II (Year 1)</option>
+              <option value="3">Semester III (Year 2)</option>
+              <option value="4">Semester IV (Year 2)</option>
+              <option value="5">Semester V (Year 3)</option>
+              <option value="6">Semester VI (Year 3)</option>
+              <option value="7">Semester VII (Year 4)</option>
+              <option value="8">Semester VIII (Year 4)</option>
+            </select>
+          </label>
+          <label class="routine-field">Academic Session (BS)
+            <select id="newRoutineSessionSelect"></select>
+            <input id="newRoutineSessionCustom" class="routine-custom-input" maxlength="120" placeholder="e.g. 2083 BS (Ashwin–Chaitra)" hidden>
+          </label>
+          <div class="routine-field">
+            Effective Date (Nepali BS)
+            <div class="routine-picker-grid-3">
+              <select id="newRoutineBsYear" aria-label="BS Year"></select>
+              <select id="newRoutineBsMonth" aria-label="BS Month"></select>
+              <select id="newRoutineBsDay" aria-label="BS Day"></select>
+            </div>
+          </div>
+          <label class="routine-checkbox-row">
+            <input type="checkbox" id="newRoutinePublishNow" checked>
+            <span>Publish immediately for students</span>
+          </label>
+          <p class="routine-status" id="newClassRoutineStatus" role="status" aria-live="polite"></p>
+          <div class="routine-modal-footer">
+            <div class="routine-row-actions" style="margin-left:auto">
+              <button type="button" class="routine-btn" id="newClassRoutineCancelBtn">Cancel</button>
+              <button type="submit" class="routine-btn routine-btn-primary" id="newClassRoutineSaveBtn">Create Routine</button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -324,20 +435,20 @@
     <section class="routine-admin" id="adminRoutinePanel" hidden aria-labelledby="routineAdminHeading">
       <div class="routine-admin-heading">
         <div>
-          <p class="routine-eyebrow">ADMIN</p>
-          <h2 id="routineAdminHeading">Manage routine</h2>
-          <p>Add exams, update details, or remove an old schedule.</p>
+          <p class="routine-eyebrow">ADMIN · EXAM ROUTINE</p>
+          <h2 id="routineAdminHeading">Manage Exam Schedule</h2>
+          <p>Pick semester, subject, Nepali BS date, and NPT time — no manual typing required.</p>
         </div>
         <div class="routine-row-actions">
           <button type="button" class="routine-btn" id="routineAdminRetry" hidden>Retry loading</button>
-          <button type="button" class="routine-btn" id="routineNewBtn">Add exam</button>
+          <button type="button" class="routine-btn routine-btn-primary" id="routineNewBtn">+ Add Exam</button>
         </div>
       </div>
       <p id="routineAdminStatus" class="routine-status" role="status" aria-live="polite"></p>
       <div class="routine-table-wrap" tabindex="0" role="region" aria-label="Manage exams table">
         <table class="routine-table">
           <caption class="routine-sr-only">All published exams</caption>
-          <thead><tr><th scope="col">Subject</th><th scope="col">Semester</th><th scope="col">Date</th><th scope="col">Time / Room</th><th scope="col">Type</th><th scope="col">Actions</th></tr></thead>
+          <thead><tr><th scope="col">Subject</th><th scope="col">Semester</th><th scope="col">Date (BS/AD)</th><th scope="col">Time / Room</th><th scope="col">Type</th><th scope="col">Actions</th></tr></thead>
           <tbody id="routineAdminRows"></tbody>
         </table>
       </div>
@@ -346,42 +457,64 @@
         <fieldset id="routineFormFields">
           <legend class="routine-sr-only">Exam details</legend>
           <div class="routine-form-grid">
-            <label class="routine-field routine-field-wide">Subject name <span aria-hidden="true">*</span>
-              <input name="subject_name" id="routineSubject" maxlength="250" required autocomplete="off">
-            </label>
             <label class="routine-field">Semester <span aria-hidden="true">*</span>
               <select name="semester" id="routineSemester" required>
-                <option value="">Choose semester</option>
                 <option value="1">Semester I</option><option value="2">Semester II</option>
                 <option value="3">Semester III</option><option value="4">Semester IV</option>
                 <option value="5">Semester V</option><option value="6">Semester VI</option>
                 <option value="7">Semester VII</option><option value="8">Semester VIII</option>
               </select>
             </label>
-            <label class="routine-field">Subject code
-              <input name="subject_code" maxlength="50" placeholder="e.g. CIT121">
+            <label class="routine-field">Subject <span aria-hidden="true">*</span>
+              <select id="routineSubjectSelect" required></select>
+              <input name="subject_name" id="routineSubject" class="routine-custom-input" maxlength="250" placeholder="Enter custom subject name" hidden autocomplete="off">
+            </label>
+            <label class="routine-field">Subject code (auto-filled)
+              <input name="subject_code" id="routineSubjectCode" maxlength="50" placeholder="Auto-filled from subject">
+            </label>
+            <label class="routine-field">Exam type
+              <select name="exam_type" id="routineExamType"></select>
             </label>
             <label class="routine-field">Calendar <span aria-hidden="true">*</span>
               <select name="calendar" id="routineCalendar" required>
-                <option value="">Choose BS or AD</option>
-                <option value="BS">BS (Bikram Sambat)</option><option value="AD">AD (English calendar)</option>
+                <option value="BS" selected>BS (Nepali Bikram Sambat)</option>
+                <option value="AD">AD (English Calendar)</option>
               </select>
             </label>
-            <label class="routine-field">Exam date <span aria-hidden="true">*</span>
-              <input name="exam_date" id="routineDate" maxlength="10" required placeholder="YYYY/MM/DD" pattern="[0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2}" aria-describedby="routineDateHint">
+            <label class="routine-field">Weekday
+              <select name="weekday" id="routineWeekday">
+                <option value="">Choose weekday</option>
+                <option value="Sunday">Sunday (आइतबार)</option>
+                <option value="Monday">Monday (सोमबार)</option>
+                <option value="Tuesday">Tuesday (मंगलबार)</option>
+                <option value="Wednesday">Wednesday (बुधबार)</option>
+                <option value="Thursday">Thursday (बिहिबार)</option>
+                <option value="Friday">Friday (शुक्रबार)</option>
+                <option value="Saturday">Saturday (शनिबार)</option>
+              </select>
             </label>
-            <p class="routine-form-hint routine-field-wide" id="routineDateHint">Enter the date in your chosen calendar. Dates are not converted automatically.</p>
-            <label class="routine-field">Exam time
-              <input name="exam_time" maxlength="100" placeholder="e.g. 11:30 AM – 2:30 PM">
-            </label>
-            <label class="routine-field">Room
-              <input name="room" maxlength="100" placeholder="e.g. Room 204">
-            </label>
-            <label class="routine-field">Weekday (optional, entered manually)
-              <input name="weekday" maxlength="30" list="routineWeekdays" placeholder="e.g. Sunday">
-            </label>
-            <label class="routine-field">Exam type
-              <input name="exam_type" maxlength="100" list="routineExamTypes" placeholder="e.g. Final Examination">
+            <div class="routine-field routine-field-wide">
+              Exam Date (Nepali BS / AD) <span aria-hidden="true">*</span>
+              <div class="routine-picker-grid-3">
+                <select id="routineDateYear" aria-label="Year"></select>
+                <select id="routineDateMonth" aria-label="Month"></select>
+                <select id="routineDateDay" aria-label="Day"></select>
+              </div>
+              <input type="hidden" name="exam_date" id="routineDate" required>
+              <p class="routine-form-hint" id="routineDateHint" style="margin-top:4px">Choose Year, Month, and Day in BS (default) or AD.</p>
+            </div>
+            <div class="routine-field routine-field-wide">
+              Exam Time (Nepali Time · NPT)
+              <div class="routine-preset-chips" id="routineTimePresets"></div>
+              <div class="routine-picker-grid-2" style="margin-top:6px">
+                <select id="routineTimeStart" aria-label="Start time"></select>
+                <select id="routineTimeEnd" aria-label="End time"></select>
+              </div>
+              <input type="hidden" name="exam_time" id="routineExamTime">
+            </div>
+            <label class="routine-field routine-field-wide">Room / Hall
+              <select id="routineRoomSelect"></select>
+              <input name="room" id="routineRoomCustom" class="routine-custom-input" maxlength="100" placeholder="Enter custom room or hall" hidden>
             </label>
           </div>
           <div class="routine-form-actions">
@@ -391,8 +524,6 @@
         </fieldset>
         <p class="routine-status" id="routineFormStatus" role="status" aria-live="polite"></p>
       </form>
-      <datalist id="routineWeekdays"><option value="Sunday"><option value="Monday"><option value="Tuesday"><option value="Wednesday"><option value="Thursday"><option value="Friday"><option value="Saturday"></datalist>
-      <datalist id="routineExamTypes"><option value="Final Examination"><option value="Pre-board Examination"><option value="Theory"><option value="Practical"><option value="Makeup"></datalist>
     </section>
 
     <!-- INSTRUCTIONS -->

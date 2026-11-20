@@ -14,12 +14,23 @@ import {
   LayoutChangeEvent,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '@/constants/useTheme';
 import { useAuth } from '@/context/AuthContext';
 import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { apiFetch } from '@/services/api';
+import {
+  DEFAULT_ROUTINE_OPTIONS,
+  formatBsDateFriendly,
+  formatSlotNptLabel,
+  type RoutineOptionsCatalog,
+} from '@/constants/nepaliCalendar';
+import {
+  AdminClassPeriodModal,
+  AdminExamEditorModal,
+  AdminNewClassRoutineModal,
+} from '@/components/routine/AdminRoutineEditorModals';
 
 const ROMANS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 const WORKING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as const;
@@ -102,8 +113,10 @@ function parseMinutes(hhmm: string): number | null {
 export default function RoutineScreen() {
   const { colors, spacing, radii } = useTheme();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { width: windowWidth } = useWindowDimensions();
-  const isStaff = user?.role === 'admin' || user?.role === 'teacher';
+  const isAdmin = Boolean(user?.isAdmin || user?.role === 'admin');
+  const isStaff = isAdmin || user?.role === 'teacher';
 
   const today = getTodayWeekday();
   const defaultDay = (WORKING_DAYS as readonly string[]).includes(today) ? today : 'Monday';
@@ -117,7 +130,25 @@ export default function RoutineScreen() {
   const [staffSemester, setStaffSemester] = useState<number>(1);
   const [selectedDetail, setSelectedDetail] = useState<{ entry: RoutineEntry; slot: RoutineSlot } | null>(null);
 
-  const pagerRef = useRef<ScrollView | null>(null);
+  // Admin picker modal states
+  const [classPeriodEdit, setClassPeriodEdit] = useState<{ day: string; slotId: number | null } | null>(null);
+  const [newClassRoutineVisible, setNewClassRoutineVisible] = useState(false);
+  const [examEditorState, setExamEditorState] = useState<{ open: boolean; exam: ExamRow | null }>({ open: false, exam: null });
+
+  const pagerRef = useRef<any>(null);
+
+  const optionsQuery = useQuery({
+    queryKey: ['routine-options'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/routine/options');
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) return DEFAULT_ROUTINE_OPTIONS;
+      return { ...DEFAULT_ROUTINE_OPTIONS, ...data } as RoutineOptionsCatalog;
+    },
+    enabled: isAdmin,
+    staleTime: 10 * 60 * 1000,
+  });
+  const routineOptions = optionsQuery.data || DEFAULT_ROUTINE_OPTIONS;
   const scrollX = useRef(new Animated.Value(defaultDayIndex * initialContentWidth)).current;
   const lastSyncedIndexRef = useRef<number>(defaultDayIndex);
 
@@ -191,7 +222,7 @@ export default function RoutineScreen() {
   const syncPagerPosition = useCallback(
     (index: number, width: number, animated: boolean) => {
       const offset = index * width;
-      pagerRef.current?.scrollTo({ x: offset, y: 0, animated });
+      pagerRef.current?.scrollTo?.({ x: offset, y: 0, animated });
       if (!animated) {
         scrollX.setValue(offset);
       }
@@ -312,7 +343,7 @@ export default function RoutineScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, marginBottom: spacing.md }}
+            contentContainerStyle={{ gap: 8, marginBottom: spacing.sm }}
           >
             {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => {
               const active = staffSemester === sem;
@@ -340,6 +371,49 @@ export default function RoutineScreen() {
               );
             })}
           </ScrollView>
+        )}
+
+        {/* Admin Quick Action Bar (Class & Exam Add/Edit) */}
+        {isAdmin && (
+          <View style={styles.adminActionBar}>
+            {mode === 'class' ? (
+              <>
+                {routine ? (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setClassPeriodEdit({ day: WORKING_DAYS[selectedDayIndex] || 'Monday', slotId: null })}
+                    style={[styles.adminActionPrimary, { backgroundColor: colors.text, borderRadius: radii.md }]}
+                  >
+                    <Ionicons name="create-outline" size={16} color={colors.background} />
+                    <Text variant="xs" weight="700" style={{ color: colors.background, marginLeft: 6 }}>
+                      Add / Edit Class
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setNewClassRoutineVisible(true)}
+                  style={[styles.adminActionSecondary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]}
+                >
+                  <Ionicons name="add-circle-outline" size={16} color={colors.text} />
+                  <Text variant="xs" weight="700" style={{ color: colors.text, marginLeft: 6 }}>
+                    New Routine
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => setExamEditorState({ open: true, exam: null })}
+                style={[styles.adminActionPrimary, { backgroundColor: colors.text, borderRadius: radii.md }]}
+              >
+                <Ionicons name="add" size={17} color={colors.background} />
+                <Text variant="xs" weight="700" style={{ color: colors.background, marginLeft: 4 }}>
+                  Add Exam (BS / NPT)
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {mode === 'class' ? (
@@ -508,13 +582,20 @@ export default function RoutineScreen() {
                           const isEmpty = !isBreak && (!entry || entry.is_empty || entry.class_type === 'Empty');
                           const cType = entry?.class_type || 'Theory';
                           const isPracticalOrLab = cType === 'Lab' || cType === 'Practical';
+                          const canTapCard = (!isBreak && !isEmpty) || (!isBreak && isAdmin);
 
                           return (
                             <TouchableOpacity
                               key={slot.id}
-                              activeOpacity={isBreak || isEmpty ? 1 : 0.75}
-                              disabled={isBreak || isEmpty}
-                              onPress={() => entry && setSelectedDetail({ entry, slot })}
+                              activeOpacity={canTapCard ? 0.75 : 1}
+                              disabled={!canTapCard}
+                              onPress={() => {
+                                if (isAdmin) {
+                                  setClassPeriodEdit({ day, slotId: slot.id });
+                                } else if (entry) {
+                                  setSelectedDetail({ entry, slot });
+                                }
+                              }}
                               style={[
                                 styles.periodCard,
                                 {
@@ -526,7 +607,7 @@ export default function RoutineScreen() {
                             >
                               <View style={styles.timeCol}>
                                 <Text variant="xs" weight="700">
-                                  {slot.label}
+                                  {formatSlotNptLabel(slot)}
                                 </Text>
                                 <Caption color="muted" style={{ marginTop: 2 }}>
                                   {isBreak ? 'Break' : `${slot.duration_minutes} min`}
@@ -541,8 +622,12 @@ export default function RoutineScreen() {
                                   </>
                                 ) : isEmpty ? (
                                   <>
-                                    <Text variant="sm" weight="600" color="secondary">Free Period</Text>
-                                    <Caption color="muted">No class scheduled</Caption>
+                                    <Text variant="sm" weight="600" color="secondary">
+                                      {isAdmin ? '+ Assign Class' : 'Free Period'}
+                                    </Text>
+                                    <Caption color="muted">
+                                      {isAdmin ? 'Tap to pick subject & teacher' : 'No class scheduled'}
+                                    </Caption>
                                   </>
                                 ) : (
                                   <>
@@ -601,30 +686,41 @@ export default function RoutineScreen() {
         ) : (
           <View style={{ gap: 10 }}>
             {examQuery.data.map((row) => (
-              <Card
+              <TouchableOpacity
                 key={row.id}
-                variant="outlined"
-                padding="md"
-                style={{ borderColor: colors.border, borderRadius: radii.md }}
+                activeOpacity={isAdmin ? 0.78 : 1}
+                disabled={!isAdmin}
+                onPress={() => isAdmin && setExamEditorState({ open: true, exam: row })}
               >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Caption color="muted">
-                    Sem {ROMANS[row.semester - 1]}
-                    {row.subject_code ? ` · ${row.subject_code}` : ''}
+                <Card
+                  variant="outlined"
+                  padding="md"
+                  style={{ borderColor: colors.border, borderRadius: radii.md }}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Caption color="muted">
+                      Sem {ROMANS[row.semester - 1]}
+                      {row.subject_code ? ` · ${row.subject_code}` : ''}
+                    </Caption>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Caption color="muted">
+                        {formatBsDateFriendly(row.exam_date, row.calendar)}
+                      </Caption>
+                      {isAdmin && (
+                        <Ionicons name="create-outline" size={15} color={colors.textSecondary} />
+                      )}
+                    </View>
+                  </View>
+                  <Text variant="md" weight="700" style={{ marginTop: 4 }}>
+                    {row.subject_name}
+                  </Text>
+                  <Caption color="muted" style={{ marginTop: 4 }}>
+                    {[row.exam_time, row.weekday, row.room ? `Room ${row.room}` : null, row.exam_type]
+                      .filter(Boolean)
+                      .join(' · ') || 'Details to be announced'}
                   </Caption>
-                  <Caption color="muted">
-                    {row.exam_date} {row.calendar || ''}
-                  </Caption>
-                </View>
-                <Text variant="md" weight="700" style={{ marginTop: 4 }}>
-                  {row.subject_name}
-                </Text>
-                <Caption color="muted" style={{ marginTop: 4 }}>
-                  {[row.exam_time, row.weekday, row.room ? `Room ${row.room}` : null, row.exam_type]
-                    .filter(Boolean)
-                    .join(' · ') || 'Details to be announced'}
-                </Caption>
-              </Card>
+                </Card>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -695,9 +791,61 @@ export default function RoutineScreen() {
                 <Text variant="sm" weight="600">{selectedDetail?.entry.class_type || 'Theory'}</Text>
               </View>
             </View>
+            {isAdmin && selectedDetail && (
+              <TouchableOpacity
+                onPress={() => {
+                  const { entry, slot } = selectedDetail;
+                  setSelectedDetail(null);
+                  setClassPeriodEdit({ day: entry.day_of_week, slotId: slot.id });
+                }}
+                style={[styles.adminActionPrimary, { backgroundColor: colors.text, borderRadius: radii.md, marginTop: 16 }]}
+              >
+                <Ionicons name="create-outline" size={16} color={colors.background} />
+                <Text variant="xs" weight="700" style={{ color: colors.background, marginLeft: 6 }}>
+                  Edit This Period
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Admin Picker Modals (Class Period, New Class Routine, Exam Schedule) */}
+      {isAdmin && (
+        <>
+          <AdminClassPeriodModal
+            visible={Boolean(classPeriodEdit)}
+            routine={routine}
+            initialDay={classPeriodEdit?.day || WORKING_DAYS[selectedDayIndex] || 'Monday'}
+            initialSlotId={classPeriodEdit?.slotId ?? null}
+            options={routineOptions}
+            onClose={() => setClassPeriodEdit(null)}
+            onSaved={() => {
+              void queryClient.invalidateQueries({ queryKey: ['class-routine'] });
+            }}
+          />
+          <AdminNewClassRoutineModal
+            visible={newClassRoutineVisible}
+            initialSemester={staffSemester}
+            options={routineOptions}
+            onClose={() => setNewClassRoutineVisible(false)}
+            onCreated={(createdSem) => {
+              setStaffSemester(createdSem);
+              void queryClient.invalidateQueries({ queryKey: ['class-routine'] });
+            }}
+          />
+          <AdminExamEditorModal
+            visible={examEditorState.open}
+            editingExam={examEditorState.exam}
+            initialSemester={staffSemester}
+            options={routineOptions}
+            onClose={() => setExamEditorState({ open: false, exam: null })}
+            onSaved={() => {
+              void queryClient.invalidateQueries({ queryKey: ['exam-routine'] });
+            }}
+          />
+        </>
+      )}
     </View>
   );
 }
@@ -721,6 +869,27 @@ const styles = StyleSheet.create({
   semChip: {
     paddingHorizontal: 14,
     paddingVertical: 6,
+    borderWidth: 1,
+  },
+  adminActionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+  },
+  adminActionPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  adminActionSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderWidth: 1,
   },
   centerBox: {

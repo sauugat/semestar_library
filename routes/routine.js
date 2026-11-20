@@ -1,6 +1,11 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const {
   ROMANS,
+  WORKING_DAYS,
+  CLASS_TYPES,
+  FACULTY_TYPES,
   FIELDS,
   ORDER_BY,
   DEFAULT_TIME_SLOTS,
@@ -35,6 +40,131 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
     req.routineId = Number(text);
     next();
   };
+
+  // ============================================================================
+  // PICKER OPTIONS CATALOG (Subjects, Teachers, BS Calendar, Nepali Time Presets)
+  // ============================================================================
+  let cachedSyllabusCatalog = null;
+  function loadSyllabusCatalog() {
+    if (cachedSyllabusCatalog) return cachedSyllabusCatalog;
+    const subjectsBySemester = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [] };
+    let electives = [];
+    try {
+      const raw = fs.readFileSync(path.join(__dirname, '..', 'syllabus-data.json'), 'utf8');
+      const parsed = JSON.parse(raw);
+      for (const semBlock of parsed.semesters || []) {
+        const semNum = semesterNumber(semBlock.semester);
+        if (!semNum) continue;
+        subjectsBySemester[semNum] = (semBlock.courses || []).map((c) => ({
+          title: String(c.title || '').trim(),
+          code: String(c.code || '').trim(),
+          nature: String(c.nature || '').trim(),
+        })).filter((c) => c.title);
+      }
+      electives = (parsed.electives || []).map((c) => ({
+        title: String(c.title || '').trim(),
+        code: String(c.code || 'ELE').trim(),
+        nature: String(c.nature || '').trim(),
+      })).filter((c) => c.title);
+    } catch (_) {}
+    cachedSyllabusCatalog = { subjectsBySemester, electives };
+    return cachedSyllabusCatalog;
+  }
+
+  const BS_MONTHS = [
+    { value: '01', name: 'Baisakh', nepali: 'बैशाख' },
+    { value: '02', name: 'Jestha', nepali: 'जेठ' },
+    { value: '03', name: 'Ashadh', nepali: 'असार' },
+    { value: '04', name: 'Shrawan', nepali: 'साउन' },
+    { value: '05', name: 'Bhadra', nepali: 'भदौ' },
+    { value: '06', name: 'Ashwin', nepali: 'असोज' },
+    { value: '07', name: 'Kartik', nepali: 'कार्तिक' },
+    { value: '08', name: 'Mangsir', nepali: 'मंसिर' },
+    { value: '09', name: 'Poush', nepali: 'पुष' },
+    { value: '10', name: 'Magh', nepali: 'माघ' },
+    { value: '11', name: 'Falgun', nepali: 'फागुन' },
+    { value: '12', name: 'Chaitra', nepali: 'चैत्र' },
+  ];
+  const DEFAULT_ROOMS = [
+    'Room 101', 'Room 102', 'Room 201', 'Room 202', 'Room 204', 'Room 301',
+    'Computer Lab 1', 'Computer Lab 2', 'Hardware Lab', 'Seminar Hall', 'Exam Hall A', 'Exam Hall B',
+  ];
+  const DEFAULT_EXAM_TYPES = [
+    'Final Examination', 'Pre-board Examination', 'Midterm Examination', 'Practical Examination', 'Makeup Examination', 'Theory', 'Practical',
+  ];
+  const DEFAULT_EXAM_TIME_PRESETS = [
+    '7:00 AM – 10:00 AM',
+    '8:00 AM – 11:00 AM',
+    '11:00 AM – 2:00 PM',
+    '11:30 AM – 2:30 PM',
+    '12:00 PM – 3:00 PM',
+    '1:00 PM – 4:00 PM',
+    '2:00 PM – 5:00 PM',
+  ];
+  const DEFAULT_SESSION_PRESETS = [
+    '2082 BS (Ashwin–Chaitra)',
+    '2083 BS (Baisakh–Bhadra)',
+    '2083 BS (Ashwin–Chaitra)',
+    '2084 BS (Baisakh–Bhadra)',
+    '2084 BS (Ashwin–Chaitra)',
+  ];
+
+  router.get('/options', requireLogin, handle(async (req, res) => {
+    const { subjectsBySemester, electives } = loadSyllabusCatalog();
+    const teacherSet = new Set();
+    const roomSet = new Set(DEFAULT_ROOMS);
+
+    try {
+      const teacherRows = await db.all(
+        "SELECT DISTINCT name FROM students WHERE LOWER(COALESCE(role, '')) IN ('teacher', 'faculty') AND name IS NOT NULL"
+      );
+      for (const r of teacherRows || []) {
+        const n = String(r.name || '').trim();
+        if (n) teacherSet.add(n);
+      }
+    } catch (_) {}
+
+    try {
+      const entryFacultyRows = await db.all(
+        "SELECT DISTINCT faculty_name FROM class_routine_entries WHERE faculty_name IS NOT NULL AND TRIM(faculty_name) <> ''"
+      );
+      for (const r of entryFacultyRows || []) {
+        const n = String(r.faculty_name || '').trim();
+        if (n) teacherSet.add(n);
+      }
+    } catch (_) {}
+
+    try {
+      const roomRows = await db.all(
+        "SELECT DISTINCT room FROM routine WHERE room IS NOT NULL AND TRIM(room) <> ''"
+      );
+      for (const r of roomRows || []) {
+        const rm = String(r.room || '').trim();
+        if (rm) roomSet.add(rm);
+      }
+    } catch (_) {}
+
+    res.set('Cache-Control', 'private, max-age=60').json({
+      subjectsBySemester,
+      electives,
+      teachers: Array.from(teacherSet).sort((a, b) => a.localeCompare(b)),
+      rooms: Array.from(roomSet),
+      examTypes: DEFAULT_EXAM_TYPES,
+      classTypes: CLASS_TYPES,
+      facultyTypes: [
+        { value: 'FT', label: 'Full Time (FT)' },
+        { value: 'CC', label: 'Course Contract (CC)' },
+        { value: 'MA', label: "Master's Assistantship (MA)" },
+      ],
+      workingDays: WORKING_DAYS,
+      weekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+      bsMonths: BS_MONTHS,
+      bsYears: [2081, 2082, 2083, 2084, 2085],
+      examTimePresets: DEFAULT_EXAM_TIME_PRESETS,
+      sessionPresets: DEFAULT_SESSION_PRESETS,
+      defaultSlots: DEFAULT_TIME_SLOTS,
+    });
+  }));
 
   // ============================================================================
   // CLASS ROUTINE ENDPOINTS (Semester-Aware Weekly Academic Timetable)

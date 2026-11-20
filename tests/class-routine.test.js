@@ -612,4 +612,25 @@ test('23: Teacher routine filters to own subjects, marks single-subject & multi-
   for (const e of teacherEntriesInSem) {
     assert.equal(e.is_cancelled, true, 'All teacher classes during Absent Mode must show No Class');
   }
+
+  // 5. Post a class message (e.g. "I will be 10 min late") -> student routine includes teacher_message & notification sent
+  const msgRes = await dispatch(app, 'POST', '/teacher/message', {
+    entry_id: targetCls.entry_id,
+    target_date: targetCls.day_date,
+    message: 'I will be 10 min late today',
+  }, 'teacher-real');
+  assert.equal(msgRes.status, 201);
+  assert.equal(msgRes.body.message.message, 'I will be 10 min late today');
+
+  const stuWithMsg = await dispatch(app, 'GET', '/class', undefined, stuId);
+  const entryWithMsg = stuWithMsg.body.routine.entries.find(e => Number(e.id) === Number(targetCls.entry_id));
+  assert.ok(entryWithMsg.teacher_message, 'Student routine entry should include teacher_message');
+  assert.equal(entryWithMsg.teacher_message.message, 'I will be 10 min late today');
+
+  // Clear message -> removed from student routine
+  const delMsgRes = await dispatch(app, 'DELETE', `/teacher/message/${msgRes.body.message.id}`, undefined, 'teacher-real');
+  assert.equal(delMsgRes.status, 200);
+  const stuAfterClear = await dispatch(app, 'GET', '/class', undefined, stuId);
+  const entryAfterClear = stuAfterClear.body.routine.entries.find(e => Number(e.id) === Number(targetCls.entry_id));
+  assert.equal(entryAfterClear.teacher_message, null);
 });

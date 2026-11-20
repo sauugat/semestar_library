@@ -493,6 +493,121 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
     return res.json({ success: true, id: req.routineId });
   }));
 
+  router.post('/teacher/message', requireLogin, requireTeacherOrAdmin, handle(async (req, res) => {
+    await ensureTeacherAbsenceSchema(db);
+    const entryId = Number(req.body?.entry_id);
+    if (!Number.isInteger(entryId) || entryId < 1) {
+      return res.status(400).json({ error: 'Valid entry_id is required.' });
+    }
+    const rawMsg = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+    if (!rawMsg) {
+      return res.status(400).json({ error: 'Please write a message for the class.' });
+    }
+    const messageText = rawMsg.slice(0, 400);
+
+    const entry = await db.get(
+      `SELECT e.*, r.semester AS routine_semester
+       FROM class_routine_entries e
+       JOIN class_routines r ON r.id = e.routine_id
+       WHERE e.id = ? AND r.status = 'published'`,
+      entryId
+    );
+    if (!entry || entry.is_empty || !entry.subject_name) {
+      return res.status(404).json({ error: 'Class period not found in published routine.' });
+    }
+
+    const sem = Number(entry.routine_semester);
+    const teacherIdentity = await getTeacherIdentityAndSubjects(db, req.staffUserId);
+    if (req.staffRole !== 'admin' && !doesEntryBelongToTeacher(entry, sem, teacherIdentity)) {
+      return res.status(403).json({ error: 'You can only post messages for your own scheduled classes.' });
+    }
+
+    const dateInfo = getKathmanduDateInfo();
+    const targetDate =
+      typeof req.body?.target_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.body.target_date.trim())
+        ? req.body.target_date.trim()
+        : (dateInfo.weekDates[entry.day_of_week] || dateInfo.todayDate);
+
+    const teacherName = teacherIdentity.name || entry.faculty_name || 'Your teacher';
+    const now = new Date().toISOString();
+
+    await db.run(
+      `DELETE FROM teacher_class_messages WHERE entry_id = ? AND target_date = ?`,
+      entry.id, targetDate
+    );
+
+    let msgId;
+    if (db.isPostgres) {
+      const row = await db.get(
+        `INSERT INTO teacher_class_messages
+           (teacher_id, teacher_name, routine_id, entry_id, semester, subject_name, day_of_week, target_date, message, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        req.staffUserId, teacherName, entry.routine_id, entry.id, sem, entry.subject_name, entry.day_of_week, targetDate, messageText, now, now
+      );
+      msgId = Number(row.id);
+    } else {
+      const r = await db.run(
+        `INSERT INTO teacher_class_messages
+           (teacher_id, teacher_name, routine_id, entry_id, semester, subject_name, day_of_week, target_date, message, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        req.staffUserId, teacherName, entry.routine_id, entry.id, sem, entry.subject_name, entry.day_of_week, targetDate, messageText, now, now
+      );
+      msgId = Number(r.lastInsertRowid);
+    }
+
+    const saved = await db.get('SELECT * FROM teacher_class_messages WHERE id = ?', msgId);
+
+    // Notify all students in this semester
+    let notifiedStudentsCount = 0;
+    try {
+      const notifService = require('../lib/notifications-service');
+      const recipientIds = await getSemesterStudentIds(db, sem);
+      if (recipientIds.length > 0) {
+        await notifService.createNotification(db, {
+          type: 'routine_updated',
+          actorId: req.staffUserId,
+          actorName: teacherName,
+          title: `${entry.subject_name} (${teacherName})`,
+          body: messageText,
+          entityType: 'routine',
+          entityId: String(sem),
+          deepLink: '/routine',
+          webPath: 'routine.html',
+          groupKey: `class-msg:${entry.id}:${targetDate}:${msgId}`,
+          priority: 'high',
+          recipientUserIds: recipientIds,
+          metadata: {
+            kind: 'teacher_class_message',
+            semester: sem,
+            entryId: entry.id,
+            subjectName: entry.subject_name,
+            teacherName,
+            targetDate,
+            message: messageText,
+          },
+        });
+        notifiedStudentsCount = recipientIds.length;
+      }
+    } catch (err) {
+      console.warn('[Class Message Notification Error]:', err.message);
+    }
+
+    invalidateCache();
+    return res.status(201).json({ message: saved, notifiedStudentsCount });
+  }));
+
+  router.delete('/teacher/message/:id', requireLogin, requireTeacherOrAdmin, checkId('id', 'message'), handle(async (req, res) => {
+    await ensureTeacherAbsenceSchema(db);
+    const existing = await db.get('SELECT * FROM teacher_class_messages WHERE id = ?', req.routineId);
+    if (!existing) return res.status(404).json({ error: 'Class message not found.' });
+    if (req.staffRole !== 'admin' && String(existing.teacher_id) !== String(req.staffUserId)) {
+      return res.status(403).json({ error: 'You can only delete your own class messages.' });
+    }
+    await db.run('DELETE FROM teacher_class_messages WHERE id = ?', req.routineId);
+    invalidateCache();
+    return res.json({ success: true, id: req.routineId });
+  }));
+
   // Admin: list all class routines (draft, published, archived)
   router.get('/class/admin', requireLogin, requireAdmin, handle(async (req, res) => {
     const conditions = [];

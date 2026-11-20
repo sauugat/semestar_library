@@ -44,6 +44,14 @@ export interface TeacherAbsenceRecord {
   note?: string | null;
 }
 
+export interface TeacherClassMessage {
+  id: number;
+  teacher_name?: string | null;
+  message: string;
+  target_date: string;
+  created_at?: string;
+}
+
 export interface TeacherClassEntry {
   entry_id: number;
   routine_id: number;
@@ -62,6 +70,7 @@ export interface TeacherClassEntry {
   class_type: string;
   is_absent: boolean;
   absence: TeacherAbsenceRecord | null;
+  teacher_message?: TeacherClassMessage | null;
 }
 
 interface TeacherScheduleResponse {
@@ -108,7 +117,11 @@ export function TeacherClassRoutineView({
   const [modalTarget, setModalTarget] = useState<AbsentModalTarget | null>(null);
   const [daysInput, setDaysInput] = useState<string>('1');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [markingEntryId, setMarkingEntryId] = useState<number | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [messageTarget, setMessageTarget] = useState<TeacherClassEntry | null>(null);
+  const [messageDraft, setMessageDraft] = useState<string>('');
+  const [isSendingMessage, setIsSendingMessage] = useState<boolean>(false);
 
   const pagerRef = useRef<any>(null);
   const scrollX = useRef(new Animated.Value(defaultDayIndex * initialContentWidth)).current;
@@ -222,16 +235,119 @@ export function TeacherClassRoutineView({
     [scrollX, pagerWidth, pillTabWidth]
   );
 
-  const openSubjectAbsentModal = (cls: TeacherClassEntry) => {
+  const handleMarkSubjectAbsent = (cls: TeacherClassEntry) => {
+    if (markingEntryId !== null) return;
     const startDate = cls.day_date || scheduleQuery.data?.todayDate || '';
-    setDaysInput('1');
-    setModalTarget({ scope: 'subject', entry: cls, startDate });
+    Alert.alert(
+      'Mark Class Absent?',
+      `Mark ${cls.subject_name} (${cls.day_of_week}) as No Class and notify students?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Mark Absent',
+          style: 'destructive',
+          onPress: async () => {
+            setMarkingEntryId(cls.entry_id);
+            try {
+              const res = await apiFetch('/api/routine/teacher/absent', {
+                method: 'POST',
+                body: JSON.stringify({
+                  scope: 'subject',
+                  entry_id: cls.entry_id,
+                  days: 1,
+                  start_date: startDate,
+                }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (!res.ok) {
+                throw new Error(data?.error || 'Could not mark class absent.');
+              }
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ['teacher-class-routine'] }),
+                queryClient.invalidateQueries({ queryKey: ['class-routine'] }),
+              ]);
+            } catch (err: any) {
+              Alert.alert('Error', err?.message || 'Failed to mark absent. Please try again.');
+            } finally {
+              setMarkingEntryId(null);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const openAbsentModeModal = () => {
     const startDate = scheduleQuery.data?.todayDate || '';
     setDaysInput('1');
     setModalTarget({ scope: 'all', startDate });
+  };
+
+  const openMessageModal = (cls: TeacherClassEntry) => {
+    setMessageDraft(cls.teacher_message?.message || '');
+    setMessageTarget(cls);
+  };
+
+  const handleSendClassMessage = async () => {
+    if (!messageTarget || isSendingMessage) return;
+    const trimmed = messageDraft.trim();
+    if (!trimmed) {
+      Alert.alert('Message Required', 'Please write a message to send to students.');
+      return;
+    }
+    setIsSendingMessage(true);
+    try {
+      const res = await apiFetch('/api/routine/teacher/message', {
+        method: 'POST',
+        body: JSON.stringify({
+          entry_id: messageTarget.entry_id,
+          target_date: messageTarget.day_date || scheduleQuery.data?.todayDate,
+          message: trimmed,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || 'Could not send class message.');
+      }
+      setMessageTarget(null);
+      setMessageDraft('');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['teacher-class-routine'] }),
+        queryClient.invalidateQueries({ queryKey: ['class-routine'] }),
+      ]);
+      const count = Number(data?.notifiedStudentsCount || 0);
+      Alert.alert(
+        'Message Sent',
+        `Class message posted for ${messageTarget.subject_name}.${
+          count > 0 ? ` ${count} student${count === 1 ? '' : 's'} notified.` : ''
+        }`
+      );
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to send message. Please try again.');
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  const handleClearClassMessage = async () => {
+    const msgId = messageTarget?.teacher_message?.id;
+    if (!msgId || isSendingMessage) return;
+    setIsSendingMessage(true);
+    try {
+      const res = await apiFetch(`/api/routine/teacher/message/${msgId}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Could not clear message.');
+      setMessageTarget(null);
+      setMessageDraft('');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['teacher-class-routine'] }),
+        queryClient.invalidateQueries({ queryKey: ['class-routine'] }),
+      ]);
+    } catch (err: any) {
+      Alert.alert('Error', err?.message || 'Failed to clear message.');
+    } finally {
+      setIsSendingMessage(false);
+    }
   };
 
   const handleConfirmAbsent = async () => {
@@ -568,18 +684,11 @@ export function TeacherClassRoutineView({
                               </Caption>
                             </View>
 
-                            {isGlobalAbsent ? (
-                              <View style={styles.statusCol}>
-                                <Text variant="xs" weight="700" style={{ color: '#f87171' }}>
-                                  No Class
-                                </Text>
-                              </View>
-                            ) : isSubjectAbsent && cls.absence ? (
+                            <View style={styles.rowActionsCol}>
                               <TouchableOpacity
-                                disabled={cancellingId === cls.absence.id}
-                                onPress={() => handleCancelAbsence(cls.absence!, cls.subject_name)}
+                                onPress={() => openMessageModal(cls)}
                                 style={[
-                                  styles.rowAbsentBtn,
+                                  styles.rowMsgBtn,
                                   {
                                     backgroundColor: colors.surfaceSubtle,
                                     borderColor: colors.border,
@@ -587,35 +696,77 @@ export function TeacherClassRoutineView({
                                   },
                                 ]}
                                 accessibilityRole="button"
-                                accessibilityLabel={`Restore ${cls.subject_name}`}
+                                accessibilityLabel={
+                                  cls.teacher_message
+                                    ? `Edit message for ${cls.subject_name}`
+                                    : `Write message for ${cls.subject_name}`
+                                }
                               >
-                                {cancellingId === cls.absence.id ? (
-                                  <ActivityIndicator size="small" color={colors.text} />
-                                ) : (
+                                <Ionicons
+                                  name={
+                                    cls.teacher_message
+                                      ? 'information-circle'
+                                      : 'chatbubble-ellipses-outline'
+                                  }
+                                  size={15}
+                                  color={cls.teacher_message ? colors.text : colors.textSecondary}
+                                />
+                              </TouchableOpacity>
+
+                              {isGlobalAbsent ? (
+                                <View style={styles.statusCol}>
                                   <Text variant="xs" weight="700" style={{ color: '#f87171' }}>
-                                    No Class ✕
+                                    No Class
                                   </Text>
-                                )}
-                              </TouchableOpacity>
-                            ) : (
-                              <TouchableOpacity
-                                onPress={() => openSubjectAbsentModal(cls)}
-                                style={[
-                                  styles.rowAbsentBtn,
-                                  {
-                                    backgroundColor: colors.surfaceSubtle,
-                                    borderColor: colors.border,
-                                    borderRadius: radii.sm,
-                                  },
-                                ]}
-                                accessibilityRole="button"
-                                accessibilityLabel={`Mark ${cls.subject_name} absent`}
-                              >
-                                <Text variant="xs" weight="700" style={{ color: '#f87171' }}>
-                                  Absent
-                                </Text>
-                              </TouchableOpacity>
-                            )}
+                                </View>
+                              ) : isSubjectAbsent && cls.absence ? (
+                                <TouchableOpacity
+                                  disabled={cancellingId === cls.absence.id}
+                                  onPress={() => handleCancelAbsence(cls.absence!, cls.subject_name)}
+                                  style={[
+                                    styles.rowAbsentBtn,
+                                    {
+                                      backgroundColor: colors.surfaceSubtle,
+                                      borderColor: colors.border,
+                                      borderRadius: radii.sm,
+                                    },
+                                  ]}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Restore ${cls.subject_name}`}
+                                >
+                                  {cancellingId === cls.absence.id ? (
+                                    <ActivityIndicator size="small" color={colors.text} />
+                                  ) : (
+                                    <Text variant="xs" weight="700" style={{ color: '#f87171' }}>
+                                      No Class ✕
+                                    </Text>
+                                  )}
+                                </TouchableOpacity>
+                              ) : (
+                                <TouchableOpacity
+                                  disabled={markingEntryId === cls.entry_id}
+                                  onPress={() => handleMarkSubjectAbsent(cls)}
+                                  style={[
+                                    styles.rowAbsentBtn,
+                                    {
+                                      backgroundColor: colors.surfaceSubtle,
+                                      borderColor: colors.border,
+                                      borderRadius: radii.sm,
+                                    },
+                                  ]}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`Mark ${cls.subject_name} absent`}
+                                >
+                                  {markingEntryId === cls.entry_id ? (
+                                    <ActivityIndicator size="small" color={colors.text} />
+                                  ) : (
+                                    <Text variant="xs" weight="700" style={{ color: '#f87171' }}>
+                                      Absent
+                                    </Text>
+                                  )}
+                                </TouchableOpacity>
+                              )}
+                            </View>
                           </View>
                         );
                       })
@@ -776,6 +927,132 @@ export function TeacherClassRoutineView({
           </View>
         </View>
       </Modal>
+
+      {/* Write Class Message Modal */}
+      <Modal
+        visible={Boolean(messageTarget)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isSendingMessage) setMessageTarget(null);
+        }}
+      >
+        <View style={styles.modalBackdrop}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderRadius: radii.lg,
+              },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Text variant="md" weight="800" style={{ color: colors.text }}>
+                  Write Message
+                </Text>
+                <Caption color="muted" style={{ marginTop: 4 }}>
+                  {messageTarget?.subject_name}
+                  {messageTarget?.day_date
+                    ? ` • ${messageTarget.day_of_week} (${formatBsDate(messageTarget.day_date)})`
+                    : ''}
+                </Caption>
+              </View>
+              <TouchableOpacity
+                disabled={isSendingMessage}
+                onPress={() => setMessageTarget(null)}
+                style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
+              >
+                <Ionicons name="close" size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <TextInput
+              value={messageDraft}
+              onChangeText={setMessageDraft}
+              placeholder="e.g. I will be 10 min late today..."
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              maxLength={400}
+              textAlignVertical="top"
+              style={[
+                styles.messageInput,
+                {
+                  color: colors.text,
+                  backgroundColor: colors.surfaceSubtle,
+                  borderColor: colors.border,
+                  borderRadius: radii.sm,
+                },
+              ]}
+            />
+
+            <Caption color="muted" style={{ marginTop: 6 }}>
+              Students will receive a notification and see an info (i) button on this class.
+            </Caption>
+
+            <View style={styles.modalActions}>
+              {messageTarget?.teacher_message ? (
+                <TouchableOpacity
+                  disabled={isSendingMessage}
+                  onPress={handleClearClassMessage}
+                  style={[
+                    styles.modalCancelBtn,
+                    {
+                      backgroundColor: colors.surfaceSubtle,
+                      borderColor: colors.border,
+                      borderRadius: radii.sm,
+                    },
+                  ]}
+                >
+                  <Text variant="xs" weight="700" style={{ color: '#f87171' }}>
+                    Clear
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  disabled={isSendingMessage}
+                  onPress={() => setMessageTarget(null)}
+                  style={[
+                    styles.modalCancelBtn,
+                    {
+                      backgroundColor: colors.surfaceSubtle,
+                      borderColor: colors.border,
+                      borderRadius: radii.sm,
+                    },
+                  ]}
+                >
+                  <Text variant="xs" weight="700" color="secondary">
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                disabled={isSendingMessage}
+                onPress={handleSendClassMessage}
+                style={[
+                  styles.modalConfirmBtn,
+                  {
+                    backgroundColor: colors.text,
+                    borderRadius: radii.sm,
+                    opacity: isSendingMessage ? 0.6 : 1,
+                  },
+                ]}
+              >
+                {isSendingMessage ? (
+                  <ActivityIndicator size="small" color={colors.background} />
+                ) : (
+                  <Text variant="xs" weight="800" style={{ color: colors.background }}>
+                    Send & Notify Students
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -847,12 +1124,31 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
     alignItems: 'flex-end',
   },
+  rowActionsCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rowMsgBtn: {
+    width: 32,
+    height: 32,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rowAbsentBtn: {
     paddingHorizontal: 10,
     paddingVertical: 7,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  messageInput: {
+    minHeight: 88,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
   },
   modalBackdrop: {
     flex: 1,

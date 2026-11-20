@@ -75,6 +75,14 @@ interface RoutineEntryAbsence {
   note?: string | null;
 }
 
+interface RoutineEntryMessage {
+  id: number;
+  teacher_name?: string | null;
+  message: string;
+  target_date: string;
+  created_at?: string;
+}
+
 interface RoutineEntry {
   id: number;
   slot_id: number;
@@ -87,6 +95,7 @@ interface RoutineEntry {
   is_break?: boolean;
   is_cancelled?: boolean;
   absence?: RoutineEntryAbsence | null;
+  teacher_message?: RoutineEntryMessage | null;
 }
 
 interface ClassRoutineData {
@@ -160,6 +169,13 @@ export default function RoutineScreen() {
   const [pillsWidth, setPillsWidth] = useState<number>(initialContentWidth);
   const [staffSemester, setStaffSemester] = useState<number>(1);
   const [selectedDetail, setSelectedDetail] = useState<{ entry: RoutineEntry; slot: RoutineSlot } | null>(null);
+  const [messagePopup, setMessagePopup] = useState<{
+    subjectName: string;
+    teacherName: string;
+    day: string;
+    timeLabel: string;
+    message: string;
+  } | null>(null);
 
   // Admin picker modal states
   const [classPeriodEdit, setClassPeriodEdit] = useState<{ day: string; slotId: number | null } | null>(null);
@@ -882,6 +898,39 @@ export default function RoutineScreen() {
                                     )}
                                   </View>
 
+                                  {!isBreak && !isEmpty && entry?.teacher_message ? (
+                                    <TouchableOpacity
+                                      onPress={() =>
+                                        setMessagePopup({
+                                          subjectName: entry.subject_name || 'Class',
+                                          teacherName:
+                                            entry.teacher_message?.teacher_name ||
+                                            entry.faculty_name ||
+                                            'Teacher',
+                                          day,
+                                          timeLabel: formatSlotNptLabel(slot),
+                                          message: entry.teacher_message!.message,
+                                        })
+                                      }
+                                      style={[
+                                        styles.infoMsgBtn,
+                                        {
+                                          backgroundColor: colors.surfaceSubtle,
+                                          borderColor: colors.border,
+                                          marginRight: isCancelled || isPracticalOrLab ? 8 : 0,
+                                        },
+                                      ]}
+                                      accessibilityRole="button"
+                                      accessibilityLabel={`View teacher message for ${entry.subject_name}`}
+                                    >
+                                      <Ionicons
+                                        name="information-circle-outline"
+                                        size={18}
+                                        color={colors.text}
+                                      />
+                                    </TouchableOpacity>
+                                  ) : null}
+
                                   {isCancelled && (
                                     <Text variant="xs" weight="800" style={{ color: '#f87171' }}>
                                       No Class
@@ -1132,6 +1181,57 @@ export default function RoutineScreen() {
           </Animated.View>
         </Animated.ScrollView>
       </View>
+
+      {/* Teacher Class Message Popup Modal */}
+      <Modal
+        visible={Boolean(messagePopup)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMessagePopup(null)}
+      >
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={() => setMessagePopup(null)}
+          style={styles.modalBackdrop}
+        >
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                borderRadius: radii.lg,
+              },
+            ]}
+          >
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1, marginRight: 8 }}>
+                <Caption color="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Class Message • {messagePopup?.day} ({messagePopup?.timeLabel})
+                </Caption>
+                <Heading level={3} style={{ marginTop: 2 }}>
+                  {messagePopup?.subjectName}
+                </Heading>
+                <Caption color="muted" style={{ marginTop: 2 }}>
+                  From {messagePopup?.teacherName}
+                </Caption>
+              </View>
+              <TouchableOpacity
+                onPress={() => setMessagePopup(null)}
+                style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
+              >
+                <Ionicons name="close" size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.modalRows, { borderTopColor: colors.border }]}>
+              <Text variant="md" style={{ color: colors.text, lineHeight: 22 }}>
+                {messagePopup?.message}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Subject Detail Modal */}
       <Modal
@@ -1468,6 +1568,14 @@ const styles = StyleSheet.create({
   },
   timeCol: {
     width: 84,
+  },
+  infoMsgBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   typeBadge: {
     paddingHorizontal: 8,

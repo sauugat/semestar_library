@@ -15,8 +15,31 @@ const {
   validateSlot,
   validateRoutineEntry,
   getFullClassRoutine,
+  ensureTeacherAbsenceSchema,
+  getKathmanduDateInfo,
+  addDaysToIsoDate,
+  getTeacherIdentityAndSubjects,
+  doesEntryBelongToTeacher,
+  attachAbsencesToRoutine,
+  getTeacherWeeklySchedule,
 } = require('../lib/routine');
 const { getAcademicContext } = require('../lib/academic-context');
+let adToBsHelper = null;
+try {
+  adToBsHelper = require('../lib/temporal-intelligence').adToBs;
+} catch (_) {}
+
+function formatBsShort(adDate) {
+  if (!adDate) return '';
+  try {
+    if (typeof adToBsHelper === 'function') {
+      const res = adToBsHelper(adDate);
+      if (res && res.formattedEn) return `${res.formattedEn} BS`;
+      if (res && res.dateStr) return `${res.dateStr} BS`;
+    }
+  } catch (_) {}
+  return adDate;
+}
 
 module.exports = function createRoutineRouter(db, requireLogin, { invalidateCache = () => {} } = {}) {
   const router = express.Router();
@@ -29,6 +52,24 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
     if (!studentId) return res.status(403).json({ error: 'Only admins can manage the routine.' });
     const student = await db.get('SELECT role FROM students WHERE studentId = ?', studentId);
     if (!student || student.role !== 'admin') return res.status(403).json({ error: 'Only admins can manage the routine.' });
+    next();
+  });
+
+  const requireTeacherOrAdmin = handle(async (req, res, next) => {
+    const studentId = (req.user && req.user.studentId) || (req.session && req.session.studentId);
+    if (!studentId) return res.status(401).json({ error: 'Sign in required.' });
+    const role = (req.user && req.user.role) || (req.session && req.session.role);
+    if (role === 'teacher' || role === 'admin') {
+      req.staffUserId = String(studentId);
+      req.staffRole = role;
+      return next();
+    }
+    const student = await db.get('SELECT role, name FROM students WHERE studentId = ?', studentId);
+    if (!student || (student.role !== 'teacher' && student.role !== 'admin')) {
+      return res.status(403).json({ error: 'Only teachers and administrators can manage class absences.' });
+    }
+    req.staffUserId = String(studentId);
+    req.staffRole = student.role;
     next();
   });
 
@@ -221,14 +262,19 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
         });
       }
 
-      const full = await getFullClassRoutine(db, row.id);
+      const dateInfo = getKathmanduDateInfo();
+      const full = await attachAbsencesToRoutine(db, await getFullClassRoutine(db, row.id), dateInfo);
       return res.set('Cache-Control', 'private, no-store').json({
         routine: full,
-        semester: studentSem
+        semester: studentSem,
+        todayDate: dateInfo.todayDate,
+        todayWeekday: dateInfo.todayWeekday,
+        weekDates: dateInfo.weekDates,
       });
     }
 
     // Teachers & Admins can inspect any published semester routine
+    const dateInfo = getKathmanduDateInfo();
     if (req.query.semester !== undefined) {
       const targetSem = semesterNumber(req.query.semester);
       if (!targetSem) {
@@ -249,10 +295,13 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
         });
       }
 
-      const full = await getFullClassRoutine(db, row.id);
+      const full = await attachAbsencesToRoutine(db, await getFullClassRoutine(db, row.id), dateInfo);
       return res.set('Cache-Control', 'private, no-store').json({
         routine: full,
-        semester: targetSem
+        semester: targetSem,
+        todayDate: dateInfo.todayDate,
+        todayWeekday: dateInfo.todayWeekday,
+        weekDates: dateInfo.weekDates,
       });
     }
 
@@ -262,10 +311,186 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
     const rows = sessionFilter ? await db.all(listQuery, sessionFilter) : await db.all(listQuery);
     const routines = [];
     for (const r of rows) {
-      const full = await getFullClassRoutine(db, r.id);
+      const full = await attachAbsencesToRoutine(db, await getFullClassRoutine(db, r.id), dateInfo);
       if (full) routines.push(full);
     }
-    return res.set('Cache-Control', 'private, no-store').json({ routines });
+    return res.set('Cache-Control', 'private, no-store').json({ routines, todayDate: dateInfo.todayDate, weekDates: dateInfo.weekDates });
+  }));
+
+  // ============================================================================
+  // TEACHER PERSONAL CLASS ROUTINE & ABSENCE MANAGEMENT
+  // ============================================================================
+
+  router.get('/teacher/schedule', requireLogin, requireTeacherOrAdmin, handle(async (req, res) => {
+    const schedule = await getTeacherWeeklySchedule(db, req.staffUserId);
+    return res.set('Cache-Control', 'private, no-store').json(schedule);
+  }));
+
+  router.post('/teacher/absent', requireLogin, requireTeacherOrAdmin, handle(async (req, res) => {
+    await ensureTeacherAbsenceSchema(db);
+    const scope = req.body?.scope === 'all' ? 'all' : 'subject';
+    const rawDays = req.body?.days !== undefined ? Number(req.body.days) : 1;
+    if (!Number.isInteger(rawDays) || rawDays < 1 || rawDays > 30) {
+      return res.status(400).json({ error: 'Days must be a whole number between 1 and 30.' });
+    }
+
+    const dateInfo = getKathmanduDateInfo();
+    const requestedStart = typeof req.body?.start_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(req.body.start_date.trim())
+      ? req.body.start_date.trim()
+      : dateInfo.todayDate;
+    const startDate = requestedStart;
+    const endDate = addDaysToIsoDate(startDate, rawDays - 1);
+    const note = typeof req.body?.note === 'string' && req.body.note.trim()
+      ? req.body.note.trim().slice(0, 250)
+      : null;
+
+    const teacherIdentity = await getTeacherIdentityAndSubjects(db, req.staffUserId);
+    const teacherName = teacherIdentity.name || 'Your teacher';
+    const now = new Date().toISOString();
+
+    if (scope === 'subject') {
+      const entryId = Number(req.body?.entry_id);
+      if (!Number.isInteger(entryId) || entryId < 1) {
+        return res.status(400).json({ error: 'Valid entry_id is required to mark a subject absent.' });
+      }
+      const entry = await db.get(
+        `SELECT e.*, r.semester AS routine_semester
+         FROM class_routine_entries e
+         JOIN class_routines r ON r.id = e.routine_id
+         WHERE e.id = ? AND r.status = 'published'`,
+        entryId
+      );
+      if (!entry || entry.is_empty || !entry.subject_name) {
+        return res.status(404).json({ error: 'Class period not found in published routine.' });
+      }
+      const sem = Number(entry.routine_semester);
+      if (req.staffRole !== 'admin' && !doesEntryBelongToTeacher(entry, sem, teacherIdentity)) {
+        return res.status(403).json({ error: 'You can only mark your own scheduled classes as absent.' });
+      }
+
+      // Replace any existing subject absence for the same teacher + subject + semester overlapping this window
+      await db.run(
+        `DELETE FROM teacher_class_absences
+         WHERE teacher_id = ? AND scope = 'subject' AND semester = ? AND LOWER(TRIM(COALESCE(subject_name, ''))) = LOWER(TRIM(?))
+           AND start_date <= ? AND end_date >= ?`,
+        req.staffUserId, sem, entry.subject_name, endDate, startDate
+      );
+
+      let absenceId;
+      if (db.isPostgres) {
+        const row = await db.get(
+          `INSERT INTO teacher_class_absences
+             (teacher_id, teacher_name, scope, routine_id, entry_id, semester, subject_name, day_of_week, start_date, end_date, days_count, note, created_at, updated_at)
+           VALUES (?, ?, 'subject', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+          req.staffUserId, teacherName, entry.routine_id, entry.id, sem, entry.subject_name, entry.day_of_week, startDate, endDate, rawDays, note, now, now
+        );
+        absenceId = Number(row.id);
+      } else {
+        const r = await db.run(
+          `INSERT INTO teacher_class_absences
+             (teacher_id, teacher_name, scope, routine_id, entry_id, semester, subject_name, day_of_week, start_date, end_date, days_count, note, created_at, updated_at)
+           VALUES (?, ?, 'subject', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          req.staffUserId, teacherName, entry.routine_id, entry.id, sem, entry.subject_name, entry.day_of_week, startDate, endDate, rawDays, note, now, now
+        );
+        absenceId = Number(r.lastInsertRowid);
+      }
+
+      const created = await db.get('SELECT * FROM teacher_class_absences WHERE id = ?', absenceId);
+      const notifyRes = await notifyClassAbsence(db, {
+        scope: 'subject',
+        teacherId: req.staffUserId,
+        teacherName,
+        semester: sem,
+        subjectNames: [entry.subject_name],
+        startDate,
+        endDate,
+        daysCount: rawDays,
+        todayDate: dateInfo.todayDate,
+      });
+      invalidateCache();
+      return res.status(201).json({
+        absence: created,
+        notifiedStudentsCount: notifyRes.notifiedCount,
+        affectedSemesters: [sem],
+      });
+    }
+
+    // scope === 'all' (Absent Mode for 1..30 days)
+    await db.run(
+      `DELETE FROM teacher_class_absences
+       WHERE teacher_id = ? AND scope = 'all' AND end_date >= ?`,
+      req.staffUserId, dateInfo.todayDate
+    );
+
+    let absenceId;
+    if (db.isPostgres) {
+      const row = await db.get(
+        `INSERT INTO teacher_class_absences
+           (teacher_id, teacher_name, scope, routine_id, entry_id, semester, subject_name, day_of_week, start_date, end_date, days_count, note, created_at, updated_at)
+         VALUES (?, ?, 'all', NULL, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        req.staffUserId, teacherName, startDate, endDate, rawDays, note, now, now
+      );
+      absenceId = Number(row.id);
+    } else {
+      const r = await db.run(
+        `INSERT INTO teacher_class_absences
+           (teacher_id, teacher_name, scope, routine_id, entry_id, semester, subject_name, day_of_week, start_date, end_date, days_count, note, created_at, updated_at)
+         VALUES (?, ?, 'all', NULL, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?)`,
+        req.staffUserId, teacherName, startDate, endDate, rawDays, note, now, now
+      );
+      absenceId = Number(r.lastInsertRowid);
+    }
+
+    const created = await db.get('SELECT * FROM teacher_class_absences WHERE id = ?', absenceId);
+
+    // Gather all semesters & subject names taught by this teacher in published routines
+    const schedule = await getTeacherWeeklySchedule(db, req.staffUserId, dateInfo);
+    const subjectsBySem = new Map();
+    for (const cls of schedule.classes || []) {
+      if (!subjectsBySem.has(cls.semester)) subjectsBySem.set(cls.semester, new Set());
+      if (cls.subject_name) subjectsBySem.get(cls.semester).add(cls.subject_name);
+    }
+    for (const sub of teacherIdentity.subjects || []) {
+      if (!sub.semester) continue;
+      if (!subjectsBySem.has(sub.semester)) subjectsBySem.set(sub.semester, new Set());
+      if (sub.name) subjectsBySem.get(sub.semester).add(sub.name);
+    }
+
+    let totalNotified = 0;
+    const affectedSemesters = Array.from(subjectsBySem.keys()).sort((a, b) => a - b);
+    for (const sem of affectedSemesters) {
+      const notifyRes = await notifyClassAbsence(db, {
+        scope: 'all',
+        teacherId: req.staffUserId,
+        teacherName,
+        semester: sem,
+        subjectNames: Array.from(subjectsBySem.get(sem)),
+        startDate,
+        endDate,
+        daysCount: rawDays,
+        todayDate: dateInfo.todayDate,
+      });
+      totalNotified += notifyRes.notifiedCount;
+    }
+
+    invalidateCache();
+    return res.status(201).json({
+      absence: created,
+      notifiedStudentsCount: totalNotified,
+      affectedSemesters,
+    });
+  }));
+
+  router.delete('/teacher/absent/:id', requireLogin, requireTeacherOrAdmin, checkId('id', 'absence'), handle(async (req, res) => {
+    await ensureTeacherAbsenceSchema(db);
+    const existing = await db.get('SELECT * FROM teacher_class_absences WHERE id = ?', req.routineId);
+    if (!existing) return res.status(404).json({ error: 'Absence record not found.' });
+    if (req.staffRole !== 'admin' && String(existing.teacher_id) !== String(req.staffUserId)) {
+      return res.status(403).json({ error: 'You can only cancel your own absence records.' });
+    }
+    await db.run('DELETE FROM teacher_class_absences WHERE id = ?', req.routineId);
+    invalidateCache();
+    return res.json({ success: true, id: req.routineId });
   }));
 
   // Admin: list all class routines (draft, published, archived)
@@ -826,25 +1051,97 @@ module.exports = function createRoutineRouter(db, requireLogin, { invalidateCach
     res.json({ success: true });
   }));
 
+  async function getSemesterStudentIds(db, semester) {
+    const targetSem = `Semester ${semester}`;
+    const romanSem = ROMANS[Number(semester) - 1] ? `Semester ${ROMANS[Number(semester) - 1]}` : targetSem;
+    try {
+      const rows = await db.all(
+        `SELECT studentId FROM students
+         WHERE LOWER(COALESCE(role, 'student')) IN ('student', 'cr')
+           AND (
+             cohort_id IN (SELECT id FROM cohorts WHERE current_semester = ? AND status = 'active')
+             OR semester = ? OR semester = ? OR semester = ?
+           )`,
+        Number(semester),
+        targetSem,
+        romanSem,
+        String(semester)
+      );
+      return (rows || []).map((r) => String(r.studentId)).filter(Boolean);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  async function notifyClassAbsence(db, { scope, teacherId, teacherName, semester, subjectNames = [], startDate, endDate, daysCount = 1, todayDate }) {
+    try {
+      const notifService = require('../lib/notifications-service');
+      const recipientIds = await getSemesterStudentIds(db, semester);
+      if (!recipientIds.length) return { notifiedCount: 0 };
+
+      const bsStart = formatBsShort(startDate);
+      const bsEnd = formatBsShort(endDate);
+      const subjectList = subjectNames.filter(Boolean).join(', ') || 'scheduled class';
+      const isTodayOnly = daysCount === 1 && startDate === todayDate;
+
+      let title;
+      let body;
+      if (scope === 'subject') {
+        title = `No Class: ${subjectList}`;
+        if (isTodayOnly) {
+          body = `Today there is no class for ${subjectList} (${teacherName} is absent).`;
+        } else if (daysCount === 1) {
+          body = `No class for ${subjectList} on ${bsStart} (${teacherName} is absent).`;
+        } else {
+          body = `No class for ${subjectList} for ${daysCount} days (${bsStart} – ${bsEnd}). ${teacherName} is absent.`;
+        }
+      } else {
+        title = daysCount === 1 ? `No Class Today (${teacherName})` : `No Class for ${daysCount} Days (${teacherName})`;
+        if (isTodayOnly) {
+          body = `${teacherName} is absent today. No class for ${subjectList}.`;
+        } else if (daysCount === 1) {
+          body = `${teacherName} is absent on ${bsStart}. No class for ${subjectList}.`;
+        } else {
+          body = `${teacherName} is absent for ${daysCount} days (${bsStart} – ${bsEnd}). No class for ${subjectList}.`;
+        }
+      }
+
+      await notifService.createNotification(db, {
+        type: 'routine_updated',
+        actorId: teacherId,
+        actorName: teacherName,
+        title,
+        body,
+        entityType: 'routine',
+        entityId: String(semester),
+        deepLink: '/routine',
+        webPath: 'routine.html',
+        groupKey: `class-absence:${teacherId}:${semester}:${startDate}:${endDate}:${scope}:${subjectList}`,
+        priority: 'high',
+        recipientUserIds: recipientIds,
+        metadata: {
+          kind: 'teacher_class_absence',
+          scope,
+          semester,
+          subjectNames,
+          teacherName,
+          startDate,
+          endDate,
+          daysCount,
+        },
+      });
+      return { notifiedCount: recipientIds.length };
+    } catch (err) {
+      console.warn('[Class Absence Notification Error]:', err.message);
+      return { notifiedCount: 0 };
+    }
+  }
+
   async function notifyRoutineUpdate(db, semester, subjectName, examDate) {
     try {
       const notifService = require('../lib/notifications-service');
-      const targetSem = `Semester ${semester}`;
-      let students = [];
-      try {
-        students = await db.all(
-          `SELECT studentId FROM students
-           WHERE cohort_id IN (SELECT id FROM cohorts WHERE current_semester = ? AND status = 'active')
-              OR semester = ? OR semester = ?`,
-          Number(semester),
-          targetSem,
-          String(semester)
-        );
-      } catch {
-        students = await db.all('SELECT studentId FROM students LIMIT 100').catch(() => []);
-      }
-      if (!students || students.length === 0) return;
-      const recipientIds = students.map((s) => s.studentId);
+      const recipientIds = await getSemesterStudentIds(db, semester);
+      if (!recipientIds.length) return;
       await notifService.createNotification(db, {
         type: 'routine_updated',
         title: `Semester ${semester} Routine Updated`,

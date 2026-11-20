@@ -32,6 +32,8 @@ import {
   AdminExamTableModal,
   AdminNewClassRoutineModal,
 } from '@/components/routine/AdminRoutineEditorModals';
+import { TeacherClassRoutineView } from '@/components/routine/TeacherClassRoutineView';
+import { formatBsDate } from '@/utils/nepaliDate';
 
 const ROMANS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 const WORKING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as const;
@@ -63,6 +65,16 @@ interface RoutineSlot {
   is_break: boolean;
 }
 
+interface RoutineEntryAbsence {
+  id: number;
+  scope: 'subject' | 'all';
+  teacher_name?: string | null;
+  start_date: string;
+  end_date: string;
+  days_count: number;
+  note?: string | null;
+}
+
 interface RoutineEntry {
   id: number;
   slot_id: number;
@@ -73,6 +85,8 @@ interface RoutineEntry {
   class_type: string | null;
   is_empty: boolean;
   is_break?: boolean;
+  is_cancelled?: boolean;
+  absence?: RoutineEntryAbsence | null;
 }
 
 interface ClassRoutineData {
@@ -129,7 +143,8 @@ export default function RoutineScreen() {
   const queryClient = useQueryClient();
   const { width: windowWidth } = useWindowDimensions();
   const isAdmin = Boolean(user?.isAdmin || user?.role === 'admin');
-  const isStaff = isAdmin || user?.role === 'teacher';
+  const isTeacher = !isAdmin && user?.role === 'teacher';
+  const isStaff = isAdmin || isTeacher;
 
   const today = getTodayWeekday();
   const defaultDay = (WORKING_DAYS as readonly string[]).includes(today) ? today : 'Monday';
@@ -184,7 +199,8 @@ export default function RoutineScreen() {
       }
       return data as { routine: ClassRoutineData | null; semester?: number; message?: string };
     },
-    staleTime: 5 * 60 * 1000,
+    enabled: !isTeacher,
+    staleTime: 60 * 1000,
   });
 
   const examQuery = useQuery({
@@ -511,7 +527,7 @@ export default function RoutineScreen() {
           })}
         </View>
 
-        {isStaff && (
+        {(isAdmin || (isTeacher && mode === 'exam')) && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -571,6 +587,12 @@ export default function RoutineScreen() {
               transform: [{ scale: classPageScale }],
             }}
           >
+            {isTeacher ? (
+              <TeacherClassRoutineView
+                initialContentWidth={initialContentWidth}
+                defaultDayIndex={defaultDayIndex}
+              />
+            ) : (
             <ScrollView
               contentContainerStyle={[styles.pageScrollContent, { paddingHorizontal: spacing.md }]}
               showsVerticalScrollIndicator={false}
@@ -757,6 +779,7 @@ export default function RoutineScreen() {
                                 (!entry || entry.is_empty || entry.class_type === 'Empty');
                               const cType = entry?.class_type || 'Theory';
                               const isPracticalOrLab = cType === 'Lab' || cType === 'Practical';
+                              const isCancelled = Boolean(!isBreak && !isEmpty && entry?.is_cancelled);
                               const canTapCard = (!isBreak && !isEmpty) || (!isBreak && isAdmin);
 
                               const startMins = parseMinutes(slot.start_time);
@@ -765,6 +788,7 @@ export default function RoutineScreen() {
                                 day === today &&
                                   !isBreak &&
                                   !isEmpty &&
+                                  !isCancelled &&
                                   entry &&
                                   startMins !== null &&
                                   endMins !== null &&
@@ -835,6 +859,15 @@ export default function RoutineScreen() {
                                             : 'No class scheduled'}
                                         </Caption>
                                       </>
+                                    ) : isCancelled ? (
+                                      <>
+                                        <Text variant="sm" weight="700" color="secondary">
+                                          {entry?.subject_name}
+                                        </Text>
+                                        <Caption color="muted" style={{ marginTop: 2 }}>
+                                          {entry?.absence?.teacher_name || entry?.faculty_name || 'Teacher'} absent
+                                        </Caption>
+                                      </>
                                     ) : (
                                       <>
                                         <Text variant="sm" weight="700">
@@ -849,6 +882,12 @@ export default function RoutineScreen() {
                                     )}
                                   </View>
 
+                                  {isCancelled && (
+                                    <Text variant="xs" weight="800" style={{ color: '#f87171' }}>
+                                      No Class
+                                    </Text>
+                                  )}
+
                                   {isCurrent && (
                                     <View style={styles.currentlyTopRight}>
                                       <View style={styles.currentlyDot} />
@@ -856,7 +895,7 @@ export default function RoutineScreen() {
                                     </View>
                                   )}
 
-                                  {!isBreak && !isEmpty && isPracticalOrLab && (
+                                  {!isBreak && !isEmpty && !isCancelled && isPracticalOrLab && (
                                     <View
                                       style={[
                                         styles.typeBadge,
@@ -887,6 +926,7 @@ export default function RoutineScreen() {
                 </>
               )}
             </ScrollView>
+            )}
           </Animated.View>
 
           {/* PAGE 1: EXAM SCHEDULE */}
@@ -1129,6 +1169,20 @@ export default function RoutineScreen() {
             </View>
 
             <View style={[styles.modalRows, { borderTopColor: colors.border }]}>
+              {selectedDetail?.entry.is_cancelled ? (
+                <View style={styles.modalRow}>
+                  <Caption color="muted">Status</Caption>
+                  <Text variant="sm" weight="700" style={{ color: '#f87171' }}>
+                    No Class
+                    {selectedDetail.entry.absence?.days_count &&
+                    selectedDetail.entry.absence.days_count > 1
+                      ? ` (${formatBsDate(selectedDetail.entry.absence.start_date)} – ${formatBsDate(
+                          selectedDetail.entry.absence.end_date
+                        )})`
+                      : ''}
+                  </Text>
+                </View>
+              ) : null}
               <View style={styles.modalRow}>
                 <Caption color="muted">Faculty</Caption>
                 <Text variant="sm" weight="600">

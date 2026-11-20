@@ -519,3 +519,97 @@ test('21-22: SWR registers /api/routine/class refresh and isolates /api/routine 
   assert.match(js, /userScoped:\s*true/);
   assert.match(swrJs, /\/\^\\\/api\\\/routine\/i.*public:\s*false/);
 });
+
+test('23: Teacher routine filters to own subjects, marks single-subject & multi-day absent mode, shows No Class to students, and restores on cancel', async t => {
+  const db = await createTestDb(t);
+  await seedClassRoutines(db);
+  const { ensureNotificationCenterSchema } = require('../lib/notifications-service');
+  await ensureNotificationCenterSchema({ db });
+  await db.exec(`
+    ALTER TABLE notifications ADD COLUMN recipientStudentId TEXT;
+    ALTER TABLE notifications ADD COLUMN message TEXT;
+  `);
+
+  const sampleEntry = await db.get(
+    `SELECT e.id, e.subject_name, e.faculty_name, e.day_of_week, r.semester
+     FROM class_routine_entries e
+     JOIN class_routines r ON r.id = e.routine_id
+     WHERE r.status = 'published' AND e.faculty_name IS NOT NULL AND TRIM(e.faculty_name) <> '' AND e.is_empty = 0
+     ORDER BY r.semester ASC, e.id ASC LIMIT 1`
+  );
+  assert.ok(sampleEntry, 'Seeded routine should have a faculty entry');
+
+  await db.run(
+    `INSERT INTO students (studentId, name, role, semester, cohort_id) VALUES ('teacher-real', ?, 'teacher', NULL, NULL)`,
+    sampleEntry.faculty_name
+  );
+
+  const app = createTestApp(db);
+
+  // 1. Teacher schedule returns ONLY this teacher's subjects
+  const schedRes = await dispatch(app, 'GET', '/teacher/schedule', undefined, 'teacher-real');
+  assert.equal(schedRes.status, 200);
+  assert.ok(schedRes.body.classes.length > 0, 'Teacher should see their own classes');
+  for (const cls of schedRes.body.classes) {
+    assert.equal(
+      String(cls.faculty_name || '').toLowerCase().includes(sampleEntry.faculty_name.toLowerCase()),
+      true,
+      'Teacher schedule must only include their own classes'
+    );
+  }
+
+  // 2. Mark a single subject absent for 1 day on its scheduled weekday
+  const targetCls = schedRes.body.classes[0];
+  const absentRes = await dispatch(app, 'POST', '/teacher/absent', {
+    scope: 'subject',
+    entry_id: targetCls.entry_id,
+    days: 1,
+    start_date: targetCls.day_date,
+  }, 'teacher-real');
+  assert.equal(absentRes.status, 201);
+  assert.ok(absentRes.body.absence.id);
+
+  // Student in that semester now sees is_cancelled === true for that entry
+  const stuId = `stu-sem${targetCls.semester}`;
+  const stuRoutine = await dispatch(app, 'GET', '/class', undefined, stuId);
+  assert.equal(stuRoutine.status, 200);
+  const cancelledEntry = stuRoutine.body.routine.entries.find(e => Number(e.id) === Number(targetCls.entry_id));
+  assert.ok(cancelledEntry);
+  assert.equal(cancelledEntry.is_cancelled, true);
+  assert.equal(cancelledEntry.absence.scope, 'subject');
+
+  // Verify student notification was created
+  const notifRow = await db.get(
+    `SELECT n.title, n.body FROM notifications n
+     JOIN notification_recipients nr ON nr.notification_id = n.id
+     WHERE nr.user_id = ? ORDER BY n.created_at DESC LIMIT 1`,
+    stuId
+  );
+  assert.ok(notifRow, 'Student should receive a notification when teacher marks absent');
+  assert.match(notifRow.title, /No Class/);
+
+  // 3. Cancel the single-subject absence -> class restored
+  const delRes = await dispatch(app, 'DELETE', `/teacher/absent/${absentRes.body.absence.id}`, undefined, 'teacher-real');
+  assert.equal(delRes.status, 200);
+  const restoredRoutine = await dispatch(app, 'GET', '/class', undefined, stuId);
+  const restoredEntry = restoredRoutine.body.routine.entries.find(e => Number(e.id) === Number(targetCls.entry_id));
+  assert.equal(restoredEntry.is_cancelled, false);
+
+  // 4. Turn on multi-day Absent Mode (5 days covering Mon-Fri) -> ALL teacher classes show No Class
+  const modeRes = await dispatch(app, 'POST', '/teacher/absent', {
+    scope: 'all',
+    days: 5,
+    start_date: schedRes.body.weekDates.Monday,
+  }, 'teacher-real');
+  assert.equal(modeRes.status, 201);
+  assert.equal(modeRes.body.absence.days_count, 5);
+
+  const afterModeStu = await dispatch(app, 'GET', '/class', undefined, stuId);
+  const teacherEntriesInSem = afterModeStu.body.routine.entries.filter(
+    e => !e.is_empty && e.faculty_name && e.faculty_name.toLowerCase() === sampleEntry.faculty_name.toLowerCase()
+  );
+  assert.ok(teacherEntriesInSem.length > 0);
+  for (const e of teacherEntriesInSem) {
+    assert.equal(e.is_cancelled, true, 'All teacher classes during Absent Mode must show No Class');
+  }
+});

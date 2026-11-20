@@ -124,8 +124,102 @@
     return bs ? `${bs.day} ${bs.monthNameEn.slice(0, 3)}` : formatShortDateLabel(adDateStr);
   }
 
+  function bsToAd(bsYear, bsMonth, bsDay) {
+    const yearMonths = BS_MONTH_DAYS[bsYear];
+    if (!yearMonths || bsMonth < 1 || bsMonth > 12) return null;
+    const maxDays = yearMonths[bsMonth - 1];
+    if (bsDay < 1 || bsDay > maxDays) return null;
+    let days = 0;
+    for (let curY = ANCHOR_BS_YEAR; curY < bsYear; curY += 1) {
+      const curMonths = BS_MONTH_DAYS[curY];
+      for (let mi = 0; mi < 12; mi += 1) days += curMonths[mi];
+    }
+    for (let mi = 0; mi < bsMonth - 1; mi += 1) days += yearMonths[mi];
+    days += bsDay - 1;
+    return new Date(ANCHOR_AD_MS + days * MS_PER_DAY).toISOString().slice(0, 10);
+  }
+
+  function getBsMonthKey(adDateStr) {
+    const bs = adToBs(adDateStr);
+    if (!bs) return '';
+    return `${bs.year}-${String(bs.month).padStart(2, '0')}`;
+  }
+
+  function isBsMonthKey(ym) {
+    if (!ym || !/^\d{4}-\d{2}$/.test(String(ym).trim())) return false;
+    const y = Number(String(ym).slice(0, 4));
+    return y >= 2070 && y <= 2090;
+  }
+
+  function stepBsMonth(bsYm, deltaMonths) {
+    if (!isBsMonthKey(bsYm)) return bsYm;
+    let y = Number(bsYm.slice(0, 4));
+    let m = Number(bsYm.slice(5, 7)) + deltaMonths;
+    while (m < 1) { m += 12; y -= 1; }
+    while (m > 12) { m -= 12; y += 1; }
+    if (!BS_MONTH_DAYS[y]) return bsYm;
+    return `${y}-${String(m).padStart(2, '0')}`;
+  }
+
+  function formatBsMonthTitle(bsYm) {
+    if (!isBsMonthKey(bsYm)) return formatBsMonthRangeLabel(bsYm);
+    const y = Number(bsYm.slice(0, 4));
+    const m = Number(bsYm.slice(5, 7));
+    return `${BS_MONTH_NAMES_EN[m - 1] || m} ${y} BS`;
+  }
+
+  function buildApplicableCalendarDatesForBsMonth(bsYm, currentNepalDateOverride = null) {
+    if (!isBsMonthKey(bsYm)) return [];
+    const bsYear = Number(bsYm.slice(0, 4));
+    const bsMonth = Number(bsYm.slice(5, 7));
+    const yearMonths = BS_MONTH_DAYS[bsYear];
+    if (!yearMonths) return [];
+    const daysInBsMonth = yearMonths[bsMonth - 1];
+    const todayNepal = String(currentNepalDateOverride || state.currentNepalDate || '').trim();
+    const todayBs = adToBs(todayNepal);
+    let endDay = daysInBsMonth;
+    if (todayBs) {
+      const todayBsYm = `${todayBs.year}-${String(todayBs.month).padStart(2, '0')}`;
+      if (bsYm > todayBsYm) return [];
+      if (bsYm === todayBsYm) {
+        endDay = Math.min(daysInBsMonth, Math.max(0, todayBs.day));
+      }
+    }
+    const shortMonth = BS_MONTH_NAMES_EN[bsMonth - 1].slice(0, 3);
+    const dates = [];
+    for (let day = 1; day <= endDay; day += 1) {
+      const adDate = bsToAd(bsYear, bsMonth, day);
+      if (!adDate) continue;
+      dates.push({
+        date: adDate,
+        bsDate: `${bsYm}-${String(day).padStart(2, '0')}`,
+        dayOfMonth: day,
+        label: `${day} ${shortMonth}`
+      });
+    }
+    return dates;
+  }
+
+  function getBsMonthSpanningAdMonths(bsYm) {
+    if (!isBsMonthKey(bsYm)) return { startAd: null, endAd: null, adMonths: [] };
+    const bsYear = Number(bsYm.slice(0, 4));
+    const bsMonth = Number(bsYm.slice(5, 7));
+    const yearMonths = BS_MONTH_DAYS[bsYear];
+    if (!yearMonths) return { startAd: null, endAd: null, adMonths: [] };
+    const daysInBsMonth = yearMonths[bsMonth - 1];
+    const startAd = bsToAd(bsYear, bsMonth, 1);
+    const endAd = bsToAd(bsYear, bsMonth, daysInBsMonth);
+    const adMonths = [];
+    if (startAd) adMonths.push(startAd.slice(0, 7));
+    if (endAd && endAd.slice(0, 7) !== (startAd ? startAd.slice(0, 7) : '')) {
+      adMonths.push(endAd.slice(0, 7));
+    }
+    return { startAd, endAd, adMonths };
+  }
+
   function formatBsMonthRangeLabel(yyyyMm) {
     if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) return formatMonthLabel(yyyyMm);
+    if (isBsMonthKey(yyyyMm)) return formatBsMonthTitle(yyyyMm);
     const [y, m] = yyyyMm.split('-').map(Number);
     const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
     const startBs = adToBs(`${yyyyMm}-01`);
@@ -165,6 +259,10 @@
     selectedCohortId: '',
     selectedDate: '',
     selectedMonth: '',
+    selectedBsMonth: '',
+    monthlyIsBsMode: true,
+    showMonthlyMatrix: false,
+    showBackupPanel: false,
 
     // Search filter in student register
     studentSearchQuery: '',
@@ -1509,6 +1607,8 @@
     state.selectedSubjectId = matched.id;
     state.stage = 'marking';
     state.isEditingSavedSession = false;
+    state.showMonthlyMatrix = false;
+    state.showBackupPanel = false;
     state.studentSearchQuery = '';
     state.saveError = null;
     state.saveSuccessMessage = null;
@@ -1518,6 +1618,7 @@
     if (!state.selectedMonth && state.selectedDate) {
       state.selectedMonth = state.selectedDate.slice(0, 7);
     }
+    state.selectedBsMonth = getBsMonthKey(state.selectedDate || state.currentNepalDate) || state.selectedBsMonth;
 
     syncCohortForSelectedSubject();
     render();
@@ -1534,6 +1635,8 @@
     state.roster = [];
     state.existingSession = null;
     state.isEditingSavedSession = false;
+    state.showMonthlyMatrix = false;
+    state.showBackupPanel = false;
     state.marksByStudentId = {};
     state.initialMarksSnapshot = '{}';
     state.saveError = null;
@@ -1606,7 +1709,10 @@
   }
 
   /**
-   * Loads the numbered monthly attendance matrix from GET /api/attendance/monthly
+   * Loads the numbered monthly attendance matrix from GET /api/attendance/monthly.
+   * - When monthOverride is an explicit Gregorian AD month (year < 2060, e.g. '2025-09'), fetches that AD month directly.
+   * - Otherwise operates in true Bikram Sambat (BS) month mode (e.g. '2083-07' Kartik 1..30, '2083-08' Mangsir 1..today),
+   *   fetching the 1–2 spanning AD months in parallel and building a pure BS-month matrix.
    */
   async function loadMonthlyMatrix(monthOverride = null) {
     if (!state.selectedSubjectId || !state.selectedCohortId) {
@@ -1617,48 +1723,44 @@
       return;
     }
 
-    const targetMonth =
-      monthOverride ||
-      state.selectedMonth ||
-      (state.selectedDate ? state.selectedDate.slice(0, 7) : '') ||
-      (state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '');
+    const isExplicitAdMonth =
+      typeof monthOverride === 'string' &&
+      /^\d{4}-\d{2}$/.test(monthOverride.trim()) &&
+      Number(monthOverride.trim().slice(0, 4)) < 2060;
 
-    if (targetMonth) {
-      state.selectedMonth = targetMonth;
-    }
+    if (isExplicitAdMonth) {
+      state.monthlyIsBsMode = false;
+      state.selectedMonth = monthOverride.trim();
+      state.loadingMonthly = true;
+      state.monthlyError = null;
+      render();
 
-    state.loadingMonthly = true;
-    state.monthlyError = null;
-    render();
-
-    try {
-      const qs = new URLSearchParams({
-        subjectId: state.selectedSubjectId,
-        cohortId: state.selectedCohortId
-      });
-      if (state.selectedMonth) {
-        qs.set('month', state.selectedMonth);
-      }
-
-      const res = await authFetch(`/api/attendance/monthly?${qs.toString()}`);
-      if (res && res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (data.month) state.selectedMonth = data.month;
-        if (data.currentNepalDate) state.currentNepalDate = data.currentNepalDate;
-        state.availableMonths = Array.isArray(data.availableMonths) ? data.availableMonths : [];
-        state.monthlyCalendarDates = Array.isArray(data.calendarDates)
-          ? data.calendarDates
-          : buildApplicableCalendarDatesForMonth(state.selectedMonth, state.currentNepalDate);
-        state.monthlyMonthLabel = data.monthLabel || formatMonthLabel(state.selectedMonth);
-        state.monthlyDateRangeLabel = data.dateRangeLabel || '';
-        state.monthlyTeacherName = data.teacherName || (data.teacher && data.teacher.name) || '';
-        state.monthlySemesterLabel = data.semesterLabel || '';
-        state.monthlySubjectLabel = data.subjectLabel || '';
-        state.monthlySessions = Array.isArray(data.sessions) ? data.sessions : [];
-        state.monthlyRows = Array.isArray(data.rows) ? data.rows : [];
-        state.studentHistoryByStudentId =
-          data.studentHistory && typeof data.studentHistory === 'object' ? data.studentHistory : {};
-      } else {
+      try {
+        const qs = new URLSearchParams({
+          subjectId: state.selectedSubjectId,
+          cohortId: state.selectedCohortId,
+          month: state.selectedMonth
+        });
+        const res = await authFetch(`/api/attendance/monthly?${qs.toString()}`);
+        if (res && res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data.month) state.selectedMonth = data.month;
+          if (data.currentNepalDate) state.currentNepalDate = data.currentNepalDate;
+          state.availableMonths = Array.isArray(data.availableMonths) ? data.availableMonths : [];
+          state.monthlyCalendarDates = Array.isArray(data.calendarDates)
+            ? data.calendarDates
+            : buildApplicableCalendarDatesForMonth(state.selectedMonth, state.currentNepalDate);
+          state.monthlyMonthLabel = data.monthLabel || formatMonthLabel(state.selectedMonth);
+          state.monthlyDateRangeLabel = data.dateRangeLabel || '';
+          state.monthlyTeacherName = data.teacherName || (data.teacher && data.teacher.name) || '';
+          state.monthlySemesterLabel = data.semesterLabel || '';
+          state.monthlySubjectLabel = data.subjectLabel || '';
+          state.monthlySessions = Array.isArray(data.sessions) ? data.sessions : [];
+          state.monthlyRows = Array.isArray(data.rows) ? data.rows : [];
+          state.studentHistoryByStudentId =
+            data.studentHistory && typeof data.studentHistory === 'object' ? data.studentHistory : {};
+        }
+      } catch (_) {
         const fallback = buildMonthlyAttendanceMatrix({
           students: state.roster,
           sessions: [],
@@ -1669,18 +1771,223 @@
         state.monthlyCalendarDates = fallback.calendarDates;
         state.monthlySessions = fallback.sessions;
         state.monthlyRows = fallback.rows;
+      } finally {
+        state.loadingMonthly = false;
+        render();
       }
-    } catch (_) {
-      const fallback = buildMonthlyAttendanceMatrix({
-        students: state.roster,
-        sessions: [],
-        recordsBySessionId: new Map(),
-        month: state.selectedMonth,
-        currentNepalDate: state.currentNepalDate
+      return;
+    }
+
+    // True BS-Month Mode (1 Baishakh..end, 1 Kartik..30 Kartik, 1 Mangsir..today, etc.)
+    const targetBsMonth =
+      (isBsMonthKey(monthOverride) ? String(monthOverride).trim() : '') ||
+      (isBsMonthKey(state.selectedBsMonth) ? state.selectedBsMonth : '') ||
+      getBsMonthKey(state.selectedDate || state.currentNepalDate);
+
+    if (!isBsMonthKey(targetBsMonth)) {
+      state.monthlyCalendarDates = [];
+      state.monthlySessions = [];
+      state.monthlyRows = [];
+      render();
+      return;
+    }
+
+    state.monthlyIsBsMode = true;
+    state.selectedBsMonth = targetBsMonth;
+    const span = getBsMonthSpanningAdMonths(targetBsMonth);
+    if (span.endAd) {
+      state.selectedMonth = span.endAd.slice(0, 7);
+    }
+
+    state.loadingMonthly = true;
+    state.monthlyError = null;
+    render();
+
+    try {
+      const responses = await Promise.all(
+        (span.adMonths || []).map(async (adYm) => {
+          const qs = new URLSearchParams({
+            subjectId: state.selectedSubjectId,
+            cohortId: state.selectedCohortId,
+            month: adYm
+          });
+          const res = await authFetch(`/api/attendance/monthly?${qs.toString()}`);
+          if (!res || !res.ok) return null;
+          return res.json().catch(() => null);
+        })
+      );
+
+      const validPayloads = responses.filter(Boolean);
+      for (const payload of validPayloads) {
+        if (payload.currentNepalDate) state.currentNepalDate = payload.currentNepalDate;
+        if (payload.teacherName) state.monthlyTeacherName = payload.teacherName;
+        if (payload.semesterLabel) state.monthlySemesterLabel = payload.semesterLabel;
+        if (payload.subjectLabel) state.monthlySubjectLabel = payload.subjectLabel;
+        if (Array.isArray(payload.availableMonths) && payload.availableMonths.length) {
+          state.availableMonths = payload.availableMonths;
+        }
+        if (payload.studentHistory && typeof payload.studentHistory === 'object') {
+          state.studentHistoryByStudentId = payload.studentHistory;
+        }
+      }
+
+      const bsCalDates = buildApplicableCalendarDatesForBsMonth(targetBsMonth, state.currentNepalDate);
+      const bsDateSet = new Set(bsCalDates.map((d) => d.date));
+
+      // Merge all sessions that fall inside this exact BS month
+      const sessionByDate = new Map();
+      const studentsById = new Map();
+      const statusByDateAndStudent = new Map();
+
+      for (const stu of state.roster || []) {
+        if (stu && stu.studentId) studentsById.set(stu.studentId, stu);
+      }
+
+      for (const payload of validPayloads) {
+        for (const sess of Array.isArray(payload.sessions) ? payload.sessions : []) {
+          const sDate = String(sess.sessionDate || sess.session_date || '').trim();
+          if (sDate && bsDateSet.has(sDate) && !sessionByDate.has(sDate)) {
+            sessionByDate.set(sDate, { ...sess, sessionDate: sDate });
+          }
+        }
+        for (const row of Array.isArray(payload.rows) ? payload.rows : []) {
+          if (row && row.studentId && !studentsById.has(row.studentId)) {
+            studentsById.set(row.studentId, {
+              studentId: row.studentId,
+              name: row.name,
+              username: row.username || null,
+              role: row.role || 'student'
+            });
+          }
+          const rowCells = Array.isArray(row.sessionCells) && row.sessionCells.length
+            ? row.sessionCells
+            : Array.isArray(row.cells)
+              ? row.cells
+              : [];
+          for (const cell of rowCells) {
+            const cDate = String(cell.date || cell.sessionDate || '').trim();
+            if (!cDate || !bsDateSet.has(cDate)) continue;
+            if (cell.status !== 'present' && cell.status !== 'absent') continue;
+            if (!statusByDateAndStudent.has(cDate)) statusByDateAndStudent.set(cDate, new Map());
+            statusByDateAndStudent.get(cDate).set(row.studentId, cell.status);
+          }
+        }
+      }
+
+      const sortedBsSessions = Array.from(sessionByDate.values())
+        .sort((a, b) => a.sessionDate.localeCompare(b.sessionDate))
+        .map((s, idx) => ({
+          ...s,
+          sessionNumber: idx + 1,
+          dateLabel: formatBsShortLabel(s.sessionDate)
+        }));
+      const numberedByDate = new Map(sortedBsSessions.map((s) => [s.sessionDate, s]));
+
+      const finalCalendarDates = bsCalDates.map((d) => {
+        const sess = numberedByDate.get(d.date) || null;
+        return {
+          ...d,
+          hasSession: Boolean(sess),
+          sessionId: sess ? sess.id : null,
+          sessionNumber: sess ? sess.sessionNumber : null,
+          status: sess ? sess.status : null
+        };
       });
-      state.monthlyCalendarDates = fallback.calendarDates;
-      state.monthlySessions = fallback.sessions;
-      state.monthlyRows = fallback.rows;
+
+      const sortedStudents = sortStudentsAlphabetically(Array.from(studentsById.values()));
+      const totalSessions = sortedBsSessions.length;
+      const finalRows = sortedStudents.map((stu) => {
+        const studentId = String(stu.studentId || '').trim();
+        let consecutiveCount = 0;
+        let presentCount = 0;
+        let absentCount = 0;
+        const sessionCells = [];
+        const sessionCellByDate = new Map();
+
+        for (const sess of sortedBsSessions) {
+          const dateMap = statusByDateAndStudent.get(sess.sessionDate);
+          const st = dateMap ? dateMap.get(studentId) : 'absent';
+          if (st === 'present') {
+            presentCount += 1;
+            consecutiveCount += 1;
+            const cell = {
+              date: sess.sessionDate,
+              dateLabel: sess.dateLabel,
+              hasSession: true,
+              sessionId: sess.id,
+              sessionNumber: sess.sessionNumber,
+              sessionDate: sess.sessionDate,
+              status: 'present',
+              consecutiveCount,
+              display: String(consecutiveCount)
+            };
+            sessionCells.push(cell);
+            sessionCellByDate.set(sess.sessionDate, cell);
+          } else {
+            absentCount += 1;
+            const cell = {
+              date: sess.sessionDate,
+              dateLabel: sess.dateLabel,
+              hasSession: true,
+              sessionId: sess.id,
+              sessionNumber: sess.sessionNumber,
+              sessionDate: sess.sessionDate,
+              status: 'absent',
+              consecutiveCount: null,
+              display: 'ABS'
+            };
+            sessionCells.push(cell);
+            sessionCellByDate.set(sess.sessionDate, cell);
+          }
+        }
+
+        const cells = finalCalendarDates.map((calDate) => {
+          const sessCell = sessionCellByDate.get(calDate.date);
+          if (sessCell) return sessCell;
+          return {
+            date: calDate.date,
+            dateLabel: calDate.label,
+            hasSession: false,
+            sessionId: null,
+            sessionNumber: null,
+            sessionDate: calDate.date,
+            status: 'no_session',
+            consecutiveCount: null,
+            display: '-'
+          };
+        });
+
+        const rawPct = totalSessions > 0 ? (presentCount / totalSessions) * 100 : 0;
+        return {
+          studentId,
+          name: String(stu.name || studentId).trim(),
+          username: stu.username || null,
+          role: String(stu.role || 'student').toLowerCase(),
+          cells,
+          dateCells: cells,
+          sessionCells,
+          presentCount,
+          absentCount,
+          totalSessions,
+          attendancePercentage: totalSessions > 0 ? Number(rawPct.toFixed(1)) : 0,
+          formattedPercentage: totalSessions > 0 ? `${rawPct.toFixed(1)}%` : '0.0%'
+        };
+      });
+
+      state.monthlyMonthLabel = formatBsMonthTitle(targetBsMonth);
+      state.monthlyCalendarDates = finalCalendarDates;
+      state.monthlySessions = sortedBsSessions;
+      state.monthlyRows = finalRows;
+    } catch (_) {
+      state.monthlyCalendarDates = buildApplicableCalendarDatesForBsMonth(targetBsMonth, state.currentNepalDate).map((d) => ({
+        ...d,
+        hasSession: false,
+        sessionId: null,
+        sessionNumber: null,
+        status: null
+      }));
+      state.monthlySessions = [];
+      state.monthlyRows = [];
     } finally {
       state.loadingMonthly = false;
       render();
@@ -2315,9 +2622,10 @@
       }
 
       // Refresh server-backed roster/session, monthly matrix, history, and backup queue
+      state.selectedBsMonth = getBsMonthKey(state.selectedDate) || state.selectedBsMonth;
       await Promise.all([
         loadRoster(),
-        loadMonthlyMatrix(state.selectedMonth),
+        loadMonthlyMatrix(state.selectedBsMonth),
         loadHistory(),
         loadBackupStatus({ preserveMessages: true })
       ]);
@@ -2405,9 +2713,11 @@
     }
     state.selectedDate = sessionDate;
     state.isEditingSavedSession = false;
-    if (sessionDate.length >= 7 && sessionDate.slice(0, 7) !== state.selectedMonth) {
-      state.selectedMonth = sessionDate.slice(0, 7);
-      await Promise.all([loadRoster(), loadMonthlyMatrix(state.selectedMonth)]);
+    const nextBsMonth = getBsMonthKey(sessionDate);
+    if (nextBsMonth && nextBsMonth !== state.selectedBsMonth) {
+      state.selectedBsMonth = nextBsMonth;
+      if (sessionDate.length >= 7) state.selectedMonth = sessionDate.slice(0, 7);
+      await Promise.all([loadRoster(), loadMonthlyMatrix(nextBsMonth)]);
       return;
     }
     await loadRoster();
@@ -2836,7 +3146,7 @@
                   <div class="sl-att-backup-pending-item">
                     <div>
                       <strong>${escapeHtml(run.subjectCode || run.subjectId || 'Subject')}${run.cohortName ? ' · ' + escapeHtml(run.cohortName) : ''}</strong>
-                      <span> &middot; ${escapeHtml(run.sessionDate || '')} (v${Number(run.revisionNo || 1)})</span>
+                      <span> &middot; ${escapeHtml(formatBsDate(run.sessionDate) || '')} (v${Number(run.revisionNo || 1)})</span>
                       ${runErr ? `<div style="font-size: 0.75rem; margin-top: 2px;">${escapeHtml(runErr)}</div>` : ''}
                     </div>
                     <div class="sl-att-backup-art-pills">
@@ -3184,7 +3494,11 @@
       state.selectedMonth ||
       (state.selectedDate ? state.selectedDate.slice(0, 7) : '') ||
       (state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '');
-    const currentNepalMonth = state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '';
+    const currentBsMonth = getBsMonthKey(state.currentNepalDate || state.selectedDate);
+    const selectedBsMonth =
+      (isBsMonthKey(state.selectedBsMonth) ? state.selectedBsMonth : '') ||
+      getBsMonthKey(state.selectedDate || state.currentNepalDate) ||
+      currentBsMonth;
 
     const sessions = Array.isArray(state.monthlySessions) ? state.monthlySessions : [];
     const sessionByDate = new Map(sessions.map((s) => [s.sessionDate, s]));
@@ -3192,7 +3506,10 @@
     const calendarDates =
       Array.isArray(state.monthlyCalendarDates) && state.monthlyCalendarDates.length > 0
         ? state.monthlyCalendarDates
-        : buildApplicableCalendarDatesForMonth(selectedMonth, state.currentNepalDate).map((d) => {
+        : (state.monthlyIsBsMode && isBsMonthKey(selectedBsMonth)
+            ? buildApplicableCalendarDatesForBsMonth(selectedBsMonth, state.currentNepalDate)
+            : buildApplicableCalendarDatesForMonth(selectedMonth, state.currentNepalDate)
+          ).map((d) => {
             const sess = sessionByDate.get(d.date) || null;
             return {
               ...d,
@@ -3202,12 +3519,6 @@
               status: sess ? sess.status : null
             };
           });
-
-    const dateRangeLabel =
-      state.monthlyDateRangeLabel ||
-      (calendarDates.length > 0
-        ? `${calendarDates[0].label} – ${calendarDates[calendarDates.length - 1].label}, ${selectedMonth.slice(0, 4)}`
-        : formatMonthLabel(selectedMonth));
 
     const rows =
       Array.isArray(state.monthlyRows) && state.monthlyRows.length > 0
@@ -3245,10 +3556,31 @@
         ? `/api/attendance/monthly?subjectId=${encodeURIComponent(state.selectedSubjectId)}&cohortId=${encodeURIComponent(state.selectedCohortId)}&month=${encodeURIComponent(selectedMonth)}&format=csv`
         : null;
 
-    const bsMonthHeading = formatBsMonthRangeLabel(selectedMonth);
+    const bsMonthHeading = state.monthlyIsBsMode && isBsMonthKey(selectedBsMonth)
+      ? formatBsMonthTitle(selectedBsMonth)
+      : formatBsMonthRangeLabel(selectedMonth);
+
+    // Build recent BS month options for dropdown (current BS month + previous 11 BS months)
+    const bsMonthOptions = [];
+    if (isBsMonthKey(currentBsMonth)) {
+      let cursor = currentBsMonth;
+      for (let i = 0; i < 12; i += 1) {
+        bsMonthOptions.push(cursor);
+        const prev = stepBsMonth(cursor, -1);
+        if (prev === cursor) break;
+        cursor = prev;
+      }
+      if (isBsMonthKey(selectedBsMonth) && !bsMonthOptions.includes(selectedBsMonth)) {
+        bsMonthOptions.push(selectedBsMonth);
+        bsMonthOptions.sort((a, b) => b.localeCompare(a));
+      }
+    }
+
+    const isNextDisabled = Boolean(currentBsMonth && selectedBsMonth && selectedBsMonth >= currentBsMonth);
+    const hiddenAttrs = state.showMonthlyMatrix ? '' : 'style="display:none;" hidden aria-hidden="true"';
 
     return `
-      <section class="sl-att-panel" id="slAttMonthlyMatrixSection" aria-label="Monthly Attendance Matrix">
+      <section class="sl-att-panel" id="slAttMonthlyMatrixSection" aria-label="Monthly Attendance Matrix" ${hiddenAttrs}>
         <div class="sl-att-matrix-header">
           <div>
             <h3 style="margin:0; font-size:1.05rem; font-weight:700;">
@@ -3262,26 +3594,30 @@
               class="teach-btn teach-btn-secondary"
               style="padding:6px 10px; font-size:0.78rem;"
               data-att-month-step="-1"
-              title="Previous Month"
+              title="Previous BS Month"
             >
               &larr; Prev Month
             </button>
-            <input
-              type="month"
-              id="slAttMonthInput"
-              class="sl-att-input"
-              style="width:160px; padding:6px 10px; font-size:0.82rem;"
-              value="${escapeHtml(selectedMonth)}"
-              ${currentNepalMonth ? `max="${escapeHtml(currentNepalMonth)}"` : ''}
-              aria-label="Select attendance month"
-            />
+            <select
+              id="slAttBsMonthSelect"
+              class="sl-att-select"
+              style="width:170px; padding:6px 10px; font-size:0.82rem;"
+              aria-label="Select BS attendance month"
+            >
+              ${bsMonthOptions
+                .map(
+                  (bsYm) =>
+                    `<option value="${escapeHtml(bsYm)}" ${bsYm === selectedBsMonth ? 'selected' : ''}>${escapeHtml(formatBsMonthTitle(bsYm))}</option>`
+                )
+                .join('')}
+            </select>
             <button
               type="button"
               class="teach-btn teach-btn-secondary"
               style="padding:6px 10px; font-size:0.78rem;"
               data-att-month-step="1"
-              ${currentNepalMonth && selectedMonth >= currentNepalMonth ? 'disabled' : ''}
-              title="Next Month"
+              ${isNextDisabled ? 'disabled' : ''}
+              title="Next BS Month"
             >
               Next Month &rarr;
             </button>
@@ -3294,7 +3630,7 @@
                 data-att-action="download-svg"
                 class="teach-btn teach-btn-primary"
                 style="padding:6px 12px; font-size:0.78rem; text-decoration:none;"
-                download="gandaki_monthly_attendance_${escapeHtml(state.selectedSubjectId)}_${escapeHtml(selectedMonth)}.svg"
+                download="gandaki_monthly_attendance_${escapeHtml(state.selectedSubjectId)}_${escapeHtml(selectedBsMonth || selectedMonth)}.svg"
               >
                 Download SVG
               </a>
@@ -3319,35 +3655,13 @@
         </div>
 
         ${
-          sessions.length > 0
+          sessions.length === 0
             ? `
-          <div class="sl-att-session-strip" aria-label="Submitted sessions in ${escapeHtml(bsMonthHeading)}">
-            ${sessions
-              .map((sess) => {
-                const isSelectedSession = sess.sessionDate === state.selectedDate;
-                const sessBs = formatBsDate(sess.sessionDate);
-                return `
-                  <button
-                    type="button"
-                    class="sl-att-session-chip ${isSelectedSession ? 'active' : ''}"
-                    data-att-open-session-date="${escapeHtml(sess.sessionDate)}"
-                    data-att-open-session-cohort="${escapeHtml(state.selectedCohortId)}"
-                    title="Open session ${sess.sessionNumber} (${escapeHtml(sessBs)})"
-                  >
-                    <span>#${sess.sessionNumber}</span>
-                    <span>&middot;</span>
-                    <span>${escapeHtml(sessBs)}</span>
-                  </button>
-                `;
-              })
-              .join('')}
-          </div>
-        `
-            : `
           <div style="margin-bottom:12px; font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);">
             No submitted class sessions recorded in ${escapeHtml(bsMonthHeading)} yet.
           </div>
         `
+            : ''
         }
 
         <div class="sl-att-matrix-scroll">
@@ -3821,6 +4135,25 @@
               </div>
             </div>
           </div>
+
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <button
+              type="button"
+              class="sl-att-stage-tab ${state.showMonthlyMatrix ? 'active' : ''}"
+              data-att-action="toggle-monthly-matrix"
+              aria-expanded="${state.showMonthlyMatrix ? 'true' : 'false'}"
+            >
+              Monthly Attendance Matrix
+            </button>
+            <button
+              type="button"
+              class="sl-att-stage-tab ${state.showBackupPanel ? 'active' : ''}"
+              data-att-action="toggle-backup-panel"
+              aria-expanded="${state.showBackupPanel ? 'true' : 'false'}"
+            >
+              Attendance Backup
+            </button>
+          </div>
         </div>
 
         ${
@@ -3837,8 +4170,8 @@
 
         ${mainStageHtml}
 
-        <!-- Teacher Google Drive Attendance Backup Card -->
-        ${renderDriveBackupCard()}
+        <!-- Teacher Google Drive Attendance Backup Card (shown only when toggled on) -->
+        ${state.showBackupPanel || state.hasExplicitDriveClient ? renderDriveBackupCard() : ''}
 
         ${state.selectedStudentDetailId ? renderStudentDetailModal() : ''}
         ${state.auditModalSessionId ? renderAuditModal() : ''}
@@ -3880,7 +4213,7 @@
           return;
         }
         state.selectedCohortId = e.target.value;
-        await Promise.all([loadRoster(), loadMonthlyMatrix(state.selectedMonth), loadHistory()]);
+        await Promise.all([loadRoster(), loadMonthlyMatrix(), loadHistory()]);
       });
     }
 
@@ -3899,13 +4232,29 @@
       });
     }
 
-    const monthInput = container.querySelector('#slAttMonthInput');
-    if (monthInput) {
-      monthInput.addEventListener('change', async (e) => {
-        const nextMonth = (e.target.value || '').trim();
-        if (!/^\d{4}-\d{2}$/.test(nextMonth)) return;
-        state.selectedMonth = nextMonth;
-        await loadMonthlyMatrix(nextMonth);
+    const toggleMatrixBtn = container.querySelector('[data-att-action="toggle-monthly-matrix"]');
+    if (toggleMatrixBtn) {
+      toggleMatrixBtn.addEventListener('click', () => {
+        state.showMonthlyMatrix = !state.showMonthlyMatrix;
+        render();
+      });
+    }
+
+    const toggleBackupBtn = container.querySelector('[data-att-action="toggle-backup-panel"]');
+    if (toggleBackupBtn) {
+      toggleBackupBtn.addEventListener('click', () => {
+        state.showBackupPanel = !state.showBackupPanel;
+        render();
+      });
+    }
+
+    const bsMonthSelect = container.querySelector('#slAttBsMonthSelect');
+    if (bsMonthSelect) {
+      bsMonthSelect.addEventListener('change', async (e) => {
+        const nextBsMonth = (e.target.value || '').trim();
+        if (!isBsMonthKey(nextBsMonth)) return;
+        state.selectedBsMonth = nextBsMonth;
+        await loadMonthlyMatrix(nextBsMonth);
       });
     }
 
@@ -3913,15 +4262,15 @@
       btn.addEventListener('click', async () => {
         const step = Number(btn.getAttribute('data-att-month-step') || 0);
         if (!step) return;
-        const baseMonth =
-          state.selectedMonth ||
-          (state.selectedDate ? state.selectedDate.slice(0, 7) : '') ||
-          (state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '');
-        const nextMonth = stepMonthString(baseMonth, step);
-        const maxMonth = state.currentNepalDate ? state.currentNepalDate.slice(0, 7) : '';
-        if (maxMonth && nextMonth > maxMonth) return;
-        state.selectedMonth = nextMonth;
-        await loadMonthlyMatrix(nextMonth);
+        const baseBsMonth =
+          (isBsMonthKey(state.selectedBsMonth) ? state.selectedBsMonth : '') ||
+          getBsMonthKey(state.selectedDate || state.currentNepalDate);
+        if (!isBsMonthKey(baseBsMonth)) return;
+        const nextBsMonth = stepBsMonth(baseBsMonth, step);
+        const maxBsMonth = getBsMonthKey(state.currentNepalDate);
+        if (maxBsMonth && nextBsMonth > maxBsMonth) return;
+        state.selectedBsMonth = nextBsMonth;
+        await loadMonthlyMatrix(nextBsMonth);
       });
     });
 

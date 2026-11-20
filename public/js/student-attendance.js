@@ -45,24 +45,96 @@
     return Number.isInteger(num) ? `${num}%` : `${num.toFixed(2).replace(/\.?0+$/, '')}%`;
   }
 
+  // Verified 2070–2090 BS calendar table (synchronized with lib/temporal-intelligence.js & mobile/utils/nepaliDate.ts)
+  const BS_MONTH_DAYS = {
+    2070: [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
+    2071: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2072: [31, 32, 31, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    2073: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    2074: [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+    2075: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2076: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+    2077: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    2078: [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+    2079: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2080: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+    2081: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    2082: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2083: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2084: [31, 31, 32, 31, 31, 30, 30, 30, 29, 30, 30, 30],
+    2085: [31, 32, 31, 32, 30, 31, 30, 30, 29, 30, 30, 30],
+    2086: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30],
+    2087: [31, 31, 32, 31, 31, 31, 30, 30, 29, 30, 30, 30],
+    2088: [30, 31, 32, 32, 30, 31, 30, 30, 29, 30, 30, 30],
+    2089: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30],
+    2090: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30]
+  };
+  const ANCHOR_BS_YEAR = 2070;
+  const ANCHOR_AD_MS = Date.UTC(2013, 3, 14);
+  const MS_PER_DAY = 86400000;
+  const BS_MONTH_NAMES_EN = [
+    'Baishakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin',
+    'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'
+  ];
+
+  function adToBs(adDateStr) {
+    if (!adDateStr || typeof adDateStr !== 'string') return null;
+    const trimmed = adDateStr.trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+    const [y, m, d] = trimmed.split('-').map(Number);
+    const targetUtcMs = Date.UTC(y, m - 1, d);
+    const check = new Date(targetUtcMs);
+    if (
+      Number.isNaN(targetUtcMs) ||
+      check.getUTCFullYear() !== y ||
+      check.getUTCMonth() + 1 !== m ||
+      check.getUTCDate() !== d
+    ) {
+      return null;
+    }
+    let diffDays = Math.round((targetUtcMs - ANCHOR_AD_MS) / MS_PER_DAY);
+    if (diffDays < 0) return null;
+    let bsYear = ANCHOR_BS_YEAR;
+    while (true) {
+      const months = BS_MONTH_DAYS[bsYear];
+      if (!months) return null;
+      const yearDays = months.reduce((acc, days) => acc + days, 0);
+      if (diffDays >= yearDays) {
+        diffDays -= yearDays;
+        bsYear += 1;
+      } else {
+        break;
+      }
+    }
+    let bsMonth = 1;
+    const months = BS_MONTH_DAYS[bsYear];
+    for (let mi = 0; mi < 12; mi += 1) {
+      if (diffDays >= months[mi]) {
+        diffDays -= months[mi];
+        bsMonth += 1;
+      } else {
+        break;
+      }
+    }
+    const bsDay = diffDays + 1;
+    const monthNameEn = BS_MONTH_NAMES_EN[bsMonth - 1];
+    const dateStr = `${bsYear}-${String(bsMonth).padStart(2, '0')}-${String(bsDay).padStart(2, '0')}`;
+    return { year: bsYear, month: bsMonth, day: bsDay, monthNameEn, dateStr, formattedEn: `${bsDay} ${monthNameEn} ${bsYear}` };
+  }
+
   /**
-   * Formats a YYYY-MM-DD Nepal calendar date string into a human-friendly display label
-   * strictly using the literal year, month, and day numbers without UTC-to-local timezone shifts.
+   * Formats a YYYY-MM-DD Nepal calendar date string into Bikram Sambat (BS) display format
+   * without UTC-to-local timezone shifts.
    */
   function formatNepalDateString(yyyyMmDd) {
     if (!yyyyMmDd || typeof yyyyMmDd !== 'string') return '—';
     const clean = yyyyMmDd.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    const parts = clean.split('-');
-    const year = Number(parts[0]);
-    const monthIdx = Number(parts[1]) - 1;
-    const day = Number(parts[2]);
-    if (monthIdx < 0 || monthIdx > 11 || !day) return clean;
-    return `${months[monthIdx]} ${day}, ${year} (${clean})`;
+    const bs = adToBs(clean);
+    if (bs) {
+      return `${bs.formattedEn} BS (${bs.dateStr} BS)`;
+    }
+    return clean;
   }
 
   /**

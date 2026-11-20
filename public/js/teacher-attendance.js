@@ -25,6 +25,121 @@
 
   const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+  // Verified 2070–2090 BS calendar table (synchronized with lib/temporal-intelligence.js & mobile/utils/nepaliDate.ts)
+  const BS_MONTH_DAYS = {
+    2070: [31, 31, 31, 32, 31, 31, 29, 30, 30, 29, 30, 30],
+    2071: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2072: [31, 32, 31, 32, 31, 30, 30, 29, 30, 29, 30, 30],
+    2073: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    2074: [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+    2075: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2076: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+    2077: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    2078: [31, 31, 31, 32, 31, 31, 30, 29, 30, 29, 30, 30],
+    2079: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2080: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+    2081: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    2082: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2083: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2084: [31, 31, 32, 31, 31, 30, 30, 30, 29, 30, 30, 30],
+    2085: [31, 32, 31, 32, 30, 31, 30, 30, 29, 30, 30, 30],
+    2086: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30],
+    2087: [31, 31, 32, 31, 31, 31, 30, 30, 29, 30, 30, 30],
+    2088: [30, 31, 32, 32, 30, 31, 30, 30, 29, 30, 30, 30],
+    2089: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30],
+    2090: [30, 32, 31, 32, 31, 30, 30, 30, 29, 30, 30, 30]
+  };
+  const ANCHOR_BS_YEAR = 2070;
+  const ANCHOR_AD_MS = Date.UTC(2013, 3, 14);
+  const MS_PER_DAY = 86400000;
+  const BS_MONTH_NAMES_EN = [
+    'Baishakh', 'Jestha', 'Ashadh', 'Shrawan', 'Bhadra', 'Ashwin',
+    'Kartik', 'Mangsir', 'Poush', 'Magh', 'Falgun', 'Chaitra'
+  ];
+
+  function adToBs(adDateStr) {
+    if (!adDateStr || typeof adDateStr !== 'string') return null;
+    const trimmed = adDateStr.trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+    const parts = trimmed.split('-').map(Number);
+    const y = parts[0];
+    const m = parts[1];
+    const d = parts[2];
+    const targetUtcMs = Date.UTC(y, m - 1, d);
+    const check = new Date(targetUtcMs);
+    if (
+      Number.isNaN(targetUtcMs) ||
+      check.getUTCFullYear() !== y ||
+      check.getUTCMonth() + 1 !== m ||
+      check.getUTCDate() !== d
+    ) {
+      return null;
+    }
+    let diffDays = Math.round((targetUtcMs - ANCHOR_AD_MS) / MS_PER_DAY);
+    if (diffDays < 0) return null;
+    let bsYear = ANCHOR_BS_YEAR;
+    while (true) {
+      const months = BS_MONTH_DAYS[bsYear];
+      if (!months) return null;
+      const yearDays = months.reduce((acc, days) => acc + days, 0);
+      if (diffDays >= yearDays) {
+        diffDays -= yearDays;
+        bsYear += 1;
+      } else {
+        break;
+      }
+    }
+    let bsMonth = 1;
+    const months = BS_MONTH_DAYS[bsYear];
+    for (let mi = 0; mi < 12; mi += 1) {
+      if (diffDays >= months[mi]) {
+        diffDays -= months[mi];
+        bsMonth += 1;
+      } else {
+        break;
+      }
+    }
+    const bsDay = diffDays + 1;
+    const monthNameEn = BS_MONTH_NAMES_EN[bsMonth - 1];
+    const dateStr = `${bsYear}-${String(bsMonth).padStart(2, '0')}-${String(bsDay).padStart(2, '0')}`;
+    const formattedEn = `${bsDay} ${monthNameEn} ${bsYear}`;
+    return { year: bsYear, month: bsMonth, day: bsDay, monthNameEn, dateStr, formattedEn };
+  }
+
+  function formatBsDate(adDateStr) {
+    if (!adDateStr) return '';
+    const bs = adToBs(adDateStr);
+    return bs ? `${bs.dateStr} BS` : String(adDateStr);
+  }
+
+  function formatBsReadable(adDateStr) {
+    if (!adDateStr) return '';
+    const bs = adToBs(adDateStr);
+    return bs ? `${bs.formattedEn} BS` : String(adDateStr);
+  }
+
+  function formatBsShortLabel(adDateStr) {
+    if (!adDateStr) return '';
+    const bs = adToBs(adDateStr);
+    return bs ? `${bs.day} ${bs.monthNameEn.slice(0, 3)}` : formatShortDateLabel(adDateStr);
+  }
+
+  function formatBsMonthRangeLabel(yyyyMm) {
+    if (!yyyyMm || !/^\d{4}-\d{2}$/.test(yyyyMm)) return formatMonthLabel(yyyyMm);
+    const [y, m] = yyyyMm.split('-').map(Number);
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const startBs = adToBs(`${yyyyMm}-01`);
+    const endBs = adToBs(`${yyyyMm}-${String(daysInMonth).padStart(2, '0')}`);
+    if (!startBs || !endBs) return formatMonthLabel(yyyyMm);
+    if (startBs.year === endBs.year && startBs.month === endBs.month) {
+      return `${startBs.monthNameEn} ${startBs.year} BS`;
+    }
+    if (startBs.year === endBs.year) {
+      return `${startBs.monthNameEn} – ${endBs.monthNameEn} ${startBs.year} BS`;
+    }
+    return `${startBs.monthNameEn} ${startBs.year} – ${endBs.monthNameEn} ${endBs.year} BS`;
+  }
+
   const state = {
     initialized: false,
     loadingContext: false,
@@ -64,6 +179,7 @@
 
     // Stage within a selected subject: 'marking' (register) | 'review' | 'history'
     stage: 'marking',
+    isEditingSavedSession: false,
     currentStudentIndex: 0,
     editReason: '',
 
@@ -880,10 +996,108 @@
         border-color: var(--teach-btn-primary-bg, #f5f5f5);
       }
       .sl-att-mark-btn.selected-absent {
-        background: var(--teach-surface-hover, #27272a);
-        color: var(--teach-text-primary, #f5f5f5);
-        border-color: var(--teach-text-primary, #f5f5f5);
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: #f87171;
+        border-color: var(--teach-border, #2a2a2a);
         text-decoration: none;
+      }
+      /* Attendance Saved Card (matching mobile app) */
+      .sl-att-saved-card {
+        background: var(--teach-surface, var(--surface, #141414));
+        border: 1.5px solid var(--teach-border, var(--border, #2a2a2a));
+        border-radius: 18px;
+        padding: 32px 24px;
+        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .sl-att-saved-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 999px;
+        border: 1.5px solid rgba(134, 239, 172, 0.45);
+        background: rgba(134, 239, 172, 0.1);
+        color: #86efac;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 14px;
+      }
+      .sl-att-saved-title {
+        margin: 0 0 6px;
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .sl-att-saved-sub {
+        font-size: 0.9rem;
+        color: var(--teach-text-secondary, #a3a3a3);
+        margin-bottom: 4px;
+      }
+      .sl-att-saved-date {
+        font-size: 0.82rem;
+        color: var(--teach-text-secondary, #a3a3a3);
+        margin-bottom: 20px;
+      }
+      .sl-att-saved-stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(84px, 1fr));
+        gap: 10px;
+        width: 100%;
+        max-width: 440px;
+        margin-bottom: 18px;
+      }
+      .sl-att-saved-stat {
+        background: var(--teach-surface-subtle, #1c1c1c);
+        border: 1px solid var(--teach-border-subtle, #242424);
+        border-radius: 12px;
+        padding: 12px 8px;
+      }
+      .sl-att-saved-stat-val {
+        font-size: 1.2rem;
+        font-weight: 800;
+        line-height: 1.15;
+      }
+      .sl-att-saved-stat-val.present-text {
+        color: #86efac;
+      }
+      .sl-att-saved-stat-val.absent-text {
+        color: #f87171;
+      }
+      .sl-att-saved-stat-lbl {
+        font-size: 0.72rem;
+        color: var(--teach-text-secondary, #a3a3a3);
+        margin-top: 4px;
+        font-weight: 600;
+      }
+      .sl-att-saved-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 5px 14px;
+        border-radius: 999px;
+        border: 1px solid var(--teach-border, #2a2a2a);
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: var(--teach-text-secondary, #a3a3a3);
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+      }
+      .sl-att-saved-actions {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        width: 100%;
+        max-width: 440px;
+      }
+      .sl-att-saved-actions .teach-btn {
+        flex: 1 1 160px;
+        justify-content: center;
       }
       .sl-att-mark-btn:disabled {
         opacity: 0.5;
@@ -1294,6 +1508,7 @@
 
     state.selectedSubjectId = matched.id;
     state.stage = 'marking';
+    state.isEditingSavedSession = false;
     state.studentSearchQuery = '';
     state.saveError = null;
     state.saveSuccessMessage = null;
@@ -1318,6 +1533,7 @@
     state.selectedCohortId = '';
     state.roster = [];
     state.existingSession = null;
+    state.isEditingSavedSession = false;
     state.marksByStudentId = {};
     state.initialMarksSnapshot = '{}';
     state.saveError = null;
@@ -2087,10 +2303,12 @@
       }
 
       state.saving = false;
+      state.isEditingSavedSession = false;
       state.editReason = '';
+      const savedBsLabel = formatBsDate(state.selectedDate) || state.selectedDate;
       state.saveSuccessMessage = data.created
-        ? `Attendance submitted for ${state.selectedDate} (${counts.present} Present, ${counts.absent} Absent).`
-        : `Attendance updated for ${state.selectedDate} (${counts.present} Present, ${counts.absent} Absent).`;
+        ? `Attendance submitted for ${savedBsLabel} (${counts.present} Present, ${counts.absent} Absent).`
+        : `Attendance updated for ${savedBsLabel} (${counts.present} Present, ${counts.absent} Absent).`;
 
       if (state.selectedDate && state.selectedDate.length >= 7) {
         state.selectedMonth = state.selectedDate.slice(0, 7);
@@ -2186,6 +2404,7 @@
       state.selectedCohortId = cohortId;
     }
     state.selectedDate = sessionDate;
+    state.isEditingSavedSession = false;
     if (sessionDate.length >= 7 && sessionDate.slice(0, 7) !== state.selectedMonth) {
       state.selectedMonth = sessionDate.slice(0, 7);
       await Promise.all([loadRoster(), loadMonthlyMatrix(state.selectedMonth)]);
@@ -2704,16 +2923,24 @@
       persistenceBadge = '<span class="sl-att-badge present" data-att-save-state="saved">Saved</span>';
     }
 
+    const registerDateBs = formatBsDate(state.selectedDate);
+    const registerDateReadable = formatBsReadable(state.selectedDate);
+
     return `
       <section class="sl-att-panel" id="slAttStudentRegisterSection" aria-label="Student Attendance Register">
         <div class="sl-att-register-toolbar">
           <div>
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
               <h3 style="margin:0; font-size:1.05rem; font-weight:700;">
-                Student Attendance Register (${escapeHtml(state.selectedDate)})
+                Student Attendance Register (${escapeHtml(registerDateBs)})
               </h3>
               ${persistenceBadge}
             </div>
+            ${
+              registerDateReadable && registerDateReadable !== registerDateBs
+                ? `<div style="font-size:0.8rem; color:var(--teach-text-secondary, #a3a3a3); margin-top:3px;">${escapeHtml(registerDateReadable)}</div>`
+                : ''
+            }
           </div>
 
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -2838,27 +3065,111 @@
                 : `All ${counts.total} students marked (${counts.present} Present, ${counts.absent} Absent).`
             }
           </div>
-          ${
-            !isReadOnly
-              ? `
-            <button
-              type="button"
-              class="teach-btn teach-btn-primary"
-              data-att-action="submit-session"
-              ${canSubmit ? '' : 'disabled'}
-              ${state.saving ? 'aria-busy="true"' : ''}
-            >
-              ${
-                state.saving
-                  ? 'Saving Attendance…'
-                  : state.existingSession
-                  ? 'Save Attendance Changes'
-                  : 'Confirm & Submit Attendance'
-              }
-            </button>
-          `
-              : ''
-          }
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            ${
+              state.existingSession && state.isEditingSavedSession
+                ? `
+              <button
+                type="button"
+                class="teach-btn teach-btn-secondary"
+                data-att-action="cancel-edit-saved"
+                ${state.saving ? 'disabled' : ''}
+              >
+                Cancel
+              </button>
+            `
+                : ''
+            }
+            ${
+              !isReadOnly
+                ? `
+              <button
+                type="button"
+                class="teach-btn teach-btn-primary"
+                data-att-action="submit-session"
+                ${canSubmit ? '' : 'disabled'}
+                ${state.saving ? 'aria-busy="true"' : ''}
+              >
+                ${
+                  state.saving
+                    ? 'Saving Attendance…'
+                    : state.existingSession
+                    ? 'Save Attendance Changes'
+                    : 'Confirm & Submit Attendance'
+                }
+              </button>
+            `
+                : ''
+            }
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  /**
+   * Renders the Attendance Saved confirmation card (matching mobile app) with Done & Edit Attendance actions.
+   * The Monthly Attendance Matrix is rendered directly beneath it.
+   */
+  function renderAttendanceSavedSection(counts, editWin, isReadOnly) {
+    const selectedSub = getSelectedSubjectObj();
+    const subCode = (selectedSub && selectedSub.code) || state.selectedSubjectId;
+    const subName = (selectedSub && selectedSub.name) || '';
+    const cohortName = (state.rosterCohort && state.rosterCohort.displayName) || '';
+    const bsDate = formatBsDate(state.selectedDate);
+    const bsReadable = formatBsReadable(state.selectedDate);
+    const ratePct = counts.total > 0 ? Math.round((counts.present / counts.total) * 100) : 0;
+
+    return `
+      <section class="sl-att-saved-card" id="slAttSavedCard" data-att-save-state="saved" aria-label="Attendance Saved">
+        <div class="sl-att-saved-icon" aria-hidden="true">&#10003;</div>
+        <h3 class="sl-att-saved-title">Attendance Saved</h3>
+        <div class="sl-att-saved-sub">[${escapeHtml(subCode)}] ${escapeHtml(subName)}</div>
+        <div class="sl-att-saved-date">
+          ${escapeHtml(bsDate)}${bsReadable && bsReadable !== bsDate ? ` &bull; ${escapeHtml(bsReadable)}` : ''}${cohortName ? ` &bull; ${escapeHtml(cohortName)}` : ''}
+        </div>
+
+        <div class="sl-att-saved-stats">
+          <div class="sl-att-saved-stat">
+            <div class="sl-att-saved-stat-val">${counts.total}</div>
+            <div class="sl-att-saved-stat-lbl">Total</div>
+          </div>
+          <div class="sl-att-saved-stat">
+            <div class="sl-att-saved-stat-val present-text">${counts.present}</div>
+            <div class="sl-att-saved-stat-lbl">Present</div>
+          </div>
+          <div class="sl-att-saved-stat">
+            <div class="sl-att-saved-stat-val absent-text">${counts.absent}</div>
+            <div class="sl-att-saved-stat-lbl">Absent</div>
+          </div>
+          <div class="sl-att-saved-stat">
+            <div class="sl-att-saved-stat-val">${ratePct}%</div>
+            <div class="sl-att-saved-stat-lbl">Rate</div>
+          </div>
+        </div>
+
+        <div
+          class="sl-att-saved-pill"
+          data-att-submitted-at="${escapeHtml((state.existingSession && state.existingSession.submittedAt) || '')}"
+          data-att-session-status="${escapeHtml((state.existingSession && state.existingSession.status) || 'submitted')}"
+          data-att-was-editable="${editWin.canEdit ? '1' : '0'}"
+        >
+          ${escapeHtml(editWin.label)}
+        </div>
+
+        ${
+          isReadOnly
+            ? `<div style="font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3); margin:-10px 0 18px;">This session is locked for teacher edits because the 24-hour window has elapsed.</div>`
+            : ''
+        }
+
+        <div class="sl-att-saved-actions">
+          <button type="button" class="teach-btn teach-btn-primary" data-att-action="saved-done">
+            Done
+          </button>
+          <button type="button" class="teach-btn teach-btn-secondary" data-att-action="saved-edit">
+            ${isReadOnly ? 'View Attendance' : 'Edit Attendance'}
+          </button>
         </div>
       </section>
     `;
@@ -2934,12 +3245,14 @@
         ? `/api/attendance/monthly?subjectId=${encodeURIComponent(state.selectedSubjectId)}&cohortId=${encodeURIComponent(state.selectedCohortId)}&month=${encodeURIComponent(selectedMonth)}&format=csv`
         : null;
 
+    const bsMonthHeading = formatBsMonthRangeLabel(selectedMonth);
+
     return `
       <section class="sl-att-panel" id="slAttMonthlyMatrixSection" aria-label="Monthly Attendance Matrix">
         <div class="sl-att-matrix-header">
           <div>
             <h3 style="margin:0; font-size:1.05rem; font-weight:700;">
-              Monthly Attendance Matrix &mdash; ${escapeHtml(formatMonthLabel(selectedMonth))}
+              Monthly Attendance Matrix &mdash; ${escapeHtml(bsMonthHeading)}
             </h3>
           </div>
 
@@ -3008,21 +3321,22 @@
         ${
           sessions.length > 0
             ? `
-          <div class="sl-att-session-strip" aria-label="Submitted sessions in ${escapeHtml(selectedMonth)}">
+          <div class="sl-att-session-strip" aria-label="Submitted sessions in ${escapeHtml(bsMonthHeading)}">
             ${sessions
               .map((sess) => {
                 const isSelectedSession = sess.sessionDate === state.selectedDate;
+                const sessBs = formatBsDate(sess.sessionDate);
                 return `
                   <button
                     type="button"
                     class="sl-att-session-chip ${isSelectedSession ? 'active' : ''}"
                     data-att-open-session-date="${escapeHtml(sess.sessionDate)}"
                     data-att-open-session-cohort="${escapeHtml(state.selectedCohortId)}"
-                    title="Open session ${sess.sessionNumber} (${escapeHtml(sess.sessionDate)})"
+                    title="Open session ${sess.sessionNumber} (${escapeHtml(sessBs)})"
                   >
                     <span>#${sess.sessionNumber}</span>
                     <span>&middot;</span>
-                    <span>${escapeHtml(sess.sessionDate)}</span>
+                    <span>${escapeHtml(sessBs)}</span>
                   </button>
                 `;
               })
@@ -3031,7 +3345,7 @@
         `
             : `
           <div style="margin-bottom:12px; font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3);">
-            No submitted class sessions recorded in ${escapeHtml(formatMonthLabel(selectedMonth))} yet.
+            No submitted class sessions recorded in ${escapeHtml(bsMonthHeading)} yet.
           </div>
         `
         }
@@ -3043,6 +3357,8 @@
                 <th class="sl-att-col-student" scope="col">Name</th>
                 ${calendarDates
                   .map((calDate) => {
+                    const bsShort = formatBsShortLabel(calDate.date);
+                    const bsFull = formatBsDate(calDate.date);
                     if (calDate.hasSession) {
                       return `
                         <th scope="col" data-att-matrix-date="${escapeHtml(calDate.date)}" data-att-matrix-session-num="${calDate.sessionNumber}" data-att-matrix-session-date="${escapeHtml(calDate.date)}">
@@ -3051,16 +3367,16 @@
                             class="sl-att-matrix-session-btn"
                             data-att-open-session-date="${escapeHtml(calDate.date)}"
                             data-att-open-session-cohort="${escapeHtml(state.selectedCohortId)}"
-                            title="${escapeHtml(calDate.label)} (${escapeHtml(calDate.date)}) — Session #${calDate.sessionNumber} (Click to open session)"
+                            title="${escapeHtml(bsShort)} (${escapeHtml(bsFull)}) — Session #${calDate.sessionNumber} (Click to open session)"
                           >
-                            ${escapeHtml(calDate.label)}
+                            ${escapeHtml(bsShort)}
                           </button>
                         </th>
                       `;
                     }
                     return `
-                      <th scope="col" data-att-matrix-date="${escapeHtml(calDate.date)}" title="${escapeHtml(calDate.label)} (${escapeHtml(calDate.date)}) — No submitted session">
-                        ${escapeHtml(calDate.label)}
+                      <th scope="col" data-att-matrix-date="${escapeHtml(calDate.date)}" title="${escapeHtml(bsShort)} (${escapeHtml(bsFull)}) — No submitted session">
+                        ${escapeHtml(bsShort)}
                       </th>
                     `;
                   })
@@ -3109,12 +3425,13 @@
                                     : cell.status === 'absent'
                                       ? 'sl-att-cell-abs'
                                       : 'sl-att-cell-dash';
+                                const cellBsDate = formatBsDate(cell.date || cell.sessionDate);
                                 const cellTitle =
                                   cell.status === 'present'
-                                    ? `${row.name} — ${cell.dateLabel || cell.sessionDate}: Present (#${cell.display})`
+                                    ? `${row.name} — ${cellBsDate}: Present (#${cell.display})`
                                     : cell.status === 'absent'
-                                      ? `${row.name} — ${cell.dateLabel || cell.sessionDate}: Absent (ABS)`
-                                      : `${row.name} — ${cell.dateLabel || cell.sessionDate}: No submitted session (-)`;
+                                      ? `${row.name} — ${cellBsDate}: Absent (ABS)`
+                                      : `${row.name} — ${cellBsDate}: No submitted session (-)`;
                                 return `
                                   <td
                                     class="${cellClass}"
@@ -3171,7 +3488,7 @@
                 <div class="sl-att-review-row">
                   <div>
                     <div style="font-weight:700; font-size:0.95rem;">
-                      ${escapeHtml(sess.sessionDate)} &middot; ${escapeHtml(sess.subjectCode || '')} (${escapeHtml(sess.cohortName || '')})
+                      ${escapeHtml(formatBsDate(sess.sessionDate))} &middot; ${escapeHtml(sess.subjectCode || '')} (${escapeHtml(sess.cohortName || '')})
                     </div>
                     <div style="font-size:0.82rem; color:var(--teach-text-secondary, #a3a3a3); margin-top:2px;">
                       Present: <strong>${counts.present}</strong> &middot; Absent: <strong>${counts.absent}</strong> &middot; Total: <strong>${counts.total}</strong> (${counts.attendancePercentage}%)
@@ -3270,7 +3587,7 @@
           <div class="sl-att-summary-pills" style="margin-bottom:16px;">
             <div class="sl-att-stat-box">
               <div class="sl-att-stat-val">${monthPresent}/${monthTotal}</div>
-              <div class="sl-att-stat-lbl">${escapeHtml(state.selectedMonth || 'Month')} Attended</div>
+              <div class="sl-att-stat-lbl">${escapeHtml(formatBsMonthRangeLabel(state.selectedMonth) || 'Month')} Attended</div>
             </div>
             <div class="sl-att-stat-box">
               <div class="sl-att-stat-val">${escapeHtml(monthPct)}</div>
@@ -3305,10 +3622,10 @@
                 <div class="sl-att-review-row" style="padding:10px 14px;">
                   <div>
                     <div style="font-weight:700; font-size:0.88rem;">
-                      Session #${item.sessionNumberInMonth} &middot; ${escapeHtml(item.sessionDate)}
+                      Session #${item.sessionNumberInMonth} &middot; ${escapeHtml(formatBsDate(item.sessionDate))}
                     </div>
                     <div style="font-size:0.76rem; color:var(--teach-text-secondary, #a3a3a3);">
-                      Month: ${escapeHtml(item.month || item.sessionDate.slice(0, 7))}
+                      Month: ${escapeHtml(formatBsMonthRangeLabel(item.month || item.sessionDate.slice(0, 7)))}
                     </div>
                   </div>
                   <div style="display:flex; align-items:center; gap:8px;">
@@ -3471,11 +3788,22 @@
         </div>
       `;
     } else {
+      const showSavedCard = Boolean(state.existingSession && !state.isEditingSavedSession && !hasUnsavedChanges());
       mainStageHtml = `
-        ${renderStudentRegisterSection(counts, editWin, isReadOnly)}
+        ${showSavedCard ? renderAttendanceSavedSection(counts, editWin, isReadOnly) : renderStudentRegisterSection(counts, editWin, isReadOnly)}
         ${renderMonthlyMatrixSection()}
       `;
     }
+
+    const isShowingSavedCard = Boolean(
+      state.existingSession &&
+      !state.isEditingSavedSession &&
+      !hasUnsavedChanges() &&
+      state.stage !== 'history' &&
+      !state.loadingRoster &&
+      !state.rosterError &&
+      state.roster.length > 0
+    );
 
     container.innerHTML = `
       <div class="sl-att-root">
@@ -3502,7 +3830,7 @@
         }
 
         ${
-          state.saveSuccessMessage
+          state.saveSuccessMessage && !isShowingSavedCard
             ? `<div class="sl-att-banner success" role="status"><span>${escapeHtml(state.saveSuccessMessage)}</span></div>`
             : ''
         }
@@ -3562,7 +3890,7 @@
         const nextDate = (e.target.value || '').trim();
         if (!nextDate) return;
         if (state.currentNepalDate && nextDate > state.currentNepalDate) {
-          state.saveError = `Future dates are not permitted. Current Nepal date is ${state.currentNepalDate}.`;
+          state.saveError = `Future dates are not permitted. Current Nepal date is ${formatBsDate(state.currentNepalDate)}.`;
           e.target.value = state.selectedDate;
           render();
           return;
@@ -3668,6 +3996,31 @@
     const markAllAbsentBtn = container.querySelector('[data-att-action="mark-all-absent"]');
     if (markAllAbsentBtn) {
       markAllAbsentBtn.addEventListener('click', () => markAllStudents('absent'));
+    }
+
+    const savedDoneBtn = container.querySelector('[data-att-action="saved-done"]');
+    if (savedDoneBtn) {
+      savedDoneBtn.addEventListener('click', () => {
+        backToSubjects();
+      });
+    }
+
+    const savedEditBtn = container.querySelector('[data-att-action="saved-edit"]');
+    if (savedEditBtn) {
+      savedEditBtn.addEventListener('click', () => {
+        state.isEditingSavedSession = true;
+        state.saveSuccessMessage = null;
+        render();
+      });
+    }
+
+    const cancelEditSavedBtn = container.querySelector('[data-att-action="cancel-edit-saved"]');
+    if (cancelEditSavedBtn) {
+      cancelEditSavedBtn.addEventListener('click', () => {
+        if (!confirmDiscardIfDirty()) return;
+        state.isEditingSavedSession = false;
+        render();
+      });
     }
 
     const submitBtn = container.querySelector('[data-att-action="submit-session"]');

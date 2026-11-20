@@ -83,6 +83,9 @@ CREATE TABLE IF NOT EXISTS dm_messages (
   sender_id TEXT NOT NULL REFERENCES students(studentId) ON DELETE CASCADE,
   client_id TEXT NOT NULL,
   text TEXT,
+  attachment_name TEXT,
+  attachment_original_name TEXT,
+  attachment_mime_type TEXT,
   reply_to_id INTEGER REFERENCES dm_messages(id) ON DELETE SET NULL,
   is_edited BOOLEAN NOT NULL DEFAULT false,
   edited_at TIMESTAMPTZ,
@@ -90,7 +93,9 @@ CREATE TABLE IF NOT EXISTS dm_messages (
   deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT dm_message_text_required CHECK (
-    deleted_for_all = true OR (text IS NOT NULL AND LENGTH(TRIM(text)) > 0 AND LENGTH(text) <= 2000)
+    deleted_for_all = true
+    OR (attachment_name IS NOT NULL AND LENGTH(TRIM(attachment_name)) > 0)
+    OR (text IS NOT NULL AND LENGTH(TRIM(text)) > 0 AND LENGTH(text) <= 2000)
   ),
   -- Ensures sender is an enrolled participant in the conversation
   CONSTRAINT dm_messages_sender_in_conv_fk FOREIGN KEY (conversation_id, sender_id)

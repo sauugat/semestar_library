@@ -11,7 +11,7 @@ export function mergeDmMessages(current: DmMessage[], incoming: DmMessage[]): Dm
     const previous = result.find(matches);
     if (previous && typeof previous.id === 'number' && typeof message.id !== 'number') continue;
     const merged = { ...previous, ...message,
-      ...(typeof message.id === 'number' ? { status: 'sent' as const } : {}),
+      ...(typeof message.id === 'number' ? { status: 'sent' as const, localUri: undefined } : {}),
     };
     for (let i = result.length - 1; i >= 0; i--) if (matches(result[i])) result.splice(i, 1);
     result.push(merged);

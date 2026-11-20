@@ -15,10 +15,14 @@ export function ChatSendButton({
   disabled,
   sending = false,
   onPress,
+  activeBgColor = "#F5F5F5",
+  activeIconColor = "#111111",
 }: {
   disabled: boolean;
   sending?: boolean;
   onPress: () => void;
+  activeBgColor?: string;
+  activeIconColor?: string;
 }) {
   const [scale] = useState(() => new Animated.Value(1));
   const [reduceMotion, setReduceMotion] = useState(true);
@@ -64,16 +68,16 @@ export function ChatSendButton({
         <View
           style={[
             styles.button,
-            { backgroundColor: disabled ? "#242424" : "#F5F5F5" },
+            { backgroundColor: disabled ? "#242424" : activeBgColor },
           ]}
         >
           {sending ? (
-            <ActivityIndicator size="small" color="#111111" />
+            <ActivityIndicator size="small" color={activeIconColor} />
           ) : (
             <Ionicons
               name="arrow-up"
               size={20}
-              color={disabled ? "#737373" : "#111111"}
+              color={disabled ? "#737373" : activeIconColor}
             />
           )}
         </View>

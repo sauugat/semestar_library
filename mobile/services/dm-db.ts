@@ -207,11 +207,23 @@ export async function saveCachedDmMessages(
     if (idx >= 0) {
       const currentLastId = Number(convList[idx].lastMessage?.id || 0);
       if (newestConfirmed.id >= currentLastId) {
+        const isImg = Boolean(
+          newestConfirmed.attachmentName &&
+          (String(newestConfirmed.attachmentMimeType || '').toLowerCase().startsWith('image/') ||
+            /\.(png|jpe?g|webp|gif|heic|heif|bmp|svg|avif)$/i.test(
+              newestConfirmed.attachmentOriginalName || newestConfirmed.attachmentName
+            ))
+        );
+        const attachmentFallback = newestConfirmed.attachmentName
+          ? isImg
+            ? '📷 Photo'
+            : `📎 ${newestConfirmed.attachmentOriginalName || 'File'}`
+          : null;
         const updatedConv: DmConversationItem = {
           ...convList[idx],
           lastMessage: {
             id: newestConfirmed.id,
-            text: newestConfirmed.deletedForAll ? null : newestConfirmed.text,
+            text: newestConfirmed.deletedForAll ? null : (newestConfirmed.text || attachmentFallback),
             senderId: newestConfirmed.senderId,
             deletedForAll: Boolean(newestConfirmed.deletedForAll),
             createdAt: newestConfirmed.createdAt,

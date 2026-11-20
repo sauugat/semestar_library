@@ -1690,11 +1690,16 @@ function DmConversation() {
                     style={[styles.dmImageWrap, isImageOnly && { marginBottom: 0 }]}
                   >
                     <Image
-                      source={{ uri: dmImgUri, headers: item.localUri ? undefined : imageHeaders }}
+                      source={{
+                        uri: dmImgUri,
+                        headers: dmImgUri.startsWith('http://') || dmImgUri.startsWith('https://') ? imageHeaders : undefined,
+                        cacheKey: dmImgUri,
+                      }}
                       style={styles.dmBubbleImage}
                       contentFit="cover"
                       cachePolicy="memory-disk"
                       recyclingKey={dmImgUri}
+                      transition={150}
                     />
                     {item.status === 'pending' && (
                       <View style={styles.dmImageUploadingOverlay}>

@@ -36,6 +36,7 @@ import { useRouter, useFocusEffect, useLocalSearchParams, useNavigation } from "
 import { TabSwipeContainer } from "@/components/navigation/TabSwipeContainer";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -48,6 +49,7 @@ import { TypingIndicatorBubble } from "@/components/chat/TypingIndicatorBubble";
 import { StickyComposer, KeyboardContentBoundary } from "@/components/ui/StickyComposer";
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { FluidChatBackground } from "@/components/chat/FluidChatBackground";
+import { getGroupChatTheme } from "@/constants/groupChatThemes";
 import { useInteractiveChatBackSwipe } from "@/components/chat/ChatGesturePrimitives";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
@@ -1786,6 +1788,13 @@ function ChatScreenInner() {
     return null;
   }, [messages, readReceipts, memberByIdMap, user?.studentId]);
 
+  const activeGroupTheme = useMemo(
+    () => getGroupChatTheme(context?.groupCode || selectedCohortRoom?.groupCode || selectedCohortRoom?.title),
+    [context?.groupCode, selectedCohortRoom?.groupCode, selectedCohortRoom?.title]
+  );
+  const [topHeaderHeight, setTopHeaderHeight] = useState(() => Math.max(insets.top, 10) + 56);
+  const [composerHeight, setComposerHeight] = useState(() => 64 + Math.max(insets.bottom, 10));
+
   // Render message using the memoized ChatMessageItem component with stable references
   const renderMessageItem = useCallback(
     ({ item, index }: { item: ChatMessage; index: number }) => {
@@ -1813,6 +1822,7 @@ function ChatScreenInner() {
           isInitialLoadItem={isInitial}
           isHighlighted={isHighlighted}
           isStarred={starredMessageIds.has(item.id)}
+          groupTheme={activeGroupTheme}
           onLongPress={handleOpenActions}
           onSwipeReply={handleSwipeReply}
           onJumpToReply={jumpToMessage}
@@ -1836,6 +1846,7 @@ function ChatScreenInner() {
       serverUrl,
       token,
       downloadingFileId,
+      activeGroupTheme,
       handleOpenActions,
       handleSwipeReply,
       jumpToMessage,
@@ -1920,9 +1931,52 @@ function ChatScreenInner() {
               {...backSwipeHandlers}
             >
       <StatusBar barStyle="light-content" />
-      <FluidChatBackground />
+      {activeGroupTheme.backgroundImage ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <Image
+            source={activeGroupTheme.backgroundImage}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            cachePolicy="memory"
+            priority="high"
+          />
+          {activeGroupTheme.backgroundOverlay !== "transparent" && (
+            <View
+              style={[
+                StyleSheet.absoluteFill,
+                { backgroundColor: activeGroupTheme.backgroundOverlay },
+              ]}
+            />
+          )}
+        </View>
+      ) : (
+        <FluidChatBackground />
+      )}
 
-      {/* Header — Cohort Class Chat */}
+      {/* Floating Header with Instagram-style seamless feathered fade */}
+      <View
+        pointerEvents="box-none"
+        style={styles.floatingHeaderOverlay}
+        onLayout={(e) => {
+          const nextH = Math.round(e.nativeEvent.layout.height);
+          if (nextH > 0 && Math.abs(nextH - topHeaderHeight) > 1) {
+            setTopHeaderHeight(nextH);
+          }
+        }}
+      >
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            "rgba(6, 6, 10, 0.99)",
+            "rgba(6, 6, 10, 0.95)",
+            "rgba(6, 6, 10, 0.84)",
+            "rgba(6, 6, 10, 0.56)",
+            "rgba(6, 6, 10, 0.24)",
+            "rgba(6, 6, 10, 0)",
+          ]}
+          locations={[0, 0.30, 0.54, 0.74, 0.88, 1]}
+          style={styles.topFadeScrim}
+        />
       <View
         style={[
           styles.customHeader,
@@ -1998,6 +2052,7 @@ function ChatScreenInner() {
         >
           <Ionicons name="search-outline" size={20} color="#f5f5f5" />
         </TouchableOpacity>
+      </View>
       </View>
 
       {/* Class Chat Container (interactive Reanimated swipe-back attached to root screen) */}
@@ -2087,7 +2142,10 @@ function ChatScreenInner() {
             keyExtractor={(item) => item.clientId ? `${item.studentId}:${item.clientId}` : String(item.id)}
             renderItem={renderMessageItem}
             style={styles.messagesList}
-            contentContainerStyle={styles.messagesFeed}
+            contentContainerStyle={[
+              styles.messagesFeed,
+              { paddingBottom: topHeaderHeight + 16, paddingTop: composerHeight + 12 },
+            ]}
             onScroll={handleScroll}
             scrollEventThrottle={16}
             keyboardDismissMode="on-drag"
@@ -2166,7 +2224,7 @@ function ChatScreenInner() {
         {/* Floating Scroll to Bottom Button */}
         {showScrollToBottom && (
           <View
-            style={styles.floatingScrollContainer}
+            style={[styles.floatingScrollContainer, { bottom: composerHeight + 14 }]}
             pointerEvents="box-none"
           >
             <TouchableOpacity
@@ -2192,8 +2250,29 @@ function ChatScreenInner() {
         )}
       </KeyboardContentBoundary>
 
-      {/* Replying banner, Attachment Preview, and Message Composer */}
+      {/* Floating Replying banner, Attachment Preview, and Message Composer with bottom fade scrim */}
+      <View pointerEvents="box-none" style={styles.floatingComposerOverlay}>
       <StickyComposer bordered={false} style={{ backgroundColor: "transparent", paddingHorizontal: 0 }}>
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            "rgba(6, 6, 10, 0)",
+            "rgba(6, 6, 10, 0.16)",
+            "rgba(6, 6, 10, 0.52)",
+            "rgba(6, 6, 10, 0.86)",
+            "rgba(6, 6, 10, 0.98)",
+          ]}
+          locations={[0, 0.22, 0.48, 0.76, 1]}
+          style={styles.bottomFadeScrim}
+        />
+        <View
+          onLayout={(e) => {
+            const nextH = Math.round(e.nativeEvent.layout.height) + Math.max(insets.bottom, 10);
+            if (nextH > 0 && Math.abs(nextH - composerHeight) > 1) {
+              setComposerHeight(nextH);
+            }
+          }}
+        >
         {isArchived ? (
           <View style={styles.archivedComposerNotice}>
             <Ionicons name="lock-closed-outline" size={18} color="#a1a1aa" style={{ marginRight: 8 }} />
@@ -2224,9 +2303,13 @@ function ChatScreenInner() {
             serverUrl={serverUrl}
             currentUserId={user?.studentId}
             roomKey={context?.chatGroupId || selectedCohortRoom?.chatGroupId || "default"}
+            sendButtonActiveBg={activeGroupTheme.sendButtonActiveBg}
+            sendButtonActiveIcon={activeGroupTheme.sendButtonActiveIcon}
           />
         )}
+        </View>
       </StickyComposer>
+      </View>
 
       {/* Class Members & Search Modal Panel (mounted lazily only when open) */}
       {panel !== null && (
@@ -2664,15 +2747,41 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#1f1f21",
   },
+  floatingHeaderOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
+  },
+  topFadeScrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: -56,
+  },
+  floatingComposerOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 20,
+  },
+  bottomFadeScrim: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: -54,
+    bottom: 0,
+  },
   customHeader: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
     paddingBottom: 10,
-    // Base tokens: backgroundColor: "#101010", borderBottomColor: "#282828"
-    backgroundColor: "rgba(10, 10, 14, 0.38)",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: "transparent",
+    borderBottomWidth: 0,
   },
   headerBackBtn: {
     width: 40,

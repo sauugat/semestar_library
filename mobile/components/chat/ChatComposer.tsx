@@ -44,6 +44,8 @@ export interface ChatComposerProps {
   serverUrl?: string;
   currentUserId?: string;
   roomKey?: string;
+  sendButtonActiveBg?: string;
+  sendButtonActiveIcon?: string;
 }
 
 export const ChatComposer = React.memo(function ChatComposer({
@@ -61,6 +63,8 @@ export const ChatComposer = React.memo(function ChatComposer({
   serverUrl = "",
   currentUserId,
   roomKey = "default",
+  sendButtonActiveBg,
+  sendButtonActiveIcon,
 }: ChatComposerProps) {
   const [inputText, setInputText] = useState(() => composerDraftCache.get(roomKey) || "");
   const [inputFocused, setInputFocused] = useState(false);
@@ -329,6 +333,8 @@ export const ChatComposer = React.memo(function ChatComposer({
           <ChatSendButton
             disabled={!hasContent || !userAvailable}
             onPress={handleSend}
+            activeBgColor={sendButtonActiveBg}
+            activeIconColor={sendButtonActiveIcon}
           />
         </View>
       </View>

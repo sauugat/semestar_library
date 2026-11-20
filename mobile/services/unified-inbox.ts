@@ -186,8 +186,14 @@ export function adaptDmConversation(
   let lastMessageSenderId: string | null = null;
 
   if (convo.lastMessage && typeof convo.lastMessage === 'object') {
-    if (!convo.lastMessage.deletedForAll && typeof convo.lastMessage.text === 'string' && convo.lastMessage.text.trim()) {
-      subtitle = convo.lastMessage.text.trim();
+    if (!convo.lastMessage.deletedForAll) {
+      if (typeof convo.lastMessage.text === 'string' && convo.lastMessage.text.trim()) {
+        subtitle = convo.lastMessage.text.trim();
+      } else if ((convo.lastMessage as any).attachmentName) {
+        const attName = String((convo.lastMessage as any).attachmentName || '');
+        const isImg = /\.(png|jpe?g|webp|gif|heic|heif|bmp|svg|avif)$/i.test(attName);
+        subtitle = isImg ? '📷 Photo' : '📎 Attachment';
+      }
     }
     if (typeof convo.lastMessage.createdAt === 'string') {
       rawTimestamp = convo.lastMessage.createdAt;

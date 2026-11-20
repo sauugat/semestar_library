@@ -24,6 +24,7 @@ import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/Typography';
 import { Monochrome } from '@/constants/theme';
+import { DEFAULT_GROUP_CHAT_THEME, type GroupChatTheme } from '@/constants/groupChatThemes';
 import { HeartBurstOverlay, SwipeableMessageWrapper } from './ChatGesturePrimitives';
 import { ChatMessage, ChatReadReceipt } from '@/services/chat';
 import { parseChatDate, formatFileSubtitle, formatFileExtension } from '@/services/chat-state';
@@ -79,6 +80,7 @@ interface ChatMessageItemProps {
   isHighlighted: boolean;
   isDelivered?: boolean;
   isStarred?: boolean;
+  groupTheme?: GroupChatTheme;
   singleTapDelayMs?: number;
   onLongPress: (item: ChatMessage) => void;
   onSwipeReply: (item: ChatMessage) => void;
@@ -138,6 +140,21 @@ function getFileExtension(filename?: string | null): string {
     return parts.pop()!.toUpperCase().slice(0, 4);
   }
   return 'FILE';
+}
+
+function getEmojiOnlyCount(text?: string | null): number {
+  if (!text) return 0;
+  const compact = text.trim().replace(/\s+/g, '');
+  if (!compact || /[A-Za-z0-9]/.test(compact)) return 0;
+  try {
+    const emojiSeqRegex =
+      /(?:\p{Regional_Indicator}{2}|[0-9#*]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*)/gu;
+    const matches = compact.match(emojiSeqRegex);
+    if (!matches || matches.length === 0 || matches.length > 6) return 0;
+    return matches.join('') === compact ? matches.length : 0;
+  } catch {
+    return 0;
+  }
 }
 
 function extractFirstUrl(text?: string | null): { url: string; domain: string; path: string } | null {
@@ -335,6 +352,7 @@ function areMessagePropsEqual(
   if (prev.isDelivered !== next.isDelivered) return false;
   if (prev.isStarred !== next.isStarred) return false;
   if (prev.seenBySummary !== next.seenBySummary) return false;
+  if (prev.groupTheme?.groupCode !== next.groupTheme?.groupCode) return false;
 
   // Compare reactions
   const prevReactions = prev.item.reactions || [];
@@ -391,6 +409,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
   isHighlighted,
   isDelivered: isDeliveredProp,
   isStarred,
+  groupTheme,
   singleTapDelayMs,
   onLongPress,
   onSwipeReply,
@@ -645,8 +664,12 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
     onLongPress(item);
   };
 
+  const activeTheme = groupTheme || DEFAULT_GROUP_CHAT_THEME;
   const hasCaption = isImg && Boolean(item.text && item.text.trim());
   const isImageOnly = isImg && !hasCaption;
+  const hasNonImageFile = !isImg && Boolean(item.attachmentName);
+  const emojiOnlyCount = !isImg && !hasNonImageFile ? getEmojiOnlyCount(item.text) : 0;
+  const isEmojiOnly = emojiOnlyCount > 0;
 
   return (
     <View style={styles.rowWrapper}>
@@ -755,6 +778,21 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
               </View>
             )}
 
+            {/* Sender Name for Others on frameless image-only / emoji-only messages */}
+            {!isMe && isFirstInGroup && (isImageOnly || isEmojiOnly) && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => item.studentId && onPressAuthor?.(item.studentId)}
+                disabled={!item.studentId || !onPressAuthor}
+                accessibilityLabel={`View ${item.name || 'student'}'s profile`}
+                style={{ alignSelf: 'flex-start', marginBottom: 4, marginLeft: 4 }}
+              >
+                <Text style={[styles.senderNameText, { color: activeTheme.senderNameColor, marginBottom: 0 }]} numberOfLines={1}>
+                  {item.name || 'Classmate'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <Pressable
               onPress={handleBubblePress}
               onLongPress={handleLongPress}
@@ -762,22 +800,33 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
               accessibilityLabel={`Message from ${item.name || 'someone'}. Double tap to react with heart. Long press for actions.`}
               style={({ pressed }) => [
                 styles.messageBubble,
-                isMe ? styles.bubbleMe : styles.bubbleOther,
-                isMe
-                  ? {
-                      borderTopRightRadius: isFirstInGroup || Boolean(item.replyToId) ? 22 : 6,
-                      borderBottomRightRadius: isLastInGroup ? 22 : 6,
-                      borderTopLeftRadius: 22,
-                      borderBottomLeftRadius: 22,
-                    }
-                  : {
-                      borderTopLeftRadius: isFirstInGroup || Boolean(item.replyToId) ? 22 : 6,
-                      borderBottomLeftRadius: isLastInGroup ? 22 : 6,
-                      borderTopRightRadius: 22,
-                      borderBottomRightRadius: 22,
-                    },
-                isImageOnly && styles.imageBubbleTightPadding,
-                isImg && { width: renderedImageDims.width + 6 },
+                { borderWidth: 0, borderColor: 'transparent' },
+                isImageOnly
+                  ? styles.imageBubbleTightPadding
+                  : isEmojiOnly
+                    ? styles.emojiOnlyBubble
+                    : isMe
+                      ? [
+                          styles.bubbleMe,
+                          {
+                            backgroundColor: activeTheme.selfBubbleBg,
+                            borderTopRightRadius: isFirstInGroup || Boolean(item.replyToId) ? 22 : 6,
+                            borderBottomRightRadius: isLastInGroup ? 22 : 6,
+                            borderTopLeftRadius: 22,
+                            borderBottomLeftRadius: 22,
+                          },
+                        ]
+                      : [
+                          styles.bubbleOther,
+                          {
+                            backgroundColor: activeTheme.peerBubbleBg,
+                            borderTopLeftRadius: isFirstInGroup || Boolean(item.replyToId) ? 22 : 6,
+                            borderBottomLeftRadius: isLastInGroup ? 22 : 6,
+                            borderTopRightRadius: 22,
+                            borderBottomRightRadius: 22,
+                          },
+                        ],
+                isImg && !isImageOnly && { width: renderedImageDims.width + 6 },
                 pressed ? { opacity: 0.9 } : undefined,
               ]}
             >
@@ -797,8 +846,8 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                 />
               )}
 
-              {/* Sender Name for Others (first message in group only) */}
-              {!isMe && isFirstInGroup && (
+              {/* Sender Name for Others (first message in group only, inside non-frameless bubbles) */}
+              {!isMe && isFirstInGroup && !isImageOnly && !isEmojiOnly && (
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => item.studentId && onPressAuthor?.(item.studentId)}
@@ -806,7 +855,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                   accessibilityLabel={`View ${item.name || 'student'}'s profile`}
                   style={{ alignSelf: 'flex-start', marginBottom: 2 }}
                 >
-                  <Text style={styles.senderNameText} numberOfLines={1}>
+                  <Text style={[styles.senderNameText, { color: activeTheme.senderNameColor }]} numberOfLines={1}>
                     {item.name || 'Classmate'}
                   </Text>
                 </TouchableOpacity>
@@ -978,12 +1027,23 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
 
               {/* Text Body with Inline Bottom-Right Meta */}
               {Boolean(item.text && item.text.trim()) && (
+                isEmojiOnly ? (
+                  <RNText
+                    style={emojiOnlyCount > 3 ? styles.emojiOnlyTextCompact : styles.emojiOnlyText}
+                    allowFontScaling={false}
+                  >
+                    {item.text.trim()}
+                  </RNText>
+                ) : (
                 <View style={[styles.textContainer, isImg && styles.captionContainer]}>
                   <View style={styles.textWithInlineMetaWrapper}>
                     {renderMessageTextWithLinks(
                       item.text,
                       isMe,
-                      isMe ? styles.bubbleTextMe : styles.bubbleTextOther,
+                      [
+                        isMe ? styles.bubbleTextMe : styles.bubbleTextOther,
+                        { color: isMe ? activeTheme.selfTextColor : activeTheme.peerTextColor },
+                      ],
                       onPressMention,
                       item
                     )}
@@ -1040,6 +1100,7 @@ export const ChatMessageItem = React.memo(function ChatMessageItem({
                     />
                   </View>
                 </View>
+                )
               )}
 
               {/* If no text and not image-only (e.g. document only), render timestamp bar */}
@@ -1256,23 +1317,35 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 10,
     borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 0,
     overflow: 'hidden',
   },
   bubbleMe: {
     backgroundColor: '#606064',
-    borderColor: 'rgba(255, 255, 255, 0.10)',
   },
   bubbleOther: {
     backgroundColor: 'rgba(12, 12, 14, 0.94)',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   imageBubbleTightPadding: {
     paddingHorizontal: 0,
     paddingTop: 0,
     paddingBottom: 0,
     backgroundColor: 'transparent',
+    borderRadius: 16,
+  },
+  emojiOnlyBubble: {
+    paddingHorizontal: 2,
+    paddingTop: 2,
+    paddingBottom: 2,
+    backgroundColor: 'transparent',
+  },
+  emojiOnlyText: {
+    fontSize: 40,
+    lineHeight: 48,
+  },
+  emojiOnlyTextCompact: {
+    fontSize: 32,
+    lineHeight: 40,
   },
   highlightOverlay: {
     backgroundColor: 'rgba(255, 255, 255, 0.16)',

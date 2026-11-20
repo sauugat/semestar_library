@@ -308,15 +308,36 @@
     if (adminPanel) adminPanel.hidden = !isAdmin || isClass;
   }
 
+  function triggerPanelSlide(node, directionClass) {
+    if (!node) return;
+    node.classList.remove('routine-slide-from-left', 'routine-slide-from-right');
+    void node.offsetWidth;
+    node.classList.add(directionClass);
+  }
+
   function setMode(mode) {
+    const prevMode = viewMode;
     viewMode = mode;
     const isClass = mode === 'class';
+    const tabsEl = typeof document.querySelector === 'function' ? document.querySelector('.routine-mode-tabs') : null;
+    if (tabsEl) tabsEl.classList.toggle('is-exam', !isClass);
     byId('modeClassBtn')?.classList.toggle('active', isClass);
     byId('modeClassBtn')?.setAttribute('aria-selected', String(isClass));
     byId('modeExamBtn')?.classList.toggle('active', !isClass);
     byId('modeExamBtn')?.setAttribute('aria-selected', String(!isClass));
     if (classSection) classSection.hidden = !isClass;
     if (schedule) schedule.hidden = isClass;
+    if (byId('examInstructionsSection')) byId('examInstructionsSection').hidden = isClass;
+    if (isClass && byId('examNoticeBanner')) byId('examNoticeBanner').hidden = true;
+
+    if (prevMode !== mode) {
+      if (isClass) {
+        triggerPanelSlide(classSection, 'routine-slide-from-left');
+      } else {
+        triggerPanelSlide(byId('examNoticeBanner'), 'routine-slide-from-right');
+        triggerPanelSlide(schedule, 'routine-slide-from-right');
+      }
+    }
 
     if (isClass) {
       byId('routineHeroKicker').textContent = 'GANDAKI UNIVERSITY · BIT ACADEMIC ROUTINE';
@@ -1259,13 +1280,49 @@
     return [...routines].sort((a, b) => a.semester - b.semester || String(a.calendar || '').localeCompare(String(b.calendar || '')) || a.exam_date.localeCompare(b.exam_date) || a.id - b.id);
   }
 
+  function buildExamNoticeText(rows) {
+    const typeCounts = new Map();
+    for (const r of rows) {
+      const cleaned = String(r.exam_type || '').replace(/\s*examination$/i, '').trim();
+      if (cleaned) typeCounts.set(cleaned, (typeCounts.get(cleaned) || 0) + 1);
+    }
+    let typeLabel = '';
+    let maxCount = 0;
+    for (const [label, count] of typeCounts.entries()) {
+      if (count > maxCount) {
+        maxCount = count;
+        typeLabel = label;
+      }
+    }
+
+    const sems = [...new Set(rows.map(r => Number(r.semester)).filter(n => n >= 1 && n <= 8))].sort((a, b) => a - b);
+    const semLabel = sems.length === 1
+      ? `Semester ${romans[sems[0] - 1]}`
+      : sems.length > 1
+        ? `Semesters ${sems.map(n => romans[n - 1]).join(', ')}`
+        : (selectedSemester !== 'all' ? `Semester ${romans[Number(selectedSemester) - 1]}` : 'all semesters');
+
+    return `It is to be informed to all the students, faculties and staffs that the ${typeLabel ? `${typeLabel} ` : ''}examination of BIT program ${semLabel} will be conducted as per the following schedule. So, all the concerned are informed to be prepared accordingly.`;
+  }
+
   function renderPublic() {
     const rows = sortedRows().filter(row => selectedSemester === 'all' || row.semester === selectedSemester);
+    const noticeEl = byId('examNoticeBanner');
     if (viewMode === 'exam') {
       const semesters = [...new Set(routines.map(row => row.semester))].sort((a, b) => a - b);
       const years = [...new Set(routines.map(row => `${row.exam_date.slice(0, 4)} ${row.calendar || '(calendar unconfirmed)'}`))].sort();
       byId('routineYears').textContent = years.join(' · ') || 'Not published';
       byId('routineSemesters').textContent = semesters.map(n => romans[n - 1]).join(' · ') || '—';
+      if (noticeEl) {
+        if (rows.length) {
+          noticeEl.replaceChildren(el('p', 'exam-notice-text', buildExamNoticeText(rows)));
+          noticeEl.hidden = false;
+        } else {
+          noticeEl.hidden = true;
+        }
+      }
+    } else if (noticeEl) {
+      noticeEl.hidden = true;
     }
     if (!rows.length) {
       schedule.replaceChildren(el('p', 'routine-empty', selectedSemester === 'all' ? 'No exams have been published yet.' : `No exams scheduled for Semester ${romans[selectedSemester - 1]}.`));
@@ -1273,17 +1330,49 @@
     }
     schedule.replaceChildren(...rows.map(row => {
       const article = el('article', 'exam-row');
-      const dateBox = el('div', 'exam-date');
-      const date = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(row.exam_date);
-      dateBox.append(el('span', 'date-day', date ? date[3] : row.exam_date));
-      dateBox.append(el('span', 'date-month', date ? formatBsMonthLabel(row.exam_date, row.calendar) : 'Date to confirm'));
-      dateBox.append(el('span', 'date-weekday', row.weekday || row.calendar || 'BS'));
-      const details = el('div', 'exam-details');
-      details.append(el('span', 'semester-tag', `Semester ${romans[row.semester - 1]}${row.subject_code ? ` · ${row.subject_code}` : ''}`));
-      details.append(el('h2', '', row.subject_name));
-      const meta = [row.exam_type, row.weekday, row.room ? `Room ${row.room}` : ''].filter(Boolean).join(' · ');
-      if (meta) details.append(el('p', '', meta));
-      article.append(dateBox, details, el('div', 'exam-time', row.exam_time || 'Time to be announced'));
+      const date = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(String(row.exam_date || '').trim());
+      const yNum = date ? Number(date[1]) : 0;
+      const moPad = date ? date[2].padStart(2, '0') : '';
+      const dNum = date ? Number(date[3]) : 0;
+      const bsMonthObj = (routineOptions.bsMonths || BS_MONTHS_DEFAULT).find(x => x.value === moPad);
+      const adMonthObj = AD_MONTHS.find(x => x.value === moPad);
+      const monthLabel = row.calendar === 'AD'
+        ? (adMonthObj ? adMonthObj.name.slice(0, 3) : moPad)
+        : (bsMonthObj ? bsMonthObj.name : moPad);
+      const weekdayLabel = row.weekday || (date && row.calendar !== 'AD' ? getBsWeekday(yNum, Number(moPad), dNum) : '') || row.calendar || 'BS';
+
+      const top = el('div', 'exam-card-top');
+      const dateTile = el('div', 'exam-date-tile');
+      dateTile.append(
+        el('span', 'exam-date-month', (monthLabel || 'DATE').toUpperCase()),
+        el('span', 'exam-date-day', date ? String(dNum).padStart(2, '0') : '—'),
+        el('span', 'exam-date-weekday', weekdayLabel.toUpperCase())
+      );
+
+      const subjWrap = el('div', 'exam-card-subject');
+      subjWrap.append(el('h2', '', row.subject_name));
+
+      const footer = el('div', 'exam-card-footer');
+      footer.innerHTML = '<svg width="13.5" height="13.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>';
+      footer.append(el('span', '', row.exam_time || 'Time to be announced'));
+      subjWrap.append(footer);
+
+      top.append(dateTile, subjWrap);
+
+      if (isAdmin) {
+        const editBtn = el('button', 'exam-card-edit-btn');
+        editBtn.type = 'button';
+        editBtn.setAttribute('aria-label', `Edit ${row.subject_name}`);
+        editBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>';
+        editBtn.addEventListener('click', () => {
+          examTableSemester = Number(row.semester) || 1;
+          renderExamTable();
+          adminPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        top.append(editBtn);
+      }
+
+      article.append(top);
       return article;
     }));
   }
@@ -1542,6 +1631,35 @@
 
   byId('modeClassBtn')?.addEventListener('click', () => setMode('class'));
   byId('modeExamBtn')?.addEventListener('click', () => setMode('exam'));
+
+  // Touch swipe left/right on routine container to switch between Class Routine and Exam Schedule
+  (() => {
+    const container = typeof document.querySelector === 'function' ? document.querySelector('.routine-container') : null;
+    if (!container) return;
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    container.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      const target = e.target;
+      if (target && target.closest && target.closest('.routine-table-wrap, .class-grid-wrap, .semester-filter, select, input, button')) {
+        tracking = false;
+        return;
+      }
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      tracking = true;
+    }, { passive: true });
+    container.addEventListener('touchend', e => {
+      if (!tracking || !e.changedTouches.length) return;
+      tracking = false;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+      if (dx < 0 && viewMode === 'class') setMode('exam');
+      else if (dx > 0 && viewMode === 'exam') setMode('class');
+    }, { passive: true });
+  })();
   byId('modalSubjectClose')?.addEventListener('click', closeSubjectModal);
   byId('modalEditClassBtn')?.addEventListener('click', () => {
     if (currentModalContext?.entry && currentModalContext?.slot) {

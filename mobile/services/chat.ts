@@ -106,11 +106,12 @@ export async function chatRequest<T>(path: string, method = 'GET', body?: any, s
   try {
     const response = await apiFetch(`${start.server}${url}`, { method, signal, headers, ...(body !== undefined ? { body: body instanceof FormData ? body : JSON.stringify(body) } : {}) });
     assertCurrentChatSession(start);
-    const result = await response.json();
+    const result = await response.json().catch(() => ({} as any));
     assertCurrentChatSession(start);
     if (!response.ok) {
       if ([401,403].includes(response.status) || (response.status === 404 && /\/(messages|heartbeat|realtime-config)\?/.test(url))) invalidateChatSession();
-      throw Object.assign(new Error(result.message || 'Chat request failed'), { status: response.status });
+      const fallbackMsg = response.status === 413 ? 'File is too large for upload (max 4 MB).' : 'Chat request failed';
+      throw Object.assign(new Error(result?.message || fallbackMsg), { status: response.status });
     }
     if (result.chatGroupId && result.chatGroupId !== start.context.chatGroupId) throw new Error('Unexpected conversation');
     for (const item of [...(result.messages || []), ...(result.recentMessages || []), ...(result.data ? [result.data] : [])]) {

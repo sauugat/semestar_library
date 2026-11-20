@@ -361,8 +361,11 @@ export function useDoubleTapHeart(onReact: () => void, delayMs = 280) {
 
 /**
  * Interactive 120fps slide-in / slide-out swipe-to-exit hook for inline chat screens (Group Chat).
- * Uses a rAF-aligned entrance so the slide-in animation is never eaten by React's mount commit.
+ * Positions the overlay offscreen synchronously before mount (zero x=0 flash), lets the initial
+ * commit lay out offscreen, then runs a pure UI-thread bezier slide-in / slide-out at 120fps.
  */
+const IOS_PUSH_EASING = Easing.bezier(0.22, 1, 0.36, 1);
+
 export function useInteractiveChatBackSwipe(
   onBack: () => void,
   enabled = true
@@ -372,6 +375,7 @@ export function useInteractiveChatBackSwipe(
   scrimStyle: any;
   underlayStyle: any;
   isExiting: boolean;
+  prepareEnter: () => void;
   triggerAnimatedBack: () => void;
   cancelExit: () => void;
 } {
@@ -387,7 +391,15 @@ export function useInteractiveChatBackSwipe(
   const exitingRef = useRef(false);
   const exitSeqRef = useRef(0);
 
-  // Start from offscreen-right and glide in on the next frame so the push animation is always visible & smooth
+  // Call synchronously right before setting selectedCohortRoom so Frame 0 never flashes at x=0
+  const prepareEnter = () => {
+    exitSeqRef.current += 1;
+    exitingRef.current = false;
+    setIsExiting(false);
+    translateX.value = widthRef.current || 390;
+  };
+
+  // Layout offscreen on Frame 0, then glide in smoothly on UI thread once mount commit settles
   useEffect(() => {
     if (enabled) {
       exitSeqRef.current += 1;
@@ -395,13 +407,19 @@ export function useInteractiveChatBackSwipe(
       setIsExiting(false);
       const w = widthRef.current || 390;
       translateX.value = w;
-      const rafId = requestAnimationFrame(() => {
-        translateX.value = withTiming(0, {
-          duration: 230,
-          easing: Easing.out(Easing.cubic),
+      let raf2 = 0;
+      const raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => {
+          translateX.value = withTiming(0, {
+            duration: 280,
+            easing: IOS_PUSH_EASING,
+          });
         });
       });
-      return () => cancelAnimationFrame(rafId);
+      return () => {
+        cancelAnimationFrame(raf1);
+        if (raf2) cancelAnimationFrame(raf2);
+      };
     } else {
       exitSeqRef.current += 1;
       exitingRef.current = false;
@@ -423,8 +441,8 @@ export function useInteractiveChatBackSwipe(
     exitingRef.current = false;
     setIsExiting(false);
     translateX.value = withTiming(0, {
-      duration: 210,
-      easing: Easing.out(Easing.cubic),
+      duration: 240,
+      easing: IOS_PUSH_EASING,
     });
   };
 
@@ -436,7 +454,7 @@ export function useInteractiveChatBackSwipe(
     const w = widthRef.current || 390;
     translateX.value = withTiming(
       w,
-      { duration: 190, easing: Easing.out(Easing.cubic) },
+      { duration: 240, easing: IOS_PUSH_EASING },
       (finished) => {
         if (finished) {
           runOnJS(finishExit)(seq);
@@ -452,21 +470,21 @@ export function useInteractiveChatBackSwipe(
         onMoveShouldSetPanResponderCapture: (evt, gs) => {
           if (!enabledRef.current || exitingRef.current) return false;
           if (isBubbleTouchActive()) return false;
-          const startedAtEdge = evt.nativeEvent.pageX < 36;
+          const startedAtEdge = evt.nativeEvent.pageX < 40;
           return (
             gs.dx > (startedAtEdge ? 8 : 16) &&
-            Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5 &&
-            Math.abs(gs.dy) < 34
+            Math.abs(gs.dx) > Math.abs(gs.dy) * 1.45 &&
+            Math.abs(gs.dy) < 36
           );
         },
         onMoveShouldSetPanResponder: (evt, gs) => {
           if (!enabledRef.current || exitingRef.current) return false;
           if (isBubbleTouchActive()) return false;
-          const startedAtEdge = evt.nativeEvent.pageX < 36;
+          const startedAtEdge = evt.nativeEvent.pageX < 40;
           return (
             gs.dx > (startedAtEdge ? 8 : 16) &&
-            Math.abs(gs.dx) > Math.abs(gs.dy) * 1.5 &&
-            Math.abs(gs.dy) < 34
+            Math.abs(gs.dx) > Math.abs(gs.dy) * 1.45 &&
+            Math.abs(gs.dy) < 36
           );
         },
         onPanResponderMove: (_, gs) => {
@@ -476,18 +494,18 @@ export function useInteractiveChatBackSwipe(
         onPanResponderRelease: (_, gs) => {
           if (exitingRef.current) return;
           const w = widthRef.current || 390;
-          const shouldExit = gs.dx > w * 0.24 || (gs.dx > 38 && gs.vx > 0.4);
+          const shouldExit = gs.dx > w * 0.24 || (gs.dx > 38 && gs.vx > 0.38);
           if (shouldExit) {
             const seq = ++exitSeqRef.current;
             exitingRef.current = true;
             setIsExiting(true);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
             const remaining = Math.max(0, w - Math.max(0, gs.dx));
-            const speed = Math.max(gs.vx * 1000, 1400);
-            const duration = Math.max(85, Math.min(185, Math.round((remaining / speed) * 1000)));
+            const speed = Math.max(gs.vx * 1000, 1250);
+            const duration = Math.max(120, Math.min(230, Math.round((remaining / speed) * 1000)));
             translateX.value = withTiming(
               w,
-              { duration, easing: Easing.out(Easing.cubic) },
+              { duration, easing: IOS_PUSH_EASING },
               (finished) => {
                 if (finished) {
                   runOnJS(finishExit)(seq);
@@ -497,18 +515,18 @@ export function useInteractiveChatBackSwipe(
           } else {
             translateX.value = withSpring(0, {
               velocity: gs.vx * 1000,
-              damping: 28,
-              stiffness: 360,
-              mass: 0.68,
+              damping: 26,
+              stiffness: 340,
+              mass: 0.72,
             });
           }
         },
         onPanResponderTerminate: () => {
           if (!exitingRef.current) {
             translateX.value = withSpring(0, {
-              damping: 28,
-              stiffness: 360,
-              mass: 0.68,
+              damping: 26,
+              stiffness: 340,
+              mass: 0.72,
             });
           }
         },
@@ -528,7 +546,7 @@ export function useInteractiveChatBackSwipe(
       Extrapolation.CLAMP
     );
     return {
-      opacity: translateX.value > 1 ? opacity : 0,
+      opacity,
     };
   });
 
@@ -537,11 +555,11 @@ export function useInteractiveChatBackSwipe(
     const tx = interpolate(
       translateX.value,
       [0, w],
-      [-w * 0.22, 0],
+      [-w * 0.2, 0],
       Extrapolation.CLAMP
     );
     return {
-      transform: [{ translateX: translateX.value > 0.5 ? tx : 0 }],
+      transform: [{ translateX: tx }],
     };
   });
 
@@ -551,6 +569,7 @@ export function useInteractiveChatBackSwipe(
     scrimStyle,
     underlayStyle,
     isExiting,
+    prepareEnter,
     triggerAnimatedBack,
     cancelExit,
   };

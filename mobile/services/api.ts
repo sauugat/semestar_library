@@ -378,6 +378,19 @@ export async function apiFetch(
       response = await new Promise<Response>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open(options.method || 'POST', url);
+        xhr.timeout = 45000;
+
+        const onAbort = () => {
+          try {
+            xhr.abort();
+          } catch {}
+          reject(new ApiError('Upload request was cancelled or timed out.', 408));
+        };
+        if (abortController.signal.aborted) {
+          onAbort();
+          return;
+        }
+        abortController.signal.addEventListener('abort', onAbort, { once: true });
 
         for (const [key, value] of Object.entries(headers)) {
           if (key.toLowerCase() !== 'content-type') {
@@ -386,6 +399,7 @@ export async function apiFetch(
         }
 
         xhr.onload = () => {
+          abortController.signal.removeEventListener('abort', onAbort);
           const responseHeaders = new Headers();
           try {
             const allHeaders = xhr.getAllResponseHeaders();
@@ -407,9 +421,14 @@ export async function apiFetch(
             return;
           }
 
+          const rawBody =
+            xhr.status === 413 && (!xhr.responseText || !xhr.responseText.trim().startsWith('{'))
+              ? JSON.stringify({ message: 'File is too large for upload (max 4 MB).' })
+              : xhr.responseText;
+
           let resObj: Response;
           try {
-            resObj = new Response(xhr.responseText, {
+            resObj = new Response(rawBody, {
               status: xhr.status,
               statusText: xhr.statusText || (xhr.status >= 200 && xhr.status < 300 ? 'OK' : ''),
               headers: responseHeaders,
@@ -420,14 +439,15 @@ export async function apiFetch(
               statusText: xhr.statusText || '',
               ok: xhr.status >= 200 && xhr.status < 300,
               headers: responseHeaders,
-              text: async () => xhr.responseText,
-              json: async () => JSON.parse(xhr.responseText || '{}'),
+              text: async () => rawBody,
+              json: async () => JSON.parse(rawBody || '{}'),
             } as any;
           }
           resolve(resObj);
         };
 
         xhr.onerror = (e) => {
+          abortController.signal.removeEventListener('abort', onAbort);
           if (__DEV__) {
             console.warn(`[apiFetch] Upload network/file error to ${url}:`, e);
           }
@@ -435,6 +455,7 @@ export async function apiFetch(
         };
 
         xhr.ontimeout = () => {
+          abortController.signal.removeEventListener('abort', onAbort);
           reject(new ApiError(`Upload request timed out to ${url}`, 408));
         };
 

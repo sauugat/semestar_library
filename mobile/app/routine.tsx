@@ -21,9 +21,10 @@ import { Text, Heading, Subheading, Caption } from '@/components/ui/Typography';
 import { Card } from '@/components/ui/Card';
 import { apiFetch } from '@/services/api';
 import {
+  BS_MONTHS,
   DEFAULT_ROUTINE_OPTIONS,
-  formatBsDateFriendly,
   formatSlotNptLabel,
+  getBsWeekday,
   type RoutineOptionsCatalog,
 } from '@/constants/nepaliCalendar';
 import {
@@ -34,6 +35,18 @@ import {
 
 const ROMANS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
 const WORKING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as const;
+const MODES = ['class', 'exam'] as const;
+const EXAM_INSTRUCTIONS = [
+  'Students are not allowed to enter the exam hall without college uniform.',
+  'Students are not allowed to sit in the examination if he/she comes after half an hour of the commencement of the examination.',
+  'Students absent from an examination without prior approval will be marked ABSENT and receive no marks; absences due to valid reasons must be reported in writing with supporting documents to the program coordinator within the stipulated time.',
+  'Mobile and digital communication devices are strictly prohibited inside the exam hall.',
+  'Students must follow the examination schedule published by the university.',
+  'Students are required to appear for the examination according to their semester.',
+  'Students should carry their required examination materials and identification.',
+  'Students must follow all examination rules and instructions issued by the university.',
+  'Any changes to the examination schedule will be communicated through official notices.',
+];
 const FACULTY_TYPE_LABELS: Record<string, string> = {
   FT: 'Full Time (FT)',
   CC: 'Course Contract (CC)',
@@ -124,6 +137,9 @@ export default function RoutineScreen() {
   const initialContentWidth = Math.max(1, windowWidth - spacing.md * 2);
 
   const [mode, setMode] = useState<'class' | 'exam'>('class');
+  const [modeBarWidth, setModeBarWidth] = useState<number>(initialContentWidth);
+  const [modePagerWidth, setModePagerWidth] = useState<number>(Math.max(1, windowWidth));
+
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(defaultDayIndex);
   const [pagerWidth, setPagerWidth] = useState<number>(initialContentWidth);
   const [pillsWidth, setPillsWidth] = useState<number>(initialContentWidth);
@@ -135,7 +151,13 @@ export default function RoutineScreen() {
   const [newClassRoutineVisible, setNewClassRoutineVisible] = useState(false);
   const [examTableVisible, setExamTableVisible] = useState(false);
 
+  const modePagerRef = useRef<any>(null);
+  const modeScrollX = useRef(new Animated.Value(0)).current;
+  const lastSyncedModeIndexRef = useRef<number>(0);
+
   const pagerRef = useRef<any>(null);
+  const scrollX = useRef(new Animated.Value(defaultDayIndex * initialContentWidth)).current;
+  const lastSyncedIndexRef = useRef<number>(defaultDayIndex);
 
   const optionsQuery = useQuery({
     queryKey: ['routine-options'],
@@ -149,9 +171,8 @@ export default function RoutineScreen() {
     staleTime: 10 * 60 * 1000,
   });
   const routineOptions = optionsQuery.data || DEFAULT_ROUTINE_OPTIONS;
-  const scrollX = useRef(new Animated.Value(defaultDayIndex * initialContentWidth)).current;
-  const lastSyncedIndexRef = useRef<number>(defaultDayIndex);
 
+  // Keep both queries warm simultaneously so sliding between Class & Exam is instant with zero spinner flash
   const classQuery = useQuery({
     queryKey: ['class-routine', isStaff ? staffSemester : 'self'],
     queryFn: async () => {
@@ -163,7 +184,7 @@ export default function RoutineScreen() {
       }
       return data as { routine: ClassRoutineData | null; semester?: number; message?: string };
     },
-    enabled: mode === 'class',
+    staleTime: 5 * 60 * 1000,
   });
 
   const examQuery = useQuery({
@@ -177,31 +198,19 @@ export default function RoutineScreen() {
       }
       return (Array.isArray(data) ? data : []) as ExamRow[];
     },
-    enabled: mode === 'exam',
+    staleTime: 5 * 60 * 1000,
   });
 
   const routine = classQuery.data?.routine || null;
 
-  const liveClass = useMemo(() => {
-    if (!routine || !(WORKING_DAYS as readonly string[]).includes(today)) return null;
-    const nowMins = getCurrentKathmanduMinutes();
-    const todayEntries = routine.entries.filter((e) => e.day_of_week === today);
+  const [currentMins, setCurrentMins] = useState(() => getCurrentKathmanduMinutes());
 
-    for (const slot of routine.slots) {
-      const start = parseMinutes(slot.start_time);
-      const end = parseMinutes(slot.end_time);
-      if (start === null || end === null) continue;
-      const entry = todayEntries.find((e) => Number(e.slot_id) === Number(slot.id));
-      if (!entry || entry.is_empty) continue;
-      if (nowMins >= start && nowMins < end) {
-        return { state: 'In Progress' as const, slot, entry };
-      }
-      if (nowMins < start) {
-        return { state: 'Up Next' as const, slot, entry };
-      }
-    }
-    return null;
-  }, [routine, today]);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentMins(getCurrentKathmanduMinutes());
+    }, 30000);
+    return () => clearInterval(timer);
+  }, []);
 
   const entriesByDay = useMemo(() => {
     const result: Record<string, Array<{ slot: RoutineSlot; entry: RoutineEntry | null }>> = {};
@@ -219,6 +228,125 @@ export default function RoutineScreen() {
     return result;
   }, [routine]);
 
+  // Outer Mode Pager (Class Routine <-> Exam Schedule)
+  const syncModePagerPosition = useCallback(
+    (index: number, width: number, animated: boolean) => {
+      const offset = index * width;
+      modePagerRef.current?.scrollTo?.({ x: offset, y: 0, animated });
+      if (!animated) {
+        modeScrollX.setValue(offset);
+      }
+    },
+    [modeScrollX]
+  );
+
+  const handleSelectMode = useCallback(
+    (nextMode: 'class' | 'exam') => {
+      const index = nextMode === 'class' ? 0 : 1;
+      lastSyncedModeIndexRef.current = index;
+      setMode(nextMode);
+      syncModePagerPosition(index, modePagerWidth, true);
+    },
+    [modePagerWidth, syncModePagerPosition]
+  );
+
+  const handleModePagerScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (modePagerWidth <= 1) return;
+      const offsetX = event.nativeEvent.contentOffset.x;
+      const nextIndex = offsetX >= modePagerWidth * 0.5 ? 1 : 0;
+      if (nextIndex !== lastSyncedModeIndexRef.current) {
+        lastSyncedModeIndexRef.current = nextIndex;
+        setMode(nextIndex === 0 ? 'class' : 'exam');
+      }
+    },
+    [modePagerWidth]
+  );
+
+  const onModePagerScroll = useMemo(
+    () =>
+      Animated.event([{ nativeEvent: { contentOffset: { x: modeScrollX } } }], {
+        useNativeDriver: true,
+        listener: handleModePagerScroll,
+      }),
+    [modeScrollX, handleModePagerScroll]
+  );
+
+  const handleModeBarLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const nextWidth = Math.round(event.nativeEvent.layout.width);
+      if (nextWidth > 1 && nextWidth !== modeBarWidth) {
+        setModeBarWidth(nextWidth);
+      }
+    },
+    [modeBarWidth]
+  );
+
+  const handleModePagerLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const nextWidth = Math.round(event.nativeEvent.layout.width);
+      if (nextWidth > 1 && nextWidth !== modePagerWidth) {
+        setModePagerWidth(nextWidth);
+        requestAnimationFrame(() => {
+          syncModePagerPosition(lastSyncedModeIndexRef.current, nextWidth, false);
+        });
+      }
+    },
+    [modePagerWidth, syncModePagerPosition]
+  );
+
+  const modeTabWidth = Math.max(0, (modeBarWidth - 8) / 2);
+  const modeIndicatorTranslateX = useMemo(
+    () =>
+      modeScrollX.interpolate({
+        inputRange: [0, Math.max(1, modePagerWidth)],
+        outputRange: [0, modeTabWidth],
+        extrapolate: 'clamp',
+      }),
+    [modeScrollX, modePagerWidth, modeTabWidth]
+  );
+
+  const classPageOpacity = useMemo(
+    () =>
+      modeScrollX.interpolate({
+        inputRange: [0, Math.max(1, modePagerWidth)],
+        outputRange: [1, 0.65],
+        extrapolate: 'clamp',
+      }),
+    [modeScrollX, modePagerWidth]
+  );
+
+  const classPageScale = useMemo(
+    () =>
+      modeScrollX.interpolate({
+        inputRange: [0, Math.max(1, modePagerWidth)],
+        outputRange: [1, 0.985],
+        extrapolate: 'clamp',
+      }),
+    [modeScrollX, modePagerWidth]
+  );
+
+  const examPageOpacity = useMemo(
+    () =>
+      modeScrollX.interpolate({
+        inputRange: [0, Math.max(1, modePagerWidth)],
+        outputRange: [0.65, 1],
+        extrapolate: 'clamp',
+      }),
+    [modeScrollX, modePagerWidth]
+  );
+
+  const examPageScale = useMemo(
+    () =>
+      modeScrollX.interpolate({
+        inputRange: [0, Math.max(1, modePagerWidth)],
+        outputRange: [0.985, 1],
+        extrapolate: 'clamp',
+      }),
+    [modeScrollX, modePagerWidth]
+  );
+
+  // Inner Day Pager (Mon..Fri)
   const syncPagerPosition = useCallback(
     (index: number, width: number, animated: boolean) => {
       const offset = index * width;
@@ -231,12 +359,12 @@ export default function RoutineScreen() {
   );
 
   useEffect(() => {
-    if (mode !== 'class' || !routine || pagerWidth <= 1) return;
+    if (!routine || pagerWidth <= 1) return;
     const id = requestAnimationFrame(() => {
       syncPagerPosition(lastSyncedIndexRef.current, pagerWidth, false);
     });
     return () => cancelAnimationFrame(id);
-  }, [mode, routine, pagerWidth, syncPagerPosition]);
+  }, [routine, pagerWidth, syncPagerPosition]);
 
   const handleSelectDay = useCallback(
     (index: number) => {
@@ -272,19 +400,25 @@ export default function RoutineScreen() {
     [scrollX, handlePagerScroll]
   );
 
-  const handlePagerLayout = useCallback((event: LayoutChangeEvent) => {
-    const nextWidth = Math.round(event.nativeEvent.layout.width);
-    if (nextWidth > 1 && nextWidth !== pagerWidth) {
-      setPagerWidth(nextWidth);
-    }
-  }, [pagerWidth]);
+  const handlePagerLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const nextWidth = Math.round(event.nativeEvent.layout.width);
+      if (nextWidth > 1 && nextWidth !== pagerWidth) {
+        setPagerWidth(nextWidth);
+      }
+    },
+    [pagerWidth]
+  );
 
-  const handlePillsLayout = useCallback((event: LayoutChangeEvent) => {
-    const nextWidth = Math.round(event.nativeEvent.layout.width);
-    if (nextWidth > 1 && nextWidth !== pillsWidth) {
-      setPillsWidth(nextWidth);
-    }
-  }, [pillsWidth]);
+  const handlePillsLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const nextWidth = Math.round(event.nativeEvent.layout.width);
+      if (nextWidth > 1 && nextWidth !== pillsWidth) {
+        setPillsWidth(nextWidth);
+      }
+    },
+    [pillsWidth]
+  );
 
   const pillTabWidth = Math.max(0, (pillsWidth - 8) / WORKING_DAYS.length);
   const pillTranslateX = useMemo(
@@ -297,34 +431,73 @@ export default function RoutineScreen() {
     [scrollX, pagerWidth, pillTabWidth]
   );
 
+  const examNoticeText = useMemo(() => {
+    const rows = examQuery.data || [];
+    if (!rows.length) return '';
+    const typeCounts = new Map<string, number>();
+    for (const r of rows) {
+      const cleaned = String(r.exam_type || '')
+        .replace(/\s*examination$/i, '')
+        .trim();
+      if (cleaned) typeCounts.set(cleaned, (typeCounts.get(cleaned) || 0) + 1);
+    }
+    let typeLabel = '';
+    let maxCount = 0;
+    for (const [label, count] of typeCounts.entries()) {
+      if (count > maxCount) {
+        maxCount = count;
+        typeLabel = label;
+      }
+    }
+    const sems = Array.from(
+      new Set(rows.map((r) => Number(r.semester)).filter((n) => n >= 1 && n <= 8))
+    ).sort((a, b) => a - b);
+    const semLabel =
+      sems.length === 1
+        ? `Semester ${ROMANS[sems[0] - 1]}`
+        : sems.length > 1
+          ? `Semesters ${sems.map((n) => ROMANS[n - 1]).join(', ')}`
+          : `Semester ${ROMANS[staffSemester - 1]}`;
+    return `It is to be informed to all the students, faculties and staffs that the ${typeLabel ? `${typeLabel} ` : ''}examination of BIT program ${semLabel} will be conducted as per the following schedule. So, all the concerned are informed to be prepared accordingly.`;
+  }, [examQuery.data, staffSemester]);
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
-        contentContainerStyle={[styles.container, { padding: spacing.md }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={mode === 'class' ? classQuery.isRefetching : examQuery.isRefetching}
-            onRefresh={() => void (mode === 'class' ? classQuery.refetch() : examQuery.refetch())}
-            tintColor={colors.text}
-          />
-        }
-      >
-        {/* Mode Toggle */}
-        <View style={[styles.modeBar, { backgroundColor: colors.surfaceRaised, borderColor: colors.border, borderRadius: radii.md }]}>
-          {(['class', 'exam'] as const).map((m) => {
+      {/* Fixed Top Controls: Animated Sliding Mode Toggle + Staff Semester Selector */}
+      <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md }}>
+        <View
+          onLayout={handleModeBarLayout}
+          style={[
+            styles.modeBar,
+            {
+              backgroundColor: colors.surfaceRaised,
+              borderColor: colors.border,
+              borderRadius: radii.md,
+            },
+          ]}
+        >
+          {modeTabWidth > 0 && (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.modeIndicator,
+                {
+                  width: modeTabWidth,
+                  backgroundColor: colors.text,
+                  borderRadius: radii.sm,
+                  transform: [{ translateX: modeIndicatorTranslateX }],
+                },
+              ]}
+            />
+          )}
+          {MODES.map((m) => {
             const active = mode === m;
             return (
               <TouchableOpacity
                 key={m}
-                onPress={() => setMode(m)}
-                style={[
-                  styles.modeBtn,
-                  {
-                    backgroundColor: active ? colors.text : 'transparent',
-                    borderRadius: radii.sm,
-                  },
-                ]}
+                activeOpacity={0.75}
+                onPress={() => handleSelectMode(m)}
+                style={styles.modeBtn}
               >
                 <Text
                   variant="sm"
@@ -338,12 +511,12 @@ export default function RoutineScreen() {
           })}
         </View>
 
-        {/* Staff-only Semester Selector */}
         {isStaff && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, marginBottom: spacing.sm }}
+            style={styles.semScroll}
+            contentContainerStyle={styles.semScrollContent}
           >
             {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => {
               const active = staffSemester === sem;
@@ -372,359 +545,553 @@ export default function RoutineScreen() {
             })}
           </ScrollView>
         )}
+      </View>
 
-        {/* Admin Quick Action Bar (Class & Exam Add/Edit) */}
-        {isAdmin && (
-          <View style={styles.adminActionBar}>
-            {mode === 'class' ? (
-              <>
-                {routine ? (
-                  <TouchableOpacity
-                    activeOpacity={0.8}
-                    onPress={() => setClassPeriodEdit({ day: WORKING_DAYS[selectedDayIndex] || 'Monday', slotId: null })}
-                    style={[styles.adminActionPrimary, { backgroundColor: colors.text, borderRadius: radii.md }]}
-                  >
-                    <Ionicons name="create-outline" size={16} color={colors.background} />
-                    <Text variant="xs" weight="700" style={{ color: colors.background, marginLeft: 6 }}>
-                      Add / Edit Class
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  onPress={() => setNewClassRoutineVisible(true)}
-                  style={[styles.adminActionSecondary, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radii.md }]}
-                >
-                  <Ionicons name="add-circle-outline" size={16} color={colors.text} />
-                  <Text variant="xs" weight="700" style={{ color: colors.text, marginLeft: 6 }}>
-                    New Routine
-                  </Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setExamTableVisible(true)}
-                style={[styles.adminActionPrimary, { backgroundColor: colors.text, borderRadius: radii.md }]}
-              >
-                <Ionicons name="create-outline" size={16} color={colors.background} />
-                <Text variant="xs" weight="700" style={{ color: colors.background, marginLeft: 6 }}>
-                  Edit Exam Schedule
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {mode === 'class' ? (
-          classQuery.isLoading ? (
-            <View style={styles.centerBox}>
-              <ActivityIndicator size="large" color={colors.text} />
-              <Caption color="muted" style={{ marginTop: 12 }}>
-                Loading class routine...
-              </Caption>
-            </View>
-          ) : classQuery.isError ? (
-            <Card variant="outlined" padding="lg" style={{ borderColor: colors.border }}>
-              <Subheading>Unable to load routine</Subheading>
-              <Caption color="muted" style={{ marginTop: 4 }}>
-                {(classQuery.error as Error)?.message}
-              </Caption>
-            </Card>
-          ) : !routine ? (
-            <Card variant="outlined" padding="lg" style={{ borderColor: colors.border }}>
-              <View style={{ alignItems: 'center', paddingVertical: 16 }}>
-                <Ionicons name="calendar-outline" size={34} color={colors.textSecondary} />
-                <Subheading style={{ marginTop: 12, textAlign: 'center' }}>
-                  No Published Routine
-                </Subheading>
-                <Caption color="muted" style={{ marginTop: 6, textAlign: 'center' }}>
-                  {classQuery.data?.message || 'No class routine has been published for your semester yet.'}
-                </Caption>
-              </View>
-            </Card>
-          ) : (
-            <>
-              {/* Current / Upcoming Class Highlight */}
-              {liveClass && (
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  disabled={liveClass.entry.class_type === 'Break'}
-                  onPress={() => setSelectedDetail({ entry: liveClass.entry, slot: liveClass.slot })}
-                  style={[
-                    styles.liveCard,
-                    {
-                      backgroundColor: colors.surfaceRaised,
-                      borderColor: colors.text,
-                      borderRadius: radii.md,
-                    },
-                  ]}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <View
+      {/* Gesture-Driven Swipeable 2-Page Container (Class Routine <-> Exam Schedule) */}
+      <View style={{ flex: 1 }} onLayout={handleModePagerLayout}>
+        <Animated.ScrollView
+          ref={modePagerRef as any}
+          horizontal
+          pagingEnabled
+          directionalLockEnabled
+          bounces={false}
+          decelerationRate="fast"
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={onModePagerScroll}
+          onMomentumScrollEnd={handleModePagerScroll}
+          style={{ flex: 1 }}
+        >
+          {/* PAGE 0: CLASS ROUTINE */}
+          <Animated.View
+            style={{
+              width: modePagerWidth,
+              flex: 1,
+              opacity: classPageOpacity,
+              transform: [{ scale: classPageScale }],
+            }}
+          >
+            <ScrollView
+              contentContainerStyle={[styles.pageScrollContent, { paddingHorizontal: spacing.md }]}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={classQuery.isRefetching}
+                  onRefresh={() => void classQuery.refetch()}
+                  tintColor={colors.text}
+                />
+              }
+            >
+              {isAdmin && (
+                <View style={styles.adminActionBar}>
+                  {routine ? (
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() =>
+                        setClassPeriodEdit({
+                          day: WORKING_DAYS[selectedDayIndex] || 'Monday',
+                          slotId: null,
+                        })
+                      }
                       style={[
-                        styles.typeBadge,
-                        { backgroundColor: colors.text, borderColor: colors.text },
+                        styles.adminActionPrimary,
+                        { backgroundColor: colors.text, borderRadius: radii.md },
                       ]}
                     >
-                      <Text variant="xs" weight="800" style={{ color: colors.background }}>
-                        {liveClass.state.toUpperCase()}
-                      </Text>
-                    </View>
-                    <Caption color="muted">{liveClass.slot.label}</Caption>
-                  </View>
-                  <Text variant="md" weight="700" style={{ marginTop: 8 }}>
-                    {liveClass.entry.class_type === 'Break' ? 'Break Period' : liveClass.entry.subject_name}
-                  </Text>
-                  {liveClass.entry.faculty_name ? (
-                    <Caption color="muted" style={{ marginTop: 2 }}>
-                      {liveClass.entry.faculty_name}
-                    </Caption>
-                  ) : null}
-                </TouchableOpacity>
-              )}
-
-              {/* Weekday Selector Bar with Synchronized Sliding Indicator */}
-              <View
-                onLayout={handlePillsLayout}
-                style={[
-                  styles.dayPillsBar,
-                  {
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
-                    borderRadius: radii.md,
-                  },
-                ]}
-              >
-                {pillTabWidth > 0 && (
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[
-                      styles.dayPillIndicator,
-                      {
-                        width: pillTabWidth,
-                        backgroundColor: colors.text,
-                        borderRadius: radii.sm,
-                        transform: [{ translateX: pillTranslateX }],
-                      },
-                    ]}
-                  />
-                )}
-                {WORKING_DAYS.map((day, index) => {
-                  const active = selectedDayIndex === index;
-                  return (
-                    <TouchableOpacity
-                      key={day}
-                      activeOpacity={0.75}
-                      onPress={() => handleSelectDay(index)}
-                      style={styles.dayPill}
-                    >
+                      <Ionicons name="create-outline" size={16} color={colors.background} />
                       <Text
                         variant="xs"
                         weight="700"
-                        style={{ color: active ? colors.background : colors.text }}
+                        style={{ color: colors.background, marginLeft: 6 }}
                       >
-                        {day.slice(0, 3)}
+                        Add / Edit Class
                       </Text>
                     </TouchableOpacity>
-                  );
-                })}
-              </View>
+                  ) : null}
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setNewClassRoutineVisible(true)}
+                    style={[
+                      styles.adminActionSecondary,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                        borderRadius: radii.md,
+                      },
+                    ]}
+                  >
+                    <Ionicons name="add-circle-outline" size={16} color={colors.text} />
+                    <Text variant="xs" weight="700" style={{ color: colors.text, marginLeft: 6 }}>
+                      New Routine
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
-              {/* Horizontal Swipeable Day-wise Schedule Pager */}
-              <View onLayout={handlePagerLayout} style={styles.pagerWrap}>
-                <Animated.ScrollView
-                  ref={pagerRef as any}
-                  horizontal
-                  pagingEnabled
-                  directionalLockEnabled
-                  nestedScrollEnabled
-                  bounces={false}
-                  decelerationRate="fast"
-                  showsHorizontalScrollIndicator={false}
-                  scrollEventThrottle={16}
-                  onScroll={onPagerScroll}
-                  onMomentumScrollEnd={handlePagerScroll}
-                  contentOffset={{ x: defaultDayIndex * pagerWidth, y: 0 }}
-                >
-                  {WORKING_DAYS.map((day, dayIdx) => {
-                    const slotsForDay = entriesByDay[day] || [];
-                    const inputRange = [
-                      (dayIdx - 1) * pagerWidth,
-                      dayIdx * pagerWidth,
-                      (dayIdx + 1) * pagerWidth,
-                    ];
-                    const pageOpacity = scrollX.interpolate({
-                      inputRange,
-                      outputRange: [0.55, 1, 0.55],
-                      extrapolate: 'clamp',
-                    });
-                    const pageScale = scrollX.interpolate({
-                      inputRange,
-                      outputRange: [0.985, 1, 0.985],
-                      extrapolate: 'clamp',
-                    });
+              {classQuery.isLoading ? (
+                <View style={styles.centerBox}>
+                  <ActivityIndicator size="large" color={colors.text} />
+                  <Caption color="muted" style={{ marginTop: 12 }}>
+                    Loading class routine...
+                  </Caption>
+                </View>
+              ) : classQuery.isError ? (
+                <Card variant="outlined" padding="lg" style={{ borderColor: colors.border }}>
+                  <Subheading>Unable to load routine</Subheading>
+                  <Caption color="muted" style={{ marginTop: 4 }}>
+                    {(classQuery.error as Error)?.message}
+                  </Caption>
+                </Card>
+              ) : !routine ? (
+                <Card variant="outlined" padding="lg" style={{ borderColor: colors.border }}>
+                  <View style={{ alignItems: 'center', paddingVertical: 16 }}>
+                    <Ionicons name="calendar-outline" size={34} color={colors.textSecondary} />
+                    <Subheading style={{ marginTop: 12, textAlign: 'center' }}>
+                      No Published Routine
+                    </Subheading>
+                    <Caption color="muted" style={{ marginTop: 6, textAlign: 'center' }}>
+                      {classQuery.data?.message ||
+                        'No class routine has been published for your semester yet.'}
+                    </Caption>
+                  </View>
+                </Card>
+              ) : (
+                <>
+                  {/* Weekday Selector Bar with Synchronized Sliding Indicator */}
+                  <View
+                    onLayout={handlePillsLayout}
+                    style={[
+                      styles.dayPillsBar,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                        borderRadius: radii.md,
+                      },
+                    ]}
+                  >
+                    {pillTabWidth > 0 && (
+                      <Animated.View
+                        pointerEvents="none"
+                        style={[
+                          styles.dayPillIndicator,
+                          {
+                            width: pillTabWidth,
+                            backgroundColor: colors.text,
+                            borderRadius: radii.sm,
+                            transform: [{ translateX: pillTranslateX }],
+                          },
+                        ]}
+                      />
+                    )}
+                    {WORKING_DAYS.map((day, index) => {
+                      const active = selectedDayIndex === index;
+                      return (
+                        <TouchableOpacity
+                          key={day}
+                          activeOpacity={0.75}
+                          onPress={() => handleSelectDay(index)}
+                          style={styles.dayPill}
+                        >
+                          <Text
+                            variant="xs"
+                            weight="700"
+                            style={{ color: active ? colors.background : colors.text }}
+                          >
+                            {day.slice(0, 3)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Horizontal Swipeable Day-wise Schedule Pager */}
+                  <View onLayout={handlePagerLayout} style={styles.pagerWrap}>
+                    <Animated.ScrollView
+                      ref={pagerRef as any}
+                      horizontal
+                      pagingEnabled
+                      directionalLockEnabled
+                      nestedScrollEnabled
+                      bounces={false}
+                      decelerationRate="fast"
+                      showsHorizontalScrollIndicator={false}
+                      scrollEventThrottle={16}
+                      onScroll={onPagerScroll}
+                      onMomentumScrollEnd={handlePagerScroll}
+                      contentOffset={{ x: defaultDayIndex * pagerWidth, y: 0 }}
+                    >
+                      {WORKING_DAYS.map((day, dayIdx) => {
+                        const slotsForDay = entriesByDay[day] || [];
+                        const inputRange = [
+                          (dayIdx - 1) * pagerWidth,
+                          dayIdx * pagerWidth,
+                          (dayIdx + 1) * pagerWidth,
+                        ];
+                        const pageOpacity = scrollX.interpolate({
+                          inputRange,
+                          outputRange: [0.55, 1, 0.55],
+                          extrapolate: 'clamp',
+                        });
+                        const pageScale = scrollX.interpolate({
+                          inputRange,
+                          outputRange: [0.985, 1, 0.985],
+                          extrapolate: 'clamp',
+                        });
+
+                        return (
+                          <Animated.View
+                            key={day}
+                            style={[
+                              styles.dayPage,
+                              {
+                                width: pagerWidth,
+                                opacity: pageOpacity,
+                                transform: [{ scale: pageScale }],
+                              },
+                            ]}
+                          >
+                            {slotsForDay.map(({ slot, entry }) => {
+                              const isBreak = slot.is_break || entry?.class_type === 'Break';
+                              const isEmpty =
+                                !isBreak &&
+                                (!entry || entry.is_empty || entry.class_type === 'Empty');
+                              const cType = entry?.class_type || 'Theory';
+                              const isPracticalOrLab = cType === 'Lab' || cType === 'Practical';
+                              const canTapCard = (!isBreak && !isEmpty) || (!isBreak && isAdmin);
+
+                              const startMins = parseMinutes(slot.start_time);
+                              const endMins = parseMinutes(slot.end_time);
+                              const isCurrent = Boolean(
+                                day === today &&
+                                  !isBreak &&
+                                  !isEmpty &&
+                                  entry &&
+                                  startMins !== null &&
+                                  endMins !== null &&
+                                  currentMins >= startMins &&
+                                  currentMins < endMins
+                              );
+
+                              return (
+                                <TouchableOpacity
+                                  key={slot.id}
+                                  activeOpacity={canTapCard ? 0.75 : 1}
+                                  disabled={!canTapCard}
+                                  onPress={() => {
+                                    if (isAdmin) {
+                                      setClassPeriodEdit({ day, slotId: slot.id });
+                                    } else if (entry) {
+                                      setSelectedDetail({ entry, slot });
+                                    }
+                                  }}
+                                  style={[
+                                    styles.periodCard,
+                                    {
+                                      backgroundColor:
+                                        isBreak || isEmpty ? colors.surfaceRaised : colors.surface,
+                                      borderColor: colors.border,
+                                      borderRadius: radii.md,
+                                    },
+                                    isCurrent && [
+                                      styles.currentPeriodCard,
+                                      {
+                                        backgroundColor: colors.surface,
+                                        borderColor: '#ffffff',
+                                      },
+                                    ],
+                                  ]}
+                                >
+                                  <View style={styles.timeCol}>
+                                    <Text variant="xs" weight="700">
+                                      {formatSlotNptLabel(slot)}
+                                    </Text>
+                                    <Caption color="muted" style={{ marginTop: 2 }}>
+                                      {isBreak ? 'Break' : `${slot.duration_minutes} min`}
+                                    </Caption>
+                                  </View>
+
+                                  <View
+                                    style={{
+                                      flex: 1,
+                                      paddingHorizontal: 10,
+                                      paddingRight: isCurrent ? 78 : 10,
+                                    }}
+                                  >
+                                    {isBreak ? (
+                                      <>
+                                        <Text variant="sm" weight="700">
+                                          Break Period
+                                        </Text>
+                                        <Caption color="muted">Scheduled break</Caption>
+                                      </>
+                                    ) : isEmpty ? (
+                                      <>
+                                        <Text variant="sm" weight="600" color="secondary">
+                                          {isAdmin ? '+ Assign Class' : 'Free Period'}
+                                        </Text>
+                                        <Caption color="muted">
+                                          {isAdmin
+                                            ? 'Tap to pick subject & teacher'
+                                            : 'No class scheduled'}
+                                        </Caption>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Text variant="sm" weight="700">
+                                          {entry?.subject_name}
+                                        </Text>
+                                        {entry?.faculty_name ? (
+                                          <Caption color="muted" style={{ marginTop: 2 }}>
+                                            {entry.faculty_name}
+                                          </Caption>
+                                        ) : null}
+                                      </>
+                                    )}
+                                  </View>
+
+                                  {isCurrent && (
+                                    <View style={styles.currentlyTopRight}>
+                                      <View style={styles.currentlyDot} />
+                                      <Text style={styles.currentlyText}>Currently</Text>
+                                    </View>
+                                  )}
+
+                                  {!isBreak && !isEmpty && isPracticalOrLab && (
+                                    <View
+                                      style={[
+                                        styles.typeBadge,
+                                        {
+                                          backgroundColor: colors.text,
+                                          borderColor: colors.text,
+                                          marginTop: isCurrent ? 18 : 0,
+                                        },
+                                      ]}
+                                    >
+                                      <Text
+                                        variant="xs"
+                                        weight="700"
+                                        style={{ color: colors.background }}
+                                      >
+                                        {cType}
+                                      </Text>
+                                    </View>
+                                  )}
+                                </TouchableOpacity>
+                              );
+                            })}
+                          </Animated.View>
+                        );
+                      })}
+                    </Animated.ScrollView>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+          </Animated.View>
+
+          {/* PAGE 1: EXAM SCHEDULE */}
+          <Animated.View
+            style={{
+              width: modePagerWidth,
+              flex: 1,
+              opacity: examPageOpacity,
+              transform: [{ scale: examPageScale }],
+            }}
+          >
+            <ScrollView
+              contentContainerStyle={[styles.pageScrollContent, { paddingHorizontal: spacing.md }]}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={examQuery.isRefetching}
+                  onRefresh={() => void examQuery.refetch()}
+                  tintColor={colors.text}
+                />
+              }
+            >
+              {isAdmin && (
+                <View style={styles.adminActionBar}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setExamTableVisible(true)}
+                    style={[
+                      styles.adminActionPrimary,
+                      { backgroundColor: colors.text, borderRadius: radii.md },
+                    ]}
+                  >
+                    <Ionicons name="create-outline" size={16} color={colors.background} />
+                    <Text
+                      variant="xs"
+                      weight="700"
+                      style={{ color: colors.background, marginLeft: 6 }}
+                    >
+                      Edit Exam Schedule
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {examQuery.isLoading ? (
+                <View style={styles.centerBox}>
+                  <ActivityIndicator size="large" color={colors.text} />
+                  <Caption color="muted" style={{ marginTop: 12 }}>
+                    Loading exam schedule...
+                  </Caption>
+                </View>
+              ) : !examQuery.data || examQuery.data.length === 0 ? (
+                <Card variant="outlined" padding="lg" style={{ borderColor: colors.border }}>
+                  <Caption color="muted" style={{ textAlign: 'center' }}>
+                    No exams have been published for this semester yet.
+                  </Caption>
+                </Card>
+              ) : (
+                <View style={{ gap: 12 }}>
+                  <Text
+                    variant="xs"
+                    style={[styles.examNoticeText, { color: colors.textSecondary }]}
+                  >
+                    {examNoticeText}
+                  </Text>
+
+                  {examQuery.data.map((row) => {
+                    const parsed = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(
+                      (row.exam_date || '').trim()
+                    );
+                    const bsYearNum = parsed ? Number(parsed[1]) : 0;
+                    const bsMonthPad = parsed ? parsed[2].padStart(2, '0') : '';
+                    const bsDayNum = parsed ? Number(parsed[3]) : 0;
+                    const bsMonthName = bsMonthPad
+                      ? BS_MONTHS.find((m) => m.value === bsMonthPad)?.name || bsMonthPad
+                      : '';
+                    const weekdayLabel =
+                      row.weekday ||
+                      (parsed && (row.calendar === 'BS' || !row.calendar)
+                        ? getBsWeekday(bsYearNum, Number(bsMonthPad), bsDayNum)
+                        : '') ||
+                      row.calendar ||
+                      'BS';
 
                     return (
-                      <Animated.View
-                        key={day}
+                      <TouchableOpacity
+                        key={row.id}
+                        activeOpacity={isAdmin ? 0.78 : 1}
+                        disabled={!isAdmin}
+                        onPress={() => isAdmin && setExamTableVisible(true)}
                         style={[
-                          styles.dayPage,
+                          styles.examCard,
                           {
-                            width: pagerWidth,
-                            opacity: pageOpacity,
-                            transform: [{ scale: pageScale }],
+                            backgroundColor: colors.surface,
+                            borderColor: colors.border,
+                            borderRadius: radii.md,
                           },
                         ]}
                       >
-                        {slotsForDay.map(({ slot, entry }) => {
-                          const isBreak = slot.is_break || entry?.class_type === 'Break';
-                          const isEmpty = !isBreak && (!entry || entry.is_empty || entry.class_type === 'Empty');
-                          const cType = entry?.class_type || 'Theory';
-                          const isPracticalOrLab = cType === 'Lab' || cType === 'Practical';
-                          const canTapCard = (!isBreak && !isEmpty) || (!isBreak && isAdmin);
-
-                          return (
-                            <TouchableOpacity
-                              key={slot.id}
-                              activeOpacity={canTapCard ? 0.75 : 1}
-                              disabled={!canTapCard}
-                              onPress={() => {
-                                if (isAdmin) {
-                                  setClassPeriodEdit({ day, slotId: slot.id });
-                                } else if (entry) {
-                                  setSelectedDetail({ entry, slot });
-                                }
-                              }}
-                              style={[
-                                styles.periodCard,
-                                {
-                                  backgroundColor: isBreak || isEmpty ? colors.surfaceRaised : colors.surface,
-                                  borderColor: colors.border,
-                                  borderRadius: radii.md,
-                                },
-                              ]}
+                        <View style={styles.examCardTop}>
+                          <View
+                            style={[
+                              styles.examDateTile,
+                              {
+                                backgroundColor: colors.surfaceRaised,
+                                borderRadius: radii.sm,
+                              },
+                            ]}
+                          >
+                            <Text
+                              variant="xs"
+                              weight="700"
+                              style={[styles.examDateMonth, { color: colors.textSecondary }]}
+                              numberOfLines={1}
                             >
-                              <View style={styles.timeCol}>
-                                <Text variant="xs" weight="700">
-                                  {formatSlotNptLabel(slot)}
-                                </Text>
-                                <Caption color="muted" style={{ marginTop: 2 }}>
-                                  {isBreak ? 'Break' : `${slot.duration_minutes} min`}
-                                </Caption>
-                              </View>
+                              {(bsMonthName || 'DATE').toUpperCase()}
+                            </Text>
+                            <Text variant="lg" weight="800" style={styles.examDateDay}>
+                              {parsed ? String(bsDayNum).padStart(2, '0') : '—'}
+                            </Text>
+                            <Text
+                              variant="xs"
+                              weight="700"
+                              style={[styles.examDateWeekday, { color: colors.textSecondary }]}
+                              numberOfLines={1}
+                            >
+                              {weekdayLabel.toUpperCase()}
+                            </Text>
+                          </View>
 
-                              <View style={{ flex: 1, paddingHorizontal: 10 }}>
-                                {isBreak ? (
-                                  <>
-                                    <Text variant="sm" weight="700">Break Period</Text>
-                                    <Caption color="muted">Scheduled break</Caption>
-                                  </>
-                                ) : isEmpty ? (
-                                  <>
-                                    <Text variant="sm" weight="600" color="secondary">
-                                      {isAdmin ? '+ Assign Class' : 'Free Period'}
-                                    </Text>
-                                    <Caption color="muted">
-                                      {isAdmin ? 'Tap to pick subject & teacher' : 'No class scheduled'}
-                                    </Caption>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Text variant="sm" weight="700">
-                                      {entry?.subject_name}
-                                    </Text>
-                                    {entry?.faculty_name ? (
-                                      <Caption color="muted" style={{ marginTop: 2 }}>
-                                        {entry.faculty_name}
-                                      </Caption>
-                                    ) : null}
-                                  </>
-                                )}
-                              </View>
+                          <View style={styles.examSubjectCol}>
+                            <Text variant="md" weight="700" style={styles.examSubjectTitle}>
+                              {row.subject_name}
+                            </Text>
+                            <View style={styles.examCardTimeRow}>
+                              <Ionicons
+                                name="time-outline"
+                                size={13}
+                                color={colors.textSecondary}
+                              />
+                              <Text
+                                variant="xs"
+                                weight="500"
+                                style={{ color: colors.textSecondary, marginLeft: 5 }}
+                              >
+                                {row.exam_time || 'Time to be announced'}
+                              </Text>
+                            </View>
+                          </View>
 
-                              {!isBreak && !isEmpty && isPracticalOrLab && (
-                                <View
-                                  style={[
-                                    styles.typeBadge,
-                                    {
-                                      backgroundColor: colors.text,
-                                      borderColor: colors.text,
-                                    },
-                                  ]}
-                                >
-                                  <Text
-                                    variant="xs"
-                                    weight="700"
-                                    style={{ color: colors.background }}
-                                  >
-                                    {cType}
-                                  </Text>
-                                </View>
-                              )}
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </Animated.View>
+                          {isAdmin && (
+                            <Ionicons
+                              name="create-outline"
+                              size={18}
+                              color={colors.textSecondary}
+                              style={{ marginLeft: 8 }}
+                            />
+                          )}
+                        </View>
+                      </TouchableOpacity>
                     );
                   })}
-                </Animated.ScrollView>
-              </View>
-            </>
-          )
-        ) : examQuery.isLoading ? (
-          <View style={styles.centerBox}>
-            <ActivityIndicator size="large" color={colors.text} />
-            <Caption color="muted" style={{ marginTop: 12 }}>Loading exam schedule...</Caption>
-          </View>
-        ) : !examQuery.data || examQuery.data.length === 0 ? (
-          <Card variant="outlined" padding="lg" style={{ borderColor: colors.border }}>
-            <Caption color="muted" style={{ textAlign: 'center' }}>
-              No exams have been published for this semester yet.
-            </Caption>
-          </Card>
-        ) : (
-          <View style={{ gap: 10 }}>
-            {examQuery.data.map((row) => (
-              <TouchableOpacity
-                key={row.id}
-                activeOpacity={isAdmin ? 0.78 : 1}
-                disabled={!isAdmin}
-                onPress={() => isAdmin && setExamTableVisible(true)}
-              >
-                <Card
-                  variant="outlined"
-                  padding="md"
-                  style={{ borderColor: colors.border, borderRadius: radii.md }}
-                >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Caption color="muted">
-                      Sem {ROMANS[row.semester - 1]}
-                      {row.subject_code ? ` · ${row.subject_code}` : ''}
+
+                  <View
+                    style={[
+                      styles.examInstructionsCard,
+                      {
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
+                        borderRadius: radii.md,
+                      },
+                    ]}
+                  >
+                    <Caption color="muted" style={styles.examNoticeKicker}>
+                      IMPORTANT
                     </Caption>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Caption color="muted">
-                        {formatBsDateFriendly(row.exam_date, row.calendar)}
-                      </Caption>
-                      {isAdmin && (
-                        <Ionicons name="create-outline" size={15} color={colors.textSecondary} />
-                      )}
+                    <Text variant="md" weight="700" style={{ marginBottom: 10 }}>
+                      Instructions for Examinees
+                    </Text>
+                    <View style={{ gap: 8 }}>
+                      {EXAM_INSTRUCTIONS.map((rule, idx) => (
+                        <View key={idx} style={styles.instructionRow}>
+                          <Text
+                            variant="xs"
+                            weight="700"
+                            style={[styles.instructionNum, { color: colors.textSecondary }]}
+                          >
+                            {idx + 1}.
+                          </Text>
+                          <Text
+                            variant="xs"
+                            style={[styles.instructionText, { color: colors.textSecondary }]}
+                          >
+                            {rule}
+                          </Text>
+                        </View>
+                      ))}
                     </View>
                   </View>
-                  <Text variant="md" weight="700" style={{ marginTop: 4 }}>
-                    {row.subject_name}
-                  </Text>
-                  <Caption color="muted" style={{ marginTop: 4 }}>
-                    {[row.exam_time, row.weekday, row.room ? `Room ${row.room}` : null, row.exam_type]
-                      .filter(Boolean)
-                      .join(' · ') || 'Details to be announced'}
-                  </Caption>
-                </Card>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </ScrollView>
+                </View>
+              )}
+            </ScrollView>
+          </Animated.View>
+        </Animated.ScrollView>
+      </View>
 
       {/* Subject Detail Modal */}
       <Modal
@@ -772,7 +1139,8 @@ export default function RoutineScreen() {
                 <Caption color="muted">Faculty Type</Caption>
                 <Text variant="sm" weight="600">
                   {selectedDetail?.entry.faculty_type
-                    ? FACULTY_TYPE_LABELS[selectedDetail.entry.faculty_type] || selectedDetail.entry.faculty_type
+                    ? FACULTY_TYPE_LABELS[selectedDetail.entry.faculty_type] ||
+                      selectedDetail.entry.faculty_type
                     : '—'}
                 </Text>
               </View>
@@ -783,7 +1151,9 @@ export default function RoutineScreen() {
               <View style={styles.modalRow}>
                 <Caption color="muted">Time</Caption>
                 <Text variant="sm" weight="600">
-                  {selectedDetail ? `${selectedDetail.slot.label} (${selectedDetail.slot.duration_minutes} min)` : '—'}
+                  {selectedDetail
+                    ? `${selectedDetail.slot.label} (${selectedDetail.slot.duration_minutes} min)`
+                    : '—'}
                 </Text>
               </View>
               <View style={styles.modalRow}>
@@ -798,7 +1168,10 @@ export default function RoutineScreen() {
                   setSelectedDetail(null);
                   setClassPeriodEdit({ day: entry.day_of_week, slotId: slot.id });
                 }}
-                style={[styles.adminActionPrimary, { backgroundColor: colors.text, borderRadius: radii.md, marginTop: 16 }]}
+                style={[
+                  styles.adminActionPrimary,
+                  { backgroundColor: colors.text, borderRadius: radii.md, marginTop: 16 },
+                ]}
               >
                 <Ionicons name="create-outline" size={16} color={colors.background} />
                 <Text variant="xs" weight="700" style={{ color: colors.background, marginLeft: 6 }}>
@@ -851,25 +1224,112 @@ export default function RoutineScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
+  pageScrollContent: {
     paddingBottom: 40,
   },
   modeBar: {
+    position: 'relative',
     flexDirection: 'row',
     padding: 4,
     borderWidth: 1,
-    marginBottom: 14,
+    marginBottom: 12,
+  },
+  modeIndicator: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    left: 4,
   },
   modeBtn: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 8,
+    zIndex: 1,
+  },
+  semScroll: {
+    flexGrow: 0,
+    flexShrink: 0,
+    marginBottom: 12,
+  },
+  semScrollContent: {
+    gap: 8,
+    alignItems: 'center',
   },
   semChip: {
     paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderWidth: 1,
+    alignSelf: 'center',
+  },
+  examCard: {
+    borderWidth: 1,
+    padding: 12,
+  },
+  examCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  examDateTile: {
+    minWidth: 66,
+    paddingVertical: 8,
+    paddingHorizontal: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  examDateMonth: {
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  examDateDay: {
+    fontSize: 22,
+    lineHeight: 26,
+    marginVertical: 1,
+  },
+  examDateWeekday: {
+    fontSize: 9.5,
+    letterSpacing: 0.4,
+  },
+  examSubjectCol: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  examSubjectTitle: {
+    fontSize: 15.5,
+    lineHeight: 20,
+  },
+  examCardTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  examNoticeKicker: {
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  examNoticeText: {
+    lineHeight: 19,
+    paddingHorizontal: 2,
+    marginBottom: 2,
+  },
+  examInstructionsCard: {
+    borderWidth: 1,
+    padding: 16,
+    marginTop: 4,
+  },
+  instructionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  instructionNum: {
+    width: 20,
+    lineHeight: 18,
+  },
+  instructionText: {
+    flex: 1,
+    lineHeight: 18,
   },
   adminActionBar: {
     flexDirection: 'row',
@@ -895,11 +1355,6 @@ const styles = StyleSheet.create({
   centerBox: {
     paddingVertical: 48,
     alignItems: 'center',
-  },
-  liveCard: {
-    padding: 14,
-    borderWidth: 1,
-    marginBottom: 14,
   },
   dayPillsBar: {
     position: 'relative',
@@ -932,6 +1387,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 14,
     borderWidth: 1,
+  },
+  currentPeriodCard: {
+    borderColor: '#ffffff',
+    borderWidth: 1.5,
+  },
+  currentlyTopRight: {
+    position: 'absolute',
+    top: 10,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  currentlyDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#22c55e',
+  },
+  currentlyText: {
+    color: '#22c55e',
+    fontSize: 9.5,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   timeCol: {
     width: 84,

@@ -51,6 +51,8 @@ import { FluidChatBackground } from "@/components/chat/FluidChatBackground";
 import { useInteractiveChatBackSwipe } from "@/components/chat/ChatGesturePrimitives";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
+import { FullScreenFilePreview } from "@/components/FullScreenFilePreview";
+import type { LibraryFile } from "@/services/library";
 import { UnifiedChatInbox, type ActiveNowPerson } from "@/components/chat/UnifiedChatInbox";
 import { fetchDmStatus, fetchDmConversations, createOrGetDmConversation, type DmConversationItem as RawDmItem } from "@/services/dm";
 import { getCachedDmConversations, saveCachedDmConversations } from "@/services/dm-db";
@@ -227,18 +229,6 @@ function ChatScreenInner() {
   const isAdmin = Boolean(user?.isAdmin || user?.role === "admin");
   const isTeacher = Boolean(user?.role === "teacher" || user?.role === "faculty");
   const [selectedCohortRoom, setSelectedCohortRoom] = useState<CohortConversationItem | null>(null);
-  // Defer mounting the heavy group FlatList by 1 frame so Frame-0 starts sliding in at 120fps immediately
-  const [isGroupListReady, setIsGroupListReady] = useState(false);
-  useEffect(() => {
-    if (!selectedCohortRoom) {
-      setIsGroupListReady(false);
-      return;
-    }
-    const frameId = requestAnimationFrame(() => {
-      setIsGroupListReady(true);
-    });
-    return () => cancelAnimationFrame(frameId);
-  }, [selectedCohortRoom]);
   const navigation = useNavigation();
 
   // Tab bar visibility is synced below once `isExitingGroupChat` is initialized
@@ -631,9 +621,10 @@ function ChatScreenInner() {
     }
   }, [targetChatGroupId, isAdmin, isTeacher, selectedCohortRoom, adminRooms, studentConfig]);
 
+  const prepareGroupChatEnterRef = useRef<() => void>(() => {});
   const cancelGroupChatExitRef = useRef<() => void>(() => {});
   const handleSelectCohort = useCallback((item: CohortConversationItem) => {
-    cancelGroupChatExitRef.current();
+    prepareGroupChatEnterRef.current();
     setSelectedCohortRoom(item);
   }, []);
 
@@ -726,22 +717,24 @@ function ChatScreenInner() {
     scrimStyle: backSwipeScrimStyle,
     underlayStyle: backSwipeUnderlayStyle,
     isExiting: isExitingGroupChat,
+    prepareEnter: prepareGroupChatEnter,
     triggerAnimatedBack: triggerGroupChatBack,
     cancelExit: cancelGroupChatExit,
   } = useInteractiveChatBackSwipe(handleBackToInbox, Boolean(selectedCohortRoom));
+  prepareGroupChatEnterRef.current = prepareGroupChatEnter;
   cancelGroupChatExitRef.current = cancelGroupChatExit;
 
-  // Defer hiding bottom tab bar until slide-in finishes so Frame-0 doesn't trigger a full Tabs relayout;
-  // restore it immediately when exit begins.
+  // Hide bottom tab bar only AFTER slide-in completes, and restore it only AFTER exit unmounts,
+  // so neither entering nor exiting ever triggers a full Tabs relayout mid-animation.
   useEffect(() => {
-    if (selectedCohortRoom && !isExitingGroupChat) {
+    if (selectedCohortRoom) {
       const timer = setTimeout(() => {
         navigation.setOptions({ tabBarStyle: { display: "none" } });
-      }, 240);
+      }, 300);
       return () => clearTimeout(timer);
     }
     navigation.setOptions({ tabBarStyle: undefined });
-  }, [navigation, selectedCohortRoom, isExitingGroupChat]);
+  }, [navigation, selectedCohortRoom]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -832,6 +825,14 @@ function ChatScreenInner() {
   const [viewerImage, setViewerImage] = useState<{
     uri: string;
     name: string;
+  } | null>(null);
+
+  // In-app File Preview State
+  const [previewFile, setPreviewFile] = useState<{
+    file: LibraryFile;
+    localUri: string;
+    mimeType?: string | null;
+    fileUrl: string;
   } | null>(null);
 
   const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
@@ -960,6 +961,10 @@ function ChatScreenInner() {
     useCallback(() => {
       const onBackPress = () => {
         // 1. Modals & overlays first
+        if (previewFile) {
+          setPreviewFile(null);
+          return true;
+        }
         if (viewerImage) {
           setViewerImage(null);
           return true;
@@ -982,9 +987,9 @@ function ChatScreenInner() {
           return false;
         }
 
-        // 3. If in Cohort Chat room, return to Unified Inbox
+        // 3. If in Cohort Chat room, animate smoothly back to Unified Inbox
         if (selectedCohortRoom) {
-          handleBackToInbox();
+          triggerGroupChatBack();
           return true;
         }
 
@@ -996,6 +1001,7 @@ function ChatScreenInner() {
       const back = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => back.remove();
     }, [
+      previewFile,
       viewerImage,
       showAttachModal,
       actionMessage,
@@ -1672,7 +1678,7 @@ function ChatScreenInner() {
     }
   }, [messages, selectedCohortRoom, markRead]);
 
-  // Document Download & Open Handler
+  // Document Download & In-App Preview Handler
   const handleDownloadAttachment = useCallback(async (msg: ChatMessage) => {
     const start = getChatSession();
     if (!msg.attachmentName || !isCurrentChatSession(start) || msg.chatGroupId !== start.context?.chatGroupId) return;
@@ -1682,42 +1688,64 @@ function ChatScreenInner() {
 
     try {
       setDownloadingFileId(String(msg.id));
-      const targetDir = FileSystem.cacheDirectory || "";
-      if (!targetDir) throw new Error("File storage is unavailable.");
-      const localUri = `${targetDir}chat-${start.generation}-${msg.id}-${safeChatFilename(originalName)}`;
+      let localUri = msg.localUri || "";
+      let fileSize = Number(msg.attachmentSize || 0);
 
-      const downloadHeaders: Record<string, string> = {};
-      if (start.credential) downloadHeaders["Authorization"] = `Bearer ${start.credential}`;
-
-      const res = await FileSystem.downloadAsync(fileUrl, localUri, {
-        headers: downloadHeaders,
-      });
-      if (!isCurrentChatSession(start)) {
-        await FileSystem.deleteAsync(res.uri, { idempotent: true }).catch(() => {});
-        return;
+      if (localUri) {
+        const localInfo = await FileSystem.getInfoAsync(localUri).catch(() => ({ exists: false } as any));
+        if (!localInfo.exists) localUri = "";
+        else if (typeof localInfo.size === "number" && !fileSize) fileSize = localInfo.size;
       }
-      if (res.status === 200) {
-        const canShare = await Sharing.isAvailableAsync();
-        if (!isCurrentChatSession(start)) {
-          await FileSystem.deleteAsync(res.uri, { idempotent: true }).catch(() => {});
-          return;
-        }
-        if (canShare) {
-          await Sharing.shareAsync(res.uri, {
-            dialogTitle: `Open ${originalName}`,
-            mimeType: msg.attachmentMimeType || undefined,
-          });
+
+      if (!localUri) {
+        const targetDir = FileSystem.cacheDirectory || "";
+        if (!targetDir) throw new Error("File storage is unavailable.");
+        const cachedUri = `${targetDir}chat-${start.generation}-${msg.id}-${safeChatFilename(originalName)}`;
+        const cachedInfo = await FileSystem.getInfoAsync(cachedUri).catch(() => ({ exists: false } as any));
+        if (cachedInfo.exists) {
+          localUri = cachedUri;
+          if (typeof cachedInfo.size === "number" && !fileSize) fileSize = cachedInfo.size;
         } else {
-          Alert.alert("Downloaded", `Saved to storage: ${originalName}`);
+          const downloadHeaders: Record<string, string> = {};
+          if (start.credential) downloadHeaders["Authorization"] = `Bearer ${start.credential}`;
+          const res = await FileSystem.downloadAsync(fileUrl, cachedUri, {
+            headers: downloadHeaders,
+          });
+          if (!isCurrentChatSession(start)) {
+            await FileSystem.deleteAsync(res.uri, { idempotent: true }).catch(() => {});
+            return;
+          }
+          if (res.status !== 200) {
+            throw new Error(`Server returned status ${res.status}`);
+          }
+          localUri = res.uri;
+          const dlInfo = await FileSystem.getInfoAsync(localUri).catch(() => ({ exists: false } as any));
+          if (dlInfo.exists && typeof dlInfo.size === "number" && !fileSize) fileSize = dlInfo.size;
         }
-      } else {
-        throw new Error(`Server returned status ${res.status}`);
       }
+
+      setPreviewFile({
+        file: {
+          id: 0,
+          title: originalName,
+          originalName,
+          filename,
+          subject: "",
+          semester: 0,
+          uploadedBy: msg.name || "",
+          uploadDate: msg.createdAt,
+          sizeBytes: fileSize,
+          mimeType: msg.attachmentMimeType || undefined,
+        } as unknown as LibraryFile,
+        localUri,
+        mimeType: msg.attachmentMimeType || undefined,
+        fileUrl,
+      });
     } catch (err: any) {
       if (!isCurrentChatSession(start)) return;
       Alert.alert(
-        "Download Error",
-        err.message || "Failed to download attachment",
+        "Open File Error",
+        err.message || "Failed to open attachment",
       );
     } finally {
       if (isCurrentChatSession(start)) setDownloadingFileId(null);
@@ -2039,9 +2067,7 @@ function ChatScreenInner() {
 
       {/* Main Message List & Viewport Boundary */}
       <KeyboardContentBoundary style={styles.messagesBoundary}>
-        {!isGroupListReady ? (
-          <View style={styles.messagesList} />
-        ) : loadingInitial ? (
+        {loadingInitial ? (
           <ChatConversationSkeleton />
         ) : error && messages.length === 0 ? (
           <View style={styles.centerContainer}>
@@ -2080,8 +2106,8 @@ function ChatScreenInner() {
             onEndReached={loadOlderMessages}
             onEndReachedThreshold={0.3}
             inverted
-            initialNumToRender={9}
-            maxToRenderPerBatch={5}
+            initialNumToRender={7}
+            maxToRenderPerBatch={4}
             windowSize={5}
             updateCellsBatchingPeriod={40}
             removeClippedSubviews={Platform.OS === "android"}
@@ -2589,6 +2615,33 @@ function ChatScreenInner() {
           imageTitle={viewerImage.name}
           headers={imageAuthHeaders}
           onClose={() => setViewerImage(null)}
+        />
+      )}
+
+      {/* In-App File Viewer for Group Chat documents (mounted lazily only when open) */}
+      {previewFile !== null && (
+        <FullScreenFilePreview
+          visible
+          file={previewFile.file}
+          localFileUri={previewFile.localUri}
+          mimeType={previewFile.mimeType}
+          onClose={() => setPreviewFile(null)}
+          onDownloadFile={async () => previewFile.localUri}
+          onShareFile={async () => {
+            try {
+              const canShare = await Sharing.isAvailableAsync();
+              if (canShare) {
+                await Sharing.shareAsync(previewFile.localUri, {
+                  dialogTitle: `Open ${previewFile.file.originalName}`,
+                  mimeType: previewFile.mimeType || undefined,
+                });
+              } else {
+                Alert.alert("Saved", `File ready: ${previewFile.file.originalName}`);
+              }
+            } catch (e: any) {
+              Alert.alert("Share Error", e?.message || "Could not open external app.");
+            }
+          }}
         />
       )}
             </Reanimated.View>

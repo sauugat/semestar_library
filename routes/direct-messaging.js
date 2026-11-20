@@ -7,37 +7,39 @@ const multer = require('multer');
 const { DmError } = require('../lib/dm-service');
 const { isDmAllowedForUser } = require('../lib/dm-config');
 
-const dmImageUpload = multer({
+const BLOCKED_DM_EXTENSIONS = new Set([
+  '.exe', '.bat', '.cmd', '.com', '.msi', '.dll', '.scr', '.pif', '.vbs', '.ps1', '.sh', '.app',
+]);
+
+const dmAttachmentUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const m = String(file.mimetype || '').toLowerCase();
     const ext = path.extname(file.originalname || '').toLowerCase();
-    if (m.startsWith('image/') || ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic'].includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new DmError(400, 'Only image files are supported in direct messages.'));
+    if (ext && BLOCKED_DM_EXTENSIONS.has(ext)) {
+      return cb(new DmError(400, 'This file type is not allowed in direct messages.'));
     }
+    cb(null, true);
   },
 });
 
-function optionalDmImageUpload(req, res, next) {
+function optionalDmAttachmentUpload(req, res, next) {
   const ct = String(req.headers['content-type'] || '').toLowerCase();
   if (!ct.includes('multipart/form-data')) return next();
-  dmImageUpload.fields([
-    { name: 'image', maxCount: 1 },
+  dmAttachmentUpload.fields([
     { name: 'attachment', maxCount: 1 },
+    { name: 'image', maxCount: 1 },
     { name: 'file', maxCount: 1 },
   ])(req, res, (err) => {
     if (err) {
       if (err instanceof multer.MulterError) {
-        return next(new DmError(400, err.code === 'LIMIT_FILE_SIZE' ? 'Image must be under 15MB.' : err.message));
+        return next(new DmError(400, err.code === 'LIMIT_FILE_SIZE' ? 'Attachment must be under 15MB.' : err.message));
       }
       return next(err);
     }
     if (req.files) {
-      req.file = (req.files.image && req.files.image[0])
-        || (req.files.attachment && req.files.attachment[0])
+      req.file = (req.files.attachment && req.files.attachment[0])
+        || (req.files.image && req.files.image[0])
         || (req.files.file && req.files.file[0])
         || undefined;
     }
@@ -136,8 +138,8 @@ module.exports = function directMessagingRouter(service) {
     });
   }));
 
-  // 5. Send Message (supports JSON text or multipart/form-data with image attachment)
-  router.post('/conversations/:id/messages', optionalDmImageUpload, asyncRoute(async (req, res) => {
+  // 5. Send Message (supports JSON text or multipart/form-data with image or file attachment)
+  router.post('/conversations/:id/messages', optionalDmAttachmentUpload, asyncRoute(async (req, res) => {
     const { clientId, text, replyToId } = req.body || {};
     let attachmentName = null;
     let attachmentOriginalName = null;
@@ -145,18 +147,23 @@ module.exports = function directMessagingRouter(service) {
 
     if (req.file && req.file.buffer) {
       const rawExt = path.extname(req.file.originalname || '').toLowerCase();
-      const mime = String(req.file.mimetype || 'image/jpeg').toLowerCase();
-      const ext = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(rawExt)
-        ? rawExt
-        : (mime.includes('png') ? '.png' : mime.includes('webp') ? '.webp' : mime.includes('gif') ? '.gif' : '.jpg');
+      const mime = String(req.file.mimetype || 'application/octet-stream').toLowerCase();
+      const safeRawExt = /^\.[a-z0-9]{1,10}$/.test(rawExt) ? rawExt : '';
+      const ext = safeRawExt
+        || (mime.includes('png') ? '.png'
+          : mime.includes('webp') ? '.webp'
+          : mime.includes('gif') ? '.gif'
+          : mime.startsWith('image/') ? '.jpg'
+          : mime.includes('pdf') ? '.pdf'
+          : '.bin');
       attachmentName = `dm_${crypto.randomBytes(16).toString('hex')}${ext}`;
-      attachmentOriginalName = String(req.file.originalname || `photo${ext}`).slice(0, 200);
-      attachmentMimeType = mime.startsWith('image/') ? mime : 'image/jpeg';
+      attachmentOriginalName = String(req.file.originalname || `attachment${ext}`).slice(0, 200);
+      attachmentMimeType = mime || 'application/octet-stream';
 
       if (service.db && typeof service.db.saveFileBlob === 'function') {
         const saved = await service.db.saveFileBlob(attachmentName, req.file.buffer, attachmentMimeType);
         if (!saved) {
-          throw new DmError(503, 'Could not store image attachment. Please try again.');
+          throw new DmError(503, 'Could not store attachment. Please try again.');
         }
       }
     }
@@ -180,7 +187,7 @@ module.exports = function directMessagingRouter(service) {
     return result;
   }));
 
-  // 5b. Serve authorized DM image attachment
+  // 5b. Serve authorized DM attachment (image or document)
   router.get('/attachments/:filename', async (req, res, next) => {
     try {
       const info = await service.getAttachmentForCaller(getCallerId(req), req.params.filename, {
@@ -192,7 +199,11 @@ module.exports = function directMessagingRouter(service) {
       if (!blob || !blob.fileData) {
         return res.status(404).json({ message: 'Attachment file not found.' });
       }
-      res.setHeader('Content-Type', blob.mimeType || info.attachmentMimeType || 'image/jpeg');
+      const safeDisplayName = String(info.attachmentOriginalName || info.attachmentName)
+        .replace(/["\r\n\\]/g, '_')
+        .slice(0, 180);
+      res.setHeader('Content-Type', blob.mimeType || info.attachmentMimeType || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `inline; filename="${safeDisplayName}"`);
       res.setHeader('X-Content-Type-Options', 'nosniff');
       res.setHeader('Cache-Control', 'private, max-age=86400');
       return res.send(blob.fileData);

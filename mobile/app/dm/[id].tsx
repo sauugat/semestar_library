@@ -23,11 +23,15 @@ import Reanimated from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import * as Linking from 'expo-linking';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { useTheme } from '@/constants/useTheme';
 import { Monochrome } from '@/constants/theme';
 import { Text } from '@/components/ui/Typography';
@@ -37,6 +41,18 @@ import { StickyComposer, KeyboardContentBoundary } from '@/components/ui/StickyC
 import { ChatConversationSkeleton } from '@/components/chat/ChatSkeletons';
 import { TypingIndicatorBubble } from '@/components/chat/TypingIndicatorBubble';
 import { FullScreenImageViewer } from '@/components/FullScreenImageViewer';
+import { FullScreenFilePreview } from '@/components/FullScreenFilePreview';
+import type { LibraryFile } from '@/services/library';
+import { prepareChatAttachment, removeOutboxFile } from '@/services/chat-attachments';
+import { safeChatFilename, formatFileExtension } from '@/services/chat-state';
+import {
+  DM_CHAT_THEMES,
+  getDmThemeById,
+  getDmThemeSync,
+  loadDmTheme,
+  saveDmTheme,
+  type DmThemeId,
+} from '@/constants/dmThemes';
 import {
   getDmThreadMemoryCache,
   getInboxMemoryCache,
@@ -85,6 +101,40 @@ import { setActiveDmConversation, clearAppBadge } from '@/services/notifications
 const dmDraftCache = new Map<string, string>();
 const DM_QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '🙏', '👀'];
 
+function isDmImageAttachment(filename?: string | null, mimeType?: string | null): boolean {
+  const m = String(mimeType || '').toLowerCase();
+  if (m.startsWith('image/') || m === 'image') return true;
+  if (!filename) return false;
+  return /\.(png|jpe?g|webp|gif|heic|heif|bmp|svg|avif)$/i.test(filename);
+}
+
+function getDmFileIcon(filename?: string | null, mimeType?: string | null): keyof typeof Ionicons.glyphMap {
+  const ext = formatFileExtension(filename, mimeType).toLowerCase();
+  switch (ext) {
+    case 'pdf':
+      return 'document-text-outline';
+    case 'doc':
+    case 'docx':
+    case 'txt':
+    case 'rtf':
+    case 'md':
+      return 'document-outline';
+    case 'ppt':
+    case 'pptx':
+      return 'easel-outline';
+    case 'xls':
+    case 'xlsx':
+    case 'csv':
+      return 'grid-outline';
+    case 'zip':
+    case 'rar':
+    case '7z':
+      return 'archive-outline';
+    default:
+      return 'attach-outline';
+  }
+}
+
 function extractFirstDmUrl(text?: string | null): { url: string; domain: string } | null {
   if (!text) return null;
   const match = text.match(/https?:\/\/[^\s<]+[^<.,:;"')\]\s]/i);
@@ -95,6 +145,21 @@ function extractFirstDmUrl(text?: string | null): { url: string; domain: string 
     return { url: raw, domain: parsed.hostname.replace(/^www\./i, '') };
   } catch {
     return null;
+  }
+}
+
+function getEmojiOnlyCount(text?: string | null): number {
+  if (!text) return 0;
+  const compact = text.trim().replace(/\s+/g, '');
+  if (!compact || /[A-Za-z0-9]/.test(compact)) return 0;
+  try {
+    const emojiSeqRegex =
+      /(?:\p{Regional_Indicator}{2}|[0-9#*]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*)/gu;
+    const matches = compact.match(emojiSeqRegex);
+    if (!matches || matches.length === 0 || matches.length > 6) return 0;
+    return matches.join('') === compact ? matches.length : 0;
+  } catch {
+    return 0;
   }
 }
 
@@ -322,6 +387,8 @@ function DmConversation() {
   const activeRef = useRef(false);
   const nearBottomRef = useRef(true);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
+  const [topHeaderHeight, setTopHeaderHeight] = useState(() => Math.max(insets.top, 10) + 56);
+  const [composerHeight, setComposerHeight] = useState(() => 64 + Math.max(insets.bottom, 10));
   const messagesRef = useRef<DmMessage[]>([]);
   const loadInFlight = useRef(false);
   const sendsInFlight = useRef(new Set<string>());
@@ -400,6 +467,26 @@ function DmConversation() {
   const outgoingTypingThrottlerRef = useRef<number>(0);
   const [peerLastReadId, setPeerLastReadId] = useState<number>(() => initialThreadMem?.peerLastReadMessageId || 0);
   const [peerInfoModalVisible, setPeerInfoModalVisible] = useState(false);
+  const [themeModalVisible, setThemeModalVisible] = useState(false);
+  const [dmThemeId, setDmThemeId] = useState<DmThemeId>(() => getDmThemeSync(currentUserId, conversationId));
+  const activeDmTheme = useMemo(() => getDmThemeById(dmThemeId), [dmThemeId]);
+  useEffect(() => {
+    let cancelled = false;
+    void loadDmTheme(currentUserId, conversationId).then((loaded) => {
+      if (!cancelled) setDmThemeId(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, conversationId]);
+  const handleSelectDmTheme = useCallback(
+    (nextId: DmThemeId) => {
+      Haptics.selectionAsync().catch(() => {});
+      setDmThemeId(nextId);
+      void saveDmTheme(currentUserId, conversationId, nextId);
+    },
+    [currentUserId, conversationId]
+  );
   useEffect(() => {
     if (currentUserId && conversationId && peerLastReadId > 0) {
       setDmThreadMemoryCache(currentUserId, conversationId, { peerLastReadMessageId: peerLastReadId });
@@ -411,9 +498,24 @@ function DmConversation() {
   const [inputText, setInputText] = useState(() => dmDraftCache.get(draftKey) || '');
   const [replyingTo, setReplyingTo] = useState<DmMessage | null>(null);
   const [editingMessage, setEditingMessage] = useState<DmMessage | null>(null);
-  const [selectedImage, setSelectedImage] = useState<{ uri: string; name: string; mimeType: string } | null>(null);
+  const [selectedAttachment, setSelectedAttachment] = useState<{
+    uri: string;
+    name: string;
+    mimeType: string;
+    size?: number;
+    isImage?: boolean;
+  } | null>(null);
+  const [showAttachModal, setShowAttachModal] = useState(false);
   const [viewerImage, setViewerImage] = useState<{ uri: string; name: string } | null>(null);
+  const [previewFile, setPreviewFile] = useState<{
+    file: LibraryFile;
+    localUri: string;
+    mimeType?: string | null;
+    fileUrl: string;
+  } | null>(null);
+  const [downloadingFileId, setDownloadingFileId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const isPickerLaunchingRef = useRef(false);
 
   // In-chat Search, Starred Messages, Reactions, and Shared Links (Items 12, 14, 30, 86, 100)
   const [searchMode, setSearchMode] = useState(false);
@@ -469,6 +571,18 @@ function DmConversation() {
     useCallback(() => {
       const onBackPress = () => {
         // 1. Modals have top priority
+        if (previewFile) {
+          setPreviewFile(null);
+          return true;
+        }
+        if (viewerImage) {
+          setViewerImage(null);
+          return true;
+        }
+        if (showAttachModal) {
+          setShowAttachModal(false);
+          return true;
+        }
         if (reportModalVisible) {
           setReportModalVisible(false);
           return true;
@@ -494,7 +608,7 @@ function DmConversation() {
 
       const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => sub.remove();
-    }, [reportModalVisible, settingsModalVisible, selectedActionMessage, handleBack])
+    }, [previewFile, viewerImage, showAttachModal, reportModalVisible, settingsModalVisible, selectedActionMessage, handleBack])
   );
 
   // 1. Identify peer information from in-memory inbox cache first; skip redundant 50-conv network call when warm
@@ -783,31 +897,151 @@ function DmConversation() {
     }
   };
 
-  // 5b. Pick an image from device photo library
+  // 5b. Take photo, pick image, or pick document (resized/compressed safely for upload)
+  const handleTakePhoto = async () => {
+    if (isPickerLaunchingRef.current) return;
+    isPickerLaunchingRef.current = true;
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        setShowAttachModal(false);
+        Alert.alert('Permission Required', 'Camera access is needed to capture photos.');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.85,
+      });
+      setShowAttachModal(false);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const attachment = await prepareChatAttachment(result.assets[0], true);
+        await removeOutboxFile(selectedAttachment?.uri);
+        setSelectedAttachment(attachment);
+      }
+    } catch (err: any) {
+      setShowAttachModal(false);
+      Alert.alert('Camera Error', err?.message || 'Unable to open camera.');
+    } finally {
+      isPickerLaunchingRef.current = false;
+    }
+  };
+
   const handlePickImage = async () => {
+    if (isPickerLaunchingRef.current) return;
+    isPickerLaunchingRef.current = true;
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.85,
       });
+      setShowAttachModal(false);
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        const uri = asset.uri;
-        const name = asset.fileName || uri.split('/').pop() || `photo_${Date.now()}.jpg`;
-        const mimeType = asset.mimeType || 'image/jpeg';
-        setSelectedImage({ uri, name, mimeType });
+        const attachment = await prepareChatAttachment(result.assets[0], true);
+        await removeOutboxFile(selectedAttachment?.uri);
+        setSelectedAttachment(attachment);
       }
     } catch (err: any) {
+      setShowAttachModal(false);
       Alert.alert('Image Error', err?.message || 'Unable to open photo library.');
+    } finally {
+      isPickerLaunchingRef.current = false;
     }
   };
 
-  // 6. Sending a message (optimistic reconciliation, supports text & image attachments)
+  const handlePickDocument = async () => {
+    if (isPickerLaunchingRef.current) return;
+    isPickerLaunchingRef.current = true;
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      setShowAttachModal(false);
+      if (!res.canceled && res.assets && res.assets.length > 0) {
+        const attachment = await prepareChatAttachment(res.assets[0], false);
+        await removeOutboxFile(selectedAttachment?.uri);
+        setSelectedAttachment(attachment);
+      }
+    } catch (err: any) {
+      setShowAttachModal(false);
+      Alert.alert('File Error', err?.message || 'Unable to pick file.');
+    } finally {
+      isPickerLaunchingRef.current = false;
+    }
+  };
+
+  // 5c. Download & open DM file attachment in-app
+  const handleOpenDmFile = useCallback(async (msg: DmMessage) => {
+    if (!msg.attachmentName) return;
+    const filename = msg.attachmentName;
+    const originalName = msg.attachmentOriginalName || filename;
+    const base = (serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, '');
+    const fileUrl = `${base}/api/dm/attachments/${encodeURIComponent(filename)}`;
+
+    try {
+      setDownloadingFileId(String(msg.id));
+      let localUri = msg.localUri || '';
+      let fileSize = 0;
+
+      if (localUri) {
+        const localInfo = await FileSystem.getInfoAsync(localUri).catch(() => ({ exists: false } as any));
+        if (!localInfo.exists) localUri = '';
+        else if (typeof localInfo.size === 'number') fileSize = localInfo.size;
+      }
+
+      if (!localUri) {
+        const targetDir = FileSystem.cacheDirectory || '';
+        if (!targetDir) throw new Error('File storage is unavailable.');
+        const cachedUri = `${targetDir}dm-${conversationId}-${msg.id}-${safeChatFilename(originalName)}`;
+        const cachedInfo = await FileSystem.getInfoAsync(cachedUri).catch(() => ({ exists: false } as any));
+        if (cachedInfo.exists) {
+          localUri = cachedUri;
+          if (typeof cachedInfo.size === 'number') fileSize = cachedInfo.size;
+        } else {
+          const downloadHeaders: Record<string, string> = {};
+          if (token) downloadHeaders['Authorization'] = `Bearer ${token}`;
+          const res = await FileSystem.downloadAsync(fileUrl, cachedUri, { headers: downloadHeaders });
+          if (res.status !== 200) {
+            throw new Error(`Could not load file (status ${res.status}).`);
+          }
+          localUri = res.uri;
+          const dlInfo = await FileSystem.getInfoAsync(localUri).catch(() => ({ exists: false } as any));
+          if (dlInfo.exists && typeof dlInfo.size === 'number') fileSize = dlInfo.size;
+        }
+      }
+
+      setPreviewFile({
+        file: {
+          id: 0,
+          title: originalName,
+          originalName,
+          filename,
+          subject: '',
+          semester: 0,
+          uploadedBy: msg.senderName || peerInfo.name || '',
+          uploadDate: msg.createdAt,
+          sizeBytes: fileSize,
+          mimeType: msg.attachmentMimeType || undefined,
+        } as unknown as LibraryFile,
+        localUri,
+        mimeType: msg.attachmentMimeType || undefined,
+        fileUrl,
+      });
+    } catch (err: any) {
+      Alert.alert('Open File Error', err?.message || 'Failed to open file.');
+    } finally {
+      setDownloadingFileId(null);
+    }
+  }, [serverUrl, conversationId, token, peerInfo.name]);
+
+  // 6. Sending a message (optimistic reconciliation, supports text, images & file attachments)
   const handleSend = async () => {
     const text = inputText.trim();
-    const imageToSend = selectedImage;
-    if ((!text && !imageToSend) || text.length > 2000 || sending) return;
+    const attachmentToSend = selectedAttachment;
+    if ((!text && !attachmentToSend) || text.length > 2000 || sending) return;
 
     // Check if in edit mode
     if (editingMessage) {
@@ -841,22 +1075,23 @@ function DmConversation() {
 
     // Normal Send: Generate optimistic clientId
     const clientId = createDmClientId();
+    const isPendingImg = attachmentToSend ? Boolean(attachmentToSend.isImage) : false;
     const tempMessage: DmMessage = {
       id: clientId,
       conversationId,
       senderId: currentUserId,
       clientId,
       text: text || null,
-      attachmentName: imageToSend ? 'pending_image.jpg' : null,
-      attachmentOriginalName: imageToSend ? imageToSend.name : null,
-      attachmentMimeType: imageToSend ? imageToSend.mimeType : null,
-      localUri: imageToSend ? imageToSend.uri : null,
+      attachmentName: attachmentToSend ? (isPendingImg ? 'pending_image.jpg' : 'pending_file') : null,
+      attachmentOriginalName: attachmentToSend ? attachmentToSend.name : null,
+      attachmentMimeType: attachmentToSend ? attachmentToSend.mimeType : null,
+      localUri: attachmentToSend ? attachmentToSend.uri : null,
       createdAt: new Date().toISOString(),
       status: 'pending',
       replyTo: replyingTo
         ? {
             id: typeof replyingTo.id === 'number' ? replyingTo.id : 0,
-            text: replyingTo.text || (replyingTo.attachmentName ? '📷 Photo' : null),
+            text: replyingTo.text || (replyingTo.attachmentName ? (isDmImageAttachment(replyingTo.attachmentOriginalName || replyingTo.attachmentName, replyingTo.attachmentMimeType) ? '📷 Photo' : `📎 ${replyingTo.attachmentOriginalName || 'File'}`) : null),
             senderId: replyingTo.senderId,
             senderName: replyingTo.senderId === currentUserId ? 'You' : peerInfo.name,
           }
@@ -866,12 +1101,12 @@ function DmConversation() {
     // Optimistically insert to list
     setMessages((prev) => [tempMessage, ...prev]);
     setInputText('');
-    setSelectedImage(null);
+    setSelectedAttachment(null);
     dmDraftCache.delete(draftKey);
     setReplyingTo(null);
     requestAnimationFrame(() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true }));
 
-    void transmitMessage(tempMessage, imageToSend);
+    void transmitMessage(tempMessage, attachmentToSend);
   };
 
   // Persist before dispatch. Retries reuse the exact client ID and original content.
@@ -883,8 +1118,8 @@ function DmConversation() {
     const fileToSend = fileOverride || (message.localUri
       ? {
           uri: message.localUri,
-          name: message.attachmentOriginalName || 'photo.jpg',
-          mimeType: message.attachmentMimeType || 'image/jpeg',
+          name: message.attachmentOriginalName || 'attachment',
+          mimeType: message.attachmentMimeType || 'application/octet-stream',
         }
       : null);
     if (!clientId || (!message.text && !fileToSend) || sendsInFlight.current.has(clientId)) return;
@@ -906,12 +1141,16 @@ function DmConversation() {
       if (activeRef.current) setMessages(prev => mergeDmMessages(prev, [confirmed]));
       void saveCachedDmMessages(currentUserId, conversationId, [confirmed]);
       await updateDmOutbox(currentUserId, conversationId, confirmed, generation);
-    } catch {
+      if (fileToSend?.uri) void removeOutboxFile(fileToSend.uri);
+    } catch (err: any) {
       if (generation !== dmOutboxGeneration()) return;
       const acknowledged = acknowledgedSends.current.has(clientId) || messagesRef.current.some(m => m.clientId === clientId && typeof m.id === 'number');
       if (!acknowledged) {
         if (activeRef.current) setMessages(prev => failDmMessage(prev, clientId));
         await updateDmOutbox(currentUserId, conversationId, { ...message, status: 'failed' }, generation).catch(() => {});
+        if (fileToSend && activeRef.current) {
+          Alert.alert('Upload Failed', err?.message || 'Could not upload attachment. Tap Retry to try again.');
+        }
       }
     } finally {
       sendsInFlight.current.delete(clientId);
@@ -1244,6 +1483,27 @@ function DmConversation() {
       ? resolveDmAvatarUri(item.senderAvatarUrl || peerInfo.avatarUrl, serverUrl, item.senderId || peerInfo.id)
       : null;
 
+    const isAttachmentImg = Boolean(
+      !isDeleted &&
+      (item.attachmentName || item.localUri) &&
+      isDmImageAttachment(item.attachmentOriginalName || item.attachmentName, item.attachmentMimeType)
+    );
+    const dmImgUri = isAttachmentImg
+      ? (item.status === 'pending' || item.status === 'failed') && item.localUri
+        ? item.localUri
+        : item.attachmentName
+          ? `${(serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, '')}/api/dm/attachments/${encodeURIComponent(item.attachmentName)}`
+          : null
+      : null;
+    const hasImage = Boolean(dmImgUri);
+    const hasFileAttachment = Boolean(!isDeleted && !isAttachmentImg && item.attachmentName);
+    const hasText = Boolean(item.text && item.text.trim());
+    const isImageOnly = !isDeleted && hasImage && !hasText;
+    const emojiOnlyCount = !isDeleted && !hasImage && !hasFileAttachment ? getEmojiOnlyCount(item.text) : 0;
+    const isEmojiOnly = emojiOnlyCount > 0;
+    const bubbleTextColor = isSelf ? activeDmTheme.selfTextColor : activeDmTheme.peerTextColor;
+    const isDarkBubbleText = bubbleTextColor.toLowerCase().startsWith('#0') || bubbleTextColor.toLowerCase().startsWith('#1');
+
     return (
       <View>
         {showDateSeparator && (
@@ -1350,31 +1610,43 @@ function DmConversation() {
             }
             bubbleStyle={[
               styles.bubbleContainer,
-              { maxWidth: '100%' },
-              isSelf
-                ? [
-                    styles.bubbleSelf,
-                    {
-                      backgroundColor: '#606064',
-                      borderColor: 'rgba(255, 255, 255, 0.10)',
-                      borderWidth: StyleSheet.hairlineWidth,
-                      borderTopRightRadius: isFirstInGroup || Boolean(item.replyTo) ? 22 : 6,
-                      borderBottomRightRadius: isLastInGroup ? 22 : 6,
-                      borderTopLeftRadius: 22,
-                      borderBottomLeftRadius: 22,
-                    },
-                  ]
-                : [
-                    styles.bubblePeer,
-                    {
-                      backgroundColor: 'rgba(12, 12, 14, 0.94)',
-                      borderColor: 'rgba(255, 255, 255, 0.08)',
-                      borderTopLeftRadius: isFirstInGroup || Boolean(item.replyTo) ? 22 : 6,
-                      borderBottomLeftRadius: isLastInGroup ? 22 : 6,
-                      borderTopRightRadius: 22,
-                      borderBottomRightRadius: 22,
-                    },
-                  ],
+              { maxWidth: '100%', borderWidth: 0, borderColor: 'transparent' },
+              isImageOnly
+                ? {
+                    backgroundColor: 'transparent',
+                    paddingHorizontal: 0,
+                    paddingTop: 0,
+                    paddingBottom: 0,
+                    borderRadius: 18,
+                  }
+                : isEmojiOnly
+                  ? {
+                      backgroundColor: 'transparent',
+                      paddingHorizontal: 2,
+                      paddingTop: 2,
+                      paddingBottom: 2,
+                    }
+                  : isSelf
+                    ? [
+                        styles.bubbleSelf,
+                        {
+                          backgroundColor: activeDmTheme.selfBubbleBg,
+                          borderTopRightRadius: isFirstInGroup || Boolean(item.replyTo) ? 22 : 6,
+                          borderBottomRightRadius: isLastInGroup ? 22 : 6,
+                          borderTopLeftRadius: 22,
+                          borderBottomLeftRadius: 22,
+                        },
+                      ]
+                    : [
+                        styles.bubblePeer,
+                        {
+                          backgroundColor: activeDmTheme.peerBubbleBg,
+                          borderTopLeftRadius: isFirstInGroup || Boolean(item.replyTo) ? 22 : 6,
+                          borderBottomLeftRadius: isLastInGroup ? 22 : 6,
+                          borderTopRightRadius: 22,
+                          borderBottomRightRadius: 22,
+                        },
+                      ],
             ]}
           >
             {/* Highlight Flash Overlay */}
@@ -1409,44 +1681,93 @@ function DmConversation() {
               </View>
             ) : (
               <>
-                {(() => {
-                  const dmImgUri = item.status === 'pending' && item.localUri
-                    ? item.localUri
-                    : item.attachmentName
-                      ? `${(serverUrl || DEFAULT_SERVER_URL).replace(/\/+$/, '')}/api/dm/attachments/${encodeURIComponent(item.attachmentName)}`
-                      : null;
-                  if (!dmImgUri) return null;
-                  return (
-                    <TouchableOpacity
-                      activeOpacity={0.85}
-                      onPress={() => setViewerImage({ uri: dmImgUri, name: item.attachmentOriginalName || 'Photo' })}
-                      onLongPress={() => handleOpenActionSheet(item)}
-                      delayLongPress={250}
-                      style={styles.dmImageWrap}
+                {dmImgUri && (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setViewerImage({ uri: dmImgUri, name: item.attachmentOriginalName || 'Photo' })}
+                    onLongPress={() => handleOpenActionSheet(item)}
+                    delayLongPress={250}
+                    style={[styles.dmImageWrap, isImageOnly && { marginBottom: 0 }]}
+                  >
+                    <Image
+                      source={{ uri: dmImgUri, headers: item.localUri ? undefined : imageHeaders }}
+                      style={styles.dmBubbleImage}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                      recyclingKey={dmImgUri}
+                    />
+                    {item.status === 'pending' && (
+                      <View style={styles.dmImageUploadingOverlay}>
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
+                {hasFileAttachment && (
+                  <TouchableOpacity
+                    activeOpacity={0.78}
+                    onPress={() => void handleOpenDmFile(item)}
+                    onLongPress={() => handleOpenActionSheet(item)}
+                    delayLongPress={250}
+                    style={[styles.dmFileRow, hasText && { marginBottom: 8 }]}
+                  >
+                    <View
+                      style={[
+                        styles.dmFileIconBadge,
+                        { backgroundColor: isDarkBubbleText ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.16)' },
+                      ]}
                     >
-                      <Image
-                        source={{ uri: dmImgUri, headers: item.localUri ? undefined : imageHeaders }}
-                        style={styles.dmBubbleImage}
-                        contentFit="cover"
-                        cachePolicy="memory-disk"
-                        recyclingKey={dmImgUri}
+                      <Ionicons
+                        name={getDmFileIcon(item.attachmentOriginalName || item.attachmentName, item.attachmentMimeType)}
+                        size={20}
+                        color={bubbleTextColor}
                       />
-                      {item.status === 'pending' && (
-                        <View style={styles.dmImageUploadingOverlay}>
-                          <ActivityIndicator size="small" color="#FFFFFF" />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })()}
-                {Boolean(item.text && item.text.trim()) && renderDmTextWithLinks(
+                    </View>
+                    <View style={styles.dmFileTextCol}>
+                      <Text
+                        variant="sm"
+                        weight="600"
+                        numberOfLines={2}
+                        ellipsizeMode="middle"
+                        style={{ color: bubbleTextColor, lineHeight: 18 }}
+                      >
+                        {item.attachmentOriginalName || item.attachmentName}
+                      </Text>
+                      <Text
+                        variant="xs"
+                        numberOfLines={1}
+                        style={{ color: bubbleTextColor, opacity: 0.72, marginTop: 2 }}
+                      >
+                        {`${formatFileExtension(item.attachmentOriginalName || item.attachmentName, item.attachmentMimeType)} · Tap to open`}
+                      </Text>
+                    </View>
+                    {downloadingFileId === String(item.id) || item.status === 'pending' ? (
+                      <ActivityIndicator size="small" color={bubbleTextColor} style={{ marginLeft: 8 }} />
+                    ) : (
+                      <Ionicons
+                        name="open-outline"
+                        size={16}
+                        color={bubbleTextColor}
+                        style={{ marginLeft: 8, opacity: 0.78 }}
+                      />
+                    )}
+                  </TouchableOpacity>
+                )}
+                {hasText && (isEmojiOnly ? (
+                  <RNText
+                    style={emojiOnlyCount > 3 ? styles.emojiOnlyTextCompact : styles.emojiOnlyText}
+                    allowFontScaling={false}
+                  >
+                    {item.text?.trim()}
+                  </RNText>
+                ) : renderDmTextWithLinks(
                   item.text || '',
                   isSelf,
                   [
                     styles.bubbleText,
-                    { color: isSelf ? Monochrome.outgoingText : Monochrome.incomingText },
+                    { color: isSelf ? activeDmTheme.selfTextColor : activeDmTheme.peerTextColor },
                   ]
-                )}
+                ))}
                 {(() => {
                   const preview = extractFirstDmUrl(item.text);
                   if (!preview) return null;
@@ -1527,7 +1848,12 @@ function DmConversation() {
                 )}
                 {isSelf && item.status === 'failed' && (
                   <View style={styles.receiptContainer}>
-                    <TouchableOpacity accessibilityLabel="Retry failed message" onPress={() => void handleRetry(item)} hitSlop={6}>
+                    <TouchableOpacity
+                      accessibilityLabel="Retry failed message"
+                      onPress={() => void handleRetry(item)}
+                      hitSlop={6}
+                      style={(isImageOnly || isEmojiOnly) ? styles.floatingRetryPill : undefined}
+                    >
                       <Text variant="xs" style={{ color: '#FCA5A5' }}>Retry</Text>
                     </TouchableOpacity>
                   </View>
@@ -1584,6 +1910,9 @@ function DmConversation() {
     starredIds,
     latestSeenSelfMessageId,
     localReactions,
+    activeDmTheme,
+    downloadingFileId,
+    handleOpenDmFile,
   ]);
 
   if (!conversationId) {
@@ -1612,135 +1941,34 @@ function DmConversation() {
   return (
     <View style={[styles.container, { backgroundColor: Monochrome.background }]} {...backSwipeHandlers}>
       <StatusBar barStyle="light-content" />
-      <FluidChatBackground />
-
-      {/* Top Header (floating glass controls over fluid background, base Monochrome.header) */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: Math.max(insets.top, 10),
-            backgroundColor: 'rgba(10, 10, 14, 0.38)',
-            borderBottomColor: 'rgba(255, 255, 255, 0.06)',
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={handleBack}
-          style={styles.backButton}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        {/* Peer Avatar & Name — opens User Info & Quick Actions Modal Bottom Sheet */}
-        <TouchableOpacity
-          activeOpacity={0.75}
-          onPress={() => {
-            Keyboard.dismiss();
-            setPeerInfoModalVisible(true);
-          }}
-          accessibilityLabel="Open chat details and quick actions"
-          style={styles.headerProfileTouch}
-        >
-          <View style={styles.headerAvatarContainer}>
-            {resolvedPeerAvatarUri && !headerAvatarFailed ? (
-              <Image
-                source={{ uri: resolvedPeerAvatarUri, headers: imageHeaders, cacheKey: resolvedPeerAvatarUri }}
-                cachePolicy="memory-disk"
-                style={styles.headerAvatar}
-                contentFit="cover"
-                onError={() => setHeaderAvatarFailed(true)}
-              />
-            ) : (
-              <View style={[styles.headerAvatar, styles.avatarFallback]}>
-                <Text variant="sm" weight="700" style={{ color: '#F4F4F5' }}>
-                  {getInitials(peerInfo.name)}
-                </Text>
-              </View>
-            )}
-            {realtimeConnected && !isBlocked && (
-              <View style={styles.headerOnlineDot} />
-            )}
-          </View>
-
-          {/* Peer Name & Subtitle */}
-          <View style={styles.headerTitleGroup}>
-            <View style={styles.headerNameRow}>
-              <Text variant="md" weight="700" numberOfLines={1} style={styles.headerPeerName}>
-                {peerInfo.name}
-              </Text>
-              <Ionicons name="chevron-forward" size={14} color="#A1A1AA" style={{ marginLeft: 3 }} />
-            </View>
-
-            {peerIsTyping ? (
-              <Text variant="xs" weight="600" style={styles.typingIndicator}>
-                typing...
-              </Text>
-            ) : peerInfo.username ? (
-              <Text variant="xs" style={styles.headerSubtitleText} numberOfLines={1}>
-                @{peerInfo.username}
-              </Text>
-            ) : (
-              <Text variant="xs" style={styles.headerSubtitleText} numberOfLines={1}>
-                Direct message
-              </Text>
-            )}
-          </View>
-        </TouchableOpacity>
-
-        {/* Search & Conversation Settings Buttons */}
-        <TouchableOpacity
-          onPress={() => {
-            setSearchMode((prev) => !prev);
-            setSearchQuery('');
-          }}
-          style={[styles.headerActionBtn, { marginRight: 6 }]}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Search in conversation"
-        >
-          <Ionicons name={searchMode ? 'close' : 'search-outline'} size={18} color="#E4E4E7" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setSettingsModalVisible(true)}
-          style={styles.headerActionBtn}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          accessibilityLabel="Conversation options"
-        >
-          <Ionicons name="ellipsis-horizontal" size={19} color="#E4E4E7" />
-        </TouchableOpacity>
-      </View>
-
-      {/* In-Chat Search Bar (Item 14) */}
-      {searchMode && (
-        <View style={styles.dmSearchBar}>
-          <Ionicons name="search-outline" size={16} color="#8E8E93" style={{ marginRight: 8 }} />
-          <TextInput
-            style={styles.dmSearchInput}
-            placeholder="Search in conversation..."
-            placeholderTextColor="#71717A"
-            keyboardAppearance="dark"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoFocus
+      {activeDmTheme.backgroundImage ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <Image
+            source={activeDmTheme.backgroundImage}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            cachePolicy="memory"
+            priority="high"
           />
-          {Boolean(searchQuery) && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
-              <Ionicons name="close-circle" size={16} color="#8E8E93" />
-            </TouchableOpacity>
+          {activeDmTheme.backgroundOverlay !== 'transparent' && (
+            <View
+              style={[StyleSheet.absoluteFill, { backgroundColor: activeDmTheme.backgroundOverlay }]}
+            />
           )}
         </View>
+      ) : (
+        <FluidChatBackground />
       )}
 
-      {/* Main Timeline wrapped in KeyboardContentBoundary */}
+      {/* Main Timeline — Edge-to-edge full screen so messages scroll softly behind floating header & composer */}
       <View style={{ flex: 1 }}>
       <KeyboardContentBoundary style={styles.timelineBoundary}>
         {loading && messages.length === 0 ? (
-          <ChatConversationSkeleton />
+          <View style={{ flex: 1, paddingTop: topHeaderHeight, paddingBottom: composerHeight }}>
+            <ChatConversationSkeleton />
+          </View>
         ) : error && messages.length === 0 ? (
-          <View style={styles.centerContainer}>
+          <View style={[styles.centerContainer, { paddingTop: topHeaderHeight, paddingBottom: composerHeight }]}>
             <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
             <Text variant="sm" style={{ color: colors.textMuted, marginTop: 8, textAlign: 'center' }}>
               {error}
@@ -1755,7 +1983,7 @@ function DmConversation() {
             </TouchableOpacity>
           </View>
         ) : messages.length === 0 ? (
-          <View style={styles.centerContainer}>
+          <View style={[styles.centerContainer, { paddingTop: topHeaderHeight, paddingBottom: composerHeight }]}>
             <View style={styles.emptyPeerAvatarWrap}>
               {resolvedPeerAvatarUri && !headerAvatarFailed ? (
                 <Image
@@ -1822,7 +2050,13 @@ function DmConversation() {
                   </View>
                 ) : undefined
               }
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[
+                styles.listContent,
+                {
+                  paddingBottom: topHeaderHeight + 18,
+                  paddingTop: composerHeight + 14,
+                },
+              ]}
               keyboardDismissMode="on-drag"
             />
             {showScrollToBottom && (
@@ -1835,7 +2069,7 @@ function DmConversation() {
                 style={{
                   position: 'absolute',
                   right: 16,
-                  bottom: 14,
+                  bottom: composerHeight + 14,
                   width: 38,
                   height: 38,
                   borderRadius: 19,
@@ -1859,14 +2093,166 @@ function DmConversation() {
       </KeyboardContentBoundary>
       </View>
 
-      {/* Message Composer or Blocked Banner */}
+      {/* Floating Top Header with Instagram-style seamless feathered fade over scrolling messages */}
+      <View
+        pointerEvents="box-none"
+        style={styles.floatingHeaderOverlay}
+        onLayout={(e) => {
+          const nextH = Math.round(e.nativeEvent.layout.height);
+          if (nextH > 0 && Math.abs(nextH - topHeaderHeight) > 1) {
+            setTopHeaderHeight(nextH);
+          }
+        }}
+      >
+        <LinearGradient
+          pointerEvents="none"
+          colors={[
+            'rgba(6, 6, 10, 0.99)',
+            'rgba(6, 6, 10, 0.96)',
+            'rgba(6, 6, 10, 0.88)',
+            'rgba(6, 6, 10, 0.66)',
+            'rgba(6, 6, 10, 0.32)',
+            'rgba(6, 6, 10, 0.09)',
+            'rgba(6, 6, 10, 0)',
+          ]}
+          locations={[0, 0.28, 0.50, 0.68, 0.82, 0.93, 1]}
+          style={styles.topFadeScrim}
+        />
+
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: Math.max(insets.top, 10),
+              backgroundColor: 'transparent',
+            },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          {/* Peer Avatar & Name — opens User Info & Quick Actions Modal Bottom Sheet */}
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => {
+              Keyboard.dismiss();
+              setPeerInfoModalVisible(true);
+            }}
+            accessibilityLabel="Open chat details and quick actions"
+            style={styles.headerProfileTouch}
+          >
+            <View style={styles.headerAvatarContainer}>
+              {resolvedPeerAvatarUri && !headerAvatarFailed ? (
+                <Image
+                  source={{ uri: resolvedPeerAvatarUri, headers: imageHeaders, cacheKey: resolvedPeerAvatarUri }}
+                  cachePolicy="memory-disk"
+                  style={styles.headerAvatar}
+                  contentFit="cover"
+                  onError={() => setHeaderAvatarFailed(true)}
+                />
+              ) : (
+                <View style={[styles.headerAvatar, styles.avatarFallback]}>
+                  <Text variant="sm" weight="700" style={{ color: '#F4F4F5' }}>
+                    {getInitials(peerInfo.name)}
+                  </Text>
+                </View>
+              )}
+              {realtimeConnected && !isBlocked && (
+                <View style={styles.headerOnlineDot} />
+              )}
+            </View>
+
+            {/* Peer Name & Subtitle */}
+            <View style={styles.headerTitleGroup}>
+              <View style={styles.headerNameRow}>
+                <Text variant="md" weight="700" numberOfLines={1} style={styles.headerPeerName}>
+                  {peerInfo.name}
+                </Text>
+                <Ionicons name="chevron-forward" size={14} color="#A1A1AA" style={{ marginLeft: 3 }} />
+              </View>
+
+              {peerIsTyping ? (
+                <Text variant="xs" weight="600" style={styles.typingIndicator}>
+                  typing...
+                </Text>
+              ) : peerInfo.username ? (
+                <Text variant="xs" style={styles.headerSubtitleText} numberOfLines={1}>
+                  @{peerInfo.username}
+                </Text>
+              ) : (
+                <Text variant="xs" style={styles.headerSubtitleText} numberOfLines={1}>
+                  Direct message
+                </Text>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          {/* Search & Conversation Settings Buttons */}
+          <TouchableOpacity
+            onPress={() => {
+              setSearchMode((prev) => !prev);
+              setSearchQuery('');
+            }}
+            style={[styles.headerActionBtn, { marginRight: 6 }]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Search in conversation"
+          >
+            <Ionicons name={searchMode ? 'close' : 'search-outline'} size={18} color="#E4E4E7" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setSettingsModalVisible(true)}
+            style={styles.headerActionBtn}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Conversation options"
+          >
+            <Ionicons name="ellipsis-horizontal" size={19} color="#E4E4E7" />
+          </TouchableOpacity>
+        </View>
+
+        {/* In-Chat Search Bar (Item 14) */}
+        {searchMode && (
+          <View style={styles.dmSearchBar}>
+            <Ionicons name="search-outline" size={16} color="#8E8E93" style={{ marginRight: 8 }} />
+            <TextInput
+              style={styles.dmSearchInput}
+              placeholder="Search in conversation..."
+              placeholderTextColor="#71717A"
+              keyboardAppearance="dark"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            {Boolean(searchQuery) && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={16} color="#8E8E93" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Floating Message Composer or Blocked Banner with matching bottom fade behind & below message box */}
+      <View pointerEvents="box-none" style={styles.floatingComposerOverlay}>
       {isBlocked ? (
         <View
+          onLayout={(e) => {
+            const nextH = Math.round(e.nativeEvent.layout.height);
+            if (nextH > 0 && Math.abs(nextH - composerHeight) > 1) {
+              setComposerHeight(nextH);
+            }
+          }}
           style={[
             styles.blockedBanner,
             {
-              backgroundColor: colors.surface,
-              borderTopColor: colors.borderSubtle,
+              backgroundColor: 'rgba(14, 14, 18, 0.88)',
+              borderTopColor: 'rgba(255, 255, 255, 0.08)',
               paddingBottom: Math.max(insets.bottom, 16),
             },
           ]}
@@ -1887,6 +2273,26 @@ function DmConversation() {
         </View>
       ) : (
         <StickyComposer bordered={false} style={{ backgroundColor: 'transparent', paddingHorizontal: 4 }}>
+          <LinearGradient
+            pointerEvents="none"
+            colors={[
+              'rgba(6, 6, 10, 0)',
+              'rgba(6, 6, 10, 0.14)',
+              'rgba(6, 6, 10, 0.48)',
+              'rgba(6, 6, 10, 0.84)',
+              'rgba(6, 6, 10, 0.98)',
+            ]}
+            locations={[0, 0.22, 0.48, 0.76, 1]}
+            style={styles.bottomFadeScrim}
+          />
+          <View
+            onLayout={(e) => {
+              const nextH = Math.round(e.nativeEvent.layout.height) + Math.max(insets.bottom, 10);
+              if (nextH > 0 && Math.abs(nextH - composerHeight) > 1) {
+                setComposerHeight(nextH);
+              }
+            }}
+          >
           {/* Replying Banner */}
           {replyingTo && (
             <View style={[styles.contextBanner, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}>
@@ -1927,34 +2333,56 @@ function DmConversation() {
             </View>
           )}
 
-          {/* Selected Image Preview Banner */}
-          {selectedImage && (
+          {/* Selected Attachment Preview Banner (Photo or File) */}
+          {selectedAttachment && (
             <View style={[styles.contextBanner, { backgroundColor: Monochrome.surfaceElevated, borderColor: Monochrome.border, borderWidth: StyleSheet.hairlineWidth }]}>
-              <Image source={{ uri: selectedImage.uri }} style={styles.dmPreviewThumb} contentFit="cover" />
+              {selectedAttachment.isImage ? (
+                <Image source={{ uri: selectedAttachment.uri }} style={styles.dmPreviewThumb} contentFit="cover" />
+              ) : (
+                <View style={styles.dmPreviewFileIconBox}>
+                  <Ionicons
+                    name={getDmFileIcon(selectedAttachment.name, selectedAttachment.mimeType)}
+                    size={20}
+                    color="#E4E4E7"
+                  />
+                </View>
+              )}
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text variant="xs" weight="600" numberOfLines={1} style={{ color: Monochrome.text }}>
-                  {selectedImage.name}
+                  {selectedAttachment.name}
                 </Text>
                 <Text variant="xs" style={{ color: Monochrome.textSecondary }}>
-                  Ready to send
+                  {selectedAttachment.isImage
+                    ? 'Photo ready to send'
+                    : `${formatFileExtension(selectedAttachment.name, selectedAttachment.mimeType)} · Ready to send`}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setSelectedImage(null)} hitSlop={8} accessibilityLabel="Remove selected image">
+              <TouchableOpacity
+                onPress={() => {
+                  void removeOutboxFile(selectedAttachment.uri);
+                  setSelectedAttachment(null);
+                }}
+                hitSlop={8}
+                accessibilityLabel="Remove selected attachment"
+              >
                 <Ionicons name="close-circle" size={19} color={Monochrome.textTertiary} />
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Input Row — Clean Pill Capsule (Image + Send only) */}
+          {/* Input Row — Clean Pill Capsule (Attach + Send) */}
           <View style={styles.composerRow}>
             {!editingMessage && (
               <TouchableOpacity
-                onPress={() => void handlePickImage()}
+                onPress={() => {
+                  Keyboard.dismiss();
+                  setShowAttachModal(true);
+                }}
                 style={styles.composerImageCircle}
                 activeOpacity={0.75}
-                accessibilityLabel="Attach image"
+                accessibilityLabel="Attach photo or file"
               >
-                <Ionicons name="image-outline" size={20} color="#F4F4F5" />
+                <Ionicons name="add" size={22} color="#F4F4F5" />
               </TouchableOpacity>
             )}
 
@@ -1984,26 +2412,30 @@ function DmConversation() {
 
             <TouchableOpacity
               onPress={handleSend}
-              disabled={sending || (!inputText.trim() && !selectedImage)}
+              disabled={sending || (!inputText.trim() && !selectedAttachment)}
               style={[
                 styles.sendButton,
-                (inputText.trim() || selectedImage) ? styles.sendButtonActive : styles.sendButtonInactive,
+                (inputText.trim() || selectedAttachment)
+                  ? [styles.sendButtonActive, { backgroundColor: activeDmTheme.sendButtonActiveBg }]
+                  : styles.sendButtonInactive,
               ]}
               accessibilityLabel={editingMessage ? 'Save edited message' : 'Send message'}
             >
               {sending ? (
-                <ActivityIndicator size="small" color="#09090B" />
+                <ActivityIndicator size="small" color={activeDmTheme.sendButtonActiveIcon} />
               ) : (
                 <Ionicons
                   name={editingMessage ? 'checkmark' : 'arrow-up'}
                   size={19}
-                  color={(inputText.trim() || selectedImage) ? '#09090B' : '#71717A'}
+                  color={(inputText.trim() || selectedAttachment) ? activeDmTheme.sendButtonActiveIcon : '#71717A'}
                 />
               )}
             </TouchableOpacity>
           </View>
+          </View>
         </StickyComposer>
       )}
+      </View>
 
       {/* Message Action Sheet / Context Modal (mounted lazily only when open) */}
       {Boolean(selectedActionMessage) && (
@@ -2166,6 +2598,25 @@ function DmConversation() {
             <Text variant="sm" weight="700" style={[styles.actionSheetHeader, { color: colors.textMuted }]}>
               CONVERSATION OPTIONS
             </Text>
+
+            <TouchableOpacity
+              style={styles.actionSheetRow}
+              onPress={() => {
+                setSettingsModalVisible(false);
+                setThemeModalVisible(true);
+              }}
+            >
+              <Ionicons name="color-palette-outline" size={20} color={colors.text} />
+              <Text variant="sm" weight="600" style={[styles.actionRowText, { color: colors.text, flex: 1 }]}>
+                Chat Theme
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <View style={[styles.themeMiniDot, { backgroundColor: activeDmTheme.selfBubbleBg }]} />
+                <Text variant="xs" style={{ color: colors.textMuted }}>
+                  {activeDmTheme.name}
+                </Text>
+              </View>
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.actionSheetRow}
@@ -2583,6 +3034,27 @@ function DmConversation() {
 
             {/* Secondary List Actions */}
             <View style={styles.peerSheetListGroup}>
+              <TouchableOpacity
+                style={styles.peerSheetListRow}
+                onPress={() => {
+                  setPeerInfoModalVisible(false);
+                  setThemeModalVisible(true);
+                }}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="color-palette-outline" size={20} color="#E4E4E7" />
+                <Text variant="sm" weight="600" style={styles.peerSheetListLabel}>
+                  Theme
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginRight: 6 }}>
+                  <View style={[styles.themeMiniDot, { backgroundColor: activeDmTheme.selfBubbleBg }]} />
+                  <Text variant="xs" style={{ color: '#A1A1AA' }}>
+                    {activeDmTheme.name}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#71717A" />
+              </TouchableOpacity>
+
               {Boolean(peerInfo.id) && (
                 <TouchableOpacity
                   style={styles.peerSheetListRow}
@@ -2655,6 +3127,237 @@ function DmConversation() {
       </Modal>
       )}
 
+      {/* DM Chat Theme Picker Bottom Sheet (DM only — not in Kyana AI or Group Chat) */}
+      {themeModalVisible && (
+      <Modal
+        visible
+        transparent
+        animationType="slide"
+        onRequestClose={() => setThemeModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setThemeModalVisible(false)}
+          />
+          <View
+            style={[
+              styles.peerSheetContainer,
+              { paddingBottom: Math.max(insets.bottom, 24) },
+            ]}
+          >
+            <View style={styles.peerSheetHandle} />
+            <View style={styles.themePickerHeader}>
+              <View>
+                <Text variant="md" weight="700" style={{ color: '#FFFFFF' }}>
+                  Chat Theme ({DM_CHAT_THEMES.length})
+                </Text>
+                <Text variant="xs" style={{ color: '#A1A1AA', marginTop: 2 }}>
+                  Applies to this private conversation
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setThemeModalVisible(false)}
+                style={styles.themeCloseBtn}
+              >
+                <Ionicons name="close" size={18} color="#F4F4F5" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Live Mini Preview */}
+            <View style={styles.themePreviewBox}>
+              {activeDmTheme.backgroundImage ? (
+                <Image
+                  source={activeDmTheme.backgroundImage}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                  cachePolicy="memory"
+                />
+              ) : (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0A0A0C' }]} />
+              )}
+              <View
+                style={[
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: activeDmTheme.backgroundOverlay },
+                ]}
+              />
+              <View style={styles.themePreviewBubbles}>
+                <View
+                  style={[
+                    styles.themePreviewBubble,
+                    {
+                      alignSelf: 'flex-start',
+                      backgroundColor: activeDmTheme.peerBubbleBg,
+                    },
+                  ]}
+                >
+                  <Text variant="xs" style={{ color: activeDmTheme.peerTextColor }}>
+                    See you in 15 mins?
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.themePreviewBubble,
+                    {
+                      alignSelf: 'flex-end',
+                      backgroundColor: activeDmTheme.selfBubbleBg,
+                    },
+                  ]}
+                >
+                  <Text variant="xs" style={{ color: activeDmTheme.selfTextColor }}>
+                    On my way right now!
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Theme Cards (scrollable for all themes) */}
+            <ScrollView
+              style={{ maxHeight: 380 }}
+              showsVerticalScrollIndicator
+              nestedScrollEnabled
+              contentContainerStyle={{ gap: 10, paddingBottom: 8 }}
+            >
+              {DM_CHAT_THEMES.map((t) => {
+                const selected = t.id === activeDmTheme.id;
+                return (
+                  <TouchableOpacity
+                    key={t.id}
+                    activeOpacity={0.8}
+                    onPress={() => handleSelectDmTheme(t.id)}
+                    style={[
+                      styles.themeOptionCard,
+                      selected && styles.themeOptionCardActive,
+                    ]}
+                  >
+                    <View style={styles.themeSwatchWrap}>
+                      {t.backgroundImage ? (
+                        <Image
+                          source={t.backgroundImage}
+                          style={StyleSheet.absoluteFill}
+                          contentFit="cover"
+                          cachePolicy="memory"
+                        />
+                      ) : (
+                        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#121215' }]} />
+                      )}
+                      <View
+                        style={[
+                          styles.themeSwatchDot,
+                          { backgroundColor: t.selfBubbleBg, borderColor: t.peerBubbleBorder },
+                        ]}
+                      />
+                    </View>
+
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text variant="sm" weight="700" style={{ color: '#FFFFFF' }}>
+                        {t.name}
+                      </Text>
+                      <Text variant="xs" style={{ color: '#A1A1AA', marginTop: 2 }}>
+                        {t.subtitle}
+                      </Text>
+                    </View>
+
+                    {selected ? (
+                      <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
+                    ) : (
+                      <Ionicons name="ellipse-outline" size={22} color="#52525B" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+      )}
+
+      {/* DM Attachment Picker Sheet (Photo Library, Camera, Document & File) */}
+      {showAttachModal && (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowAttachModal(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowAttachModal(false)}
+          >
+            <Pressable
+              onPress={() => {}}
+              style={[
+                styles.actionSheetContent,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.borderSubtle,
+                  paddingBottom: Math.max(insets.bottom, 24),
+                },
+              ]}
+            >
+              <Text variant="md" weight="700" style={{ color: '#F5F5F5', marginBottom: 14 }}>
+                Share Attachment
+              </Text>
+
+              <TouchableOpacity
+                style={styles.dmAttachOptionRow}
+                onPress={() => void handleTakePhoto()}
+                activeOpacity={0.75}
+              >
+                <View style={styles.dmAttachOptionIcon}>
+                  <Ionicons name="camera-outline" size={20} color="#E4E4E7" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text variant="sm" weight="600" style={{ color: '#F5F5F5' }}>
+                    Take Photo
+                  </Text>
+                  <Text variant="xs" style={{ color: '#8E8E93', marginTop: 1 }}>
+                    Capture a photo with your camera
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dmAttachOptionRow}
+                onPress={() => void handlePickImage()}
+                activeOpacity={0.75}
+              >
+                <View style={styles.dmAttachOptionIcon}>
+                  <Ionicons name="image-outline" size={20} color="#E4E4E7" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text variant="sm" weight="600" style={{ color: '#F5F5F5' }}>
+                    Photo Library
+                  </Text>
+                  <Text variant="xs" style={{ color: '#8E8E93', marginTop: 1 }}>
+                    Share photos or screenshots
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.dmAttachOptionRow}
+                onPress={() => void handlePickDocument()}
+                activeOpacity={0.75}
+              >
+                <View style={styles.dmAttachOptionIcon}>
+                  <Ionicons name="document-outline" size={20} color="#E4E4E7" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text variant="sm" weight="600" style={{ color: '#F5F5F5' }}>
+                    Document & File
+                  </Text>
+                  <Text variant="xs" style={{ color: '#8E8E93', marginTop: 1 }}>
+                    PDF, DOCX, PPTX, XLSX, TXT, or ZIP
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
+
       {/* Full-Screen Image Viewer for DM photos (mounted lazily only when open) */}
       {viewerImage !== null && (
         <FullScreenImageViewer
@@ -2665,6 +3368,33 @@ function DmConversation() {
           onClose={() => setViewerImage(null)}
         />
       )}
+
+      {/* In-App File Viewer for DM documents (mounted lazily only when open) */}
+      {previewFile !== null && (
+        <FullScreenFilePreview
+          visible
+          file={previewFile.file}
+          localFileUri={previewFile.localUri}
+          mimeType={previewFile.mimeType}
+          onClose={() => setPreviewFile(null)}
+          onDownloadFile={async () => previewFile.localUri}
+          onShareFile={async () => {
+            try {
+              const canShare = await Sharing.isAvailableAsync();
+              if (canShare) {
+                await Sharing.shareAsync(previewFile.localUri, {
+                  dialogTitle: `Open ${previewFile.file.originalName}`,
+                  mimeType: previewFile.mimeType || undefined,
+                });
+              } else {
+                Alert.alert('Saved', `File ready: ${previewFile.file.originalName}`);
+              }
+            } catch (e: any) {
+              Alert.alert('Share Error', e?.message || 'Could not open external app.');
+            }
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -2673,12 +3403,40 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  floatingHeaderOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 20,
+  },
+  topFadeScrim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: -64,
+  },
+  floatingComposerOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 20,
+  },
+  bottomFadeScrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: -60,
+    bottom: 0,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingBottom: 11,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: 0,
     zIndex: 10,
   },
   backButton: {
@@ -3039,11 +3797,25 @@ const styles = StyleSheet.create({
   },
   bubblePeer: {
     borderBottomLeftRadius: 6,
-    borderWidth: StyleSheet.hairlineWidth,
   },
   bubbleText: {
     fontSize: 15,
     lineHeight: 20.5,
+  },
+  emojiOnlyText: {
+    fontSize: 40,
+    lineHeight: 48,
+  },
+  emojiOnlyTextCompact: {
+    fontSize: 32,
+    lineHeight: 40,
+  },
+  floatingRetryPill: {
+    backgroundColor: 'rgba(18, 18, 22, 0.72)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 4,
   },
   deletedRow: {
     flexDirection: 'row',
@@ -3116,8 +3888,48 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#27272A',
   },
+  dmPreviewFileIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#27272A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dmFileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 196,
+    maxWidth: 256,
+    paddingVertical: 2,
+  },
+  dmFileIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  dmFileTextCol: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  dmAttachOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  dmAttachOptionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#242426',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   dmImageWrap: {
-    borderRadius: 14,
+    borderRadius: 18,
     overflow: 'hidden',
     marginBottom: 4,
     position: 'relative',
@@ -3126,7 +3938,7 @@ const styles = StyleSheet.create({
   dmBubbleImage: {
     width: 220,
     height: 220,
-    borderRadius: 14,
+    borderRadius: 18,
   },
   dmImageUploadingOverlay: {
     ...StyleSheet.absoluteFill,
@@ -3351,5 +4163,74 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
+  },
+  themeMiniDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 5.5,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
+  },
+  themePickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  themeCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1E1E22',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themePreviewBox: {
+    height: 128,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.14)',
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
+  themePreviewBubbles: {
+    paddingHorizontal: 14,
+    gap: 8,
+  },
+  themePreviewBubble: {
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 18,
+    maxWidth: '78%',
+  },
+  themeOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: '#1A1A1E',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  themeOptionCardActive: {
+    backgroundColor: '#222228',
+    borderColor: 'rgba(255,255,255,0.45)',
+  },
+  themeSwatchWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  themeSwatchDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
   },
 });

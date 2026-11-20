@@ -200,10 +200,10 @@ export async function sendDmMessage(
       if (payload.replyToId) {
         formData.append('replyToId', String(payload.replyToId));
       }
-      formData.append('image', {
+      formData.append('attachment', {
         uri: payload.file.uri,
-        name: payload.file.name || 'photo.jpg',
-        type: payload.file.mimeType || 'image/jpeg',
+        name: payload.file.name || 'attachment',
+        type: payload.file.mimeType || 'application/octet-stream',
       } as any);
       res = await apiFetch(url, {
         signal: controller.signal,
@@ -224,7 +224,8 @@ export async function sendDmMessage(
   } finally { clearTimeout(timeout); }
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || 'Failed to send message');
+    const fallbackMsg = res.status === 413 ? 'File is too large for upload (max 4 MB).' : 'Failed to send message';
+    throw new Error(err.message || fallbackMsg);
   }
   const data = await res.json();
   return data.message;

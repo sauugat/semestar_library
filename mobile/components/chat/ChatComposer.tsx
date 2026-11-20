@@ -291,15 +291,15 @@ export const ChatComposer = React.memo(function ChatComposer({
             inputFocused && styles.modernCapsuleBarFocused,
           ]}
         >
-          {/* Image Picker Button */}
+          {/* Attach Photo or File Button */}
           <TouchableOpacity
             style={styles.imageCircleBtn}
-            onPress={onPickImage || onOpenAttachModal}
+            onPress={onOpenAttachModal || onPickImage}
             disabled={!userAvailable}
             activeOpacity={0.75}
-            accessibilityLabel="Attach image"
+            accessibilityLabel="Attach photo or file"
           >
-            <Ionicons name="image-outline" size={20} color="#F4F4F5" />
+            <Ionicons name="add" size={22} color="#F4F4F5" />
           </TouchableOpacity>
 
           {/* Pill-shaped text input */}

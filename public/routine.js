@@ -2,6 +2,7 @@
   'use strict';
   const romans = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'];
   const WORKING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const FACULTY_TYPE_LABELS = {
     FT: 'Full Time (FT)',
     CC: 'Course Contract (CC)',
@@ -21,6 +22,45 @@
     { value: '11', name: 'Falgun', nepali: 'फागुन' },
     { value: '12', name: 'Chaitra', nepali: 'चैत्र' }
   ];
+  // Official BS month day counts (2080..2085 BS), anchored at 2080/01/01 BS = 2023-04-14 AD (Friday)
+  const BS_YEAR_DAYS = {
+    2080: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 30],
+    2081: [31, 32, 31, 32, 31, 30, 30, 30, 29, 30, 29, 31],
+    2082: [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30],
+    2083: [31, 31, 32, 31, 31, 30, 30, 30, 29, 30, 30, 30],
+    2084: [31, 32, 31, 32, 31, 30, 30, 30, 29, 29, 30, 31],
+    2085: [31, 32, 31, 32, 31, 30, 30, 29, 30, 29, 30, 30]
+  };
+  const BS_ANCHOR_YEAR = 2080;
+  const BS_ANCHOR_UTC_MS = Date.UTC(2023, 3, 14); // 2023-04-14 Friday
+
+  function getBsDaysInMonth(year, monthNum) {
+    const arr = BS_YEAR_DAYS[Number(year)];
+    const m = Number(monthNum);
+    if (arr && m >= 1 && m <= 12) return arr[m - 1];
+    return 32;
+  }
+
+  function getBsWeekday(year, monthNum, day) {
+    const y = Number(year);
+    const m = Number(monthNum);
+    const d = Number(day);
+    if (!BS_YEAR_DAYS[y] || m < 1 || m > 12 || d < 1) return '';
+    const maxDay = getBsDaysInMonth(y, m);
+    if (d > maxDay) return '';
+    let totalDays = 0;
+    for (let yr = BS_ANCHOR_YEAR; yr < y; yr++) {
+      const daysArr = BS_YEAR_DAYS[yr];
+      if (!daysArr) return '';
+      for (const cnt of daysArr) totalDays += cnt;
+    }
+    const curArr = BS_YEAR_DAYS[y];
+    for (let mo = 0; mo < m - 1; mo++) totalDays += curArr[mo];
+    totalDays += d - 1;
+    const adDate = new Date(BS_ANCHOR_UTC_MS + totalDays * 86400000);
+    return WEEKDAY_NAMES[adDate.getUTCDay()] || '';
+  }
+
   const AD_MONTHS = [
     { value: '01', name: 'January' },
     { value: '02', name: 'February' },
@@ -41,6 +81,13 @@
     '12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM',
     '3:00 PM', '3:30 PM', '4:00 PM', '4:30 PM', '5:00 PM', '5:30 PM', '6:00 PM'
   ];
+  const EXAM_TYPES_CLEAN = [
+    'Final Examination',
+    'Pre-board Examination',
+    'Midterm Examination',
+    'Practical Examination',
+    'Makeup Examination'
+  ];
   const DEFAULT_OPTIONS = {
     subjectsBySemester: { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [] },
     electives: [],
@@ -49,10 +96,7 @@
       'Room 101', 'Room 102', 'Room 201', 'Room 202', 'Room 204', 'Room 301',
       'Computer Lab 1', 'Computer Lab 2', 'Hardware Lab', 'Seminar Hall', 'Exam Hall A', 'Exam Hall B'
     ],
-    examTypes: [
-      'Final Examination', 'Pre-board Examination', 'Midterm Examination',
-      'Practical Examination', 'Makeup Examination', 'Theory', 'Practical'
-    ],
+    examTypes: EXAM_TYPES_CLEAN,
     classTypes: ['Theory', 'Practical', 'Lab', 'Break', 'Empty'],
     facultyTypes: [
       { value: 'FT', label: 'Full Time (FT)' },
@@ -77,7 +121,6 @@
   const classSection = byId('classRoutineSection');
   const liveBanner = byId('classLiveBanner');
   const adminPanel = byId('adminRoutinePanel');
-  const form = byId('adminRoutineForm');
 
   let viewMode = 'class'; // 'class' | 'exam'
   let classRoutine = null;
@@ -89,9 +132,12 @@
   let routineOptions = DEFAULT_OPTIONS;
 
   let routines = [];
-  let editingId = null;
   let isAdmin = false;
   let busy = false;
+
+  // Exam table state
+  let examTableSemester = 1;
+  let examTableBsYear = 2083;
 
   // Class period editor modal state
   let classEditSelectedType = 'Theory';
@@ -105,6 +151,7 @@
     return number >= 1 && number <= 8 ? number : 'all';
   }
   let selectedSemester = parseSemester(new URLSearchParams(location.search).get('semester'));
+  if (selectedSemester !== 'all') examTableSemester = Number(selectedSemester);
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -141,7 +188,7 @@
   function formatBsMonthLabel(dateStr, calendar) {
     const m = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(String(dateStr || '').trim());
     if (!m) return dateStr || '';
-    const [, y, mo, d] = m;
+    const [, y, mo] = m;
     if (calendar === 'BS') {
       const bsMonth = (routineOptions.bsMonths || BS_MONTHS_DEFAULT).find(x => x.value === mo);
       return bsMonth ? `${bsMonth.name} ${y}` : `${mo} / ${y}`;
@@ -182,8 +229,7 @@
   }
 
   function getTodayWeekday(dateInput = new Date()) {
-    const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    return names[toKathmanduDate(dateInput).getUTCDay()];
+    return WEEKDAY_NAMES[toKathmanduDate(dateInput).getUTCDay()];
   }
 
   function getCurrentKathmanduMinutes(dateInput = new Date()) {
@@ -255,7 +301,11 @@
     const addExamBtn = byId('quickAddExamBtn');
     if (editClassBtn) editClassBtn.hidden = !isClass || !classRoutine;
     if (newClassBtn) newClassBtn.hidden = !isClass;
-    if (addExamBtn) addExamBtn.hidden = isClass;
+    if (addExamBtn) {
+      addExamBtn.hidden = isClass;
+      addExamBtn.textContent = 'Edit Exam Table';
+    }
+    if (adminPanel) adminPanel.hidden = !isAdmin || isClass;
   }
 
   function setMode(mode) {
@@ -282,6 +332,7 @@
       byId('routineInfoLabel3').textContent = 'Semesters';
       renderFilters();
       renderPublic();
+      renderExamTable();
     }
     syncAdminQuickActions();
   }
@@ -340,7 +391,6 @@
     byId('routineYears').textContent = classRoutine.academic_session || '—';
     byId('routineSemesters').textContent = `Year ${romans[classRoutine.year - 1]} · Sem ${romans[classRoutine.semester - 1]}`;
 
-    // Current / Upcoming Class Banner
     const live = findCurrentOrUpcoming(classRoutine);
     if (liveBanner) {
       if (live) {
@@ -564,7 +614,7 @@
   }
 
   // ==========================================================================
-  // ADMIN PICKER HELPERS (BS Date, Nepali Time, Subjects, Teachers, Rooms)
+  // PICKER HELPERS
   // ==========================================================================
 
   function populateSelectOptions(selectEl, items, { placeholder, includeCustom = false, customLabel = 'Other / Custom…' } = {}) {
@@ -624,7 +674,7 @@
       : (routineOptions.bsYears || [2081, 2082, 2083, 2084, 2085]).map(y => ({ value: String(y), label: `${y} BS` }));
     const months = isAd
       ? AD_MONTHS.map(m => ({ value: m.value, label: `${m.value} · ${m.name}` }))
-      : (routineOptions.bsMonths || BS_MONTHS_DEFAULT).map(m => ({ value: m.value, label: `${m.value} · ${m.name} (${m.nepali})` }));
+      : (routineOptions.bsMonths || BS_MONTHS_DEFAULT).map(m => ({ value: m.value, label: `${m.value} · ${m.name}` }));
     const maxDay = isAd ? 31 : 32;
     const days = [];
     for (let d = 1; d <= maxDay; d++) {
@@ -654,131 +704,336 @@
     } else {
       yearEl.value = isAd ? '2026' : '2083';
       monthEl.value = '06';
-      dayEl.value = '15';
+      dayEl.value = '01';
     }
   }
 
-  function syncExamDateHidden() {
-    const y = byId('routineDateYear')?.value;
-    const m = byId('routineDateMonth')?.value;
-    const d = byId('routineDateDay')?.value;
-    if (byId('routineDate') && y && m && d) {
-      byId('routineDate').value = `${y}/${m}/${d}`;
+  // ==========================================================================
+  // CLEAN SEMESTER SUBJECT EXAM TABLE (Month, Day, Auto Weekday, Start, End, Type)
+  // ==========================================================================
+
+  function populateDaySelectForMonth(daySel, bsYear, monthVal, selectedDayVal) {
+    const maxDays = monthVal ? getBsDaysInMonth(bsYear, Number(monthVal)) : 32;
+    const items = [];
+    for (let d = 1; d <= maxDays; d++) {
+      const pad = String(d).padStart(2, '0');
+      items.push({ value: pad, label: pad });
     }
-  }
-
-  function syncExamTimeHidden() {
-    const start = byId('routineTimeStart')?.value || '';
-    const end = byId('routineTimeEnd')?.value || '';
-    const hidden = byId('routineExamTime');
-    if (!hidden) return;
-    const combined = start && end ? `${start} – ${end}` : (start || '');
-    hidden.value = combined;
-    byId('routineTimePresets')?.querySelectorAll('.routine-chip-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.preset === combined);
-    });
-  }
-
-  function applyExamTimeValue(timeStr) {
-    const startSel = byId('routineTimeStart');
-    const endSel = byId('routineTimeEnd');
-    if (!startSel || !endSel) return;
-    const parts = String(timeStr || '').split(/\s*[–-]\s*/).map(s => s.trim()).filter(Boolean);
-    const setOrAdd = (sel, val) => {
-      if (!val) { sel.value = ''; return; }
-      if (![...sel.options].some(o => o.value === val)) {
-        const opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = val;
-        sel.append(opt);
-      }
-      sel.value = val;
-    };
-    setOrAdd(startSel, parts[0] || '11:30 AM');
-    setOrAdd(endSel, parts[1] || '2:30 PM');
-    syncExamTimeHidden();
-  }
-
-  function populateExamSubjectPicker(sem, selectedSubject, selectedCode) {
-    const sel = byId('routineSubjectSelect');
-    const customInput = byId('routineSubject');
-    const codeInput = byId('routineSubjectCode');
-    if (!sel || !customInput) return;
-
-    const subjects = getSubjectsForSemester(sem);
-    populateSelectOptions(sel, subjects, {
-      placeholder: 'Choose subject…',
-      includeCustom: true,
-      customLabel: '+ Other / Custom subject…'
-    });
-
-    if (selectedSubject) {
-      const matched = subjects.find(s => s.value.toLowerCase() === selectedSubject.toLowerCase());
-      if (matched) {
-        sel.value = matched.value;
-        customInput.hidden = true;
-        customInput.required = false;
-        customInput.value = matched.value;
-        if (codeInput) codeInput.value = selectedCode || matched.code || '';
-      } else {
-        sel.value = '__custom__';
-        customInput.hidden = false;
-        customInput.required = true;
-        customInput.value = selectedSubject;
-        if (codeInput) codeInput.value = selectedCode || '';
-      }
+    populateSelectOptions(daySel, items, { placeholder: 'Day' });
+    if (selectedDayVal) {
+      const clamped = Math.min(Number(selectedDayVal), maxDays);
+      daySel.value = String(clamped).padStart(2, '0');
     } else {
-      sel.value = '';
-      customInput.hidden = true;
-      customInput.required = false;
-      customInput.value = '';
-      if (codeInput) codeInput.value = '';
+      daySel.value = '';
     }
   }
 
-  function initExamPickers() {
-    // Exam types
-    populateSelectOptions(byId('routineExamType'), routineOptions.examTypes || DEFAULT_OPTIONS.examTypes, {
-      placeholder: 'Choose exam type'
-    });
-    if (byId('routineExamType')) byId('routineExamType').value = 'Final Examination';
+  function parseExamTimeParts(timeStr) {
+    const parts = String(timeStr || '').split(/\s*[–-]\s*/).map(s => s.trim()).filter(Boolean);
+    return {
+      start: parts[0] || '11:30 AM',
+      end: parts[1] || '2:30 PM'
+    };
+  }
 
-    // Rooms
-    populateSelectOptions(byId('routineRoomSelect'), routineOptions.rooms || DEFAULT_OPTIONS.rooms, {
-      placeholder: 'Choose room / hall (optional)',
-      includeCustom: true,
-      customLabel: '+ Other / Custom room…'
-    });
+  function makeSelectWithValue(items, placeholder, value, className, ariaLabel) {
+    const sel = document.createElement('select');
+    sel.className = className;
+    if (ariaLabel) sel.setAttribute('aria-label', ariaLabel);
+    populateSelectOptions(sel, items, { placeholder });
+    if (value) {
+      if (![...sel.options].some(o => o.value === value)) {
+        const extra = document.createElement('option');
+        extra.value = value;
+        extra.textContent = value;
+        sel.append(extra);
+      }
+      sel.value = value;
+    }
+    return sel;
+  }
 
-    // Time start & end dropdowns
-    populateSelectOptions(byId('routineTimeStart'), NPT_TIME_POINTS, { placeholder: 'Start time' });
-    populateSelectOptions(byId('routineTimeEnd'), NPT_TIME_POINTS, { placeholder: 'End time' });
+  function setBusy(value) {
+    busy = value;
+    if (adminPanel) {
+      adminPanel.querySelectorAll('button, select').forEach(node => { node.disabled = value; });
+    }
+  }
 
-    // Time preset chips
-    const presetsWrap = byId('routineTimePresets');
-    if (presetsWrap) {
-      presetsWrap.replaceChildren(...(routineOptions.examTimePresets || DEFAULT_OPTIONS.examTimePresets).map(preset => {
-        const chip = el('button', 'routine-chip-btn', preset);
-        chip.type = 'button';
-        chip.dataset.preset = preset;
-        chip.addEventListener('click', () => applyExamTimeValue(preset));
-        return chip;
-      }));
+  async function saveSingleExamRow(tr) {
+    if (busy || !isAdmin) return false;
+    const monthVal = tr.querySelector('[data-field="month"]')?.value || '';
+    const dayVal = tr.querySelector('[data-field="day"]')?.value || '';
+    const startVal = tr.querySelector('[data-field="start"]')?.value || '';
+    const endVal = tr.querySelector('[data-field="end"]')?.value || '';
+    const typeVal = tr.querySelector('[data-field="type"]')?.value || 'Final Examination';
+
+    if (!monthVal || !dayVal) {
+      status('routineAdminStatus', `Choose both Month and Day for ${tr.dataset.subjectName}.`, true);
+      return false;
     }
 
-    // Default semester & subject
-    const semEl = byId('routineSemester');
-    const defaultSem = selectedSemester !== 'all' ? Number(selectedSemester) : 1;
-    if (semEl) semEl.value = String(defaultSem);
-    populateExamSubjectPicker(defaultSem, '', '');
+    const weekday = getBsWeekday(examTableBsYear, Number(monthVal), Number(dayVal)) || null;
+    const exam_time = startVal && endVal ? `${startVal} – ${endVal}` : (startVal || null);
+    const existingId = tr.dataset.examId ? Number(tr.dataset.examId) : null;
 
-    // Default BS Date
-    if (byId('routineCalendar')) byId('routineCalendar').value = 'BS';
-    populateDatePickers(byId('routineDateYear'), byId('routineDateMonth'), byId('routineDateDay'), 'BS', '2083/06/15');
-    syncExamDateHidden();
+    const payload = {
+      semester: examTableSemester,
+      subject_name: tr.dataset.subjectName,
+      subject_code: tr.dataset.subjectCode || null,
+      calendar: 'BS',
+      exam_date: `${examTableBsYear}/${monthVal}/${dayVal}`,
+      weekday,
+      exam_time,
+      exam_type: typeVal || null,
+      room: tr.dataset.room || null
+    };
 
-    // Default NPT exam time
-    applyExamTimeValue('11:30 AM – 2:30 PM');
+    const row = await request(`/api/routine${existingId ? `/${existingId}` : ''}`, {
+      method: existingId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (existingId) {
+      routines = routines.map(item => item.id === existingId ? row : item);
+    } else {
+      routines = [...routines, row];
+    }
+    return true;
+  }
+
+  async function clearSingleExamRow(tr) {
+    const existingId = tr.dataset.examId ? Number(tr.dataset.examId) : null;
+    if (!existingId) {
+      const mSel = tr.querySelector('[data-field="month"]');
+      const dSel = tr.querySelector('[data-field="day"]');
+      const wdEl = tr.querySelector('[data-field="weekday"]');
+      if (mSel) mSel.value = '';
+      if (dSel) dSel.value = '';
+      if (wdEl) wdEl.textContent = '—';
+      return;
+    }
+    if (busy || !window.confirm(`Remove “${tr.dataset.subjectName}” from the published exam schedule?`)) return;
+    setBusy(true);
+    status('routineAdminStatus', `Removing ${tr.dataset.subjectName}…`);
+    try {
+      await request(`/api/routine/${existingId}`, { method: 'DELETE' });
+      if (window.SWR) window.SWR.invalidate('/api/routine');
+      routines = routines.filter(item => item.id !== existingId);
+      renderPublic();
+      renderExamTable();
+      status('routineAdminStatus', `Removed ${tr.dataset.subjectName}.`);
+    } catch (err) {
+      status('routineAdminStatus', err.message, true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderExamTable() {
+    if (!isAdmin) return;
+    const body = byId('routineAdminRows');
+    if (!body) return;
+
+    const semSel = byId('examTableSemester');
+    if (semSel) semSel.value = String(examTableSemester);
+    const yearSel = byId('examTableBsYear');
+    if (yearSel) yearSel.value = String(examTableBsYear);
+
+    const semesterSubjects = getSubjectsForSemester(examTableSemester);
+    const semExams = routines.filter(r => Number(r.semester) === examTableSemester);
+
+    // Match existing exams to syllabus subjects, and append any extra exams not in syllabus
+    const matchedIds = new Set();
+    const tableRows = semesterSubjects.map(sub => {
+      const existing = semExams.find(
+        r => r.subject_name && r.subject_name.toLowerCase() === sub.value.toLowerCase()
+      ) || null;
+      if (existing) matchedIds.add(existing.id);
+      return {
+        subjectName: sub.value,
+        subjectCode: existing?.subject_code || sub.code || '',
+        existing
+      };
+    });
+    for (const extra of semExams) {
+      if (!matchedIds.has(extra.id)) {
+        tableRows.push({
+          subjectName: extra.subject_name,
+          subjectCode: extra.subject_code || '',
+          existing: extra
+        });
+      }
+    }
+
+    if (!tableRows.length) {
+      const tr = el('tr');
+      const td = el('td', 'routine-empty', 'No subjects found for this semester.');
+      td.colSpan = 8;
+      tr.append(td);
+      body.replaceChildren(tr);
+      return;
+    }
+
+    const monthItems = (routineOptions.bsMonths || BS_MONTHS_DEFAULT).map(m => ({
+      value: m.value,
+      label: m.name
+    }));
+    const examTypeItems = EXAM_TYPES_CLEAN;
+
+    body.replaceChildren(...tableRows.map(item => {
+      const tr = el('tr');
+      tr.dataset.subjectName = item.subjectName;
+      tr.dataset.subjectCode = item.subjectCode;
+      if (item.existing) {
+        tr.dataset.examId = String(item.existing.id);
+        if (item.existing.room) tr.dataset.room = item.existing.room;
+      }
+
+      // Parse existing BS month/day if present
+      let initMonth = '';
+      let initDay = '';
+      if (item.existing?.exam_date) {
+        const parsed = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/.exec(String(item.existing.exam_date).trim());
+        if (parsed) {
+          initMonth = parsed[2].padStart(2, '0');
+          initDay = parsed[3].padStart(2, '0');
+        }
+      }
+      const timeParts = item.existing?.exam_time
+        ? parseExamTimeParts(item.existing.exam_time)
+        : { start: '11:30 AM', end: '2:30 PM' };
+      const initType = item.existing?.exam_type || 'Final Examination';
+
+      // 1. Subject
+      const subjTd = el('td');
+      subjTd.append(el('strong', '', item.subjectName));
+      if (item.subjectCode) subjTd.append(el('small', '', item.subjectCode));
+
+      // 2. Month (BS)
+      const monthTd = el('td');
+      const monthSel = makeSelectWithValue(monthItems, 'Month', initMonth, 'exam-cell-select', `Month for ${item.subjectName}`);
+      monthSel.dataset.field = 'month';
+      monthTd.append(monthSel);
+
+      // 3. Day (BS)
+      const dayTd = el('td');
+      const daySel = document.createElement('select');
+      daySel.className = 'exam-cell-select exam-cell-select-day';
+      daySel.dataset.field = 'day';
+      daySel.setAttribute('aria-label', `Day for ${item.subjectName}`);
+      populateDaySelectForMonth(daySel, examTableBsYear, initMonth, initDay);
+      dayTd.append(daySel);
+
+      // 4. Weekday (Auto-calculated from BS Year + Month + Day)
+      const wdTd = el('td');
+      const initWd = initMonth && initDay
+        ? (getBsWeekday(examTableBsYear, Number(initMonth), Number(initDay)) || item.existing?.weekday || '—')
+        : '—';
+      const wdPill = el('span', 'exam-weekday-pill', initWd);
+      wdPill.dataset.field = 'weekday';
+      wdTd.append(wdPill);
+
+      const updateRowWeekday = () => {
+        const m = monthSel.value;
+        const d = daySel.value;
+        wdPill.textContent = m && d ? (getBsWeekday(examTableBsYear, Number(m), Number(d)) || '—') : '—';
+      };
+
+      monthSel.addEventListener('change', () => {
+        const prevDay = daySel.value;
+        populateDaySelectForMonth(daySel, examTableBsYear, monthSel.value, prevDay);
+        updateRowWeekday();
+      });
+      daySel.addEventListener('change', updateRowWeekday);
+
+      // 5. Start Time
+      const startTd = el('td');
+      const startSel = makeSelectWithValue(NPT_TIME_POINTS, 'Start', timeParts.start, 'exam-cell-select', `Start time for ${item.subjectName}`);
+      startSel.dataset.field = 'start';
+      startTd.append(startSel);
+
+      // 6. End Time
+      const endTd = el('td');
+      const endSel = makeSelectWithValue(NPT_TIME_POINTS, 'End', timeParts.end, 'exam-cell-select', `End time for ${item.subjectName}`);
+      endSel.dataset.field = 'end';
+      endTd.append(endSel);
+
+      // 7. Exam Type
+      const typeTd = el('td');
+      const typeSel = makeSelectWithValue(examTypeItems, 'Exam Type', initType, 'exam-cell-select', `Exam type for ${item.subjectName}`);
+      typeSel.dataset.field = 'type';
+      typeTd.append(typeSel);
+
+      // 8. Actions (Save / Clear)
+      const actTd = el('td');
+      const group = el('div', 'routine-row-actions');
+      const saveBtn = el('button', 'routine-btn routine-btn-primary', item.existing ? 'Update' : 'Save');
+      saveBtn.type = 'button';
+      saveBtn.addEventListener('click', async () => {
+        setBusy(true);
+        status('routineAdminStatus', `Saving ${item.subjectName}…`);
+        try {
+          const ok = await saveSingleExamRow(tr);
+          if (ok) {
+            if (window.SWR) window.SWR.invalidate('/api/routine');
+            renderPublic();
+            renderExamTable();
+            status('routineAdminStatus', `Saved ${item.subjectName}.`);
+          }
+        } catch (err) {
+          status('routineAdminStatus', err.message, true);
+        } finally {
+          setBusy(false);
+        }
+      });
+      group.append(saveBtn);
+
+      if (item.existing) {
+        const clearBtn = el('button', 'routine-btn routine-btn-delete', 'Clear');
+        clearBtn.type = 'button';
+        clearBtn.addEventListener('click', () => clearSingleExamRow(tr));
+        group.append(clearBtn);
+      }
+      actTd.append(group);
+
+      tr.append(subjTd, monthTd, dayTd, wdTd, startTd, endTd, typeTd, actTd);
+      return tr;
+    }));
+  }
+
+  async function saveAllExamRows() {
+    if (busy || !isAdmin) return;
+    const body = byId('routineAdminRows');
+    if (!body) return;
+    const rows = [...body.querySelectorAll('tr[data-subject-name]')];
+    const readyRows = rows.filter(tr => {
+      const m = tr.querySelector('[data-field="month"]')?.value;
+      const d = tr.querySelector('[data-field="day"]')?.value;
+      return Boolean(m && d);
+    });
+    if (!readyRows.length) {
+      status('routineAdminStatus', 'Select Month and Day for at least one subject before saving.', true);
+      return;
+    }
+
+    setBusy(true);
+    status('routineAdminStatus', `Saving ${readyRows.length} subject${readyRows.length > 1 ? 's' : ''}…`);
+    let savedCount = 0;
+    try {
+      for (const tr of readyRows) {
+        const ok = await saveSingleExamRow(tr);
+        if (ok) savedCount += 1;
+      }
+      if (window.SWR) window.SWR.invalidate('/api/routine');
+      renderPublic();
+      renderExamTable();
+      status('routineAdminStatus', `Saved ${savedCount} exam${savedCount > 1 ? 's' : ''} for Semester ${romans[examTableSemester - 1]}.`);
+    } catch (err) {
+      status('routineAdminStatus', err.message, true);
+    } finally {
+      setBusy(false);
+    }
   }
 
   // ==========================================================================
@@ -835,7 +1090,6 @@
     const clearBtn = byId('classEditorClearBtn');
     if (clearBtn) clearBtn.hidden = !entry;
 
-    // Populate subject picker for this routine's semester
     const subjSel = byId('classEditSubjectSelect');
     const subjCustom = byId('classEditSubjectCustom');
     const subjects = getSubjectsForSemester(classRoutine.semester);
@@ -861,7 +1115,6 @@
       subjCustom.value = '';
     }
 
-    // Populate teacher picker
     const facSel = byId('classEditFacultySelect');
     const facCustom = byId('classEditFacultyCustom');
     const teachers = routineOptions.teachers || [];
@@ -953,7 +1206,7 @@
   }
 
   // ==========================================================================
-  // EXAM SCHEDULE LOGIC (Preserved + Picker-First Upgrades)
+  // PUBLIC EXAM SCHEDULE & FILTERS
   // ==========================================================================
 
   function showPublicError(message) {
@@ -970,7 +1223,6 @@
     const filtersEl = byId('routineFilters');
     if (!filtersEl) return;
 
-    // Students/CRs only see their own semester (no switching)
     if (academicCtx && academicCtx.authenticated && academicCtx.isStudent) {
       filtersEl.hidden = true;
       return;
@@ -985,13 +1237,17 @@
       button.setAttribute('aria-pressed', String(value === activeVal));
       button.addEventListener('click', () => {
         selectedSemester = value;
+        if (value !== 'all') examTableSemester = Number(value);
         const url = new URL(location.href);
         if (value === 'all') url.searchParams.delete('semester');
         else url.searchParams.set('semester', value);
         history.pushState({}, '', url);
         renderFilters();
         if (viewMode === 'class') loadClassRoutine();
-        else renderPublic();
+        else {
+          renderPublic();
+          renderExamTable();
+        }
       });
       return button;
     });
@@ -1021,7 +1277,7 @@
       const date = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(row.exam_date);
       dateBox.append(el('span', 'date-day', date ? date[3] : row.exam_date));
       dateBox.append(el('span', 'date-month', date ? formatBsMonthLabel(row.exam_date, row.calendar) : 'Date to confirm'));
-      dateBox.append(el('span', 'date-weekday', row.calendar || 'Calendar unconfirmed'));
+      dateBox.append(el('span', 'date-weekday', row.weekday || row.calendar || 'BS'));
       const details = el('div', 'exam-details');
       details.append(el('span', 'semester-tag', `Semester ${romans[row.semester - 1]}${row.subject_code ? ` · ${row.subject_code}` : ''}`));
       details.append(el('h2', '', row.subject_name));
@@ -1029,136 +1285,6 @@
       if (meta) details.append(el('p', '', meta));
       article.append(dateBox, details, el('div', 'exam-time', row.exam_time || 'Time to be announced'));
       return article;
-    }));
-  }
-
-  function setBusy(value) {
-    busy = value;
-    if (byId('routineFormFields')) byId('routineFormFields').disabled = value;
-    if (adminPanel) adminPanel.querySelectorAll('button').forEach(button => { button.disabled = value; });
-  }
-
-  function resetForm(focus = false) {
-    editingId = null;
-    initExamPickers();
-    if (byId('routineWeekday')) byId('routineWeekday').value = '';
-    if (byId('routineRoomSelect')) byId('routineRoomSelect').value = '';
-    if (byId('routineRoomCustom')) {
-      byId('routineRoomCustom').hidden = true;
-      byId('routineRoomCustom').value = '';
-    }
-    if (byId('routineFormHeading')) byId('routineFormHeading').textContent = 'Add an exam';
-    if (byId('routineSaveBtn')) byId('routineSaveBtn').textContent = 'Add exam';
-    if (byId('routineCancelBtn')) byId('routineCancelBtn').hidden = true;
-    status('routineFormStatus', '');
-    if (focus) byId('routineSubjectSelect')?.focus();
-  }
-
-  function editExam(row) {
-    if (busy || !form) return;
-    editingId = row.id;
-    const sem = Number(row.semester) || 1;
-    if (byId('routineSemester')) byId('routineSemester').value = String(sem);
-    populateExamSubjectPicker(sem, row.subject_name || '', row.subject_code || '');
-
-    const cal = row.calendar === 'AD' ? 'AD' : 'BS';
-    if (byId('routineCalendar')) byId('routineCalendar').value = cal;
-    populateDatePickers(byId('routineDateYear'), byId('routineDateMonth'), byId('routineDateDay'), cal, row.exam_date);
-    syncExamDateHidden();
-
-    if (byId('routineWeekday')) byId('routineWeekday').value = row.weekday || '';
-    if (byId('routineExamType')) {
-      const etSel = byId('routineExamType');
-      if (row.exam_type && ![...etSel.options].some(o => o.value === row.exam_type)) {
-        const extra = document.createElement('option');
-        extra.value = row.exam_type;
-        extra.textContent = row.exam_type;
-        etSel.append(extra);
-      }
-      etSel.value = row.exam_type || '';
-    }
-
-    applyExamTimeValue(row.exam_time || '11:30 AM – 2:30 PM');
-
-    const roomSel = byId('routineRoomSelect');
-    const roomCustom = byId('routineRoomCustom');
-    if (roomSel && roomCustom) {
-      if (row.room) {
-        if ([...roomSel.options].some(o => o.value === row.room)) {
-          roomSel.value = row.room;
-          roomCustom.hidden = true;
-          roomCustom.value = row.room;
-        } else {
-          roomSel.value = '__custom__';
-          roomCustom.hidden = false;
-          roomCustom.value = row.room;
-        }
-      } else {
-        roomSel.value = '';
-        roomCustom.hidden = true;
-        roomCustom.value = '';
-      }
-    }
-
-    byId('routineFormHeading').textContent = 'Edit exam';
-    byId('routineSaveBtn').textContent = 'Save changes';
-    byId('routineCancelBtn').hidden = false;
-    status('routineFormStatus', row.calendar ? '' : 'Please confirm whether this existing date is BS or AD before saving.');
-    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  async function deleteExam(row) {
-    if (busy || !window.confirm(`Delete “${row.subject_name}” on ${row.exam_date}? This removes the exam from the published routine.`)) return;
-    setBusy(true);
-    status('routineAdminStatus', 'Deleting exam…');
-    try {
-      await request(`/api/routine/${row.id}`, { method: 'DELETE' });
-      if (window.SWR) window.SWR.invalidate('/api/routine');
-      routines = routines.filter(item => item.id !== row.id);
-      if (editingId === row.id) resetForm();
-      renderPublic();
-      renderAdmin();
-      status('routineAdminStatus', 'Exam deleted. The published routine is updated.');
-    } catch (err) { status('routineAdminStatus', err.message, true); }
-    finally { setBusy(false); }
-  }
-
-  function renderAdmin() {
-    if (!isAdmin) return;
-    const body = byId('routineAdminRows');
-    if (!body) return;
-    if (!routines.length) {
-      const row = el('tr');
-      const cell = el('td', 'routine-empty', 'No exams yet. Add the first exam below.');
-      cell.colSpan = 6;
-      row.append(cell);
-      body.replaceChildren(row);
-      return;
-    }
-    body.replaceChildren(...sortedRows().map(row => {
-      const tr = el('tr');
-      const subject = el('td');
-      subject.append(el('strong', '', row.subject_name));
-      if (row.subject_code) subject.append(el('small', '', row.subject_code));
-      const date = el('td', '', `${row.exam_date} ${row.calendar || '(confirm calendar)'}`);
-      if (row.calendar === 'BS') date.append(el('small', '', formatBsMonthLabel(row.exam_date, 'BS')));
-      if (row.weekday) date.append(el('small', '', row.weekday));
-      const time = el('td', '', row.exam_time || 'Not set');
-      if (row.room) time.append(el('small', '', `Room ${row.room}`));
-      const actions = el('td');
-      const group = el('div', 'routine-row-actions');
-      const edit = el('button', 'routine-btn', 'Edit');
-      const remove = el('button', 'routine-btn routine-btn-delete', 'Delete');
-      edit.type = remove.type = 'button';
-      edit.disabled = remove.disabled = busy;
-      edit.setAttribute('aria-label', `Edit ${row.subject_name}`);
-      remove.setAttribute('aria-label', `Delete ${row.subject_name}`);
-      edit.addEventListener('click', () => editExam(row));
-      remove.addEventListener('click', () => deleteExam(row));
-      group.append(edit, remove);
-      actions.append(group);
-      tr.append(subject, el('td', '', romans[row.semester - 1]), date, time, el('td', '', row.exam_type || '—'), actions);
-      return tr;
     }));
   }
 
@@ -1176,7 +1302,7 @@
             if (meta.source === 'cache' || meta.changed) {
               routines = rows;
               renderPublic();
-              renderAdmin();
+              renderExamTable();
             }
           }
         });
@@ -1187,7 +1313,7 @@
       if (!Array.isArray(rows)) throw new Error('Could not read the routine. Please try again.');
       routines = rows;
       renderPublic();
-      renderAdmin();
+      renderExamTable();
     } catch (err) { showPublicError(err.message); }
     finally { schedule.removeAttribute('aria-busy'); }
   }
@@ -1208,7 +1334,6 @@
       const profile = await request('/api/profile');
       if (profile.role !== 'admin') return;
       isAdmin = true;
-      if (adminPanel) adminPanel.hidden = false;
       if (byId('routineAdminLink')) byId('routineAdminLink').hidden = false;
       syncAdminQuickActions();
       setBusy(true);
@@ -1218,10 +1343,9 @@
       ]);
       if (!Array.isArray(rows)) throw new Error('Could not load the admin list.');
       routines = rows;
-      initExamPickers();
       renderClassRoutine();
       renderPublic();
-      renderAdmin();
+      renderExamTable();
       if (byId('routineAdminRetry')) byId('routineAdminRetry').hidden = true;
       status('routineAdminStatus', '');
     } catch (err) {
@@ -1232,112 +1356,19 @@
     } finally { setBusy(false); }
   }
 
-  // Wire Exam Picker Events
-  byId('routineSemester')?.addEventListener('change', e => {
-    populateExamSubjectPicker(Number(e.target.value) || 1, '', '');
+  // Wire Exam Table Toolbar Events
+  byId('examTableSemester')?.addEventListener('change', e => {
+    examTableSemester = Number(e.target.value) || 1;
+    status('routineAdminStatus', '');
+    renderExamTable();
   });
 
-  byId('routineSubjectSelect')?.addEventListener('change', e => {
-    const sel = e.target;
-    const customInput = byId('routineSubject');
-    const codeInput = byId('routineSubjectCode');
-    if (sel.value === '__custom__') {
-      if (customInput) {
-        customInput.hidden = false;
-        customInput.required = true;
-        customInput.value = '';
-        customInput.focus();
-      }
-      if (codeInput) codeInput.value = '';
-    } else {
-      if (customInput) {
-        customInput.hidden = true;
-        customInput.required = false;
-        customInput.value = sel.value;
-      }
-      const chosen = sel.options[sel.selectedIndex];
-      if (codeInput && chosen) codeInput.value = chosen.dataset.code || '';
-    }
+  byId('examTableBsYear')?.addEventListener('change', e => {
+    examTableBsYear = Number(e.target.value) || 2083;
+    renderExamTable();
   });
 
-  byId('routineCalendar')?.addEventListener('change', e => {
-    populateDatePickers(byId('routineDateYear'), byId('routineDateMonth'), byId('routineDateDay'), e.target.value || 'BS', '');
-    syncExamDateHidden();
-  });
-
-  ['routineDateYear', 'routineDateMonth', 'routineDateDay'].forEach(id => {
-    byId(id)?.addEventListener('change', syncExamDateHidden);
-  });
-
-  ['routineTimeStart', 'routineTimeEnd'].forEach(id => {
-    byId(id)?.addEventListener('change', syncExamTimeHidden);
-  });
-
-  byId('routineRoomSelect')?.addEventListener('change', e => {
-    const custom = byId('routineRoomCustom');
-    if (!custom) return;
-    if (e.target.value === '__custom__') {
-      custom.hidden = false;
-      custom.value = '';
-      custom.focus();
-    } else {
-      custom.hidden = true;
-      custom.value = e.target.value;
-    }
-  });
-
-  if (form) {
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      if (busy || !isAdmin) return;
-      syncExamDateHidden();
-      syncExamTimeHidden();
-
-      const subjSel = byId('routineSubjectSelect');
-      const subjectName = subjSel && subjSel.value !== '__custom__'
-        ? subjSel.value.trim()
-        : (byId('routineSubject')?.value || '').trim();
-      if (!subjectName) {
-        status('routineFormStatus', 'Please choose a subject.', true);
-        return;
-      }
-
-      const roomSel = byId('routineRoomSelect');
-      const roomVal = roomSel && roomSel.value !== '__custom__'
-        ? roomSel.value.trim()
-        : (byId('routineRoomCustom')?.value || '').trim();
-
-      const payload = {
-        semester: Number(byId('routineSemester')?.value),
-        subject_name: subjectName,
-        subject_code: (byId('routineSubjectCode')?.value || '').trim() || null,
-        calendar: byId('routineCalendar')?.value || 'BS',
-        exam_date: (byId('routineDate')?.value || '').trim(),
-        exam_time: (byId('routineExamTime')?.value || '').trim() || null,
-        room: roomVal || null,
-        weekday: (byId('routineWeekday')?.value || '').trim() || null,
-        exam_type: (byId('routineExamType')?.value || '').trim() || null
-      };
-
-      const id = editingId;
-      setBusy(true);
-      status('routineFormStatus', 'Saving exam…');
-      try {
-        const row = await request(`/api/routine${id ? `/${id}` : ''}`, {
-          method: id ? 'PUT' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (window.SWR) window.SWR.invalidate('/api/routine');
-        routines = id ? routines.map(item => item.id === id ? row : item) : [...routines, row];
-        resetForm();
-        renderPublic();
-        renderAdmin();
-        status('routineFormStatus', 'Saved! The published exam schedule is updated.');
-      } catch (err) { status('routineFormStatus', err.message, true); }
-      finally { setBusy(false); }
-    });
-  }
+  byId('examTableSaveAllBtn')?.addEventListener('click', saveAllExamRows);
 
   // Wire Class Period Editor Modal Events
   byId('classEditDay')?.addEventListener('change', () => {
@@ -1524,7 +1555,6 @@
   byId('quickEditClassPeriodBtn')?.addEventListener('click', () => openClassPeriodEditor(selectedMobileDay || 'Monday', null, null));
   byId('quickNewClassRoutineBtn')?.addEventListener('click', () => openNewClassRoutineModal());
   byId('quickAddExamBtn')?.addEventListener('click', () => {
-    resetForm(true);
     adminPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
@@ -1549,13 +1579,15 @@
   });
 
   byId('routineAdminRetry')?.addEventListener('click', checkAdminAccess);
-  byId('routineNewBtn')?.addEventListener('click', () => resetForm(true));
-  byId('routineCancelBtn')?.addEventListener('click', () => resetForm());
   window.addEventListener('popstate', () => {
     selectedSemester = parseSemester(new URLSearchParams(location.search).get('semester'));
+    if (selectedSemester !== 'all') examTableSemester = Number(selectedSemester);
     renderFilters();
     if (viewMode === 'class') loadClassRoutine();
-    else renderPublic();
+    else {
+      renderPublic();
+      renderExamTable();
+    }
   });
 
   async function initRoutinePage() {
@@ -1584,7 +1616,9 @@
   window.__routineHelpers = {
     getTodayWeekday,
     getCurrentKathmanduMinutes,
-    findCurrentOrUpcoming
+    findCurrentOrUpcoming,
+    getBsDaysInMonth,
+    getBsWeekday
   };
 
   initRoutinePage();

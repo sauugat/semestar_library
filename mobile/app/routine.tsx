@@ -28,7 +28,7 @@ import {
 } from '@/constants/nepaliCalendar';
 import {
   AdminClassPeriodModal,
-  AdminExamEditorModal,
+  AdminExamTableModal,
   AdminNewClassRoutineModal,
 } from '@/components/routine/AdminRoutineEditorModals';
 
@@ -133,7 +133,7 @@ export default function RoutineScreen() {
   // Admin picker modal states
   const [classPeriodEdit, setClassPeriodEdit] = useState<{ day: string; slotId: number | null } | null>(null);
   const [newClassRoutineVisible, setNewClassRoutineVisible] = useState(false);
-  const [examEditorState, setExamEditorState] = useState<{ open: boolean; exam: ExamRow | null }>({ open: false, exam: null });
+  const [examTableVisible, setExamTableVisible] = useState(false);
 
   const pagerRef = useRef<any>(null);
 
@@ -404,12 +404,12 @@ export default function RoutineScreen() {
             ) : (
               <TouchableOpacity
                 activeOpacity={0.8}
-                onPress={() => setExamEditorState({ open: true, exam: null })}
+                onPress={() => setExamTableVisible(true)}
                 style={[styles.adminActionPrimary, { backgroundColor: colors.text, borderRadius: radii.md }]}
               >
-                <Ionicons name="add" size={17} color={colors.background} />
-                <Text variant="xs" weight="700" style={{ color: colors.background, marginLeft: 4 }}>
-                  Add Exam (BS / NPT)
+                <Ionicons name="create-outline" size={16} color={colors.background} />
+                <Text variant="xs" weight="700" style={{ color: colors.background, marginLeft: 6 }}>
+                  Edit Exam Schedule
                 </Text>
               </TouchableOpacity>
             )}
@@ -690,7 +690,7 @@ export default function RoutineScreen() {
                 key={row.id}
                 activeOpacity={isAdmin ? 0.78 : 1}
                 disabled={!isAdmin}
-                onPress={() => isAdmin && setExamEditorState({ open: true, exam: row })}
+                onPress={() => isAdmin && setExamTableVisible(true)}
               >
                 <Card
                   variant="outlined"
@@ -834,12 +834,12 @@ export default function RoutineScreen() {
               void queryClient.invalidateQueries({ queryKey: ['class-routine'] });
             }}
           />
-          <AdminExamEditorModal
-            visible={examEditorState.open}
-            editingExam={examEditorState.exam}
+          <AdminExamTableModal
+            visible={examTableVisible}
             initialSemester={staffSemester}
+            existingExams={examQuery.data || []}
             options={routineOptions}
-            onClose={() => setExamEditorState({ open: false, exam: null })}
+            onClose={() => setExamTableVisible(false)}
             onSaved={() => {
               void queryClient.invalidateQueries({ queryKey: ['exam-routine'] });
             }}

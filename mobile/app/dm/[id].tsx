@@ -45,6 +45,7 @@ import { FullScreenFilePreview } from '@/components/FullScreenFilePreview';
 import type { LibraryFile } from '@/services/library';
 import { prepareChatAttachment, removeOutboxFile } from '@/services/chat-attachments';
 import { safeChatFilename, formatFileExtension } from '@/services/chat-state';
+import { ThemeGlassSheet } from '@/components/chat/ThemeGlassSheet';
 import {
   DM_CHAT_THEMES,
   getDmThemeById,
@@ -2454,12 +2455,14 @@ function DmConversation() {
           style={styles.modalOverlay}
           onPress={() => setSelectedActionMessage(null)}
         >
-          <View
-            style={[
-              styles.actionSheetContent,
-              { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
-            ]}
+          <ThemeGlassSheet
+            backgroundImage={activeDmTheme.backgroundImage}
+            tintColor={activeDmTheme.selfBubbleBg}
+            accentColor={activeDmTheme.previewColors[2]}
+            blurRadius={26}
+            style={styles.actionSheetContent}
           >
+            <View style={styles.peerSheetHandle} />
             {/* Message Timestamp Header (shown on long-press alongside reactions & actions) */}
             {Boolean(selectedActionMessage?.createdAt) && (
               <View style={styles.dmActionTimestampRow}>
@@ -2577,7 +2580,7 @@ function DmConversation() {
                 </Text>
               </TouchableOpacity>
             )}
-          </View>
+          </ThemeGlassSheet>
         </Pressable>
       </Modal>
       )}
@@ -2594,12 +2597,14 @@ function DmConversation() {
           style={styles.modalOverlay}
           onPress={() => setSettingsModalVisible(false)}
         >
-          <View
-            style={[
-              styles.actionSheetContent,
-              { backgroundColor: colors.surface, borderColor: colors.borderSubtle },
-            ]}
+          <ThemeGlassSheet
+            backgroundImage={activeDmTheme.backgroundImage}
+            tintColor={activeDmTheme.selfBubbleBg}
+            accentColor={activeDmTheme.previewColors[2]}
+            blurRadius={26}
+            style={styles.actionSheetContent}
           >
+            <View style={styles.peerSheetHandle} />
             <Text variant="sm" weight="700" style={[styles.actionSheetHeader, { color: colors.textMuted }]}>
               CONVERSATION OPTIONS
             </Text>
@@ -2704,7 +2709,7 @@ function DmConversation() {
                 Report User
               </Text>
             </TouchableOpacity>
-          </View>
+          </ThemeGlassSheet>
         </Pressable>
       </Modal>
       )}
@@ -2718,12 +2723,14 @@ function DmConversation() {
         onRequestClose={() => setSubPanel(null)}
       >
         <Pressable style={styles.modalOverlay} onPress={() => setSubPanel(null)}>
-          <View
-            style={[
-              styles.actionSheetContent,
-              { backgroundColor: colors.surface, borderColor: colors.borderSubtle, maxHeight: 420 },
-            ]}
+          <ThemeGlassSheet
+            backgroundImage={activeDmTheme.backgroundImage}
+            tintColor={activeDmTheme.selfBubbleBg}
+            accentColor={activeDmTheme.previewColors[2]}
+            blurRadius={26}
+            style={[styles.actionSheetContent, { maxHeight: 420 }]}
           >
+            <View style={styles.peerSheetHandle} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <Text variant="sm" weight="700" style={{ color: colors.textMuted, letterSpacing: 0.5 }}>
                 {subPanel === 'links' ? 'SHARED LINKS' : 'STARRED MESSAGES'}
@@ -2788,7 +2795,7 @@ function DmConversation() {
                 ))
               )}
             </ScrollView>
-          </View>
+          </ThemeGlassSheet>
         </Pressable>
       </Modal>
       )}
@@ -2917,8 +2924,12 @@ function DmConversation() {
           style={styles.modalOverlay}
           onPress={() => setPeerInfoModalVisible(false)}
         >
-          <Pressable
-            onPress={() => {}}
+          <Pressable onPress={() => {}}>
+          <ThemeGlassSheet
+            backgroundImage={activeDmTheme.backgroundImage}
+            tintColor={activeDmTheme.selfBubbleBg}
+            accentColor={activeDmTheme.previewColors[2]}
+            blurRadius={26}
             style={[
               styles.peerSheetContainer,
               { paddingBottom: Math.max(insets.bottom, 22) },
@@ -3127,6 +3138,7 @@ function DmConversation() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </ThemeGlassSheet>
           </Pressable>
         </Pressable>
       </Modal>
@@ -3145,7 +3157,11 @@ function DmConversation() {
             style={StyleSheet.absoluteFill}
             onPress={() => setThemeModalVisible(false)}
           />
-          <View
+          <ThemeGlassSheet
+            backgroundImage={activeDmTheme.backgroundImage}
+            tintColor={activeDmTheme.selfBubbleBg}
+            accentColor={activeDmTheme.previewColors[2]}
+            blurRadius={26}
             style={[
               styles.peerSheetContainer,
               { paddingBottom: Math.max(insets.bottom, 24) },
@@ -3273,7 +3289,7 @@ function DmConversation() {
                 );
               })}
             </ScrollView>
-          </View>
+          </ThemeGlassSheet>
         </View>
       </Modal>
       )}
@@ -3290,17 +3306,18 @@ function DmConversation() {
             style={styles.modalOverlay}
             onPress={() => setShowAttachModal(false)}
           >
-            <Pressable
-              onPress={() => {}}
+            <Pressable onPress={() => {}}>
+            <ThemeGlassSheet
+              backgroundImage={activeDmTheme.backgroundImage}
+              tintColor={activeDmTheme.selfBubbleBg}
+              accentColor={activeDmTheme.previewColors[2]}
+              blurRadius={26}
               style={[
                 styles.actionSheetContent,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.borderSubtle,
-                  paddingBottom: Math.max(insets.bottom, 24),
-                },
+                { paddingBottom: Math.max(insets.bottom, 24) },
               ]}
             >
+              <View style={styles.peerSheetHandle} />
               <Text variant="md" weight="700" style={{ color: '#F5F5F5', marginBottom: 14 }}>
                 Share Attachment
               </Text>
@@ -3353,11 +3370,12 @@ function DmConversation() {
                   <Text variant="sm" weight="600" style={{ color: '#F5F5F5' }}>
                     Document & File
                   </Text>
-                  <Text variant="xs" style={{ color: '#8E8E93', marginTop: 1 }}>
+                  <Text variant="xs" style={{ color: '#A1A1AA', marginTop: 1 }}>
                     PDF, DOCX, PPTX, XLSX, TXT, or ZIP
                   </Text>
                 </View>
               </TouchableOpacity>
+            </ThemeGlassSheet>
             </Pressable>
           </Pressable>
         </Modal>
@@ -3672,11 +3690,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   peerSheetContainer: {
-    backgroundColor: '#121215',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.12)',
     paddingHorizontal: 18,
     paddingTop: 10,
   },
@@ -3684,9 +3697,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#3F3F46',
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
     alignSelf: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   peerSheetProfileHeader: {
     alignItems: 'center',
@@ -3751,10 +3764,10 @@ const styles = StyleSheet.create({
   },
   peerQuickTile: {
     flex: 1,
-    backgroundColor: '#1C1C20',
-    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.09)',
+    borderColor: 'rgba(255,255,255,0.14)',
     paddingVertical: 12,
     paddingHorizontal: 4,
     alignItems: 'center',
@@ -3762,19 +3775,19 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   peerQuickTileActive: {
-    backgroundColor: '#27272C',
-    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(255,255,255,0.28)',
   },
   peerQuickTileLabel: {
-    color: '#E4E4E7',
+    color: '#F4F4F5',
     fontSize: 11,
     textAlign: 'center',
   },
   peerSheetListGroup: {
-    backgroundColor: '#1A1A1E',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.13)',
     overflow: 'hidden',
   },
   peerSheetListRow: {
@@ -4011,15 +4024,12 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.42)',
     justifyContent: 'flex-end',
   },
   actionSheetContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 32,
   },
   actionSheetHeader: {
@@ -4122,20 +4132,22 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     marginBottom: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#27272A',
+    borderBottomColor: 'rgba(255,255,255,0.12)',
   },
   dmQuickReactionBtn: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#1C1C1E',
+    backgroundColor: 'rgba(255,255,255,0.09)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   dmQuickReactionBtnActive: {
-    backgroundColor: '#2E2E32',
+    backgroundColor: 'rgba(255,255,255,0.20)',
     borderWidth: 1,
-    borderColor: '#52525B',
+    borderColor: 'rgba(255,255,255,0.34)',
   },
   dmReactionPillsRow: {
     flexDirection: 'row',
@@ -4186,7 +4198,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#1E1E22',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -4195,7 +4209,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(255,255,255,0.14)',
+    borderColor: 'rgba(255,255,255,0.16)',
     marginBottom: 16,
     justifyContent: 'center',
   },
@@ -4214,13 +4228,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 16,
-    backgroundColor: '#1A1A1E',
+    backgroundColor: 'rgba(255,255,255,0.07)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   themeOptionCardActive: {
-    backgroundColor: '#222228',
-    borderColor: 'rgba(255,255,255,0.45)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(255,255,255,0.42)',
   },
   themeSwatchWrap: {
     width: 48,

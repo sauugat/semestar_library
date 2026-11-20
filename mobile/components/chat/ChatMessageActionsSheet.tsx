@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from '@/components/ui/Typography';
+import { ThemeGlassSheet } from '@/components/chat/ThemeGlassSheet';
 import { ChatMessage } from '@/services/chat';
 import { formatMessageTime, formatChatDateSeparator } from '@/utils/date';
 import * as Haptics from 'expo-haptics';
@@ -24,6 +25,9 @@ interface ChatMessageActionsSheetProps {
   isStarred?: boolean;
   isOwnerOrAdmin: boolean;
   currentUserId?: string;
+  themeBackgroundImage?: number | null;
+  themeTintColor?: string;
+  themeAccentColor?: string;
   onClose: () => void;
   onReact: (message: ChatMessage, emoji: string) => void;
   onReply: (message: ChatMessage) => void;
@@ -45,6 +49,9 @@ export function ChatMessageActionsSheet({
   isStarred,
   isOwnerOrAdmin,
   currentUserId,
+  themeBackgroundImage,
+  themeTintColor,
+  themeAccentColor,
   onClose,
   onReact,
   onReply,
@@ -81,12 +88,15 @@ export function ChatMessageActionsSheet({
           accessibilityLabel="Dismiss message actions"
         />
 
-        <View
+        <ThemeGlassSheet
+          backgroundImage={themeBackgroundImage}
+          tintColor={themeTintColor}
+          accentColor={themeAccentColor}
+          blurRadius={26}
           style={[
             styles.sheetContainer,
             { paddingBottom: Math.max(insets.bottom, 16) + 8 },
           ]}
-          accessibilityViewIsModal
         >
           {/* Subtle handle bar */}
           <View style={styles.handle} />
@@ -94,7 +104,7 @@ export function ChatMessageActionsSheet({
           {/* Message Timestamp Header */}
           {Boolean(message.createdAt) && (
             <View style={styles.timestampRow}>
-              <Ionicons name="time-outline" size={13} color="#A1A1AA" />
+              <Ionicons name="time-outline" size={13} color="rgba(255,255,255,0.68)" />
               <Text variant="xs" weight="500" style={styles.timestampLabel}>
                 {`${formatChatDateSeparator(message.createdAt)} · ${formatMessageTime(message.createdAt)}`}
               </Text>
@@ -118,9 +128,9 @@ export function ChatMessageActionsSheet({
                   style={[
                     styles.reactionButton,
                     isSelected && {
-                      backgroundColor: 'rgba(255, 255, 255, 0.14)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.18)',
                       borderWidth: 1,
-                      borderColor: 'rgba(255, 255, 255, 0.28)',
+                      borderColor: 'rgba(255, 255, 255, 0.34)',
                     },
                   ]}
                   activeOpacity={0.65}
@@ -142,7 +152,7 @@ export function ChatMessageActionsSheet({
               onPress={() => onReply(message)}
             >
               <View style={styles.actionIconBox}>
-                <Ionicons name="arrow-undo-outline" size={20} color="#e4e4e7" />
+                <Ionicons name="arrow-undo-outline" size={20} color="#F4F4F5" />
               </View>
               <Text variant="md" weight="500" style={styles.actionLabel}>
                 Reply
@@ -158,7 +168,7 @@ export function ChatMessageActionsSheet({
                 onPress={() => onForward(message)}
               >
                 <View style={styles.actionIconBox}>
-                  <Ionicons name="arrow-redo-outline" size={20} color="#e4e4e7" />
+                  <Ionicons name="arrow-redo-outline" size={20} color="#F4F4F5" />
                 </View>
                 <Text variant="md" weight="500" style={styles.actionLabel}>
                   Forward message
@@ -175,7 +185,7 @@ export function ChatMessageActionsSheet({
                 onPress={() => onToggleStar(message)}
               >
                 <View style={styles.actionIconBox}>
-                  <Ionicons name={isStarred ? 'star' : 'star-outline'} size={20} color="#e4e4e7" />
+                  <Ionicons name={isStarred ? 'star' : 'star-outline'} size={20} color="#F4F4F5" />
                 </View>
                 <Text variant="md" weight="500" style={styles.actionLabel}>
                   {isStarred ? 'Remove star' : 'Star message'}
@@ -192,7 +202,7 @@ export function ChatMessageActionsSheet({
                 onPress={() => onCopy(message)}
               >
                 <View style={styles.actionIconBox}>
-                  <Ionicons name="copy-outline" size={20} color="#e4e4e7" />
+                  <Ionicons name="copy-outline" size={20} color="#F4F4F5" />
                 </View>
                 <Text variant="md" weight="500" style={styles.actionLabel}>
                   Copy text
@@ -209,10 +219,10 @@ export function ChatMessageActionsSheet({
                 onPress={() => onPin(message)}
               >
                 <View style={styles.actionIconBox}>
-                  <Ionicons name={isPinned ? "pin-outline" : "pin-outline"} size={20} color="#e4e4e7" />
+                  <Ionicons name="pin-outline" size={20} color="#F4F4F5" />
                 </View>
                 <Text variant="md" weight="500" style={styles.actionLabel}>
-                  {isPinned ? "Unpin announcement" : "Pin announcement"}
+                  {isPinned ? 'Unpin announcement' : 'Pin announcement'}
                 </Text>
               </TouchableOpacity>
             )}
@@ -226,7 +236,7 @@ export function ChatMessageActionsSheet({
                 onPress={() => onDelete(message)}
               >
                 <View style={styles.actionIconBox}>
-                  <Ionicons name="trash-outline" size={20} color="#e4e4e7" />
+                  <Ionicons name="trash-outline" size={20} color="#F4F4F5" />
                 </View>
                 <Text variant="md" weight="500" style={styles.actionLabel}>
                   {confirmed ? 'Delete for everyone' : 'Remove unsent message'}
@@ -252,7 +262,7 @@ export function ChatMessageActionsSheet({
               Cancel
             </Text>
           </TouchableOpacity>
-        </View>
+        </ThemeGlassSheet>
       </View>
     </Modal>
   );
@@ -261,26 +271,21 @@ export function ChatMessageActionsSheet({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.72)',
+    backgroundColor: 'rgba(0, 0, 0, 0.42)',
     justifyContent: 'flex-end',
   },
   backdropPressable: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: '#18181a',
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    borderTopWidth: 1,
-    borderColor: '#27272a',
     paddingHorizontal: 16,
     paddingTop: 10,
   },
   handle: {
-    width: 36,
+    width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#48484a',
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
     alignSelf: 'center',
     marginBottom: 10,
   },
@@ -292,20 +297,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   timestampLabel: {
-    color: '#a1a1aa',
+    color: 'rgba(255, 255, 255, 0.70)',
     fontSize: 12,
   },
   reactionsBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#202022',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 18,
     paddingVertical: 8,
     paddingHorizontal: 12,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#2a2a2e',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
   },
   reactionButton: {
     width: 44,
@@ -321,11 +326,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   actionsList: {
-    backgroundColor: '#202022',
-    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 16,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#2a2a2e',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.13)',
   },
   actionRow: {
     flexDirection: 'row',
@@ -333,7 +338,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#2e2e32',
+    borderBottomColor: 'rgba(255, 255, 255, 0.09)',
     minHeight: 48,
   },
   actionRowLast: {
@@ -346,7 +351,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   actionLabel: {
-    color: '#f5f5f5',
+    color: '#F5F5F5',
     flex: 1,
   },
   busyIndicator: {
@@ -355,15 +360,15 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     marginTop: 10,
-    backgroundColor: '#202022',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 14,
     minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#2a2a2e',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.14)',
   },
   cancelLabel: {
-    color: '#a1a1aa',
+    color: '#E4E4E7',
   },
 });

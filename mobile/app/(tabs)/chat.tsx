@@ -43,12 +43,16 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import * as MediaLibrary from "expo-media-library/legacy";
 import * as Clipboard from "expo-clipboard";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatConversationSkeleton } from "@/components/chat/ChatSkeletons";
 import { TypingIndicatorBubble } from "@/components/chat/TypingIndicatorBubble";
 import { StickyComposer, KeyboardContentBoundary } from "@/components/ui/StickyComposer";
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { FluidChatBackground } from "@/components/chat/FluidChatBackground";
+import { AnimatedGroupBackground } from "@/components/chat/AnimatedGroupBackground";
+import { GroupDetailsSheet } from "@/components/chat/GroupDetailsSheet";
+import { ThemeGlassSheet } from "@/components/chat/ThemeGlassSheet";
 import { getGroupChatTheme } from "@/constants/groupChatThemes";
 import { useInteractiveChatBackSwipe } from "@/components/chat/ChatGesturePrimitives";
 import { ChatMessageActionsSheet } from "@/components/chat/ChatMessageActionsSheet";
@@ -744,6 +748,7 @@ function ChatScreenInner() {
   const [readByInspectMessage, setReadByInspectMessage] = useState<ChatMessage | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<number | null>(null);
   const [panel, setPanel] = useState<"search" | "members" | null>(null);
+  const [groupDetailsVisible, setGroupDetailsVisible] = useState(false);
   const [query, setQuery] = useState("");
   const [members, setMembers] = useState<ChatMember[]>(() => initialInboxSnapshot?.cohortMembers || []);
   const [membersLoading, setMembersLoading] = useState(false);
@@ -879,11 +884,11 @@ function ChatScreenInner() {
       return "Several people are typing...";
     }
     if (error) return "Waiting for connection • tap to retry";
-    if (isConnected && onlineIds.length > 0) {
-      return `${onlineIds.length} online`;
+    if (members.length > 0) {
+      return `${members.length} members`;
     }
     return "Class conversation";
-  }, [typingNames, isConnected, onlineIds.length, error]);
+  }, [typingNames, members.length, error]);
 
   const isArchived = Boolean(
     context && (
@@ -979,6 +984,10 @@ function ChatScreenInner() {
           setActionMessage(null);
           return true;
         }
+        if (groupDetailsVisible) {
+          setGroupDetailsVisible(false);
+          return true;
+        }
         if (panel) {
           setPanel(null);
           return true;
@@ -1007,6 +1016,7 @@ function ChatScreenInner() {
       viewerImage,
       showAttachModal,
       actionMessage,
+      groupDetailsVisible,
       panel,
       selectedCohortRoom,
       handleBackToInbox,
@@ -1792,6 +1802,128 @@ function ChatScreenInner() {
     () => getGroupChatTheme(context?.groupCode || selectedCohortRoom?.groupCode || selectedCohortRoom?.title),
     [context?.groupCode, selectedCohortRoom?.groupCode, selectedCohortRoom?.title]
   );
+  const groupSemesterLabel = useMemo(() => {
+    if (context) {
+      return context.cohortStatus === "graduated"
+        ? "Graduated"
+        : `Semester ${context.currentSemester}`;
+    }
+    const semMatch =
+      selectedCohortRoom?.subtitle?.match(/Semester\s+(\d+)/i) ||
+      selectedCohortRoom?.title?.match(/Semester\s+(\d+)/i);
+    return semMatch?.[1] ? `Semester ${semMatch[1]}` : "Class Group";
+  }, [context, selectedCohortRoom?.subtitle, selectedCohortRoom?.title]);
+  const groupHeaderTitle = useMemo(() => {
+    if (context) {
+      return context.cohortStatus === "graduated"
+        ? "Group Chat - Graduated"
+        : `Group Chat - Semester ${context.currentSemester}`;
+    }
+    const semMatch =
+      selectedCohortRoom?.subtitle?.match(/Semester\s+(\d+)/i) ||
+      selectedCohortRoom?.title?.match(/Semester\s+(\d+)/i);
+    return semMatch?.[1] ? `Group Chat - Semester ${semMatch[1]}` : "Group Chat";
+  }, [context, selectedCohortRoom?.subtitle, selectedCohortRoom?.title]);
+  const cohortNameLabel = useMemo(() => {
+    if (context?.cohortDisplayName) return context.cohortDisplayName;
+    if (context?.groupCode) {
+      return context.groupCode.charAt(0).toUpperCase() + context.groupCode.slice(1).toLowerCase();
+    }
+    if (activeGroupTheme.groupCode !== "DEFAULT") return activeGroupTheme.name;
+    return selectedCohortRoom?.title || "Class";
+  }, [context?.cohortDisplayName, context?.groupCode, activeGroupTheme, selectedCohortRoom?.title]);
+
+  const activeGroupId = context?.chatGroupId || selectedCohortRoom?.chatGroupId || activeGroupTheme.groupCode;
+  const [customGroupName, setCustomGroupName] = useState<string | null>(null);
+  const [customGroupPhotoUri, setCustomGroupPhotoUri] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeGroupId) return;
+    let cancelled = false;
+    const key = `group_chat_meta_v1:${activeGroupId}`;
+    void AsyncStorage.getItem(key)
+      .then((raw) => {
+        if (cancelled) return;
+        if (!raw) {
+          setCustomGroupName(null);
+          setCustomGroupPhotoUri(null);
+          return;
+        }
+        try {
+          const parsed = JSON.parse(raw);
+          setCustomGroupName(typeof parsed?.name === "string" && parsed.name.trim() ? parsed.name.trim() : null);
+          setCustomGroupPhotoUri(typeof parsed?.photoUri === "string" && parsed.photoUri.trim() ? parsed.photoUri.trim() : null);
+        } catch {
+          setCustomGroupName(null);
+          setCustomGroupPhotoUri(null);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activeGroupId]);
+
+  const persistGroupCustomization = useCallback(
+    async (nextName: string | null, nextPhotoUri: string | null) => {
+      if (!activeGroupId) return;
+      const key = `group_chat_meta_v1:${activeGroupId}`;
+      try {
+        await AsyncStorage.setItem(
+          key,
+          JSON.stringify({ name: nextName, photoUri: nextPhotoUri })
+        );
+      } catch {}
+    },
+    [activeGroupId]
+  );
+
+  const handleSaveGroupName = useCallback(
+    (nextName: string) => {
+      const trimmed = nextName.trim();
+      const resolved = trimmed && trimmed !== groupHeaderTitle ? trimmed : null;
+      setCustomGroupName(resolved);
+      void persistGroupCustomization(resolved, customGroupPhotoUri);
+    },
+    [groupHeaderTitle, customGroupPhotoUri, persistGroupCustomization]
+  );
+
+  const handleEditGroupPhoto = useCallback(async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+      if (result.canceled || !result.assets || result.assets.length === 0) return;
+      const asset = result.assets[0];
+      let persistedUri = asset.uri;
+      try {
+        const baseDir = FileSystem.documentDirectory || FileSystem.cacheDirectory;
+        if (baseDir) {
+          const avatarsDir = `${baseDir}group_avatars/`;
+          await FileSystem.makeDirectoryAsync(avatarsDir, { intermediates: true }).catch(() => {});
+          const dest = `${avatarsDir}group_${String(activeGroupId).replace(/[^a-zA-Z0-9_-]/g, "_")}_${Date.now()}.jpg`;
+          await FileSystem.copyAsync({ from: asset.uri, to: dest });
+          persistedUri = dest;
+        }
+      } catch {
+        // Fall back to picker URI if copy fails
+      }
+      setCustomGroupPhotoUri(persistedUri);
+      void persistGroupCustomization(customGroupName, persistedUri);
+    } catch (err: any) {
+      Alert.alert("Photo Error", err?.message || "Could not update group photo.");
+    }
+  }, [activeGroupId, customGroupName, persistGroupCustomization]);
+
+  const handleResetGroupPhoto = useCallback(() => {
+    setCustomGroupPhotoUri(null);
+    void persistGroupCustomization(customGroupName, null);
+  }, [customGroupName, persistGroupCustomization]);
+
+  const resolvedGroupName = customGroupName || groupHeaderTitle;
   const [topHeaderHeight, setTopHeaderHeight] = useState(() => Math.max(insets.top, 10) + 56);
   const [composerHeight, setComposerHeight] = useState(() => 64 + Math.max(insets.bottom, 10));
 
@@ -1932,23 +2064,11 @@ function ChatScreenInner() {
             >
       <StatusBar barStyle="light-content" />
       {activeGroupTheme.backgroundImage ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Image
-            source={activeGroupTheme.backgroundImage}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            cachePolicy="memory"
-            priority="high"
-          />
-          {activeGroupTheme.backgroundOverlay !== "transparent" && (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: activeGroupTheme.backgroundOverlay },
-              ]}
-            />
-          )}
-        </View>
+        <AnimatedGroupBackground
+          source={activeGroupTheme.backgroundImage}
+          overlayColor={activeGroupTheme.backgroundOverlay}
+          accentColor={activeGroupTheme.accentColor}
+        />
       ) : (
         <FluidChatBackground />
       )}
@@ -1996,28 +2116,42 @@ function ChatScreenInner() {
 
         <TouchableOpacity
           style={styles.headerTitleContainer}
-          onPress={() => void openMembers()}
+          onPress={() => {
+            Keyboard.dismiss();
+            setGroupDetailsVisible(true);
+          }}
           activeOpacity={0.7}
-          accessibilityLabel="View class members"
+          accessibilityLabel="View group details"
         >
-          {/* Circular group icon */}
-          <View style={styles.groupAvatarCircle}>
-            <Ionicons name="people" size={18} color="#F4F4F5" />
+          {/* Circular group photo */}
+          <View style={[styles.groupAvatarCircle, { overflow: "hidden" }]}>
+            {customGroupPhotoUri ? (
+              <Image
+                source={{ uri: customGroupPhotoUri }}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+            ) : activeGroupTheme.backgroundImage ? (
+              <Image
+                source={activeGroupTheme.backgroundImage}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+                cachePolicy="memory"
+              />
+            ) : (
+              <Ionicons name="people" size={18} color="#F4F4F5" />
+            )}
           </View>
 
           <View style={styles.headerTextGroup}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Text variant="md" weight="700" style={styles.headerGroupName} numberOfLines={1}>
-                {context
-                  ? `${context.cohortDisplayName || (context.groupCode.charAt(0) + context.groupCode.slice(1).toLowerCase())} • ${context.cohortStatus === "graduated" ? "Graduated" : `Semester ${context.currentSemester}`}`
-                  : (selectedCohortRoom?.title || "Class Chat")}
+                {resolvedGroupName}
               </Text>
               <Ionicons name="chevron-forward" size={14} color="#A1A1AA" style={{ marginLeft: 3 }} />
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", marginTop: 1 }}>
-              {isConnected && onlineIds.length > 0 && typingNames.length === 0 && !error && (
-                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#22C55E", marginRight: 5 }} />
-              )}
               <Text
                 variant="xs"
                 style={[
@@ -2329,12 +2463,15 @@ function ChatScreenInner() {
             onPress={() => setPanel(null)}
             accessibilityLabel="Close panel"
           />
-          <View
+          <ThemeGlassSheet
+            backgroundImage={activeGroupTheme.backgroundImage}
+            tintColor={activeGroupTheme.selfBubbleBg}
+            accentColor={activeGroupTheme.accentColor}
+            blurRadius={26}
             style={[
               styles.panelSheet,
               { paddingBottom: Math.max(insets.bottom, 16) },
             ]}
-            accessibilityViewIsModal
           >
             <View style={styles.sheetHandle} />
             <View style={styles.panelHeader}>
@@ -2387,7 +2524,6 @@ function ChatScreenInner() {
                   <>
                     <Text style={styles.miniLabel}>
                       {members.length} MEMBERS
-                      {isConnected ? ` • ${onlineIds.length} ONLINE` : ""}
                     </Text>
                     {filteredMembers.map((member) => (
                       <TouchableOpacity
@@ -2419,13 +2555,7 @@ function ChatScreenInner() {
                                 : "Class member"}
                           </Text>
                         </View>
-                        {onlineIds.includes(String(member.studentId)) && (
-                          <View style={styles.onlineBadge}>
-                            <View style={styles.onlineDot} />
-                            <Text style={styles.onlineText}>Online</Text>
-                          </View>
-                        )}
-                        <Ionicons name="chevron-forward" size={16} color="#71717A" style={{ marginLeft: 6 }} />
+                        <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.45)" style={{ marginLeft: 6 }} />
                       </TouchableOpacity>
                     ))}
                     {!filteredMembers.length && (
@@ -2475,7 +2605,7 @@ function ChatScreenInner() {
                 </>
               )}
             </ScrollView>
-          </View>
+          </ThemeGlassSheet>
         </KeyboardStickyView>
       </Modal>
       )}
@@ -2495,6 +2625,9 @@ function ChatScreenInner() {
             String(actionMessage?.studentId) === String(user?.studentId),
         )}
         currentUserId={user?.studentId}
+        themeBackgroundImage={activeGroupTheme.backgroundImage}
+        themeTintColor={activeGroupTheme.selfBubbleBg}
+        themeAccentColor={activeGroupTheme.accentColor}
         onClose={() => !actionBusy && setActionMessage(null)}
         onReact={(msg, emoji) => void handleToggleReaction(msg, emoji)}
         onReply={(msg) => {
@@ -2550,12 +2683,17 @@ function ChatScreenInner() {
           style={styles.modalOverlay}
           onPress={() => setReadByInspectMessage(null)}
         >
-          <View
+          <ThemeGlassSheet
+            backgroundImage={activeGroupTheme.backgroundImage}
+            tintColor={activeGroupTheme.selfBubbleBg}
+            accentColor={activeGroupTheme.accentColor}
+            blurRadius={26}
             style={[
               styles.attachSheetContainer,
               { paddingBottom: Math.max(insets.bottom, 20), maxHeight: 380 },
             ]}
           >
+            <View style={styles.sheetHandle} />
             <Text variant="md" weight="700" style={{ color: "#f5f5f5", marginBottom: 10 }}>
               Seen by
             </Text>
@@ -2580,7 +2718,7 @@ function ChatScreenInner() {
                           alignItems: "center",
                           paddingVertical: 10,
                           borderBottomWidth: StyleSheet.hairlineWidth,
-                          borderBottomColor: "#27272a",
+                          borderBottomColor: "rgba(255,255,255,0.09)",
                         }}
                       >
                         <Ionicons name="checkmark-done" size={16} color="#22c55e" style={{ marginRight: 10 }} />
@@ -2591,7 +2729,7 @@ function ChatScreenInner() {
                     );
                   })}
             </ScrollView>
-          </View>
+          </ThemeGlassSheet>
         </Pressable>
       </Modal>
       )}
@@ -2604,7 +2742,11 @@ function ChatScreenInner() {
             onPress={() => setShowAttachModal(false)}
             accessibilityLabel="Close attachment options"
           />
-          <View
+          <ThemeGlassSheet
+            backgroundImage={activeGroupTheme.backgroundImage}
+            tintColor={activeGroupTheme.selfBubbleBg}
+            accentColor={activeGroupTheme.accentColor}
+            blurRadius={26}
             style={[
               styles.attachSheetContainer,
               { paddingBottom: Math.max(insets.bottom, 24) },
@@ -2680,15 +2822,44 @@ function ChatScreenInner() {
               onPress={() => setShowAttachModal(false)}
               activeOpacity={0.7}
             >
-              <Text variant="sm" weight="600" style={{ color: "#a1a1aa" }}>
+              <Text variant="sm" weight="600" style={{ color: "#E4E4E7" }}>
                 Cancel
               </Text>
             </TouchableOpacity>
-          </View>
+          </ThemeGlassSheet>
         </View>
       )}
       </View>
 
+
+      {/* Group Details Bottom Sheet (group photo, name, cohort, shared photos/files/links) */}
+      {groupDetailsVisible && (
+        <GroupDetailsSheet
+          visible
+          groupName={resolvedGroupName}
+          defaultGroupName={groupHeaderTitle}
+          customPhotoUri={customGroupPhotoUri}
+          cohortName={cohortNameLabel}
+          semesterLabel={groupSemesterLabel}
+          isArchived={isArchived}
+          groupTheme={activeGroupTheme}
+          memberCount={members.length}
+          messages={messages}
+          serverUrl={serverUrl}
+          authHeaders={imageAuthHeaders}
+          onClose={() => setGroupDetailsVisible(false)}
+          onOpenMembers={() => void openMembers()}
+          onOpenSearch={() => {
+            setQuery("");
+            setPanel("search");
+          }}
+          onOpenPhoto={handleOpenImage}
+          onOpenFile={(msg) => void handleDownloadAttachment(msg)}
+          onEditGroupPhoto={() => void handleEditGroupPhoto()}
+          onResetGroupPhoto={handleResetGroupPhoto}
+          onSaveGroupName={handleSaveGroupName}
+        />
+      )}
 
       {/* Shared Full-Screen Image Viewer (mounted lazily only when open) */}
       {viewerImage !== null && (
@@ -3058,24 +3229,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 1,
   },
-  panelBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.72)" },
+  panelBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.42)" },
   panelSheet: {
     maxHeight: "80%",
-    backgroundColor: "#18181a",
     padding: 20,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    borderWidth: 1,
-    borderColor: "#27272a",
   },
   sheetHandle: {
     alignSelf: "center",
-    width: 36,
+    width: 38,
     height: 4,
     borderRadius: 2,
-    backgroundColor: "#48484a",
-    marginBottom: 16,
-    marginTop: -8,
+    backgroundColor: "rgba(255,255,255,0.28)",
+    marginBottom: 14,
+    marginTop: -6,
   },
   panelHeader: {
     flexDirection: "row",
@@ -3089,22 +3255,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   panelSecondary: {
-    color: "#a1a1aa",
+    color: "rgba(255,255,255,0.68)",
     fontSize: 12,
     lineHeight: 18,
   },
   miniLabel: {
-    color: "#71717a",
+    color: "rgba(255,255,255,0.52)",
     fontSize: 10,
-    letterSpacing: 0.6,
+    letterSpacing: 0.7,
     fontWeight: "600",
     marginBottom: 6,
   },
   panelInput: {
-    backgroundColor: "#222224",
-    borderColor: "#333336",
-    borderWidth: 1,
-    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: "rgba(255,255,255,0.14)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
     color: "#f5f5f5",
@@ -3116,7 +3282,7 @@ const styles = StyleSheet.create({
   sheetAction: {
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#27272a",
+    borderBottomColor: "rgba(255,255,255,0.09)",
     minHeight: 46,
   },
   memberRow: {
@@ -3125,13 +3291,13 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#27272a",
+    borderBottomColor: "rgba(255,255,255,0.09)",
   },
   memberAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#27272a",
+    backgroundColor: "rgba(255,255,255,0.10)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -3158,14 +3324,9 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.42)",
   },
   attachSheetContainer: {
-    backgroundColor: "#18181a",
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    borderTopWidth: 1,
-    borderColor: "#27272a",
     padding: 20,
     paddingBottom: 36,
   },
@@ -3178,17 +3339,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#242426",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.14)",
     alignItems: "center",
     justifyContent: "center",
   },
   attachCancelBtn: {
     marginTop: 14,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#222224",
-    borderWidth: 1,
-    borderColor: "#2e2e32",
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(255,255,255,0.14)",
     alignItems: "center",
     justifyContent: "center",
   },

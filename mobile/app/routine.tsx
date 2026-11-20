@@ -1205,17 +1205,9 @@ export default function RoutineScreen() {
             ]}
           >
             <View style={styles.modalHeader}>
-              <View style={{ flex: 1, marginRight: 8 }}>
-                <Caption color="muted" style={{ textTransform: 'uppercase', letterSpacing: 0.8 }}>
-                  Class Message • {messagePopup?.day} ({messagePopup?.timeLabel})
-                </Caption>
-                <Heading level={3} style={{ marginTop: 2 }}>
-                  {messagePopup?.subjectName}
-                </Heading>
-                <Caption color="muted" style={{ marginTop: 2 }}>
-                  From {messagePopup?.teacherName}
-                </Caption>
-              </View>
+              <Text variant="md" weight="800" style={{ color: colors.text }}>
+                Message
+              </Text>
               <TouchableOpacity
                 onPress={() => setMessagePopup(null)}
                 style={[styles.closeBtn, { backgroundColor: colors.surfaceRaised }]}
@@ -1224,11 +1216,14 @@ export default function RoutineScreen() {
               </TouchableOpacity>
             </View>
 
-            <View style={[styles.modalRows, { borderTopColor: colors.border }]}>
-              <Text variant="md" style={{ color: colors.text, lineHeight: 22 }}>
-                {messagePopup?.message}
-              </Text>
-            </View>
+            <Text variant="md" style={{ color: colors.text, lineHeight: 22 }}>
+              {messagePopup?.message}
+            </Text>
+            {messagePopup?.teacherName ? (
+              <Caption color="muted" style={{ marginTop: 8 }}>
+                — {messagePopup.teacherName}
+              </Caption>
+            ) : null}
           </View>
         </TouchableOpacity>
       </Modal>

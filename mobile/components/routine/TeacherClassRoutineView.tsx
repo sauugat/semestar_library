@@ -10,6 +10,8 @@ import {
   Alert,
   Animated,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
   NativeSyntheticEvent,
   NativeScrollEvent,
   LayoutChangeEvent,
@@ -788,7 +790,10 @@ export function TeacherClassRoutineView({
           if (!isSubmitting) setModalTarget(null);
         }}
       >
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalBackdrop}
+        >
           <View
             style={[
               styles.modalCard,
@@ -925,7 +930,7 @@ export function TeacherClassRoutineView({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Write Class Message Modal */}
@@ -937,7 +942,10 @@ export function TeacherClassRoutineView({
           if (!isSendingMessage) setMessageTarget(null);
         }}
       >
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalBackdrop}
+        >
           <View
             style={[
               styles.modalCard,
@@ -1051,7 +1059,7 @@ export function TeacherClassRoutineView({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
   );

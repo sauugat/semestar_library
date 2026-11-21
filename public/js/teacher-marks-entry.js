@@ -1453,6 +1453,47 @@
     return downloadMarksExport('csv');
   }
 
+  async function downloadSemesterReportSvg() {
+    const selectedSubj = getSelectedSubjectObj();
+    const sem = selectedSubj && selectedSubj.semester ? Number(selectedSubj.semester) : null;
+    if (!sem) return null;
+    const params = new window.URLSearchParams({
+      semester: String(sem),
+      examType: state.selectedExamType,
+      format: 'svg'
+    });
+    if (state.selectedCohortId) {
+      params.set('cohortId', state.selectedCohortId);
+    }
+    const url = `/api/marks/semester-report?${params.toString()}`;
+    try {
+      const res = await authFetch(url);
+      if (!res || !res.ok) return null;
+      const text = await res.text();
+      if (typeof window.Blob === 'function' && window.URL && typeof window.URL.createObjectURL === 'function') {
+        const blob = new window.Blob([text], { type: 'image/svg+xml;charset=utf-8' });
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = window.document.createElement('a');
+        const safeExam = String(state.selectedExamType || 'Exam').replace(/[^a-zA-Z0-9_-]/g, '_');
+        link.href = blobUrl;
+        link.setAttribute('download', `gandaki_semester_${sem}_${safeExam}_report.svg`);
+        if (window.document.body && typeof window.document.body.appendChild === 'function') {
+          window.document.body.appendChild(link);
+        }
+        if (typeof link.click === 'function') link.click();
+        if (link.parentNode && typeof link.parentNode.removeChild === 'function') {
+          link.parentNode.removeChild(link);
+        }
+        if (typeof window.URL.revokeObjectURL === 'function') {
+          window.URL.revokeObjectURL(blobUrl);
+        }
+      }
+      return text;
+    } catch (_) {
+      return null;
+    }
+  }
+
   async function refreshSubjectCardsInBackground() {
     try {
       const res = await authFetch('/api/marks/teacher/context');
@@ -1577,7 +1618,10 @@
             </div>
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
               <button type="button" class="teach-btn teach-btn-secondary" id="slMarksDownloadSvgBtn" data-marks-action="download-svg" ${state.loadingRoster || state.rosterError ? 'disabled' : ''}>
-                Download SVG
+                Subject SVG
+              </button>
+              <button type="button" class="teach-btn teach-btn-secondary" id="slMarksDownloadSemesterSvgBtn" data-marks-action="download-semester-svg" ${state.loadingRoster || state.rosterError ? 'disabled' : ''}>
+                Semester Report SVG
               </button>
               <button type="button" class="teach-btn teach-btn-secondary" id="slMarksExportCsvBtn" data-marks-action="export-csv" ${state.loadingRoster || state.rosterError ? 'disabled' : ''}>
                 Export CSV
@@ -2250,6 +2294,7 @@
     bindAction('open-audit', () => openAuditModal());
     bindAction('close-audit', () => closeAuditModal());
     bindAction('download-svg', () => downloadMarksSvg());
+    bindAction('download-semester-svg', () => downloadSemesterReportSvg());
     bindAction('export-csv', () => downloadMarksCsv());
   }
 
@@ -2324,6 +2369,7 @@
     openAuditModal,
     closeAuditModal,
     downloadMarksSvg,
+    downloadSemesterReportSvg,
     downloadMarksCsv,
     hasUnsavedChanges,
     discardUnsavedChanges,

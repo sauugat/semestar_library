@@ -588,10 +588,18 @@
     render();
   }
 
+  function hasPublishedExamInSemester(semObj, examType) {
+    if (!semObj || !Array.isArray(semObj.subjects)) return false;
+    return semObj.subjects.some((subj) =>
+      (subj.exams || []).some((e) => e && e.examType === examType && (e.status === 'published' || e.isAbsent))
+    );
+  }
+
   /**
-   * Downloads the official A4 PDF Report Card for the currently selected semester.
+   * Downloads the official A4 PDF Report Card for a specific exam type
+   * (Mid-Term Exam, Pre-Board Exam, or Final Exam) in the selected semester.
    */
-  async function downloadReportCard(explicitSemesterNo = null) {
+  async function downloadReportCard(explicitSemesterNo = null, explicitExamType = null) {
     if (state.downloadingPdf) return false;
 
     const targetSemNo = explicitSemesterNo !== null && explicitSemesterNo !== undefined
@@ -614,17 +622,29 @@
       return false;
     }
 
-    state.downloadingPdf = true;
+    const targetExamType = explicitExamType && EXAM_TYPES.includes(explicitExamType)
+      ? explicitExamType
+      : (state.selectedExamFilter !== 'ALL' && EXAM_TYPES.includes(state.selectedExamFilter)
+          ? state.selectedExamFilter
+          : (EXAM_TYPES.find((et) => hasPublishedExamInSemester(semObj, et)) || 'Mid-Term Exam'));
+
+    if (!hasPublishedExamInSemester(semObj, targetExamType)) {
+      state.pdfError = `No published ${targetExamType} results are available for Semester ${targetSemNo}.`;
+      render();
+      return false;
+    }
+
+    state.downloadingPdf = targetExamType;
     state.pdfError = null;
     state.pdfSuccessMessage = null;
     render();
 
     try {
-      const url = `/api/results/report-card?semester=${encodeURIComponent(String(targetSemNo))}`;
+      const url = `/api/results/report-card?semester=${encodeURIComponent(String(targetSemNo))}&examType=${encodeURIComponent(targetExamType)}`;
       const res = await authFetch(url);
 
       if (!res.ok) {
-        let errMessage = `Unable to generate the PDF report card for Semester ${targetSemNo}. Please try again.`;
+        let errMessage = `Unable to generate the ${targetExamType} report card for Semester ${targetSemNo}. Please try again.`;
         try {
           const errData = await res.json();
           if (errData && errData.message) {
@@ -636,7 +656,8 @@
 
       const studentId = (state.data && (state.data.rollNumber || state.data.studentId)) || 'Student';
       const safeId = String(studentId).replace(/[^a-zA-Z0-9_-]/g, '');
-      const filename = `Gandaki_University_Academic_Result_Report_Semester_${targetSemNo}_${safeId}.pdf`;
+      const safeExam = String(targetExamType).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filename = `Gandaki_University_Report_Card_Sem_${targetSemNo}_${safeExam}_${safeId}.pdf`;
 
       let pdfBlob = null;
       if (typeof res.blob === 'function') {
@@ -680,7 +701,7 @@
       }
 
       state.downloadingPdf = false;
-      state.pdfSuccessMessage = `Report card for Semester ${targetSemNo} downloaded (${filename}).`;
+      state.pdfSuccessMessage = `${targetExamType} report card for Semester ${targetSemNo} downloaded.`;
       render();
       return true;
     } catch (err) {
@@ -835,20 +856,24 @@
               }
             </select>
 
-            <button
-              type="button"
-              id="stuResDownloadPdfBtn"
-              class="stu-res-btn stu-res-btn-primary"
-              data-stu-res-action="download-pdf"
-              ${canDownloadPdf ? '' : 'disabled'}
-              title="${canDownloadPdf ? `Download A4 PDF Report Card for Semester ${escapeHtml(activeSemesterNo)}` : 'Select a semester with published results to download report card'}"
-            >
-              ${
-                state.downloadingPdf
-                  ? 'Generating PDF Report…'
-                  : `Download Report Card${activeSemesterNo ? ` (Sem ${escapeHtml(activeSemesterNo)})` : ''}`
-              }
-            </button>
+            ${EXAM_TYPES.map((et) => {
+              const shortLabel = et.replace(' Exam', '');
+              const hasExam = Boolean(activeSemesterObj && hasPublishedExamInSemester(activeSemesterObj, et));
+              const isBusy = state.downloadingPdf === et;
+              const disabled = !hasExam || Boolean(state.downloadingPdf);
+              return `
+                <button
+                  type="button"
+                  class="stu-res-btn ${hasExam ? 'stu-res-btn-primary' : ''}"
+                  data-stu-res-action="download-pdf"
+                  data-stu-res-exam-type="${escapeHtml(et)}"
+                  ${disabled ? 'disabled' : ''}
+                  title="${hasExam ? `Download ${escapeHtml(et)} Report Card (Sem ${escapeHtml(activeSemesterNo)})` : `No published ${escapeHtml(et)} results yet`}"
+                >
+                  ${isBusy ? 'Generating…' : `${escapeHtml(shortLabel)} Report`}
+                </button>
+              `;
+            }).join('')}
 
             <button type="button" class="stu-res-btn" data-stu-res-action="retry" title="Refresh published results">
               Refresh
@@ -1160,7 +1185,8 @@
 
     container.querySelectorAll('[data-stu-res-action="download-pdf"]').forEach((btn) => {
       btn.addEventListener('click', () => {
-        downloadReportCard();
+        const et = btn.getAttribute('data-stu-res-exam-type') || null;
+        downloadReportCard(null, et);
       });
     });
 

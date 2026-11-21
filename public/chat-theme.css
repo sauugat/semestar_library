@@ -1,0 +1,415 @@
+/* ==========================================================================
+   Semester Library — Unified Messaging Design System Tokens
+   Phase 2: Monochrome Design Tokens, Surface Hierarchy & Contrast Fix
+   ========================================================================== */
+
+:root {
+  /* ==========================================================================
+     1. Unified Monochrome Color Palette
+     ========================================================================== */
+
+  /* Backgrounds */
+  --chat-bg-canvas: #09090b;            /* Main canvas background */
+  --chat-bg-surface-secondary: #111113; /* Secondary surface (sidebar / panels) */
+  --chat-bg-surface-elevated: #18181b;  /* Elevated surface (incoming bubbles / cards) */
+  --chat-bg-surface-hover: #202023;     /* Hover surface for list items and controls */
+  --chat-bg-surface-raised: #27272a;    /* Raised surface (outgoing bubbles / active controls) */
+
+  /* Borders */
+  --chat-border-subtle: #202023;        /* Subtle dividers and separators */
+  --chat-border-default: #29292e;       /* Standard container and bubble borders */
+  --chat-border-strong: #3f3f46;        /* Distinguishable borders for outgoing bubbles / accents */
+  --chat-border-focus: #52525b;         /* Focused borders for inputs and active controls */
+
+  /* Typography */
+  --chat-text-primary: #f4f4f5;         /* High-contrast primary text */
+  --chat-text-secondary: #a1a1aa;       /* Readable secondary labels, usernames */
+  --chat-text-muted: #71717a;           /* Timestamps, subordinate metadata, placeholders */
+  --chat-text-disabled: #52525b;        /* Inactive states, disabled controls */
+  --chat-text-inverse: #09090b;         /* Dark text for inverse badges */
+
+  /* Message Bubbles */
+  --chat-bubble-in-bg: #18181b;         /* Elevated surface: dark charcoal replacing bright white */
+  --chat-bubble-in-border: #29292e;     /* Subtle border framing incoming bubbles */
+  --chat-bubble-in-text: #f4f4f5;       /* Crisp high-contrast readable text */
+  --chat-bubble-in-meta: #71717a;       /* Legible but subordinate timestamp */
+
+  --chat-bubble-out-bg: #27272a;        /* Raised surface: distinctly lighter than canvas */
+  --chat-bubble-out-border: #3f3f46;    /* Clear boundary separating outgoing bubbles */
+  --chat-bubble-out-text: #ffffff;      /* Pure white high-contrast text */
+  --chat-bubble-out-meta: #a1a1aa;      /* Legible secondary timestamp */
+
+  /* Inputs & Composers */
+  --chat-input-bg: #141416;             /* Input background */
+  --chat-input-border: #29292e;         /* Input default border */
+  --chat-input-placeholder: #71717a;    /* Input placeholder text */
+  --chat-input-border-focus: #52525b;   /* Input focus state border */
+  --chat-input-text: #f4f4f5;           /* Input typed text */
+
+  /* Visual Primitives */
+  --chat-radius-xs: 4px;
+  --chat-radius-sm: 8px;
+  --chat-radius-md: 12px;
+  --chat-radius-lg: 16px;
+  --chat-radius-pill: 9999px;
+  --chat-radius-bubble: 14px;
+
+  --chat-space-1: 4px;
+  --chat-space-2: 8px;
+  --chat-space-3: 12px;
+  --chat-space-4: 16px;
+  --chat-space-5: 20px;
+  --chat-space-6: 24px;
+
+  --chat-transition-fast: 120ms ease;
+  --chat-transition-normal: 180ms ease;
+
+  /* ==========================================================================
+     2. Backward-Compatible Remapping Layer
+     Maps legacy group-chat.css and dm-chat.css variables to the new tokens
+     ========================================================================== */
+
+  /* Remap group-chat.css variables */
+  --bg-canvas: var(--chat-bg-canvas);
+  --bg-base: var(--chat-bg-surface-secondary);
+  --bg-surface: var(--chat-bg-surface-secondary);
+  --bg-surface-elevated: var(--chat-bg-surface-elevated);
+  --bg-surface-raised: var(--chat-bg-surface-raised);
+  --bg-glass: var(--chat-bg-surface-secondary);
+  --bg-hover: var(--chat-bg-surface-hover);
+  --border-subtle: var(--chat-border-subtle);
+  --border-default: var(--chat-border-default);
+  --border-strong: var(--chat-border-strong);
+  --border-focus: var(--chat-border-focus);
+  --border: var(--chat-border-default);
+  --text-primary: var(--chat-text-primary);
+  --text-secondary: var(--chat-text-secondary);
+  --text-muted: var(--chat-text-muted);
+  --text-tertiary: var(--chat-text-disabled);
+  --bubble-in-bg: var(--chat-bubble-in-bg);
+  --bubble-in-border: var(--chat-bubble-in-border);
+  --bubble-in-text: var(--chat-bubble-in-text);
+  --bubble-out-bg: var(--chat-bubble-out-bg);
+  --bubble-out-border: var(--chat-bubble-out-border);
+  --bubble-out-text: var(--chat-bubble-out-text);
+
+  /* Remap dm-chat.css variables */
+  --msg-bg: var(--chat-bg-canvas);
+  --msg-bg-surface: var(--chat-bg-surface-secondary);
+  --msg-bg-surface-raised: var(--chat-bg-surface-elevated);
+  --msg-bg-surface-hover: var(--chat-bg-surface-hover);
+  --msg-border: var(--chat-border-default);
+  --msg-border-subtle: var(--chat-border-subtle);
+  --msg-border-strong: var(--chat-border-strong);
+  --msg-text-primary: var(--chat-text-primary);
+  --msg-text-secondary: var(--chat-text-secondary);
+  --msg-text-muted: var(--chat-text-muted);
+  --msg-text-disabled: var(--chat-text-disabled);
+  --msg-bubble-out-bg: var(--chat-bubble-out-bg);
+  --msg-bubble-out-border: var(--chat-bubble-out-border);
+  --msg-bubble-out-text: var(--chat-bubble-out-text);
+  --msg-bubble-in-bg: var(--chat-bubble-in-bg);
+  --msg-bubble-in-border: var(--chat-bubble-in-border);
+  --msg-bubble-in-text: var(--chat-bubble-in-text);
+  --msg-input-bg: var(--chat-input-bg);
+  --msg-input-border: var(--chat-input-border);
+  --msg-input-focus-border: var(--chat-input-border-focus);
+}
+
+/* ==========================================================================
+   3. Message Bubbles: Contrast & Hierarchy Rules
+   ========================================================================== */
+
+/* Incoming message bubbles: Elevated charcoal (#18181b), subtle border (#29292e), clear text (#f4f4f5) */
+.im-bubble,
+.other .im-bubble,
+.dm-bubble,
+.dm-msg-row.peer .dm-bubble {
+  background-color: var(--chat-bubble-in-bg) !important;
+  border: 1px solid var(--chat-bubble-in-border) !important;
+  color: var(--chat-bubble-in-text) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* Outgoing message bubbles: Raised surface (#27272a), distinct border (#3f3f46), pure white text (#ffffff) */
+.self .im-bubble,
+.dm-msg-row.self .dm-bubble {
+  background-color: var(--chat-bubble-out-bg) !important;
+  border: 1px solid var(--chat-bubble-out-border) !important;
+  color: var(--chat-bubble-out-text) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+/* Message Text: Explicit high-contrast rendering across all bubbles */
+.im-bubble-text,
+.dm-bubble-text {
+  color: inherit !important;
+  font-size: 13.5px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.im-bubble-text a,
+.dm-bubble-text a,
+.dm-link {
+  color: #ffffff !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
+}
+
+.im-bubble-text a:hover,
+.dm-bubble-text a:hover,
+.dm-link:hover {
+  color: #e4e4e7 !important;
+}
+
+/* Message Metadata & Timestamps: Legible but subordinate */
+.im-bubble-meta,
+.dm-bubble-meta,
+.dm-msg-row.peer .dm-bubble-meta {
+  color: var(--chat-bubble-in-meta) !important;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.self .im-bubble-meta,
+.dm-msg-row.self .dm-bubble-meta {
+  color: var(--chat-bubble-out-meta) !important;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Read status indicators */
+.dm-read-status {
+  color: inherit !important;
+}
+.dm-read-status svg {
+  stroke: currentColor !important;
+}
+
+/* Sender Name above incoming messages */
+.im-msg-sender-name {
+  color: var(--chat-text-secondary) !important;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+/* Quote / Reply Previews inside bubbles */
+.im-quote-box,
+.dm-reply-quote {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-left: 2px solid var(--chat-border-strong) !important;
+  border-radius: var(--chat-radius-xs) !important;
+  padding: 5px 9px !important;
+  margin-bottom: 6px !important;
+  color: inherit !important;
+}
+
+.im-quote-sender,
+.dm-reply-quote-sender {
+  color: var(--chat-text-secondary) !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+}
+
+.im-quote-snippet,
+.dm-reply-quote-text {
+  color: var(--chat-text-muted) !important;
+  font-size: 12px !important;
+}
+
+/* Reaction Pills */
+.reaction-pill,
+.dm-reaction-pill {
+  background: var(--chat-bg-surface-elevated) !important;
+  border: 1px solid var(--chat-border-default) !important;
+  color: var(--chat-text-secondary) !important;
+  border-radius: var(--chat-radius-pill) !important;
+  transition: background var(--chat-transition-fast), border-color var(--chat-transition-fast), color var(--chat-transition-fast);
+}
+
+.reaction-pill:hover,
+.dm-reaction-pill:hover {
+  background: var(--chat-bg-surface-hover) !important;
+  border-color: var(--chat-border-strong) !important;
+  color: var(--chat-text-primary) !important;
+}
+
+.reaction-pill.reacted,
+.dm-reaction-pill.reacted {
+  background: var(--chat-bg-surface-raised) !important;
+  border-color: var(--chat-border-focus) !important;
+  color: #ffffff !important;
+}
+
+/* Code Blocks & Inline Code */
+.im-bubble code,
+.dm-bubble code {
+  background: rgba(0, 0, 0, 0.35) !important;
+  border: 1px solid var(--chat-border-subtle) !important;
+  border-radius: 3px !important;
+  padding: 1px 5px !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 12px !important;
+  color: var(--chat-text-primary) !important;
+}
+
+.im-bubble pre,
+.dm-bubble pre {
+  background: #111113 !important;
+  border: 1px solid var(--chat-border-default) !important;
+  border-radius: var(--chat-radius-xs) !important;
+  padding: 8px 10px !important;
+  margin: 6px 0 !important;
+  overflow-x: auto !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-size: 12px !important;
+  color: var(--chat-text-primary) !important;
+}
+
+/* Attachment Cards */
+.im-file-card {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--chat-border-default) !important;
+  border-radius: var(--chat-radius-sm) !important;
+  color: inherit !important;
+}
+
+.im-file-icon {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-radius: var(--chat-radius-xs) !important;
+  color: var(--chat-text-primary) !important;
+}
+
+.im-file-name {
+  color: var(--chat-text-primary) !important;
+}
+
+.im-file-ext {
+  color: var(--chat-text-muted) !important;
+}
+
+/* Date Stamp & Dividers */
+.im-date-stamp,
+.dm-date-divider {
+  color: var(--chat-text-muted) !important;
+}
+
+.im-date-stamp:before,
+.im-date-stamp:after,
+.dm-date-divider:before,
+.dm-date-divider:after {
+  background: var(--chat-border-subtle) !important;
+}
+
+.dm-date-badge {
+  background: var(--chat-bg-surface-secondary) !important;
+  border: 1px solid var(--chat-border-default) !important;
+  color: var(--chat-text-muted) !important;
+}
+
+/* ==========================================================================
+   4. Inputs & Composer Bars
+   ========================================================================== */
+
+.im-composer,
+.dm-composer-wrap {
+  background: var(--chat-bg-surface-secondary) !important;
+  border-top: 1px solid var(--chat-border-default) !important;
+}
+
+.im-input-capsule,
+.dm-composer-bar {
+  background: var(--chat-input-bg) !important;
+  border: 1px solid var(--chat-input-border) !important;
+  border-radius: var(--chat-radius-md) !important;
+  transition: border-color var(--chat-transition-fast) !important;
+}
+
+.im-input-capsule:focus-within,
+.dm-composer-bar:focus-within {
+  border-color: var(--chat-input-border-focus) !important;
+}
+
+.im-textarea,
+.dm-composer-textarea {
+  color: var(--chat-input-text) !important;
+  font-size: 13.5px !important;
+}
+
+.im-textarea::placeholder,
+.dm-composer-textarea::placeholder {
+  color: var(--chat-input-placeholder) !important;
+}
+
+.im-send-btn,
+.dm-send-btn {
+  background: #ffffff !important;
+  color: #09090b !important;
+  border-radius: var(--chat-radius-sm) !important;
+  border: none !important;
+  transition: background var(--chat-transition-fast), opacity var(--chat-transition-fast) !important;
+}
+
+.im-send-btn:hover:not(:disabled),
+.dm-send-btn:hover:not(:disabled) {
+  background: #e4e4e7 !important;
+}
+
+.im-send-btn:disabled,
+.dm-send-btn:disabled {
+  opacity: 0.3 !important;
+  background: #27272a !important;
+  color: #71717a !important;
+}
+
+.im-action-btn,
+.dm-action-btn {
+  color: var(--chat-text-muted) !important;
+  border-radius: var(--chat-radius-xs) !important;
+  transition: color var(--chat-transition-fast), background var(--chat-transition-fast) !important;
+}
+
+.im-action-btn:hover,
+.dm-action-btn:hover {
+  color: var(--chat-text-primary) !important;
+  background: var(--chat-bg-surface-hover) !important;
+}
+
+/* Conversation list items in DM sidebar */
+.dm-conv-item {
+  border-bottom: 1px solid var(--chat-border-subtle) !important;
+  transition: background var(--chat-transition-fast) !important;
+}
+
+.dm-conv-item:hover {
+  background: var(--chat-bg-surface-hover) !important;
+}
+
+.dm-conv-item.active {
+  background: var(--chat-bg-surface-elevated) !important;
+}
+
+.dm-conv-name {
+  color: var(--chat-text-primary) !important;
+}
+
+.dm-conv-time {
+  color: var(--chat-text-muted) !important;
+}
+
+.dm-conv-preview {
+  color: var(--chat-text-secondary) !important;
+}
+
+.dm-conv-preview.unread {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.dm-unread-count {
+  background: #ffffff !important;
+  color: #09090b !important;
+  font-weight: 700 !important;
+}

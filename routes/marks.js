@@ -8,6 +8,8 @@ const {
   getSubjectMarksRoster,
   exportSubjectMarksSvg,
   exportSubjectMarksCsv,
+  getSemesterMarksReport,
+  exportSemesterMarksReportSvg,
   saveStudentMarks,
   publishSubjectResults,
   getSubjectMarksAuditLogs,
@@ -298,6 +300,49 @@ function createMarksRouter(arg1, arg2) {
   });
 
   /**
+   * 4b. GET /api/marks/semester-report (and /api/marks/semester-report/svg)
+   * Allowed: authorized teacher and admin.
+   * Query: semester, examType, cohortId (optional), format ('svg' | 'json')
+   */
+  const handleGetSemesterReport = async (req, res) => {
+    const callerId = resolveCallerId(req);
+    const semester = req.query.semester || req.query.semesterNo || req.query.semester_no;
+    const examType = req.query.examType || req.query.exam_type || req.query.exam || null;
+    const cohortId = req.query.cohortId || req.query.cohort_id || req.query.cohort || null;
+    const format = String(req.query.format || 'svg').trim().toLowerCase();
+    try {
+      const report = await getSemesterMarksReport(db, {
+        actorUserId: callerId,
+        semester,
+        examType,
+        cohortId
+      });
+      if (format === 'json') {
+        return res.json(report);
+      }
+      const svgContent = exportSemesterMarksReportSvg(report);
+      const safeExam = String(report.examType || 'Exam').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const filename = `Gandaki_Semester_${report.semesterNo}_${safeExam}_Report.svg`;
+      res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(200).send(svgContent);
+    } catch (err) {
+      return sendMarksError(res, err, 'Failed to generate semester marks report.', {
+        operation: 'getSemesterMarksReport',
+        actorUserId: callerId,
+        examType
+      });
+    }
+  };
+
+  router.get('/semester-report', requireLogin, handleGetSemesterReport);
+  router.get('/semester-report/svg', requireLogin, (req, res) => {
+    req.query.format = 'svg';
+    return handleGetSemesterReport(req, res);
+  });
+
+  /**
    * 5. POST / PUT / PATCH /api/marks/draft (and /api/marks/save, /api/marks)
    * Saves draft marks (or edits marks) for a subject and exam type.
    */
@@ -475,12 +520,18 @@ function createMarksRouter(arg1, arg2) {
       req.query.semester_no ||
       req.params.semester ||
       null;
+    const examType =
+      req.query.examType ||
+      req.query.exam_type ||
+      req.query.exam ||
+      null;
     try {
       enforceStudentSelfIsolation(req, callerId);
 
       const report = await generateStudentSemesterReportCard(db, {
         studentUserId: callerId,
-        semester
+        semester,
+        examType
       });
 
       res.setHeader('Content-Type', 'application/pdf');

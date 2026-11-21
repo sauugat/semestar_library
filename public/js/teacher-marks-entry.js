@@ -1403,6 +1403,56 @@
     render();
   }
 
+  async function downloadMarksExport(format) {
+    const fmt = format === 'csv' ? 'csv' : 'svg';
+    if (!state.selectedSubjectId) return null;
+    const params = new window.URLSearchParams({
+      subjectId: state.selectedSubjectId,
+      examType: state.selectedExamType,
+      format: fmt
+    });
+    if (state.selectedCohortId) {
+      params.set('cohortId', state.selectedCohortId);
+    }
+    const url = `/api/marks/roster?${params.toString()}`;
+    try {
+      const res = await authFetch(url);
+      if (!res || !res.ok) return null;
+      const text = await res.text();
+      if (typeof window.Blob === 'function' && window.URL && typeof window.URL.createObjectURL === 'function') {
+        const mime = fmt === 'csv' ? 'text/csv;charset=utf-8' : 'image/svg+xml;charset=utf-8';
+        const blob = new window.Blob([text], { type: mime });
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = window.document.createElement('a');
+        const safeSubj = String(state.selectedSubjectId || 'Subject').replace(/[^a-zA-Z0-9_-]/g, '_');
+        const safeExam = String(state.selectedExamType || 'Exam').replace(/[^a-zA-Z0-9_-]/g, '_');
+        link.href = blobUrl;
+        link.setAttribute('download', `gandaki_marks_${safeSubj}_${safeExam}.${fmt}`);
+        if (window.document.body && typeof window.document.body.appendChild === 'function') {
+          window.document.body.appendChild(link);
+        }
+        if (typeof link.click === 'function') link.click();
+        if (link.parentNode && typeof link.parentNode.removeChild === 'function') {
+          link.parentNode.removeChild(link);
+        }
+        if (typeof window.URL.revokeObjectURL === 'function') {
+          window.URL.revokeObjectURL(blobUrl);
+        }
+      }
+      return text;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async function downloadMarksSvg() {
+    return downloadMarksExport('svg');
+  }
+
+  async function downloadMarksCsv() {
+    return downloadMarksExport('csv');
+  }
+
   async function refreshSubjectCardsInBackground() {
     try {
       const res = await authFetch('/api/marks/teacher/context');
@@ -1511,17 +1561,27 @@
       <div id="slMarksEntrySection">
         <!-- Top Navigation -->
         <div class="sl-marks-panel" style="padding:16px 20px;">
-          <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-            <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="back-to-subjects">
-              &larr; All Subjects
-            </button>
-            <div>
-              <div style="font-size:0.74rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--teach-text-secondary, #a3a3a3);">
-                ${selectedSubj ? `${escapeHtml(selectedSubj.code)} · Semester ${escapeHtml(selectedSubj.semester)}` : 'Subject Marks Register'}
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+              <button type="button" class="teach-btn teach-btn-secondary" data-marks-action="back-to-subjects">
+                &larr; All Subjects
+              </button>
+              <div>
+                <div style="font-size:0.74rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--teach-text-secondary, #a3a3a3);">
+                  ${selectedSubj ? `${escapeHtml(selectedSubj.code)} · Semester ${escapeHtml(selectedSubj.semester)}` : 'Subject Marks Register'}
+                </div>
+                <h2 style="margin:2px 0 0; font-size:1.25rem; font-weight:800; letter-spacing:-0.02em;">
+                  ${selectedSubj ? escapeHtml(selectedSubj.name) : ''}
+                </h2>
               </div>
-              <h2 style="margin:2px 0 0; font-size:1.25rem; font-weight:800; letter-spacing:-0.02em;">
-                ${selectedSubj ? escapeHtml(selectedSubj.name) : ''}
-              </h2>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="teach-btn teach-btn-secondary" id="slMarksDownloadSvgBtn" data-marks-action="download-svg" ${state.loadingRoster || state.rosterError ? 'disabled' : ''}>
+                Download SVG
+              </button>
+              <button type="button" class="teach-btn teach-btn-secondary" id="slMarksExportCsvBtn" data-marks-action="export-csv" ${state.loadingRoster || state.rosterError ? 'disabled' : ''}>
+                Export CSV
+              </button>
             </div>
           </div>
         </div>
@@ -2189,6 +2249,8 @@
     });
     bindAction('open-audit', () => openAuditModal());
     bindAction('close-audit', () => closeAuditModal());
+    bindAction('download-svg', () => downloadMarksSvg());
+    bindAction('export-csv', () => downloadMarksCsv());
   }
 
   async function mount(containerOrSelector, options = {}) {
@@ -2261,6 +2323,8 @@
     savePublishedEdits,
     openAuditModal,
     closeAuditModal,
+    downloadMarksSvg,
+    downloadMarksCsv,
     hasUnsavedChanges,
     discardUnsavedChanges,
     calculatePercentage,

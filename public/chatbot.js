@@ -1258,6 +1258,7 @@
       highlightChatCode,
       assertAndCleanPlaceholders,
       renderAdaptiveVisualBlockHtml,
+      renderKyanaVisualBlockHtml: renderAdaptiveVisualBlockHtml,
       parseAttendanceBlock,
       renderAttendanceChartHtml
     };

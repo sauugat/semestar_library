@@ -6,6 +6,8 @@ const {
   getExamConfiguration,
   upsertExamConfiguration,
   getSubjectMarksRoster,
+  exportSubjectMarksSvg,
+  exportSubjectMarksCsv,
   saveStudentMarks,
   publishSubjectResults,
   getSubjectMarksAuditLogs,
@@ -236,6 +238,7 @@ function createMarksRouter(arg1, arg2) {
     const subjectId = req.query.subjectId || req.query.subject_id || req.query.subject;
     const examType = req.query.examType || req.query.exam_type || req.query.exam || null;
     const cohortId = req.query.cohortId || req.query.cohort_id || req.query.cohort || null;
+    const format = String(req.query.format || '').trim().toLowerCase();
     try {
       const result = await getSubjectMarksRoster(db, {
         actorUserId: callerId,
@@ -243,6 +246,28 @@ function createMarksRouter(arg1, arg2) {
         examType,
         cohortId
       });
+
+      const safeSubj = String((result.subject && result.subject.code) || 'Subject').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeExam = String(result.examType || 'Exam').replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      if (format === 'svg') {
+        const svgContent = exportSubjectMarksSvg(result);
+        const filename = `Marks_${safeSubj}_${safeExam}.svg`;
+        res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).send(svgContent);
+      }
+
+      if (format === 'csv') {
+        const csvContent = exportSubjectMarksCsv(result);
+        const filename = `Marks_${safeSubj}_${safeExam}.csv`;
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).send(csvContent);
+      }
+
       return res.json(result);
     } catch (err) {
       return sendMarksError(
@@ -262,6 +287,15 @@ function createMarksRouter(arg1, arg2) {
   router.get('/roster', requireLogin, handleGetRoster);
   router.get('/students', requireLogin, handleGetRoster);
   router.get('/register', requireLogin, handleGetRoster);
+  router.get('/export', requireLogin, handleGetRoster);
+  router.get('/export/svg', requireLogin, (req, res) => {
+    req.query.format = 'svg';
+    return handleGetRoster(req, res);
+  });
+  router.get('/export/csv', requireLogin, (req, res) => {
+    req.query.format = 'csv';
+    return handleGetRoster(req, res);
+  });
 
   /**
    * 5. POST / PUT / PATCH /api/marks/draft (and /api/marks/save, /api/marks)

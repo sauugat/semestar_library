@@ -249,18 +249,28 @@ export function parseAttendanceBlock(rawBlock: string) {
 
 const VISUAL_BLOCK_KINDS = [
   'attendance', 'ATTENDANCE',
+  'results', 'RESULTS',
+  'assignments', 'ASSIGNMENTS',
+  'notes', 'NOTES',
+  'notices', 'NOTICES',
   'routine', 'ROUTINE',
+  'posts', 'POSTS',
+  'directory', 'DIRECTORY',
+  'syllabus', 'SYLLABUS',
+  'diagram', 'DIAGRAM',
+  'flowchart', 'FLOWCHART',
+  'trace', 'TRACE',
+  'comparison', 'COMPARISON',
+  'quiz', 'QUIZ',
+  'roadmap', 'ROADMAP',
+  'complexity', 'COMPLEXITY',
   'study_session', 'STUDY_SESSION',
   'learning_session', 'LEARNING_SESSION',
   'pyq_card', 'PYQ_CARD',
   'logic_sim', 'LOGIC_SIM',
   'interactive_demo', 'INTERACTIVE_DEMO',
   'live_demo', 'LIVE_DEMO',
-  'roadmap', 'ROADMAP',
   'timeline', 'TIMELINE',
-  'diagram', 'DIAGRAM',
-  'flowchart', 'FLOWCHART',
-  'trace', 'TRACE',
   'checkpoint_question', 'CHECKPOINT_QUESTION',
   'chapter_summary', 'CHAPTER_SUMMARY',
   'source_reference', 'SOURCE_REFERENCE'
@@ -862,7 +872,7 @@ function PostMarkdownInternal({
   );
 
   const textUnescaped = textWithoutCode
-    .replace(/\\([#*_`~[\]()!+-])/g, '$1')
+    .replace(/\\([#*_`~\[\]()!+-])/g, '$1')
     .replace(/\\n/g, '\n');
 
   // Extract display math blocks ($$...$$)

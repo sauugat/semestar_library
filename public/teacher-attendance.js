@@ -1115,9 +1115,9 @@
         width: 60px;
         height: 60px;
         border-radius: 999px;
-        border: 1.5px solid rgba(134, 239, 172, 0.45);
-        background: rgba(134, 239, 172, 0.1);
-        color: #86efac;
+        border: 1.5px solid var(--teach-border, var(--border, #2a2a2a));
+        background: var(--teach-surface-subtle, #1c1c1c);
+        color: #16a34a;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1161,7 +1161,7 @@
         line-height: 1.15;
       }
       .sl-att-saved-stat-val.present-text {
-        color: #86efac;
+        color: #16a34a;
       }
       .sl-att-saved-stat-val.absent-text {
         color: #f87171;

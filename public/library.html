@@ -9103,15 +9103,60 @@
       return finalHtml;
     }
 
+    function stripInternalStudySessionPayload(rawText) {
+      if (typeof rawText !== 'string' || !rawText) return '';
+      let txt = rawText;
+      txt = txt.replace(/```(?:study_session|learning_session|pyq_card)[ \t]*\r?\n[\s\S]*?```/gi, '');
+      txt = txt.replace(/```(?:study_session|learning_session|pyq_card)[\s\S]*$/gi, '');
+      txt = txt.replace(/<kyana_actions>[\s\S]*?<\/kyana_actions>/gi, '');
+      txt = txt.replace(/<kyana_actions>[\s\S]*$/gi, '');
+      txt = txt.replace(/<referenced_records>[\s\S]*?<\/referenced_records>/gi, '');
+      txt = txt.replace(/<referenced_records>[\s\S]*$/gi, '');
+      txt = txt.replace(/(?:^|\n)\s*STUDY_SESSION\s*:?\s*\{[\s\S]*?"checklist"\s*:\s*\[[\s\S]*?\]\s*\}/gi, '');
+      txt = txt.replace(/(?:^|\n)\s*\{[\s\S]*?"currentStep"\s*:\s*\d+[\s\S]*?"totalSteps"\s*:\s*\d+[\s\S]*?"checklist"\s*:\s*\[[\s\S]*?\]\s*\}/gi, '');
+      txt = txt.replace(/(?:^|\n)\s*STUDY_SESSION\s*(?=\n|$)/g, '');
+      return txt.replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    function renderChapterStudySessionCardHtml(sessionData) {
+      if (!sessionData || typeof sessionData !== 'object') return '';
+      if (window.KyanaAdaptiveRenderer && typeof window.KyanaAdaptiveRenderer.renderAdaptiveVisualBlockHtml === 'function') {
+        const html = window.KyanaAdaptiveRenderer.renderAdaptiveVisualBlockHtml('study_session', JSON.stringify(sessionData));
+        if (html) return html;
+      }
+      const course = escapeHtml(sessionData.course || ACTIVE_CHAPTER_KYANA_STATE?.subject || 'Study Session');
+      const unit = escapeHtml(sessionData.unit || ACTIVE_CHAPTER_KYANA_STATE?.chapterTitle || 'Chapter Progress');
+      const curr = Number(sessionData.currentStep) || 1;
+      const total = Number(sessionData.totalSteps) || 1;
+      const pct = Math.min(100, Math.max(0, Number.isFinite(Number(sessionData.progressPercentage)) ? Number(sessionData.progressPercentage) : Math.round(((curr - 1) / total) * 100)));
+      const items = Array.isArray(sessionData.checklist) ? sessionData.checklist : [];
+      const currItem = items.find(it => Number(it.stepIndex || 1) === curr) || items[0];
+      const currTitle = currItem ? escapeHtml(currItem.title || `Topic ${curr}`) : `Step ${curr}`;
+      return `<div class="kyana-adaptive-visual kyana-study-session-card" style="margin:8px 0 12px;padding:12px 14px;border-radius:12px;border:1px solid var(--border,#2b2b2b);background:var(--surface,#141414);color:var(--text,#f5f5f5);box-sizing:border-box;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+          <div style="min-width:0;">
+            <div style="font-size:10.5px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted,#a1a1aa);">${course}</div>
+            <div style="font-size:13px;font-weight:700;margin-top:2px;">${unit}</div>
+          </div>
+          <span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid var(--border,#333);white-space:nowrap;">Step ${curr} of ${total} · ${pct}%</span>
+        </div>
+        <div style="width:100%;height:4px;background:rgba(128,128,128,0.22);border-radius:2px;overflow:hidden;margin-bottom:8px;">
+          <div style="width:${pct}%;height:100%;background:currentColor;border-radius:2px;"></div>
+        </div>
+        <div style="font-size:12px;font-weight:600;">▶ ${curr}. ${currTitle}</div>
+      </div>`;
+    }
+
     function formatChapterKyanaMarkdown(text) {
-      const normalized = normalizeChapterKyanaMarkdownInput(text);
+      const sanitized = stripInternalStudySessionPayload(text);
+      const normalized = normalizeChapterKyanaMarkdownInput(sanitized);
       if (!normalized) return '';
       if (window.KyanaAdaptiveRenderer && typeof window.KyanaAdaptiveRenderer.fallbackMarkdown === 'function') {
         const visualBlocks = [];
         const working = normalized.replace(
-          /```(study_session|learning_session|pyq_card|live_demo|logic_sim|interactive_demo|roadmap|timeline|diagram|flowchart|trace|checkpoint_question|chapter_summary|source_reference)[ \t]*\n([\s\S]*?)```/gi,
+          /```(live_demo|logic_sim|interactive_demo|roadmap|timeline|diagram|flowchart|trace|checkpoint_question|chapter_summary|source_reference)[ \t]*\n([\s\S]*?)```/gi,
           (_, kind, payload) => {
-            const html = window.KyanaAdaptiveRenderer.renderAdaptiveVisualBlockHtml(kind === 'learning_session' ? 'study_session' : kind, payload);
+            const html = window.KyanaAdaptiveRenderer.renderAdaptiveVisualBlockHtml(kind, payload);
             if (!html) return '';
             const idx = visualBlocks.length;
             visualBlocks.push(html);
@@ -9322,15 +9367,22 @@
         } else {
           const bubble = document.createElement('div');
           bubble.className = 'chapter-kyana-msg assistant';
-          let badgeHtml = '';
-          if (typeof m.text === 'string' && m.text.includes('study_session')) {
-            badgeHtml = `<div class="chapter-kyana-source-tag"><span>STEP-BY-STEP CHAPTER TEACHING</span></div>`;
-          } else {
-            badgeHtml = `<div class="chapter-kyana-source-tag"><span>GROUNDED IN CHAPTER NOTES & SYLLABUS</span></div>`;
-          }
-          bubble.innerHTML = `${badgeHtml}<div class="chapter-kyana-md">${formatChapterKyanaMarkdown(m.text)}</div>`;
+          const meta = m.metadata || {};
+          const isStudy = Boolean(meta.studySession || meta.intent === 'study_partner' || (typeof m.text === 'string' && m.text.includes('study_session')));
+          let badgeHtml = isStudy
+            ? `<div class="chapter-kyana-source-tag"><span>STEP-BY-STEP CHAPTER TEACHING</span></div>`
+            : `<div class="chapter-kyana-source-tag"><span>GROUNDED IN CHAPTER NOTES & SYLLABUS</span></div>`;
+          const sessionCardHtml = meta.studySession ? renderChapterStudySessionCardHtml(meta.studySession) : '';
+          bubble.innerHTML = `${badgeHtml}${sessionCardHtml}<div class="chapter-kyana-md">${formatChapterKyanaMarkdown(m.text)}</div>`;
           wireInteractiveBlocksInContainer(bubble);
           renderMathInChapterBubble(bubble);
+          renderChapterInteractiveQuizAndActions(bubble, {
+            id: m.id || null,
+            interactiveQuestion: meta.interactiveQuestion || null,
+            messageActions: meta.messageActions || null,
+            studySessionId: meta.studySessionId || null,
+            currentStepIndex: meta.currentStepIndex || null
+          });
           msgBox.appendChild(bubble);
         }
       }
@@ -9694,22 +9746,18 @@
         });
 
         const data = await response.json();
-        const replyText = (data && (data.reply || data.response || data.message)) || 'Sorry, I could not generate a response right now.';
+        const replyText = stripInternalStudySessionPayload(
+          (data && (data.reply || data.response || data.message)) || 'Sorry, I could not generate a response right now.'
+        );
         const chapterMeta = data && data.chapterTutor ? data.chapterTutor : null;
         const isStudyPartner = data && data.intent === 'study_partner';
 
+        if (data && data.conversationId) {
+          ACTIVE_CHAPTER_KYANA_STATE.conversationId = data.conversationId;
+        }
+
         if (data && data.sessionProgress) {
-          ACTIVE_CHAPTER_KYANA_STATE.sessionProgress = data.sessionProgress;
-          const kyanaPill = document.getElementById('chapterKyanaContextPill');
-          if (kyanaPill) {
-            const sp = data.sessionProgress;
-            const total = sp.totalSteps || 0;
-            const current = sp.currentStepIndex || 1;
-            const mastered = sp.masteredSteps || 0;
-            if (total > 0) {
-              kyanaPill.textContent = `Step ${current} of ${total} · ${mastered} Mastered`;
-            }
-          }
+          updateChapterProgressPill(data.sessionProgress);
         }
 
         let badgeHtml = '';
@@ -9720,8 +9768,10 @@
         } else if (chapterMeta && chapterMeta.foundInNotes) {
           badgeHtml = `<div class="chapter-kyana-source-tag"><span>GROUNDED IN CHAPTER NOTES & SYLLABUS</span></div>`;
         }
+        const sessionCardHtml = (data && data.studySession) ? renderChapterStudySessionCardHtml(data.studySession) : '';
 
-        await animateChapterKyanaReply(thinkingBubble, msgBox, badgeHtml, replyText);
+        await animateChapterKyanaReply(thinkingBubble, msgBox, badgeHtml + sessionCardHtml, replyText);
+        renderChapterInteractiveQuizAndActions(thinkingBubble, data);
 
         // Save both user and assistant messages to conversation history for follow-ups ("I don't understand", "Give me an example")
         ACTIVE_CHAPTER_KYANA_STATE.history.push({ role: 'user', content: message });
@@ -9736,11 +9786,316 @@
       }
     }
 
-    function stabilizeChapterStreamingText(rawText) {
-      if (window.KyanaAdaptiveRenderer && typeof window.KyanaAdaptiveRenderer.stabilizeStreamingMarkdown === 'function') {
-        return window.KyanaAdaptiveRenderer.stabilizeStreamingMarkdown(rawText);
+    function updateChapterProgressPill(sp) {
+      if (!sp) return;
+      ACTIVE_CHAPTER_KYANA_STATE.sessionProgress = sp;
+      const kyanaPill = document.getElementById('chapterKyanaContextPill');
+      if (kyanaPill) {
+        const total = sp.totalSteps || 0;
+        const current = sp.currentStepIndex || 1;
+        const mastered = sp.masteredSteps || 0;
+        if (total > 0) {
+          kyanaPill.textContent = `Step ${current} of ${total} · ${mastered} Mastered`;
+        }
       }
-      let text = String(rawText || '');
+    }
+
+    async function postChapterKyanaAction(actionReq) {
+      const headers = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+      if (window.SemesterAuth && typeof window.SemesterAuth.getAuthHeaders === 'function') {
+        Object.assign(headers, window.SemesterAuth.getAuthHeaders());
+      }
+      const res = await fetch('/api/ai/actions', {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify(actionReq)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 401) return { unauthenticated: true };
+      if (!res.ok) throw new Error(data.message || 'Could not verify answer right now.');
+      return data;
+    }
+
+    async function executeChapterKyanaAction(actionSpec, triggerBtn) {
+      if (!actionSpec || ACTIVE_CHAPTER_KYANA_STATE.sending) return;
+      if (actionSpec.actionType === 'navigation' && actionSpec.payload && actionSpec.payload.url) {
+        window.location.href = actionSpec.payload.url;
+        return;
+      }
+
+      const msgBox = document.getElementById('chapterKyanaMessages');
+      const sendBtn = document.getElementById('chapterKyanaSendBtn');
+      const origLabel = triggerBtn ? triggerBtn.textContent : '';
+      ACTIVE_CHAPTER_KYANA_STATE.sending = true;
+      if (sendBtn) sendBtn.disabled = true;
+      if (triggerBtn) {
+        triggerBtn.disabled = true;
+        triggerBtn.textContent = actionSpec.action === 'continue_lesson' ? 'Loading next topic…' : 'Working…';
+      }
+
+      const thinkingBubble = document.createElement('div');
+      thinkingBubble.className = 'chapter-kyana-msg assistant';
+      thinkingBubble.innerHTML = `
+        <div class="chapter-kyana-typing">
+          <div class="chapter-kyana-dots"><span></span><span></span><span></span></div>
+          <span>${actionSpec.action === 'continue_lesson' ? 'Preparing the next concept…' : 'Preparing your explanation…'}</span>
+        </div>
+      `;
+      if (msgBox) {
+        msgBox.appendChild(thinkingBubble);
+        msgBox.scrollTop = msgBox.scrollHeight;
+      }
+
+      try {
+        const data = await postChapterKyanaAction({
+          action: actionSpec.action,
+          actionType: actionSpec.actionType,
+          conversationId: ACTIVE_CHAPTER_KYANA_STATE.conversationId,
+          payload: actionSpec.payload || {}
+        });
+
+        if (data.unauthenticated) {
+          thinkingBubble.remove();
+          ACTIVE_CHAPTER_KYANA_STATE.sending = false;
+          if (sendBtn) sendBtn.disabled = false;
+          submitChapterKyanaMessage(actionSpec.action === 'continue_lesson' ? 'continue' : (actionSpec.label || 'continue'));
+          return;
+        }
+
+        if (data.sessionProgress) updateChapterProgressPill(data.sessionProgress);
+        const replyText = stripInternalStudySessionPayload(data.reply || '');
+        const badgeHtml = `<div class="chapter-kyana-source-tag"><span>STEP-BY-STEP CHAPTER TEACHING</span></div>`;
+        const sessionCardHtml = data.studySession ? renderChapterStudySessionCardHtml(data.studySession) : '';
+
+        await animateChapterKyanaReply(thinkingBubble, msgBox, badgeHtml + sessionCardHtml, replyText);
+        renderChapterInteractiveQuizAndActions(thinkingBubble, data);
+        ACTIVE_CHAPTER_KYANA_STATE.history.push({ role: 'assistant', content: replyText });
+      } catch (err) {
+        console.error('[Chapter Kyana Action Error]:', err);
+        thinkingBubble.innerHTML = `<div class="chapter-kyana-md"><p class="md-p" style="color:#dc2626;">${escapeHtml(err.message || 'Could not complete that step. Please try again.')}</p></div>`;
+        if (triggerBtn) {
+          triggerBtn.disabled = false;
+          triggerBtn.textContent = origLabel;
+        }
+      } finally {
+        ACTIVE_CHAPTER_KYANA_STATE.sending = false;
+        if (sendBtn) sendBtn.disabled = false;
+        if (msgBox) msgBox.scrollTop = msgBox.scrollHeight;
+      }
+    }
+
+    function renderChapterInteractiveQuizAndActions(bubble, msgData) {
+      if (!bubble || !msgData) return;
+
+      // 1. Render Interactive Clickable MCQ Card (Select -> Highlight -> Check Answer -> Retry/Hint or Continue to Next Topic)
+      const q = msgData.interactiveQuestion;
+      if (q && Array.isArray(q.options) && q.options.length >= 2) {
+        const existingCard = bubble.querySelector('.kyana-mcq-card');
+        if (existingCard) existingCard.remove();
+
+        const card = document.createElement('div');
+        card.className = 'kyana-mcq-card';
+        card.dataset.questionId = q.id || '';
+
+        const header = document.createElement('div');
+        header.className = 'kyana-mcq-header';
+        header.textContent = 'CHECKPOINT QUIZ';
+        card.appendChild(header);
+
+        const qEl = document.createElement('div');
+        qEl.className = 'kyana-mcq-question';
+        qEl.textContent = q.question || '';
+        card.appendChild(qEl);
+
+        const optsWrap = document.createElement('div');
+        optsWrap.className = 'kyana-mcq-options';
+
+        const attemptedIds = Array.isArray(q.attemptedOptionIds) ? q.attemptedOptionIds.map(x => String(x).toUpperCase()) : [];
+        let pickedOptionId = !q.submitted ? (q._pickedOptionId || null) : null;
+        let isChecking = false;
+
+        const checkBtn = document.createElement('button');
+        checkBtn.type = 'button';
+        checkBtn.className = 'kyana-mcq-check-btn';
+        checkBtn.textContent = 'Check Answer';
+        checkBtn.disabled = !pickedOptionId || Boolean(q.submitted);
+
+        q.options.forEach((opt) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'kyana-mcq-option';
+          const optId = String(opt.id || opt.label || '').toUpperCase();
+          btn.dataset.optionId = optId;
+
+          const wasTriedWrong = !q.passed && attemptedIds.includes(optId) && (!q.submitted || String(q.correctOptionId || '').toUpperCase() !== optId);
+          const isSelected = q.submitted && String(q.selectedOptionId || '').toUpperCase() === optId;
+          const isCorrectOpt = q.submitted && String(q.correctOptionId || '').toUpperCase() === optId;
+
+          btn.disabled = Boolean(q.submitted) || wasTriedWrong;
+
+          if (!q.submitted && pickedOptionId === optId) btn.classList.add('selected', 'is-picked');
+          if (isSelected) btn.classList.add('selected');
+          if (q.submitted && isCorrectOpt) btn.classList.add('is-correct');
+          else if (wasTriedWrong || (isSelected && q.isCorrect === false)) btn.classList.add('is-incorrect');
+
+          let statusLabel = '';
+          if (q.submitted && isCorrectOpt) statusLabel = '✓ Correct';
+          else if (wasTriedWrong || (isSelected && q.isCorrect === false)) statusLabel = '✕ Incorrect';
+
+          btn.innerHTML = `
+            <span class="kyana-mcq-option-badge">${escapeHtml(optId)}</span>
+            <span class="kyana-mcq-option-text">${escapeHtml(opt.text || '')}</span>
+            ${statusLabel ? `<span class="kyana-mcq-option-status">${escapeHtml(statusLabel)}</span>` : ''}
+          `;
+
+          if (!q.submitted && !wasTriedWrong) {
+            btn.addEventListener('click', () => {
+              if (isChecking || q.submitted) return;
+              pickedOptionId = optId;
+              q._pickedOptionId = optId;
+              optsWrap.querySelectorAll('.kyana-mcq-option').forEach((b) => b.classList.remove('selected', 'is-picked'));
+              btn.classList.add('selected', 'is-picked');
+              checkBtn.disabled = false;
+            });
+          }
+
+          optsWrap.appendChild(btn);
+        });
+
+        card.appendChild(optsWrap);
+
+        if (!q.submitted) {
+          const footer = document.createElement('div');
+          footer.className = 'kyana-mcq-footer';
+
+          const attemptsEl = document.createElement('span');
+          attemptsEl.className = 'kyana-mcq-attempts';
+          const used = Number(q.attempts || 0);
+          const maxA = Number(q.maxAttempts || 3);
+          attemptsEl.textContent = used > 0
+            ? `Attempt ${used} of ${maxA} · Try another option`
+            : 'Select an option, then click Check Answer';
+
+          checkBtn.addEventListener('click', async () => {
+            if (isChecking || q.submitted || !pickedOptionId) return;
+            isChecking = true;
+            checkBtn.disabled = true;
+            checkBtn.textContent = 'Checking answer…';
+            optsWrap.querySelectorAll('.kyana-mcq-option').forEach((b) => { b.disabled = true; });
+            const oldErr = card.querySelector('.kyana-mcq-error');
+            if (oldErr) oldErr.remove();
+
+            try {
+              const resData = await postChapterKyanaAction({
+                action: 'submit_mcq_answer',
+                actionType: 'multiple_choice',
+                conversationId: ACTIVE_CHAPTER_KYANA_STATE.conversationId,
+                payload: {
+                  messageId: msgData.id || null,
+                  questionId: q.id,
+                  optionId: pickedOptionId,
+                  ...(q.sessionId || msgData.studySessionId ? { sessionId: q.sessionId || msgData.studySessionId } : {})
+                }
+              });
+
+              if (resData.unauthenticated) {
+                submitChapterKyanaMessage(pickedOptionId);
+                return;
+              }
+
+              if (resData.interactiveQuestion) {
+                msgData.interactiveQuestion = resData.interactiveQuestion;
+              }
+              if (resData.messageActions) {
+                msgData.messageActions = resData.messageActions;
+              }
+              renderChapterInteractiveQuizAndActions(bubble, msgData);
+            } catch (err) {
+              isChecking = false;
+              checkBtn.disabled = false;
+              checkBtn.textContent = 'Check Answer';
+              optsWrap.querySelectorAll('.kyana-mcq-option').forEach((b) => {
+                if (!b.classList.contains('is-incorrect')) b.disabled = false;
+              });
+              const errNote = document.createElement('div');
+              errNote.className = 'kyana-mcq-error';
+              errNote.textContent = err.message || 'Could not verify answer. Please try again.';
+              card.appendChild(errNote);
+            }
+          });
+
+          footer.appendChild(attemptsEl);
+          footer.appendChild(checkBtn);
+          card.appendChild(footer);
+        }
+
+        if (q.feedback) {
+          const fbEl = document.createElement('div');
+          fbEl.className = 'kyana-mcq-feedback' + (q.isCorrect === false ? ' is-incorrect' : (q.isCorrect === true ? ' is-correct' : ''));
+          fbEl.textContent = q.feedback;
+          card.appendChild(fbEl);
+        }
+
+        if (!q.submitted && q.hint) {
+          const hintEl = document.createElement('div');
+          hintEl.className = 'kyana-mcq-hint';
+          hintEl.innerHTML = `<strong>Hint:</strong> ${escapeHtml(q.hint)}`;
+          card.appendChild(hintEl);
+        }
+
+        // Prominent "Continue to Next Topic" button after correct answer (never auto-jump)
+        if (q.submitted && (q.passed || q.awaitingContinue)) {
+          const contBtn = document.createElement('button');
+          contBtn.type = 'button';
+          contBtn.className = 'kyana-mcq-continue-btn';
+          contBtn.textContent = 'Continue to Next Topic →';
+          contBtn.addEventListener('click', () => {
+            executeChapterKyanaAction({
+              action: 'continue_lesson',
+              actionType: 'next_step',
+              label: 'Continue to Next Topic →',
+              payload: {
+                ...(q.sessionId || msgData.studySessionId ? { sessionId: q.sessionId || msgData.studySessionId } : {}),
+                ...(q.stepIndex || msgData.currentStepIndex ? { stepIndex: Number(q.stepIndex || msgData.currentStepIndex) } : {})
+              }
+            }, contBtn);
+          });
+          card.appendChild(contBtn);
+        }
+
+        bubble.appendChild(card);
+      }
+
+      // 2. Render Message Action Chips (skip duplicate continue_lesson if MCQ already shows Continue to Next Topic)
+      const actions = msgData.messageActions && Array.isArray(msgData.messageActions.actions) ? msgData.messageActions.actions : [];
+      const hasMcqContinue = Boolean(q && q.submitted && (q.passed || q.awaitingContinue));
+      const visibleActions = hasMcqContinue ? actions.filter(a => a.action !== 'continue_lesson') : actions;
+      const existingRow = bubble.querySelector('.kyana-msg-actions-row');
+      if (existingRow) existingRow.remove();
+
+      if (visibleActions.length > 0) {
+        const row = document.createElement('div');
+        row.className = 'kyana-msg-actions-row';
+        visibleActions.forEach((act) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'kyana-msg-action-btn' + (act.primary || act.actionType === 'next_step' ? ' is-primary' : '');
+          btn.textContent = act.label || 'Continue';
+          btn.dataset.action = act.action || '';
+          btn.addEventListener('click', () => executeChapterKyanaAction(act, btn));
+          row.appendChild(btn);
+        });
+        bubble.appendChild(row);
+      }
+    }
+
+    function stabilizeChapterStreamingText(rawText) {
+      const cleaned = stripInternalStudySessionPayload(rawText);
+      if (window.KyanaAdaptiveRenderer && typeof window.KyanaAdaptiveRenderer.stabilizeStreamingMarkdown === 'function') {
+        return window.KyanaAdaptiveRenderer.stabilizeStreamingMarkdown(cleaned);
+      }
+      let text = String(cleaned || '');
       const fenceMatches = text.match(/```[^\n]*/g) || [];
       if (fenceMatches.length % 2 === 1) {
         const lastFence = text.lastIndexOf('```');

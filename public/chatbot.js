@@ -955,7 +955,9 @@
       const unit = escapeHtml(data.unit || 'Chapter Progress');
       const curr = Number(data.currentStep) || 1;
       const total = Number(data.totalSteps) || 1;
-      const pct = Math.min(100, Math.max(0, Math.round(((curr - 1) / total) * 100)));
+      const pct = typeof data.progressPercentage === 'number' && Number.isFinite(data.progressPercentage)
+        ? Math.min(100, Math.max(0, Math.round(data.progressPercentage)))
+        : Math.min(100, Math.max(0, Math.round(((curr - 1) / total) * 100)));
       const items = Array.isArray(data.checklist) ? data.checklist : [];
       const renderItem = (item) => {
         const idx = item.stepIndex || 1;
@@ -2287,6 +2289,7 @@
 
       const card = document.createElement('div');
       card.className = 'kyana-mcq-card';
+      card.dataset.questionId = q.id || '';
 
       const header = document.createElement('div');
       header.className = 'kyana-mcq-header';
@@ -2301,25 +2304,36 @@
       const optsWrap = document.createElement('div');
       optsWrap.className = 'kyana-mcq-options';
 
+      const attemptedIds = Array.isArray(q.attemptedOptionIds) ? q.attemptedOptionIds.map(x => String(x).toUpperCase()) : [];
+      let pickedOptionId = !q.submitted ? (q._pickedOptionId || null) : null;
+      let isChecking = false;
+
+      const checkBtn = document.createElement('button');
+      checkBtn.type = 'button';
+      checkBtn.className = 'kyana-mcq-check-btn';
+      checkBtn.textContent = 'Check Answer';
+      checkBtn.disabled = !pickedOptionId || Boolean(q.submitted);
+
       (q.options || []).forEach((opt) => {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'kyana-mcq-option';
-        btn.disabled = Boolean(q.submitted);
 
         const optId = String(opt.id || '').toUpperCase();
+        const wasTriedWrong = !q.passed && attemptedIds.includes(optId) && (!q.submitted || String(q.correctOptionId || '').toUpperCase() !== optId);
         const isSelected = q.submitted && String(q.selectedOptionId || '').toUpperCase() === optId;
         const isCorrectOpt = q.submitted && String(q.correctOptionId || '').toUpperCase() === optId;
 
+        btn.disabled = Boolean(q.submitted) || wasTriedWrong;
+
+        if (!q.submitted && pickedOptionId === optId) btn.classList.add('selected', 'is-picked');
         if (isSelected) btn.classList.add('selected');
         if (q.submitted && isCorrectOpt) btn.classList.add('is-correct');
-        else if (isSelected && q.isCorrect === false) btn.classList.add('is-incorrect');
+        else if (wasTriedWrong || (isSelected && q.isCorrect === false)) btn.classList.add('is-incorrect');
 
         let statusLabel = '';
-        if (q.submitted) {
-          if (isCorrectOpt) statusLabel = '✓ Correct';
-          else if (isSelected && q.isCorrect === false) statusLabel = '✕ Selected';
-        }
+        if (q.submitted && isCorrectOpt) statusLabel = '✓ Correct';
+        else if (wasTriedWrong || (isSelected && q.isCorrect === false)) statusLabel = '✕ Incorrect';
 
         btn.innerHTML = `
           <span class="kyana-mcq-option-badge">${escapeHtml(optId)}</span>
@@ -2327,67 +2341,14 @@
           ${statusLabel ? `<span class="kyana-mcq-option-status">${escapeHtml(statusLabel)}</span>` : ''}
         `;
 
-        if (!q.submitted) {
-          btn.addEventListener('click', async () => {
-            if (isSending || q.submitted) return;
-            const allBtns = optsWrap.querySelectorAll('.kyana-mcq-option');
-            allBtns.forEach((b) => { b.disabled = true; });
-            btn.classList.add('selected');
-
-            try {
-              const resData = await this.execute({
-                action: 'submit_mcq_answer',
-                actionType: 'multiple_choice',
-                conversationId: activeSession?.id || null,
-                payload: {
-                  messageId: msg.id || null,
-                  questionId: q.id,
-                  optionId: optId,
-                  ...(q.sessionId ? { sessionId: q.sessionId } : {})
-                }
-              });
-
-              if (resData.unauthenticated) {
-                handleSend(optId);
-                return;
-              }
-
-              if (resData.interactiveQuestion) {
-                msg.interactiveQuestion = resData.interactiveQuestion;
-              }
-              this.renderMcqCard(container, msg);
-
-              if (resData.reply && activeSession) {
-                const userRow = KyanaUserMessage.create(`Selected option ${optId}: ${opt.text}`);
-                messagesListEl.appendChild(userRow);
-                activeSession.messages.push({ role: 'user', content: `Selected option ${optId}: ${opt.text}`, timestamp: Date.now() });
-
-                const assistantMsg = {
-                  id: resData.id || null,
-                  role: 'assistant',
-                  content: resData.reply,
-                  messageActions: resData.messageActions || null,
-                  timestamp: Date.now()
-                };
-                activeSession.messages.push(assistantMsg);
-                SessionStore.update(activeSession);
-
-                const respRow = KyanaResponse.create();
-                const respDoc = respRow.querySelector('.kyana-response-doc');
-                renderFormattedContent(respDoc, assistantMsg.content);
-                this.render(respDoc, assistantMsg);
-                KyanaResponseActions.render(respDoc, assistantMsg.content, () => handleRegenerate(), true);
-                messagesListEl.appendChild(respRow);
-                scrollToBottom(true);
-              }
-            } catch (err) {
-              allBtns.forEach((b) => { b.disabled = false; });
-              btn.classList.remove('selected');
-              const errNote = document.createElement('div');
-              errNote.className = 'kyana-mcq-feedback';
-              errNote.textContent = err.message || 'Could not submit answer. Please try again.';
-              card.appendChild(errNote);
-            }
+        if (!q.submitted && !wasTriedWrong) {
+          btn.addEventListener('click', () => {
+            if (isChecking || q.submitted) return;
+            pickedOptionId = optId;
+            q._pickedOptionId = optId;
+            optsWrap.querySelectorAll('.kyana-mcq-option').forEach((b) => b.classList.remove('selected', 'is-picked'));
+            btn.classList.add('selected', 'is-picked');
+            checkBtn.disabled = false;
           });
         }
 
@@ -2396,11 +2357,105 @@
 
       card.appendChild(optsWrap);
 
-      if (q.submitted && q.feedback) {
+      if (!q.submitted) {
+        const footer = document.createElement('div');
+        footer.className = 'kyana-mcq-footer';
+
+        const attemptsEl = document.createElement('span');
+        attemptsEl.className = 'kyana-mcq-attempts';
+        const used = Number(q.attempts || 0);
+        const maxA = Number(q.maxAttempts || 3);
+        attemptsEl.textContent = used > 0 ? `Attempt ${used} of ${maxA} · Select another option` : 'Select an option, then click Check Answer';
+
+        checkBtn.addEventListener('click', async () => {
+          if (isChecking || isSending || q.submitted || !pickedOptionId) return;
+          isChecking = true;
+          checkBtn.disabled = true;
+          checkBtn.textContent = 'Checking answer…';
+          optsWrap.querySelectorAll('.kyana-mcq-option').forEach((b) => { b.disabled = true; });
+
+          try {
+            const resData = await this.execute({
+              action: 'submit_mcq_answer',
+              actionType: 'multiple_choice',
+              conversationId: activeSession?.id || null,
+              payload: {
+                messageId: msg.id || null,
+                questionId: q.id,
+                optionId: pickedOptionId,
+                ...(q.sessionId ? { sessionId: q.sessionId } : {})
+              }
+            });
+
+            if (resData.unauthenticated) {
+              handleSend(pickedOptionId);
+              return;
+            }
+
+            if (resData.interactiveQuestion) {
+              msg.interactiveQuestion = resData.interactiveQuestion;
+            }
+            this.renderMcqCard(container, msg);
+
+            if (resData.messageActions && activeSession) {
+              msg.messageActions = resData.messageActions;
+              this.renderActionButtons(container, msg);
+            }
+          } catch (err) {
+            isChecking = false;
+            checkBtn.disabled = false;
+            checkBtn.textContent = 'Check Answer';
+            optsWrap.querySelectorAll('.kyana-mcq-option').forEach((b) => {
+              if (!b.classList.contains('is-incorrect')) b.disabled = false;
+            });
+            const errNote = document.createElement('div');
+            errNote.className = 'kyana-mcq-error';
+            errNote.textContent = err.message || 'Could not verify answer. Please try again.';
+            card.appendChild(errNote);
+          }
+        });
+
+        footer.appendChild(attemptsEl);
+        footer.appendChild(checkBtn);
+        card.appendChild(footer);
+      }
+
+      if (q.feedback) {
         const fbEl = document.createElement('div');
-        fbEl.className = 'kyana-mcq-feedback';
+        fbEl.className = 'kyana-mcq-feedback' + (q.isCorrect === false ? ' is-incorrect' : (q.isCorrect === true ? ' is-correct' : ''));
         fbEl.textContent = q.feedback;
         card.appendChild(fbEl);
+      }
+
+      if (!q.submitted && q.hint) {
+        const hintEl = document.createElement('div');
+        hintEl.className = 'kyana-mcq-hint';
+        hintEl.innerHTML = `<strong>Hint:</strong> ${escapeHtml(q.hint)}`;
+        card.appendChild(hintEl);
+      }
+
+      if (q.submitted && q.passed && q.sessionId) {
+        const contBtn = document.createElement('button');
+        contBtn.type = 'button';
+        contBtn.className = 'kyana-mcq-continue-btn';
+        contBtn.textContent = 'Continue to Next Topic →';
+        contBtn.addEventListener('click', async () => {
+          if (isSending) return;
+          contBtn.disabled = true;
+          contBtn.textContent = 'Loading next topic…';
+          try {
+            const nextBtn = container.querySelector('.kyana-msg-action-btn[data-action="continue_lesson"]');
+            if (nextBtn) {
+              nextBtn.click();
+            } else {
+              handleSend('continue');
+            }
+          } catch (_) {
+            contBtn.disabled = false;
+            contBtn.textContent = 'Continue to Next Topic →';
+          }
+        });
+        card.appendChild(contBtn);
       }
 
       const anchor = container.querySelector('.kyana-msg-actions-row') || container.querySelector('.kyana-response-actions');

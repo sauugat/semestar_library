@@ -1131,6 +1131,40 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           ? `${tutorOut.bundle?.chapterTitle || 'Chapter'} Notes & Syllabus`
           : `${tutorOut.bundle?.subject || 'Course'} Syllabus & AI Academic Knowledge`;
         if (hasActiveConvStudySession) {
+          let activeQPublic = null;
+          try {
+            const fullSess = await db.get(
+              `SELECT teaching_state_json, current_step_index FROM study_partner_sessions WHERE id = ?`,
+              activeStudySessRow.id
+            );
+            const tState = safeJsonParse(fullSess?.teaching_state_json, null);
+            const aq = tState?.activeQuestion;
+            if (aq && aq.id && Array.isArray(aq.options) && aq.options.length >= 2) {
+              activeQPublic = {
+                id: aq.id,
+                type: 'multiple_choice',
+                question: aq.question,
+                options: aq.options,
+                sessionId: activeStudySessRow.id,
+                stepIndex: Number(aq.stepIndex || fullSess?.current_step_index || 1),
+                submitted: Boolean(aq.submitted),
+                passed: Boolean(aq.passed),
+                awaitingContinue: Boolean(aq.awaitingContinue),
+                attempts: Number(aq.attempts || 0),
+                maxAttempts: Number(aq.maxAttempts || 3),
+                attemptedOptionIds: Array.isArray(aq.attemptedOptionIds) ? aq.attemptedOptionIds : [],
+                selectedOptionId: aq.selectedOptionId || null,
+                isCorrect: aq.passed ? true : (aq.attempts > 0 ? false : null),
+                correctOptionId: aq.submitted ? aq.correctOptionId : null,
+                feedback: aq.feedback || null,
+                hint: aq.hint || null
+              };
+            }
+          } catch (_) {}
+          chapRes.studySessionId = activeStudySessRow?.id || null;
+          if (activeQPublic && !activeQPublic.submitted) {
+            chapRes.interactiveQuestion = activeQPublic;
+          }
           chapRes.metadata = {
             ...(chapRes.metadata || {}),
             inStudySession: true,
@@ -1176,10 +1210,13 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       evaluateStudentIntent,
       evaluateCheckpointReply,
       buildCompiledTopicLessonBundle,
+      buildStudySessionPayload,
       renderMicroTopicTurn,
       buildStudyPartnerLlmPrompt
     } = require('./lib/study-partner-engine');
     const { resolveCourseAndChapter } = require('./lib/study-partner-reconciler');
+    const { generateStructuredMcqForTopic } = require('./lib/academic-teaching-engine');
+    const { validateInteractiveQuestion } = require('./lib/message-actions');
 
     const studentId = academicContext?.studentId || studentInfo?.studentId || 'anonymous_student';
     const conversationId = sessionId || options.conversationId || 'default';
@@ -1211,9 +1248,11 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     let renderedTopics = [];
     let renderedStep = null;
     let isRemediationTurn = false;
+    let isFollowUpOrAmbiguousTurn = false;
     let renderedEvalResult = null;
     let isSessionCompleted = false;
     let lessonBundle = null;
+    let preservedActiveQuestion = null;
 
     const isExplicitNewCourse = route.isNewSession || (
       route.filters?.subject && activeSession && !activeSession.subject.toLowerCase().includes(route.filters.subject.toLowerCase())
@@ -1229,21 +1268,28 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         activeSession.id
       );
       const currentTopic = topics.find(t => (t.stepIndex || t.step_index) === currentStepIdx) || topics[0];
+      const activeTeachingState = safeJsonParse(activeSession.teaching_state_json, null);
+      const storedActiveQuestion = (
+        activeTeachingState?.activeQuestion &&
+        Number(activeTeachingState.activeQuestion.stepIndex || currentStepIdx) === Number(currentStepIdx)
+      ) ? activeTeachingState.activeQuestion : null;
+
       const isResumeOrTeachPrompt = /^(?:continue\s+(?:teaching|this\s+chapter|lesson)|resume\s+(?:teaching|this\s+chapter|lesson)|teach\s+me\s+this\s+chapter(?:\s+step\s+by\s+step)?|let's\s+continue\s+this\s+chapter\s+lesson)$/i.test(message.trim());
       const lastLessonMsgInHistory = [...cleanHistory].reverse().find(m =>
         m && m.role === 'assistant' && /checkpoint|quick\s+check|exam\s+checkpoint|study_session/i.test(m.content || '')
       )?.content || '';
       const effectiveCheckpoint = (lastAssistantMsg && /checkpoint(?:\s*question)?|quick\s+check|exam\s+checkpoint/i.test(lastAssistantMsg))
         ? lastAssistantMsg
-        : (lastLessonMsgInHistory || currentTopic?.checkpoint_question || lastAssistantMsg);
+        : (lastLessonMsgInHistory || storedActiveQuestion?.question || currentTopic?.checkpoint_question || lastAssistantMsg);
       const studentIntent = isResumeOrTeachPrompt
         ? { intent: 'resume_session', confidence: 1.0 }
-        : evaluateStudentIntent(message, currentTopic, effectiveCheckpoint);
+        : evaluateStudentIntent(message, currentTopic, effectiveCheckpoint, storedActiveQuestion);
 
       if (studentIntent.intent === 'resume_session') {
         renderedStep = currentTopic;
         renderedSession = activeSession;
         renderedTopics = topics;
+        preservedActiveQuestion = storedActiveQuestion;
         lessonBundle = await buildCompiledTopicLessonBundle(db, {
           session: renderedSession,
           step: renderedStep,
@@ -1272,11 +1318,25 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
         return agentOut;
       }
 
-      if (studentIntent.intent === 'remediate') {
+      if (studentIntent.intent === 'followup_question') {
+        isFollowUpOrAmbiguousTurn = true;
+        renderedStep = currentTopic;
+        renderedSession = activeSession;
+        renderedTopics = topics;
+        preservedActiveQuestion = storedActiveQuestion;
+        const topicName = currentTopic?.topicTitle || currentTopic?.topic_title || 'this concept';
+        const qExp = storedActiveQuestion?.explanation || '';
+        const sessionBlock = buildStudySessionPayload(activeSession, currentTopic, topics);
+        studyResultText = '```study_session\n' + JSON.stringify(sessionBlock, null, 2) + '\n```\n\n' +
+          (qExp
+            ? `Great question! Here's why: ${qExp}\n\nWhenever you're ready, you can answer the checkpoint question or continue to the next concept.`
+            : `Great question about **${topicName}**! Let's clarify that point carefully without losing your place in Step ${currentStepIdx}.`);
+      } else if (studentIntent.intent === 'remediate') {
         isRemediationTurn = true;
         renderedStep = currentTopic;
         renderedSession = activeSession;
         renderedTopics = topics;
+        preservedActiveQuestion = storedActiveQuestion;
         lessonBundle = await buildCompiledTopicLessonBundle(db, {
           session: renderedSession,
           step: renderedStep,
@@ -1289,13 +1349,16 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
           lessonBundle,
           isRemediation: true
         });
-      } else {
+      } else if (studentIntent.intent !== 'resume_session') {
         let evalResult = { passed: true };
         if (studentIntent.intent === 'answer_attempt' || studentIntent.intent === 'advance_directly') {
-          evalResult = evaluateCheckpointReply(message, currentTopic, effectiveCheckpoint);
+          evalResult = evaluateCheckpointReply(message, currentTopic, effectiveCheckpoint, {
+            activeQuestion: storedActiveQuestion
+          });
 
-          const isDefinitiveFailure = Boolean(
+          const isDefinitiveResult = Boolean(
             evalResult.isSurrender ||
+            evalResult.isAmbiguous ||
             evalResult.misconception ||
             evalResult.format === 'mcq' ||
             evalResult.format === 'sql' ||
@@ -1304,7 +1367,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
             evalResult.format === 'physics'
           );
 
-          if (!evalResult.passed && !isDefinitiveFailure && canSynthesizeWithLlm && typeof llmGenerateFn === 'function' && lastAssistantMsg) {
+          if (!evalResult.passed && !isDefinitiveResult && canSynthesizeWithLlm && typeof llmGenerateFn === 'function' && lastAssistantMsg) {
             try {
               const evalOut = await llmGenerateFn({
                 message: `Previous message from Kyana:\n${lastAssistantMsg.slice(-1200)}\n\nStudent's reply:\n${message}`,
@@ -1407,22 +1470,30 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
             activeSession.teaching_state_json = JSON.stringify(teachingState);
           } catch (_) {}
 
-          lessonBundle = await buildCompiledTopicLessonBundle(db, {
-            session: renderedSession,
-            step: renderedStep,
-            academicContext
-          });
-          studyResultText = renderMicroTopicTurn({
-            session: activeSession,
-            step: currentTopic,
-            topics,
-            lessonBundle,
-            isRemediation: true,
-            studentAnswerEvaluation: evalResult
-          });
+          preservedActiveQuestion = storedActiveQuestion;
+          if (evalResult.isAmbiguous) {
+            isFollowUpOrAmbiguousTurn = true;
+            const sessionBlock = buildStudySessionPayload(activeSession, currentTopic, topics);
+            studyResultText = '```study_session\n' + JSON.stringify(sessionBlock, null, 2) + '\n```\n\n' + (evalResult.feedback || 'Could you clarify which option you mean?');
+          } else {
+            lessonBundle = await buildCompiledTopicLessonBundle(db, {
+              session: renderedSession,
+              step: renderedStep,
+              academicContext
+            });
+            studyResultText = renderMicroTopicTurn({
+              session: activeSession,
+              step: currentTopic,
+              topics,
+              lessonBundle,
+              isRemediation: true,
+              studentAnswerEvaluation: evalResult
+            });
+          }
         } else {
-          const isSkip = /^\s*skip(?:\s+topic)?\s*[.!]*$/i.test(message);
-          const isNeutralAdv = evalResult.isNeutralAdvance || studentIntent.intent === 'advance_directly';
+          const isSkip = Boolean(studentIntent.isSkip) || /^\s*skip(?:\s+(?:this|topic|step|question))?\s*[.!]*$/i.test(message);
+          const wasAlreadyPassedMcq = Boolean(storedActiveQuestion && storedActiveQuestion.passed);
+          const isNeutralAdv = !wasAlreadyPassedMcq && (evalResult.isNeutralAdvance || studentIntent.intent === 'advance_directly');
           const markCurrentStatus = isSkip
             ? 'SKIPPED'
             : (isNeutralAdv ? 'INTRODUCED' : 'MASTERED');
@@ -1430,6 +1501,8 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
             targetStepIndex: currentStepIdx + 1,
             markCurrentStatus,
             conceptExplained: currentTopic?.topicTitle || currentTopic?.topic_title,
+            conceptCompleted: markCurrentStatus === 'MASTERED' ? (currentTopic?.topicTitle || currentTopic?.topic_title) : undefined,
+            activeQuestion: null,
             studentAnswer: { text: message, passed: markCurrentStatus === 'MASTERED' },
             exerciseScore: evalResult.score !== undefined ? evalResult.score : (markCurrentStatus === 'MASTERED' ? 1.0 : 0.0)
           });
@@ -1521,7 +1594,7 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
     let extractedServerAnswerKey = null;
 
     // Upgrade teaching prose with LLM-powered adaptive 7-step pedagogy when a provider is configured
-    if (!isSessionCompleted && renderedSession && renderedStep && canSynthesizeWithLlm && typeof llmGenerateFn === 'function') {
+    if (!isSessionCompleted && !isFollowUpOrAmbiguousTurn && renderedSession && renderedStep && canSynthesizeWithLlm && typeof llmGenerateFn === 'function') {
       try {
         const userLang = detectLanguage(originalMessage);
         const langRule = userLang === 'devanagari'
@@ -1720,10 +1793,98 @@ async function handleChat(db, userMessage, studentInfo = {}, history = [], sessi
       } catch (_) {}
     }
 
+    // Resolve verified active MCQ (Priority: LLM <kyana_actions> -> preserved active question -> deterministic topic MCQ)
+    if (!isSessionCompleted && renderedSession && renderedStep) {
+      const stepNum = Number(renderedStep.stepIndex || renderedStep.step_index || 1);
+      if (!extractedInteractiveQuestion && preservedActiveQuestion && Array.isArray(preservedActiveQuestion.options) && preservedActiveQuestion.options.length >= 2) {
+        extractedInteractiveQuestion = {
+          id: preservedActiveQuestion.id,
+          type: 'multiple_choice',
+          question: preservedActiveQuestion.question,
+          options: preservedActiveQuestion.options,
+          sessionId: renderedSession.id,
+          stepIndex: stepNum,
+          submitted: Boolean(preservedActiveQuestion.submitted),
+          passed: Boolean(preservedActiveQuestion.passed),
+          awaitingContinue: Boolean(preservedActiveQuestion.awaitingContinue),
+          attempts: Number(preservedActiveQuestion.attempts || 0),
+          maxAttempts: Number(preservedActiveQuestion.maxAttempts || 3),
+          attemptedOptionIds: Array.isArray(preservedActiveQuestion.attemptedOptionIds) ? preservedActiveQuestion.attemptedOptionIds : [],
+          selectedOptionId: preservedActiveQuestion.selectedOptionId || null,
+          isCorrect: preservedActiveQuestion.passed ? true : (preservedActiveQuestion.attempts > 0 ? false : null),
+          correctOptionId: preservedActiveQuestion.submitted ? preservedActiveQuestion.correctOptionId : null,
+          feedback: preservedActiveQuestion.feedback || null,
+          hint: preservedActiveQuestion.hint || null
+        };
+        if (preservedActiveQuestion.correctOptionId) {
+          extractedServerAnswerKey = {
+            questionId: preservedActiveQuestion.id,
+            correctOptionId: preservedActiveQuestion.correctOptionId,
+            explanation: preservedActiveQuestion.explanation || null,
+            hint: preservedActiveQuestion.hint || null,
+            optionExplanations: preservedActiveQuestion.optionExplanations || {}
+          };
+        }
+      } else if (!extractedInteractiveQuestion) {
+        const rawTopicMcq = generateStructuredMcqForTopic(renderedStep, renderedSession);
+        if (rawTopicMcq) {
+          const validatedTopicMcq = validateInteractiveQuestion(rawTopicMcq, {
+            sessionId: renderedSession.id,
+            stepIndex: stepNum
+          });
+          if (validatedTopicMcq) {
+            extractedInteractiveQuestion = validatedTopicMcq.publicQuestion;
+            extractedServerAnswerKey = validatedTopicMcq.serverAnswerKey;
+          }
+        }
+      }
+
+      // Persist activeQuestion into study_partner_sessions.teaching_state_json for deterministic follow-up evaluation
+      if (extractedInteractiveQuestion && extractedServerAnswerKey && db && typeof db.run === 'function') {
+        try {
+          let tState = safeJsonParse(renderedSession.teaching_state_json, null);
+          if (!tState) {
+            const { createTeachingState } = require('./lib/academic-teaching-engine');
+            tState = createTeachingState(renderedSession, renderedTopics);
+          }
+          tState.activeStepIndex = stepNum;
+          tState.activeConcept = renderedStep.topicTitle || renderedStep.topic_title || tState.activeConcept || '';
+          tState.activeQuestion = {
+            id: extractedInteractiveQuestion.id,
+            question: extractedInteractiveQuestion.question,
+            type: 'mcq',
+            options: extractedInteractiveQuestion.options,
+            correctOptionId: extractedServerAnswerKey.correctOptionId,
+            explanation: extractedServerAnswerKey.explanation || null,
+            hint: extractedServerAnswerKey.hint || null,
+            optionExplanations: extractedServerAnswerKey.optionExplanations || {},
+            stepIndex: stepNum,
+            attempts: Number(extractedInteractiveQuestion.attempts || 0),
+            maxAttempts: Number(extractedInteractiveQuestion.maxAttempts || 3),
+            attemptedOptionIds: Array.isArray(extractedInteractiveQuestion.attemptedOptionIds) ? extractedInteractiveQuestion.attemptedOptionIds : [],
+            submitted: Boolean(extractedInteractiveQuestion.submitted),
+            passed: Boolean(extractedInteractiveQuestion.passed),
+            awaitingContinue: Boolean(extractedInteractiveQuestion.awaitingContinue),
+            selectedOptionId: extractedInteractiveQuestion.selectedOptionId || null
+          };
+          await db.run(
+            `UPDATE study_partner_sessions SET teaching_state_json = ?, updated_at = ? WHERE id = ?`,
+            JSON.stringify(tState),
+            new Date().toISOString(),
+            renderedSession.id
+          );
+          renderedSession.teaching_state_json = JSON.stringify(tState);
+        } catch (_) {}
+      }
+    }
+
     const studyRes = emptyResult(studyResultText);
     studyRes.intent = 'study_partner';
     studyRes.studySessionId = renderedSession?.id || null;
     studyRes.currentStepIndex = renderedStep ? Number(renderedStep.stepIndex || renderedStep.step_index || 1) : null;
+    studyRes.studySession = (renderedSession && renderedStep && !isSessionCompleted)
+      ? buildStudySessionPayload(renderedSession, renderedStep, renderedTopics)
+      : null;
     studyRes.sessionProgress = renderedSession ? {
       sessionId: renderedSession.id,
       currentStepIndex: renderedStep ? Number(renderedStep.stepIndex || renderedStep.step_index || 1) : 1,

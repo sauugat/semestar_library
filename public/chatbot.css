@@ -2783,9 +2783,17 @@ body[data-theme="light"] .kyana-code-block {
   color: #a3a3a3;
 }
 
-.kyana-mcq-option.selected {
-  border-color: #d4d4d8;
-  background-color: #202020;
+.kyana-mcq-option.selected,
+.kyana-mcq-option.is-picked {
+  border-color: #ffffff;
+  background-color: #242424;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.kyana-mcq-option.is-picked .kyana-mcq-option-badge {
+  background-color: #ffffff;
+  color: #09090b;
+  border-color: #ffffff;
 }
 
 .kyana-mcq-option.is-correct {
@@ -2801,7 +2809,59 @@ body[data-theme="light"] .kyana-code-block {
 
 .kyana-mcq-option.is-incorrect {
   border-color: #52525b;
-  opacity: 0.72;
+  opacity: 0.65;
+  text-decoration: line-through;
+}
+
+.kyana-mcq-footer {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.kyana-mcq-attempts {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ky-text-muted, #a1a1aa);
+}
+
+.kyana-mcq-check-btn,
+.kyana-mcq-continue-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid #ffffff;
+  background-color: #ffffff;
+  color: #09090b;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+}
+
+.kyana-mcq-check-btn:hover:not(:disabled),
+.kyana-mcq-continue-btn:hover:not(:disabled) {
+  background-color: #e4e4e7;
+  border-color: #e4e4e7;
+}
+
+.kyana-mcq-check-btn:disabled,
+.kyana-mcq-continue-btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.kyana-mcq-continue-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 18px;
+  font-size: 13px;
 }
 
 .kyana-mcq-feedback {
@@ -2809,10 +2869,125 @@ body[data-theme="light"] .kyana-code-block {
   padding: 10px 12px;
   border-radius: 8px;
   border-left: 3px solid #ffffff;
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.06);
   font-size: 13px;
   line-height: 1.45;
   color: #e4e4e7;
+}
+
+.kyana-mcq-feedback.is-incorrect {
+  border-left-color: #a1a1aa;
+}
+
+.kyana-mcq-hint {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px dashed #3f3f46;
+  background-color: rgba(255, 255, 255, 0.03);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #d4d4d8;
+}
+
+.kyana-mcq-error {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #52525b;
+  background-color: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+  color: #f4f4f5;
+}
+
+/* Light-mode monochrome overrides for Library & Chatbot MCQ cards */
+[data-theme="light"] .kyana-mcq-card,
+html:not(.dark)[data-theme="light"] .kyana-mcq-card {
+  background-color: #fafafa;
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] .kyana-mcq-header,
+[data-theme="light"] .kyana-mcq-attempts {
+  color: #52525b;
+}
+
+[data-theme="light"] .kyana-mcq-question {
+  color: #09090b;
+}
+
+[data-theme="light"] .kyana-mcq-option {
+  background-color: #ffffff;
+  border-color: #d4d4d8;
+  color: #18181b;
+}
+
+[data-theme="light"] .kyana-mcq-option:hover:not(:disabled) {
+  background-color: #f4f4f5;
+  border-color: #18181b;
+}
+
+[data-theme="light"] .kyana-mcq-option-badge {
+  background-color: #f4f4f5;
+  color: #18181b;
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] .kyana-mcq-option.selected,
+[data-theme="light"] .kyana-mcq-option.is-picked,
+[data-theme="light"] .kyana-mcq-option.is-correct {
+  border-color: #09090b;
+  background-color: #f4f4f5;
+  box-shadow: 0 0 0 1px #09090b;
+}
+
+[data-theme="light"] .kyana-mcq-option.is-picked .kyana-mcq-option-badge,
+[data-theme="light"] .kyana-mcq-option.is-correct .kyana-mcq-option-badge {
+  background-color: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
+}
+
+[data-theme="light"] .kyana-mcq-check-btn,
+[data-theme="light"] .kyana-mcq-continue-btn {
+  background-color: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
+}
+
+[data-theme="light"] .kyana-mcq-check-btn:hover:not(:disabled),
+[data-theme="light"] .kyana-mcq-continue-btn:hover:not(:disabled) {
+  background-color: #27272a;
+  border-color: #27272a;
+}
+
+[data-theme="light"] .kyana-mcq-feedback {
+  background-color: #f4f4f5;
+  border-left-color: #09090b;
+  color: #18181b;
+}
+
+[data-theme="light"] .kyana-mcq-hint {
+  background-color: #ffffff;
+  border-color: #a1a1aa;
+  color: #3f3f46;
+}
+
+@media (max-width: 640px) {
+  .kyana-mcq-card {
+    padding: 12px;
+  }
+  .kyana-mcq-option {
+    padding: 9px 10px;
+    font-size: 13px;
+  }
+  .kyana-mcq-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .kyana-mcq-check-btn {
+    width: 100%;
+  }
 }
 
 /* Modals */

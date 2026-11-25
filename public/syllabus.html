@@ -4,8 +4,8 @@
   <script src="/theme.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Syllabus — Semester Library</title>
-  <meta name="description" content="View the complete Gandaki University BIT syllabus, including semester breakdown, subjects, and unit-wise course contents.">
+  <title>BIT Syllabus — Semester Library</title>
+  <meta name="description" content="Complete Gandaki University BIT syllabus: 4 years, 8 semesters, 47 courses, 138 credits, 5 elective specialization clusters, and unit-wise micro-syllabus.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://semestar-library.vercel.app/syllabus">
 
@@ -17,6 +17,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Semester Library">
   <meta name="theme-color" content="#0B0B0B">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Outfit:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
@@ -25,7 +26,7 @@
   <link rel="stylesheet" href="chatbot.css?v=25">
   <link rel="stylesheet" href="auth-modal.css?v=25">
   <link rel="stylesheet" href="/theme-overrides.css?v=25">
-  <link rel="stylesheet" href="syllabus-style-addition.css?v=27">
+  <link rel="stylesheet" href="syllabus-style-addition.css?v=28">
   <script src="/auth.js?v=27"></script>
   <script src="/js/swr.js?v=27"></script>
 </head>
@@ -55,24 +56,24 @@
   <!-- Main Container -->
   <main class="syllabus-container">
 
-    <!-- Header & Navigation Bar -->
+    <!-- Header & Breadcrumb -->
     <header class="syllabus-header-section">
       <nav class="syllabus-breadcrumb" id="breadcrumb" aria-label="Breadcrumb"></nav>
-      
+
       <div class="syllabus-heading-row">
         <div>
           <h1 class="syllabus-main-title" id="syllabusTitle">BIT Syllabus</h1>
           <p class="syllabus-sub-title" id="syllabusSub">Gandaki University · 4 Years · 8 Semesters · 138 Credits</p>
         </div>
-        <div id="syllabusActionSlot" style="display: flex; align-items: center; gap: 8px;"></div>
+        <div id="syllabusActionSlot" class="syllabus-action-slot"></div>
       </div>
     </header>
 
-    <!-- Main Dynamic Content Grid -->
+    <!-- Main Dynamic Content -->
     <section class="syllabus-content-area" id="syllabusGrid">
       <div class="syl-semester-grid" aria-hidden="true">
-        <div class="syl-semester-card" style="opacity:0.6;"><div style="height:20px;width:35%;background:rgba(255,255,255,0.1);border-radius:4px;margin-bottom:12px;"></div><div style="height:14px;width:75%;background:rgba(255,255,255,0.06);border-radius:4px;"></div></div>
-        <div class="syl-semester-card" style="opacity:0.6;"><div style="height:20px;width:35%;background:rgba(255,255,255,0.1);border-radius:4px;margin-bottom:12px;"></div><div style="height:14px;width:75%;background:rgba(255,255,255,0.06);border-radius:4px;"></div></div>
+        <div class="syl-semester-card" style="opacity:0.55;"><div style="height:20px;width:32%;background:var(--syl-surface-raised);border-radius:5px;margin-bottom:12px;"></div><div style="height:14px;width:72%;background:var(--syl-surface-subtle);border-radius:4px;"></div></div>
+        <div class="syl-semester-card" style="opacity:0.55;"><div style="height:20px;width:32%;background:var(--syl-surface-raised);border-radius:5px;margin-bottom:12px;"></div><div style="height:14px;width:72%;background:var(--syl-surface-subtle);border-radius:4px;"></div></div>
       </div>
     </section>
 
@@ -91,10 +92,38 @@
   </footer>
 
   <script>
+    let APP_SYLLABUS = null;
+    let CURRENT_USER_SEMESTER_ROMAN = null;
+    let ACTIVE_SEARCH_QUERY = '';
+    let ACTIVE_CLUSTER_FILTER = 'ALL';
+
+    const NUM_TO_ROMAN = { '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI', '7': 'VII', '8': 'VIII' };
+    const ROMAN_TO_YEAR = {
+      'I': 'Year 1', 'II': 'Year 1',
+      'III': 'Year 2', 'IV': 'Year 2',
+      'V': 'Year 3', 'VI': 'Year 3',
+      'VII': 'Year 4', 'VIII': 'Year 4'
+    };
+
+    function normalizeRomanSemester(raw) {
+      if (!raw) return null;
+      const clean = String(raw).replace(/^semester\s+/i, '').replace(/^sem[\s_-]*/i, '').trim().toUpperCase();
+      if (NUM_TO_ROMAN[clean]) return NUM_TO_ROMAN[clean];
+      if (ROMAN_TO_YEAR[clean]) return clean;
+      return null;
+    }
+
     SemesterAuth.getUser().then(user => {
       if (user) {
         window.IS_AUTHENTICATED = true;
         SemesterAuth.initHeader(user);
+        const sem = normalizeRomanSemester(user.semester || user.current_semester || user.semester_number);
+        if (sem && sem !== CURRENT_USER_SEMESTER_ROMAN) {
+          CURRENT_USER_SEMESTER_ROMAN = sem;
+          if (APP_SYLLABUS && currentPath().length === 0) {
+            renderLandingContent();
+          }
+        }
       } else {
         window.IS_AUTHENTICATED = false;
         SemesterAuth.initHeader(null);
@@ -103,59 +132,111 @@
       window.IS_AUTHENTICATED = false;
     });
 
-    const logoutBtnEl = document.getElementById('logoutBtn');
-    if (logoutBtnEl) {
-      logoutBtnEl.addEventListener('click', (e) => {
-        e.preventDefault();
-        SemesterAuth.logout();
-      });
-    }
-
-    let SYLLABUS = null;
-    let ACTIVE_SEARCH_QUERY = '';
-    let ACTIVE_CLUSTER_FILTER = 'ALL';
-
-    async function loadData() {
+    async function loadAppSyllabus() {
       if (window.SWR && typeof window.SWR.get === 'function') {
-        const res = await window.SWR.get('/syllabus-data.json', {
+        const res = await window.SWR.get('/syllabus-app-data.json', {
           ttl: 24 * 60 * 60 * 1000,
           userScoped: false,
           fetcher: async () => {
-            const r = await fetch('syllabus-data.json');
+            const r = await fetch('syllabus-app-data.json');
+            if (!r.ok) throw new Error('Failed to load syllabus-app-data.json');
             return r.json();
           },
           onData: (data, meta) => {
-            SYLLABUS = data;
+            APP_SYLLABUS = data;
             if (meta && meta.source === 'network' && meta.changed && typeof route === 'function') {
               route();
             }
           }
         });
         if (res && res.data) {
-          SYLLABUS = res.data;
-          return SYLLABUS;
+          APP_SYLLABUS = res.data;
+          return APP_SYLLABUS;
         }
       }
-      if (SYLLABUS) return SYLLABUS;
-      const res = await fetch('syllabus-data.json');
-      SYLLABUS = await res.json();
-      return SYLLABUS;
+      if (APP_SYLLABUS) return APP_SYLLABUS;
+      const res = await fetch('syllabus-app-data.json');
+      if (!res.ok) throw new Error('Failed to load syllabus-app-data.json');
+      APP_SYLLABUS = await res.json();
+      return APP_SYLLABUS;
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
     function currentPath() {
       return decodeURIComponent(location.hash.replace(/^#/, '')).split('/').filter(Boolean);
     }
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    function getAllSearchableCourses(data) {
+      const core = (data.semesters || [])
+        .flatMap(s => s.courses || [])
+        .filter(c => !c.isElectiveSlot);
+      const electives = data.electives || [];
+      return [...core, ...electives];
+    }
+
+    function searchAppCourses(data, query) {
+      const q = query.trim().toLowerCase();
+      if (!q) return [];
+      return getAllSearchableCourses(data).filter(course => {
+        if (
+          (course.code || '').toLowerCase().includes(q) ||
+          (course.title || '').toLowerCase().includes(q) ||
+          (course.semester || '').toLowerCase().includes(q) ||
+          (course.year || '').toLowerCase().includes(q) ||
+          (course.cluster && course.cluster.toLowerCase().includes(q))
+        ) {
+          return true;
+        }
+        if (
+          (course.objectives || []).some(o => o.toLowerCase().includes(q)) ||
+          (course.description && course.description.toLowerCase().includes(q)) ||
+          (course.outcomes && course.outcomes.some(o => o.toLowerCase().includes(q)))
+        ) {
+          return true;
+        }
+        return (course.units || []).some(
+          u =>
+            (u.title || '').toLowerCase().includes(q) ||
+            (u.topics || []).some(t => t.toLowerCase().includes(q))
+        );
+      });
+    }
+
+    function courseDetailHash(course) {
+      if (course.isElectiveSlot) return '#Electives';
+      const courseKey = `${course.code}-${course.title}`;
+      if (course.cluster) {
+        return `#Electives/${encodeURIComponent(courseKey)}`;
+      }
+      return `#${encodeURIComponent(course.year)}/${encodeURIComponent(course.semester)}/${encodeURIComponent(courseKey)}`;
+    }
+
+    function libraryUrlForCourse(course, unit) {
+      const params = new URLSearchParams();
+      params.set('subject', course.title);
+      if (course.semester && !course.cluster) {
+        params.set('semester', `Semester ${course.semester}`);
+      }
+      if (unit) {
+        params.set('unit', String(unit.unitNumber));
+        params.set('chapter', `Unit ${unit.unitNumber}: ${unit.title}`);
+      }
+      return `library.html?${params.toString()}`;
     }
 
     function renderBreadcrumb(path) {
-      let crumbs = [
+      const crumbs = [
         `<a href="#" class="crumb-chip ${path.length === 0 ? 'active' : ''}">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-          <span>Syllabus</span>
+          <span>BIT Syllabus</span>
         </a>`
       ];
 
@@ -163,9 +244,9 @@
       path.forEach((part, i) => {
         acc += (i === 0 ? '' : '/') + part;
         const isLast = i === path.length - 1;
-        const label = part.length > 28 ? part.slice(0, 26) + '…' : part;
+        const label = part.length > 30 ? part.slice(0, 28) + '…' : part;
         crumbs.push(`
-          <span class="crumb-chevron">
+          <span class="crumb-chevron" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
           </span>
           <a href="#${encodeURIComponent(acc)}" class="crumb-chip ${isLast ? 'active' : ''}" title="${escapeHtml(part)}">
@@ -177,113 +258,7 @@
       document.getElementById('breadcrumb').innerHTML = crumbs.join('');
     }
 
-    function textToHtml(text) {
-      if (!text) return '';
-      return text.split('\n').map(l => escapeHtml(l.trim())).filter(Boolean).join('<br>');
-    }
-
-    // Separate course contents, laboratory work, and textbooks/references
-    function extractCourseSections(course) {
-      let contents = course.contents || '';
-      let lab = course.lab || '';
-      let textbooks = Array.isArray(course.textbooks) ? [...course.textbooks] : [];
-
-      function cleanField(rawText) {
-        if (!rawText) return { text: '', extractedBooks: [], extractedLab: '' };
-        let text = rawText;
-        let extractedLab = '';
-        let extractedBooks = [];
-
-        const labRegex = /(?:Laboratory\s*Works?|Practical\s*Works?|Lab\s*Exercises?|Laboratory\s*Work\/Case\s*Studies|Practical\s*Sessions?):([\s\S]*?)(?=(?:Text\s*books?|Reference\s*books?|References?|Suggested\s*Readings?|Recommended\s*Books?):|$)/i;
-        const labMatch = text.match(labRegex);
-        if (labMatch) {
-          extractedLab = labMatch[1].trim();
-          text = text.replace(labMatch[0], '').trim();
-        }
-
-        const tbRegex = /(?:Text\s*books?|Reference\s*books?|References?|Suggested\s*Readings?|Recommended\s*Books?|Suggested\s*Textbooks?|Reference\s*Materials?):([\s\S]*)$/i;
-        const tbMatch = text.match(tbRegex);
-        if (tbMatch) {
-          const tbSection = tbMatch[1].trim();
-          text = text.slice(0, tbMatch.index).trim();
-          
-          const lines = tbSection.split('\n').map(l => l.trim()).filter(Boolean);
-          let currentBook = '';
-          for (let l of lines) {
-            if (/^(\d+[\.\)]|\*|\-|\u2022)\s*/.test(l)) {
-              if (currentBook) extractedBooks.push(currentBook.trim());
-              currentBook = l.replace(/^(\d+[\.\)]|\*|\-|\u2022)\s*/, '');
-            } else {
-              if (currentBook) currentBook += ' ' + l;
-              else currentBook = l;
-            }
-          }
-          if (currentBook) extractedBooks.push(currentBook.trim());
-        }
-
-        return { text, extractedBooks, extractedLab };
-      }
-
-      const fromContents = cleanField(contents);
-      contents = fromContents.text;
-      if (fromContents.extractedLab) {
-        lab = lab ? (lab + '\n\n' + fromContents.extractedLab) : fromContents.extractedLab;
-      }
-      if (fromContents.extractedBooks.length) {
-        textbooks = textbooks.concat(fromContents.extractedBooks);
-      }
-
-      const fromLab = cleanField(lab);
-      lab = fromLab.text;
-      if (fromLab.extractedBooks.length) {
-        textbooks = textbooks.concat(fromLab.extractedBooks);
-      }
-
-      textbooks = textbooks.map(b => b.replace(/\s+/g, ' ').trim()).filter(Boolean);
-      textbooks = [...new Set(textbooks)];
-
-      return { contents, lab, textbooks };
-    }
-
-    // Helper to format course unit breakdown
-    function parseCourseContents(raw) {
-      if (!raw) return [];
-      const lines = raw.split('\n');
-      const units = [];
-      let currentUnit = null;
-
-      for (let line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        
-        if (/^(?:Text\s*books?|Reference\s*books?|References?|Suggested\s*Readings?|Recommended\s*Books?):/i.test(trimmed)) {
-          break;
-        }
-
-        const unitMatch = trimmed.match(/^(\d+)\.\s+([A-Za-z].*?)(?:\s+(\d+\s*hrs?))?$/i);
-        const isSubtopic = /^\d+\.\d+/.test(trimmed);
-
-        if (unitMatch && !isSubtopic) {
-          if (currentUnit) units.push(currentUnit);
-          currentUnit = {
-            num: unitMatch[1],
-            title: unitMatch[2].replace(/\s+\d+\s*hrs?$/i, '').trim(),
-            hrs: unitMatch[3] || '',
-            topics: []
-          };
-        } else if (currentUnit) {
-          currentUnit.topics.push(trimmed);
-        } else {
-          if (!currentUnit) {
-            currentUnit = { num: '1', title: 'Module Contents', hrs: '', topics: [trimmed] };
-          }
-        }
-      }
-      if (currentUnit) units.push(currentUnit);
-      return units;
-    }
-
-    // Toggle Unit Accordion (Only one or many)
+    // ─── Accordion & Toggle Helpers ──────────────────────────────────────────
     window.toggleUnitAccordion = function(idx) {
       const el = document.getElementById(`unitAccordion-${idx}`);
       if (!el) return;
@@ -294,13 +269,7 @@
     window.toggleAllUnits = function() {
       const accordions = document.querySelectorAll('.syl-unit-accordion');
       const allExpanded = Array.from(accordions).every(a => a.classList.contains('expanded'));
-      accordions.forEach(a => {
-        if (allExpanded) {
-          a.classList.remove('expanded');
-        } else {
-          a.classList.add('expanded');
-        }
-      });
+      accordions.forEach(a => a.classList.toggle('expanded', !allExpanded));
       updateAllUnitsToggleBtn();
     };
 
@@ -308,61 +277,55 @@
       const btn = document.getElementById('toggleAllUnitsBtn');
       if (!btn) return;
       const accordions = document.querySelectorAll('.syl-unit-accordion');
-      const allExpanded = Array.from(accordions).every(a => a.classList.contains('expanded'));
+      const allExpanded = accordions.length > 0 && Array.from(accordions).every(a => a.classList.contains('expanded'));
       btn.textContent = allExpanded ? 'Collapse All' : 'Expand All';
     }
 
     window.toggleCourseOverview = function() {
-      const container = document.getElementById('courseOverviewContent');
+      const list = document.getElementById('courseOverviewExtra');
       const btn = document.getElementById('overviewToggleBtn');
-      if (!container || !btn) return;
-      const isExpanded = container.getAttribute('data-expanded') === 'true';
-      if (isExpanded) {
-        container.setAttribute('data-expanded', 'false');
-        container.style.maxHeight = '84px';
-        container.style.overflow = 'hidden';
-        btn.textContent = 'Show All';
-      } else {
-        container.setAttribute('data-expanded', 'true');
-        container.style.maxHeight = 'none';
-        container.style.overflow = 'visible';
-        btn.textContent = 'Show Less';
-      }
+      if (!list || !btn) return;
+      const isExpanded = list.getAttribute('data-expanded') === 'true';
+      list.setAttribute('data-expanded', isExpanded ? 'false' : 'true');
+      list.style.display = isExpanded ? 'none' : 'flex';
+      btn.innerHTML = isExpanded
+        ? '<span>Show All</span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>'
+        : '<span>Show Less</span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>';
     };
 
-    // Live Search on Syllabus Landing Page
     window.handleSyllabusSearch = function(query) {
       ACTIVE_SEARCH_QUERY = query;
       const clearBtn = document.getElementById('searchClearBtn');
-      if (clearBtn) {
-        clearBtn.style.display = query.trim() ? 'flex' : 'none';
-      }
-      renderLandingContent();
+      if (clearBtn) clearBtn.style.display = query.trim() ? 'flex' : 'none';
+      renderLandingResults();
     };
 
     window.clearSyllabusSearch = function() {
+      ACTIVE_SEARCH_QUERY = '';
       const input = document.getElementById('syllabusSearchInput');
       if (input) {
         input.value = '';
         input.focus();
       }
-      ACTIVE_SEARCH_QUERY = '';
       const clearBtn = document.getElementById('searchClearBtn');
       if (clearBtn) clearBtn.style.display = 'none';
-      renderLandingContent();
+      renderLandingResults();
     };
 
     // ═════════════════════════════════════════════════════════════════════════
-    // LEVEL 1: LANDING PAGE (Grouped by Academic Year + Electives + Search)
+    // LEVEL 1: BIT SYLLABUS LANDING PAGE (Grouped by Academic Year + Electives)
     // ═════════════════════════════════════════════════════════════════════════
-    async function loadYears() {
-      const data = await loadData();
+    async function loadLanding() {
+      const data = await loadAppSyllabus();
+      const info = data.programInfo || {};
+      document.title = 'BIT Syllabus — Semester Library';
       document.getElementById('syllabusTitle').textContent = 'BIT Syllabus';
-      document.getElementById('syllabusSub').textContent = 'Gandaki University · 4 Years · 8 Semesters · 138 Credits';
+      document.getElementById('syllabusSub').textContent =
+        `${info.university || 'Gandaki University'} · ${info.durationYears || 4} Years · ${info.totalSemesters || 8} Semesters · ${info.totalCredits || 138} Credits`;
       document.getElementById('syllabusActionSlot').innerHTML = `
         <a href="#Overview" class="syllabus-action-pill secondary">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 3v18h18"/><path d="M18.7 8 13 13.7l-3-3L4.7 15.7"/></svg>
-          <span>Curriculum Roadmap</span>
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Program Info &amp; Roadmap</span>
         </a>
       `;
 
@@ -370,95 +333,76 @@
     }
 
     function renderLandingContent() {
-      if (!SYLLABUS) return;
+      if (!APP_SYLLABUS) return;
       const grid = document.getElementById('syllabusGrid');
-      const q = ACTIVE_SEARCH_QUERY.trim().toLowerCase();
+      const q = ACTIVE_SEARCH_QUERY.trim();
 
-      // Search Box Shell
-      let html = `
+      grid.innerHTML = `
         <div class="syllabus-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <input 
-            type="text" 
-            id="syllabusSearchInput" 
-            class="syllabus-search-input" 
-            placeholder="Search subject name or course code (e.g. DSA, CIT111, Java)..." 
+          <input
+            type="text"
+            id="syllabusSearchInput"
+            class="syllabus-search-input"
+            placeholder="Search subject name, course code, or topic..."
             value="${escapeHtml(ACTIVE_SEARCH_QUERY)}"
             oninput="handleSyllabusSearch(this.value)"
             autocomplete="off"
             spellcheck="false"
           >
-          <button 
-            id="searchClearBtn" 
-            class="syllabus-search-clear" 
-            onclick="clearSyllabusSearch()" 
-            style="display: ${q ? 'flex' : 'none'};" 
+          <button
+            type="button"
+            id="searchClearBtn"
+            class="syllabus-search-clear"
+            onclick="clearSyllabusSearch()"
+            style="display: ${q ? 'flex' : 'none'};"
             title="Clear search"
+            aria-label="Clear search"
           >
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
+        <div id="syllabusLandingBody"></div>
       `;
 
-      // If Search Active: Render matching subjects directly
-      if (q) {
-        const matches = [];
-        // Search core courses
-        (SYLLABUS.semesters || []).forEach(sem => {
-          (sem.courses || []).forEach(c => {
-            if (
-              c.title.toLowerCase().includes(q) ||
-              c.code.toLowerCase().includes(q) ||
-              sem.semester.toLowerCase() === q ||
-              (c.contents && c.contents.toLowerCase().includes(q))
-            ) {
-              matches.push({ course: c, year: sem.year, semester: sem.semester });
-            }
-          });
-        });
-        // Search electives
-        (SYLLABUS.electives || []).forEach(c => {
-          if (
-            c.title.toLowerCase().includes(q) ||
-            c.code.toLowerCase().includes(q) ||
-            (c.cluster && c.cluster.toLowerCase().includes(q)) ||
-            (c.contents && c.contents.toLowerCase().includes(q))
-          ) {
-            matches.push({ course: c, year: 'Electives', semester: '' });
-          }
-        });
+      renderLandingResults();
+    }
 
-        html += `
+    function renderLandingResults() {
+      if (!APP_SYLLABUS) return;
+      const body = document.getElementById('syllabusLandingBody');
+      if (!body) return;
+      const q = ACTIVE_SEARCH_QUERY.trim();
+
+      if (q) {
+        const matches = searchAppCourses(APP_SYLLABUS, q);
+        let html = `
           <div class="syl-section-header">
-            <h2 class="syl-section-title">Matching Subjects (${matches.length})</h2>
-            <button class="syl-toggle-btn" onclick="clearSyllabusSearch()">Clear</button>
+            <h2 class="syl-section-title normal-case">Search Results (${matches.length})</h2>
+            <button type="button" class="syl-toggle-btn muted" onclick="clearSyllabusSearch()">Clear</button>
           </div>
         `;
 
         if (matches.length === 0) {
           html += `
             <div class="syl-empty-state">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <p>No subjects found for &quot;${escapeHtml(ACTIVE_SEARCH_QUERY)}&quot;</p>
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <p style="margin:0;">No subjects found for &ldquo;${escapeHtml(q)}&rdquo;</p>
             </div>
           `;
         } else {
-          html += `<div style="display: flex; flex-direction: column; gap: 8px;">`;
-          matches.forEach(({ course, year, semester }) => {
-            const courseKey = `${course.code}-${course.title}`;
-            const targetHash = `#${encodeURIComponent(year)}/${encodeURIComponent(semester)}/${encodeURIComponent(courseKey)}`;
-
+          html += `<div class="syl-subject-list">`;
+          matches.forEach(course => {
             html += `
-              <a href="${targetHash}" class="syl-subject-card">
+              <a href="${courseDetailHash(course)}" class="syl-subject-card">
                 <div class="syl-subject-top">
                   <div class="syl-meta-pills-row">
                     <span class="syl-code-pill">${escapeHtml(course.code)}</span>
-                    <span class="syl-meta-pill">${semester ? `Sem ${escapeHtml(semester)}` : 'Elective'} &middot; ${escapeHtml(course.credit)} Cr</span>
-                    <span class="syl-meta-pill">${escapeHtml(course.nature || 'TH')}</span>
+                    <span class="syl-section-meta">Sem ${escapeHtml(course.semester)} &middot; ${escapeHtml(course.creditDisplay || course.credit)} Cr &middot; ${escapeHtml(course.nature)}</span>
                   </div>
-                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--syl-text-muted);"><polyline points="9 18 15 12 9 6"/></svg>
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--syl-text-muted); flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg>
                 </div>
                 <h3 class="syl-subject-title">${escapeHtml(course.title)}</h3>
                 ${course.cluster ? `<p class="syl-subject-desc">${escapeHtml(course.cluster)}</p>` : ''}
@@ -468,44 +412,46 @@
           html += `</div>`;
         }
 
-        grid.innerHTML = html;
+        body.innerHTML = html;
         return;
       }
 
-      // Default Grouped View: Year 1 to Year 4
-      const yearMeta = [
-        { year: 'Year 1', subtitle: 'First Year (Semesters I & II)' },
-        { year: 'Year 2', subtitle: 'Second Year (Semesters III & IV)' },
-        { year: 'Year 3', subtitle: 'Third Year (Semesters V & VI)' },
-        { year: 'Year 4', subtitle: 'Fourth Year (Semesters VII & VIII)' }
+      const yearGroups = [
+        { yearNumber: 1, yearLabel: 'Year 1', subtitle: 'First Year' },
+        { yearNumber: 2, yearLabel: 'Year 2', subtitle: 'Second Year' },
+        { yearNumber: 3, yearLabel: 'Year 3', subtitle: 'Third Year' },
+        { yearNumber: 4, yearLabel: 'Year 4', subtitle: 'Fourth Year' }
       ];
 
-      yearMeta.forEach(({ year, subtitle }) => {
-        const sems = (SYLLABUS.semesters || []).filter(s => s.year === year);
-        const yearTotalCourses = sems.reduce((sum, s) => sum + s.courses.length, 0);
-        const yearTotalCredits = sems.reduce((sum, s) => sum + (parseInt(s.totalCredits) || 0), 0);
+      let html = '';
+      yearGroups.forEach(group => {
+        const sems = (APP_SYLLABUS.semesters || []).filter(s => s.yearNumber === group.yearNumber);
+        const yearTotalCourses = sems.reduce((sum, s) => sum + (s.totalCourses || (s.courses || []).length), 0);
+        const yearTotalCredits = sems.reduce((sum, s) => sum + (s.totalCredits || 0), 0);
 
         html += `
-          <div style="margin-bottom: 22px;">
+          <div class="syl-year-group">
             <div class="syl-section-header">
-              <h2 class="syl-section-title">${year} &middot; ${subtitle.split('(')[0].trim()}</h2>
-              <span class="syl-section-meta">${yearTotalCourses} Subjects &middot; ${yearTotalCredits} Credits</span>
+              <h2 class="syl-section-title">${group.yearLabel} &middot; ${group.subtitle}</h2>
+              <span class="syl-section-meta">${yearTotalCourses} Subjects &middot; ${yearTotalCredits} Cr</span>
             </div>
 
             <div class="syl-semester-grid">
-              ${sems.map(s => {
-                const courseCount = s.courses.length;
-                const credits = s.totalCredits;
-                const link = `#${encodeURIComponent(s.year)}/${encodeURIComponent(s.semester)}`;
-
+              ${sems.map(sem => {
+                const isMySem = CURRENT_USER_SEMESTER_ROMAN === sem.semesterRoman;
+                const link = `#${encodeURIComponent(sem.year)}/${encodeURIComponent(sem.semesterRoman)}`;
                 return `
-                  <a href="${link}" class="syl-semester-card">
+                  <a href="${link}" class="syl-semester-card ${isMySem ? 'is-current' : ''}">
                     <div class="syl-card-top-row">
-                      <span class="syl-sem-badge">SEM ${escapeHtml(s.semester)}</span>
-                      <span class="syl-section-meta">${credits} Credits</span>
+                      <span class="syl-sem-badge ${isMySem ? 'current' : ''}">SEM ${escapeHtml(sem.semesterRoman)}</span>
+                      ${isMySem
+                        ? `<span class="syl-current-indicator"><span class="syl-current-dot"></span>Current</span>`
+                        : `<span class="syl-section-meta">${sem.totalCredits} Credits</span>`
+                      }
                     </div>
-                    <h3 class="syl-card-title">Semester ${escapeHtml(s.semester)}</h3>
-                    <p class="syl-card-subtitle">${courseCount} Subjects &middot; Prescribed Curriculum</p>
+                    <h3 class="syl-card-title">Semester ${escapeHtml(sem.semesterRoman)}</h3>
+                    <p class="syl-card-subtitle">${sem.totalCourses} Subjects &middot; ${sem.totalCredits} Credits</p>
+                    ${sem.description ? `<p class="syl-card-desc">${escapeHtml(sem.description)}</p>` : ''}
                     <div class="syl-card-footer">
                       <span>View Subjects</span>
                       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
@@ -518,42 +464,62 @@
         `;
       });
 
-      // Specialization Electives Card
+      const electivesCount = (APP_SYLLABUS.electives || []).length;
+      const clustersCount = (APP_SYLLABUS.clusters || []).length;
       html += `
-        <div style="margin-top: 10px;">
+        <div class="syl-year-group" style="margin-bottom:0;">
           <div class="syl-section-header">
-            <h2 class="syl-section-title">Specialization Tracks &middot; Semesters VII &amp; VIII</h2>
-            <span class="syl-section-meta">5 Clusters &middot; 15 Electives</span>
+            <h2 class="syl-section-title">Specialization Tracks</h2>
+            <span class="syl-section-meta">Sem VII &amp; VIII</span>
           </div>
 
           <a href="#Electives" class="syl-electives-card">
-            <div style="flex: 1;">
-              <div class="syl-meta-pills-row" style="margin-bottom: 6px;">
-                <span class="syl-sem-badge">5 Clusters</span>
-                <span class="syl-section-meta">${(SYLLABUS.electives || []).length} Elective Subjects</span>
+            <div style="flex:1; min-width:0;">
+              <div class="syl-meta-pills-row" style="margin-bottom:6px;">
+                <span class="syl-sem-badge">${clustersCount} Clusters</span>
+                <span class="syl-section-meta">${electivesCount} Elective Subjects</span>
               </div>
-              <h3 class="syl-card-title" style="margin: 0 0 4px 0;">Elective Specialization Courses</h3>
-              <p class="syl-card-subtitle">AI/ML, Data Science, Cloud/IoT, E-Gov &amp; Software Engineering</p>
+              <h3 class="syl-card-title" style="margin:0 0 3px;">Elective Specialization Courses</h3>
+              <p class="syl-card-subtitle">Good Governance, ML &amp; Data Science, Network &amp; Internet, Software Dev &amp; GIS</p>
             </div>
-            <div class="syl-icon-circle">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            <div class="syl-icon-circle" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </div>
           </a>
         </div>
       `;
 
-      grid.innerHTML = html;
+      body.innerHTML = html;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // LEVEL 2: SEMESTER SUBJECTS LISTING (#Year 1/I or #Electives)
+    // LEVEL 2: SUBJECTS LISTING (#Year 1/I or #Electives)
     // ═════════════════════════════════════════════════════════════════════════
-    async function loadCourses(year, semester) {
-      const data = await loadData();
+    async function loadSubjects(year, semesterRoman, initialCluster) {
+      const data = await loadAppSyllabus();
       const isElectives = year === 'Electives';
-      
-      document.getElementById('syllabusTitle').textContent = isElectives ? 'Electives' : `${year} · Semester ${semester}`;
-      document.getElementById('syllabusSub').textContent = isElectives ? 'Specialized elective course outlines' : 'Prescribed curriculum & unit breakdown';
+      const activeSem = isElectives
+        ? null
+        : (data.semesters || []).find(
+            s => s.semesterRoman.toUpperCase() === String(semesterRoman).toUpperCase()
+          );
+
+      if (isElectives && initialCluster) {
+        ACTIVE_CLUSTER_FILTER = initialCluster;
+      } else if (isElectives && !initialCluster) {
+        ACTIVE_CLUSTER_FILTER = 'ALL';
+      }
+
+      document.title = isElectives
+        ? 'Elective Subjects — BIT Syllabus'
+        : `Semester ${activeSem ? activeSem.semesterRoman : semesterRoman} Subjects — BIT Syllabus`;
+      document.getElementById('syllabusTitle').textContent = isElectives
+        ? 'Elective Subjects'
+        : `Semester ${activeSem ? activeSem.semesterRoman : semesterRoman} Subjects`;
+      document.getElementById('syllabusSub').textContent = isElectives
+        ? `5 Specialization Clusters · ${(data.electives || []).length} Elective Courses`
+        : `${activeSem ? activeSem.year : year} · Gandaki University · Bachelor of Information Technology`;
+
       document.getElementById('syllabusActionSlot').innerHTML = `
         <a href="#" class="syllabus-action-pill secondary">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
@@ -561,96 +527,116 @@
         </a>
       `;
 
-      const allCourses = isElectives ? data.electives : (data.semesters.find(s => s.year === year && s.semester === semester)?.courses || []);
+      const allCourses = isElectives ? (data.electives || []) : (activeSem ? activeSem.courses : []);
       const grid = document.getElementById('syllabusGrid');
 
       if (!allCourses.length) {
-        grid.innerHTML = '<div class="syl-empty-state"><p>No courses found for this semester.</p></div>';
+        grid.innerHTML = '<div class="syl-empty-state"><p style="margin:0;">No courses found for this semester.</p></div>';
         return;
       }
 
-      const totalCredits = isElectives ? '3 Each' : (data.semesters.find(s => s.year === year && s.semester === semester)?.totalCredits || 0);
-
-      window.setElectiveCluster = function(cl) {
-        ACTIVE_CLUSTER_FILTER = cl;
+      window.setElectiveCluster = function(clusterLabel) {
+        ACTIVE_CLUSTER_FILTER = clusterLabel;
         renderSubjectList();
       };
 
       function renderSubjectList() {
-        let visibleCourses = allCourses;
-        if (isElectives && ACTIVE_CLUSTER_FILTER !== 'ALL') {
-          visibleCourses = allCourses.filter(c => c.cluster === ACTIVE_CLUSTER_FILTER);
-        }
+        const visibleCourses =
+          isElectives && ACTIVE_CLUSTER_FILTER !== 'ALL'
+            ? allCourses.filter(c => c.cluster === ACTIVE_CLUSTER_FILTER)
+            : allCourses;
+
+        const selectedClusterObj =
+          isElectives && ACTIVE_CLUSTER_FILTER !== 'ALL'
+            ? (data.clusters || []).find(cl => `Cluster ${cl.number}: ${cl.name}` === ACTIVE_CLUSTER_FILTER)
+            : null;
 
         let html = `
-          <!-- Compact Overview Strip -->
           <div class="syl-overview-strip">
-            <div>
-              <h2 class="syl-strip-title">${isElectives ? 'Specialization Elective Courses' : `Semester ${escapeHtml(semester)} (${escapeHtml(year)})`}</h2>
-              <p class="syl-strip-subtitle">${isElectives ? 'Prescribed for Semesters VII &amp; VIII' : 'Gandaki University · Bachelor in Information Technology'}</p>
+            <div class="syl-strip-body">
+              <h2 class="syl-strip-title">${isElectives ? 'Specialization Elective Courses' : `Semester ${escapeHtml(activeSem.semesterRoman)} (${escapeHtml(activeSem.year)})`}</h2>
+              <p class="syl-strip-subtitle">${isElectives ? 'Prescribed for Semesters VII & VIII across 5 specialization clusters' : escapeHtml(activeSem.description || 'Gandaki University · Bachelor of Information Technology')}</p>
             </div>
-            <span class="syl-strip-badge">${isElectives ? `${allCourses.length} Electives` : `${allCourses.length} Subjects · ${totalCredits} Cr`}</span>
+            <span class="syl-strip-badge">${isElectives ? `${allCourses.length} Courses` : `${activeSem.totalCourses} Subjects · ${activeSem.totalCredits} Cr`}</span>
           </div>
         `;
 
-        // If Electives: Cluster Filter Chips
         if (isElectives) {
-          const clusters = data.clusters || [];
           html += `
-            <div class="syl-cluster-chips-row">
-              <button class="syl-cluster-chip ${ACTIVE_CLUSTER_FILTER === 'ALL' ? 'active' : ''}" onclick="setElectiveCluster('ALL')">
+            <div class="syl-cluster-chips-row" role="tablist" aria-label="Elective clusters">
+              <button type="button" class="syl-cluster-chip ${ACTIVE_CLUSTER_FILTER === 'ALL' ? 'active' : ''}" onclick="setElectiveCluster('ALL')">
                 All (${allCourses.length})
               </button>
-              ${clusters.map((cl, i) => `
-                <button class="syl-cluster-chip ${ACTIVE_CLUSTER_FILTER === cl.name ? 'active' : ''}" onclick="setElectiveCluster('${escapeHtml(cl.name)}')">
-                  C${i + 1}: ${escapeHtml(cl.name)}
-                </button>
-              `).join('')}
+              ${(data.clusters || []).map(cl => {
+                const label = `Cluster ${cl.number}: ${cl.name}`;
+                const active = ACTIVE_CLUSTER_FILTER === label;
+                return `
+                  <button type="button" class="syl-cluster-chip ${active ? 'active' : ''}" onclick="setElectiveCluster('${escapeHtml(label).replace(/'/g, "\\'")}')">
+                    C${cl.number}: ${escapeHtml(cl.name)}
+                  </button>
+                `;
+              }).join('')}
             </div>
           `;
+
+          if (selectedClusterObj && selectedClusterObj.description) {
+            html += `
+              <div class="syl-cluster-note">
+                <strong style="color: var(--syl-text-primary);">Cluster ${selectedClusterObj.number} — ${escapeHtml(selectedClusterObj.name)}:</strong>
+                ${escapeHtml(selectedClusterObj.description)}
+              </div>
+            `;
+          }
         }
 
-        // Subject Rows Section Header
         html += `
           <div class="syl-section-header">
-            <h3 class="syl-section-title">Curriculum Subjects (${visibleCourses.length})</h3>
-            <span class="syl-section-meta">Tap subject for micro-syllabus</span>
+            <h3 class="syl-section-title normal-case">Curriculum Subjects (${visibleCourses.length})</h3>
+            <span class="syl-section-meta">Select subject for micro-syllabus</span>
           </div>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="syl-subject-list">
         `;
 
-        html += visibleCourses.map(c => {
-          const isTheoryPractical = (c.nature || '').includes('PR');
-          const courseKey = `${c.code}-${c.title}`;
-          const targetHash = `#${encodeURIComponent(year)}/${encodeURIComponent(semester || '')}/${encodeURIComponent(courseKey)}`;
-          const { contents } = extractCourseSections(c);
-          const units = parseCourseContents(contents);
+        html += visibleCourses.map(course => {
+          const unitCount = (course.units || []).length;
+          const targetHash = courseDetailHash(course);
+          const libUrl = libraryUrlForCourse(course);
 
           return `
             <a href="${targetHash}" class="syl-subject-card">
               <div class="syl-subject-top">
                 <div class="syl-meta-pills-row">
-                  <span class="syl-code-pill">${escapeHtml(c.code)}</span>
-                  <span class="syl-meta-pill">${escapeHtml(c.credit)} Cr &middot; ${escapeHtml(c.nature || 'TH')}</span>
+                  <span class="syl-code-pill">${escapeHtml(course.code)}</span>
+                  <span class="syl-section-meta">${escapeHtml(course.creditDisplay || course.credit)} Cr &middot; ${escapeHtml(course.nature)}</span>
                 </div>
-                <button 
-                  type="button"
-                  class="syl-notes-btn" 
-                  onclick="event.stopPropagation(); window.location.href='library.html?subject=${encodeURIComponent(c.title)}';"
-                  title="View notes for this subject"
-                >
-                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                  <span>Notes</span>
-                </button>
+                ${!course.isElectiveSlot ? `
+                  <button
+                    type="button"
+                    class="syl-notes-btn"
+                    onclick="event.preventDefault(); event.stopPropagation(); window.location.href='${libUrl}';"
+                    title="View subject notes in Library"
+                  >
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                    <span>Notes</span>
+                  </button>
+                ` : ''}
               </div>
 
-              <h3 class="syl-subject-title">${escapeHtml(c.title)}</h3>
-              ${c.cluster ? `<p class="syl-subject-desc">${escapeHtml(c.cluster)}</p>` : (c.objectives ? `<p class="syl-subject-desc">${escapeHtml(c.objectives.slice(0, 120))}…</p>` : '')}
+              <h3 class="syl-subject-title">${escapeHtml(course.title)}</h3>
+              ${course.cluster
+                ? `<p class="syl-subject-desc">${escapeHtml(course.cluster)}</p>`
+                : (course.objectives && course.objectives[0]
+                    ? `<p class="syl-subject-desc">${escapeHtml(course.objectives[0].length > 140 ? course.objectives[0].slice(0, 138) + '…' : course.objectives[0])}</p>`
+                    : '')
+              }
 
               <div class="syl-subject-footer">
-                <span>${units.length} Units &middot; Official Syllabus</span>
+                <span>${course.isElectiveSlot
+                  ? '5 Elective Specialization Clusters'
+                  : `${unitCount} ${unitCount === 1 ? 'Unit' : 'Units'}${course.totalHours ? ` · ${escapeHtml(course.totalHours)}` : ''}`
+                }</span>
                 <span class="syl-subject-footer-action">
-                  <span>Micro-Syllabus</span>
+                  <span>${course.isElectiveSlot ? 'View Electives' : 'Micro-Syllabus'}</span>
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                 </span>
               </div>
@@ -666,156 +652,229 @@
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    // LEVEL 3: INDIVIDUAL SUBJECT SYLLABUS & MICRO-SYLLABUS DETAIL
+    // LEVEL 3: MICRO-SYLLABUS DETAIL VIEW
     // ═════════════════════════════════════════════════════════════════════════
-    async function loadCourseDetail(year, semester, courseKey) {
-      const data = await loadData();
-      const isElectives = year === 'Electives';
-      let courses = isElectives ? data.electives : (data.semesters.find(s => s.year === year && s.semester === semester)?.courses || []);
-      
-      const normKey = courseKey.toLowerCase().replace(/[^a-z0-9]/g, '');
-      let course = courses.find(c => {
+    function findCourseInAppData(data, year, semester, courseKey) {
+      const normKey = String(courseKey || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const matchCourse = (list) => (list || []).find(c => {
         const normCode = (c.code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         const normTitle = (c.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         return (
           normCode + normTitle === normKey ||
           normTitle === normKey ||
           normCode === normKey ||
-          (normCode && normKey.startsWith(normCode)) ||
-          normKey.includes(normTitle) ||
-          normTitle.includes(normKey)
+          (normCode && normCode !== 'ele' && normKey.startsWith(normCode)) ||
+          (normTitle && normKey.includes(normTitle)) ||
+          (normTitle && normTitle.includes(normKey))
         );
       });
 
-      // Search all semesters if not matched in current
-      if (!course) {
-        for (const sem of (data.semesters || [])) {
-          const match = sem.courses.find(c => {
-            const normCode = (c.code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const normTitle = (c.title || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            return (
-              normCode + normTitle === normKey ||
-              normTitle === normKey ||
-              normCode === normKey ||
-              (normCode && normKey.startsWith(normCode)) ||
-              normKey.includes(normTitle) ||
-              normTitle.includes(normKey)
-            );
-          });
-          if (match) {
-            course = match;
-            year = sem.year;
-            semester = sem.semester;
-            break;
-          }
+      if (year === 'Electives') {
+        const elec = matchCourse(data.electives);
+        if (elec) return { course: elec, semesterObj: null, isElective: true };
+      }
+
+      if (semester) {
+        const semObj = (data.semesters || []).find(
+          s => s.semesterRoman.toUpperCase() === String(semester).toUpperCase()
+        );
+        if (semObj) {
+          const found = matchCourse(semObj.courses);
+          if (found) return { course: found, semesterObj: semObj, isElective: false };
         }
       }
 
+      for (const semObj of (data.semesters || [])) {
+        const found = matchCourse(semObj.courses);
+        if (found) return { course: found, semesterObj: semObj, isElective: false };
+      }
+
+      const fallbackElec = matchCourse(data.electives);
+      if (fallbackElec) return { course: fallbackElec, semesterObj: null, isElective: true };
+
+      return null;
+    }
+
+    async function loadCourseDetail(year, semester, courseKey) {
+      const data = await loadAppSyllabus();
+      const matched = findCourseInAppData(data, year, semester, courseKey);
       const grid = document.getElementById('syllabusGrid');
 
-      if (!course) {
-        grid.innerHTML = '<div class="syl-empty-state"><p>Course syllabus not found.</p></div>';
+      if (!matched || !matched.course) {
+        document.getElementById('syllabusTitle').textContent = 'Course Not Found';
+        document.getElementById('syllabusSub').textContent = 'Could not locate this course in the BIT syllabus.';
+        document.getElementById('syllabusActionSlot').innerHTML = `
+          <a href="#" class="syllabus-action-pill secondary"><span>All Semesters</span></a>
+        `;
+        grid.innerHTML = '<div class="syl-empty-state"><p style="margin:0;">Course syllabus not found.</p></div>';
         return;
       }
 
+      const { course, semesterObj, isElective } = matched;
+
+      if (course.isElectiveSlot) {
+        location.hash = '#Electives';
+        return;
+      }
+
+      const backHash = isElective
+        ? '#Electives'
+        : `#${encodeURIComponent(semesterObj.year)}/${encodeURIComponent(semesterObj.semesterRoman)}`;
+      const backLabel = isElective ? 'Electives' : `Sem ${semesterObj.semesterRoman} Subjects`;
+
+      document.title = `${course.code} · ${course.title} — BIT Syllabus`;
       document.getElementById('syllabusTitle').textContent = `${course.code} · Syllabus`;
-      document.getElementById('syllabusSub').textContent = `${course.title} · ${course.credit} Credits · ${course.nature}`;
+      document.getElementById('syllabusSub').textContent =
+        `${course.title} · ${course.creditDisplay || course.credit} Credits · ${course.nature}${course.totalHours ? ` · ${course.totalHours}` : ''}`;
+
       document.getElementById('syllabusActionSlot').innerHTML = `
-        <a href="#${encodeURIComponent(year)}${semester ? '/' + encodeURIComponent(semester) : ''}" class="syllabus-action-pill secondary">
+        <a href="${backHash}" class="syllabus-action-pill secondary">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-          <span>${semester ? `Sem ${semester} Subjects` : 'Electives'}</span>
+          <span>${escapeHtml(backLabel)}</span>
         </a>
-        <a href="library.html?subject=${encodeURIComponent(course.title)}" class="syllabus-action-pill">
+        <a href="${libraryUrlForCourse(course)}" class="syllabus-action-pill">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
           <span>Subject Notes</span>
         </a>
       `;
 
-      const { contents, lab, textbooks } = extractCourseSections(course);
-      const units = parseCourseContents(contents);
-      const hasLongOverview = (course.objectives && course.objectives.length > 180) || (course.description && course.description.length > 180);
+      const units = course.units || [];
+      const objectives = course.objectives || [];
+      const hasExtraObjectives = objectives.length > 2;
+      const visibleObjectives = hasExtraObjectives ? objectives.slice(0, 2) : objectives;
+      const hiddenObjectives = hasExtraObjectives ? objectives.slice(2) : [];
 
       let html = `
         <!-- Subject Header & Metadata Card -->
         <div class="syl-detail-header-card">
           <div class="syl-meta-pills-row">
             <span class="syl-code-pill">${escapeHtml(course.code)}</span>
-            <span class="syl-meta-pill">${escapeHtml(course.credit)} Credits</span>
-            <span class="syl-meta-pill">${escapeHtml(course.nature || 'Theory')}</span>
-            ${semester ? `<span class="syl-meta-pill">Semester ${escapeHtml(semester)}</span>` : ''}
+            <span class="syl-meta-pill primary">${escapeHtml(course.creditDisplay || course.credit)} Credits</span>
+            <span class="syl-meta-pill">${escapeHtml(course.nature)}</span>
+            ${course.totalHours ? `<span class="syl-meta-pill">${escapeHtml(course.totalHours)}</span>` : ''}
+            ${!isElective && semesterObj ? `<span class="syl-meta-pill">Semester ${escapeHtml(semesterObj.semesterRoman)}</span>` : ''}
           </div>
+
           <h2 class="syl-detail-title">${escapeHtml(course.title)}</h2>
-          <p class="syl-detail-subtitle">${course.cluster ? escapeHtml(course.cluster) : `${year} · Semester ${semester} · Gandaki University`}</p>
+          <p class="syl-detail-subtitle">${course.cluster
+            ? escapeHtml(course.cluster)
+            : `${escapeHtml(course.year)} · Semester ${escapeHtml(course.semester)} · Gandaki University`
+          }</p>
+
+          ${course.note ? `<div class="syl-course-note">${escapeHtml(course.note)}</div>` : ''}
+
+          ${course.prerequisites && course.prerequisites.length ? `
+            <div class="syl-prereq-row">
+              <span class="syl-prereq-label">Prerequisites:</span>
+              ${course.prerequisites.map(p => `<span class="syl-meta-pill">${escapeHtml(p)}</span>`).join('')}
+            </div>
+          ` : ''}
         </div>
       `;
 
-      // Course Overview & Objectives (Collapsible if long)
-      if (course.objectives || course.description) {
+      // Course Overview & Objectives
+      if (course.description || objectives.length > 0) {
         html += `
           <div class="syl-detail-section">
             <div class="syl-section-header-row">
-              <span class="syl-section-header-title">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                <span>Course Overview &amp; Objectives</span>
-              </span>
-              ${hasLongOverview ? `
+              <span class="syl-section-header-title">Course Overview &amp; Objectives</span>
+              ${hasExtraObjectives ? `
                 <button type="button" class="syl-toggle-btn" id="overviewToggleBtn" onclick="toggleCourseOverview()">
-                  Show All
+                  <span>Show All</span>
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
               ` : ''}
             </div>
-            <div id="courseOverviewContent" data-expanded="${hasLongOverview ? 'false' : 'true'}" style="${hasLongOverview ? 'max-height: 84px; overflow: hidden; transition: max-height 0.25s ease;' : ''}">
-              ${course.objectives ? `<p style="font-size: 13px; line-height: 1.6; color: var(--syl-text-secondary); margin: 0 0 8px 0;">${textToHtml(course.objectives)}</p>` : ''}
-              ${course.description ? `<p style="font-size: 13px; line-height: 1.6; color: var(--syl-text-secondary); margin: 0;">${textToHtml(course.description)}</p>` : ''}
-            </div>
+            ${course.description ? `<p class="syl-prose">${escapeHtml(course.description)}</p>` : ''}
+            ${visibleObjectives.length ? `
+              <ul class="syl-bullet-list">
+                ${visibleObjectives.map(o => `
+                  <li class="syl-bullet-item">
+                    <span class="syl-bullet-dot">&bull;</span>
+                    <span>${escapeHtml(o)}</span>
+                  </li>
+                `).join('')}
+              </ul>
+            ` : ''}
+            ${hiddenObjectives.length ? `
+              <ul class="syl-bullet-list" id="courseOverviewExtra" data-expanded="false" style="display:none; margin-top:5px;">
+                ${hiddenObjectives.map(o => `
+                  <li class="syl-bullet-item">
+                    <span class="syl-bullet-dot">&bull;</span>
+                    <span>${escapeHtml(o)}</span>
+                  </li>
+                `).join('')}
+              </ul>
+            ` : ''}
           </div>
         `;
       }
 
-      // Detailed Chapters & Micro-Syllabus Accordion
+      // Course Outcomes (if present in app data)
+      if (course.outcomes && course.outcomes.length > 0) {
+        html += `
+          <div class="syl-detail-section">
+            <div class="syl-section-header-row">
+              <span class="syl-section-header-title">Learning Outcomes</span>
+            </div>
+            <ul class="syl-bullet-list">
+              ${course.outcomes.map(o => `
+                <li class="syl-bullet-item">
+                  <span class="syl-bullet-dot">&bull;</span>
+                  <span>${escapeHtml(o)}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        `;
+      }
+
+      // Chapters & Micro-Syllabus Accordions
       if (units.length > 0) {
         html += `
-          <div class="syl-section-header" style="margin-top: 18px;">
-            <h3 class="syl-section-title">Chapters &amp; Micro-Syllabus (${units.length} Units)</h3>
-            <button type="button" class="syl-toggle-btn" id="toggleAllUnitsBtn" onclick="toggleAllUnits()">
-              Expand All
+          <div class="syl-section-header" style="margin-top:16px;">
+            <h3 class="syl-section-title normal-case">Chapters &amp; Micro-Syllabus (${units.length} ${units.length === 1 ? 'Unit' : 'Units'})</h3>
+            <button type="button" class="syl-toggle-btn muted" id="toggleAllUnitsBtn" onclick="toggleAllUnits()">
+              ${units.length === 1 ? 'Collapse All' : 'Expand All'}
             </button>
           </div>
 
-          <div id="kaieCourseMapBanner" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:8px;border:1px solid var(--syl-border-strong);background:var(--syl-surface-raised);font-size:12.5px;color:var(--syl-text-primary);"></div>
+          <div id="kaieCourseMapBanner" class="syl-kaie-banner"></div>
 
           <div class="syl-units-list">
             ${units.map((u, idx) => {
               const isFirstExpanded = idx === 0;
-
+              const unitLibUrl = libraryUrlForCourse(course, u);
+              const studyUrl = `chatbot.html?study=${encodeURIComponent(course.title)}&unit=${encodeURIComponent(u.unitNumber)}`;
               return `
                 <div class="syl-unit-accordion ${isFirstExpanded ? 'expanded' : ''}" id="unitAccordion-${idx}">
                   <button type="button" class="syl-unit-header-btn" onclick="toggleUnitAccordion(${idx})">
                     <div class="syl-unit-header-left">
                       <div class="syl-meta-pills-row">
-                        <span class="syl-sem-badge">Unit ${escapeHtml(u.num)}</span>
-                        ${u.hrs ? `<span class="syl-section-meta" style="font-weight: 700;">${escapeHtml(u.hrs)}</span>` : ''}
-                        <span class="syl-section-meta">${u.topics.length} Topics</span>
-                        <span class="kaie-unit-status-slot" data-unit-status="${escapeHtml(u.num)}"></span>
+                        <span class="syl-sem-badge">Unit ${escapeHtml(u.unitNumber)}</span>
+                        ${u.hours ? `<span class="syl-section-meta" style="font-weight:600;">${escapeHtml(u.hours)}</span>` : ''}
+                        <span class="syl-section-meta">${(u.topics || []).length} ${(u.topics || []).length === 1 ? 'Topic' : 'Topics'}</span>
+                        <span class="kaie-unit-status-slot" data-unit-status="${escapeHtml(u.unitNumber)}"></span>
                       </div>
                       <h4 class="syl-unit-title">${escapeHtml(u.title)}</h4>
                     </div>
 
                     <div class="syl-unit-header-right">
-                      <a 
-                        href="chatbot.html?study=${encodeURIComponent(course.title)}&unit=${encodeURIComponent(u.num || '1')}" 
-                        class="syl-notes-btn" 
+                      <a
+                        href="${studyUrl}"
+                        class="syl-notes-btn"
                         onclick="event.stopPropagation();"
-                        title="Study with Kyana AI"
+                        title="Study this unit with Kyana AI"
                       >
                         <span>Study</span>
                       </a>
-                      <a 
-                        href="library.html?subject=${encodeURIComponent(course.title)}&chapter=${encodeURIComponent(u.num ? `Unit ${u.num}: ${u.title}` : u.title)}" 
-                        class="syl-notes-btn" 
+                      <a
+                        href="${unitLibUrl}"
+                        class="syl-notes-btn"
                         onclick="event.stopPropagation();"
-                        title="View notes for this unit"
+                        title="View notes for Unit ${escapeHtml(u.unitNumber)}"
                       >
+                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         <span>Notes</span>
                       </a>
                       <svg class="syl-chevron-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -826,7 +885,7 @@
 
                   <div class="syl-unit-body">
                     <ul class="syl-bullet-list">
-                      ${u.topics.map(t => `
+                      ${(u.topics || []).map(t => `
                         <li class="syl-bullet-item">
                           <span class="syl-bullet-dot">&bull;</span>
                           <span>${escapeHtml(t)}</span>
@@ -839,49 +898,110 @@
             }).join('')}
           </div>
         `;
-      } else if (contents) {
+      }
+
+      // Laboratory / Practical Work
+      if (course.laboratoryWork && course.laboratoryWork.length > 0) {
         html += `
-          <div class="syl-detail-section">
+          <div class="syl-detail-section" style="margin-top:14px;">
             <div class="syl-section-header-row">
-              <span class="syl-section-header-title">Course Contents</span>
+              <span class="syl-section-header-title primary">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 2v7.31M14 2v7.31M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0"/></svg>
+                <span>Laboratory / Practical Work</span>
+              </span>
             </div>
-            <pre style="background: var(--syl-surface-raised); border: 1px solid var(--syl-border); border-radius: 6px; padding: 12px; font-size: 12px; color: var(--syl-text-secondary); white-space: pre-wrap; font-family: monospace;">${escapeHtml(contents)}</pre>
+            <ul class="syl-bullet-list">
+              ${course.laboratoryWork.map(item => `
+                <li class="syl-bullet-item">
+                  <span class="syl-bullet-dot">&bull;</span>
+                  <span>${escapeHtml(item)}</span>
+                </li>
+              `).join('')}
+            </ul>
           </div>
         `;
       }
 
-      // Laboratory / Practical Work
-      if (lab) {
+      // Practical Questions (e.g., Mobile Application Development)
+      if (course.practicalQuestions && course.practicalQuestions.length > 0) {
         html += `
-          <div class="syl-detail-section" style="margin-top: 14px;">
+          <div class="syl-detail-section" style="margin-top:12px;">
             <div class="syl-section-header-row">
-              <span class="syl-section-header-title">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 2v7.31M14 2v7.31M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0"/></svg>
-                <span>Laboratory &amp; Practical Work</span>
+              <span class="syl-section-header-title primary">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                <span>Practical Exercises (${course.practicalQuestions.length})</span>
               </span>
             </div>
-            <div style="font-size: 13px; line-height: 1.6; color: var(--syl-text-secondary);">
-              ${textToHtml(lab)}
+            <div>
+              ${course.practicalQuestions.map((q, i) => `
+                <div class="syl-reference-item">
+                  <span class="syl-ref-index">${i + 1}.</span>
+                  <span>${escapeHtml(q)}</span>
+                </div>
+              `).join('')}
             </div>
+          </div>
+        `;
+      }
+
+      // Project Guidelines (e.g., Project I–IV)
+      if (course.projectGuidelines) {
+        const pg = course.projectGuidelines;
+        html += `
+          <div class="syl-detail-section" style="margin-top:12px;">
+            <div class="syl-section-header-row">
+              <span class="syl-section-header-title primary">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                <span>Project Guidelines &amp; Report Standards</span>
+              </span>
+            </div>
+            ${pg.phases && pg.phases.length ? `
+              <div class="syl-subblock-title">Evaluation Phases</div>
+              ${pg.phases.map(p => `
+                <div class="syl-phase-card">
+                  <div class="syl-phase-title">${escapeHtml(p.title)}</div>
+                  <p class="syl-phase-desc">${escapeHtml(p.description)}</p>
+                </div>
+              `).join('')}
+            ` : ''}
+            ${pg.requirements && pg.requirements.length ? `
+              <div class="syl-subblock-title">Project Requirements</div>
+              <ul class="syl-bullet-list">
+                ${pg.requirements.map(r => `<li class="syl-bullet-item"><span class="syl-bullet-dot">&bull;</span><span>${escapeHtml(r)}</span></li>`).join('')}
+              </ul>
+            ` : ''}
+            ${pg.documentItems && pg.documentItems.length ? `
+              <div class="syl-subblock-title">Required Documentation</div>
+              <ul class="syl-bullet-list">
+                ${pg.documentItems.map(d => `<li class="syl-bullet-item"><span class="syl-bullet-dot">&bull;</span><span>${escapeHtml(d)}</span></li>`).join('')}
+              </ul>
+            ` : ''}
+            ${pg.reportFormat && pg.reportFormat.length ? `
+              <div class="syl-subblock-title">Formatting Standards</div>
+              <ul class="syl-bullet-list">
+                ${pg.reportFormat.map(f => `<li class="syl-bullet-item"><span class="syl-bullet-dot">&bull;</span><span>${escapeHtml(f)}</span></li>`).join('')}
+              </ul>
+            ` : ''}
           </div>
         `;
       }
 
       // Textbooks & References
-      if (textbooks.length > 0) {
+      const allBooks = [...(course.textbooks || []), ...(course.references || [])];
+      if (allBooks.length > 0) {
         html += `
-          <div class="syl-detail-section" style="margin-top: 14px;">
+          <div class="syl-detail-section" style="margin-top:12px;">
             <div class="syl-section-header-row">
-              <span class="syl-section-header-title">
+              <span class="syl-section-header-title primary">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                <span>Textbooks &amp; Reference Materials (${textbooks.length})</span>
+                <span>Textbooks &amp; References (${allBooks.length})</span>
               </span>
             </div>
-            <div style="display: flex; flex-direction: column;">
-              ${textbooks.map((b, i) => `
+            <div>
+              ${allBooks.map((book, i) => `
                 <div class="syl-reference-item">
                   <span class="syl-ref-index">${i + 1}.</span>
-                  <span>${escapeHtml(b)}</span>
+                  <span>${escapeHtml(book)}</span>
                 </div>
               `).join('')}
             </div>
@@ -909,7 +1029,7 @@
                 const slot = document.querySelector(`.kaie-unit-status-slot[data-unit-status="${ku.unitNumber}"]`);
                 if (slot) {
                   const pct = Math.round((ku.coverageRatio || 0) * 100);
-                  slot.innerHTML = `<span class="syl-meta-pill" style="font-size: 10px;">${ku.coveredTopics}/${ku.totalTopics} Topics (${pct}%)</span>`;
+                  slot.innerHTML = `<span class="syl-meta-pill" style="font-size:10px;">${ku.coveredTopics}/${ku.totalTopics} Topics (${pct}%)</span>`;
                 }
               }
             }
@@ -918,11 +1038,16 @@
       } catch (_) {}
     }
 
-    // Program Overview Table & Clusters (#Overview)
+    // ═════════════════════════════════════════════════════════════════════════
+    // PROGRAM INFO & CURRICULUM ROADMAP (#Overview) — Powered by BIT_PROGRAM_INFO
+    // ═════════════════════════════════════════════════════════════════════════
     async function loadOverview() {
-      const data = await loadData();
-      document.getElementById('syllabusTitle').textContent = 'Curriculum Roadmap';
-      document.getElementById('syllabusSub').textContent = 'Complete 8-Semester Curriculum & Elective Tracks';
+      const data = await loadAppSyllabus();
+      const info = data.programInfo || {};
+
+      document.title = 'Program Info & Roadmap — BIT Syllabus';
+      document.getElementById('syllabusTitle').textContent = `${info.programName || 'Bachelor of Information Technology'} (${info.shortName || 'BIT'})`;
+      document.getElementById('syllabusSub').textContent = `${info.university || 'Gandaki University'} (Est. ${info.established || 2019}) · Bulletin: ${info.bulletinDate || 'October 29, 2025'}`;
       document.getElementById('syllabusActionSlot').innerHTML = `
         <a href="#" class="syllabus-action-pill secondary">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
@@ -931,55 +1056,83 @@
       `;
 
       const grid = document.getElementById('syllabusGrid');
-      const s = data.programSummary;
-
       let html = `
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 20px;">
-          <div class="syl-overview-strip" style="flex-direction: column; align-items: flex-start; gap: 2px;">
-            <span class="syl-strip-title" style="font-size: 20px;">${s.years}</span>
-            <span class="syl-strip-subtitle">Academic Years</span>
+        <div class="syl-kpi-grid">
+          <div class="syl-kpi-card">
+            <div class="syl-kpi-value">${info.durationYears || 4} Years</div>
+            <div class="syl-kpi-label">Normal Duration (Max ${info.maxDurationYears || 8} Yrs)</div>
           </div>
-          <div class="syl-overview-strip" style="flex-direction: column; align-items: flex-start; gap: 2px;">
-            <span class="syl-strip-title" style="font-size: 20px;">${s.semesters}</span>
-            <span class="syl-strip-subtitle">Total Semesters</span>
+          <div class="syl-kpi-card">
+            <div class="syl-kpi-value">${info.totalSemesters || 8}</div>
+            <div class="syl-kpi-label">Semesters</div>
           </div>
-          <div class="syl-overview-strip" style="flex-direction: column; align-items: flex-start; gap: 2px;">
-            <span class="syl-strip-title" style="font-size: 20px;">${s.totalCourses}</span>
-            <span class="syl-strip-subtitle">Core Courses</span>
+          <div class="syl-kpi-card">
+            <div class="syl-kpi-value">${info.totalCourses || 47}</div>
+            <div class="syl-kpi-label">Total Courses</div>
           </div>
-          <div class="syl-overview-strip" style="flex-direction: column; align-items: flex-start; gap: 2px;">
-            <span class="syl-strip-title" style="font-size: 20px;">${s.totalCredits}</span>
-            <span class="syl-strip-subtitle">Total Credits</span>
+          <div class="syl-kpi-card">
+            <div class="syl-kpi-value">${info.totalCredits || 138}</div>
+            <div class="syl-kpi-label">Total Credits · Min ${info.minAttendancePercent || 80}% Att.</div>
           </div>
         </div>
 
-        <div class="syl-detail-section" style="padding: 0; overflow: hidden; margin-bottom: 22px;">
-          <div style="padding: 14px 18px; border-bottom: 1px solid var(--syl-border);">
-            <h3 class="syl-strip-title" style="font-size: 14px;">Semester Breakdown</h3>
-            <span class="syl-strip-subtitle">Select any semester to view its subjects</span>
+        <div class="syl-info-grid">
+          <div class="syl-detail-section" style="margin-bottom:0;">
+            <div class="syl-section-header-row"><span class="syl-section-header-title">Vision &amp; Mission</span></div>
+            <p class="syl-prose"><strong style="color:var(--syl-text-primary);">Vision:</strong> ${escapeHtml(info.vision)}</p>
+            <p class="syl-prose"><strong style="color:var(--syl-text-primary);">Mission:</strong> ${escapeHtml(info.mission)}</p>
           </div>
-          <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <div class="syl-detail-section" style="margin-bottom:0;">
+            <div class="syl-section-header-row"><span class="syl-section-header-title">Eligibility &amp; Education System</span></div>
+            <p class="syl-prose">${escapeHtml(info.eligibility)}</p>
+            <ul class="syl-bullet-list" style="margin-top:6px;">
+              ${(info.educationSystem || []).map(item => `
+                <li class="syl-bullet-item"><span class="syl-bullet-dot">&bull;</span><span>${escapeHtml(item)}</span></li>
+              `).join('')}
+            </ul>
+          </div>
+        </div>
+
+        <div class="syl-detail-section">
+          <div class="syl-section-header-row"><span class="syl-section-header-title">Program Learning Outcomes</span></div>
+          <ul class="syl-bullet-list">
+            ${(info.learningOutcomes || []).map(item => `
+              <li class="syl-bullet-item"><span class="syl-bullet-dot">&bull;</span><span>${escapeHtml(item)}</span></li>
+            `).join('')}
+          </ul>
+        </div>
+
+        <div class="syl-detail-section">
+          <div class="syl-section-header-row"><span class="syl-section-header-title">Career Prospects</span></div>
+          <div class="syl-tag-cloud">
+            ${(info.careerProspects || []).map(c => `<span class="syl-meta-pill primary">${escapeHtml(c)}</span>`).join('')}
+          </div>
+        </div>
+
+        <div class="syl-detail-section" style="padding:0; overflow:hidden; margin-top:16px;">
+          <div style="padding:14px 16px; border-bottom:1px solid var(--syl-border);">
+            <h3 class="syl-strip-title" style="font-size:14px;">8-Semester Curriculum Breakdown</h3>
+            <p class="syl-strip-subtitle">Select any semester row to inspect its subjects</p>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="syl-roadmap-table">
               <thead>
-                <tr style="border-bottom: 1px solid var(--syl-border); text-align: left; color: var(--syl-text-muted); font-size: 11.5px; text-transform: uppercase;">
-                  <th style="padding: 10px 18px;">Term</th>
-                  <th style="padding: 10px 18px;">Semester</th>
-                  <th style="padding: 10px 18px;">Courses</th>
-                  <th style="padding: 10px 18px; text-align: right;">Credits</th>
+                <tr>
+                  <th>Year</th>
+                  <th>Semester</th>
+                  <th>Focus</th>
+                  <th>Subjects</th>
+                  <th style="text-align:right;">Credits</th>
                 </tr>
               </thead>
               <tbody>
-                ${data.semesters.map(sem => `
-                  <tr 
-                    style="border-bottom: 1px solid var(--syl-border-subtle); cursor: pointer;" 
-                    onclick="location.hash='#${encodeURIComponent(sem.year)}/${encodeURIComponent(sem.semester)}'"
-                    onmouseover="this.style.background='var(--syl-surface-raised)'"
-                    onmouseout="this.style.background='transparent'"
-                  >
-                    <td style="padding: 12px 18px; font-weight: 700; color: var(--syl-text-primary);">${sem.year}</td>
-                    <td style="padding: 12px 18px;"><span class="syl-sem-badge">Semester ${sem.semester}</span></td>
-                    <td style="padding: 12px 18px; color: var(--syl-text-secondary);">${sem.officialCourseCount || sem.courses.length} Courses</td>
-                    <td style="padding: 12px 18px; text-align: right; color: var(--syl-text-primary); font-weight: 700;">${sem.totalCredits} Cr</td>
+                ${(data.semesters || []).map(sem => `
+                  <tr onclick="location.hash='#${encodeURIComponent(sem.year)}/${encodeURIComponent(sem.semesterRoman)}'">
+                    <td style="font-weight:700; color:var(--syl-text-primary); white-space:nowrap;">${escapeHtml(sem.year)}</td>
+                    <td style="white-space:nowrap;"><span class="syl-sem-badge">SEM ${escapeHtml(sem.semesterRoman)}</span></td>
+                    <td style="font-size:12px;">${escapeHtml(sem.description || '')}</td>
+                    <td style="white-space:nowrap;">${sem.totalCourses} Subjects</td>
+                    <td style="text-align:right; font-weight:700; color:var(--syl-text-primary); white-space:nowrap;">${sem.totalCredits} Cr</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -987,25 +1140,28 @@
           </div>
         </div>
 
-        <div class="syl-section-header">
-          <h3 class="syl-section-title">Specialization Clusters</h3>
-          <span class="syl-section-meta">Elective tracks prescribed by university</span>
+        <div class="syl-section-header" style="margin-top:18px;">
+          <h3 class="syl-section-title">Elective Specialization Clusters</h3>
+          <span class="syl-section-meta">5 Clusters · Semesters VII &amp; VIII</span>
         </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px;">
-          ${(data.clusters || []).map(cluster => `
-            <div class="syl-detail-section" style="margin: 0;">
-              <h4 style="font-size: 14px; font-weight: 700; color: var(--syl-text-primary); margin: 0 0 10px 0;">${escapeHtml(cluster.name)}</h4>
-              <ul class="syl-bullet-list">
-                ${cluster.courses.map(c => `
-                  <li class="syl-bullet-item">
-                    <span class="syl-bullet-dot">&bull;</span>
-                    <span>${escapeHtml(c)}</span>
-                  </li>
-                `).join('')}
-              </ul>
-            </div>
-          `).join('')}
+        <div class="syl-cluster-grid">
+          ${(data.clusters || []).map(cl => {
+            const label = `Cluster ${cl.number}: ${cl.name}`;
+            return `
+              <a href="#Electives" class="syl-cluster-card" onclick="ACTIVE_CLUSTER_FILTER='${escapeHtml(label).replace(/'/g, "\\'")}';">
+                <div class="syl-meta-pills-row" style="margin-bottom:6px;">
+                  <span class="syl-sem-badge">Cluster ${cl.number}</span>
+                  <span class="syl-section-meta">${(cl.courses || []).length} Courses</span>
+                </div>
+                <h4 style="font-size:14.5px; font-weight:700; color:var(--syl-text-primary); margin:0 0 4px;">${escapeHtml(cl.name)}</h4>
+                <p style="font-size:12px; color:var(--syl-text-muted); margin:0 0 10px; line-height:1.45;">${escapeHtml(cl.description)}</p>
+                <ul class="syl-bullet-list">
+                  ${(cl.courses || []).map(c => `<li class="syl-bullet-item"><span class="syl-bullet-dot">&bull;</span><span>${escapeHtml(c)}</span></li>`).join('')}
+                </ul>
+              </a>
+            `;
+          }).join('')}
         </div>
       `;
 
@@ -1013,10 +1169,12 @@
     }
 
     // Direct Year View (#Year 1)
-    async function loadSemesters(year) {
-      const data = await loadData();
-      document.getElementById('syllabusTitle').textContent = `${year} Curriculum`;
-      document.getElementById('syllabusSub').textContent = `Select a semester in ${year} to inspect course outlines`;
+    async function loadYearSemesters(yearLabel) {
+      const data = await loadAppSyllabus();
+      const sems = (data.semesters || []).filter(s => s.year.toLowerCase() === yearLabel.toLowerCase());
+      document.title = `${yearLabel} — BIT Syllabus`;
+      document.getElementById('syllabusTitle').textContent = `${yearLabel} Curriculum`;
+      document.getElementById('syllabusSub').textContent = `Select a semester in ${yearLabel} to view subjects and micro-syllabus`;
       document.getElementById('syllabusActionSlot').innerHTML = `
         <a href="#" class="syllabus-action-pill secondary">
           <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
@@ -1024,113 +1182,99 @@
         </a>
       `;
 
-      const sems = (data.semesters || []).filter(s => s.year === year);
       const grid = document.getElementById('syllabusGrid');
-
-      let html = `
+      grid.innerHTML = `
         <div class="syl-section-header">
-          <h2 class="syl-section-title">${year} Semesters</h2>
+          <h2 class="syl-section-title">${escapeHtml(yearLabel)} Semesters</h2>
           <span class="syl-section-meta">${sems.length} Semesters</span>
         </div>
         <div class="syl-semester-grid">
+          ${sems.map(sem => `
+            <a href="#${encodeURIComponent(sem.year)}/${encodeURIComponent(sem.semesterRoman)}" class="syl-semester-card">
+              <div class="syl-card-top-row">
+                <span class="syl-sem-badge">SEM ${escapeHtml(sem.semesterRoman)}</span>
+                <span class="syl-section-meta">${sem.totalCredits} Credits</span>
+              </div>
+              <h3 class="syl-card-title">Semester ${escapeHtml(sem.semesterRoman)}</h3>
+              <p class="syl-card-subtitle">${sem.totalCourses} Subjects &middot; ${sem.totalCredits} Credits</p>
+              ${sem.description ? `<p class="syl-card-desc">${escapeHtml(sem.description)}</p>` : ''}
+              <div class="syl-card-footer">
+                <span>View Subjects</span>
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </div>
+            </a>
+          `).join('')}
+        </div>
       `;
-
-      html += sems.map(s => {
-        const link = `#${encodeURIComponent(year)}/${encodeURIComponent(s.semester)}`;
-        return `
-          <a href="${link}" class="syl-semester-card">
-            <div class="syl-card-top-row">
-              <span class="syl-sem-badge">SEM ${escapeHtml(s.semester)}</span>
-              <span class="syl-section-meta">${s.totalCredits} Credits</span>
-            </div>
-            <h3 class="syl-card-title">Semester ${escapeHtml(s.semester)}</h3>
-            <p class="syl-card-subtitle">${s.courses.length} Prescribed Subjects</p>
-            <div class="syl-card-footer">
-              <span>View Subjects</span>
-              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </div>
-          </a>
-        `;
-      }).join('');
-
-      html += `</div>`;
-      grid.innerHTML = html;
     }
 
-    // Router
+    // ─── Router ──────────────────────────────────────────────────────────────
     async function route() {
       ACTIVE_SEARCH_QUERY = '';
       const urlParams = new URLSearchParams(window.location.search);
+      const courseParam = urlParams.get('course');
       const semParam = urlParams.get('semester') || urlParams.get('sem');
-      if (semParam && (!location.hash || location.hash === '#')) {
-        const semMap = {
-          '1': { year: 'Year 1', sem: 'I' }, 'I': { year: 'Year 1', sem: 'I' },
-          '2': { year: 'Year 1', sem: 'II' }, 'II': { year: 'Year 1', sem: 'II' },
-          '3': { year: 'Year 2', sem: 'III' }, 'III': { year: 'Year 2', sem: 'III' },
-          '4': { year: 'Year 2', sem: 'IV' }, 'IV': { year: 'Year 2', sem: 'IV' },
-          '5': { year: 'Year 3', sem: 'V' }, 'V': { year: 'Year 3', sem: 'V' },
-          '6': { year: 'Year 3', sem: 'VI' }, 'VI': { year: 'Year 3', sem: 'VI' },
-          '7': { year: 'Year 4', sem: 'VII' }, 'VII': { year: 'Year 4', sem: 'VII' },
-          '8': { year: 'Year 4', sem: 'VIII' }, 'VIII': { year: 'Year 4', sem: 'VIII' }
-        };
-        const target = semMap[semParam.toUpperCase()] || semMap[semParam];
-        if (target) {
-          location.hash = `#${encodeURIComponent(target.year)}/${encodeURIComponent(target.sem)}`;
-          return;
+
+      if (!location.hash || location.hash === '#') {
+        if (courseParam) {
+          const data = await loadAppSyllabus();
+          const found = findCourseInAppData(data, '', '', courseParam);
+          if (found && found.course) {
+            location.hash = courseDetailHash(found.course);
+            return;
+          }
+        }
+        if (semParam) {
+          const roman = normalizeRomanSemester(semParam);
+          if (roman && ROMAN_TO_YEAR[roman]) {
+            location.hash = `#${encodeURIComponent(ROMAN_TO_YEAR[roman])}/${encodeURIComponent(roman)}`;
+            return;
+          }
         }
       }
 
       const path = currentPath();
       renderBreadcrumb(path);
+
       if (path.length === 0) {
-        loadYears();
+        await loadLanding();
       } else if (path.length === 1 && path[0] === 'Overview') {
-        loadOverview();
+        await loadOverview();
       } else if (path.length === 1) {
         if (path[0] === 'Electives') {
-          loadCourses('Electives', '');
+          await loadSubjects('Electives', '', ACTIVE_CLUSTER_FILTER !== 'ALL' ? ACTIVE_CLUSTER_FILTER : null);
         } else if (/^Year\s+\d$/i.test(path[0])) {
-          loadSemesters(path[0]);
+          await loadYearSemesters(path[0]);
         } else {
-          const semMap = { 'I': 'Year 1', 'II': 'Year 1', 'III': 'Year 2', 'IV': 'Year 2', 'V': 'Year 3', 'VI': 'Year 3', 'VII': 'Year 4', 'VIII': 'Year 4' };
-          const semYear = semMap[path[0].toUpperCase()];
-          if (semYear) {
-            loadCourses(semYear, path[0].toUpperCase());
-            return;
+          const roman = normalizeRomanSemester(path[0]);
+          if (roman && ROMAN_TO_YEAR[roman]) {
+            await loadSubjects(ROMAN_TO_YEAR[roman], roman);
+          } else {
+            await loadCourseDetail('', '', path[0]);
           }
-          const data = await loadData();
-          for (const s of (data.semesters || [])) {
-            const match = s.courses.find(c => 
-              c.title.toLowerCase() === path[0].toLowerCase() ||
-              c.code.toLowerCase() === path[0].toLowerCase() ||
-              (c.code + '-' + c.title).toLowerCase() === path[0].toLowerCase() ||
-              path[0].toLowerCase().includes(c.title.toLowerCase())
-            );
-            if (match) {
-              loadCourseDetail(s.year, s.semester, match.code + '-' + match.title);
-              return;
-            }
-          }
-          loadSemesters(path[0]);
         }
       } else if (path.length === 2) {
-        if (/^(I|II|III|IV|V|VI|VII|VIII)$/i.test(path[1])) {
-          loadCourses(path[0], path[1].toUpperCase());
+        if (path[0] === 'Electives') {
+          await loadCourseDetail('Electives', '', path[1]);
+        } else if (/^(I|II|III|IV|V|VI|VII|VIII)$/i.test(path[1])) {
+          await loadSubjects(path[0], path[1].toUpperCase());
         } else {
-          loadCourseDetail(path[0], '', path[1]);
+          await loadCourseDetail(path[0], '', path[1]);
         }
       } else {
-        loadCourseDetail(path[0], path[1], path[2]);
+        await loadCourseDetail(path[0], path[1], path[2]);
       }
+
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     window.addEventListener('hashchange', route);
     route();
   </script>
+
   <script src="/markdown.js?v=25" defer></script>
   <script src="chatbot.js?v=25" defer></script>
-  
+
   <div id="minimalAuthToast" class="minimal-auth-toast">
     <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2.5" style="opacity: 0.9;">
       <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -1139,7 +1283,6 @@
     <span>Login required to access this page. <a href="login.html">Sign In</a></span>
   </div>
   <script src="auth-modal.js?v=27" defer></script>
-  <!-- PWA Service Worker Registration -->
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
